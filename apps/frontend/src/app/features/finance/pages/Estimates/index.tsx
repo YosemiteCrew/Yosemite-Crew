@@ -14,6 +14,9 @@ import { useCompanionStore } from '@/app/stores/companionStore';
 import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/companionService';
 import { loadInvoicesForOrgPrimaryOrg } from '@/app/features/billing/services/invoiceService';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
+import { formatMoneyPrecise, sharedCurrency } from '@/app/lib/money';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { IoInformationCircleOutline } from 'react-icons/io5';
 import InvoiceStatusFilterPills from '@/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills';
 import { useEstimates } from '@/app/features/finance/hooks/useEstimates';
 import {
@@ -30,7 +33,9 @@ import {
   type Estimate,
   type EstimateStatus,
 } from '@/app/features/finance/types/estimate';
-import EstimateList from '@/app/features/finance/pages/Estimates/Sections/EstimateList';
+import EstimateList, {
+  type EstimateCompanion,
+} from '@/app/features/finance/pages/Estimates/Sections/EstimateList';
 import EstimateDetail, {
   type EstimateAction,
 } from '@/app/features/finance/pages/Estimates/Sections/EstimateDetail';
@@ -60,6 +65,26 @@ const emptyListMessage = (
   if (activeStatus !== 'all') return 'No estimate currently has this status.';
   return 'Create an estimate to quote a treatment plan before it is invoiced.';
 };
+
+/**
+ * The two figures a practice actually asks of an estimates list: what is still
+ * waiting on the client, and what they have already agreed to. DECLINED,
+ * EXPIRED and CONVERTED are excluded from both - a converted estimate's money
+ * is counted on the invoice it became, so adding it here would double it.
+ */
+const summariseEstimates = (estimates: Estimate[]) =>
+  estimates.reduce(
+    (totals, estimate) => {
+      if (estimate.status === 'DRAFT' || estimate.status === 'SENT') {
+        return { ...totals, awaiting: totals.awaiting + estimate.total };
+      }
+      if (estimate.status === 'APPROVED') {
+        return { ...totals, approved: totals.approved + estimate.total };
+      }
+      return totals;
+    },
+    { awaiting: 0, approved: 0 }
+  );
 
 const runAction = (
   action: EstimateAction,
@@ -134,6 +159,20 @@ const EstimatesContent = () => {
     [companionsById]
   );
 
+  // The row needs the photo and species too, so the avatar disc is tinted and
+  // the fallback image matches the animal rather than defaulting to 'other'.
+  const companionFor = useCallback(
+    (patientId: string): EstimateCompanion => {
+      const stored = companionsById[patientId];
+      return {
+        name: stored?.name || 'Unknown companion',
+        photoUrl: stored?.photoUrl,
+        speciesCode: stored?.speciesCode,
+      };
+    },
+    [companionsById]
+  );
+
   // The shared finance header stays visible on this route and already writes to
   // the search store, so the control looked functional while doing nothing.
   // Matching on the companion name is what a user typing there would expect.
@@ -144,6 +183,9 @@ const EstimatesContent = () => {
       companionName(estimate.patientId).toLowerCase().includes(needle)
     );
   }, [estimates, query, companionName]);
+
+  const metricsCurrency = useMemo(() => sharedCurrency(estimates, currency), [estimates, currency]);
+  const metrics = useMemo(() => summariseEstimates(estimates), [estimates]);
 
   const activeEstimate = useMemo(
     () => visibleEstimates.find((estimate) => estimate.id === activeEstimateId) ?? null,
@@ -210,10 +252,56 @@ const EstimatesContent = () => {
 
   return (
     <div className="flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
+      {/*
+        Deliberately the same header as Finance: title with a live count, an
+        info affordance, a metrics sub-line, then the status filter and the
+        page actions on the right of that same row. Estimates is reached from
+        Finance and reads as the same surface, so a second layout here made the
+        two pages look unrelated.
+      */}
       <div className="flex items-center justify-between w-full flex-wrap gap-2">
-        <h1 className="text-text-primary text-heading-2">Estimates</h1>
-        <div className="flex items-center gap-2">
-          <Secondary href="/finance" text="Back to invoices" ariaLabel="Back to invoices" />
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <h1 className="text-page-title">
+              {'Estimates'}{' '}
+              <span className="text-page-title-count">{`(${visibleEstimates.length})`}</span>
+            </h1>
+            <GlassTooltip
+              content="Quote a treatment plan before it is billed. Send an estimate for approval, then convert an approved one into an invoice."
+              side="bottom"
+            >
+              <button
+                type="button"
+                aria-label="Estimates info"
+                className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
+              >
+                <IoInformationCircleOutline size={17} />
+              </button>
+            </GlassTooltip>
+          </div>
+          <p className="text-[13.5px] text-text-secondary">
+            {`${formatMoneyPrecise(metrics.awaiting, metricsCurrency)} awaiting decision · ${formatMoneyPrecise(
+              metrics.approved,
+              metricsCurrency
+            )} approved`}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/*
+            Seven non-shrinking pills exceed a phone's width, so the group wraps
+            here rather than pushing the page into a sideways scroll.
+          */}
+          <InvoiceStatusFilterPills
+            options={EstimateStatusFilters}
+            activeStatus={activeStatus}
+            setActiveStatus={(value) => {
+              setActiveStatus(value);
+              setActiveEstimateId(null);
+            }}
+            ariaLabel="Filter estimates by status"
+            className="flex-wrap justify-end"
+          />
+          <Secondary href="/finance" text="Invoices" ariaLabel="Back to invoices" />
           <PermissionGate allOf={[PERMISSIONS.BILLING_EDIT_ANY]}>
             <Primary
               text="New estimate"
@@ -226,25 +314,6 @@ const EstimatesContent = () => {
             />
           </PermissionGate>
         </div>
-      </div>
-
-      {/*
-        Seven non-shrinking pills exceed a phone's width. PhoneInvoiceList wraps
-        its own filter row in a horizontal scroller for the same reason; without
-        one the page itself scrolls sideways and the later statuses are hard to
-        reach.
-      */}
-      <div className="overflow-x-auto scrollbar-hidden -mx-1 px-1">
-        <InvoiceStatusFilterPills
-          options={EstimateStatusFilters}
-          activeStatus={activeStatus}
-          setActiveStatus={(value) => {
-            setActiveStatus(value);
-            setActiveEstimateId(null);
-          }}
-          ariaLabel="Filter estimates by status"
-          className="w-max"
-        />
       </div>
 
       {companionsError && (
@@ -294,7 +363,7 @@ const EstimatesContent = () => {
               setActiveEstimateId(estimate.id);
               setActionError(null);
             }}
-            companionName={companionName}
+            companion={companionFor}
           />
           {activeEstimate && (
             <EstimateDetail

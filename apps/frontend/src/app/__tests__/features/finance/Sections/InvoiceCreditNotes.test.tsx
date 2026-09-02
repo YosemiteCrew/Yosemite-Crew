@@ -10,13 +10,19 @@ jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Secondary: ({ text, ariaLabel, onClick, isDisabled }: any) => (
+jest.mock('@/app/ui/primitives/Buttons', () => {
+  // Defined inside the factory: `jest.mock` is hoisted above any module-scope
+  // const, so a shared stub declared outside is still in its temporal dead zone
+  // when the factory runs.
+  const stubButton = ({ text, ariaLabel, onClick, isDisabled }: any) => (
     <button type="button" aria-label={ariaLabel} onClick={onClick} disabled={isDisabled}>
       {text}
     </button>
-  ),
-}));
+  );
+  // Issuing is the section's primary action, so it renders through Primary.
+  // A mock that stubs only Secondary makes the whole form render as undefined.
+  return { Secondary: stubButton, Primary: stubButton };
+});
 
 import InvoiceCreditNotes from '@/app/features/finance/pages/Finance/Sections/InvoiceCreditNotes';
 
@@ -102,10 +108,12 @@ describe('InvoiceCreditNotes', () => {
       ],
     });
 
-    expect(screen.getByText('CN-0002 (voided)')).toBeInTheDocument();
+    // The voided marker rides the row's title line; the reference captions it.
+    expect(screen.getByText('Credit note (voided)')).toBeInTheDocument();
+    expect(screen.getByText('CN-0002')).toBeInTheDocument();
     expect(screen.getByText('CN-0001')).toBeInTheDocument();
 
-    const voidedRow = screen.getByText('CN-0002 (voided)').closest('li') as HTMLElement;
+    const voidedRow = screen.getByText('CN-0002').closest('li') as HTMLElement;
     expect(within(voidedRow).queryByRole('button')).not.toBeInTheDocument();
 
     const issuedRow = screen.getByText('CN-0001').closest('li') as HTMLElement;
@@ -114,7 +122,7 @@ describe('InvoiceCreditNotes', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders the reason when present and nothing when absent', () => {
+  it('leads each row with the reason and always captions it with the reference', () => {
     renderSection({
       creditNotes: [
         makeNote({ id: 'cn-1', creditNoteNumber: 'CN-0001', reason: 'Duplicate charge' }),
@@ -122,13 +130,15 @@ describe('InvoiceCreditNotes', () => {
       ],
     });
 
+    // What a person reconciling reads is the reason; the CN- reference is the
+    // audit artifact and stays visible underneath it on every row.
     expect(screen.getByText('Duplicate charge')).toBeInTheDocument();
+    expect(screen.getByText('CN-0001')).toBeInTheDocument();
 
-    // The label column holds only the number span when there is no reason.
-    const withReason = screen.getByText('CN-0001').parentElement as HTMLElement;
-    expect(withReason.children).toHaveLength(2);
-    const withoutReason = screen.getByText('CN-0002').parentElement as HTMLElement;
-    expect(withoutReason.children).toHaveLength(1);
+    // A note with no reason still gets a title, so rows keep one height rather
+    // than the reference jumping up into the headline slot.
+    expect(screen.getByText('Credit note')).toBeInTheDocument();
+    expect(screen.getByText('CN-0002')).toBeInTheDocument();
   });
 
   it('sums only issued notes into the credited total', () => {
