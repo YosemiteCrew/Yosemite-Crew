@@ -18,10 +18,10 @@ import { resolveVerifiedUserId } from "src/utils/request";
 
 const caseResourceSchema = z
   .object({ resourceType: z.literal("EpisodeOfCare") })
-  .passthrough();
+  .loose();
 const encounterResourceSchema = z
   .object({ resourceType: z.literal("Encounter") })
-  .passthrough();
+  .loose();
 
 const caseListQuerySchema = z.object({
   organization: z.string().trim().optional(),
@@ -55,7 +55,7 @@ const dischargeEncounterSchema = z
       )
       .optional(),
   })
-  .passthrough();
+  .loose();
 const assignUnitSchema = z
   .object({
     resourceType: z.literal("Parameters").optional(),
@@ -69,7 +69,7 @@ const assignUnitSchema = z
       )
       .optional(),
   })
-  .passthrough();
+  .loose();
 const lifecycleOperationSchema = z
   .object({
     resourceType: z.literal("Parameters").optional(),
@@ -82,7 +82,7 @@ const lifecycleOperationSchema = z
       )
       .optional(),
   })
-  .passthrough();
+  .loose();
 
 const unitAssignmentResource = (assignment: {
   id: string;

@@ -147,7 +147,7 @@ export const CodeController = {
       if (!queryResult.success) {
         return res.status(400).json({
           message: "Invalid medication suggestion query.",
-          error: queryResult.error.flatten(),
+          error: z.flattenError(queryResult.error),
         });
       }
 
@@ -172,7 +172,7 @@ export const CodeController = {
       if (!queryResult.success) {
         return res.status(400).json({
           message: "Invalid term suggestion query.",
-          error: queryResult.error.flatten(),
+          error: z.flattenError(queryResult.error),
         });
       }
 

@@ -24,13 +24,13 @@ import { resolveVerifiedUserId } from "src/utils/request";
 
 const questionnaireResourceSchema = z
   .object({ resourceType: z.literal("Questionnaire") })
-  .passthrough();
+  .loose();
 const planDefinitionResourceSchema = z
   .object({ resourceType: z.literal("PlanDefinition") })
-  .passthrough();
+  .loose();
 const questionnaireResponseSchema = z
   .object({ resourceType: z.literal("QuestionnaireResponse") })
-  .passthrough();
+  .loose();
 
 const listQuerySchema = z.object({
   kind: z

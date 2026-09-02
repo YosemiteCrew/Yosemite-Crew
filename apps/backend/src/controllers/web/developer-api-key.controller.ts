@@ -53,7 +53,10 @@ export const DeveloperApiKeyController = {
       if (!parsed.success) {
         return res
           .status(400)
-          .json({ message: "Invalid request", errors: parsed.error.flatten() });
+          .json({
+            message: "Invalid request",
+            errors: z.flattenError(parsed.error),
+          });
       }
 
       const { name, scopes, environment, expiresAt } = parsed.data;

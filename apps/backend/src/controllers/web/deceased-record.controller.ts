@@ -53,7 +53,7 @@ export const deceasedRecordController = {
     const { organisationId } = req.params;
     const parsed = CreateDeceasedRecordSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
+      res.status(400).json({ error: z.flattenError(parsed.error) });
       return;
     }
     const { deceasedAt, ownerNotifiedAt, ...rest } = parsed.data;
@@ -118,7 +118,7 @@ export const deceasedRecordController = {
     const { organisationId, recordId } = req.params;
     const parsed = UpdateDeceasedRecordSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
+      res.status(400).json({ error: z.flattenError(parsed.error) });
       return;
     }
     const { deceasedAt, ownerNotifiedAt, ...rest } = parsed.data;

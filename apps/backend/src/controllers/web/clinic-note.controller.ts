@@ -40,7 +40,7 @@ export const ClinicNoteController = {
   create: async (req: Request, res: Response) => {
     const parsed = CreateNoteSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.flatten() });
+      return res.status(400).json({ error: z.flattenError(parsed.error) });
     }
     try {
       const note = await ClinicNoteService.create({
@@ -92,7 +92,7 @@ export const ClinicNoteController = {
   update: async (req: Request, res: Response) => {
     const parsed = UpdateNoteSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.flatten() });
+      return res.status(400).json({ error: z.flattenError(parsed.error) });
     }
     try {
       const note = await ClinicNoteService.update(

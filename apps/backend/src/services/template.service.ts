@@ -169,7 +169,7 @@ export const createTemplateSchema = z
       value.organisationId === undefined
     ) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["organisationId"],
         message: "Organisation is required for organisation templates",
       });
@@ -178,7 +178,7 @@ export const createTemplateSchema = z
     if (value.ownership === "USER_TEMPLATE") {
       if (value.organisationId === undefined) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["organisationId"],
           message: "Organisation is required for user templates",
         });
@@ -186,7 +186,7 @@ export const createTemplateSchema = z
 
       if (value.ownerUserId === undefined) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["ownerUserId"],
           message: "Owner user is required for user templates",
         });

@@ -34,13 +34,13 @@ const resolvePrescriptionActor = (req: Request): PrescriptionActor => {
 
 const compositionSchema = z
   .object({ resourceType: z.literal("Composition") })
-  .passthrough();
+  .loose();
 const medicationRequestSchema = z
   .object({ resourceType: z.literal("MedicationRequest") })
-  .passthrough();
+  .loose();
 const observationSchema = z
   .object({ resourceType: z.literal("Observation") })
-  .passthrough();
+  .loose();
 
 const handleError = createFhirErrorHandler({
   isServiceError: (error): error is ClinicalArtifactServiceError =>
