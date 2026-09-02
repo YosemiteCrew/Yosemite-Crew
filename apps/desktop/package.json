@@ -38,16 +38,16 @@
     "@playwright/test": "1.62.1",
     "@types/archiver": "^6",
     "@types/jest": "^30.0.0",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.3.0",
     "@types/sql.js": "^1.4.11",
-    "@typescript-eslint/eslint-plugin": "^8.67.0",
-    "@typescript-eslint/parser": "^8.67.0",
+    "@typescript-eslint/eslint-plugin": "^8.68.0",
+    "@typescript-eslint/parser": "^8.68.0",
     "electron": "^43.4.0",
     "electron-builder": "^26.0.12",
     "globals": "^17.10.0",
     "jest": "^30.4.2",
     "ts-jest": "^29.4.12",
-    "typescript": "^6.0.3"
+    "typescript": "^5.9.3"
   },
   "build": {
     "appId": "com.yosemitecrew.pims",
