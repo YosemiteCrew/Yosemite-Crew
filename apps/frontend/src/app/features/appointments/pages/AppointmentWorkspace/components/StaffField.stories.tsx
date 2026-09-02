@@ -348,17 +348,17 @@ export const Dark: Story = {
     await expect(shellStyle.backgroundColor).toBe(resolveToken(shell, '--field-bg'));
     await expect(shellStyle.backgroundColor).not.toBe(resolveToken(shell, '--screen'));
 
-    // The notch still paints the page colour, which is a different value in dark.
-    await expect(globalThis.getComputedStyle(labelEl).backgroundColor).toBe(
-      resolveToken(labelEl, '--screen')
-    );
+    /* Dark is where a painted notch did the most damage: `--screen` #2f271e over a
+       `--page` #201c18 ground is a visibly lighter block behind the label. The
+       legend paints nothing, so the ground shows through whatever it happens to be. */
+    await expect(globalThis.getComputedStyle(labelEl).backgroundColor).toBe('rgba(0, 0, 0, 0)');
 
     /* Three inks, three grounds, all of them theme-swapped. The 10.5px label is the
-       tightest of them and the one that goes first when `--ink-faint` moves. */
+       tightest of them and the one that goes first when `--ink-faint` moves. Its
+       ground is whatever the field sits on - `--page` in these stories - not the
+       label's own background, which is now transparent and would score infinite. */
     const labelInk = globalThis.getComputedStyle(labelEl).color;
-    await expect(
-      contrast(labelInk, globalThis.getComputedStyle(labelEl).backgroundColor)
-    ).toBeGreaterThanOrEqual(4.5);
+    await expect(contrast(labelInk, resolveToken(labelEl, '--page'))).toBeGreaterThanOrEqual(4.5);
     await expect(
       contrast(
         globalThis.getComputedStyle(canvas.getByText('Dr. Amara Weber')).color,
