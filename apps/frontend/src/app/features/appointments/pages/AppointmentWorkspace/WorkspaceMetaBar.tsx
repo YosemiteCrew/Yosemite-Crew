@@ -62,12 +62,12 @@ const EditableMetaDropdown = ({
   onSelect: (option: DropdownOption) => void;
 }) => (
   <MetaFieldShell label={label}>
-    {/* The shell already supplies the box, its padding and the 43px of content
-        height below its legend, so the trigger gives all three up: no border, no
-        fill, no left padding, and `h-full` rather than its own 44px - the
-        fieldset's content box is what is left under the legend, about 32px, and
-        a fixed height overflows it. What the trigger keeps is the right padding
-        the chevron is positioned into. */}
+    {/* The shell already supplies the box, its padding and its content height, so
+        the trigger gives all three up: no border, no fill, no left padding, and
+        `h-full` rather than its own 44px. A fieldset's content box is only what
+        is left *under* the legend - about 32px inside the 46px box - so any
+        fixed height overflows the bottom. What the trigger keeps is the right
+        padding the chevron is positioned into. */}
     <div className="h-full w-full min-w-0 [&>div]:h-full [&>div>div]:h-full [&>div>div>button]:h-full [&>div>div>button]:w-full [&>div>div>button]:rounded-[14px]! [&>div>div>button]:border-0! [&>div>div>button]:bg-transparent! [&>div>div>button]:pl-0! [&>div>div>button]:text-[13.5px]! [&>div>div>button]:font-semibold!">
       <LabelDropdown
         placeholder={label}
