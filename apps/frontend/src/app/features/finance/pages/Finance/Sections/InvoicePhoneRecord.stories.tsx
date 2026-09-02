@@ -132,7 +132,6 @@ const meta = {
     statusLabel: 'Paid',
     statusTone: 'success',
     payerName: 'Sky Doe',
-    payerEmail: 'sky.doe@example.com',
     onClose: fn(),
     onOpenAppointment: fn(),
   },
@@ -278,7 +277,7 @@ export const Unsettled: Story = {
 
 export const SettledWithoutEmail: Story = {
   name: 'Settled, but no email on file',
-  args: { payerEmail: '   ' },
+  args: {},
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 

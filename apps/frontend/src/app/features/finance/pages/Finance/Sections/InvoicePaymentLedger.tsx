@@ -1,6 +1,5 @@
 import React from 'react';
 import { Invoice } from '@yosemite-crew/types';
-import { IoCheckmarkCircle } from 'react-icons/io5';
 import { formatMoney } from '@/app/lib/money';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
@@ -11,7 +10,6 @@ type InvoicePaymentLedgerProps = {
   invoice: Invoice;
   currency: string;
   payerName?: string;
-  payerEmail?: string;
 };
 
 const SETTLED_STATUSES = new Set(['PAID', 'REFUNDED']);
@@ -30,12 +28,7 @@ const buildLedgerCaption = (invoice: Invoice, payerName?: string): string => {
   return parts.filter(Boolean).join(' · ');
 };
 
-const InvoicePaymentLedger = ({
-  invoice,
-  currency,
-  payerName,
-  payerEmail,
-}: InvoicePaymentLedgerProps) => {
+const InvoicePaymentLedger = ({ invoice, currency, payerName }: InvoicePaymentLedgerProps) => {
   if (!isSettledInvoice(invoice)) return null;
 
   const caption = buildLedgerCaption(invoice, payerName);
@@ -44,7 +37,6 @@ const InvoicePaymentLedger = ({
   // sanitize link protocols, and a receipt URL is invoice data. The helper keeps
   // this to real Stripe receipt hosts over https.
   const receiptUrl = getSafeStripeRedirectUrl(invoice.stripeReceiptUrl);
-  const email = payerEmail?.trim();
 
   return (
     <section className="flex flex-col gap-3" aria-label="Payments">
@@ -75,14 +67,15 @@ const InvoicePaymentLedger = ({
           )}
         </div>
       </div>
-      {email && (
-        <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[var(--inset)] text-[12px] text-text-secondary">
-          <IoCheckmarkCircle size={14} aria-hidden="true" style={{ color: 'var(--success)' }} />
-          <span className="truncate" title={`Receipt sent to ${email}`}>
-            Receipt sent to {email}
-          </span>
-        </div>
-      )}
+      {/*
+        No "Receipt sent to ..." line. It used to render whenever a payer email
+        was on file, which is not evidence that anything was sent: nothing in the
+        product emails an invoice receipt, `receipt_email` is never set on the
+        PaymentIntent, and the invoice carries no delivery state. It also showed
+        for cash and pay-at-clinic settlements, where no receipt exists at all -
+        so staff could stop chasing a receipt a client never got. The Stripe
+        receipt link above is the real signal, and it is already rendered.
+      */}
     </section>
   );
 };
