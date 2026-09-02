@@ -92,7 +92,12 @@ const MultiSelectPanel = ({
 
 const getTriggerClassName = (open: boolean, hasSelection: boolean, error?: string): string => {
   const base =
-    'relative w-full flex h-[44px] items-center px-[14px] pr-11 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[14px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
+    // Metrics match LabelDropdown exactly. The two sit next to each other in the
+    // New appointment modal as "Lead" and "Support", and were 13px/px-[13px]/pr-9
+    // against 14px/px-[14px]/pr-11 - close enough to look like the same control,
+    // far enough that the label baselines and chevrons did not line up.
+    // LabelDropdown is the standard here: 43 usages against this one's 13.
+    'relative w-full flex h-[44px] items-center px-[13px] pr-9 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[13px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
   let borderState: string;
   if (open) {
     borderState = 'border-[var(--blue)]! border-b-0! rounded-t-[12px]! z-20';
@@ -150,13 +155,13 @@ const MultiSelectTriggerContent = ({
           onKeyDown(event);
         }}
         placeholder={hasSelection ? selectedLabel : ''}
-        className="w-full bg-transparent text-left text-[14px] text-[var(--ink-body)] outline-none placeholder:text-[var(--ink-faint)]"
+        className="w-full bg-transparent text-left text-[13px] text-[var(--ink-body)] outline-none placeholder:text-[var(--ink-faint)]"
       />
     );
   }
   return (
     <span
-      className="min-w-0 flex-1 truncate text-left text-[14px] text-[var(--ink-body)]"
+      className="min-w-0 flex-1 truncate text-left text-[13px] text-[var(--ink-body)]"
       title={hasSelection ? selectedLabel : placeholder}
     >
       {hasSelection ? selectedLabel : ''}
