@@ -1,29 +1,8 @@
 import React from 'react';
+import type { ToastContentProps } from 'react-toastify';
+import NotifyToast, { type NotifyToastData } from '@/app/ui/widgets/Toast/NotifyToast';
 
-import { ToastContentProps } from 'react-toastify';
-import { IoIosInformationCircle } from 'react-icons/io';
-import Close from '../../primitives/Icons/Close';
-
-type MsgData = {
-  title: string;
-  text: string;
-};
-
-const Info = ({ data, closeToast }: ToastContentProps<MsgData>) => {
-  return (
-    <div className="flex gap-0 justify-between w-full">
-      <div className="flex gap-3 items-center">
-        <IoIosInformationCircle size={34} color="#247aed" />
-        <div className="flex flex-col gap-0">
-          <div className="text-body-3 text-text-primary">{data.title}</div>
-          <div className="text-body-4 text-text-tertiary">{data.text}</div>
-        </div>
-      </div>
-      <div className="">
-        <Close onClick={closeToast} />
-      </div>
-    </div>
-  );
-};
+/** The `info` tone of the shared runtime toast; kept as its own module so `toast.info(...)` call sites and their tests keep importing it by name. */
+const Info = (props: ToastContentProps<NotifyToastData>) => <NotifyToast tone="info" {...props} />;
 
 export default Info;

@@ -1944,26 +1944,66 @@ html[data-theme='dark'] [data-yc-app] ::selection {
     0 10px 30px var(--sh08);
 }
 
-/* App runtime toasts (react-toastify) — warm liquid-glass surface. The compound
-   selector beats the library's single-class defaults regardless of import order;
-   react-toastify keeps its own layout, positioning, and progress bar. */
-.Toastify .Toastify__toast {
+/* App runtime toasts (react-toastify).
+   One recipe for every toast `useNotify` raises: a 360px warm --screen card
+   with a hairline and a level-3 float, 16px popover radius, Satoshi, and no
+   library chrome (the body in ui/widgets/Toast/NotifyToast draws the tone disc
+   and the shared Close control; ToastProvider switches the library's own icon,
+   close button and progress bar off).
+
+   Geometry is set as real properties on the COMPOUND selectors below, not as
+   --toastify-* variables: the library declares those on its own `:root` in a
+   stylesheet that loads after this one, so a same-specificity override here
+   silently lost and the toast kept the library's 320px width and 16px offset.
+   Tokens flip with html[data-theme]. */
+.Toastify .Toastify__toast-container {
+  width: 360px;
+  padding: 0;
+}
+
+/* Sits below the 66px app header, on the page's own right gutter. */
+.Toastify .Toastify__toast-container--top-right,
+.Toastify .Toastify__toast-container--top-center,
+.Toastify .Toastify__toast-container--top-left {
+  top: 78px;
+  right: 14px;
+}
+
+.Toastify .Toastify__toast,
+.Toastify .yc-toast {
+  padding: 12px 12px 12px 14px;
+  min-height: 0;
+  margin-bottom: 10px;
   background: var(--screen);
   border: 1px solid var(--hairline);
-  border-radius: 14px;
+  border-radius: 16px;
   box-shadow:
-    0 12px 34px var(--sh12),
-    inset 0 1px 0 var(--glass-inset-hi);
+    0 2px 4px var(--sh05),
+    0 12px 28px var(--sh12);
   color: var(--ink);
+  font-family: var(--font-satoshi), 'Satoshi', system-ui, sans-serif;
+}
+
+.Toastify .Toastify__toast-body {
+  margin: 0;
+  padding: 0;
+  align-items: flex-start;
 }
 
 .Toastify .Toastify__close-button {
   color: var(--ink);
 }
 
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .Toastify .Toastify__toast {
-    background: var(--screen);
+@media (max-width: 480px) {
+  /* Phones get the design's full-width top sheet, inset by the page gutter. */
+  .Toastify .Toastify__toast-container,
+  .Toastify .Toastify__toast-container--top-right,
+  .Toastify .Toastify__toast-container--top-center,
+  .Toastify .Toastify__toast-container--top-left {
+    width: calc(100% - 24px);
+    left: 12px;
+    right: 12px;
+    top: 12px;
   }
 }
 
