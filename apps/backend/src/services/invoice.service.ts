@@ -431,32 +431,25 @@ const mergeInvoiceLineItems = (
   return merged;
 };
 
-const loadInvoiceFinancialDetails = async (
-  invoice: Pick<
-    PrismaInvoice,
-    "id" | "items" | "totalAmount" | "depositCollectedAmount"
-  >,
+type SettlementInvoice = Pick<
+  PrismaInvoice,
+  "id" | "items" | "totalAmount" | "depositCollectedAmount"
+>;
+
+type SettlementCreditNote = { id: string; amount: number };
+
+/**
+ * The settlement arithmetic, with its inputs already fetched.
+ *
+ * Split out from the loader so a list can fetch payments and credit notes once
+ * for every invoice it is returning instead of twice per invoice. The
+ * computation itself is unchanged.
+ */
+const computeInvoiceFinancialDetails = (
+  invoice: SettlementInvoice,
+  payments: PrismaPaymentWithRefunds[],
+  creditNotes: SettlementCreditNote[],
 ) => {
-  const invoiceId = invoice.id;
-  const payments = (await prisma.payment.findMany({
-    where: { invoiceId },
-    orderBy: [{ createdAt: "desc" }, { updatedAt: "desc" }],
-    include: {
-      refunds: {
-        orderBy: { createdAt: "desc" },
-      },
-    },
-  })) as PrismaPaymentWithRefunds[];
-
-  const creditNotes = (await prisma.creditNote.findMany({
-    where: { invoiceId, status: "ISSUED" },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      amount: true,
-    },
-  })) as Array<{ id: string; amount: number }>;
-
   const buildLineAllocations = (
     amount: number,
     lines: InvoiceSettlementLineAllocation[],
@@ -546,6 +539,89 @@ const loadInvoiceFinancialDetails = async (
       lineAllocations: itemAllocations,
     } satisfies InvoiceSettlementSummary,
   };
+};
+
+/** Payments and credit notes for one invoice, then the settlement arithmetic. */
+const loadInvoiceFinancialDetails = async (invoice: SettlementInvoice) => {
+  const invoiceId = invoice.id;
+  const [payments, creditNotes] = await Promise.all([
+    prisma.payment.findMany({
+      where: { invoiceId },
+      orderBy: [{ createdAt: "desc" }, { updatedAt: "desc" }],
+      include: { refunds: { orderBy: { createdAt: "desc" } } },
+    }) as Promise<PrismaPaymentWithRefunds[]>,
+    prisma.creditNote.findMany({
+      where: { invoiceId, status: "ISSUED" },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, amount: true },
+    }) as Promise<SettlementCreditNote[]>,
+  ]);
+
+  return computeInvoiceFinancialDetails(invoice, payments, creditNotes);
+};
+
+/**
+ * The same settlement details for a whole page of invoices, in two queries
+ * rather than two per invoice.
+ *
+ * The finance list returns every invoice for an organisation - already 400 on
+ * dev - so calling the single-invoice loader in a map would issue 800 queries
+ * to render one screen. That cost is why the list returned no settlement data
+ * at all, which left `getInvoiceOutstanding` unable to take its preferred
+ * branch and every part-paid or credited invoice overstated (#2595).
+ */
+const loadInvoiceFinancialDetailsMany = async (
+  invoices: SettlementInvoice[],
+): Promise<Map<string, ReturnType<typeof computeInvoiceFinancialDetails>>> => {
+  const details = new Map<
+    string,
+    ReturnType<typeof computeInvoiceFinancialDetails>
+  >();
+  if (invoices.length === 0) {
+    return details;
+  }
+
+  const invoiceIds = invoices.map((invoice) => invoice.id);
+  const [payments, creditNotes] = await Promise.all([
+    prisma.payment.findMany({
+      where: { invoiceId: { in: invoiceIds } },
+      orderBy: [{ createdAt: "desc" }, { updatedAt: "desc" }],
+      include: { refunds: { orderBy: { createdAt: "desc" } } },
+    }) as Promise<PrismaPaymentWithRefunds[]>,
+    prisma.creditNote.findMany({
+      where: { invoiceId: { in: invoiceIds }, status: "ISSUED" },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, amount: true, invoiceId: true },
+    }) as Promise<Array<SettlementCreditNote & { invoiceId: string }>>,
+  ]);
+
+  const paymentsByInvoice = new Map<string, PrismaPaymentWithRefunds[]>();
+  for (const payment of payments) {
+    const bucket = paymentsByInvoice.get(payment.invoiceId);
+    if (bucket) bucket.push(payment);
+    else paymentsByInvoice.set(payment.invoiceId, [payment]);
+  }
+
+  const creditNotesByInvoice = new Map<string, SettlementCreditNote[]>();
+  for (const creditNote of creditNotes) {
+    const entry = { id: creditNote.id, amount: creditNote.amount };
+    const bucket = creditNotesByInvoice.get(creditNote.invoiceId);
+    if (bucket) bucket.push(entry);
+    else creditNotesByInvoice.set(creditNote.invoiceId, [entry]);
+  }
+
+  for (const invoice of invoices) {
+    details.set(
+      invoice.id,
+      computeInvoiceFinancialDetails(
+        invoice,
+        paymentsByInvoice.get(invoice.id) ?? [],
+        creditNotesByInvoice.get(invoice.id) ?? [],
+      ),
+    );
+  }
+
+  return details;
 };
 
 const toTaxLineItems = (items: DraftInvoiceItemInput[]) =>
@@ -2009,7 +2085,16 @@ export const InvoiceService = {
       include: invoiceCreditNotesInclude,
       orderBy: { createdAt: "desc" },
     });
-    return docs.map((d) => toInvoiceRecord(d));
+    // Settlement for the whole page in two queries. Without it the list
+    // carries no `settlementSummary`, so `getInvoiceOutstanding` on the client
+    // cannot take its preferred branch and falls back to total minus deposit -
+    // which ignores every recorded payment and every credit note, and
+    // overstates what each part-paid invoice still owes (#2595).
+    const details = await loadInvoiceFinancialDetailsMany(docs);
+    return docs.map((d) => ({
+      ...toInvoiceRecord(d),
+      ...(details.get(d.id) ?? {}),
+    }));
   },
 
   async listForParent(parentId: string, organisationId: string | null) {
