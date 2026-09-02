@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import type { CreditNote } from '@yosemite-crew/types';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoneyPrecise } from '@/app/lib/money';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { Secondary } from '@/app/ui/primitives/Buttons';
@@ -54,7 +54,7 @@ const CreditNoteLedger = ({ notes, currency, busy, onVoid }: CreditNoteLedgerPro
               className="tabular-nums text-[13px] font-semibold text-[var(--ink-body)]"
               style={note.status === 'VOIDED' ? { textDecoration: 'line-through' } : undefined}
             >
-              {formatMoney(note.amount, currency)}
+              {formatMoneyPrecise(note.amount, currency)}
             </span>
             {isIssued(note) && (
               <PermissionGate allOf={[PERMISSIONS.BILLING_EDIT_ANY]}>

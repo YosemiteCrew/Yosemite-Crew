@@ -15,6 +15,20 @@ jest.mock('@/app/hooks/useAppointments', () => ({
 
 jest.mock('@/app/lib/money', () => ({
   formatMoney: (amount: number) => `€${amount}`,
+  recordCurrency: (record: { currency?: string | null } | null | undefined, fallback: string) =>
+    record?.currency ?? fallback,
+  formatMoneyPrecise: (amount: number, currency: string) =>
+    `${currency} ${Number(amount).toFixed(2)}`,
+  sharedCurrency: (records: ReadonlyArray<{ currency?: string | null }>, fallback: string) => {
+    let shared: string | null = null;
+    for (const record of records) {
+      const own = record.currency;
+      if (typeof own !== 'string' || !own.trim()) continue;
+      if (shared === null) shared = own.trim();
+      else if (shared !== own.trim()) return fallback;
+    }
+    return shared ?? fallback;
+  },
 }));
 
 jest.mock('@/app/lib/forms', () => ({
@@ -99,6 +113,7 @@ const baseProps = {
   setActiveStatus: jest.fn(),
   metrics: { collectedThisWeek: 4820, outstanding: 214 },
   currency: 'EUR',
+  metricsCurrency: 'EUR',
   onViewInvoice: jest.fn(),
 };
 
@@ -115,9 +130,12 @@ describe('PhoneInvoiceList', () => {
     render(<PhoneInvoiceList {...baseProps} filteredList={[paid]} />);
 
     expect(screen.getByText('Collected · wk')).toBeInTheDocument();
-    expect(screen.getByText('€4820')).toBeInTheDocument();
+    // The KPI tiles sum across the list, so they take the currency the list
+    // agrees on. This fixture carries none, so the helper falls back to the
+    // ambient value rather than inventing one.
+    expect(screen.getByText('EUR 4820.00')).toBeInTheDocument();
     expect(screen.getByText('Outstanding')).toBeInTheDocument();
-    expect(screen.getByText('€214')).toBeInTheDocument();
+    expect(screen.getByText('EUR 214.00')).toBeInTheDocument();
   });
 
   it('renders the status filter pills', () => {
@@ -154,7 +172,10 @@ describe('PhoneInvoiceList', () => {
     render(<PhoneInvoiceList {...baseProps} filteredList={[partial]} />);
     const card = screen.getByRole('button', { name: 'View invoice #3' });
     expect(card.className).not.toContain('border-l-[var(--warn)]');
-    expect(screen.getByText('Deposit €20 applied')).toBeInTheDocument();
+    // The fixture invoice carries currency: 'EUR'. Before this change the
+    // footnote used the ambient organisation currency and would have said USD
+    // for a euro invoice - that is the bug, visible here.
+    expect(screen.getByText('Deposit EUR 20.00 applied')).toBeInTheDocument();
   });
 
   it('renders the empty state when there are no invoices', () => {

@@ -7,7 +7,7 @@ import { Secondary } from '@/app/ui/primitives/Buttons';
 import { toTitle } from '@/app/lib/validators';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoneyPrecise, recordCurrency } from '@/app/lib/money';
 import { getCompanionNameFromAppointments, getParentNameFromAppointments } from '@/app/lib/invoice';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 
@@ -18,7 +18,9 @@ type InvoiceCardProps = {
 
 const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
-  const currency = useCurrencyForPrimaryOrg();
+  const orgCurrency = useCurrencyForPrimaryOrg();
+  // Resolved once: every figure on this card belongs to the same invoice.
+  const money = recordCurrency(invoice, orgCurrency);
 
   const companionName = useMemo(
     () => getCompanionNameFromAppointments(appointments, invoice.appointmentId),
@@ -50,25 +52,25 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Sub-total:</div>
         <div className="text-caption-1 text-text-primary">
-          {formatMoney(invoice.subtotal, currency)}
+          {formatMoneyPrecise(invoice.subtotal, money)}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Discount:</div>
         <div className="text-caption-1 text-text-primary">
-          {formatMoney(invoice.discountTotal ?? 0, currency)}
+          {formatMoneyPrecise(invoice.discountTotal ?? 0, money)}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Tax:</div>
         <div className="text-caption-1 text-text-primary">
-          {formatMoney(invoice.taxTotal ?? 0, currency)}
+          {formatMoneyPrecise(invoice.taxTotal ?? 0, money)}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Total:</div>
         <div className="text-caption-1 text-text-primary">
-          {formatMoney(invoice.totalAmount, currency)}
+          {formatMoneyPrecise(invoice.totalAmount, money)}
         </div>
       </div>
       <StatusPill tone={getInvoiceStatusTone(invoice.status)} label={toTitle(invoice?.status)} />

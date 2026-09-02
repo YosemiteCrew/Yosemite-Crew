@@ -334,7 +334,7 @@ describe('Finance page', () => {
     render(<ProtectedFinance />);
 
     expect(screen.getByText(/collected this week/)).toHaveTextContent(
-      '$4,820 collected this week · $214 outstanding'
+      '$4,820.00 collected this week · $214.00 outstanding'
     );
   });
   it('links to the Discounts page from the finance header controls', () => {
