@@ -11,6 +11,7 @@ import '@/app/features/marketing/site/marketing.css';
 import { GITHUB_API_REPO, GITHUB_REPO_URL } from '@/app/features/marketing/site';
 
 import { Insights } from './Insights';
+import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/useGithubStats';
 
 /* ------------------------------------------------------------------ endpoints */
 
@@ -296,8 +297,6 @@ const bodyFor = (endpoint: Endpoint): unknown => {
 /* ------------------------------------------------------- session cache (stale) */
 
 /** Keys owned by `useGithubStats` / `useLatestRelease`, module-private there. */
-const STATS_CACHE_KEY = 'yc_marketing_stats_v2';
-const STATS_TS_KEY = 'yc_marketing_stats_ts_v2';
 const RELEASE_CACHE_KEY = 'yc_rel_platform_v1';
 const SESSION_KEYS = [STATS_CACHE_KEY, STATS_TS_KEY, RELEASE_CACHE_KEY];
 

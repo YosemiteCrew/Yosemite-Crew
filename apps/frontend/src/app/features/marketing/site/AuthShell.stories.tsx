@@ -25,6 +25,7 @@ import {
   AuthSubtitle,
   AuthTextField,
 } from '@/app/features/auth/pages/authForm';
+import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/useGithubStats';
 
 /**
  * Session-cache keys owned by `useGithubStats` (module-private there). The star pill
@@ -33,8 +34,6 @@ import {
  * missing discord value forces a refresh on its own. Seeding both keeps the two
  * `/api/community/*` requests off the Storybook dev server and makes the count stable.
  */
-const STATS_CACHE_KEY = 'yc_marketing_stats_v2';
-const STATS_TS_KEY = 'yc_marketing_stats_ts_v2';
 
 const CACHED_STATS = {
   stars: '2.4k',

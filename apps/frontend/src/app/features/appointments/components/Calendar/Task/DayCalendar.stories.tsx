@@ -144,8 +144,16 @@ const openTaskPopover = async (chip: HTMLElement): Promise<HTMLElement> => {
   const box = chip.getBoundingClientRect();
   /* `fireEvent` rather than `userEvent.hover`: the popover is positioned from the
      pointer coordinates carried on the event, and this way they are stated rather
-     than inferred from where a synthetic pointer happened to land. */
-  fireEvent.mouseEnter(chip, {
+     than inferred from where a synthetic pointer happened to land.
+
+     It must be `mouseOver`, not `mouseEnter`. TaskMarker uses React's
+     `onMouseEnter`, which React synthesizes from the native `mouseout`/`mouseover`
+     pair it delegates at the root - native `mouseenter` is not one of its
+     dependencies and does not bubble. In jsdom the equivalent Jest test passes, so
+     this only ever failed in a real browser, which is where stories run. The
+     coordinates carry through unchanged: React builds the synthetic enter event
+     from this `mouseover`. */
+  fireEvent.mouseOver(chip, {
     clientX: box.left + box.width / 2,
     clientY: box.top + box.height / 2,
   });

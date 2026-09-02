@@ -9,6 +9,7 @@ import ForgotPassword from './ForgotPassword';
    component, and Storybook never renders that layout. Without this line the page
    draws a user-agent text input and an unstyled submit. */
 import '../../../marketing/site/marketing.css';
+import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/useGithubStats';
 
 /**
  * Typed with a trailing space on purpose, but NOT for the reason it looks like.
@@ -41,14 +42,14 @@ const SENT_COPY =
  * to a fixed number instead of one that differs between two Chromatic runs.
  */
 const seedGithubStats = () => {
-  setJsonStorageItem('session', 'yc_marketing_stats_v2', {
+  setJsonStorageItem('session', STATS_CACHE_KEY, {
     stars: '2.4k',
     starsFull: '2,431',
     repositoryClones: '67,134',
     contributors: '38',
     discord: '1,204',
   });
-  setStorageItem('session', 'yc_marketing_stats_ts_v2', String(Date.now()));
+  setStorageItem('session', STATS_TS_KEY, String(Date.now()));
 };
 
 /**

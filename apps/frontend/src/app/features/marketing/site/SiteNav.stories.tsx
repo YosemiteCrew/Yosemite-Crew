@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { SiteNav } from './SiteNav';
+import { STATS_CACHE_KEY, STATS_TS_KEY } from './useGithubStats';
 // The collapse is pure CSS and it lives in this sheet, not in the component:
 // `.yc-nav-burger` carries `display: none` as an INLINE style, and only the
 // `max-width: 960px` rule here (with `!important`, which is what lets it beat the
@@ -14,14 +15,16 @@ import './marketing.css';
 import { useAuthStore, type AuthStore, type AuthUser } from '@/app/stores/authStore';
 
 /**
- * Session-cache keys owned by `useGithubStats` (module-private there). Seeding both
- * makes `isStatsCacheFresh()` true AND gives `discord` a string, which are the two
- * conditions that keep the hook's effect from firing its `/api/community/*` fetches.
- * Without this the nav renders a bare star with no count and fires two requests at
- * the Storybook dev server on every mount.
+ * Seeding the session cache makes `isStatsCacheFresh()` true AND gives `discord` a
+ * string, which are the two conditions that keep the hook's effect from firing its
+ * `/api/community/*` fetches. Without it the nav renders a bare star with no count
+ * and fires two requests at the Storybook dev server on every mount.
+ *
+ * The keys are imported from the hook rather than restated. They were copied here
+ * as literals, and when the hook bumped them v1 -> v2 this file kept seeding v1:
+ * the hook then read an empty cache and the star lost its count, which presented
+ * as "the live star count drifted past the assertion" rather than as a broken seed.
  */
-const STATS_CACHE_KEY = 'yc_marketing_stats_v1';
-const STATS_TS_KEY = 'yc_marketing_stats_ts_v1';
 
 const CACHED_STATS = {
   stars: '2.4k',

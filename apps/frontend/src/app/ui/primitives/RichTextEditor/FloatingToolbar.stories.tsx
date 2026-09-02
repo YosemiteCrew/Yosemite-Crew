@@ -74,6 +74,18 @@ type HarnessProps = {
  * exact field `RichTextEditor` puts it in - same extensions, same wrapper
  * classes - and seeds the selection, which is the only input the bar has.
  */
+/**
+ * The editor the harness last mounted, so a play function can assert the
+ * selection tiptap actually holds.
+ *
+ * `getSelection()` reads the *browser's* selection, which tiptap only mirrors
+ * into the DOM while the editor view has focus - and clicking a toolbar button
+ * moves focus off it. That made the selection assertions depend on whether the
+ * story's iframe happened to be focused, which is why they failed under
+ * concurrent load and passed when run alone.
+ */
+let liveEditor: Editor | null = null;
+
 const ToolbarHarness = ({ html, seed }: HarnessProps) => {
   /* The SOAP page holds the note's HTML in state and feeds it back as `value`,
      so a document change re-renders the field - and that re-render is the only
@@ -113,6 +125,7 @@ const ToolbarHarness = ({ html, seed }: HarnessProps) => {
        mount and provides the one re-render the bar needs. */
     onCreate: ({ editor: instance }) => {
       seed(instance);
+      liveEditor = instance;
       setSeeded(true);
     },
   });
@@ -305,7 +318,11 @@ export const IndentPushesAParagraph: Story = {
     await expect(canvasElement.querySelector('.yc-rte-content')?.textContent).toContain(
       'Eating and drinking normally.'
     );
-    await expect(globalThis.getSelection()?.toString()).toBe('drinking');
+    /* Asserted from the editor rather than from `getSelection()`: the selected
+       range is what `insertContent` would have destroyed, and tiptap holds it
+       whether or not the view still has DOM focus. */
+    const { from, to } = liveEditor!.state.selection;
+    await expect(liveEditor!.state.doc.textBetween(from, to)).toBe('drinking');
   },
 };
 

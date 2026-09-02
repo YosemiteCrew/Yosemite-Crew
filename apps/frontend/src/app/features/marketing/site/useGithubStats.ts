@@ -19,8 +19,17 @@ export interface GithubStats {
   discord: string | null;
 }
 
-const STATS_CACHE_KEY = 'yc_marketing_stats_v2';
-const STATS_TS_KEY = 'yc_marketing_stats_ts_v2';
+/**
+ * Exported so stories seed the key this hook actually reads.
+ *
+ * These were private and every story hardcoded its own copy. When the key was
+ * bumped v1 -> v2 the SiteNav stories were not updated, so they seeded a key
+ * nothing read, the hook found an empty cache, and the nav rendered a bare star
+ * with no count - which read as "the star count changed" rather than "the seed
+ * stopped working". Importing the constant makes that drift impossible.
+ */
+export const STATS_CACHE_KEY = 'yc_marketing_stats_v2';
+export const STATS_TS_KEY = 'yc_marketing_stats_ts_v2';
 const STATS_TTL_MS = 5 * 60 * 1000;
 
 const EMPTY_STATS: GithubStats = {

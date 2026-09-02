@@ -10,6 +10,7 @@ import SignUp from './SignUp';
    story draws user-agent inputs and unstyled buttons, and the 940px rule that drops
    the brand panel never applies. Relative, matching the other marketing stories. */
 import '../../../marketing/site/marketing.css';
+import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/useGithubStats';
 
 const CLINIC_ROLE = 'A veterinary clinic, practice, or hospital';
 const DEVELOPER_ROLE = 'A developer';
@@ -22,14 +23,14 @@ const DEVELOPER_ROLE = 'A developer';
  * to a fixed number instead of one that differs between two Chromatic runs.
  */
 const seedGithubStats = () => {
-  setJsonStorageItem('session', 'yc_marketing_stats_v2', {
+  setJsonStorageItem('session', STATS_CACHE_KEY, {
     stars: '2.4k',
     starsFull: '2,431',
     repositoryClones: '67,134',
     contributors: '38',
     discord: '1,204',
   });
-  setStorageItem('session', 'yc_marketing_stats_ts_v2', String(Date.now()));
+  setStorageItem('session', STATS_TS_KEY, String(Date.now()));
 };
 
 /**
