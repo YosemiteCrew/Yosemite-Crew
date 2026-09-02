@@ -83,11 +83,15 @@
 
 /* A neutral badge: these cards illustrate what a plugin could be, so they must
    not borrow the green "completed" or amber "in progress" treatment the rest of
-   the product uses for real state. */
+   the product uses for real state.
+   Tokens, not literals: --surface-muted / --text-tertiary / --border-subtle do
+   not exist in this design system, so the first version fell through to its
+   light-mode fallbacks and measured 3.94:1 on the dark card, under AA. These
+   three are defined in both themes and measure 5.41 light / 5.49 dark. */
 .dev-plugin-badge.sample {
-  background: var(--surface-muted, rgb(0 0 0 / 4%));
-  color: var(--text-tertiary, #6b6b6b);
-  border-color: var(--border-subtle, rgb(0 0 0 / 8%));
+  background: var(--inset);
+  color: var(--ink-muted);
+  border-color: var(--divider);
 }
 
 .dev-plugin-card-title {
