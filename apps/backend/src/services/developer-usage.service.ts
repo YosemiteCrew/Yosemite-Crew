@@ -1,3 +1,4 @@
+import type { DeveloperApiKeyEnvironment } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { DeveloperBillingService } from "./developer-billing.service";
 import logger from "../utils/logger";
@@ -15,11 +16,31 @@ const currentBillingPeriod = (): string => {
 };
 
 export const DeveloperUsageService = {
-  // Increments call count atomically and checks quota.
-  // Returns { allowed: boolean, callCount: number } — caller should 429 when !allowed.
+  /*
+   * Increments call count atomically and checks quota.
+   * Returns { allowed: boolean, callCount: number } - caller should 429 when !allowed.
+   *
+   * `environment` is required rather than optional so a caller cannot meter a
+   * key by forgetting to pass it. A `test` key never consumes quota, never
+   * triggers a 429 and never produces a Stripe meter event - which is what the
+   * billing UI already promises in two places ("Test-environment calls are
+   * always free", DeveloperBilling.tsx; "Test-environment calls are not
+   * counted", UsageMeter.tsx). The code was silent on test keys rather than
+   * deliberate about them: `verified.environment` existed and was attached to
+   * the request, but nothing consulted it, and this service could not have
+   * discriminated even if a caller wanted it to (#2549).
+   */
   async incrementAndCheck(
     ownerUserId: string,
+    environment: DeveloperApiKeyEnvironment,
   ): Promise<{ allowed: boolean; callCount: number }> {
+    /* Returns the count it did not record. A test key is unmetered, so there is
+       no meaningful running total to report, and 0 keeps callers that log or
+       surface this from implying a quota was consumed. */
+    if (environment === "test") {
+      return { allowed: true, callCount: 0 };
+    }
+
     const period = currentBillingPeriod();
 
     const record = await prisma.developerApiUsage.upsert({

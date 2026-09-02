@@ -122,7 +122,7 @@ describe("authorizeApiKey", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("calls incrementAndCheck with the ownerUserId", async () => {
+  it("calls incrementAndCheck with the ownerUserId and the key's environment", async () => {
     verifyMock.mockResolvedValue(verifiedKey);
     const res = buildRes();
     await authorizeApiKey(
@@ -130,7 +130,23 @@ describe("authorizeApiKey", () => {
       res,
       next,
     );
-    expect(incrementMock).toHaveBeenCalledWith("org-9");
+    expect(incrementMock).toHaveBeenCalledWith("org-9", "live");
+  });
+
+  it("forwards a test key's environment so it is not metered", async () => {
+    /* `verified.environment` was populated and attached to the request but never
+       consulted, so a yc_test_... key consumed quota and could produce a Stripe
+       meter event (#2549). The middleware is the only thing that knows which
+       environment authenticated; the service cannot discriminate unless this
+       passes it on. */
+    verifyMock.mockResolvedValue({ ...verifiedKey, environment: "test" });
+    const res = buildRes();
+    await authorizeApiKey(
+      buildReq({ authorization: "Bearer yc_test_good" }),
+      res,
+      next,
+    );
+    expect(incrementMock).toHaveBeenCalledWith("org-9", "test");
   });
 });
 
