@@ -125,6 +125,16 @@ export const LabOrderController = {
       if (!base) return;
       const { provider } = base;
 
+      /*
+        This handler is registered for GET and POST on the same path. It read
+        only `req.body`, so every GET - which is what the picker sends - arrived
+        with query, limit and page undefined and fell through to an unfiltered
+        alphabetical first page of 50. Typing "SDMA" returned nothing, because
+        the client then filtered client-side over rows that never contained it.
+
+        Query-string values are always strings, so a `typeof === "number"` test
+        can never pass for a GET; the numbers are coerced rather than type-tested.
+      */
       const body = req.body as
         | {
             query?: string;
@@ -133,12 +143,45 @@ export const LabOrderController = {
             codes?: string[];
           }
         | undefined;
-      const query = typeof body?.query === "string" ? body.query : undefined;
-      const limit = typeof body?.limit === "number" ? body.limit : undefined;
-      const page = typeof body?.page === "number" ? body.page : undefined;
-      const codesParam = Array.isArray(body?.codes)
-        ? body?.codes.join(",")
-        : undefined;
+      const search = req.query as {
+        query?: unknown;
+        limit?: unknown;
+        page?: unknown;
+        codes?: unknown;
+      };
+
+      /* The body keeps its strict typing - a POST sending `limit: "10"` is a
+         malformed request and is dropped, which an existing test pins. Only the
+         query string is coerced, because there every value is a string by
+         definition. */
+      const queryString = (value: unknown): string | undefined =>
+        typeof value === "string" && value.trim() ? value : undefined;
+
+      /** Rejects NaN and Infinity, so a junk `?limit=abc` falls back to the
+       *  service's own default rather than reaching it as an unusable number. */
+      const queryNumber = (value: unknown): number | undefined => {
+        if (typeof value !== "string" || !value.trim()) return undefined;
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : undefined;
+      };
+
+      const query =
+        typeof body?.query === "string"
+          ? body.query
+          : queryString(search.query);
+      const limit =
+        typeof body?.limit === "number"
+          ? body.limit
+          : queryNumber(search.limit);
+      const page =
+        typeof body?.page === "number" ? body.page : queryNumber(search.page);
+
+      /* POST sends codes as an array; a GET sends a comma-separated string, and
+         express hands back an array when the param is repeated. */
+      const rawCodes = Array.isArray(body?.codes) ? body?.codes : search.codes;
+      const codesParam = Array.isArray(rawCodes)
+        ? rawCodes.join(",")
+        : queryString(rawCodes);
       const codes = codesParam
         ? codesParam
             .split(",")
@@ -148,8 +191,8 @@ export const LabOrderController = {
 
       const tests = await LabOrderService.listProviderTests(provider, {
         query,
-        limit: Number.isFinite(limit) ? limit : undefined,
-        page: Number.isFinite(page) ? page : undefined,
+        limit,
+        page,
         codes,
       });
 
