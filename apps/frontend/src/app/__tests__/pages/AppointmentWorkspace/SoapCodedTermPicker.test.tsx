@@ -344,3 +344,83 @@ describe('SoapCodedTermPicker vocabulary scope', () => {
     expect(lastCall()).not.toHaveProperty('vocabulary');
   });
 });
+
+describe('SoapCodedTermPicker scoped empty state', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    suggestMock.mockReset();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const renderPicker = () =>
+    render(
+      <SoapCodedTermPicker
+        sectionLabel="Subjective"
+        domain="PresentingComplaint"
+        selected={[]}
+        onChange={jest.fn()}
+      />
+    );
+
+  const pickScope = async (name: string) => {
+    await act(async () => {
+      fireEvent.click(screen.getByRole('radio', { name }));
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+  };
+
+  it('explains an empty result under a scope, and offers to widen it', async () => {
+    suggestMock.mockResolvedValue([]);
+    renderPicker();
+    typeQuery('zzz');
+    await pickScope('SNOMED');
+
+    /* Without this the dropdown simply does not open, which reads as "search is
+       broken" rather than "no term in this vocabulary matches" - the one case
+       the scope control makes common. */
+    expect(screen.getByText(/No term with a SNOMED code matches/)).toBeInTheDocument();
+
+    suggestMock.mockResolvedValue([VOMITING]);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Search all vocabularies' }));
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('aria-checked', 'true');
+    expect(suggestMock.mock.calls.at(-1)?.[0]).not.toHaveProperty('vocabulary');
+  });
+
+  it('stays quiet when an unscoped search finds nothing', async () => {
+    suggestMock.mockResolvedValue([]);
+    renderPicker();
+    typeQuery('zzz');
+
+    /* Prove the notice CAN appear for this very response first. Asserting
+       absence straight after typing passes whether or not the scope is
+       checked, because the response has not landed yet - the assertion is
+       then measuring nothing. */
+    await pickScope('SNOMED');
+    expect(screen.getByText(/No term with a SNOMED code matches/)).toBeInTheDocument();
+
+    // Same empty response, no scope: an unscoped miss is just a query with no
+    // matches, and the closed dropdown says that well enough.
+    await pickScope('All');
+    expect(screen.queryByText(/No term with a/)).not.toBeInTheDocument();
+  });
+
+  it('does not blame the vocabulary when the request fails', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    suggestMock.mockRejectedValue(new Error('network'));
+    renderPicker();
+    typeQuery('vom');
+    await pickScope('VeNom');
+    expect(screen.queryByText(/No term with a/)).not.toBeInTheDocument();
+    consoleError.mockRestore();
+  });
+});
