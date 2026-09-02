@@ -170,11 +170,8 @@ export const ThankYouScreen: React.FC<Props> = ({navigation}) => {
             files: productFiles,
           });
         }
-        /* Neither branch may say "we sent" it. `AdverseEventService` has no
-           outbound call - no HTTP client, no mail, no queue: it writes an
-           `AdverseEventReport` row carrying `destinations`. So the destination
-           is recorded, not delivered. The hospital can reach the row (it is
-           org-scoped and the API lists by organisation); no manufacturer can. */
+        // Nothing is transmitted: the report is stored with `destinations`, so
+        // neither branch may claim it was sent. Enforced by the test.
         showSuccessAlert(
           'Report saved',
           target === 'manufacturer'
