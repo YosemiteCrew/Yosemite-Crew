@@ -965,7 +965,7 @@ export const StripeService = {
       // books show it outstanding. ALREADY_PAID and IGNORED below are genuine
       // replays; this is not one.
       logger.error(
-        `Payment intent ${pi.id} succeeded but matched no invoice (metadata invoiceId: ${invoiceId ?? "none"}); the charge is captured and nothing was marked paid`,
+        `Payment intent ${pi.id} succeeded but invoice ${invoiceId} from its metadata could not be found; the charge is captured and nothing was marked paid`,
       );
       return;
     }
