@@ -11,6 +11,7 @@ import { MarketingShell } from './MarketingShell';
    width, which is exactly what the aria-current story below counts. */
 import './marketing.css';
 import { useAuthStore, type AuthStore } from '@/app/stores/authStore';
+import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/useGithubStats';
 
 /**
  * Session-cache keys owned by `useGithubStats` (module-private there). The nav's star
@@ -19,8 +20,6 @@ import { useAuthStore, type AuthStore } from '@/app/stores/authStore';
  * already a string - a missing discord value forces a refresh on its own. Seeding both
  * keeps two requests off the Storybook dev server on every mount.
  */
-const STATS_CACHE_KEY = 'yc_marketing_stats_v2';
-const STATS_TS_KEY = 'yc_marketing_stats_ts_v2';
 
 const CACHED_STATS = {
   stars: '2.4k',

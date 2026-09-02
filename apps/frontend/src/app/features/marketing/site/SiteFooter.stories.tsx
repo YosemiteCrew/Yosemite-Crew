@@ -6,6 +6,7 @@ import { SiteFooter } from './SiteFooter';
 // that stacks the three bottom rows on a phone both live here, and only
 // `(routes)/(public)/layout.tsx` loads the sheet in the app.
 import './marketing.css';
+import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/useGithubStats';
 
 /**
  * Session-cache keys owned by `useGithubStats` (module-private there). Seeding the
@@ -14,8 +15,6 @@ import './marketing.css';
  * conditions have to hold or the hook fires `/api/community/*` at the Storybook dev
  * server on every mount and the star count lands whenever it lands.
  */
-const STATS_CACHE_KEY = 'yc_marketing_stats_v2';
-const STATS_TS_KEY = 'yc_marketing_stats_ts_v2';
 
 const CACHED_STATS = {
   stars: '2.4k',
