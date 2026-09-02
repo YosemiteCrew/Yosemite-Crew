@@ -165,14 +165,13 @@ export const LabOrderController = {
        * Applied to the body too: `{ limit: 2.5 }` is a number and would have
        * taken the same path.
        */
+      const positiveInteger = (value: number): number | undefined =>
+        Number.isSafeInteger(value) && value > 0 ? value : undefined;
+
       const paginationValue = (value: unknown): number | undefined => {
-        const parsed =
-          typeof value === "number"
-            ? value
-            : typeof value === "string" && value.trim()
-              ? Number(value)
-              : Number.NaN;
-        return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
+        if (typeof value === "number") return positiveInteger(value);
+        if (typeof value !== "string" || !value.trim()) return undefined;
+        return positiveInteger(Number(value));
       };
 
       const query =

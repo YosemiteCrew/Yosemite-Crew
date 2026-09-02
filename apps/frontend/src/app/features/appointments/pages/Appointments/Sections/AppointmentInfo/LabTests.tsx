@@ -326,8 +326,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
   const fetchTestsPage = useCallback(
     async (page: number, append: boolean) => {
       if (!primaryOrgId || !integrationEnabled) return;
-      const seq = testsRequestSeq.current + 1;
-      testsRequestSeq.current = seq;
+      const seq = ++testsRequestSeq.current;
       if (append) setTestsLoadingMore(true);
       try {
         const res = await listIdexxTests({
