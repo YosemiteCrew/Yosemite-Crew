@@ -81,8 +81,21 @@ const CreateKeyForm = ({
         className="DevApiKeys-input"
         value={scopesInput}
         onChange={(event) => setScopesInput(event.target.value)}
-        placeholder="appointments:read, inventory:read"
+        placeholder="appointments:read"
+        aria-describedby="apiKeyScopesHelp"
       />
+      {/*
+        The scopes are stored on the key and returned when it is listed, but
+        nothing checks them yet: `requireScope` exists in
+        apps/backend/src/middlewares/api-key-auth.ts and is mounted on no route.
+        Saying so is the difference between a field a developer can plan around
+        and one that looks like an access control it is not. The old placeholder
+        also suggested `inventory:read`, a scope no endpoint has ever read.
+      */}
+      <p id="apiKeyScopesHelp" className="text-caption-2 text-text-tertiary">
+        Recorded on the key for forward compatibility. No endpoint enforces scopes yet, so a key is
+        not restricted by what you enter here.
+      </p>
       <div className="DevApiKeys-formActions">
         <Primary
           text={creating ? 'Creating…' : 'Create'}

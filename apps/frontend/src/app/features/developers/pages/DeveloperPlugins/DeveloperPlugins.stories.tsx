@@ -140,9 +140,11 @@ const meta = {
           'loading, empty or error state to draw. The page says as much itself, in the ' +
           '"Preview · the plugin catalog and submission flow are coming soon" pill.\n\n' +
           'Worth knowing before reading the stories: **none of the plugin cards are ' +
-          'interactive**. "Manage" and "Review status" are bare `<span>`s in the accent ink, so ' +
-          'they read as links, cannot be tabbed to, and do nothing when clicked. The only three ' +
-          'real controls on the page are "Submit a plugin" (to `/contact-us`) and the two ' +
+          'interactive**, and they no longer pretend to be. They previously ended in ' +
+          'accent-inked "Manage" and "Review status" spans that read as links, could not be ' +
+          'tabbed to and did nothing - on cards that also claimed IDEXX and MSD integrations ' +
+          'were installed in 412 and 1,208 clinics, which nothing counts. The only three real ' +
+          'controls on the page are "Submit a plugin" (to `/contact-us`) and the two ' +
           'website-builder CTAs, which share a single destination.\n\n' +
           'The lower half is a promo panel painted from `--spot`, the always-dark token, holding ' +
           'a hand-built browser-chrome mock - three dots, a URL pill and a miniature clinic ' +
@@ -170,36 +172,31 @@ export const Catalog: Story = {
     // level-1 query ambiguous on every story in this repo.
     await expect(canvas.getByRole('heading', { level: 1, name: 'Plugins' })).toBeInTheDocument();
 
-    /* The three fixtures, in order. Reading the h2s as a list pins the order too,
-       which a per-title `getByText` would not: the in-review card is deliberately
-       last so the two installed ones lead. */
+    /* The three illustrations, in order. */
     const titles = canvas.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
-    await expect(titles).toEqual(['IDEXX lab bridge', 'MSD Vet Manual', 'Anesthesia monitor sync']);
+    await expect(titles).toEqual(['Lab result bridge', 'Clinical reference', 'Monitor sync']);
 
-    /* The badge is one element whose STATUS lives only in a class name, and that
-       class is the only thing choosing between the completed and in-progress
-       token triples. Drop it and the badge still reads correctly while being
-       silently the wrong colour, so the computed background is compared rather
-       than the class alone. */
+    /* Every badge reads "Sample" and carries the neutral treatment. These cards
+       used to claim "Installed · 412 clinics" against IDEXX and "1,208 clinics"
+       against MSD - real companies - while nothing in the platform counts
+       installs. They must not borrow the green "completed" token triple the rest
+       of the product uses for real state. */
     const badges = [...canvasElement.querySelectorAll('.dev-plugin-badge')] as HTMLElement[];
-    await expect(badges.map((b) => b.textContent)).toEqual([
-      'Installed · 412 clinics',
-      'Installed · 1,208 clinics',
-      'In review',
-    ]);
-    await expect(badges[0]).toHaveClass('installed');
-    await expect(badges[2]).toHaveClass('in-review');
-    await expect(getComputedStyle(badges[0]).backgroundColor).not.toBe(
-      getComputedStyle(badges[2]).backgroundColor
-    );
+    await expect(badges.map((b) => b.textContent)).toEqual(['Sample', 'Sample', 'Sample']);
+    for (const badge of badges) await expect(badge).toHaveClass('sample');
+    await expect(canvas.queryByText(/Installed/)).not.toBeInTheDocument();
+    await expect(canvas.queryByText(/IDEXX|MSD|Jonas Timm/)).not.toBeInTheDocument();
 
     /* The finding this page is worth reviewing for. Every card ends in an
        accent-inked word that looks exactly like a link, and every one of them is
        a `<span>`: the grid contains no anchor, no button and nothing focusable at
        all. A keyboard user tabs straight past all three. */
     const grid = must(canvasElement, '.dev-plugins-grid');
-    const actions = [...grid.querySelectorAll('.dev-plugin-card-action')];
-    await expect(actions.map((a) => a.textContent)).toEqual(['Manage', 'Manage', 'Review status']);
+    /* The accent-inked pseudo-links are gone with the fabricated state they
+       described: "Manage" on a plugin nothing can manage was the clearest case
+       of a control that looked real and did nothing. The grid is now plainly
+       non-interactive, which matches what it is. */
+    await expect(grid.querySelectorAll('.dev-plugin-card-action')).toHaveLength(0);
     await expect(grid.querySelectorAll('a, button, [tabindex]')).toHaveLength(0);
 
     /* So the whole page carries exactly three controls, and two of them go to the
@@ -393,7 +390,7 @@ export const NotADeveloper: Story = {
     ).not.toBeInTheDocument();
     await expect(canvasElement.querySelector('.dev-plugins-grid')).toBeNull();
     await expect(canvasElement.querySelector('.dev-website-card')).toBeNull();
-    await expect(canvas.queryByText('IDEXX lab bridge')).not.toBeInTheDocument();
+    await expect(canvas.queryByText('Lab result bridge')).not.toBeInTheDocument();
 
     /* Both ways out are present, and neither is clicked here: "Create a developer
        account" calls the store's real `signout`, which POSTs `/v1/auth/logout`

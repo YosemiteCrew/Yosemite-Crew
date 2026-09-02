@@ -44,15 +44,32 @@ describe('DeveloperPlugins page', () => {
     expect(screen.getByTestId('primary-Submit a plugin')).toHaveAttribute('href', '/contact-us');
   });
 
-  test('renders the three catalog plugin cards with badges', () => {
+  test('renders three sample cards, every one badged as a sample', () => {
     render(<DeveloperPlugins />);
-    expect(screen.getByRole('heading', { name: 'IDEXX lab bridge' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'MSD Vet Manual' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Anesthesia monitor sync' })).toBeInTheDocument();
-    expect(screen.getByText('Installed · 412 clinics')).toBeInTheDocument();
-    expect(screen.getByText('In review')).toBeInTheDocument();
-    expect(screen.getByText('Review status')).toBeInTheDocument();
-    expect(screen.getAllByText('Manage').length).toBe(2);
+    expect(screen.getByRole('heading', { name: 'Lab result bridge' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Clinical reference' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Monitor sync' })).toBeInTheDocument();
+    expect(screen.getAllByText('Sample')).toHaveLength(3);
+  });
+
+  test('claims no installs, and names no third party as having one', () => {
+    // Nothing counts installs - there is no plugin model and no plugin
+    // endpoint - and two of these named real companies.
+    render(<DeveloperPlugins />);
+    expect(screen.queryByText(/Installed/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/412 clinics/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/1,208 clinics/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/IDEXX/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/MSD/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Jonas Timm/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Manage')).not.toBeInTheDocument();
+  });
+
+  test('says on the page that the cards are illustrations', () => {
+    render(<DeveloperPlugins />);
+    expect(
+      screen.getByText(/cards below are illustrations, not installed integrations/i)
+    ).toBeInTheDocument();
   });
 
   test('renders the website builder promo card linking to the builder route', () => {
