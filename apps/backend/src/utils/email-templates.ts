@@ -947,7 +947,108 @@ type EmailTemplateRegistry = {
   permissionsUpdated: typeof buildPermissionsUpdatedTemplate;
   appointmentPaymentCheckout: typeof buildAppointmentPaymentCheckoutTemplate;
   invoicePaymentCheckout: typeof buildInvoicePaymentCheckoutTemplate;
+  adverseEventReported: typeof buildAdverseEventReportedTemplate;
 };
+
+export interface AdverseEventReportedTemplateData {
+  organisationName?: string;
+  reporterName: string;
+  reporterEmail?: string;
+  reporterPhone?: string;
+  companionName: string;
+  productName: string;
+  brandName?: string;
+  batchNumber?: string;
+  quantityUsed?: string;
+  administrationMethod?: string;
+  eventDate?: string;
+  conditionBefore?: string;
+  conditionAfter?: string;
+  authorityName?: string;
+  authorityUrl?: string;
+  reportUrl?: string;
+  supportEmail?: string;
+}
+
+/**
+ * Sent to the clinic a pet owner linked their adverse-event report to.
+ *
+ * This is currently the ONLY way a practice learns the report exists: the
+ * report is stored org-scoped and reachable over the API, but apps/frontend
+ * has no screen for adverse events, so nothing surfaces it in the PIMS.
+ *
+ * It deliberately does not tell the clinic the report has been filed with
+ * anyone. Nothing is transmitted to a regulator or a manufacturer - see
+ * regulatory-authority-seed.data.ts - so the mail states where the owner can
+ * file it themselves, and leaves the filing to a human.
+ */
+const buildAdverseEventReportedTemplate =
+  createEmailTemplate<AdverseEventReportedTemplateData>((data) => {
+    const supportEmail = data.supportEmail ?? "support@yosemitecrew.com";
+    const organisationName = data.organisationName?.trim() || "your practice";
+    const product = data.brandName
+      ? `${data.productName} (${data.brandName})`
+      : data.productName;
+
+    const detail = (label: string, value?: string) =>
+      value?.trim()
+        ? `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`
+        : "";
+    const detailText = (label: string, value?: string) =>
+      value?.trim() ? `${label}: ${value}` : "";
+
+    const authorityHtml = data.authorityName
+      ? `<p>Adverse events for this market are handled by <strong>${escapeHtml(data.authorityName)}</strong>.` +
+        (data.authorityUrl
+          ? ` Reporting guidance: <a href="${escapeHtml(data.authorityUrl)}" style="color:#257bed; text-decoration:none;" class="yc-link">${escapeHtml(data.authorityUrl)}</a>.`
+          : "") +
+        `</p>
+         <p>Yosemite Crew has <strong>not</strong> forwarded this report to them, or to the manufacturer. Nothing has left the practice.</p>`
+      : `<p>Yosemite Crew has <strong>not</strong> forwarded this report to a regulator or manufacturer. Nothing has left the practice.</p>`;
+
+    return {
+      subject: `Adverse event reported for ${data.companionName}: ${data.productName}`,
+      contentHtml: `
+      <p>Hi ${escapeHtml(organisationName)},</p>
+      <p><strong>${escapeHtml(data.reporterName)}</strong> reported a suspected adverse event for <strong>${escapeHtml(data.companionName)}</strong>.</p>
+      ${detail("Product", product)}
+      ${detail("Batch number", data.batchNumber)}
+      ${detail("Amount used", data.quantityUsed)}
+      ${detail("How it was given", data.administrationMethod)}
+      ${detail("When it happened", data.eventDate)}
+      ${detail("Condition before", data.conditionBefore)}
+      ${detail("Condition after", data.conditionAfter)}
+      ${detail("Reporter email", data.reporterEmail)}
+      ${detail("Reporter phone", data.reporterPhone)}
+      ${authorityHtml}
+      ${data.reportUrl ? renderEmailButton(data.reportUrl, "View the report") : ""}
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}" style="color:#257bed; text-decoration:none;" class="yc-link">${supportEmail}</a>.</p>
+    `,
+      textBody: `
+Hi ${organisationName},
+
+${data.reporterName} reported a suspected adverse event for ${data.companionName}.
+
+${detailText("Product", product)}
+${detailText("Batch number", data.batchNumber)}
+${detailText("Amount used", data.quantityUsed)}
+${detailText("How it was given", data.administrationMethod)}
+${detailText("When it happened", data.eventDate)}
+${detailText("Condition before", data.conditionBefore)}
+${detailText("Condition after", data.conditionAfter)}
+${detailText("Reporter email", data.reporterEmail)}
+${detailText("Reporter phone", data.reporterPhone)}
+
+${data.authorityName ? `Adverse events for this market are handled by ${data.authorityName}.` : ""}
+${data.authorityUrl ? `Reporting guidance: ${data.authorityUrl}` : ""}
+Yosemite Crew has NOT forwarded this report to a regulator or manufacturer. Nothing has left the practice.
+
+${data.reportUrl ? `View the report: ${data.reportUrl}` : ""}
+
+Need help? ${supportEmail}
+      `,
+    };
+  });
 
 export const emailTemplates: EmailTemplateRegistry = {
   organisationInvite: buildOrganisationInviteTemplate,
@@ -960,6 +1061,7 @@ export const emailTemplates: EmailTemplateRegistry = {
   permissionsUpdated: buildPermissionsUpdatedTemplate,
   appointmentPaymentCheckout: buildAppointmentPaymentCheckoutTemplate,
   invoicePaymentCheckout: buildInvoicePaymentCheckoutTemplate,
+  adverseEventReported: buildAdverseEventReportedTemplate,
 };
 
 export type EmailTemplateId = keyof typeof emailTemplates;
