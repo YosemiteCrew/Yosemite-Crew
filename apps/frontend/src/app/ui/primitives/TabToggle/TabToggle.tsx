@@ -21,12 +21,19 @@ const TabToggle = ({ tabs, activeKey, onChange, panelId }: TabToggleProps) => {
     <div className="w-full border-b border-card-border">
       <div
         role="tablist"
-        /* Tabs share the row equally while they fit, which is every call site
-           today - all three pass exactly two. When they stop fitting the strip
-           scrolls at its natural width instead of pushing its container: this
-           lives in the workspace side modal, which has nothing to absorb a
-           sideways shove, and a tab clipped at the edge is the cue that there
-           is more. */
+        /* Tabs keep sharing the row equally, and a label still wraps inside its
+           own button before the split goes uneven. That is deliberate: at 375px
+           with "Vitals" beside "Observation Tool" it is the difference between
+           an even strip and a lopsided one, and RecordPanel's phone story pins
+           it. Forcing `whitespace-nowrap` here looked tidier and broke exactly
+           that - the labels stayed on one line and the split went 18px out.
+
+           What is new is the scroller. Once the labels cannot fit even after
+           wrapping - four tabs in a side modal - the strip used to push its
+           container sideways, and a side modal has nothing to absorb that. The
+           overflow now stays inside the strip, and a tab clipped at the edge is
+           the cue that there is more. It costs nothing where the tabs already
+           fit, which is every call site today: all three pass exactly two. */
         className="-mb-px flex overflow-x-auto"
       >
         {tabs.map((tab) => {
@@ -40,12 +47,7 @@ const TabToggle = ({ tabs, activeKey, onChange, panelId }: TabToggleProps) => {
               aria-controls={panelId?.(tab.key)}
               id={`tab-${tab.key}`}
               onClick={() => onChange(tab.key)}
-              /* `whitespace-nowrap`: a label that breaks mid-phrase ("All /
-               documents") reads worse than a scroll, and the second line pushes
-               this tab's underline below its neighbours'. Nowrap is also what
-               gives the row a real min-content width to overflow at, which is
-               what the scroller above is there to catch. */
-              className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap px-6 py-3 leading-[120%] transition-colors duration-150 border-b-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${
+              className={`flex flex-1 items-center justify-center gap-1.5 px-6 py-3 leading-[120%] transition-colors duration-150 border-b-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${
                 isActive
                   ? 'border-[var(--blue)] text-[var(--blue-text)] text-[16px] font-bold'
                   : 'border-transparent text-neutral-700 text-[16px] font-medium hover:text-text-primary'

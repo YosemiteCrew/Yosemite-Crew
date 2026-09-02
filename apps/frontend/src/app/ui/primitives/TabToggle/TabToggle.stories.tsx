@@ -114,35 +114,48 @@ export const ManyTabs: Story = {
       tabs.reduce((sum, tab) => sum + tab.getBoundingClientRect().width, 0)
     ).toBeGreaterThan(frame.getBoundingClientRect().width);
 
-    /* What the overflow costs, and what it does not. The strip absorbs it: the
-       frame is exactly as wide as it was asked to be and the document never
-       gains a horizontal scroll, which is the failure this component used to
-       hand its container - a side modal has nothing to absorb a sideways shove.
-       A tab clipped at the right edge is what tells the reader there is more. */
+    /* The strip absorbs the overflow itself - this is the whole fix, so it is
+       asserted by DRIVING the scroll rather than by reading a style. An element
+       that is not a scroll container pins `scrollLeft` at 0 no matter what you
+       assign, so a strip that has stopped scrolling fails here.
+
+       Asserted this way on purpose: the first version of this check compared
+       `document.documentElement.scrollWidth` against its clientWidth, and that
+       passed with the scroller REMOVED - the preview canvas is 1280 wide, so a
+       340px frame spilling to 430px never reaches the document edge and the
+       assertion could not tell the two apart. It was a guard that could not
+       fail. */
     await expect(Math.round(frame.getBoundingClientRect().width)).toBe(340);
-    await expect(globalThis.document.documentElement.scrollWidth).toBeLessThanOrEqual(
-      globalThis.document.documentElement.clientWidth
-    );
+    strip.scrollLeft = 9999;
+    await expect(strip.scrollLeft).toBeGreaterThan(0);
+    strip.scrollLeft = 0;
+
+    // And the clipped tab at the right edge is what tells the reader there is more.
     const last = tabs[tabs.length - 1].getBoundingClientRect();
     await expect(last.right).toBeGreaterThan(strip.getBoundingClientRect().right);
 
-    /* And no label has wrapped to buy the width back. A Range over the label's
-       TEXT NODE returns one client rect per line box, which counts lines rather
-       than inferring them from a height. The range has to be the text node and
-       not the button: the button is a flex container, so its contents measure as
-       one flex item however many lines the text inside runs to.
+    /* Wrapping is still the first thing that gives, and that is deliberate. A
+       Range over the label's TEXT NODE returns one client rect per line box,
+       which counts lines rather than inferring them from a height. The range has
+       to be the text node and not the button: the button is a flex container, so
+       its contents measure as one flex item however many lines the text inside
+       runs to.
 
-       This is the half of the decision the scroller depends on. A wrapped label
-       reads worse ("All / documents") and drops its own underline a line below
-       its neighbours', and without nowrap the row has no honest min-content
-       width to overflow at - it would just get shorter and uglier instead. */
+       Forcing `whitespace-nowrap` instead was tried and reverted. It reads
+       tidier here, but it takes the row's min-content width up to the full
+       labels, and at 375px that is what turns RecordPanel's two-tab strip from
+       an even split into an 18px-lopsided one. The scroller below is the fix for
+       overflow; nowrap was not. "Imaging" is one word, so it cannot wrap however
+       tight the box gets - that is the shape of the floor. */
     const linesIn = (tab: Element) => {
       const label = [...tab.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
       const range = globalThis.document.createRange();
       range.selectNodeContents(label as Node);
       return range.getClientRects().length;
     };
-    await expect(tabs.map(linesIn)).toEqual([1, 1, 1, 1]);
+    const lineCounts = tabs.map(linesIn);
+    await expect(lineCounts.filter((n) => n > 1).length).toBeGreaterThan(1);
+    await expect(linesIn(within(canvasElement).getByRole('tab', { name: 'Imaging' }))).toBe(1);
 
     /* The indicator still lands on the hairline. The border moved to a wrapper
        when the tablist became the scroll container, so this is the join that a
