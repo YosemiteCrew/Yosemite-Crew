@@ -43,12 +43,28 @@ const APPOINTMENTS: Record<string, Appointment> = {
 };
 
 /**
+ * The organisation the seeded records belong to. The picker reads the per-org index,
+ * not the flat by-id maps, so a story with no active org can only ever render the
+ * empty state - which is exactly what every story in this file used to do.
+ */
+const SHARE_ORG_ID = 'org-sb';
+
+/**
  * Seeds the two stores the picker reads, and the timezone the appointment subtitle is
  * formatted in.
  *
- * No loader is involved: `ShareEntityModal` subscribes to `companionsById` and
- * `appointmentsById` directly and never fetches, so seeding the real stores is the whole
- * fixture - the component under review is the real one and the mount touches no network.
+ * No loader is involved: `ShareEntityModal` subscribes to the stores directly and never
+ * fetches, so seeding the real stores is the whole fixture - the component under review
+ * is the real one and the mount touches no network.
+ *
+ * It has to seed BOTH halves. The by-id maps hold every record the tab has loaded across
+ * organisations; `companionsIdsByOrgId` / `appointmentIdsByOrgId` say which of them the
+ * active org owns, and the picker offers only the second so it cannot leak another
+ * tenant's records. Seeding just the by-id maps - which is what this fixture did, from
+ * before that tenancy fix landed - renders "Nothing to share here yet" in every story.
+ * Nobody noticed because the component was also crashing on an unstable store snapshot,
+ * so no play function in this file ever got far enough to assert a row.
+ *
  * `formatDateInPreferredTimeZone` reads a localStorage token and falls back to
  * Europe/Berlin, so the token is cleared for the story and restored afterwards; 09:15Z is
  * 10:15 in Berlin on 26 March 2026.
@@ -60,7 +76,9 @@ const seedStores =
   ) =>
   () => {
     const previousCompanions = useCompanionStore.getState().companionsById;
+    const previousCompanionIndex = useCompanionStore.getState().companionsIdsByOrgId;
     const previousAppointments = useAppointmentStore.getState().appointmentsById;
+    const previousAppointmentIndex = useAppointmentStore.getState().appointmentIdsByOrgId;
     const tzKey = 'yc_preferred_timezone';
     const previousTz = window.localStorage.getItem(tzKey);
     window.localStorage.removeItem(tzKey);
@@ -84,14 +102,30 @@ const seedStores =
     const termKey = 'yc_companion_terminology_pending';
     const previousTerm = window.localStorage.getItem(termKey);
     window.localStorage.removeItem(termKey);
-    useOrgStore.setState({ primaryOrgId: null, orgIds: [], orgsById: {} });
+    // An org id is required for the picker to offer anything, but `orgsById` stays empty
+    // so `getCompanionTerminologyForOrg` still falls through to the org-type default and
+    // the tab keeps reading "Companions". The hospital story overrides both from its own
+    // beforeEach, which runs after this.
+    useOrgStore.setState({ primaryOrgId: SHARE_ORG_ID, orgIds: [], orgsById: {} });
 
-    useCompanionStore.setState({ companionsById: companions });
-    useAppointmentStore.setState({ appointmentsById: appointments });
+    useCompanionStore.setState({
+      companionsById: companions,
+      companionsIdsByOrgId: { [SHARE_ORG_ID]: Object.keys(companions) },
+    });
+    useAppointmentStore.setState({
+      appointmentsById: appointments,
+      appointmentIdsByOrgId: { [SHARE_ORG_ID]: Object.keys(appointments) },
+    });
 
     return () => {
-      useCompanionStore.setState({ companionsById: previousCompanions });
-      useAppointmentStore.setState({ appointmentsById: previousAppointments });
+      useCompanionStore.setState({
+        companionsById: previousCompanions,
+        companionsIdsByOrgId: previousCompanionIndex,
+      });
+      useAppointmentStore.setState({
+        appointmentsById: previousAppointments,
+        appointmentIdsByOrgId: previousAppointmentIndex,
+      });
       useOrgStore.setState(previousOrg);
       if (previousTerm !== null) window.localStorage.setItem(termKey, previousTerm);
       if (previousTz !== null) window.localStorage.setItem(tzKey, previousTz);
@@ -458,6 +492,18 @@ export const HospitalTerminology: Story = {
   name: 'Tab label at a hospital org',
   beforeEach: () => {
     const previous = useOrgStore.getState();
+    // The seeded records have to follow the org across. The picker offers only what the
+    // ACTIVE org's index lists, so switching `primaryOrgId` without re-pointing the
+    // index empties the list and this story would assert a tab label over a picker with
+    // nothing in it - true, but for the wrong reason.
+    const previousCompanionIndex = useCompanionStore.getState().companionsIdsByOrgId;
+    const previousAppointmentIndex = useAppointmentStore.getState().appointmentIdsByOrgId;
+    useCompanionStore.setState({
+      companionsIdsByOrgId: { 'org-sb-share-hospital': Object.keys(COMPANIONS) },
+    });
+    useAppointmentStore.setState({
+      appointmentIdsByOrgId: { 'org-sb-share-hospital': Object.keys(APPOINTMENTS) },
+    });
     useOrgStore.setState({
       primaryOrgId: 'org-sb-share-hospital',
       orgIds: ['org-sb-share-hospital'],
@@ -470,6 +516,8 @@ export const HospitalTerminology: Story = {
       },
     });
     return () => {
+      useCompanionStore.setState({ companionsIdsByOrgId: previousCompanionIndex });
+      useAppointmentStore.setState({ appointmentIdsByOrgId: previousAppointmentIndex });
       useOrgStore.setState({
         primaryOrgId: previous.primaryOrgId,
         orgIds: previous.orgIds,
