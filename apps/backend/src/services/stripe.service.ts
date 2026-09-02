@@ -831,7 +831,15 @@ export const StripeService = {
         patient: true,
       },
     });
-    if (!appointment) return;
+    if (!appointment) {
+      // The charge succeeded. Every other exit from this handler logs; these
+      // used to be the only silent ones, so a captured payment could vanish
+      // without a trace anywhere.
+      logger.error(
+        `Booking payment ${pi.id} succeeded for appointment ${appointmentId}, which no longer exists; no invoice can be minted`,
+      );
+      return;
+    }
 
     // Replay check, and the reason this handler is safe at all. Stripe redelivers
     // on any non-2xx and nothing upstream deduplicates by event id, so the same
@@ -861,12 +869,25 @@ export const StripeService = {
     }
 
     const serviceId = extractAppointmentTypeId(appointment.appointmentType);
-    if (!serviceId) return;
+    if (!serviceId) {
+      logger.error(
+        `Booking payment ${pi.id} succeeded for appointment ${appointmentId}, whose appointmentType carries no service id; no invoice minted`,
+      );
+      return;
+    }
 
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
     });
-    if (!service) return;
+    if (!service) {
+      // Reachable: deleting a speciality hard-deletes its services, and a
+      // payment can be in flight across that (3DS, a resumed checkout, a
+      // delayed payment method). The card is charged either way.
+      logger.error(
+        `Booking payment ${pi.id} succeeded for appointment ${appointmentId}, but service ${serviceId} no longer exists; no invoice minted`,
+      );
+      return;
+    }
 
     const { parentId, patientId } = extractAppointmentPatientRefs(appointment);
 
@@ -939,6 +960,16 @@ export const StripeService = {
       return;
     }
 
+    if (result.action === "NO_INVOICE") {
+      // The charge is captured and no invoice was found to mark PAID, so the
+      // books show it outstanding. ALREADY_PAID and IGNORED below are genuine
+      // replays; this is not one.
+      logger.error(
+        `Payment intent ${pi.id} succeeded but matched no invoice (metadata invoiceId: ${invoiceId ?? "none"}); the charge is captured and nothing was marked paid`,
+      );
+      return;
+    }
+
     if (result.action === "IGNORED") {
       return;
     }
@@ -974,6 +1005,16 @@ export const StripeService = {
       currency: charge.currency,
       reason: charge.refunded ? "Refunded via Stripe" : undefined,
     });
+
+    if (result.action === "NO_INVOICE") {
+      // The customer has their money back and no invoice moved to REFUNDED, so
+      // the books still show it PAID. ALREADY_REFUNDED below is a genuine
+      // replay and stays quiet; this one needs a human.
+      logger.error(
+        `Refund on charge ${charge.id} (intent ${typeof charge.payment_intent === "string" ? charge.payment_intent : "unknown"}) matched no invoice; the invoice it belongs to is still marked paid`,
+      );
+      return;
+    }
 
     if (result.action !== "REFUNDED" || !result.invoice.parentId) {
       return;

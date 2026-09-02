@@ -265,11 +265,19 @@ export const CompanionOrganisationController = {
         ...invitePayload,
       });
 
-      // You can trigger email sending here
-      // await EmailService.sendOrganisationInvite(...)
-
+      /*
+       * "Invite sent successfully" was not true. `sendInvite` writes a PENDING
+       * patientOrganisation row with a generated token and stores the address in
+       * `invitedViaEmail`, and nothing reads that column to dispatch anything -
+       * the commented-out `EmailService.sendOrganisationInvite(...)` that used
+       * to sit here was the whole delivery mechanism. A parent inviting their
+       * clinic was told it had been sent, and no message ever left the system.
+       *
+       * Delivery is tracked separately; until it exists this reports what
+       * actually happened rather than what the endpoint is named after.
+       */
       return res.status(201).json({
-        message: "Invite sent successfully",
+        message: "Invite created",
       });
     } catch (error) {
       if (error instanceof CompanionOrganisationServiceError) {
