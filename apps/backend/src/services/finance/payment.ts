@@ -921,11 +921,17 @@ export const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
     });
   }
 
+  // The same status predicate the select above uses. Without it this rewrote
+  // EVERY Stripe checkout attempt on the invoice, including SUCCEEDED ones -
+  // destroying the record of a payment that actually completed. The original
+  // caller guards the invoice to AWAITING_PAYMENT/PENDING so it never bit
+  // there, but issueCreditNote deliberately allows crediting a paid invoice.
   await prisma.paymentAttempt.updateMany({
     where: {
       invoiceId,
       provider: "STRIPE",
       providerCheckoutSessionId: { not: null },
+      status: { notIn: ["CANCELED", "FAILED", "SUCCEEDED"] },
     },
     data: {
       status: "CANCELED",

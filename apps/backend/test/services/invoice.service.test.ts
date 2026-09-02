@@ -3199,6 +3199,26 @@ describe("InvoiceService", () => {
         (result as { paymentCollectionMethod: string }).paymentCollectionMethod,
       ).toBe("PAYMENT_INTENT");
     });
+
+    it("expires the Stripe sessions when the collection method changes", async () => {
+      // Changing how an invoice is collected invalidates the artifacts of the
+      // old method, and the code says so - but it only wrote CANCELED locally,
+      // so a parent still holding the previous checkout link could complete it
+      // against a method the practice had already moved away from (#2598).
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce(openRow);
+      (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+        ...openRow,
+        paymentCollectionMethod: "PAYMENT_INTENT",
+      });
+
+      await InvoiceService.updatePaymentCollectionMethod(
+        "inv_pcm",
+        organisationId,
+        "payment_intent",
+      );
+
+      expect(cancelOpenCheckoutSessionAttempts).toHaveBeenCalledWith("inv_pcm");
+    });
   });
 
   describe("issueCreditNote guard rails", () => {
