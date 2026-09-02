@@ -79,10 +79,9 @@ jest.mock('@/app/features/finance/pages/Finance/Sections/InvoiceBilledTo', () =>
 
 jest.mock('@/app/features/finance/pages/Finance/Sections/InvoicePaymentLedger', () => ({
   __esModule: true,
-  default: ({ payerName, payerEmail }: any) => (
+  default: ({ payerName }: any) => (
     <div data-testid="payment-ledger">
       <span data-testid="ledger-payer-name">{payerName}</span>
-      <span data-testid="ledger-payer-email">{payerEmail}</span>
     </div>
   ),
 }));
@@ -258,7 +257,6 @@ describe('InvoiceInfo', () => {
     );
 
     expect(screen.getByTestId('ledger-payer-name')).toHaveTextContent('Lena');
-    expect(screen.getByTestId('ledger-payer-email')).toHaveTextContent('lena@x.com');
   });
 
   it('skips a stored parent whose name parts are all blank and clears the payer email', () => {
@@ -273,7 +271,6 @@ describe('InvoiceInfo', () => {
     );
 
     expect(screen.getByTestId('ledger-payer-name').textContent).toBe('');
-    expect(screen.getByTestId('ledger-payer-email').textContent).toBe('');
   });
 
   it('renders the shell without an active invoice, skipping every invoice-gated block', () => {

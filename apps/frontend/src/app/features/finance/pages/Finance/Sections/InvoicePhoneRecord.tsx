@@ -2,7 +2,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { Appointment, Invoice } from '@yosemite-crew/types';
-import { IoCheckmarkCircle, IoClose, IoDownloadOutline, IoOpenOutline } from 'react-icons/io5';
+import { IoClose, IoDownloadOutline, IoOpenOutline } from 'react-icons/io5';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import { formatMoney } from '@/app/lib/money';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
@@ -22,7 +22,6 @@ type InvoicePhoneRecordProps = {
   statusStyle?: React.CSSProperties;
   statusTone?: StatusTone;
   payerName?: string;
-  payerEmail?: string;
   onClose: () => void;
   onOpenAppointment?: () => void;
 };
@@ -76,7 +75,6 @@ const InvoicePhoneRecord = ({
   statusStyle,
   statusTone,
   payerName,
-  payerEmail,
   onClose,
   onOpenAppointment,
 }: InvoicePhoneRecordProps) => {
@@ -93,7 +91,6 @@ const InvoicePhoneRecord = ({
   const settled = isSettledInvoice(invoice);
   const caption = buildLedgerCaption(invoice, payerName);
   const { Icon: ChannelIcon, title: channelTitle } = getLedgerChannel(invoice);
-  const email = payerEmail?.trim();
   const pdfUrl = invoice.pdfUrl;
   const receiptUrl = invoice.stripeReceiptUrl;
 
@@ -211,15 +208,8 @@ const InvoicePhoneRecord = ({
         </div>
       )}
 
-      {/* Finalized note */}
-      {settled && email && (
-        <span className="flex items-center gap-2 rounded-xl bg-[var(--inset)] px-3 py-2.5 text-[11px] text-[var(--ink-muted)]">
-          <IoCheckmarkCircle size={13} aria-hidden="true" style={{ color: 'var(--success)' }} />
-          <span className="truncate" title={`Receipt sent to ${email}`}>
-            Receipt sent to {email}
-          </span>
-        </span>
-      )}
+      {/* No "Receipt sent to ..." note - see InvoicePaymentLedger for why the
+          presence of a payer email is not evidence a receipt was delivered. */}
 
       {/* Actions */}
       {(pdfUrl || (appointment && onOpenAppointment)) && (

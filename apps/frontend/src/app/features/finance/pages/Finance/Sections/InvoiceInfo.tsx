@@ -60,8 +60,6 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
     return '';
   }, [storedParent, appointment]);
 
-  const payerEmail = storedParent?.email ?? '';
-
   const invoiceStatusLabel = toTitle(activeInvoice?.status ?? '');
   const invoiceStatusTone = getInvoiceStatusTone(activeInvoice?.status ?? '');
 
@@ -95,7 +93,6 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
               statusLabel={invoiceStatusLabel}
               statusTone={invoiceStatusTone}
               payerName={payerName}
-              payerEmail={payerEmail}
               onClose={() => setShowModal(false)}
               onOpenAppointment={goToAppointmentFinance}
             />
@@ -139,7 +136,6 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
                     invoice={activeInvoice}
                     currency={currency}
                     payerName={payerName}
-                    payerEmail={payerEmail}
                   />
                 </div>
                 <div className="flex flex-col gap-5">
