@@ -91,19 +91,29 @@ const meta = {
   },
   tags: ['autodocs'],
   decorators: [
-    /* The frame carries the floor this row actually has: 768px. `AppointmentWorkspace`
-       calls `useIsPhone()` at `max-width: 767px` and hands anything narrower to
-       `PhoneWorkspaceShell`, so WorkspaceHeader has no phone rendering to get wrong -
-       which is why a 390px sweep read this desktop row as a broken phone layout. The
-       earlier 620px floor here was measured off a canvas where `Admit` and the
-       hospitalize circle rendered together; they are mutually exclusive in the app, so
-       620 was never a width this row had to survive. min-w states the floor without
-       capping anything (a 1280px canvas is unchanged), and the scroller keeps a
-       narrower preview from dragging the document sideways rather than pretending the
-       row fits. */
+    /* The frame carries the CONTENT width this row actually has at the 768px
+       floor, which is not 768px. `AppointmentWorkspace` calls `useIsPhone()` at
+       `max-width: 767px` and hands anything narrower to `PhoneWorkspaceShell`,
+       so 768 is the narrowest viewport this row ever renders at - but the row
+       does not get the viewport. At 768px the shell's sidebar is collapsed, not
+       hidden (`--sidebar-collapsed-width: 76px`; it only leaves the flow below
+       767px), so `main` is 692px. The page then bleeds its own 24px gutter back
+       with `sm:-mx-6 sm:px-6`, leaving the header 644px.
+
+       This frame therefore states 692px and applies the same 24px the route
+       does, reproducing 644px of content. A previous version said `min-w-[768px]
+       p-6`, which handed the row 720px - it silently dropped the sidebar, so the
+       overlap assertion could pass on 76px this layout never has. An earlier
+       620px floor was measured off a canvas where `Admit` and the hospitalize
+       circle rendered together; they are mutually exclusive in the app, so 620
+       was never a width this row had to survive either.
+
+       min-w states the floor without capping anything (a 1280px canvas is
+       unchanged), and the scroller keeps a narrower preview from dragging the
+       document sideways rather than pretending the row fits. */
     (Story) => (
       <div className="w-full overflow-x-auto">
-        <div className="min-w-[768px] p-6">
+        <div className="min-w-[692px] p-6">
           <Story />
         </div>
       </div>
