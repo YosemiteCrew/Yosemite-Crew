@@ -44,3 +44,20 @@ export const formatMoneyPrecise = (amount: number, currency: string) => {
     return `${currency} ${amount.toFixed(2)}`;
   }
 };
+
+/**
+ * The currency a money figure actually belongs to.
+ *
+ * Prefer the record's own `currency` over any ambient organisation value.
+ * `useCurrencyForPrimaryOrg` reads `subscription.currency`, which
+ * `normalizeSubscription` never populates, so it always answers USD - see
+ * #2597. Invoices and estimates each carry the currency they were written in,
+ * and that is the only value that can be trusted to match the stored amount.
+ */
+export const recordCurrency = (
+  record: { currency?: string | null } | null | undefined,
+  fallback: string
+): string => {
+  const own = record?.currency;
+  return typeof own === 'string' && own.trim() ? own.trim() : fallback;
+};

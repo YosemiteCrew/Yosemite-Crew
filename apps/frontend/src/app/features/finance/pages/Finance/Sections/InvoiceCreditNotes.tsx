@@ -1,7 +1,7 @@
 'use client';
 import React, { useMemo, useState } from 'react';
 import type { CreditNote } from '@yosemite-crew/types';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoneyPrecise } from '@/app/lib/money';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import {
@@ -78,7 +78,7 @@ const InvoiceCreditNotes = ({
             <div className="flex items-center justify-between text-[13px] text-[var(--ink-muted)]">
               <span>Credited</span>
               <span className="tabular-nums text-[13px] font-bold text-[var(--ink-body)]">
-                {formatMoney(credited, currency)}
+                {formatMoneyPrecise(credited, currency)}
               </span>
             </div>
           </>

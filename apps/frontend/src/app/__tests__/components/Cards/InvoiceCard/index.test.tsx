@@ -66,9 +66,9 @@ describe('InvoiceCard Component', () => {
     expect(screen.getByText('Jan 01, 2023')).toBeInTheDocument();
 
     // Financials
-    expect(screen.getByText('$100')).toBeInTheDocument(); // Subtotal
-    expect(screen.getByText('$10')).toBeInTheDocument(); // Tax
-    expect(screen.getByText('$110')).toBeInTheDocument(); // Total
+    expect(screen.getByText('$100.00')).toBeInTheDocument(); // Subtotal
+    expect(screen.getByText('$10.00')).toBeInTheDocument(); // Tax
+    expect(screen.getByText('$110.00')).toBeInTheDocument(); // Total
     expect(screen.getByText('Paid in cash')).toBeInTheDocument();
   });
 
@@ -94,9 +94,9 @@ describe('InvoiceCard Component', () => {
     render(<InvoiceCard invoice={untaxedInvoice} handleViewInvoice={mockHandleView} />);
 
     // Both the (absent) discount and the (absent) tax render as $0.
-    expect(screen.getAllByText('$0')).toHaveLength(2);
-    expect(screen.getByText('$100')).toBeInTheDocument(); // Subtotal unaffected
-    expect(screen.getByText('$110')).toBeInTheDocument(); // Total unaffected
+    expect(screen.getAllByText('$0.00')).toHaveLength(2);
+    expect(screen.getByText('$100.00')).toBeInTheDocument(); // Subtotal unaffected
+    expect(screen.getByText('$110.00')).toBeInTheDocument(); // Total unaffected
   });
 
   // --- 3. Status Rendering ---

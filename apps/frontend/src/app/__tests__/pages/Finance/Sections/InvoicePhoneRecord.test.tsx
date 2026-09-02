@@ -11,6 +11,10 @@ jest.mock('next/image', () => ({
 
 jest.mock('@/app/lib/money', () => ({
   formatMoney: (amount: number) => `€${amount}`,
+  recordCurrency: (record: { currency?: string | null } | null | undefined, fallback: string) =>
+    record?.currency ?? fallback,
+  formatMoneyPrecise: (amount: number, currency: string) =>
+    `${currency} ${Number(amount).toFixed(2)}`,
 }));
 
 jest.mock('@/app/lib/forms', () => ({

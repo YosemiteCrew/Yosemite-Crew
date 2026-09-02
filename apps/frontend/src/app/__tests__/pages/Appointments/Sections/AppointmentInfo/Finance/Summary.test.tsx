@@ -40,6 +40,10 @@ jest.mock('@/app/hooks/useInvoices', () => ({
 
 jest.mock('@/app/lib/money', () => ({
   formatMoney: (value: number, currency: string) => `${currency} ${value}`,
+  recordCurrency: (record: { currency?: string | null } | null | undefined, fallback: string) =>
+    record?.currency ?? fallback,
+  formatMoneyPrecise: (amount: number, currency: string) =>
+    `${currency} ${Number(amount).toFixed(2)}`,
 }));
 
 jest.mock('@/app/lib/validators', () => ({

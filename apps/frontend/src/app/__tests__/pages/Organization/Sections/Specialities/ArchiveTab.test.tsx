@@ -96,6 +96,10 @@ jest.mock('@/app/hooks/useBilling', () => ({
 const mockFormatMoney = jest.fn((amount: number, _currency?: string) => `$ ${amount.toFixed(2)}`);
 jest.mock('@/app/lib/money', () => ({
   formatMoney: (amount: number, currency?: string) => mockFormatMoney(amount, currency),
+  recordCurrency: (record: { currency?: string | null } | null | undefined, fallback: string) =>
+    record?.currency ?? fallback,
+  formatMoneyPrecise: (amount: number, currency: string) =>
+    `${currency} ${Number(amount).toFixed(2)}`,
 }));
 
 jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({

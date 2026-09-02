@@ -39,6 +39,10 @@ jest.mock('@/app/hooks/useBilling', () => ({
 
 jest.mock('@/app/lib/money', () => ({
   formatMoney: (amount: number) => `$ ${amount.toFixed(2)}`,
+  recordCurrency: (record: { currency?: string | null } | null | undefined, fallback: string) =>
+    record?.currency ?? fallback,
+  formatMoneyPrecise: (amount: number, currency: string) =>
+    `${currency} ${Number(amount).toFixed(2)}`,
 }));
 
 jest.mock('@/app/features/organization/services/catalogCalculations', () => ({

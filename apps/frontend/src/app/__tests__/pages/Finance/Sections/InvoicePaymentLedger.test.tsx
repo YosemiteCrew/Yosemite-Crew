@@ -57,7 +57,7 @@ describe('InvoicePaymentLedger', () => {
     expect(
       screen.getByText('Online payment · 12 Jun, 10:31 · by Lena Hartmann')
     ).toBeInTheDocument();
-    expect(screen.getByText('$86')).toBeInTheDocument();
+    expect(screen.getByText('$86.00')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Receipt' })).toHaveAttribute(
       'href',
       'https://pay.stripe.com/receipts/r_1'
@@ -139,7 +139,7 @@ describe('InvoicePaymentLedger', () => {
       <InvoicePaymentLedger invoice={makeInvoice({ totalAmount: undefined })} currency="USD" />
     );
     expect(screen.getByText('Paid in the pet-parent app')).toBeInTheDocument();
-    expect(screen.getByText('$0')).toBeInTheDocument();
+    expect(screen.getByText('$0.00')).toBeInTheDocument();
   });
 
   it('has no axe accessibility violations', async () => {

@@ -15,6 +15,10 @@ jest.mock('@/app/hooks/useAppointments', () => ({
 
 jest.mock('@/app/lib/money', () => ({
   formatMoney: (amount: number) => `€${amount}`,
+  recordCurrency: (record: { currency?: string | null } | null | undefined, fallback: string) =>
+    record?.currency ?? fallback,
+  formatMoneyPrecise: (amount: number, currency: string) =>
+    `${currency} ${Number(amount).toFixed(2)}`,
 }));
 
 jest.mock('@/app/lib/forms', () => ({
@@ -154,7 +158,10 @@ describe('PhoneInvoiceList', () => {
     render(<PhoneInvoiceList {...baseProps} filteredList={[partial]} />);
     const card = screen.getByRole('button', { name: 'View invoice #3' });
     expect(card.className).not.toContain('border-l-[var(--warn)]');
-    expect(screen.getByText('Deposit €20 applied')).toBeInTheDocument();
+    // The fixture invoice carries currency: 'EUR'. Before this change the
+    // footnote used the ambient organisation currency and would have said USD
+    // for a euro invoice - that is the bug, visible here.
+    expect(screen.getByText('Deposit EUR 20.00 applied')).toBeInTheDocument();
   });
 
   it('renders the empty state when there are no invoices', () => {

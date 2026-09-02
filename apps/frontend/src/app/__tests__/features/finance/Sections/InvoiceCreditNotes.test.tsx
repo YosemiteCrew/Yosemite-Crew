@@ -89,9 +89,9 @@ describe('InvoiceCreditNotes', () => {
 
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
     expect(screen.getByText('CN-0001')).toBeInTheDocument();
-    expect(screen.getByText('$40')).toBeInTheDocument();
+    expect(screen.getByText('$40.00')).toBeInTheDocument();
     expect(screen.getByText('CN-0002')).toBeInTheDocument();
-    expect(screen.getByText('$25')).toBeInTheDocument();
+    expect(screen.getByText('$25.00')).toBeInTheDocument();
   });
 
   it('labels a voided note and offers Void only on an issued one', () => {
@@ -141,9 +141,9 @@ describe('InvoiceCreditNotes', () => {
     });
 
     const creditedRow = screen.getByText('Credited').parentElement as HTMLElement;
-    expect(within(creditedRow).getByText('$40')).toBeInTheDocument();
+    expect(within(creditedRow).getByText('$40.00')).toBeInTheDocument();
     // The voided $60 must not be added in: $100 would be the naive total.
-    expect(within(creditedRow).queryByText('$100')).not.toBeInTheDocument();
+    expect(within(creditedRow).queryByText('$100.00')).not.toBeInTheDocument();
     // and the remaining figure is the total minus the issued note only.
     expect(screen.getByText(/Up to \$160.00 can still be credited/)).toBeInTheDocument();
   });

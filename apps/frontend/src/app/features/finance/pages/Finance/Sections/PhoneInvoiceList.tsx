@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { StatusOption } from '@/app/features/companions/pages/Companions/types';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoney, formatMoneyPrecise, recordCurrency } from '@/app/lib/money';
 import { formatDateLabel } from '@/app/lib/forms';
 import { toTitle } from '@/app/lib/validators';
 import {
@@ -43,7 +43,8 @@ const buildOwnerAndCompanion = (parentName: string, companionName: string): stri
 
 const buildFootnote = (invoice: Invoice, currency: string): string => {
   const deposit = invoice.depositCollectedAmount ?? 0;
-  if (deposit > 0) return `Deposit ${formatMoney(deposit, currency)} applied`;
+  if (deposit > 0)
+    return `Deposit ${formatMoneyPrecise(deposit, recordCurrency(invoice, currency))} applied`;
   if (getInvoiceOutstanding(invoice) === 0) {
     const method = getInvoicePaymentMethodLabel(invoice);
     if (method && method !== '-') return method;
@@ -121,7 +122,7 @@ const PhoneInvoiceCard = ({
           {identityLine || 'Unlinked invoice'}
         </span>
         <span className="shrink-0 text-[14px] font-bold tabular-nums text-[var(--ink)]">
-          {formatMoney(invoice.totalAmount ?? 0, currency)}
+          {formatMoneyPrecise(invoice.totalAmount ?? 0, recordCurrency(invoice, currency))}
         </span>
       </span>
       {footnote && <span className="text-[11px] text-[var(--ink-faint)]">{footnote}</span>}

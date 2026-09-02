@@ -72,6 +72,10 @@ jest.mock('@/app/lib/invoice', () => ({
 
 jest.mock('@/app/lib/money', () => ({
   formatMoney: jest.fn(() => '$ 0.00'),
+  recordCurrency: (record: { currency?: string | null } | null | undefined, fallback: string) =>
+    record?.currency ?? fallback,
+  formatMoneyPrecise: (amount: number, currency: string) =>
+    `${currency} ${Number(amount).toFixed(2)}`,
 }));
 
 jest.mock('@/app/lib/timezone', () => ({
