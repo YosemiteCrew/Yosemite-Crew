@@ -60,19 +60,23 @@
 }
 .SignError .ErroItemDiv .errortopbar .Errortexted h6 {
   margin: 0;
-  font-weight: 500;
+  /* Same type scale as the runtime toast (ui/widgets/Toast/NotifyToast): a
+     13.5px/700 heading and a 12.5px detail line, so the auth strip and the
+     in-app toast read as one family rather than two sizes of the same idea. */
+  font-weight: 700;
   font-family: var(--satoshi-font);
-  font-size: 16px;
-  line-height: 120%;
-  color: var(--black-text);
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--ink);
 }
 .SignError .ErroItemDiv .errortopbar p {
   margin: 0;
   font-weight: 400;
   font-family: var(--satoshi-font);
-  font-size: 16px;
-  line-height: 120%;
-  color: var(--black-text);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ink-body);
 }
 .SignError .ErroItemDiv button {
   /* Pin the close button to the right edge of the full toast bar and vertically
