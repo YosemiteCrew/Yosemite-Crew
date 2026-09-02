@@ -77,9 +77,39 @@ const getAllowedPostHogHost = () => {
   return host === 'https://eu.i.posthog.com' ? host : undefined;
 };
 
+/**
+ * Normalise whatever `NEXT_PUBLIC_DOCUMENSO_HOST` holds into a bare CSP origin.
+ *
+ * Two ways the raw value breaks `frame-src`, both silent:
+ *
+ * 1. Blank. A default parameter only fires on `undefined`, and `.env.example`
+ *    ships the key with an empty value, so an environment that copies it sends
+ *    `''` here - which survives the default, then gets dropped by `filter`, and
+ *    `frame-src` loses the portal host entirely. `urls.ts` does NOT fail the
+ *    same way: it uses `??`, which also keeps `''`, but then `new URL('')`
+ *    throws and its catch falls back to the default. So the two halves disagree
+ *    about the same blank value - the component builds a portal URL it is happy
+ *    with, renders the iframe, and the browser blocks it with no error anywhere.
+ *
+ * 2. A trailing slash or path. `https://ds.yosemitecrew.com/` is a source with
+ *    a path component, not a bare origin, and it does not match the frame's
+ *    origin the way the bare form does. Easy to write and invisible until an
+ *    iframe silently fails to paint.
+ */
+const normaliseDocumensoHost = (value?: string): string => {
+  const trimmed = (value ?? '').trim();
+  if (!trimmed) return DEFAULT_DOCUMENSO_HOST;
+
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return DEFAULT_DOCUMENSO_HOST;
+  }
+};
+
 export const buildContentSecurityPolicy = ({
   nonce,
-  documensoHost = DEFAULT_DOCUMENSO_HOST,
+  documensoHost,
   allowInlineScripts = false,
 }: {
   nonce?: string;
@@ -89,6 +119,7 @@ export const buildContentSecurityPolicy = ({
   const isProduction = process.env.NODE_ENV === 'production';
   const isDevelopment = !isProduction;
   const nonceSource = getNonceSource(nonce);
+  const documensoOrigin = normaliseDocumensoHost(documensoHost);
   const postHogHost = getAllowedPostHogHost();
   const postHogScriptHosts = [...POSTHOG_DEFAULT_SCRIPT_HOSTS, postHogHost].filter(Boolean);
   const postHogConnectHosts = [...POSTHOG_DEFAULT_CONNECT_HOSTS, postHogHost].filter(Boolean);
@@ -181,7 +212,7 @@ export const buildContentSecurityPolicy = ({
       'https://*.idexx.com',
       'https://*.vetconnectplus.com',
       ...YC_CLOUDFRONT_HOSTS,
-      documensoHost,
+      documensoOrigin,
     ]
       .filter(Boolean)
       .join(' '),
