@@ -401,17 +401,19 @@ export const PhoneSheet: Story = {
     docs: {
       description: {
         story:
-          'Under 768px the centered panel re-forms into a bottom sheet with a grabber. The day ' +
-          'row does not re-form with it, and nothing in it gives. ' +
-          '`grid-cols-[40px_96px_1fr_auto]` carries no breakpoint, so the 40px toggle column and ' +
-          'the 96px day column hold their desktop sizes inside a 375px sheet; the time chip ' +
-          'holds its full 100px too, because a flex item with a definite width contributes that ' +
-          'width as its min-content contribution and the `1fr` track floors on it rather than ' +
-          'squeezing it. So the row does not wrap, does not shrink and does not re-form - its ' +
-          'tracks add up to 450px before padding and it overflows its own box. Every part of ' +
-          'that is measured below rather than left to the eye. The day column and the chip ' +
-          'widths are what a phone layout would have to change; this is the only story where ' +
-          'any of it is visible.',
+          'Under 768px the centered panel re-forms into a bottom sheet with a grabber, and the ' +
+          'day row re-forms with it. The grid drops its fixed 96px day column - ' +
+          '`grid-cols-[40px_minmax(0,1fr)_auto]` at this width, `sm:grid-cols-[40px_96px_' +
+          'minmax(0,1fr)_auto]` from 640px - so the row is three tracks here and four on the ' +
+          'desktop panel, and the time chips wrap to a second line beneath the day name while ' +
+          'the add-range and duplicate controls stay on the first.\n\n' +
+          'This story used to be the record of the opposite. The row carried the desktop grid ' +
+          'at every width, its tracks added up to about 450px inside a 375px sheet, and the add ' +
+          'and duplicate circles - the only way to add a second range or copy a day - ran off ' +
+          'the side. The assertions below were pinned to that defect and said in as many words ' +
+          'that they would fail the day someone gave the row a real phone layout. That is what ' +
+          'happened, so they now measure the layout instead: three tracks, four children, every ' +
+          'control inside the viewport, and no overflow.',
       },
     },
   },
@@ -431,40 +433,47 @@ export const PhoneSheet: Story = {
 
     const monday = rowFor(panel, 'Monday');
     const tracks = getComputedStyle(monday).gridTemplateColumns.trim().split(/\s+/);
-    await expect(tracks).toHaveLength(4);
+
+    /* Three tracks here, four on desktop. The 96px day column is the one the
+       phone layout drops, so asserting the count AND the absence of that fixed
+       width means a regression to the desktop grid fails on both counts rather
+       than sliding through on one. */
+    await expect(tracks).toHaveLength(3);
+    await expect(tracks[0]).toBe('40px');
+    await expect(tracks).not.toContain('96px');
+
+    // Still four children: the phone layout wraps the row, it does not drop a
+    // cell. A dropped cell would also give three tracks.
     await expect(monday.children).toHaveLength(4);
 
-    /* The measured version of the claim in the prose, so the story proves it
-       rather than asserting it. The two fixed tracks do not respond to width at
-       all: they are still the desktop 40px and 96px inside a 375px sheet. */
-    await expect(tracks[0]).toBe('40px');
-    await expect(tracks[1]).toBe('96px');
-
-    /* And nothing else in the row gives either - which is the finding, and it is
-       NOT what this assertion used to claim. The chip carries `w-[100px]` with
-       `sm:w-[110px]` as its only step, and that step is at 640px, so 100px is
-       the phone width by default rather than by adaptation. Nor is it squeezed
-       into fitting: a flex item with a definite width contributes that width as
-       its min-content contribution, so the `1fr` track floors at the two chips
-       plus their gap instead of shrinking them. Pinned to what the component
-       does TODAY - exactly its design width, at a viewport it was never sized
-       for - with the class read as well as the box measured, so a changed
-       utility and a changed used width each fail on their own rather than one
-       silently covering for the other. */
+    /* The chip keeps its design width - `w-[100px]` with `sm:w-[110px]`, that
+       step being at 640px - so what changed is the track it sits in, not the
+       chip. Class and used width are both read, so a changed utility and a
+       changed used width each fail on their own. */
     const chip = within(monday).getByText('9:00 AM').closest('button') as HTMLElement;
     const chipWrapper = chip.parentElement as HTMLElement;
     await expect(chipWrapper.className).toContain('w-[100px]');
     await expect(chipWrapper.className).toContain('sm:w-[110px]');
     await expect(chip.getBoundingClientRect().width).toBeCloseTo(100, 1);
 
-    /* So nothing absorbs the deficit and the row simply overflows its own box.
-       The tracks add up on their own: 40 + 96 + (100 + 8 + 100) + (28 + 8 + 28)
-       plus three 14px gaps is 450px of track before the row's own 24px side
-       padding, inside a sheet that is 375px wide in total. That is the defect -
-       the day row has no phone layout at all - and this story is pinned to it
-       rather than asserting it away. The assertion fails the day someone gives
-       the row a real phone layout, which is the fix; this is the record that it
-       has not happened yet. */
-    await expect(monday.scrollWidth).toBeGreaterThan(monday.clientWidth);
+    /* The row wraps onto two lines instead of overflowing: the chips sit below
+       the day name while the add-range and duplicate controls stay up on the
+       first line. Asserted by position rather than by class, because "wrapped"
+       is the observable claim. */
+    const addRange = within(monday).getByRole('button', { name: 'Add range for Monday' });
+    await expect(chip.getBoundingClientRect().top).toBeGreaterThan(
+      addRange.getBoundingClientRect().top
+    );
+
+    /* And the finding this story exists for. Those two circles are the only way
+       to add a second range or copy a day, and they used to run clean off the
+       side of the sheet. Every control in the row is now inside the viewport,
+       and the row no longer scrolls its own content. */
+    for (const control of within(monday).getAllByRole('button')) {
+      await expect(control.getBoundingClientRect().right).toBeLessThanOrEqual(
+        globalThis.innerWidth
+      );
+    }
+    await expect(monday.scrollWidth).toBe(monday.clientWidth);
   },
 };
