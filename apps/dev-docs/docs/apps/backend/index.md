@@ -16,7 +16,6 @@ This index lists the Yosemite Crew backend REST API, split by router (one page p
 - [Audit Trail API](/apps/backend/api/audit-trail)
 - [Authusermobile API](/apps/backend/api/authUserMobile)
 - [Availability API](/apps/backend/api/availability)
-- [Base Availability API](/apps/backend/api/base-availability)
 - [Chat API](/apps/backend/api/chat)
 - [Companion Organisation API](/apps/backend/api/companion-organisation)
 - [Companion API](/apps/backend/api/companion)

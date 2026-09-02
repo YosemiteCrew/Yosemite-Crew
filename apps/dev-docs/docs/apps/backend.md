@@ -8,7 +8,7 @@ slug: /apps/backend
 
 # YosemiteCrew Server
 
-This is the backend API server for Yosemite Crew (YC), the open-source veterinary practice management (PIMS) platform. It is an Express and TypeScript service that exposes the FHIR (Fast Healthcare Interoperability Resources) endpoints consumed by the web frontend and mobile app. New contributors should start here for how the server boots, stores data, and models animal health as FHIR resources; the [Backend API Index](/apps/backend/api) lists every router.
+This is the backend API server for Yosemite Crew (YC), the open-source veterinary practice management (PIMS) platform. It is an Express and TypeScript service that exposes the FHIR (Fast Healthcare Interoperability Resources) endpoints consumed by the web frontend and mobile app. New contributors should start here for how the server boots, stores data, and models animal health as FHIR resources; the [Backend API Index](/apps/backend/api) documents 37 of them. It is a partial index, not a complete one: `registerRoutes()` mounts 136 routers.
 
 ## Prerequisites
 
@@ -27,7 +27,7 @@ The backend persists to PostgreSQL through Prisma. The schema and migrations liv
 
 ```bash
 pnpm --filter backend run prisma:generate
-pnpm --filter backend run prisma:deploy
+pnpm --filter backend run prisma:migrate
 ```
 
 ### Redis + BullMQ Workers

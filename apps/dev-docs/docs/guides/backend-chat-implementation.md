@@ -12,7 +12,7 @@ slug: /guides/backend-chat
 
 This guide is for backend engineers implementing Stream Chat token generation, channel management, and webhook handlers for the Yosemite Crew veterinary app.
 
-**Current Status**: Frontend implementation is complete and working. Backend needs to replace mock services with real API endpoints.
+**Current Status**: Both sides are implemented. `apps/backend/src/routers/chat.router.ts` defines 20 routes and is mounted at `/v1/chat` by `registerRoutes()`, so the endpoints this guide describes as "required" already exist. Read what follows as the design record behind that router, not as work outstanding, and check the router itself before building against this page.
 
 ---
 

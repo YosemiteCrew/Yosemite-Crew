@@ -30,10 +30,36 @@ useDefault = true
 # whitespace. Line pinned fingerprints in .gitleaksignore were rejected as the
 # alternative: a pod bump changes the hashes, so the set of lines that trips the
 # entropy check changes too, and the entries would go stale on every upgrade.
+# Docusaurus compiles the docs' curl examples into a JS chunk, and the
+# `curl-auth-header` rule fires on the example itself. The placeholder is
+# literally `Bearer YOUR_JWT_TOKEN` in
+# apps/dev-docs/docs/guides/backend-chat-implementation.md.
+#
+# This replaces a growing list of per-build fingerprints in .gitleaksignore.
+# The chunk's content hash changes on every docs rebuild, so each rebuild was
+# adding a new dead line there (three already) and failing the commit of
+# whoever rebuilt next until they worked out why.
+#
+# Scoped with BOTH `paths` and `regexes` under `condition = "AND"`, for the
+# reason spelled out above: `paths` alone would exempt the whole built bundle,
+# and a real credential compiled into those assets would go unreported. The
+# regex only matches an all-caps `YOUR_*` placeholder, which no real token is.
+# Verified: a realistic JWT injected into that same chunk is still reported.
+[[allowlists]]
+description = "Docs curl examples using an all-caps placeholder token"
+condition = "AND"
+regexTarget = "match"
+paths = [
+  '''apps/frontend/public/dev-docs/assets/js/.*\.js$''',
+]
+regexes = [
+  '''Authorization: Bearer YOUR_[A-Z_]+''',
+]
+
 # Singular [allowlist], not [[allowlists]]. An earlier CI pin (8.24.2) ignored
 # the plural array-of-tables form entirely and reported all 6 findings despite
 # the config being present. The singular table is honoured by every version.
-[allowlist]
+[[allowlists]]
 description = "CocoaPods podspec content hashes (name: 40-hex digest)"
 condition = "AND"
 regexTarget = "match"
