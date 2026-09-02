@@ -99,6 +99,31 @@ export const Default: Story = {
   },
 };
 
+export const MetricTemplate: Story = {
+  name: 'Recorded on a metric template',
+  args: {
+    vitals: [
+      vitalsRecord('v-metric', '2026-08-30T09:15:00.000Z', {
+        weightKg: 27.3,
+        tempC: 38.5,
+        heartRateBpm: 96,
+        respRateBpm: 24,
+      }),
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const vitals = within(canvasElement).getByRole('region', { name: 'Vitals' });
+
+    // A clinic recording in Celsius sees Celsius. This panel used to stamp '°F'
+    // and 'lbs' on whatever numbers it was handed, so 38.5 - a normal canine
+    // temperature - was shown as 38.5 °F, which reads as severe hypothermia.
+    await expect(within(vitals).getByText('38.5 °C')).toBeInTheDocument();
+    await expect(within(vitals).getByText('27.3 kg')).toBeInTheDocument();
+    await expect(within(vitals).queryByText('38.5 °F')).not.toBeInTheDocument();
+    await expect(within(vitals).queryByText('27.3 lbs')).not.toBeInTheDocument();
+  },
+};
+
 export const PartiallyRecorded: Story = {
   name: 'Half the measurements were skipped',
   args: {

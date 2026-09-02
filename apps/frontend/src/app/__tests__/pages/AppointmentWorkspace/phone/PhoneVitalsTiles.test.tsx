@@ -15,6 +15,19 @@ const vitals: Vitals = {
 };
 
 describe('PhoneVitalsTiles', () => {
+  it('renders a Celsius temperature in Celsius', () => {
+    // The phone tile is the twin of the desktop rail's Temp cell and had the same
+    // hard-coded '°F'; fixing one surface without the other leaves the bug on phone.
+    render(
+      <PhoneVitalsTiles
+        weightKg={12.4}
+        latestVitals={{ ...vitals, tempF: undefined, tempC: 38.5 }}
+      />
+    );
+    expect(screen.getByText('38.5 °C')).toBeInTheDocument();
+    expect(screen.queryByText('38.5 °F')).not.toBeInTheDocument();
+  });
+
   it('renders weight, temp and combined HR · RR from the latest vitals', () => {
     render(<PhoneVitalsTiles weightKg={12.4} latestVitals={vitals} />);
     expect(screen.getByText('Weight')).toBeInTheDocument();
