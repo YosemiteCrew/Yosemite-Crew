@@ -77,6 +77,34 @@ const config: Config = {
       },
     ],
   ],
+  /*
+   * The docs are served from the app's origin under /dev-docs, so the
+   * self-hosted brand fonts under /fonts resolve without shipping a second
+   * copy. Declared here rather than in custom.css because webpack resolves
+   * `url()` in CSS at build time and cannot find an absolute path on disk.
+   * A standalone `docusaurus start` has no /fonts and falls back to the stack.
+   */
+  headTags: [
+    {
+      tagName: 'style',
+      attributes: {},
+      innerHTML: `
+        @font-face {
+          font-family: 'Satoshi Variable';
+          src: url('/fonts/satoshi-font/Satoshi-Variable.woff2') format('woff2');
+          font-weight: 300 900;
+          font-display: swap;
+        }
+        @font-face {
+          font-family: 'Newsreader Variable';
+          src: url('/fonts/newsreader/Newsreader-Variable.woff2') format('woff2');
+          font-weight: 200 800;
+          font-display: swap;
+        }
+      `,
+    },
+  ],
+
   themeConfig: {
     image: 'img/social-card.png',
     navbar: {
