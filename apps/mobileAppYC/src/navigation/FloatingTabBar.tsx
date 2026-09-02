@@ -53,7 +53,7 @@ interface TabLayout {
 export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const {state, navigation} = props;
   const {theme, isDark} = useTheme();
-  const glassScheme = isDark ? ('dark' as const) : ('light' as const);
+  const glassScheme = isDark ? 'dark' : 'light';
   const dispatch = useDispatch<AppDispatch>();
   const companions = useSelector((s: RootState) => s.companion.companions);
   const selectedCompanionIdFromState = useSelector(
