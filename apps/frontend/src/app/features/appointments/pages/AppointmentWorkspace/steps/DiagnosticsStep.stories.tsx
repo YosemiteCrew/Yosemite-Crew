@@ -967,11 +967,19 @@ export const ServiceError: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    // The message carries the status and the backend's own text rather than a
-    // generic apology.
-    await expect(
-      await canvas.findByText('Unable to load appointment lab orders. (404): Not Found')
-    ).toBeInTheDocument();
+    /* The message carries the status and the backend's own text rather than a
+       generic apology.
+
+       Two copies, and that is deliberate: the section renders the error at the
+       top and again beside the Create Lab Order button, because the order is
+       placed several screens below the heading and the top copy alone would be
+       off-screen at the moment it appears. `findByText` throws on multiple
+       matches, which is what failed here - the assertion, not the component. The
+       count is asserted so that losing either copy is still caught. */
+    const messages = await canvas.findAllByText(
+      'Unable to load appointment lab orders. (404): Not Found'
+    );
+    await expect(messages).toHaveLength(2);
 
     /* A failed listing must not take the ordering form down with it: a clinician
        can still place the order they came here to place. The tables fall back to
