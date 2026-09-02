@@ -20,6 +20,23 @@ describe('LabelDropdown', () => {
     { label: 'Feline', value: 'cat' },
   ];
 
+  describe('hideLabel', () => {
+    it('drops the stacked label but keeps it on the trigger for assistive tech', () => {
+      render(<LabelDropdown placeholder="Room" options={options} onSelect={jest.fn()} hideLabel />);
+      /* Omitted, not hidden with CSS: a hidden element keeps the same text in
+         the accessibility tree and reappears the moment the selector that hides
+         it stops matching - which is how the meta bar's label got duplicated. */
+      const labels = screen.queryAllByText('Room').filter((node) => node.tagName !== 'BUTTON');
+      expect(labels).toHaveLength(0);
+      expect(screen.getByRole('button', { name: 'Room' })).toBeInTheDocument();
+    });
+
+    it('still renders the stacked label by default', () => {
+      render(<LabelDropdown placeholder="Room" options={options} onSelect={jest.fn()} />);
+      expect(screen.getAllByText('Room').some((node) => node.tagName === 'SPAN')).toBe(true);
+    });
+  });
+
   it('renders placeholder and error when no selection', () => {
     render(
       <LabelDropdown
