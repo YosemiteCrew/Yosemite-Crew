@@ -57,7 +57,6 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
         interactive={false}
         shadow="none"
         padding="0"
-        colorScheme="light"
         style={styles.container}
         fallbackStyle={styles.fallback}>
         <PressableOpacity

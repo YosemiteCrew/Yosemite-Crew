@@ -632,6 +632,7 @@ export const createMockTheme = () => ({
     glassPillBorder: 'rgba(29, 28, 27, 0.09)',
     glassSurface: 'rgba(247, 243, 236, 0.55)',
     glassSurfaceStrong: 'rgba(247, 243, 236, 0.72)',
+    glassBarTint: 'rgba(255, 255, 255, 0.7)',
   },
 });
 

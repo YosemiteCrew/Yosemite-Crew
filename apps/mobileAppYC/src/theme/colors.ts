@@ -177,6 +177,16 @@ const palette = {
   // warm and keeps ink legible (light / dark). More see-through than glassPill.
   glassSurface: ['rgba(247, 243, 236, 0.55)', 'rgba(41, 35, 28, 0.6)'],
   glassSurfaceStrong: ['rgba(247, 243, 236, 0.72)', 'rgba(41, 35, 28, 0.74)'],
+  /**
+   * Frost tint for the floating tab bar's native glass.
+   *
+   * The bar used `whiteOverlay70` here, which is a literal rather than a
+   * surface - the same 70% white in both themes. On espresso that painted a
+   * cream bar across the bottom of every dark screen, with the ink tokens
+   * underneath it still picked for a dark ground. The light value below is the
+   * one it already had, so light mode is unchanged.
+   */
+  glassBarTint: ['rgba(255, 255, 255, 0.7)', 'rgba(41, 35, 28, 0.7)'],
 
   // --- Fixed / overlays ---
   white: ['#FFFFFF', '#FFFFFF'],

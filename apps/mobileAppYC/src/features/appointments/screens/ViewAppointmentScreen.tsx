@@ -1069,7 +1069,6 @@ export const ViewAppointmentScreen: React.FC = () => {
           <LiquidGlassCard
             glassEffect="clear"
             padding="4"
-            colorScheme="light"
             shadow="base"
             style={styles.formCard}
             fallbackStyle={styles.formCardFallback}>

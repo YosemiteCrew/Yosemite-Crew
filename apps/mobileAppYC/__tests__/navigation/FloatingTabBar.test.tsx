@@ -8,8 +8,9 @@ import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 
 // --- Mocks ---
+let mockIsDark = false;
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme, isDark: false}),
+  useTheme: () => ({theme: mockTheme, isDark: mockIsDark}),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -111,6 +112,7 @@ describe('FloatingTabBar', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     Platform.OS = 'ios'; // Default to iOS
+    mockIsDark = false;
     store = createMockStore();
   });
 
@@ -145,6 +147,47 @@ describe('FloatingTabBar', () => {
 
       // Android should fall back to View because glass is iOS-only
       expect(queryByTestId('liquid-glass-view')).toBeNull();
+    });
+  });
+
+  describe('Dark mode', () => {
+    // The bar pinned colorScheme to 'light' and tinted itself with
+    // whiteOverlay70 - 70% white in both themes - so espresso got a cream bar
+    // across the bottom of every screen while its labels stayed dark-ground ink.
+    const renderBar = () => {
+      const props: any = createProps();
+      (getFocusedRouteNameFromRoute as jest.Mock).mockReturnValue(undefined);
+      return render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
+    };
+
+    it('gives the iOS glass bar the dark scheme and the themed frost', () => {
+      mockIsDark = true;
+
+      const [bar] = renderBar().getAllByTestId('liquid-glass-view');
+
+      expect(bar.props.colorScheme).toBe('dark');
+      // The token, not the literal - glassFollowsTheme.test.ts is what asserts
+      // the two ends of that token actually differ.
+      expect(bar.props.tintColor).toBe(mockTheme.colors.glassBarTint);
+    });
+
+    it('keeps the light scheme when the theme is light', () => {
+      const [bar] = renderBar().getAllByTestId('liquid-glass-view');
+
+      expect(bar.props.colorScheme).toBe('light');
+    });
+
+    it('blurs dark on the non-glass path when the theme is dark', () => {
+      mockIsDark = true;
+      Platform.OS = 'android';
+
+      const blur = renderBar().UNSAFE_getByProps({blurAmount: 22});
+
+      expect(blur.props.blurType).toBe('dark');
     });
   });
 
