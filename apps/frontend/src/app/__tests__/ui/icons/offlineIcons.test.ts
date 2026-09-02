@@ -9,13 +9,20 @@ const SRC_DIR = path.resolve(__dirname, '../../../../');
  * a literal `icon="prefix:name"` prop, and a bare `'prefix:name'` string held in
  * a data array and passed through as a variable. The second form is why this
  * test exists - it is invisible to a search for `icon=` alone.
+ *
+ * `icon="` has to be anchored to a preceding space. Unanchored it also matches
+ * the tail of `data-icon="..."`, which is a test hook carrying a component's own
+ * value and not an Iconify name at all - that reported `warn`, `check`, `clock`,
+ * `spinner` and even a raw `${name}` from inside a template literal as missing
+ * icons. Every real prop is JSX, so it is always preceded by whitespace; the
+ * only other `data-icon` uses live under `__tests__`, which is excluded below.
  */
 const collectUsedIconNames = (): string[] => {
   const out = execFileSync(
     'grep',
     [
       '-rhoE',
-      `(icon="[^"]+"|'(ion|mdi|solar):[a-z0-9-]+')`,
+      `([[:space:]]icon="[^"]+"|'(ion|mdi|solar):[a-z0-9-]+')`,
       SRC_DIR,
       '--include=*.tsx',
       '--include=*.ts',
@@ -28,7 +35,7 @@ const collectUsedIconNames = (): string[] => {
   );
 
   const names = new Set<string>();
-  for (const match of out.matchAll(/icon="([^"]+)"/g)) names.add(match[1]);
+  for (const match of out.matchAll(/\sicon="([^"]+)"/g)) names.add(match[1]);
   for (const match of out.matchAll(/'((?:ion|mdi|solar):[a-z0-9-]+)'/g)) names.add(match[1]);
   return [...names].sort();
 };

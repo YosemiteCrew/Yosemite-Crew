@@ -227,3 +227,55 @@ describe('security headers', () => {
     expect(directives.get('script-src')).not.toContain("'nonce-");
   });
 });
+
+/**
+ * The Documenso portal is embedded in an iframe on the organisation page, so
+ * `frame-src` has to name its origin or the browser blocks the frame. The
+ * failure is completely silent - the component computes a portal URL it is
+ * happy with, renders the iframe, and the reader gets a blank panel with no
+ * error in the app and nothing in `console`.
+ *
+ * Reproduced on dev while chasing "the document portal doesn't work": the
+ * portal there fails for an unrelated reason on the Documenso side, but these
+ * two shapes are how the FRONTEND can cause the same blank panel.
+ */
+describe('Documenso frame-src', () => {
+  /* Tokenised, not a substring match. `https://ds.example.com` is a prefix of
+     `https://ds.example.com/`, so a substring assertion cannot tell the bare
+     origin from the slashed form - which is the entire distinction under test. */
+  const frameSrc = (documensoHost?: string) =>
+    (parseCspDirectives(buildContentSecurityPolicy({ documensoHost })).get('frame-src') ?? '')
+      .split(/\s+/)
+      .filter(Boolean);
+
+  test('falls back to the default host when the variable is blank', () => {
+    /* A default parameter only fires on `undefined`, and `.env.example` ships
+       `NEXT_PUBLIC_DOCUMENSO_HOST=` with no value - so any environment that
+       copies it hands this an empty string, which used to survive the default
+       and then get dropped, leaving frame-src with no portal host at all. */
+    expect(frameSrc('')).toContain('https://ds.yosemitecrew.com');
+    expect(frameSrc('   ')).toContain('https://ds.yosemitecrew.com');
+    expect(frameSrc(undefined)).toContain('https://ds.yosemitecrew.com');
+  });
+
+  test('reduces a configured host to a bare origin', () => {
+    /* `https://ds.example.com/` is a source with a PATH, not an origin, and it
+       does not match a frame the way the bare form does. `urls.ts` already
+       normalises via `new URL(...).origin` when it decides whether to render
+       the iframe at all, so leaving the raw string here let the two halves
+       disagree about the same value. */
+    expect(frameSrc('https://ds.example.com/')).toContain('https://ds.example.com');
+    expect(frameSrc('https://ds.example.com/')).not.toContain('https://ds.example.com/');
+    expect(frameSrc('https://ds.example.com/portal/x')).toContain('https://ds.example.com');
+    expect(frameSrc('https://ds.example.com/portal/x')).not.toContain(
+      'https://ds.example.com/portal/x'
+    );
+  });
+
+  test('falls back rather than emitting an unparseable source', () => {
+    // A malformed value must not become a CSP token that silently matches nothing.
+    expect(frameSrc('not a url')).toContain('https://ds.yosemitecrew.com');
+    expect(frameSrc('not a url')).not.toContain('not');
+    expect(frameSrc('not a url')).not.toContain('url');
+  });
+});
