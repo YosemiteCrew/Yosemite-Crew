@@ -22,12 +22,12 @@ import {
 } from "../../services/developer-billing.service";
 
 const CheckoutSchema = z.object({
-  successUrl: z.string().url(),
-  cancelUrl: z.string().url(),
+  successUrl: z.url(),
+  cancelUrl: z.url(),
 });
 
 const PortalSchema = z.object({
-  returnUrl: z.string().url(),
+  returnUrl: z.url(),
 });
 
 const handleError = (err: unknown, res: Response): void => {

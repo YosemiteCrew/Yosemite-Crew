@@ -779,7 +779,7 @@ const FederationSection = () => {
 
   const loadActor = useCallback(() => {
     setLoading(true);
-    getActorSettings()
+    return getActorSettings()
       .then((data) => setActor(data))
       .catch(() => {
         notify('error', {
@@ -798,7 +798,7 @@ const FederationSection = () => {
     const run = async () => {
       await loadActor();
     };
-    run();
+    void run();
   }, [loadActor]);
 
   if (loading) {

@@ -34,7 +34,7 @@ const CreateInvoicePaymentSessionBodySchema = z.object({
   provider: z.string().trim().min(1).optional(),
   // Major units. Present when the caller is collecting a deposit rather than
   // the whole outstanding balance.
-  depositAmount: z.number().finite().positive().optional(),
+  depositAmount: z.number().positive().optional(),
 });
 
 const InvoiceItemBodySchema = z.object({
@@ -145,8 +145,8 @@ const SubscriptionCheckoutCompletedBodySchema = z.object({
     ])
     .optional(),
   cancelAtPeriodEnd: z.boolean().optional(),
-  currentPeriodStart: z.string().datetime().optional(),
-  currentPeriodEnd: z.string().datetime().optional(),
+  currentPeriodStart: z.iso.datetime().optional(),
+  currentPeriodEnd: z.iso.datetime().optional(),
   livemode: z.boolean().optional(),
   seatQuantity: z.number().int().nonnegative().optional(),
 });
@@ -167,10 +167,10 @@ const SubscriptionUpdatedBodySchema = z.object({
     ])
     .optional(),
   cancelAtPeriodEnd: z.boolean().optional(),
-  canceledAt: z.string().datetime().optional(),
+  canceledAt: z.iso.datetime().optional(),
   seatQuantity: z.number().int().nonnegative().optional(),
-  currentPeriodStart: z.string().datetime().optional(),
-  currentPeriodEnd: z.string().datetime().optional(),
+  currentPeriodStart: z.iso.datetime().optional(),
+  currentPeriodEnd: z.iso.datetime().optional(),
 });
 
 const SubscriptionLifecycleBodySchema = z.object({
@@ -186,7 +186,7 @@ const UsageEventBodySchema = z.object({
   referenceType: z.string().trim().min(1).optional(),
   referenceId: z.string().trim().min(1).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
-  occurredAt: z.string().datetime().optional(),
+  occurredAt: z.iso.datetime().optional(),
 });
 
 const UsageSnapshotBodySchema = z.object({
@@ -196,7 +196,7 @@ const UsageSnapshotBodySchema = z.object({
   appointmentsUsed: z.number().int().nonnegative().optional(),
   toolsUsed: z.number().int().nonnegative().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
-  snapshotAt: z.string().datetime().optional(),
+  snapshotAt: z.iso.datetime().optional(),
 });
 
 const RecordInvoicePaymentBodySchema = z.object({
@@ -205,13 +205,13 @@ const RecordInvoicePaymentBodySchema = z.object({
   amount: z.number().positive(),
   currency: z.string().trim().min(1).optional(),
   reference: z.string().trim().min(1).optional(),
-  receivedAt: z.string().datetime().optional(),
+  receivedAt: z.iso.datetime().optional(),
 });
 
 const CloseoutInvoiceBodySchema = z.object({
   settlementChannel: z.string().trim().min(1).optional(),
   reference: z.string().trim().min(1).optional(),
-  receivedAt: z.string().datetime().optional(),
+  receivedAt: z.iso.datetime().optional(),
 });
 
 const RefundPaymentBodySchema = z.object({

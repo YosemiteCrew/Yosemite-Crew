@@ -865,7 +865,7 @@ const BookClient = ({ slug }: { slug: string }) => {
     []
   );
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = (event: React.SubmitEvent) => {
     event.preventDefault();
     if (!serviceId || !selectedTime || submitting || !form.consent) return;
 

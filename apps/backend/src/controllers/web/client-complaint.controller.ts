@@ -29,7 +29,7 @@ const CreateComplaintSchema = z.object({
   category: CategoryEnum.optional(),
   summary: z.string().min(1),
   description: z.string().optional(),
-  reportedAt: z.string().datetime().optional(),
+  reportedAt: z.iso.datetime().optional(),
   reportedBy: z.string().optional(),
   assignedTo: z.string().optional(),
 });
@@ -40,7 +40,7 @@ const UpdateComplaintSchema = z.object({
   summary: z.string().min(1).optional(),
   description: z.string().optional(),
   assignedTo: z.string().optional(),
-  resolvedAt: z.string().datetime().optional(),
+  resolvedAt: z.iso.datetime().optional(),
   resolutionNotes: z.string().optional(),
 });
 
@@ -55,7 +55,7 @@ export const clientComplaintController = {
     const { organisationId } = req.params;
     const parsed = CreateComplaintSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
+      res.status(400).json({ error: z.flattenError(parsed.error) });
       return;
     }
     const { reportedAt, ...rest } = parsed.data;
@@ -108,7 +108,7 @@ export const clientComplaintController = {
     const { organisationId, complaintId } = req.params;
     const parsed = UpdateComplaintSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
+      res.status(400).json({ error: z.flattenError(parsed.error) });
       return;
     }
     const { resolvedAt, ...rest } = parsed.data;
@@ -132,7 +132,7 @@ export const clientComplaintController = {
     const { organisationId, complaintId } = req.params;
     const parsed = AddNoteSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
+      res.status(400).json({ error: z.flattenError(parsed.error) });
       return;
     }
     try {

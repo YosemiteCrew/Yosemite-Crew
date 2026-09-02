@@ -62,7 +62,7 @@ export const drugFormularyController = {
     const { organisationId } = req.params;
     const parsed = CreateFormularySchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
+      res.status(400).json({ error: z.flattenError(parsed.error) });
       return;
     }
     try {
@@ -111,7 +111,7 @@ export const drugFormularyController = {
     const { organisationId, formularyId } = req.params;
     const parsed = UpdateFormularySchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
+      res.status(400).json({ error: z.flattenError(parsed.error) });
       return;
     }
     try {
@@ -131,7 +131,7 @@ export const drugFormularyController = {
     const { organisationId, formularyId } = req.params;
     const parsed = DosageSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
+      res.status(400).json({ error: z.flattenError(parsed.error) });
       return;
     }
     try {

@@ -28,7 +28,7 @@ export const formAssignmentSignerIdentitySchema = z
   .object({
     userId: z.string().trim().min(1).optional(),
     name: z.string().trim().min(1).optional(),
-    email: z.string().trim().email().optional(),
+    email: z.string().trim().pipe(z.email()).optional(),
     role: z.string().trim().min(1).optional(),
   })
   .strict();

@@ -113,9 +113,10 @@ export const ChatController = {
 
       const parsed = shareEntitySchema.safeParse(getObjectBody(req));
       if (!parsed.success) {
-        return res
-          .status(400)
-          .json({ message: "Invalid payload", errors: parsed.error.flatten() });
+        return res.status(400).json({
+          message: "Invalid payload",
+          errors: z.flattenError(parsed.error),
+        });
       }
 
       const record = await SharedChatEntityService.shareEntity({

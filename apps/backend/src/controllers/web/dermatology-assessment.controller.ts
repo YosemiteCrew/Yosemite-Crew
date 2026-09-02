@@ -17,9 +17,9 @@ const LesionMapRegionSchema = z.object({
 });
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  assessedAt: z.string().datetime(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
+  assessedAt: z.iso.datetime(),
   pruritusScore: z.number().int().min(0).max(10).optional(),
   affectedRegions: z.array(z.string().max(200)).optional(),
   primaryLesions: z.array(z.string().max(200)).optional(),

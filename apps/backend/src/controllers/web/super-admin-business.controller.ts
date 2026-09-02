@@ -27,7 +27,7 @@ const updateBusinessSchema = z
 
     if (provided.length !== 1) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "Exactly one status field is required.",
       });
     }

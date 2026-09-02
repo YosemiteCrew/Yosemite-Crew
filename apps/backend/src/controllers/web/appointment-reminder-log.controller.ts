@@ -26,12 +26,8 @@ const RecordSchema = z.object({
   clientId: z.string(),
   channel: ChannelEnum,
   outcome: OutcomeEnum.optional(),
-  sentAt: z
-    .string()
-    .datetime()
-    .transform((v) => new Date(v)),
-  respondedAt: z
-    .string()
+  sentAt: z.iso.datetime().transform((v) => new Date(v)),
+  respondedAt: z.iso
     .datetime()
     .transform((v) => new Date(v))
     .optional(),
@@ -42,8 +38,7 @@ const RecordSchema = z.object({
 
 const UpdateOutcomeSchema = z.object({
   outcome: OutcomeEnum,
-  respondedAt: z
-    .string()
+  respondedAt: z.iso
     .datetime()
     .transform((v) => new Date(v))
     .optional(),
