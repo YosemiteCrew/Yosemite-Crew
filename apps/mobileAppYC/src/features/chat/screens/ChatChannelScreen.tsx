@@ -93,9 +93,8 @@ const ChatChannelHeader: React.FC<{
         testID="HeaderBackButton">
         <Ionicons name="chevron-back" size={18} color={theme.colors.inkBody} />
       </PressableOpacity>
-      <View style={styles.avatar}>
+      <View style={styles.avatar} testID="ChatHeaderAvatar">
         <Text style={styles.avatarText}>{initials}</Text>
-        <View style={styles.presenceDot} />
       </View>
       <View style={styles.titleBlock}>
         <Text style={styles.name} numberOfLines={1}>
@@ -410,17 +409,6 @@ const createHeaderStyles = (theme: any) =>
     avatarText: {
       ...theme.typography.subtitleBold14,
       color: theme.colors.avatarVioletInk,
-    },
-    presenceDot: {
-      position: 'absolute',
-      bottom: 0,
-      right: 0,
-      width: 11,
-      height: 11,
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.success,
-      borderWidth: 2,
-      borderColor: theme.colors.screen,
     },
     titleBlock: {
       flex: 1,

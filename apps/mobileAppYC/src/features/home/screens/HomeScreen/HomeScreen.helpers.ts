@@ -1,6 +1,11 @@
 export const deriveHomeGreetingName = (rawFirstName?: string | null) => {
   const trimmed = rawFirstName?.trim() ?? '';
-  const resolvedName = trimmed.length > 0 ? trimmed : 'Sky';
+  /*
+   * No stand-in name. This used to fall back to 'Sky', so an account with no
+   * first name was greeted by someone else's - a fixture name that reached
+   * production. 'there' reads as a greeting rather than as the user's name.
+   */
+  const resolvedName = trimmed.length > 0 ? trimmed : 'there';
   const displayName =
     resolvedName.length > 13 ? `${resolvedName.slice(0, 13)}...` : resolvedName;
   return {resolvedName, displayName};

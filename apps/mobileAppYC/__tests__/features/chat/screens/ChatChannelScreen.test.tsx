@@ -200,6 +200,26 @@ describe('ChatChannelScreen', () => {
 
   // --- Rendering & Initialization Tests ---
 
+  it('shows no presence indicator, because nothing tracks presence', async () => {
+    /*
+     * The dot used to render unconditionally, so every vet always appeared
+     * online. Nothing subscribes to presence and the transport exposes none.
+     *
+     * Asserted structurally - the avatar holds the initials and nothing else.
+     * A first attempt matched on the style NAME containing "presence", which
+     * silently never bites: RN StyleSheet compiles styles to numeric ids, so
+     * re-adding the dot still passed.
+     */
+    const {getByTestId} = render(<ChatChannelScreen />);
+    const avatar = await waitFor(() => getByTestId('ChatHeaderAvatar'));
+
+    expect(avatar.props.children).toBeTruthy();
+    const children = Array.isArray(avatar.props.children)
+      ? avatar.props.children.filter(Boolean)
+      : [avatar.props.children];
+    expect(children).toHaveLength(1);
+  });
+
   it('renders loading state initially', async () => {
     (connectStreamUser as jest.Mock).mockImplementation(
       () => new Promise(() => {}),

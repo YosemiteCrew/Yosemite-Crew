@@ -1,18 +1,18 @@
 import {deriveHomeGreetingName} from '@/features/home/screens/HomeScreen/HomeScreen.helpers';
 
 describe('deriveHomeGreetingName', () => {
-  it('falls back to Sky when name is empty', () => {
+  it('greets neutrally when the name is empty', () => {
     expect(deriveHomeGreetingName('')).toEqual({
-      resolvedName: 'Sky',
-      displayName: 'Sky',
+      resolvedName: 'there',
+      displayName: 'there',
     });
     expect(deriveHomeGreetingName('   ')).toEqual({
-      resolvedName: 'Sky',
-      displayName: 'Sky',
+      resolvedName: 'there',
+      displayName: 'there',
     });
     expect(deriveHomeGreetingName(undefined)).toEqual({
-      resolvedName: 'Sky',
-      displayName: 'Sky',
+      resolvedName: 'there',
+      displayName: 'there',
     });
   });
 
