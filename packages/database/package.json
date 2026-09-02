@@ -28,8 +28,8 @@
     "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.3.0",
     "prisma": "^5.22.0",
-    "typescript": "5.0.4"
+    "typescript": "5.9.3"
   }
 }
