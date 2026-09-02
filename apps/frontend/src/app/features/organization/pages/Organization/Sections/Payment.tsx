@@ -16,7 +16,15 @@ const resolveStatus = (chargesEnabled?: boolean, payoutsEnabled?: boolean): Paym
   if (chargesEnabled) {
     return {
       connected: true,
-      text: payoutsEnabled ? 'Charges enabled · payouts weekly' : 'Charges enabled',
+      /*
+       * "payouts weekly" was invented. `payoutsEnabled` mirrors Stripe's
+       * `account.payouts_enabled`, a capability boolean carrying no schedule,
+       * and nothing in the product reads a payout interval. The claim was wrong
+       * for any clinic on Stripe's rolling daily default, or on a monthly or
+       * manual schedule - and it sat beside a live status dot, so it read as
+       * account state rather than copy.
+       */
+      text: payoutsEnabled ? 'Charges and payouts enabled' : 'Charges enabled',
     };
   }
   return { connected: false, text: 'Not connected yet' };

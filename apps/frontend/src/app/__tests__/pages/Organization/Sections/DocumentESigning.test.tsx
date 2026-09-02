@@ -36,48 +36,32 @@ jest.mock('react-icons/io5', () => ({
 describe('DocumentESigning settings card', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('renders the three e-signing channels with their default states', () => {
+  it('renders the card heading and the sealing note', () => {
     render(<DocumentESigning />);
 
     expect(screen.getByText('How consent documents get signed')).toBeInTheDocument();
-    expect(screen.getByRole('switch', { name: 'Sign in the pet parent app' })).toHaveAttribute(
-      'aria-checked',
-      'true'
-    );
-    expect(screen.getByRole('switch', { name: 'Sign on clinic tablet' })).toHaveAttribute(
-      'aria-checked',
-      'true'
-    );
-    expect(
-      screen.getByRole('switch', { name: 'Require signature before surgery check-in' })
-    ).toHaveAttribute('aria-checked', 'false');
     expect(
       screen.getByText(/Signed documents are sealed with a timestamp and signer identity/)
     ).toBeInTheDocument();
-    expect(screen.getByText('Changes apply org-wide')).toBeInTheDocument();
   });
 
-  it('toggles each channel independently', () => {
+  it('offers no channel switches and no Save, because none of it persisted', () => {
+    // The three switches were module-local useState literals, so every user of
+    // every clinic saw the same invented configuration; Save only raised a
+    // success toast claiming the settings applied org-wide, and wrote nothing.
     render(<DocumentESigning />);
 
-    const appToggle = screen.getByRole('switch', { name: 'Sign in the pet parent app' });
-    fireEvent.click(appToggle);
-    expect(appToggle).toHaveAttribute('aria-checked', 'false');
-
-    const requireToggle = screen.getByRole('switch', {
-      name: 'Require signature before surgery check-in',
-    });
-    fireEvent.click(requireToggle);
-    expect(requireToggle).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryAllByRole('switch')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Changes apply org-wide')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sign in the pet parent app')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sign on clinic tablet')).not.toBeInTheDocument();
+    expect(screen.queryByText('Require signature before surgery check-in')).not.toBeInTheDocument();
   });
 
-  it('notifies on save', () => {
+  it('claims no save happened', () => {
     render(<DocumentESigning />);
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    expect(notifyMock).toHaveBeenCalledWith(
-      'success',
-      expect.objectContaining({ title: 'E-signing preferences updated' })
-    );
+    expect(notifyMock).not.toHaveBeenCalled();
   });
 
   it('discloses and hides the signing portal', () => {

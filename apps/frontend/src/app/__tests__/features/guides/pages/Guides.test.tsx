@@ -63,11 +63,17 @@ describe('Guides page', () => {
     expect(cardButton('Connect IDEXX in 5 minutes')).toBeInTheDocument();
   });
 
-  it('renders each card status variant', () => {
+  it('renders the New badge, which is content age rather than viewer state', () => {
     render(<ProtectedGuides />);
-    expect(screen.getByText('Watched')).toBeInTheDocument();
-    expect(screen.getByText('60%')).toBeInTheDocument();
     expect(screen.getByText('New')).toBeInTheDocument();
+  });
+
+  it('shows no viewing history, because nothing records one', () => {
+    // "Watched" and a 60% progress bar were module literals, so every user of
+    // every clinic was told they had already watched the same guide.
+    render(<ProtectedGuides />);
+    expect(screen.queryByText('Watched')).not.toBeInTheDocument();
+    expect(screen.queryByText('60%')).not.toBeInTheDocument();
   });
 
   it('filters the grid by category chip', () => {

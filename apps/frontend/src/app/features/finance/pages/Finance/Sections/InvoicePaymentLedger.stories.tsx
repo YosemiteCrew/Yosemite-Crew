@@ -92,7 +92,6 @@ export const PaidInApp: Story = {
   args: {
     invoice: invoice({ stripeReceiptUrl: 'https://pay.stripe.com/receipts/acct_1H/ch_3Ab' }),
     payerName: LONG_PAYER,
-    payerEmail: '  sky.doe@example.com  ',
   },
   play: async ({ canvasElement }) => {
     const region = within(canvasElement).getByRole('region', { name: 'Payments' });
@@ -277,7 +276,6 @@ export const Unsettled: Story = {
   name: 'Unsettled invoice draws nothing',
   args: {
     invoice: invoice({ status: 'AWAITING_PAYMENT', paidAt: undefined }),
-    payerEmail: 'sky.doe@example.com',
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

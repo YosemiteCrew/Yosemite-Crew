@@ -3,8 +3,16 @@ import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
 /**
  * Static content library for the Guides screen. There is no video backend — the
- * player surface is presentational — so the copy, durations, categories and
- * completion status below are the seed content, not live data.
+ * player surface is presentational — so the copy, durations, chapters and
+ * categories below are seed content describing the bundled videos.
+ *
+ * Deliberately absent: per-viewer state. Entries used to carry
+ * `status: 'watched'`, `progressPercent: 60` and `currentTime: '3:07'`, which
+ * are claims about the person reading the page, not about the video. Because
+ * they were module literals, every user of every clinic was told they had
+ * already watched "Your first day in the PIMS" and were 60% through "Run a visit
+ * end to end". Nothing records viewing progress — there is no watch-state model
+ * and no route — so these must stay out until something does.
  */
 export const guidesData: GuideVideo[] = [
   {
@@ -17,7 +25,6 @@ export const guidesData: GuideVideo[] = [
     videoUrl: MEDIA_SOURCES.guides.addTeamVideo,
     thumbnailUrl: MEDIA_SOURCES.guides.thumb1,
     featured: true,
-    status: 'watched',
     chapters: [
       { label: 'the shell', time: '0:00' },
       { label: '⌘K search', time: '1:04' },
@@ -33,8 +40,6 @@ export const guidesData: GuideVideo[] = [
     tags: ['visit', 'soap', 'diagnostics', 'payment'],
     videoUrl: MEDIA_SOURCES.guides.addCompanionVideo,
     thumbnailUrl: MEDIA_SOURCES.guides.thumb2,
-    progressPercent: 60,
-    currentTime: '3:07',
     chapters: [
       { label: 'check-in', time: '0:00' },
       { label: 'SOAP', time: '0:48' },

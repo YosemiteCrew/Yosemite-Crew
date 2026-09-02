@@ -72,7 +72,6 @@ const baseProps = {
   statusLabel: 'Paid',
   statusStyle: {},
   payerName: 'Lena Hartmann',
-  payerEmail: 'lena@x.com',
   onClose: jest.fn(),
   onOpenAppointment: jest.fn(),
 };
@@ -116,7 +115,7 @@ describe('InvoicePhoneRecord', () => {
     expect(screen.getByText('-€5')).toBeInTheDocument();
   });
 
-  it('renders the payment ledger, receipt link and finalized note when settled', () => {
+  it('renders the payment ledger and receipt link when settled', () => {
     render(<InvoicePhoneRecord {...baseProps} />);
 
     expect(screen.getByText('Payment recorded')).toBeInTheDocument();
@@ -125,7 +124,9 @@ describe('InvoicePhoneRecord', () => {
       'href',
       'https://receipt'
     );
-    expect(screen.getByText('Receipt sent to lena@x.com')).toBeInTheDocument();
+    // Same as the desktop ledger: an address on file is not proof of delivery.
+    expect(screen.queryByText(/Receipt sent to/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/lena@x.com/)).not.toBeInTheDocument();
   });
 
   it('labels the payment row by the channel the payment came through', () => {
@@ -241,11 +242,6 @@ describe('InvoicePhoneRecord', () => {
     );
     expect(screen.getByText('Payment recorded')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Receipt' })).not.toBeInTheDocument();
-  });
-
-  it('omits the finalized note when there is no payer email', () => {
-    render(<InvoicePhoneRecord {...baseProps} payerEmail="" />);
-    expect(screen.queryByText(/Receipt sent to/)).not.toBeInTheDocument();
   });
 
   it('renders only the Open appointment button when there is no PDF', () => {
