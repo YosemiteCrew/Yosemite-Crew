@@ -1089,6 +1089,59 @@ describe('LabTests', () => {
     });
   });
 
+  it('ignores a slow earlier search that lands after a newer one', async () => {
+    /* The backend now filters on `query` server-side (#2485), so two in-flight
+       searches return DIFFERENT result sets. Before the request-generation
+       guard, a slower earlier response landing last overwrote the newer results
+       and left the picker showing tests for text the user had already changed.
+       While every response was the same unfiltered page this was unobservable,
+       which is why the 300ms debounce alone had been enough. */
+    const deferred = () => {
+      let resolve!: (value: unknown) => void;
+      const promise = new Promise((r) => {
+        resolve = r;
+      });
+      return { promise, resolve };
+    };
+    const first = deferred();
+    const second = deferred();
+
+    listIdexxTestsMock
+      .mockReturnValueOnce(Promise.resolve({ tests: [] }))
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+
+    render(<LabTests activeAppointment={appointment} />);
+    await waitFor(() => {
+      expect(listIdexxTestsMock).toHaveBeenCalledTimes(1);
+    });
+
+    const input = screen.getByTestId('query-Search IDEXX tests');
+
+    fireEvent.change(input, { target: { value: 'SD' } });
+    await waitFor(() => {
+      expect(listIdexxTestsMock).toHaveBeenCalledTimes(2);
+    });
+
+    fireEvent.change(input, { target: { value: 'SDMA' } });
+    await waitFor(() => {
+      expect(listIdexxTestsMock).toHaveBeenCalledTimes(3);
+    });
+
+    // The NEWER request settles first...
+    await act(async () => {
+      second.resolve({ tests: [{ _id: 't2', code: '3638', display: 'IDEXX SDMA Test' }] });
+    });
+    // ...and then the older one lands late with a different set.
+    await act(async () => {
+      first.resolve({ tests: [{ _id: 't1', code: '0000', display: 'Stale SD Result' }] });
+    });
+
+    const options = screen.getByTestId('rendered-options-Search IDEXX tests').textContent ?? '';
+    expect(options).toContain('IDEXX SDMA Test');
+    expect(options).not.toContain('Stale SD Result');
+  });
+
   it('clears tests and surfaces an error when the search request fails', async () => {
     listIdexxTestsMock.mockRejectedValue(new Error('boom'));
 
