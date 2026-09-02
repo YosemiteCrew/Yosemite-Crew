@@ -3722,6 +3722,78 @@ describe("InvoiceService", () => {
     );
   });
 
+  it("returns settlement details for the whole list in two queries", async () => {
+    // The list used to return no settlementSummary at all, which left the
+    // client's getInvoiceOutstanding unable to take its preferred branch and
+    // falling back to total-minus-deposit - ignoring every recorded payment
+    // and credit note, and overstating what each invoice still owed (#2595).
+    const invoices = [
+      {
+        id: "inv_a",
+        organisationId,
+        items: [],
+        subtotal: 200,
+        totalAmount: 200,
+        depositCollectedAmount: 0,
+        currency: "gbp",
+        status: "AWAITING_PAYMENT",
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: "inv_b",
+        organisationId,
+        items: [],
+        subtotal: 100,
+        totalAmount: 100,
+        depositCollectedAmount: 0,
+        currency: "gbp",
+        status: "AWAITING_PAYMENT",
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+    (prisma.invoice.findMany as jest.Mock).mockResolvedValueOnce(invoices);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: "pay_a", invoiceId: "inv_a", amount: 50, refunds: [] },
+    ]);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: "cn_a", invoiceId: "inv_a", amount: 20 },
+    ]);
+
+    const results = await InvoiceService.listForOrganisation(organisationId);
+
+    // inv_a: 200 total, 50 paid, 20 credited -> 130 outstanding.
+    expect(results[0].settlementSummary).toEqual(
+      expect.objectContaining({ cashPaid: 50, credited: 20, balance: 130 }),
+    );
+    // inv_b has neither, so it still owes the whole amount.
+    expect(results[1].settlementSummary).toEqual(
+      expect.objectContaining({ cashPaid: 0, credited: 0, balance: 100 }),
+    );
+
+    // Two queries for the page, not two per invoice.
+    expect(prisma.payment.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.creditNote.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.payment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { invoiceId: { in: ["inv_a", "inv_b"] } },
+      }),
+    );
+  });
+
+  it("returns an empty list without querying settlement at all", async () => {
+    (prisma.invoice.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await expect(
+      InvoiceService.listForOrganisation(organisationId),
+    ).resolves.toEqual([]);
+    expect(prisma.payment.findMany).not.toHaveBeenCalled();
+    expect(prisma.creditNote.findMany).not.toHaveBeenCalled();
+  });
+
   it("throws when adding items to a missing invoice", async () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce(null);
     await expect(
