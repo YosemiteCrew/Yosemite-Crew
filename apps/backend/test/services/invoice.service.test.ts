@@ -12,6 +12,7 @@ import { NotificationService } from "../../src/services/notification.service";
 import { AuditTrailService } from "../../src/services/audit-trail.service";
 import {
   FinancePaymentService,
+  cancelOpenCheckoutSessionAttempts,
   getInvoiceFinancialSummary,
 } from "../../src/services/finance/payment";
 import { sendEmailTemplate } from "../../src/utils/email";
@@ -97,6 +98,7 @@ jest.mock("../../src/services/finance/payment", () => ({
     refundInvoicePayments: jest.fn(),
   },
   getInvoiceFinancialSummary: jest.fn(),
+  cancelOpenCheckoutSessionAttempts: jest.fn(),
 }));
 
 jest.mock("../../src/utils/email", () => ({
@@ -1066,6 +1068,36 @@ describe("InvoiceService", () => {
     });
 
     expect(prisma.invoice.update).not.toHaveBeenCalled();
+  });
+
+  it("expires the Stripe checkout sessions when a credit note is issued", async () => {
+    // Cancelling only the local PaymentAttempt leaves the link the client
+    // already holds working, and it still charges the pre-credit amount. By
+    // then the local attempt is CANCELED, so the webhook has no open attempt to
+    // reconcile the payment against and the overcharge never appears here
+    // (#2598).
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_expire",
+      organisationId,
+      totalAmount: 100,
+      status: "AWAITING_PAYMENT",
+      creditNotes: [],
+    });
+    (prisma.creditNote.create as jest.Mock).mockResolvedValueOnce({
+      id: "cn_expire",
+      invoiceId: "inv_expire",
+      creditNoteNumber: "CN-1",
+      amount: 10,
+      status: "ISSUED",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await InvoiceService.issueCreditNote("inv_expire", { amount: 10 });
+
+    expect(cancelOpenCheckoutSessionAttempts).toHaveBeenCalledWith(
+      "inv_expire",
+    );
   });
 
   it("issues a credit note and records a finance event", async () => {

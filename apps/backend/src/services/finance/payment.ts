@@ -886,7 +886,18 @@ const buildDepositLineItem = (params: {
 
 // A PAYMENT_LINK invoice switching to an in-app PaymentIntent must first
 // retire its open Checkout Sessions so the same balance cannot be paid twice.
-const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
+/**
+ * Expire every open Stripe checkout session for an invoice at the provider,
+ * then cancel the local attempts.
+ *
+ * Exported because cancelling the local row alone is not enough: a link already
+ * in the client's hands keeps resolving at Stripe and still charges the old
+ * amount, and the local attempt is by then CANCELED so the webhook has no open
+ * attempt to reconcile against. Provider expiry failures are logged and
+ * swallowed - Stripe rejects expiry for sessions it has already expired or
+ * completed, and the local cancel stands either way.
+ */
+export const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
   const staleSessionAttempts = await prisma.paymentAttempt.findMany({
     where: {
       invoiceId,

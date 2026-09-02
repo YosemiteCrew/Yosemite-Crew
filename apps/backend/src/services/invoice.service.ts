@@ -25,6 +25,7 @@ import {
 } from "./finance/tax";
 import {
   FinancePaymentService,
+  cancelOpenCheckoutSessionAttempts,
   getInvoiceFinancialSummary,
 } from "./finance/payment";
 import { FinanceEventService } from "./finance/events";
@@ -1504,6 +1505,11 @@ export const InvoiceService = {
     // `client_secret` could otherwise complete it after the practice switched to
     // PAYMENT_LINK or PAYMENT_AT_CLINIC, settling against an intent nobody
     // expects to be live. The next collection attempt mints a fresh one.
+    //
+    // Expire the sessions at Stripe first. Cancelling only the local row leaves
+    // the link the parent holds working, and by then there is no open attempt
+    // for the webhook to reconcile the payment against.
+    await cancelOpenCheckoutSessionAttempts(doc.id);
     await prisma.paymentAttempt.updateMany({
       where: {
         invoiceId: doc.id,
@@ -1589,6 +1595,11 @@ export const InvoiceService = {
     // applied payment at the credited balance, so the difference would be
     // captured at Stripe and never recorded here. Expire them; the next
     // collection attempt mints one for the reduced balance.
+    //
+    // "Expire them" has to mean at the provider. Until this call the code only
+    // wrote CANCELED locally, so the link the client already had kept working
+    // and still charged the pre-credit amount (#2598).
+    await cancelOpenCheckoutSessionAttempts(invoice.id);
     await prisma.paymentAttempt.updateMany({
       where: {
         invoiceId: invoice.id,
