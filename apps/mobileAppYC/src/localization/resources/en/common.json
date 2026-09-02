@@ -210,7 +210,7 @@
     "unableToOpenInvoiceMessage": "Please try again or copy the link from your receipt.",
     "receiptRedirectNotice": "You will be redirected to the secure Stripe receipt in your browser.",
     "termsAndLegalTitle": "Payment terms & legal",
-    "termsPaymentDue": "Payment is due by {{paymentDueLabel}}. Late or failed payments may result in rescheduling or cancellation; card transactions are processed securely via Stripe.",
+    "termsPaymentDue": "Late or failed payments may result in rescheduling or cancellation; card transactions are processed securely via Stripe.",
     "termsServicesProvidedBy": "Services are provided by {{businessName}}{{businessAddress}}. Charges reflect veterinary/professional services rendered and may include taxes or approved follow-up care.",
     "termsRefundsDisputes": "Refunds or billing disputes are handled by the service provider in line with applicable consumer laws. Keep your receipt and contact the service provider directly for questions or adjustments.",
     "termsNotEmergencyAdvice": "This invoice is not emergency advice. If your companion needs urgent care, contact the service provider or local emergency services immediately.",
@@ -226,7 +226,6 @@
     "statusDue": "Due",
     "statusPaidCash": "Paid - Cash",
     "statusPaymentAtProvider": "Payment at Provider",
-    "statedDueDateFallback": "the stated due date",
     "headerTitleInvoicePayment": "Invoice payment",
     "headerTitleBookAppointment": "Book appointment"
   },

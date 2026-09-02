@@ -218,11 +218,8 @@ const buildInvoices = (
       ? new Date(intentCreatedAt).toISOString()
       : new Date().toISOString();
     const invoiceDateISO = baseInvoice.invoiceDate ?? intentDateISO;
-    const dueDateISO =
-      baseInvoice.dueDate ??
-      new Date(
-        new Date(invoiceDateISO).getTime() + 24 * 60 * 60 * 1000,
-      ).toISOString();
+    // No synthesised deadline here either - see appointmentsService for why.
+    const dueDateISO = baseInvoice.dueDate;
     return {
       ...baseInvoice,
       invoiceDate: invoiceDateISO,
@@ -304,27 +301,6 @@ const formatDateTimeDisplay = (iso?: string) => {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-  });
-};
-
-const formatDateOnlyDisplay = (iso?: string | null) => {
-  if (!iso) {
-    return getLocalizedText(
-      'payments.statedDueDateFallback',
-      'the stated due date',
-    );
-  }
-  const ts = Date.parse(iso);
-  if (Number.isFinite(ts) === false) {
-    return getLocalizedText(
-      'payments.statedDueDateFallback',
-      'the stated due date',
-    );
-  }
-  return new Date(ts).toLocaleDateString('en-US', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
   });
 };
 
@@ -538,10 +514,14 @@ const InvoiceDetailsCard = ({
           label={getLocalizedText('payments.invoiceDate', 'Invoice date')}
           value={formatDateTimeDisplay(effectiveInvoice?.invoiceDate)}
         />
-        <MetaRow
-          label={getLocalizedText('payments.dueTill', 'Due till')}
-          value={formatDateTimeDisplay(effectiveInvoice?.dueDate)}
-        />
+        {/* Rendered only when the API actually sends a due date. It sends none
+            today, so the row stays hidden rather than showing a made-up one. */}
+        {effectiveInvoice?.dueDate ? (
+          <MetaRow
+            label={getLocalizedText('payments.dueTill', 'Due till')}
+            value={formatDateTimeDisplay(effectiveInvoice.dueDate)}
+          />
+        ) : null}
         <MetaRow
           label={getLocalizedText('payments.paymentStatus', 'Payment status')}
           value={paymentStatusLabel}
@@ -855,12 +835,10 @@ const ReceiptCard = ({
 };
 
 const TermsCard = ({
-  paymentDueLabel,
   businessName,
   businessAddress,
   styles,
 }: {
-  paymentDueLabel: string;
   businessName: string;
   businessAddress?: string;
   styles: any;
@@ -882,8 +860,7 @@ const TermsCard = ({
         <Text style={styles.termsLine}>
           {getLocalizedText(
             'payments.termsPaymentDue',
-            `Payment is due by ${paymentDueLabel}. Late or failed payments may result in rescheduling or cancellation; card transactions are processed securely via Stripe.`,
-            {paymentDueLabel},
+            'Late or failed payments may result in rescheduling or cancellation; card transactions are processed securely via Stripe.',
           )}
         </Text>
         <Text style={styles.termsLine}>
@@ -1282,7 +1259,6 @@ const buildInvoiceContent = ({
   formatMoney,
   paymentIntent,
   receiptUrl,
-  paymentDueLabel,
   businessName,
   businessAddress,
   showCashCancellationNotice,
@@ -1367,7 +1343,6 @@ const buildInvoiceContent = ({
         <ReceiptCard receiptUrl={receiptUrl} theme={theme} styles={styles} />
 
         <TermsCard
-          paymentDueLabel={paymentDueLabel}
           businessName={businessName}
           businessAddress={businessAddress}
           styles={styles}
@@ -1637,9 +1612,6 @@ export const PaymentInvoiceScreen: React.FC = () => {
     invoiceLoading,
     paymentIntentLoading,
   });
-  const paymentDueLabel = formatDateOnlyDisplay(
-    effectiveInvoice?.dueDate ?? apt?.date ?? null,
-  );
   const normalizedAppointmentStatus = normalizeStatusToken(apt?.status);
   const isCancelledAppointment =
     normalizedAppointmentStatus === 'CANCELLED' ||
@@ -1699,7 +1671,6 @@ export const PaymentInvoiceScreen: React.FC = () => {
         formatMoney,
         paymentIntent,
         receiptUrl,
-        paymentDueLabel,
         businessName,
         businessAddress,
         showCashCancellationNotice,
@@ -1732,7 +1703,6 @@ export const PaymentInvoiceScreen: React.FC = () => {
       formatMoney,
       paymentIntent,
       receiptUrl,
-      paymentDueLabel,
       businessName,
       businessAddress,
       showCashCancellationNotice,
