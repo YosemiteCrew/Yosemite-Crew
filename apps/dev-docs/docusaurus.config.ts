@@ -6,7 +6,14 @@ const config: Config = {
   title: 'Yosemite Crew Developer Docs',
   tagline: 'Build, integrate, and launch on Yosemite Crew.',
   favicon: 'img/favicon.ico',
-  url: 'http://localhost:3000',
+  /*
+   * The deployed origin, not localhost. Docusaurus bakes `url` into every
+   * canonical link, `og:url` and `og:image`, so with localhost here the live
+   * site told search engines its canonical home was http://localhost:3000 and
+   * every shared link previewed a social card nobody outside the developer's
+   * machine could load. Overridable so a preview deploy can set its own.
+   */
+  url: process.env.DEV_DOCS_URL ?? 'https://yosemitecrew.com',
   baseUrl: '/dev-docs/',
   organizationName: 'yosemite-crew',
   projectName: 'developer-docs',
@@ -16,6 +23,16 @@ const config: Config = {
       onBrokenMarkdownLinks: 'warn',
     },
   },
+  /*
+   * Stays false, deliberately.
+   *
+   * The built site is served as static files from the Next app's `public/`
+   * directory, and that app has `trailingSlash` unset, i.e. false - so it
+   * 308-redirects `/dev-docs/x/` to `/dev-docs/x`. Setting this to true would
+   * make Docusaurus link to the slashed form, get redirected to the
+   * extensionless one, and 404 exactly as before. The extensionless links this
+   * emits are resolved by a rewrite in apps/frontend/next.config.ts instead.
+   */
   trailingSlash: false,
   i18n: {
     defaultLocale: 'en',
