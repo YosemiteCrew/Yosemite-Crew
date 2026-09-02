@@ -64,6 +64,16 @@ const PARENT_LENGTH: Record<number, number> = { 4: 2, 5: 4, 6: 5, 8: 6 };
  * or far smaller than what is already loaded, is a truncated file rather than a
  * genuine contraction of the classification.
  */
+/** Level-2 groups whose published ATCvet name is "ANTIBACTERIALS FOR ...". */
+const ANTIBACTERIAL_GROUPS = ["QJ01", "QJ51"];
+
+/**
+ * Whether a code sits under one of those groups. Exported so the rule is
+ * testable on its own rather than only through a database write.
+ */
+export const isAntibacterial = (code: string): boolean =>
+  ANTIBACTERIAL_GROUPS.some((group) => code.startsWith(group));
+
 const MINIMUM_RELEASE_SIZE = 5000;
 const MAXIMUM_RELEASE_SHRINKAGE = 0.1;
 
@@ -207,10 +217,14 @@ export const main = async () => {
     level: entry.level,
     atcGroup: entry.code.slice(0, 2),
     ...(entry.species.length > 0 ? { species: entry.species } : {}),
-    // QJ01 is "antibacterials for systemic use" - the group antimicrobial
-    // stewardship reporting is actually about. Recorded as a fact of the
-    // classification, not a clinical judgement layered on top of it.
-    ...(entry.code.startsWith("QJ01") ? { antibacterial: true } : {}),
+    // The two groups ATCvet itself names "ANTIBACTERIALS": QJ01 for systemic use
+    // and QJ51 for intramammary use. Both count in veterinary antimicrobial
+    // surveillance - intramammary products treat mastitis and are a large share
+    // of dairy antibiotic use, so flagging QJ01 alone under-reports exactly the
+    // population stewardship exists to watch. Deliberately NOT the QG01/QG51
+    // "antiinfectives and antiseptics" groups, which are broader than
+    // antibacterials and would over-report instead.
+    ...(isAntibacterial(entry.code) ? { antibacterial: true } : {}),
     source: extract.source,
     dataset: extract.dataset,
     release: extract.release,
