@@ -1963,7 +1963,76 @@ describe("StripeService", () => {
     });
   });
 
+  describe("_handleInvoicePayment NO_INVOICE", () => {
+    it("logs when a captured intent names an invoice that cannot be found", async () => {
+      /*
+       * The charge is captured and nothing was marked paid, so the books show it
+       * outstanding. ALREADY_PAID and IGNORED are replays; this is not.
+       *
+       * `metadata.invoiceId` must be set: the handler returns at
+       * stripe.service.ts:918 without it, so NO_INVOICE is only reachable when
+       * the intent names an invoice the lookup then fails to match.
+       */
+      (
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded as jest.Mock
+      ).mockResolvedValueOnce({ action: "NO_INVOICE" });
+
+      await StripeService._handleInvoicePayment({
+        id: "pi_orphan",
+        metadata: { invoiceId: "inv_missing" },
+        currency: "usd",
+      } as any);
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining("pi_orphan"),
+      );
+    });
+  });
+
   describe("_handleRefund guards", () => {
+    it("logs loudly when a refund matches no invoice", async () => {
+      /*
+       * The customer has their money back and no invoice moved to REFUNDED, so
+       * the books still read PAID. This used to return in silence, and Stripe
+       * was answered 200 either way.
+       */
+      (
+        FinancePaymentService.markInvoiceRefundedFromWebhook as jest.Mock
+      ).mockResolvedValueOnce({ action: "NO_INVOICE" });
+
+      await StripeService._handleRefund({
+        id: "ch_orphan",
+        payment_intent: "pi_orphan",
+        amount: 500,
+        currency: "usd",
+        metadata: {},
+      } as any);
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining("ch_orphan"),
+      );
+      expect(NotificationService.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it("stays quiet on a replayed refund, which is a genuine idempotency case", async () => {
+      (
+        FinancePaymentService.markInvoiceRefundedFromWebhook as jest.Mock
+      ).mockResolvedValueOnce({
+        action: "ALREADY_REFUNDED",
+        invoice: { id: "inv_1", parentId: "par_1" },
+      });
+
+      await StripeService._handleRefund({
+        id: "ch_1",
+        payment_intent: "pi_1",
+        amount: 500,
+        currency: "usd",
+        metadata: { invoiceId: "inv_1" },
+      } as any);
+
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
     it("returns without notifying when the refund was not applied", async () => {
       (
         FinancePaymentService.markInvoiceRefundedFromWebhook as jest.Mock
@@ -2271,7 +2340,7 @@ describe("StripeService", () => {
       expect(prisma.appointment.findUnique).not.toHaveBeenCalled();
     });
 
-    it("ignores events when the appointment is gone", async () => {
+    it("ignores events when the appointment is gone, and says so", async () => {
       (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce(null);
 
       await StripeService._handleAppointmentBookingPayment({
@@ -2280,6 +2349,37 @@ describe("StripeService", () => {
       } as any);
 
       expect(prisma.invoice.findUnique).not.toHaveBeenCalled();
+      // The charge is captured either way; a silent return loses it.
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining("no longer exists"),
+      );
+    });
+
+    it("logs when the service behind the appointment has been deleted", async () => {
+      /*
+       * Reachable in production: deleting a speciality hard-deletes its
+       * services, and a booking payment can be in flight across that (3DS, a
+       * resumed checkout, a delayed payment method). Stripe captures the money,
+       * no invoice can be minted, and this used to return in silence.
+       */
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "appt_1",
+        appointmentType: { id: "service_gone" },
+        organisationId: "org_1",
+        patient: {},
+      });
+      (prisma.invoice.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.service.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      await StripeService._handleAppointmentBookingPayment({
+        id: "pi_1",
+        metadata: { appointmentId: "appt_1" },
+      } as any);
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining("service_gone"),
+      );
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
     });
 
     const bookingAppointment = () =>
