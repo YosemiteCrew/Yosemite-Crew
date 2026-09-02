@@ -810,7 +810,7 @@ const FEATURES: readonly Feature[] = [
   {
     icon: IoShieldCheckmarkOutline,
     title: 'Report a reaction, protect the next animal',
-    body: 'If a medicine or vaccine goes wrong, report it in a few taps. It reaches the people who track drug safety, so one bad day helps keep the next animal well.',
+    body: 'If a medicine or vaccine goes wrong, record it in a few taps. It reaches your vet with the dose, the batch and the timeline already attached, so the report they file is the one that helps the next animal.',
     delay: 160,
   },
   {
