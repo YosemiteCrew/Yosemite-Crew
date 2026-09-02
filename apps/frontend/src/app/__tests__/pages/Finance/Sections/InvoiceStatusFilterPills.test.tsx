@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import InvoiceStatusFilterPills from '@/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills';
 
@@ -21,8 +21,12 @@ describe('InvoiceStatusFilterPills', () => {
       'aria-pressed',
       'false'
     );
-    const activePill = within(screen.getByRole('button', { name: 'Paid' })).getByText('Paid');
-    expect(activePill).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
+    const active = screen.getByRole('button', { name: 'Paid' });
+    // The design's filter chip: sentence case, solid ink when active, never an
+    // ALL-CAPS status pill.
+    expect(active).toHaveClass('h-8', 'rounded-full!', 'text-[12.5px]', 'font-bold');
+    expect(active).toHaveClass('bg-[var(--chip-selected-bg)]');
+    expect(active).not.toHaveClass('uppercase');
   });
 
   it('calls setActiveStatus with the option key on click', () => {
@@ -39,7 +43,7 @@ describe('InvoiceStatusFilterPills', () => {
     expect(setActiveStatus).toHaveBeenCalledWith('pending');
   });
 
-  it('keeps shared status pill geometry when size is md', () => {
+  it('keeps one chip geometry whatever size the caller asks for', () => {
     render(
       <InvoiceStatusFilterPills
         options={options}
@@ -50,9 +54,8 @@ describe('InvoiceStatusFilterPills', () => {
     );
 
     const allButton = screen.getByRole('button', { name: 'All' });
-    const allPill = within(allButton).getByText('All');
-    expect(allButton).toHaveClass('min-h-[38px]', 'px-1', 'py-1');
-    expect(allPill).toHaveClass('px-2.5', 'py-[3px]', 'text-[10px]');
+    expect(allButton).toHaveClass('h-8', 'px-[13px]', 'text-[12.5px]');
+    expect(screen.getByRole('button', { name: 'Pending' })).toHaveClass('h-8', 'px-[13px]');
   });
 
   it('merges an extra className onto the group', () => {
