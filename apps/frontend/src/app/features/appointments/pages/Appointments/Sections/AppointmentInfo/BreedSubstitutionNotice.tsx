@@ -20,8 +20,6 @@ const REASON_TEXT: Record<LabBreedSubstitution['reason'], string> = {
   MISMATCHED_BREED: "the companion's breed code does not match its species",
 };
 
-const isRecordDefect = (reason: LabBreedSubstitution['reason']) => reason === 'MISMATCHED_BREED';
-
 /**
  * Says which breed was requested and which code actually reached the lab.
  *
@@ -34,7 +32,7 @@ const BreedSubstitutionNotice = ({ substitution }: BreedSubstitutionNoticeProps)
   if (!substitution) return null;
 
   const { requestedBreedCode, usedBreedCode, reason } = substitution;
-  const defect = isRecordDefect(reason);
+  const defect = reason === 'MISMATCHED_BREED';
 
   return (
     <div
