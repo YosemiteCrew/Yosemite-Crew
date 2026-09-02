@@ -95,7 +95,10 @@ const ChatChannelHeader: React.FC<{
       </PressableOpacity>
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{initials}</Text>
-        <View style={styles.presenceDot} />
+        {/* No presence dot. It rendered unconditionally, so every vet always
+            appeared online - nothing in the app subscribes to presence, and the
+            chat transport exposes none. A dot that is always green tells the
+            pet owner nothing and implies someone is there to answer. */}
       </View>
       <View style={styles.titleBlock}>
         <Text style={styles.name} numberOfLines={1}>
@@ -410,17 +413,6 @@ const createHeaderStyles = (theme: any) =>
     avatarText: {
       ...theme.typography.subtitleBold14,
       color: theme.colors.avatarVioletInk,
-    },
-    presenceDot: {
-      position: 'absolute',
-      bottom: 0,
-      right: 0,
-      width: 11,
-      height: 11,
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.success,
-      borderWidth: 2,
-      borderColor: theme.colors.screen,
     },
     titleBlock: {
       flex: 1,

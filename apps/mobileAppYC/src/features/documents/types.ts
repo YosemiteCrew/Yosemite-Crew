@@ -38,7 +38,13 @@ export interface DocumentCategory {
   description?: string;
   /** Warm-bone surface-token key for the category's pastel icon tile. */
   iconTint?: string;
-  isSynced: boolean;
+  /*
+   * No `isSynced` on a category. It was a hardcoded literal - health and
+   * hygiene-maintenance true, the rest false - so two tiles claimed a SYNCED
+   * state regardless of what was in them. Sync is a property of a document,
+   * derived from `uploadedByPmsUserId`, and DocumentListItem and
+   * DocumentPreviewScreen already show it correctly per document.
+   */
   fileCount: number;
   subcategories: DocumentSubcategory[];
 }
