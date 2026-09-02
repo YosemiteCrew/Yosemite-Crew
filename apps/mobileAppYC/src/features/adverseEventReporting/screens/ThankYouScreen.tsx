@@ -170,11 +170,16 @@ export const ThankYouScreen: React.FC<Props> = ({navigation}) => {
             files: productFiles,
           });
         }
+        /* Neither branch may say "we sent" it. `AdverseEventService` has no
+           outbound call - no HTTP client, no mail, no queue: it writes an
+           `AdverseEventReport` row carrying `destinations`. So the destination
+           is recorded, not delivered. The hospital can reach the row (it is
+           org-scoped and the API lists by organisation); no manufacturer can. */
         showSuccessAlert(
-          'Report submitted',
+          'Report saved',
           target === 'manufacturer'
-            ? 'We sent your report to the manufacturer.'
-            : 'We sent your report to the hospital.',
+            ? 'Saved for the manufacturer. Forwarding is not switched on yet, so tell your vet too.'
+            : 'Saved to your vet practice, with the product and batch details attached.',
         );
         resetDraft();
         handleBack();
