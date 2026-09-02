@@ -67,24 +67,39 @@ const DocSigningPortal = ({ embedded = false }: DocSigningPortalProps) => {
   }
 
   return (
-    <div
-      className={`w-full overflow-hidden pb-3 ${
-        embedded ? 'h-[75vh] min-h-[560px]' : 'h-[calc(100vh-140px)]'
-      }`}
-    >
-      {/* The third-party Documenso portal requires allow-same-origin to function, and
-          being cross-origin it cannot reach back into this site. Removing it breaks
-          signing, so this is a deliberate exception rather than a missing control. */}
-      {/* react-doctor-disable-next-line react-doctor/iframe-missing-sandbox */}
-      <iframe
-        src={portalUrl}
-        className="size-full"
-        title="Doc Signing Portal"
-        allow="clipboard-read; clipboard-write; fullscreen"
-        sandbox="allow-downloads allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
-        referrerPolicy="strict-origin"
-      />
-    </div>
+    <>
+      <div
+        className={`w-full overflow-hidden pb-3 ${
+          embedded ? 'h-[75vh] min-h-[560px]' : 'h-[calc(100vh-140px)]'
+        }`}
+      >
+        {/* The third-party Documenso portal requires allow-same-origin to function, and
+            being cross-origin it cannot reach back into this site. Removing it breaks
+            signing, so this is a deliberate exception rather than a missing control. */}
+        {/* react-doctor-disable-next-line react-doctor/iframe-missing-sandbox */}
+        <iframe
+          src={portalUrl}
+          className="size-full"
+          title="Doc Signing Portal"
+          allow="clipboard-read; clipboard-write; fullscreen"
+          sandbox="allow-downloads allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
+          referrerPolicy="strict-origin"
+        />
+      </div>
+      {/* Everything above this line succeeded: a portal URL was issued and the
+          frame loaded it. What happens INSIDE the frame is another origin's
+          business, and this page cannot read it - so when the sign-on does not
+          take, the reader is left looking at a stranger's login form with the
+          app showing no error at all, because from the app's side nothing went
+          wrong. That is the state this line is for. It deliberately does not
+          name a cause: the frame is opaque here, and guessing at one in the UI
+          would be worse than saying plainly that it did not work. */}
+      <p className="text-body-4 text-text-secondary">
+        Signing is handled by our document signing provider. If you see a sign-in form instead of
+        your documents, it could not sign you in automatically - contact support rather than
+        creating an account here.
+      </p>
+    </>
   );
 };
 
