@@ -1164,7 +1164,15 @@ export const SaveRejectedAsFinalized: Story = {
     withStoredEncounter(encounter({ prescription: [AMOXICILLIN] })),
     withApi([
       {
-        match: (method, url) => method === 'POST' && url.includes('/prescription'),
+        /* The prescription ARTIFACT write, which is the save this story is about:
+           a PATCH to /fhir/v1/clinical-artifact/.../prescription/... . Matching
+           `POST` + `/prescription` missed it entirely - the save fell through to
+           the default 200 and succeeded, so no alert was ever rendered. Worse,
+           `/prescription` also substring-matches the POST to
+           /v1/prescriptions/.../$finalize, so the 409 was landing on the finalize
+           call instead. Both halves are pinned here. */
+        match: (method, url) =>
+          method === 'PATCH' && url.includes('/clinical-artifact') && url.includes('/prescription'),
         // Held open briefly so the in-flight label is actually observable.
         reply: { status: 409, body: { message: 'Artifact is final.' }, delayMs: 250 },
       },
