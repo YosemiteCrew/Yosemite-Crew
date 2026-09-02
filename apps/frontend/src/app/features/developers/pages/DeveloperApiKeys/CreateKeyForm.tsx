@@ -30,7 +30,7 @@ const CreateKeyForm = ({
   const [environment, setEnvironment] = useState<ApiKeyEnvironment>('live');
   const [scopesInput, setScopesInput] = useState('');
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = (event: React.SubmitEvent) => {
     event.preventDefault();
     if (!name.trim() || creating) return;
 
