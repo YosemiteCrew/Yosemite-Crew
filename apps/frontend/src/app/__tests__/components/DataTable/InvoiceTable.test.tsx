@@ -26,12 +26,17 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
+// A plain <img> that forwards `onError`, so the dead-photo path is reachable.
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt, className }: any) => (
-    <span data-testid="companion-avatar" className={className}>
-      {alt}
-    </span>
+  default: ({ alt, className, src, onError }: any) => (
+    <img
+      data-testid="companion-avatar"
+      className={className}
+      alt={alt}
+      src={src}
+      onError={onError}
+    />
   ),
 }));
 
@@ -180,6 +185,20 @@ describe('InvoiceTable', () => {
     );
     expect(setActiveInvoice).toHaveBeenCalledWith(invoice);
     expect(setViewInvoice).toHaveBeenCalledWith(true);
+  });
+
+  // Design rule: the initials fallback is mandatory, never an empty circle. A
+  // companion photo whose URL stopped resolving degrades to the monogram on the
+  // species-tinted disc that already rings the row avatar.
+  it('swaps a dead companion photo for the monogram', () => {
+    render(<InvoiceTable filteredList={[invoice]} />);
+    const desktop = within(screen.getByTestId('generic-table'));
+    expect(desktop.queryByText('B')).not.toBeInTheDocument();
+
+    fireEvent.error(desktop.getByTestId('companion-avatar'));
+
+    expect(desktop.queryByTestId('companion-avatar')).not.toBeInTheDocument();
+    expect(desktop.getByText('B')).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('shows an accessible empty state when no invoices match', () => {

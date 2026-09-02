@@ -8,6 +8,7 @@ import InventoryTurnoverCard from '@/app/ui/cards/InventoryTurnoverCard';
 import { formatTurnoverStatus, getInventoryTurnoverStatusStyle } from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
+import { NoDataMessage } from '@/app/ui/tables/common';
 
 type Column<T> = {
   label: string;
@@ -138,9 +139,10 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
         {(() => {
           if (filteredList.length === 0) {
             return (
-              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-                No data available
-              </div>
+              <NoDataMessage
+                title="No turnover to report"
+                subtitle="Turnover appears once stock has moved in this period."
+              />
             );
           }
           return filteredList.map((item: any) => (

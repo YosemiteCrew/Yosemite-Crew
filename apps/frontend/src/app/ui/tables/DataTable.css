@@ -61,7 +61,7 @@ span.cell-overflow-count {
 }
 .invoice-table-fixed {
   table-layout: fixed;
-  min-width: 1308px; /* 96+200+180+150+104+96+104+180+110+88 */
+  min-width: 1324px; /* 112+200+180+150+104+96+104+180+110+88 */
 }
 .companions-table-fixed {
   table-layout: fixed;

@@ -67,7 +67,8 @@ describe('PaginatedCardList', () => {
   it('shows the empty state and no pager for an empty list', () => {
     renderList(0);
 
-    expect(screen.getByText('No data available')).toBeInTheDocument();
+    expect(screen.getByText('Nothing here yet')).toBeInTheDocument();
+    expect(screen.getByText('Records appear here as soon as they are added.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument();
   });
 

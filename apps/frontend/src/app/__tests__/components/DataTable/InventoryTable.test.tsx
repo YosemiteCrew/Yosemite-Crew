@@ -542,7 +542,7 @@ describe('InventoryTable', () => {
       />
     );
 
-    expect(screen.getByText('Looks like a quiet day… for now.')).toBeInTheDocument();
+    expect(screen.getAllByText('Nothing here yet').length).toBeGreaterThan(0);
     expect(screen.getByText('No items')).toBeInTheDocument();
     expect(screen.getByText('No data available')).toBeInTheDocument();
   });

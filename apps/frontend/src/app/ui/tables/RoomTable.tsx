@@ -179,7 +179,7 @@ const RoomTable = ({
                   <th scope="col">Type</th>
                   <th scope="col">Speciality</th>
                   <th scope="col">Occupancy</th>
-                  <th scope="col">Assigned Staff</th>
+                  <th scope="col">Assigned staff</th>
                   <th scope="col">Availability</th>
                   <th scope="col" className="text-center!">
                     Action

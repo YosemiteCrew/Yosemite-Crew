@@ -3,6 +3,7 @@ import React, { useState, type ReactNode } from 'react';
 
 import Next from '@/app/ui/primitives/Icons/Next';
 import Back from '@/app/ui/primitives/Icons/Back';
+import { NoDataMessage } from '@/app/ui/tables/common';
 
 /* The card list is the sub-xl rendering of the same data the table shows above
    xl, so it has to page like the table does. Without this it rendered every row
@@ -49,9 +50,10 @@ const PaginatedCardList = <T,>({
         className={`min-h-0 flex-1 overflow-y-auto pr-1 flex gap-4 sm:gap-6 flex-wrap content-start ${listClassName}`}
       >
         {total === 0 ? (
-          <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-            No data available
-          </div>
+          <NoDataMessage
+            title="Nothing here yet"
+            subtitle="Records appear here as soon as they are added."
+          />
         ) : (
           pageItems.map((item, index) => renderCard(item, startIdx + index))
         )}
