@@ -67,30 +67,46 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   /*
    * The developer docs are a Docusaurus build copied into `public/dev-docs`.
-   * It links extensionlessly - `/dev-docs/apps/backend` - while writing
+   * Docusaurus links extensionlessly - `/dev-docs/apps/backend` - while writing
    * `apps/backend.html`, so on the deployed site every internal link 404'd:
    * only `/dev-docs/index.html`, typed by hand, ever loaded.
    *
-   * Setting `trailingSlash: true` in Docusaurus does not fix it. This app
-   * leaves `trailingSlash` at its default of false, so it 308-redirects
-   * `/dev-docs/x/` to `/dev-docs/x` and the slashed links would land back on
-   * the same 404.
+   * These are REDIRECTS, not rewrites, and that distinction is the whole fix.
+   * A rewrite is what this started as, and it works locally and nowhere else:
+   * `next dev` serves `public/` itself, so an internal rewrite to a file in it
+   * resolves. On Amplify it cannot. Amplify serves everything under `public/`
+   * from its own CDN layer (see customHttp.yml, which exists for exactly that
+   * reason), and the Next server has no route for a file it does not serve - so
+   * the rewrite fired and then 404'd. Verified on the deployed site: a request
+   * for `/dev-docs/apps/backend` came back 404 with `x-nextjs-cache: HIT`,
+   * meaning Next answered, while `/dev-docs/apps/backend.html` came back 200
+   * from CloudFront with an ETag and no Next headers at all.
    *
-   * The rewrite runs after filesystem routes, so a real asset (`/img/x.png`,
-   * `/assets/x.css`) is served directly and never reaches it. Only a path with
-   * no extension is mapped onto its `.html` file.
+   * A redirect sends the browser to the `.html` path instead, which CloudFront
+   * does serve. The trade is a visible `.html` in the URL. The alternative that
+   * keeps clean URLs is a rewrite rule in the Amplify console, which is not in
+   * this repo and cannot be reviewed with the code.
+   *
+   * `permanent: false` deliberately: a 308 is cached hard by browsers, and if
+   * the console rule is added later these should stop firing without users
+   * carrying a stale permanent redirect.
+   *
+   * Only extensionless paths match, so real assets - `/dev-docs/img/x.png`,
+   * `/dev-docs/assets/x.css` - are untouched and keep being served directly.
    */
-  async rewrites() {
+  async redirects() {
     return [
-      // The site's own home link is `/dev-docs/`, which this app redirects to
-      // `/dev-docs`; without this the docs' own logo link 404s.
+      // The docs' own logo links to `/dev-docs/`, which this app redirects to
+      // `/dev-docs`; without this that link 404s.
       {
         source: '/dev-docs',
         destination: '/dev-docs/index.html',
+        permanent: false,
       },
       {
         source: '/dev-docs/:path((?!.*\\.).*)',
         destination: '/dev-docs/:path.html',
+        permanent: false,
       },
     ];
   },
