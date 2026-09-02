@@ -213,7 +213,7 @@ export const FullPassport: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(await canvas.findByText('Poppy')).toBeInTheDocument();
+    await canvas.findByText('Poppy');
 
     /* The raw Prisma sex reaches the line mapped, and the whole line is one
        joined string - a dropped segment leaves a plausible-looking sentence. */
@@ -251,7 +251,7 @@ export const SparsePassport: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(await canvas.findByText('Rex')).toBeInTheDocument();
+    await canvas.findByText('Rex');
 
     /* `unknown` is a database value, not something to print at a boarding desk.
        The description line drops the segment entirely rather than saying so. */
@@ -288,7 +288,7 @@ export const RabiesExpired: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(await canvas.findByText('EXPIRED')).toBeInTheDocument();
+    await canvas.findByText('EXPIRED');
     await expect(canvas.getByText(/^Rabies expired .+$/)).toBeInTheDocument();
 
     /* The failure that matters is not a missing badge, it is the wrong one.
@@ -341,7 +341,7 @@ export const NotFound: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(await canvas.findByText('This passport could not be found.')).toBeInTheDocument();
+    await canvas.findByText('This passport could not be found.');
 
     // The state machine has to leave `loading`, not render both lines at once.
     await expect(canvas.queryByText('Loading pet passport...')).toBeNull();

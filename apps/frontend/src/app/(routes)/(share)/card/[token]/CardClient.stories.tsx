@@ -277,7 +277,7 @@ export const Unavailable: Story = {
   name: 'A revoked or unknown token',
   beforeEach: () => stub({ gone: true }),
   play: async ({ canvas }) => {
-    await expect(await canvas.findByText(UNAVAILABLE_COPY)).toBeInTheDocument();
+    await canvas.findByText(UNAVAILABLE_COPY);
     // The state actually changed rather than stacking a second message.
     await expect(canvas.queryByText(LOADING_COPY)).not.toBeInTheDocument();
 

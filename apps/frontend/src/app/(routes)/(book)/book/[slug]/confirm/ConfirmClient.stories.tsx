@@ -177,7 +177,7 @@ export const InFlight: Story = {
   play: async ({ canvas }) => {
     // The shimmer blocks are divs with no role on purpose, so this one line is
     // all a screen reader has to go on while the POST is outstanding.
-    await expect(await canvas.findByText(/Confirming your request/)).toBeInTheDocument();
+    await canvas.findByText(/Confirming your request/);
 
     // The load-bearing assertion in this file. A GET would let any mail client
     // or link scanner previewing the URL confirm a request nobody clicked, and
