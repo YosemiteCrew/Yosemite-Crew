@@ -73,12 +73,34 @@ const fillForm = () => {
   fireEvent.change(screen.getByLabelText('Species'), { target: { value: 'Dog' } });
 };
 
+/*
+ * Dates are derived, never written down.
+ *
+ * These were the literals '2026-09-01' and '2026-09-02', standing for today
+ * and tomorrow. BookClient initialises its own state with `useState(todayIso)`, so
+ * once the real date reached 2026-09-02 the "change the day" test was setting
+ * the field to the value it already held: React saw no transition, no refetch
+ * ran, and the 11:00 slot it waited for never rendered. The suite failed on
+ * every branch in the repo from that midnight onward - not flakily, but for
+ * good, since from 2026-09-03 the literal is also before the input's `min`.
+ *
+ * UTC arithmetic to match `todayIso`, which is `toISOString().slice(0, 10)`.
+ */
+const isoDaysFromToday = (days: number) => {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+
+const TODAY = isoDaysFromToday(0);
+const TOMORROW = isoDaysFromToday(1);
+
 describe('BookClient', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getPracticeMock.mockResolvedValue({ kind: 'practice', practice: practice() });
     getSlotsMock.mockResolvedValue({
-      date: '2026-09-01',
+      date: TODAY,
       serviceId: 'svc-1',
       durationMinutes: 30,
       windows: [
@@ -194,7 +216,7 @@ describe('BookClient', () => {
 
   it('says when a day has no times at all', async () => {
     getSlotsMock.mockResolvedValue({
-      date: '2026-09-01',
+      date: TODAY,
       serviceId: 'svc-1',
       durationMinutes: 30,
       windows: [],
@@ -266,13 +288,13 @@ describe('BookClient', () => {
     expect(screen.getByRole('button', { name: '09:00' })).toHaveAttribute('aria-pressed', 'true');
 
     getSlotsMock.mockResolvedValue({
-      date: '2026-09-02',
+      date: TOMORROW,
       serviceId: 'svc-1',
       durationMinutes: 30,
       windows: [{ startTime: '11:00', endTime: '11:30' }],
     });
     fireEvent.change(screen.getByLabelText('Preferred day'), {
-      target: { value: '2026-09-02' },
+      target: { value: TOMORROW },
     });
 
     // The old time is gone from the new day's list, so it cannot remain chosen.
@@ -411,7 +433,7 @@ describe('BookClient', () => {
 
   it('heads the day parts only when a day actually spans more than one', async () => {
     getSlotsMock.mockResolvedValue({
-      date: '2026-09-01',
+      date: TODAY,
       serviceId: 'svc-1',
       durationMinutes: 30,
       windows: [
@@ -495,7 +517,7 @@ describe('BookClient', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
     await act(async () => {
-      settle({ date: '2026-09-01', serviceId: 'svc-1', durationMinutes: 30, windows: [] });
+      settle({ date: TODAY, serviceId: 'svc-1', durationMinutes: 30, windows: [] });
     });
   });
 
