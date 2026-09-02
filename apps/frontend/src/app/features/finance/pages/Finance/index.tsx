@@ -163,6 +163,7 @@ const Finance = () => {
               activeStatus={activeStatus}
               setActiveStatus={setActiveStatus}
               metrics={financeMetrics}
+              metricsCurrency={metricsCurrency}
               currency={currency}
               onViewInvoice={openInvoice}
             />

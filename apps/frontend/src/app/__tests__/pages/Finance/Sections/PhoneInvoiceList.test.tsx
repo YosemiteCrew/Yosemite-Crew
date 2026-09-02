@@ -113,6 +113,7 @@ const baseProps = {
   setActiveStatus: jest.fn(),
   metrics: { collectedThisWeek: 4820, outstanding: 214 },
   currency: 'EUR',
+  metricsCurrency: 'EUR',
   onViewInvoice: jest.fn(),
 };
 

@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { StatusOption } from '@/app/features/companions/pages/Companions/types';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
-import { formatMoneyPrecise, recordCurrency, sharedCurrency } from '@/app/lib/money';
+import { formatMoneyPrecise, recordCurrency } from '@/app/lib/money';
 import { formatDateLabel } from '@/app/lib/forms';
 import { toTitle } from '@/app/lib/validators';
 import {
@@ -29,6 +29,14 @@ type PhoneInvoiceListProps = {
   setActiveStatus: (value: string) => void;
   metrics: FinanceMetrics;
   currency: string;
+  /**
+   * The currency for the KPI totals.
+   *
+   * Separate from `currency` because `metrics` is computed over EVERY invoice
+   * while `filteredList` is the visible subset - deriving it here would label a
+   * total with the currency of a different set of invoices to the one it sums.
+   */
+  metricsCurrency: string;
   onViewInvoice: (invoice: Invoice) => void;
 };
 
@@ -145,14 +153,11 @@ const PhoneInvoiceList = ({
   setActiveStatus,
   metrics,
   currency,
+  metricsCurrency,
   onViewInvoice,
 }: PhoneInvoiceListProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
   const companionsById = useCompanionStore((state) => state.companionsById);
-  // The KPI tiles sum across the list, so they carry a currency only when every
-  // invoice agrees on one. Otherwise the total is not meaningful in any single
-  // currency and the ambient value is as good as it gets.
-  const metricsCurrency = sharedCurrency(filteredList, currency);
 
   const cards = useMemo(
     () =>
