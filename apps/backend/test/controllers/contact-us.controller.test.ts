@@ -206,6 +206,79 @@ describe("ContactController", () => {
     const mockedForward =
       SuperadminContactService.forwardWebContact as jest.Mock;
 
+    it("discards a submission that filled the honeypot, without storing or forwarding it", async () => {
+      /* The site form renders `website` hidden from people and from assistive
+         technology, so a non-empty value means a form-filling bot (#2645). */
+      const req = {
+        body: {
+          type: "GENERAL_ENQUIRY",
+          source: "MARKETING_SITE",
+          message: "buy cheap watches",
+          fullName: "Bot",
+          email: "bot@spam.example",
+          website: "http://spam.example",
+        },
+      } as any;
+      const res = createResponse();
+
+      await ContactController.createWeb(req as any, res as any);
+
+      expect(mockedContactService.createWebRequest).not.toHaveBeenCalled();
+      expect(mockedForward).not.toHaveBeenCalled();
+      /* 201 with a plausible id, deliberately: a bot that learns which
+         submissions were dropped stops filling the field and the run continues
+         undetected. */
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
+
+    it("treats a whitespace-only honeypot as empty", async () => {
+      // A browser or extension that writes a space must not bin a real message.
+      mockedContactService.createWebRequest.mockResolvedValueOnce({
+        id: "contact-web-ws",
+      });
+      const req = {
+        body: {
+          type: "GENERAL_ENQUIRY",
+          source: "PMS_WEB",
+          message: "Help",
+          fullName: "Web User",
+          email: "web@user.com",
+          website: "   ",
+        },
+      } as any;
+      const res = createResponse();
+
+      await ContactController.createWeb(req as any, res as any);
+
+      expect(mockedContactService.createWebRequest).toHaveBeenCalled();
+    });
+
+    it("never stores or forwards the honeypot field itself", async () => {
+      /* It is a wire-only field. Persisting it would put an attacker-controlled
+         string into the CRM mirror that nothing downstream expects. */
+      mockedContactService.createWebRequest.mockResolvedValueOnce({
+        id: "contact-web-2",
+      });
+      const req = {
+        body: {
+          type: "GENERAL_ENQUIRY",
+          source: "PMS_WEB",
+          message: "Help",
+          fullName: "Web User",
+          email: "web@user.com",
+          website: "",
+        },
+      } as any;
+      const res = createResponse();
+
+      await ContactController.createWeb(req as any, res as any);
+
+      const stored = mockedContactService.createWebRequest.mock.calls[0][0];
+      expect(stored).not.toHaveProperty("website");
+      const forwarded = mockedForward.mock.calls[0][0];
+      expect(forwarded).not.toHaveProperty("website");
+    });
+
     it("creates a web contact request", async () => {
       mockedContactService.createWebRequest.mockResolvedValueOnce({
         id: "contact-web-1",

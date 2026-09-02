@@ -64,6 +64,10 @@ type ContactPayload = {
   fullName: string;
   email: string;
   source: 'PMS_WEB';
+  /* Honeypot (#2645). Always sent, always empty from a real submission. The API
+     discards anything non-empty; the SuperAdmin panel has expected this field
+     all along and the site simply never rendered one. */
+  website: string;
   phone?: string;
   dsarDetails?: {
     requesterType: DsraRequesterType;
@@ -460,6 +464,7 @@ function TextAreaField({
 
 type ContactFormValues = {
   selectedQueryType: TicketCategory;
+  website: string;
   fullName: string;
   email: string;
   phone: string;
@@ -474,6 +479,7 @@ type ContactFormValues = {
 
 type ContactFormSetters = {
   setSelectedQueryType: React.Dispatch<React.SetStateAction<TicketCategory>>;
+  setWebsite: React.Dispatch<React.SetStateAction<string>>;
   setFullName: React.Dispatch<React.SetStateAction<string>>;
   setEmail: React.Dispatch<React.SetStateAction<string>>;
   setPhone: React.Dispatch<React.SetStateAction<string>>;
@@ -555,6 +561,7 @@ const buildPayload = (values: ContactFormValues): ContactPayload => {
     fullName: values.fullName.trim(),
     email: values.email.trim(),
     source: 'PMS_WEB',
+    website: values.website,
   };
 
   if (values.phone.trim()) payload.phone = values.phone.trim();
@@ -1246,6 +1253,30 @@ function ContactForm({ values, setters, errors, confirm, submit }: Readonly<Cont
   return (
     <div style={{ animation: `ycHeroUp 1s ${EASE} 0.4s both` }}>
       <form action={handleFormAction} style={FORM_STYLE}>
+        {/*
+          Honeypot (#2645). Hidden from sighted users by position rather than
+          `display: none`, because a bot that skips undisplayed inputs is exactly
+          the one worth catching, and hidden from assistive technology by
+          aria-hidden plus tabIndex={-1} so no real person can reach it by
+          keyboard or hear it announced. autoComplete="off" keeps a browser's own
+          autofill from filling it on a genuine visitor's behalf, which would
+          otherwise discard their message.
+        */}
+        <div
+          aria-hidden="true"
+          className="absolute left-[-9999px] top-auto h-px w-px overflow-hidden"
+        >
+          <label htmlFor="contact-website">Website</label>
+          <input
+            id="contact-website"
+            name="website"
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={values.website}
+            onChange={(e) => setters.setWebsite(e.target.value)}
+          />
+        </div>
         {/* type selector */}
         <ContactTypeSelector
           selectedQueryType={selectedQueryType}
@@ -1323,9 +1354,15 @@ const ContactusPage = () => {
   // Complaint specific fields
   const [complaintLink, setComplaintLink] = useState<string>('');
   const [complaintImage, setComplaintImage] = useState<File | null>(null);
+  /* Honeypot (#2645). Kept in React state like any other field so the value a
+     bot types is what actually reaches the API - reading it off the DOM at
+     submit time would miss a bot that sets the property rather than the
+     attribute. */
+  const [website, setWebsite] = useState<string>('');
 
   const formValues: ContactFormValues = {
     selectedQueryType,
+    website,
     fullName,
     email,
     phone,
@@ -1340,6 +1377,7 @@ const ContactusPage = () => {
 
   const setters: ContactFormSetters = {
     setSelectedQueryType,
+    setWebsite,
     setFullName,
     setEmail,
     setPhone,
@@ -1369,6 +1407,7 @@ const ContactusPage = () => {
     setComplaintLink('');
     setComplaintImage(null);
     setSelectedQueryType('General Enquiry');
+    setWebsite('');
     setErrors({});
   };
 
