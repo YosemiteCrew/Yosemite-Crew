@@ -12,8 +12,7 @@ import clsx from 'clsx';
 import { useFilterDropdownDismiss } from '@/app/ui/filters/useFilterDropdownDismiss';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { Organisation } from '@yosemite-crew/types';
-import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
-import { getFormsStatusTone } from '@/app/ui/tables/tableUtils';
+import FilterChip from '@/app/ui/filters/FilterChip';
 
 export type FormsFilterState = {
   status: FormsStatus | 'All';
@@ -24,29 +23,6 @@ type FormsFiltersProps = {
   filters: FormsFilterState;
   onFiltersChange: (filters: FormsFilterState) => void;
   categoryAction?: React.ReactNode;
-};
-
-const getStatusFilterStyle = (
-  status: FormsStatus | 'All',
-  isActive: boolean
-): React.CSSProperties | undefined => {
-  if (!isActive) {
-    return {
-      backgroundColor: 'transparent',
-      borderColor: 'var(--hairline)',
-      color: 'var(--ink-muted)',
-      fontWeight: 600,
-    };
-  }
-  if (status === 'All') {
-    return {
-      backgroundColor: 'var(--inset)',
-      borderColor: 'var(--divider)',
-      color: 'var(--ink)',
-      fontWeight: 700,
-    };
-  }
-  return undefined;
 };
 
 const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFiltersProps) => {
@@ -120,24 +96,14 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
   return (
     <div className="w-full flex items-center justify-between flex-wrap gap-3">
       <div className="flex items-center gap-2 flex-wrap">
-        {FormsStatusFilters.map((status) => {
-          const isActive = status === filters.status;
-          return (
-            <button
-              type="button"
-              key={status}
-              onClick={() => onFiltersChange({ ...filters, status })}
-              aria-pressed={isActive}
-              className="inline-flex min-h-[38px] items-center justify-center rounded-full! bg-transparent px-1 py-1 transition-opacity hover:opacity-100"
-            >
-              <StatusPill
-                tone={status === 'All' ? 'neutral' : getFormsStatusTone(status)}
-                label={status}
-                style={getStatusFilterStyle(status, isActive)}
-              />
-            </button>
-          );
-        })}
+        {FormsStatusFilters.map((status) => (
+          <FilterChip
+            key={status}
+            label={status}
+            active={status === filters.status}
+            onClick={() => onFiltersChange({ ...filters, status })}
+          />
+        ))}
       </div>
       <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
         {categoryAction}
