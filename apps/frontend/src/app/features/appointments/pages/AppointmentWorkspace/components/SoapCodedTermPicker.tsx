@@ -23,6 +23,8 @@ const VOCABULARY_SCOPES: Array<{ value: VocabularyFilter | 'ALL'; label: string 
   { value: 'SNOMED', label: 'SNOMED' },
 ];
 
+const SCOPE_LABEL: Record<VocabularyFilter, string> = { VENOM: 'VeNom', SNOMED: 'SNOMED' };
+
 /** Short vocabulary labels; the picker has no room for full system URIs. */
 const SYSTEM_LABEL: Record<string, string> = {
   VENOM: 'VeNom',
@@ -102,6 +104,10 @@ const SoapCodedTermPicker = ({
   const [scope, setScope] = useState<VocabularyFilter | 'ALL'>('ALL');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ClinicalTermSuggestion[]>([]);
+  /* A scoped search that finds nothing must say so. Without this the dropdown
+     simply does not open, which reads as "search is broken" rather than "no term
+     in this vocabulary matches" - the one case the scope control makes common. */
+  const [emptyQuery, setEmptyQuery] = useState<string | null>(null);
   // Monotonic request id: a slow earlier response must never overwrite a newer one.
   const requestSeqRef = useRef(0);
 
@@ -117,6 +123,7 @@ const SoapCodedTermPicker = ({
       () => {
         if (belowMinimum) {
           setResults([]);
+          setEmptyQuery(null);
           return;
         }
         suggestClinicalTerms({
@@ -126,17 +133,27 @@ const SoapCodedTermPicker = ({
           ...(scope === 'ALL' ? {} : { vocabulary: scope }),
         })
           .then((items) => {
-            if (requestSeqRef.current === requestId) setResults(items);
+            if (requestSeqRef.current !== requestId) return;
+            setResults(items);
+            setEmptyQuery(items.length === 0 ? trimmed : null);
           })
           .catch((error) => {
             console.error('Unable to suggest clinical terms:', error);
-            if (requestSeqRef.current === requestId) setResults([]);
+            if (requestSeqRef.current !== requestId) return;
+            setResults([]);
+            // An error is not "nothing matched"; leave the explanation off.
+            setEmptyQuery(null);
           });
       },
       belowMinimum ? 0 : SUGGEST_DEBOUNCE_MS
     );
     return () => clearTimeout(timer);
   }, [query, domain, scope]);
+
+  /* Only worth explaining when a scope is on. An unscoped search that finds
+     nothing is just a query with no matches, and the closed dropdown says that
+     well enough. */
+  const scopedEmpty = emptyQuery !== null && scope !== 'ALL' ? { query: emptyQuery, scope } : null;
 
   const selectedCodes = useMemo(() => new Set(selected.map((term) => term.ycCode)), [selected]);
 
@@ -235,9 +252,21 @@ const SoapCodedTermPicker = ({
         />
         <SearchResultsDropdown
           anchorRef={anchorRef}
-          open={results.length > 0}
+          open={results.length > 0 || scopedEmpty !== null}
           onClose={() => setQuery('')}
         >
+          {scopedEmpty !== null ? (
+            <p className="px-4 py-3 text-caption-1 text-text-secondary">
+              No term with a {SCOPE_LABEL[scopedEmpty.scope]} code matches “{scopedEmpty.query}”.{' '}
+              <button
+                type="button"
+                onClick={() => setScope('ALL')}
+                className="font-semibold text-text-brand underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+              >
+                Search all vocabularies
+              </button>
+            </p>
+          ) : null}
           <ul>
             {results.map((suggestion) => {
               const synonym = matchedSynonym(suggestion, query);
