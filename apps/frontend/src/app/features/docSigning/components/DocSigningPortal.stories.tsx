@@ -233,6 +233,16 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/**
+ * The line under the frame. It exists because this page cannot see inside the
+ * portal: if the provider fails to sign the reader in, the frame shows a login
+ * form and the app has no way to know, so nothing here would otherwise say
+ * anything went wrong. Matched on a fragment rather than the whole sentence so
+ * a wording change does not fail these.
+ */
+const signInHint = (canvas: ReturnType<typeof within>) =>
+  canvas.queryByText(/could not sign you in automatically/i);
+
 export const Loading: Story = {
   name: 'Loading the portal',
   beforeEach: withPortal({ kind: 'pending' }),
@@ -257,6 +267,10 @@ export const Loading: Story = {
        carrying "<title> - <story name>" into this canvas, so a bare
        level-1 query matches the harness and can never be null. */
     await expect(canvas.queryByRole('heading', { name: 'Document Signing Portal' })).toBeNull();
+    // The hint belongs to the frame, not to every branch: printing it beside a
+    // loader or an error would tell the reader to contact support about a
+    // failure the app has already named on screen.
+    await expect(signInHint(canvas)).toBeNull();
 
     /* Centred, asserted as a relation rather than against a pixel figure: the
        loader is `inline-flex`, so it is narrower than the frame it sits in and a
@@ -315,6 +329,10 @@ export const RequestFailed: Story = {
        carrying "<title> - <story name>" into this canvas, so a bare
        level-1 query matches the harness and can never be null. */
     await expect(canvas.queryByRole('heading', { name: 'Document Signing Portal' })).toBeNull();
+    // The hint belongs to the frame, not to every branch: printing it beside a
+    // loader or an error would tell the reader to contact support about a
+    // failure the app has already named on screen.
+    await expect(signInHint(canvas)).toBeNull();
   },
   parameters: {
     docs: {
@@ -377,6 +395,8 @@ export const UntrustedOrigin: Story = {
        catches the frame being mounted hidden as well as visibly. */
     await expect(canvasElement.querySelector('iframe')).toBeNull();
     await expect(canvasElement.innerHTML).not.toContain('evil.example.com');
+    // No frame, so no hint either - this branch already tells the reader.
+    await expect(signInHint(canvas)).toBeNull();
   },
   parameters: {
     docs: {
@@ -422,6 +442,15 @@ export const Standalone: Story = {
     const frameBox = iframe.getBoundingClientRect();
     await expect(frameBox.bottom).toBeLessThan(box.bottom);
     await expect(Math.abs(frameBox.width - box.width)).toBeLessThan(2);
+
+    /* And the hint sits BELOW the frame rather than inside it. Inside, it would
+       be clipped by the container's `overflow-hidden` and scroll away with the
+       portal - visible in review, invisible in use. */
+    const hint = signInHint(within(canvasElement));
+    await expect(hint).not.toBeNull();
+    await expect((hint as HTMLElement).getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      Math.floor(frameBox.bottom)
+    );
   },
   parameters: {
     docs: {
