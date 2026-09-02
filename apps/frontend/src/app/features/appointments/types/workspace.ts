@@ -121,8 +121,13 @@ export type SoapTemplate = {
 export type Vitals = {
   id: string;
   code: string;
+  // Temperature and weight are recorded on two scales; the key states which one
+  // this reading is in. Exactly one of each pair is populated - see
+  // `lib/vitalsUnits`, which resolves the key from the template's declared unit.
   weightLbs?: number;
+  weightKg?: number;
   tempF?: number;
+  tempC?: number;
   heartRateBpm?: number;
   respRateBpm?: number;
   crtSec?: string;

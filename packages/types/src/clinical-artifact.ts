@@ -950,11 +950,10 @@ const compositionToDischargeSummaryInput = (
 });
 
 /**
- * The unit of a vital is currently encoded in its key name - tempF, weightLbs - which
- * means a FHIR Observation carrying a bare number is not interpretable: 212 could be
- * degrees Fahrenheit or Celsius, and a weight of 12 could be pounds or kilograms. That is
- * not hypothetical here, since vitals record weightLbs while the passport and body
- * condition surfaces record weightKg.
+ * The unit of a vital is encoded in its key name - tempF, tempC, weightLbs, weightKg -
+ * and the key is now chosen from the unit the recording template declared rather than
+ * from the field's label, so the name is load-bearing: a bare number is interpretable
+ * because the key it sits under says which scale it is on.
  *
  * UCUM is what FHIR expects for exactly this. A measured vital becomes a valueQuantity
  * carrying its unit as a code, so a receiving system can convert rather than guess.
@@ -964,17 +963,18 @@ const UCUM_SYSTEM = 'http://unitsofmeasure.org';
 /**
  * Vitals whose storage key determines their unit beyond doubt.
  *
- * tempF and weightLbs are deliberately absent. VitalsForm's resolveDraftKey routes any
- * template field whose label contains "temp" into tempF and any "weight" into weightLbs,
- * whatever unit that template declares - there is a test covering a field declared in
- * Celsius. Stamping [degF] on a Celsius reading would export 38.5 as severe hypothermia
- * rather than a normal canine temperature: a confident, wrong clinical claim, which is
- * worse than the unqualified number it replaced. They stay unqualified until the stored
- * vital carries the unit it was entered in.
+ * tempF and weightLbs were held out of this map while VitalsForm routed every field
+ * labelled "temp" into tempF whatever unit the template declared - stamping [degF] on a
+ * Celsius reading would have exported 38.5 as severe hypothermia rather than a normal
+ * canine temperature. The form now picks the key from the declared unit (see
+ * `lib/vitalsUnits`), so a value under tempF really was entered in Fahrenheit and the
+ * imperial scales can be qualified like the rest.
  */
 const VITAL_UNITS: Record<string, { unit: string; code: string }> = {
   tempC: { unit: '°C', code: 'Cel' },
+  tempF: { unit: '°F', code: '[degF]' },
   weightKg: { unit: 'kg', code: 'kg' },
+  weightLbs: { unit: 'lb', code: '[lb_av]' },
   heartRateBpm: { unit: 'beats/min', code: '/min' },
   respRateBpm: { unit: 'breaths/min', code: '/min' },
   crtSec: { unit: 's', code: 's' },

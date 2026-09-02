@@ -273,6 +273,199 @@ describe('VitalsForm', () => {
     expect(screen.getByText('kg')).toBeInTheDocument();
   });
 
+  it('stores a metric template under the metric keys, not relabelled imperial ones', async () => {
+    // The regression this covers: every field labelled "temp" used to be written to
+    // tempF whatever the template declared, so a clinic recording 38.5 °C stored a
+    // number that read back as 38.5 °F - severe hypothermia rather than a normal
+    // canine temperature. Asserting the rendered unit is not enough; the unit was
+    // always displayed correctly. The stored key is what was wrong.
+    (listVitalsTemplates as jest.Mock).mockResolvedValue([
+      {
+        id: 'tpl-metric',
+        name: 'Metric vitals',
+        schemaSnapshot: {
+          sections: [
+            {
+              id: 's1',
+              title: 'Vitals',
+              fields: [
+                { key: 'weight', label: 'Body weight', rules: { unit: 'kg' } },
+                { key: 'temp', label: 'Body temp', rules: { unit: '°C' } },
+              ],
+            },
+          ],
+        },
+      },
+    ]);
+    render(<VitalsForm {...baseProps} />);
+    fireEvent.click(screen.getByRole('button', { name: 'New Vital' }));
+    await screen.findByText('New vitals');
+    fireEvent.change(screen.getByLabelText('Search vitals templates'), {
+      target: { value: 'metric' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Metric vitals' }));
+
+    fireEvent.change(await screen.findByLabelText('Body weight'), { target: { value: '27.3' } });
+    fireEvent.change(screen.getByLabelText('Body temp'), { target: { value: '38.5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save vitals' }));
+
+    await waitFor(() => expect(saveVitalRecord).toHaveBeenCalledTimes(1));
+    const saved = (addVitals as jest.Mock).mock.calls[0][1];
+    expect(saved).toMatchObject({ weightKg: 27.3, tempC: 38.5 });
+    // The imperial keys must be absent, not merely different - a consumer reading
+    // tempF would otherwise find a Celsius number sitting under a Fahrenheit name.
+    expect(saved.tempF).toBeUndefined();
+    expect(saved.weightLbs).toBeUndefined();
+  });
+
+  it('accepts a normal Celsius temperature that the Fahrenheit range rejected', async () => {
+    // 38.5 is below the 80 °F minimum, so before the scales were separated a
+    // Celsius template could not record a healthy animal at all.
+    (listVitalsTemplates as jest.Mock).mockResolvedValue([
+      {
+        id: 'tpl-c',
+        name: 'Celsius vitals',
+        schemaSnapshot: {
+          sections: [
+            {
+              id: 's1',
+              title: 'Vitals',
+              fields: [{ key: 'temp', label: 'Temperature', rules: { unit: 'Celsius' } }],
+            },
+          ],
+        },
+      },
+    ]);
+    render(<VitalsForm {...baseProps} />);
+    fireEvent.click(screen.getByRole('button', { name: 'New Vital' }));
+    await screen.findByText('New vitals');
+    fireEvent.change(screen.getByLabelText('Search vitals templates'), {
+      target: { value: 'celsius' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Celsius vitals' }));
+
+    fireEvent.change(await screen.findByLabelText('Temperature'), { target: { value: '38.5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save vitals' }));
+
+    await waitFor(() => expect(saveVitalRecord).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(/must be at least/i)).not.toBeInTheDocument();
+    expect((addVitals as jest.Mock).mock.calls[0][1]).toMatchObject({ tempC: 38.5 });
+  });
+
+  it('still bounds a Celsius temperature, at the Celsius end of the scale', async () => {
+    // The Celsius field is bounded too - a fresh range, not an unchecked one.
+    (listVitalsTemplates as jest.Mock).mockResolvedValue([
+      {
+        id: 'tpl-c2',
+        name: 'Celsius vitals',
+        schemaSnapshot: {
+          sections: [
+            {
+              id: 's1',
+              title: 'Vitals',
+              fields: [{ key: 'temp', label: 'Temperature', rules: { unit: '°C' } }],
+            },
+          ],
+        },
+      },
+    ]);
+    render(<VitalsForm {...baseProps} />);
+    fireEvent.click(screen.getByRole('button', { name: 'New Vital' }));
+    await screen.findByText('New vitals');
+    fireEvent.change(screen.getByLabelText('Search vitals templates'), {
+      target: { value: 'celsius' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Celsius vitals' }));
+
+    fireEvent.change(await screen.findByLabelText('Temperature'), { target: { value: '101' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save vitals' }));
+
+    expect(await screen.findByText('Temperature must be 44 or less.')).toBeInTheDocument();
+    expect(saveVitalRecord).not.toHaveBeenCalled();
+  });
+
+  it('shows a recorded Celsius vital in Celsius in the history row', async () => {
+    const metricVital: Vitals = {
+      id: 'v-c',
+      code: 'VIT-001',
+      tempC: 38.5,
+      weightKg: 27.3,
+      recordedByName: 'Dr Vet',
+      recordedAt: '2026-08-30T09:00:00.000Z',
+    } as Vitals;
+    render(<VitalsForm {...baseProps} vitals={[metricVital]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'View VIT-001' }));
+
+    expect(screen.getByText('Temp: 38.5 °C')).toBeInTheDocument();
+    expect(screen.getByText('Weight: 27.3 kg')).toBeInTheDocument();
+  });
+
+  it('does not compare a weight in kilograms against an earlier one in pounds', async () => {
+    // A clinic that switches its template mid-course would otherwise be told the
+    // animal lost ~35 units overnight, purely from the change of scale.
+    const vital = (id: string, recordedAt: string, weight: Partial<Vitals>): Vitals =>
+      ({
+        id,
+        code: id,
+        recordedByName: 'Dr Vet',
+        recordedAt,
+        ...weight,
+      }) as Vitals;
+    render(
+      <VitalsForm
+        {...baseProps}
+        vitals={[
+          vital('v-new', '2026-08-30T09:00:00.000Z', { weightKg: 27.3 }),
+          vital('v-old', '2026-08-29T09:00:00.000Z', { weightLbs: 62 }),
+        ]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'New Vital' }));
+    await screen.findByText('New vitals');
+
+    expect(screen.queryByText(/since/i)).not.toBeInTheDocument();
+  });
+
+  it('skips a record carrying no weight when pairing the trend', async () => {
+    // The delta compares the two most recent records that carry a weight, so a
+    // temperature-only visit in between must not break it.
+    const vital = (id: string, recordedAt: string, rest: Partial<Vitals>): Vitals =>
+      ({ id, code: id, recordedByName: 'Dr Vet', recordedAt, ...rest }) as Vitals;
+    render(
+      <VitalsForm
+        {...baseProps}
+        vitals={[
+          vital('v-new', '2026-08-30T09:00:00.000Z', { weightKg: 28.5 }),
+          vital('v-mid', '2026-08-29T12:00:00.000Z', { tempC: 38.2 }),
+          vital('v-old', '2026-08-29T09:00:00.000Z', { weightKg: 27.3 }),
+        ]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'New Vital' }));
+    await screen.findByText('New vitals');
+
+    expect(screen.getByText(/\+1\.2 kg since/)).toBeInTheDocument();
+  });
+
+  it('reports the trend in the unit both readings share', async () => {
+    const vital = (id: string, recordedAt: string, weightKg: number): Vitals =>
+      ({ id, code: id, recordedByName: 'Dr Vet', recordedAt, weightKg }) as Vitals;
+    render(
+      <VitalsForm
+        {...baseProps}
+        vitals={[
+          vital('v-new', '2026-08-30T09:00:00.000Z', 28.5),
+          vital('v-old', '2026-08-29T09:00:00.000Z', 27.3),
+        ]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'New Vital' }));
+    await screen.findByText('New vitals');
+
+    expect(screen.getByText(/\+1\.2 kg since/)).toBeInTheDocument();
+  });
+
   it('falls back to the default fields when a root-snapshot template maps no vitals', async () => {
     (listVitalsTemplates as jest.Mock).mockResolvedValue([
       {
