@@ -18,7 +18,9 @@ type InvoiceCardProps = {
 
 const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
-  const currency = useCurrencyForPrimaryOrg();
+  const orgCurrency = useCurrencyForPrimaryOrg();
+  // Resolved once: every figure on this card belongs to the same invoice.
+  const money = recordCurrency(invoice, orgCurrency);
 
   const companionName = useMemo(
     () => getCompanionNameFromAppointments(appointments, invoice.appointmentId),
@@ -50,25 +52,25 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Sub-total:</div>
         <div className="text-caption-1 text-text-primary">
-          {formatMoneyPrecise(invoice.subtotal, recordCurrency(invoice, currency))}
+          {formatMoneyPrecise(invoice.subtotal, money)}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Discount:</div>
         <div className="text-caption-1 text-text-primary">
-          {formatMoneyPrecise(invoice.discountTotal ?? 0, recordCurrency(invoice, currency))}
+          {formatMoneyPrecise(invoice.discountTotal ?? 0, money)}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Tax:</div>
         <div className="text-caption-1 text-text-primary">
-          {formatMoneyPrecise(invoice.taxTotal ?? 0, recordCurrency(invoice, currency))}
+          {formatMoneyPrecise(invoice.taxTotal ?? 0, money)}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Total:</div>
         <div className="text-caption-1 text-text-primary">
-          {formatMoneyPrecise(invoice.totalAmount, recordCurrency(invoice, currency))}
+          {formatMoneyPrecise(invoice.totalAmount, money)}
         </div>
       </div>
       <StatusPill tone={getInvoiceStatusTone(invoice.status)} label={toTitle(invoice?.status)} />

@@ -102,7 +102,7 @@ describe('InvoicePhoneRecord', () => {
     expect(screen.getByText('Nobivac Rabies')).toBeInTheDocument();
     expect(screen.getByText('Tax 8.1%')).toBeInTheDocument();
     expect(screen.getByText('Total')).toBeInTheDocument();
-    expect(screen.getByText('€86.2')).toBeInTheDocument();
+    expect(screen.getByText('EUR 86.20')).toBeInTheDocument();
   });
 
   it('renders the empty items note when there are no items', () => {
@@ -116,7 +116,7 @@ describe('InvoicePhoneRecord', () => {
 
     rerender(<InvoicePhoneRecord {...baseProps} invoice={{ ...baseInvoice, discountTotal: 5 }} />);
     expect(screen.getByText('Discount')).toBeInTheDocument();
-    expect(screen.getByText('-€5')).toBeInTheDocument();
+    expect(screen.getByText('-EUR 5.00')).toBeInTheDocument();
   });
 
   it('renders the payment ledger and receipt link when settled', () => {

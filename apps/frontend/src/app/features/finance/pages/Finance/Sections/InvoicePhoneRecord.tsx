@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { IoClose, IoDownloadOutline, IoOpenOutline } from 'react-icons/io5';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoneyPrecise } from '@/app/lib/money';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import { getInvoiceNumberLabel } from '@/app/lib/invoice';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
@@ -158,7 +158,7 @@ const InvoicePhoneRecord = ({
                 {item.name}
               </span>
               <span className="shrink-0 font-bold tabular-nums">
-                {formatMoney(item.total ?? 0, currency)}
+                {formatMoneyPrecise(item.total ?? 0, currency)}
               </span>
             </div>
           ))
@@ -166,19 +166,21 @@ const InvoicePhoneRecord = ({
         {discount > 0 && (
           <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 border-t border-[var(--hairline)] bg-[var(--screen-2)] text-[12.5px] text-[var(--ink-muted)]">
             <span>Discount</span>
-            <span className="font-semibold tabular-nums">-{formatMoney(discount, currency)}</span>
+            <span className="font-semibold tabular-nums">
+              -{formatMoneyPrecise(discount, currency)}
+            </span>
           </div>
         )}
         <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 border-t border-[var(--hairline)] bg-[var(--screen-2)] text-[12.5px] text-[var(--ink-muted)]">
           <span>{taxLabel}</span>
           <span className="font-semibold tabular-nums">
-            {formatMoney(invoice.taxTotal ?? 0, currency)}
+            {formatMoneyPrecise(invoice.taxTotal ?? 0, currency)}
           </span>
         </div>
         <div className="flex items-baseline justify-between gap-3 px-3.5 py-3 border-t border-[var(--hairline)]">
           <span className="text-[12.5px] font-bold text-[var(--ink)]">Total</span>
           <span className="text-[20px] font-bold tracking-[-0.03em] tabular-nums text-[var(--ink)]">
-            {formatMoney(invoice.totalAmount ?? 0, currency)}
+            {formatMoneyPrecise(invoice.totalAmount ?? 0, currency)}
           </span>
         </div>
       </div>
