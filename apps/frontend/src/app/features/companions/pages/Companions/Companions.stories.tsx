@@ -570,7 +570,7 @@ export const Directory: Story = {
       'aria-pressed',
       'false'
     );
-    await expect(canvas.getByRole('button', { name: 'Add companion' })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'New companion' })).toBeVisible();
   },
 };
 
@@ -730,7 +730,7 @@ export const ReadOnly: Story = {
     /* Add is not disabled, it is not rendered. A disabled control at least says
        the action exists; this one leaves no trace, which is the behaviour worth
        pinning because nothing else on the page changes shape. */
-    await expect(canvas.queryByRole('button', { name: 'Add companion' })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: 'New companion' })).not.toBeInTheDocument();
 
     await userEvent.click(canvas.getAllByRole('button', { name: 'Companion row actions' })[0]);
     const menu = await waitFor(() => {
@@ -786,7 +786,7 @@ export const AddCompanionDrawer: Story = {
     const canvas = within(canvasElement);
     await canvas.findByText('8 patients, 6 active');
 
-    await userEvent.click(canvas.getByRole('button', { name: 'Add companion' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'New companion' }));
     const dialog = await openedDialog();
     const rect = dialog.getBoundingClientRect();
     const viewport = globalThis.document.documentElement.clientWidth;
@@ -821,7 +821,7 @@ export const AddCompanionRevamped: Story = {
     /* Same button, same page, same title - a completely different panel. The
        directory around it does not change at all, which is why the flag is
        invisible until something is opened. */
-    await userEvent.click(canvas.getByRole('button', { name: 'Add companion' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'New companion' }));
     const dialog = await openedDialog();
     const rect = dialog.getBoundingClientRect();
     const viewport = globalThis.document.documentElement.clientWidth;

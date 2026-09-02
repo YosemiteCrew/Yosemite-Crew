@@ -60,7 +60,7 @@ const meta = {
   tags: ['autodocs'],
   args: {
     icon: <IoPrintOutline size={18} aria-hidden="true" />,
-    label: 'Print Labels',
+    label: 'Print labels',
     onClick: fn(),
   },
   argTypes: {
@@ -77,7 +77,7 @@ export const Outline: Story = {
   play: async ({ args, canvasElement }) => {
     /* Named by `label` alone - the button has no text, so if `aria-label` ever stops being
        wired the control becomes an unlabelled button and this query is what notices. */
-    const button = within(canvasElement).getByRole('button', { name: 'Print Labels' });
+    const button = within(canvasElement).getByRole('button', { name: 'Print labels' });
     const box = button.getBoundingClientRect();
     const style = getComputedStyle(button);
 
@@ -145,7 +145,7 @@ export const EveryVariant: Story = {
       <CircleIconButton
         {...args}
         icon={<IoPrintOutline size={18} aria-hidden="true" />}
-        label="Print Labels"
+        label="Print labels"
         variant="outline"
       />
       <CircleIconButton
@@ -167,7 +167,7 @@ export const EveryVariant: Story = {
     const canvas = within(canvasElement);
     const [dark, outline, danger] = [
       canvas.getByRole('button', { name: 'Add schedule task' }),
-      canvas.getByRole('button', { name: 'Print Labels' }),
+      canvas.getByRole('button', { name: 'Print labels' }),
       canvas.getByRole('button', { name: 'Remove Amoxicillin 250mg' }),
     ];
 
@@ -208,7 +208,7 @@ export const Disabled: Story = {
 export const TooltipFromLabel: Story = {
   name: 'Tooltip inherited from the label',
   play: async ({ canvasElement }) => {
-    const button = within(canvasElement).getByRole('button', { name: 'Print Labels' });
+    const button = within(canvasElement).getByRole('button', { name: 'Print labels' });
     /* The positive control for `WithoutTooltip` and `EmptyTooltipString` below, which both
        assert this selector finds NOTHING. Without proving it finds something here, a renamed
        wrapper class would make all three stories pass while the opt-out did nothing. */
@@ -217,7 +217,7 @@ export const TooltipFromLabel: Story = {
     const bubble = await openGlassTooltip(button);
 
     // With no `tooltip` prop the hint IS the accessible name - one string, two audiences.
-    await expect(bubble).toHaveTextContent('Print Labels');
+    await expect(bubble).toHaveTextContent('Print labels');
 
     /* The default side is `bottom`, not `top`: these buttons sit in the header row of a
        section, and a bubble above one would cover the section title it belongs to. */
@@ -309,7 +309,7 @@ export const WithoutTooltip: Story = {
   name: 'Tooltip opted out',
   args: { showTooltip: false },
   play: async ({ canvasElement }) => {
-    const button = within(canvasElement).getByRole('button', { name: 'Print Labels' });
+    const button = within(canvasElement).getByRole('button', { name: 'Print labels' });
 
     /* No wrapper at all, rather than a wrapper that never opens. The wrapper is an
        `inline-flex` span, so leaving one behind adds a layout box to every flex row that
@@ -327,7 +327,7 @@ export const EmptyTooltipString: Story = {
        `??` and is caught one line later by `!tooltipContent`. A call site building its hint
        conditionally lands here, and gets the bare button rather than an empty bubble that
        opens on every hover. */
-    await expect(within(canvasElement).getByRole('button', { name: 'Print Labels' })).toBeVisible();
+    await expect(within(canvasElement).getByRole('button', { name: 'Print labels' })).toBeVisible();
     await expect(canvasElement.querySelector('.glass-tooltip')).toBeNull();
   },
 };

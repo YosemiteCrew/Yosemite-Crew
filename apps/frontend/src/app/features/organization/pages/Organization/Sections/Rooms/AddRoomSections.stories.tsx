@@ -177,7 +177,7 @@ const meta = {
           'operable with the section shut. A reviewer looking for "everything disappears when ' +
           'collapsed" would be wrong about two of the four sections.\n\n' +
           'Two sections then fork again on `supportsUnits`, derived from the room type (ICU, ' +
-          'Inpatient, Isolation, Boarding). With it, Availability grows a Total Units field and ' +
+          'Inpatient, Isolation, Boarding). With it, Availability grows a Total units field and ' +
           'Units grows an add button; without it, both are replaced by explanatory bordered ' +
           'paragraphs. An exam room and an ICU bay are two different layouts, not one layout ' +
           'with a field hidden - and the empty-units line is a third state again, shown only ' +
@@ -217,7 +217,7 @@ export const AllCollapsed: Story = {
     // Four bodies that do not exist - one probe per section, so a single
     // section that failed to collapse cannot hide behind the others.
     await expect(canvas.queryByLabelText('Room code')).not.toBeInTheDocument();
-    await expect(canvas.queryByLabelText('Total Units')).not.toBeInTheDocument();
+    await expect(canvas.queryByLabelText('Total units')).not.toBeInTheDocument();
     await expect(canvas.queryByText('Draft unit type')).not.toBeInTheDocument();
     await expect(canvas.queryByLabelText('Add equipment name')).not.toBeInTheDocument();
 
@@ -257,7 +257,7 @@ export const OpenedByClicking: Story = {
     ).toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole('button', { name: 'Availability' }));
-    expect(await canvas.findByLabelText('Total Units')).toHaveValue(6);
+    expect(await canvas.findByLabelText('Total units')).toHaveValue(6);
 
     await userEvent.click(canvas.getByRole('button', { name: 'Unit type (2)' }));
     expect(await canvas.findAllByText('Draft unit type')).toHaveLength(2);
@@ -291,7 +291,7 @@ export const AllOpenUnitCapable: Story = {
     // Basic details: two text fields plus two portalled selects.
     await expect(canvas.getAllByLabelText('Name')[0]).toHaveValue('ICU Bay A');
     await expect(canvas.getByLabelText('Room code')).toHaveValue('ICU-A');
-    await expect(canvas.getByRole('button', { name: 'Room Type: ICU' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Room type: ICU' })).toBeInTheDocument();
     await expect(
       canvas.getByRole('button', { name: 'Speciality (optional): Surgery' })
     ).toBeInTheDocument();
@@ -311,9 +311,9 @@ export const AllOpenUnitCapable: Story = {
     await expect(canvas.getByRole('button', { name: /^Start time/ })).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: /^End time/ })).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Days: Mon - Sat' })).toBeInTheDocument();
-    await expect(canvas.getByLabelText('Total Units')).toHaveValue(6);
+    await expect(canvas.getByLabelText('Total units')).toHaveValue(6);
     await expect(
-      canvas.getByRole('button', { name: 'Assigned Staff (optional): Dr. Lena Hartmann' })
+      canvas.getByRole('button', { name: 'Assigned staff (optional): Dr. Lena Hartmann' })
     ).toBeInTheDocument();
 
     // Units: one bordered editor per draft, each with its own Name/Size/Units.
@@ -370,11 +370,11 @@ export const NoUnitsYet: Story = {
     await expect(
       canvas.queryByText('Select ICU, Inpatient, Isolation, or Boarding to configure unit types.')
     ).not.toBeInTheDocument();
-    /* Total Units is bound to `availability.totalUnits`, the units list to
+    /* Total units is bound to `availability.totalUnits`, the units list to
        `formData.units`, and nothing reconciles them - so this room reads "6" in
        Availability while its Unit type header reads "(0)". That divergence is
        the reason this state is worth drawing rather than a bug in the fixture. */
-    await expect(canvas.getByLabelText('Total Units')).toHaveValue(6);
+    await expect(canvas.getByLabelText('Total units')).toHaveValue(6);
   },
   parameters: {
     docs: {
@@ -402,9 +402,9 @@ export const RoomTypeWithoutUnits: Story = {
     ).toBeInTheDocument();
     // Both controls are gone rather than disabled, so there is nothing to click
     // into a state the room type cannot hold.
-    await expect(canvas.queryByLabelText('Total Units')).not.toBeInTheDocument();
+    await expect(canvas.queryByLabelText('Total units')).not.toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: 'Add unit type' })).not.toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Room Type: Exam room' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Room type: Exam room' })).toBeInTheDocument();
     /* Only the unit-bearing parts are replaced. The rest of Availability is
        outside the `supportsUnits` fork and keeps its values, and the Units header
        keeps its count - so the section is reduced, not removed. */
@@ -431,7 +431,7 @@ export const EmptyDraft: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // No type yet, so the trigger shows the bare placeholder rather than a value.
-    await expect(canvas.getByRole('button', { name: 'Room Type' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Room type' })).toBeInTheDocument();
     await expect(canvas.getByLabelText('Room code')).toHaveValue('');
     await expect(canvas.getByRole('button', { name: 'Unit type (0)' })).toBeInTheDocument();
     // Availability still opens with real defaults - 10:00 to 20:00, Mon - Sat -

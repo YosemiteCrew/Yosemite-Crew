@@ -117,7 +117,7 @@ const accordion = (canvasElement: HTMLElement, name: string) =>
   within(canvasElement).getByRole('button', { name: `${name} speciality` });
 
 /**
- * The rows, and only the rows. "Add speciality" ends in the same word as every
+ * The rows, and only the rows. "New speciality" ends in the same word as every
  * accordion header, so a name regex alone counts the header action as a fourth
  * speciality; the headers are the ones that carry `aria-expanded`.
  */
@@ -128,10 +128,10 @@ const specialityRows = (canvasElement: HTMLElement) =>
 
 /**
  * `Primary` renders its `icon` inside the button, so the "+" is part of the
- * accessible name - "Add speciality" never matches exactly.
+ * accessible name - "New speciality" never matches exactly.
  */
 const addButtons = (canvasElement: HTMLElement) =>
-  within(canvasElement).getAllByRole('button', { name: /Add speciality/ });
+  within(canvasElement).getAllByRole('button', { name: /New speciality/ });
 
 /**
  * The field is `lg:hidden`, so above 1024 it is `display: none` and out of the
@@ -159,7 +159,7 @@ const meta = {
           'Almost all of it is the **empty card**, which is four different things wearing the ' +
           'same border. `getSpecialitiesEmptyMessage` picks between "Loading specialities...", ' +
           '`No specialities match "<query>"` and "No specialities yet.", and a *separate* ' +
-          'condition decides whether the card also offers an "Add speciality" button - it does ' +
+          'condition decides whether the card also offers an "New speciality" button - it does ' +
           'not while loading, and it does not while a search is active, because neither is a ' +
           'state where creating a speciality is the answer. Three messages and two CTA states is ' +
           'six combinations from one twelve-line branch, and none of them had been drawn.\n\n' +
@@ -243,7 +243,7 @@ export const Loading: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText('Loading specialities...')).toBeInTheDocument();
 
-    /* No "Add speciality" inside the card while the request is out. The list is
+    /* No "New speciality" inside the card while the request is out. The list is
        not known to be empty yet, and offering to create the first speciality to
        a practice that already has twenty is the wrong invitation. The header
        action stays, so the count is one rather than none. */
@@ -273,7 +273,7 @@ export const SearchMatchesNothing: Story = {
     await expect(canvas.queryByText('No specialities yet.')).toBeNull();
 
     /* And no CTA in the card: the practice is not empty, the filter is. Offering
-       "Add speciality" here reads as "create the thing you searched for". */
+       "New speciality" here reads as "create the thing you searched for". */
     await expect(addButtons(canvasElement)).toHaveLength(1);
 
     // The mobile field is the one bound to the store, and it holds the query
@@ -298,7 +298,7 @@ export const SearchMatchesOne: Story = {
 };
 
 export const AddModalOpen: Story = {
-  name: 'Add speciality modal',
+  name: 'New speciality modal',
   play: async ({ canvasElement }) => {
     /* `AddSpecialityModal` is rendered unconditionally and portalled to <body>,
        so the <dialog> is in the document from the first paint - closed, inert and
@@ -313,7 +313,7 @@ export const AddModalOpen: Story = {
       expect(element).not.toBeNull();
       return within(element as HTMLElement);
     });
-    await expect(panel.getByRole('heading', { name: 'Add speciality' })).toBeInTheDocument();
+    await expect(panel.getByRole('heading', { name: 'New speciality' })).toBeInTheDocument();
     await expect(panel.getByLabelText('Speciality name')).toHaveValue('');
 
     await userEvent.click(panel.getByRole('button', { name: 'Cancel' }));
@@ -349,7 +349,7 @@ export const NoPrimaryOrg: Story = {
 
     /* The whole page is gone, not disabled - no add action, no search field, no
        accordions - because none of them can be scoped to an organisation. */
-    await expect(canvas.queryByRole('button', { name: /Add speciality/ })).toBeNull();
+    await expect(canvas.queryByRole('button', { name: /New speciality/ })).toBeNull();
     await expect(canvas.queryByRole('searchbox', { hidden: true })).toBeNull();
     await expect(canvas.queryAllByRole('button', { name: / speciality$/ })).toHaveLength(0);
     // And nothing was fetched for an organisation that does not exist.
