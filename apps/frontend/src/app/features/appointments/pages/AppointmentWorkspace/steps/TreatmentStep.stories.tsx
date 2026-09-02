@@ -685,13 +685,23 @@ export const ViewOnly: Story = {
       canvas.queryByRole('searchbox', { name: 'Search medicines or prescription templates' })
     ).not.toBeInTheDocument();
 
-    /* The services search is NOT removed. It is deliberately always-on so that
-       billed rows never block adding new work, but the same branch leaves it
-       usable on a view-only encounter. Asserted as it behaves today, not as it
-       arguably should. */
+    /* The services search is removed too, on the same rule as the prescription
+       search above: a view-only encounter must not offer to add billable work.
+
+       This is the half that used to be left on. The note here previously said
+       the services search was "deliberately always-on so that billed rows never
+       block adding new work" and asserted it "as it behaves today, not as it
+       arguably should" - and that gap was the defect, not the design. A
+       discharged encounter is a closed legal record; offering a way to add
+       services to it is exactly what `markDischarged` sets `viewOnly` to
+       prevent, and the store now refuses those writes outright rather than
+       trusting this gate.
+
+       Queried for absence, not for a disabled input: a disabled-input assertion
+       would find nothing and pass for the wrong reason. */
     await expect(
-      canvas.getByRole('searchbox', { name: 'Search for services and packages' })
-    ).toBeInTheDocument();
+      canvas.queryByRole('searchbox', { name: 'Search for services and packages' })
+    ).not.toBeInTheDocument();
 
     // Printing an existing label is a read action and stays available.
     await expect(canvas.getAllByRole('button', { name: 'Print Labels' })[1]).toBeEnabled();
@@ -700,9 +710,9 @@ export const ViewOnly: Story = {
     docs: {
       description: {
         story:
-          'A locked encounter. Save is disabled, both editors lose their delete controls, and the ' +
-          'prescription search is taken off the page entirely. The services search stays - see ' +
-          'the note in the play function.',
+          'A locked encounter. Save is disabled, both editors lose their delete controls, and ' +
+          'both searches are taken off the page entirely - there is no way to add billable work ' +
+          'to a record that is closed.',
       },
     },
   },
