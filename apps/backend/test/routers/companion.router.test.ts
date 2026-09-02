@@ -115,7 +115,10 @@ describe("companion.router", () => {
     ["put", "overwrite"],
   ] as const)(
     "gates %s /:id so a parent cannot %s another's companion",
-    (method) => {
+    // Destructured from the rest tuple. Under TypeScript 5.9, it.each over an
+    // `as const` table types the callback as (...args: [..] | [..]), which a
+    // single-parameter arrow no longer satisfies.
+    (...[method]) => {
       const handles = findRoute("/:id", method)?.stack.map((l) => l.handle);
       expect(handles).toContain(requireMobileAuth);
       expect(handles).toContain(companionGuard);
