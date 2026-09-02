@@ -48,10 +48,26 @@ const WorkspaceSearchResultRow = ({
       className="flex w-full items-center gap-2 px-4 py-2 text-left text-body-4 text-text-primary hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {leadingIcon}
+      {/* Both lines clip, and the origin is the one that loses meaning when it does:
+          an ATCvet class path opens with its group, so "QJ01CR02 - ANTIBACTERIALS
+          FOR SYSTEMIC USE ..." and "QJ51CR02 - ANTIBACTERIALS FOR INTRAMAMMARY
+          USE ..." truncate to the same visible text - systemic and intramammary,
+          told apart by one digit. The full string is already in the DOM for
+          assistive tech; `title` gives a sighted user the same on hover.
+
+          Only while the row is enabled: a nested title beats the button's own,
+          and on a disabled row "Added" is the more useful thing to say. */}
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate">{name}</span>
+        <span className="truncate" title={disabled ? undefined : name}>
+          {name}
+        </span>
         {origin ? (
-          <span className="truncate text-caption-2 text-text-secondary">{origin}</span>
+          <span
+            className="truncate text-caption-2 text-text-secondary"
+            title={disabled ? undefined : origin}
+          >
+            {origin}
+          </span>
         ) : null}
       </span>
       {disabled && disabledReason ? (
