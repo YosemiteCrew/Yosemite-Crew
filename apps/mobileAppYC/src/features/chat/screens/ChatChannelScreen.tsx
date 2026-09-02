@@ -93,12 +93,8 @@ const ChatChannelHeader: React.FC<{
         testID="HeaderBackButton">
         <Ionicons name="chevron-back" size={18} color={theme.colors.inkBody} />
       </PressableOpacity>
-      <View style={styles.avatar}>
+      <View style={styles.avatar} testID="ChatHeaderAvatar">
         <Text style={styles.avatarText}>{initials}</Text>
-        {/* No presence dot. It rendered unconditionally, so every vet always
-            appeared online - nothing in the app subscribes to presence, and the
-            chat transport exposes none. A dot that is always green tells the
-            pet owner nothing and implies someone is there to answer. */}
       </View>
       <View style={styles.titleBlock}>
         <Text style={styles.name} numberOfLines={1}>
