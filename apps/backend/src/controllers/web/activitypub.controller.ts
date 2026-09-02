@@ -386,7 +386,7 @@ export const ActivityPubController = {
       if (!parsed.success) {
         return res.status(400).json({
           error: "Invalid referral payload",
-          details: parsed.error.flatten().fieldErrors,
+          details: z.flattenError(parsed.error).fieldErrors,
         });
       }
       const body = parsed.data;

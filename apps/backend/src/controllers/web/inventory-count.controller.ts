@@ -31,7 +31,7 @@ export const InventoryCountController = {
   record: async (req: Request, res: Response) => {
     const parsed = RecordCountSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.flatten() });
+      return res.status(400).json({ error: z.flattenError(parsed.error) });
     }
     try {
       const count = await InventoryCountService.record({
@@ -88,7 +88,7 @@ export const InventoryCountController = {
   reconcile: async (req: Request, res: Response) => {
     const parsed = ReconcileSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.flatten() });
+      return res.status(400).json({ error: z.flattenError(parsed.error) });
     }
     try {
       const count = await InventoryCountService.reconcile(
