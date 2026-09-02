@@ -17,24 +17,30 @@ type MetaFieldShellProps = {
 
 /**
  * Shared meta-bar field chrome: a 46px box with a filled surface, a 1.5px
- * hairline border, and the label notched into the top border (the label paints
- * the screen background behind itself so the border reads as interrupted rather
- * than overlapped). The surface uses `--field-bg` so the field reads as filled —
- * matching the design — instead of washing out transparently over the page.
+ * hairline border, and the label notched into the top border.
+ *
+ * The notch is a real `fieldset`/`legend`, which cuts the border where the text
+ * sits. The previous version painted `--screen` behind the label to fake the
+ * gap, which only lined up when the field happened to sit directly on the page:
+ * inside the workspace meta bar the field sits on a card, so the patch showed as
+ * a lighter box floating on the label. A legend needs no background at all and
+ * is therefore correct on every surface, in both themes.
  */
 export const MetaFieldShell = ({ label, children, className = '' }: MetaFieldShellProps) => (
-  <div
-    className={`relative flex h-[46px] w-full items-center gap-2 rounded-[14px] border-[1.5px] pr-2 pl-3.5 ${className}`}
+  <fieldset
+    // min-w-0 keeps the browser's default `min-inline-size: min-content` on
+    // fieldset from forcing the box wider than its grid column.
+    className={`relative m-0 flex h-[46px] w-full min-w-0 items-center gap-2 rounded-[14px] border-[1.5px] pt-0 pr-2 pb-0 pl-3.5 ${className}`}
     style={{ background: 'var(--field-bg)', borderColor: 'var(--hairline)' }}
   >
-    <span
-      className="absolute -top-[7px] left-3 truncate px-[5px] text-[10.5px] font-semibold leading-[120%]"
-      style={{ background: 'var(--screen)', color: 'var(--ink-faint)' }}
+    <legend
+      className="ml-0 truncate p-0 px-[5px] text-[10.5px] font-semibold leading-[120%]"
+      style={{ color: 'var(--ink-faint)' }}
     >
       {label}
-    </span>
+    </legend>
     {children}
-  </div>
+  </fieldset>
 );
 
 /** Value text shared by every meta-bar field — 13.5px/600 on the body ink. */
