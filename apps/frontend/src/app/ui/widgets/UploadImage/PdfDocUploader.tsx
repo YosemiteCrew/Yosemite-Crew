@@ -111,7 +111,7 @@ const PdfDocUploader = ({
             onClick={handleRemove}
             aria-label={`Remove ${file.name}`}
           >
-            <IoTrashOutline color="#ff3b30" />
+            <IoTrashOutline color="var(--danger)" />
           </button>
         </div>
       )}

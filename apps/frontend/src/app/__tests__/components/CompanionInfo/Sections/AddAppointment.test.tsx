@@ -92,7 +92,7 @@ describe('AddAppointment Component', () => {
 
   it('renders the main title', () => {
     render(<AddAppointment />);
-    expect(screen.getByText('Add appointment')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'New appointment' })).toBeInTheDocument();
   });
 
   it('renders all accordion sections', () => {

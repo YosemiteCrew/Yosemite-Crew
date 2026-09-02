@@ -472,7 +472,7 @@ const useAddInventoryContent = ({
   return (
     <Modal showModal={showModal} setShowModal={setShowModal} size="md">
       <div className="flex flex-col h-full gap-6">
-        <ModalHeader title="Add product" onClose={() => setShowModal(false)} />
+        <ModalHeader title="New product" onClose={() => setShowModal(false)} />
 
         <Labels
           labels={labels}

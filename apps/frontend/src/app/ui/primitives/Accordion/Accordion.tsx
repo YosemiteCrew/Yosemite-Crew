@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { IoCreate, IoTrash } from 'react-icons/io5';
+import { IoPencil, IoTrashOutline } from 'react-icons/io5';
 import { IoIosArrowDown } from 'react-icons/io';
 
 export interface AccordionProps {
@@ -15,9 +15,20 @@ export interface AccordionProps {
   /** Controlled open state. When provided the component is controlled. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  /** Override the title text class. Defaults to text-body-2. */
+  /**
+   * Override the title text class. Defaults to the panel section title
+   * (14px / 700 / --ink), the same weight every drawer section uses.
+   */
   titleClassName?: string;
 }
+
+/**
+ * Icon-only controls are circles (32px hairline ring, --ink-muted glyph), per
+ * the design's button geometry; the old pencil/trash glyphs sat bare beside
+ * the title at 20px and read as a third button style inside one panel.
+ */
+const iconButtonClass =
+  'flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-muted)] transition-colors hover:border-[var(--hairline-hover)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]';
 
 const Accordion: React.FC<AccordionProps> = ({
   title,
@@ -31,7 +42,7 @@ const Accordion: React.FC<AccordionProps> = ({
   rightElement,
   open: controlledOpen,
   onOpenChange,
-  titleClassName = 'text-body-2',
+  titleClassName = 'text-[14px] font-bold tracking-[-0.01em]',
 }) => {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const open = controlledOpen ?? uncontrolledOpen;
@@ -61,23 +72,28 @@ const Accordion: React.FC<AccordionProps> = ({
   };
 
   return (
-    <div className="flex flex-col w-full gap-0">
+    <div className="flex w-full flex-col gap-0">
+      {/* Section card: the panel's --screen-2 inset surface with a hairline and
+          the card radius, so a section reads as one raised block rather than a
+          bordered box drawn in two halves. */}
       <div
-        className={`flex items-center justify-between w-full border-card-border p-3 ${open ? 'border-x border-t rounded-t-2xl' : 'border rounded-2xl'}`}
+        className={`flex w-full items-center justify-between gap-3 border border-[var(--hairline)] bg-[var(--screen-2)] px-[14px] py-[10px] ${
+          open && hasChildren ? 'rounded-t-[16px] border-b-0' : 'rounded-[16px]'
+        }`}
       >
         <button
           type="button"
-          className="flex flex-1 items-center gap-2.5 text-left"
+          className="flex min-h-8 flex-1 items-center gap-2.5 text-left"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           aria-label={title}
         >
           <IoIosArrowDown
-            size={20}
+            size={16}
             aria-hidden="true"
-            className={`text-black-text transition-transform ${open ? 'rotate-0' : '-rotate-90'}`}
+            className={`shrink-0 text-[var(--ink-muted)] transition-transform ${open ? 'rotate-0' : '-rotate-90'}`}
           />
-          <span className={`${titleClassName} text-text-primary text-left`}>{title}</span>
+          <span className={`${titleClassName} text-[var(--ink)] text-left`}>{title}</span>
         </button>
 
         <div className="flex items-center gap-2">
@@ -87,14 +103,14 @@ const Accordion: React.FC<AccordionProps> = ({
             <button
               type="button"
               aria-label={`Edit ${title}`}
-              className="flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand rounded"
+              className={iconButtonClass}
               onClick={() => {
                 setOpen(true);
                 onEditClick?.();
               }}
               onKeyDown={handleEditKeyDown}
             >
-              <IoCreate size={20} color="var(--color-neutral-900)" aria-hidden="true" />
+              <IoPencil size={14} aria-hidden="true" />
             </button>
           )}
 
@@ -102,18 +118,18 @@ const Accordion: React.FC<AccordionProps> = ({
             <button
               type="button"
               aria-label={`Delete ${title}`}
-              className="flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 rounded"
+              className={`${iconButtonClass} border-[var(--danger-border)] text-[var(--danger-text)] hover:border-[var(--danger)] hover:text-[var(--danger-text)]`}
               onClick={() => onDeleteClick?.()}
               onKeyDown={handleDeleteKeyDown}
             >
-              <IoTrash size={20} color="var(--color-danger-600)" aria-hidden="true" />
+              <IoTrashOutline size={14} aria-hidden="true" />
             </button>
           )}
         </div>
       </div>
 
       {open && hasChildren && (
-        <div className="pb-2 px-3 border-x border-b border-card-border rounded-b-2xl">
+        <div className="rounded-b-[16px] border border-t-0 border-[var(--hairline)] bg-[var(--screen)] px-[14px] pb-3 pt-3">
           {children}
         </div>
       )}
