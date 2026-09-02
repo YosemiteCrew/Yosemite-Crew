@@ -36,7 +36,6 @@ export const LiquidGlassHeader: React.FC<LiquidGlassHeaderProps> = ({
         glassEffect="clear"
         interactive={false}
         shadow="none"
-        colorScheme="light"
         style={[cardStyle, {paddingTop: insetsTop}]}
         fallbackStyle={fallbackStyle}>
         {children}

@@ -410,7 +410,6 @@ const MapTopBar: React.FC<MapTopBarProps> = ({
         glassEffect="clear"
         interactive={false}
         shadow="none"
-        colorScheme="light"
         style={headerCardStyle}
         fallbackStyle={styles.headerCardFallback}>
         <Header title={title} showBackButton onBack={onBack} glass={false} />
