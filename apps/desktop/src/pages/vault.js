@@ -66,6 +66,7 @@
       const stats = res.stats;
       docCountEl.textContent = stats.count + ' document' + (stats.count === 1 ? '' : 's');
       sizeInfoEl.textContent = formatBytes(stats.totalSizeBytes || 0);
+      badgeEncryption(res.encryptionAvailable);
     });
     yc.getAppVersion().then(function () {
       // Get encryption status from vault-stats (we don't have a separate info channel)
@@ -74,12 +75,35 @@
     // Best-effort: check if vault-save works to infer readiness
   };
 
-  // We don't have vault-get-info, so check encryption from context:
-  // On macOS safeStorage is almost always available. Show status inline.
-  const badgeEncryption = function () {
-    // Can't detect encryption from renderer; just show status
-    encBadge.textContent = 'OS keychain';
-    encBadge.className = 'badge secure';
+  /*
+   * The encryption badge states what the main process reports, and nothing when
+   * it has not reported yet.
+   *
+   * It used to read a hardcoded green "OS keychain" on the reasoning that
+   * safeStorage is almost always available on macOS. That is a probability, not
+   * a fact: the Linux AppImage and deb builds depend on a keyring, and without
+   * one the vault refuses every write (ENCRYPTION_UNAVAILABLE) while the badge
+   * still claimed the documents were encrypted. The same app already prints the
+   * truth in Data > Document Vault Info, so the two surfaces disagreed.
+   */
+  const badgeEncryption = function (encryptionAvailable) {
+    if (encryptionAvailable === true) {
+      encBadge.textContent = 'OS keychain';
+      encBadge.className = 'badge';
+      encBadge.removeAttribute('title');
+      return;
+    }
+    if (encryptionAvailable === false) {
+      encBadge.textContent = 'Not encrypted';
+      encBadge.className = 'badge badge-warn';
+      encBadge.title =
+        'The OS keychain is unavailable, so the vault cannot encrypt and will refuse to store documents.';
+      return;
+    }
+    // Unknown: say so rather than guessing either way.
+    encBadge.textContent = 'checking\u2026';
+    encBadge.className = 'badge badge-unknown';
+    encBadge.removeAttribute('title');
   };
 
   const filterDocs = function () {
@@ -194,7 +218,6 @@
       docs = (res.documents || []).sort(function (a, b) {
         return b.createdAt - a.createdAt;
       });
-      badgeEncryption();
       loadStats();
       filterDocs();
     });
@@ -365,6 +388,6 @@
   });
 
   // ── Init ──
-  badgeEncryption();
+
   scheduleLoad();
 })();
