@@ -84,23 +84,30 @@ const notifyOrganisation = async (
   try {
     const organisation = await prisma.organization.findUnique({
       where: { id: organisationId },
-      select: { name: true, email: true, country: true },
+      // Country lives on the address relation, not on Organization itself.
+      select: {
+        name: true,
+        email: true,
+        address: { select: { country: true } },
+      },
     });
     if (!organisation?.email) {
       logger.info(
-        { reportId, organisationId },
-        "Adverse event stored but the practice has no email on file; not notified",
+        `Adverse event ${reportId} stored, but organisation ${organisationId} has no email on file; practice not notified`,
       );
       return;
     }
 
-    const product = (input.product ?? {}) as Record<string, unknown>;
-    const reporter = (input.reporter ?? {}) as Record<string, unknown>;
-    const patient = (input.patient ?? {}) as Record<string, unknown>;
+    const product = (input.product ?? {}) as unknown as Record<string, unknown>;
+    const reporter = (input.reporter ?? {}) as unknown as Record<
+      string,
+      unknown
+    >;
+    const patient = (input.patient ?? {}) as unknown as Record<string, unknown>;
 
     const countryName = asText(
       (product.manufacturingCountry as Record<string, unknown> | undefined)
-        ?.name ?? organisation.country,
+        ?.name ?? organisation.address?.country,
     );
     const authority = countryName
       ? await prisma.regulatoryAuthority.findFirst({
@@ -149,8 +156,8 @@ const notifyOrganisation = async (
     );
   } catch (error) {
     logger.error(
-      { err: error, reportId, organisationId },
-      "Failed to notify the practice of an adverse event; the report is stored",
+      `Failed to notify practice ${organisationId} of adverse event ${reportId}; the report is stored`,
+      error,
     );
   }
 };
