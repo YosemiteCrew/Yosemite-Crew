@@ -1,14 +1,14 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNotify } from '@/app/hooks/useNotify';
-import { Primary } from '@/app/ui/primitives/Buttons';
+import { IoCloudOfflineOutline, IoGlobeOutline } from 'react-icons/io5';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import '@/app/ui/layout/states/states.css';
 import type { APDirectoryClinic } from '@/app/features/federation/types/federation';
 import {
   followRemoteActor,
   listDirectory,
 } from '@/app/features/federation/services/federationService';
-
-const TEXT_MUTED = 'text-body-4 text-text-secondary';
 
 type DirectoryRenderState = 'loading' | 'empty' | 'ready';
 
@@ -18,12 +18,47 @@ const getDirectoryRenderState = (loading: boolean, isEmpty: boolean): DirectoryR
   return 'ready';
 };
 
-const SectionCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="border border-card-border rounded-2xl">
-    <div className="px-6 py-3 border-b border-b-card-border">
-      <div className="text-body-3 text-text-primary">{title}</div>
+// Page-header contract (serif title, subtitle, actions right) shared with every
+// other PIMS page; this page used to put its title inside a bordered card and
+// had no H1 at all.
+const DirectoryHeader = ({ count }: { count: number | null }) => (
+  <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+    <div className="flex min-w-0 flex-col gap-[3px]">
+      <h1 className="text-page-title">
+        Network{' '}
+        {count === null ? null : <span className="text-page-title-count">{`(${count})`}</span>}
+      </h1>
+      <p className="text-[13.5px] text-[var(--ink-muted)]">
+        Clinics that have opted in to the federation directory. Follow a clinic to enable referrals
+        and messaging with them.
+      </p>
     </div>
-    <div className="px-6 py-5 flex flex-col gap-4">{children}</div>
+  </div>
+);
+
+// One loading / empty / error recipe (the shared --screen state card), so an
+// outage and "nobody has listed yet" no longer read as the same muted line.
+const DirectoryState = ({
+  tone,
+  title,
+  text,
+  action,
+}: {
+  tone: 'loading' | 'empty' | 'error';
+  title: string;
+  text: string;
+  action?: React.ReactNode;
+}) => (
+  <div className="yc-state-card" role={tone === 'error' ? 'alert' : 'status'}>
+    <span
+      className={`yc-state-icon ${tone === 'error' ? 'yc-state-icon--warn' : 'yc-state-icon--blue'}`}
+      aria-hidden
+    >
+      {tone === 'error' ? <IoCloudOfflineOutline size={24} /> : <IoGlobeOutline size={24} />}
+    </span>
+    <div className="yc-state-title">{title}</div>
+    <p className="yc-state-text">{text}</p>
+    {action ? <div className="yc-state-actions">{action}</div> : null}
   </div>
 );
 
@@ -36,15 +71,16 @@ const ClinicCard = ({
   onFollow: (clinic: APDirectoryClinic) => void;
   following: boolean;
 }) => (
-  <div className="flex flex-col gap-2 p-4 border border-card-border rounded-2xl">
-    <div className="flex flex-col gap-0.5 min-w-0">
-      <div className="text-body-3 text-text-primary truncate">{clinic.orgName}</div>
-      <div className={`${TEXT_MUTED} truncate`}>{clinic.handle}</div>
-      <div className="text-body-4 text-text-tertiary truncate">{clinic.instanceHost}</div>
+  <div className="flex flex-col gap-3 rounded-[20px] border border-[var(--hairline)] bg-[var(--screen)] p-4 shadow-[0_1px_2px_var(--sh03)]">
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="truncate text-[14px] font-bold text-[var(--ink)]">{clinic.orgName}</div>
+      <div className="truncate text-[12.5px] text-[var(--ink-muted)]">{clinic.handle}</div>
+      <div className="truncate text-[12px] text-[var(--ink-faint)]">{clinic.instanceHost}</div>
     </div>
     <div className="flex justify-end">
       <Primary
         href="#"
+        size="small"
         text={following ? 'Following...' : 'Follow'}
         onClick={() => onFollow(clinic)}
         isDisabled={following}
@@ -114,24 +150,39 @@ const NetworkDirectory = () => {
 
   const renderState = getDirectoryRenderState(loading, clinics.length === 0);
 
+  const retry = useCallback(async () => {
+    setLoading(true);
+    setUnavailable(false);
+    await load();
+  }, [load]);
+
   return (
-    <SectionCard title="Clinic directory">
-      <div className={TEXT_MUTED}>
-        Clinics that have opted in to the federation directory. Follow a clinic to enable referrals
-        and messaging with them.
-      </div>
-      {renderState === 'loading' && <div className={TEXT_MUTED}>Loading...</div>}
+    <div className="flex flex-col gap-[14px]">
+      <DirectoryHeader count={renderState === 'ready' ? clinics.length : null} />
+      {renderState === 'loading' && (
+        <DirectoryState
+          tone="loading"
+          title="Loading..."
+          text="Fetching the clinics that have opted in to the directory."
+        />
+      )}
       {renderState === 'empty' && unavailable && (
-        <div className={TEXT_MUTED}>
-          The clinic directory is unavailable. Federation may be switched off on this instance, or
-          the directory service cannot be reached.
-        </div>
+        <DirectoryState
+          tone="error"
+          title="Clinic directory unavailable"
+          text="The clinic directory is unavailable. Federation may be switched off on this instance, or the directory service cannot be reached."
+          action={<Secondary text="Retry" onClick={retry} />}
+        />
       )}
       {renderState === 'empty' && !unavailable && (
-        <div className={TEXT_MUTED}>No clinics are listed in the directory yet.</div>
+        <DirectoryState
+          tone="empty"
+          title="No clinics yet"
+          text="No clinics are listed in the directory yet."
+        />
       )}
       {renderState === 'ready' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {clinics.map((clinic) => (
             <ClinicCard
               key={clinic.actorUri}
@@ -142,7 +193,7 @@ const NetworkDirectory = () => {
           ))}
         </div>
       )}
-    </SectionCard>
+    </div>
   );
 };
 
