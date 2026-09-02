@@ -15,9 +15,9 @@ import { parseOptionalBooleanFlag } from "src/utils/query-flags";
 const HhScore = z.number().int().min(1).max(10);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  assessedAt: z.string().datetime(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
+  assessedAt: z.iso.datetime(),
   hhhhhmmScore: z.number().int().min(0).max(70).optional(),
   painScore: HhScore.optional(),
   appetiteScore: HhScore.optional(),

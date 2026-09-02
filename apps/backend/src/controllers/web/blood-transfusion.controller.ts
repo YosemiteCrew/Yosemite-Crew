@@ -29,14 +29,14 @@ const ReactionEnum = z.enum([
 ]);
 
 const RecordBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
   donorId: z.string().max(200).optional(),
   productType: z.string().min(1).max(200),
   bloodType: BloodTypeEnum,
   volumeMl: z.number().positive(),
-  startedAt: z.string().datetime(),
-  endedAt: z.string().datetime().optional(),
+  startedAt: z.iso.datetime(),
+  endedAt: z.iso.datetime().optional(),
   durationMinutes: z.number().int().positive().optional(),
   reaction: ReactionEnum.optional(),
   reactionNotes: z.string().max(2000).optional(),
@@ -52,7 +52,7 @@ const ReactionBodySchema = z.object({
 });
 
 const UpdateBodySchema = z.object({
-  endedAt: z.string().datetime().optional(),
+  endedAt: z.iso.datetime().optional(),
   durationMinutes: z.number().int().positive().optional(),
   reaction: ReactionEnum.optional(),
   reactionNotes: z.string().max(2000).optional(),

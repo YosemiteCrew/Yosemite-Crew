@@ -134,7 +134,7 @@ const resolveAuthorizedOrganisationId = (req: Request): string | undefined => {
 };
 
 const admitAppointmentSchema = z.object({
-  admittedAt: z.string().datetime().optional(),
+  admittedAt: z.iso.datetime().optional(),
   expectedStayDays: z.number().int().nonnegative().optional(),
   lead: z
     .object({
@@ -158,7 +158,7 @@ const admitAppointmentSchema = z.object({
     })
     .optional(),
   roomUnitId: z.string().trim().min(1).optional(),
-  assignedAt: z.string().datetime().optional(),
+  assignedAt: z.iso.datetime().optional(),
   assignedBy: z.string().trim().min(1).optional(),
   assignmentReason: z.string().trim().min(1).optional(),
 });

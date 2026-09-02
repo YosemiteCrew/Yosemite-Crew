@@ -23,12 +23,12 @@ const ItemSchema = z.object({
   careType: z.string().min(1).max(200),
   frequency: FrequencyEnum,
   intervalDays: z.number().int().positive().optional(),
-  nextDueAt: z.string().datetime().optional(),
+  nextDueAt: z.iso.datetime().optional(),
   notes: z.string().max(2000).optional(),
 });
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
+  patientId: z.uuid(),
   name: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
   items: z.array(ItemSchema).optional(),
@@ -41,13 +41,13 @@ const UpdatePlanBodySchema = z.object({
 });
 
 const CompleteItemBodySchema = z.object({
-  completedAt: z.string().datetime().optional(),
-  nextDueAt: z.string().datetime().optional(),
+  completedAt: z.iso.datetime().optional(),
+  nextDueAt: z.iso.datetime().optional(),
   notes: z.string().max(2000).optional(),
 });
 
 const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
+  patientId: z.uuid().optional(),
   status: StatusEnum.optional(),
 });
 

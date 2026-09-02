@@ -21,17 +21,17 @@ const ConsentTypeEnum = z.enum([
 const ConsentStatusEnum = z.enum(["ACTIVE", "REVOKED", "EXPIRED"]);
 
 const GrantBodySchema = z.object({
-  patientId: z.string().uuid(),
+  patientId: z.uuid(),
   consentType: ConsentTypeEnum,
   procedureDesc: z.string().max(2000).optional(),
   // `consentedBy` is deliberately NOT accepted from the body: the service uses
   // it as the CONSENT_GRANTED audit actor, so it may only ever come from the
   // authenticated session. `consentedByName` is the free-text human field.
   consentedByName: z.string().max(200).optional(),
-  consentedAt: z.string().datetime().optional(),
-  expiresAt: z.string().datetime().optional(),
+  consentedAt: z.iso.datetime().optional(),
+  expiresAt: z.iso.datetime().optional(),
   witnessedBy: z.string().max(200).optional(),
-  documentId: z.string().uuid().optional(),
+  documentId: z.uuid().optional(),
   notes: z.string().max(2000).optional(),
 });
 
@@ -40,7 +40,7 @@ const RevokeBodySchema = z.object({
 });
 
 const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
+  patientId: z.uuid().optional(),
   status: ConsentStatusEnum.optional(),
   consentType: ConsentTypeEnum.optional(),
 });

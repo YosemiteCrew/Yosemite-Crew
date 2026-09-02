@@ -15,18 +15,18 @@ const WaitlistStatusEnum = z.enum([
 ]);
 
 const AddBodySchema = z.object({
-  patientId: z.string().uuid(),
-  preferredLeadId: z.string().uuid().optional(),
+  patientId: z.uuid(),
+  preferredLeadId: z.uuid().optional(),
   appointmentType: z.string().max(100).optional(),
-  earliestDate: z.string().datetime().optional(),
-  latestDate: z.string().datetime().optional(),
+  earliestDate: z.iso.datetime().optional(),
+  latestDate: z.iso.datetime().optional(),
   notes: z.string().max(500).optional(),
-  expiresAt: z.string().datetime().optional(),
+  expiresAt: z.iso.datetime().optional(),
 });
 
 const ListQuerySchema = z.object({
   status: WaitlistStatusEnum.optional(),
-  patientId: z.string().uuid().optional(),
+  patientId: z.uuid().optional(),
   appointmentType: z.string().max(100).optional(),
 });
 

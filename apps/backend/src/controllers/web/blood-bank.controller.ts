@@ -29,23 +29,23 @@ const DonationStatusEnum = z.enum([
 const CrossmatchSchema = z.object({
   recipientId: z.string().max(100),
   compatible: z.boolean(),
-  testedAt: z.string().datetime().optional(),
+  testedAt: z.iso.datetime().optional(),
   notes: z.string().max(500).optional(),
 });
 
 const RegisterDonorSchema = z.object({
-  patientId: z.string().uuid(),
+  patientId: z.uuid(),
   bloodType: BloodTypeEnum,
-  lastScreeningAt: z.string().datetime().optional(),
+  lastScreeningAt: z.iso.datetime().optional(),
   isActive: z.boolean().optional(),
   notes: z.string().max(2000).optional(),
 });
 
 const UpdateDonorSchema = z.object({
   bloodType: BloodTypeEnum.optional(),
-  lastScreeningAt: z.string().datetime().optional(),
-  lastDonationAt: z.string().datetime().optional(),
-  nextEligibleAt: z.string().datetime().optional(),
+  lastScreeningAt: z.iso.datetime().optional(),
+  lastDonationAt: z.iso.datetime().optional(),
+  nextEligibleAt: z.iso.datetime().optional(),
   isActive: z.boolean().optional(),
   totalDonations: z.number().int().min(0).optional(),
   disqualificationReason: z.string().max(1000).optional(),
@@ -58,12 +58,12 @@ const ListDonorsQuerySchema = z.object({
 });
 
 const RecordDonationSchema = z.object({
-  donorId: z.string().uuid(),
-  collectedAt: z.string().datetime(),
+  donorId: z.uuid(),
+  collectedAt: z.iso.datetime(),
   volumeMl: z.number().positive(),
   anticoagulant: z.string().max(100).optional(),
   unitId: z.string().max(100).optional(),
-  expiresAt: z.string().datetime().optional(),
+  expiresAt: z.iso.datetime().optional(),
   crossmatchResults: z.array(CrossmatchSchema).optional(),
   notes: z.string().max(2000).optional(),
 });
@@ -75,7 +75,7 @@ const UpdateDonationSchema = z.object({
 });
 
 const ListDonationsQuerySchema = z.object({
-  donorId: z.string().uuid().optional(),
+  donorId: z.uuid().optional(),
   status: DonationStatusEnum.optional(),
 });
 
