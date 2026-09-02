@@ -44,6 +44,16 @@ jest.mock('@/app/lib/money', () => ({
     record?.currency ?? fallback,
   formatMoneyPrecise: (amount: number, currency: string) =>
     `${currency} ${Number(amount).toFixed(2)}`,
+  sharedCurrency: (records: ReadonlyArray<{ currency?: string | null }>, fallback: string) => {
+    let shared: string | null = null;
+    for (const record of records) {
+      const own = record.currency;
+      if (typeof own !== 'string' || !own.trim()) continue;
+      if (shared === null) shared = own.trim();
+      else if (shared !== own.trim()) return fallback;
+    }
+    return shared ?? fallback;
+  },
 }));
 
 jest.mock('@/app/lib/validators', () => ({

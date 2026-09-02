@@ -19,6 +19,16 @@ jest.mock('@/app/lib/money', () => ({
     record?.currency ?? fallback,
   formatMoneyPrecise: (amount: number, currency: string) =>
     `${currency} ${Number(amount).toFixed(2)}`,
+  sharedCurrency: (records: ReadonlyArray<{ currency?: string | null }>, fallback: string) => {
+    let shared: string | null = null;
+    for (const record of records) {
+      const own = record.currency;
+      if (typeof own !== 'string' || !own.trim()) continue;
+      if (shared === null) shared = own.trim();
+      else if (shared !== own.trim()) return fallback;
+    }
+    return shared ?? fallback;
+  },
 }));
 
 jest.mock('@/app/lib/forms', () => ({
@@ -119,9 +129,12 @@ describe('PhoneInvoiceList', () => {
     render(<PhoneInvoiceList {...baseProps} filteredList={[paid]} />);
 
     expect(screen.getByText('Collected · wk')).toBeInTheDocument();
-    expect(screen.getByText('€4820')).toBeInTheDocument();
+    // The KPI tiles sum across the list, so they take the currency the list
+    // agrees on. This fixture carries none, so the helper falls back to the
+    // ambient value rather than inventing one.
+    expect(screen.getByText('EUR 4820.00')).toBeInTheDocument();
     expect(screen.getByText('Outstanding')).toBeInTheDocument();
-    expect(screen.getByText('€214')).toBeInTheDocument();
+    expect(screen.getByText('EUR 214.00')).toBeInTheDocument();
   });
 
   it('renders the status filter pills', () => {

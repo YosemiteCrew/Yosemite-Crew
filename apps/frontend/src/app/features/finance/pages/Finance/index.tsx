@@ -14,7 +14,7 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { useCurrencyForPrimaryOrg, useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
 import { computeFinanceMetrics } from '@/app/lib/financeMetrics';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoneyPrecise, sharedCurrency } from '@/app/lib/money';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
@@ -95,6 +95,10 @@ const Finance = () => {
     });
   }, [invoices, activeStatus, query]);
   const financeMetrics = useMemo(() => computeFinanceMetrics(invoices), [invoices]);
+  // The header sums across every invoice, so it carries a currency only when
+  // they all agree - otherwise "$48,797 outstanding" sits above cards reading
+  // GBP.
+  const metricsCurrency = useMemo(() => sharedCurrency(invoices, currency), [invoices, currency]);
 
   const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
     activeView: 'list',
@@ -186,9 +190,9 @@ const Finance = () => {
                   </GlassTooltip>
                 </div>
                 <p className="text-[13.5px] text-text-secondary">
-                  {`${formatMoney(financeMetrics.collectedThisWeek, currency)} collected this week · ${formatMoney(
+                  {`${formatMoneyPrecise(financeMetrics.collectedThisWeek, metricsCurrency)} collected this week · ${formatMoneyPrecise(
                     financeMetrics.outstanding,
-                    currency
+                    metricsCurrency
                   )} outstanding`}
                 </p>
               </div>

@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { StatusOption } from '@/app/features/companions/pages/Companions/types';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
-import { formatMoney, formatMoneyPrecise, recordCurrency } from '@/app/lib/money';
+import { formatMoneyPrecise, recordCurrency, sharedCurrency } from '@/app/lib/money';
 import { formatDateLabel } from '@/app/lib/forms';
 import { toTitle } from '@/app/lib/validators';
 import {
@@ -149,6 +149,10 @@ const PhoneInvoiceList = ({
 }: PhoneInvoiceListProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
   const companionsById = useCompanionStore((state) => state.companionsById);
+  // The KPI tiles sum across the list, so they carry a currency only when every
+  // invoice agrees on one. Otherwise the total is not meaningful in any single
+  // currency and the ambient value is as good as it gets.
+  const metricsCurrency = sharedCurrency(filteredList, currency);
 
   const cards = useMemo(
     () =>
@@ -182,7 +186,7 @@ const PhoneInvoiceList = ({
         >
           <span className="block text-[10.5px] text-[var(--ink-faint)]">Collected · wk</span>
           <span className="block text-[18px] font-bold tabular-nums tracking-[-0.03em] text-[var(--ink)]">
-            {formatMoney(metrics.collectedThisWeek, currency)}
+            {formatMoneyPrecise(metrics.collectedThisWeek, metricsCurrency)}
           </span>
         </div>
         <div
@@ -190,7 +194,7 @@ const PhoneInvoiceList = ({
         >
           <span className="block text-[10.5px] text-[var(--ink-faint)]">Outstanding</span>
           <span className="block text-[18px] font-bold tabular-nums tracking-[-0.03em] text-[var(--warn-text)]">
-            {formatMoney(metrics.outstanding, currency)}
+            {formatMoneyPrecise(metrics.outstanding, metricsCurrency)}
           </span>
         </div>
       </div>

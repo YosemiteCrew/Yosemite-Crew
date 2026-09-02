@@ -1,4 +1,10 @@
-import { currencySymbol, formatMoney, formatMoneyPrecise, recordCurrency } from '@/app/lib/money';
+import {
+  currencySymbol,
+  formatMoney,
+  formatMoneyPrecise,
+  recordCurrency,
+  sharedCurrency,
+} from '@/app/lib/money';
 
 describe('formatMoney', () => {
   it('formats USD correctly', () => {
@@ -144,5 +150,29 @@ describe('recordCurrency', () => {
   it('composes with the formatter on a real record shape', () => {
     const invoice = { currency: 'GBP', totalAmount: 144.6 };
     expect(formatMoneyPrecise(invoice.totalAmount, recordCurrency(invoice, 'USD'))).toBe('£144.60');
+  });
+});
+
+describe('sharedCurrency', () => {
+  it('uses the one currency when every record agrees', () => {
+    expect(sharedCurrency([{ currency: 'GBP' }, { currency: 'GBP' }], 'USD')).toBe('GBP');
+  });
+
+  it('falls back when the records disagree, because the sum has no single currency', () => {
+    expect(sharedCurrency([{ currency: 'GBP' }, { currency: 'EUR' }], 'USD')).toBe('USD');
+  });
+
+  it('ignores records with no usable currency rather than treating them as a conflict', () => {
+    expect(
+      sharedCurrency([{ currency: 'GBP' }, {}, { currency: null }, { currency: '  ' }], 'USD')
+    ).toBe('GBP');
+  });
+
+  it('falls back for an empty list', () => {
+    expect(sharedCurrency([], 'USD')).toBe('USD');
+  });
+
+  it('trims before comparing, so a padded code is not a false conflict', () => {
+    expect(sharedCurrency([{ currency: ' GBP ' }, { currency: 'GBP' }], 'USD')).toBe('GBP');
   });
 });
