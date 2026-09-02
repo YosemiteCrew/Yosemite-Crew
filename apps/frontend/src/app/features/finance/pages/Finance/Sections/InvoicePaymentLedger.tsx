@@ -1,6 +1,6 @@
 import React from 'react';
 import { Invoice } from '@yosemite-crew/types';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoneyPrecise, recordCurrency } from '@/app/lib/money';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 import { getLedgerChannel } from '@/app/features/finance/pages/Finance/Sections/ledgerChannel';
@@ -53,7 +53,7 @@ const InvoicePaymentLedger = ({ invoice, currency, payerName }: InvoicePaymentLe
             </span>
           </span>
           <span className="text-[13px] font-bold text-[var(--ink)] tabular-nums">
-            {formatMoney(invoice.totalAmount ?? 0, currency)}
+            {formatMoneyPrecise(invoice.totalAmount ?? 0, recordCurrency(invoice, currency))}
           </span>
           {receiptUrl && (
             <a

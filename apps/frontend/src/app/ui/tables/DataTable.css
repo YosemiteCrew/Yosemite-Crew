@@ -61,7 +61,7 @@ span.cell-overflow-count {
 }
 .invoice-table-fixed {
   table-layout: fixed;
-  min-width: 1244px; /* 96+200+180+150+90+70+80+180+110+88 */
+  min-width: 1308px; /* 96+200+180+150+104+96+104+180+110+88 */
 }
 .companions-table-fixed {
   table-layout: fixed;
@@ -278,15 +278,23 @@ span.cell-overflow-count {
    with tabular figures (`cell-figure`), the emphasised figures - Invoice # and
    Total - are bold ink (`cell-strong` / `cell-figure-strong`), and the secondary
    Services / Payment columns are muted ink (`cell-muted`). */
+/* Money never breaks mid-number. The base rule sets `overflow-wrap: anywhere`,
+   which is right for names and descriptions and wrong here: once figures carry
+   their minor units, "AED 12.00" is long enough to wrap in a narrow column and
+   would render as two lines of digits. */
 .appointment-profile-title.cell-figure {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: normal;
+  white-space: nowrap;
 }
 .appointment-profile-title.cell-figure-strong {
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   color: var(--ink);
+  overflow-wrap: normal;
+  white-space: nowrap;
 }
 .appointment-profile-title.cell-strong {
   font-weight: 700;

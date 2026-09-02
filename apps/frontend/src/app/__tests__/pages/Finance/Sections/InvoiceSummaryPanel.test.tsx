@@ -28,12 +28,12 @@ describe('InvoiceSummaryPanel', () => {
     render(<InvoiceSummaryPanel invoice={makeInvoice({})} currency="USD" />);
 
     expect(screen.getByText('Subtotal')).toBeInTheDocument();
-    expect(screen.getByText('$79')).toBeInTheDocument();
+    expect(screen.getByText('$79.00')).toBeInTheDocument();
     expect(screen.getByText('Discount')).toBeInTheDocument();
     expect(screen.getByText('Total')).toBeInTheDocument();
-    expect(screen.getByText('$86')).toBeInTheDocument();
+    expect(screen.getByText('$86.00')).toBeInTheDocument();
     expect(screen.getByText('Outstanding')).toBeInTheDocument();
-    expect(screen.getByText('$0')).toBeInTheDocument();
+    expect(screen.getByText('$0.00')).toBeInTheDocument();
   });
 
   it('renders a plain Tax label when no tax percent is set', () => {
@@ -54,7 +54,7 @@ describe('InvoiceSummaryPanel', () => {
       />
     );
     // Outstanding equals the total when nothing has been collected.
-    expect(screen.getAllByText('$214').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('$214.00').length).toBeGreaterThanOrEqual(1);
   });
 
   it('falls back to zero for missing money fields', () => {
@@ -70,7 +70,7 @@ describe('InvoiceSummaryPanel', () => {
       />
     );
     // Subtotal / Discount / Tax / Total / Outstanding all resolve to $0.
-    expect(screen.getAllByText('$0').length).toBeGreaterThanOrEqual(4);
+    expect(screen.getAllByText('$0.00').length).toBeGreaterThanOrEqual(4);
   });
 
   it('has no axe accessibility violations', async () => {

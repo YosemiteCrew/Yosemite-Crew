@@ -20,9 +20,9 @@ describe('InvoiceBilledItems', () => {
     expect(screen.getByText('Vaccination visit')).toBeInTheDocument();
     expect(screen.getByText('Nobivac Rabies 1 ml')).toBeInTheDocument();
     // Gross and amount of the first row both format to $49.
-    expect(screen.getAllByText('$49')).toHaveLength(2);
-    expect(screen.getByText('$24')).toBeInTheDocument();
-    expect(screen.getByText('$48')).toBeInTheDocument();
+    expect(screen.getAllByText('$49.00')).toHaveLength(2);
+    expect(screen.getByText('$24.00')).toBeInTheDocument();
+    expect(screen.getByText('$48.00')).toBeInTheDocument();
   });
 
   it('renders an honest empty state when there are no items', () => {
@@ -39,7 +39,7 @@ describe('InvoiceBilledItems', () => {
     );
     expect(screen.getByText('Waste & sharps fee')).toBeInTheDocument();
     // gross and amount both fall back to $0
-    expect(screen.getAllByText('$0').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('$0.00').length).toBeGreaterThanOrEqual(2);
   });
 
   it('has no axe accessibility violations', async () => {

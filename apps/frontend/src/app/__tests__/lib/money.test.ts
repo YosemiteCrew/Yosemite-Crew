@@ -1,4 +1,10 @@
-import { currencySymbol, formatMoney, formatMoneyPrecise } from '@/app/lib/money';
+import {
+  currencySymbol,
+  formatMoney,
+  formatMoneyPrecise,
+  recordCurrency,
+  sharedCurrency,
+} from '@/app/lib/money';
 
 describe('formatMoney', () => {
   it('formats USD correctly', () => {
@@ -115,5 +121,58 @@ describe('formatMoneyPrecise currency precision', () => {
     expect(() => formatMoneyPrecise(9.5, '123')).not.toThrow();
     expect(formatMoneyPrecise(9.5, '123')).toBe('123 9.50');
     expect(formatMoneyPrecise(9.5, 'ZZ')).toBe('ZZ 9.50');
+  });
+});
+
+describe('recordCurrency', () => {
+  it("prefers the record's own currency over the ambient fallback", () => {
+    expect(recordCurrency({ currency: 'GBP' }, 'USD')).toBe('GBP');
+  });
+
+  it('falls back when the record carries no usable currency', () => {
+    // Each of these is a real shape: an invoice loaded before its currency
+    // arrived, a column that is nullable, and the blank string a trimmed-empty
+    // field leaves behind. None of them should be handed to Intl.
+    expect(recordCurrency(undefined, 'USD')).toBe('USD');
+    expect(recordCurrency(null, 'USD')).toBe('USD');
+    expect(recordCurrency({}, 'USD')).toBe('USD');
+    expect(recordCurrency({ currency: null }, 'USD')).toBe('USD');
+    expect(recordCurrency({ currency: '' }, 'USD')).toBe('USD');
+    expect(recordCurrency({ currency: '   ' }, 'USD')).toBe('USD');
+  });
+
+  it('trims a padded code so it still resolves', () => {
+    // Intl throws on ' GBP ' but not on 'GBP', and this helper feeds Intl.
+    expect(recordCurrency({ currency: ' GBP ' }, 'USD')).toBe('GBP');
+    expect(() => formatMoneyPrecise(1, recordCurrency({ currency: ' GBP ' }, 'USD'))).not.toThrow();
+  });
+
+  it('composes with the formatter on a real record shape', () => {
+    const invoice = { currency: 'GBP', totalAmount: 144.6 };
+    expect(formatMoneyPrecise(invoice.totalAmount, recordCurrency(invoice, 'USD'))).toBe('£144.60');
+  });
+});
+
+describe('sharedCurrency', () => {
+  it('uses the one currency when every record agrees', () => {
+    expect(sharedCurrency([{ currency: 'GBP' }, { currency: 'GBP' }], 'USD')).toBe('GBP');
+  });
+
+  it('falls back when the records disagree, because the sum has no single currency', () => {
+    expect(sharedCurrency([{ currency: 'GBP' }, { currency: 'EUR' }], 'USD')).toBe('USD');
+  });
+
+  it('ignores records with no usable currency rather than treating them as a conflict', () => {
+    expect(
+      sharedCurrency([{ currency: 'GBP' }, {}, { currency: null }, { currency: '  ' }], 'USD')
+    ).toBe('GBP');
+  });
+
+  it('falls back for an empty list', () => {
+    expect(sharedCurrency([], 'USD')).toBe('USD');
+  });
+
+  it('trims before comparing, so a padded code is not a false conflict', () => {
+    expect(sharedCurrency([{ currency: ' GBP ' }, { currency: 'GBP' }], 'USD')).toBe('GBP');
   });
 });

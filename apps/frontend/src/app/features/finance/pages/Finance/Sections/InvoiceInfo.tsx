@@ -20,6 +20,7 @@ import InvoicePaymentLedger from '@/app/features/finance/pages/Finance/Sections/
 import InvoicePhoneRecord from '@/app/features/finance/pages/Finance/Sections/InvoicePhoneRecord';
 import InvoiceCreditNotes from '@/app/features/finance/pages/Finance/Sections/InvoiceCreditNotes';
 import { useInvoiceCreditNotes } from '@/app/features/finance/hooks/useInvoiceCreditNotes';
+import { recordCurrency } from '@/app/lib/money';
 
 type InvoiceInfoProps = {
   showModal: boolean;
@@ -30,7 +31,10 @@ type InvoiceInfoProps = {
 const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
   const creditNotes = useInvoiceCreditNotes(activeInvoice);
-  const currency = useCurrencyForPrimaryOrg();
+  const orgCurrency = useCurrencyForPrimaryOrg();
+  // Every figure in this drawer belongs to one invoice, so it is labelled in
+  // that invoice's currency rather than the organisation's ambient one (#2597).
+  const currency = recordCurrency(activeInvoice, orgCurrency);
   const router = useRouter();
   const isPhone = useIsPhone();
   const titleId = useId();

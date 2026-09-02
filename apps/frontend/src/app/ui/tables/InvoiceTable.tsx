@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import './DataTable.css';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoneyPrecise, recordCurrency } from '@/app/lib/money';
 import {
   getAppointmentByIdFromList,
   getCompanionNameFromAppointments,
@@ -260,29 +260,31 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
 
   const renderSubtotal = (item: Invoice) => (
     <div className="appointment-profile-title cell-figure">
-      {formatMoney(item.subtotal, currency)}
+      {formatMoneyPrecise(item.subtotal, recordCurrency(item, currency))}
     </div>
   );
 
   const renderTax = (item: Invoice) => (
     <div className="appointment-profile-title cell-figure">
-      {formatMoney(item.taxTotal ?? 0, currency)}
+      {formatMoneyPrecise(item.taxTotal ?? 0, recordCurrency(item, currency))}
     </div>
   );
 
   const renderTotal = (item: Invoice, foldBreakdown: boolean) => {
+    // One resolution for the whole row: every figure here is the same invoice's.
+    const money = recordCurrency(item, currency);
     // Tablet drops Subtotal / Discount / Tax, so the derivation folds under Total.
     const breakdown = foldBreakdown
       ? joinMeta(
-          `Sub ${formatMoney(item.subtotal, currency)}`,
-          `Disc ${formatMoney(item.discountTotal ?? 0, currency)}`,
-          `Tax ${formatMoney(item.taxTotal ?? 0, currency)}`
+          `Sub ${formatMoneyPrecise(item.subtotal, money)}`,
+          `Disc ${formatMoneyPrecise(item.discountTotal ?? 0, money)}`,
+          `Tax ${formatMoneyPrecise(item.taxTotal ?? 0, money)}`
         )
       : '';
     return (
       <div className="appointment-profile-two min-w-0">
         <div className="appointment-profile-title cell-figure-strong">
-          {formatMoney(item.totalAmount ?? 0, currency)}
+          {formatMoneyPrecise(item.totalAmount ?? 0, money)}
         </div>
         {breakdown && (
           <div className="appointment-profile-sub truncate" title={breakdown}>
@@ -319,12 +321,12 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     },
     { label: 'Services', key: 'service', width: '180px', render: renderServices },
     { label: 'Date', key: 'date', width: '150px', render: renderDate },
-    { label: 'Subtotal', key: 'sub-total', width: '90px', render: renderSubtotal },
-    { label: 'Tax', key: 'tax', width: '70px', render: renderTax },
+    { label: 'Subtotal', key: 'sub-total', width: '104px', render: renderSubtotal },
+    { label: 'Tax', key: 'tax', width: '96px', render: renderTax },
     {
       label: 'Total',
       key: 'total',
-      width: '80px',
+      width: '104px',
       render: (item: Invoice) => renderTotal(item, false),
     },
     { label: 'Status', key: 'status', width: STATUS_COLUMN_WIDTH, render: renderStatus },
