@@ -24,26 +24,23 @@ jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
 
 const noop = () => {};
 
-let errorSpy: jest.SpyInstance;
-
+/**
+ * No `console.error` spy here on purpose. `jest.setup.ts` installs a handler
+ * that THROWS on any console.error, and that handler is the assertion: an
+ * unstable selector makes React log "The result of getSnapshot should be cached
+ * to avoid an infinite loop" and then exceed its update depth, so the render
+ * throws and the test fails without needing to match the message.
+ *
+ * Spying here to look for that one string would have replaced the global
+ * handler and quietly accepted every OTHER console error - a DOM-nesting
+ * warning or a stray `act()` complaint in these real-store renders would have
+ * passed unnoticed. Those are test failures in this repo.
+ */
 beforeEach(() => {
-  errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   useCompanionStore.setState({ companionsById: {}, companionsIdsByOrgId: {} });
   useAppointmentStore.setState({ appointmentsById: {}, appointmentIdsByOrgId: {} });
   useOrgStore.setState({ primaryOrgId: 'org-1' });
 });
-
-afterEach(() => {
-  errorSpy.mockRestore();
-});
-
-/** React's own words when a `useSyncExternalStore` snapshot is a fresh value. */
-const unstableSnapshot = () =>
-  errorSpy.mock.calls.some((call) =>
-    call.some(
-      (arg: unknown) => typeof arg === 'string' && arg.includes('getSnapshot should be cached')
-    )
-  );
 
 describe('ShareEntityModal store selectors', () => {
   it('renders with a stable snapshot when the active org has no index entry', () => {
@@ -52,7 +49,6 @@ describe('ShareEntityModal store selectors', () => {
     render(<ShareEntityModal channelId="ch1" onClose={noop} />);
 
     expect(screen.getByText('Nothing to share here yet')).toBeInTheDocument();
-    expect(unstableSnapshot()).toBe(false);
   });
 
   it('renders with a stable snapshot when there is no active org at all', () => {
@@ -61,7 +57,6 @@ describe('ShareEntityModal store selectors', () => {
     render(<ShareEntityModal channelId="ch1" onClose={noop} />);
 
     expect(screen.getByText('Nothing to share here yet')).toBeInTheDocument();
-    expect(unstableSnapshot()).toBe(false);
   });
 
   it('still offers the active org its own records', () => {
@@ -73,6 +68,5 @@ describe('ShareEntityModal store selectors', () => {
     render(<ShareEntityModal channelId="ch1" onClose={noop} />);
 
     expect(screen.getByText('Bella')).toBeInTheDocument();
-    expect(unstableSnapshot()).toBe(false);
   });
 });
