@@ -55,6 +55,63 @@ describe("DeveloperUsageService", () => {
   });
 
   describe("incrementAndCheck", () => {
+    it("a test key consumes no quota, is never blocked and is never metered", async () => {
+      /* The billing UI promises this in two places - "Test-environment calls are
+         always free" and "Test-environment calls are not counted" - while the
+         code metered a test key exactly like a live one (#2549). A test key
+         must not touch the usage row at all, not merely be forgiven at the
+         quota check, or the count itself would still climb toward the limit. */
+      const result = await DeveloperUsageService.incrementAndCheck(
+        "org-1",
+        "test",
+      );
+
+      expect(result).toEqual({ allowed: true, callCount: 0 });
+      expect(mockPrisma.developerApiUsage.upsert).not.toHaveBeenCalled();
+      expect(
+        mockPrisma.developerSubscription.findUnique,
+      ).not.toHaveBeenCalled();
+      expect(mockReportUsage).not.toHaveBeenCalled();
+    });
+
+    it("a test key on a pro plan produces no Stripe meter event", async () => {
+      /* Pro is the branch that meters rather than blocks, so it is where an
+         unscreened test key costs the developer money instead of a 429. */
+      mockPrisma.developerApiUsage.upsert.mockResolvedValue({
+        callCount: 5000,
+      });
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        plan: "pro",
+        stripeCustomerId: "cus_1",
+      });
+
+      const result = await DeveloperUsageService.incrementAndCheck(
+        "org-1",
+        "test",
+      );
+
+      expect(result.allowed).toBe(true);
+      expect(mockReportUsage).not.toHaveBeenCalled();
+    });
+
+    it("a test key past the free-tier limit is still allowed", async () => {
+      // The 429 path: a test key must never be the thing that blocks a caller.
+      mockPrisma.developerApiUsage.upsert.mockResolvedValue({
+        callCount: 1001,
+      });
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        plan: "free",
+        stripeCustomerId: null,
+      });
+
+      const result = await DeveloperUsageService.incrementAndCheck(
+        "org-1",
+        "test",
+      );
+
+      expect(result.allowed).toBe(true);
+    });
+
     it("free plan, first call — returns allowed:true and callCount:1", async () => {
       mockPrisma.developerApiUsage.upsert.mockResolvedValue({ callCount: 1 });
       mockPrisma.developerSubscription.findUnique.mockResolvedValue({
@@ -62,7 +119,10 @@ describe("DeveloperUsageService", () => {
         stripeCustomerId: null,
       });
 
-      const result = await DeveloperUsageService.incrementAndCheck("org-1");
+      const result = await DeveloperUsageService.incrementAndCheck(
+        "org-1",
+        "live",
+      );
 
       expect(result).toEqual({ allowed: true, callCount: 1 });
       expect(mockReportUsage).not.toHaveBeenCalled();
@@ -77,7 +137,10 @@ describe("DeveloperUsageService", () => {
         stripeCustomerId: null,
       });
 
-      const result = await DeveloperUsageService.incrementAndCheck("org-1");
+      const result = await DeveloperUsageService.incrementAndCheck(
+        "org-1",
+        "live",
+      );
 
       expect(result).toEqual({ allowed: false, callCount: 1001 });
     });
@@ -91,7 +154,10 @@ describe("DeveloperUsageService", () => {
         stripeCustomerId: null,
       });
 
-      const result = await DeveloperUsageService.incrementAndCheck("org-1");
+      const result = await DeveloperUsageService.incrementAndCheck(
+        "org-1",
+        "live",
+      );
 
       expect(result).toEqual({ allowed: true, callCount: 1000 });
     });
@@ -105,7 +171,10 @@ describe("DeveloperUsageService", () => {
       mockReportUsage.mockResolvedValue(undefined);
       mockPrisma.developerApiUsage.update.mockResolvedValue({});
 
-      const result = await DeveloperUsageService.incrementAndCheck("org-1");
+      const result = await DeveloperUsageService.incrementAndCheck(
+        "org-1",
+        "live",
+      );
 
       expect(result).toEqual({ allowed: true, callCount: 42 });
 
@@ -135,7 +204,7 @@ describe("DeveloperUsageService", () => {
         mockReportUsage.mockResolvedValue(undefined);
         mockPrisma.developerApiUsage.update.mockResolvedValue({});
 
-        await DeveloperUsageService.incrementAndCheck("org-1");
+        await DeveloperUsageService.incrementAndCheck("org-1", "live");
         await Promise.resolve();
         await Promise.resolve();
 
@@ -158,11 +227,11 @@ describe("DeveloperUsageService", () => {
       mockPrisma.developerApiUsage.upsert.mockResolvedValueOnce({
         callCount: 7,
       });
-      await DeveloperUsageService.incrementAndCheck("org-1");
+      await DeveloperUsageService.incrementAndCheck("org-1", "live");
       mockPrisma.developerApiUsage.upsert.mockResolvedValueOnce({
         callCount: 8,
       });
-      await DeveloperUsageService.incrementAndCheck("org-1");
+      await DeveloperUsageService.incrementAndCheck("org-1", "live");
 
       await Promise.resolve();
       await Promise.resolve();
@@ -177,7 +246,10 @@ describe("DeveloperUsageService", () => {
       mockPrisma.developerApiUsage.upsert.mockResolvedValue({ callCount: 5 });
       mockPrisma.developerSubscription.findUnique.mockResolvedValue(null);
 
-      const result = await DeveloperUsageService.incrementAndCheck("org-1");
+      const result = await DeveloperUsageService.incrementAndCheck(
+        "org-1",
+        "live",
+      );
 
       expect(result).toEqual({ allowed: true, callCount: 5 });
       expect(mockReportUsage).not.toHaveBeenCalled();
@@ -190,7 +262,10 @@ describe("DeveloperUsageService", () => {
         stripeCustomerId: null,
       });
 
-      const result = await DeveloperUsageService.incrementAndCheck("org-1");
+      const result = await DeveloperUsageService.incrementAndCheck(
+        "org-1",
+        "live",
+      );
 
       expect(result).toEqual({ allowed: true, callCount: 10 });
 
