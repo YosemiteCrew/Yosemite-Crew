@@ -594,7 +594,19 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
 
   registry.handle('yc:vault-stats', async () => {
     if (!services.documentVault) return { ok: false, error: 'vault-not-ready' };
-    return { ok: true, stats: services.documentVault.getStats() };
+    /*
+     * `encryptionAvailable` rides along with the stats so the vault window can
+     * state the real encryption status instead of asserting one. It used to
+     * print a green "OS keychain" pill unconditionally, on the reasoning that
+     * safeStorage is usually present on macOS - but the Linux AppImage and deb
+     * builds depend on a keyring, and when it is missing the vault refuses every
+     * write (ENCRYPTION_UNAVAILABLE) while the badge still read green.
+     */
+    return {
+      ok: true,
+      stats: services.documentVault.getStats(),
+      encryptionAvailable: services.documentVault.encryptionAvailable,
+    };
   });
 
   registry.handle('yc:vault-save-buffer', async (_event, args) => {
