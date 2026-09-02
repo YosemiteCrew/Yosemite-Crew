@@ -1818,8 +1818,9 @@ function PrinciplesGrid() {
         padding="40px 0 40px 48px"
         borderLeft
       >
-        Records stay in the country where you practice, under laws you actually agreed to, not
-        wherever cheap servers happened to have spare room that week.
+        The platform is open source and self-hostable, so you can run it in the country you practice
+        in, under laws you actually agreed to, rather than wherever cheap servers happened to have
+        spare room that week.
       </PrincipleCell>
     </div>
   );
