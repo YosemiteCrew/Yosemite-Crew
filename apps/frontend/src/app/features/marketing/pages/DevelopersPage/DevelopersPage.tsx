@@ -474,13 +474,13 @@ function HeroTerminalCard() {
       >
         <span style={{ color: '#54b492' }}>$</span> git clone yosemitecrew/Yosemite-Crew
         {'\n'}
-        <span style={{ color: '#54b492' }}>$</span> bun install{' '}
-        <span style={{ color: '#5c5956' }}>&amp;&amp;</span> bun run dev
+        <span style={{ color: '#54b492' }}>$</span> pnpm install{' '}
+        <span style={{ color: '#5c5956' }}>&amp;&amp;</span> pnpm dev
         {'\n'}
-        <span style={{ color: '#8f8984' }}>→ PIMS live on :3000 &nbsp;·&nbsp; works offline</span>
+        <span style={{ color: '#8f8984' }}>→ PIMS live on :3000</span>
         {'\n'}
         <span style={{ color: '#54b492' }}>$</span>
-        {' yc plugins publish ./ai-scribe'}
+        {' open localhost:3000/dev-docs'}
         <span
           style={{
             display: 'inline-block',
@@ -1214,10 +1214,11 @@ function Marketplace() {
                 textWrap: 'pretty',
               }}
             >
-              It works the way WordPress plugins do. You build against the API, publish to the
-              marketplace, and any clinic running Yosemite Crew installs your work with one click.
-              The distribution is already there, so the only thing between your idea and a paying
-              practice is the building.
+              The model is the one WordPress proved: build against the API, and every clinic running
+              Yosemite Crew is a clinic that can run your work. The API and the FHIR layer are here
+              today and the whole platform is open source, so you can build and self-host against a
+              real practice now. The marketplace that turns that into one-click distribution is not
+              built yet, and until it is, installing a plugin means deploying it yourself.
             </p>
             <Link
               href="/developers/signup"
