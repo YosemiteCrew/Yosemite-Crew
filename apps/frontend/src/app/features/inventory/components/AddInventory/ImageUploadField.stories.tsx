@@ -259,7 +259,7 @@ const stallPresign = () => {
 
 export const UploadInFlight: Story = {
   name: 'Uploading, then failing',
-  beforeEach: () => stallPresign(),
+  beforeEach: stallPresign,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
