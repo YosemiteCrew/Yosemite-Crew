@@ -118,7 +118,7 @@ const SelectedFilterChips = ({ selectedFilterChips }: SelectedFilterChipsProps) 
       {selectedFilterChips.map((chip) => (
         <span
           key={chip.id}
-          className="inline-flex items-center gap-1.5 rounded-full bg-badge-blue-bg py-1 pl-3 pr-2 text-caption-1 capitalize text-badge-blue-text"
+          className="inline-flex items-center gap-1.5 rounded-full bg-[var(--inset)] text-[var(--ink)] py-1 pl-3 pr-2 text-caption-1 capitalize text-badge-blue-text"
         >
           {chip.label}
           <button

@@ -821,7 +821,7 @@ const useInventoryContent = () => {
   const showPhoneCatalog = isPhone && activeView === 'inventory';
 
   // The phone shell's FAB has no reference to this page's create flow; opt in so
-  // "New product" opens the same modal the desktop "Add product" button does,
+  // "New product" opens the same modal the desktop "New product" button does,
   // under the same guards that enable that button.
   usePhonePrimaryAction('product', () => {
     if (!canEditInventory || activeView === 'turnover' || savingItem || !primaryOrgId) return;
@@ -1235,7 +1235,7 @@ const useInventoryContent = () => {
           {canEditInventory && activeView !== 'turnover' && !isPhone && (
             <Primary
               href="#"
-              text={savingItem ? 'Saving...' : 'Add product'}
+              text={savingItem ? 'Saving...' : 'New product'}
               onClick={() => setAddPopup(true)}
               isDisabled={savingItem || !primaryOrgId}
               icon={<IoAddOutline size={18} aria-hidden="true" />}

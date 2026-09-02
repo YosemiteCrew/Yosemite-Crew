@@ -55,16 +55,16 @@ type FormSectionProps = {
 };
 
 const PricingSummary = ({ formData }: { formData: InventoryItem }) => (
-  <div className="flex flex-col gap-2 px-4 text-body-4 text-text-primary">
+  <div className="flex flex-col gap-2 px-4 text-[13px] text-[var(--ink-muted)]">
     <div>
       <span>Gross profit per unit : </span>
-      <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
+      <span className="rounded-full bg-[var(--inset)] px-2 py-[1px] text-[12.5px] font-bold tabular-nums text-[var(--ink)]">
         {formatCurrencyValue(getGrossProfitPerUnit(formData), formData.currency)}
       </span>
     </div>
     <div className="mb-4">
       <span>Margin : </span>
-      <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
+      <span className="rounded-full bg-[var(--inset)] px-2 py-[1px] text-[12.5px] font-bold tabular-nums text-[var(--ink)]">
         {formatPercentValue(getMarginPercent(formData))}
       </span>
     </div>
@@ -195,7 +195,7 @@ const renderTextInventoryField = ({
     return (
       <div className="flex items-center gap-2 px-2 text-body-4 text-text-primary">
         <span>{field.placeholder} :</span>
-        <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
+        <span className="rounded-full bg-[var(--inset)] px-2 py-[1px] text-[12.5px] font-bold tabular-nums text-[var(--ink)]">
           {displayValue}
         </span>
       </div>
@@ -428,7 +428,7 @@ const FormSection: React.FC<FormSectionProps> = ({
                   className="flex flex-col gap-3 border border-card-border rounded-xl p-3"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="font-satoshi font-semibold text-black-text">
+                    <div className="text-[13px] font-bold text-[var(--ink)]">
                       Batch {batchIdx + 1}
                     </div>
                     {formData.batches && formData.batches.length > 1 && (

@@ -44,7 +44,11 @@ const Labels = ({
     <div className="mx-auto inline-flex w-full flex-col gap-2">
       <div
         className={`flex w-full items-center gap-2 overflow-x-auto scrollbar-x-float whitespace-nowrap pb-1 ${
-          useCenteredLayout ? 'justify-center' : 'justify-start px-1 sm:px-2'
+          useCenteredLayout
+            ? 'justify-center'
+            : // Long strips scroll; the end fade is the affordance that says so, and
+              // the trailing padding lets the last chip clear it at scroll end.
+              'justify-start px-1 pr-7 sm:px-2 sm:pr-7 [mask-image:linear-gradient(to_right,black_calc(100%-28px),transparent)]'
         }`}
         onWheel={onWheelHorizontal}
         role="tablist"
@@ -58,10 +62,10 @@ const Labels = ({
             aria-selected={label.key === activeLabel}
             disabled={disableClicking}
             onClick={() => setActiveLabel(label.key)}
-            className={`shrink-0 min-w-20 h-9 text-body-4 px-3 rounded-full! border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)] ${
+            className={`h-8 shrink-0 rounded-full! border px-[13px] text-[12.5px] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)] ${
               label.key === activeLabel
-                ? 'bg-[var(--color-pill-neutral-bg)] text-[var(--ink)]! border-[var(--color-pill-neutral-border)]! font-bold'
-                : 'text-[var(--ink-soft)] border-[var(--hairline)]! font-semibold hover:bg-card-hover!'
+                ? 'border-[var(--chip-selected-border)]! bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]!'
+                : 'border-[var(--hairline)]! font-semibold text-[var(--ink-muted)] hover:text-[var(--ink)]'
             } ${disableClicking ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
             <span className="flex items-center justify-center gap-1.5 text-center w-full">

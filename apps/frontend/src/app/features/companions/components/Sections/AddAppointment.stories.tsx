@@ -43,7 +43,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'The "Add appointment" panel from the companion record: four accordions over one local ' +
+          'The "New appointment" panel from the companion record: four accordions over one local ' +
           '`formData`, and a "Book appointment" CTA. It takes no props at all, so every state ' +
           'below is reached by driving the real controls.\n\n' +
           'Three things only a rendered story shows. Two of the four sections - "Select date & ' +
