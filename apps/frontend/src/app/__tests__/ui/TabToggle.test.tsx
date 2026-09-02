@@ -44,11 +44,19 @@ describe('TabToggle', () => {
     expect(screen.getByTestId('archive-icon')).toBeInTheDocument();
   });
 
-  it('has role=tablist on the container', () => {
-    const { container } = render(
-      <TabToggle tabs={TABS} activeKey="services" onChange={jest.fn()} />
-    );
-    expect(container.firstChild).toHaveAttribute('role', 'tablist');
+  it('exposes a tablist that owns every tab', () => {
+    /* By role, not by position. The tablist is the scroll container and the
+       hairline sits on a wrapper outside it, so pinning the role to
+       `container.firstChild` asserted which node carries it rather than that
+       anything does - and it broke on a change that kept the accessibility
+       tree identical. What matters is that one tablist exists and that the
+       tabs are inside it, which is what assistive tech reads. */
+    render(<TabToggle tabs={TABS} activeKey="services" onChange={jest.fn()} />);
+
+    const tablist = screen.getByRole('tablist');
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(TABS.length);
+    for (const tab of tabs) expect(tablist).toContainElement(tab);
   });
 
   it('wires aria-controls from the panelId resolver when provided', () => {

@@ -87,16 +87,16 @@ export const ManyTabs: Story = {
     activeKey: 'consent',
   },
   decorators: [
-    /* 340px is under the 430px this strip needs, which is the whole point - and the
-       frame scrolls so the demonstration stays inside the story instead of dragging
-       the preview document 56px wide, which is what a phone-width sweep saw and read
-       as a layout bug in a component no call site pushes this far.
+    /* 340px is under what these four segments need, which is the whole point.
+       The frame is a plain box with no scroller of its own: the strip has to be
+       the thing that scrolls, and if it ever stops being that, this story shows
+       the document being dragged sideways instead of hiding it.
 
        A container, not the mobile viewport global: that global is applied by the
        manager to the preview iframe and is inert for a runner loading iframe.html
        directly, and nothing here branches on a media query anyway. */
     (Story) => (
-      <div data-frame="" style={{ width: 340, overflowX: 'auto' }}>
+      <div data-frame="" style={{ width: 340 }}>
         <Story />
       </div>
     ),
@@ -104,35 +104,53 @@ export const ManyTabs: Story = {
   play: async ({ canvasElement }) => {
     const frame = canvasElement.querySelector('[data-frame]') as HTMLElement;
     const strip = within(canvasElement).getByRole('tablist');
-    const widths = [...strip.children].map((tab) => tab.getBoundingClientRect().width);
+    const tabs = [...strip.children] as HTMLElement[];
 
-    /* The floor is real: the four segments together need more than the box, and no
-       label has wrapped to buy that back. Asserted as a relation rather than against
-       430px, so a font or padding change moves the number without failing here. */
+    /* The floor is real: the four segments together need more than the box.
+       Asserted as a relation rather than against a pixel count, so a font or
+       padding change moves the number without failing here. */
     await expect(strip.scrollWidth).toBeGreaterThan(strip.clientWidth);
-    await expect(widths.reduce((sum, width) => sum + width, 0)).toBeGreaterThan(
-      frame.getBoundingClientRect().width
+    await expect(
+      tabs.reduce((sum, tab) => sum + tab.getBoundingClientRect().width, 0)
+    ).toBeGreaterThan(frame.getBoundingClientRect().width);
+
+    /* What the overflow costs, and what it does not. The strip absorbs it: the
+       frame is exactly as wide as it was asked to be and the document never
+       gains a horizontal scroll, which is the failure this component used to
+       hand its container - a side modal has nothing to absorb a sideways shove.
+       A tab clipped at the right edge is what tells the reader there is more. */
+    await expect(Math.round(frame.getBoundingClientRect().width)).toBe(340);
+    await expect(globalThis.document.documentElement.scrollWidth).toBeLessThanOrEqual(
+      globalThis.document.documentElement.clientWidth
     );
+    const last = tabs[tabs.length - 1].getBoundingClientRect();
+    await expect(last.right).toBeGreaterThan(strip.getBoundingClientRect().right);
 
-    /* And wrapping has already happened - it is not what saves this. A Range over the
-       label's TEXT NODE returns one client rect per line box, which counts lines
-       rather than inferring them from a height. The range has to be the text node and
-       not the button: the button is a flex container, so its contents measure as one
-       flex item however many lines the text inside runs to.
+    /* And no label has wrapped to buy the width back. A Range over the label's
+       TEXT NODE returns one client rect per line box, which counts lines rather
+       than inferring them from a height. The range has to be the text node and
+       not the button: the button is a flex container, so its contents measure as
+       one flex item however many lines the text inside runs to.
 
-       "All documents" and "Consent forms" have both broken in two and the strip still
-       does not fit - and "Imaging" is one word, so it could not have wrapped however
-       tight the box got. That is the shape of the floor: a label bottoms out at its
-       longest word, and a one-word label bottoms out immediately. */
+       This is the half of the decision the scroller depends on. A wrapped label
+       reads worse ("All / documents") and drops its own underline a line below
+       its neighbours', and without nowrap the row has no honest min-content
+       width to overflow at - it would just get shorter and uglier instead. */
     const linesIn = (tab: Element) => {
       const label = [...tab.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
       const range = globalThis.document.createRange();
       range.selectNodeContents(label as Node);
       return range.getClientRects().length;
     };
-    const lineCounts = [...strip.children].map(linesIn);
-    await expect(lineCounts.filter((lines) => lines > 1).length).toBeGreaterThan(1);
-    await expect(linesIn(within(canvasElement).getByRole('tab', { name: 'Imaging' }))).toBe(1);
+    await expect(tabs.map(linesIn)).toEqual([1, 1, 1, 1]);
+
+    /* The indicator still lands on the hairline. The border moved to a wrapper
+       when the tablist became the scroll container, so this is the join that a
+       future refactor is most likely to break. */
+    const active = within(canvasElement).getByRole('tab', { selected: true });
+    await expect(Math.round(active.getBoundingClientRect().bottom)).toBe(
+      Math.round((strip.parentElement as HTMLElement).getBoundingClientRect().bottom)
+    );
   },
 };
 
