@@ -51,7 +51,7 @@ Do NOT ship a new shared component without stories. A component without a story 
 2. Check all callsites before changing prop names or signatures.
 3. If you break a prop API, update every callsite in the same PR.
 4. Update the matching `*.stories.tsx` to reflect changed API.
-5. Run targeted tests: `pnpm --filter frontend run test -- --testPathPattern="<ComponentName>"`
+5. Run targeted tests: `pnpm --filter frontend run test -- --testPathPatterns="<ComponentName>"`
 6. Run type-check: `npx tsc --noemit`
 
 ---
