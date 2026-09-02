@@ -86,6 +86,74 @@ describe("DeveloperBillingService", () => {
     process.env.STRIPE_DEV_WEBHOOK_SECRET = "whsec_test";
   });
 
+  describe("toSubscriptionStatus, via the subscription.updated webhook", () => {
+    // Local fixture: the one in the webhook describe below is out of scope here.
+    const subscriptionFixture = {
+      id: "sub_status",
+      status: "active",
+      customer: "cus_x",
+      cancel_at_period_end: false,
+      items: {
+        data: [
+          {
+            id: "si_x",
+            price: { id: "price_metered_abc" },
+            current_period_start: 1750000000,
+            current_period_end: 1752678400,
+          },
+        ],
+      },
+    };
+
+    const updateWith = async (stripeStatus: string) => {
+      mockPrisma.developerSubscription.findFirst.mockResolvedValue({
+        id: "ds-1",
+        stripePriceId: "price_metered_abc",
+        stripeSubscriptionItemId: "si_x",
+      });
+      mockPrisma.developerSubscription.update.mockResolvedValue({});
+
+      await DeveloperBillingService.handleWebhookEvent({
+        id: "evt_status",
+        type: "customer.subscription.updated",
+        data: { object: { ...subscriptionFixture, status: stripeStatus } },
+      } as never);
+
+      return mockPrisma.developerSubscription.update.mock.calls.at(-1)?.[0]
+        ?.data?.status;
+    };
+
+    it.each([
+      ["active", "active"],
+      ["trialing", "trialing"],
+      ["past_due", "past_due"],
+      ["canceled", "canceled"],
+      ["incomplete", "incomplete"],
+    ])("passes %s through as %s", async (stripe, expected) => {
+      expect(await updateWith(stripe)).toBe(expected);
+    });
+
+    it.each([
+      ["unpaid", "past_due"],
+      ["paused", "past_due"],
+      ["incomplete_expired", "canceled"],
+    ])(
+      "maps %s to %s rather than active, because collection has stopped",
+      async (stripe, expected) => {
+        expect(await updateWith(stripe)).toBe(expected);
+      },
+    );
+
+    it("records an unrecognised status as incomplete and says so", async () => {
+      // Reporting a subscription as healthier than Stripe believes it to be is
+      // the failure worth avoiding, so an unknown status must not become active.
+      expect(await updateWith("some_future_status")).toBe("incomplete");
+      expect(jest.mocked(logger.error)).toHaveBeenCalledWith(
+        expect.stringContaining("some_future_status"),
+      );
+    });
+  });
+
   describe("cancelForOwner", () => {
     it("cancels the live Stripe subscription and removes the row", async () => {
       mockPrisma.developerSubscription.findUnique.mockResolvedValue({

@@ -23,14 +23,42 @@ const getStripeClient = (): Stripe => {
   return stripeClient;
 };
 
+/*
+ * Stripe's subscription statuses, mapped onto the five this schema has.
+ *
+ * The previous form named four and returned "active" for everything else, so
+ * `unpaid`, `paused` and `incomplete_expired` - all states in which Stripe has
+ * stopped successfully collecting - were stored and shown to the developer as
+ * an active subscription. An unrecognised status now falls to `incomplete`
+ * rather than `active`, and says so: reporting a subscription as healthier than
+ * Stripe believes it to be is the failure worth avoiding, and a new status
+ * Stripe adds later should be noticed rather than absorbed.
+ */
+const STRIPE_STATUS_MAP: Record<string, DeveloperSubscriptionStatus> = {
+  active: "active",
+  trialing: "trialing",
+  past_due: "past_due",
+  canceled: "canceled",
+  incomplete: "incomplete",
+  // Collection has stopped; the developer is not in good standing.
+  unpaid: "past_due",
+  paused: "past_due",
+  // The first payment never completed and Stripe gave up on it.
+  incomplete_expired: "canceled",
+};
+
 const toSubscriptionStatus = (
   value?: string | null,
 ): DeveloperSubscriptionStatus => {
-  if (value === "trialing") return "trialing";
-  if (value === "past_due") return "past_due";
-  if (value === "canceled") return "canceled";
-  if (value === "incomplete") return "incomplete";
-  return "active";
+  if (!value) return "incomplete";
+
+  const mapped = STRIPE_STATUS_MAP[value];
+  if (mapped) return mapped;
+
+  logger.error(
+    `Unrecognised Stripe subscription status "${value}"; recording it as incomplete rather than active`,
+  );
+  return "incomplete";
 };
 
 const resolveMeteredPriceId = (): string => {
