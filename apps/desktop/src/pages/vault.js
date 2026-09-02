@@ -66,7 +66,7 @@
      * completed treatment, so leaving it alone would render a GREEN "checking…"
      * on every load - and keep it green indefinitely if the request fails.
      */
-    badgeEncryption(undefined);
+    badgeEncryption();
     yc.vaultStats().then(function (res) {
       if (!res?.ok || !res.stats) return;
       const stats = res.stats;
