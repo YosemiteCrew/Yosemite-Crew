@@ -513,6 +513,19 @@ export const resolveStripeConnectedAccountId = async (params: {
   return resolveOrganisationStripeAccountId(invoice?.organisationId);
 };
 
+/**
+ * Whether a Stripe expiry failure means the session is already closed.
+ *
+ * `StripeInvalidRequestError` is what Stripe returns for a session that is not
+ * in the open state - already expired, or completed by the client. That is a
+ * terminal condition: the link cannot collect anything further, so there is
+ * nothing to expire. Every other error type leaves the session's state unknown.
+ */
+const isTerminalSessionError = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  (error as { type?: unknown }).type === "StripeInvalidRequestError";
+
 const expireCheckoutSessionAtProvider = async (params: {
   invoiceId: string;
   sessionId: string;
@@ -532,13 +545,30 @@ const expireCheckoutSessionAtProvider = async (params: {
       toStripeAccountOptions(connectedAccountId),
     );
   } catch (error) {
-    // Stripe rejects expiry for sessions it already expired or completed; the
-    // local attempt is cancelled either way and the webhook rejects late pays.
-    logger.warn("Failed to expire stale Stripe checkout session", {
+    // Stripe rejects expiry for a session that is not open - one it has already
+    // expired, or one the client completed. Either way the link cannot collect
+    // again, so there is nothing left to expire and the caller may proceed.
+    if (isTerminalSessionError(error)) {
+      logger.warn("Stripe checkout session was already closed", {
+        invoiceId: params.invoiceId,
+        sessionId: params.sessionId,
+        error,
+      });
+      return;
+    }
+
+    // Anything else - a network fault, a 5xx, a rate limit, bad credentials -
+    // means we do not know that the link is dead, and it very likely is not.
+    // Swallowing here would let the caller reduce what is owed, cancel the
+    // local attempt, and leave a live link collecting the pre-credit amount:
+    // exactly the case this expiry exists to prevent. Fail instead, so the
+    // caller aborts before writing anything.
+    logger.error("Could not expire Stripe checkout session", {
       invoiceId: params.invoiceId,
       sessionId: params.sessionId,
       error,
     });
+    throw error;
   }
 };
 
@@ -886,7 +916,18 @@ const buildDepositLineItem = (params: {
 
 // A PAYMENT_LINK invoice switching to an in-app PaymentIntent must first
 // retire its open Checkout Sessions so the same balance cannot be paid twice.
-const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
+/**
+ * Expire every open Stripe checkout session for an invoice at the provider,
+ * then cancel the local attempts.
+ *
+ * Exported because cancelling the local row alone is not enough: a link already
+ * in the client's hands keeps resolving at Stripe and still charges the old
+ * amount, and the local attempt is by then CANCELED so the webhook has no open
+ * attempt to reconcile against. Provider expiry failures are logged and
+ * swallowed - Stripe rejects expiry for sessions it has already expired or
+ * completed, and the local cancel stands either way.
+ */
+export const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
   const staleSessionAttempts = await prisma.paymentAttempt.findMany({
     where: {
       invoiceId,
@@ -910,11 +951,17 @@ const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
     });
   }
 
+  // The same status predicate the select above uses. Without it this rewrote
+  // EVERY Stripe checkout attempt on the invoice, including SUCCEEDED ones -
+  // destroying the record of a payment that actually completed. The original
+  // caller guards the invoice to AWAITING_PAYMENT/PENDING so it never bit
+  // there, but issueCreditNote deliberately allows crediting a paid invoice.
   await prisma.paymentAttempt.updateMany({
     where: {
       invoiceId,
       provider: "STRIPE",
       providerCheckoutSessionId: { not: null },
+      status: { notIn: ["CANCELED", "FAILED", "SUCCEEDED"] },
     },
     data: {
       status: "CANCELED",
