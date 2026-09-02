@@ -78,11 +78,14 @@ const meta = {
   title: 'Appointments/StaffField',
   component: StaffField,
   decorators: [
-    /* The notched label paints `--screen` behind itself to interrupt the border, so
-       the field is only correct on a `--screen` ground. Rendering it on the bare
-       preview canvas would hide a mismatch that is glaring in the product. */
+    /* `--page`, which is what `body` actually paints and therefore the real ground
+       under the meta bar - NOT `--screen`, which the old faked notch painted
+       behind the label. Those two tokens differ in both themes (#efe8dc vs
+       #f7f3ec light, #201c18 vs #2f271e dark), which is exactly why the patch was
+       visible on the plain page and not only on cards. Rendering on the true
+       ground keeps a mismatch visible here instead of only in the product. */
     (Story) => (
-      <div className="w-[280px] p-6" style={{ background: 'var(--screen)' }}>
+      <div className="w-[280px] p-6" style={{ background: 'var(--page)' }}>
         <Story />
       </div>
     ),
@@ -96,12 +99,14 @@ const meta = {
           'the chrome every other field in that bar is built from. `MetaFieldShell` is the 46px ' +
           'box with the notched label; `MetaFieldValue` is the 13.5px/600 value text; ' +
           '`StaffField` is the two of them plus an avatar.\n\n' +
-          'The notch is the trick worth pinning. There is no gap cut in the border - the label ' +
-          'is absolutely positioned astride the top edge and paints `--screen` behind itself, so ' +
-          'the border only *reads* as interrupted. That means the field is correct on a ' +
-          '`--screen` ground and wrong on any other: on a card or inside a modal the label ' +
-          'stripe would show as a rectangle of the wrong colour laid over the border. Nothing ' +
-          'in the props expresses that constraint.\n\n' +
+          'The notch is a real one: the box is a `fieldset` and the label is its `legend`, so ' +
+          'the browser cuts the border where the text sits. It paints no background of its own ' +
+          'and is therefore correct on every ground - card, modal or page, light or dark.\n\n' +
+          'It did not always work that way. The label used to be an absolutely positioned span ' +
+          'painting `--screen` behind itself to fake the gap - but `body` paints `--page`, a ' +
+          'different token in both themes, so the patch never matched its ground and showed as a ' +
+          'rectangle of the wrong shade over the border. The stories now render on `--page`, the ' +
+          'real ground, so a mismatch shows up here rather than only in the product.\n\n' +
           'The surface is `--field-bg` rather than transparent, which is what makes the box read ' +
           'as filled instead of as a hole in the page - the two tokens are deliberately different ' +
           'values in both themes, and the stories assert that rather than assuming it.\n\n' +
@@ -158,12 +163,10 @@ export const Assigned: Story = {
     // Inset from the corner, so the border still turns before the label starts.
     await expect(labelBox.left).toBeGreaterThan(shellBox.left);
 
-    /* And the paint behind it has to be the PAGE colour, not the field fill -
-       that is the entire illusion. Matching it to `--field-bg` leaves a visible
-       swatch of the wrong shade sitting on the border. */
-    await expect(globalThis.getComputedStyle(labelEl).backgroundColor).toBe(
-      resolveToken(labelEl, '--screen')
-    );
+    /* The legend must paint NOTHING. Any background here is the old bug: a patch
+       that happens to match one ground and shows as a coloured rectangle on every
+       other. A real notch needs no fill, which is the whole point of the fix. */
+    await expect(globalThis.getComputedStyle(labelEl).backgroundColor).toBe('rgba(0, 0, 0, 0)');
 
     // 13.5px/600 is normal-size text, so the AA bar is 4.5 rather than 3.0.
     await expect(
@@ -345,17 +348,17 @@ export const Dark: Story = {
     await expect(shellStyle.backgroundColor).toBe(resolveToken(shell, '--field-bg'));
     await expect(shellStyle.backgroundColor).not.toBe(resolveToken(shell, '--screen'));
 
-    // The notch still paints the page colour, which is a different value in dark.
-    await expect(globalThis.getComputedStyle(labelEl).backgroundColor).toBe(
-      resolveToken(labelEl, '--screen')
-    );
+    /* Dark is where a painted notch did the most damage: `--screen` #2f271e over a
+       `--page` #201c18 ground is a visibly lighter block behind the label. The
+       legend paints nothing, so the ground shows through whatever it happens to be. */
+    await expect(globalThis.getComputedStyle(labelEl).backgroundColor).toBe('rgba(0, 0, 0, 0)');
 
     /* Three inks, three grounds, all of them theme-swapped. The 10.5px label is the
-       tightest of them and the one that goes first when `--ink-faint` moves. */
+       tightest of them and the one that goes first when `--ink-faint` moves. Its
+       ground is whatever the field sits on - `--page` in these stories - not the
+       label's own background, which is now transparent and would score infinite. */
     const labelInk = globalThis.getComputedStyle(labelEl).color;
-    await expect(
-      contrast(labelInk, globalThis.getComputedStyle(labelEl).backgroundColor)
-    ).toBeGreaterThanOrEqual(4.5);
+    await expect(contrast(labelInk, resolveToken(labelEl, '--page'))).toBeGreaterThanOrEqual(4.5);
     await expect(
       contrast(
         globalThis.getComputedStyle(canvas.getByText('Dr. Amara Weber')).color,
