@@ -1,6 +1,7 @@
 'use client';
 import React, { useState } from 'react';
-import { Secondary } from '@/app/ui/primitives/Buttons';
+import { Primary } from '@/app/ui/primitives/Buttons';
+import { currencySymbol } from '@/app/lib/money';
 import { formatCap } from '@/app/features/finance/services/creditNoteService';
 
 type CreditNoteDraft = { amount: number; reason?: string };
@@ -75,11 +76,22 @@ const CreditNoteIssueForm = ({
   return (
     <div className="flex flex-col gap-2 border-t border-t-card-border pt-3!">
       <div className="flex flex-wrap items-end gap-2">
-        <div className="flex flex-col gap-1 w-32">
+        <div className="flex flex-col gap-1 w-36">
           <label htmlFor="credit-note-amount" className="text-[12px] text-[var(--ink-muted)]">
             Amount
           </label>
           <span className={fieldClass}>
+            {/*
+              The symbol sits inside the field, the way the discount cap puts its
+              '%' there. Without it the amount is the one number on this panel
+              with no unit, beside a column of formatted money.
+            */}
+            <span
+              aria-hidden="true"
+              className="flex items-center pl-3 text-[13px] text-[var(--ink-muted)]"
+            >
+              {currencySymbol(currency)}
+            </span>
             <input
               id="credit-note-amount"
               type="number"
@@ -88,7 +100,7 @@ const CreditNoteIssueForm = ({
               max={remaining}
               value={amountInput}
               onChange={(e) => setAmountInput(e.target.value)}
-              className={inputClass}
+              className={`${inputClass} pl-1.5`}
             />
           </span>
         </div>
@@ -106,7 +118,12 @@ const CreditNoteIssueForm = ({
             />
           </span>
         </div>
-        <Secondary
+        {/*
+          The section's own primary action, so it carries the app's primary
+          weight - it was a Secondary sitting beside no primary at all, which
+          read as the least important control in the panel.
+        */}
+        <Primary
           text={busy ? 'Working...' : 'Issue credit note'}
           isDisabled={busy}
           onClick={handleIssue}

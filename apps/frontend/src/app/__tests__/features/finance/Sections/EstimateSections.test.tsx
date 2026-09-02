@@ -132,7 +132,10 @@ describe('EstimateList', () => {
   ];
 
   const names: Record<string, string> = { 'pet-1': 'Rex', 'pet-2': 'Milo' };
-  const companionName = (patientId: string) => names[patientId] ?? 'Unknown companion';
+  const companion = (patientId: string) => ({
+    name: names[patientId] ?? 'Unknown companion',
+    speciesCode: 'dog',
+  });
 
   const renderList = (overrides: Partial<React.ComponentProps<typeof EstimateList>> = {}) => {
     const onSelect = jest.fn();
@@ -141,7 +144,7 @@ describe('EstimateList', () => {
         estimates={estimates}
         activeEstimateId={null}
         onSelect={onSelect}
-        companionName={companionName}
+        companion={companion}
         {...overrides}
       />
     );

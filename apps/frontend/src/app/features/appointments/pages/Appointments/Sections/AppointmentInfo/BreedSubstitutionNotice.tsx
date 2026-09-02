@@ -38,8 +38,8 @@ const BreedSubstitutionNotice = ({ substitution }: BreedSubstitutionNoticeProps)
     <div
       role="note"
       aria-label="Breed substitution"
-      className={`rounded-xl p-2.5 flex flex-col gap-1 ${
-        defect ? 'bg-danger-100' : 'bg-card-hover'
+      className={`flex flex-col gap-1 rounded-2xl border px-4 py-3 ${
+        defect ? 'border-danger-200 bg-danger-100' : 'border-warning-200 bg-warning-100'
       }`}
     >
       <span

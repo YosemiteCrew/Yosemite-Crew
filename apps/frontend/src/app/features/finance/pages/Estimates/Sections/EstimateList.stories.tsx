@@ -49,7 +49,7 @@ const meta = {
         component:
           'The estimates list.\n\n' +
           'The API returns a bare `patientId`, so the companion name is resolved by the caller ' +
-          'through the `companionName` prop rather than joined server-side. An id with no loaded ' +
+          'through the `companion` prop rather than joined server-side. An id with no loaded ' +
           'companion falls back to a readable label instead of printing a uuid at the user.\n\n' +
           '`validUntil` is optional on the model and renders as a dash when absent, which is the ' +
           'common case: nothing in the service ever sets EXPIRED, so an expiry date here is a note ' +
@@ -66,7 +66,10 @@ const meta = {
     ],
     activeEstimateId: 'e1',
     onSelect: () => {},
-    companionName: (patientId: string) => NAMES[patientId] ?? 'Unknown companion',
+    companion: (patientId: string) => ({
+      name: NAMES[patientId] ?? 'Unknown companion',
+      speciesCode: 'dog',
+    }),
   },
 } satisfies Meta<typeof EstimateList>;
 
