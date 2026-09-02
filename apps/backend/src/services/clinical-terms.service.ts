@@ -83,6 +83,14 @@ export type ClinicalTermCoding = {
   equivalence: MappingEquivalence;
 };
 
+/**
+ * Restrict results to terms that actually carry a usable crosswalk to one
+ * vocabulary. A practice that works in SNOMED wants a list it can code in
+ * SNOMED; showing terms with no SNOMED counterpart wastes their time and
+ * produces records they cannot export the way they need.
+ */
+export type VocabularyFilter = "VENOM" | "SNOMED";
+
 export type ClinicalTermSuggestion = {
   ycCode: string;
   label: string;
@@ -240,6 +248,8 @@ export type SuggestTermsParams = {
   domain?: ClinicalDomain;
   species?: ClinicalSpecies[];
   limit?: number;
+  /** Only terms with a usable crosswalk to this vocabulary. */
+  vocabulary?: VocabularyFilter;
 };
 
 /**
@@ -287,6 +297,22 @@ export const buildSuggestionQuery = (
     const speciesElements = jsonTextArray(SPECIES_META);
     filters.push(
       Prisma.sql`EXISTS (SELECT 1 FROM ${speciesElements} sp WHERE sp = ANY(${params.species}))`,
+    );
+  }
+
+  if (params.vocabulary) {
+    // Same usable-equivalence gate the picker and the export apply, so a term is
+    // only offered under a vocabulary filter when that vocabulary genuinely holds
+    // a counterpart for it - not merely a row saying "no counterpart exists".
+    filters.push(
+      Prisma.sql`EXISTS (
+        SELECT 1 FROM "CodeMapping" m
+        WHERE m."sourceCode" = e."code"
+          AND m."sourceSystem" = 'YOSEMITECODE'::"CodeSystem"
+          AND m."targetSystem" = ${params.vocabulary}::"CodeSystem"
+          AND m."active"
+          AND m."equivalence" = ANY(${USABLE_SUGGESTION_EQUIVALENCES}::"MappingEquivalence"[])
+      )`,
     );
   }
 

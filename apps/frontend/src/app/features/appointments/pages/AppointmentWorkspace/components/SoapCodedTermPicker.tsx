@@ -8,7 +8,20 @@ import {
   suggestClinicalTerms,
   type ClinicalTermDomain,
   type ClinicalTermSuggestion,
+  type VocabularyFilter,
 } from '@/app/features/appointments/services/clinicalTermsService';
+
+/**
+ * Vocabulary scope for the search. "All" offers every term and shows whichever
+ * crosswalks exist; picking a vocabulary narrows the list to terms that can
+ * actually be coded in it, which is what a practice working in SNOMED (or
+ * VeNom) alone needs — a list with no dead ends.
+ */
+const VOCABULARY_SCOPES: Array<{ value: VocabularyFilter | 'ALL'; label: string }> = [
+  { value: 'ALL', label: 'All' },
+  { value: 'VENOM', label: 'VeNom' },
+  { value: 'SNOMED', label: 'SNOMED' },
+];
 
 /** Short vocabulary labels; the picker has no room for full system URIs. */
 const SYSTEM_LABEL: Record<string, string> = {
@@ -86,6 +99,7 @@ const SoapCodedTermPicker = ({
   onChange,
 }: SoapCodedTermPickerProps) => {
   const anchorRef = useRef<HTMLDivElement>(null);
+  const [scope, setScope] = useState<VocabularyFilter | 'ALL'>('ALL');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ClinicalTermSuggestion[]>([]);
   // Monotonic request id: a slow earlier response must never overwrite a newer one.
@@ -105,7 +119,12 @@ const SoapCodedTermPicker = ({
           setResults([]);
           return;
         }
-        suggestClinicalTerms({ q: trimmed, domain, limit: SUGGEST_LIMIT })
+        suggestClinicalTerms({
+          q: trimmed,
+          domain,
+          limit: SUGGEST_LIMIT,
+          ...(scope === 'ALL' ? {} : { vocabulary: scope }),
+        })
           .then((items) => {
             if (requestSeqRef.current === requestId) setResults(items);
           })
@@ -117,7 +136,7 @@ const SoapCodedTermPicker = ({
       belowMinimum ? 0 : SUGGEST_DEBOUNCE_MS
     );
     return () => clearTimeout(timer);
-  }, [query, domain]);
+  }, [query, domain, scope]);
 
   const selectedCodes = useMemo(() => new Set(selected.map((term) => term.ycCode)), [selected]);
 
@@ -181,6 +200,31 @@ const SoapCodedTermPicker = ({
           ))}
         </ul>
       )}
+      <div
+        className="flex items-center gap-1"
+        role="radiogroup"
+        aria-label={`Vocabulary for ${sectionLabel} coded terms`}
+      >
+        {VOCABULARY_SCOPES.map((option) => {
+          const active = scope === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => setScope(option.value)}
+              className={`rounded-full border px-2.5 py-1 text-caption-2 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${
+                active
+                  ? 'border-transparent bg-neutral-200 text-text-primary'
+                  : 'border-card-border bg-transparent text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
       <div ref={anchorRef} className="relative w-full sm:max-w-90">
         <Search
           value={query}
