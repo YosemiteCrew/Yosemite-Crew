@@ -497,7 +497,10 @@ export const InvoiceBreakdown = ({
         {invoice.items.map((item) => (
           <li key={item.id} className={`${ROW_GRID} px-1 py-2.5 text-body-4 text-text-primary`}>
             <span className="inline-flex min-w-0 items-center gap-1 font-medium">
-              <span className="truncate">{item.name}</span>
+              {/* Same clipped billed-item name as TotalBillContainer. */}
+              <span className="truncate" title={item.name}>
+                {item.name}
+              </span>
               <PackageBreakdownTooltip item={item} currency={currency} />
             </span>
             <span>{formatCents(item.unitPriceCents, currency)}</span>
