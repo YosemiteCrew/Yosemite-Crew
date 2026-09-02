@@ -337,14 +337,22 @@ export const Admitting: Story = {
 
 export const LongMetaLineAtTheFloor: Story = {
   name: 'Long meta line at the 768px floor',
-  /* The tightest row the app can produce, at the narrowest viewport that renders
-     it. Before the identity column was allowed to shrink it sized itself to the
+  /* The tightest row the app can produce, in the width it actually gets.
+     768px is the narrowest viewport that renders this header at all, but the
+     header never sees 768: `SessionInitializer` lays the collapsed sidebar rail
+     out as a flex sibling at 76px (`--sidebar-collapsed-width`, and the rail is
+     `display: none` only below 767px), and the workspace route adds `sm:px-6`,
+     so the content column is 768 - 76 - 48 = 644. Framing this at 720 was
+     testing a box 76px wider than production - wide enough for the guard to
+     pass while the real header still overlapped.
+
+     Before the identity column was allowed to shrink it sized itself to the
      meta line and grew straight over the action cluster - "34.6 kg" rendered
      underneath the visit timer, and because nothing here overflows the document
      the page never gained a scrollbar to give it away. */
   decorators: [
     (Story) => (
-      <div className="w-[768px] p-6">
+      <div className="w-[644px]">
         <Story />
       </div>
     ),

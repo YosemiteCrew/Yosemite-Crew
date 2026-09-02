@@ -164,6 +164,24 @@ export const ManyTabs: Story = {
     await expect(Math.round(active.getBoundingClientRect().bottom)).toBe(
       Math.round((strip.parentElement as HTMLElement).getBoundingClientRect().bottom)
     );
+
+    /* The two things the scroll container would otherwise cost, both invisible
+       on macOS because its scrollbars are overlays.
+
+       A scrollbar must take no height inside the strip: if it did, it would sit
+       between the active tab's underline and the wrapper's hairline and push
+       the two apart by its own thickness, which is the join asserted just
+       above. `offsetHeight - clientHeight` is that thickness. */
+    await expect(strip.offsetHeight - strip.clientHeight).toBe(0);
+
+    /* And the focus indicator has to be INSET. A scroll container clips
+       descendant painting on both axes, so an outward ring loses its top and
+       bottom edges against a button that fills the strip's height, and the end
+       tabs lose an outer edge as well. Asserted on the computed shadow rather
+       than the class list, because the class only matters if it resolves. */
+    tabs[0].focus();
+    await expect(globalThis.getComputedStyle(tabs[0]).boxShadow).toMatch(/inset/);
+    tabs[0].blur();
   },
 };
 
