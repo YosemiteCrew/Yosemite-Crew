@@ -84,7 +84,7 @@ const meta = {
           'a type does three things at once on a new service: it sets the type, re-derives ' +
           'Bookable (only a consultation is bookable by default) and re-issues the code - which ' +
           'is easy to miss because none of it happens when editing an existing service.\n\n' +
-          'Pricing is a four-up row whose last field is read-only: Total Amount is ' +
+          'Pricing is a four-up row whose last field is read-only: Total amount is ' +
           '`gross - gross x defaultDiscount%`, recomputed live, and blank rather than $0 until a ' +
           'gross is entered. Validation is deliberately not per-keystroke - it runs on save, and ' +
           "clearing a field clears only that field's message.\n\n" +
@@ -119,7 +119,7 @@ export const NewService: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.getByText('New Service (draft)')).toBeInTheDocument();
+    await expect(canvas.getByText('New service (draft)')).toBeInTheDocument();
     await expect(canvas.getByText('CON-0042')).toBeInTheDocument();
     // Two "Bookable" nodes: the header badge and the checkbox label. One node
     // means the badge did not render - see the type-change story below, where
@@ -133,9 +133,9 @@ export const NewService: Story = {
     await expect(canvas.getByRole('button', { name: 'Type: Consultation' })).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Duration: 30 mins' })).toBeInTheDocument();
     await expect(canvas.getByLabelText('Gross amt.')).toHaveValue(null);
-    await expect(canvas.getByLabelText('Default Discount (%)')).toHaveValue(0);
+    await expect(canvas.getByLabelText('Default discount (%)')).toHaveValue(0);
     // Blank, not "$0" - the read-only total stays empty until a gross is entered.
-    await expect(canvas.getByLabelText('Total Amount')).toHaveValue('');
+    await expect(canvas.getByLabelText('Total amount')).toHaveValue('');
 
     // Delete only exists while editing, so a new draft has two actions, not three.
     await expect(canvas.queryByRole('button', { name: 'Delete Service' })).not.toBeInTheDocument();
@@ -147,7 +147,7 @@ export const NewService: Story = {
        would show the stacked form at any browser width. Assert the track count
        AND the child count: a template with fewer tracks than children silently
        wraps the last field onto a new line instead of failing. */
-    const pricing = canvas.getByLabelText('Total Amount').closest('.grid') as HTMLElement;
+    const pricing = canvas.getByLabelText('Total amount').closest('.grid') as HTMLElement;
     await expect(getComputedStyle(pricing).gridTemplateColumns.trim().split(/\s+/)).toHaveLength(4);
     await expect(pricing.children).toHaveLength(4);
   },
@@ -181,7 +181,7 @@ export const ValidationErrors: Story = {
     await expect(canvas.getByLabelText('Name')).toHaveAttribute('aria-invalid', 'true');
     await expect(canvas.getByLabelText('Gross amt.')).toHaveAttribute('aria-invalid', 'true');
     // The 0% default discount is valid, so its field must stay clean.
-    await expect(canvas.getByLabelText('Default Discount (%)')).toHaveAttribute(
+    await expect(canvas.getByLabelText('Default discount (%)')).toHaveAttribute(
       'aria-invalid',
       'false'
     );
@@ -213,7 +213,7 @@ export const DiscountRangeErrors: Story = {
     await userEvent.type(canvas.getByLabelText('Name'), 'Extraction');
     await userEvent.type(canvas.getByLabelText('Gross amt.'), '310');
 
-    const defaultDiscount = canvas.getByLabelText('Default Discount (%)');
+    const defaultDiscount = canvas.getByLabelText('Default discount (%)');
     await userEvent.clear(defaultDiscount);
     await userEvent.type(defaultDiscount, '150');
     await userEvent.click(canvas.getByRole('button', { name: 'Save Service' }));
@@ -253,13 +253,13 @@ export const LiveTotal: Story = {
   name: 'Live total and badges',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const total = canvas.getByLabelText('Total Amount');
+    const total = canvas.getByLabelText('Total amount');
 
     await userEvent.type(canvas.getByLabelText('Gross amt.'), '200');
     // 200 with the default 0% discount.
     await waitFor(() => expect(total).toHaveValue('$200'));
 
-    const defaultDiscount = canvas.getByLabelText('Default Discount (%)');
+    const defaultDiscount = canvas.getByLabelText('Default discount (%)');
     await userEvent.clear(defaultDiscount);
     await userEvent.type(defaultDiscount, '10');
     // 200 - 10% = 180. formatMoney rounds to whole units, so no cents anywhere.
@@ -273,15 +273,15 @@ export const LiveTotal: Story = {
 
     // The title follows the name field on every keystroke.
     await userEvent.type(canvas.getByLabelText('Name'), 'Bandage change');
-    await expect(canvas.getByText('New Service (draft)')).toBeInTheDocument();
+    await expect(canvas.getByText('New service (draft)')).toBeInTheDocument();
   },
   parameters: {
     docs: {
       description: {
         story:
-          'The read-only Total Amount is the only field nobody types into, and it is the one ' +
+          'The read-only Total amount is the only field nobody types into, and it is the one ' +
           'that has to stay right: it is recomputed from gross and default discount on every ' +
-          'render. Note the title stays "New Service (draft)" while typing a name - the name ' +
+          'render. Note the title stays "New service (draft)" while typing a name - the name ' +
           'only reaches the title when editing an existing service, which is the next story.',
       },
     },
@@ -346,7 +346,7 @@ export const EditExisting: Story = {
     await expect(canvas.getByLabelText('Gross amt.')).toHaveValue(310);
     await expect(canvas.getByLabelText('Max. Discount (%)')).toHaveValue(25);
     // 310 - 10% = 279, computed on mount rather than on first edit.
-    await expect(canvas.getByLabelText('Total Amount')).toHaveValue('$279');
+    await expect(canvas.getByLabelText('Total amount')).toHaveValue('$279');
 
     // Not bookable, in-patient preferred: one badge, and it is the other one.
     await expect(canvas.getAllByText('In-patient')).toHaveLength(1);

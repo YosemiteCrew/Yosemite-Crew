@@ -121,7 +121,7 @@ const meta = {
           'of live inputs and two portalled dropdowns. They share no markup. That is eight ' +
           'distinct bodies from one component, seven of which were never drawn.\n\n' +
           'Two of those bodies also swap on `supportsUnits`, which is derived from the room type ' +
-          '(`ICU`, `INPATIENT`, `ISOLATION`, `BOARDING`): with it, availability gets a Total Units ' +
+          '(`ICU`, `INPATIENT`, `ISOLATION`, `BOARDING`): with it, availability gets a Total units ' +
           'field and the units section gets an add button; without it, both are replaced by ' +
           'explanatory `rounded-2xl` paragraphs. So an exam room and an ICU bay are different ' +
           'layouts, not the same layout with a field hidden.\n\n' +
@@ -260,12 +260,12 @@ export const EditExpanded: Story = {
     const canvas = within(canvasElement);
     // A completely different tree from the view bodies: live inputs everywhere.
     await expect(canvas.getByLabelText('Room code')).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Room Type: ICU' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Room type: ICU' })).toBeInTheDocument();
     await expect(
       canvas.getByRole('button', { name: 'Speciality (optional): Surgery' })
     ).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: /^Start time/ })).toBeInTheDocument();
-    await expect(canvas.getByLabelText('Total Units')).toBeInTheDocument();
+    await expect(canvas.getByLabelText('Total units')).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Add unit type' })).toBeInTheDocument();
     await expect(canvas.getByLabelText('Add equipment name')).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Add custom equipment' })).toBeInTheDocument();
@@ -293,7 +293,7 @@ export const RoomTypeDropdownOpen: Story = {
   args: { openSections: ALL_OPEN, mode: 'edit' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Room Type: ICU' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Room type: ICU' }));
     // The panel portals to document.body, so it is outside the drawer's own
     // overflow-y-auto column - the reason it is not clipped by it.
     await waitFor(() =>
@@ -337,16 +337,16 @@ export const ExamRoomWithoutUnits: Story = {
     await expect(
       canvas.getByText('Select ICU, Inpatient, Isolation, or Boarding to configure unit types.')
     ).toBeInTheDocument();
-    // The Total Units field and the add button are gone rather than disabled.
-    await expect(canvas.queryByLabelText('Total Units')).not.toBeInTheDocument();
+    // The Total units field and the add button are gone rather than disabled.
+    await expect(canvas.queryByLabelText('Total units')).not.toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: 'Add unit type' })).not.toBeInTheDocument();
   },
   parameters: {
     docs: {
       description: {
         story:
-          'An exam room. `supportsUnits` false replaces the Total Units input with a `sm:col-span-2` ' +
-          'explanatory paragraph - so the availability grid loses a cell and the Assigned Staff row ' +
+          'An exam room. `supportsUnits` false replaces the Total units input with a `sm:col-span-2` ' +
+          'explanatory paragraph - so the availability grid loses a cell and the Assigned staff row ' +
           'moves up - and empties the unit section down to one line. Two sections change shape from ' +
           'one derived boolean, and neither change is visible unless both are open.',
       },

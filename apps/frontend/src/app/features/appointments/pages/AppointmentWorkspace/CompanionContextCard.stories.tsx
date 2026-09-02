@@ -56,7 +56,7 @@ const meta = {
         component:
           'The white companion card on the in-progress band: a round 64px avatar, a grid of ' +
           'label/value rows that goes 1 -> 2 -> 3 columns with the breakpoint, and a right rail ' +
-          'carrying the "View Details" pill above the encounter mode pill. The avatar falls back to ' +
+          'carrying the "View details" pill above the encounter mode pill. The avatar falls back to ' +
           'a species-specific illustration, and an unrecognised species falls back to the dog rather ' +
           'than rendering a broken image.',
       },
