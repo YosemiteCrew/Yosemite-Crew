@@ -62,6 +62,21 @@ body {
   border: 1px solid var(--status-completed-border);
 }
 
+/* The badge defaults to the green "completed" treatment, which is only correct
+   when encryption really is available. These two carry the other two states so
+   an unencrypted vault cannot read as a secure one. */
+.badge-warn {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--danger);
+}
+
+.badge-unknown {
+  background: var(--status-requested-bg);
+  color: var(--status-requested-text);
+  border-color: var(--status-requested-border);
+}
+
 .header-meta {
   margin-left: auto;
   white-space: nowrap;

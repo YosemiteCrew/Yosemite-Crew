@@ -376,6 +376,11 @@ describe('ipc-handlers — happy paths', () => {
     expect(await call('yc:vault-list')).toMatchObject({ ok: true });
     expect(await call('yc:vault-get', 'd')).toMatchObject({ ok: true });
     expect(await call('yc:vault-stats')).toMatchObject({ ok: true });
+    // The vault window's encryption badge is driven by this field. Without it
+    // the badge fell back to a hardcoded green "OS keychain", which was wrong
+    // on any machine where safeStorage is unavailable - and there the vault
+    // refuses every write, so the claim was exactly backwards.
+    expect(await call('yc:vault-stats')).toHaveProperty('encryptionAvailable');
     expect(
       await call('yc:vault-save-buffer', 'f.txt', Buffer.from('x').toString('base64'))
     ).toMatchObject({ ok: true });
@@ -461,9 +466,10 @@ describe('ipc-handlers — happy paths', () => {
       // The payload is renderer-controlled, so an exact string comparison let
       // "vet-1" witness for "vet-1 ".
       for (const witnessId of ['vet-1 ', ' vet-1', 'VET-1', ' Vet-1 ']) {
-        expect(
-          await call('yc:cs-record', { ...waste, witnessId, witnessName: 'Dr. X' })
-        ).toEqual({ ok: false, error: 'witness-must-differ' });
+        expect(await call('yc:cs-record', { ...waste, witnessId, witnessName: 'Dr. X' })).toEqual({
+          ok: false,
+          error: 'witness-must-differ',
+        });
       }
     });
 
@@ -504,7 +510,11 @@ describe('ipc-handlers — happy paths', () => {
         ...waste,
         witnessId: 'nurse-1',
         witnessName: 'Nurse Jane',
-      })) as { ok: boolean; witnessPinVerified: boolean; transaction: { witnessPinVerified: boolean } };
+      })) as {
+        ok: boolean;
+        witnessPinVerified: boolean;
+        transaction: { witnessPinVerified: boolean };
+      };
 
       expect(result.ok).toBe(true);
       expect(result.witnessPinVerified).toBe(false);
@@ -609,7 +619,9 @@ describe('ipc-handlers — happy paths', () => {
     expect(services.logger.warn).toHaveBeenCalledWith('audit_append_rejected', expect.anything());
 
     // Ordinary entries are unaffected.
-    expect(await call('yc:audit-append', { action: 'patient:update', resourceType: 'patient' })).toMatchObject({ ok: true });
+    expect(
+      await call('yc:audit-append', { action: 'patient:update', resourceType: 'patient' })
+    ).toMatchObject({ ok: true });
   });
 
   test('a verified witness is recorded under the enrolled account name', async () => {

@@ -61,11 +61,18 @@
   };
 
   const loadStats = function () {
+    /*
+     * Reset to the neutral state before asking. `.badge` on its own is the green
+     * completed treatment, so leaving it alone would render a GREEN "checking…"
+     * on every load - and keep it green indefinitely if the request fails.
+     */
+    badgeEncryption();
     yc.vaultStats().then(function (res) {
       if (!res?.ok || !res.stats) return;
       const stats = res.stats;
       docCountEl.textContent = stats.count + ' document' + (stats.count === 1 ? '' : 's');
       sizeInfoEl.textContent = formatBytes(stats.totalSizeBytes || 0);
+      badgeEncryption(res.encryptionAvailable);
     });
     yc.getAppVersion().then(function () {
       // Get encryption status from vault-stats (we don't have a separate info channel)
@@ -74,12 +81,44 @@
     // Best-effort: check if vault-save works to infer readiness
   };
 
-  // We don't have vault-get-info, so check encryption from context:
-  // On macOS safeStorage is almost always available. Show status inline.
-  const badgeEncryption = function () {
-    // Can't detect encryption from renderer; just show status
-    encBadge.textContent = 'OS keychain';
-    encBadge.className = 'badge secure';
+  /*
+   * The encryption badge states what the main process reports, and nothing when
+   * it has not reported yet.
+   *
+   * It used to read a hardcoded green "OS keychain" on the reasoning that
+   * safeStorage is almost always available on macOS. That is a probability, not
+   * a fact: the Linux AppImage and deb builds depend on a keyring, and without
+   * one the vault refuses every write (ENCRYPTION_UNAVAILABLE) while the badge
+   * still claimed the documents were encrypted. The same app already prints the
+   * truth in Data > Document Vault Info, so the two surfaces disagreed.
+   */
+  const badgeEncryption = function (encryptionAvailable) {
+    if (encryptionAvailable === true) {
+      encBadge.textContent = 'OS keychain';
+      encBadge.className = 'badge';
+      encBadge.removeAttribute('title');
+      return;
+    }
+    if (encryptionAvailable === false) {
+      /*
+       * "Encryption unavailable", not "Not encrypted". This describes the
+       * keychain's CURRENT capability, which is the only thing the flag knows.
+       * Documents stored while the keychain was available stay encrypted on
+       * disk - losing access blocks new writes, it does not decrypt anything -
+       * so calling the vault "not encrypted" would misstate the files already
+       * in it, which is the same class of false claim this badge is here to
+       * stop making.
+       */
+      encBadge.textContent = 'Encryption unavailable';
+      encBadge.className = 'badge badge-warn';
+      encBadge.title =
+        'The OS keychain is unavailable, so the vault cannot store new documents. Documents saved earlier remain encrypted on disk.';
+      return;
+    }
+    // Unknown: say so rather than guessing either way.
+    encBadge.textContent = 'checking\u2026';
+    encBadge.className = 'badge badge-unknown';
+    encBadge.removeAttribute('title');
   };
 
   const filterDocs = function () {
@@ -194,7 +233,6 @@
       docs = (res.documents || []).sort(function (a, b) {
         return b.createdAt - a.createdAt;
       });
-      badgeEncryption();
       loadStats();
       filterDocs();
     });
@@ -365,6 +403,6 @@
   });
 
   // ── Init ──
-  badgeEncryption();
+
   scheduleLoad();
 })();
