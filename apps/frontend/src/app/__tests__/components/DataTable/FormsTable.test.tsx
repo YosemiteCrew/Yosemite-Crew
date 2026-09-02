@@ -46,6 +46,9 @@ jest.mock('react-icons/io5', () => ({
   IoClipboardOutline: () => <span data-testid="template-icon-clipboard" />,
   IoDocumentTextOutline: () => <span data-testid="template-icon-document" />,
   IoMedkitOutline: () => <span data-testid="template-icon-medkit" />,
+  // The shared empty state draws this glyph; an unlisted icon is `undefined`,
+  // which React renders as an invalid element type rather than nothing.
+  IoFileTrayOutline: () => <span data-testid="empty-state-icon" />,
 }));
 
 let mockTeamsById: Record<string, { practionerId?: string; name?: string }> = {};
@@ -261,10 +264,10 @@ describe('FormsTable Component', () => {
     expect(screen.queryByTestId('form-card-Intake Form')).not.toBeInTheDocument();
   });
 
-  it("shows 'No data available' when list is empty in mobile view", () => {
+  it('shows the shared empty state when the list is empty in mobile view', () => {
     render(<FormsTable {...defaultProps} filteredList={[]} />);
 
-    expect(screen.getAllByText('No data available').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('No templates yet').length).toBeGreaterThan(0);
   });
 
   // --- 4. Edge Cases ---

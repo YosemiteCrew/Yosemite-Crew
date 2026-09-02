@@ -6,6 +6,7 @@ import {
   formatDisplayDate,
 } from '@/app/features/inventory/pages/Inventory/utils';
 import { Secondary } from '@/app/ui/primitives/Buttons';
+import { formatCurrencyValue } from '@/app/features/inventory/pages/Inventory/utils';
 
 const displayValue = (val?: string | number | null) => {
   if (val === undefined || val === null) return '—';
@@ -13,11 +14,14 @@ const displayValue = (val?: string | number | null) => {
   return val;
 };
 
-const formatCurrency = (value: string | number | undefined) => {
-  const num = Number(value ?? 0);
-  if (!Number.isFinite(num)) return '—';
-  return `$ ${num}`;
-};
+/**
+ * Currency for the phone catalogue card. Delegates to the same formatter the
+ * inventory tables use, so the card shows "$143" in the org's own currency
+ * rather than a hardcoded "$ 143" - the design writes money with no space
+ * after the symbol, and a non-USD clinic was shown dollars regardless.
+ */
+const formatCurrency = (value: string | number | undefined, currency?: string) =>
+  formatCurrencyValue(value, currency);
 
 const InventoryCard = ({ item, handleViewInventory }: any) => {
   const totalValue = () => {
@@ -26,7 +30,7 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
     const price = Number(item.pricing.selling ?? 0);
     const onHand = Number(item.stock.current ?? 0);
     if (!Number.isFinite(price) || !Number.isFinite(onHand)) return '—';
-    return `$ ${Math.round(price * onHand)}`;
+    return formatCurrencyValue(Math.round(price * onHand), item.currency);
   };
 
   return (
@@ -47,13 +51,13 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Unit cost:</div>
         <div className="text-caption-1 text-text-primary">
-          {formatCurrency(item.pricing.purchaseCost)}
+          {formatCurrency(item.pricing.purchaseCost, item.currency)}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Selling price:</div>
         <div className="text-caption-1 text-text-primary">
-          {formatCurrency(item.pricing.selling)}
+          {formatCurrency(item.pricing.selling, item.currency)}
         </div>
       </div>
       <div className="flex gap-1">

@@ -60,6 +60,9 @@ jest.mock('react-icons/io5', () => ({
   IoPersonOutline: () => <span>person-icon</span>,
   IoReaderOutline: () => <span>reader-icon</span>,
   IoSwapHorizontalOutline: () => <span>swap-icon</span>,
+  // The shared empty state draws this glyph; an unlisted icon is `undefined`,
+  // which React renders as an invalid element type rather than nothing.
+  IoFileTrayOutline: () => <span>empty-state-icon</span>,
 }));
 
 const baseProps = {
@@ -255,7 +258,7 @@ describe('CompanionsTable', () => {
     expect(screen.getByText('Open overview')).toBeInTheDocument();
 
     rerender(<CompanionsTable {...baseProps} filteredList={[]} viewMode="grid" />);
-    expect(screen.getAllByText('No data available').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('No patients yet').length).toBeGreaterThan(0);
   });
 
   // Regression: the non-phone table used to carry the shared `.table-list`
@@ -286,12 +289,12 @@ describe('CompanionsTable', () => {
   it('shows the phone empty state', () => {
     useIsPhoneMock.mockReturnValue(true);
     render(<CompanionsTable {...baseProps} filteredList={[]} />);
-    expect(screen.getByText('No data available')).toBeInTheDocument();
+    expect(screen.getByText('No patients yet')).toBeInTheDocument();
   });
 
   it('shows the desktop empty state', () => {
     render(<CompanionsTable {...baseProps} filteredList={[]} />);
-    expect(screen.getByText('No data available')).toBeInTheDocument();
+    expect(screen.getByText('No patients yet')).toBeInTheDocument();
   });
 
   it('highlights the row while its menu is open and closes on outside click / scroll / resize', () => {

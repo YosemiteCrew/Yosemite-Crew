@@ -5,11 +5,12 @@ import { buildPagerPageList } from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
 import './GenericTable/Generictable.css';
+import { NoDataMessage } from '@/app/ui/tables/common';
 
 export type GridHeaderCell = { label: string; align?: 'right'; className?: string };
 
 const pagerStepClass =
-  'flex size-7 items-center justify-center rounded-[9px] border border-card-border text-text-primary transition-colors hover:bg-[var(--surface-soft)]';
+  'flex size-7 items-center justify-center rounded-full border border-card-border text-text-primary transition-colors hover:bg-[var(--surface-soft)]';
 
 type PaginatedGridTableProps<T> = {
   /** Full (already filtered) row set — the shell owns the paging window. */
@@ -90,7 +91,7 @@ const PaginatedGridTable = <T,>({
                 aria-label={`Page ${page}`}
                 aria-current={page === currentPage ? 'page' : undefined}
                 onClick={() => setPage(page)}
-                className={`flex size-7 items-center justify-center rounded-[9px] text-[12px] tabular-nums transition-colors ${
+                className={`flex size-7 items-center justify-center rounded-full text-[12px] tabular-nums transition-colors ${
                   page === currentPage
                     ? 'bg-[var(--nav-active-bg)] font-bold text-[var(--nav-active)]'
                     : 'font-semibold text-text-secondary hover:bg-[var(--surface-soft)]'
@@ -140,8 +141,11 @@ const PaginatedGridTable = <T,>({
                 ))}
               </div>
               {total === 0 ? (
-                <div className="flex w-full items-center justify-center border-t border-card-border py-10 text-body-4 text-text-primary">
-                  Looks like a quiet day… for now.
+                <div className="border-t border-card-border">
+                  <NoDataMessage
+                    title="Nothing here yet"
+                    subtitle="Rows appear here as soon as there are any."
+                  />
                 </div>
               ) : (
                 pageRows.map((row) => renderRow(row))
@@ -153,9 +157,10 @@ const PaginatedGridTable = <T,>({
       </div>
       <div className="inventory-card-list gap-4 sm:gap-6 flex-wrap">
         {total === 0 ? (
-          <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-            No data available
-          </div>
+          <NoDataMessage
+            title="Nothing here yet"
+            subtitle="Rows appear here as soon as there are any."
+          />
         ) : (
           pageRows.map((row) => renderCard(row))
         )}

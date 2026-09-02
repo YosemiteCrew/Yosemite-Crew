@@ -35,6 +35,7 @@ import {
 
 import './DataTable.css';
 import './GenericTable/Generictable.css';
+import { NoDataMessage } from '@/app/ui/tables/common';
 
 const SPECIES_LABEL: Record<string, string> = {
   dog: 'Dog',
@@ -310,7 +311,7 @@ const TablePagination = ({
           aria-label="Previous page"
           disabled={safePage === 1}
           onClick={() => onPageChange(Math.max(1, safePage - 1))}
-          className="flex size-7 items-center justify-center rounded-[9px] border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)] disabled:opacity-40"
+          className="flex size-7 items-center justify-center rounded-full border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)] disabled:opacity-40"
         >
           <IoChevronBackOutline size={13} aria-hidden="true" />
         </button>
@@ -321,7 +322,7 @@ const TablePagination = ({
             aria-label={`Page ${pageNumber}`}
             aria-current={pageNumber === safePage ? 'page' : undefined}
             onClick={() => onPageChange(pageNumber)}
-            className={`flex size-7 items-center justify-center rounded-[9px] text-[12px] transition-colors ${
+            className={`flex size-7 items-center justify-center rounded-full text-[12px] transition-colors ${
               pageNumber === safePage
                 ? 'bg-[var(--nav-active-bg)] font-bold text-[var(--nav-active)]'
                 : 'font-semibold text-[var(--ink-muted)] hover:bg-[var(--surface-soft)]'
@@ -335,7 +336,7 @@ const TablePagination = ({
           aria-label="Next page"
           disabled={safePage === totalPages}
           onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
-          className="flex size-7 items-center justify-center rounded-[9px] border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)] disabled:opacity-40"
+          className="flex size-7 items-center justify-center rounded-full border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)] disabled:opacity-40"
         >
           <IoChevronForwardOutline size={13} aria-hidden="true" />
         </button>
@@ -461,9 +462,10 @@ const CompanionsTable = ({
     return (
       <div className="flex flex-col gap-2.5">
         {filteredList.length === 0 ? (
-          <div className="w-full py-6 text-center text-[14px] text-[var(--ink-muted)]">
-            No data available
-          </div>
+          <NoDataMessage
+            title="No patients yet"
+            subtitle="Patients appear here once they are added to the clinic."
+          />
         ) : (
           filteredList.map((item) => (
             <CompanionPhoneCard
@@ -485,9 +487,10 @@ const CompanionsTable = ({
           {viewMode === 'grid' ? (
             <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden p-4">
               {pageItems.length === 0 ? (
-                <div className="flex h-full items-center justify-center px-5 py-10 text-[14px] text-[var(--ink-muted)]">
-                  No data available
-                </div>
+                <NoDataMessage
+                  title="No patients yet"
+                  subtitle="Patients appear here once they are added to the clinic."
+                />
               ) : (
                 <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
                   {pageItems.map((item) => (
@@ -518,9 +521,10 @@ const CompanionsTable = ({
               {/* Rows */}
               <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
                 {pageItems.length === 0 ? (
-                  <div className="flex h-full items-center justify-center px-5 py-10 text-[14px] text-[var(--ink-muted)]">
-                    No data available
-                  </div>
+                  <NoDataMessage
+                    title="No patients yet"
+                    subtitle="Patients appear here once they are added to the clinic."
+                  />
                 ) : (
                   pageItems.map((item) => (
                     <CompanionRow

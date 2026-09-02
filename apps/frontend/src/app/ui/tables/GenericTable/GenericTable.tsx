@@ -29,7 +29,7 @@ interface GenericTableProps<T extends object> {
 }
 
 const pagerStepClass =
-  'flex size-7 items-center justify-center rounded-[9px] border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)]';
+  'flex size-7 items-center justify-center rounded-full border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)]';
 
 // Bottom padding applied by .TableBodyScroll — must match Generictable.css
 const TABLE_BODY_PADDING_BOTTOM = 16;
@@ -209,7 +209,7 @@ const GenericTable = <T extends object>({
                   aria-label={`Page ${page}`}
                   aria-current={page === currentPage ? 'page' : undefined}
                   onClick={() => setCurrentPage(page)}
-                  className={`flex size-7 items-center justify-center rounded-[9px] text-[12px] tabular-nums transition-colors ${
+                  className={`flex size-7 items-center justify-center rounded-full text-[12px] tabular-nums transition-colors ${
                     page === currentPage
                       ? 'bg-[var(--nav-active-bg)] font-bold text-[var(--nav-active)]'
                       : 'font-semibold text-[var(--ink-muted)] hover:bg-[var(--surface-soft)]'

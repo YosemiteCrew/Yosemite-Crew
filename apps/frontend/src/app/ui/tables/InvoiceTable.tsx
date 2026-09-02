@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import { IoEye, IoOpenOutline } from 'react-icons/io5';
 import InvoiceCard from '@/app/ui/cards/InvoiceCard';
@@ -23,7 +23,10 @@ import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 import { getInvoiceItemNames, getInvoiceStatusTone } from '@/app/ui/tables/tableUtils';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { getAppointmentCompanion, getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
-import { getAvatarPalette } from '@/app/features/companions/pages/Companions/companionsDirectory';
+import {
+  getAvatarPalette,
+  getMonogram,
+} from '@/app/features/companions/pages/Companions/companionsDirectory';
 import { useCompanionStore } from '@/app/stores/companionStore';
 
 const buildAppointmentSubtitle = (
@@ -73,8 +76,10 @@ const STATUS_COLUMN_WIDTH = '180px';
 const ACTIONS_COLUMN_WIDTH = '88px';
 
 const renderInvoiceNumber = (item: Invoice) => (
+  // The identity cell never breaks mid-word (table recipe): "#53F6F0925E" used to
+  // wrap to two lines inside its 96px column and read as two invoices.
   <div
-    className="appointment-profile-title tabular-nums cell-strong"
+    className="appointment-profile-title tabular-nums cell-strong whitespace-nowrap"
     title={getInvoiceNumberLabel(item) || undefined}
   >
     {getInvoiceNumberLabel(item) || '-'}
@@ -200,7 +205,8 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       ? joinMeta(appointmentSubtitle, getInvoiceItemNames(item.items))
       : appointmentSubtitle;
     // Design rings the row avatar in the companion's species tint, not a flat
-    // neutral disc — the tint is what shows through an initials fallback.
+    // neutral disc — the tint is what shows through the initials fallback that
+    // takes over when the photo URL no longer resolves.
     const avatarPalette = getAvatarPalette(companion?.id || companionName);
     return (
       <div className="appointment-profile flex items-center gap-2.5">
@@ -208,12 +214,20 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
           className="flex size-[30px] shrink-0 overflow-hidden rounded-full"
           style={{ background: avatarPalette.bg }}
         >
-          <Image
+          <AvatarImage
             src={avatarSrc}
             alt=""
-            width={30}
-            height={30}
+            size={30}
             className="size-[30px] rounded-full object-cover"
+            fallback={
+              <span
+                aria-hidden="true"
+                className="flex size-full items-center justify-center font-newsreader text-[13px]"
+                style={{ color: avatarPalette.ink }}
+              >
+                {getMonogram(companionName === '-' ? null : companionName)}
+              </span>
+            }
           />
         </div>
         <div className="appointment-profile-two min-w-0">
@@ -312,7 +326,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
      column. Discount is deliberately NOT one of them: it only appears in the
      invoice detail Summary, where the line-level breakdown lives. */
   const columns: Column<Invoice>[] = [
-    { label: 'Invoice', key: 'invoice-number', width: '96px', render: renderInvoiceNumber },
+    { label: 'Invoice', key: 'invoice-number', width: '112px', render: renderInvoiceNumber },
     {
       label: 'Parent / patient',
       key: 'appointment-id',
@@ -341,7 +355,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
      Actions. Services + Date fold into the identity sub-line; Subtotal /
      Discount / Tax fold under Total. */
   const tabletColumns: Column<Invoice>[] = [
-    { label: 'Invoice', key: 'invoice-number', width: '84px', render: renderInvoiceNumber },
+    { label: 'Invoice', key: 'invoice-number', width: '104px', render: renderInvoiceNumber },
     {
       label: 'Parent / patient',
       key: 'appointment-id',
