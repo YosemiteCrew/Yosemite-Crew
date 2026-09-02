@@ -170,11 +170,13 @@ export const ThankYouScreen: React.FC<Props> = ({navigation}) => {
             files: productFiles,
           });
         }
+        // Nothing is transmitted: the report is stored with `destinations`, so
+        // neither branch may claim it was sent. Enforced by the test.
         showSuccessAlert(
-          'Report submitted',
+          'Report saved',
           target === 'manufacturer'
-            ? 'We sent your report to the manufacturer.'
-            : 'We sent your report to the hospital.',
+            ? 'Saved for the manufacturer. Forwarding is not switched on yet, so tell your vet too.'
+            : 'Saved to your vet practice, with the product and batch details attached.',
         );
         resetDraft();
         handleBack();
