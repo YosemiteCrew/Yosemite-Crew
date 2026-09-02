@@ -777,9 +777,13 @@ const FederationSection = () => {
   const [actor, setActor] = useState<APActorSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /* Returns the chain rather than dropping it: the mount effect awaits this, and
+     the license and directory cards pass it as their `onUpdated` refresh. Without
+     the return it resolved to `undefined`, so every one of those awaits completed
+     immediately and nothing actually waited for the reload. */
   const loadActor = useCallback(() => {
     setLoading(true);
-    getActorSettings()
+    return getActorSettings()
       .then((data) => setActor(data))
       .catch(() => {
         notify('error', {
