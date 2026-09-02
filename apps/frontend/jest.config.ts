@@ -261,8 +261,15 @@ const config: Config = {
   // transform: undefined,
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
+  /*
+   * The markdown pipeline (unified, remark-*, rehype-*, and their unist/hast
+   * helpers) ships pure ESM with no CJS build. Left in the default ignore, Jest
+   * cannot parse them and the docs render suite fails to load - which would
+   * silently drop the sanitiser tests, the ones that prove untrusted
+   * documentation markdown cannot inject script or attributes.
+   */
   transformIgnorePatterns: [
-    String.raw`/node_modules/(?!((\.pnpm/)?@iconify[^/]*\/))`,
+    String.raw`/node_modules/(?!((\.pnpm/)?(@iconify[^/]*|unified|remark-.*|rehype-.*|mdast-.*|micromark.*|hast-.*|unist-.*|vfile.*|bail|is-plain-obj|trough|decode-named-character-reference|character-entities.*|property-information|space-separated-tokens|comma-separated-tokens|html-void-elements|zwitch|longest-streak|ccount|markdown-table|escape-string-regexp|trim-lines|web-namespaces|parse5|devlop|estree-util-is-identifier-name|stringify-entities|character-reference-invalid|is-decimal|is-hexadecimal|is-alphanumerical|is-alphabetical|lowlight|highlight\.js)[^/]*\/))`,
     String.raw`^.+\.module\.(css|sass|scss)$`,
   ],
 
@@ -279,4 +286,75 @@ const config: Config = {
   // watchman: true,
 };
 
-export default createJestConfig(config);
+/*
+ * next/jest OVERWRITES transformIgnorePatterns with its own value, so setting
+ * it in `config` above has no effect. The documented workaround is to resolve
+ * the Next config first and then patch the field, which is what this does.
+ *
+ * Without it the markdown pipeline (unified, remark-*, rehype-* and their
+ * unist/hast/micromark helpers, all pure ESM with no CJS build) is left
+ * untransformed, and the docs render suite fails to load with
+ * "SyntaxError: Unexpected token 'export'". That suite carries the
+ * sanitiser tests, so the failure mode is losing the proof that untrusted
+ * documentation markdown cannot inject script or attributes.
+ */
+const ESM_PACKAGES = [
+  '@iconify[^/]*',
+  'unified',
+  'remark-.*',
+  'rehype-.*',
+  'mdast.*',
+  'micromark.*',
+  'hast.*',
+  'unist.*',
+  'vfile.*',
+  'bail',
+  'is-plain-obj',
+  'trough',
+  'decode-named-character-reference',
+  'character-entities.*',
+  'character-reference-invalid',
+  'property-information',
+  'space-separated-tokens',
+  'comma-separated-tokens',
+  'html-void-elements',
+  'zwitch',
+  'longest-streak',
+  'ccount',
+  'markdown-table',
+  'escape-string-regexp',
+  'trim-lines',
+  'web-namespaces',
+  'parse5',
+  'devlop',
+  'estree-util-is-identifier-name',
+  'stringify-entities',
+  'is-decimal',
+  'is-hexadecimal',
+  'is-alphanumerical',
+  'is-alphabetical',
+  'lowlight',
+  'github-slugger',
+  'dequal',
+  'extend',
+  'unherit',
+  'direction',
+  'bcp-47-match',
+  'css-selector-parser',
+  '@ungap/.*',
+  'entities',
+  'highlight\\.js',
+].join('|');
+
+const buildConfig = async () => {
+  const nextConfig = await createJestConfig(config)();
+  return {
+    ...nextConfig,
+    transformIgnorePatterns: [
+      `/node_modules/(?!(\\.pnpm/)?(${ESM_PACKAGES})[^/]*/)`,
+      String.raw`^.+\.module\.(css|sass|scss)$`,
+    ],
+  };
+};
+
+export default buildConfig;
