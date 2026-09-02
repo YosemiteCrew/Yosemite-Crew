@@ -65,6 +65,36 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
   // Do not advertise the framework/version in responses (X-Powered-By).
   poweredByHeader: false,
+  /*
+   * The developer docs are a Docusaurus build copied into `public/dev-docs`.
+   * It links extensionlessly - `/dev-docs/apps/backend` - while writing
+   * `apps/backend.html`, so on the deployed site every internal link 404'd:
+   * only `/dev-docs/index.html`, typed by hand, ever loaded.
+   *
+   * Setting `trailingSlash: true` in Docusaurus does not fix it. This app
+   * leaves `trailingSlash` at its default of false, so it 308-redirects
+   * `/dev-docs/x/` to `/dev-docs/x` and the slashed links would land back on
+   * the same 404.
+   *
+   * The rewrite runs after filesystem routes, so a real asset (`/img/x.png`,
+   * `/assets/x.css`) is served directly and never reaches it. Only a path with
+   * no extension is mapped onto its `.html` file.
+   */
+  async rewrites() {
+    return [
+      // The site's own home link is `/dev-docs/`, which this app redirects to
+      // `/dev-docs`; without this the docs' own logo link 404s.
+      {
+        source: '/dev-docs',
+        destination: '/dev-docs/index.html',
+      },
+      {
+        source: '/dev-docs/:path((?!.*\\.).*)',
+        destination: '/dev-docs/:path.html',
+      },
+    ];
+  },
+
   async headers() {
     return [
       {
