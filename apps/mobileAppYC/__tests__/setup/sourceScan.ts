@@ -22,10 +22,16 @@ const walk = (dir: string, out: string[] = []): string[] => {
 /**
  * Every src file whose contents match one of `patterns`, as paths relative to
  * src/, skipping anything in `allowed`.
+ *
+ * `require` narrows the scan to files that ALSO match it. A pattern like
+ * `colorScheme="light"` is only meaningful on a glass surface - `colorScheme`
+ * is a common enough prop name that banning the literal everywhere would fire
+ * on unrelated APIs - so that guard passes the glass components as `require`.
  */
 export const findSourceFilesMatching = (
   patterns: RegExp[],
   allowed: ReadonlySet<string> = new Set(),
+  require?: RegExp,
 ): string[] => {
   const offenders: string[] = [];
   for (const file of walk(SRC_DIR)) {
@@ -34,6 +40,9 @@ export const findSourceFilesMatching = (
       continue;
     }
     const body = readFileSync(file, 'utf8');
+    if (require && !require.test(body)) {
+      continue;
+    }
     if (patterns.some(pattern => pattern.test(body))) {
       offenders.push(rel);
     }

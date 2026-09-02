@@ -15,6 +15,18 @@ import {colors, colorsDark} from '@/theme';
 const SCHEME_ALLOWED = new Set<string>([]);
 
 /**
+ * Only glass surfaces are in scope. `colorScheme` is an ordinary prop name -
+ * a WebView or a third-party picker may take one and have nothing to do with
+ * the warm-bone glass system - so the scan is narrowed to files that actually
+ * render a glass surface rather than banning the literal everywhere.
+ *
+ * A surface that genuinely must stay light in both themes (glass over fixed
+ * light media, say) keeps its explicit `colorScheme="light"`, which the card
+ * still honours over the theme, and is listed in SCHEME_ALLOWED with a reason.
+ */
+const GLASS_SURFACE = /LiquidGlass(?:View|Card|Button|IconButton)|BlurView/;
+
+/**
  * `whiteOverlay70` is 70% white in BOTH themes - a literal, like `white`. It
  * is fine as a rim on a fill that itself flips (the CTA buttons), but as the
  * tint or fill OF a surface it paints that surface light on espresso.
@@ -26,6 +38,7 @@ describe('glass surfaces follow the theme', () => {
     const offenders = findSourceFilesMatching(
       [/colorScheme="light"/, /colorScheme: 'light'/, /colorScheme = 'light'/],
       SCHEME_ALLOWED,
+      GLASS_SURFACE,
     );
     expect(offenders).toEqual([]);
   });
