@@ -36,6 +36,16 @@ type PickItem = {
 
 const MAX_ITEMS = 50;
 
+/**
+ * Zustand runs a selector as a `useSyncExternalStore` snapshot and compares
+ * results with `Object.is`, so a selector that builds its own `[]` fallback
+ * hands React a new identity on every render and spins the "getSnapshot should
+ * be cached" loop until it throws. The org indexes below are sparse - they only
+ * gain a row once that org's list has loaded - so the fallback is the common
+ * path, not the rare one. One frozen array, shared by every miss.
+ */
+const NO_IDS: readonly string[] = Object.freeze([]);
+
 export function ShareEntityModal({
   channelId,
   onClose,
@@ -48,10 +58,10 @@ export function ShareEntityModal({
   // stores keep an org index; the picker uses it.
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const companionIdsForOrg = useCompanionStore((s) =>
-    primaryOrgId ? (s.companionsIdsByOrgId[primaryOrgId] ?? []) : []
+    primaryOrgId ? (s.companionsIdsByOrgId[primaryOrgId] ?? NO_IDS) : NO_IDS
   );
   const appointmentIdsForOrg = useAppointmentStore((s) =>
-    primaryOrgId ? (s.appointmentIdsByOrgId[primaryOrgId] ?? []) : []
+    primaryOrgId ? (s.appointmentIdsByOrgId[primaryOrgId] ?? NO_IDS) : NO_IDS
   );
   const [tab, setTab] = useState<'COMPANION' | 'APPOINTMENT'>('COMPANION');
   const [query, setQuery] = useState('');
