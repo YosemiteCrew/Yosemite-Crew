@@ -29,13 +29,18 @@ export type ClinicalTermSuggestion = {
  * synonyms; `domain` narrows to one clinical bucket (e.g. Diagnosis for the
  * Assessment section) and is omitted to search everything.
  */
+/** A practice can narrow the list to terms it can code in one vocabulary. */
+export type VocabularyFilter = 'VENOM' | 'SNOMED';
+
 export const suggestClinicalTerms = async (params: {
   q: string;
   domain?: ClinicalTermDomain;
   limit?: number;
+  vocabulary?: VocabularyFilter;
 }): Promise<ClinicalTermSuggestion[]> => {
   const search = new URLSearchParams({ q: params.q });
   if (params.domain) search.set('domain', params.domain);
+  if (params.vocabulary) search.set('vocabulary', params.vocabulary);
   if (params.limit) search.set('limit', String(params.limit));
   const res = await getData<{ items?: ClinicalTermSuggestion[] }>(
     `/v1/codes/terms/suggest?${search.toString()}`

@@ -259,3 +259,88 @@ describe('SoapCodedTermPicker', () => {
     await waitFor(() => expect(screen.queryByText('Vomiting')).not.toBeInTheDocument());
   });
 });
+
+describe('SoapCodedTermPicker vocabulary scope', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    suggestMock.mockReset();
+    suggestMock.mockResolvedValue([VOMITING]);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const lastCall = () => suggestMock.mock.calls.at(-1)?.[0] ?? {};
+
+  it('asks for every vocabulary until a scope is picked', async () => {
+    render(
+      <SoapCodedTermPicker
+        sectionLabel="Subjective"
+        domain="PresentingComplaint"
+        selected={[]}
+        onChange={jest.fn()}
+      />
+    );
+    typeQuery('vom');
+    await waitFor(() => expect(suggestMock).toHaveBeenCalled());
+    // No `vocabulary` key at all, rather than an explicit "ALL" the API
+    // would have to know about.
+    expect(lastCall()).not.toHaveProperty('vocabulary');
+  });
+
+  it('re-queries in the picked vocabulary and marks the control checked', async () => {
+    render(
+      <SoapCodedTermPicker
+        sectionLabel="Subjective"
+        domain="PresentingComplaint"
+        selected={[]}
+        onChange={jest.fn()}
+      />
+    );
+    typeQuery('vom');
+    await waitFor(() => expect(suggestMock).toHaveBeenCalled());
+
+    const snomed = screen.getByRole('radio', { name: 'SNOMED' });
+    await act(async () => {
+      fireEvent.click(snomed);
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+
+    /* The scope is part of the query, not a filter over what came back: a term
+       with no SNOMED counterpart must never be fetched and then hidden, or the
+       result count silently disagrees with the limit. */
+    expect(lastCall()).toMatchObject({ q: 'vom', vocabulary: 'SNOMED' });
+    expect(snomed).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('drops the filter again when the scope goes back to All', async () => {
+    render(
+      <SoapCodedTermPicker
+        sectionLabel="Subjective"
+        domain="PresentingComplaint"
+        selected={[]}
+        onChange={jest.fn()}
+      />
+    );
+    typeQuery('vom');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('radio', { name: 'VeNom' }));
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    expect(lastCall()).toMatchObject({ vocabulary: 'VENOM' });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('radio', { name: 'All' }));
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    expect(lastCall()).not.toHaveProperty('vocabulary');
+  });
+});

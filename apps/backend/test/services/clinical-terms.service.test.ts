@@ -358,6 +358,25 @@ describe("ClinicalTermsService", () => {
     });
   });
 
+  describe("buildSuggestionQuery vocabulary filter", () => {
+    const sqlFor = (params: Parameters<typeof buildSuggestionQuery>[0]) =>
+      buildSuggestionQuery(params).sql;
+
+    it("restricts to terms that hold a usable crosswalk in that vocabulary", () => {
+      const text = sqlFor({ q: "vom", vocabulary: "SNOMED" });
+      expect(text).toContain('"CodeMapping"');
+      expect(text).toContain('m."targetSystem"');
+      // The same gate the picker and export use: a row saying "no counterpart
+      // exists" must not qualify a term for a SNOMED-only list.
+      expect(text).toContain('m."equivalence" = ANY');
+      expect(text).toContain('m."active"');
+    });
+
+    it("adds no mapping join when no vocabulary is asked for", () => {
+      expect(sqlFor({ q: "vom" })).not.toContain('"CodeMapping"');
+    });
+  });
+
   describe("buildSuggestionQuery", () => {
     // The filtering lives in SQL now, so these assert the statement itself. Mocking the
     // database and asserting the rows it was told to return would prove nothing.

@@ -61,6 +61,9 @@ const TermsSuggestQuerySchema = z.object({
       "Procedure",
     ])
     .optional(),
+  // Only terms carrying a usable crosswalk to this vocabulary. A practice that
+  // works in SNOMED wants a list it can actually code in SNOMED.
+  vocabulary: z.enum(["VENOM", "SNOMED"]).optional(),
   species: z
     .union([z.string(), z.array(z.string())])
     .optional()
@@ -173,13 +176,14 @@ export const CodeController = {
         });
       }
 
-      const { q, domain, species, limit } = queryResult.data;
+      const { q, domain, species, limit, vocabulary } = queryResult.data;
 
       const items = await ClinicalTermsService.suggestTerms({
         q,
         domain,
         species,
         limit,
+        vocabulary,
       });
 
       return res.status(200).json({ items });
