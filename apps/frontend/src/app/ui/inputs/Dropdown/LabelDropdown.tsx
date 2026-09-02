@@ -24,6 +24,15 @@ type DropdownProps = {
    * that moves - showing an answer the record does not contain.
    */
   disabled?: boolean;
+  /**
+   * Drop the stacked label above the trigger, for callers that supply their own
+   * (the workspace meta bar renders it as a `legend` notched into the field
+   * border). The trigger's `aria-label` already carries "<label>: <value>", so
+   * nothing is lost - and omitting the element beats hiding it with CSS, which
+   * leaves the same text in the accessibility tree and renders twice the moment
+   * the selector stops matching.
+   */
+  hideLabel?: boolean;
 };
 
 const TERMINOLOGY_LOCK_SELECTOR = "[data-terminology-lock='true']";
@@ -200,6 +209,7 @@ const LabelDropdown = ({
   portal = true,
   noOptionsMessage,
   disabled = false,
+  hideLabel = false,
 }: DropdownProps) => {
   const [internalSelected, setInternalSelected] = useState<DropdownOption | null>(() =>
     findDropdownOption(options, defaultOption)
@@ -291,10 +301,12 @@ const LabelDropdown = ({
 
   return (
     <div className="flex flex-col w-full">
-      <span className="mb-1.5 flex items-center gap-1 truncate text-[12px] font-semibold text-[var(--ink-soft)]">
-        {icon}
-        {placeholder}
-      </span>
+      {!hideLabel && (
+        <span className="mb-1.5 flex items-center gap-1 truncate text-[12px] font-semibold text-[var(--ink-soft)]">
+          {icon}
+          {placeholder}
+        </span>
+      )}
       <div className="w-full relative" ref={attachDropdownRef}>
         <button
           type="button"

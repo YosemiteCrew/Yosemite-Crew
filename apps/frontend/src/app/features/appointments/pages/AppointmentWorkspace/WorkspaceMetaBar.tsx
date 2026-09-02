@@ -31,12 +31,24 @@ const ReadOnlyMetaField = ({ label, value }: { label: string; value: string }) =
 );
 
 /**
- * Editable Room/Unit dropdown. LabelDropdown's trigger already carries the
- * design's 46px / 1.5px-hairline / 13px-radius box, so the changes needed here
- * are the label and the fill: its stacked label is hidden and re-rendered
- * notched into the trigger's top border, and the trigger is filled with
- * `--field-bg` (theme-live via var()) so it matches the sibling read-only meta
- * fields instead of washing out transparently.
+ * Editable Room/Unit dropdown, wearing the same chrome as its read-only
+ * siblings.
+ *
+ * It used to fake the notch the way StaffField did: pull LabelDropdown's
+ * stacked label up over the trigger's top border and paint a background behind
+ * it to hide the line. That cannot be made to work. The label straddles the
+ * border, so its top half sits on the page and its bottom half on the field -
+ * two different colours - and a single background can only match one of them.
+ * Painting `--page` left a beige rectangle biting into the near-white field;
+ * painting `--field-bg` would leave a pale one on the page instead.
+ *
+ * So the box now comes from MetaFieldShell, whose notch is a real
+ * `fieldset`/`legend` the browser cuts out of the border, and the trigger is
+ * stripped of its own border, fill and height to sit inside it. LabelDropdown
+ * omits its own label via `hideLabel` - the trigger's `aria-label` already
+ * carries "Room: <value>", so nothing is lost to assistive tech, and omitting
+ * the element beats hiding it with CSS, which leaves the same text in the
+ * accessibility tree and renders twice the moment the selector stops matching.
  */
 const EditableMetaDropdown = ({
   label,
@@ -49,14 +61,23 @@ const EditableMetaDropdown = ({
   value?: string;
   onSelect: (option: DropdownOption) => void;
 }) => (
-  <div className="relative w-full [&>div>span]:pointer-events-none [&>div>span]:absolute [&>div>span]:-top-[7px] [&>div>span]:left-3 [&>div>span]:z-30 [&>div>span]:mb-0 [&>div>span]:bg-[var(--page)] [&>div>span]:px-[5px] [&>div>span]:text-[10.5px] [&>div>span]:text-[var(--ink-faint)] [&>div>div>button]:rounded-[14px]! [&>div>div>button]:bg-[var(--field-bg)]! [&>div>div>button]:text-[13.5px]! [&>div>div>button]:font-semibold!">
-    <LabelDropdown
-      placeholder={label}
-      options={options}
-      defaultOption={value}
-      onSelect={onSelect}
-    />
-  </div>
+  <MetaFieldShell label={label}>
+    {/* The shell already supplies the box, its padding and its content height, so
+        the trigger gives all three up: no border, no fill, no left padding, and
+        `h-full` rather than its own 44px. A fieldset's content box is only what
+        is left *under* the legend - about 32px inside the 46px box - so any
+        fixed height overflows the bottom. What the trigger keeps is the right
+        padding the chevron is positioned into. */}
+    <div className="h-full w-full min-w-0 [&>div]:h-full [&>div>div]:h-full [&>div>div>button]:h-full [&>div>div>button]:w-full [&>div>div>button]:rounded-[14px]! [&>div>div>button]:border-0! [&>div>div>button]:bg-transparent! [&>div>div>button]:pl-0! [&>div>div>button]:text-[13.5px]! [&>div>div>button]:font-semibold!">
+      <LabelDropdown
+        placeholder={label}
+        options={options}
+        defaultOption={value}
+        onSelect={onSelect}
+        hideLabel
+      />
+    </div>
+  </MetaFieldShell>
 );
 
 /**
