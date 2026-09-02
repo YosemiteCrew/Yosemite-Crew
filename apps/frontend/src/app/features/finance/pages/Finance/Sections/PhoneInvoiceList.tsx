@@ -1,6 +1,7 @@
 'use client';
 import React, { useMemo } from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { StatusOption } from '@/app/features/companions/pages/Companions/types';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
@@ -115,12 +116,19 @@ const PhoneInvoiceCard = ({
       </span>
       <span className="flex items-center gap-2.5">
         <span className="flex size-[30px] shrink-0 overflow-hidden rounded-full bg-card-hover">
-          <Image
+          <AvatarImage
             src={avatarSrc}
             alt=""
-            width={30}
-            height={30}
+            size={30}
             className="size-[30px] rounded-full object-cover"
+            fallback={
+              <CompanionAvatar
+                name={companion?.name}
+                seed={companion?.id}
+                size={30}
+                textClassName="text-[13px]"
+              />
+            }
           />
         </span>
         <span

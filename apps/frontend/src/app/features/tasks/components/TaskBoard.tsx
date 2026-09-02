@@ -7,7 +7,7 @@ import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScro
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
 import { attachBoardColumnDnDListeners } from '@/app/ui/board/boardShared';
 import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { StoredCompanion } from '@/app/features/companions/pages/Companions/types';
 import { Task, TaskStatus } from '@/app/features/tasks/types/task';
@@ -153,20 +153,24 @@ const getTaskCardClassName = ({ isParentTask, isMuted, isDragging }: TaskCardVis
       : !isParentTask && 'hover:border-input-border-active! hover:bg-card-hover!'
   );
 
-const AssigneeAvatar = ({ assignedTo }: { assignedTo: MemberIdentity }) =>
-  assignedTo.imageUrl ? (
-    <Image
-      src={getSafeImageUrl(assignedTo.imageUrl, 'person')}
-      alt={assignedTo.name}
-      width={22}
-      height={22}
-      className="size-[22px] rounded-full border border-card-border object-cover"
-    />
-  ) : (
+const AssigneeAvatar = ({ assignedTo }: { assignedTo: MemberIdentity }) => {
+  const initials = (
     <span className="size-[22px] shrink-0 rounded-full bg-[var(--avatar-violet-bg)] text-[9px] font-bold text-[var(--avatar-violet-ink)] flex items-center justify-center">
       {getInitialsStatic(assignedTo.name)}
     </span>
   );
+  if (!assignedTo.imageUrl) return initials;
+  // A photo whose URL stopped resolving degrades to the same initials disc.
+  return (
+    <AvatarImage
+      src={getSafeImageUrl(assignedTo.imageUrl, 'person')}
+      alt={assignedTo.name}
+      size={22}
+      className="size-[22px] rounded-full border border-card-border object-cover"
+      fallback={initials}
+    />
+  );
+};
 
 const CompanionThumbnail = ({ companion }: { companion?: StoredCompanion }) => {
   const photoUrl = getCompanionThumbnailUrl(companion);
@@ -175,22 +179,20 @@ const CompanionThumbnail = ({ companion }: { companion?: StoredCompanion }) => {
       className="size-[22px] shrink-0 overflow-hidden rounded-full"
       style={{ backgroundColor: 'var(--avatar-amber-bg)' }}
     >
-      {photoUrl ? (
-        <Image
-          src={photoUrl}
-          alt={companion?.name ?? ''}
-          width={22}
-          height={22}
-          className="size-full object-cover"
-        />
-      ) : (
-        <span
-          className="flex size-full items-center justify-center text-[9px] font-bold"
-          style={{ color: 'var(--avatar-amber-ink)' }}
-        >
-          {getInitialsStatic(companion?.name ?? '').charAt(0)}
-        </span>
-      )}
+      <AvatarImage
+        src={photoUrl}
+        alt={companion?.name ?? ''}
+        size={22}
+        className="size-full object-cover"
+        fallback={
+          <span
+            className="flex size-full items-center justify-center text-[9px] font-bold"
+            style={{ color: 'var(--avatar-amber-ink)' }}
+          >
+            {getInitialsStatic(companion?.name ?? '').charAt(0)}
+          </span>
+        }
+      />
     </span>
   );
 };

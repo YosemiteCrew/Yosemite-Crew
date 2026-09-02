@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import {
   IoAdd,
   IoArrowBack,
@@ -130,6 +131,14 @@ const ProfileCardCompact = ({ org }: { org: Organisation }) => {
   );
 };
 
+const TeamListInitials = ({ team }: { team: TeamProp }) => (
+  <span
+    className={`flex size-8 flex-none items-center justify-center rounded-full text-[11px] font-bold ${avatarAccentFor(team._id || team.name || '')}`}
+  >
+    {initialsOf(team.name)}
+  </span>
+);
+
 const TeamListRow = ({ team, onOpen }: { team: TeamProp; onOpen: (team: TeamProp) => void }) => {
   const pill = teamStatusPill(team.status);
   return (
@@ -139,19 +148,15 @@ const TeamListRow = ({ team, onOpen }: { team: TeamProp; onOpen: (team: TeamProp
       className="flex w-full items-center gap-[10px] border-t border-[var(--hairline)] px-[14px]! py-[11px]! text-left first:border-t-0 cursor-pointer"
     >
       {team.image ? (
-        <Image
+        <AvatarImage
           src={getSafeImageUrl(team.image, 'person')}
           alt=""
-          height={32}
-          width={32}
+          size={32}
           className="size-8 flex-none rounded-full object-cover"
+          fallback={<TeamListInitials team={team} />}
         />
       ) : (
-        <span
-          className={`flex size-8 flex-none items-center justify-center rounded-full text-[11px] font-bold ${avatarAccentFor(team._id || team.name || '')}`}
-        >
-          {initialsOf(team.name)}
-        </span>
+        <TeamListInitials team={team} />
       )}
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[12.5px] font-bold text-[var(--ink)]">

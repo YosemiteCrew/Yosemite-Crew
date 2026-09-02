@@ -225,7 +225,7 @@ describe('Companions page', () => {
       })
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Add companion/i }));
+    fireEvent.click(screen.getByRole('button', { name: /New companion/i }));
     expect(screen.getByTestId('add-companion')).toBeInTheDocument();
   });
 

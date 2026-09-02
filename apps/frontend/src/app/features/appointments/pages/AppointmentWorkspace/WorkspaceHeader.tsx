@@ -1,5 +1,6 @@
 import React from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { IoIosArrowBack } from 'react-icons/io';
 import { IoAddOutline, IoFlash } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
@@ -111,12 +112,19 @@ const WorkspaceHeader = ({
         >
           <IoIosArrowBack size={22} aria-hidden="true" />
         </button>
-        <Image
+        <AvatarImage
           src={getSafeImageUrl(photoUrl, resolveImageType(speciesType))}
           alt={companionName}
-          width={44}
-          height={44}
+          size={44}
           className="size-11 shrink-0 rounded-full object-cover"
+          fallback={
+            <CompanionAvatar
+              name={companionName}
+              size={44}
+              textClassName="text-[19px]"
+              alt={companionName}
+            />
+          }
         />
         {/* `shrink-0` here sized this column to its widest line, which is the
             meta line, so the `truncate` below could never fire and the column

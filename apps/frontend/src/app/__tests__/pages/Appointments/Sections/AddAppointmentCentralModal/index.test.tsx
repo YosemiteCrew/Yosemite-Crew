@@ -491,7 +491,7 @@ describe('AddAppointmentCentralModal', () => {
       'data-default-option',
       ''
     );
-    expect(screen.getByTestId('label-dropdown-Services / Packages')).toHaveAttribute(
+    expect(screen.getByTestId('label-dropdown-Services / packages')).toHaveAttribute(
       'data-default-option',
       ''
     );
@@ -773,7 +773,7 @@ describe('AddAppointmentCentralModal', () => {
       'data-default-option',
       'spec-1'
     );
-    expect(screen.getByTestId('label-dropdown-Services / Packages')).toHaveAttribute(
+    expect(screen.getByTestId('label-dropdown-Services / packages')).toHaveAttribute(
       'data-default-option',
       'svc-1'
     );
@@ -860,7 +860,7 @@ describe('AddAppointmentCentralModal', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByText('Type of Visit'));
+      fireEvent.click(screen.getByText('Type of visit'));
     });
 
     expect(mockAppointmentForm.setFormData).toHaveBeenCalled();

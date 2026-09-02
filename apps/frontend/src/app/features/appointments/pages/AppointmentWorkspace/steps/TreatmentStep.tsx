@@ -986,7 +986,7 @@ const TreatmentStep = ({
 
         <div className="flex flex-wrap justify-between gap-3">
           <Secondary
-            text={printingLabels ? 'Printing...' : 'Print Labels'}
+            text={printingLabels ? 'Printing...' : 'Print labels'}
             icon={<IoPrintOutline aria-hidden="true" />}
             onClick={() => void handlePrintPrescriptionLabels()}
             isDisabled={printingLabels}

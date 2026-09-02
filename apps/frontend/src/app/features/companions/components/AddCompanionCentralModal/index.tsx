@@ -5,7 +5,7 @@ import AppointmentCentralModalShell from '@/app/features/appointments/components
 import BottomSheet from '@/app/ui/layout/PhoneShell/BottomSheet';
 import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
-import { primaryButtonGlowHandlers } from '@/app/ui/primitives/buttonGlowHandlers';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useCompanionsParentsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import {
@@ -922,31 +922,15 @@ const useAddCompanionCentralModalContent = ({
         >
           You have unsaved changes. Are you sure you want to discard them?
         </p>
-        <div className="flex gap-3 justify-end">
-          <button
-            type="button"
+        <div className="flex justify-end gap-3">
+          <Secondary
+            text="Keep editing"
             onClick={() => {
               pendingGoToAppointmentRef.current = false;
               setShowDiscardConfirm(false);
             }}
-            className="rounded-2xl border border-input-border-default px-5 py-2.5 hover:bg-card-hover active:bg-card-hover/80 transition-colors"
-            style={{
-              fontFamily: 'var(--font-satoshi), sans-serif',
-              fontSize: 14,
-              fontWeight: 500,
-              lineHeight: '120%',
-            }}
-          >
-            Keep editing
-          </button>
-          <button
-            type="button"
-            onClick={handleDiscardAndClose}
-            className="yc-primary-button rounded-2xl! px-4 py-[11px] font-satoshi text-base font-medium leading-[1.5rem]"
-            {...primaryButtonGlowHandlers}
-          >
-            Discard
-          </button>
+          />
+          <Primary text="Discard" onClick={handleDiscardAndClose} />
         </div>
       </div>
     </CenterModal>

@@ -339,14 +339,14 @@ describe('Companion Component', () => {
     );
 
     expect(screen.getByTestId('input-Company name')).toBeInTheDocument();
-    expect(screen.getByTestId('input-Policy Number')).toBeInTheDocument();
+    expect(screen.getByTestId('input-Policy number')).toBeInTheDocument();
 
     fireEvent.change(screen.getByTestId('input-Company name'), {
       target: { value: 'PetPlan' },
     });
     expect(mockSetFormData).toHaveBeenCalled();
 
-    fireEvent.change(screen.getByTestId('input-Policy Number'), {
+    fireEvent.change(screen.getByTestId('input-Policy number'), {
       target: { value: 'POL-123' },
     });
     expect(mockSetFormData).toHaveBeenCalled();
@@ -407,9 +407,9 @@ describe('Companion Component', () => {
 
     // NOTE: The component source code has a known bug where the "Company name" input
     // is linked to the wrong error key (formDataErrors.insuranceNumber).
-    // Therefore, we check that the Policy Number validation message appears correctly,
+    // Therefore, we check that the Policy number validation message appears correctly,
     // and verifying that `createCompanion` was NOT called confirms validation failed overall.
-    expect(screen.getByTestId('error-Policy Number')).toHaveTextContent(
+    expect(screen.getByTestId('error-Policy number')).toHaveTextContent(
       'Policy number is required'
     );
     expect(companionService.createCompanion).not.toHaveBeenCalled();

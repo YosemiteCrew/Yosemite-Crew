@@ -1,10 +1,9 @@
-import Image from 'next/image';
-
 import {
   getAvatarPalette,
   getMonogram,
 } from '@/app/features/companions/pages/Companions/companionsDirectory';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
 
 type CompanionAvatarProps = {
   /** The companion's real photo. Absent means the companion has no photo. */
@@ -24,6 +23,10 @@ type CompanionAvatarProps = {
  * Photo when the companion actually has one, otherwise a Newsreader monogram on
  * a tinted disc. The monogram is deliberate: auto-assigning a stock species
  * photo reads as a real picture of the pet and misleads staff.
+ *
+ * The same monogram is what a photo degrades to when its URL no longer resolves
+ * (a deleted S3 object): `AvatarImage` swaps it in on `onError`, so the disc is
+ * never left empty.
  */
 const CompanionAvatar = ({
   photoUrl,
@@ -34,25 +37,8 @@ const CompanionAvatar = ({
   seed,
   alt = '',
 }: CompanionAvatarProps) => {
-  if (photoUrl) {
-    return (
-      <span
-        className="shrink-0 overflow-hidden rounded-full shadow-[0_0_0_1px_var(--hairline-soft)]"
-        style={{ width: size, height: size }}
-      >
-        <Image
-          src={getSafeImageUrl(photoUrl, speciesType?.toLowerCase() as ImageType)}
-          alt={alt}
-          height={size}
-          width={size}
-          className="size-full object-cover"
-        />
-      </span>
-    );
-  }
-
   const palette = getAvatarPalette(seed || name);
-  return (
+  const monogram = (
     <span
       className={`flex shrink-0 items-center justify-center rounded-full font-newsreader shadow-[0_0_0_1px_var(--hairline-soft)] ${textClassName}`}
       style={{ width: size, height: size, background: palette.bg, color: palette.ink }}
@@ -63,6 +49,19 @@ const CompanionAvatar = ({
       <span aria-hidden="true">{getMonogram(name)}</span>
       {alt ? <span className="sr-only">{alt}</span> : null}
     </span>
+  );
+
+  if (!photoUrl) return monogram;
+
+  return (
+    <AvatarImage
+      src={getSafeImageUrl(photoUrl, speciesType?.toLowerCase() as ImageType)}
+      alt={alt}
+      size={size}
+      className="shrink-0 rounded-full object-cover shadow-[0_0_0_1px_var(--hairline-soft)]"
+      style={{ width: size, height: size }}
+      fallback={monogram}
+    />
   );
 };
 

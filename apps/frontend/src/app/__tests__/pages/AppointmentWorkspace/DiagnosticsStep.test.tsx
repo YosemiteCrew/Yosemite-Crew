@@ -412,7 +412,7 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     const { hook } = renderStep({ modality: 'REFERENCE_LAB' });
 
     fireEvent.change(screen.getByLabelText('Order notes'), { target: { value: 'Fasted sample' } });
-    fireEvent.change(screen.getByLabelText('Collection Date'), { target: { value: '2026-06-03' } });
+    fireEvent.change(screen.getByLabelText('Collection date'), { target: { value: '2026-06-03' } });
     fireEvent.click(screen.getByRole('button', { name: /veterinarian: dr\. tim apple/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Sarah Mitchell' }));
     fireEvent.click(screen.getByRole('button', { name: /technician: sarah mitchell/i }));
@@ -445,7 +445,7 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     const { hook } = renderStep({ pendingTest: makeTest({ code: 'SA250' }) });
 
     const confirmation = screen.getByTestId('pending-test-confirmation');
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Add to Queue' }));
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Add to queue' }));
     expect(hook.confirmPendingTest).toHaveBeenCalledTimes(1);
 
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }));

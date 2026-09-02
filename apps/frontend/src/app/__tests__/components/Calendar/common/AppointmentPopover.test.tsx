@@ -314,7 +314,7 @@ describe('AppointmentPopover', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: 'Start Appointment' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start appointment' })).toBeInTheDocument();
     expect(screen.getByText('Amount Due')).toBeInTheDocument();
     expect(screen.getByText('$ 0.00')).toBeInTheDocument();
 
@@ -344,7 +344,7 @@ describe('AppointmentPopover', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start Appointment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start appointment' }));
 
     expect(mockPush).toHaveBeenCalledWith('/workspace');
     expect(onClose).toHaveBeenCalled();
@@ -370,7 +370,7 @@ describe('AppointmentPopover', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finance summary' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lab tests' }));
     fireEvent.click(screen.getByRole('button', { name: 'Clinical notes' }));
-    fireEvent.click(screen.getByRole('button', { name: 'View Appointment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View appointment' }));
 
     expect(mockPush).toHaveBeenCalledTimes(4);
     expect(mockPush).toHaveBeenCalledWith('/workspace');
@@ -421,7 +421,7 @@ describe('AppointmentPopover', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start Appointment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start appointment' }));
 
     expect(mockPush).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
@@ -540,7 +540,7 @@ describe('AppointmentPopover', () => {
     expect(screen.queryByRole('button', { name: 'Appointment overview' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Finance summary' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Lab tests' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'View Appointment' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'View appointment' })).not.toBeInTheDocument();
   });
 
   it('falls back to generic companion details when optional data is missing', () => {
@@ -647,7 +647,7 @@ describe('AppointmentPopover', () => {
       />
     );
 
-    const primaryAction = screen.getByRole('button', { name: 'Start Appointment' });
+    const primaryAction = screen.getByRole('button', { name: 'Start appointment' });
     fireEvent.pointerDown(primaryAction, { clientX: 10, clientY: 20 });
     expect(primaryAction.style.getPropertyValue('--yc-button-x')).toMatch(/px$/);
     expect(primaryAction.style.getPropertyValue('--yc-button-y')).toMatch(/px$/);
@@ -715,7 +715,7 @@ describe('AppointmentPopover', () => {
 
     expect(screen.getByTestId('detail-value-Speciality')).toHaveTextContent('-');
     expect(screen.getByTestId('detail-value-Service')).toHaveTextContent('-');
-    expect(screen.getByTestId('detail-value-Client Name')).toHaveTextContent('-');
+    expect(screen.getByTestId('detail-value-Client name')).toHaveTextContent('-');
     expect(screen.getByTestId('detail-value-Reason')).toHaveTextContent('-');
     expect(screen.getByTestId('detail-value-Estimate')).toHaveTextContent('-');
     expect(screen.getByTestId('staff-value-Lead')).toHaveTextContent('-');
