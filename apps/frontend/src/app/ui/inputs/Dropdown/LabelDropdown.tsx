@@ -5,6 +5,7 @@ import { IoIosWarning } from 'react-icons/io';
 import { useDropdown, useFilteredOptions, DropdownOption } from '@/app/hooks/useDropdown';
 import { useListboxKeyboardNav } from './useDropdownKeyboardNav';
 import { useDropdownPositioning } from './useDropdownPositioning';
+import { deriveEmptyLabel } from '@/app/ui/inputs/Dropdown/emptyLabel';
 
 type DropdownProps = {
   placeholder: string;
@@ -17,6 +18,8 @@ type DropdownProps = {
   icon?: React.ReactNode;
   portal?: boolean;
   noOptionsMessage?: string;
+  /** Text shown while nothing is selected. Defaults to `Select <placeholder>`. */
+  emptyLabel?: string;
   /**
    * Locks the control. Needed because `internalSelected` is deliberately the
    * source of truth for the visible label (see the comment on it), so a caller
@@ -131,6 +134,8 @@ type DropdownTriggerContentProps = {
   searchable: boolean;
   selected: DropdownOption | null;
   placeholder: string;
+  /** Shown while nothing is selected. Distinct from the stacked label above. */
+  emptyLabel: string;
   listboxId: string;
   searchQuery: string;
   activeOptionId?: string;
@@ -145,6 +150,7 @@ const DropdownTriggerContent = ({
   searchable,
   selected,
   placeholder,
+  emptyLabel,
   listboxId,
   searchQuery,
   activeOptionId,
@@ -162,7 +168,7 @@ const DropdownTriggerContent = ({
         type="text"
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
-        placeholder={selected ? selected.label : ''}
+        placeholder={selected ? selected.label : emptyLabel}
         aria-label={`Search ${placeholder}`}
         aria-controls={open ? listboxId : undefined}
         aria-activedescendant={activeOptionId}
@@ -173,9 +179,19 @@ const DropdownTriggerContent = ({
         className="w-full min-w-0 bg-transparent text-left text-[13px] text-[var(--ink-body)] focus-visible:outline-none placeholder:text-[var(--ink-faint)]"
       />
     )}
-    {(!open || !searchable) && selected && (
-      <span className="min-w-0 flex-1 text-left text-[var(--ink-body)] text-[13px] truncate">
-        {selected.label}
+    {(!open || !searchable) && (
+      // A select with nothing chosen shows its placeholder in --ink-faint, never
+      // an empty box: the design makes the placeholder mandatory on every select,
+      // and 159 triggers across the product rendered blank until something was
+      // picked, so a required field looked identical to a filled one. The text is
+      // "Select <label>", not the label itself, so it never repeats the stacked
+      // label sitting directly above it.
+      <span
+        className={`min-w-0 flex-1 truncate text-left text-[13px] ${
+          selected ? 'text-[var(--ink-body)]' : 'text-[var(--ink-faint)]'
+        }`}
+      >
+        {selected ? selected.label : emptyLabel}
       </span>
     )}
     <span className="absolute right-[13px] top-1/2 -translate-y-1/2 flex items-center justify-center">
@@ -210,6 +226,7 @@ const LabelDropdown = ({
   noOptionsMessage,
   disabled = false,
   hideLabel = false,
+  emptyLabel,
 }: DropdownProps) => {
   const [internalSelected, setInternalSelected] = useState<DropdownOption | null>(() =>
     findDropdownOption(options, defaultOption)
@@ -329,6 +346,7 @@ const LabelDropdown = ({
             searchable={searchable}
             selected={selected}
             placeholder={placeholder}
+            emptyLabel={emptyLabel ?? deriveEmptyLabel(placeholder)}
             listboxId={listboxId}
             searchQuery={searchQuery}
             activeOptionId={activeOptionId}
