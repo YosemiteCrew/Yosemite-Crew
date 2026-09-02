@@ -78,13 +78,14 @@ const meta = {
   title: 'Appointments/StaffField',
   component: StaffField,
   decorators: [
-    /* Deliberately a CARD ground, not `--screen`. The field sits on a card in the
-       workspace meta bar, and the previous implementation - which painted
-       `--screen` behind the label to fake the notch - showed there as a pale
-       rectangle laid over the border. Rendering the stories on the ground that
-       broke it keeps that regression from coming back unseen. */
+    /* `--page`, which is what `body` actually paints and therefore the real ground
+       under the meta bar - NOT `--screen`, which the old faked notch painted
+       behind the label. Those two tokens differ in both themes (#efe8dc vs
+       #f7f3ec light, #201c18 vs #2f271e dark), which is exactly why the patch was
+       visible on the plain page and not only on cards. Rendering on the true
+       ground keeps a mismatch visible here instead of only in the product. */
     (Story) => (
-      <div className="w-[280px] p-6" style={{ background: 'var(--card-bg, var(--surface))' }}>
+      <div className="w-[280px] p-6" style={{ background: 'var(--page)' }}>
         <Story />
       </div>
     ),
@@ -102,10 +103,10 @@ const meta = {
           'the browser cuts the border where the text sits. It paints no background of its own ' +
           'and is therefore correct on every ground - card, modal or page, light or dark.\n\n' +
           'It did not always work that way. The label used to be an absolutely positioned span ' +
-          'painting `--screen` behind itself to fake the gap, which only lined up when the field ' +
-          'sat directly on the page; on the workspace meta bar, where it sits on a card, the ' +
-          'patch showed as a rectangle of the wrong shade over the border. The stories now ' +
-          'render on a card ground so that regression cannot return unnoticed.\n\n' +
+          'painting `--screen` behind itself to fake the gap - but `body` paints `--page`, a ' +
+          'different token in both themes, so the patch never matched its ground and showed as a ' +
+          'rectangle of the wrong shade over the border. The stories now render on `--page`, the ' +
+          'real ground, so a mismatch shows up here rather than only in the product.\n\n' +
           'The surface is `--field-bg` rather than transparent, which is what makes the box read ' +
           'as filled instead of as a hole in the page - the two tokens are deliberately different ' +
           'values in both themes, and the stories assert that rather than assuming it.\n\n' +

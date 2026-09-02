@@ -49,7 +49,7 @@ const EditableMetaDropdown = ({
   value?: string;
   onSelect: (option: DropdownOption) => void;
 }) => (
-  <div className="relative w-full [&>div>span]:pointer-events-none [&>div>span]:absolute [&>div>span]:-top-[7px] [&>div>span]:left-3 [&>div>span]:z-30 [&>div>span]:mb-0 [&>div>span]:bg-[var(--screen)] [&>div>span]:px-[5px] [&>div>span]:text-[10.5px] [&>div>span]:text-[var(--ink-faint)] [&>div>div>button]:rounded-[14px]! [&>div>div>button]:bg-[var(--field-bg)]! [&>div>div>button]:text-[13.5px]! [&>div>div>button]:font-semibold!">
+  <div className="relative w-full [&>div>span]:pointer-events-none [&>div>span]:absolute [&>div>span]:-top-[7px] [&>div>span]:left-3 [&>div>span]:z-30 [&>div>span]:mb-0 [&>div>span]:bg-[var(--page)] [&>div>span]:px-[5px] [&>div>span]:text-[10.5px] [&>div>span]:text-[var(--ink-faint)] [&>div>div>button]:rounded-[14px]! [&>div>div>button]:bg-[var(--field-bg)]! [&>div>div>button]:text-[13.5px]! [&>div>div>button]:font-semibold!">
     <LabelDropdown
       placeholder={label}
       options={options}

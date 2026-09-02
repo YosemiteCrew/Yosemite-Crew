@@ -36,6 +36,14 @@ describe('StaffField', () => {
     expect(label.style.backgroundColor).toBe('');
   });
 
+  it('never paints --screen behind a floating label', () => {
+    // The original bug in one line: `body` paints `--page`, so a label painting
+    // `--screen` sits on a ground it does not match, in either theme. Nothing in
+    // this component may reintroduce that token as a label fill.
+    const { container } = render(<StaffField label="Assigned Lead" name="Dr. Tim Apple" />);
+    expect(container.innerHTML).not.toContain('var(--screen)');
+  });
+
   it('fills the field surface with the theme field background so it does not wash out', () => {
     render(<StaffField label="Assigned Lead" name="Dr. Tim Apple" />);
     // The shell is the fieldset the legend sits in; it carries the filled surface.
