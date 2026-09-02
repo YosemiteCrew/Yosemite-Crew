@@ -210,7 +210,7 @@
     "unableToOpenInvoiceMessage": "Inténtalo de nuevo o copia el enlace desde tu recibo.",
     "receiptRedirectNotice": "Se te redirigirá al recibo seguro de Stripe en tu navegador.",
     "termsAndLegalTitle": "Términos de pago y aviso legal",
-    "termsPaymentDue": "El pago vence el {{paymentDueLabel}}. Los pagos tardíos o fallidos pueden resultar en reprogramación o cancelación; las transacciones con tarjeta se procesan de forma segura a través de Stripe.",
+    "termsPaymentDue": "Los pagos tardíos o fallidos pueden resultar en reprogramación o cancelación; las transacciones con tarjeta se procesan de forma segura a través de Stripe.",
     "termsServicesProvidedBy": "Los servicios son prestados por {{businessName}}{{businessAddress}}. Los cargos reflejan servicios veterinarios/profesionales prestados y pueden incluir impuestos o atención de seguimiento aprobada.",
     "termsRefundsDisputes": "Los reembolsos o disputas de facturación son gestionados por el proveedor del servicio conforme a las leyes de protección al consumidor aplicables. Conserva tu recibo y contacta directamente al proveedor del servicio para preguntas o ajustes.",
     "termsNotEmergencyAdvice": "Esta factura no constituye asesoramiento de emergencia. Si tu compañero necesita atención urgente, contacta al proveedor del servicio o a los servicios de emergencia locales de inmediato.",
@@ -226,7 +226,6 @@
     "statusDue": "Pendiente",
     "statusPaidCash": "Pagado - Efectivo",
     "statusPaymentAtProvider": "Pago en el proveedor",
-    "statedDueDateFallback": "la fecha de vencimiento indicada",
     "headerTitleInvoicePayment": "Pago de factura",
     "headerTitleBookAppointment": "Reservar cita"
   },
