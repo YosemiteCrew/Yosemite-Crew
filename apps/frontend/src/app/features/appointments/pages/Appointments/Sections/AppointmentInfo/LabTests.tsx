@@ -60,6 +60,7 @@ import {
   resolveLatestOrder,
   shouldCloseOrderIframe,
 } from './LabTests.helpers';
+import BreedSubstitutionNotice from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/BreedSubstitutionNotice';
 
 const TESTS_PAGE_SIZE = 25;
 const IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER =
@@ -162,6 +163,7 @@ const PastOrderCard = ({
         label={getOrderDisplayStatus(order)}
       />
     </div>
+    <BreedSubstitutionNotice substitution={order.breedSubstitution} />
     <div className="flex flex-wrap items-center gap-2 justify-end">
       {getOrderDisplayStatus(order) === 'Complete' ? (
         <Primary href="#" text="Result PDF" onClick={() => openResultPdfForOrder(order)} />
