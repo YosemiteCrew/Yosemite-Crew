@@ -82,25 +82,28 @@ const meta = {
           '(`max-width: 767px`) and returns `PhoneWorkspaceShell` instead below that, so ' +
           'WorkspaceHeader never renders on a phone and a phone-width screenshot of it is ' +
           'not a bug report. Measured down to a 620px canvas, the row itself fits with room ' +
-          'to spare; what does not fit at that width is the `Admit` + hospitalize + Quick ' +
-          'Actions cluster, which is `shrink-0` by design and needs 429px on its own.',
+          'to spare. The right-hand cluster is `shrink-0` by design; its widest reachable ' +
+          'form is the visit timer, `Admit` and Quick Actions at 373px, because `canAdmit` ' +
+          'needs an INPATIENT encounter and `canHospitalize` needs anything but one - the ' +
+          'app never renders both.',
       },
     },
   },
   tags: ['autodocs'],
   decorators: [
-    /* The frame carries the floor this row actually has. `AppointmentWorkspace` calls
-       `useIsPhone()` at `max-width: 767px` and returns `PhoneWorkspaceShell` instead,
-       so WorkspaceHeader has no phone rendering to get wrong - and measured at 620,
-       660, 700 and 768px canvases it overflows at none of them. Below that the Admit
-       + hospitalize + Quick Actions cluster is `shrink-0` at 429px and simply will not
-       go, which is why a 390px sweep read this desktop row as a broken phone layout.
-       min-w states the floor without capping anything (a 1280px canvas is unchanged),
-       and the scroller keeps a narrower preview from dragging the document sideways
-       rather than pretending the row fits. */
+    /* The frame carries the floor this row actually has: 768px. `AppointmentWorkspace`
+       calls `useIsPhone()` at `max-width: 767px` and hands anything narrower to
+       `PhoneWorkspaceShell`, so WorkspaceHeader has no phone rendering to get wrong -
+       which is why a 390px sweep read this desktop row as a broken phone layout. The
+       earlier 620px floor here was measured off a canvas where `Admit` and the
+       hospitalize circle rendered together; they are mutually exclusive in the app, so
+       620 was never a width this row had to survive. min-w states the floor without
+       capping anything (a 1280px canvas is unchanged), and the scroller keeps a
+       narrower preview from dragging the document sideways rather than pretending the
+       row fits. */
     (Story) => (
       <div className="w-full overflow-x-auto">
-        <div className="min-w-[620px] p-6">
+        <div className="min-w-[768px] p-6">
           <Story />
         </div>
       </div>
@@ -279,6 +282,10 @@ export const EmergencyReadyToAdmit: Story = {
   args: {
     appointment: { ...APPOINTMENT, isEmergency: true, status: 'CHECKED_IN' },
     canAdmit: true,
+    // `canHospitalize` defaults to true on the component, so a story that only
+    // sets `canAdmit` draws both. The app cannot: `canAdmit` requires
+    // `encounterMode === 'INPATIENT'` and `canHospitalize` requires it not be.
+    canHospitalize: false,
     onAdmit: fn(),
   },
   play: async ({ canvasElement }) => {
@@ -295,9 +302,9 @@ export const EmergencyReadyToAdmit: Story = {
     docs: {
       description: {
         story:
-          'The busiest version of the row: emergency badge beside the status pill, plus the Admit ' +
-          'primary ahead of the hospitalize circle and Quick Actions. Four controls compete for ' +
-          'the right edge here, which only shows up when all of them render at once.',
+          'The busiest version of the row the app can actually produce: emergency badge beside ' +
+          'the status pill, and the Admit primary ahead of Quick Actions. The hospitalize circle ' +
+          'is off because an appointment ready to admit is already on the inpatient path.',
       },
     },
   },
@@ -308,6 +315,7 @@ export const Admitting: Story = {
   args: {
     appointment: { ...APPOINTMENT, status: 'CHECKED_IN' },
     canAdmit: true,
+    canHospitalize: false,
     isAdmitting: true,
     onAdmit: fn(),
   },
@@ -322,6 +330,63 @@ export const Admitting: Story = {
         story:
           'The Admit button relabels and disables while the admission request is in flight. It is ' +
           'a prop here, but in the app it exists only for the length of a network call.',
+      },
+    },
+  },
+};
+
+export const LongMetaLineAtTheFloor: Story = {
+  name: 'Long meta line at the 768px floor',
+  /* The tightest row the app can produce, at the narrowest viewport that renders
+     it. Before the identity column was allowed to shrink it sized itself to the
+     meta line and grew straight over the action cluster - "34.6 kg" rendered
+     underneath the visit timer, and because nothing here overflows the document
+     the page never gained a scrollbar to give it away. */
+  decorators: [
+    (Story) => (
+      <div className="w-[768px] p-6">
+        <Story />
+      </div>
+    ),
+  ],
+  args: {
+    metaLine: 'German Shorthaired Pointer · M, neutered · 11y 8m · 34.6 kg',
+    appointment: { ...APPOINTMENT, status: 'CHECKED_IN' },
+    canAdmit: true,
+    canHospitalize: false,
+    onAdmit: fn(),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    /* By accessible name, not by level: the preview injects its own sr-only
+       <h1> carrying the story title into this canvas. */
+    const firstName = canvas.getByRole('heading', { name: 'Poppy' });
+    const identityColumn = firstName.closest('div.flex-col');
+    const actionCluster = canvas.getByRole('button', { name: 'Quick Actions' }).parentElement;
+    await expect(identityColumn).not.toBeNull();
+    await expect(actionCluster).not.toBeNull();
+
+    const identityRight = (identityColumn as HTMLElement).getBoundingClientRect().right;
+    const clusterLeft = (actionCluster as HTMLElement).getBoundingClientRect().left;
+    await expect(identityRight).toBeLessThanOrEqual(clusterLeft);
+
+    // The line gave up the width rather than the name row: the meta line is
+    // clipped, while the first name and the status pill beside it are whole.
+    const metaLine = canvas.getByText(/German Shorthaired Pointer/);
+    await expect(metaLine.scrollWidth).toBeGreaterThan(metaLine.clientWidth);
+    await expect(firstName.scrollWidth).toBeLessThanOrEqual(firstName.clientWidth);
+    const statusPill = canvas.getByText('Checked in');
+    await expect(statusPill.scrollWidth).toBeLessThanOrEqual(statusPill.clientWidth);
+  },
+  parameters: {
+    chromatic: { viewports: [768] },
+    docs: {
+      description: {
+        story:
+          'A breed name long enough to matter, on the inpatient path, at 768px. The meta line ' +
+          'ellipses; the first name, the status pill and the action cluster all keep their full ' +
+          'width. Breed, sex, age and weight repeat in the companion panel, so the meta line is ' +
+          'the right thing to spend when the row runs out of room.',
       },
     },
   },
