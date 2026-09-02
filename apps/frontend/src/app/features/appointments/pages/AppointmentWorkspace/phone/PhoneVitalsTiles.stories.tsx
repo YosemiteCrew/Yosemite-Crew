@@ -62,6 +62,17 @@ export const Recorded: Story = {
   },
 };
 
+export const MetricTemperature: Story = {
+  name: 'A Celsius temperature on phone',
+  args: { weightKg: 12.4, latestVitals: vitals({ tempF: undefined, tempC: 38.5 }) },
+  play: async ({ canvasElement }) => {
+    // The phone twin of the rail's Temp cell, which carried the same hard-coded
+    // '°F'. Fixing one surface and not the other leaves the bug on phone.
+    await expect(within(canvasElement).getByText('38.5 °C')).toBeInTheDocument();
+    await expect(within(canvasElement).queryByText('38.5 °F')).not.toBeInTheDocument();
+  },
+};
+
 export const NothingRecorded: Story = {
   name: 'Before any vitals are taken',
   args: {},

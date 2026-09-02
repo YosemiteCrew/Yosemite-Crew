@@ -1,8 +1,19 @@
 // Draft state for the vitals form, kept out of VitalsForm.tsx so that file only
 // exports its component (React Doctor: only-export-components / Fast Refresh).
+/**
+ * A vital's key states the unit it was recorded in.
+ *
+ * Both scales are first-class rather than one being normalised away, because a
+ * clinic enters what its template declares and a conversion on save would make
+ * the stored number differ from the one the clinician typed. Exactly one of
+ * each pair is ever populated for a given reading - see `resolveDraftKey`,
+ * which picks by the template's declared unit.
+ */
 export type DraftVitals = {
   weightLbs: string;
+  weightKg: string;
   tempF: string;
+  tempC: string;
   heartRateBpm: string;
   respRateBpm: string;
   crtSec: string;
@@ -13,7 +24,9 @@ export type DraftVitals = {
 
 export const EMPTY_DRAFT: DraftVitals = {
   weightLbs: '',
+  weightKg: '',
   tempF: '',
+  tempC: '',
   heartRateBpm: '',
   respRateBpm: '',
   crtSec: '',
