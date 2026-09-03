@@ -29,6 +29,12 @@ const SPEC_PATH = path.join(REPO_ROOT, 'apps/dev-docs/static/openapi.yaml');
 const REQUIRES_ORG = Symbol.for('yosemite.requiresOrgPermissions');
 
 /** The path params extractOrgId consults before falling back to the header. */
+/* Matches the verb list the drift gate checks, so "every organisation-scoped
+   operation" above means the same set in both scripts. The spec carries no
+   HEAD or OPTIONS operations today; including them keeps the two in step if
+   one is ever added. */
+const HTTP_VERBS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
+
 const ORG_PATH_PARAMS = ['orgId', 'organisationId', 'organizationId'];
 
 const toOpenApiPath = (p) => p.replace(/:([A-Za-z0-9_]+)/g, '{$1}');
@@ -92,7 +98,7 @@ const main = async () => {
 
     for (const opEntry of pathItem.value.items ?? []) {
       const verb = String(opEntry.key.value).toUpperCase();
-      if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(verb)) continue;
+      if (!HTTP_VERBS.includes(verb)) continue;
       if (!orgScoped.has(`${verb} ${rawPath}`)) continue;
 
       const op = opEntry.value;
