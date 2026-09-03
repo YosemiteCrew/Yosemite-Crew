@@ -7,7 +7,7 @@ settings:
 overrides:
   protobufjs: 7.6.5
   '@protobufjs/utf8': 1.1.1
-  qs: 6.15.2
+  qs: 6.16.0
   serialize-javascript: 7.0.5
   undici: 7.29.0
   svgo: 3.3.4
@@ -17,7 +17,7 @@ overrides:
   '@tootallnate/once': 3.0.1
   node-forge: 1.4.0
   '@modelcontextprotocol/sdk': 1.26.0
-  validator: 13.15.26
+  validator: 13.15.35
   axios: 1.20.0
   handlebars: 4.7.9
   ajv@6: 6.15.0
@@ -40,7 +40,7 @@ overrides:
   lodash-es: 4.18.0
   picomatch@2: 2.3.2
   yaml: 2.9.0
-  '@xmldom/xmldom@<0.8.14': 0.8.14
+  '@xmldom/xmldom@<0.8.15': 0.8.15
   path-to-regexp@0.1.12: 0.1.13
   path-to-regexp@8.3.0: 8.4.2
   '@babel/plugin-transform-modules-systemjs': 7.29.8
@@ -49,7 +49,7 @@ overrides:
   fast-xml-builder: 1.2.1
   postcss: 8.5.26
   uuid@<11.1.1: 11.1.1
-  ip-address: 10.3.1
+  ip-address@10: 10.5.1
   '@grpc/grpc-js@1.9.15': 1.9.16
   '@grpc/grpc-js@1.14.3': 1.14.4
   axios@1.15.2: 1.20.0
@@ -71,7 +71,7 @@ overrides:
   '@opentelemetry/sdk-metrics@2.2.0': 2.8.0
   '@opentelemetry/sdk-trace-base@2.2.0': 2.8.0
   protobufjs@7.5.5: 7.6.5
-  qs@6.14.2: 6.15.2
+  qs@6.14.2: 6.16.0
   shell-quote@1.8.3: 1.9.0
   tmp@0.2.5: 0.2.7
   undici@7.24.0: 7.29.0
@@ -80,7 +80,7 @@ overrides:
   ws@6: 6.2.5
   ws@7: 7.5.12
   ws@8: 8.21.1
-  multer: 2.2.0
+  multer: 2.3.0
   aws-cdk-lib: 2.266.0
   '@babel/core@7.29.0': 7.29.6
   next: 15.5.24
@@ -117,6 +117,7 @@ overrides:
   adm-zip: 0.6.0
   http-proxy-middleware: 2.0.10
   stream-chat: 9.52.0
+  zod@3: 4.5.4
 
 patchedDependencies:
   react-native@0.81.6:
@@ -272,8 +273,8 @@ importers:
         specifier: ^0.6.3
         version: 0.6.3
       multer:
-        specifier: 2.2.0
-        version: 2.2.0
+        specifier: 2.3.0
+        version: 2.3.0
       playwright:
         specifier: 1.62.1
         version: 1.62.1
@@ -293,14 +294,14 @@ importers:
         specifier: 11.1.1
         version: 11.1.1
       validator:
-        specifier: 13.15.26
-        version: 13.15.26
+        specifier: 13.15.35
+        version: 13.15.35
       winston:
         specifier: ^3.17.0
         version: 3.19.0
       zod:
-        specifier: ^4.4.0
-        version: 4.4.3
+        specifier: ^4.5.0
+        version: 4.5.4
     devDependencies:
       '@eslint/js':
         specifier: ^9.21.0
@@ -577,8 +578,8 @@ importers:
         specifier: ^5.1.0
         version: 5.1.0
       validator:
-        specifier: 13.15.26
-        version: 13.15.26
+        specifier: 13.15.35
+        version: 13.15.35
       zustand:
         specifier: ^5.0.15
         version: 5.0.15(@types/react@19.2.18)(react@19.2.4)
@@ -1112,8 +1113,8 @@ importers:
         specifier: ^0.20.1
         version: 0.20.2
       validator:
-        specifier: 13.15.26
-        version: 13.15.26
+        specifier: 13.15.35
+        version: 13.15.35
     devDependencies:
       '@types/node':
         specifier: ^26.3.0
@@ -1178,8 +1179,8 @@ importers:
         specifier: 4.21.2
         version: 4.21.2
       multer:
-        specifier: 2.2.0
-        version: 2.2.0
+        specifier: 2.3.0
+        version: 2.3.0
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -3448,8 +3449,8 @@ packages:
     resolution: {integrity: sha512-AOqW0Di/p2aEn/uwMXWVTD7pKnSg/3qQ7b4C9rm2VmdR00zerAYMuzY5DWSAk8AdtZipUHwOQAyF2nBkePag5Q==}
     hasBin: true
     dependencies:
-      '@modelcontextprotocol/sdk': 1.26.0(zod@4.4.3)
-      zod: 4.4.3
+      '@modelcontextprotocol/sdk': 1.26.0(zod@4.5.4)
+      zod: 4.5.4
     transitivePeerDependencies:
       - '@cfworker/json-schema'
       - supports-color
@@ -4325,7 +4326,7 @@ packages:
   /@expo/plist@0.3.5:
     resolution: {integrity: sha512-9RYVU1iGyCJ7vWfg3e7c/NVyMFs8wbl+dMWZphtFtsqyN9zppGREU3ctlD3i8KUE0sCUTVnLjCWr+VeUIDep2g==}
     dependencies:
-      '@xmldom/xmldom': 0.8.14
+      '@xmldom/xmldom': 0.8.15
       base64-js: 1.5.1
       xmlbuilder: 15.1.1
     dev: false
@@ -5919,7 +5920,7 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
-      zod: ^3.25 || ^4.0
+      zod: 4.5.4
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
@@ -5941,6 +5942,37 @@ packages:
       raw-body: 3.0.2
       zod: 4.4.3
       zod-to-json-schema: 3.25.2(zod@4.4.3)
+    transitivePeerDependencies:
+      - supports-color
+    dev: false
+
+  /@modelcontextprotocol/sdk@1.26.0(zod@4.5.4):
+    resolution: {integrity: sha512-Y5RmPncpiDtTXDbLKswIJzTqu2hyBKxTNsgKqKclDbhIgg1wgtf1fRuvxgTnRfcnxtvvgbIEcqUOzZrJ6iSReg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@cfworker/json-schema': ^4.1.1
+      zod: 4.5.4
+    peerDependenciesMeta:
+      '@cfworker/json-schema':
+        optional: true
+    dependencies:
+      '@hono/node-server': 2.0.11(hono@4.13.5)
+      ajv: 8.20.0
+      ajv-formats: 3.0.1(ajv@8.20.0)
+      content-type: 1.0.5
+      cors: 2.8.6
+      cross-spawn: 7.0.6
+      eventsource: 3.0.7
+      eventsource-parser: 3.1.0
+      express: 5.2.1
+      express-rate-limit: 8.6.2(express@5.2.1)
+      hono: 4.13.5
+      jose: 6.2.10
+      json-schema-typed: 8.0.2
+      pkce-challenge: 5.0.1
+      raw-body: 3.0.2
+      zod: 4.5.4
+      zod-to-json-schema: 3.25.2(zod@4.5.4)
     transitivePeerDependencies:
       - supports-color
     dev: false
@@ -11034,10 +11066,9 @@ packages:
       expect: 29.7.0
     dev: true
 
-  /@xmldom/xmldom@0.8.14:
-    resolution: {integrity: sha512-T4EDRUBVZYRldYApjEJiU0e1stYWaRAX7CuSnKzrpwdZKo53zGV8/pqfzV6FfwNl9YThD2OumQYvqtvjvgG7aQ==}
+  /@xmldom/xmldom@0.8.15:
+    resolution: {integrity: sha512-/5NV/vDALVFDXgLmfsy9TRCBlKwO2LNBFzpzvb9iIj+jR+eSc6DLYYvVOdivT/jm7MtU6TebYuRmzEOI7w40UA==}
     engines: {node: '>=10.0.0'}
-    deprecated: this version has critical issues, please update to the latest version
 
   /@xmldom/xmldom@0.9.12:
     resolution: {integrity: sha512-5AXjrcMClTryPe9LgZrygpB1lj7s0S9E0+W+AHaVKAVyHanafK86iPSvG5xHVSp/jC+VH1UXu0TAEmY279xH7A==}
@@ -11984,7 +12015,7 @@ packages:
       http-errors: 2.0.1
       iconv-lite: 0.4.24
       on-finished: 2.4.1
-      qs: 6.15.2
+      qs: 6.16.0
       raw-body: 2.5.3
       type-is: 1.6.18
       unpipe: 1.0.0
@@ -12001,7 +12032,7 @@ packages:
       http-errors: 2.0.1
       iconv-lite: 0.7.3
       on-finished: 2.4.1
-      qs: 6.15.2
+      qs: 6.16.0
       raw-body: 3.0.2
       type-is: 2.1.0
     transitivePeerDependencies:
@@ -12474,7 +12505,7 @@ packages:
     dependencies:
       devtools-protocol: 0.0.1687809
       mitt: 3.0.1
-      zod: 3.25.76
+      zod: 4.5.4
     dev: true
 
   /chromium-edge-launcher@0.2.0:
@@ -12522,7 +12553,7 @@ packages:
     dependencies:
       '@types/validator': 13.15.10
       libphonenumber-js: 1.13.10
-      validator: 13.15.26
+      validator: 13.15.35
     dev: false
 
   /classnames@2.5.1:
@@ -14455,8 +14486,8 @@ packages:
       '@babel/parser': 7.29.8
       eslint: 9.39.2
       hermes-parser: 0.25.1
-      zod: 4.4.3
-      zod-validation-error: 4.0.2(zod@4.4.3)
+      zod: 4.5.4
+      zod-validation-error: 4.0.2(zod@4.5.4)
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -14914,7 +14945,7 @@ packages:
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
       express: 4.21.2
-      ip-address: 10.3.1
+      ip-address: 10.5.1
     transitivePeerDependencies:
       - supports-color
 
@@ -14926,7 +14957,7 @@ packages:
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
       express: 5.2.1
-      ip-address: 10.3.1
+      ip-address: 10.5.1
     transitivePeerDependencies:
       - supports-color
     dev: false
@@ -14956,7 +14987,7 @@ packages:
       parseurl: 1.3.3
       path-to-regexp: 0.1.13
       proxy-addr: 2.0.7
-      qs: 6.15.2
+      qs: 6.16.0
       range-parser: 1.2.1
       safe-buffer: 5.2.1
       send: 0.19.0
@@ -14993,7 +15024,7 @@ packages:
       once: 1.4.0
       parseurl: 1.3.3
       proxy-addr: 2.0.7
-      qs: 6.15.2
+      qs: 6.16.0
       range-parser: 1.3.0
       router: 2.2.0
       send: 1.2.1
@@ -16616,8 +16647,8 @@ packages:
       - supports-color
     dev: false
 
-  /ip-address@10.3.1:
-    resolution: {integrity: sha512-1e9d3kb97NHJTIJDZW9rKqW2h6+dFa50Dy0fpPSMQp2ADje5gvKsXmdiK6dwY5t76TaTt5+P5N1Y/LoToIxP6g==}
+  /ip-address@10.5.1:
+    resolution: {integrity: sha512-EXujUp9jyOI/chPgtqk6uy7fDq8AeCB/WlfEuPg9LN0fN9lzKAKfuDYi60SMhHwgUiEhZvVYsbGZN+RUU1INiA==}
     engines: {node: '>= 12'}
 
   /ipaddr.js@1.9.1:
@@ -17222,7 +17253,7 @@ packages:
       jest-config: 30.4.2(@types/node@26.2.0)(ts-node@10.9.2)
       jest-util: 30.4.1
       jest-validate: 30.4.1
-      yargs: 17.7.3
+      yargs: 17.7.2
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
@@ -17250,7 +17281,7 @@ packages:
       jest-config: 30.4.2(@types/node@26.4.0)(ts-node@10.9.2)
       jest-util: 30.4.1
       jest-validate: 30.4.1
-      yargs: 17.7.3
+      yargs: 17.7.2
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
@@ -19594,8 +19625,8 @@ packages:
       msgpackr-extract: 3.0.4
     dev: false
 
-  /multer@2.2.0:
-    resolution: {integrity: sha512-6rdyFg2kLrMh9Jee7/BMPuV9lEAd7lLW2YUpF9/YxR7njyoUwwQ0ZPh3TaIY50Sw6vlyD2HW3wGOkTS4P79xrQ==}
+  /multer@2.3.0:
+    resolution: {integrity: sha512-cjNbm3sttszgZeGfJR124D+jFEfkXCVAsoPBmFn9X7UxmDSFHWqE2CoEj0vrmSpuAFnqWR1Szcm9QTsiHr60Xw==}
     engines: {node: '>= 10.16.0'}
     dependencies:
       append-field: 1.0.0
@@ -20610,7 +20641,7 @@ packages:
     resolution: {integrity: sha512-uysumyrvkUX0rX/dEVqt8gC3sTBzd4zoWfLeS29nb53imdaXVvLINYXTI2GNqzaMuvacNx4uJQ8+b3zXR0pkgQ==}
     engines: {node: '>=10.4.0'}
     dependencies:
-      '@xmldom/xmldom': 0.8.14
+      '@xmldom/xmldom': 0.8.15
       base64-js: 1.5.1
       xmlbuilder: 15.1.1
     dev: true
@@ -21079,11 +21110,12 @@ packages:
       react: 19.2.4
     dev: false
 
-  /qs@6.15.2:
-    resolution: {integrity: sha512-Rzq0KEyX/w/tEybncDgdkZrJgVUsUMk3xjh3t5bv3S1HTAtg+uOYt72+ZfwiQwKdysThkTBdL/rTi6HDmX9Ddw==}
+  /qs@6.16.0:
+    resolution: {integrity: sha512-h6fhOIaRrID2CbEY2fqs+7t+UXZo+MLAnU5gRIq85uFtdiUPCdsApMlHhXogKVM4HM2DVbIjGNTTYH2OcmP1vA==}
     engines: {node: '>=0.6'}
     dependencies:
-      side-channel: 1.1.0
+      es-define-property: 1.0.1
+      side-channel: 1.1.1
 
   /query-selector-shadow-dom@1.0.1:
     resolution: {integrity: sha512-lT5yCqEBgfoMYpf3F2xQRK7zEr1rhIIZuceDK6+xRkJQ4NMbHTwXqk4NkwDwQMNqXgG9r9fyHnzwNVs6zV5KRw==}
@@ -23014,16 +23046,6 @@ packages:
       object-inspect: 1.13.4
       side-channel-map: 1.0.1
 
-  /side-channel@1.1.0:
-    resolution: {integrity: sha512-ZX99e6tRweoUXqR+VBrslhda51Nh5MTQwou5tnUDgbtyM0dBgmhEDtWGP/xbKn6hqfPRHujUNwz5fy/wbbhnpw==}
-    engines: {node: '>= 0.4'}
-    dependencies:
-      es-errors: 1.3.0
-      object-inspect: 1.13.4
-      side-channel-list: 1.0.1
-      side-channel-map: 1.0.1
-      side-channel-weakmap: 1.0.2
-
   /side-channel@1.1.1:
     resolution: {integrity: sha512-6x6dK6zJdpTzF4sQeNYxwtvBzf6Eg4GtlesS94HOvTudUeyK2WXAaIfmDgsyslYrRBeFIlsi54AYsFGUuhmvrQ==}
     engines: {node: '>= 0.4'}
@@ -23033,7 +23055,6 @@ packages:
       side-channel-list: 1.0.1
       side-channel-map: 1.0.1
       side-channel-weakmap: 1.0.2
-    dev: true
 
   /signal-exit@3.0.7:
     resolution: {integrity: sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==}
@@ -24609,7 +24630,7 @@ packages:
       dayjs: 1.11.21
       https-proxy-agent: 5.0.1
       jsonwebtoken: 9.0.3
-      qs: 6.15.2
+      qs: 6.16.0
       scmp: 2.1.0
       url-parse: 1.5.10
       xmlbuilder: 13.0.2
@@ -24877,7 +24898,7 @@ packages:
     resolution: {integrity: sha512-N6uOhuW6zO95P3Mel2I2zMsbsanvvtgn6jVqJv4vbVcz/JN0OkL9suomjQGmWtxJQXOCqUJvquc1sMeNz/IwlA==}
     engines: {node: '>= 0.8.0'}
     dependencies:
-      qs: 6.15.2
+      qs: 6.16.0
     dev: true
 
   /unist-builder@4.0.0:
@@ -25133,8 +25154,8 @@ packages:
       spdx-expression-parse: 3.0.1
     dev: true
 
-  /validator@13.15.26:
-    resolution: {integrity: sha512-spH26xU080ydGggxRyR1Yhcbgx+j3y5jbNXk/8L+iRvdIEQ4uTRH2Sgf2dokud6Q4oAtsbNvJ1Ft+9xmm6IZcA==}
+  /validator@13.15.35:
+    resolution: {integrity: sha512-TQ5pAGhd5whStmqWvYF4OjQROlmv9SMFVt37qoCBdqRffuuklWYQlCNnEs2ZaIBD1kZRNnikiZOS1eqgkar0iw==}
     engines: {node: '>= 0.10'}
     dev: false
 
@@ -25917,26 +25938,34 @@ packages:
   /zod-to-json-schema@3.25.2(zod@4.4.3):
     resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
     peerDependencies:
-      zod: ^3.25.28 || ^4
+      zod: 4.5.4
     dependencies:
       zod: 4.4.3
     dev: false
 
-  /zod-validation-error@4.0.2(zod@4.4.3):
+  /zod-to-json-schema@3.25.2(zod@4.5.4):
+    resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
+    peerDependencies:
+      zod: 4.5.4
+    dependencies:
+      zod: 4.5.4
+    dev: false
+
+  /zod-validation-error@4.0.2(zod@4.5.4):
     resolution: {integrity: sha512-Q6/nZLe6jxuU80qb/4uJ4t5v2VEZ44lzQjPDhYJNztRQ4wyWc6VF3D3Kb/fAuPetZQnhS3hnajCf9CsWesghLQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      zod: ^3.25.0 || ^4.0.0
+      zod: 4.5.4
     dependencies:
-      zod: 4.4.3
-    dev: true
-
-  /zod@3.25.76:
-    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+      zod: 4.5.4
     dev: true
 
   /zod@4.4.3:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
+    dev: false
+
+  /zod@4.5.4:
+    resolution: {integrity: sha512-sC95tT5iHHH9gtpj6A81kh+NEaRAUFN+qlUPDUbRfOMvNf5QCBqsb3WgvnpVtK5Y+4UfA6KqufotuTvMGiTlsA==}
 
   /zustand@5.0.15(@types/react@19.2.18)(react@19.2.4):
     resolution: {integrity: sha512-MpSEjRiBkA9crSYeOUH32rJC7SVqAbm0Fqcqge/bUi2PPoLcBWKOsG+C8mevmpr8TwXHBVkChbbJiyvkE+i/3A==}
