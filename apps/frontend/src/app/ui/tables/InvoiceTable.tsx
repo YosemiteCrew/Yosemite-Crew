@@ -75,6 +75,17 @@ const STATUS_COLUMN_WIDTH = '180px';
    leaves ~4px of slack. */
 const ACTIONS_COLUMN_WIDTH = '88px';
 
+/**
+ * The identity cell's leading line: "owner / patient" when both are known, and
+ * whichever one is known otherwise. An invoice converted from an estimate has
+ * no appointment, so either side can legitimately be missing; a missing side
+ * must not leave a stray separator behind.
+ */
+const joinOwnerAndCompanion = (parentName: string, companionName: string): string => {
+  const parts = [parentName, companionName].filter((part) => part !== '-');
+  return parts.length > 0 ? parts.join(' / ') : '-';
+};
+
 const renderInvoiceNumber = (item: Invoice) => (
   // The identity cell never breaks mid-word (table recipe): "#53F6F0925E" used to
   // wrap to two lines inside its 96px column and read as two invoices.
@@ -169,16 +180,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
         ? companionFromPatient.name
         : companionFromAppointment;
     const parentName = getParentName(item.appointmentId);
-    let ownerAndCompanion = '-';
-    if (parentName !== '-' && companionName !== '-') {
-      ownerAndCompanion = `${parentName} / ${companionName}`;
-    } else if (parentName === '-') {
-      if (companionName !== '-') {
-        ownerAndCompanion = companionName;
-      }
-    } else {
-      ownerAndCompanion = parentName;
-    }
+    const ownerAndCompanion = joinOwnerAndCompanion(parentName, companionName);
     const appointment = getAppointmentByIdFromList(appointments, item.appointmentId);
     const companion = appointment ? getAppointmentCompanion(appointment) : undefined;
     const avatarSrc = getSafeImageUrl(
