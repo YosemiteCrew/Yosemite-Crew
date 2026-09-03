@@ -20,7 +20,7 @@ import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/
 import { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
-import { formatTimeLabel } from '@/app/lib/forms';
+import { getUtcTimeValue } from '@/app/lib/date';
 import { formatUtcTimeToLocalLabel } from '@/app/features/appointments/components/Availability/utils';
 import { Slot } from '@/app/features/appointments/types/appointments';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
@@ -1376,10 +1376,12 @@ const useAddAppointmentCentralModalView = ({
     [handleLeadSelect]
   );
 
+  // Same clock as the slot list above it. This used formatTimeLabel (hour:'2-digit'), so a
+  // prefilled 8am appointment read "08:00 AM" here while the slot buttons said "8:00 AM".
   const prefillTimeLabel = useMemo(
     () =>
       prefillActive && !selectedSlot && formData.startTime
-        ? formatTimeLabel(formData.startTime)
+        ? formatUtcTimeToLocalLabel(getUtcTimeValue(formData.startTime, ''))
         : null,
     [prefillActive, selectedSlot, formData.startTime]
   );

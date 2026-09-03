@@ -9,10 +9,33 @@ export type FilterChipProps = {
   count?: number;
   /** Optional leading status dot colour (a CSS colour or token), e.g. the emergencies marker. */
   dotColor?: string;
+  /**
+   * Accessible name for the dot when it carries meaning beyond decoration — the
+   * emergencies chip uses it to announce that emergencies are present. Without
+   * it the dot stays aria-hidden.
+   */
+  dotLabel?: string;
+  /** 'danger' keeps the chip danger-toned in both states, for the emergencies filter. */
+  tone?: 'neutral' | 'danger';
   disabled?: boolean;
   className?: string;
   'aria-label'?: string;
 };
+
+// Rest / active pair per tone. Danger stays danger-toned when inactive too, so
+// the emergencies chip reads as an emergency filter before it is pressed.
+const TONE_CLASSNAMES = {
+  neutral: {
+    active:
+      'border-[var(--chip-selected-border)]! bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]!',
+    rest: 'border-[var(--hairline)]! bg-transparent font-semibold text-[var(--ink-muted)] hover:text-[var(--ink)]',
+  },
+  danger: {
+    active:
+      'border-[var(--danger-border)]! bg-[var(--danger-bg)] font-bold text-[var(--danger-text)]!',
+    rest: 'border-[var(--danger-border)]! bg-transparent font-semibold text-[var(--danger-text)]! hover:border-[var(--danger-text)]!',
+  },
+} as const;
 
 /**
  * The one filter-chip recipe for list toolbars (design: Filters card).
@@ -27,6 +50,8 @@ const FilterChip = ({
   onClick,
   count,
   dotColor,
+  dotLabel,
+  tone = 'neutral',
   disabled,
   className,
   'aria-label': ariaLabel,
@@ -39,28 +64,28 @@ const FilterChip = ({
     onClick={onClick}
     className={clsx(
       'inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full! border px-[13px] text-[12.5px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]',
-      active
-        ? 'border-[var(--chip-selected-border)]! bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]!'
-        : 'border-[var(--hairline)]! bg-transparent font-semibold text-[var(--ink-muted)] hover:text-[var(--ink)]',
+      TONE_CLASSNAMES[tone][active ? 'active' : 'rest'],
       disabled && 'cursor-not-allowed opacity-60',
       className
     )}
   >
     {dotColor ? (
       <span
-        aria-hidden="true"
+        aria-label={dotLabel}
+        aria-hidden={dotLabel ? undefined : true}
         className="size-1.5 shrink-0 rounded-full"
         style={{ backgroundColor: dotColor }}
       />
     ) : null}
     <span>{label}</span>
     {typeof count === 'number' ? (
-      <span
-        className={clsx(
-          'tabular-nums',
-          active ? 'text-[var(--chip-selected-ink)]/70' : 'text-[var(--ink-faint)]'
-        )}
-      >
+      /* The count inherits the chip's ink rather than naming a token, so it
+         stays legible on the danger tone as well as the neutral one. No opacity
+         on the active chip: the app-scope alias-closure test forbids
+         compositing a faint ink under opacity, because that is what drops it
+         below AA. On a solid selected fill the label ink is already legible, so
+         the count simply shares it. */
+      <span className={clsx('tabular-nums', active ? undefined : 'text-[var(--ink-faint)]')}>
         {count}
       </span>
     ) : null}

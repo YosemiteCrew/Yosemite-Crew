@@ -142,12 +142,12 @@ jest.mock('@/app/lib/forms', () => ({
   ),
 }));
 
+// The add-field glyph is a decorative span, NOT a button: the old mock rendered its own
+// <button aria-label="toggle-add-field">, which made the trigger keyboard-reachable in tests
+// while the product shipped a bare <svg onClick>. The real <button aria-label="Add a field">
+// now lives in AddFieldDropdown, so the tests below must find it there.
 jest.mock('react-icons/io', () => ({
-  IoIosAddCircleOutline: ({ onClick }: any) => (
-    <button type="button" aria-label="toggle-add-field" onClick={onClick}>
-      +
-    </button>
-  ),
+  IoIosAddCircleOutline: () => <span data-testid="add-field-glyph">+</span>,
   IoIosWarning: () => <span data-testid="warning-icon">!</span>,
 }));
 
@@ -773,7 +773,7 @@ describe('Build form (single-screen builder)', () => {
       );
 
       // Palette tiles are gone (no top-level add), and there are no add-field dropdowns.
-      expect(screen.queryAllByRole('button', { name: 'toggle-add-field' })).toHaveLength(0);
+      expect(screen.queryAllByRole('button', { name: 'Add a field' })).toHaveLength(0);
       expect(screen.queryByRole('button', { name: 'Short Text' })).not.toBeInTheDocument();
       expect(screen.queryByText('Drop a field here')).not.toBeInTheDocument();
       expect(screen.getByText(/locked structure/i)).toBeInTheDocument();
@@ -937,9 +937,9 @@ describe('Build form (single-screen builder)', () => {
 
       renderBuild(baseFormData({ schema: [group] }));
 
-      // Open the group's nested add dropdown (the only toggle-add-field control), then pick the
+      // Open the group's nested add dropdown (the only "Add a field" button), then pick the
       // nested "Short Text" option (the last matching button — the palette tile is the first).
-      fireEvent.click(screen.getByRole('button', { name: 'toggle-add-field' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add a field' }));
       const shortTextButtons = screen.getAllByRole('button', { name: 'Short Text' });
       fireEvent.click(shortTextButtons[shortTextButtons.length - 1]);
 
@@ -961,11 +961,35 @@ describe('Build form (single-screen builder)', () => {
 
       // Palette always shows one "Short Text" tile; opening the nested dropdown adds a second.
       expect(screen.getAllByRole('button', { name: 'Short Text' })).toHaveLength(1);
-      fireEvent.click(screen.getByRole('button', { name: 'toggle-add-field' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add a field' }));
       expect(screen.getAllByRole('button', { name: 'Short Text' })).toHaveLength(2);
 
       fireEvent.mouseDown(document.body);
       expect(screen.getAllByRole('button', { name: 'Short Text' })).toHaveLength(1);
+    });
+
+    // Pins the group add-field trigger as a real, keyboard-reachable button that announces its
+    // open state. It used to be a bare <svg onClick> — no tabindex, no role — so a keyboard or
+    // screen-reader user could add fields from the palette but never into a group.
+    it('exposes the nested add-field trigger as a button that announces its expanded state', () => {
+      const group: FormField = {
+        id: 'grp-1',
+        type: 'group',
+        label: 'Section',
+        fields: [],
+      } as FormField;
+
+      renderBuild(baseFormData({ schema: [group] }));
+
+      const trigger = screen.getByRole('button', { name: 'Add a field' });
+      expect(trigger).toHaveAttribute('type', 'button');
+      expect(trigger).toHaveAttribute('aria-expanded', 'false');
+      expect(trigger).toHaveAttribute('aria-haspopup', 'true');
+      // The glyph itself carries no accessible name — the button owns it.
+      expect(trigger.querySelector('[data-testid="add-field-glyph"]')).not.toBeNull();
+
+      fireEvent.click(trigger);
+      expect(trigger).toHaveAttribute('aria-expanded', 'true');
     });
 
     it('edits the group name of a selected generic group', () => {

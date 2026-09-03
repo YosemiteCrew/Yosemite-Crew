@@ -94,14 +94,14 @@ const meta = {
   component: InvoiceTable,
   parameters: {
     layout: 'padded',
-    // The Date cell pushes to /appointments through next/navigation's router.
+    // The Appointment cell pushes to /appointments through next/navigation's router.
     nextjs: { appDirectory: true },
     docs: {
       description: {
         component:
           'The finance list, which is three separate renderings of one array rather than one ' +
           'responsive table: a ten-column ledger above 1280, a six-column tablet table between 768 ' +
-          'and 1279 (Services and Date fold into the identity sub-line, Subtotal/Discount/Tax fold ' +
+          'and 1279 (Services and Appointment fold into the identity sub-line, Subtotal/Discount/Tax fold ' +
           'under Total), and a card band below 768. All three are always in the DOM; Tailwind ' +
           'hides two of them.\n\n' +
           'That is why the phone band’s empty state had never been drawn. It is its own branch - ' +
@@ -265,6 +265,13 @@ export const DesktopEmpty: Story = {
     await expect(tablet.querySelectorAll('thead th')).toHaveLength(6);
     await expect(within(desktop).getByText('Subtotal')).toBeInTheDocument();
     await expect(within(tablet).queryByText('Subtotal')).not.toBeInTheDocument();
+
+    /* This column formats `appointment.appointmentDate`, while the card band
+       below 768 and PhoneInvoiceList format `invoice.createdAt`. It was headed
+       "Date" - the same word the cards use - so an invoice raised three days
+       after the visit showed a different date depending on window width. */
+    await expect(within(desktop).getByText('Appointment')).toBeInTheDocument();
+    await expect(within(desktop).queryByText('Date')).not.toBeInTheDocument();
   },
   parameters: {
     docs: {

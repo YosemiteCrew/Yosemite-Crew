@@ -1,6 +1,6 @@
 import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
 import React, { useState } from 'react';
-import { IoCreateOutline, IoDocumentTextOutline, IoEllipsisHorizontal } from 'react-icons/io5';
+import { IoChevronForward, IoCreateOutline, IoDocumentTextOutline } from 'react-icons/io5';
 import AddDocument from '@/app/features/organization/pages/Organization/Sections/Documents/AddDocument';
 import DocumentInfo from '@/app/features/organization/pages/Organization/Sections/Documents/DocumentInfo';
 import { useDocumentsForPrimaryOrg } from '@/app/hooks/useDocuments';
@@ -98,28 +98,37 @@ const Documents = () => {
                       <IoDocumentTextOutline size={16} />
                     )}
                   </span>
+                  {/* One control per row. The row used to end in a second button
+                      drawn as a kebab and labelled "Actions for …" that opened this
+                      same detail modal - no menu ever appeared - on a bare ~15px
+                      glyph, well under the 24px minimum. It is now a chevron inside
+                      the row button, so the whole row is the target and the label
+                      says what pressing it does. The badge moved inside the button
+                      too, where an aria-label would swallow it, so the label repeats
+                      it - a screen-reader user still hears E-SIGN (signed in-app)
+                      against PDF/DOC/FILE. */}
                   <button
                     type="button"
                     onClick={() => handleView(document)}
-                    className="flex-1 min-w-0 text-left"
-                    aria-label={`View ${document.title}`}
+                    className="group flex flex-1 min-w-0 items-center gap-3 text-left"
+                    aria-label={`View ${document.title}, ${badge.label}`}
                   >
-                    <span className="block text-[13px] font-bold text-[var(--ink)] truncate">
-                      {document.title}
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[13px] font-bold text-[var(--ink)] truncate">
+                        {document.title}
+                      </span>
+                      <span className="block text-[11px] text-[var(--ink-faint)] truncate">
+                        {toTitle(document.category)}
+                        {document.description ? ` · ${document.description}` : ''}
+                      </span>
                     </span>
-                    <span className="block text-[11px] text-[var(--ink-faint)] truncate">
-                      {toTitle(document.category)}
-                      {document.description ? ` · ${document.description}` : ''}
+                    <StatusPill label={badge.label} tokens={badge.tokens} />
+                    <span
+                      aria-hidden="true"
+                      className="flex size-7 shrink-0 items-center justify-center rounded-full text-[var(--ink-faint)] transition-colors group-hover:bg-[var(--surface-soft)] group-hover:text-[var(--ink)]"
+                    >
+                      <IoChevronForward size={16} />
                     </span>
-                  </button>
-                  <StatusPill label={badge.label} tokens={badge.tokens} />
-                  <button
-                    type="button"
-                    onClick={() => handleView(document)}
-                    className="shrink-0 text-[var(--ink-faint)] hover:text-[var(--ink)]"
-                    aria-label={`Actions for ${document.title}`}
-                  >
-                    <IoEllipsisHorizontal size={15} />
                   </button>
                 </div>
               );

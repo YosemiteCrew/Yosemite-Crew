@@ -759,9 +759,12 @@ describe('CompanionHistoryPage', () => {
       within(parentSection).getByText(`${label}:`).parentElement?.querySelector('span:last-child')
         ?.textContent ?? '';
 
-    // Empty parent id → Client ID falls back to the companion id.
-    expect(readDetail('Client ID')).toBe('c-1');
-    expect(readDetail('Client')).toBe('-');
+    /* Empty parent id → the pet-parent id falls back to the companion id. The
+       rows were "Client" / "Client ID" while the share card this record opens
+       called the same person "Owner"; both now use the protected term. */
+    expect(readDetail('Pet parent ID')).toBe('c-1');
+    expect(readDetail('Pet parent')).toBe('-');
+    expect(within(parentSection).queryByText('Client:')).not.toBeInTheDocument();
     expect(readDetail('Email')).toBe('-');
     expect(readDetail('Phone')).toBe('-');
   });

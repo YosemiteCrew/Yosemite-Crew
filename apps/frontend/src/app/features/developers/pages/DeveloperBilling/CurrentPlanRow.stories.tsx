@@ -6,16 +6,16 @@ import type { DeveloperSubscription } from '@/app/services/developerBilling';
 import CurrentPlanRow from './CurrentPlanRow';
 import './DeveloperBilling.css';
 
-/* Fixed dates, but never asserted as a literal: the row formats the period with
-   `toLocaleDateString`, so "8/1/2026" is only correct for a runner in UTC or
-   east of it. Every expectation derives the string the same way the component
-   does - see `formattedPeriod` below. */
+/* Asserted as a literal now. The row used to format the period with
+   `toLocaleDateString`, whose "8/1/2026" is only correct for a runner in UTC or
+   east of it, so every expectation had to derive the string the same way the
+   component did - which meant it could not fail. The period is ISO (UTC by
+   definition, and the same format the API keys table uses), so the literal holds
+   in every runner. */
 const PERIOD_START = '2026-08-01T00:00:00.000Z';
 const PERIOD_END = '2026-09-01T00:00:00.000Z';
 
-const formattedPeriod = `${new Date(PERIOD_START).toLocaleDateString()} – ${new Date(
-  PERIOD_END
-).toLocaleDateString()}`;
+const formattedPeriod = '2026-08-01 – 2026-09-01';
 
 const subscription = (overrides: Partial<DeveloperSubscription> = {}): DeveloperSubscription => ({
   id: 'sub_storybook',

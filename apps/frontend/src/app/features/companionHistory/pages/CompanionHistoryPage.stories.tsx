@@ -660,16 +660,19 @@ export const Desktop: Story = {
     await expect(companionDetails['Last visit']).not.toBe(formatDisplayDate(FUTURE_VISIT, '-'));
 
     const parentDetails = readDetails(parent);
+    /* "Pet parent", not "Client": ShareCompanionCardModal, one click away on
+       this same screen, labelled the same person "Owner". "pet parent" is the
+       term companionTerminology.ts protects from the org's noun rewrite. */
     await expect(Object.keys(parentDetails)).toEqual([
-      'Client',
+      'Pet parent',
       'Email',
       'Age / DOB',
       'Phone',
-      'Client ID',
+      'Pet parent ID',
       'Co-parent',
     ]);
-    await expect(parentDetails.Client).toBe('Lena Hartmann');
-    await expect(parentDetails['Client ID']).toBe(PARENT_ID);
+    await expect(parentDetails['Pet parent']).toBe('Lena Hartmann');
+    await expect(parentDetails['Pet parent ID']).toBe(PARENT_ID);
     /* The co-parent row only exists when a live CO_PARENT link does, and it
        carries the "· shared care" qualifier in the same span as the name. */
     await expect(parentDetails['Co-parent']).toBe('Ada Whitfield · shared care');

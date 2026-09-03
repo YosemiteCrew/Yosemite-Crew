@@ -11,6 +11,7 @@ import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { StoredCompanion } from '@/app/features/companions/pages/Companions/types';
 import { Task, TaskStatus } from '@/app/features/tasks/types/task';
+import { TASK_SCOPE_OPTIONS } from '@/app/features/tasks/pages/Tasks/taskScopeOptions';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
 import { useTaskStore } from '@/app/stores/taskStore';
@@ -333,14 +334,26 @@ type BoardToolbarProps = {
  * The design's board has no toolbar band — the columns sit directly on the page
  * and "New task" lives in the page header. Only the scope toggle survives here,
  * as a bare control row, because the board is the one view with no filter bar.
+ *
+ * The labels come from TASK_SCOPE_OPTIONS rather than being written here, because
+ * the list view's scope control is fed the same list. They were hardcoded, so the
+ * board called the wide scope "All tasks" while the list called it "Team" — one
+ * page, one concept, two names — and the guard in TaskFilterBar.test.tsx that
+ * keeps a scope name from colliding with an audience chip only reads the shared
+ * list, so it could never see the board's copy.
+ *
+ * The list is ordered mine-first, and TaskBoard.test.tsx pins both rendered
+ * names, so reordering it fails there rather than quietly swapping the segments.
  */
+const [MINE_SCOPE, ALL_SCOPE] = TASK_SCOPE_OPTIONS;
+
 const BoardToolbar = ({ showMineOnly, setShowMineOnly }: BoardToolbarProps) => (
   <div className="flex flex-wrap items-center justify-end gap-2">
     <BoardScopeToggle
       showMineOnly={showMineOnly}
       onChange={setShowMineOnly}
-      allLabel="All tasks"
-      mineLabel="My tasks"
+      allLabel={ALL_SCOPE.name}
+      mineLabel={MINE_SCOPE.name}
     />
   </div>
 );

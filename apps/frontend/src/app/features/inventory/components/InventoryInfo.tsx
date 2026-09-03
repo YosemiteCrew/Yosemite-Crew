@@ -1,12 +1,4 @@
-import React, {
-  useImperativeHandle,
-  useLayoutEffect,
-  useMemo,
-  useState,
-  useCallback,
-  useRef,
-  useReducer,
-} from 'react';
+import React, { useState } from 'react';
 import { BatchValues, InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
 import { BusinessType } from '@/app/features/organization/types/org';
 import {
@@ -15,13 +7,13 @@ import {
   getGrossProfitPerUnit,
   getMarginPercent,
   getStockValue,
-  toStringSafe,
 } from '@/app/features/inventory/pages/Inventory/utils';
 import {
   ConfigItem,
-  InventoryFormConfig,
   InventorySectionKey,
 } from '@/app/features/inventory/components/AddInventory/InventoryConfig';
+import { useBatchEditor } from '@/app/features/inventory/components/useBatchEditor';
+import { useInventoryInfoActions } from '@/app/features/inventory/components/useInventoryInfoActions';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import Datepicker from '@/app/ui/inputs/Datepicker';
@@ -46,20 +38,6 @@ import {
   parseDate,
 } from './inventoryInfoHelpers';
 
-const drugOnlyBatchFieldNames = new Set(['tracking']);
-
-const emptyBatch: BatchValues = {
-  batch: '',
-  manufactureDate: '',
-  expiryDate: '',
-  serial: '',
-  tracking: '',
-  litterId: '',
-  nextRefillDate: '',
-  quantity: '',
-  allocated: '',
-};
-
 const sectionValidationHandlers: Partial<
   Record<
     InventorySectionKey,
@@ -69,18 +47,6 @@ const sectionValidationHandlers: Partial<
   basicInfo: getBasicInfoErrors,
   pricing: getPricingErrors,
   stock: getStockErrors,
-};
-
-type BatchEditorState = {
-  newBatches: BatchValues[];
-  isEditing: boolean;
-  editableExistingBatches: BatchValues[];
-};
-
-const initialBatchEditorState: BatchEditorState = {
-  newBatches: [],
-  isEditing: false,
-  editableExistingBatches: [],
 };
 
 type BatchFieldRendererProps = {
@@ -207,30 +173,6 @@ const NewBatchesSection = ({
   </div>
 );
 
-type BatchEditorAction = { type: 'PATCH'; payload: Partial<BatchEditorState> } | { type: 'RESET' };
-
-const batchEditorReducer = (
-  state: BatchEditorState,
-  action: BatchEditorAction
-): BatchEditorState => {
-  switch (action.type) {
-    case 'PATCH': {
-      const next = { ...state, ...action.payload };
-      // Bail out with the same reference when nothing actually changed, so a
-      // no-op PATCH doesn't force a re-render the way useState's Object.is
-      // bailout would already prevent for an individual setter.
-      const keys = Object.keys(action.payload) as (keyof BatchEditorState)[];
-      const changed = keys.some((key) => next[key] !== state[key]);
-      return changed ? next : state;
-    }
-    case 'RESET':
-      return state === initialBatchEditorState ? state : initialBatchEditorState;
-    /* v8 ignore next 2 -- unreachable: dispatchBatchEditor is only ever called with PATCH or RESET actions, so this defensive default never runs */
-    default:
-      return state;
-  }
-};
-
 type BatchEditorProps = {
   businessType: BusinessType;
   inventory: InventoryItem;
@@ -253,195 +195,21 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
   onEditingChange,
   ref,
 }) => {
-  const existingBatches = useMemo<BatchValues[]>(
-    () =>
-      inventory.batches && inventory.batches.length > 0 ? inventory.batches : [inventory.batch],
-    [inventory]
-  );
-  const [{ newBatches, isEditing, editableExistingBatches }, dispatchBatchEditor] = useReducer(
-    batchEditorReducer,
-    initialBatchEditorState
-  );
-  const patchBatchEditor = useCallback(
-    (payload: Partial<BatchEditorState>) => dispatchBatchEditor({ type: 'PATCH', payload }),
-    []
-  );
-  const [prevDisableEditing, setPrevDisableEditing] = useState(disableEditing);
-  const disableEditingChanged = disableEditing !== prevDisableEditing;
-  if (disableEditingChanged) {
-    setPrevDisableEditing(disableEditing);
-    if (disableEditing && isEditing) {
-      patchBatchEditor({ isEditing: false });
-    }
-  }
-
-  // Mirror EVERY isEditing transition to the parent, from a layout effect that
-  // runs after the render commits (calling the parent's setter mid-render would
-  // update a different component while this one renders).
-  //
-  // Watching `disableEditing` changing instead could never report the
-  // force-close: the render that sees the change still observes isEditing ===
-  // true, and by the render where isEditing is false the change has already
-  // been reconciled - so the parent stayed stuck in "section is editing" after
-  // the editor had exited. Tracking the transition itself has no such gap.
-  const prevIsEditingRef = useRef(isEditing);
-  useLayoutEffect(() => {
-    if (prevIsEditingRef.current === isEditing) return;
-    prevIsEditingRef.current = isEditing;
-    onEditingChange?.(isEditing);
-  }, [isEditing, onEditingChange]);
-
-  useLayoutEffect(() => {
-    dispatchBatchEditor({ type: 'RESET' });
-    onEditingChange?.(false);
-  }, [inventory, onEditingChange]);
-
-  const configForBusiness = InventoryFormConfig[businessType] || {};
-  const isNonDrug = String(inventory.classification?.itemType ?? '').toLowerCase() === 'non-drug';
-  const sectionConfig = useMemo<ConfigItem<any>[]>(
-    () =>
-      (configForBusiness.batch || []).filter((item) => {
-        if (!isNonDrug) return true;
-        const names = item.kind === 'row' ? item.fields.map((f: any) => f.name) : [item.field.name];
-        return names.every((n: string) => !drugOnlyBatchFieldNames.has(n));
-      }),
-    [configForBusiness.batch, isNonDrug]
-  );
-
-  const beginEditing = useCallback(() => {
-    if (disableEditing) return;
-    patchBatchEditor({
-      isEditing: true,
-      editableExistingBatches: editableExistingBatches.length
-        ? editableExistingBatches
-        : existingBatches.map((b) => ({ ...b })),
-      newBatches: newBatches.length === 0 ? [{ ...emptyBatch }] : newBatches,
-    });
-    onEditingChange?.(true);
-  }, [
-    disableEditing,
-    newBatches,
-    editableExistingBatches,
+  /* The editor's state machine, handlers and imperative handle live in a hook,
+     so this component is the markup plus what the markup reads. It was 327
+     lines, about 240 of them logic. */
+  const {
     existingBatches,
-    patchBatchEditor,
-    onEditingChange,
-  ]);
-
-  const handleChange = useCallback(
-    (index: number, name: keyof BatchValues, value: string) => {
-      const next = [...newBatches];
-      next[index] = { ...next[index], [name]: value };
-      patchBatchEditor({ newBatches: next, isEditing: true });
-    },
-    [newBatches, patchBatchEditor]
-  );
-
-  const handleExistingChange = useCallback(
-    (index: number, name: keyof BatchValues, value: string) => {
-      let source = editableExistingBatches;
-      /* v8 ignore next 3 -- unreachable: beginEditing always seeds editableExistingBatches before an existing batch field can invoke this handler, so the fallback never runs */
-      if (editableExistingBatches.length === 0) {
-        source = existingBatches.map((b) => ({ ...b }));
-      }
-      const next = [...source];
-      next[index] = { ...next[index], [name]: value };
-      patchBatchEditor({ editableExistingBatches: next, isEditing: true });
-    },
-    [existingBatches, editableExistingBatches, patchBatchEditor]
-  );
-
-  const addBatch = useCallback(() => {
-    patchBatchEditor({ newBatches: [...newBatches, { ...emptyBatch }], isEditing: true });
-  }, [newBatches, patchBatchEditor]);
-
-  const removeBatch = useCallback(
-    (index: number) => {
-      const next = newBatches.filter((_, i) => i !== index);
-      let nextBatches = next;
-      /* v8 ignore next 3 -- unreachable: the Remove control only renders while newBatches.length > 1, so filtering one entry out always leaves at least one behind */
-      if (next.length === 0) {
-        nextBatches = [{ ...emptyBatch }];
-      }
-      patchBatchEditor({
-        newBatches: nextBatches,
-        isEditing: true,
-      });
-    },
-    [newBatches, patchBatchEditor]
-  );
-
-  const hasBatchChanged = useCallback((original?: BatchValues, updated?: BatchValues) => {
-    /* v8 ignore next 3 -- unreachable: handleSave always resolves an original from originalById or existingBatches at the same index, and updated is the batch currently being iterated, so neither is ever missing */
-    if (!original || !updated) {
-      return false;
-    }
-    const keys: (keyof BatchValues)[] = [
-      'batch',
-      'manufactureDate',
-      'expiryDate',
-      'expiryWarningBefore',
-      'barcode',
-      'serial',
-      'tracking',
-      'litterId',
-      'nextRefillDate',
-      'quantity',
-      'allocated',
-      'minShelfLifeAlertDate',
-    ];
-    return keys.some((key) => toStringSafe(original[key]) !== toStringSafe(updated[key]));
-  }, []);
-
-  const handleSave = useCallback(async () => {
-    const meaningfulNew = newBatches.filter((b) => {
-      /* v8 ignore next 3 -- unreachable: every entry pushed into newBatches is an emptyBatch clone, so a nullish batch never reaches here */
-      if (!b) {
-        return false;
-      }
-      return Object.values(b).some((v) => toStringSafe(v) !== '');
-    });
-    let workingExisting = editableExistingBatches;
-    /* v8 ignore next 3 -- unreachable: beginEditing seeds editableExistingBatches (and only then reports editing to the parent, which gates the save action), so the snapshot is never empty here */
-    if (editableExistingBatches.length === 0) {
-      workingExisting = existingBatches;
-    }
-    const originalById = new Map<string, BatchValues>();
-    existingBatches.forEach((b) => {
-      if (b?._id) {
-        originalById.set(String(b._id), b);
-      }
-    });
-    const updatedBatches = workingExisting.filter((b, idx) => {
-      const original = b._id ? originalById.get(String(b._id)) : existingBatches[idx];
-      return hasBatchChanged(original, b);
-    });
-
-    await onSave({
-      newBatches: meaningfulNew,
-      updatedBatches,
-    });
-    dispatchBatchEditor({ type: 'RESET' });
-    onEditingChange?.(false);
-  }, [
     newBatches,
+    isEditing,
     editableExistingBatches,
-    existingBatches,
-    hasBatchChanged,
-    onSave,
-    onEditingChange,
-  ]);
-
-  const handleCancel = useCallback(() => {
-    dispatchBatchEditor({ type: 'RESET' });
-    onEditingChange?.(false);
-  }, [onEditingChange]);
-
-  useImperativeHandle(ref, () => ({
-    save: handleSave,
-    cancel: handleCancel,
-    startEditing: beginEditing,
-    isEditing: () => isEditing,
-  }));
+    sectionConfig,
+    handleChange,
+    handleExistingChange,
+    addBatch,
+    removeBatch,
+    beginEditing,
+  } = useBatchEditor({ businessType, inventory, disableEditing, onSave, onEditingChange, ref });
 
   const renderItem = (
     item: ConfigItem<any>,
@@ -680,172 +448,52 @@ const InventoryInfo = ({
   } else if (openKey === null && lastOpenKey !== null) {
     setLastOpenKey(null);
   }
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isHiding, setIsHiding] = useState(false);
   const [isSectionEditing, setIsSectionEditing] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const sectionActions = useRef<{
-    save: () => Promise<void>;
-    cancel: () => void;
-    startEditing: () => void;
-    isEditing: () => boolean;
-  } | null>(null);
-  const batchActions = useRef<{
-    save: () => Promise<void>;
-    cancel: () => void;
-    startEditing?: () => void;
-    isEditing?: () => boolean;
-  } | null>(null);
   // modalSections lists every InventorySectionKey and activeLabel only ever holds
   // one of those keys, so the lookup always hits.
   const currentLabelConfig = modalSections.find((l) => l.key === activeLabel)!;
 
   // Leave edit mode whenever the section or item changes — adjusted during render
-  // via a prev-compare (same pattern as the tab reset above); the imperative
-  // section/batch handles are cleared after commit since refs stay off-render.
+  // via a prev-compare (same pattern as the tab reset above).
   const sectionResetKey = `${activeLabel}:${activeInventory?.id ?? ''}`;
   const [prevSectionResetKey, setPrevSectionResetKey] = useState(sectionResetKey);
   if (sectionResetKey !== prevSectionResetKey) {
     setPrevSectionResetKey(sectionResetKey);
     setIsSectionEditing(false);
   }
-  useLayoutEffect(() => {
-    sectionActions.current = null;
-    batchActions.current = null;
-  }, [activeLabel, activeInventory?.id]);
 
-  const handleBatchSave = async (values: Record<string, any>) => {
-    const newBatches = toBatchList((values as any).newBatches);
-    const updatedBatches = toBatchList((values as any).updatedBatches);
-    if (!activeInventory?.id) return;
-    if (updatedBatches.length && onUpdateBatch) {
-      await onUpdateBatch(activeInventory.id, updatedBatches);
-    }
-    if (newBatches.length && onAddBatch) {
-      await onAddBatch(activeInventory.id, newBatches);
-    }
-  };
-
-  const getValidationErrors = (
-    section: InventorySectionKey,
-    values: Record<string, any>
-  ): Record<string, string> => {
-    /* v8 ignore next 3 -- unreachable: handleSectionSave returns early when activeInventory is null, and it is the only caller of this helper */
-    if (!activeInventory) {
-      return {};
-    }
-    const handler = sectionValidationHandlers[section];
-    return handler ? handler(values, activeInventory) : {};
-  };
-
-  const buildUpdatedInventory = (
-    section: InventorySectionKey,
-    values: Record<string, any>
-  ): InventoryItem => ({
-    ...activeInventory!,
-    [section]: {
-      ...(activeInventory as any)[section],
-      ...values,
-    },
+  /* The panel's actions live in a hook so this component is markup plus the
+     state the markup itself owns. It carried seven pieces of state and six
+     async handlers inline, which is what React Doctor's no-giant-component was
+     pointing at. Nothing moved into the JSX or out of it, so the tests and
+     stories assert exactly what they asserted before. */
+  const {
+    isUpdating,
+    isHiding,
+    showDeleteConfirm,
+    setShowDeleteConfirm,
+    sectionActions,
+    batchActions,
+    isHidden,
+    handleSectionSave,
+    handleHide,
+    handlePrimaryAction,
+    handleSecondaryAction,
+  } = useInventoryInfoActions({
+    activeInventory,
+    activeLabel,
+    isSectionEditing,
+    setIsSectionEditing,
+    setShowModal,
+    onUpdate,
+    onHide,
+    onUnhide,
+    onAddBatch,
+    onUpdateBatch,
+    toBatchList,
+    sectionValidationHandlers,
   });
-
-  const saveBatchSection = async (values: Record<string, any>) => {
-    await handleBatchSave(values);
-  };
-
-  const saveStandardSection = async (section: InventorySectionKey, values: Record<string, any>) => {
-    const errs = getValidationErrors(section, values);
-    if (Object.keys(errs).length > 0) {
-      console.error(`[Inventory] Validation failed for ${section}`, JSON.stringify(errs));
-      return;
-    }
-    const updated = buildUpdatedInventory(section, values);
-    await onUpdate(updated);
-  };
-
-  const handleSectionSave = async (section: InventorySectionKey, values: Record<string, any>) => {
-    if (!activeInventory || isUpdating || isHiding) return;
-    setIsUpdating(true);
-
-    try {
-      if (section === 'batch') {
-        await saveBatchSection(values);
-      } else {
-        await saveStandardSection(section, values);
-      }
-    } catch (err) {
-      console.error('Failed to update inventory section:', err);
-      throw err;
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleHide = async () => {
-    /* v8 ignore next 3 -- unreachable: the delete confirmation is only reachable through the primary action, which is disabled while isHiding and for an item without an id */
-    if (!activeInventory?.id || isHiding) {
-      return;
-    }
-    setIsHiding(true);
-    try {
-      await onHide(activeInventory.id);
-      setShowModal(false);
-    } catch (err) {
-      console.error('Failed to hide inventory item:', err);
-    } finally {
-      setIsHiding(false);
-    }
-  };
-
-  const handleUnhide = async () => {
-    /* v8 ignore next 3 -- unreachable: the restore action runs from the primary button, which is disabled while isHiding and for an item without an id */
-    if (!activeInventory?.id || isHiding) {
-      return;
-    }
-    setIsHiding(true);
-    try {
-      await onUnhide(activeInventory.id);
-      setShowModal(false);
-    } catch (err) {
-      console.error('Failed to unhide inventory item:', err);
-    } finally {
-      setIsHiding(false);
-    }
-  };
-
-  const isHidden = (activeInventory?.status || '').toUpperCase() === 'HIDDEN';
-  const isBatchSection = activeLabel === 'batch';
   const inEditMode = isSectionEditing;
-
-  const handlePrimaryAction = async () => {
-    if (inEditMode) {
-      if (isBatchSection) {
-        await batchActions.current?.save?.();
-      } else {
-        await sectionActions.current?.save?.();
-      }
-      setIsSectionEditing(false);
-      return;
-    }
-    if (isHidden) {
-      await handleUnhide();
-    } else {
-      setShowDeleteConfirm(true);
-    }
-  };
-
-  const handleSecondaryAction = async () => {
-    if (inEditMode) {
-      if (isBatchSection) {
-        batchActions.current?.cancel?.();
-      } else {
-        sectionActions.current?.cancel?.();
-      }
-      setIsSectionEditing(false);
-      return;
-    }
-    setShowModal(false);
-  };
 
   return (
     <>

@@ -457,6 +457,45 @@ describe('InventoryTable', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
   });
 
+  /* The item track is 1.7fr of a 1320px grid and Location a fixed 96px, so both
+     cells clip. Neither carried a `title`, and there is no detail hover on
+     either, so a clipped name or a location like "Cold storage, shelf B2" was
+     unreachable without opening the item - while the finance table's equivalent
+     cells have carried one all along. */
+  it('keeps the truncated item name and stock location readable through a title', () => {
+    const longText = makeItem({
+      basicInfo: { name: 'Carprofen 50 mg chewable tablets, 180-count bottle' },
+      stock: { stockLocation: 'Cold storage, shelf B2' },
+    });
+
+    const { container } = render(
+      <InventoryTable
+        filteredList={[longText]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    const table = tableBranch(container);
+    expect(table.getByTitle('Carprofen 50 mg chewable tablets, 180-count bottle')).toHaveClass(
+      'truncate'
+    );
+    expect(table.getByTitle('Cold storage, shelf B2')).toHaveClass('truncate');
+  });
+
+  it('leaves the em-dash location placeholder without a title', () => {
+    // A tooltip reading "—" is noise, so the title only appears for real text.
+    const { container } = render(
+      <InventoryTable
+        filteredList={[makeItem({ stock: { stockLocation: '   ' } })]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(container.querySelector('.cell-ink-link')).not.toHaveAttribute('title');
+  });
+
   it('renders an em dash for an empty (blank string) stock location', () => {
     const emptyLoc = makeItem({ stock: { stockLocation: '' } });
 

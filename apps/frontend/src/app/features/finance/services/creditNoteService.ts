@@ -1,6 +1,6 @@
 import type { CreditNote } from '@yosemite-crew/types';
 import { postData } from '@/app/services/axios';
-import { currencySymbol } from '@/app/lib/money';
+import { formatMoneyPrecise } from '@/app/lib/money';
 
 /**
  * Credit notes live on the invoice router, which is mounted at `/fhir/v1/invoice`
@@ -125,9 +125,13 @@ export const acceptsCreditNotes = (status: string | undefined): boolean =>
  * ledger rows beside the rest of the invoice panel but wrong for this one
  * figure: a remaining 159.97 advertised as "160" invites the user to type 160
  * and take a 409 back from the service, whose own cap is exact.
+ *
+ * `formatMoneyPrecise` keeps those minor units AND the grouping separator. The
+ * hand-rolled `symbol + toFixed(2)` it replaces printed "Up to £1234.56" a few
+ * lines under the "Credited £1,234.56" row of the same card, and pinned two
+ * decimals onto every currency - JPY 1200 as "¥1200.00", KWD 1.234 as "1.23".
  */
-export const formatCap = (amount: number, currency: string) =>
-  `${currencySymbol(currency)}${amount.toFixed(2)}`;
+export const formatCap = (amount: number, currency: string) => formatMoneyPrecise(amount, currency);
 
 /** An ISSUED note is the only kind that still reduces the invoice. */
 export const isIssued = (note: CreditNote) => note.status === 'ISSUED';

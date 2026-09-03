@@ -32,6 +32,7 @@ import type {
   PaymentMethod,
 } from '@/app/features/appointments/types/workspace';
 import { formatMoney } from '@/app/lib/money';
+import { formatDateTimeLocal } from '@/app/lib/date';
 import { formatStampDate, formatStampTime } from '@/app/lib/appointmentWorkspace';
 import {
   addLineItemsToAppointments,
@@ -318,7 +319,11 @@ const printInvoice = (invoice: PastInvoice, currency: string): boolean => {
     `tfoot td{font-weight:bold;border-bottom:none}</style>`;
   printWindow.document.body.innerHTML =
     `<h1>Invoice ${escapeHtml(invoice.id)}</h1>` +
-    `<div>Date: ${escapeHtml(new Date(invoice.createdAt).toLocaleString())}</div>` +
+    // The printed date has to read the same as the invoice row it was printed
+    // from. This was `new Date(...).toLocaleString()` - the device locale and
+    // zone, numeric and with seconds ("9/3/2026, 10:05:00 PM", or "03/09/2026"
+    // day-first on an en-GB machine) - against "Sep 3, 2026, 10:05 PM" on screen.
+    `<div>Date: ${escapeHtml(formatDateTimeLocal(invoice.createdAt))}</div>` +
     `<table><thead><tr><th style="text-align:left">Item</th><th style="text-align:right">Amount</th></tr></thead>` +
     `<tbody>${rows}</tbody>` +
     `<tfoot><tr><td>Total</td><td style="text-align:right">${escapeHtml(
@@ -353,16 +358,6 @@ const computeInvoiceTotalCents = (encounter: AppointmentEncounter): number => {
   const discountedCents = Math.max(0, subtotalCents - lineDiscountCents - overallDiscountCents);
   return discountedCents + Math.round((discountedCents * encounter.taxPercent) / 100);
 };
-
-const invoiceDateFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: '2-digit',
-  year: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-});
-
-const formatInvoiceDate = (iso: string): string => invoiceDateFormatter.format(new Date(iso));
 
 const getDepositMethodLabel = (option: PaymentMethod): string => {
   if (option === 'ONLINE') return 'Online link';
@@ -613,7 +608,7 @@ export const InvoiceRow = ({
           {index + 1}. ID - {invoice.id}
         </span>
         <span className="truncate text-body-4 text-text-secondary">
-          {formatInvoiceDate(invoice.createdAt)}
+          {formatDateTimeLocal(invoice.createdAt)}
         </span>
         <span className="text-body-4 text-text-primary">
           {formatCents(invoice.totalCents, currency)}

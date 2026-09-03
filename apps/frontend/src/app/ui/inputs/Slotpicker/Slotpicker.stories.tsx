@@ -1,5 +1,6 @@
 import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
+import { expect, within } from 'storybook/test';
 import Slotpicker from './index';
 import type { Slot } from '@/app/features/appointments/types/appointments';
 
@@ -41,7 +42,10 @@ const meta = {
       description: {
         component:
           'Month navigation + horizontal date strip + a wrapping grid of bookable time slots. ' +
-          'A chosen slot fills solid blue (white text, glow shadow) to match the design booking sheet.',
+          'A chosen slot fills solid blue (white text, glow shadow) to match the design booking sheet.\n\n' +
+          'The fill is the *second* cue, not the only one: the day strip and the slot list are each a ' +
+          'named `role="group"`, and every day cell and time chip carries `aria-pressed` (plus ' +
+          '`aria-current="date"` on today), the same way `PhoneDayStrip` announces its week.',
       },
     },
   },
@@ -70,7 +74,26 @@ export const Default: Story = {};
 
 export const WithSelectedSlot: Story = {
   args: { selectedSlot: SLOTS[2] },
-  parameters: { docs: { story: 'The chosen slot renders as a solid-blue filled chip.' } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    /* Read out of the named groups rather than off the canvas: the chosen slot
+       used to be blue fill and nothing else, so exactly one chip in the time
+       group must report itself pressed - and the day cells are a separate
+       group, which is what stops a bare aria-pressed count from passing here. */
+    const times = within(canvas.getByRole('group', { name: 'Select a time' }));
+    const pressed = times.getAllByRole('button', { pressed: true });
+    await expect(pressed).toHaveLength(1);
+
+    const days = within(canvas.getByRole('group', { name: 'Select a day' }));
+    await expect(days.getAllByRole('button', { pressed: true })).toHaveLength(1);
+  },
+  parameters: {
+    docs: {
+      story:
+        'The chosen slot renders as a solid-blue filled chip, and reports itself pressed so the ' +
+        'choice survives a screen reader as well as a glance.',
+    },
+  },
 };
 
 export const NoSlots: Story = {

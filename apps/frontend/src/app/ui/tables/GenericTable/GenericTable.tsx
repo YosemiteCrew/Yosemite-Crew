@@ -1,9 +1,8 @@
 'use client';
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { IoChevronBackOutline, IoChevronForwardOutline } from 'react-icons/io5';
 
 import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
-import { buildPagerPageList } from '@/app/ui/tables/tableUtils';
+import TableFooter from '@/app/ui/tables/TableFooter';
 
 import './Generictable.css';
 
@@ -47,9 +46,6 @@ interface GenericTableProps<T extends object> {
   /** Extra classes for one body row — used for row-level states (e.g. emergency). */
   rowClassName?: (item: T, index: number) => string;
 }
-
-const pagerStepClass =
-  'flex size-7 items-center justify-center rounded-full border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)]';
 
 // Bottom padding applied by .TableBodyScroll — must match Generictable.css
 const TABLE_BODY_PADDING_BOTTOM = 16;
@@ -150,9 +146,6 @@ const GenericTable = <T extends object>({
   // Keep h-full only when data overflows (needs scroll or pagination).
   const needsFill = pagination && total > autoPageSize;
 
-  const handlePrev = () => setCurrentPage((p) => Math.max(1, p - 1));
-  const handleNext = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
-
   const emptyCopy = emptyStateProps(itemNoun, emptyTitle, emptySubtitle);
 
   return (
@@ -205,64 +198,18 @@ const GenericTable = <T extends object>({
           </table>
         </div>
       </div>
-      {/* Design footer: the count sits left, the pager right — not a centred
-          prev/count/next cluster. */}
+      {/* Design footer: the count sits left, the pager right - not a centred
+          prev/count/next cluster. Shared with the sub-xl card list so one resize
+          does not swap the control. */}
       {showPagination && (
-        <div className="shrink-0 flex items-center justify-between gap-3 px-5 text-[12.5px] text-[var(--ink-faint)]">
-          <div aria-live="polite">
-            Showing{' '}
-            <span>
-              {Math.min(endIdx, total)} of {total}
-            </span>
-            {itemNoun ? ` ${itemNoun}` : ''}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              aria-label="Previous"
-              onClick={handlePrev}
-              disabled={currentPage === 1}
-              className={`${pagerStepClass} ${currentPage === 1 ? 'cursor-not-allowed opacity-40' : ''}`}
-            >
-              <IoChevronBackOutline size={13} aria-hidden="true" />
-            </button>
-            {buildPagerPageList(currentPage, totalPages).map(({ key, page }) =>
-              page === null ? (
-                <span
-                  key={key}
-                  aria-hidden="true"
-                  className="flex size-7 items-center justify-center"
-                >
-                  …
-                </span>
-              ) : (
-                <button
-                  key={key}
-                  type="button"
-                  aria-label={`Page ${page}`}
-                  aria-current={page === currentPage ? 'page' : undefined}
-                  onClick={() => setCurrentPage(page)}
-                  className={`flex size-7 items-center justify-center rounded-full text-[12px] tabular-nums transition-colors ${
-                    page === currentPage
-                      ? 'bg-[var(--nav-active-bg)] font-bold text-[var(--nav-active)]'
-                      : 'font-semibold text-[var(--ink-muted)] hover:bg-[var(--surface-soft)]'
-                  }`}
-                >
-                  {page}
-                </button>
-              )
-            )}
-            <button
-              type="button"
-              aria-label="Next"
-              onClick={handleNext}
-              disabled={currentPage === totalPages}
-              className={`${pagerStepClass} ${currentPage === totalPages ? 'cursor-not-allowed opacity-40' : ''}`}
-            >
-              <IoChevronForwardOutline size={13} aria-hidden="true" />
-            </button>
-          </div>
-        </div>
+        <TableFooter
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rangeEnd={Math.min(endIdx, total)}
+          total={total}
+          itemNoun={itemNoun}
+          onPageChange={setCurrentPage}
+        />
       )}
     </div>
   );

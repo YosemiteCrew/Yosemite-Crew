@@ -100,7 +100,14 @@ const ProductCell = ({ item }: { item: InventoryItem }) => {
         )}
       </div>
       <div className="min-w-0">
-        <div className="truncate text-[13px] font-bold leading-tight text-[var(--ink)]">
+        {/* The item track is 1.7fr of a 1320px grid, so a long product name
+            clips with no way to read the rest — there is no detail hover on this
+            cell. The finance table's equivalent name cell already carries a
+            title; this one did not. */}
+        <div
+          className="truncate text-[13px] font-bold leading-tight text-[var(--ink)]"
+          title={item.basicInfo.name || undefined}
+        >
           {item.basicInfo.name}
         </div>
         <div className="text-[11px] tabular-nums text-text-tertiary">{getSku(item)}</div>
@@ -170,7 +177,13 @@ const InventoryRow = ({
       >
         {formatPercentValue(margin)}
       </div>
-      <div className="cell-ink-link truncate pl-3 text-[12.5px]">
+      {/* Location is a fixed 96px track, so "Cold storage, shelf B2" clipped
+          long before it was readable and, with no title, was unreachable
+          without opening the item. No title on the em-dash placeholder. */}
+      <div
+        className="cell-ink-link truncate pl-3 text-[12.5px]"
+        title={item.stock.stockLocation?.trim() || undefined}
+      >
         {displayValue(item.stock.stockLocation)}
       </div>
       <div className="flex items-center justify-center gap-1.5">

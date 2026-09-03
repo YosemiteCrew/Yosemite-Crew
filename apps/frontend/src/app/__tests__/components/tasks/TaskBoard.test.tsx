@@ -103,20 +103,6 @@ jest.mock('@/app/stores/authStore', () => ({
   useAuthStore: (selector: any) => selector({ attributes: mockAuthAttributes }),
 }));
 
-jest.mock('@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle', () => ({
-  __esModule: true,
-  default: ({ onChange }: any) => (
-    <div>
-      <button type="button" onClick={() => onChange(false)}>
-        all-tasks
-      </button>
-      <button type="button" onClick={() => onChange(true)}>
-        my-tasks
-      </button>
-    </div>
-  ),
-}));
-
 jest.mock('@/app/ui/primitives/GlassTooltip/GlassTooltip', () => ({
   __esModule: true,
   default: ({ content, children }: any) => <div data-testid={`tooltip-${content}`}>{children}</div>,
@@ -632,11 +618,16 @@ describe('TaskBoard', () => {
     expect(screen.getByText('Task One')).toBeInTheDocument();
     expect(screen.getByText('Task Two')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('my-tasks'));
+    /* The real BoardScopeToggle, not a stub. The stub that used to stand here
+       rendered its own "all-tasks"/"my-tasks" buttons and dropped `allLabel` and
+       `mineLabel` entirely, so it could not see that the board named the wide
+       scope "All tasks" while the list view of the same page named it "Team".
+       Both read TASK_SCOPE_OPTIONS now. */
+    fireEvent.click(screen.getByRole('button', { name: 'My tasks' }));
     expect(screen.getByText('Task One')).toBeInTheDocument();
     expect(screen.queryByText('Task Two')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('all-tasks'));
+    fireEvent.click(screen.getByRole('button', { name: 'Team' }));
     expect(screen.getByText('Task Two')).toBeInTheDocument();
   });
 
@@ -975,7 +966,7 @@ describe('TaskBoard', () => {
         },
       ] as any,
     });
-    fireEvent.click(screen.getByText('my-tasks'));
+    fireEvent.click(screen.getByRole('button', { name: 'My tasks' }));
     expect(screen.getByText('Mine')).toBeInTheDocument();
     expect(screen.queryByText('Theirs')).not.toBeInTheDocument();
   });

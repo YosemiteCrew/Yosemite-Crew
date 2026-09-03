@@ -28,6 +28,11 @@ const VARIANT_CLASSES: Record<CircleIconVariant, string> = {
  * Circular action icon used across the workspace: dark filled (view/hide),
  * outlined (edit/reschedule/download), or red-outlined (delete). Shows a reusable
  * glass tooltip on hover (defaults to `label`).
+ *
+ * `cursor-pointer` is explicit: nothing in globals.css gives a bare <button> the
+ * pointer cursor, so all 19 call sites showed an arrow over a clickable circle.
+ * `disabled:cursor-not-allowed` still wins on the disabled state - it is the
+ * more specific selector, so declaration order does not matter.
  */
 const CircleIconButton = ({
   icon,
@@ -45,7 +50,7 @@ const CircleIconButton = ({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className={`flex size-[38px] shrink-0 items-center justify-center rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[variant]}`}
+      className={`flex size-[38px] shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[variant]}`}
     >
       {icon}
     </button>

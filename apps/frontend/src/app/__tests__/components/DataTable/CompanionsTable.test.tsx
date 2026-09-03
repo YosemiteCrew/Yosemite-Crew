@@ -217,7 +217,7 @@ describe('CompanionsTable', () => {
     };
     render(<CompanionsTable {...baseProps} filteredList={[coParented]} />);
 
-    expect(screen.getByText('+ CO-PARENT')).toBeInTheDocument();
+    expect(screen.getByText('+ CO-PARENT')).toHaveClass('w-fit', 'shrink-0', 'whitespace-nowrap');
     const status = screen.getByText('active');
     expect(status).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
     expect(status).toHaveAttribute(
@@ -448,6 +448,53 @@ describe('CompanionsTable', () => {
     expect(screen.getAllByText('-').length).toBeGreaterThan(0);
     // The startTime-less appointment still resolves to a formatted date.
     expect(screen.getByText('Jan 6, 2025')).toBeInTheDocument();
+  });
+
+  it('shows the co-parent pill on the grid card, as the row and phone card do', () => {
+    const coParented = {
+      ...companion,
+      companion: {
+        ...companion.companion,
+        parentLinks: [{ role: 'CO_PARENT', status: 'ACTIVE' }],
+      },
+    };
+    render(<CompanionsTable {...baseProps} filteredList={[coParented]} viewMode="grid" />);
+
+    expect(screen.getByText('+ CO-PARENT')).toBeInTheDocument();
+  });
+
+  it('pages the phone card list and shows the count, instead of mounting every row', () => {
+    useIsPhoneMock.mockReturnValue(true);
+
+    const many = Array.from({ length: 11 }, (_, i) => ({
+      companion: {
+        id: `id-${i}`,
+        name: `Pet ${i}`,
+        breed: 'Mix',
+        type: 'dog',
+        gender: 'Male',
+        dateOfBirth: '2023-01-01',
+        status: 'active',
+        photoUrl: 'photo',
+      },
+      parent: { firstName: 'Sam', lastName: 'Owner' },
+    }));
+
+    render(<CompanionsTable {...baseProps} filteredList={many as any} />);
+
+    // Ten of eleven cards, and the footer names the total the phone list used
+    // to hide (it previously mapped the whole array with no pager and no count).
+    expect(screen.getAllByTitle('Open companion history')).toHaveLength(10);
+    expect(screen.getByText('Showing 1-10 of 11 companions')).toBeInTheDocument();
+    expect(screen.getByText('Pet 0 · Owner')).toBeInTheDocument();
+    expect(screen.queryByText('Pet 10 · Owner')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Page 2' }));
+
+    expect(screen.getAllByTitle('Open companion history')).toHaveLength(1);
+    expect(screen.getByText('Showing 11-11 of 11 companions')).toBeInTheDocument();
+    expect(screen.getByText('Pet 10 · Owner')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
   });
 
   it('marks an inactive grid card with the status pill and keys it by name when the id is missing', () => {

@@ -1,10 +1,10 @@
 'use client';
 import FilterChip from '@/app/ui/filters/FilterChip';
 import React from 'react';
-import clsx from 'clsx';
 import { IoAdd } from 'react-icons/io5';
 import { FilterOption, StatusOption } from '@/app/features/companions/pages/Companions/types';
 import { Primary } from '@/app/ui/primitives/Buttons';
+import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
 
 /**
  * Task filter row rebuilt to the design: fully-rounded audience pills (All /
@@ -32,6 +32,13 @@ type TaskFilterBarProps = {
 
 const PARENT_AUDIENCE_KEY = 'parent_task';
 
+/**
+ * The scope option that narrows to the signed-in member. The other option, whatever
+ * it is called, is the un-narrowed one - `BoardScopeToggle` is a two-state control,
+ * so the pair is "mine" and "not mine".
+ */
+const MINE_SCOPE_KEY = 'mine';
+
 const TaskFilterBar = ({
   filterOptions,
   statusOptions,
@@ -47,7 +54,8 @@ const TaskFilterBar = ({
   addButtonText = 'New task',
 }: TaskFilterBarProps) => {
   const statusPills = statusOptions.filter((option) => option.key.toLowerCase() !== 'all');
-  const showScope = !!scopeOptions && scopeOptions.length > 0 && !!setActiveScope;
+  const mineScope = scopeOptions?.find((option) => option.key === MINE_SCOPE_KEY);
+  const allScope = scopeOptions?.find((option) => option.key !== MINE_SCOPE_KEY);
 
   const toggleFilter = (key: string) => setActiveFilter(activeFilter === key ? 'all' : key);
   const toggleStatus = (key: string) => setActiveStatus(activeStatus === key ? 'all' : key);
@@ -55,32 +63,28 @@ const TaskFilterBar = ({
   return (
     <div className="flex w-full flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        {showScope && (
+        {mineScope && allScope && setActiveScope && (
           <>
+            {/* Was a hand-rolled segmented control: an unfilled `p-0.5` track with
+                `h-6 px-3` segments, a solid --chip-selected-bg active state, and
+                "My tasks" FIRST. The board view of the same page rendered the same
+                concept through BoardScopeToggle - a --band track, raised `px-4
+                py-[7px]` segments, "My tasks" SECOND - so switching tabs swapped
+                the control's shape and moved the option to the opposite side.
+                Both views render the shared primitive now. */}
             <div /* NOSONAR: styled inline-flex segmented control; native <fieldset> defaults (block layout, border, required legend) break the pill design */
               role="group"
               aria-label="Task scope"
-              className="inline-flex items-center rounded-full border border-[var(--hairline)] p-0.5"
+              className="inline-flex shrink-0"
             >
-              {scopeOptions.map((option) => {
-                const isActive = activeScope === option.key;
-                return (
-                  <button
-                    key={option.key}
-                    type="button"
-                    aria-pressed={isActive}
-                    onClick={() => setActiveScope(option.key)}
-                    className={clsx(
-                      'inline-flex h-6 items-center rounded-full px-3 text-[12px] transition-colors',
-                      isActive
-                        ? 'bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]'
-                        : 'font-semibold text-[var(--ink-muted)] hover:bg-card-hover'
-                    )}
-                  >
-                    {option.name}
-                  </button>
-                );
-              })}
+              <BoardScopeToggle
+                showMineOnly={activeScope === mineScope.key}
+                onChange={(nextShowMineOnly) =>
+                  setActiveScope(nextShowMineOnly ? mineScope.key : allScope.key)
+                }
+                allLabel={allScope.name}
+                mineLabel={mineScope.name}
+              />
             </div>
             <span aria-hidden="true" className="mx-1 h-[18px] w-px shrink-0 bg-[var(--hairline)]" />
           </>

@@ -207,8 +207,15 @@ const Slotpicker = ({
         >
           <IoChevronBackOutline size={16} />
         </button>
+        {/* role/aria-label + aria-pressed/aria-current below: the selected day
+            and the selected slot used to be conveyed by fill colour alone, so a
+            screen-reader user heard a run of bare "Wed 02" day buttons and bare
+            times with nothing marking the one they had picked. The product's
+            other date strip (PhoneDayStrip) already announces both. */}
         <div
           ref={dateStripRef}
+          role="group"
+          aria-label="Select a day"
           className="flex gap-2 overflow-x-auto scrollbar-x-float pb-1 flex-1"
           onWheel={onWheelHorizontal}
         >
@@ -230,6 +237,8 @@ const Slotpicker = ({
                 // it was just 2.23:1 text. Marking them disabled makes the
                 // existing visuals honest.
                 disabled={isPast}
+                aria-pressed={isCurrent}
+                aria-current={isTodayDay ? 'date' : undefined}
                 onClick={() => handleClickDate(day)}
                 className={[
                   'relative flex flex-col gap-1 items-center justify-center px-3 py-2 border rounded-xl! shrink-0 min-w-14',
@@ -264,6 +273,8 @@ const Slotpicker = ({
       {/* Time slots */}
       <div
         ref={slotListRef}
+        role="group"
+        aria-label="Select a time"
         className="flex flex-wrap gap-2 px-2 sm:px-3 mb-2 max-h-50 overflow-y-auto scrollbar-hidden"
       >
         {timeSlots.length > 0 ? (
@@ -273,6 +284,7 @@ const Slotpicker = ({
               <button
                 type="button"
                 key={slot.startTime + i}
+                aria-pressed={selected}
                 onClick={() => setSelectedSlot(slot)}
                 className={`${selected ? 'bg-[var(--blue-strong)] text-white border-transparent! shadow-[0_6px_16px_var(--glow-b26)]' : 'border-input-border-default! bg-neutral-0 text-text-primary'} px-3.5 h-10 flex items-center justify-center border-[1.5px] rounded-[11px]! font-satoshi text-[12.5px]! font-semibold tabular-nums`}
               >

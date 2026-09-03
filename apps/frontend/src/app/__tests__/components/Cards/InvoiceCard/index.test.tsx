@@ -61,7 +61,10 @@ describe('InvoiceCard Component', () => {
     // Service
     expect(screen.getByText('Grooming')).toBeInTheDocument();
 
-    // Date
+    // The date row names its field. It used to read just "Date", which is what
+    // the desktop table called its APPOINTMENT date column, so one invoice
+    // showed two different dates under one word depending on window width.
+    expect(screen.getByText('Invoice date:')).toBeInTheDocument();
     expect(formatDateLabel).toHaveBeenCalledWith(mockInvoice.createdAt);
     expect(screen.getByText('Jan 01, 2023')).toBeInTheDocument();
 

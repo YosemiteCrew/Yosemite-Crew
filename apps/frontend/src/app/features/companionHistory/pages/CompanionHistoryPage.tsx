@@ -298,12 +298,16 @@ const ParentProfilePanel = ({
   onAddAlert: () => void;
   onRemoveAlert: (id: string) => void;
 }) => {
+  // "Pet parent", not "Client": the share-card modal this record opens called the
+  // same person "Owner", so one screen used two nouns for them one click apart.
+  // "pet parent" is the term companionTerminology.ts protects from the org's
+  // noun rewrite, which makes it the one that cannot drift per organisation.
   const details = [
-    { label: 'Client', value: formatParentName(parent) },
+    { label: 'Pet parent', value: formatParentName(parent) },
     { label: 'Email', value: clean(parent.email) },
     { label: 'Age / DOB', value: formatAgeDob(parent.birthDate) },
     { label: 'Phone', value: clean(parent.phoneNumber) },
-    { label: 'Client ID', value: clean(parent.id || companionId) },
+    { label: 'Pet parent ID', value: clean(parent.id || companionId) },
   ];
 
   return (

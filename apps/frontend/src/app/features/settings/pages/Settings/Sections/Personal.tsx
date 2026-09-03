@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 import { IoTimeOutline } from 'react-icons/io5';
 import { useAuthStore } from '@/app/stores/authStore';
 import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
@@ -81,13 +82,17 @@ const Personal = ({ onEditProfile, onEditHours }: PersonalProps) => {
             <span className="block text-[12.5px] text-[var(--ink-muted)] truncate">{meta}</span>
           )}
         </span>
-        <button
-          type="button"
+        {/* Was a hand-rolled 34px pill, against the same label rendered as a 38px
+            pill on Organisation - neither height on the 32/36/40/44 scale the
+            shared primitive offers, so the identical action changed size with the
+            page. `Secondary size="small"` is 36px / px-4 / 12.5px and carries the
+            same border and hover tokens the hand-rolled version copied. */}
+        <Secondary
+          size="small"
+          text="Edit profile"
           onClick={onEditProfile}
-          className="flex h-[34px] flex-none items-center rounded-full border border-[var(--divider)] px-[15px] text-[12px] font-semibold text-[var(--ink-body)] hover:border-[var(--blue)] hover:text-[var(--blue-text)] transition-colors cursor-pointer"
-        >
-          Edit profile
-        </button>
+          className="flex-none cursor-pointer"
+        />
       </div>
       <div className="flex items-center justify-between gap-3 pt-[12px] border-t border-[var(--hairline)]">
         <span className="min-w-0">

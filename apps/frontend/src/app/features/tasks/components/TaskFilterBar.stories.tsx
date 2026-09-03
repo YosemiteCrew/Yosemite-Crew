@@ -131,8 +131,15 @@ export const WithScope: Story = {
     const group = canvas.getByRole('group', { name: 'Task scope' });
     const scoped = within(group).getAllByRole('button');
     await expect(scoped).toHaveLength(2);
-    await expect(scoped[0]).toHaveAttribute('aria-pressed', 'true');
-    await expect(scoped[1]).toHaveAttribute('aria-pressed', 'false');
+
+    /* The wide scope sits FIRST and "My tasks" second, because the control is the
+       shared BoardScopeToggle the board view renders. The list used to draw its
+       own segmented control with the order reversed, so the same option changed
+       sides when you switched tabs. */
+    await expect(scoped[0]).toHaveTextContent('Team');
+    await expect(scoped[1]).toHaveTextContent('My tasks');
+    await expect(scoped[0]).toHaveAttribute('aria-pressed', 'false');
+    await expect(scoped[1]).toHaveAttribute('aria-pressed', 'true');
 
     /* "Team" is in this group and NOT among the audience pills - the audience
        option for staff is called "Staff" precisely so the toolbar does not carry
@@ -142,8 +149,12 @@ export const WithScope: Story = {
 
     /* Scope does not toggle off. Clicking the active button re-selects it rather
        than falling back to `all` the way the audience and status pills do. */
-    await userEvent.click(scoped[0]);
+    await userEvent.click(scoped[1]);
     await expect(args.setActiveScope).toHaveBeenCalledWith('mine');
+
+    // ...and the wide segment sets the other key rather than clearing the scope.
+    await userEvent.click(scoped[0]);
+    await expect(args.setActiveScope).toHaveBeenCalledWith('team');
   },
 };
 

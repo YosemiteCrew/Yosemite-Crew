@@ -143,7 +143,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
   const goToAppointmentFinance = (appointmentId?: string) => {
     const appointment = getAppointmentByIdFromList(appointments, appointmentId);
     if (!appointment?.id) {
-      /* v8 ignore start -- unreachable: this only runs from the Date-cell button, which renders solely when the same lookup already resolved, and getAppointmentByIdFromList matches on a non-empty normalised id, so the appointment always has one */
+      /* v8 ignore start -- unreachable: this only runs from the Appointment-cell button, which renders solely when the same lookup already resolved, and getAppointmentByIdFromList matches on a non-empty normalised id, so the appointment always has one */
       return;
       /* v8 ignore stop */
     }
@@ -188,11 +188,11 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       getAppointmentCompanionPhotoUrl(companion),
       (companion?.species as ImageType) ?? 'other'
     );
-    // The Services column already carries the appointment type, and the Date
-    // column carries the date, but neither shows the time — so the desktop
-    // sub-line keeps just the time (not the type, which really is duplicated).
-    // On tablet, Services/Date are dropped entirely, so their content folds
-    // back in here alongside the time.
+    // The Services column already carries the appointment type, and the
+    // Appointment column carries its date, but neither shows the time — so the
+    // desktop sub-line keeps just the time (not the type, which really is
+    // duplicated). On tablet, Services/Appointment are dropped entirely, so
+    // their content folds back in here alongside the time.
     const foldedDate =
       foldMeta && appointment ? formatDateLabel(appointment.appointmentDate) : undefined;
     const foldedTypeName = foldMeta ? appointment?.appointmentType?.name : undefined;
@@ -203,7 +203,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
           foldedDate
         )
       : '';
-    // Tablet drops the Services and Date columns, so their content folds here.
+    // Tablet drops the Services and Appointment columns, so their content folds here.
     const subtitle = foldMeta
       ? joinMeta(appointmentSubtitle, getInvoiceItemNames(item.items))
       : appointmentSubtitle;
@@ -252,25 +252,34 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
 
   /* Design draws the date as one muted line with a small inline open-outline —
      no bordered box, no second time line (the time already rides the identity
-     sub-line one column to the left). */
+     sub-line one column to the left).
+
+     This column is the APPOINTMENT date, not the invoice's own date, and it was
+     headed "Date" — the same label the card and phone renderings put over
+     `invoice.createdAt`. An invoice raised three days after the visit therefore
+     read "Sep 3" on desktop and "Sep 6" on a phone under one label. The header
+     is "Appointment" now; the card says "Invoice date". An invoice converted
+     from an estimate has no appointment at all, and this cell used to render
+     completely blank in that case — it shows the table's "-" now. */
   const renderDate = (item: Invoice) => {
     const appointment = getAppointmentByIdFromList(appointments, item.appointmentId);
     const companionName = getCompanionName(item.appointmentId);
+    if (!appointment) {
+      return <div className="appointment-profile-title cell-muted">-</div>;
+    }
     return (
       <div className="appointment-profile-two">
-        {appointment && (
-          <button
-            type="button"
-            onClick={() => goToAppointmentFinance(item.appointmentId)}
-            aria-label={`Open finance details for ${companionName}`}
-            className="flex items-center gap-[5px] text-left text-[12px] underline-offset-2 hover:underline"
-            style={{ color: 'var(--ink-muted)' }}
-            title="Open appointment finance"
-          >
-            {formatDateLabel(appointment.appointmentDate)}
-            <IoOpenOutline size={12} className="shrink-0" aria-hidden="true" />
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => goToAppointmentFinance(item.appointmentId)}
+          aria-label={`Open finance details for ${companionName}`}
+          className="flex items-center gap-[5px] text-left text-[12px] underline-offset-2 hover:underline"
+          style={{ color: 'var(--ink-muted)' }}
+          title="Open appointment finance"
+        >
+          {formatDateLabel(appointment.appointmentDate)}
+          <IoOpenOutline size={12} className="shrink-0" aria-hidden="true" />
+        </button>
       </div>
     );
   };
@@ -337,7 +346,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       render: (item: Invoice) => renderParent(item, false),
     },
     { label: 'Services', key: 'service', width: '180px', render: renderServices },
-    { label: 'Date', key: 'date', width: '150px', render: renderDate },
+    { label: 'Appointment', key: 'date', width: '150px', render: renderDate },
     { label: 'Subtotal', key: 'sub-total', width: '104px', render: renderSubtotal },
     { label: 'Tax', key: 'tax', width: '96px', render: renderTax },
     {
@@ -355,7 +364,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
      Invoice (the reference you quote), Parent / patient (who owes, fluid so it
      absorbs the slack), Total (the amount at stake), Status (paid or not — the
      point of the page), Payment (how it settles, which decides your next move),
-     Actions. Services + Date fold into the identity sub-line; Subtotal /
+     Actions. Services + Appointment fold into the identity sub-line; Subtotal /
      Discount / Tax fold under Total. */
   const tabletColumns: Column<Invoice>[] = [
     { label: 'Invoice', key: 'invoice-number', width: '104px', render: renderInvoiceNumber },

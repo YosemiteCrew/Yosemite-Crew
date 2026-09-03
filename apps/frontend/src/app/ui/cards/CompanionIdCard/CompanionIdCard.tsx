@@ -109,9 +109,13 @@ const CompanionIdCard = ({ card }: CompanionIdCardProps) => {
         <DetailRow label="Neutered" value={neuteredLabel(medical?.isNeutered)} />
         <DetailRow label="Insurance" value={insuranceLabel(insurance)} />
         <DetailRow label="Latest visit" value={latestVisit?.status} />
-        <DetailRow label="Owner" value={ownerName} />
-        <DetailRow label="Owner phone" value={ownerContact?.phoneNumber} />
-        <DetailRow label="Owner email" value={ownerContact?.email} />
+        {/* "Pet parent", not "Owner": the companion record that opens this card
+            labels the same person "Client", so one screen used two nouns for
+            them. "pet parent" is the fixed product term companionTerminology.ts
+            protects from the org's noun rewrite. */}
+        <DetailRow label="Pet parent" value={ownerName} />
+        <DetailRow label="Pet parent phone" value={ownerContact?.phoneNumber} />
+        <DetailRow label="Pet parent email" value={ownerContact?.email} />
       </div>
     </div>
   );
