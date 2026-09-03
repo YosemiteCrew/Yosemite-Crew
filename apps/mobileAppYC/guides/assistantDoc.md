@@ -160,3 +160,20 @@ pnpm --filter mobileAppYC run test -- \
 
 Resolvers and date parsing take `now` from their context rather than reading the
 clock, so no test is time-dependent.
+
+### What is not covered
+
+The JavaScript layer is at 100% statements, functions and lines. **The native
+layer has no automated coverage at all:**
+
+- there is no Swift or Kotlin test target, so the App Intents, the Foundation
+  Models bridge, the snapshot stores and the shortcut publisher are verified by
+  compiling and by running them on a device, not by a suite;
+- CI builds neither platform, so a Swift or Kotlin compile error will not be
+  caught on a PR - build both locally before pushing a change under `ios/` or
+  `android/`.
+
+What has been exercised on a real device: the snapshot round-trip, Foundation
+Models reporting available and answering, App Intents metadata extraction, and
+the Android shortcut publish. The intents' dialog strings have not been driven
+through Siri end to end.
