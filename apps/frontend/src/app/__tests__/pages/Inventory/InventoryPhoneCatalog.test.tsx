@@ -349,6 +349,8 @@ describe('InventoryPhoneCatalog', () => {
 
   it('shows the empty state when there are no items', () => {
     render(<InventoryPhoneCatalog {...baseProps} filteredInventory={[]} />);
-    expect(screen.getByText(/Looks like a quiet day/)).toBeInTheDocument();
+    // Same derived copy as the inventory table; this surface used to hardcode
+    // the table's older sentence and drifted when the table changed.
+    expect(screen.getByText('No items yet')).toBeInTheDocument();
   });
 });

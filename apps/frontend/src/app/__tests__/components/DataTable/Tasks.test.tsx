@@ -135,7 +135,9 @@ describe('Tasks table', () => {
 
   it('shows empty state for mobile list', () => {
     render(<Tasks filteredList={[]} />);
-    expect(screen.getByText('No data available')).toBeInTheDocument();
+    /* Derived from the `itemNoun` passed to PaginatedCardList — pins that the
+       task board names tasks rather than reading as a generic empty table. */
+    expect(screen.getByText('No tasks yet')).toBeInTheDocument();
   });
 
   it('maps dashboard task statuses to inventory-style pill tones', () => {

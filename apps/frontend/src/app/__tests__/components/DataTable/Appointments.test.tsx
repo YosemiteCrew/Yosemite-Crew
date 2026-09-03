@@ -267,7 +267,8 @@ describe('Appointments table', () => {
 
   it('shows empty state for mobile list', () => {
     render(<Appointments filteredList={[]} canEditAppointments={false} />);
-    expect(screen.getByText('No data available')).toBeInTheDocument();
+    /* Derived from the `itemNoun` passed to PaginatedCardList. */
+    expect(screen.getByText('No appointments yet')).toBeInTheDocument();
   });
 
   it('shows a dash when support staff is empty in table view', () => {

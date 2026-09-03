@@ -7,6 +7,7 @@ import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { InventoryFiltersState, InventoryItem } from './types';
 import { getStatusBadgeStyle } from './utils';
 import { buildInventoryPhoneMeta, type InventoryPhoneMeta } from './InventoryPhoneCatalog.utils';
+import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
 
 const LOW_STOCK_STATUS = 'LOW_STOCK';
 
@@ -222,8 +223,12 @@ const InventoryPhoneCatalog = ({
     ) : (
       <div className="flex flex-col gap-[9px]">
         {filteredInventory.length === 0 ? (
-          <div className="rounded-[16px] border border-[var(--hairline)] bg-[var(--screen)] py-10 text-center text-[13px] text-[var(--ink-muted)]">
-            Looks like a quiet day… for now.
+          /* Was a hardcoded "Looks like a quiet day… for now." — the sentence the
+             inventory TABLE used to show, kept here by hand and left behind when
+             that table moved to copy derived from its own noun. Derived from the
+             same helper now, so the phone catalogue and the table agree. */
+          <div className="rounded-[16px] border border-[var(--hairline)] bg-[var(--screen)] py-10 text-center">
+            <NoDataMessage {...emptyStateCopy('items')} />
           </div>
         ) : (
           filteredInventory.map((item) => (

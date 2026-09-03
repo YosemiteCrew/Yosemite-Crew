@@ -160,11 +160,11 @@ describe('SpecialitiesTable Component', () => {
 
   // --- 4. Empty State ---
 
-  it("renders 'No data available' when list is empty", () => {
+  it("names its own records in the empty state, not a generic 'No data available'", () => {
     render(<SpecialitiesTable filteredList={[]} setActive={mockSetActive} setView={mockSetView} />);
 
     // Expecting 2 instances (Table colspan + Mobile view div)
-    const messages = screen.getAllByText('No data available');
+    const messages = screen.getAllByText('No specialities yet');
     expect(messages.length).toBeGreaterThanOrEqual(1);
   });
 });

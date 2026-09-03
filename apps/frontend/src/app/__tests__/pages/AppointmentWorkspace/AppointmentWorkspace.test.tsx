@@ -915,7 +915,11 @@ describe('AppointmentWorkspace container', () => {
     expect(
       screen.getByRole('button', { name: /Hospitalization monitoring, Inpatient care package/i })
     ).toBeInTheDocument();
-    expect(screen.getAllByText('$ 170.00')).toHaveLength(2);
+    /* "$170.00", not "$ 170.00": hospitalization money goes through the shared
+       currency formatter now, which writes no space after the symbol and honours
+       the org's currency instead of always printing dollars. Two nodes = the
+       service line and the running total. */
+    expect(screen.getAllByText('$170.00')).toHaveLength(2);
 
     fireEvent.click(screen.getByRole('button', { name: /convert to inpatient/i }));
 

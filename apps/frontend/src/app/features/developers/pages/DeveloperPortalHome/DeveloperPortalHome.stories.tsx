@@ -245,7 +245,12 @@ export const Loaded: Story = {
       '/developers/documentation'
     );
     // The external link opens in a new tab, and only it does.
-    await expect(canvas.getByRole('link', { name: /github\.com\/YosemiteCrew/ })).toHaveAttribute(
+    /* Exact label, not a regex: `label` is the literal string
+       'github.com/YosemiteCrew', so an exact matcher pins it more tightly, and
+       an unanchored host-shaped pattern is what CodeQL's
+       js/regex/missing-regexp-anchor rule flags (it cannot tell an accessible-name
+       matcher from URL validation). */
+    await expect(canvas.getByRole('link', { name: 'github.com/YosemiteCrew' })).toHaveAttribute(
       'target',
       '_blank'
     );

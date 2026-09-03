@@ -79,7 +79,10 @@ describe('<InventoryCard />', () => {
     // Blank stock, null location and the two missing prices all fall back to the
     // em-dash placeholder. A missing price used to coerce to `$ 0`, which told the
     // clinic the item was free rather than that nobody had priced it.
-    expect(screen.getAllByText('—')).toHaveLength(5); // stock, expiry, location, unit cost, selling
+    // Six, not five: "Total value" is derived from the selling price and the
+    // count, so when both are missing it must also read as unknown. It used to
+    // coerce them to zero and print "$0".
+    expect(screen.getAllByText('—')).toHaveLength(6);
     expect(screen.queryByText(/units/)).not.toBeInTheDocument();
     expect(screen.queryByText(/\$\s*0/)).not.toBeInTheDocument();
   });

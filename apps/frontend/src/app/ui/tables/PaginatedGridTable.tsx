@@ -5,7 +5,7 @@ import { buildPagerPageList } from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
 import './GenericTable/Generictable.css';
-import { NoDataMessage } from '@/app/ui/tables/common';
+import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
 
 export type GridHeaderCell = { label: string; align?: 'right'; className?: string };
 
@@ -142,10 +142,7 @@ const PaginatedGridTable = <T,>({
               </div>
               {total === 0 ? (
                 <div className="border-t border-card-border">
-                  <NoDataMessage
-                    title="Nothing here yet"
-                    subtitle="Rows appear here as soon as there are any."
-                  />
+                  <NoDataMessage {...emptyStateCopy(itemNoun)} />
                 </div>
               ) : (
                 pageRows.map((row) => renderRow(row))
@@ -157,10 +154,7 @@ const PaginatedGridTable = <T,>({
       </div>
       <div className="inventory-card-list gap-4 sm:gap-6 flex-wrap">
         {total === 0 ? (
-          <NoDataMessage
-            title="Nothing here yet"
-            subtitle="Rows appear here as soon as there are any."
-          />
+          <NoDataMessage {...emptyStateCopy(itemNoun)} />
         ) : (
           pageRows.map((row) => renderCard(row))
         )}

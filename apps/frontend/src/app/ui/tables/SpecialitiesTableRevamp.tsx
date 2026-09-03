@@ -4,7 +4,13 @@ import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import SpecialitiesCard from '@/app/ui/cards/SpecialitiesCard';
-import { Column, NoDataMessage, ViewButton, ProfileTitle } from '@/app/ui/tables/common';
+import {
+  Column,
+  NoDataMessage,
+  emptyStateCopy,
+  ViewButton,
+  ProfileTitle,
+} from '@/app/ui/tables/common';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useShallow } from 'zustand/react/shallow';
 import { getSafeImageUrl } from '@/app/lib/urls';
@@ -135,6 +141,7 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
       {/* Table on wide screens; the table scrolls horizontally if space is tight */}
       <div className="hidden lg:block w-full overflow-x-auto">
         <GenericTable
+          itemNoun="specialities"
           data={filteredList}
           columns={columns}
           bordered={false}
@@ -145,7 +152,7 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
       {/* Responsive card grid below lg: 1 col on mobile, 2 on sm, 3 on md */}
       <div className="grid lg:hidden grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {filteredList.length === 0 ? (
-          <NoDataMessage />
+          <NoDataMessage {...emptyStateCopy('specialities')} />
         ) : (
           filteredList.map((item, i) => (
             <SpecialitiesCard

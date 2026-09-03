@@ -46,8 +46,13 @@ jest.mock('@/app/ui/cards/SpecialitiesCard', () => ({
 }));
 
 jest.mock('@/app/ui/tables/common', () => ({
+  /* requireActual so the real `emptyStateCopy` comes through: a hand-written
+     mock object silently dropped it, and the component calling it threw. The
+     stub renders the title it is handed rather than a fixed "No data", so the
+     assertion below can check the copy the surface actually shows. */
+  ...jest.requireActual('@/app/ui/tables/common'),
   Column: {},
-  NoDataMessage: () => <div data-testid="no-data">No data</div>,
+  NoDataMessage: ({ title }: any) => <div data-testid="no-data">{title}</div>,
   ViewButton: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
       View
@@ -230,7 +235,7 @@ describe('SpecialitiesTableRevamp', () => {
 
   it('renders NoDataMessage in mobile view when list is empty', () => {
     render(<SpecialitiesTableRevamp filteredList={[]} onManageTeam={jest.fn()} />);
-    expect(screen.getByTestId('no-data')).toBeInTheDocument();
+    expect(screen.getByTestId('no-data')).toHaveTextContent('No specialities yet');
   });
 
   it('renders speciality cards in mobile view', () => {

@@ -390,23 +390,28 @@ export const Empty: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    /* Two different empty states ship in the same render, and both are in the
-       DOM at every width: the table falls back to GenericTable's own copy while
-       the card grid renders the bare `NoDataMessage` default. Exact strings,
-       because the preview decorator puts the story name in an sr-only h1 that a
-       loose /no data/i would also match. */
-    expect(canvas.getByText('Looks like a quiet day… for now.')).toBeInTheDocument();
-    expect(canvas.getByText('No data available')).toBeInTheDocument();
+    /* Both empty states ship in the same render and both are in the DOM at every
+       width, so they must now agree: the table and the card grid each derive
+       their copy from the same `itemNoun`. Two nodes, and the two retired
+       sentences ("Looks like a quiet day… for now." from GenericTable and the
+       bare "No data available" default) must be gone - a user's window width
+       used to decide which of them they read. Exact strings, because the
+       preview decorator puts the story name in an sr-only h1 that a loose
+       /no data/i would also match. */
+    expect(canvas.getAllByText('No specialities yet')).toHaveLength(2);
+    expect(canvas.queryByText('Looks like a quiet day… for now.')).not.toBeInTheDocument();
+    expect(canvas.queryByText('No data available')).not.toBeInTheDocument();
     expect(canvasElement.querySelectorAll('tbody tr')).toHaveLength(1);
   },
   parameters: {
     docs: {
       description: {
         story:
-          'The empty list. The table and the card grid do not share an empty state - the table ' +
-          'gets "Looks like a quiet day… for now." from `GenericTable`, the grid gets the ' +
-          '`NoDataMessage` default "No data available" - so which sentence a user reads depends ' +
-          'entirely on their window width.',
+          'The empty list. The table and the card grid now share one empty state, derived from ' +
+          'the `itemNoun` the surface already passes for its footer summary, so both read ' +
+          '"No specialities yet". They used to disagree - the table said "Looks like a quiet ' +
+          'day… for now." and the grid said "No data available" - which meant the sentence a ' +
+          'user read depended entirely on their window width.',
       },
     },
   },
