@@ -19,6 +19,7 @@ describe('GenericTable', () => {
   it('renders an optional accessible caption and scoped column headers', () => {
     render(
       <GenericTable
+        itemNoun="items"
         caption="Inventory summary"
         data={[{ name: 'Bandage', stock: 4 }]}
         columns={[
@@ -36,6 +37,7 @@ describe('GenericTable', () => {
   it('has no axe accessibility violations with data', async () => {
     const { container } = render(
       <GenericTable
+        itemNoun="items"
         caption="Inventory summary"
         data={[
           { name: 'Bandage', stock: 4 },
@@ -54,6 +56,7 @@ describe('GenericTable', () => {
   it('has no axe accessibility violations with empty data', async () => {
     const { container } = render(
       <GenericTable
+        itemNoun="items"
         caption="Empty inventory"
         data={[]}
         columns={[
@@ -87,6 +90,7 @@ describe('GenericTable', () => {
 
     const { container, unmount } = render(
       <GenericTable
+        itemNoun="items"
         pagination
         pageSize={5}
         data={buildRows(25)}
@@ -122,6 +126,7 @@ describe('GenericTable', () => {
     // jsdom returns 0 heights by default -> the <=0 guard keeps pageSize.
     render(
       <GenericTable
+        itemNoun="items"
         pagination
         pageSize={2}
         data={buildRows(4)}
@@ -137,7 +142,13 @@ describe('GenericTable', () => {
   it('clamps the current page down when the data shrinks below it', () => {
     const columns = [{ key: 'name', label: 'Name' }] as const;
     const { rerender } = render(
-      <GenericTable pagination pageSize={2} data={buildRows(4)} columns={columns as any} />
+      <GenericTable
+        itemNoun="items"
+        pagination
+        pageSize={2}
+        data={buildRows(4)}
+        columns={columns as any}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
@@ -146,7 +157,15 @@ describe('GenericTable', () => {
 
     // Shrink the data so page 2 no longer exists -> clamp back to page 1 and the
     // single-page pagination bar is no longer rendered.
-    rerender(<GenericTable pagination pageSize={2} data={buildRows(2)} columns={columns as any} />);
+    rerender(
+      <GenericTable
+        itemNoun="items"
+        pagination
+        pageSize={2}
+        data={buildRows(2)}
+        columns={columns as any}
+      />
+    );
     expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument();
     expect(screen.getByText('Item 0')).toBeInTheDocument();
     expect(screen.getByText('Item 1')).toBeInTheDocument();
@@ -159,7 +178,7 @@ describe('GenericTable', () => {
       { key: 'name', label: "Today's Appointment Count" },
       { key: 'blank', label: '' },
     ] as const;
-    render(<GenericTable data={buildRows(1)} columns={columns as any} />);
+    render(<GenericTable itemNoun="items" data={buildRows(1)} columns={columns as any} />);
 
     const labelled = screen.getByRole('columnheader', { name: "Today's Appointment Count" });
     expect(labelled).toHaveAttribute('title', "Today's Appointment Count");

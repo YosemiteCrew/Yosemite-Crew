@@ -22,8 +22,17 @@ interface GenericTableProps<T extends object> {
   pageSize?: number;
   tableClassName?: string;
   caption?: string;
-  /** Plural noun for the footer caption, e.g. `appointments` -> "of 14 appointments". */
-  itemNoun?: string;
+  /**
+   * Plural noun for this table's records, e.g. `appointments` -> "of 14
+   * appointments" in the footer and "No appointments yet" in the empty state.
+   *
+   * REQUIRED on purpose. It was optional, and the one call site that forgot it
+   * (the task board) fell back to "No records yet" while the phone card list
+   * beside it said "No tasks yet" - the same dataset described two ways
+   * depending on window width. A required prop makes that unrepresentable
+   * rather than something a review has to catch.
+   */
+  itemNoun: string;
   /** Extra classes for one body row — used for row-level states (e.g. emergency). */
   rowClassName?: (item: T, index: number) => string;
 }
@@ -164,7 +173,7 @@ const GenericTable = <T extends object>({
               ) : (
                 <tr>
                   <td colSpan={columns.length}>
-                    <NoDataMessage {...emptyStateCopy(itemNoun ?? 'records')} />
+                    <NoDataMessage {...emptyStateCopy(itemNoun)} />
                   </td>
                 </tr>
               )}
