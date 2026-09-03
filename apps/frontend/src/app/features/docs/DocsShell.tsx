@@ -27,6 +27,11 @@ interface DocsShellProps {
    * to the security scanners - a sentence cannot be a control.)
    */
   tree: Root;
+  /**
+   * Renders the Redoc viewer under the body. Set only by the page for the
+   * OpenAPI reference.
+   */
+  embedOpenApi?: boolean;
   editUrl: string;
 }
 
@@ -49,6 +54,7 @@ export default function DocsShell({
   breadcrumb,
   tree,
   editUrl,
+  embedOpenApi = false,
 }: Readonly<DocsShellProps>) {
   return (
     <div data-yc-app style={{ display: 'contents' }}>
@@ -85,6 +91,20 @@ export default function DocsShell({
             <h1 className="DocsTitle">{title}</h1>
 
             <article className="DocsBody">{toJsxRuntime(tree, { Fragment, jsx, jsxs })}</article>
+
+            {/*
+              The viewer is an iframe, and iframes are stripped from the corpus
+              on purpose - a contributor's markdown must never be able to embed
+              one. This element comes from app code, not from a document, so
+              the sanitiser stays strict and the page still gets its viewer.
+            */}
+            {embedOpenApi && (
+              <iframe
+                className="DocsOpenApiFrame"
+                src="/static/openapi/viewer.html"
+                title="Yosemite Crew OpenAPI reference"
+              />
+            )}
 
             <footer className="DocsFooter">
               <a className="DocsEditLink" href={editUrl} target="_blank" rel="noopener noreferrer">

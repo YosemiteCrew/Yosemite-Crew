@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Fails when apps/dev-docs/static/openapi.yaml has drifted from the routers.
+ * Fails when apps/frontend/public/static/openapi/openapi.yaml has drifted from the routers.
  *
  * The published spec calls itself "generated from backend routers", but there is
  * no generator in the repo - it was produced once and committed, so it cannot
@@ -29,7 +29,7 @@ import path from 'node:path';
 import { parse } from 'yaml';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const SPEC_PATH = path.join(REPO_ROOT, 'apps/dev-docs/static/openapi.yaml');
+const SPEC_PATH = path.join(REPO_ROOT, 'apps/frontend/public/static/openapi/openapi.yaml');
 const ORG_HEADER = 'x-org-id';
 const REQUIRES_ORG = Symbol.for('yosemite.requiresOrgPermissions');
 

@@ -33,7 +33,7 @@ useDefault = true
 # Docusaurus compiles the docs' curl examples into a JS chunk, and the
 # `curl-auth-header` rule fires on the example itself. The placeholder is
 # literally `Bearer YOUR_JWT_TOKEN` in
-# apps/dev-docs/docs/guides/backend-chat-implementation.md.
+# apps/frontend/content/docs/guides/backend-chat-implementation.md.
 #
 # This replaces a growing list of per-build fingerprints in .gitleaksignore.
 # The chunk's content hash changes on every docs rebuild, so each rebuild was
@@ -50,7 +50,6 @@ description = "Docs curl examples using an all-caps placeholder token"
 condition = "AND"
 regexTarget = "match"
 paths = [
-  '''apps/frontend/public/dev-docs/assets/js/.*\.js$''',
   # The same examples in their SOURCE form, now that the corpus is rendered
   # from apps/frontend/content/docs rather than only compiled into a bundle.
   '''apps/frontend/content/docs/.*\.mdx?$''',
