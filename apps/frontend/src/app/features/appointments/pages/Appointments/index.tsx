@@ -43,6 +43,9 @@ const ChangeStatus = React.lazy(
 const ChangeRoom = React.lazy(
   () => import('@/app/features/appointments/pages/Appointments/Sections/ChangeRoom')
 );
+const WaitlistPanel = React.lazy(
+  () => import('@/app/features/appointments/components/Waitlist/WaitlistPanel')
+);
 import { useSearchStore } from '@/app/stores/searchStore';
 import Filters from '@/app/ui/filters/Filters';
 import {
@@ -325,6 +328,7 @@ const useAppointmentsView = () => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
+  const [showWaitlist, setShowWaitlist] = useState(false);
   const [addAppointmentPrefill, setAddAppointmentPrefill] =
     useState<AppointmentDraftPrefill | null>(null);
   const [viewPopup, setViewPopup] = useState(false);
@@ -590,6 +594,32 @@ const useAppointmentsView = () => {
           deniedResource="Appointments"
           deniedDetail="the appointment schedule"
         >
+          <section aria-labelledby="appointments-waitlist-heading" className="mb-3">
+            <button
+              type="button"
+              onClick={() => setShowWaitlist((open) => !open)}
+              aria-expanded={showWaitlist}
+              aria-controls="appointments-waitlist-panel"
+              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] px-4 py-2.5 text-left shadow-[0_1px_2px_var(--sh03)] transition-colors hover:bg-[var(--inset)]"
+            >
+              <span
+                id="appointments-waitlist-heading"
+                className="text-[13.5px] font-bold text-[var(--ink)]"
+              >
+                Waitlist
+              </span>
+              <span className="text-[12px] font-semibold text-[var(--ink-muted)]">
+                {showWaitlist ? 'Hide' : 'Show'}
+              </span>
+            </button>
+            {showWaitlist && (
+              <div id="appointments-waitlist-panel" className="mt-3">
+                <React.Suspense fallback={<PlannerViewSkeleton />}>
+                  <WaitlistPanel />
+                </React.Suspense>
+              </div>
+            )}
+          </section>
           <div className={wrapperClassName}>
             {activeView === 'list' && (
               <Filters
