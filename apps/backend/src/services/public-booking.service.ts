@@ -326,10 +326,17 @@ export const PublicBookingService = {
     // answer as asking for one that does not exist.
     if (!service) throw notFound();
 
+    // "Buffer between visits" is a public-booking setting: it spaces the offered
+    // slots so anonymous requests cannot be booked back to back. It applies only
+    // here - the signed-in scheduling paths call getBookableSlotsService without
+    // it and keep tiling with no gap.
+    const bufferMinutes = Math.max(0, practice.settings?.bufferMinutes ?? 0);
+
     const result = await CatalogService.getBookableSlotsService(
       serviceId,
       practice.organizationId,
       date.toDate(),
+      bufferMinutes,
     );
 
     return {

@@ -254,14 +254,19 @@ export const buildBookableWindowsForVets = async <
   vetIds: string[];
   durationMinutes: number;
   referenceDate: Date;
+  bufferMinutes?: number;
   slotCache?: Map<string, Promise<BookableWindowResult<TSlot>>>;
   getBookableSlotsForDate: (
     organisationId: string,
     vetId: string,
     durationMinutes: number,
     referenceDate: Date,
+    bufferMinutes: number,
   ) => Promise<BookableWindowResult<TSlot>>;
 }): Promise<BookableWindowSet<TSlot>> => {
+  // Empty gap between visits by default: callers that do not set a buffer (the
+  // signed-in scheduling paths) tile back to back exactly as before.
+  const bufferMinutes = Math.max(0, params.bufferMinutes ?? 0);
   if (params.vetIds.length === 0) {
     return {
       date: dayjs(params.referenceDate).utc().format("YYYY-MM-DD"),
@@ -277,6 +282,7 @@ export const buildBookableWindowsForVets = async <
       params.organisationId,
       vetId,
       params.durationMinutes,
+      bufferMinutes,
       dayjs(params.referenceDate).utc().format("YYYY-MM-DD"),
     ].join("|");
 
@@ -288,6 +294,7 @@ export const buildBookableWindowsForVets = async <
         vetId,
         params.durationMinutes,
         params.referenceDate,
+        bufferMinutes,
       );
 
     if (!cachedResult && params.slotCache) {

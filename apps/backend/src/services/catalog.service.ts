@@ -2533,6 +2533,7 @@ export const CatalogService = {
     productItemId: string,
     organisationId: string,
     referenceDate: Date,
+    bufferMinutes = 0,
   ) {
     const context = await resolveCatalogSchedulingContext(
       productItemId,
@@ -2544,6 +2545,7 @@ export const CatalogService = {
       vetIds: context.vetIds,
       durationMinutes: context.durationMinutes,
       referenceDate,
+      bufferMinutes,
       getBookableSlotsForDate: (...args) =>
         AvailabilityService.getBookableSlotsForDate(...args),
     });
