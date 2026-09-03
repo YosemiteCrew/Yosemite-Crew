@@ -86,6 +86,55 @@ describe('Guides page', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('narrows the shelf to one role, and keeps what everyone needs', () => {
+    render(<ProtectedGuides />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Veterinarian' }));
+
+    /* Two, not one: a role's track carries its own guides AND the ones cut for
+       the whole clinic. Picking a role that hid "Your first day in the PIMS"
+       would bury the orientation guide for every reader but a new owner. */
+    expect(allCards()).toHaveLength(2);
+    expect(cardButton('Run a visit end to end')).toBeInTheDocument();
+    expect(cardButton('Your first day in the PIMS')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Play guide: Connect IDEXX in 5 minutes' })
+    ).toBeNull();
+  });
+
+  it('drops a role filter that no longer applies when All roles is picked', () => {
+    render(<ProtectedGuides />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clinic owner' }));
+    expect(allCards()).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'All roles' }));
+    expect(allCards()).toHaveLength(6);
+  });
+
+  it('offers a chip for every role present and none that is not', () => {
+    render(<ProtectedGuides />);
+
+    // Derived from the library rather than hardcoded, so a role with no guides
+    // never gets a chip that filters to an empty shelf.
+    for (const role of ['All roles', 'Everyone', 'Veterinarian', 'Practice manager']) {
+      expect(screen.getByRole('button', { name: role })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('button', { name: 'Developer' })).toBeNull();
+  });
+
+  it('combines a role with a category', () => {
+    render(<ProtectedGuides />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Practice manager' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Integrations' }));
+
+    // Both filters apply; "Everyone" survives the role filter but still has to
+    // match the category, so the orientation guide drops out here.
+    expect(allCards()).toHaveLength(1);
+    expect(cardButton('Connect IDEXX in 5 minutes')).toBeInTheDocument();
+  });
+
   it('filters the grid by search text', () => {
     render(<ProtectedGuides />);
     fireEvent.change(screen.getByLabelText('Search guides'), { target: { value: 'idexx' } });
