@@ -183,6 +183,7 @@ const AppointmentsComponent = ({
         pageSize={small ? 5 : 10}
         className="xl:hidden"
         listClassName="pb-2 sm:pb-3"
+        itemNoun="appointments"
         renderCard={(item) => (
           <AppointmentCard
             key={item.id}

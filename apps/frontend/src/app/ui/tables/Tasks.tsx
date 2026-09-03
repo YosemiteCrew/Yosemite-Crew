@@ -207,6 +207,7 @@ const Tasks = ({
         pageSize={small ? 5 : 10}
         className="xl:hidden"
         listClassName="pb-2"
+        itemNoun="tasks"
         renderCard={(item: Task, i) => (
           <TaskCard
             key={item.name + i}

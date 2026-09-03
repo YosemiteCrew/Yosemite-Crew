@@ -564,12 +564,14 @@ export const Empty: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     /* Two empty states ship in one render and both stay in the DOM at every
-       width: the table falls back to `GenericTable`'s copy, the card list to
-       its own bare line. Which sentence a user reads depends only on their
-       window width. Exact strings, because the preview decorator puts the story
-       name in an sr-only h1 that a loose /nothing/i would also match. */
-    expect(canvas.getByText('Looks like a quiet day… for now.')).toBeInTheDocument();
-    expect(canvas.getByText('No data available')).toBeInTheDocument();
+       width, so they have to say the same thing: table and card list now derive
+       from the same `itemNoun`. The two sentences a user used to get depending
+       on window width must both be gone. Exact strings, because the preview
+       decorator puts the story name in an sr-only h1 that a loose /nothing/i
+       would also match. */
+    expect(canvas.getAllByText('No appointments yet')).toHaveLength(2);
+    expect(canvas.queryByText('Looks like a quiet day… for now.')).not.toBeInTheDocument();
+    expect(canvas.queryByText('No data available')).not.toBeInTheDocument();
     expect(canvas.queryByRole('button', { name: /^Actions for / })).not.toBeInTheDocument();
   },
 };

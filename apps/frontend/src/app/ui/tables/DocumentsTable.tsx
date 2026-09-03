@@ -3,7 +3,13 @@ import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import DocumentsCard from '@/app/ui/cards/DocumentsCard';
 import { OrganizationDocument } from '@/app/features/documents/types/document';
 import { toTitle } from '@/app/lib/validators';
-import { Column, NoDataMessage, ViewButton, ProfileTitle } from '@/app/ui/tables/common';
+import {
+  Column,
+  NoDataMessage,
+  emptyStateCopy,
+  ViewButton,
+  ProfileTitle,
+} from '@/app/ui/tables/common';
 
 import './DataTable.css';
 
@@ -54,6 +60,7 @@ const DocumentsTable = ({ filteredList, setActive, setView }: DocumentsTableProp
     <div className="w-full">
       <div className="hidden xl:flex">
         <GenericTable
+          itemNoun="documents"
           data={filteredList}
           columns={columns}
           bordered={false}
@@ -64,7 +71,7 @@ const DocumentsTable = ({ filteredList, setActive, setView }: DocumentsTableProp
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
         {filteredList.length === 0 ? (
-          <NoDataMessage />
+          <NoDataMessage {...emptyStateCopy('documents')} />
         ) : (
           filteredList.map((item, i) => (
             <DocumentsCard

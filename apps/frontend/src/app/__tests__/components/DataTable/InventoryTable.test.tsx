@@ -542,9 +542,12 @@ describe('InventoryTable', () => {
       />
     );
 
-    expect(screen.getAllByText('Nothing here yet').length).toBeGreaterThan(0);
+    /* Two nodes, not "at least one": the table branch and the card branch are
+       both in the jsdom DOM, and each must carry its own empty state. The
+       footer summary ("No items") is a separate string from the empty state. */
+    expect(screen.getAllByText('No items yet')).toHaveLength(2);
+    expect(screen.getAllByText('Items appear here as soon as there are any.')).toHaveLength(2);
     expect(screen.getByText('No items')).toBeInTheDocument();
-    expect(screen.getByText('No data available')).toBeInTheDocument();
   });
 
   it('paginates when there is more than one page of items', () => {

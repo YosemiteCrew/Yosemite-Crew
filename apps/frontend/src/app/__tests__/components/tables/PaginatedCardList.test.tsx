@@ -67,8 +67,10 @@ describe('PaginatedCardList', () => {
   it('shows the empty state and no pager for an empty list', () => {
     renderList(0);
 
-    expect(screen.getByText('Nothing here yet')).toBeInTheDocument();
-    expect(screen.getByText('Records appear here as soon as they are added.')).toBeInTheDocument();
+    /* No `itemNoun` is passed here, so this also pins the neutral default the
+       shell falls back to when a caller does not name its records. */
+    expect(screen.getByText('No records yet')).toBeInTheDocument();
+    expect(screen.getByText('Records appear here as soon as there are any.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument();
   });
 

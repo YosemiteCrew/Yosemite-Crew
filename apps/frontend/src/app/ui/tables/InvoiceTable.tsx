@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
+import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
 import { IoEye, IoOpenOutline } from 'react-icons/io5';
 import InvoiceCard from '@/app/ui/cards/InvoiceCard';
 import { Invoice } from '@yosemite-crew/types';
@@ -382,6 +383,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
           Visibility here is pure Tailwind so the three bands can't disagree. */}
       <div className="hidden xl:flex h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
         <GenericTable
+          itemNoun="invoices"
           data={filteredList}
           columns={columns}
           bordered={false}
@@ -393,6 +395,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       </div>
       <div className="hidden md:flex xl:hidden h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
         <GenericTable
+          itemNoun="invoices"
           data={filteredList}
           columns={tabletColumns}
           bordered={false}
@@ -406,11 +409,16 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
         {(() => {
           if (filteredList.length === 0) {
             return (
-              <output
-                className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary"
-                aria-live="polite"
-              >
-                No invoices match the current filters.
+              /* Was a bare sentence reading "No invoices match the current
+                 filters." — which blamed the filters even when the practice
+                 simply has no invoices yet, and looked nothing like the card the
+                 two table bands show one breakpoint up. Same derived copy as
+                 those bands now, so the sentence no longer depends on window
+                 width. The `output`/`aria-live` wrapper is kept: all three bands
+                 are mounted at every width, but a hidden one is not announced,
+                 so only the band the reader is actually on speaks. */
+              <output className="w-full" aria-live="polite">
+                <NoDataMessage {...emptyStateCopy('invoices')} />
               </output>
             );
           }

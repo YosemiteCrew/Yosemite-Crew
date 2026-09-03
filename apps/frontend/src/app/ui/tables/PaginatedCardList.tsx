@@ -3,7 +3,7 @@ import React, { useState, type ReactNode } from 'react';
 
 import Next from '@/app/ui/primitives/Icons/Next';
 import Back from '@/app/ui/primitives/Icons/Back';
-import { NoDataMessage } from '@/app/ui/tables/common';
+import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
 
 /* The card list is the sub-xl rendering of the same data the table shows above
    xl, so it has to page like the table does. Without this it rendered every row
@@ -18,6 +18,8 @@ type PaginatedCardListProps<T> = {
   renderCard: (item: T, index: number) => ReactNode;
   className?: string;
   listClassName?: string;
+  /** Plural noun for the empty state, e.g. `tasks` -> "No tasks yet". */
+  itemNoun?: string;
 };
 
 const PaginatedCardList = <T,>({
@@ -26,6 +28,7 @@ const PaginatedCardList = <T,>({
   renderCard,
   className = '',
   listClassName = '',
+  itemNoun = 'records',
 }: PaginatedCardListProps<T>) => {
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -50,10 +53,7 @@ const PaginatedCardList = <T,>({
         className={`min-h-0 flex-1 overflow-y-auto pr-1 flex gap-4 sm:gap-6 flex-wrap content-start ${listClassName}`}
       >
         {total === 0 ? (
-          <NoDataMessage
-            title="Nothing here yet"
-            subtitle="Records appear here as soon as they are added."
-          />
+          <NoDataMessage {...emptyStateCopy(itemNoun)} />
         ) : (
           pageItems.map((item, index) => renderCard(item, startIdx + index))
         )}

@@ -2,7 +2,7 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { IoChevronBackOutline, IoChevronForwardOutline } from 'react-icons/io5';
 
-import { NoDataMessage } from '@/app/ui/tables/common';
+import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
 import { buildPagerPageList } from '@/app/ui/tables/tableUtils';
 
 import './Generictable.css';
@@ -164,7 +164,7 @@ const GenericTable = <T extends object>({
               ) : (
                 <tr>
                   <td colSpan={columns.length}>
-                    <NoDataMessage title="Looks like a quiet day… for now." />
+                    <NoDataMessage {...emptyStateCopy(itemNoun ?? 'records')} />
                   </td>
                 </tr>
               )}

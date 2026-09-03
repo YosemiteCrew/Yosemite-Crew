@@ -275,7 +275,7 @@ export const NoCompanions: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.getByText('No data available')).toBeVisible();
+    await expect(canvas.getByText('No patients yet')).toBeVisible();
     // Not "Showing 0-0 of 0": the whole footer is gated on the list being
     // non-empty, so the empty table has no count line and no border above it.
     await expect(footerText(canvas)).toBeUndefined();

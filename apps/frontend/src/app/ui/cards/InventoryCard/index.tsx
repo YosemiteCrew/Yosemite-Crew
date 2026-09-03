@@ -27,8 +27,16 @@ const InventoryCard = ({ item, handleViewInventory }: any) => {
   const totalValue = () => {
     // `item.pricing` / `item.stock` are dereferenced unguarded further up this same
     // render (unit cost, stock), so they are always present by the time this runs.
-    const price = Number(item.pricing.selling ?? 0);
-    const onHand = Number(item.stock.current ?? 0);
+    /* Deliberately NOT `Number(x ?? 0)`: that fallback made the isFinite guard
+       below unreachable, so an unpriced, uncounted item reported "$0" — a claim
+       that the clinic holds nothing of value, rather than that nobody has priced
+       or counted it yet. Blank strings and null coerce to 0 too, hence the
+       shared missing-value check instead of a bare Number(). */
+    if (displayValue(item.pricing.selling) === '—' || displayValue(item.stock.current) === '—') {
+      return '—';
+    }
+    const price = Number(item.pricing.selling);
+    const onHand = Number(item.stock.current);
     if (!Number.isFinite(price) || !Number.isFinite(onHand)) return '—';
     return formatCurrencyValue(Math.round(price * onHand), item.currency);
   };

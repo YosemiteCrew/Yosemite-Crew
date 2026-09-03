@@ -337,15 +337,26 @@ export const Empty: Story = {
   args: { filteredInventory: [], loading: false },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText('Looks like a quiet day… for now.')).toBeInTheDocument();
+    /* Derived from the same noun the inventory table uses, so the phone
+       catalogue and the table no longer disagree. This surface hardcoded the
+       table's old "Looks like a quiet day… for now." by hand and was left behind
+       when the table moved on. */
+    const title = canvas.getByText('No items yet');
+    await expect(title).toBeInTheDocument();
+    await expect(canvas.queryByText('Looks like a quiet day… for now.')).not.toBeInTheDocument();
     await expect(canvas.queryByText('Loading inventory…')).not.toBeInTheDocument();
     await expect(canvas.queryAllByRole('button', { name: /^View / })).toHaveLength(0);
 
-    // The empty state is a bordered card, not bare copy - which is what distinguishes
-    // it visually from the loader above.
-    const card = canvas.getByText('Looks like a quiet day… for now.');
-    await expect(getComputedStyle(card).borderTopWidth).toBe('1px');
-    await expect(getComputedStyle(card).borderRadius).toBe('16px');
+    /* The empty state is a bordered card, not bare copy - which is what
+       distinguishes it visually from the loader above. Walked up from the copy
+       rather than matched on a class name, so a restyle that keeps the card
+       still passes and one that drops the card still fails. */
+    let card: HTMLElement | null = title;
+    while (card && getComputedStyle(card).borderTopWidth !== '1px') {
+      card = card.parentElement;
+    }
+    await expect(card).not.toBeNull();
+    await expect(getComputedStyle(card as HTMLElement).borderRadius).toBe('16px');
 
     await expect(canvas.getByRole('button', { name: 'Low (2)' })).toBeInTheDocument();
   },

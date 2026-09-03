@@ -202,11 +202,13 @@ export const LastPage: Story = {
 };
 
 export const Empty: Story = {
-  name: 'No data available',
+  name: 'Empty - the derived default',
   args: { items: [] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText('No data available')).toBeInTheDocument();
+    /* No `itemNoun` here, so this pins the neutral fallback a caller that does
+       not name its records gets. */
+    await expect(canvas.getByText('No records yet')).toBeInTheDocument();
     await expect(cardNames(canvas)).toHaveLength(0);
 
     /* Empty is not "page zero": `totalPages` is 0, the clamp holds the page at 1
@@ -219,10 +221,9 @@ export const Empty: Story = {
     docs: {
       description: {
         story:
-          'The empty branch is a plain centred sentence with no icon and no call to action - ' +
-          'noticeably plainer than `GenericTable`’s "Looks like a quiet day… for now." card, ' +
-          'which is what the same table shows one breakpoint up. Two empty states for one dataset ' +
-          'is the thing to look at here.',
+          'The empty branch renders the same `NoDataMessage` card as `GenericTable`, with copy ' +
+          'derived from the same `itemNoun`, so one dataset gets one empty state instead of a ' +
+          'different sentence at each breakpoint.',
       },
     },
   },

@@ -5,7 +5,7 @@ import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { Team } from '@/app/features/organization/types/team';
 import { toTitle } from '@/app/lib/validators';
-import { NoDataMessage } from '@/app/ui/tables/common';
+import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
 
 import { joinNames } from '@/app/ui/tables/tableUtils';
 import { IoEyeOutline } from 'react-icons/io5';
@@ -167,7 +167,7 @@ const RoomTable = ({
           clip the trailing columns with no way to reach them. */}
       <div className="table-list TableShell">
         {filteredList.length === 0 ? (
-          <NoDataMessage />
+          <NoDataMessage {...emptyStateCopy('rooms')} />
         ) : (
           <div className="overflow-x-auto">
             <table className="TableDiv w-full min-w-[980px]">
@@ -256,7 +256,7 @@ const RoomTable = ({
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
         {filteredList.length === 0 ? (
-          <NoDataMessage />
+          <NoDataMessage {...emptyStateCopy('rooms')} />
         ) : (
           filteredList.map((item, i) => (
             <RoomCard

@@ -95,6 +95,11 @@ jest.mock('@/app/ui/cards/InvoiceCard', () => ({
 jest.mock('react-icons/io5', () => ({
   IoEye: () => <span data-testid="eye-icon" />,
   IoOpenOutline: () => <span data-testid="open-icon" />,
+  /* Needed by the shared `NoDataMessage` the empty state renders. A hand-listed
+     icon mock silently returns undefined for anything it forgot, which React
+     reports as an invalid element type from inside the component rather than as
+     a missing mock. */
+  IoFileTrayOutline: () => <span data-testid="empty-icon" />,
 }));
 
 jest.mock('@/app/lib/forms', () => ({
@@ -204,7 +209,11 @@ describe('InvoiceTable', () => {
   it('shows an accessible empty state when no invoices match', () => {
     render(<InvoiceTable filteredList={[]} />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('No invoices match the current filters.');
+    /* The phone band keeps its `output` (role="status") wrapper, so this stays
+       the one announced empty state on the page — but the copy is now derived
+       from the table's own noun instead of blaming filters that may not be
+       applied. */
+    expect(screen.getByRole('status')).toHaveTextContent('No invoices yet');
   });
 
   it('has no axe accessibility violations', async () => {

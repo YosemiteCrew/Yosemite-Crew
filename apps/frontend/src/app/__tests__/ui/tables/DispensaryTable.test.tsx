@@ -38,7 +38,10 @@ const cardBranch = (container: HTMLElement) =>
 describe('DispensaryTable', () => {
   it('renders the empty state when there are no records', () => {
     render(<DispensaryTable filteredList={[]} />);
-    expect(screen.getByText('No data available')).toBeInTheDocument();
+    /* Copy is derived from the `itemNoun` the table passes for its footer, so
+       this pins that Dispensary says "requests" and not a generic "no data".
+       Both media branches are in the jsdom DOM, hence two nodes. */
+    expect(screen.getAllByText('No requests yet')).toHaveLength(2);
   });
 
   it('renders the owner last name appended to the patient name when petParentName is present', () => {

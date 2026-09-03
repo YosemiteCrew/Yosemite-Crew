@@ -169,6 +169,7 @@ const AvailabilityTable = ({
     <div className="table-wrapper">
       <div className="table-list">
         <GenericTable
+          itemNoun="time slots"
           data={filteredList}
           columns={finalColoumns}
           bordered={false}

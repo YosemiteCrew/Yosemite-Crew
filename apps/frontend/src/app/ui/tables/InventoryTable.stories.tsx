@@ -266,7 +266,10 @@ export const EmptyState: Story = {
   args: { filteredList: [] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText('Looks like a quiet day… for now.')).toBeInTheDocument();
+    /* Two nodes: the table band and the card band each carry their own copy, and
+       both are mounted at every width. "No items" is the footer summary, a
+       different string from the empty state. */
+    await expect(canvas.getAllByText('No items yet')).toHaveLength(2);
     await expect(canvas.getByText('No items')).toBeInTheDocument();
   },
   parameters: {
