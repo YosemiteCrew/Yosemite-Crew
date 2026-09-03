@@ -19,7 +19,8 @@ import {
 import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
 import { formatTimeLabel } from '@/app/lib/forms';
 import { createInvoiceByAppointmentId } from '@/app/lib/paymentStatus';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoneyPrecise } from '@/app/lib/money';
+import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { normalizeAppointmentId } from '@/app/lib/invoice';
 import {
   assignEncounterUnit,
@@ -101,24 +102,30 @@ const OverviewRow = ({ label, value }: OverviewRowProps) => (
 // ink branches on this same value, so the two can never drift apart.
 const EMPTY_VALUE = '—';
 
+/* Every branch goes through the same formatter and the same currency. The
+   invoice branch used `formatMoney` (whole units, the invoice's own currency)
+   while the estimate branches built `$${n.toFixed(2)}` by hand, so the SAME
+   field printed "£144" once an invoice existed and "$143.50" before it did -
+   two currencies and two precisions for one figure. */
 const resolveEstimateDisplay = (
   appointmentId: string | undefined,
   invoicesByAppointmentId: Record<string, import('@yosemite-crew/types').Invoice>,
   serviceInfoCost: string | number,
-  serviceInfoMaxDiscount: string | number
+  serviceInfoMaxDiscount: string | number,
+  orgCurrency: string
 ): string => {
   const normalizedId = normalizeAppointmentId(appointmentId);
   if (normalizedId) {
     const invoice = invoicesByAppointmentId[normalizedId];
     if (invoice?.totalAmount !== undefined) {
-      return formatMoney(invoice.totalAmount, invoice.currency);
+      return formatMoneyPrecise(invoice.totalAmount, invoice.currency ?? orgCurrency);
     }
   }
   const cost = Number(serviceInfoCost) || 0;
   const discount = Number(serviceInfoMaxDiscount) || 0;
   const estimate = Math.max(0, cost - discount);
-  if (estimate > 0) return `$${estimate.toFixed(2)}`;
-  if (cost > 0) return `$${cost.toFixed(2)}`;
+  if (estimate > 0) return formatMoneyPrecise(estimate, orgCurrency);
+  if (cost > 0) return formatMoneyPrecise(cost, orgCurrency);
   return EMPTY_VALUE;
 };
 
@@ -265,6 +272,8 @@ type OverviewRightColumnProps = {
     ? Item | null
     : never;
   estimateDisplay: string;
+  /** The org's currency, so the cost and discount rows match the estimate above them. */
+  orgCurrency: string;
 };
 
 const OverviewRightColumn = ({
@@ -282,6 +291,7 @@ const OverviewRightColumn = ({
   handleUnitChange,
   serviceInfo,
   estimateDisplay,
+  orgCurrency,
 }: OverviewRightColumnProps) => (
   <div className="flex flex-col gap-4">
     {/* Appointment detail rows */}
@@ -335,7 +345,9 @@ const OverviewRightColumn = ({
             <div className="flex items-center justify-between">
               <span className="font-satoshi text-sm font-medium text-text-secondary">Cost:</span>
               <span className="font-satoshi text-sm font-bold text-text-primary">
-                {serviceInfo.cost ? `$${Number(serviceInfo.cost).toFixed(2)}` : EMPTY_VALUE}
+                {serviceInfo.cost
+                  ? formatMoneyPrecise(Number(serviceInfo.cost), orgCurrency)
+                  : EMPTY_VALUE}
               </span>
             </div>
             <div className="flex items-center justify-between">
@@ -344,7 +356,7 @@ const OverviewRightColumn = ({
               </span>
               <span className="font-satoshi text-sm font-bold text-text-primary">
                 {serviceInfo.maxDiscount
-                  ? `$${Number(serviceInfo.maxDiscount).toFixed(2)}`
+                  ? formatMoneyPrecise(Number(serviceInfo.maxDiscount), orgCurrency)
                   : EMPTY_VALUE}
               </span>
             </div>
@@ -460,15 +472,17 @@ const ViewAppointmentOverviewModal = ({
     return services.find((s) => s.id === serviceId) ?? null;
   }, [activeAppointment.appointmentType, getServicesBySpecialityId]);
 
+  const orgCurrency = useCurrencyForPrimaryOrg();
   const estimateDisplay = useMemo(
     () =>
       resolveEstimateDisplay(
         activeAppointment.id,
         invoicesByAppointmentId,
         serviceInfo?.cost ?? '',
-        serviceInfo?.maxDiscount ?? ''
+        serviceInfo?.maxDiscount ?? '',
+        orgCurrency
       ),
-    [activeAppointment.id, invoicesByAppointmentId, serviceInfo]
+    [activeAppointment.id, invoicesByAppointmentId, serviceInfo, orgCurrency]
   );
 
   const dateDisplay = useMemo(() => {
@@ -613,6 +627,7 @@ const ViewAppointmentOverviewModal = ({
         />
 
         <OverviewRightColumn
+          orgCurrency={orgCurrency}
           activeAppointment={activeAppointment}
           canEditAppointments={canEditAppointments}
           savingField={savingField}
