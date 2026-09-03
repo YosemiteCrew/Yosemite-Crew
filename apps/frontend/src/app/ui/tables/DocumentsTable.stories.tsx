@@ -104,7 +104,7 @@ export const Empty: Story = {
        message rather than a bare header with nothing under it. Matched exactly:
        Storybook's preview decorator puts the STORY NAME in an sr-only h1, so a
        loose /no /i also matches "No documents uploaded". */
-    await expect(within(canvasElement).getByText('No data available')).toBeInTheDocument();
+    await expect(within(canvasElement).getByText('No documents yet')).toBeInTheDocument();
   },
 };
 
