@@ -1,0 +1,462 @@
+/*
+ * Public documentation styling.
+ *
+ * Shares the portal's visual language - warm bone, Satoshi body, Newsreader
+ * display - but NOT its reading model. DeveloperDocs.css sets
+ * `.DocsShell { height: 760px; overflow: hidden }`, a fixed-height box that
+ * scrolls internally. That is fine for the portal's five curated articles and
+ * wrong here: a fixed viewport breaks `#anchor` deep links, strands the table
+ * of contents against a scroll container the browser does not treat as the
+ * page, and makes a 400-line router reference unreadable. These pages scroll
+ * the document, and the sidebar and TOC are sticky instead.
+ *
+ * Colours come from globals.css tokens. Nothing is hard-coded, so dark mode is
+ * inherited rather than reimplemented.
+ */
+
+.DocsPage {
+  min-height: 100vh;
+  background: var(--page);
+  color: var(--color-text-primary);
+  font-family: var(--font-satoshi);
+}
+
+/* ---------- top bar ---------- */
+
+.DocsTopBar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  background: var(--page);
+  border-bottom: 1px solid var(--divider);
+}
+
+.DocsTopBrand {
+  font-family: var(--font-newsreader);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.DocsTopDivider {
+  width: 1px;
+  height: 18px;
+  background: var(--divider);
+}
+
+.DocsTopTitle {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.DocsTopSpacer {
+  flex: 1;
+}
+
+/* ---------- layout ---------- */
+
+.DocsLayout {
+  display: grid;
+  grid-template-columns: 268px minmax(0, 1fr) 220px;
+  gap: 32px;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 24px;
+  align-items: start;
+}
+
+@media (max-width: 1180px) {
+  .DocsLayout {
+    grid-template-columns: 248px minmax(0, 1fr);
+  }
+  .DocsToc {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .DocsLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .DocsNav {
+    position: static;
+    max-height: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--divider);
+  }
+}
+
+/* ---------- sidebar ---------- */
+
+.DocsNav {
+  position: sticky;
+  top: 57px;
+  max-height: calc(100vh - 57px);
+  overflow-y: auto;
+  padding: 20px 12px 40px 0;
+  border-right: 1px solid var(--divider);
+}
+
+.DocsNavSection {
+  margin-top: 14px;
+}
+
+.DocsNavSectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.DocsNavChevron {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.DocsNavLink {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.DocsNavLink:hover {
+  background: var(--color-card-hover);
+  color: var(--color-text-primary);
+}
+
+.DocsNavLinkActive {
+  background: var(--nav-active-bg);
+  color: var(--color-text-brand);
+  font-weight: 600;
+}
+
+/* ---------- main column ---------- */
+
+.DocsMain {
+  min-width: 0;
+  padding: 28px 0 80px;
+}
+
+.DocsBreadcrumb {
+  font-size: 12.5px;
+  color: var(--color-text-tertiary);
+}
+
+.DocsBreadcrumbSep {
+  padding: 0 6px;
+}
+
+.DocsTitle {
+  margin: 10px 0 22px;
+  font-family: var(--font-newsreader);
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.DocsBody {
+  font-size: 15.5px;
+  line-height: 1.72;
+  color: var(--color-text-secondary);
+}
+
+.DocsBody h2,
+.DocsBody h3,
+.DocsBody h4 {
+  font-family: var(--font-newsreader);
+  color: var(--color-text-primary);
+  letter-spacing: -0.015em;
+  /* Clears the sticky top bar when an #anchor is followed. */
+  scroll-margin-top: 76px;
+}
+
+.DocsBody h2 {
+  margin: 36px 0 12px;
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.DocsBody h3 {
+  margin: 28px 0 10px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.DocsBody p {
+  margin: 0 0 14px;
+}
+
+.DocsBody a {
+  color: var(--color-text-brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* The heading anchor wraps the heading text; it must not look like a link. */
+.DocsBody .DocsHeadingAnchor {
+  color: inherit;
+  text-decoration: none;
+}
+
+.DocsBody ul,
+.DocsBody ol {
+  margin: 0 0 14px;
+  padding-left: 22px;
+}
+
+.DocsBody li {
+  margin: 4px 0;
+}
+
+.DocsBody code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--inset);
+  color: var(--color-text-primary);
+  font-size: 0.88em;
+}
+
+.DocsBody pre {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  border: 1px solid var(--divider);
+  border-radius: 10px;
+  background: var(--screen-2);
+}
+
+.DocsBody pre code {
+  padding: 0;
+  background: none;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Wide tables scroll inside their own box rather than pushing the page sideways. */
+.DocsBody table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  margin: 0 0 18px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.DocsBody th,
+.DocsBody td {
+  padding: 8px 12px;
+  border: 1px solid var(--divider);
+  text-align: left;
+}
+
+.DocsBody th {
+  background: var(--inset);
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.DocsBody blockquote {
+  margin: 0 0 16px;
+  padding: 2px 0 2px 14px;
+  border-left: 3px solid var(--divider);
+  color: var(--color-text-tertiary);
+}
+
+.DocsBody img {
+  max-width: 100%;
+  height: auto;
+}
+
+.DocsFooter {
+  margin-top: 44px;
+  padding-top: 18px;
+  border-top: 1px solid var(--divider);
+}
+
+.DocsEditLink {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  text-decoration: none;
+}
+
+.DocsEditLink:hover {
+  color: var(--color-text-brand);
+  text-decoration: underline;
+}
+
+/* ---------- table of contents ---------- */
+
+.DocsToc {
+  position: sticky;
+  top: 77px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  padding: 30px 0 40px;
+}
+
+.DocsTocHeading {
+  margin: 0 0 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.DocsTocList {
+  margin: 0;
+  padding: 0 0 0 10px;
+  list-style: none;
+  border-left: 1px solid var(--divider);
+}
+
+.DocsTocItem,
+.DocsTocItemNested {
+  margin: 5px 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.DocsTocItemNested {
+  padding-left: 12px;
+}
+
+.DocsToc a {
+  color: var(--color-text-tertiary);
+  text-decoration: none;
+}
+
+.DocsToc a:hover {
+  color: var(--color-text-brand);
+}
+
+/* ---------- search ---------- */
+
+.DocsSearch {
+  position: relative;
+  width: min(320px, 42vw);
+}
+
+.DocsSearchInput {
+  width: 100%;
+  padding: 7px 12px;
+  border: 1px solid var(--divider);
+  border-radius: 9px;
+  background: var(--field-bg);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 13.5px;
+}
+
+.DocsSearchInput::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.DocsSearchPanel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  width: min(420px, 80vw);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--divider);
+  border-radius: 12px;
+  background: var(--color-surface-card);
+  box-shadow: var(--sh20);
+  z-index: 30;
+}
+
+.DocsSearchEmpty {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+.DocsSearchResult {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+}
+
+.DocsSearchResult:hover {
+  background: var(--color-card-hover);
+}
+
+.DocsSearchResultTitle {
+  font-size: 13.5px;
+  color: var(--color-text-primary);
+}
+
+.DocsSearchResultSection {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  color: var(--color-text-tertiary);
+}
+
+/* ---------- syntax highlighting ----------
+ *
+ * Class-name theme over highlight.js token classes, built from globals.css
+ * tokens rather than a stock palette, so it stays on-brand and follows dark
+ * mode. Contrast of each colour against the code-block ground is measured in
+ * the docs render test rather than assumed.
+ */
+
+.DocsBody .hljs-comment,
+.DocsBody .hljs-quote {
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+.DocsBody .hljs-keyword,
+.DocsBody .hljs-selector-tag,
+.DocsBody .hljs-literal,
+.DocsBody .hljs-type {
+  color: var(--color-text-brand);
+}
+
+.DocsBody .hljs-string,
+.DocsBody .hljs-title,
+.DocsBody .hljs-name,
+.DocsBody .hljs-attr {
+  color: var(--cyan-text);
+}
+
+.DocsBody .hljs-number,
+.DocsBody .hljs-symbol,
+.DocsBody .hljs-built_in,
+.DocsBody .hljs-variable {
+  color: var(--color-text-primary);
+}
+
+.DocsBody .hljs-meta,
+.DocsBody .hljs-deletion {
+  color: var(--color-text-tertiary);
+}

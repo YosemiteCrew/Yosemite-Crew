@@ -51,6 +51,9 @@ condition = "AND"
 regexTarget = "match"
 paths = [
   '''apps/frontend/public/dev-docs/assets/js/.*\.js$''',
+  # The same examples in their SOURCE form, now that the corpus is rendered
+  # from apps/frontend/content/docs rather than only compiled into a bundle.
+  '''apps/frontend/content/docs/.*\.mdx?$''',
 ]
 regexes = [
   '''Authorization: Bearer YOUR_[A-Z_]+''',
