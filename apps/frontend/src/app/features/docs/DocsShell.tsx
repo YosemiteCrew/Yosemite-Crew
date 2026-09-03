@@ -103,6 +103,13 @@ export default function DocsShell({
                 className="DocsOpenApiFrame"
                 src="/static/openapi/viewer.html"
                 title="Yosemite Crew OpenAPI reference"
+                // Redoc needs to run (allow-scripts) and fetch the same-origin
+                // spec (allow-same-origin); everything else - forms, popups,
+                // top-level navigation - stays denied. The frame is our own
+                // static file, so this is defence in depth, not the primary
+                // control, but it keeps a compromised viewer from reaching past
+                // its box.
+                sandbox="allow-scripts allow-same-origin"
               />
             )}
 
