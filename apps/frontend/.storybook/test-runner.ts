@@ -49,8 +49,7 @@ const config: TestRunnerConfig = {
          know would otherwise render at Playwright's default and fail somewhere
          far from the cause. */
       throw new Error(
-        `test-runner: story "${context.id}" requests viewport "${key}", which is not in ` +
-          `VIEWPORT_SIZES. Add it here and in .storybook/preview.ts, or fix the story's global.`
+        `test-runner: story "${context.id}" requests unknown viewport "${key}". Add it to VIEWPORT_SIZES and .storybook/preview.ts, or fix the story's global.`
       );
     }
 
