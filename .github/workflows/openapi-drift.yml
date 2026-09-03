@@ -59,14 +59,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # The router graph imports services whose types come from these, and the
-      # Prisma client. Without them the import fails long before any route is
-      # walked.
-      - name: Build shared packages
-        run: pnpm --filter "@yosemite-crew/*" run build
-
+      # Prisma first: packages/database compiles against the generated client,
+      # so building ahead of this fails on Prisma.JsonValue and Prisma.sql.
       - name: Generate Prisma client
         run: pnpm --filter @yosemite-crew/database run prisma:generate
+
+      # The router graph imports services whose types come from these. Without
+      # them the import fails long before any route is walked.
+      - name: Build shared packages
+        run: pnpm --filter "@yosemite-crew/*" run build
 
       # Importing the routers runs module-level code that refuses to load
       # without these. They are placeholders and are never used to reach any
