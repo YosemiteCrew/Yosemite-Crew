@@ -35,7 +35,7 @@ describe('search index', () => {
     for (const entry of corpus) {
       const fences = entry.body.match(/^```[\s\S]*?^```/gm) ?? [];
       for (const fence of fences) {
-        for (const token of fence.match(/[A-Za-z0-9_]{12,}/g) ?? []) {
+        for (const token of fence.match(/\w{12,}/g) ?? []) {
           const onlyInFence = corpus.every((other) => !stripped(other.body).includes(token));
           if (onlyInFence && haystack.includes(token.toLowerCase())) leaked.push(token);
         }

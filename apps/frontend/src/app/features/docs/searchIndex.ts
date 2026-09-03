@@ -24,10 +24,71 @@ export interface SearchDoc {
   text: string;
 }
 
-const FENCE = /^```[\s\S]*?^```/gm;
-const INDENTED_FENCE = /^~~~[\s\S]*?^~~~/gm;
+/*
+ * Fences are stripped by a LINE SCAN, not a regex.
+ *
+ * `/^```[\s\S]*?^```/gm` and `/\[([^\]]*)\]\([^)]*\)/g` both backtrack
+ * superlinearly on unbalanced input - an unclosed fence, or a run of `[`. The
+ * corpus is contributor-editable, so that is a denial-of-service vector on the
+ * build, not a hypothetical. A single pass over the lines is linear and easier
+ * to read besides.
+ */
+const FENCE_MARKERS = ['```', '~~~'];
+
+const stripFences = (markdown: string): string => {
+  const kept: string[] = [];
+  let openMarker: string | null = null;
+
+  for (const line of markdown.split('\n')) {
+    const trimmed = line.trimStart();
+    const marker = FENCE_MARKERS.find((candidate) => trimmed.startsWith(candidate));
+
+    if (openMarker) {
+      // Only the marker that opened the fence can close it.
+      if (marker === openMarker) openMarker = null;
+      continue;
+    }
+    if (marker) {
+      openMarker = marker;
+      continue;
+    }
+    kept.push(line);
+  }
+
+  return kept.join('\n');
+};
+
+/** Unwraps `[text](target)` to `text` in one pass, with no backtracking. */
+const stripLinkTargets = (text: string): string => {
+  let out = '';
+  let index = 0;
+
+  while (index < text.length) {
+    const open = text.indexOf('[', index);
+    if (open === -1) {
+      out += text.slice(index);
+      break;
+    }
+    const close = text.indexOf(']', open + 1);
+    if (close === -1 || text[close + 1] !== '(') {
+      out += text.slice(index, open + 1);
+      index = open + 1;
+      continue;
+    }
+    const target = text.indexOf(')', close + 2);
+    if (target === -1) {
+      out += text.slice(index, open + 1);
+      index = open + 1;
+      continue;
+    }
+    out += text.slice(index, open) + text.slice(open + 1, close);
+    index = target + 1;
+  }
+
+  return out;
+};
+
 const HTML_COMMENT = /<!--[\s\S]*?-->/g;
-const MD_LINK = /\[([^\]]*)\]\([^)]*\)/g;
 const HEADING_MARK = /^#{1,6}\s+/gm;
 const INLINE_CODE_TICKS = /`([^`]*)`/g;
 
@@ -48,12 +109,7 @@ const sectionFor = (file: string): string => {
 };
 
 export const toSearchText = (markdown: string): string =>
-  markdown
-    .replace(FENCE, ' ')
-    .replace(INDENTED_FENCE, ' ')
-    .replace(HTML_COMMENT, ' ')
-    // Keep the link text, drop the target.
-    .replace(MD_LINK, '$1')
+  stripLinkTargets(stripFences(markdown).replace(HTML_COMMENT, ' '))
     .replace(HEADING_MARK, '')
     // Unwrap inline code to its literal content - see the header.
     .replace(INLINE_CODE_TICKS, '$1')
