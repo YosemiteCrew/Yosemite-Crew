@@ -4,10 +4,10 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import {useTranslation} from 'react-i18next';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import type {Theme} from '@/theme';
 import {MAX_UTTERANCE_LENGTH} from '@/features/assistant/constants';
@@ -98,7 +98,7 @@ export const AssistantComposer: React.FC<AssistantComposerProps> = ({
         returnKeyType="send"
         blurOnSubmit
       />
-      <TouchableOpacity
+      <PressableOpacity
         testID="assistant-send"
         accessibilityRole="button"
         accessibilityLabel={t('assistant.send')}
@@ -114,7 +114,7 @@ export const AssistantComposer: React.FC<AssistantComposerProps> = ({
         ) : (
           <Text style={styles.sendText}>{t('assistant.send')}</Text>
         )}
-      </TouchableOpacity>
+      </PressableOpacity>
     </View>
   );
 };

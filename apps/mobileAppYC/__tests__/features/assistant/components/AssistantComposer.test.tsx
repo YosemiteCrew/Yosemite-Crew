@@ -56,6 +56,20 @@ const inputOf = (utils: ReturnType<typeof renderComposer>) =>
 const sendOf = (utils: ReturnType<typeof renderComposer>) =>
   utils.getByTestId('assistant-send');
 
+/**
+ * The send button's resolved style while it is not being pressed.
+ *
+ * PressableOpacity gives Pressable a style callback rather than an object, so
+ * the state has to be applied before flattening. `pressed: false` is the
+ * resting appearance, which is what these assertions are about.
+ */
+const sendStyle = (utils: ReturnType<typeof renderComposer>) => {
+  const {style} = sendOf(utils).props;
+  return StyleSheet.flatten(
+    typeof style === 'function' ? style({pressed: false}) : style,
+  );
+};
+
 const inputBorderColor = (utils: ReturnType<typeof renderComposer>) =>
   StyleSheet.flatten(inputOf(utils).props.style).borderColor;
 
@@ -167,13 +181,16 @@ describe('AssistantComposer', () => {
     it('dims the send button while it is disabled', () => {
       const utils = renderComposer({value: '  '});
 
-      expect(StyleSheet.flatten(sendOf(utils).props.style).opacity).toBe(0.5);
+      expect(sendStyle(utils).opacity).toBe(0.5);
     });
 
-    it('shows the send button at full opacity once it can be pressed', () => {
+    it('does not dim the send button once it can be pressed', () => {
       const utils = renderComposer({value: 'hi'});
 
-      expect(StyleSheet.flatten(sendOf(utils).props.style).opacity).toBe(1);
+      // The dimming is the component's own `sendDisabled` style; when it can
+      // be pressed there is no opacity of its own to apply.
+      expect(sendStyle(utils).opacity).toBeUndefined();
+      expect(sendOf(utils).props.accessibilityState).toEqual({disabled: false});
     });
   });
 

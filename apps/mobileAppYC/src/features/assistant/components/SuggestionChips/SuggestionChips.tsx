@@ -1,6 +1,7 @@
 import React, {useMemo} from 'react';
-import {ScrollView, StyleSheet, Text, TouchableOpacity} from 'react-native';
+import {ScrollView, StyleSheet, Text} from 'react-native';
 import {useTranslation} from 'react-i18next';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import type {Theme} from '@/theme';
 import {ASSISTANT_ACTIONS} from '@/features/assistant/actions/catalogue';
@@ -60,6 +61,11 @@ export const SuggestionChips: React.FC<SuggestionChipsProps> = ({
   );
 
   return (
+    // Deliberately a ScrollView rather than a FlatList, against
+    // react-doctor's rn-no-scrollview-mapped-list. That rule targets long
+    // lists; this row is explicitly capped by `limit` (four by default), so
+    // virtualising it would buy nothing and would trade an exact "render these
+    // chips" contract for a windowed one.
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
@@ -67,14 +73,14 @@ export const SuggestionChips: React.FC<SuggestionChipsProps> = ({
       contentContainerStyle={styles.container}
       testID="assistant-suggestions">
       {phrases.map(phrase => (
-        <TouchableOpacity
+        <PressableOpacity
           key={phrase.key}
           style={styles.chip}
           accessibilityRole="button"
           accessibilityLabel={phrase.label}
           onPress={() => onSelect(phrase.label)}>
           <Text style={styles.chipText}>{phrase.label}</Text>
-        </TouchableOpacity>
+        </PressableOpacity>
       ))}
     </ScrollView>
   );

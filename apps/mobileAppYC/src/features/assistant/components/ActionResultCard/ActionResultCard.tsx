@@ -1,6 +1,7 @@
 import React, {useMemo} from 'react';
-import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
 import {useTranslation} from 'react-i18next';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import type {Theme} from '@/theme';
 import type {AssistantActionResult} from '@/features/assistant/types';
@@ -88,7 +89,7 @@ export const ActionResultCard: React.FC<ActionResultCardProps> = ({
       ))}
 
       {hasHandoff ? (
-        <TouchableOpacity
+        <PressableOpacity
           style={styles.action}
           accessibilityRole="button"
           testID="assistant-result-open"
@@ -96,7 +97,7 @@ export const ActionResultCard: React.FC<ActionResultCardProps> = ({
           <Text style={styles.actionText}>
             {t(`assistant.open.${result.actionId}`)}
           </Text>
-        </TouchableOpacity>
+        </PressableOpacity>
       ) : null}
     </View>
   );
