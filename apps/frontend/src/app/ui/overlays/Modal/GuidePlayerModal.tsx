@@ -1,14 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import {
-  IoArrowForward,
-  IoClose,
-  IoExpandOutline,
-  IoLinkOutline,
-  IoPlay,
-  IoTextOutline,
-  IoVolumeHighOutline,
-} from 'react-icons/io5';
+import { IoArrowForward, IoClose, IoLinkOutline } from 'react-icons/io5';
 import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
 import { buildGuideDeepLink, copyToClipboard } from '@/app/ui/overlays/Modal/guideDeepLink';
 import { GuideVideo } from '@/app/features/guides/types/guides';
@@ -56,9 +48,6 @@ const GuidePlayerModal = ({
 
   if (!guide) return null;
 
-  const scrubberPercent = Math.max(0, Math.min(100, guide.progressPercent ?? 0));
-  const currentTime = guide.currentTime ?? '0:00';
-
   return (
     <ModalBase
       showModal={showModal}
@@ -104,53 +93,29 @@ const GuidePlayerModal = ({
         </span>
       </div>
 
-      {/* Video surface (presentational) */}
-      <div
-        className="relative flex aspect-video items-center justify-center"
-        style={{ backgroundColor: '#1d1c1b' }}
-      >
-        <span
-          aria-hidden="true"
-          className="flex size-[68px] items-center justify-center rounded-full"
-          style={{
-            backgroundColor: 'rgba(247,243,236,0.94)',
-            color: '#1d1c1b',
-            boxShadow: '0 12px 36px rgba(0,0,0,0.45)',
-          }}
+      {/* The player. This was a still: a play glyph, a scrubber driven by a
+          module literal and a decorative 1.5x badge, with `guide.videoUrl`
+          never read - so the Guides screen offered a play button that could not
+          play, and the video only ever ran from the dashboard card. It is a real
+          <video> now, with the browser's own controls (they carry keyboard
+          access, captions and fullscreen for free) and the guide's own poster.
+          Keyed on the URL so switching guides remounts rather than keeping the
+          previous frame. */}
+      <div className="relative aspect-video bg-[var(--ink)]">
+        <video
+          key={guide.videoUrl}
+          className="size-full"
+          controls
+          preload="metadata"
+          poster={guide.thumbnailUrl}
         >
-          <IoPlay size={28} className="ml-1" />
-        </span>
-        <div
-          className="absolute inset-x-0 bottom-0 flex flex-col gap-2 px-[18px] pb-3 pt-3.5"
-          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55), transparent)' }}
-        >
-          <span
-            className="h-1 overflow-hidden rounded-full"
-            style={{ backgroundColor: 'rgba(247,243,236,0.28)' }}
-          >
-            <span
-              className="block h-full rounded-full"
-              style={{ width: `${scrubberPercent}%`, backgroundColor: '#f7f3ec' }}
-            />
-          </span>
-          <span className="flex items-center gap-3" style={{ color: '#f7f3ec' }}>
-            <IoPlay size={16} aria-hidden="true" />
-            <IoVolumeHighOutline size={16} aria-hidden="true" />
-            <span className="text-[11px] font-semibold tabular-nums">
-              {currentTime} / {guide.duration}
-            </span>
-            <span className="ml-auto flex items-center gap-3">
-              <span
-                className="rounded-md border px-1.5 py-px text-[10.5px] font-bold"
-                style={{ borderColor: 'rgba(247,243,236,0.4)' }}
-              >
-                1.5×
-              </span>
-              <IoTextOutline size={15} aria-hidden="true" />
-              <IoExpandOutline size={15} aria-hidden="true" />
-            </span>
-          </span>
-        </div>
+          <source src={guide.videoUrl} type="video/mp4" />
+          {/* An empty track keeps the captions control present and honest: the
+              films carry no caption file yet, and a missing <track> would hide
+              the affordance rather than show it as empty. */}
+          <track kind="captions" src="data:text/vtt,WEBVTT" srcLang="en" label="English" default />
+          Your browser cannot play this video.
+        </video>
       </div>
 
       {/* Footer: chapters + next */}
