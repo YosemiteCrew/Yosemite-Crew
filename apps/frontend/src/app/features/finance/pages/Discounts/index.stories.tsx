@@ -14,6 +14,10 @@ import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import { useOrganizationDocumentStore } from '@/app/stores/documentStore';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { useAvailabilityStore } from '@/app/stores/availabilityStore';
+import { useUserProfileStore } from '@/app/stores/profileStore';
+import type { ApiDayAvailability } from '@/app/features/appointments/components/Availability/utils';
+import type { UserProfile } from '@/app/features/users/types/profile';
 import { useSpecialityStore } from '@/app/stores/specialityStore';
 import { useSubscriptionStore } from '@/app/stores/subscriptionStore';
 import { useTaskStore } from '@/app/stores/taskStore';
@@ -51,6 +55,53 @@ type CapFixture =
   /** Held open on purpose: the only way to hold the skeleton still. */
   | { kind: 'pending' }
   | { kind: 'rejects'; message: string };
+
+/**
+ * Enough of a profile and one published availability day to clear
+ * `computeTeamOnboardingStep`. Below step 3 `OrgGuard` redirects the whole route
+ * to /team-onboarding, so an incomplete fixture does not render a worse story -
+ * it renders no story at all.
+ *
+ * These are what let the guards pass on REAL data. The obvious alternative, the
+ * `NEXT_PUBLIC_DISABLE_AUTH_GUARD` bypass, works only under the dev server: a
+ * production/static build inlines every `process.env.NEXT_PUBLIC_*` read at
+ * build time, so assigning one at runtime is a no-op and the guards redirect -
+ * which is exactly how these stories rendered an empty page in the static build
+ * that Chromatic publishes.
+ */
+const PROFILE: UserProfile = {
+  _id: 'profile-storybook',
+  userId: 'user-storybook',
+  organizationId: ORG_ID,
+  personalDetails: {
+    gender: 'FEMALE',
+    dateOfBirth: '1989-11-02',
+    phoneNumber: '+44 20 7946 0958',
+    address: {
+      addressLine: '14 Harbour Row',
+      city: 'Bristol',
+      state: 'Bristol',
+      postalCode: 'BS1 4RN',
+      country: 'United Kingdom',
+    },
+  },
+  professionalDetails: {
+    qualification: 'BVSc MRCVS',
+    yearsOfExperience: 8,
+    specialization: 'Internal medicine',
+  },
+  status: 'COMPLETED',
+};
+
+const AVAILABILITY: ApiDayAvailability = {
+  _id: 'availability-monday',
+  userId: 'user-storybook',
+  organisationId: ORG_ID,
+  dayOfWeek: 'MONDAY',
+  slots: [
+    { startTime: '09:00', endTime: '17:00', isAvailable: true },
+  ] as ApiDayAvailability['slots'],
+};
 
 const respond = (config: InternalAxiosRequestConfig, data: unknown): AxiosResponse => ({
   data,
@@ -121,14 +172,16 @@ const buildAdapter =
   };
 
 const REAL_ADAPTER = api.defaults.adapter;
-const env = process.env as Record<string, string | undefined>;
 
 /**
- * The page ships behind `ProtectedRoute` and `OrgGuard`. The stories lift both
- * with `NEXT_PUBLIC_DISABLE_AUTH_GUARD` - the local-only flag the shell itself
- * honours through `isLocalGuardBypassEnabled`, which SessionInitializer.stories
- * also flips - so the route renders without a session and without the redirect
- * ladder. OrgGuard still mounts its eleven org-scoped loaders, and each of
+ * The page ships behind `ProtectedRoute` and `OrgGuard`. The stories satisfy the guards with real
+ * data - an authenticated session, a verified org, an active membership, a
+ * profile past onboarding step 3 and one availability row - rather than with the
+ * `NEXT_PUBLIC_DISABLE_AUTH_GUARD` bypass, which only works under the dev server:
+ * a static build inlines every `process.env.NEXT_PUBLIC_*` read at build time, so
+ * assigning one at runtime changes nothing and the guards redirect.
+ *
+ *  its eleven org-scoped loaders, and each of
  * their stores is seeded with an entry for this org so they short-circuit on
  * `Object.hasOwn(...ByOrgId, primaryOrgId)` rather than reaching the network.
  */
@@ -136,12 +189,12 @@ const prepare =
   ({ fixture, revoked = [] }: { fixture: CapFixture; revoked?: string[] }) =>
   () => {
     clearInFlightGetRequests();
-    const previousBypass = env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
-    env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = 'true';
 
     const snapshots = {
       appointment: useAppointmentStore.getState(),
       auth: useAuthStore.getState(),
+      profile: useUserProfileStore.getState(),
+      availability: useAvailabilityStore.getState(),
       companion: useCompanionStore.getState(),
       document: useOrganizationDocumentStore.getState(),
       forms: useFormsStore.getState(),
@@ -161,6 +214,12 @@ const prepare =
     const fetchedAt = { [ORG_ID]: new Date().toISOString() };
 
     useAuthStore.setState({ status: 'authenticated' });
+    useUserProfileStore.setState({ profilesByOrgId: { [ORG_ID]: PROFILE }, status: 'loaded' });
+    useAvailabilityStore.setState({
+      availabilitiesById: { [AVAILABILITY._id]: AVAILABILITY },
+      availabilityIdsByOrgId: { [ORG_ID]: [AVAILABILITY._id] },
+      status: 'loaded',
+    });
     useOrgStore.setState({
       primaryOrgId: ORG_ID,
       orgIds: [ORG_ID],
@@ -205,10 +264,10 @@ const prepare =
       useFormsStore.setState(snapshots.forms);
       useOrganizationDocumentStore.setState(snapshots.document);
       useCompanionStore.setState(snapshots.companion);
+      useAvailabilityStore.setState(snapshots.availability);
+      useUserProfileStore.setState(snapshots.profile);
       useAuthStore.setState(snapshots.auth);
       useAppointmentStore.setState(snapshots.appointment);
-      if (previousBypass === undefined) delete env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
-      else env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = previousBypass;
       clearInFlightGetRequests();
     };
   };

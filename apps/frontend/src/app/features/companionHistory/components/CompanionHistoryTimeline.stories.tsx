@@ -402,9 +402,13 @@ export const Loaded: Story = {
     ).toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: /^Status:/ })).not.toBeInTheDocument();
 
-    // Newest first: the appointment row comes before the invoice row.
-    const first = rows(canvasElement)[0];
-    await expect(within(first).getByText('Annual wellness exam')).toBeInTheDocument();
+    /* Newest first, which is NOT fixture order: the complete blood count is
+       stamped 11:20 and the wellness exam 9:05 on the same day, so the lab
+       result leads and the appointment follows it. Asserting the pair in order
+       is what tells a real sort apart from the list simply arriving as seeded. */
+    const ordered = rows(canvasElement);
+    await expect(within(ordered[0]).getByText('Complete blood count')).toBeInTheDocument();
+    await expect(within(ordered[1]).getByText('Annual wellness exam')).toBeInTheDocument();
   },
 };
 

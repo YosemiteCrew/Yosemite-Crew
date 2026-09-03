@@ -14,22 +14,16 @@ import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import { useOrganizationDocumentStore } from '@/app/stores/documentStore';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { useAvailabilityStore } from '@/app/stores/availabilityStore';
+import { useUserProfileStore } from '@/app/stores/profileStore';
+import type { ApiDayAvailability } from '@/app/features/appointments/components/Availability/utils';
+import type { UserProfile } from '@/app/features/users/types/profile';
 import { useSpecialityStore } from '@/app/stores/specialityStore';
 import { useTaskStore } from '@/app/stores/taskStore';
 import { useTeamStore } from '@/app/stores/teamStore';
 import DocSigning from './index';
 
 const ORG_ID = 'org-storybook-doc-signing';
-
-/**
- * The origin the iframe branch is gated on. `getSafeDocumensoIframeUrl` compares
- * the resolved URL's origin against `NEXT_PUBLIC_DOCUMENSO_HOST` and returns ''
- * on any mismatch, so the stories pin the variable to a `.invalid` host: the TLD
- * never resolves, so the frame lays out its box without a request leaving for
- * the real portal. Same approach as DocSigning/DocSigningPortal.
- */
-const PORTAL_ORIGIN = 'https://documenso.storybook.invalid';
-const REDIRECT_URL = `${PORTAL_ORIGIN}/portal/home`;
 
 const ORG: Organisation = {
   _id: ORG_ID,
@@ -54,6 +48,53 @@ type PortalFixture =
   | { kind: 'pending' }
   | { kind: 'resolves'; redirectUrl: string }
   | { kind: 'rejects'; message: string };
+
+/**
+ * Enough of a profile and one published availability day to clear
+ * `computeTeamOnboardingStep`. Below step 3 `OrgGuard` redirects the whole route
+ * to /team-onboarding, so an incomplete fixture does not render a worse story -
+ * it renders no story at all.
+ *
+ * These are what let the guards pass on REAL data. The obvious alternative, the
+ * `NEXT_PUBLIC_DISABLE_AUTH_GUARD` bypass, works only under the dev server: a
+ * production/static build inlines every `process.env.NEXT_PUBLIC_*` read at
+ * build time, so assigning one at runtime is a no-op and the guards redirect -
+ * which is exactly how these stories rendered an empty page in the static build
+ * that Chromatic publishes.
+ */
+const PROFILE: UserProfile = {
+  _id: 'profile-storybook',
+  userId: 'user-storybook',
+  organizationId: ORG_ID,
+  personalDetails: {
+    gender: 'FEMALE',
+    dateOfBirth: '1989-11-02',
+    phoneNumber: '+44 20 7946 0958',
+    address: {
+      addressLine: '14 Harbour Row',
+      city: 'Bristol',
+      state: 'Bristol',
+      postalCode: 'BS1 4RN',
+      country: 'United Kingdom',
+    },
+  },
+  professionalDetails: {
+    qualification: 'BVSc MRCVS',
+    yearsOfExperience: 8,
+    specialization: 'Internal medicine',
+  },
+  status: 'COMPLETED',
+};
+
+const AVAILABILITY: ApiDayAvailability = {
+  _id: 'availability-monday',
+  userId: 'user-storybook',
+  organisationId: ORG_ID,
+  dayOfWeek: 'MONDAY',
+  slots: [
+    { startTime: '09:00', endTime: '17:00', isAvailable: true },
+  ] as ApiDayAvailability['slots'],
+};
 
 const respond = (config: InternalAxiosRequestConfig, data: unknown): AxiosResponse => ({
   data,
@@ -104,7 +145,6 @@ const buildAdapter =
   };
 
 const REAL_ADAPTER = api.defaults.adapter;
-const env = process.env as Record<string, string | undefined>;
 
 /**
  * The page ships behind `ProtectedRoute` and `OrgGuard` and calls `useLoadOrg`,
@@ -115,14 +155,12 @@ const env = process.env as Record<string, string | undefined>;
  */
 const prepare = (fixture: PortalFixture) => () => {
   clearInFlightGetRequests();
-  const previousBypass = env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
-  const previousHost = env.NEXT_PUBLIC_DOCUMENSO_HOST;
-  env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = 'true';
-  env.NEXT_PUBLIC_DOCUMENSO_HOST = PORTAL_ORIGIN;
 
   const snapshots = {
     appointment: useAppointmentStore.getState(),
     auth: useAuthStore.getState(),
+    profile: useUserProfileStore.getState(),
+    availability: useAvailabilityStore.getState(),
     companion: useCompanionStore.getState(),
     document: useOrganizationDocumentStore.getState(),
     forms: useFormsStore.getState(),
@@ -141,6 +179,12 @@ const prepare = (fixture: PortalFixture) => () => {
   const fetchedAt = { [ORG_ID]: new Date().toISOString() };
 
   useAuthStore.setState({ status: 'authenticated' });
+  useUserProfileStore.setState({ profilesByOrgId: { [ORG_ID]: PROFILE }, status: 'loaded' });
+  useAvailabilityStore.setState({
+    availabilitiesById: { [AVAILABILITY._id]: AVAILABILITY },
+    availabilityIdsByOrgId: { [ORG_ID]: [AVAILABILITY._id] },
+    status: 'loaded',
+  });
   useOrgStore.setState({
     primaryOrgId: ORG_ID,
     orgIds: [ORG_ID],
@@ -181,12 +225,10 @@ const prepare = (fixture: PortalFixture) => () => {
     useFormsStore.setState(snapshots.forms);
     useOrganizationDocumentStore.setState(snapshots.document);
     useCompanionStore.setState(snapshots.companion);
+    useAvailabilityStore.setState(snapshots.availability);
+    useUserProfileStore.setState(snapshots.profile);
     useAuthStore.setState(snapshots.auth);
     useAppointmentStore.setState(snapshots.appointment);
-    if (previousBypass === undefined) delete env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
-    else env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = previousBypass;
-    if (previousHost === undefined) delete env.NEXT_PUBLIC_DOCUMENSO_HOST;
-    else env.NEXT_PUBLIC_DOCUMENSO_HOST = previousHost;
     clearInFlightGetRequests();
   };
 };
@@ -229,10 +271,15 @@ const meta = {
           'which is exactly why it is worth a story: the standalone sizing ' +
           '(`calc(100vh - 140px)`) is chosen here rather than in the embedded card on the ' +
           'organisation page, and the two are only comparable side by side. The four ' +
-          'branches the portal can land on - loading, an error from the backend, an empty ' +
-          'link, and the sandboxed frame - are decided by one POST, so each story pins the ' +
-          'transport. The frame itself is a third-party page on another origin and stays ' +
-          'blank offline; its geometry and sandbox are what can be read.\n\n' +
+          'branches the portal can land on are decided by one POST, so each story pins the ' +
+          'transport.\n\n' +
+          '**The iframe branch is deliberately not drawn here.** It is reachable only when ' +
+          'the redirect URL sits on the configured Documenso origin, and that origin is read ' +
+          'from `NEXT_PUBLIC_DOCUMENSO_HOST` - which a static build inlines at build time, so ' +
+          'no story can steer it. Pointing the fixture at the real host instead makes the ' +
+          'browser refuse the frame under that host\u2019s own `frame-ancestors` policy, which ' +
+          'is a console error rather than a story. The frame, its sandbox and the standalone ' +
+          'sizing are covered at component level under DocSigning/DocSigningPortal.\n\n' +
           'The route guards are lifted with the local-only bypass flag the shell honours, ' +
           'and the org-scoped stores OrgGuard would load are seeded.',
       },
@@ -240,30 +287,11 @@ const meta = {
   },
   tags: ['autodocs'],
   globals: { viewport: { value: 'desktop', isRotated: false } },
-  beforeEach: prepare({ kind: 'resolves', redirectUrl: REDIRECT_URL }),
+  beforeEach: prepare({ kind: 'resolves', redirectUrl: '' }),
 } satisfies Meta<typeof DocSigning>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
-
-export const Portal: Story = {
-  name: 'Portal on its route',
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const iframe = await canvas.findByTitle('Doc Signing Portal');
-    await expect(iframe).toHaveAttribute('src', REDIRECT_URL);
-    await expect(iframe).toHaveAttribute(
-      'sandbox',
-      'allow-downloads allow-forms allow-modals allow-popups allow-scripts allow-same-origin'
-    );
-    // Standalone: the viewport less the app chrome above it.
-    const container = iframe.parentElement as HTMLElement;
-    await expect(
-      Math.abs(container.getBoundingClientRect().height - (window.innerHeight - 140))
-    ).toBeLessThan(2);
-    await expect(canvas.getByText(/could not sign you in automatically/i)).toBeInTheDocument();
-  },
-};
 
 export const Loading: Story = {
   name: 'Loading the portal',
