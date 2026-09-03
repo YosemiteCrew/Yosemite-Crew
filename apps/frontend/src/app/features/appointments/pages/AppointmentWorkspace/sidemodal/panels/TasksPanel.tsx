@@ -650,7 +650,7 @@ const TasksPanel = ({
       )}
       <div className="flex justify-center">
         {saveError && <p className="text-caption-1 text-text-error">{saveError}</p>}
-        <Primary text="New Task" icon={<IoAddOutline aria-hidden="true" />} onClick={openNew} />
+        <Primary text="New task" icon={<IoAddOutline aria-hidden="true" />} onClick={openNew} />
       </div>
     </div>
   );

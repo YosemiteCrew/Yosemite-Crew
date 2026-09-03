@@ -404,7 +404,7 @@ describe('LabTests', () => {
     fireEvent.change(screen.getByTestId('lab-notes'), {
       target: { value: 'Fasted sample' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Create IDEXX order' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create lab order' }));
 
     await waitFor(() => {
       expect(createIdexxLabOrderMock).toHaveBeenCalledWith({
@@ -676,7 +676,7 @@ describe('LabTests', () => {
 
     fireEvent.change(screen.getByTestId('Modality'), { target: { value: 'INHOUSE' } });
 
-    expect(screen.queryByRole('button', { name: 'Create IDEXX order' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Create lab order' })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Select Search IDEXX tests' })
     ).not.toBeInTheDocument();
@@ -1407,7 +1407,7 @@ describe('LabTests', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Select Search IDEXX tests' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Create IDEXX order' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create lab order' }));
 
     await waitFor(() => {
       expect(screen.getByText('Unable to create IDEXX lab order.')).toBeInTheDocument();

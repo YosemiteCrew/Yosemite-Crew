@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-export const metadata: Metadata = { title: 'Organisation — Yosemite Crew' };
+export const metadata: Metadata = { title: 'Organization — Yosemite Crew' };
 import React from 'react';
 import dynamic from 'next/dynamic';
 

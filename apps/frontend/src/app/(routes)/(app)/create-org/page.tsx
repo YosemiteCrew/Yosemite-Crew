@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-export const metadata: Metadata = { title: 'Create Organisation — Yosemite Crew' };
+export const metadata: Metadata = { title: 'Create organization — Yosemite Crew' };
 import React from 'react';
 import ProtectedCreateOrg from '@/app/features/onboarding/pages/CreateOrg/CreateOrg';
 
