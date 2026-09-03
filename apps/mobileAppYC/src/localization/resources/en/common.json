@@ -589,5 +589,118 @@
       "submissionRequired": "Submission required",
       "submissionRequiredBody": "Complete the observational tool before booking."
     }
+  },
+  "assistant": {
+    "title": "Pet care assistant",
+    "entryTitle": "Ask about your pets",
+    "entrySubtitle": "Appointments, vaccines, tasks and spending, answered on your device.",
+    "emptyTitle": "Ask me about your pets",
+    "emptyBody": "Try one of the suggestions below, or ask in your own words. Answers come from your own records.",
+    "composerPlaceholder": "Ask about appointments, vaccines or tasks",
+    "send": "Send",
+    "clear": "Clear conversation",
+    "model": {
+      "provider": "on-device AI",
+      "unsupportedOS": "Answers here are exact rather than chatty. {{provider}} needs a newer version of this phone's software.",
+      "unsupportedDevice": "Answers here are exact rather than chatty. This device does not support {{provider}}.",
+      "notEnabled": "Turn on {{provider}} in system settings for more natural replies. Everything still works without it.",
+      "modelNotReady": "{{provider}} is still downloading. Replies stay exact until it is ready.",
+      "unknown": "Replies are exact rather than chatty on this device."
+    },
+    "actions": {
+      "nextAppointment": {
+        "title": "Next appointment",
+        "description": "Say when the next vet or grooming appointment is.",
+        "phrase1": "When is my next appointment?",
+        "phrase2": "When does Bruno see the vet?"
+      },
+      "vaccinationStatus": {
+        "title": "Vaccination status",
+        "description": "Say whether a pet's vaccinations are up to date or due.",
+        "phrase1": "Are Bruno's vaccines up to date?",
+        "phrase2": "Which vaccinations are due?"
+      },
+      "upcomingTasks": {
+        "title": "What is due",
+        "description": "List the care tasks due for a pet in a given period.",
+        "phrase1": "What is due today?",
+        "phrase2": "What does Bruno need this week?"
+      },
+      "petOverview": {
+        "title": "Pet summary",
+        "description": "Summarise one pet's open tasks and upcoming appointments.",
+        "phrase1": "Tell me about Bruno"
+      },
+      "expenseSummary": {
+        "title": "Spending",
+        "description": "Total what has been spent on a pet.",
+        "phrase1": "How much have I spent on Bruno?"
+      },
+      "addCareTask": {
+        "title": "Add a care task",
+        "description": "Start a new care task or medication reminder.",
+        "phrase1": "Remind me to give Bruno his tablet tonight",
+        "phrase2": "Add a task for Bruno"
+      },
+      "logExpense": {
+        "title": "Log an expense",
+        "description": "Start a new expense record for a pet.",
+        "phrase1": "Log an expense for Bruno"
+      },
+      "bookAppointment": {
+        "title": "Book an appointment",
+        "description": "Start booking a vet or grooming appointment.",
+        "phrase1": "Book an appointment for Bruno",
+        "phrase2": "Book a vet visit"
+      }
+    },
+    "open": {
+      "addCareTask": "Add the task",
+      "logExpense": "Add the expense",
+      "bookAppointment": "Find a clinic",
+      "nextAppointment": "Open",
+      "vaccinationStatus": "Open",
+      "upcomingTasks": "Open",
+      "petOverview": "Open",
+      "expenseSummary": "Open"
+    },
+    "replies": {
+      "empty": "Ask me something about your pets.",
+      "unknown": "I can help with appointments, vaccinations, care tasks and spending. Try one of the suggestions.",
+      "error": "Something went wrong. Please try again.",
+      "needsPet": "Which pet do you mean?",
+      "nextAppointment": {
+        "found": "{{petName}} has an appointment on {{date}} at {{time}}.",
+        "none": "There are no upcoming appointments booked."
+      },
+      "vaccinationStatus": {
+        "overdue": "{{petName}} has {{count}} overdue vaccination, starting with {{name}}.",
+        "overdue_other": "{{petName}} has {{count}} overdue vaccinations, starting with {{name}}.",
+        "dueSoon": "{{petName}} is due a {{name}} vaccination on {{date}}.",
+        "upToDate": "{{petName}} is up to date on vaccinations.",
+        "none": "There are no vaccination records for {{petName}} yet."
+      },
+      "upcomingTasks": {
+        "found": "There are {{count}} tasks due, starting with {{first}}.",
+        "found_one": "There is 1 task due: {{first}}.",
+        "none": "Nothing is due in that period."
+      },
+      "petOverview": {
+        "summary": "{{petName}} has {{tasks}} open tasks and {{appointments}} upcoming appointments."
+      },
+      "expenseSummary": {
+        "total": "You have recorded {{total}} {{currency}} across {{count}} expenses.",
+        "none": "There are no expenses recorded yet."
+      },
+      "addCareTask": {
+        "handoff": "I have opened a new task for you to confirm."
+      },
+      "logExpense": {
+        "handoff": "I have opened a new expense for you to confirm."
+      },
+      "bookAppointment": {
+        "handoff": "Booking needs a time and payment, so I have opened the clinic search for you."
+      }
+    }
   }
 }

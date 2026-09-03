@@ -4,6 +4,8 @@ import {themeReducer} from '@/features/theme';
 import {companionReducer} from '@/features/companion';
 import formsReducer from '@/features/forms/formsSlice';
 import passportReducer from '@/features/passport/passportSlice';
+import {assistantReducer} from '@/features/assistant/assistantSlice';
+import {clearSnapshot} from '@/features/assistant/services/assistantSnapshot';
 import {
   initializeAuth,
   refreshSession,
@@ -24,6 +26,9 @@ import type {
 
 jest.mock('@/features/auth/sessionManager');
 jest.mock('@/features/auth/services/passwordlessAuth');
+jest.mock('@/features/assistant/services/assistantSnapshot', () => ({
+  clearSnapshot: jest.fn().mockResolvedValue(true),
+}));
 
 const createTestStore = () => {
   return configureStore({
@@ -33,6 +38,7 @@ const createTestStore = () => {
       companion: companionReducer,
       forms: formsReducer,
       passport: passportReducer,
+      assistant: assistantReducer,
     },
   });
 };
@@ -660,6 +666,36 @@ describe('auth thunks', () => {
       expect(state.status).toBe('unauthenticated');
       expect(state.user).toBeNull();
       expect(store.getState().forms.byAppointmentId).toEqual({});
+    });
+
+    // The assistant's transcript is pet health chatter and its snapshot is read
+    // by Siri and the launcher shortcuts WITHOUT the app running, so a
+    // signed-out phone must not still answer from the previous owner's data.
+    it('clears the assistant transcript and its offline snapshot on logout', async () => {
+      jest.spyOn(passwordlessAuth, 'signOutEverywhere').mockResolvedValue();
+      (sessionManager.clearSessionData as jest.Mock).mockResolvedValue(
+        undefined,
+      );
+      (sessionManager.resetAuthLifecycle as jest.Mock).mockImplementation(
+        () => {},
+      );
+
+      store.dispatch({
+        type: 'assistant/messageAdded',
+        payload: {
+          id: 'm1',
+          author: 'assistant',
+          text: 'Bruno is overdue a rabies vaccination.',
+          createdAt: '2026-09-03T09:00:00.000Z',
+        },
+      });
+      expect(store.getState().assistant.messages).toHaveLength(1);
+
+      const dispatch = store.dispatch as any;
+      await dispatch(logout());
+
+      expect(store.getState().assistant.messages).toEqual([]);
+      expect(clearSnapshot).toHaveBeenCalled();
     });
 
     // Passport payloads carry the owner's name, email and phone, so they must

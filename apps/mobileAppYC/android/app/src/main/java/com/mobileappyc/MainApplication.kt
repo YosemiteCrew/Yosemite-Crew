@@ -14,6 +14,7 @@ import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
+import com.mobileappyc.assistant.AssistantPackage
 
 class MainApplication : Application(), ReactApplication {
 
@@ -23,6 +24,7 @@ class MainApplication : Application(), ReactApplication {
             PackageList(this).packages.apply {
               // Packages that cannot be autolinked yet can be added manually here, for example:
               // add(MyReactNativePackage())
+              add(AssistantPackage())
             }
 
         override fun getJSMainModuleName(): String = "index"

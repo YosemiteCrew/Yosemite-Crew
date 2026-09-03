@@ -589,5 +589,118 @@
       "submissionRequired": "Envío obligatorio",
       "submissionRequiredBody": "Completa la herramienta de observación antes de reservar."
     }
+  },
+  "assistant": {
+    "title": "Asistente de cuidado",
+    "entryTitle": "Pregunta por tus mascotas",
+    "entrySubtitle": "Citas, vacunas, tareas y gastos, respondidos en tu dispositivo.",
+    "emptyTitle": "Pregúntame por tus mascotas",
+    "emptyBody": "Prueba una de las sugerencias o pregunta con tus palabras. Las respuestas salen de tus propios registros.",
+    "composerPlaceholder": "Pregunta por citas, vacunas o tareas",
+    "send": "Enviar",
+    "clear": "Borrar conversación",
+    "model": {
+      "provider": "IA en el dispositivo",
+      "unsupportedOS": "Las respuestas son exactas en lugar de conversacionales. {{provider}} necesita una versión más reciente del software.",
+      "unsupportedDevice": "Las respuestas son exactas en lugar de conversacionales. Este dispositivo no admite {{provider}}.",
+      "notEnabled": "Activa {{provider}} en los ajustes para respuestas más naturales. Todo funciona igual sin ello.",
+      "modelNotReady": "{{provider}} aún se está descargando. Las respuestas serán exactas hasta que esté listo.",
+      "unknown": "Las respuestas son exactas en lugar de conversacionales en este dispositivo."
+    },
+    "actions": {
+      "nextAppointment": {
+        "title": "Próxima cita",
+        "description": "Indicar cuándo es la próxima cita veterinaria o de peluquería.",
+        "phrase1": "¿Cuándo es mi próxima cita?",
+        "phrase2": "¿Cuándo ve Bruno al veterinario?"
+      },
+      "vaccinationStatus": {
+        "title": "Estado de vacunación",
+        "description": "Indicar si las vacunas de una mascota están al día o pendientes.",
+        "phrase1": "¿Las vacunas de Bruno están al día?",
+        "phrase2": "¿Qué vacunas tocan?"
+      },
+      "upcomingTasks": {
+        "title": "Qué toca",
+        "description": "Listar las tareas de cuidado pendientes en un periodo.",
+        "phrase1": "¿Qué toca hoy?",
+        "phrase2": "¿Qué necesita Bruno esta semana?"
+      },
+      "petOverview": {
+        "title": "Resumen de mascota",
+        "description": "Resumir las tareas abiertas y las citas de una mascota.",
+        "phrase1": "Háblame de Bruno"
+      },
+      "expenseSummary": {
+        "title": "Gastos",
+        "description": "Sumar lo gastado en una mascota.",
+        "phrase1": "¿Cuánto he gastado en Bruno?"
+      },
+      "addCareTask": {
+        "title": "Añadir una tarea",
+        "description": "Empezar una tarea de cuidado o recordatorio de medicación.",
+        "phrase1": "Recuérdame darle a Bruno su pastilla esta noche",
+        "phrase2": "Añadir una tarea para Bruno"
+      },
+      "logExpense": {
+        "title": "Registrar un gasto",
+        "description": "Empezar un registro de gasto para una mascota.",
+        "phrase1": "Registrar un gasto de Bruno"
+      },
+      "bookAppointment": {
+        "title": "Reservar una cita",
+        "description": "Empezar a reservar una cita veterinaria o de peluquería.",
+        "phrase1": "Reservar una cita para Bruno",
+        "phrase2": "Reservar una visita al veterinario"
+      }
+    },
+    "open": {
+      "addCareTask": "Añadir la tarea",
+      "logExpense": "Añadir el gasto",
+      "bookAppointment": "Buscar una clínica",
+      "nextAppointment": "Abrir",
+      "vaccinationStatus": "Abrir",
+      "upcomingTasks": "Abrir",
+      "petOverview": "Abrir",
+      "expenseSummary": "Abrir"
+    },
+    "replies": {
+      "empty": "Pregúntame algo sobre tus mascotas.",
+      "unknown": "Puedo ayudarte con citas, vacunas, tareas y gastos. Prueba una de las sugerencias.",
+      "error": "Algo ha fallado. Inténtalo de nuevo.",
+      "needsPet": "¿A qué mascota te refieres?",
+      "nextAppointment": {
+        "found": "{{petName}} tiene una cita el {{date}} a las {{time}}.",
+        "none": "No hay citas próximas reservadas."
+      },
+      "vaccinationStatus": {
+        "overdue": "{{petName}} tiene {{count}} vacuna atrasada, empezando por {{name}}.",
+        "overdue_other": "{{petName}} tiene {{count}} vacunas atrasadas, empezando por {{name}}.",
+        "dueSoon": "A {{petName}} le toca la vacuna {{name}} el {{date}}.",
+        "upToDate": "{{petName}} tiene las vacunas al día.",
+        "none": "Todavía no hay registros de vacunación de {{petName}}."
+      },
+      "upcomingTasks": {
+        "found": "Hay {{count}} tareas pendientes, empezando por {{first}}.",
+        "found_one": "Hay 1 tarea pendiente: {{first}}.",
+        "none": "No hay nada pendiente en ese periodo."
+      },
+      "petOverview": {
+        "summary": "{{petName}} tiene {{tasks}} tareas abiertas y {{appointments}} citas próximas."
+      },
+      "expenseSummary": {
+        "total": "Has registrado {{total}} {{currency}} en {{count}} gastos.",
+        "none": "Todavía no hay gastos registrados."
+      },
+      "addCareTask": {
+        "handoff": "He abierto una tarea nueva para que la confirmes."
+      },
+      "logExpense": {
+        "handoff": "He abierto un gasto nuevo para que lo confirmes."
+      },
+      "bookAppointment": {
+        "handoff": "Reservar requiere hora y pago, así que he abierto la búsqueda de clínicas."
+      }
+    }
   }
 }

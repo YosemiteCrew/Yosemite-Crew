@@ -54,6 +54,7 @@ export type HomeStackParamList = {
   AddCoParent: undefined;
   EditCoParent: {coParentId: string};
   CoParentProfile: {coParentId: string};
+  Assistant: undefined;
 };
 
 export type LinkedBusinessStackParamList = {

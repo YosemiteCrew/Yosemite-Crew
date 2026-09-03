@@ -111,6 +111,15 @@ const buildAccountMenuItems = (
   onDeletePress: () => void,
 ): MenuItem[] => [
   {
+    id: 'assistant',
+    label: 'Pet care assistant',
+    icon: Images.paw,
+    tone: 'info',
+    onPress: () => {
+      navigation.navigate('Assistant');
+    },
+  },
+  {
     id: 'preferences',
     label: 'Preferences',
     icon: Images.editIconSlide,
