@@ -44,8 +44,12 @@ const CONFIRM_BADGE_STYLE: CSSProperties = {
   borderRadius: 9999,
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'var(--success-soft, #e7f4ec)',
-  color: 'var(--success, #2f9e63)',
+  /* --success-soft is declared nowhere in globals.css, so its literal fallback
+     always painted while --success beside it flipped: 3.65 in light and 2.13 in
+     dark, below the 3:1 a glyph needs. Both halves of this pair have dark
+     values, which takes it to 4.29 and 6.68. */
+  background: 'var(--color-success-100)',
+  color: 'var(--color-success-700)',
   marginBottom: 18,
 };
 
