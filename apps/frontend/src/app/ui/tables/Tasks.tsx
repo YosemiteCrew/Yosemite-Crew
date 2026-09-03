@@ -199,6 +199,7 @@ const Tasks = ({
           bordered={false}
           pagination={true}
           pageSize={small ? 5 : 10}
+          itemNoun="tasks"
           tableClassName="tasks-table-fixed"
         />
       </div>
