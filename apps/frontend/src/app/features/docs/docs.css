@@ -460,3 +460,14 @@
 .DocsBody .hljs-deletion {
   color: var(--color-text-tertiary);
 }
+
+/* The OpenAPI reference embeds Redoc. Rendered from app code, never from the
+   corpus - see DocsShell. */
+.DocsOpenApiFrame {
+  width: 100%;
+  height: 85vh;
+  margin: 12px 0 0;
+  border: 1px solid var(--divider);
+  border-radius: 10px;
+  background: var(--color-surface-card);
+}

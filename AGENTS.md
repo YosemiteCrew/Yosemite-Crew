@@ -22,7 +22,7 @@ The same rules are also structured as skills: `.agents/skills/` (Codex and compa
 ## Repository
 
 - Tooling: `pnpm` workspaces + `turbo`. Package manager: `pnpm@8.15.6` — never use `npm` or `yarn`.
-- Workspaces: `apps/frontend`, `apps/backend`, `apps/desktop`, `apps/mobileAppYC`, `apps/dev-docs`, `packages/auth`, `packages/database`, `packages/design-tokens`, `packages/fhir`, `packages/fhirtypes`, `packages/lib`, `packages/types`.
+- Workspaces: `apps/frontend`, `apps/backend`, `apps/desktop`, `apps/mobileAppYC`, `packages/auth`, `packages/database`, `packages/design-tokens`, `packages/fhir`, `packages/fhirtypes`, `packages/lib`, `packages/types`.
 - Architecture baseline (scale, domain model, platform directions): `.agents/skills/monorepo-ops/project-baseline.md`.
 - `packages/design-tokens` is dead code: never built (no `dist/`), zero runtime consumers, and its palette is stale. The live design tokens are `apps/frontend/src/app/globals.css`. Do not treat it as a source of truth or wire it into anything without explicit instruction.
 

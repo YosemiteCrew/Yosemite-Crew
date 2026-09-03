@@ -13,8 +13,9 @@ import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
 
 import './DeveloperDocs.css';
 
-const DOCS_BASE_PATH = '/dev-docs/index.html';
-const GITHUB_EDIT_URL = 'https://github.com/YosemiteCrew/Yosemite-Crew/tree/dev/apps/dev-docs';
+const DOCS_BASE_PATH = '/docs';
+const GITHUB_EDIT_URL =
+  'https://github.com/YosemiteCrew/Yosemite-Crew/tree/dev/apps/frontend/content/docs';
 
 type NavItem = { id: string; label: string };
 type NavSection = { heading: string; items: NavItem[] };

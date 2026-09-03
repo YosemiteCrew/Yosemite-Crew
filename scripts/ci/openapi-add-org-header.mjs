@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * One-off repair: adds the `x-org-id` header parameter to every organisation-
- * scoped operation in apps/dev-docs/static/openapi.yaml that lacks it (#2573).
+ * scoped operation in apps/frontend/public/static/openapi/openapi.yaml that lacks it (#2573).
  *
  * Which operations are org-scoped comes from the LIVE router stack, via the same
  * walk scripts/ci/openapi-drift.mjs uses, so this cannot disagree with the check
@@ -25,7 +25,7 @@ import path from 'node:path';
 import { parseDocument } from 'yaml';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const SPEC_PATH = path.join(REPO_ROOT, 'apps/dev-docs/static/openapi.yaml');
+const SPEC_PATH = path.join(REPO_ROOT, 'apps/frontend/public/static/openapi/openapi.yaml');
 const REQUIRES_ORG = Symbol.for('yosemite.requiresOrgPermissions');
 
 /** The path params extractOrgId consults before falling back to the header. */

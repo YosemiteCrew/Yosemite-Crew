@@ -1,13 +1,23 @@
 import type { NextConfig } from 'next';
 import { securityHeaders } from './src/securityHeaders';
 
-// Static HTML under /public (e.g. /dev-docs/openapi-ui.html) is skipped by the
+// Static HTML under /public (e.g. /static/openapi/viewer.html) is skipped by the
 // edge middleware, which only applies the nonce CSP to app document routes.
 // Without this, those pages ship with no Content-Security-Policy and any
 // third-party script they load (Redoc's CDN bundle) runs as first-party
 // JavaScript with access to same-origin localStorage tokens. Restore a strict,
 // tightly allow-listed CSP for the docs surface here.
-const DEV_DOCS_CSP = [
+/*
+ * The OpenAPI viewer is a standalone HTML page that loads Redoc from a CDN, so
+ * it needs `script-src` to allow that host - the app's default policy does not,
+ * and a blocked script renders the page empty with no visible error.
+ *
+ * Scoped to exactly that one directory. It was previously scoped to
+ * /dev-docs/:path*, which covered the whole Docusaurus mirror; now that the
+ * documentation is rendered by the app under the normal strict policy, only
+ * the viewer needs the exception.
+ */
+const OPENAPI_VIEWER_CSP = [
   "default-src 'self'",
   "script-src 'self' https://cdn.redoc.ly",
   "worker-src 'self' blob:",
@@ -66,48 +76,27 @@ const nextConfig: NextConfig = {
   // Do not advertise the framework/version in responses (X-Powered-By).
   poweredByHeader: false,
   /*
-   * The developer docs are a Docusaurus build copied into `public/dev-docs`.
-   * Docusaurus links extensionlessly - `/dev-docs/apps/backend` - while writing
-   * `apps/backend.html`, so on the deployed site every internal link 404'd:
-   * only `/dev-docs/index.html`, typed by hand, ever loaded.
+   * The documentation moved to /docs, rendered natively by the app. These
+   * preserve every URL the Docusaurus site published: an open-source
+   * project's docs are linked from outside the repo, and those links are not
+   * ours to break.
    *
-   * These are REDIRECTS, not rewrites, and that distinction is the whole fix.
-   * A rewrite is what this started as, and it works locally and nowhere else:
-   * `next dev` serves `public/` itself, so an internal rewrite to a file in it
-   * resolves. On Amplify it cannot. Amplify serves everything under `public/`
-   * from its own CDN layer (see customHttp.yml, which exists for exactly that
-   * reason), and the Next server has no route for a file it does not serve - so
-   * the rewrite fired and then 404'd. Verified on the deployed site: a request
-   * for `/dev-docs/apps/backend` came back 404 with `x-nextjs-cache: HIT`,
-   * meaning Next answered, while `/dev-docs/apps/backend.html` came back 200
-   * from CloudFront with an ETag and no Next headers at all.
+   * Verified against the shipped sitemap - all 53 published URLs resolve, 52
+   * onto a real corpus page and one special case. The corpus slugs are
+   * byte-identical to the Docusaurus slugs, which is why `:path*` maps
+   * one-to-one with no lookup table.
    *
-   * A redirect sends the browser to the `.html` path instead, which CloudFront
-   * does serve. The trade is a visible `.html` in the URL. The alternative that
-   * keeps clean URLs is a rewrite rule in the Amplify console, which is not in
-   * this repo and cannot be reviewed with the code.
-   *
-   * `permanent: false` deliberately: a 308 is cached hard by browsers, and if
-   * the console rule is added later these should stop firing without users
-   * carrying a stale permanent redirect.
-   *
-   * Only extensionless paths match, so real assets - `/dev-docs/img/x.png`,
-   * `/dev-docs/assets/x.css` - are untouched and keep being served directly.
+   * `permanent: true`, unlike the interim `.html` redirect this replaces:
+   * that one was deliberately temporary because a better fix existed. This
+   * move is final, so the 308 and its SEO signal are what we want.
    */
   async redirects() {
     return [
-      // The docs' own logo links to `/dev-docs/`, which this app redirects to
-      // `/dev-docs`; without this that link 404s.
-      {
-        source: '/dev-docs',
-        destination: '/dev-docs/index.html',
-        permanent: false,
-      },
-      {
-        source: '/dev-docs/:path((?!.*\\.).*)',
-        destination: '/dev-docs/:path.html',
-        permanent: false,
-      },
+      // Docusaurus's plugin-generated results page. There is no equivalent -
+      // search is inline in the docs header now - so it lands on the index.
+      { source: '/dev-docs/search', destination: '/docs', permanent: true },
+      { source: '/dev-docs', destination: '/docs', permanent: true },
+      { source: '/dev-docs/:path*', destination: '/docs/:path*', permanent: true },
     ];
   },
 
@@ -118,8 +107,11 @@ const nextConfig: NextConfig = {
         headers: securityHeaders,
       },
       {
-        source: '/dev-docs/:path*',
-        headers: [...securityHeaders, { key: 'Content-Security-Policy', value: DEV_DOCS_CSP }],
+        source: '/static/openapi/:path*',
+        headers: [
+          ...securityHeaders,
+          { key: 'Content-Security-Policy', value: OPENAPI_VIEWER_CSP },
+        ],
       },
       {
         source: '/fonts/:path*',

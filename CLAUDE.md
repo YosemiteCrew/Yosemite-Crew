@@ -31,7 +31,6 @@ apps/
   backend/       — API server (do not refactor unless explicitly asked)
   desktop/       — Electron PIMS desktop shell
   mobileAppYC/   — React Native mobile app
-  dev-docs/      — Internal documentation site
 packages/
   auth/          — Shared auth helpers
   database/      — Prisma schema, migrations, and database client

@@ -54,6 +54,19 @@ describe('DocsShell', () => {
     expect(edit).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
+  it('renders no OpenAPI viewer unless the page asks for one', async () => {
+    const { container } = await shell('x');
+    expect(container.querySelector('iframe.DocsOpenApiFrame')).toBeNull();
+  });
+
+  it('sandboxes the OpenAPI viewer iframe to scripts and same-origin only', async () => {
+    const { container } = await shell('x', { embedOpenApi: true });
+    const frame = container.querySelector('iframe.DocsOpenApiFrame');
+    expect(frame).not.toBeNull();
+    // Redoc needs to run and to fetch the same-origin spec; nothing more.
+    expect(frame!.getAttribute('sandbox')).toBe('allow-scripts allow-same-origin');
+  });
+
   it('renders the sidebar and the search box', async () => {
     await shell('x');
     expect(screen.getByRole('link', { name: 'Overview' })).toBeInTheDocument();
