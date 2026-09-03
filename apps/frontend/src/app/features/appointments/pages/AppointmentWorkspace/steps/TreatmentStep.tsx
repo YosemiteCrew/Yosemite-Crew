@@ -951,6 +951,7 @@ const TreatmentStep = ({
         {scheduleError && <p className="text-caption-1 text-text-error">{scheduleError}</p>}
 
         <ServicesPackagesEditor
+          currency={encounter.currency}
           items={encounter.services}
           catalogItems={servicePackageCatalogItems}
           readOnly={readOnly}
@@ -961,6 +962,7 @@ const TreatmentStep = ({
         />
 
         <PrescriptionEditor
+          currency={encounter.currency}
           items={prescriptionItems}
           catalogItems={prescriptionCatalogItems}
           templateItems={prescriptionTemplates}
