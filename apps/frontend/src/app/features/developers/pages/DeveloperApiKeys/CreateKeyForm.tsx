@@ -85,16 +85,22 @@ const CreateKeyForm = ({
         aria-describedby="apiKeyScopesHelp"
       />
       {/*
-        The scopes are stored on the key and returned when it is listed, but
-        nothing checks them yet: `requireScope` exists in
-        apps/backend/src/middlewares/api-key-auth.ts and is mounted on no route.
-        Saying so is the difference between a field a developer can plan around
-        and one that looks like an access control it is not. The old placeholder
-        also suggested `inventory:read`, a scope no endpoint has ever read.
+        This copy has to track what `requireScope` is actually mounted on, or it
+        becomes the thing it was written to prevent - a field that looks like an
+        access control and is not. It is now mounted: the `/v1/developer`
+        appointment routes require `appointments:read`. Everything else a
+        developer types is still recorded and gates nothing, so the sentence
+        names the one scope that works rather than implying a taxonomy.
+
+        A key created before this shipped carries no scopes and will be refused
+        by those routes, which is the correct outcome: nothing could have been
+        calling them, because they did not exist.
       */}
       <p id="apiKeyScopesHelp" className="text-caption-2 text-text-tertiary">
-        Recorded on the key for forward compatibility. No endpoint enforces scopes yet, so a key is
-        not restricted by what you enter here.
+        Enforced where an endpoint exists to enforce them: a key needs{' '}
+        <code>appointments:read</code> to call the appointment endpoints under{' '}
+        <code>/v1/developer</code>. Any other scope you enter is recorded on the key but does not
+        gate anything yet.
       </p>
       <div className="DevApiKeys-formActions">
         <Primary
