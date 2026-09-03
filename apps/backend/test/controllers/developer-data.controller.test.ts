@@ -15,9 +15,10 @@ jest.mock("src/services/developer-usage.service", () => ({
 }));
 
 const errorLog = jest.fn();
+const warnLog = jest.fn();
 jest.mock("src/utils/logger", () => ({
   __esModule: true,
-  default: { info: jest.fn(), warn: jest.fn(), error: errorLog },
+  default: { info: jest.fn(), warn: warnLog, error: errorLog },
 }));
 
 import { DeveloperDataController } from "src/controllers/web/developer-data.controller";
@@ -145,8 +146,7 @@ describe("listAppointments", () => {
     });
   });
 
-  it("answers 400, not 500, when the cursor is unknown", async () => {
-    listAppointments.mockRejectedValue(new Error("Invalid cursor"));
+  it("rejects a malformed cursor before it reaches the query", async () => {
     const res = buildRes();
     await DeveloperDataController.listAppointments(
       buildReq({ query: { cursor: "bogus" } } as never),
@@ -154,6 +154,39 @@ describe("listAppointments", () => {
     );
     expect(res.code).toBe(400);
     expect(res.body).toMatchObject({ code: "invalid_request" });
+    expect(listAppointments).not.toHaveBeenCalled();
+  });
+
+  it("accepts a well-formed cursor", async () => {
+    listAppointments.mockResolvedValue({ items: [], nextCursor: null });
+    const cursor = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+    await DeveloperDataController.listAppointments(
+      buildReq({ query: { cursor } } as never),
+      buildRes(),
+    );
+    expect(listAppointments).toHaveBeenCalledWith(
+      expect.objectContaining({ cursor }),
+    );
+  });
+
+  /*
+   * The regression Aikido caught on #2676. The catch block used to answer 400
+   * "Unknown or malformed cursor" for ANY throw whenever a cursor was present,
+   * so a database outage mid-pagination told the caller their cursor was bad.
+   * Cursor validity is decided before the query now, which is what lets every
+   * failure from the query itself be reported honestly as a 500.
+   */
+  it("500s when the query fails even though the cursor was valid", async () => {
+    listAppointments.mockRejectedValue(new Error("db down"));
+    const res = buildRes();
+    await DeveloperDataController.listAppointments(
+      buildReq({
+        query: { cursor: "3f2504e0-4f89-41d3-9a0c-0305e82c3301" },
+      } as never),
+      res,
+    );
+    expect(res.code).toBe(500);
+    expect(res.body).toMatchObject({ code: "internal_error" });
   });
 
   /*
@@ -161,20 +194,19 @@ describe("listAppointments", () => {
    * barrier a crafted value forges a second log line, which is how a reader is
    * misled about what the server did.
    */
-  it("strips CR/LF from the cursor before it reaches the log", async () => {
-    listAppointments.mockRejectedValue(new Error("nope"));
+  it("strips CR/LF from a rejected cursor before it reaches the log", async () => {
     await DeveloperDataController.listAppointments(
       buildReq({
         query: { cursor: "abc\nINFO: admin login succeeded" },
       } as never),
       buildRes(),
     );
-    const logged = String(errorLog.mock.calls[0][0]);
+    const logged = String(warnLog.mock.calls[0][0]);
     expect(logged).not.toContain("\n");
     expect(logged).toContain("abcINFO: admin login succeeded");
   });
 
-  it("500s when the failure was not cursor-related", async () => {
+  it("500s on a query failure with no cursor at all", async () => {
     listAppointments.mockRejectedValue(new Error("db down"));
     const res = buildRes();
     await DeveloperDataController.listAppointments(buildReq(), res);
