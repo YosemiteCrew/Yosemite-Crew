@@ -154,6 +154,21 @@ describe("AdverseEventService.createFromMobile", () => {
     expect(call.templateData.authorityUrl).toBeUndefined();
   });
 
+  it.each([
+    ["a missing product name", { product: {} }, "productName is required"],
+    ["a missing companion name", { patient: {} }, "companion name is required"],
+  ])("refuses %s", async (_label, override, message) => {
+    await expect(
+      AdverseEventService.createFromMobile({
+        ...(VALID_INPUT as object),
+        ...override,
+      } as never),
+    ).rejects.toThrow(message);
+
+    expect(prisma.adverseEventReport.create).not.toHaveBeenCalled();
+    expect(sendEmailTemplate).not.toHaveBeenCalled();
+  });
+
   it("validates the report before storing or sending anything", async () => {
     await expect(
       AdverseEventService.createFromMobile({
