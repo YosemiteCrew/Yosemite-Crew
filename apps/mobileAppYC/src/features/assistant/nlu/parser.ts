@@ -228,33 +228,57 @@ export const matchPetName = (
 
 /** Escapes a value for literal use inside a RegExp. */
 const escapeRegExp = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  value.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
-/** Reads a money amount: "45", "45.50", "$45", "€12,50". */
+/** A number written with thousands separators: "1,234", "1,234.50". */
+const GROUPED_AMOUNT = /\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?/;
+/** A plain number, with an optional two-digit fraction: "45", "12,50". */
+const PLAIN_AMOUNT = /\d+(?:[.,]\d{1,2})?/;
+/** A minus immediately before the number, allowing a currency mark between. */
+const NEGATIVE_PREFIX = /-\s*[$£€]?\s*$/;
+
+/** Reads a money amount: "45", "45.50", "$45", "€12,50", "1,234". */
 export const parseAmount = (text: string): number | undefined => {
+  const grouped = GROUPED_AMOUNT.exec(text);
+  const plain = PLAIN_AMOUNT.exec(text);
+  // The grouped reading wins only where it starts no later, so "12,50" still
+  // reads as a decimal rather than being passed over.
   const match =
-    /(-)?\s*(?:[$£€]\s*)?(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:[.,]\d{1,2})?)/.exec(
-      text,
-    );
+    grouped && (!plain || grouped.index <= plain.index) ? grouped : plain;
   if (!match) {
     return undefined;
   }
-  // "spent -5" is not an expense of five; the old pattern started at the digit
-  // and silently dropped the sign.
-  if (match[1]) {
+
+  // "spent -5" is not an expense of five.
+  if (NEGATIVE_PREFIX.test(text.slice(0, match.index))) {
     return undefined;
   }
 
-  const raw = match[2];
+  const raw = match[0];
   // "1,234" is one thousand two hundred, not 1.23. Only a comma with one or
   // two trailing digits is a decimal separator.
   const normalized = /,\d{3}/.test(raw)
-    ? raw.replace(/,/g, '')
+    ? raw.replaceAll(',', '')
     : raw.replace(',', '.');
 
   const value = Number(normalized);
   return Number.isFinite(value) && value > 0 ? value : undefined;
 };
+
+/** Time phrases stripped from a task title, since `when` is its own slot. */
+// Multi-word phrases come first: stripping the bare "mañana" out of "esta
+// mañana" would strand the determiner in the title.
+const TIME_PHRASES: readonly RegExp[] = [
+  /\bthis\s+(?:morning|afternoon|evening|night)\b/gi,
+  /\besta\s+(?:noche|mañana)\b/gi,
+  /\b(?:tonight|today|tomorrow|hoy|manana|mañana)\b/gi,
+  /\bat\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b/gi,
+  /\bin\s+\d+\s+\w+\b/gi,
+  /\bon\s+\w+day\b/gi,
+];
+
+/** The verb a reminder's subject follows: "remind me TO give ...". */
+const AFTER_VERB = /\b(?:to|para|que)\s+/i;
 
 /**
  * Extracts the free-text title for a task from a reminder phrase.
@@ -267,8 +291,11 @@ export const extractTaskTitle = (
   text: string,
   petName: string | undefined,
 ): string | undefined => {
-  const afterTo = /\b(?:to|para|que)\b\s+(.*)$/i.exec(text);
-  let candidate = afterTo ? afterTo[1] : text;
+  // Sliced rather than captured with `(.*)$`, which backtracks.
+  const afterVerb = AFTER_VERB.exec(text);
+  let candidate = afterVerb
+    ? text.slice(afterVerb.index + afterVerb[0].length)
+    : text;
 
   if (petName) {
     // Unescaped, a name carrying a regex metacharacter ("C++", "Mr. B") either
@@ -276,31 +303,35 @@ export const extractTaskTitle = (
     // whitespace anchors stop a short name being stripped mid-word, which is
     // how "call Alice about Al" once became "c l ice about".
     candidate = candidate.replace(
-      new RegExp(`(^|\\s)${escapeRegExp(petName)}(?=\\s|$)`, 'ig'),
+      new RegExp(String.raw`(^|\s)${escapeRegExp(petName)}(?=\s|$)`, 'ig'),
       ' ',
     );
   }
 
+  for (const phrase of TIME_PHRASES) {
+    candidate = candidate.replaceAll(phrase, ' ');
+  }
+
+  // Two anchored strips rather than one alternation of unbounded quantifiers.
   candidate = candidate
-    .replace(
-      /\b(tonight|today|tomorrow|this (?:morning|afternoon|evening|night)|at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?|in\s+\d+\s+\w+|on\s+\w+day|hoy|manana|mañana|esta noche|esta mañana)\b/gi,
-      ' ',
-    )
-    .replace(/\s+/g, ' ')
-    .replace(/^[\s,.-]+|[\s,.-]+$/g, '')
+    .replaceAll(/\s+/g, ' ')
+    .replace(/^[\s,.-]+/, '')
+    .replace(/[\s,.-]+$/, '')
     .trim();
 
   return candidate.length >= 2 ? candidate : undefined;
 };
 
-/** Scores how much of the utterance a rule explained. */
+/**
+ * Scores how much of the utterance a rule explained.
+ *
+ * `tokenCount` is always at least one: the only caller returns early on an
+ * empty utterance, so there is no zero case to guard.
+ */
 const scoreMatch = (matchedKeywords: number, tokenCount: number): number => {
-  if (tokenCount === 0) {
-    return 0;
-  }
   // Two matched keywords in a short question is a confident read; the same two
   // buried in a long sentence is not.
-  const density = matchedKeywords / Math.max(tokenCount, 1);
+  const density = matchedKeywords / tokenCount;
   const base = 0.55 + Math.min(matchedKeywords, 3) * 0.12;
   return Math.min(1, Number((base + density * 0.2).toFixed(3)));
 };
@@ -309,6 +340,67 @@ export interface ParseOptions {
   petNames?: readonly string[];
   now?: Date;
 }
+
+/** Fills the slots an action can use from the utterance. */
+const collectSlots = (
+  actionId: AssistantActionId,
+  text: string,
+  petName: string | undefined,
+  now: Date,
+): AssistantSlots => {
+  const slots: AssistantSlots = {};
+
+  if (petName) {
+    slots.petName = petName;
+  }
+
+  const when = parseWhen(text, now);
+  if (when) {
+    slots.when = when;
+  }
+
+  if (actionId === 'addCareTask') {
+    const title = extractTaskTitle(text, petName);
+    if (title) {
+      slots.title = title;
+    }
+  }
+
+  if (actionId === 'logExpense') {
+    const amount = parseAmount(text);
+    if (amount !== undefined) {
+      slots.amount = amount;
+    }
+  }
+
+  return slots;
+};
+
+/** The first keyword rule whose group is fully present, in catalogue order. */
+const matchRule = (
+  tokenSet: ReadonlySet<string>,
+): {actionId: AssistantActionId; keywords: number} | null => {
+  for (const rule of KEYWORD_RULES) {
+    for (const group of rule.groups) {
+      if (group.every(keyword => tokenSet.has(keyword))) {
+        return {actionId: rule.actionId, keywords: group.length};
+      }
+    }
+  }
+  return null;
+};
+
+/**
+ * True when the utterance is nothing but a pet's name and filler.
+ *
+ * People type "Bruno?" and expect that pet's summary.
+ */
+const isBarePetName = (tokens: readonly string[], petName: string): boolean => {
+  const nameTokens = tokenize(petName);
+  return tokens.every(
+    token => NAME_STOPWORDS.has(token) || nameTokens.includes(token),
+  );
+};
 
 /**
  * Parses an utterance into an intent.
@@ -328,60 +420,22 @@ export const parseUtterance = (
     return null;
   }
 
-  const tokenSet = new Set(tokens);
+  const petName = matchPetName(text, petNames);
+  const rule = matchRule(new Set(tokens));
 
-  for (const rule of KEYWORD_RULES) {
-    for (const group of rule.groups) {
-      const matched = group.every(keyword => tokenSet.has(keyword));
-      if (!matched) {
-        continue;
-      }
-
-      const slots: AssistantSlots = {};
-      const petName = matchPetName(text, petNames);
-      if (petName) {
-        slots.petName = petName;
-      }
-
-      const when = parseWhen(text, now);
-      if (when) {
-        slots.when = when;
-      }
-
-      if (rule.actionId === 'addCareTask') {
-        const title = extractTaskTitle(text, petName);
-        if (title) {
-          slots.title = title;
-        }
-      }
-
-      if (rule.actionId === 'logExpense') {
-        const amount = parseAmount(text);
-        if (amount !== undefined) {
-          slots.amount = amount;
-        }
-      }
-
-      return {
-        actionId: rule.actionId,
-        slots,
-        confidence: scoreMatch(group.length, tokens.length),
-        source: 'rules',
-      };
-    }
+  if (rule) {
+    return {
+      actionId: rule.actionId,
+      slots: collectSlots(rule.actionId, text, petName, now),
+      confidence: scoreMatch(rule.keywords, tokens.length),
+      source: 'rules',
+    };
   }
 
-  // A bare pet name is a request for that pet's overview: people type "Bruno?"
-  const soloPet = matchPetName(text, petNames);
-  if (
-    soloPet &&
-    tokens.every(
-      token => NAME_STOPWORDS.has(token) || tokenize(soloPet).includes(token),
-    )
-  ) {
+  if (petName && isBarePetName(tokens, petName)) {
     return {
       actionId: 'petOverview',
-      slots: {petName: soloPet},
+      slots: {petName},
       // A name on its own is a guess, not a routed phrase. Scoring it below
       // the rules threshold is what lets the on-device model rescue it.
       confidence: BARE_NAME_CONFIDENCE,

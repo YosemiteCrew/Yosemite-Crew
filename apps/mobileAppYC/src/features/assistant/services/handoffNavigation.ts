@@ -31,36 +31,55 @@ const safeDecode = (value: string): string => {
   }
 };
 
+/** Only this app's own scheme and host are accepted. */
+const LINK_PREFIX = 'yc://app';
+
+/** Splits `a=1&b=2` into a map, tolerating malformed pairs. */
+const parseQuery = (query: string): Record<string, string> => {
+  const params: Record<string, string> = {};
+  for (const pair of query.split('&')) {
+    if (!pair) {
+      continue;
+    }
+    // Split on the FIRST '=' only: `split('=')` discarded everything after
+    // a second one, silently corrupting any value containing '='.
+    const separator = pair.indexOf('=');
+    const rawKey = separator === -1 ? pair : pair.slice(0, separator);
+    const rawValue = separator === -1 ? '' : pair.slice(separator + 1);
+    if (!rawKey) {
+      continue;
+    }
+    // In a form-encoded query '+' means a space on both sides of the '='.
+    params[safeDecode(rawKey.replaceAll('+', ' '))] = safeDecode(
+      rawValue.replaceAll('+', ' '),
+    );
+  }
+  return params;
+};
+
 /** Extracts the path and query of a `yc://app/...` link. */
 export const parseAssistantLink = (
   link: string,
 ): {path: string; params: Record<string, string>} | null => {
-  const match = /^yc:\/\/app(\/[^?]*)?(?:\?(.*))?$/.exec(link.trim());
-  if (!match) {
+  const trimmed = link.trim();
+  if (!trimmed.startsWith(LINK_PREFIX)) {
     return null;
   }
-  const path = (match[1] ?? '/').replace(/\/+$/, '') || '/';
-  const params: Record<string, string> = {};
-  if (match[2]) {
-    for (const pair of match[2].split('&')) {
-      if (!pair) {
-        continue;
-      }
-      // Split on the FIRST '=' only: `split('=')` discarded everything after
-      // a second one, silently corrupting any value containing '='.
-      const separator = pair.indexOf('=');
-      const rawKey = separator === -1 ? pair : pair.slice(0, separator);
-      const rawValue = separator === -1 ? '' : pair.slice(separator + 1);
-      if (!rawKey) {
-        continue;
-      }
-      // In a form-encoded query '+' means a space on both sides of the '='.
-      params[safeDecode(rawKey.replace(/\+/g, ' '))] = safeDecode(
-        rawValue.replace(/\+/g, ' '),
-      );
-    }
+
+  const remainder = trimmed.slice(LINK_PREFIX.length);
+  const queryStart = remainder.indexOf('?');
+  const rawPath =
+    queryStart === -1 ? remainder : remainder.slice(0, queryStart);
+  const query = queryStart === -1 ? '' : remainder.slice(queryStart + 1);
+
+  // Anything between the host and the path separator would be a different
+  // host ("yc://appstore/..."), not a path on ours.
+  if (rawPath.length > 0 && !rawPath.startsWith('/')) {
+    return null;
   }
-  return {path, params};
+
+  const path = rawPath.replace(/\/+$/, '') || '/';
+  return {path, params: parseQuery(query)};
 };
 
 /**
