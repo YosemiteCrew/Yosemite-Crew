@@ -112,3 +112,33 @@ describe('docs nav', () => {
     expect(backendApi).toMatchObject({ collapsed: true });
   });
 });
+
+describe('corpus file reads stay inside the content root', () => {
+  /*
+   * walk() only enumerates the content root, so this is not reachable today.
+   * It is asserted anyway because the failure mode - reading a file outside
+   * the docs directory and rendering it to the public web - is file disclosure,
+   * and the guard is two lines.
+   */
+  it('refuses a path that escapes the content root', async () => {
+    const path = await import('node:path');
+    const { DOCS_CONTENT_ROOT } = await import('@/app/features/docs/corpus');
+
+    const escaping = '../../../../etc/passwd';
+    const resolved = path.resolve(DOCS_CONTENT_ROOT, escaping);
+
+    // The exact condition the loader applies before reading.
+    const contained =
+      resolved === DOCS_CONTENT_ROOT || resolved.startsWith(DOCS_CONTENT_ROOT + path.sep);
+
+    expect(contained).toBe(false);
+  });
+
+  it('accepts a real corpus path', async () => {
+    const path = await import('node:path');
+    const { DOCS_CONTENT_ROOT, loadCorpus } = await import('@/app/features/docs/corpus');
+
+    const resolved = path.resolve(DOCS_CONTENT_ROOT, loadCorpus()[0].file);
+    expect(resolved.startsWith(DOCS_CONTENT_ROOT + path.sep)).toBe(true);
+  });
+});

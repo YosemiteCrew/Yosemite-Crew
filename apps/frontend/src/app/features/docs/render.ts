@@ -8,7 +8,6 @@ import type { Schema } from 'hast-util-sanitize';
 import rehypeSlug from 'rehype-slug';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
 import rehypeHighlight from 'rehype-highlight';
-import rehypeStringify from 'rehype-stringify';
 import { visit } from 'unist-util-visit';
 import type { Root, Element } from 'hast';
 import { resolveDocLink } from './links';
@@ -40,7 +39,8 @@ export interface TocEntry {
 }
 
 export interface RenderedDoc {
-  html: string;
+  /** Sanitised HAST, rendered to React elements - never to an HTML string. */
+  tree: Root;
   toc: TocEntry[];
   brokenLinks: string[];
 }
@@ -126,7 +126,7 @@ export const renderDoc = async (entry: DocEntry, corpus: DocEntry[]): Promise<Re
   const toc: TocEntry[] = [];
   const brokenLinks: string[] = [];
 
-  const file = await unified()
+  const processor = unified()
     .use(remarkParse)
     .use(remarkGfm)
     .use(remarkRehype, { allowDangerousHtml: true })
@@ -142,9 +142,9 @@ export const renderDoc = async (entry: DocEntry, corpus: DocEntry[]): Promise<Re
     // and a highlighter that injects `style=` would be silently blocked.
     .use(rehypeHighlight, { detect: false, ignoreMissing: true })
     // Last, over the finished tree. See the header comment.
-    .use(rehypeSanitize, schema)
-    .use(rehypeStringify)
-    .process(entry.body);
+    .use(rehypeSanitize, schema);
 
-  return { html: String(file), toc, brokenLinks };
+  const tree = (await processor.run(processor.parse(entry.body))) as Root;
+
+  return { tree, toc, brokenLinks };
 };

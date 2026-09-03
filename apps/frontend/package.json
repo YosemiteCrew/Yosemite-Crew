@@ -46,6 +46,7 @@
     "dompurify": "^3.4.14",
     "framer-motion": "^13.1.0",
     "gray-matter": "^4.0.3",
+    "hast-util-to-jsx-runtime": "^2.3.6",
     "libphonenumber-js": "^1.13.10",
     "next": "15.5.24",
     "posthog-js": "^1.391.7",

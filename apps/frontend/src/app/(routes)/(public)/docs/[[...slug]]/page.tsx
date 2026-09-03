@@ -60,7 +60,7 @@ export default async function DocsPage({ params }: Readonly<PageProps>) {
 
   if (!entry) notFound();
 
-  const [{ html, toc }, nav] = await Promise.all([
+  const [{ tree, toc }, nav] = await Promise.all([
     renderDoc(entry, corpus),
     Promise.resolve(buildDocsNav(corpus)),
   ]);
@@ -71,7 +71,7 @@ export default async function DocsPage({ params }: Readonly<PageProps>) {
       toc={toc}
       title={entry.title}
       breadcrumb={breadcrumbFor(entry.slug)}
-      html={html}
+      tree={tree}
       editUrl={`${GITHUB_EDIT_BASE}/${entry.file}`}
     />
   );

@@ -1,4 +1,7 @@
 import Link from 'next/link';
+import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
+import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
+import type { Root } from 'hast';
 import type { NavNode } from './docsNav';
 import type { TocEntry } from './render';
 import DocsSidebar from './DocsSidebar';
@@ -10,8 +13,14 @@ interface DocsShellProps {
   toc: TocEntry[];
   title: string;
   breadcrumb: string[];
-  /** Sanitised HTML from render.ts. Never raw markdown, never user input. */
-  html: string;
+  /**
+   * Sanitised HAST from render.ts, rendered as React elements.
+   *
+   * Deliberately a tree rather than an HTML string: there is no
+   * `dangerouslySetInnerHTML` in this feature, so sanitisation and React's own
+   * text escaping both have to fail before markup could execute.
+   */
+  tree: Root;
   editUrl: string;
 }
 
@@ -32,7 +41,7 @@ export default function DocsShell({
   toc,
   title,
   breadcrumb,
-  html,
+  tree,
   editUrl,
 }: Readonly<DocsShellProps>) {
   return (
@@ -69,13 +78,7 @@ export default function DocsShell({
 
             <h1 className="DocsTitle">{title}</h1>
 
-            {/*
-              The corpus is sanitised at build time by rehype-sanitize over the
-              finished tree - every element and attribute, not just raw HTML
-              nodes. See render.ts for why that ordering is the security
-              boundary.
-            */}
-            <article className="DocsBody" dangerouslySetInnerHTML={{ __html: html }} />
+            <article className="DocsBody">{toJsxRuntime(tree, { Fragment, jsx, jsxs })}</article>
 
             <footer className="DocsFooter">
               <a className="DocsEditLink" href={editUrl} target="_blank" rel="noopener noreferrer">

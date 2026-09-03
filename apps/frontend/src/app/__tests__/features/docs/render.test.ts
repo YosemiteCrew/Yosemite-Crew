@@ -1,5 +1,13 @@
+import { toHtml } from 'hast-util-to-html';
 import { loadCorpus } from '@/app/features/docs/corpus';
 import { renderDoc } from '@/app/features/docs/render';
+
+/*
+ * renderDoc returns a sanitised HAST tree, not an HTML string - the page
+ * renders it as React elements, so the feature has no innerHTML sink at all.
+ * These assertions are about the sanitiser's output, so they serialise the
+ * tree here; the production path never produces a string.
+ */
 
 /**
  * The corpus is untrusted input: this is an open-source repository that accepts
@@ -14,7 +22,8 @@ describe('renderDoc sanitisation', () => {
     body,
   });
 
-  const render = async (markdown: string) => (await renderDoc(asEntry(markdown), corpus)).html;
+  const render = async (markdown: string) =>
+    toHtml((await renderDoc(asEntry(markdown), corpus)).tree);
 
   const carriesExecutableAttribute = (html: string) =>
     /<[^>]+\son[a-z]+\s*=/i.test(html) ||
@@ -85,7 +94,7 @@ describe('renderDoc over the real corpus', () => {
     const results = await Promise.all(
       corpus.map(async (entry) => ({
         file: entry.file,
-        html: (await renderDoc(entry, corpus)).html,
+        html: toHtml((await renderDoc(entry, corpus)).tree),
       }))
     );
     const empty = results.filter((result) => result.html.trim().length < 20);

@@ -528,6 +528,9 @@ importers:
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
+      hast-util-to-jsx-runtime:
+        specifier: ^2.3.6
+        version: 2.3.6
       libphonenumber-js:
         specifier: ^1.13.10
         version: 1.13.10

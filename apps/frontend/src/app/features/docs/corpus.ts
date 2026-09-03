@@ -89,7 +89,20 @@ export const loadCorpus = (): DocEntry[] => {
   const entries = walk(DOCS_CONTENT_ROOT)
     .sort((a, b) => a.localeCompare(b))
     .map((file) => {
-      const raw = fs.readFileSync(path.join(DOCS_CONTENT_ROOT, file), 'utf8');
+      /*
+       * Containment check before the read. `file` comes from walk(), which
+       * only enumerates DOCS_CONTENT_ROOT, so it is not attacker-controlled
+       * today - but a resolved path that escapes the content root would mean
+       * something has gone wrong upstream (a symlink, a future caller passing
+       * a path in), and reading it would be a file-disclosure bug. Cheap to
+       * assert, and it fails the build rather than serving the file.
+       */
+      const absolute = path.resolve(DOCS_CONTENT_ROOT, file);
+      if (absolute !== DOCS_CONTENT_ROOT && !absolute.startsWith(DOCS_CONTENT_ROOT + path.sep)) {
+        throw new Error(`Refusing to read "${file}": it resolves outside the docs content root.`);
+      }
+
+      const raw = fs.readFileSync(absolute, 'utf8');
       const { data, content } = matter(raw);
 
       const slug = normaliseSlug(typeof data.slug === 'string' ? data.slug : deriveSlug(file));
