@@ -125,7 +125,8 @@ describe('Slotpicker Component', () => {
     );
     /* Both runs of buttons were unlabelled containers, so the day cells and the
        time chips arrived as one flat list of controls. PhoneDayStrip already
-       ships `role="group" aria-label="Select a day"`; this is the same. */
+       ships `role="group" aria-label="Select a day"`; a labelled fieldset
+       carries that same role natively, which is what these query. */
     expect(screen.getByRole('group', { name: 'Select a day' })).toContainElement(
       screen.getByText('15').closest('button')
     );

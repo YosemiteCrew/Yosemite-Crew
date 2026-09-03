@@ -70,8 +70,8 @@ const Slotpicker = ({
     if (viewMonth !== newMonth) setViewMonth(newMonth);
   }
 
-  const dateStripRef = useRef<HTMLDivElement | null>(null);
-  const slotListRef = useRef<HTMLDivElement | null>(null);
+  const dateStripRef = useRef<HTMLFieldSetElement | null>(null);
+  const slotListRef = useRef<HTMLFieldSetElement | null>(null);
   const selectedDateRef = useRef<HTMLButtonElement | null>(null);
   const [canScrollDatesLeft, setCanScrollDatesLeft] = useState(false);
   const [canScrollDatesRight, setCanScrollDatesRight] = useState(false);
@@ -207,18 +207,22 @@ const Slotpicker = ({
         >
           <IoChevronBackOutline size={16} />
         </button>
-        {/* role/aria-label + aria-pressed/aria-current below: the selected day
+        {/* fieldset/legend + aria-pressed/aria-current below: the selected day
             and the selected slot used to be conveyed by fill colour alone, so a
             screen-reader user heard a run of bare "Wed 02" day buttons and bare
             times with nothing marking the one they had picked. The product's
-            other date strip (PhoneDayStrip) already announces both. */}
-        <div
+            other date strip (PhoneDayStrip) already announces both.
+            fieldset rather than role="group": it carries the same role natively,
+            and a legend is announced by screen readers that skip an aria-label
+            on a group. min-w-0 is not decorative - a fieldset defaults to
+            min-inline-size:min-content, which would stop this strip shrinking
+            and defeat its own overflow-x. */}
+        <fieldset
           ref={dateStripRef}
-          role="group"
-          aria-label="Select a day"
-          className="flex gap-2 overflow-x-auto scrollbar-x-float pb-1 flex-1"
+          className="flex min-w-0 gap-2 overflow-x-auto scrollbar-x-float pb-1 flex-1"
           onWheel={onWheelHorizontal}
         >
+          <legend className="sr-only">Select a day</legend>
           {days.map((day) => {
             const isCurrent = isSameDay(selectedDate, day);
             const isTodayDay = isSameDay(day, today);
@@ -254,7 +258,7 @@ const Slotpicker = ({
               </button>
             );
           })}
-        </div>
+        </fieldset>
         <button
           type="button"
           aria-label="Scroll dates right"
@@ -271,12 +275,11 @@ const Slotpicker = ({
       </div>
 
       {/* Time slots */}
-      <div
+      <fieldset
         ref={slotListRef}
-        role="group"
-        aria-label="Select a time"
-        className="flex flex-wrap gap-2 px-2 sm:px-3 mb-2 max-h-50 overflow-y-auto scrollbar-hidden"
+        className="flex min-w-0 flex-wrap gap-2 px-2 sm:px-3 mb-2 max-h-50 overflow-y-auto scrollbar-hidden"
       >
+        <legend className="sr-only">Select a time</legend>
         {timeSlots.length > 0 ? (
           timeSlots.map((slot, i) => {
             const selected = isSameSlot(selectedSlot, slot);
@@ -297,7 +300,7 @@ const Slotpicker = ({
             No slot available
           </div>
         )}
-      </div>
+      </fieldset>
     </div>
   );
 };
