@@ -92,7 +92,9 @@ const DropdownPanel = ({
   onOptionHover,
   onOptionSelect,
 }: DropdownPanelProps) => {
-  const emptyMessage = searchQuery ? 'No matches found' : (noOptionsMessage ?? 'No options');
+  const emptyMessage = searchQuery
+    ? 'No matches found'
+    : (noOptionsMessage ?? 'No options available');
   return (
     <div
       id={listboxId}

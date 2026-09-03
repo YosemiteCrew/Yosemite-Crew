@@ -248,7 +248,10 @@ describe('LabelDropdown', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Species/i }));
 
-    expect(screen.getByText('No options')).toBeInTheDocument();
+    // The same sentence the other two dropdown primitives use. This one said
+    // "No options" while MultiSelectDropdown and Dropdown said "No options
+    // available", so the same empty menu read two ways depending on the field.
+    expect(screen.getByText('No options available')).toBeInTheDocument();
   });
 
   it('renders inline options when portal is disabled', () => {

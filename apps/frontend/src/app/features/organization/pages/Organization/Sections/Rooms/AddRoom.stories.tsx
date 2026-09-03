@@ -269,7 +269,7 @@ export const DiscardConfirm: Story = {
     const confirmHeading = sheet.getByRole('heading', { name: 'Discard changes?' });
     await waitFor(() => expect(confirmHeading).toBeVisible());
     await expect(
-      sheet.getByText('You have unsaved room details. Are you sure you want to discard them?')
+      sheet.getByText('You have unsaved changes. Are you sure you want to discard them?')
     ).toBeInTheDocument();
     await expect(sheet.getByRole('button', { name: 'Keep editing' })).toBeInTheDocument();
     await expect(sheet.getByRole('button', { name: 'Discard' })).toBeInTheDocument();

@@ -547,7 +547,7 @@ const TestQueueSection = ({
           </p>
         ) : null}
         <Primary
-          text={s.creatingOrder ? 'Creating Lab Order…' : 'Create Lab Order'}
+          text={s.creatingOrder ? 'Creating lab order…' : 'Create lab order'}
           icon={<IoFlaskOutline aria-hidden="true" />}
           onClick={onCreateOrder}
           isDisabled={

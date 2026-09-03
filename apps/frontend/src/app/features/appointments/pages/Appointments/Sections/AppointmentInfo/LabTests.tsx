@@ -1082,7 +1082,7 @@ const ReferenceLabForm = ({ s }: { s: UseLabTestsReturn }) => (
 
     <Primary
       href="#"
-      text={s.creatingOrder ? 'Creating order...' : 'Create IDEXX order'}
+      text={s.creatingOrder ? 'Creating lab order…' : 'Create lab order'}
       onClick={s.handleCreateOrder}
       isDisabled={s.creatingOrder || s.loading || s.selectedTests.length === 0 || !s.companionId}
     />

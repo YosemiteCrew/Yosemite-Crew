@@ -233,7 +233,11 @@ export const DiscardConfirm: Story = {
 
     await expect(openDialogs()).toHaveLength(2);
     const confirm = findOpenDialogTitled('Discard changes?');
-    await expect(within(confirm).getByText(/You have unsaved room changes/)).toBeInTheDocument();
+    /* One discard question across the product: the two Rooms modals each asked it
+       in their own words and neither matched the two central modals. */
+    await expect(
+      within(confirm).getByText('You have unsaved changes. Are you sure you want to discard them?')
+    ).toBeInTheDocument();
     await expect(within(confirm).getByRole('button', { name: 'Keep editing' })).toBeInTheDocument();
     await expect(within(confirm).getByRole('button', { name: 'Discard' })).toBeInTheDocument();
 
