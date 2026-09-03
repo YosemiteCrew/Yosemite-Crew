@@ -2146,6 +2146,14 @@ body:has([data-yc-app]) {
   --screen-2: #f1ebe1;
   --color-neutral-100: var(--screen-2);
   --color-card-bg: var(--color-neutral-100);
+  /* The warning ramp was left out of that same pin. The companion card's
+     critical and high alert chips are `bg-warning-100 text-warning-900`, and on
+     this fixed-light card the dark ink (#f9ad6c) landed on a near-white
+     composited tint at 1.68:1 - the two most urgent chips on the card were the
+     unreadable ones, while medium and low were fixed. Pinned to the light ramp:
+     6.42:1. */
+  --color-warning-100: #fef3e9;
+  --color-warning-900: #874913;
 }
 
 html[data-theme='dark'] body:has([data-yc-app]) {
