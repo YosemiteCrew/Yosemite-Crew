@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+import type { Schema } from 'hast-util-sanitize';
 import rehypeSlug from 'rehype-slug';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
 import rehypeHighlight from 'rehype-highlight';
@@ -53,7 +54,7 @@ export interface RenderedDoc {
  * arbitrary data attributes. rehype-sanitize's default already strips event
  * handlers and javascript: URLs; this only widens it where a feature needs it.
  */
-const schema = {
+const schema: Schema = {
   ...defaultSchema,
   /*
    * rehype-sanitize prefixes every id with `user-content-` by default, to stop
@@ -105,7 +106,8 @@ const rewriteLinks =
       // opener; same-origin links keep default behaviour.
       if (/^https?:\/\//i.test(resolved.href)) {
         node.properties.target = '_blank';
-        node.properties.rel = 'noopener noreferrer';
+        // hast models `rel` as a token list, not a space-joined string.
+        node.properties.rel = ['noopener', 'noreferrer'];
       }
     });
   };
@@ -132,7 +134,7 @@ export const renderDoc = async (entry: DocEntry, corpus: DocEntry[]): Promise<Re
     .use(rehypeSlug)
     .use(rehypeAutolinkHeadings, {
       behavior: 'wrap',
-      properties: { className: 'DocsHeadingAnchor' },
+      properties: { className: ['DocsHeadingAnchor'] },
     })
     .use(rewriteLinks(entry, corpus, brokenLinks))
     .use(collectToc(toc))
