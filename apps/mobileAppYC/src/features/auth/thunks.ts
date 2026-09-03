@@ -2,6 +2,8 @@ import {createAsyncThunk} from '@reduxjs/toolkit';
 
 import {AppDispatch, type RootState} from '@/app/store';
 import {resetCompanionState} from '@/features/companion';
+import {transcriptCleared} from '@/features/assistant/assistantSlice';
+import {clearSnapshot} from '@/features/assistant/services/assistantSnapshot';
 import {resetExpensesState} from '@/features/expenses';
 import {resetDocumentState} from '@/features/documents/documentSlice';
 import {resetPassportState} from '@/features/passport/passportSlice';
@@ -278,6 +280,13 @@ export const logout = createAsyncThunk<
   dispatch(resetCoParentState());
   dispatch(resetNotificationState());
   dispatch(resetFormsState());
+  dispatch(transcriptCleared());
+
+  // The assistant's offline snapshot lives outside Redux, in native storage
+  // that Siri and the launcher shortcuts read without the app running. Leaving
+  // it behind would let a signed-out phone still read out the previous
+  // owner's appointments.
+  await clearSnapshot();
 });
 
 export const clearAuthError = createAsyncThunk(
