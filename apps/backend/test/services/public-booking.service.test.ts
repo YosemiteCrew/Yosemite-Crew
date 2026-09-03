@@ -737,17 +737,46 @@ describe("public-booking.service", () => {
   });
 
   describe("practice queue", () => {
-    it("never lists unconfirmed requests", async () => {
+    it("queries actionable and history separately so history cannot hide actionable", async () => {
       pm.publicBookingRequest.findMany.mockResolvedValue([]);
 
       await PublicBookingRequestService.listForOrganisation("org-1");
 
-      const where = pm.publicBookingRequest.findMany.mock.calls[0][0].where;
-      expect(where.status).toEqual({ in: ["CONFIRMED", "DECLINED", "BOOKED"] });
-      expect(where.organizationId).toBe("org-1");
+      // Two queries, not one shared capped page: a past-dated backlog of
+      // BOOKED/DECLINED can never push a future CONFIRMED request off the end.
+      expect(pm.publicBookingRequest.findMany).toHaveBeenCalledTimes(2);
+      const [actionableCall, historyCall] =
+        pm.publicBookingRequest.findMany.mock.calls;
+
+      expect(actionableCall[0].where).toEqual({
+        organizationId: "org-1",
+        status: "CONFIRMED",
+      });
+      expect(actionableCall[0].take).toBe(200);
+
+      expect(historyCall[0].where).toEqual({
+        organizationId: "org-1",
+        status: { in: ["BOOKED", "DECLINED"] },
+      });
+      // History is context, so it gets a smaller slice than actionable.
+      expect(historyCall[0].take).toBe(50);
     });
 
-    it("honours an explicit status filter", async () => {
+    it("returns actionable requests ahead of history", async () => {
+      pm.publicBookingRequest.findMany
+        .mockResolvedValueOnce([{ id: "c1", status: "CONFIRMED" }])
+        .mockResolvedValueOnce([
+          { id: "b1", status: "BOOKED" },
+          { id: "d1", status: "DECLINED" },
+        ]);
+
+      const result =
+        await PublicBookingRequestService.listForOrganisation("org-1");
+
+      expect(result.map((request) => request.id)).toEqual(["c1", "b1", "d1"]);
+    });
+
+    it("honours an explicit status filter with a single query", async () => {
       pm.publicBookingRequest.findMany.mockResolvedValue([]);
 
       await PublicBookingRequestService.listForOrganisation(
@@ -755,6 +784,7 @@ describe("public-booking.service", () => {
         "DECLINED",
       );
 
+      expect(pm.publicBookingRequest.findMany).toHaveBeenCalledTimes(1);
       expect(
         pm.publicBookingRequest.findMany.mock.calls[0][0].where.status,
       ).toBe("DECLINED");

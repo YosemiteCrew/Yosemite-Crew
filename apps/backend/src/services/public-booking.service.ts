@@ -488,6 +488,28 @@ const practiceNotificationEmail = (request: StoredRequest) => {
   };
 };
 
+/** One page of requests. History gets a smaller slice: it is context, not work. */
+const REQUEST_PAGE_SIZE = 200;
+const HISTORY_PAGE_SIZE = 50;
+
+/** The fields the practice queue and its history rows both render. */
+const BOOKING_REQUEST_SELECT = {
+  id: true,
+  serviceName: true,
+  requestedStart: true,
+  requestedEnd: true,
+  durationMinutes: true,
+  ownerName: true,
+  ownerEmail: true,
+  ownerPhone: true,
+  petName: true,
+  petSpecies: true,
+  concern: true,
+  status: true,
+  confirmedAt: true,
+  createdAt: true,
+} as const;
+
 export const PublicBookingRequestService = {
   /**
    * Accept a booking request and email the requester a confirmation link.
@@ -669,30 +691,42 @@ export const PublicBookingRequestService = {
       "organisationId",
     );
 
-    return prisma.publicBookingRequest.findMany({
-      where: {
-        organizationId: safeOrganisationId,
-        status: status ?? { in: ["CONFIRMED", "DECLINED", "BOOKED"] },
-      },
-      orderBy: { requestedStart: "asc" },
-      take: 200,
-      select: {
-        id: true,
-        serviceName: true,
-        requestedStart: true,
-        requestedEnd: true,
-        durationMinutes: true,
-        ownerName: true,
-        ownerEmail: true,
-        ownerPhone: true,
-        petName: true,
-        petSpecies: true,
-        concern: true,
-        status: true,
-        confirmedAt: true,
-        createdAt: true,
-      },
-    });
+    // An explicit status is one capped page of that single status.
+    if (status) {
+      return prisma.publicBookingRequest.findMany({
+        where: { organizationId: safeOrganisationId, status },
+        orderBy: { requestedStart: "asc" },
+        take: REQUEST_PAGE_SIZE,
+        select: BOOKING_REQUEST_SELECT,
+      });
+    }
+
+    // Default view: actionable requests must never be crowded out of the page by
+    // history. CONFIRMED is the only status the practice acts on; BOOKED and
+    // DECLINED are already dealt with. A single `requestedStart`-ordered page
+    // capped at 200 let past-dated history sort to the front and push future
+    // actionable requests off the end. Querying the two sets separately makes
+    // that impossible - every actionable request up to the cap is returned,
+    // followed by a bounded, most-recent slice of history for context.
+    const [actionable, history] = await Promise.all([
+      prisma.publicBookingRequest.findMany({
+        where: { organizationId: safeOrganisationId, status: "CONFIRMED" },
+        orderBy: { requestedStart: "asc" },
+        take: REQUEST_PAGE_SIZE,
+        select: BOOKING_REQUEST_SELECT,
+      }),
+      prisma.publicBookingRequest.findMany({
+        where: {
+          organizationId: safeOrganisationId,
+          status: { in: ["BOOKED", "DECLINED"] },
+        },
+        orderBy: { requestedStart: "desc" },
+        take: HISTORY_PAGE_SIZE,
+        select: BOOKING_REQUEST_SELECT,
+      }),
+    ]);
+
+    return [...actionable, ...history];
   },
 
   /**
