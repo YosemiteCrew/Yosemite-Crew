@@ -20,7 +20,6 @@ import {
   IoPin,
   IoPlayCircleOutline,
 } from 'react-icons/io5';
-import clsx from 'clsx';
 import Text from '@/app/ui/Text';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import Secondary from '@/app/ui/primitives/Buttons/Secondary';
@@ -31,6 +30,7 @@ import {
   deriveConversationPinned,
 } from './conversationInfoPanelUtils';
 import type { ConversationInfoFile } from './conversationInfoPanelUtils';
+import Switch from '@/app/ui/primitives/Switch/Switch';
 
 const TITLE_ID = 'chat-conversation-info-title';
 
@@ -62,24 +62,7 @@ function MuteToggle({ muted, onToggle }: Readonly<{ muted: boolean; onToggle?: (
         <IoNotificationsOffOutline className="h-[15px] w-[15px] text-[var(--ink-faint)]" />
         Mute notifications
       </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={muted}
-        aria-label="Mute notifications"
-        onClick={onToggle}
-        className={clsx(
-          'relative h-[22px] w-9 shrink-0 rounded-full border transition-colors',
-          muted ? 'border-[var(--cta)] bg-[var(--cta)]' : 'border-[var(--divider)] bg-[var(--band)]'
-        )}
-      >
-        <span
-          className={clsx(
-            'absolute top-[2px] h-4 w-4 rounded-full bg-[var(--screen)] shadow-[0_1px_2px_var(--sh08)] transition-[left]',
-            muted ? 'left-[17px]' : 'left-[3px]'
-          )}
-        />
-      </button>
+      <Switch checked={muted} label="Mute notifications" onChange={() => onToggle?.()} />
     </div>
   );
 }

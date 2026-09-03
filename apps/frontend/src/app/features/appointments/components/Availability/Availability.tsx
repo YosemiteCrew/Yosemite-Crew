@@ -50,16 +50,20 @@ const DayToggle = ({
     />
     <span
       aria-hidden="true"
-      className="pointer-events-none block h-[22px] w-9 rounded-full border transition-colors duration-150"
+      /* 40x24, the design system's `.switch`. This was 36x22 with a 16px knob,
+         one of six sizes the same control shipped at. Geometry only: the
+         control stays a real checkbox inside its label rather than becoming a
+         button, so it keeps native form semantics. */
+      className="pointer-events-none block h-6 w-10 rounded-full border transition-colors duration-150"
       style={{
         background: checked ? 'var(--blue)' : 'var(--band)',
         borderColor: checked ? 'var(--blue)' : 'var(--divider)',
       }}
     >
       <span
-        className="absolute top-[3px] size-4 rounded-full transition-all duration-150"
+        className="absolute top-[3px] size-[18px] rounded-full transition-all duration-150"
         style={{
-          left: checked ? '17px' : '3px',
+          left: checked ? '19px' : '3px',
           background: checked ? '#ffffff' : 'var(--screen)',
           boxShadow: '0 1px 2px var(--sh08)',
         }}

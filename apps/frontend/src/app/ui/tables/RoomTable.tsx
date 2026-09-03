@@ -16,6 +16,7 @@ import { IoEyeOutline } from 'react-icons/io5';
 // same route bundle.
 import './GenericTable/Generictable.css';
 import './DataTable.css';
+import Switch from '@/app/ui/primitives/Switch/Switch';
 
 type RoomUnit = {
   id?: string;
@@ -89,25 +90,15 @@ const AvailabilitySwitch = ({
   onChange: (checked: boolean) => void;
   roomName: string;
 }) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={checked}
-    aria-label={`${checked ? 'Disable' : 'Enable'} availability for ${roomName}`}
+  /* Was a 48x24 track with a 16px knob and a green fill from the status tokens.
+     The shared switch is the design's 40x24 with an 18px knob, and it fills
+     with --blue: availability is a setting, not a success state. */
+  <Switch
+    checked={checked}
     disabled={disabled}
-    onClick={() => onChange(!checked)}
-    className="inline-flex h-6 w-12 shrink-0 items-center rounded-full p-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-    style={{
-      backgroundColor: checked ? 'var(--color-success-bright)' : 'var(--color-neutral-300)',
-    }}
-  >
-    <span
-      aria-hidden="true"
-      className={`block h-4 w-4 rounded-full bg-neutral-0 shadow-sm transition-transform ${
-        checked ? 'translate-x-6' : 'translate-x-0'
-      }`}
-    />
-  </button>
+    label={`${checked ? 'Disable' : 'Enable'} availability for ${roomName}`}
+    onChange={onChange}
+  />
 );
 
 const RoomCellText = ({
