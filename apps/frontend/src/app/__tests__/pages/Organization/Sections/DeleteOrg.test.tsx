@@ -61,7 +61,10 @@ describe('DeleteOrg section', () => {
     expect(screen.getByText('Delete organization', { selector: 'div' })).toBeInTheDocument();
     expect(screen.getByText('Removes the clinic and revokes all team access')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete organization' })).toBeInTheDocument();
-    expect(screen.queryByText('Delete…')).not.toBeInTheDocument();
+    // The control names what it deletes: no bare ellipsis, and not the profile
+    // card's label either.
+    expect(screen.queryByText(/Delete\u2026/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Delete profile')).not.toBeInTheDocument();
   });
 
   it('opens the confirmation modal with the org-specific copy', () => {
