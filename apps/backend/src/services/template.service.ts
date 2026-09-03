@@ -964,9 +964,7 @@ export const TemplateService = {
       ? await loadTemplateVersionOrThrow(template.id, targetVersion)
       : null;
     const rawNextSchemaSnapshot =
-      parsed.schemaSnapshot === undefined
-        ? currentVersion?.schemaSnapshot
-        : parsed.schemaSnapshot;
+      parsed.schemaSnapshot ?? currentVersion?.schemaSnapshot;
     const nextSchemaSnapshot =
       rawNextSchemaSnapshot == null
         ? rawNextSchemaSnapshot
@@ -1025,14 +1023,10 @@ export const TemplateService = {
             nextSchemaSnapshot ?? currentVersion.schemaSnapshot,
           ),
           renderConfigSnapshot: toJsonInput(
-            parsed.renderConfigSnapshot === undefined
-              ? currentVersion.renderConfigSnapshot
-              : parsed.renderConfigSnapshot,
+            parsed.renderConfigSnapshot ?? currentVersion.renderConfigSnapshot,
           ),
           validationSnapshot: toJsonInput(
-            parsed.validationSnapshot === undefined
-              ? currentVersion.validationSnapshot
-              : parsed.validationSnapshot,
+            parsed.validationSnapshot ?? currentVersion.validationSnapshot,
           ),
         },
       });
