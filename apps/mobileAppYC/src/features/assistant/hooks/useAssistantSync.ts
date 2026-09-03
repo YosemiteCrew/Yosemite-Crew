@@ -1,16 +1,25 @@
 import {useCallback, useEffect, useRef} from 'react';
 import {AppState, Platform, type AppStateStatus} from 'react-native';
-import {useNavigation} from '@react-navigation/native';
-import type {NavigationProp} from '@react-navigation/native';
 import {useTranslation} from 'react-i18next';
 import {useAppDispatch, useAppSelector} from '@/app/hooks';
-import type {RootStackParamList} from '@/navigation/types';
 import {selectAssistantData} from '../selectors';
 import {refreshAssistantSnapshot} from '../thunks';
 import {consumePendingLink} from '../services/assistantSnapshot';
 import {resolveHandoffTarget} from '../services/handoffNavigation';
 import {getSnapshotModule} from '../services/nativeBridge';
 import {ASSISTANT_ACTIONS} from '../actions/catalogue';
+
+/**
+ * The slice of the navigation container this hook needs.
+ *
+ * Taking the container ref rather than calling `useNavigation()` keeps the
+ * hook independent of navigator context: it is mounted at the app root, which
+ * renders above the navigator in some trees and in none at all under test.
+ */
+export interface AssistantNavigator {
+  isReady: () => boolean;
+  navigate: (name: string, params?: object) => void;
+}
 
 /** How long to wait after a data change before rewriting the snapshot. */
 const SNAPSHOT_DEBOUNCE_MS = 1_500;
@@ -35,10 +44,11 @@ const SHORTCUT_ACTION_IDS = [
  * Every one of these no-ops when the native module is absent, which is the
  * case in Jest and in a JS-only reload.
  */
-export const useAssistantSync = (): void => {
+export const useAssistantSync = (
+  navigator?: AssistantNavigator | null,
+): void => {
   const dispatch = useAppDispatch();
   const {t} = useTranslation();
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const data = useAppSelector(selectAssistantData);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -94,13 +104,18 @@ export const useAssistantSync = (): void => {
     if (!target) {
       return;
     }
-    navigation.navigate('Main', {
+    // A link can arrive before the navigator has mounted, on a cold start from
+    // a shortcut. Dropping it beats throwing; the app still opens.
+    if (!navigator?.isReady()) {
+      return;
+    }
+    navigator.navigate('Main', {
       screen: target.tab,
       params: target.nested
         ? {screen: target.screen, params: target.nested}
         : {screen: target.screen, params: target.params},
-    } as never);
-  }, [navigation]);
+    });
+  }, [navigator]);
 
   useEffect(() => {
     routePendingLink();

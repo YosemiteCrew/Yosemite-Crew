@@ -1,5 +1,7 @@
 /** Thunks that drive the assistant. */
+import 'react-native-get-random-values';
 import {createAsyncThunk} from '@reduxjs/toolkit';
+import {v4 as uuid} from 'uuid';
 import type {TFunction} from 'i18next';
 import type {AppDispatch, RootState} from '@/app/store';
 import {
@@ -21,8 +23,9 @@ import type {AssistantMessage} from './types';
 
 const DEFAULT_CURRENCY = 'USD';
 
-const makeId = (): string =>
-  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+// `Math.random()` is not a source of unique identifiers and static analysis
+// rightly flags it; the app already polyfills crypto for uuid elsewhere.
+const makeId = (): string => uuid();
 
 /** Probes the platform model once per app session. */
 export const probeOnDeviceModel = createAsyncThunk<

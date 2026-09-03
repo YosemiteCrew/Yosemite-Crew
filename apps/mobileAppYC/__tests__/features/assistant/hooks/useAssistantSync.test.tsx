@@ -25,14 +25,6 @@ const mockRefreshAction = {type: REFRESH_ACTION_TYPE};
 /** Mutable stand-in for the action catalogue, refilled before every test. */
 const mockCatalogueActions: Array<Record<string, unknown>> = [];
 
-jest.mock('@react-navigation/native', () => {
-  // One stable object, so the `useCallback`/`useEffect` deps do not churn.
-  const navigation = {
-    navigate: (...args: unknown[]) => mockNavigate(...args),
-  };
-  return {useNavigation: () => navigation};
-});
-
 jest.mock('react-i18next', () => {
   const t = (key: string) => key;
   return {useTranslation: () => ({t})};
@@ -107,11 +99,26 @@ const makeStore = () => {
   return {store, dispatched};
 };
 
-const renderSync = (store: ReturnType<typeof makeStore>['store']) => {
+/**
+ * The navigation container ref the hook is handed.
+ *
+ * One stable object so the hook's `useCallback`/`useEffect` deps do not churn
+ * between renders. `isReady` is overridable to cover a cold start that arrives
+ * before the navigator has mounted.
+ */
+const makeNavigator = (isReady = true) => ({
+  isReady: () => isReady,
+  navigate: (...args: unknown[]) => mockNavigate(...args),
+});
+
+const renderSync = (
+  store: ReturnType<typeof makeStore>['store'],
+  navigator: ReturnType<typeof makeNavigator> | null = makeNavigator(),
+) => {
   const wrapper = ({children}: {children: React.ReactNode}) => (
     <Provider store={store}>{children}</Provider>
   );
-  return renderHook(() => useAssistantSync(), {wrapper});
+  return renderHook(() => useAssistantSync(navigator), {wrapper});
 };
 
 /** Lets the promise chain inside `routePendingLink` settle. */
@@ -500,5 +507,33 @@ describe('useAssistantSync', () => {
 
       expect(removeSubscription).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('useAssistantSync navigator readiness', () => {
+  // A shortcut can cold-start the app, so a parked link may be read before the
+  // navigator exists. Dropping it beats throwing: the app still opens.
+  it('does not route a pending link when no navigator was supplied', async () => {
+    (consumePendingLink as jest.Mock).mockResolvedValue('yc://app/tasks/new');
+    const {store} = makeStore();
+    renderSync(store, null);
+    await flushMicrotasks();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('does not route a pending link while the navigator is not ready', async () => {
+    (consumePendingLink as jest.Mock).mockResolvedValue('yc://app/tasks/new');
+    const {store} = makeStore();
+    renderSync(store, makeNavigator(false));
+    await flushMicrotasks();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('routes once the navigator reports ready', async () => {
+    (consumePendingLink as jest.Mock).mockResolvedValue('yc://app/tasks/new');
+    const {store} = makeStore();
+    renderSync(store, makeNavigator(true));
+    await flushMicrotasks();
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
   });
 });

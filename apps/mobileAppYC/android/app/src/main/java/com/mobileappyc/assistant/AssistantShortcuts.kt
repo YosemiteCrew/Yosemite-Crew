@@ -22,6 +22,7 @@ import org.json.JSONException
  */
 object AssistantShortcuts {
     private const val MAX_SHORTCUTS = 4
+    private const val LINK_SCHEME = "yc"
 
     /**
      * Replaces the published set.
@@ -47,7 +48,15 @@ object AssistantShortcuts {
                 continue
             }
 
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link)).apply {
+            // Only this app's own scheme may become a shortcut intent, on top
+            // of the package constraint below. Together they stop a malformed
+            // or unexpected payload turning into a launch of anything else.
+            val uri = Uri.parse(link)
+            if (uri.scheme != LINK_SCHEME) {
+                continue
+            }
+
+            val intent = Intent(Intent.ACTION_VIEW, uri).apply {
                 setPackage(context.packageName)
             }
 
