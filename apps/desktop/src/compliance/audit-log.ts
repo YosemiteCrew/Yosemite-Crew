@@ -26,9 +26,9 @@ export interface AuditEntry {
    * Which key signed this entry - a truncated HMAC of a fixed label under that
    * key, so it identifies the key without being usable to recover it.
    *
-   * Optional because entries written before this existed carry none. Its
-   * absence means "unknown key", which is treated exactly like a foreign one:
-   * unverifiable, not tampered.
+   * Optional because entries written before this existed carry none. An absent
+   * stamp is NOT treated as foreign: those entries were signed with the stored
+   * key, so they verify normally while it reads.
    *
    * Without it a degraded session was unattributable after the fact. The
    * keychain being unreadable is handled at startup - the stored key is left
@@ -381,8 +381,12 @@ export const createAuditLog = async (dirPath: string, deps: AuditDeps = {}): Pro
   /**
    * Whether this entry was signed by a key other than the one in hand.
    *
-   * An entry with no keyId predates the field, so its key is unknown and it is
-   * treated the same way: unverifiable, never "tampered".
+   * Requires a stamp that is PRESENT and different. An absent stamp means the
+   * entry predates the field, and those were signed with the stored key - so if
+   * that key still reads, they verify normally and belong in `valid`. Treating
+   * absence as foreign would move every entry of every existing install into
+   * `otherKey` and make getIntegrity report ok:false forever, which is a worse
+   * false alarm than the one this exists to remove. A test covers it.
    */
   const signedByAnotherKey = (entry: AuditEntry): boolean =>
     entry.keyId !== undefined && entry.keyId !== currentKeyId;

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import path from 'node:path';
 import os from 'node:os';
 import { Buffer } from 'node:buffer';
@@ -253,6 +254,45 @@ describe('a degraded window stays attributable after the keychain recovers', () 
     const s2 = await createAuditLog(DEGRADED_DIR, { ...deps, secureStore: workingKeychain });
     expect(s2.verifyAll()).toEqual({ valid: 0, tampered: 1, otherKey: 0 });
     expect(s2.verifyChain()).toBe(false);
+  });
+
+  test('an entry written before keyId existed still verifies as valid', async () => {
+    /* Backward compatibility, and the reason `signedByAnotherKey` requires a
+       PRESENT-but-different stamp rather than treating absence as foreign.
+       Pre-existing logs were signed with the stored key; if that key still
+       reads, they verify. Calling them "signed with a different key" would move
+       every entry of every existing install into `otherKey` and make
+       getIntegrity report ok:false forever - a worse false alarm than the one
+       this change removes. */
+    const mem = createMemoryFs();
+    const deps = asDeps(mem, () => 1000);
+    mem.dirs.add(DEGRADED_DIR);
+    const hmacKey = 'k'.repeat(64);
+
+    const s1 = await createAuditLog(DEGRADED_DIR, { ...deps, hmacKey });
+    s1.append(ENTRY);
+
+    // Strip the stamp and re-sign exactly as the pre-keyId code would have:
+    // the same payload, minus the trailing |keyId segment.
+    const logPath = path.join(DEGRADED_DIR, 'audit-log.jsonl');
+    const stored = JSON.parse(mem.files.get(logPath)!.trim()) as Record<string, unknown>;
+    delete stored.keyId;
+    const payload =
+      `${stored.id}|${stored.timestamp}|${stored.action}|${stored.actor}|` +
+      `${stored.resourceType}|${stored.resourceId}|${JSON.stringify(stored.details)}|` +
+      `${stored.prevSignature}`;
+    stored.signature = crypto.createHmac('sha256', hmacKey).update(payload).digest('hex');
+    mem.files.set(logPath, JSON.stringify(stored) + '\n');
+
+    const s2 = await createAuditLog(DEGRADED_DIR, { ...deps, hmacKey });
+    expect(s2.query().at(0)!.keyId).toBeUndefined();
+    // Valid, not otherKey - a stamp-less entry is not evidence of a key change.
+    expect(s2.verifyAll()).toEqual({ valid: 1, tampered: 0, otherKey: 0 });
+    /* Only the provenance claims are asserted here. Rewriting the file by hand
+       is the only way to synthesise a pre-keyId entry, and that legitimately
+       trips the store's watermark ("the log has been replaced") - which is its
+       tamper detection working, and nothing to do with keyId. */
+    expect(s2.verify(s2.query().at(0)!)).toBe(true);
   });
 
   test('relabelling only the keyId is itself detected', async () => {
