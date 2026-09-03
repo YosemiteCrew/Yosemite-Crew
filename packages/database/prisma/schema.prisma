@@ -3639,7 +3639,9 @@ model Occupancy {
 model RegulatoryAuthority {
   id            String  @id @default(uuid())
   country       String?
-  iso2          String?
+  // One authority row per country: the seed upserts on this, and the lookup
+  // endpoint resolves a reporter's country to exactly one authority.
+  iso2          String? @unique
   iso3          String?
   authorityName String?
   phone         String?
