@@ -114,8 +114,11 @@ export const InventoryPhoneCard = ({
   );
 };
 
+/* Same 32px/13px/12.5px recipe as the desktop filter row above it: this was
+   `px-[14px] py-2`, so the same list rendered a different chip depending on the
+   window width. */
 const pillBase =
-  'flex-none rounded-full! border px-[14px] py-2 text-[12px] transition-colors whitespace-nowrap';
+  'inline-flex h-8 flex-none items-center rounded-full! border px-[13px] text-[12.5px] transition-colors whitespace-nowrap';
 const activePill =
   'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]';
 const idlePill = 'border-[var(--hairline)] font-semibold text-[var(--ink-muted)]';
