@@ -110,11 +110,7 @@ const InsuranceClaimsContent = () => {
     );
   }, [claims, query, companionName]);
 
-  const runAction = async (
-    action: ClaimAction,
-    claim: InsuranceClaim,
-    work: () => Promise<InsuranceClaim>
-  ) => {
+  const runAction = async (action: ClaimAction, work: () => Promise<InsuranceClaim>) => {
     if (!primaryOrgId) return;
     setPendingAction(action);
     setActionError(null);
@@ -139,17 +135,17 @@ const InsuranceClaimsContent = () => {
 
   const handleSubmitClaim = () => {
     if (!primaryOrgId || !activeClaim) return;
-    void runAction('submit', activeClaim, () => submitInsuranceClaim(primaryOrgId, activeClaim.id));
+    void runAction('submit', () => submitInsuranceClaim(primaryOrgId, activeClaim.id));
   };
 
   const handleCancelClaim = () => {
     if (!primaryOrgId || !activeClaim) return;
-    void runAction('cancel', activeClaim, () => cancelInsuranceClaim(primaryOrgId, activeClaim.id));
+    void runAction('cancel', () => cancelInsuranceClaim(primaryOrgId, activeClaim.id));
   };
 
   const handleUpdateStatus = (payload: UpdateClaimStatusInput) => {
     if (!primaryOrgId || !activeClaim) return;
-    void runAction('status', activeClaim, () =>
+    void runAction('status', () =>
       updateInsuranceClaimStatus(primaryOrgId, activeClaim.id, payload)
     );
   };
