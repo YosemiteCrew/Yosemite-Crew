@@ -42,9 +42,14 @@ const ReadyToggle = ({ label, state, disabled = false, onToggle }: ReadyTogglePr
         aria-hidden="true"
         className="flex size-[18px] shrink-0 items-center justify-center rounded-[6px] border-[1.5px] transition-colors duration-150"
         style={{
-          background: checked ? 'var(--success)' : 'transparent',
-          borderColor: checked ? 'var(--success)' : 'var(--divider)',
-          color: '#ffffff',
+          /* --success-strong with --cta-text, not --success with a literal
+             white. A white tick on --success measured 4.13 in light and 2.41 in
+             espresso, so the tick faded out of a filled box and "ready for
+             billing" looked the same as "not ready". This pairing is 7.05 and
+             7.03: --cta-text is the ink that flips against a strong fill. */
+          background: checked ? 'var(--success-strong)' : 'transparent',
+          borderColor: checked ? 'var(--success-strong)' : 'var(--divider)',
+          color: 'var(--cta-text)',
         }}
       >
         {checked && <IoCheckmarkOutline size={12} />}

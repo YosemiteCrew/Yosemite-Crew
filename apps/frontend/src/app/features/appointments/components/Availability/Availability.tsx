@@ -64,7 +64,10 @@ const DayToggle = ({
         className="absolute top-[3px] size-[18px] rounded-full transition-all duration-150"
         style={{
           left: checked ? '19px' : '3px',
-          background: checked ? '#ffffff' : 'var(--screen)',
+          /* Fixed white in both states: --screen flips with the theme, so the
+             off knob was #2f271e on a #3a3128 track in espresso, a contrast of
+             1.15, and simply vanished. */
+          background: '#ffffff',
           boxShadow: '0 1px 2px var(--sh08)',
         }}
       />
