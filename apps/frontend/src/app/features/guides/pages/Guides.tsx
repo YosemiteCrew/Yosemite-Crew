@@ -14,8 +14,13 @@ import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import FilteredEmptyState from '@/app/ui/layout/states/FilteredEmptyState';
 import { guidesData } from '@/app/features/guides/data/guidesData';
 import { GuideVideo } from '@/app/features/guides/types/guides';
+import FilterChip from '@/app/ui/filters/FilterChip';
 
 const ALL_CATEGORY = 'All';
+/* The persona row's "everyone" option, distinct from the guides labelled for
+   everyone, which appear in every persona's track. */
+const ALL_PERSONAS = 'All roles';
+const EVERYONE = 'Everyone';
 
 const GuideCardStatus = ({ guide }: { guide: GuideVideo }) => {
   if (typeof guide.progressPercent === 'number') {
@@ -52,6 +57,7 @@ const GuideCardStatus = ({ guide }: { guide: GuideVideo }) => {
 export const Guides = () => {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState(ALL_CATEGORY);
+  const [activePersona, setActivePersona] = useState(ALL_PERSONAS);
   const [showModal, setShowModal] = useState(false);
   const [activeVideo, setActiveVideo] = useState<GuideVideo | null>(null);
 
@@ -61,19 +67,46 @@ export const Guides = () => {
     return [ALL_CATEGORY, ...Array.from(items)];
   }, []);
 
+  /* Personas come from the data rather than the type, so a persona with no film
+     yet does not offer an empty filter. "Everyone" leads: it is what a new
+     starter should watch before their own track. */
+  const personas = useMemo(() => {
+    const items = new Set<string>();
+    guidesData.forEach((guide) => {
+      if (guide.persona) items.add(guide.persona);
+    });
+    const rest = Array.from(items).filter((p) => p !== EVERYONE);
+    return [ALL_PERSONAS, ...(items.has(EVERYONE) ? [EVERYONE] : []), ...rest];
+  }, []);
+
   const filteredGuides = useMemo(() => {
     const query = search.trim().toLowerCase();
     return guidesData.filter((guide) => {
       if (activeCategory !== ALL_CATEGORY && guide.category !== activeCategory) {
         return false;
       }
+      /* A persona's track includes the guides everyone needs, so picking
+         "Front desk" does not hide "Your first day in the PIMS". */
+      if (
+        activePersona !== ALL_PERSONAS &&
+        guide.persona !== activePersona &&
+        guide.persona !== EVERYONE
+      ) {
+        return false;
+      }
       if (!query) return true;
-      const haystack = [guide.title, guide.description, guide.category, guide.tags.join(' ')]
+      const haystack = [
+        guide.title,
+        guide.description,
+        guide.category,
+        guide.persona ?? '',
+        guide.tags.join(' '),
+      ]
         .join(' ')
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [activeCategory, search]);
+  }, [activeCategory, activePersona, search]);
 
   const activeIndex = activeVideo
     ? guidesData.findIndex((guide) => guide.id === activeVideo.id)
@@ -118,6 +151,25 @@ export const Guides = () => {
           Short, practical walkthroughs · updated with each release
         </span>
       </div>
+
+      {/* Two rows, because they answer different questions: who are you, then
+          what are you trying to do. Personas lead, since a viewer picks their
+          own track once and then browses within it. */}
+      {personas.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+            For
+          </span>
+          {personas.map((persona) => (
+            <FilterChip
+              key={persona}
+              label={persona}
+              active={persona === activePersona}
+              onClick={() => setActivePersona(persona)}
+            />
+          ))}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
