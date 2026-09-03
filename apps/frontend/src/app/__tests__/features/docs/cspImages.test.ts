@@ -1,3 +1,4 @@
+import { toHtml } from 'hast-util-to-html';
 import { loadCorpus } from '@/app/features/docs/corpus';
 import { renderDoc } from '@/app/features/docs/render';
 
@@ -37,7 +38,7 @@ describe('docs images under the app CSP', () => {
     const blocked: string[] = [];
 
     for (const entry of corpus) {
-      const { html } = await renderDoc(entry, corpus);
+      const html = toHtml((await renderDoc(entry, corpus)).tree);
       for (const match of html.matchAll(/<img[^>]+src="(https?:\/\/[^"]+)"/g)) {
         const { host } = new URL(match[1]);
         if (!isAllowed(host)) blocked.push(`${entry.file} → ${host}`);
@@ -58,7 +59,7 @@ describe('docs images under the app CSP', () => {
     const found: string[] = [];
 
     for (const entry of corpus) {
-      const { html } = await renderDoc(entry, corpus);
+      const html = toHtml((await renderDoc(entry, corpus)).tree);
       for (const match of html.matchAll(/<img[^>]+src="(https?:\/\/[^"]+)"/g)) {
         const { host } = new URL(match[1]);
         if (liveDataHosts.some((h) => host === h || host.endsWith(`.${h}`))) {
