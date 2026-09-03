@@ -248,6 +248,11 @@ const FormsTable = ({
             pagination
             pageSize={10}
             itemNoun="templates"
+            /* The `xl:hidden` card branch below says what a template is FOR -
+               "Templates you build appear here, ready to link to a service" -
+               where the derived line only says they will appear. Same widget,
+               so both branches get the useful sentence. */
+            emptySubtitle="Templates you build appear here, ready to link to a service."
           />
         )}
       </div>

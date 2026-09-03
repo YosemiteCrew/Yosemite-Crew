@@ -139,7 +139,7 @@ describe('CompanionsTable', () => {
     fireEvent.click(screen.getByText('Book appointment'));
 
     openRowMenu();
-    fireEvent.click(screen.getByText('Add task'));
+    fireEvent.click(screen.getByText('New task'));
 
     openRowMenu();
     fireEvent.click(screen.getByText('Change status'));
@@ -162,7 +162,7 @@ describe('CompanionsTable', () => {
     expect(screen.getByText('Open overview')).toBeInTheDocument();
     expect(screen.getByText('View profile')).toBeInTheDocument();
     expect(screen.queryByText('Book appointment')).not.toBeInTheDocument();
-    expect(screen.queryByText('Add task')).not.toBeInTheDocument();
+    expect(screen.queryByText('New task')).not.toBeInTheDocument();
     expect(screen.queryByText('Change status')).not.toBeInTheDocument();
   });
 
