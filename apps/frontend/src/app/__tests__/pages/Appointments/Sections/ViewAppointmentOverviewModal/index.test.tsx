@@ -400,7 +400,11 @@ describe('ViewAppointmentOverviewModal', () => {
   it('shows the estimate from a matching invoice when one exists', () => {
     mockInvoiceMap = { 'appt-1': { totalAmount: 123, currency: 'USD' } };
     render(<ViewAppointmentOverviewModal {...defaultProps} />);
-    expect(screen.getByText('$123')).toBeInTheDocument();
+    /* "$123.00", not "$123": every branch of this field goes through
+       formatMoneyPrecise now. It used to print whole units once an invoice
+       existed and a hand-built "$123.00" before one did - the same figure in
+       two precisions, and in two currencies for a non-USD clinic. */
+    expect(screen.getByText('$123.00')).toBeInTheDocument();
   });
 
   it('falls back to cost when discount cancels the estimate to zero', () => {
