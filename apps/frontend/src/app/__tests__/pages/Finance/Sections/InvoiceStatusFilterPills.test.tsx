@@ -43,19 +43,20 @@ describe('InvoiceStatusFilterPills', () => {
     expect(setActiveStatus).toHaveBeenCalledWith('pending');
   });
 
-  it('keeps one chip geometry whatever size the caller asks for', () => {
+  it('gives every chip the one geometry the design specifies', () => {
+    /* The component used to accept a `size` of 'sm' or 'md' and ignore it, so a
+       caller asking for a bigger tap target silently got the same chip. The prop
+       is gone; this pins that there is one geometry, and that it is the design
+       system's own control-h-sm (32px = h-8) chip rather than something that
+       drifted. jsdom does not run Tailwind, so the class is the only handle
+       here - the Storybook play function measures the rendered pixels. */
     render(
-      <InvoiceStatusFilterPills
-        options={options}
-        activeStatus="all"
-        setActiveStatus={jest.fn()}
-        size="md"
-      />
+      <InvoiceStatusFilterPills options={options} activeStatus="all" setActiveStatus={jest.fn()} />
     );
 
-    const allButton = screen.getByRole('button', { name: 'All' });
-    expect(allButton).toHaveClass('h-8', 'px-[13px]', 'text-[12.5px]');
-    expect(screen.getByRole('button', { name: 'Pending' })).toHaveClass('h-8', 'px-[13px]');
+    for (const name of ['All', 'Pending']) {
+      expect(screen.getByRole('button', { name })).toHaveClass('h-8', 'px-[13px]', 'text-[12.5px]');
+    }
   });
 
   it('merges an extra className onto the group', () => {

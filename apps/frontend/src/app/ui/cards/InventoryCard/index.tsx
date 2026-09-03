@@ -3,10 +3,10 @@ import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { getInventoryStatusStyle } from '@/app/ui/tables/tableUtils';
 import {
   displayStatusLabel,
+  formatCurrencyValue,
   formatDisplayDate,
 } from '@/app/features/inventory/pages/Inventory/utils';
 import { Secondary } from '@/app/ui/primitives/Buttons';
-import { formatCurrencyValue } from '@/app/features/inventory/pages/Inventory/utils';
 
 const displayValue = (val?: string | number | null) => {
   if (val === undefined || val === null) return '—';

@@ -88,8 +88,10 @@ const meta = {
           "- **Any other active status** - the option's own bg/text/border tokens, untouched.\n\n" +
           'A group, not a radio set: each pill is a `button` with `aria-pressed`, so the pressed ' +
           'state is announced even though nothing but the fill distinguishes it visually.\n\n' +
-          '`size` changes the tap target only. The badge geometry moved into the shared `StatusPill` ' +
-          'primitive, and the prop stayed behind for callers.',
+          'One geometry throughout: 32px tall, the design system’s `--control-h-sm`. There used to ' +
+          'be a `size` prop for a bigger tap target; it stopped having any effect when the badge ' +
+          'geometry moved into the shared `StatusPill` primitive, so it has been removed rather ' +
+          'than left accepting a value it ignores.',
       },
     },
   },
@@ -255,36 +257,41 @@ export const TokenFallbacks: Story = {
   },
 };
 
-export const Sizes: Story = {
-  name: 'sm and md tap targets',
+export const Geometry: Story = {
+  name: 'One chip geometry',
   args: { activeStatus: 'paid' },
-  render: (args) => (
-    <div className="flex flex-col gap-6">
-      <InvoiceStatusFilterPills {...args} size="sm" />
-      <InvoiceStatusFilterPills {...args} size="md" />
-    </div>
-  ),
   play: async ({ canvasElement }) => {
-    const [smGroup, mdGroup] = within(canvasElement).getAllByRole('group', {
-      name: 'Filter invoices by status',
-    });
-    const smButton = within(smGroup).getByRole('button', { name: 'Paid' });
-    const mdButton = within(mdGroup).getByRole('button', { name: 'Paid' });
+    const canvas = within(canvasElement);
+    const paid = canvas.getByRole('button', { name: 'Paid' });
+    const all = canvas.getByRole('button', { name: 'All' });
 
-    /* `size` buys a tap target and nothing else: md pads the button out to the 38px
-       minimum the phone rail needs, sm collapses it onto the badge (p-0). A thumb
-       cannot reliably hit a 21px target, so a regression that dropped the md branch
-       would be invisible on desktop and unusable on a phone. */
-    await expect(mdButton.getBoundingClientRect().height).toBeGreaterThanOrEqual(38);
-    await expect(mdButton.getBoundingClientRect().height).toBeGreaterThan(
-      smButton.getBoundingClientRect().height
+    /* Was 'sm and md tap targets', rendering the rail twice and asserting the md
+       button was TALLER than the sm one. The `size` prop it relied on had already
+       stopped doing anything when the row moved to the shared filter chip, so
+       that assertion could no longer pass - and a play function that cannot pass
+       fails silently unless something reads the addons channel. The prop is now
+       gone, and this measures the single geometry instead.
+
+       32px is the design system's own `--control-h-sm`, the height it specifies
+       for "chips, table row actions, compact toolbars". Measured rather than
+       matched on a class name, so a restyle that keeps the height passes and one
+       that changes it fails. */
+    await expect(paid.getBoundingClientRect().height).toBeCloseTo(32, 0);
+    await expect(all.getBoundingClientRect().height).toBeCloseTo(32, 0);
+
+    // Selected and unselected differ in colour only, never in size: a rail whose
+    // chips changed width on selection made the whole row reflow on every click.
+    await expect(paid.getBoundingClientRect().height).toBeCloseTo(
+      all.getBoundingClientRect().height,
+      1
     );
 
-    /* The badge itself must NOT resize. Geometry moved into the shared StatusPill so
-       one status reads at one size everywhere; wiring `size` back into the pill would
-       reintroduce exactly the two-sizes-of-the-same-badge bug that move fixed. */
-    await expect(badge(mdButton).getBoundingClientRect().height).toBeCloseTo(
-      badge(smButton).getBoundingClientRect().height,
+    /* The badge inside the chip must not resize either. Geometry moved into the
+       shared StatusPill so one status reads at one size everywhere; wiring a size
+       back into the pill would reintroduce the two-sizes-of-the-same-badge bug
+       that move fixed. */
+    await expect(badge(paid).getBoundingClientRect().height).toBeCloseTo(
+      badge(all).getBoundingClientRect().height,
       1
     );
   },
@@ -292,9 +299,11 @@ export const Sizes: Story = {
     docs: {
       description: {
         story:
-          'The same rail at both sizes. Nothing about the badge changes between them - only the ' +
-          'invisible padding around it, which is the whole reason the prop survived the move to ' +
-          '`StatusPill`.',
+          'One geometry for every chip, selected or not: 32px tall, the design system’s ' +
+          '`--control-h-sm`. This story replaced a pair that claimed to show "sm" and "md" tap ' +
+          'targets - the `size` prop behind them had stopped having any effect when the row moved ' +
+          'to the shared filter chip, so the two rails were identical and the assertion comparing ' +
+          'them could not pass.',
       },
     },
   },

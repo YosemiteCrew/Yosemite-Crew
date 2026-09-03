@@ -217,7 +217,6 @@ const PhoneInvoiceList = ({
           options={statusOptions}
           activeStatus={activeStatus}
           setActiveStatus={setActiveStatus}
-          size="md"
           className="px-0.5"
         />
       </div>
