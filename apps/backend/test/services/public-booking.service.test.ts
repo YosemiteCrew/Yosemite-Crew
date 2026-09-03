@@ -11,6 +11,9 @@ import { sendEmail } from "src/utils/email";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    // The array form runs the batched queries and returns their results in
+    // order, which is all the list path needs from a transaction here.
+    $transaction: jest.fn((operations) => Promise.all(operations)),
     organization: { findUnique: jest.fn(), update: jest.fn() },
     bookingSlugReservation: { findUnique: jest.fn() },
     productItem: { findMany: jest.fn(), count: jest.fn() },
@@ -38,6 +41,7 @@ jest.mock("src/utils/logger", () => ({
 }));
 
 const pm = prisma as unknown as {
+  $transaction: jest.Mock;
   organization: { findUnique: jest.Mock; update: jest.Mock };
   bookingSlugReservation: { findUnique: jest.Mock };
   productItem: { findMany: jest.Mock; count: jest.Mock };
@@ -760,6 +764,19 @@ describe("public-booking.service", () => {
       });
       // History is context, so it gets a smaller slice than actionable.
       expect(historyCall[0].take).toBe(50);
+    });
+
+    it("reads both buckets in one RepeatableRead snapshot", async () => {
+      pm.publicBookingRequest.findMany.mockResolvedValue([]);
+
+      await PublicBookingRequestService.listForOrganisation("org-1");
+
+      // A status change committed between two independent reads could duplicate
+      // a row's id across the buckets or drop it; a single snapshot cannot.
+      expect(pm.$transaction).toHaveBeenCalledTimes(1);
+      expect(pm.$transaction.mock.calls[0][1]).toEqual({
+        isolationLevel: "RepeatableRead",
+      });
     });
 
     it("returns actionable requests ahead of history", async () => {

@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import customParseFormat from "dayjs/plugin/customParseFormat.js";
+import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { CatalogService } from "./catalog.service";
 import { resolveBookingPageUrl } from "./booking-page.service";
@@ -708,23 +709,33 @@ export const PublicBookingRequestService = {
     // actionable requests off the end. Querying the two sets separately makes
     // that impossible - every actionable request up to the cap is returned,
     // followed by a bounded, most-recent slice of history for context.
-    const [actionable, history] = await Promise.all([
-      prisma.publicBookingRequest.findMany({
-        where: { organizationId: safeOrganisationId, status: "CONFIRMED" },
-        orderBy: { requestedStart: "asc" },
-        take: REQUEST_PAGE_SIZE,
-        select: BOOKING_REQUEST_SELECT,
-      }),
-      prisma.publicBookingRequest.findMany({
-        where: {
-          organizationId: safeOrganisationId,
-          status: { in: ["BOOKED", "DECLINED"] },
-        },
-        orderBy: { requestedStart: "desc" },
-        take: HISTORY_PAGE_SIZE,
-        select: BOOKING_REQUEST_SELECT,
-      }),
-    ]);
+    // Both reads must see one snapshot. Run separately (outside a transaction),
+    // a status change committed between them - a colleague marking a request
+    // booked - could let the actionable query still return a row that the
+    // history query also returns under its new status, putting a duplicate id
+    // in the merged list (the queue renders by id), or drop it from both.
+    // RepeatableRead pins a single snapshot for the pair; it is read-only, so it
+    // cannot hit a serialization failure.
+    const [actionable, history] = await prisma.$transaction(
+      [
+        prisma.publicBookingRequest.findMany({
+          where: { organizationId: safeOrganisationId, status: "CONFIRMED" },
+          orderBy: { requestedStart: "asc" },
+          take: REQUEST_PAGE_SIZE,
+          select: BOOKING_REQUEST_SELECT,
+        }),
+        prisma.publicBookingRequest.findMany({
+          where: {
+            organizationId: safeOrganisationId,
+            status: { in: ["BOOKED", "DECLINED"] },
+          },
+          orderBy: { requestedStart: "desc" },
+          take: HISTORY_PAGE_SIZE,
+          select: BOOKING_REQUEST_SELECT,
+        }),
+      ],
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
 
     return [...actionable, ...history];
   },
