@@ -192,7 +192,7 @@ export const CreateCapitalised: Story = {
     await userEvent.click(field);
     await userEvent.type(field, 'exotic reptile medicine');
     await userEvent.click(
-      canvas.getByRole('button', { name: 'Add speciality “exotic reptile medicine”' })
+      canvas.getByRole('button', { name: 'New speciality “exotic reptile medicine”' })
     );
 
     const chips = within(canvas.getByRole('list', { name: SELECTED }));

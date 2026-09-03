@@ -49,7 +49,7 @@ describe('SpecialitySearchBase', () => {
 
     const input = screen.getByPlaceholderText('Search or create specialty');
     fireEvent.change(input, { target: { value: 'new field' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add speciality “new field”' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New speciality “new field”' }));
 
     const updater = (setSpecialities as jest.Mock).mock.calls[0][0];
     expect(updater([])).toEqual([{ name: 'New field', organisationId: 'org-1' }]);
