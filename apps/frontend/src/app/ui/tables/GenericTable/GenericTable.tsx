@@ -33,6 +33,17 @@ interface GenericTableProps<T extends object> {
    * rather than something a review has to catch.
    */
   itemNoun: string;
+  /**
+   * Overrides the derived empty state when a surface has more useful words than
+   * "No <noun> yet". Two dashboard widgets did: the availability table's card
+   * branch said "No availability set / Set consultation hours for a practitioner
+   * and they appear here", which tells the reader what to DO, and the turnover
+   * card branch distinguished "no items" from "stock has not moved this period".
+   * Those branches are `xl:hidden` siblings of this table, so without an
+   * override the same widget said two different things either side of 1280px.
+   */
+  emptyTitle?: string;
+  emptySubtitle?: string;
   /** Extra classes for one body row — used for row-level states (e.g. emergency). */
   rowClassName?: (item: T, index: number) => string;
 }
@@ -43,6 +54,15 @@ const pagerStepClass =
 // Bottom padding applied by .TableBodyScroll — must match Generictable.css
 const TABLE_BODY_PADDING_BOTTOM = 16;
 
+/* Derived from the noun, with either half overridable. A named helper rather
+   than two conditional spreads inside the component: those read as nested
+   ternaries to the complexity rule and pushed the render past its budget. */
+const emptyStateProps = (itemNoun: string, title?: string, subtitle?: string) => ({
+  ...emptyStateCopy(itemNoun),
+  ...(title === undefined ? {} : { title }),
+  ...(subtitle === undefined ? {} : { subtitle }),
+});
+
 const GenericTable = <T extends object>({
   data,
   columns,
@@ -52,6 +72,8 @@ const GenericTable = <T extends object>({
   tableClassName,
   caption,
   itemNoun,
+  emptyTitle,
+  emptySubtitle,
   rowClassName,
 }: Readonly<GenericTableProps<T>>) => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -131,6 +153,8 @@ const GenericTable = <T extends object>({
   const handlePrev = () => setCurrentPage((p) => Math.max(1, p - 1));
   const handleNext = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
 
+  const emptyCopy = emptyStateProps(itemNoun, emptyTitle, emptySubtitle);
+
   return (
     <div
       ref={containerRef}
@@ -173,7 +197,7 @@ const GenericTable = <T extends object>({
               ) : (
                 <tr>
                   <td colSpan={columns.length}>
-                    <NoDataMessage {...emptyStateCopy(itemNoun)} />
+                    <NoDataMessage {...emptyCopy} />
                   </td>
                 </tr>
               )}

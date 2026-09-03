@@ -106,10 +106,11 @@ const meta = {
           'hides two of them.\n\n' +
           'That is why the phone band’s empty state had never been drawn. It is its own branch - ' +
           '`filteredList.length === 0` inside the card band - and it used to print different copy ' +
-          'from the tables above it: **"No invoices match the current filters."** against ' +
-          '`GenericTable`’s "Looks like a quiet day… for now.", so an empty finance page said one ' +
-          'thing on a laptop and another on a phone with both sentences in the DOM at every ' +
-          'width. All three bands now derive the same sentence from `itemNoun`.\n\n' +
+          'from the tables above it. All three bands now derive the same sentence from `itemNoun`. ' +
+          'Note this band is NOT what a real phone renders: `Finance/index.tsx` branches on ' +
+          '`isPhone` and swaps in `PhoneInvoiceList`, which had the same divergence and was fixed ' +
+          'separately - a reminder that a responsive band in Storybook is not proof of what ships ' +
+          'at that width.\n\n' +
           'It is also the only one of the three that announces itself: it is an `<output ' +
           'aria-live="polite">`, so a filter change that empties the list is spoken on a phone and ' +
           'silent on a desktop.',
