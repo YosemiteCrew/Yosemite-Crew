@@ -1009,11 +1009,30 @@ describe('inventory metric helpers', () => {
     expect(getStockValue(metricItem({ pricing: { selling: 20 } } as never))).toBeUndefined();
   });
 
+  it('has no stock value when the count or the cost is blank', () => {
+    // Not 0: an uncounted or unpriced item's stock value is unknown, and
+    // reporting zero claimed the practice was holding nothing of value.
+    expect(getStockValue(metricItem({ stock: { current: '' } } as never))).toBeUndefined();
+    expect(getStockValue(metricItem({ pricing: { purchaseCost: '' } } as never))).toBeUndefined();
+  });
+
   it('formats currency values with USD fallback for unknown codes', () => {
     expect(formatCurrencyValue(1200)).toBe('$1,200');
     expect(formatCurrencyValue(19.5, 'EUR')).toBe('€19.50');
     expect(formatCurrencyValue(10, 'NOT_A_CODE')).toBe('$10');
     expect(formatCurrencyValue(undefined)).toBe('—');
+  });
+
+  it('treats a blank price as unpriced rather than as zero', () => {
+    /* The API maps a missing unitCost/sellingPrice through toStringSafe, so it
+       arrives here as '' — and Number('') is 0. Every blank case below printed
+       "$0", telling the clinic an item was free when in truth nobody had priced
+       it. A real zero must still print, so that case is pinned too. */
+    expect(formatCurrencyValue('')).toBe('—');
+    expect(formatCurrencyValue('   ')).toBe('—');
+    expect(formatCurrencyValue(null as unknown as undefined)).toBe('—');
+    expect(formatCurrencyValue(0)).toBe('$0');
+    expect(formatCurrencyValue('0')).toBe('$0');
   });
 
   it('formats percent values and dashes for non-finite input', () => {

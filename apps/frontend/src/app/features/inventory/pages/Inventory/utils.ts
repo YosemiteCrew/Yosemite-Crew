@@ -706,13 +706,31 @@ export const getMarkupPercent = (item: InventoryItem): number | undefined => {
 };
 
 export const getStockValue = (item: InventoryItem): number | undefined => {
+  // Blank is unknown, not zero: an uncounted or unpriced item has no stock
+  // value, and reporting 0 claimed the practice was holding nothing.
+  if (isBlankValue(item.stock.current) || isBlankValue(item.pricing.purchaseCost)) {
+    return undefined;
+  }
   const onHand = toNumberSafe(item.stock.current);
   const unitCost = toNumberSafe(item.pricing.purchaseCost);
   if (onHand === undefined || unitCost === undefined) return undefined;
   return onHand * unitCost;
 };
 
+/* A blank or null money/quantity field means MISSING, not zero. `toNumberSafe`
+   cannot draw that distinction - Number('') and Number(null) are both 0 - and it
+   is also used to build API payloads, where a blank input legitimately means
+   zero. So the distinction is drawn here, at the display layer, where "$0"
+   versus an em dash is the difference between telling a clinic an item is free
+   and telling them nobody has priced it. Three call sites in this file already
+   worked around this with an inline `=== '' ? undefined :` guard.
+   ponytail: display-layer only; making `toNumberSafe` itself blank-aware would
+   change what several payload builders send and needs its own change. */
+const isBlankValue = (value?: string | number | null): boolean =>
+  value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
+
 export const formatCurrencyValue = (value?: string | number, currency = 'USD') => {
+  if (isBlankValue(value)) return '—';
   const num = toNumberSafe(value);
   if (num === undefined) return '—';
   try {

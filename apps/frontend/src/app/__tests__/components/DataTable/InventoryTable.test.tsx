@@ -71,10 +71,12 @@ jest.mock('@/app/ui/cards/InventoryCard', () => ({
 // These helpers are mocked to COMPUTE from their input rather than return
 // constants, so different row data drives the component's per-status branches
 // (expired / low-stock styling, undefined margin, missing numeric fields).
+// formatCurrencyValue is deliberately NOT stubbed: requireActual lets the real
+// Intl.NumberFormat implementation render the money cells, so the symbol,
+// locale and decimal count are all pinned by the assertions below.
 jest.mock('@/app/features/inventory/pages/Inventory/utils', () => ({
+  ...jest.requireActual('@/app/features/inventory/pages/Inventory/utils'),
   displayStatusLabel: (item: any) => item?.basicInfo?.status ?? 'Healthy',
-  formatCurrencyValue: (value: string | number | undefined | null) =>
-    value === undefined || value === null || value === '' ? '—' : `$ ${value}`,
   formatDisplayDate: (value?: string) => (value ? '01 Jan 2025' : ''),
   formatPercentValue: (value?: number) => (value === undefined ? '—' : `${value}%`),
   getAvailableStock: (item: any) => item?.stock?.available ?? item?.stock?.current,
@@ -140,8 +142,10 @@ describe('InventoryTable', () => {
     // On hand + available render with the abbreviated unit ("u").
     expect(screen.getByText('2 u')).toBeInTheDocument();
     expect(screen.getByText('4 u')).toBeInTheDocument();
-    expect(screen.getByText('$ 5')).toBeInTheDocument();
-    expect(screen.getByText('$ 10')).toBeInTheDocument();
+    // Real formatCurrencyValue: the item carries no currency, so it falls back to
+    // USD and drops the minor unit for a whole amount — "$5", not "$ 5.00".
+    expect(screen.getByText('$5')).toBeInTheDocument();
+    expect(screen.getByText('$10')).toBeInTheDocument();
     expect(screen.getByText('50%')).toBeInTheDocument();
     expect(screen.getByText('01 Jan 2025')).toBeInTheDocument();
     expect(screen.getByText('Shelf A')).toBeInTheDocument();

@@ -1,3 +1,4 @@
+import { formatMoney } from '@/app/lib/money';
 import {
   InventoryItem,
   InventoryTurnoverItem,
@@ -37,15 +38,14 @@ export const getCurrency = (inventory: InventoryItem[]): string => {
   return withCurrency?.currency ?? 'EUR';
 };
 
-export const formatCurrency = (value: number | null, currency = 'EUR'): string => {
+/* Delegates to the shared helper. This used to build its own Intl formatter
+   with an `en-IE`/`EUR` default, the only euro default in the app - so a caller
+   that omitted the currency showed a US clinic its stock value in euros. Every
+   current caller passes one, which is why it never surfaced. */
+export const formatCurrency = (value: number | null, currency = 'USD'): string => {
   if (value === null) return '—';
   try {
-    return new Intl.NumberFormat('en-IE', {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 0,
-      minimumFractionDigits: 0,
-    }).format(value);
+    return formatMoney(value, currency);
   } catch {
     return `${Math.round(value)}`;
   }
