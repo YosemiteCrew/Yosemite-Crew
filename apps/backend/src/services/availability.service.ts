@@ -193,8 +193,14 @@ export function generateBookableWindows(
   date: string,
   slots: AvailabilitySlotMongo[],
   windowMinutes: number,
+  bufferMinutes = 0,
 ): AvailabilitySlotMongo[] {
   const results: AvailabilitySlotMongo[] = [];
+  // The buffer is dead time between visits, so it widens the stride to the next
+  // slot but never the visit itself: a window is still `windowMinutes` long, and
+  // the last visit in an availability block may end exactly at `end` with no
+  // trailing buffer wasted. A buffer of 0 reproduces back-to-back tiling.
+  const stride = windowMinutes + Math.max(0, bufferMinutes);
 
   for (const slot of slots) {
     const start = dayjs.utc(`${date}T${slot.startTime}:00`);
@@ -215,7 +221,7 @@ export function generateBookableWindows(
         isAvailable: true,
       });
 
-      cursor = windowEnd;
+      cursor = cursor.add(stride, "minute");
     }
   }
 
@@ -822,6 +828,7 @@ export const AvailabilityService = {
     userId: string,
     windowMinutes: number,
     referenceDate: Date,
+    bufferMinutes = 0,
   ) {
     const safeReferenceDate = ensureValidDate(referenceDate, "referenceDate");
 
@@ -836,7 +843,12 @@ export const AvailabilityService = {
     const slots = finalForDate.slots;
 
     // 2. Generate bookable windows
-    const windows = generateBookableWindows(dateStr, slots, windowMinutes);
+    const windows = generateBookableWindows(
+      dateStr,
+      slots,
+      windowMinutes,
+      bufferMinutes,
+    );
 
     return {
       date: dateStr,
