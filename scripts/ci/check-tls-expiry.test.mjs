@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { evaluate } from './check-tls-expiry.mjs';
+import { evaluate, isTransient, probeWithRetry } from './check-tls-expiry.mjs';
 
 const script = join(dirname(fileURLToPath(import.meta.url)), 'check-tls-expiry.mjs');
 const OPTS = { warnDays: 30, failDays: 14 };
@@ -139,4 +139,65 @@ test('--json emits parseable JSON on stdout with no annotations mixed in', () =>
   assert.equal(Array.isArray(parsed), true);
   assert.equal(parsed[0].host, 'no-such-host.invalid');
   assert.equal(parsed[0].verdict, 'error');
+});
+
+// --- retry of transient connection failures (issue #2350) ---
+// The apex host timed out once from CI and opened a TLS-expiry issue while its
+// certificate was valid for over a year. Transient errors are retried; a real
+// certificate verdict is returned on the first look.
+
+test('isTransient matches connection failures, not certificate failures', () => {
+  for (const d of ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'timed out after 15000ms']) {
+    assert.equal(isTransient(d), true, d);
+  }
+  for (const d of [
+    'CERT_HAS_EXPIRED',
+    'ERR_TLS_CERT_ALTNAME_INVALID',
+    'no certificate presented',
+  ]) {
+    assert.equal(isTransient(d), false, d);
+  }
+});
+
+test('probeWithRetry retries a transient error and then succeeds', async () => {
+  let calls = 0;
+  const probeOnce = async () => {
+    calls += 1;
+    if (calls < 3) return { host: 'apex.test', status: 'error', detail: 'ETIMEDOUT' };
+    return { host: 'apex.test', status: 'ok', daysLeft: 400 };
+  };
+  const result = await probeWithRetry(probeOnce, 'apex.test', new Date(), {
+    attempts: 3,
+    delayMs: 0,
+  });
+  assert.equal(calls, 3);
+  assert.equal(result.status, 'ok');
+});
+
+test('probeWithRetry does NOT retry a certificate failure', async () => {
+  let calls = 0;
+  const probeOnce = async () => {
+    calls += 1;
+    return { host: 'expired.test', status: 'error', detail: 'CERT_HAS_EXPIRED' };
+  };
+  const result = await probeWithRetry(probeOnce, 'expired.test', new Date(), {
+    attempts: 3,
+    delayMs: 0,
+  });
+  assert.equal(calls, 1);
+  assert.equal(result.detail, 'CERT_HAS_EXPIRED');
+});
+
+test('probeWithRetry gives up after the attempt budget and reports the error', async () => {
+  let calls = 0;
+  const probeOnce = async () => {
+    calls += 1;
+    return { host: 'down.test', status: 'error', detail: 'ECONNREFUSED' };
+  };
+  const result = await probeWithRetry(probeOnce, 'down.test', new Date(), {
+    attempts: 3,
+    delayMs: 0,
+  });
+  assert.equal(calls, 3);
+  assert.equal(result.status, 'error');
 });
