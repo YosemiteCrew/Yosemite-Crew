@@ -17,6 +17,7 @@ import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 export const guidesData: GuideVideo[] = [
   {
     id: 'first-day',
+    persona: 'Everyone',
     title: 'Your first day in the PIMS',
     description: 'The shell, ⌘K, and where everything lives — from check-in to checkout.',
     duration: '3:42',
@@ -33,6 +34,7 @@ export const guidesData: GuideVideo[] = [
   },
   {
     id: 'run-a-visit',
+    persona: 'Veterinarian',
     title: 'Run a visit end to end',
     description: 'SOAP, diagnostics, treatment and collecting payment in one flow.',
     duration: '5:18',
@@ -50,6 +52,7 @@ export const guidesData: GuideVideo[] = [
   },
   {
     id: 'invoices-payouts',
+    persona: 'Practice manager',
     title: 'Invoices, deposits and payouts',
     description: 'How money moves: Stripe, reminders, and the payout schedule.',
     duration: '2:56',
@@ -66,6 +69,7 @@ export const guidesData: GuideVideo[] = [
   },
   {
     id: 'stock-counts-itself',
+    persona: 'Nurse or technician',
     title: 'Stock that counts itself',
     description: 'Reorder points, batches and expiry — and the barcode scanner.',
     duration: '4:07',
@@ -81,6 +85,7 @@ export const guidesData: GuideVideo[] = [
   },
   {
     id: 'connect-idexx',
+    persona: 'Practice manager',
     title: 'Connect IDEXX in 5 minutes',
     description: 'Link your analyzers and pull results straight into the visit.',
     duration: '3:11',
@@ -96,6 +101,7 @@ export const guidesData: GuideVideo[] = [
   },
   {
     id: 'invite-team-roles',
+    persona: 'Clinic owner',
     title: 'Invite your team, set roles',
     description: 'Practitioners, front desk and managers — permissions that fit.',
     duration: '6:02',
