@@ -87,8 +87,9 @@ const buildClassifyPrompt = (
 /**
  * Picks an action for an utterance the rules could not route.
  *
- * The reply is matched against the catalogue, so a model that invents an id,
- * adds prose or answers the question directly yields null.
+ * The reply must be a single token that, once its surrounding punctuation is
+ * trimmed, matches a catalogue id exactly. A model that invents an id, answers
+ * the question directly, or wraps the id in prose yields null.
  */
 export const classify = async (
   utterance: string,
@@ -105,13 +106,18 @@ export const classify = async (
       CLASSIFY_MAX_TOKENS,
     );
     const answer = String(raw ?? '').trim();
-    // Stripping every non-letter first meant a prose reply whose words happened
-    // to spell an id ("next appointment") was accepted as one. A real id is a
-    // single token, so anything containing whitespace is prose.
+    // An id is a single token, so anything with whitespace inside it is prose
+    // and is discarded - that is what keeps "next appointment" and a numbered
+    // list item out.
     if (answer.length === 0 || /\s/.test(answer)) {
       return null;
     }
-    const cleaned = answer.replace(/[^A-Za-z]/g, '');
+    // Only the edges are stripped, not every non-letter. A small model reliably
+    // wraps its answer in punctuation ("nextAppointment."), which is worth
+    // tolerating; interior noise is not.
+    const cleaned = answer
+      .replace(/^[^A-Za-z]+/, '')
+      .replace(/[^A-Za-z]+$/, '');
     const match = ASSISTANT_ACTION_IDS.find(
       id => id.toLowerCase() === cleaned.toLowerCase(),
     );

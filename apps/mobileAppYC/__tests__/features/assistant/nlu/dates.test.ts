@@ -475,3 +475,42 @@ describe('parseWhen with no date in the text', () => {
     expect(parseWhen('refill the water bowl', NOW)).toBeNull();
   });
 });
+
+describe('parseWhen same-day phrases already past', () => {
+  // A day part supplies an implied hour, so a past one is rolled forward
+  // rather than scheduling a reminder in the past.
+  const LATE = new Date(2026, 2, 3, 23, 0, 0);
+
+  it('rolls "tonight" to tomorrow when 21:00 has already passed', () => {
+    expect(localParts(parseWhen('tonight', LATE) as string)).toEqual(
+      at(2026, 2, 4, 21, 0),
+    );
+  });
+
+  it('rolls "esta noche" to tomorrow when 21:00 has already passed', () => {
+    expect(localParts(parseWhen('esta noche', LATE) as string)).toEqual(
+      at(2026, 2, 4, 21, 0),
+    );
+  });
+
+  it('keeps "tonight" on the same day while 21:00 is still ahead', () => {
+    const early = new Date(2026, 2, 3, 10, 0, 0);
+    expect(localParts(parseWhen('tonight', early) as string)).toEqual(
+      at(2026, 2, 3, 21, 0),
+    );
+  });
+
+  it('honours an explicit time on the named day even once it has passed', () => {
+    // The owner said both the day and the hour; a handoff shows the date on a
+    // form they can edit, so their words are not second-guessed.
+    expect(localParts(parseWhen('today at 8am', LATE) as string)).toEqual(
+      at(2026, 2, 3, 8, 0),
+    );
+  });
+
+  it('honours a bare "today" at the default hour even once it has passed', () => {
+    expect(localParts(parseWhen('today', LATE) as string)).toEqual(
+      at(2026, 2, 3, 9, 0),
+    );
+  });
+});

@@ -486,7 +486,7 @@ describe('AssistantScreen error line', () => {
 });
 
 describe('AssistantScreen handoff navigation', () => {
-  it('navigates through the parent navigator for a mapped deep link', () => {
+  it('navigates to Main for a mapped deep link', () => {
     const {getByTestId, getByText} = renderScreen({
       messages: [
         handoffMessage('yc://app/tasks/new?when=2026-03-04T09%3A00%3A00.000Z'),
@@ -496,13 +496,14 @@ describe('AssistantScreen handoff navigation', () => {
     expect(getByText('Open the task form')).toBeTruthy();
     fireEvent.press(getByTestId('assistant-result-open'));
 
-    expect(mockParentNavigate).toHaveBeenCalledTimes(1);
-    expect(mockParentNavigate).toHaveBeenCalledWith('Main', {
+    expect(mockOwnNavigate).toHaveBeenCalledTimes(1);
+    expect(mockOwnNavigate).toHaveBeenCalledWith('Main', {
       screen: 'Tasks',
       params: {screen: 'AddTask', params: {prefillDate: '2026-03-04'}},
     });
-    // The hop is always Main -> tab; the screen's own navigator is untouched.
-    expect(mockOwnNavigate).not.toHaveBeenCalled();
+    // The hop is always Main -> tab, addressed to whichever navigator owns
+    // 'Main'; the immediate parent (the tab navigator) does not.
+    expect(mockParentNavigate).not.toHaveBeenCalled();
   });
 
   it('carries the nested hop for a link that lands inside a nested stack', () => {
@@ -512,7 +513,7 @@ describe('AssistantScreen handoff navigation', () => {
 
     fireEvent.press(getByTestId('assistant-result-open'));
 
-    expect(mockParentNavigate).toHaveBeenCalledWith('Main', {
+    expect(mockOwnNavigate).toHaveBeenCalledWith('Main', {
       screen: 'HomeStack',
       params: {
         screen: 'ExpensesStack',
@@ -532,7 +533,10 @@ describe('AssistantScreen handoff navigation', () => {
     expect(mockOwnNavigate).not.toHaveBeenCalled();
   });
 
-  it('does not fall back to the local navigator when there is no parent', () => {
+  // The immediate parent is the tab navigator, which owns no 'Main' route.
+  // Addressing it there only worked by accident of React Navigation bubbling,
+  // so the handoff must not depend on getParent() at all.
+  it('addresses the navigator that owns Main rather than the immediate parent', () => {
     mockParent = undefined;
     const {getByTestId} = renderScreen({
       messages: [
@@ -543,6 +547,9 @@ describe('AssistantScreen handoff navigation', () => {
     fireEvent.press(getByTestId('assistant-result-open'));
 
     expect(mockParentNavigate).not.toHaveBeenCalled();
-    expect(mockOwnNavigate).not.toHaveBeenCalled();
+    expect(mockOwnNavigate).toHaveBeenCalledWith('Main', {
+      screen: 'Appointments',
+      params: {screen: 'BrowseBusinesses', params: {autoFocusSearch: true}},
+    });
   });
 });

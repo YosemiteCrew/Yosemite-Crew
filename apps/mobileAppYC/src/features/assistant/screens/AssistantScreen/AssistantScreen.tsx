@@ -10,13 +10,14 @@ import {
 import {useTranslation} from 'react-i18next';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
+import type {NavigationProp} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {Header} from '@/shared/components/common/Header/Header';
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
 import {useAppDispatch, useAppSelector} from '@/app/hooks';
 import type {Theme} from '@/theme';
-import type {HomeStackParamList} from '@/navigation/types';
+import type {HomeStackParamList, RootStackParamList} from '@/navigation/types';
 import type {AssistantMessage} from '@/features/assistant/types';
 import {
   ActionResultCard,
@@ -78,6 +79,9 @@ export const AssistantScreen: React.FC = () => {
   const {t} = useTranslation();
   const dispatch = useAppDispatch();
   const navigation = useNavigation<Navigation>();
+  // A second view of the same navigation object, typed for the root stack:
+  // `navigate` walks up until it finds the navigator owning the route.
+  const rootNavigation = useNavigation<NavigationProp<RootStackParamList>>();
   const styles = useMemo(() => createStyles(theme), [theme]);
   // The screen renders with the navigator header hidden, so it owns its own
   // insets: without them the title sits under the notch and the composer sits
@@ -116,16 +120,22 @@ export const AssistantScreen: React.FC = () => {
       if (!target) {
         return;
       }
-      // Every handoff destination lives under the tab navigator, so the hop is
-      // always Main -> tab -> screen, with one optional nested stack.
-      navigation.getParent()?.navigate('Main', {
+      // Addressed to the navigator that owns 'Main', which is the root stack.
+      // `getParent()` here is the tab navigator, which has no such route, so
+      // naming it as the target only worked by accident of bubbling.
+      //
+      // The cast is unavoidable: a handoff target names a screen in whichever
+      // stack owns it, so it is a plain string rather than a key of any one
+      // param list. `resolveHandoffTarget` is the thing that guarantees the
+      // pair is real, and it is exhaustively tested.
+      rootNavigation.navigate('Main', {
         screen: target.tab,
         params: target.nested
           ? {screen: target.screen, params: target.nested}
           : {screen: target.screen, params: target.params},
-      });
+      } as never);
     },
-    [navigation],
+    [rootNavigation],
   );
 
   const renderItem = useCallback(

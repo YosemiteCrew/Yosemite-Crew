@@ -206,13 +206,26 @@ const resolveInHours = (normalized: string, now: Date): string | null => {
   return result.toISOString();
 };
 
-/** "today", "tomorrow", "esta noche". */
+/**
+ * "today", "tomorrow", "esta noche".
+ *
+ * A day part whose time has already passed falls through rather than
+ * resolving: "tonight" asked at 23:00 would otherwise schedule 21:00 today,
+ * two hours in the past.
+ *
+ * That roll-forward is deliberately narrow. When the owner names a day and
+ * nothing else ("today"), or names both a day and a time ("today at 8am"),
+ * their words win even if the moment has passed - a handoff opens a prefilled
+ * form where the date is visible and editable. Only an implied hour, taken
+ * from a day part, is moved.
+ */
 const resolveRelativeDay = (
   normalized: string,
   now: Date,
   dayPartHour: number | null,
   hour: number,
   minute: number,
+  hasExplicitClock: boolean,
 ): string | null => {
   for (const [word, offset] of Object.entries(RELATIVE_DAYS)) {
     // "esta" only means today when it qualifies a part of the day
@@ -221,7 +234,13 @@ const resolveRelativeDay = (
       continue;
     }
     if (new RegExp(String.raw`\b${word}\b`).test(normalized)) {
-      return atTime(addDays(now, offset), hour, minute).toISOString();
+      const target = atTime(addDays(now, offset), hour, minute);
+      const impliedHourAlreadyPast =
+        offset === 0 &&
+        target <= now &&
+        dayPartHour !== null &&
+        !hasExplicitClock;
+      return impliedHourAlreadyPast ? null : target.toISOString();
     }
   }
   return null;
@@ -274,7 +293,14 @@ export const parseWhen = (text: string, now: Date): string | null => {
   const dated =
     resolveInDays(normalized, now, hour, minute) ??
     resolveInHours(normalized, now) ??
-    resolveRelativeDay(normalized, now, dayPartHour, hour, minute) ??
+    resolveRelativeDay(
+      normalized,
+      now,
+      dayPartHour,
+      hour,
+      minute,
+      clock !== null,
+    ) ??
     resolveWeekday(normalized, now, hour, minute);
   if (dated) {
     return dated;
