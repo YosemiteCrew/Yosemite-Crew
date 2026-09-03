@@ -17,7 +17,7 @@ overrides:
   '@tootallnate/once': 3.0.1
   node-forge: 1.4.0
   '@modelcontextprotocol/sdk': 1.26.0
-  validator: 13.15.26
+  validator: 13.15.35
   axios: 1.20.0
   handlebars: 4.7.9
   ajv@6: 6.15.0
@@ -293,8 +293,8 @@ importers:
         specifier: 11.1.1
         version: 11.1.1
       validator:
-        specifier: 13.15.26
-        version: 13.15.26
+        specifier: 13.15.35
+        version: 13.15.35
       winston:
         specifier: ^3.17.0
         version: 3.19.0
@@ -577,8 +577,8 @@ importers:
         specifier: ^5.1.0
         version: 5.1.0
       validator:
-        specifier: 13.15.26
-        version: 13.15.26
+        specifier: 13.15.35
+        version: 13.15.35
       zustand:
         specifier: ^5.0.15
         version: 5.0.15(@types/react@19.2.18)(react@19.2.4)
@@ -1112,8 +1112,8 @@ importers:
         specifier: ^0.20.1
         version: 0.20.2
       validator:
-        specifier: 13.15.26
-        version: 13.15.26
+        specifier: 13.15.35
+        version: 13.15.35
     devDependencies:
       '@types/node':
         specifier: ^26.3.0
@@ -12522,7 +12522,7 @@ packages:
     dependencies:
       '@types/validator': 13.15.10
       libphonenumber-js: 1.13.10
-      validator: 13.15.26
+      validator: 13.15.35
     dev: false
 
   /classnames@2.5.1:
@@ -17251,6 +17251,34 @@ packages:
       jest-util: 30.4.1
       jest-validate: 30.4.1
       yargs: 17.7.3
+    transitivePeerDependencies:
+      - '@types/node'
+      - babel-plugin-macros
+      - esbuild-register
+      - supports-color
+      - ts-node
+    dev: true
+
+  /jest-cli@30.4.2(@types/node@26.4.0):
+    resolution: {integrity: sha512-jfA2ocvVHMXS2QijrJ0d31ektP+d/W0T5RpcTX2Pq+3sVqHlsXVCM2+FmwpL+bdY8OfHpIg9xMxLF17Zg0U49Q==}
+    engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
+    hasBin: true
+    peerDependencies:
+      node-notifier: ^8.0.1 || ^9.0.0 || ^10.0.0
+    peerDependenciesMeta:
+      node-notifier:
+        optional: true
+    dependencies:
+      '@jest/core': 30.4.2(ts-node@10.9.2)
+      '@jest/test-result': 30.4.1
+      '@jest/types': 30.4.1
+      chalk: 4.1.2
+      exit-x: 0.2.2
+      import-local: 3.2.0
+      jest-config: 30.4.2(@types/node@26.4.0)(ts-node@10.9.2)
+      jest-util: 30.4.1
+      jest-validate: 30.4.1
+      yargs: 17.7.2
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
@@ -25133,8 +25161,8 @@ packages:
       spdx-expression-parse: 3.0.1
     dev: true
 
-  /validator@13.15.26:
-    resolution: {integrity: sha512-spH26xU080ydGggxRyR1Yhcbgx+j3y5jbNXk/8L+iRvdIEQ4uTRH2Sgf2dokud6Q4oAtsbNvJ1Ft+9xmm6IZcA==}
+  /validator@13.15.35:
+    resolution: {integrity: sha512-TQ5pAGhd5whStmqWvYF4OjQROlmv9SMFVt37qoCBdqRffuuklWYQlCNnEs2ZaIBD1kZRNnikiZOS1eqgkar0iw==}
     engines: {node: '>= 0.10'}
     dev: false
 
