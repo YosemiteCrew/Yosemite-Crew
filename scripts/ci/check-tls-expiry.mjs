@@ -91,7 +91,7 @@ const parseArgs = (args) => {
 // (CERT_HAS_EXPIRED, ERR_TLS_CERT_ALTNAME_INVALID, ...), which is a hard failure
 // either way. So there is never a reason to disable verification to read a
 // certificate we have already decided to fail on.
-const inspectHost = (host, now) =>
+const inspectHostOnce = (host, now) =>
   new Promise((resolve) => {
     const socket = tls.connect(
       { host, port: 443, servername: host, ALPNProtocols: ['http/1.1'] },
@@ -133,6 +133,40 @@ const inspectHost = (host, now) =>
     );
   });
 
+// A single transient connection failure - a slow forwarding host, a dropped SYN,
+// a momentary DNS hiccup - must not open an expiry issue on its own. The apex
+// yosemitecrew.com redirects to www off a third-party host that intermittently
+// times out from CI, while its certificate is valid for over a year. Retry those.
+//
+// Certificate-validation failures are NOT retried: they are deterministic and
+// carry a specific code (CERT_HAS_EXPIRED, ERR_TLS_CERT_ALTNAME_INVALID, ...),
+// so a second attempt would fail identically - retrying would only delay a real
+// alarm. A "no certificate presented" result is likewise deterministic.
+const TRANSIENT_ERROR =
+  /^(ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|ENETUNREACH|EHOSTUNREACH|ENETDOWN|EPIPE)$|timed out/;
+
+export const isTransient = (detail) => TRANSIENT_ERROR.test(String(detail ?? ''));
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Retry only transient errors, up to `attempts` looks. A cert error or a healthy
+// certificate returns on the first look. Injectable `probeOnce` keeps the retry
+// decision testable without touching the network.
+export const probeWithRetry = async (
+  probeOnce,
+  host,
+  now,
+  { attempts = 3, delayMs = 1000 } = {}
+) => {
+  let result;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    result = await probeOnce(host, now);
+    if (result.status !== 'error' || !isTransient(result.detail)) return result;
+    if (attempt < attempts) await sleep(delayMs);
+  }
+  return result;
+};
+
 // A host is a failure when it is untrusted, when it expires inside the fail
 // window, or when it could not be inspected at all - an unreachable or
 // verification-failing host is a problem, not a pass.
@@ -151,7 +185,7 @@ const main = async () => {
   const opts = parseArgs(argv.slice(2));
   const now = new Date();
   const results = evaluate(
-    await Promise.all(opts.hosts.map((host) => inspectHost(host, now))),
+    await Promise.all(opts.hosts.map((host) => probeWithRetry(inspectHostOnce, host, now))),
     opts
   );
 
