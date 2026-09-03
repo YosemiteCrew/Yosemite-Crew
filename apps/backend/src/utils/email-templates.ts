@@ -995,12 +995,16 @@ const buildAdverseEventReportedTemplate =
     const detailText = (label: string, value?: string) =>
       value?.trim() ? `${label}: ${value}` : "";
 
+    /* Lifted out of the authorityHtml expression below rather than nested in
+       it: Sonar rejects a ternary inside a ternary (typescript:S3358), and the
+       two decisions are independent anyway - whether an authority is known,
+       and whether we hold a link for it. */
+    const authorityGuidance = data.authorityUrl
+      ? ` Reporting guidance: <a href="${data.authorityUrl}" style="color:#257bed; text-decoration:none;" class="yc-link">${data.authorityUrl}</a>.`
+      : "";
+
     const authorityHtml = data.authorityName
-      ? `<p>Adverse events for this market are handled by <strong>${data.authorityName}</strong>.` +
-        (data.authorityUrl
-          ? ` Reporting guidance: <a href="${data.authorityUrl}" style="color:#257bed; text-decoration:none;" class="yc-link">${data.authorityUrl}</a>.`
-          : "") +
-        `</p>
+      ? `<p>Adverse events for this market are handled by <strong>${data.authorityName}</strong>.${authorityGuidance}</p>
          <p>Yosemite Crew has <strong>not</strong> forwarded this report to them, or to the manufacturer. Nothing has left the practice.</p>`
       : `<p>Yosemite Crew has <strong>not</strong> forwarded this report to a regulator or manufacturer. Nothing has left the practice.</p>`;
 
