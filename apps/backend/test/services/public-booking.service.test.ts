@@ -335,6 +335,52 @@ describe("public-booking.service", () => {
       expect(JSON.stringify(result)).not.toContain("staff-1");
     });
 
+    it("passes the practice's configured buffer to the slot generator", async () => {
+      await PublicBookingService.getSlots(
+        "park-veterinary",
+        SERVICE_ID,
+        tomorrow(),
+      );
+
+      // The 4th argument is the buffer, read from bookingSettings (10 in the
+      // fixture). Without the wiring it defaults to 0 and public slots tile back
+      // to back regardless of the "Buffer between visits" setting.
+      expect(slotsMock).toHaveBeenCalledWith(
+        SERVICE_ID,
+        "org-1",
+        expect.any(Date),
+        10,
+      );
+    });
+
+    it("passes a zero buffer when the setting is unset", async () => {
+      pm.organization.findUnique.mockResolvedValue(
+        publishedOrg({
+          bookingSettings: {
+            serviceIds: [SERVICE_ID],
+            bookingWindowDays: 28,
+            bufferMinutes: 0,
+            autoConfirm: false,
+            welcomeMessage: null,
+            replyToEmail: null,
+          },
+        }),
+      );
+
+      await PublicBookingService.getSlots(
+        "park-veterinary",
+        SERVICE_ID,
+        tomorrow(),
+      );
+
+      expect(slotsMock).toHaveBeenCalledWith(
+        SERVICE_ID,
+        "org-1",
+        expect.any(Date),
+        0,
+      );
+    });
+
     it("refuses a date beyond the practice's booking window", async () => {
       const far = new Date();
       far.setUTCDate(far.getUTCDate() + 400);
