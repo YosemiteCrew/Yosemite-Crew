@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import React, { useMemo, useState } from 'react';
 import { IoArrowForward, IoInformationCircleOutline, IoPlay } from 'react-icons/io5';
 
@@ -166,10 +167,17 @@ export const Guides = () => {
               aria-label={`Play guide: ${video.title}`}
               className="flex flex-col overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] text-left shadow-[0_1px_2px_var(--sh03),0_10px_28px_var(--sh05)] transition-shadow hover:shadow-[0_4px_10px_var(--sh05),0_20px_50px_var(--sh10)]"
             >
-              <div
-                className="relative flex aspect-video w-full items-center justify-center"
-                style={{ backgroundColor: '#23211f' }}
-              >
+              <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden bg-[var(--ink)]">
+                {/* The card painted a flat slab and never read `thumbnailUrl`, so
+                    every guide looked identical and the poster the film ships
+                    with went unused. */}
+                <Image
+                  src={video.thumbnailUrl}
+                  alt=""
+                  fill
+                  sizes="(max-width: 768px) 100vw, 380px"
+                  className="object-cover"
+                />
                 <span
                   aria-hidden="true"
                   className="flex size-[52px] items-center justify-center rounded-full"
