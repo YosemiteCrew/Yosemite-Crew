@@ -11,11 +11,15 @@ const AppointmentScopeToggle = ({
   disabled = false,
   onChange,
 }: AppointmentScopeToggleProps) => {
-  // Design toggle-switch recipe: 40x24 track (2.5px inset), 19px knob with a soft drop shadow.
-  // On = --blue track + white knob; off = --divider track + --screen knob.
-  // Label follows ink-body (on) / ink-muted (off).
+  // Design toggle-switch recipe: 40x24 track (3px inset), 18px knob with a soft
+  // drop shadow. On = --blue track; off = --divider track. Label follows
+  // ink-body (on) / ink-muted (off).
+  /* Fixed white, not --screen. The design system's `.switch::after` is `#fff`,
+     and --screen flips with the theme: in espresso the off knob was #2f271e on a
+     #3a3128 track, a contrast of 1.15, so the knob simply vanished and an
+     unchecked switch read as a disabled empty capsule. */
   const trackClass = showMineOnly ? 'bg-[var(--blue)]' : 'bg-[var(--divider)]';
-  const knobClass = showMineOnly ? 'translate-x-4 bg-white' : 'translate-x-0 bg-[var(--screen)]';
+  const knobClass = showMineOnly ? 'translate-x-4 bg-white' : 'translate-x-0 bg-white';
 
   return (
     <button

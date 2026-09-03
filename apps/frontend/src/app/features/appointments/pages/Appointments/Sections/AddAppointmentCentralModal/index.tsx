@@ -964,7 +964,9 @@ export const AppointmentFormContent = ({
               }}
             >
               <span
-                className="absolute top-[3px] size-[18px] rounded-full bg-[var(--screen)] transition-all duration-150"
+                /* Fixed white: --screen flips with the theme, so in espresso the
+                   knob was #2f271e on a #3a3128 track, a contrast of 1.15. */
+                className="absolute top-[3px] size-[18px] rounded-full bg-white transition-all duration-150"
                 style={{ left: (formData.isEmergency ?? false) ? '19px' : '3px' }}
               />
             </span>
