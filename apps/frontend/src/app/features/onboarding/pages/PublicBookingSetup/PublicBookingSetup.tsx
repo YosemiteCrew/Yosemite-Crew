@@ -589,11 +589,10 @@ const PublicBookingSetup = () => {
   // `loadedSpecialityIds`, so re-running this effect is cheap.
   useEffect(() => {
     if (!primaryOrgId) return;
-    specialities
-      .filter((speciality) => speciality.organisationId === primaryOrgId)
-      .forEach((speciality) => {
-        Promise.resolve(loadSpecialityCatalog(primaryOrgId, speciality.id)).catch(() => undefined);
-      });
+    specialities.forEach((speciality) => {
+      if (speciality.organisationId !== primaryOrgId) return;
+      Promise.resolve(loadSpecialityCatalog(primaryOrgId, speciality.id)).catch(() => undefined);
+    });
   }, [primaryOrgId, specialities, loadSpecialityCatalog]);
 
   useEffect(() => {
