@@ -153,7 +153,13 @@ const BookingServicesStep = ({
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+        {/* focus-within on the WRAPPER, because nothing else can show focus
+            here: globals.css suppresses the outline on input, select and
+            textarea on the grounds that each field shows border-color on focus,
+            and the inner control adds its own outline-none. These five notched
+            fields had neither, so a keyboard user tabbing through the public
+            booking setup got no indication of where they were at all. */}
+        <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px] focus-within:border-[var(--color-input-border-active)]">
           <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
             Bookable window
           </span>
@@ -170,7 +176,7 @@ const BookingServicesStep = ({
             ))}
           </select>
         </label>
-        <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+        <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px] focus-within:border-[var(--color-input-border-active)]">
           <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
             Buffer between visits
           </span>
@@ -364,7 +370,7 @@ const BookingBrandingStep = ({
       </span>
       <div className="flex flex-col md:flex-row gap-3.5">
         <div className="flex-1 flex flex-col gap-2.5">
-          <div className="relative flex items-center gap-2.5 h-[52px] px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+          <div className="relative flex items-center gap-2.5 h-[52px] px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px] focus-within:border-[var(--color-input-border-active)]">
             <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
               Practice logo
             </span>
@@ -382,7 +388,7 @@ const BookingBrandingStep = ({
               Replace
             </button>
           </div>
-          <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+          <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px] focus-within:border-[var(--color-input-border-active)]">
             <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
               Welcome message
             </span>
@@ -393,7 +399,7 @@ const BookingBrandingStep = ({
               className="flex-1 min-w-0 bg-transparent text-[13px] text-[var(--ink-body)] outline-none"
             />
           </label>
-          <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+          <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px] focus-within:border-[var(--color-input-border-active)]">
             <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
               Confirmation email reply-to
             </span>
