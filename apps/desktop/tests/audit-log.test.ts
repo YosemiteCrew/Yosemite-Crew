@@ -343,7 +343,7 @@ describe('createAuditLog', () => {
     const tamperedLog = await createAuditLog(tmpDir, deps);
 
     const after = tamperedLog.verifyAll();
-    expect(after).toEqual({ valid: 1, tampered: 1 });
+    expect(after).toEqual({ valid: 1, tampered: 1, otherKey: 0 });
   });
 
   test('size returns correct count', async () => {

@@ -185,6 +185,143 @@ describe('audit signing key preservation', () => {
   });
 });
 
+describe('a degraded window stays attributable after the keychain recovers', () => {
+  /* The defect this closes (#2553), reproduced end to end over three sessions
+     exactly as the issue describes: healthy keychain, then unreadable while a
+     controlled-substance entry is written, then healthy again.
+
+     Before entries carried a keyId, session 3 reported `{ valid: 1, tampered: 1 }`
+     and `verifyChain() === false`, permanently and with no reason line, because
+     `getIntegrity()` derived the degraded state from the LIVE key state and
+     nothing remembered which rows it had applied to. On the DEA register that is
+     a compliance alarm an operator can neither clear nor account for. */
+  const DEGRADED_DIR = '/audit-degraded';
+
+  test('the entry written on a temporary key is attributed, not called tampered', async () => {
+    const mem = createMemoryFs();
+    const deps = asDeps(mem, () => 1000);
+    mem.dirs.add(DEGRADED_DIR);
+
+    // Session 1: healthy keychain. E1 is signed with the stored key.
+    const s1 = await createAuditLog(DEGRADED_DIR, { ...deps, secureStore: workingKeychain });
+    s1.append(ENTRY);
+    expect(s1.verifyAll()).toEqual({ valid: 1, tampered: 0, otherKey: 0 });
+
+    // Session 2: keychain unavailable. The stored key is left alone and E2 is
+    // written under a temporary one - the "keep recording" decision above.
+    const s2 = await createAuditLog(DEGRADED_DIR, { ...deps, secureStore: null });
+    expect(s2.getIntegrity().signingKey).toBe('session-only');
+    s2.append({ ...ENTRY, action: 'cs:dispense', resourceId: 'cs-1' });
+
+    // Session 3: keychain back. The stored key reads, so E1 verifies again -
+    // and E2 must be reported as signed by another key rather than tampered.
+    const s3 = await createAuditLog(DEGRADED_DIR, { ...deps, secureStore: workingKeychain });
+    expect(s3.getIntegrity().signingKey).toBe('persisted');
+    expect(s3.verifyAll()).toEqual({ valid: 1, tampered: 0, otherKey: 1 });
+
+    /* The chain still cannot be attested, and that is the honest answer: without
+       the temporary key, an edit made during that window is undetectable. What
+       #2553 asked for is that the report EXPLAIN itself rather than say
+       "Tampered", and it now does. */
+    expect(s3.verifyChain()).toBe(false);
+    const integrity = s3.getIntegrity();
+    expect(integrity.ok).toBe(false);
+    expect(integrity.reason).toContain('signed with a different key');
+    expect(integrity.reason).toContain('not evidence of tampering');
+  });
+
+  test('a genuinely edited entry is still caught after a degraded window', async () => {
+    /* The guard on the guard: attributing a foreign key must not become a way
+       to smuggle an edit past verification. An entry altered in place still
+       carries the CURRENT key's id, so it is checked and fails. */
+    const mem = createMemoryFs();
+    const deps = asDeps(mem, () => 1000);
+    mem.dirs.add(DEGRADED_DIR);
+
+    const s1 = await createAuditLog(DEGRADED_DIR, { ...deps, secureStore: workingKeychain });
+    s1.append(ENTRY);
+
+    const logPath = path.join(DEGRADED_DIR, 'audit-log.jsonl');
+    const rows = mem.files
+      .get(logPath)!
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    rows[0]!.actor = 'someone-else';
+    mem.files.set(logPath, rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
+
+    const s2 = await createAuditLog(DEGRADED_DIR, { ...deps, secureStore: workingKeychain });
+    expect(s2.verifyAll()).toEqual({ valid: 0, tampered: 1, otherKey: 0 });
+    expect(s2.verifyChain()).toBe(false);
+  });
+
+  test('relabelling only the keyId is itself detected', async () => {
+    /* keyId is inside the signed payload, so moving an entry out of the `valid`
+       count by relabelling it - without touching its contents - invalidates the
+       signature. Otherwise anyone with file access could quietly reclassify a
+       genuine entry as "signed by another key" and make the report meaningless
+       in the other direction. */
+    const mem = createMemoryFs();
+    const deps = asDeps(mem, () => 1000);
+    mem.dirs.add(DEGRADED_DIR);
+
+    const s1 = await createAuditLog(DEGRADED_DIR, { ...deps, secureStore: workingKeychain });
+    s1.append(ENTRY);
+
+    const logPath = path.join(DEGRADED_DIR, 'audit-log.jsonl');
+    const rows = mem.files
+      .get(logPath)!
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    const original = rows[0]!.keyId as string;
+    expect(original).toBeDefined();
+    // Contents untouched; only the provenance stamp is rewritten.
+    rows[0]!.keyId = original === 'a'.repeat(16) ? 'b'.repeat(16) : 'a'.repeat(16);
+    mem.files.set(logPath, rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
+
+    const s2 = await createAuditLog(DEGRADED_DIR, { ...deps, secureStore: workingKeychain });
+    /* The entry AS STORED now carries a stamp the signature does not cover, so
+       recomputing it fails. That is what proves keyId is inside the payload
+       rather than sitting beside it. */
+    const stored = s2.query().at(0)!;
+    expect(stored.keyId).not.toBe(original);
+    expect(s2.verify(stored)).toBe(false);
+    expect(s2.verifyChain()).toBe(false);
+  });
+
+  test('rewriting keyId to disguise an edit does not work', async () => {
+    /* keyId is inside the signed payload for any entry that has one, so an
+       attacker cannot relabel a tampered row as "signed by another key" to move
+       it out of the tampered count. */
+    const mem = createMemoryFs();
+    const deps = asDeps(mem, () => 1000);
+    mem.dirs.add(DEGRADED_DIR);
+
+    const s1 = await createAuditLog(DEGRADED_DIR, { ...deps, secureStore: workingKeychain });
+    s1.append(ENTRY);
+
+    const logPath = path.join(DEGRADED_DIR, 'audit-log.jsonl');
+    const rows = mem.files
+      .get(logPath)!
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    rows[0]!.actor = 'someone-else';
+    rows[0]!.keyId = 'deadbeefdeadbeef';
+    mem.files.set(logPath, rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
+
+    const s2 = await createAuditLog(DEGRADED_DIR, { ...deps, secureStore: workingKeychain });
+    /* A relabel moves the row out of the `tampered` COUNT - unavoidable, since
+       nothing here holds the key it now claims - but it must not buy a clean
+       chain. An earlier draft skipped verification for foreign-key entries and
+       this test walked green, which is the hole it exists to catch. */
+    expect(s2.verifyAll().otherKey).toBe(1);
+    expect(s2.verifyChain()).toBe(false);
+    expect(s2.getIntegrity().ok).toBe(false);
+  });
+});
+
 describe('audit trail dialog with an unreadable key', () => {
   test('historical entries are reported as uncheckable, not as tampered', async () => {
     const mem = createMemoryFs();
@@ -196,7 +333,12 @@ describe('audit trail dialog with an unreadable key', () => {
 
     const degraded = await createAuditLog(DIR, { ...deps, secureStore: null });
     // Every entry fails its signature check under the temporary key...
-    expect(degraded.verifyAll()).toEqual({ valid: 0, tampered: 2 });
+    /* Uncheckable, which is what this test is named for. They were signed by
+       the stored key and this session holds a temporary one, so they are
+       attributed rather than accused - `tampered: 0`. Before entries carried a
+       keyId this had to accept `tampered: 2`, so the assertion contradicted the
+       test's own name (#2553). */
+    expect(degraded.verifyAll()).toEqual({ valid: 0, tampered: 0, otherKey: 2 });
     // ...which is exactly why the integrity report must say the key is the
     // problem rather than letting the dialog print "Tampered: 2".
     expect(degraded.getIntegrity().signingKey).toBe('session-only');

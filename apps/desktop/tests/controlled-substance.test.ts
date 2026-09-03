@@ -73,7 +73,7 @@ describe('createControlledSubstanceLogbook', () => {
     });
     expect(auditEntry.details.csTransactionId).toBe(tx.id);
     expect(auditLog.verify(auditEntry)).toBe(true);
-    expect(auditLog.verifyAll()).toEqual({ valid: 1, tampered: 0 });
+    expect(auditLog.verifyAll()).toEqual({ valid: 1, tampered: 0, otherKey: 0 });
   });
 
   test('getTransactions returns all transactions', async () => {
