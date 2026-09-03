@@ -695,6 +695,38 @@ describe('Inventory Utils', () => {
     });
 
     describe('buildInventoryPayload', () => {
+      it('sends null for a blank price rather than saving it as a real zero', () => {
+        /* This is the bug the display fix could not reach. A blank price used to
+           coerce to 0 and be SAVED as 0, so the item really was priced at
+           nothing and no amount of formatting could show otherwise. null tells
+           the API to clear the field: its update path writes `value ?? null`,
+           and its create path maps null back to undefined and omits it. */
+        const blankPriced = {
+          ...mockInventoryItem,
+          pricing: { ...mockInventoryItem.pricing, purchaseCost: '', selling: '   ' },
+          stock: { ...mockInventoryItem.stock, reorderLevel: '' },
+        };
+
+        const payload = buildInventoryPayload(blankPriced, 'org-1', 'VETERINARY' as BusinessType);
+
+        expect(payload.unitCost).toBeNull();
+        expect(payload.sellingPrice).toBeNull();
+        expect(payload.reorderLevel).toBeNull();
+      });
+
+      it('still sends a real zero as zero', () => {
+        // A free sample is priced at 0 and must be stored as 0, not cleared.
+        const freeItem = {
+          ...mockInventoryItem,
+          pricing: { ...mockInventoryItem.pricing, purchaseCost: '0', selling: '0' },
+        };
+
+        const payload = buildInventoryPayload(freeItem, 'org-1', 'VETERINARY' as BusinessType);
+
+        expect(payload.unitCost).toBe(0);
+        expect(payload.sellingPrice).toBe(0);
+      });
+
       it('constructs full payload correctly', () => {
         const payload = buildInventoryPayload(
           mockInventoryItem,

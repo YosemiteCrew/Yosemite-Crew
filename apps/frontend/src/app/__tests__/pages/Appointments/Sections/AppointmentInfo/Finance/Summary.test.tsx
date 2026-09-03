@@ -38,11 +38,6 @@ jest.mock('@/app/hooks/useInvoices', () => ({
   useInvoicesForPrimaryOrgAppointment: (...args: any[]) => useInvoicesMock(...args),
 }));
 
-jest.mock('@/app/lib/validators', () => ({
-  toNumberSafe: (value: any) => Number(value || 0),
-  toTitle: (value: string) => value.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
-}));
-
 jest.mock('@/app/ui/tables/InvoiceTable', () => ({
   getStatusStyle: (status: string) => ({
     color: status === 'PAID' ? 'green' : 'gray',
