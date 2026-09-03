@@ -125,17 +125,24 @@ describe('corpus file reads stay inside the content root', () => {
    * and the guard is two lines.
    */
   it('refuses a path that escapes the content root', async () => {
+    const { DOCS_CONTENT_ROOT, containedPath } = await import('@/app/features/docs/corpus');
+
+    // Exercise the real barrier, not a re-implementation of it: a broken
+    // containedPath must fail this test.
+    expect(() => containedPath(DOCS_CONTENT_ROOT, '../../../../etc/passwd')).toThrow(
+      /outside the docs content root/
+    );
+  });
+
+  it('returns the resolved path for a file inside the content root', async () => {
     const path = await import('node:path');
-    const { DOCS_CONTENT_ROOT } = await import('@/app/features/docs/corpus');
+    const { DOCS_CONTENT_ROOT, containedPath } = await import('@/app/features/docs/corpus');
 
-    const escaping = '../../../../etc/passwd';
-    const resolved = path.resolve(DOCS_CONTENT_ROOT, escaping);
-
-    // The exact condition the loader applies before reading.
-    const contained =
-      resolved === DOCS_CONTENT_ROOT || resolved.startsWith(DOCS_CONTENT_ROOT + path.sep);
-
-    expect(contained).toBe(false);
+    expect(containedPath(DOCS_CONTENT_ROOT, 'apps/backend/api/chat.md')).toBe(
+      path.resolve(DOCS_CONTENT_ROOT, 'apps/backend/api/chat.md')
+    );
+    // The root itself is contained.
+    expect(containedPath(DOCS_CONTENT_ROOT)).toBe(DOCS_CONTENT_ROOT);
   });
 
   it('accepts a real corpus path', async () => {

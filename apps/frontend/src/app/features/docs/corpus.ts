@@ -39,6 +39,25 @@ export interface DocEntry {
 const stripExtension = (file: string) => file.replace(/\.mdx?$/, '');
 
 /**
+ * Resolve `segments` under `base` and refuse anything that escapes it.
+ *
+ * The escape test uses path.relative rather than a string prefix: a target
+ * inside `base` yields a relative path that is neither absolute nor starts with
+ * `..`. That is the barrier form static analysis recognises, so every fs read
+ * below flows its path through here before the read - the input is not
+ * attacker-controlled today, but a future caller passing a path in must fail
+ * the build rather than disclose a file.
+ */
+export const containedPath = (base: string, ...segments: string[]): string => {
+  const target = path.resolve(base, ...segments);
+  const relative = path.relative(base, target);
+  if (relative !== '' && (relative.startsWith('..') || path.isAbsolute(relative))) {
+    throw new Error(`Refusing a path outside the docs content root: "${segments.join('/')}".`);
+  }
+  return target;
+};
+
+/**
  * Five files under ui-system/ carry no `slug`, so the path supplies one -
  * matching what Docusaurus did by default.
  */
@@ -74,15 +93,20 @@ export const slugToHref = (slug: string): string =>
  * contributed symlink is the cheapest way to turn a docs page into a file
  * disclosure, and it would look like an ordinary .md in the diff.
  */
-export const listMarkdownFiles = (dir: string, base = ''): string[] => {
+export const listMarkdownFiles = (dir: string, base = '', root = dir): string[] => {
   const out: string[] = [];
-  for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+  // Assert the directory is still inside the root walk began at before reading
+  // it. On the first call dir === root; recursion only descends into real
+  // dirents (symlinks are refused just below), so this can only fail if a
+  // caller passes a directory that escapes the root.
+  const safeDir = containedPath(root, path.relative(root, dir));
+  for (const item of fs.readdirSync(safeDir, { withFileTypes: true })) {
     if (item.isSymbolicLink()) {
       continue;
     }
     const rel = base ? `${base}/${item.name}` : item.name;
     if (item.isDirectory()) {
-      out.push(...listMarkdownFiles(path.join(dir, item.name), rel));
+      out.push(...listMarkdownFiles(path.join(safeDir, item.name), rel, root));
     } else if (/\.mdx?$/.test(item.name)) {
       out.push(rel);
     }
@@ -106,22 +130,17 @@ export const loadCorpus = (): DocEntry[] => {
     .sort((a, b) => a.localeCompare(b))
     .map((file) => {
       /*
-       * Containment check before the read. `file` comes from listMarkdownFiles(), which
-       * only enumerates DOCS_CONTENT_ROOT, so it is not attacker-controlled
-       * today - but a resolved path that escapes the content root would mean
-       * something has gone wrong upstream (a future caller passing a path in),
-       * and reading it would be a file-disclosure bug. Cheap to assert, and it
-       * fails the build rather than serving the file.
+       * Containment barrier before the read. `file` comes from
+       * listMarkdownFiles(), which only enumerates DOCS_CONTENT_ROOT, so it is
+       * not attacker-controlled today - but a resolved path that escapes the
+       * content root would mean something went wrong upstream (a future caller
+       * passing a path in), and reading it would be a file-disclosure bug.
        *
        * Note this does NOT catch a symlink: path.resolve is lexical, so a link
        * inside the root resolves inside the root whatever it points at. Links
        * are refused in listMarkdownFiles, before they reach here.
        */
-      const absolute = path.resolve(DOCS_CONTENT_ROOT, file);
-      if (absolute !== DOCS_CONTENT_ROOT && !absolute.startsWith(DOCS_CONTENT_ROOT + path.sep)) {
-        throw new Error(`Refusing to read "${file}": it resolves outside the docs content root.`);
-      }
-
+      const absolute = containedPath(DOCS_CONTENT_ROOT, file);
       const raw = fs.readFileSync(absolute, 'utf8');
       const { data, content } = matter(raw);
 

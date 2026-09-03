@@ -661,7 +661,7 @@ Update your Appointment model to include chat references:
 ```bash
 curl -X POST http://localhost:3000/api/chat/token \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{"userId": "user-123"}'
 ```
 
@@ -670,7 +670,7 @@ curl -X POST http://localhost:3000/api/chat/token \
 ```bash
 curl -X POST http://localhost:3000/api/chat/channels \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
     "appointmentId": "apt-123",
     "petOwnerId": "owner-1",
@@ -683,7 +683,7 @@ curl -X POST http://localhost:3000/api/chat/channels \
 
 ```bash
 curl -X GET http://localhost:3000/api/chat/channels \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ---
