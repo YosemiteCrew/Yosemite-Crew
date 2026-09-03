@@ -48,19 +48,34 @@ const DirectoryState = ({
   title: string;
   text: string;
   action?: React.ReactNode;
-}) => (
-  <div className="yc-state-card" role={tone === 'error' ? 'alert' : 'status'}>
-    <span
-      className={`yc-state-icon ${tone === 'error' ? 'yc-state-icon--warn' : 'yc-state-icon--blue'}`}
-      aria-hidden
-    >
-      {tone === 'error' ? <IoCloudOfflineOutline size={24} /> : <IoGlobeOutline size={24} />}
-    </span>
-    <div className="yc-state-title">{title}</div>
-    <p className="yc-state-text">{text}</p>
-    {action ? <div className="yc-state-actions">{action}</div> : null}
-  </div>
-);
+}) => {
+  /* An <output> rather than a div wearing role="status": the element carries the
+     polite live-region semantics natively, which some browser and screen-reader
+     pairings honour where the bare ARIA role is dropped. An error stays a div
+     with role="alert" - that is the assertive register, and it has no element of
+     its own. */
+  const body = (
+    <>
+      <span
+        className={`yc-state-icon ${tone === 'error' ? 'yc-state-icon--warn' : 'yc-state-icon--blue'}`}
+        aria-hidden
+      >
+        {tone === 'error' ? <IoCloudOfflineOutline size={24} /> : <IoGlobeOutline size={24} />}
+      </span>
+      <div className="yc-state-title">{title}</div>
+      <p className="yc-state-text">{text}</p>
+      {action ? <div className="yc-state-actions">{action}</div> : null}
+    </>
+  );
+
+  return tone === 'error' ? (
+    <div className="yc-state-card" role="alert">
+      {body}
+    </div>
+  ) : (
+    <output className="yc-state-card">{body}</output>
+  );
+};
 
 const ClinicCard = ({
   clinic,

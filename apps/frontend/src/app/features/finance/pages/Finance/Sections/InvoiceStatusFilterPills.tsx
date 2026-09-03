@@ -8,8 +8,6 @@ type InvoiceStatusFilterPillsProps = {
   options: StatusOption[];
   activeStatus: string;
   setActiveStatus: (value: string) => void;
-  /** Kept for caller compatibility; the chip recipe has one geometry. */
-  size?: 'sm' | 'md';
   className?: string;
   /** Overridden by the estimates list, which filters estimates rather than invoices. */
   ariaLabel?: string;
