@@ -15,6 +15,22 @@ export interface HandoffTarget {
   nested?: {screen: string; params?: Record<string, unknown>};
 }
 
+/**
+ * Percent-decodes a query fragment, tolerating malformed input.
+ *
+ * `yc://app` is an exported deep link, so any installed app can hand us a
+ * link, and `decodeURIComponent` throws a URIError on a stray '%'. That threw
+ * out of the parser and surfaced as an unhandled rejection in the deep-link
+ * handler, so a malformed value is kept verbatim instead.
+ */
+const safeDecode = (value: string): string => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
 /** Extracts the path and query of a `yc://app/...` link. */
 export const parseAssistantLink = (
   link: string,
@@ -39,8 +55,9 @@ export const parseAssistantLink = (
         continue;
       }
       // In a form-encoded query '+' means a space on both sides of the '='.
-      params[decodeURIComponent(rawKey.replace(/\+/g, ' '))] =
-        decodeURIComponent(rawValue.replace(/\+/g, ' '));
+      params[safeDecode(rawKey.replace(/\+/g, ' '))] = safeDecode(
+        rawValue.replace(/\+/g, ' '),
+      );
     }
   }
   return {path, params};

@@ -233,3 +233,37 @@ describe('resolveHandoffTarget', () => {
     expect(resolveHandoffTarget('yosemite://app/assistant')).toBeNull();
   });
 });
+
+describe('parseAssistantLink malformed input', () => {
+  // yc://app is an exported deep link, so any installed app can hand us one.
+  // decodeURIComponent throws a URIError on a stray '%', which used to escape
+  // the parser and surface as an unhandled rejection in the deep-link handler.
+  it('keeps a malformed percent escape verbatim instead of throwing', () => {
+    expect(parseAssistantLink('yc://app/tasks/new?title=%')).toEqual({
+      path: '/tasks/new',
+      params: {title: '%'},
+    });
+  });
+
+  it('keeps a malformed percent escape in a key verbatim', () => {
+    expect(parseAssistantLink('yc://app/x?%ZZ=1')).toEqual({
+      path: '/x',
+      params: {'%ZZ': '1'},
+    });
+  });
+
+  it('still decodes the valid pairs alongside a malformed one', () => {
+    expect(parseAssistantLink('yc://app/x?bad=%&good=a%20b')).toEqual({
+      path: '/x',
+      params: {bad: '%', good: 'a b'},
+    });
+  });
+
+  it('routes a link carrying a malformed value rather than throwing', () => {
+    expect(resolveHandoffTarget('yc://app/appointments/book?pet=%')).toEqual({
+      tab: 'Appointments',
+      screen: 'BrowseBusinesses',
+      params: {autoFocusSearch: true},
+    });
+  });
+});
