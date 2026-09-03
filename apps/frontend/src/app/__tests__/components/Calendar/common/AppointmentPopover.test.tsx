@@ -70,24 +70,6 @@ jest.mock('@/app/lib/invoice', () => ({
   normalizeAppointmentId: jest.fn((value: string | undefined) => value),
 }));
 
-jest.mock('@/app/lib/money', () => ({
-  formatMoney: jest.fn(() => '$ 0.00'),
-  recordCurrency: (record: { currency?: string | null } | null | undefined, fallback: string) =>
-    record?.currency ?? fallback,
-  formatMoneyPrecise: (amount: number, currency: string) =>
-    `${currency} ${Number(amount).toFixed(2)}`,
-  sharedCurrency: (records: ReadonlyArray<{ currency?: string | null }>, fallback: string) => {
-    let shared: string | null = null;
-    for (const record of records) {
-      const own = record.currency;
-      if (typeof own !== 'string' || !own.trim()) continue;
-      if (shared === null) shared = own.trim();
-      else if (shared !== own.trim()) return fallback;
-    }
-    return shared ?? fallback;
-  },
-}));
-
 jest.mock('@/app/lib/timezone', () => ({
   formatDateInPreferredTimeZone: jest.fn(() => 'Jan 6, 2025'),
 }));
@@ -316,7 +298,8 @@ describe('AppointmentPopover', () => {
 
     expect(screen.getByRole('button', { name: 'Start appointment' })).toBeInTheDocument();
     expect(screen.getByText('Amount Due')).toBeInTheDocument();
-    expect(screen.getByText('$ 0.00')).toBeInTheDocument();
+    // Real formatMoney: the 1200 USD invoice total, whole units, symbol with no space.
+    expect(screen.getByText('$1,200')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Reschedule appointment' }));
     expect(handleRescheduleAppointment).toHaveBeenCalledWith(nonRequestedAppointment);
