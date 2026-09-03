@@ -50,6 +50,28 @@ const config: StorybookConfig = {
       { find: /^@\/constants\//, replacement: `${path.join(src, 'app/constants')}/` },
       { find: /^@\//, replacement: `${src}/` },
     ];
+
+    /**
+     * Pin the Documenso origin at BUILD time, not from a story.
+     *
+     * `getSafeDocumensoIframeUrl` compares against
+     * `process.env.NEXT_PUBLIC_DOCUMENSO_HOST`, and Next inlines every
+     * `NEXT_PUBLIC_*` when it builds. A story that assigns to `process.env` at
+     * runtime therefore works against `storybook dev` - whose shim is writable -
+     * and silently does nothing in `storybook build`, which is what Chromatic
+     * publishes: the guard falls back to the real host, rejects the fixture URL
+     * and the iframe never mounts, while Storybook still reports the story as
+     * finished.
+     *
+     * A reserved `.invalid` TLD never resolves, so the frame lays out its box
+     * without a request leaving for the production portal.
+     */
+    viteConfig.define = {
+      ...(viteConfig.define ?? {}),
+      'process.env.NEXT_PUBLIC_DOCUMENSO_HOST': JSON.stringify(
+        'https://documenso.storybook.invalid'
+      ),
+    };
     return viteConfig;
   },
   staticDirs: [
