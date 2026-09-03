@@ -112,6 +112,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -366,6 +372,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -396,6 +408,12 @@ paths:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -452,6 +470,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -483,6 +507,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -508,6 +538,12 @@ paths:
         - name: appointmentId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -672,6 +708,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -708,6 +750,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -727,6 +775,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -744,6 +798,12 @@ paths:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -771,6 +831,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -789,6 +855,12 @@ paths:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -810,6 +882,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -827,6 +905,12 @@ paths:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -849,6 +933,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -866,6 +956,12 @@ paths:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -888,6 +984,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -908,6 +1010,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -926,6 +1034,12 @@ paths:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -1525,6 +1639,13 @@ paths:
                 properties:
                   message:
                     type: string
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   '/v1/companion-organisation/pms/reject':
     post:
       tags:
@@ -1561,6 +1682,13 @@ paths:
                 properties:
                   message:
                     type: string
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   '/v1/companion-organisation/pms/{organisationId}/{companionId}/link':
     post:
       tags:
@@ -1638,6 +1766,12 @@ paths:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -1833,6 +1967,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         400:
           description: Response
@@ -1936,6 +2076,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         400:
           description: Response
@@ -1985,6 +2131,12 @@ paths:
           description: Identifies the organisation.
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -2041,6 +2193,12 @@ paths:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -2313,6 +2471,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         500:
           description: Response
@@ -2342,6 +2506,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         500:
           description: Response
@@ -2369,6 +2539,12 @@ paths:
         - name: months
           in: query
           required: false
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -2405,6 +2581,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         500:
           description: Response
@@ -2437,6 +2619,12 @@ paths:
         - name: range
           in: query
           required: false
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -2473,6 +2661,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         500:
           description: Response
@@ -2505,6 +2699,12 @@ paths:
         - name: year
           in: query
           required: false
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -2561,6 +2761,12 @@ paths:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -2959,6 +3165,13 @@ paths:
                 properties:
                   message:
                     type: string
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   '/v1/document/pms/{companionId}':
     post:
       tags:
@@ -3003,6 +3216,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -3022,6 +3241,12 @@ paths:
         - name: documentId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       requestBody:
@@ -3081,6 +3306,12 @@ paths:
         - name: documentId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -3151,6 +3382,13 @@ paths:
                 properties:
                   message:
                     type: string
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   '/v1/document/pms/appointments/{appointmentId}':
     post:
       tags:
@@ -3345,6 +3583,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         401:
           description: Response
@@ -3389,6 +3633,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -3427,6 +3677,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -3462,6 +3718,12 @@ paths:
         - name: formId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -3508,6 +3770,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         401:
           description: Response
@@ -3550,6 +3818,12 @@ paths:
         - name: formId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -3596,6 +3870,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         401:
           description: Response
@@ -3638,6 +3918,12 @@ paths:
         - name: formId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -3754,6 +4040,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -3785,6 +4077,12 @@ paths:
         - name: submissionId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -4130,6 +4428,13 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   '/v1/inventory/items/{itemId}':
     patch:
       tags:
@@ -4259,6 +4564,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -4289,6 +4600,12 @@ paths:
         - name: to
           in: query
           required: false
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -4328,6 +4645,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -4358,6 +4681,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -4385,6 +4714,12 @@ paths:
         - name: batchId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -4419,6 +4754,13 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   /v1/inventory/stock/consume/bulk:
     post:
       tags:
@@ -4443,6 +4785,13 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   '/v1/inventory/items/{itemId}/adjust':
     post:
       tags:
@@ -4455,6 +4804,12 @@ paths:
         - name: itemId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       requestBody:
@@ -4487,6 +4842,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -4515,6 +4876,12 @@ paths:
         - name: itemId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       requestBody:
@@ -4549,6 +4916,13 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   '/v1/inventory/organisation/{organisationId}/vendors':
     get:
       tags:
@@ -4561,6 +4935,12 @@ paths:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -4585,6 +4965,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -4606,6 +4992,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -4625,6 +5017,12 @@ paths:
         - name: vendorId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -4651,6 +5049,13 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
     get:
       tags:
         - 'Non-FHIR'
@@ -4666,6 +5071,13 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   '/v1/inventory/meta-fields/{fieldId}':
     patch:
       tags:
@@ -4678,6 +5090,12 @@ paths:
         - name: fieldId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -4699,6 +5117,12 @@ paths:
         - name: fieldId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -4723,6 +5147,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -4743,6 +5173,12 @@ paths:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -4897,6 +5333,12 @@ paths:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -5276,6 +5718,13 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   '/v1/observation-tools/pms/submissions/{submissionId}':
     get:
       tags:
@@ -5288,6 +5737,12 @@ paths:
         - name: submissionId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -5310,6 +5765,12 @@ paths:
         - name: submissionId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -5422,6 +5883,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         400:
           description: Response
@@ -5466,6 +5933,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -5495,6 +5968,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -5520,6 +5999,12 @@ paths:
         - name: documentId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       requestBody:
@@ -5556,6 +6041,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -5582,6 +6073,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -5602,6 +6099,12 @@ paths:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       requestBody:
@@ -5821,6 +6324,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         400:
           description: Response
@@ -5869,6 +6378,12 @@ paths:
         - name: id
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -5920,6 +6435,12 @@ paths:
         - name: organizationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -6209,6 +6730,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         400:
           description: Response
@@ -6259,6 +6786,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         400:
           description: Response
@@ -6307,6 +6840,12 @@ paths:
         - name: organizationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -6360,6 +6899,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         400:
           description: Response
@@ -6400,6 +6945,12 @@ paths:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -6460,6 +7011,12 @@ paths:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -6979,6 +7536,13 @@ paths:
                 properties:
                   message:
                     type: string
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   '/fhir/v1/parent/pms/parents/{id}':
     put:
       tags:
@@ -6991,6 +7555,12 @@ paths:
         - name: id
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -7161,6 +7731,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -7211,6 +7787,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         400:
           description: Response
@@ -7251,6 +7833,12 @@ paths:
           description: Identifies the speciality being updated.
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -7307,6 +7895,12 @@ paths:
         - name: specialityId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -7490,6 +8084,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -7523,6 +8123,12 @@ paths:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -7560,6 +8166,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -7593,6 +8205,12 @@ paths:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -7630,6 +8248,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         400:
           description: Response
@@ -7665,6 +8289,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -7698,6 +8328,12 @@ paths:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -7865,6 +8501,13 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   '/v1/task/pms/from-template':
     post:
       tags:
@@ -7889,6 +8532,13 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   /v1/task/pms/custom:
     post:
       tags:
@@ -7913,6 +8563,13 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   '/v1/task/pms/organisation/{organisationId}':
     get:
       tags:
@@ -7925,6 +8582,12 @@ paths:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -8208,6 +8871,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         400:
           description: Response
@@ -8327,6 +8996,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         201:
           description: Response
@@ -8359,6 +9034,12 @@ paths:
         - name: organizationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -8402,6 +9083,12 @@ paths:
         - name: organizationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -8453,6 +9140,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         404:
           description: Response
@@ -8495,6 +9188,12 @@ paths:
         - name: organizationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
