@@ -25,8 +25,8 @@ import { resolveVerifiedUserId } from "src/utils/request";
 const CreateApiKeySchema = z.object({
   name: z.string().trim().min(1).max(100),
   scopes: z.array(z.string().trim().min(1)).max(50).optional(),
-  environment: z.nativeEnum(DeveloperApiKeyEnvironment).optional(),
-  expiresAt: z.string().datetime().optional(),
+  environment: z.enum(DeveloperApiKeyEnvironment).optional(),
+  expiresAt: z.iso.datetime().optional(),
 });
 
 const handleError = (
@@ -51,9 +51,10 @@ export const DeveloperApiKeyController = {
 
       const parsed = CreateApiKeySchema.safeParse(req.body);
       if (!parsed.success) {
-        return res
-          .status(400)
-          .json({ message: "Invalid request", errors: parsed.error.flatten() });
+        return res.status(400).json({
+          message: "Invalid request",
+          errors: z.flattenError(parsed.error),
+        });
       }
 
       const { name, scopes, environment, expiresAt } = parsed.data;

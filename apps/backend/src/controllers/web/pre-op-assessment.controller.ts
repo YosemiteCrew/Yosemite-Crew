@@ -15,8 +15,7 @@ const CreatePreOpSchema = z.object({
   patientId: z.string(),
   encounterId: z.string(),
   asaClass: AsaClassEnum.optional(),
-  fastingStartedAt: z
-    .string()
+  fastingStartedAt: z.iso
     .datetime()
     .transform((v) => new Date(v))
     .optional(),
@@ -33,8 +32,7 @@ const CreatePreOpSchema = z.object({
   cardiovascularNotes: z.string().optional(),
   notes: z.string().optional(),
   assessedBy: z.string().optional(),
-  assessedAt: z
-    .string()
+  assessedAt: z.iso
     .datetime()
     .transform((v) => new Date(v))
     .optional(),

@@ -11,10 +11,10 @@ import {
 } from "src/controllers/web/shared/clinical-controller.helpers";
 
 const RecordBodySchema = z.object({
-  patientId: z.string().uuid(),
-  admissionId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
-  observedAt: z.string().datetime(),
+  patientId: z.uuid(),
+  admissionId: z.uuid().optional(),
+  encounterId: z.uuid().optional(),
+  observedAt: z.iso.datetime(),
   temperature: z.number().optional(),
   temperatureUnit: z.enum(["C", "F"]).optional(),
   heartRate: z.number().int().positive().optional(),
@@ -36,11 +36,11 @@ const RecordBodySchema = z.object({
 });
 
 const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  admissionId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
-  from: z.string().datetime().optional(),
-  to: z.string().datetime().optional(),
+  patientId: z.uuid().optional(),
+  admissionId: z.uuid().optional(),
+  encounterId: z.uuid().optional(),
+  from: z.iso.datetime().optional(),
+  to: z.iso.datetime().optional(),
 });
 
 const ObsParamsSchema = orgParams.extend({ obsId: uuid() });

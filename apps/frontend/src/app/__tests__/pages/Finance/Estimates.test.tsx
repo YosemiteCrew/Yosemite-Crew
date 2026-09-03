@@ -170,12 +170,47 @@ describe('Finance > Estimates page', () => {
 
     render(<ProtectedEstimates />);
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Estimates' })).toBeInTheDocument();
+    // The title carries a live count, as Finance's does, so the accessible name
+    // is "Estimates (0)" rather than the bare word.
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /^Estimates \(\d+\)$/ })
+    ).toBeInTheDocument();
     expect(await screen.findByText('No estimates yet')).toBeInTheDocument();
     expect(
       screen.getByText('Create an estimate to quote a treatment plan before it is invoiced.')
     ).toBeInTheDocument();
     expect(mockEstimateService.listEstimates).toHaveBeenCalledWith('org-1', undefined);
+  });
+
+  it('summarises what is awaiting a decision and what is approved', async () => {
+    mockEstimateService.listEstimates.mockResolvedValue([
+      buildEstimate({ id: 'e1', status: 'DRAFT', total: 100 }),
+      buildEstimate({ id: 'e2', status: 'SENT', total: 50 }),
+      buildEstimate({ id: 'e3', status: 'APPROVED', total: 200 }),
+      // Excluded from both figures on purpose: a converted estimate's money is
+      // counted on the invoice it became, and a declined one is not owed at all.
+      buildEstimate({ id: 'e4', status: 'CONVERTED', total: 999 }),
+      buildEstimate({ id: 'e5', status: 'DECLINED', total: 777 }),
+    ]);
+
+    render(<ProtectedEstimates />);
+
+    expect(
+      await screen.findByText('$150.00 awaiting decision · $200.00 approved')
+    ).toBeInTheDocument();
+  });
+
+  it('counts the estimates on screen in the title, as Finance does', async () => {
+    mockEstimateService.listEstimates.mockResolvedValue([
+      buildEstimate({ id: 'e1' }),
+      buildEstimate({ id: 'e2' }),
+    ]);
+
+    render(<ProtectedEstimates />);
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Estimates (2)' })
+    ).toBeInTheDocument();
   });
 
   it('words the empty state differently under a status filter', async () => {

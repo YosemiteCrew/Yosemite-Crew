@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatReading, temperatureReading } from '@/app/features/appointments/lib/vitalsUnits';
 import type { Vitals } from '@/app/features/appointments/types/workspace';
 
 type PhoneVitalsTilesProps = {
@@ -21,8 +22,6 @@ const Tile = ({ label, value }: { label: string; value: string }) => (
 
 const formatWeight = (weightKg?: number): string => (weightKg == null ? DASH : `${weightKg} kg`);
 
-const formatTemp = (tempF?: number): string => (tempF == null ? DASH : `${tempF} °F`);
-
 const formatHrRr = (heartRateBpm?: number, respRateBpm?: number): string => {
   if (heartRateBpm == null && respRateBpm == null) return DASH;
   return `${heartRateBpm ?? DASH} · ${respRateBpm ?? DASH}`;
@@ -36,7 +35,7 @@ const formatHrRr = (heartRateBpm?: number, respRateBpm?: number): string => {
 const PhoneVitalsTiles = ({ weightKg, latestVitals }: PhoneVitalsTilesProps) => (
   <div className="grid grid-cols-3 gap-[7px]">
     <Tile label="Weight" value={formatWeight(weightKg)} />
-    <Tile label="Temp" value={formatTemp(latestVitals?.tempF)} />
+    <Tile label="Temp" value={formatReading(temperatureReading(latestVitals), DASH)} />
     <Tile
       label="HR · RR"
       value={formatHrRr(latestVitals?.heartRateBpm, latestVitals?.respRateBpm)}

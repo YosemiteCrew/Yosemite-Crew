@@ -23,17 +23,17 @@ const FluidTypeEnum = z.enum([
 const StatusEnum = z.enum(["ACTIVE", "PAUSED", "COMPLETED", "DISCONTINUED"]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  admissionId: z.string().uuid().optional(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
+  admissionId: z.uuid().optional(),
   fluidType: FluidTypeEnum,
   customFluidName: z.string().max(200).optional(),
   additives: z.string().max(500).optional(),
   rateMlPerHour: z.number().positive(),
   totalVolumeMl: z.number().positive().optional(),
   durationHours: z.number().positive().optional(),
-  startedAt: z.string().datetime(),
-  endedAt: z.string().datetime().optional(),
+  startedAt: z.iso.datetime(),
+  endedAt: z.iso.datetime().optional(),
   indication: z.string().max(1000).optional(),
   notes: z.string().max(2000).optional(),
 });
@@ -45,14 +45,14 @@ const UpdateBodySchema = z.object({
   rateMlPerHour: z.number().positive().optional(),
   totalVolumeMl: z.number().positive().optional(),
   durationHours: z.number().positive().optional(),
-  endedAt: z.string().datetime().optional(),
+  endedAt: z.iso.datetime().optional(),
   status: StatusEnum.optional(),
   indication: z.string().max(1000).optional(),
   notes: z.string().max(2000).optional(),
 });
 
 const ListQuerySchema = patientScopeQuery.extend({
-  admissionId: z.string().uuid().optional(),
+  admissionId: z.uuid().optional(),
   status: StatusEnum.optional(),
 });
 

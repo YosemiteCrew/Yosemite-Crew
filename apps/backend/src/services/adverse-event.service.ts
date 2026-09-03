@@ -2,6 +2,8 @@
 import { AdverseEventReport, AdverseEventStatus } from "@yosemite-crew/types";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../config/prisma";
+import { sendEmailTemplate } from "../utils/email";
+import logger from "../utils/logger";
 
 export class AdverseEventServiceError extends Error {
   constructor(
@@ -48,6 +50,125 @@ const toDomainFromPrisma = (row: {
   updatedAt: row.updatedAt,
 });
 
+/*
+ * CodeQL's js/log-injection barrier is exact: no quantifier in the pattern and
+ * an EMPTY replacement string. `/[\n\r]+/` or replacing with " " both fail to
+ * register - a previous attempt at the wrong spelling left three alerts open
+ * for months. See LogInjectionQuery.qll's StringReplaceSanitizer.
+ */
+const forLog = (value: string): string => value.replace(/[\n\r]/g, "");
+
+const asText = (value: unknown): string | undefined => {
+  if (typeof value === "string") return value.trim() || undefined;
+  if (typeof value === "number") return String(value);
+  return undefined;
+};
+
+/**
+ * Tells the linked practice that a report exists.
+ *
+ * This is the only destination that is real. Nothing is transmitted to a
+ * regulator or a manufacturer - no regulator documents a route for a platform
+ * to file on an owner's behalf, and two of the eighteen we checked exclude it
+ * outright (see regulatory-authority-seed.data.ts). So the practice is told
+ * where the owner can file it themselves, and the filing stays with a human.
+ *
+ * It also matters that this is an email rather than a notification: the report
+ * is stored org-scoped and reachable over the API, but apps/frontend has no
+ * adverse-event screen, so without this mail nothing surfaces the report to
+ * the clinic at all.
+ *
+ * Failure is logged and swallowed, matching appointment.service.ts and
+ * public-booking.service.ts: a report that was accepted and stored must not be
+ * reported back as failed because SES was unavailable.
+ */
+const notifyOrganisation = async (
+  reportId: string,
+  input: AdverseEventReport,
+): Promise<void> => {
+  const organisationId = input.organisationId;
+  if (!organisationId) return;
+
+  try {
+    const organisation = await prisma.organization.findUnique({
+      where: { id: organisationId },
+      // Country lives on the address relation, not on Organization itself.
+      select: {
+        name: true,
+        email: true,
+        address: { select: { country: true } },
+      },
+    });
+    if (!organisation?.email) {
+      logger.info(
+        `Adverse event ${forLog(reportId)} stored, but organisation ${forLog(organisationId)} has no email on file; practice not notified`,
+      );
+      return;
+    }
+
+    const product = (input.product ?? {}) as unknown as Record<string, unknown>;
+    const reporter = (input.reporter ?? {}) as unknown as Record<
+      string,
+      unknown
+    >;
+    const patient = (input.patient ?? {}) as unknown as Record<string, unknown>;
+
+    const countryName = asText(
+      (product.manufacturingCountry as Record<string, unknown> | undefined)
+        ?.name ?? organisation.address?.country,
+    );
+    const authority = countryName
+      ? await prisma.regulatoryAuthority.findFirst({
+          where: { country: { equals: countryName, mode: "insensitive" } },
+          select: { authorityName: true, website: true },
+        })
+      : null;
+
+    const reporterName =
+      [asText(reporter.firstName), asText(reporter.lastName)]
+        .filter(Boolean)
+        .join(" ") || "A pet owner";
+
+    const quantity = [
+      asText(product.quantityUsed),
+      asText(product.quantityUnit),
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    await sendEmailTemplate({
+      to: organisation.email,
+      templateId: "adverseEventReported",
+      templateData: {
+        organisationName: asText(organisation.name),
+        reporterName,
+        reporterEmail: asText(reporter.email),
+        reporterPhone: asText(reporter.phoneNumber),
+        companionName: asText(patient.name) ?? "a companion",
+        productName: asText(product.productName) ?? "an unnamed product",
+        brandName: asText(product.brandName),
+        batchNumber: asText(product.batchNumber),
+        quantityUsed: quantity || undefined,
+        administrationMethod: asText(product.administrationMethod),
+        eventDate: asText(product.eventDate),
+        conditionBefore: asText(product.petConditionBefore),
+        conditionAfter: asText(product.petConditionAfter),
+        authorityName: authority?.authorityName ?? undefined,
+        authorityUrl: authority?.website ?? undefined,
+      },
+    });
+
+    logger.info(
+      `Adverse event ${forLog(reportId)} notified to practice ${forLog(organisationId)}`,
+    );
+  } catch (error) {
+    logger.error(
+      `Failed to notify practice ${forLog(organisationId)} of adverse event ${forLog(reportId)}; the report is stored`,
+      error,
+    );
+  }
+};
+
 export const AdverseEventService = {
   async createFromMobile(
     input: AdverseEventReport,
@@ -80,6 +201,8 @@ export const AdverseEventService = {
         status: "SUBMITTED",
       },
     });
+    await notifyOrganisation(doc.id, input);
+
     return toDomainFromPrisma({
       ...doc,
       reporter: doc.reporter,

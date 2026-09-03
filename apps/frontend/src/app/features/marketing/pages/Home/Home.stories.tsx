@@ -13,14 +13,13 @@ import '@/app/features/marketing/site/marketing.css';
 import { GITHUB_REPO_URL, HERO_VIDEOS } from '@/app/features/marketing/site';
 
 import { Home } from './Home';
+import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/useGithubStats';
 
 /* ------------------------------------------------------------------ fixtures */
 
 /** The one session-cache key `useReleaseLanes` owns. */
 const LANES_CACHE_KEY = 'yc_marketing_release_lanes_v1';
 /** The pair `useGithubStats` renders from, and the timestamp that decides its 5 minute TTL. */
-const STATS_CACHE_KEY = 'yc_marketing_stats_v2';
-const STATS_TS_KEY = 'yc_marketing_stats_ts_v2';
 
 /** U+00B7 middle dot: what a lane with no release and a stat with no number both show. */
 const PLACEHOLDER = '·';

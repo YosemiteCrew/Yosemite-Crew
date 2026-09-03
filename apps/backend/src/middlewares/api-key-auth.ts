@@ -57,6 +57,7 @@ export const authorizeApiKey = async (
 
   const usage = await DeveloperUsageService.incrementAndCheck(
     verified.ownerUserId,
+    verified.environment,
   );
   if (!usage.allowed) {
     return res.status(429).json({

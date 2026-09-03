@@ -203,7 +203,7 @@ const HealthcareServiceSchema = z
   .object({
     resourceType: z.literal("HealthcareService"),
   })
-  .passthrough();
+  .loose();
 
 const HealthcareServiceListSchema = z.array(HealthcareServiceSchema).min(1);
 

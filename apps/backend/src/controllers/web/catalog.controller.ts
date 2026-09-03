@@ -41,7 +41,7 @@ const healthcareServiceSchema = z
   .object({
     resourceType: z.literal("HealthcareService"),
   })
-  .passthrough();
+  .loose();
 
 const resolveSchema = z.object({
   productItemId: z.string().trim().min(1),
@@ -163,7 +163,7 @@ const specialityMutationSchema = z.object({
   name: z.string().trim().min(1).optional(),
   headUserId: z.string().trim().min(1).nullable().optional(),
   headName: z.string().trim().min(1).nullable().optional(),
-  headProfilePicUrl: z.string().trim().url().nullable().optional(),
+  headProfilePicUrl: z.string().trim().pipe(z.url()).nullable().optional(),
   teamMemberIds: z.array(z.string().trim().min(1)).optional(),
 });
 
@@ -372,7 +372,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid payload. Expected FHIR HealthcareService resource.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -395,7 +395,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid payload. Expected FHIR HealthcareService resource.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -474,7 +474,7 @@ export const CatalogController = {
       if (!queryResult.success) {
         return res.status(400).json({
           message: "Invalid catalog list query.",
-          errors: queryResult.error.flatten(),
+          errors: z.flattenError(queryResult.error),
         });
       }
 
@@ -523,7 +523,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid speciality catalog query.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -547,7 +547,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid catalog resolve payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -575,7 +575,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid FHIR Parameters payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -614,7 +614,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid FHIR Parameters payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -668,7 +668,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid organisation catalog summary query.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -699,7 +699,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid specialities list query.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -724,7 +724,7 @@ export const CatalogController = {
           message: "Invalid speciality payload.",
           errors: parsed.success
             ? { fieldErrors: { name: ["Name is required."] } }
-            : parsed.error.flatten(),
+            : z.flattenError(parsed.error),
         });
       }
 
@@ -752,7 +752,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid speciality payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -835,7 +835,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid services list query.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -880,7 +880,7 @@ export const CatalogController = {
                   ...(parsed.data.kind ? {} : { kind: ["Kind is required."] }),
                 },
               }
-            : parsed.error.flatten(),
+            : z.flattenError(parsed.error),
         });
       }
 
@@ -906,7 +906,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid service payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -984,7 +984,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid packages list query.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -1021,7 +1021,7 @@ export const CatalogController = {
           message: "Invalid package payload.",
           errors: parsed.success
             ? { fieldErrors: { name: ["Name is required."] } }
-            : parsed.error.flatten(),
+            : z.flattenError(parsed.error),
         });
       }
 
@@ -1048,7 +1048,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid package payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -1126,7 +1126,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid catalog search query.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -1189,7 +1189,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid catalog nearby search query.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -1219,7 +1219,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid catalog bookable slots payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -1254,7 +1254,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid catalog calendar prefill payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 

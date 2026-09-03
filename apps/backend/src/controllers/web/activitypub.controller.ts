@@ -106,7 +106,7 @@ const PatientSummarySchema = z.object({
 });
 
 const SendReferralBodySchema = z.object({
-  toActorUri: z.string().url().max(512),
+  toActorUri: z.url().max(512),
   patientSummary: PatientSummarySchema,
   urgency: ReferralUrgencySchema.optional(),
   clinicalContext: z.string().max(5000).optional(),
@@ -386,7 +386,7 @@ export const ActivityPubController = {
       if (!parsed.success) {
         return res.status(400).json({
           error: "Invalid referral payload",
-          details: parsed.error.flatten().fieldErrors,
+          details: z.flattenError(parsed.error).fieldErrors,
         });
       }
       const body = parsed.data;

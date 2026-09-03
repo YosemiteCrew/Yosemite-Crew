@@ -1,6 +1,11 @@
 import React from 'react';
 import { IoChevronForwardOutline, IoPulseOutline } from 'react-icons/io5';
 import type { ObservationRecord, Vitals } from '@/app/features/appointments/types/workspace';
+import {
+  formatReading,
+  temperatureReading,
+  weightReading,
+} from '@/app/features/appointments/lib/vitalsUnits';
 import { formatStampTime } from '@/app/lib/appointmentWorkspace';
 
 type WorkspaceVitalsPanelProps = {
@@ -93,10 +98,14 @@ const VitalsCard = ({
     {latest ? (
       <>
         <div className="grid grid-cols-2 border-t border-card-border">
-          <VitalCell label="Weight" value={withUnit(latest.weightLbs, 'lbs')} withBottomBorder />
+          <VitalCell
+            label="Weight"
+            value={formatReading(weightReading(latest), '—')}
+            withBottomBorder
+          />
           <VitalCell
             label="Temp"
-            value={withUnit(latest.tempF, '°F')}
+            value={formatReading(temperatureReading(latest), '—')}
             withLeftBorder
             withBottomBorder
           />

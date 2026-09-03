@@ -319,10 +319,7 @@ function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
     }
 
     setFormDataErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      return false;
-    }
-    return true;
+    return Object.keys(errors).length === 0;
   };
 
   useImperativeHandle(ref, () => ({

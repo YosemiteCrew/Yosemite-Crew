@@ -60,6 +60,7 @@ import {
   resolveLatestOrder,
   shouldCloseOrderIframe,
 } from './LabTests.helpers';
+import BreedSubstitutionNotice from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/BreedSubstitutionNotice';
 
 const TESTS_PAGE_SIZE = 25;
 const IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER =
@@ -162,6 +163,7 @@ const PastOrderCard = ({
         label={getOrderDisplayStatus(order)}
       />
     </div>
+    <BreedSubstitutionNotice substitution={order.breedSubstitution} />
     <div className="flex flex-wrap items-center gap-2 justify-end">
       {getOrderDisplayStatus(order) === 'Complete' ? (
         <Primary href="#" text="Result PDF" onClick={() => openResultPdfForOrder(order)} />
@@ -312,9 +314,19 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     void run();
   }, [primaryOrgId, integrationEnabled]);
 
+  /* Guards against an out-of-order response. The backend now filters on `query`
+     server-side, so two in-flight searches return DIFFERENT result sets - and a
+     slower earlier one landing last would overwrite the newer results, leaving
+     the picker showing tests for text the user has already changed. While every
+     response was the same unfiltered page this could not be observed, which is
+     why the debounce alone was enough before. Compared rather than aborted so a
+     superseded request still settles harmlessly. */
+  const testsRequestSeq = React.useRef(0);
+
   const fetchTestsPage = useCallback(
     async (page: number, append: boolean) => {
       if (!primaryOrgId || !integrationEnabled) return;
+      const seq = ++testsRequestSeq.current;
       if (append) setTestsLoadingMore(true);
       try {
         const res = await listIdexxTests({
@@ -323,15 +335,19 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
           page,
           limit: TESTS_PAGE_SIZE,
         });
+        if (seq !== testsRequestSeq.current) return;
         const nextBatch = res.tests ?? [];
         setTests((prev) => (append ? mergeUniqueTests(prev, nextBatch) : nextBatch));
         setTestsPage(page);
         setTestsHasMore(nextBatch.length >= TESTS_PAGE_SIZE);
       } catch (e) {
+        if (seq !== testsRequestSeq.current) return;
         if (!append) setTests([]);
         setError(getApiErrorMessage(e, 'Unable to load IDEXX tests.'));
       } finally {
-        if (append) setTestsLoadingMore(false);
+        /* Only the newest request owns the spinner; an older one clearing it
+           would hide that a newer fetch is still running. */
+        if (append && seq === testsRequestSeq.current) setTestsLoadingMore(false);
       }
     },
     [integrationEnabled, primaryOrgId, query]
