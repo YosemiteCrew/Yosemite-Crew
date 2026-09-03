@@ -58,6 +58,7 @@ import {linkedBusinessesReducer} from '@/features/linkedBusinesses';
 import {notificationReducer} from '@/features/notifications';
 import formsReducer from '@/features/forms/formsSlice';
 import preferencesReducer from '@/features/preferences/preferencesSlice';
+import {assistantReducer} from '@/features/assistant';
 
 const migrateV1ToV2 = (_state: any) => {
   console.log(
@@ -238,6 +239,10 @@ const rootReducer = combineReducers({
   notifications: notificationReducer,
   forms: formsReducer,
   preferences: preferencesReducer,
+  // Deliberately absent from `whitelist` below: the assistant transcript is a
+  // conversation, not a record. It should not survive a relaunch, and keeping
+  // it out of storage also keeps pet health chatter off disk.
+  assistant: assistantReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

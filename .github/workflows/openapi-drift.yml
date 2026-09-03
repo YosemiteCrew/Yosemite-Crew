@@ -1,0 +1,81 @@
+name: OpenAPI Drift
+
+# The published spec calls itself "generated from backend routers" but has no
+# generator, so it drifts silently. This walks the LIVE Express stack and fails
+# when an organisation-scoped route's operation does not declare `x-org-id` -
+# the header `withOrgPermissions()` needs, whose absence made every org-scoped
+# call from the rendered reference fail with a 400 (#2573).
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'apps/backend/src/routers/**'
+      - 'apps/backend/src/middlewares/rbac.ts'
+      - 'apps/dev-docs/static/openapi.yaml'
+      - 'scripts/ci/openapi-drift.mjs'
+      - '.github/workflows/openapi-drift.yml'
+  push:
+    branches: [main, dev]
+    paths:
+      - 'apps/backend/src/routers/**'
+      - 'apps/backend/src/middlewares/rbac.ts'
+      - 'apps/dev-docs/static/openapi.yaml'
+      - 'scripts/ci/openapi-drift.mjs'
+      - '.github/workflows/openapi-drift.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: openapi-drift-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  drift:
+    name: OpenAPI spec matches the routers
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Prisma first: packages/database compiles against the generated client,
+      # so building ahead of this fails on Prisma.JsonValue and Prisma.sql.
+      - name: Generate Prisma client
+        run: pnpm --filter @yosemite-crew/database run prisma:generate
+
+      # The router graph imports services whose types come from these. Without
+      # them the import fails long before any route is walked.
+      - name: Build shared packages
+        run: pnpm --filter "@yosemite-crew/*" run build
+
+      # Importing the routers runs module-level code that refuses to load
+      # without these. They are placeholders and are never used to reach any
+      # service - the script only walks the Express stack and exits.
+      - name: Check the spec against the mounted routes
+        working-directory: apps/backend
+        env:
+          STREAM_API_KEY: placeholder-for-route-introspection
+          STREAM_API_SECRET: placeholder-for-route-introspection
+          ENCRYPTION_KEY: not-a-real-key-route-introspection-only
+        run: pnpm exec tsx ../../scripts/ci/openapi-drift.mjs

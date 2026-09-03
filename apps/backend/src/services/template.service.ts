@@ -113,7 +113,7 @@ const templateContractKindSchema = z.enum([
   "TASK_ASSIGNMENT",
 ]);
 
-const templateStorageKindSchema = z.nativeEnum(TemplateKind);
+const templateStorageKindSchema = z.enum(TemplateKind);
 const templateKindSchema = z.union([
   templateStorageKindSchema,
   templateContractKindSchema,
@@ -151,11 +151,11 @@ export const createTemplateSchema = z
   .object({
     organisationId: z.string().trim().min(1).optional(),
     ownerUserId: z.string().trim().min(1).optional(),
-    ownership: z.nativeEnum(TemplateOwnershipType).default("ORG_TEMPLATE"),
+    ownership: z.enum(TemplateOwnershipType).default("ORG_TEMPLATE"),
     kind: templateKindSchema,
     name: z.string().trim().min(1),
     description: z.string().trim().min(1).optional(),
-    scope: z.nativeEnum(TemplateScope).default("ORGANISATION"),
+    scope: z.enum(TemplateScope).default("ORGANISATION"),
     rules: z.record(z.string(), z.unknown()).optional(),
     schemaSnapshot: templateSchemaSnapshotSchema,
     renderConfigSnapshot: templateConfigSchema.optional(),
@@ -197,9 +197,9 @@ export const createTemplateSchema = z
 export const updateTemplateSchema = z.object({
   name: z.string().trim().min(1).optional(),
   description: z.string().trim().min(1).nullable().optional(),
-  ownership: z.nativeEnum(TemplateOwnershipType).optional(),
-  scope: z.nativeEnum(TemplateScope).optional(),
-  status: z.nativeEnum(TemplateStatus).optional(),
+  ownership: z.enum(TemplateOwnershipType).optional(),
+  scope: z.enum(TemplateScope).optional(),
+  status: z.enum(TemplateStatus).optional(),
   rules: z.record(z.string(), z.unknown()).nullable().optional(),
   schemaSnapshot: templateSchemaSnapshotSchema.optional(),
   renderConfigSnapshot: templateConfigSchema.optional(),
@@ -218,7 +218,7 @@ export const createTemplateInstanceSchema = z.object({
 
 export const updateTemplateInstanceSchema = z.object({
   data: z.record(z.string(), z.unknown()).optional(),
-  status: z.nativeEnum(TemplateInstanceStatus).optional(),
+  status: z.enum(TemplateInstanceStatus).optional(),
   signedBy: z.string().trim().min(1).optional().nullable(),
   signedAt: z.coerce.date().optional().nullable(),
   generatedPdfUrl: z.string().trim().min(1).optional().nullable(),
@@ -964,9 +964,7 @@ export const TemplateService = {
       ? await loadTemplateVersionOrThrow(template.id, targetVersion)
       : null;
     const rawNextSchemaSnapshot =
-      parsed.schemaSnapshot === undefined
-        ? currentVersion?.schemaSnapshot
-        : parsed.schemaSnapshot;
+      parsed.schemaSnapshot ?? currentVersion?.schemaSnapshot;
     const nextSchemaSnapshot =
       rawNextSchemaSnapshot == null
         ? rawNextSchemaSnapshot
@@ -1025,14 +1023,10 @@ export const TemplateService = {
             nextSchemaSnapshot ?? currentVersion.schemaSnapshot,
           ),
           renderConfigSnapshot: toJsonInput(
-            parsed.renderConfigSnapshot === undefined
-              ? currentVersion.renderConfigSnapshot
-              : parsed.renderConfigSnapshot,
+            parsed.renderConfigSnapshot ?? currentVersion.renderConfigSnapshot,
           ),
           validationSnapshot: toJsonInput(
-            parsed.validationSnapshot === undefined
-              ? currentVersion.validationSnapshot
-              : parsed.validationSnapshot,
+            parsed.validationSnapshot ?? currentVersion.validationSnapshot,
           ),
         },
       });

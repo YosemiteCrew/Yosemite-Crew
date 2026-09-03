@@ -29,12 +29,12 @@ import {
  * inheriting whatever an admin typed.
  */
 const SettingsSchema = z.object({
-  serviceIds: z.array(z.string().uuid()).max(200),
+  serviceIds: z.array(z.uuid()).max(200),
   bookingWindowDays: z.number().int().min(1).max(180),
   bufferMinutes: z.number().int().min(0).max(240),
   autoConfirm: z.boolean(),
   welcomeMessage: z.string().trim().max(500).nullish(),
-  replyToEmail: z.string().trim().email().max(254).nullish(),
+  replyToEmail: z.string().trim().pipe(z.email().max(254)).nullish(),
   // Optional on purpose: a caller that omits it is saving settings, not
   // changing what the public can reach.
   publicBookingEnabled: z.boolean().optional(),

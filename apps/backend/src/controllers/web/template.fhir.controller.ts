@@ -35,7 +35,7 @@ const questionnaireResponseSchema = z
 const listQuerySchema = z.object({
   kind: z
     .union([
-      z.nativeEnum(PrismaTemplateKind),
+      z.enum(PrismaTemplateKind),
       z.enum([
         "SOAP_NOTE",
         "VITAL_RECORD",
@@ -48,8 +48,8 @@ const listQuerySchema = z.object({
       ]),
     ])
     .optional(),
-  status: z.nativeEnum(TemplateStatus).optional(),
-  scope: z.nativeEnum(TemplateScope).optional(),
+  status: z.enum(TemplateStatus).optional(),
+  scope: z.enum(TemplateScope).optional(),
 });
 
 const handleError = createFhirErrorHandler({

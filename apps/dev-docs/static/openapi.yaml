@@ -4,10 +4,10 @@ info:
   version: 1.0.0
   description: 'FHIR and non-FHIR endpoints generated from backend routers.'
 servers:
-  - url: /fhir/v1
-    description: FHIR endpoints base
-  - url: /v1
-    description: 'Non-FHIR endpoints base'
+  - url: https://api.yosemitecrew.com
+    description: Production
+  - url: https://devapi.yosemitecrew.com
+    description: Development
 tags:
   - name: FHIR
     description: FHIR endpoints under /fhir/v1
@@ -19,7 +19,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/account-withdrawal/withdraw'
-      operationId: 'post_v1_account-withdrawal_withdraw'
+      operationId: post_v1_account_withdrawal_withdraw
       security:
         - BearerAuth: []
       requestBody:
@@ -54,7 +54,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/adverse-event/'
-      operationId: 'post_v1_adverse-event'
+      operationId: post_v1_adverse_event
       security:
         - BearerAuth: []
       requestBody:
@@ -89,7 +89,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'GET /v1/adverse-event/regulatory-authority/'
-      operationId: 'get_v1_adverse-event_regulatory-authority'
+      operationId: get_v1_adverse_event_regulatory_authority
       security:
         - BearerAuth: []
       responses:
@@ -100,16 +100,22 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/adverse-event/organisation/:organisationId':
+  '/v1/adverse-event/organisation/{organisationId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/adverse-event/organisation/:organisationId'
-      operationId: 'get_v1_adverse-event_organisation_:organisationId'
+      summary: 'GET /v1/adverse-event/organisation/{organisationId}'
+      operationId: get_v1_adverse_event_organisation_organisationId
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -120,12 +126,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/adverse-event/:id/status':
+  '/v1/adverse-event/{id}/status':
     patch:
       tags:
         - 'Non-FHIR'
-      summary: 'PATCH /v1/adverse-event/:id/status'
-      operationId: 'patch_v1_adverse-event_:id_status'
+      summary: 'PATCH /v1/adverse-event/{id}/status'
+      operationId: patch_v1_adverse_event_id_status
       parameters:
         - name: id
           in: path
@@ -230,12 +236,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/appointment/mobile/companion/:companionId':
+  '/fhir/v1/appointment/mobile/companion/{companionId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/appointment/mobile/companion/:companionId'
-      operationId: 'get_fhir_v1_appointment_mobile_companion_:companionId'
+      summary: 'GET /fhir/v1/appointment/mobile/companion/{companionId}'
+      operationId: get_fhir_v1_appointment_mobile_companion_companionId
       security:
         - BearerAuth: []
       parameters:
@@ -252,12 +258,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/appointment/mobile/:appointmentId/reschedule':
+  '/fhir/v1/appointment/mobile/{appointmentId}/reschedule':
     patch:
       tags:
         - FHIR
-      summary: 'PATCH /fhir/v1/appointment/mobile/:appointmentId/reschedule'
-      operationId: 'patch_fhir_v1_appointment_mobile_:appointmentId_reschedule'
+      summary: 'PATCH /fhir/v1/appointment/mobile/{appointmentId}/reschedule'
+      operationId: patch_fhir_v1_appointment_mobile_appointmentId_reschedule
       security:
         - BearerAuth: []
       parameters:
@@ -280,12 +286,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/appointment/mobile/:appointmentId/cancel':
+  '/fhir/v1/appointment/mobile/{appointmentId}/cancel':
     patch:
       tags:
         - FHIR
-      summary: 'PATCH /fhir/v1/appointment/mobile/:appointmentId/cancel'
-      operationId: 'patch_fhir_v1_appointment_mobile_:appointmentId_cancel'
+      summary: 'PATCH /fhir/v1/appointment/mobile/{appointmentId}/cancel'
+      operationId: patch_fhir_v1_appointment_mobile_appointmentId_cancel
       security:
         - BearerAuth: []
       parameters:
@@ -308,12 +314,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/appointment/mobile/:appointmentId/checkin':
+  '/fhir/v1/appointment/mobile/{appointmentId}/checkin':
     patch:
       tags:
         - FHIR
-      summary: 'PATCH /fhir/v1/appointment/mobile/:appointmentId/checkin'
-      operationId: 'patch_fhir_v1_appointment_mobile_:appointmentId_checkin'
+      summary: 'PATCH /fhir/v1/appointment/mobile/{appointmentId}/checkin'
+      operationId: patch_fhir_v1_appointment_mobile_appointmentId_checkin
       security:
         - BearerAuth: []
       parameters:
@@ -330,12 +336,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/appointment/mobile/:appointmentId':
+  '/fhir/v1/appointment/mobile/{appointmentId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/appointment/mobile/:appointmentId'
-      operationId: 'get_fhir_v1_appointment_mobile_:appointmentId'
+      summary: 'GET /fhir/v1/appointment/mobile/{appointmentId}'
+      operationId: get_fhir_v1_appointment_mobile_appointmentId
       security:
         - BearerAuth: []
       parameters:
@@ -366,6 +372,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -384,18 +396,24 @@ paths:
                     $ref: '#/components/schemas/Appointment'
                   message:
                     type: string
-  '/fhir/v1/appointment/pms/organisation/:organisationId':
+  '/fhir/v1/appointment/pms/organisation/{organisationId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/appointment/pms/organisation/:organisationId'
-      operationId: 'get_fhir_v1_appointment_pms_organisation_:organisationId'
+      summary: 'GET /fhir/v1/appointment/pms/organisation/{organisationId}'
+      operationId: get_fhir_v1_appointment_pms_organisation_organisationId
       security:
         - BearerAuth: []
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -406,12 +424,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/appointment/pms/organisation/:organisationId/companion/:companionId':
+  '/fhir/v1/appointment/pms/organisation/{organisationId}/companion/{companionId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/appointment/pms/organisation/:organisationId/companion/:companionId'
-      operationId: 'get_fhir_v1_appointment_pms_organisation_:organisationId_companion_:companionId'
+      summary: 'GET /fhir/v1/appointment/pms/organisation/{organisationId}/companion/{companionId}'
+      operationId: get_fhir_v1_appointment_pms_organisation_organisationId_companion_companionId
       security:
         - BearerAuth: []
       parameters:
@@ -433,12 +451,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/appointment/pms/:organisationId/:appointmentId/accept':
+  '/fhir/v1/appointment/pms/{organisationId}/{appointmentId}/accept':
     patch:
       tags:
         - FHIR
-      summary: 'PATCH /fhir/v1/appointment/pms/:organisationId/:appointmentId/accept'
-      operationId: 'patch_fhir_v1_appointment_pms_:organisationId_:appointmentId_accept'
+      summary: 'PATCH /fhir/v1/appointment/pms/{organisationId}/{appointmentId}/accept'
+      operationId: patch_fhir_v1_appointment_pms_organisationId_appointmentId_accept
       security:
         - BearerAuth: []
       parameters:
@@ -450,6 +468,12 @@ paths:
         - name: appointmentId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -464,12 +488,78 @@ paths:
                     type: string
                   message:
                     type: string
-  '/fhir/v1/appointment/pms/:organisationId/:appointmentId/reject':
+  '/fhir/v1/appointment/pms/{organisationId}/{appointmentId}/reject':
     patch:
       tags:
         - FHIR
-      summary: 'PATCH /fhir/v1/appointment/pms/:organisationId/:appointmentId/reject'
-      operationId: 'patch_fhir_v1_appointment_pms_:organisationId_:appointmentId_reject'
+      summary: 'PATCH /fhir/v1/appointment/pms/{organisationId}/{appointmentId}/reject'
+      operationId: patch_fhir_v1_appointment_pms_organisationId_appointmentId_reject
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  '/fhir/v1/appointment/pms/{organisationId}/{appointmentId}/cancel':
+    patch:
+      tags:
+        - FHIR
+      summary: 'PATCH /fhir/v1/appointment/pms/{organisationId}/{appointmentId}/cancel'
+      operationId: patch_fhir_v1_appointment_pms_organisationId_appointmentId_cancel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  '/fhir/v1/appointment/pms/{organisationId}/{appointmentId}/checkin':
+    patch:
+      tags:
+        - FHIR
+      summary: 'PATCH /fhir/v1/appointment/pms/{organisationId}/{appointmentId}/checkin'
+      operationId: patch_fhir_v1_appointment_pms_organisationId_appointmentId_checkin
       security:
         - BearerAuth: []
       parameters:
@@ -491,66 +581,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/appointment/pms/:organisationId/:appointmentId/cancel':
+  '/fhir/v1/appointment/pms/{organisationId}/{appointmentId}':
     patch:
       tags:
         - FHIR
-      summary: 'PATCH /fhir/v1/appointment/pms/:organisationId/:appointmentId/cancel'
-      operationId: 'patch_fhir_v1_appointment_pms_:organisationId_:appointmentId_cancel'
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: organisationId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: appointmentId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        200:
-          description: Response
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-  '/fhir/v1/appointment/pms/:organisationId/:appointmentId/checkin':
-    patch:
-      tags:
-        - FHIR
-      summary: 'PATCH /fhir/v1/appointment/pms/:organisationId/:appointmentId/checkin'
-      operationId: 'patch_fhir_v1_appointment_pms_:organisationId_:appointmentId_checkin'
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: organisationId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: appointmentId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        200:
-          description: Response
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-  '/fhir/v1/appointment/pms/:organisationId/:appointmentId':
-    patch:
-      tags:
-        - FHIR
-      summary: 'PATCH /fhir/v1/appointment/pms/:organisationId/:appointmentId'
-      operationId: 'patch_fhir_v1_appointment_pms_:organisationId_:appointmentId'
+      summary: 'PATCH /fhir/v1/appointment/pms/{organisationId}/{appointmentId}'
+      operationId: patch_fhir_v1_appointment_pms_organisationId_appointmentId
       security:
         - BearerAuth: []
       parameters:
@@ -580,8 +616,8 @@ paths:
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/appointment/pms/:organisationId/:appointmentId'
-      operationId: 'get_fhir_v1_appointment_pms_:organisationId_:appointmentId'
+      summary: 'GET /fhir/v1/appointment/pms/{organisationId}/{appointmentId}'
+      operationId: get_fhir_v1_appointment_pms_organisationId_appointmentId
       security:
         - BearerAuth: []
       parameters:
@@ -603,12 +639,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/appointment/pms/:organisationId/:appointmentId/forms':
+  '/fhir/v1/appointment/pms/{organisationId}/{appointmentId}/forms':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/appointment/pms/:organisationId/:appointmentId/forms'
-      operationId: 'post_fhir_v1_appointment_pms_:organisationId_:appointmentId_forms'
+      summary: 'POST /fhir/v1/appointment/pms/{organisationId}/{appointmentId}/forms'
+      operationId: post_fhir_v1_appointment_pms_organisationId_appointmentId_forms
       security:
         - BearerAuth: []
       parameters:
@@ -636,12 +672,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/audit-trail/companion/:companionId':
+  '/v1/audit-trail/companion/{companionId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/audit-trail/companion/:companionId'
-      operationId: 'get_v1_audit-trail_companion_:companionId'
+      summary: 'GET /v1/audit-trail/companion/{companionId}'
+      operationId: get_v1_audit_trail_companion_companionId
       security:
         - BearerAuth: []
       parameters:
@@ -658,18 +694,24 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/audit-trail/appointment/:appointmentId':
+  '/v1/audit-trail/appointment/{appointmentId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/audit-trail/appointment/:appointmentId'
-      operationId: 'get_v1_audit-trail_appointment_:appointmentId'
+      summary: 'GET /v1/audit-trail/appointment/{appointmentId}'
+      operationId: get_v1_audit_trail_appointment_appointmentId
       security:
         - BearerAuth: []
       parameters:
         - name: appointmentId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -696,16 +738,22 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/availability/:orgId/base':
+  '/fhir/v1/availability/{orgId}/base':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/availability/:orgId/base'
-      operationId: 'post_fhir_v1_availability_:orgId_base'
+      summary: 'POST /fhir/v1/availability/{orgId}/base'
+      operationId: post_fhir_v1_availability_orgId_base
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -719,12 +767,18 @@ paths:
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/availability/:orgId/base'
-      operationId: 'get_fhir_v1_availability_:orgId_base'
+      summary: 'GET /fhir/v1/availability/{orgId}/base'
+      operationId: get_fhir_v1_availability_orgId_base
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -738,12 +792,18 @@ paths:
     delete:
       tags:
         - FHIR
-      summary: 'DELETE /fhir/v1/availability/:orgId/base'
-      operationId: 'delete_fhir_v1_availability_:orgId_base'
+      summary: 'DELETE /fhir/v1/availability/{orgId}/base'
+      operationId: delete_fhir_v1_availability_orgId_base
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -754,12 +814,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/availability/:orgId/:userId/base':
+  '/fhir/v1/availability/{orgId}/{userId}/base':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/availability/:orgId/:userId/base'
-      operationId: 'post_fhir_v1_availability_:orgId_:userId_base'
+      summary: 'POST /fhir/v1/availability/{orgId}/{userId}/base'
+      operationId: post_fhir_v1_availability_orgId_userId_base
       parameters:
         - name: orgId
           in: path
@@ -771,6 +831,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -779,16 +845,22 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/availability/:orgId/weekly':
+  '/fhir/v1/availability/{orgId}/weekly':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/availability/:orgId/weekly'
-      operationId: 'post_fhir_v1_availability_:orgId_weekly'
+      summary: 'POST /fhir/v1/availability/{orgId}/weekly'
+      operationId: post_fhir_v1_availability_orgId_weekly
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -802,12 +874,18 @@ paths:
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/availability/:orgId/weekly'
-      operationId: 'get_fhir_v1_availability_:orgId_weekly'
+      summary: 'GET /fhir/v1/availability/{orgId}/weekly'
+      operationId: get_fhir_v1_availability_orgId_weekly
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -821,12 +899,18 @@ paths:
     delete:
       tags:
         - FHIR
-      summary: 'DELETE /fhir/v1/availability/:orgId/weekly'
-      operationId: 'delete_fhir_v1_availability_:orgId_weekly'
+      summary: 'DELETE /fhir/v1/availability/{orgId}/weekly'
+      operationId: delete_fhir_v1_availability_orgId_weekly
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -837,16 +921,22 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/availability/:orgId/occupancy':
+  '/fhir/v1/availability/{orgId}/occupancy':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/availability/:orgId/occupancy'
-      operationId: 'post_fhir_v1_availability_:orgId_occupancy'
+      summary: 'POST /fhir/v1/availability/{orgId}/occupancy'
+      operationId: post_fhir_v1_availability_orgId_occupancy
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -860,12 +950,18 @@ paths:
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/availability/:orgId/occupancy'
-      operationId: 'get_fhir_v1_availability_:orgId_occupancy'
+      summary: 'GET /fhir/v1/availability/{orgId}/occupancy'
+      operationId: get_fhir_v1_availability_orgId_occupancy
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -876,16 +972,22 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/availability/:orgId/occupancy/bulk':
+  '/fhir/v1/availability/{orgId}/occupancy/bulk':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/availability/:orgId/occupancy/bulk'
-      operationId: 'post_fhir_v1_availability_:orgId_occupancy_bulk'
+      summary: 'POST /fhir/v1/availability/{orgId}/occupancy/bulk'
+      operationId: post_fhir_v1_availability_orgId_occupancy_bulk
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -896,16 +998,22 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/availability/:orgId/final':
+  '/fhir/v1/availability/{orgId}/final':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/availability/:orgId/final'
-      operationId: 'get_fhir_v1_availability_:orgId_final'
+      summary: 'GET /fhir/v1/availability/{orgId}/final'
+      operationId: get_fhir_v1_availability_orgId_final
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -916,16 +1024,22 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/availability/:orgId/status':
+  '/fhir/v1/availability/{orgId}/status':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/availability/:orgId/status'
-      operationId: 'get_fhir_v1_availability_:orgId_status'
+      summary: 'GET /fhir/v1/availability/{orgId}/status'
+      operationId: get_fhir_v1_availability_orgId_status
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -952,12 +1066,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/chat/mobile/appointments/:appointmentId':
+  '/v1/chat/mobile/appointments/{appointmentId}':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/chat/mobile/appointments/:appointmentId'
-      operationId: 'post_v1_chat_mobile_appointments_:appointmentId'
+      summary: 'POST /v1/chat/mobile/appointments/{appointmentId}'
+      operationId: post_v1_chat_mobile_appointments_appointmentId
       security:
         - BearerAuth: []
       parameters:
@@ -974,12 +1088,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/chat/mobile/sessions/:sessionId/open':
+  '/v1/chat/mobile/sessions/{sessionId}/open':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/chat/mobile/sessions/:sessionId/open'
-      operationId: 'post_v1_chat_mobile_sessions_:sessionId_open'
+      summary: 'POST /v1/chat/mobile/sessions/{sessionId}/open'
+      operationId: post_v1_chat_mobile_sessions_sessionId_open
       security:
         - BearerAuth: []
       parameters:
@@ -1028,12 +1142,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/chat/pms/appointments/:appointmentId':
+  '/v1/chat/pms/appointments/{appointmentId}':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/chat/pms/appointments/:appointmentId'
-      operationId: 'post_v1_chat_pms_appointments_:appointmentId'
+      summary: 'POST /v1/chat/pms/appointments/{appointmentId}'
+      operationId: post_v1_chat_pms_appointments_appointmentId
       security:
         - BearerAuth: []
       parameters:
@@ -1082,12 +1196,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/chat/pms/sessions/:sessionId/open':
+  '/v1/chat/pms/sessions/{sessionId}/open':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/chat/pms/sessions/:sessionId/open'
-      operationId: 'post_v1_chat_pms_sessions_:sessionId_open'
+      summary: 'POST /v1/chat/pms/sessions/{sessionId}/open'
+      operationId: post_v1_chat_pms_sessions_sessionId_open
       security:
         - BearerAuth: []
       parameters:
@@ -1104,12 +1218,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/chat/pms/sessions/:organisationId':
+  '/v1/chat/pms/sessions/{organisationId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/chat/pms/sessions/:organisationId'
-      operationId: 'get_v1_chat_pms_sessions_:organisationId'
+      summary: 'GET /v1/chat/pms/sessions/{organisationId}'
+      operationId: get_v1_chat_pms_sessions_organisationId
       security:
         - BearerAuth: []
       parameters:
@@ -1126,12 +1240,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/chat/pms/sessions/:sessionId/close':
+  '/v1/chat/pms/sessions/{sessionId}/close':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/chat/pms/sessions/:sessionId/close'
-      operationId: 'post_v1_chat_pms_sessions_:sessionId_close'
+      summary: 'POST /v1/chat/pms/sessions/{sessionId}/close'
+      operationId: post_v1_chat_pms_sessions_sessionId_close
       security:
         - BearerAuth: []
       parameters:
@@ -1148,12 +1262,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/chat/pms/groups/:sessionId/members/add':
+  '/v1/chat/pms/groups/{sessionId}/members/add':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/chat/pms/groups/:sessionId/members/add'
-      operationId: 'post_v1_chat_pms_groups_:sessionId_members_add'
+      summary: 'POST /v1/chat/pms/groups/{sessionId}/members/add'
+      operationId: post_v1_chat_pms_groups_sessionId_members_add
       security:
         - BearerAuth: []
       parameters:
@@ -1170,12 +1284,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/chat/pms/groups/:sessionId/members/remove':
+  '/v1/chat/pms/groups/{sessionId}/members/remove':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/chat/pms/groups/:sessionId/members/remove'
-      operationId: 'post_v1_chat_pms_groups_:sessionId_members_remove'
+      summary: 'POST /v1/chat/pms/groups/{sessionId}/members/remove'
+      operationId: post_v1_chat_pms_groups_sessionId_members_remove
       security:
         - BearerAuth: []
       parameters:
@@ -1192,12 +1306,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/chat/pms/groups/:sessionId':
+  '/v1/chat/pms/groups/{sessionId}':
     patch:
       tags:
         - 'Non-FHIR'
-      summary: 'PATCH /v1/chat/pms/groups/:sessionId'
-      operationId: 'patch_v1_chat_pms_groups_:sessionId'
+      summary: 'PATCH /v1/chat/pms/groups/{sessionId}'
+      operationId: patch_v1_chat_pms_groups_sessionId
       security:
         - BearerAuth: []
       parameters:
@@ -1217,8 +1331,8 @@ paths:
     delete:
       tags:
         - 'Non-FHIR'
-      summary: 'DELETE /v1/chat/pms/groups/:sessionId'
-      operationId: 'delete_v1_chat_pms_groups_:sessionId'
+      summary: 'DELETE /v1/chat/pms/groups/{sessionId}'
+      operationId: delete_v1_chat_pms_groups_sessionId
       security:
         - BearerAuth: []
       parameters:
@@ -1240,7 +1354,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/companion-organisation/link'
-      operationId: 'post_v1_companion-organisation_link'
+      operationId: post_v1_companion_organisation_link
       security:
         - BearerAuth: []
       responses:
@@ -1285,7 +1399,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/companion-organisation/invite'
-      operationId: 'post_v1_companion-organisation_invite'
+      operationId: post_v1_companion_organisation_invite
       security:
         - BearerAuth: []
       responses:
@@ -1325,12 +1439,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/companion-organisation/:linkId/approve':
+  '/v1/companion-organisation/{linkId}/approve':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/companion-organisation/:linkId/approve'
-      operationId: 'post_v1_companion-organisation_:linkId_approve'
+      summary: 'POST /v1/companion-organisation/{linkId}/approve'
+      operationId: post_v1_companion_organisation_linkId_approve
       security:
         - BearerAuth: []
       parameters:
@@ -1367,12 +1481,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/companion-organisation/:linkId/deny':
+  '/v1/companion-organisation/{linkId}/deny':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/companion-organisation/:linkId/deny'
-      operationId: 'post_v1_companion-organisation_:linkId_deny'
+      summary: 'POST /v1/companion-organisation/{linkId}/deny'
+      operationId: post_v1_companion_organisation_linkId_deny
       security:
         - BearerAuth: []
       parameters:
@@ -1409,12 +1523,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/companion-organisation/revoke/:linkId':
+  '/v1/companion-organisation/revoke/{linkId}':
     delete:
       tags:
         - 'Non-FHIR'
-      summary: 'DELETE /v1/companion-organisation/revoke/:linkId'
-      operationId: 'delete_v1_companion-organisation_revoke_:linkId'
+      summary: 'DELETE /v1/companion-organisation/revoke/{linkId}'
+      operationId: delete_v1_companion_organisation_revoke_linkId
       security:
         - BearerAuth: []
       parameters:
@@ -1442,12 +1556,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/companion-organisation/:companionId':
+  '/v1/companion-organisation/{companionId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/companion-organisation/:companionId'
-      operationId: 'get_v1_companion-organisation_:companionId'
+      summary: 'GET /v1/companion-organisation/{companionId}'
+      operationId: get_v1_companion_organisation_companionId
       security:
         - BearerAuth: []
       parameters:
@@ -1494,7 +1608,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/companion-organisation/pms/accept'
-      operationId: 'post_v1_companion-organisation_pms_accept'
+      operationId: post_v1_companion_organisation_pms_accept
       security:
         - BearerAuth: []
       responses:
@@ -1525,12 +1639,19 @@ paths:
                 properties:
                   message:
                     type: string
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   '/v1/companion-organisation/pms/reject':
     post:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/companion-organisation/pms/reject'
-      operationId: 'post_v1_companion-organisation_pms_reject'
+      operationId: post_v1_companion_organisation_pms_reject
       security:
         - BearerAuth: []
       responses:
@@ -1561,12 +1682,19 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/companion-organisation/pms/:organisationId/:companionId/link':
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+  '/v1/companion-organisation/pms/{organisationId}/{companionId}/link':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/companion-organisation/pms/:organisationId/:companionId/link'
-      operationId: 'post_v1_companion-organisation_pms_:organisationId_:companionId_link'
+      summary: 'POST /v1/companion-organisation/pms/{organisationId}/{companionId}/link'
+      operationId: post_v1_companion_organisation_pms_organisationId_companionId_link
       security:
         - BearerAuth: []
       parameters:
@@ -1626,18 +1754,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/companion-organisation/pms/:organisationId/list':
+  '/v1/companion-organisation/pms/{organisationId}/list':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/companion-organisation/pms/:organisationId/list'
-      operationId: 'get_v1_companion-organisation_pms_:organisationId_list'
+      summary: 'GET /v1/companion-organisation/pms/{organisationId}/list'
+      operationId: get_v1_companion_organisation_pms_organisationId_list
       security:
         - BearerAuth: []
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -1693,12 +1827,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/companion/:id':
+  '/fhir/v1/companion/{id}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/companion/:id'
-      operationId: 'get_fhir_v1_companion_:id'
+      summary: 'GET /fhir/v1/companion/{id}'
+      operationId: get_fhir_v1_companion_id
       security:
         - BearerAuth: []
       parameters:
@@ -1747,8 +1881,8 @@ paths:
     put:
       tags:
         - FHIR
-      summary: 'PUT /fhir/v1/companion/:id'
-      operationId: 'put_fhir_v1_companion_:id'
+      summary: 'PUT /fhir/v1/companion/{id}'
+      operationId: put_fhir_v1_companion_id
       security:
         - BearerAuth: []
       parameters:
@@ -1833,6 +1967,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         400:
           description: Response
@@ -1861,16 +2001,17 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/companion/org/:orgId':
+  '/fhir/v1/companion/org/{id}':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/companion/org/:orgId'
-      operationId: 'post_fhir_v1_companion_org_:orgId'
+      summary: 'POST /fhir/v1/companion/org/{id}'
+      operationId: post_fhir_v1_companion_org_orgId
       security:
         - BearerAuth: []
       parameters:
-        - name: orgId
+        - name: id
+          description: Identifies the organisation.
           in: path
           required: true
           schema:
@@ -1921,18 +2062,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/companion/org/:id':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/companion/org/:id'
-      operationId: 'get_fhir_v1_companion_org_:id'
+      summary: 'GET /fhir/v1/companion/org/{id}'
+      operationId: get_fhir_v1_companion_org_id
       security:
         - BearerAuth: []
       parameters:
         - name: id
+          description: Identifies the organisation.
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -1975,14 +2122,21 @@ paths:
     put:
       tags:
         - FHIR
-      summary: 'PUT /fhir/v1/companion/org/:id'
-      operationId: 'put_fhir_v1_companion_org_:id'
+      summary: 'PUT /fhir/v1/companion/org/{id}'
+      operationId: put_fhir_v1_companion_org_id
       security:
         - BearerAuth: []
       parameters:
         - name: id
+          description: Identifies the organisation.
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -2022,12 +2176,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/companion/pms/:parentId/:organisationId/list':
+  '/fhir/v1/companion/pms/{parentId}/{organisationId}/list':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/companion/pms/:parentId/:organisationId/list'
-      operationId: 'get_fhir_v1_companion_pms_:parentId_:organisationId_list'
+      summary: 'GET /fhir/v1/companion/pms/{parentId}/{organisationId}/list'
+      operationId: get_fhir_v1_companion_pms_parentId_organisationId_list
       security:
         - BearerAuth: []
       parameters:
@@ -2039,6 +2193,12 @@ paths:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -2074,7 +2234,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/contact-us/contact'
-      operationId: 'post_v1_contact-us_contact'
+      operationId: post_v1_contact_us_contact
       security:
         - BearerAuth: []
       responses:
@@ -2090,7 +2250,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'GET /v1/contact-us/requests'
-      operationId: 'get_v1_contact-us_requests'
+      operationId: get_v1_contact_us_requests
       security:
         - BearerAuth: []
       responses:
@@ -2101,12 +2261,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/contact-us/requests/:id/status':
+  '/v1/contact-us/requests/{id}/status':
     patch:
       tags:
         - 'Non-FHIR'
-      summary: 'PATCH /v1/contact-us/requests/:id/status'
-      operationId: 'patch_v1_contact-us_requests_:id_status'
+      summary: 'PATCH /v1/contact-us/requests/{id}/status'
+      operationId: patch_v1_contact_us_requests_id_status
       security:
         - BearerAuth: []
       parameters:
@@ -2128,7 +2288,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/coparent-invite/sent'
-      operationId: 'post_v1_coparent-invite_sent'
+      operationId: post_v1_coparent_invite_sent
       security:
         - BearerAuth: []
       responses:
@@ -2173,7 +2333,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/coparent-invite/accept'
-      operationId: 'post_v1_coparent-invite_accept'
+      operationId: post_v1_coparent_invite_accept
       security:
         - BearerAuth: []
       responses:
@@ -2218,7 +2378,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/coparent-invite/validate'
-      operationId: 'post_v1_coparent-invite_validate'
+      operationId: post_v1_coparent_invite_validate
       responses:
         400:
           description: Response
@@ -2252,7 +2412,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'GET /v1/coparent-invite/pending'
-      operationId: 'get_v1_coparent-invite_pending'
+      operationId: get_v1_coparent_invite_pending
       security:
         - BearerAuth: []
       responses:
@@ -2292,12 +2452,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/dashboard/summary/:organisationId':
+  '/v1/dashboard/summary/{organisationId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/dashboard/summary/:organisationId'
-      operationId: 'get_v1_dashboard_summary_:organisationId'
+      summary: 'GET /v1/dashboard/summary/{organisationId}'
+      operationId: get_v1_dashboard_summary_organisationId
       security:
         - BearerAuth: []
       parameters:
@@ -2311,6 +2471,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         500:
           description: Response
@@ -2321,12 +2487,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/dashboard/appointments/:organisationId/trend':
+  '/v1/dashboard/appointments/{organisationId}/trend':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/dashboard/appointments/:organisationId/trend'
-      operationId: 'get_v1_dashboard_appointments_:organisationId_trend'
+      summary: 'GET /v1/dashboard/appointments/{organisationId}/trend'
+      operationId: get_v1_dashboard_appointments_organisationId_trend
       security:
         - BearerAuth: []
       parameters:
@@ -2340,6 +2506,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         500:
           description: Response
@@ -2350,12 +2522,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/dashboard/revenue/:organisationId/trend':
+  '/v1/dashboard/revenue/{organisationId}/trend':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/dashboard/revenue/:organisationId/trend'
-      operationId: 'get_v1_dashboard_revenue_:organisationId_trend'
+      summary: 'GET /v1/dashboard/revenue/{organisationId}/trend'
+      operationId: get_v1_dashboard_revenue_organisationId_trend
       security:
         - BearerAuth: []
       parameters:
@@ -2369,6 +2541,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         500:
           description: Response
@@ -2379,12 +2557,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/dashboard/appointment-leaders/:organisationId':
+  '/v1/dashboard/appointment-leaders/{organisationId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/dashboard/appointment-leaders/:organisationId'
-      operationId: 'get_v1_dashboard_appointment-leaders_:organisationId'
+      summary: 'GET /v1/dashboard/appointment-leaders/{organisationId}'
+      operationId: get_v1_dashboard_appointment_leaders_organisationId
       security:
         - BearerAuth: []
       parameters:
@@ -2403,6 +2581,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         500:
           description: Response
@@ -2413,12 +2597,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/dashboard/revenue-leaders/:organisationId':
+  '/v1/dashboard/revenue-leaders/{organisationId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/dashboard/revenue-leaders/:organisationId'
-      operationId: 'get_v1_dashboard_revenue-leaders_:organisationId'
+      summary: 'GET /v1/dashboard/revenue-leaders/{organisationId}'
+      operationId: get_v1_dashboard_revenue_leaders_organisationId
       security:
         - BearerAuth: []
       parameters:
@@ -2437,6 +2621,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         500:
           description: Response
@@ -2447,12 +2637,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/dashboard/inventory/:organisationId/turnover':
+  '/v1/dashboard/inventory/{organisationId}/turnover':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/dashboard/inventory/:organisationId/turnover'
-      operationId: 'get_v1_dashboard_inventory_:organisationId_turnover'
+      summary: 'GET /v1/dashboard/inventory/{organisationId}/turnover'
+      operationId: get_v1_dashboard_inventory_organisationId_turnover
       security:
         - BearerAuth: []
       parameters:
@@ -2471,6 +2661,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         500:
           description: Response
@@ -2481,12 +2677,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/dashboard/inventory/:organisationId/products':
+  '/v1/dashboard/inventory/{organisationId}/products':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/dashboard/inventory/:organisationId/products'
-      operationId: 'get_v1_dashboard_inventory_:organisationId_products'
+      summary: 'GET /v1/dashboard/inventory/{organisationId}/products'
+      operationId: get_v1_dashboard_inventory_organisationId_products
       security:
         - BearerAuth: []
       parameters:
@@ -2505,6 +2701,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         500:
           description: Response
@@ -2520,7 +2722,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/device-token/register'
-      operationId: 'post_v1_device-token_register'
+      operationId: post_v1_device_token_register
       security:
         - BearerAuth: []
       responses:
@@ -2536,7 +2738,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/device-token/unregister'
-      operationId: 'post_v1_device-token_unregister'
+      operationId: post_v1_device_token_unregister
       security:
         - BearerAuth: []
       responses:
@@ -2547,18 +2749,24 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/documenso/pms/redirect/:orgId':
+  '/v1/documenso/pms/redirect/{orgId}':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/documenso/pms/redirect/:orgId'
-      operationId: 'post_v1_documenso_pms_redirect_:orgId'
+      summary: 'POST /v1/documenso/pms/redirect/{orgId}'
+      operationId: post_v1_documenso_pms_redirect_orgId
       security:
         - BearerAuth: []
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -2569,12 +2777,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/documenso/pms/store-api-key/:orgId':
+  '/v1/documenso/pms/store-api-key/{orgId}':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/documenso/pms/store-api-key/:orgId'
-      operationId: 'post_v1_documenso_pms_store-api-key_:orgId'
+      summary: 'POST /v1/documenso/pms/store-api-key/{orgId}'
+      operationId: post_v1_documenso_pms_store_api_key_orgId
       parameters:
         - name: orgId
           in: path
@@ -2594,7 +2802,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/document/mobile/upload-url'
-      operationId: 'post_v1_document_mobile_upload-url'
+      operationId: post_v1_document_mobile_upload_url
       security:
         - BearerAuth: []
       requestBody:
@@ -2629,16 +2837,17 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/document/mobile/:companionId':
+  '/v1/document/mobile/{id}':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/document/mobile/:companionId'
-      operationId: 'post_v1_document_mobile_:companionId'
+      summary: 'POST /v1/document/mobile/{id}'
+      operationId: post_v1_document_mobile_companionId
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: id
+          description: Identifies the companion whose documents are listed or added to.
           in: path
           required: true
           schema:
@@ -2659,12 +2868,13 @@ paths:
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/document/mobile/:companionId'
-      operationId: 'get_v1_document_mobile_:companionId'
+      summary: 'GET /v1/document/mobile/{id}'
+      operationId: get_v1_document_mobile_companionId
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: id
+          description: Identifies the companion whose documents are listed or added to.
           in: path
           required: true
           schema:
@@ -2677,12 +2887,34 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/document/mobile/details/:id':
+    delete:
+      tags:
+        - 'Non-FHIR'
+      summary: 'DELETE /v1/document/mobile/{id}'
+      operationId: delete_v1_document_mobile_documentId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          description: Identifies the document being removed.
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  '/v1/document/mobile/details/{id}':
     patch:
       tags:
         - 'Non-FHIR'
-      summary: 'PATCH /v1/document/mobile/details/:id'
-      operationId: 'patch_v1_document_mobile_details_:id'
+      summary: 'PATCH /v1/document/mobile/details/{id}'
+      operationId: patch_v1_document_mobile_details_id
       security:
         - BearerAuth: []
       parameters:
@@ -2736,12 +2968,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/document/mobile/appointments/:appointmentId':
+  '/v1/document/mobile/appointments/{appointmentId}':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/document/mobile/appointments/:appointmentId'
-      operationId: 'post_v1_document_mobile_appointments_:appointmentId'
+      summary: 'POST /v1/document/mobile/appointments/{appointmentId}'
+      operationId: post_v1_document_mobile_appointments_appointmentId
       security:
         - BearerAuth: []
       parameters:
@@ -2758,12 +2990,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/document/mobile/view/:documentId':
+  '/v1/document/mobile/view/{documentId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/document/mobile/view/:documentId'
-      operationId: 'get_v1_document_mobile_view_:documentId'
+      summary: 'GET /v1/document/mobile/view/{documentId}'
+      operationId: get_v1_document_mobile_view_documentId
       security:
         - BearerAuth: []
       parameters:
@@ -2840,34 +3072,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/document/mobile/:documentId':
-    delete:
-      tags:
-        - 'Non-FHIR'
-      summary: 'DELETE /v1/document/mobile/:documentId'
-      operationId: 'delete_v1_document_mobile_:documentId'
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: documentId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        200:
-          description: Response
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-  '/v1/document/search/:companionId':
+  '/v1/document/search/{companionId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/document/search/:companionId'
-      operationId: 'get_v1_document_search_:companionId'
+      summary: 'GET /v1/document/search/{companionId}'
+      operationId: get_v1_document_search_companionId
       security:
         - BearerAuth: []
       parameters:
@@ -2920,7 +3130,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/document/pms/upload-url'
-      operationId: 'post_v1_document_pms_upload-url'
+      operationId: post_v1_document_pms_upload_url
       security:
         - BearerAuth: []
       requestBody:
@@ -2955,12 +3165,19 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/document/pms/:companionId':
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+  '/v1/document/pms/{companionId}':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/document/pms/:companionId'
-      operationId: 'post_v1_document_pms_:companionId'
+      summary: 'POST /v1/document/pms/{companionId}'
+      operationId: post_v1_document_pms_companionId
       security:
         - BearerAuth: []
       parameters:
@@ -2985,18 +3202,24 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/document/pms/details/:documentId':
+  '/v1/document/pms/details/{documentId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/document/pms/details/:documentId'
-      operationId: 'get_v1_document_pms_details_:documentId'
+      summary: 'GET /v1/document/pms/details/{documentId}'
+      operationId: get_v1_document_pms_details_documentId
       security:
         - BearerAuth: []
       parameters:
         - name: documentId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -3010,14 +3233,20 @@ paths:
     patch:
       tags:
         - 'Non-FHIR'
-      summary: 'PATCH /v1/document/pms/details/:documentId'
-      operationId: 'patch_v1_document_pms_details_:documentId'
+      summary: 'PATCH /v1/document/pms/details/{documentId}'
+      operationId: patch_v1_document_pms_details_documentId
       security:
         - BearerAuth: []
       parameters:
         - name: documentId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       requestBody:
@@ -3065,18 +3294,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/document/pms/view/:documentId':
+  '/v1/document/pms/view/{documentId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/document/pms/view/:documentId'
-      operationId: 'get_v1_document_pms_view_:documentId'
+      summary: 'GET /v1/document/pms/view/{documentId}'
+      operationId: get_v1_document_pms_view_documentId
       security:
         - BearerAuth: []
       parameters:
         - name: documentId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -3147,12 +3382,19 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/document/pms/appointments/:appointmentId':
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+  '/v1/document/pms/appointments/{appointmentId}':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/document/pms/appointments/:appointmentId'
-      operationId: 'post_v1_document_pms_appointments_:appointmentId'
+      summary: 'POST /v1/document/pms/appointments/{appointmentId}'
+      operationId: post_v1_document_pms_appointments_appointmentId
       security:
         - BearerAuth: []
       parameters:
@@ -3196,12 +3438,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/expense/:expenseId':
+  '/v1/expense/{expenseId}':
     delete:
       tags:
         - 'Non-FHIR'
-      summary: 'DELETE /v1/expense/:expenseId'
-      operationId: 'delete_v1_expense_:expenseId'
+      summary: 'DELETE /v1/expense/{expenseId}'
+      operationId: delete_v1_expense_expenseId
       security:
         - BearerAuth: []
       parameters:
@@ -3232,8 +3474,8 @@ paths:
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/expense/:expenseId'
-      operationId: 'get_v1_expense_:expenseId'
+      summary: 'GET /v1/expense/{expenseId}'
+      operationId: get_v1_expense_expenseId
       security:
         - BearerAuth: []
       parameters:
@@ -3261,12 +3503,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/expense/companion/:companionId/list':
+  '/v1/expense/companion/{companionId}/list':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/expense/companion/:companionId/list'
-      operationId: 'get_v1_expense_companion_:companionId_list'
+      summary: 'GET /v1/expense/companion/{companionId}/list'
+      operationId: get_v1_expense_companion_companionId_list
       security:
         - BearerAuth: []
       parameters:
@@ -3294,12 +3536,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/expense/companion/:companionId/summary':
+  '/v1/expense/companion/{companionId}/summary':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/expense/companion/:companionId/summary'
-      operationId: 'get_v1_expense_companion_:companionId_summary'
+      summary: 'GET /v1/expense/companion/{companionId}/summary'
+      operationId: get_v1_expense_companion_companionId_summary
       security:
         - BearerAuth: []
       parameters:
@@ -3327,18 +3569,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/admin/:orgId':
+  '/fhir/v1/form/admin/{orgId}':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/form/admin/:orgId'
-      operationId: 'post_fhir_v1_form_admin_:orgId'
+      summary: 'POST /fhir/v1/form/admin/{orgId}'
+      operationId: post_fhir_v1_form_admin_orgId
       security:
         - BearerAuth: []
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -3371,18 +3619,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/admin/:orgId/forms':
+  '/fhir/v1/form/admin/{orgId}/forms':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/form/admin/:orgId/forms'
-      operationId: 'get_fhir_v1_form_admin_:orgId_forms'
+      summary: 'GET /fhir/v1/form/admin/{orgId}/forms'
+      operationId: get_fhir_v1_form_admin_orgId_forms
       security:
         - BearerAuth: []
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -3404,12 +3658,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/admin/:orgId/:formId':
+  '/fhir/v1/form/admin/{orgId}/{formId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/form/admin/:orgId/:formId'
-      operationId: 'get_fhir_v1_form_admin_:orgId_:formId'
+      summary: 'GET /fhir/v1/form/admin/{orgId}/{formId}'
+      operationId: get_fhir_v1_form_admin_orgId_formId
       security:
         - BearerAuth: []
       parameters:
@@ -3421,6 +3675,12 @@ paths:
         - name: formId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -3445,8 +3705,8 @@ paths:
     put:
       tags:
         - FHIR
-      summary: 'PUT /fhir/v1/form/admin/:orgId/:formId'
-      operationId: 'put_fhir_v1_form_admin_:orgId_:formId'
+      summary: 'PUT /fhir/v1/form/admin/{orgId}/{formId}'
+      operationId: put_fhir_v1_form_admin_orgId_formId
       security:
         - BearerAuth: []
       parameters:
@@ -3460,48 +3720,10 @@ paths:
           required: true
           schema:
             type: string
-      responses:
-        401:
-          description: Response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  Unauthorized:
-                    type: string
-                  message:
-                    type: string
-        200:
-          description: Response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-        500:
-          description: Response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-  '/fhir/v1/form/admin/:formId/publish':
-    post:
-      tags:
-        - FHIR
-      summary: 'POST /fhir/v1/form/admin/:formId/publish'
-      operationId: 'post_fhir_v1_form_admin_:formId_publish'
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: formId
-          in: path
-          required: true
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -3534,18 +3756,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/admin/:formId/unpublish':
+  '/fhir/v1/form/admin/{formId}/publish':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/form/admin/:formId/unpublish'
-      operationId: 'post_fhir_v1_form_admin_:formId_unpublish'
+      summary: 'POST /fhir/v1/form/admin/{formId}/publish'
+      operationId: post_fhir_v1_form_admin_formId_publish
       security:
         - BearerAuth: []
       parameters:
         - name: formId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -3578,18 +3806,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/admin/:formId/archive':
+  '/fhir/v1/form/admin/{formId}/unpublish':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/form/admin/:formId/archive'
-      operationId: 'post_fhir_v1_form_admin_:formId_archive'
+      summary: 'POST /fhir/v1/form/admin/{formId}/unpublish'
+      operationId: post_fhir_v1_form_admin_formId_unpublish
       security:
         - BearerAuth: []
       parameters:
         - name: formId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -3622,18 +3856,74 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/admin/:formId/submit':
+  '/fhir/v1/form/admin/{formId}/archive':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/form/admin/:formId/submit'
-      operationId: 'post_fhir_v1_form_admin_:formId_submit'
+      summary: 'POST /fhir/v1/form/admin/{formId}/archive'
+      operationId: post_fhir_v1_form_admin_formId_archive
       security:
         - BearerAuth: []
       parameters:
         - name: formId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+      responses:
+        401:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Unauthorized:
+                    type: string
+                  message:
+                    type: string
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  '/fhir/v1/form/admin/{formId}/submit':
+    post:
+      tags:
+        - FHIR
+      summary: 'POST /fhir/v1/form/admin/{formId}/submit'
+      operationId: post_fhir_v1_form_admin_formId_submit
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: formId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -3655,12 +3945,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/appointments/:appointmentId/soap-notes':
+  '/fhir/v1/form/appointments/{appointmentId}/soap-notes':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/form/appointments/:appointmentId/soap-notes'
-      operationId: 'post_fhir_v1_form_appointments_:appointmentId_soap-notes'
+      summary: 'POST /fhir/v1/form/appointments/{appointmentId}/soap-notes'
+      operationId: post_fhir_v1_form_appointments_appointmentId_soap_notes
       security:
         - BearerAuth: []
       parameters:
@@ -3688,12 +3978,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/appointments/:appointmentId/forms':
+  '/fhir/v1/form/appointments/{appointmentId}/forms':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/form/appointments/:appointmentId/forms'
-      operationId: 'post_fhir_v1_form_appointments_:appointmentId_forms'
+      summary: 'POST /fhir/v1/form/appointments/{appointmentId}/forms'
+      operationId: post_fhir_v1_form_appointments_appointmentId_forms
       security:
         - BearerAuth: []
       parameters:
@@ -3736,18 +4026,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/form-submissions/:submissionId/sign':
+  '/fhir/v1/form/form-submissions/{submissionId}/sign':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/form/form-submissions/:submissionId/sign'
-      operationId: 'post_fhir_v1_form_form-submissions_:submissionId_sign'
+      summary: 'POST /fhir/v1/form/form-submissions/{submissionId}/sign'
+      operationId: post_fhir_v1_form_form_submissions_submissionId_sign
       security:
         - BearerAuth: []
       parameters:
         - name: submissionId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -3769,18 +4065,24 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/form/form-submissions/:submissionId/signed-document':
+  '/fhir/v1/form/form-submissions/{submissionId}/signed-document':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/form/form-submissions/:submissionId/signed-document'
-      operationId: 'get_fhir_v1_form_form-submissions_:submissionId_signed-document'
+      summary: 'GET /fhir/v1/form/form-submissions/{submissionId}/signed-document'
+      operationId: get_fhir_v1_form_form_submissions_submissionId_signed_document
       security:
         - BearerAuth: []
       parameters:
         - name: submissionId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -3802,12 +4104,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/form/public/:formId':
+  '/fhir/v1/form/public/{formId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/form/public/:formId'
-      operationId: 'get_fhir_v1_form_public_:formId'
+      summary: 'GET /fhir/v1/form/public/{formId}'
+      operationId: get_fhir_v1_form_public_formId
       security:
         - BearerAuth: []
       parameters:
@@ -3846,12 +4148,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/mobile/submissions/:formId':
+  '/fhir/v1/form/mobile/submissions/{formId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/form/mobile/submissions/:formId'
-      operationId: 'get_fhir_v1_form_mobile_submissions_:formId'
+      summary: 'GET /fhir/v1/form/mobile/submissions/{formId}'
+      operationId: get_fhir_v1_form_mobile_submissions_formId
       security:
         - BearerAuth: []
       parameters:
@@ -3879,12 +4181,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/mobile/forms/:formId/submissions':
+  '/fhir/v1/form/mobile/forms/{formId}/submissions':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/form/mobile/forms/:formId/submissions'
-      operationId: 'get_fhir_v1_form_mobile_forms_:formId_submissions'
+      summary: 'GET /fhir/v1/form/mobile/forms/{formId}/submissions'
+      operationId: get_fhir_v1_form_mobile_forms_formId_submissions
       security:
         - BearerAuth: []
       parameters:
@@ -3912,12 +4214,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/mobile/forms/:organizationId/:serivceId/consent-form':
+  '/fhir/v1/form/mobile/forms/{organizationId}/{serivceId}/consent-form':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/form/mobile/forms/:organizationId/:serivceId/consent-form'
-      operationId: 'get_fhir_v1_form_mobile_forms_:organizationId_:serivceId_consent-form'
+      summary: 'GET /fhir/v1/form/mobile/forms/{organizationId}/{serivceId}/consent-form'
+      operationId: get_fhir_v1_form_mobile_forms_organizationId_serivceId_consent_form
       security:
         - BearerAuth: []
       parameters:
@@ -3955,12 +4257,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/mobile/appointments/:appointmentId/soap-notes':
+  '/fhir/v1/form/mobile/appointments/{appointmentId}/soap-notes':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/form/mobile/appointments/:appointmentId/soap-notes'
-      operationId: 'post_fhir_v1_form_mobile_appointments_:appointmentId_soap-notes'
+      summary: 'POST /fhir/v1/form/mobile/appointments/{appointmentId}/soap-notes'
+      operationId: post_fhir_v1_form_mobile_appointments_appointmentId_soap_notes
       security:
         - BearerAuth: []
       parameters:
@@ -3988,12 +4290,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/mobile/appointments/:appointmentId/forms':
+  '/fhir/v1/form/mobile/appointments/{appointmentId}/forms':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/form/mobile/appointments/:appointmentId/forms'
-      operationId: 'post_fhir_v1_form_mobile_appointments_:appointmentId_forms'
+      summary: 'POST /fhir/v1/form/mobile/appointments/{appointmentId}/forms'
+      operationId: post_fhir_v1_form_mobile_appointments_appointmentId_forms
       security:
         - BearerAuth: []
       parameters:
@@ -4036,12 +4338,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/mobile/form-submissions/:submissionId/pdf':
+  '/fhir/v1/form/mobile/form-submissions/{submissionId}/pdf':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/form/mobile/form-submissions/:submissionId/pdf'
-      operationId: 'get_fhir_v1_form_mobile_form-submissions_:submissionId_pdf'
+      summary: 'GET /fhir/v1/form/mobile/form-submissions/{submissionId}/pdf'
+      operationId: get_fhir_v1_form_mobile_form_submissions_submissionId_pdf
       security:
         - BearerAuth: []
       parameters:
@@ -4069,12 +4371,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/form/mobile/form-submissions/:submissionId/sign':
+  '/fhir/v1/form/mobile/form-submissions/{submissionId}/sign':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/form/mobile/form-submissions/:submissionId/sign'
-      operationId: 'post_fhir_v1_form_mobile_form-submissions_:submissionId_sign'
+      summary: 'POST /fhir/v1/form/mobile/form-submissions/{submissionId}/sign'
+      operationId: post_fhir_v1_form_mobile_form_submissions_submissionId_sign
       security:
         - BearerAuth: []
       parameters:
@@ -4126,12 +4428,19 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/inventory/items/:itemId':
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+  '/v1/inventory/items/{itemId}':
     patch:
       tags:
         - 'Non-FHIR'
-      summary: 'PATCH /v1/inventory/items/:itemId'
-      operationId: 'patch_v1_inventory_items_:itemId'
+      summary: 'PATCH /v1/inventory/items/{itemId}'
+      operationId: patch_v1_inventory_items_itemId
       security:
         - BearerAuth: []
       parameters:
@@ -4159,8 +4468,8 @@ paths:
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/inventory/items/:itemId'
-      operationId: 'get_v1_inventory_items_:itemId'
+      summary: 'GET /v1/inventory/items/{itemId}'
+      operationId: get_v1_inventory_items_itemId
       parameters:
         - name: itemId
           in: path
@@ -4175,12 +4484,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/inventory/items/:itemId/hide':
+  '/v1/inventory/items/{itemId}/hide':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/inventory/items/:itemId/hide'
-      operationId: 'post_v1_inventory_items_:itemId_hide'
+      summary: 'POST /v1/inventory/items/{itemId}/hide'
+      operationId: post_v1_inventory_items_itemId_hide
       security:
         - BearerAuth: []
       parameters:
@@ -4197,12 +4506,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/inventory/items/:itemId/archive':
+  '/v1/inventory/items/{itemId}/archive':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/inventory/items/:itemId/archive'
-      operationId: 'post_v1_inventory_items_:itemId_archive'
+      summary: 'POST /v1/inventory/items/{itemId}/archive'
+      operationId: post_v1_inventory_items_itemId_archive
       security:
         - BearerAuth: []
       parameters:
@@ -4219,12 +4528,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/inventory/items/:itemId/active':
+  '/v1/inventory/items/{itemId}/active':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/inventory/items/:itemId/active'
-      operationId: 'post_v1_inventory_items_:itemId_active'
+      summary: 'POST /v1/inventory/items/{itemId}/active'
+      operationId: post_v1_inventory_items_itemId_active
       security:
         - BearerAuth: []
       parameters:
@@ -4241,12 +4550,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/inventory/organisation/:organisationId/items':
+  '/v1/inventory/organisation/{organisationId}/items':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/inventory/organisation/:organisationId/items'
-      operationId: 'get_v1_inventory_organisation_:organisationId_items'
+      summary: 'GET /v1/inventory/organisation/{organisationId}/items'
+      operationId: get_v1_inventory_organisation_organisationId_items
       security:
         - BearerAuth: []
       parameters:
@@ -4255,6 +4564,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -4263,12 +4578,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/inventory/organisation/:organisationId/turnover':
+  '/v1/inventory/organisation/{organisationId}/turnover':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/inventory/organisation/:organisationId/turnover'
-      operationId: 'get_v1_inventory_organisation_:organisationId_turnover'
+      summary: 'GET /v1/inventory/organisation/{organisationId}/turnover'
+      operationId: get_v1_inventory_organisation_organisationId_turnover
       security:
         - BearerAuth: []
       parameters:
@@ -4285,6 +4600,12 @@ paths:
         - name: to
           in: query
           required: false
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -4310,18 +4631,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/inventory/items/:itemId/batches':
+  '/v1/inventory/items/{itemId}/batches':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/inventory/items/:itemId/batches'
-      operationId: 'post_v1_inventory_items_:itemId_batches'
+      summary: 'POST /v1/inventory/items/{itemId}/batches'
+      operationId: post_v1_inventory_items_itemId_batches
       security:
         - BearerAuth: []
       parameters:
         - name: itemId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       requestBody:
@@ -4340,18 +4667,24 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/inventory/batches/:batchId':
+  '/v1/inventory/batches/{batchId}':
     patch:
       tags:
         - 'Non-FHIR'
-      summary: 'PATCH /v1/inventory/batches/:batchId'
-      operationId: 'patch_v1_inventory_batches_:batchId'
+      summary: 'PATCH /v1/inventory/batches/{batchId}'
+      operationId: patch_v1_inventory_batches_batchId
       security:
         - BearerAuth: []
       parameters:
         - name: batchId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       requestBody:
@@ -4373,14 +4706,20 @@ paths:
     delete:
       tags:
         - 'Non-FHIR'
-      summary: 'DELETE /v1/inventory/batches/:batchId'
-      operationId: 'delete_v1_inventory_batches_:batchId'
+      summary: 'DELETE /v1/inventory/batches/{batchId}'
+      operationId: delete_v1_inventory_batches_batchId
       security:
         - BearerAuth: []
       parameters:
         - name: batchId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -4415,6 +4754,13 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   /v1/inventory/stock/consume/bulk:
     post:
       tags:
@@ -4439,18 +4785,31 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/inventory/items/:itemId/adjust':
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+  '/v1/inventory/items/{itemId}/adjust':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/inventory/items/:itemId/adjust'
-      operationId: 'post_v1_inventory_items_:itemId_adjust'
+      summary: 'POST /v1/inventory/items/{itemId}/adjust'
+      operationId: post_v1_inventory_items_itemId_adjust
       security:
         - BearerAuth: []
       parameters:
         - name: itemId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       requestBody:
@@ -4469,18 +4828,24 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/inventory/items/:itemId/allocate':
+  '/v1/inventory/items/{itemId}/allocate':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/inventory/items/:itemId/allocate'
-      operationId: 'post_v1_inventory_items_:itemId_allocate'
+      summary: 'POST /v1/inventory/items/{itemId}/allocate'
+      operationId: post_v1_inventory_items_itemId_allocate
       security:
         - BearerAuth: []
       parameters:
         - name: itemId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       requestBody:
@@ -4499,18 +4864,24 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/inventory/items/:itemId/release':
+  '/v1/inventory/items/{itemId}/release':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/inventory/items/:itemId/release'
-      operationId: 'post_v1_inventory_items_:itemId_release'
+      summary: 'POST /v1/inventory/items/{itemId}/release'
+      operationId: post_v1_inventory_items_itemId_release
       security:
         - BearerAuth: []
       parameters:
         - name: itemId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       requestBody:
@@ -4545,18 +4916,31 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/inventory/organisation/:organisationId/vendors':
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+  '/v1/inventory/organisation/{organisationId}/vendors':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/inventory/organisation/:organisationId/vendors'
-      operationId: 'get_v1_inventory_organisation_:organisationId_vendors'
+      summary: 'GET /v1/inventory/organisation/{organisationId}/vendors'
+      operationId: get_v1_inventory_organisation_organisationId_vendors
       security:
         - BearerAuth: []
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -4567,18 +4951,24 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/inventory/vendors/:vendorId':
+  '/v1/inventory/vendors/{vendorId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/inventory/vendors/:vendorId'
-      operationId: 'get_v1_inventory_vendors_:vendorId'
+      summary: 'GET /v1/inventory/vendors/{vendorId}'
+      operationId: get_v1_inventory_vendors_vendorId
       security:
         - BearerAuth: []
       parameters:
         - name: vendorId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -4592,14 +4982,20 @@ paths:
     patch:
       tags:
         - 'Non-FHIR'
-      summary: 'PATCH /v1/inventory/vendors/:vendorId'
-      operationId: 'patch_v1_inventory_vendors_:vendorId'
+      summary: 'PATCH /v1/inventory/vendors/{vendorId}'
+      operationId: patch_v1_inventory_vendors_vendorId
       security:
         - BearerAuth: []
       parameters:
         - name: vendorId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -4613,14 +5009,20 @@ paths:
     delete:
       tags:
         - 'Non-FHIR'
-      summary: 'DELETE /v1/inventory/vendors/:vendorId'
-      operationId: 'delete_v1_inventory_vendors_:vendorId'
+      summary: 'DELETE /v1/inventory/vendors/{vendorId}'
+      operationId: delete_v1_inventory_vendors_vendorId
       security:
         - BearerAuth: []
       parameters:
         - name: vendorId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -4636,7 +5038,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/inventory/meta-fields'
-      operationId: 'post_v1_inventory_meta-fields'
+      operationId: post_v1_inventory_meta_fields
       security:
         - BearerAuth: []
       responses:
@@ -4647,11 +5049,18 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
     get:
       tags:
         - 'Non-FHIR'
       summary: 'GET /v1/inventory/meta-fields'
-      operationId: 'get_v1_inventory_meta-fields'
+      operationId: get_v1_inventory_meta_fields
       security:
         - BearerAuth: []
       responses:
@@ -4662,18 +5071,31 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/inventory/meta-fields/:fieldId':
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+  '/v1/inventory/meta-fields/{fieldId}':
     patch:
       tags:
         - 'Non-FHIR'
-      summary: 'PATCH /v1/inventory/meta-fields/:fieldId'
-      operationId: 'patch_v1_inventory_meta-fields_:fieldId'
+      summary: 'PATCH /v1/inventory/meta-fields/{fieldId}'
+      operationId: patch_v1_inventory_meta_fields_fieldId
       security:
         - BearerAuth: []
       parameters:
         - name: fieldId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -4687,8 +5109,8 @@ paths:
     delete:
       tags:
         - 'Non-FHIR'
-      summary: 'DELETE /v1/inventory/meta-fields/:fieldId'
-      operationId: 'delete_v1_inventory_meta-fields_:fieldId'
+      summary: 'DELETE /v1/inventory/meta-fields/{fieldId}'
+      operationId: delete_v1_inventory_meta_fields_fieldId
       security:
         - BearerAuth: []
       parameters:
@@ -4697,26 +5119,10 @@ paths:
           required: true
           schema:
             type: string
-      responses:
-        200:
-          description: Response
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-  '/v1/inventory/organisation/:organisationId/alerts/low-stock':
-    get:
-      tags:
-        - 'Non-FHIR'
-      summary: 'GET /v1/inventory/organisation/:organisationId/alerts/low-stock'
-      operationId: 'get_v1_inventory_organisation_:organisationId_alerts_low-stock'
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: organisationId
-          in: path
+        - name: x-org-id
+          in: header
           required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -4727,18 +5133,24 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/inventory/organisation/:organisationId/alerts/expiring':
+  '/v1/inventory/organisation/{organisationId}/alerts/low-stock':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/inventory/organisation/:organisationId/alerts/expiring'
-      operationId: 'get_v1_inventory_organisation_:organisationId_alerts_expiring'
+      summary: 'GET /v1/inventory/organisation/{organisationId}/alerts/low-stock'
+      operationId: get_v1_inventory_organisation_organisationId_alerts_low_stock
       security:
         - BearerAuth: []
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -4749,12 +5161,40 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/invoice/mobile/appointment/:appointmentId':
+  '/v1/inventory/organisation/{organisationId}/alerts/expiring':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/inventory/organisation/{organisationId}/alerts/expiring'
+      operationId: get_v1_inventory_organisation_organisationId_alerts_expiring
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  '/fhir/v1/invoice/mobile/appointment/{appointmentId}':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/invoice/mobile/appointment/:appointmentId'
-      operationId: 'post_fhir_v1_invoice_mobile_appointment_:appointmentId'
+      summary: 'POST /fhir/v1/invoice/mobile/appointment/{appointmentId}'
+      operationId: post_fhir_v1_invoice_mobile_appointment_appointmentId
       security:
         - BearerAuth: []
       parameters:
@@ -4771,12 +5211,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/invoice/mobile/payment-intent/:paymentIntentId':
+  '/fhir/v1/invoice/mobile/payment-intent/{paymentIntentId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/invoice/mobile/payment-intent/:paymentIntentId'
-      operationId: 'get_fhir_v1_invoice_mobile_payment-intent_:paymentIntentId'
+      summary: 'GET /fhir/v1/invoice/mobile/payment-intent/{paymentIntentId}'
+      operationId: get_fhir_v1_invoice_mobile_payment_intent_paymentIntentId
       security:
         - BearerAuth: []
       parameters:
@@ -4793,12 +5233,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/invoice/mobile/:invoiceId':
+  '/fhir/v1/invoice/mobile/{invoiceId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/invoice/mobile/:invoiceId'
-      operationId: 'get_fhir_v1_invoice_mobile_:invoiceId'
+      summary: 'GET /fhir/v1/invoice/mobile/{invoiceId}'
+      operationId: get_fhir_v1_invoice_mobile_invoiceId
       security:
         - BearerAuth: []
       parameters:
@@ -4815,12 +5255,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/invoice/appointment/:appointmentId/charges':
+  '/fhir/v1/invoice/appointment/{appointmentId}/charges':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/invoice/appointment/:appointmentId/charges'
-      operationId: 'post_fhir_v1_invoice_appointment_:appointmentId_charges'
+      summary: 'POST /fhir/v1/invoice/appointment/{appointmentId}/charges'
+      operationId: post_fhir_v1_invoice_appointment_appointmentId_charges
       security:
         - BearerAuth: []
       parameters:
@@ -4837,12 +5277,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/invoice/appointment/:appointmentId':
+  '/fhir/v1/invoice/appointment/{appointmentId}':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/invoice/appointment/:appointmentId'
-      operationId: 'post_fhir_v1_invoice_appointment_:appointmentId'
+      summary: 'POST /fhir/v1/invoice/appointment/{appointmentId}'
+      operationId: post_fhir_v1_invoice_appointment_appointmentId
       security:
         - BearerAuth: []
       parameters:
@@ -4859,12 +5299,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/invoice/payment-intent/:paymentIntentId':
+  '/fhir/v1/invoice/payment-intent/{paymentIntentId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/invoice/payment-intent/:paymentIntentId'
-      operationId: 'get_fhir_v1_invoice_payment-intent_:paymentIntentId'
+      summary: 'GET /fhir/v1/invoice/payment-intent/{paymentIntentId}'
+      operationId: get_fhir_v1_invoice_payment_intent_paymentIntentId
       security:
         - BearerAuth: []
       parameters:
@@ -4881,18 +5321,24 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/invoice/organisation/:organisationId/list':
+  '/fhir/v1/invoice/organisation/{organisationId}/list':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/invoice/organisation/:organisationId/list'
-      operationId: 'get_fhir_v1_invoice_organisation_:organisationId_list'
+      summary: 'GET /fhir/v1/invoice/organisation/{organisationId}/list'
+      operationId: get_fhir_v1_invoice_organisation_organisationId_list
       security:
         - BearerAuth: []
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -4903,12 +5349,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/invoice/:invoiceId/checkout-session':
+  '/fhir/v1/invoice/{invoiceId}/checkout-session':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/invoice/:invoiceId/checkout-session'
-      operationId: 'post_fhir_v1_invoice_:invoiceId_checkout-session'
+      summary: 'POST /fhir/v1/invoice/{invoiceId}/checkout-session'
+      operationId: post_fhir_v1_invoice_invoiceId_checkout_session
       security:
         - BearerAuth: []
       parameters:
@@ -4925,12 +5371,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/invoice/:invoiceId':
+  '/fhir/v1/invoice/{invoiceId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/invoice/:invoiceId'
-      operationId: 'get_fhir_v1_invoice_:invoiceId'
+      summary: 'GET /fhir/v1/invoice/{invoiceId}'
+      operationId: get_fhir_v1_invoice_invoiceId
       security:
         - BearerAuth: []
       parameters:
@@ -4992,12 +5438,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/notification/mobile/:notificationId/seen':
+  '/v1/notification/mobile/{notificationId}/seen':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/notification/mobile/:notificationId/seen'
-      operationId: 'post_v1_notification_mobile_:notificationId_seen'
+      summary: 'POST /v1/notification/mobile/{notificationId}/seen'
+      operationId: post_v1_notification_mobile_notificationId_seen
       security:
         - BearerAuth: []
       parameters:
@@ -5039,7 +5485,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'GET /v1/observation-tools/mobile/tools'
-      operationId: 'get_v1_observation-tools_mobile_tools'
+      operationId: get_v1_observation_tools_mobile_tools
       security:
         - BearerAuth: []
       parameters:
@@ -5061,12 +5507,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/observation-tools/mobile/tools/:toolId':
+  '/v1/observation-tools/mobile/tools/{toolId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/observation-tools/mobile/tools/:toolId'
-      operationId: 'get_v1_observation-tools_mobile_tools_:toolId'
+      summary: 'GET /v1/observation-tools/mobile/tools/{toolId}'
+      operationId: get_v1_observation_tools_mobile_tools_toolId
       security:
         - BearerAuth: []
       parameters:
@@ -5083,12 +5529,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/observation-tools/mobile/tools/:toolId/submissions':
+  '/v1/observation-tools/mobile/tools/{toolId}/submissions':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/observation-tools/mobile/tools/:toolId/submissions'
-      operationId: 'post_v1_observation-tools_mobile_tools_:toolId_submissions'
+      summary: 'POST /v1/observation-tools/mobile/tools/{toolId}/submissions'
+      operationId: post_v1_observation_tools_mobile_tools_toolId_submissions
       security:
         - BearerAuth: []
       parameters:
@@ -5105,12 +5551,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/observation-tools/mobile/submissions/:submissionId/link-appointment':
+  '/v1/observation-tools/mobile/submissions/{submissionId}/link-appointment':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/observation-tools/mobile/submissions/:submissionId/link-appointment'
-      operationId: 'post_v1_observation-tools_mobile_submissions_:submissionId_link-appointment'
+      summary: 'POST /v1/observation-tools/mobile/submissions/{submissionId}/link-appointment'
+      operationId: post_v1_observation_tools_mobile_submissions_submissionId_link_appointment
       security:
         - BearerAuth: []
       parameters:
@@ -5127,12 +5573,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/observation-tools/mobile/tasks/:taskId/preview':
+  '/v1/observation-tools/mobile/tasks/{taskId}/preview':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/observation-tools/mobile/tasks/:taskId/preview'
-      operationId: 'get_v1_observation-tools_mobile_tasks_:taskId_preview'
+      summary: 'GET /v1/observation-tools/mobile/tasks/{taskId}/preview'
+      operationId: get_v1_observation_tools_mobile_tasks_taskId_preview
       security:
         - BearerAuth: []
       parameters:
@@ -5154,7 +5600,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'GET /v1/observation-tools/pms/tools'
-      operationId: 'get_v1_observation-tools_pms_tools'
+      operationId: get_v1_observation_tools_pms_tools
       security:
         - BearerAuth: []
       parameters:
@@ -5180,7 +5626,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/observation-tools/pms/tools'
-      operationId: 'post_v1_observation-tools_pms_tools'
+      operationId: post_v1_observation_tools_pms_tools
       security:
         - BearerAuth: []
       responses:
@@ -5191,12 +5637,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/observation-tools/pms/tools/:toolId':
+  '/v1/observation-tools/pms/tools/{toolId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/observation-tools/pms/tools/:toolId'
-      operationId: 'get_v1_observation-tools_pms_tools_:toolId'
+      summary: 'GET /v1/observation-tools/pms/tools/{toolId}'
+      operationId: get_v1_observation_tools_pms_tools_toolId
       security:
         - BearerAuth: []
       parameters:
@@ -5216,8 +5662,8 @@ paths:
     patch:
       tags:
         - 'Non-FHIR'
-      summary: 'PATCH /v1/observation-tools/pms/tools/:toolId'
-      operationId: 'patch_v1_observation-tools_pms_tools_:toolId'
+      summary: 'PATCH /v1/observation-tools/pms/tools/{toolId}'
+      operationId: patch_v1_observation_tools_pms_tools_toolId
       security:
         - BearerAuth: []
       parameters:
@@ -5234,12 +5680,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/observation-tools/pms/tools/:toolId/archive':
+  '/v1/observation-tools/pms/tools/{toolId}/archive':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/observation-tools/pms/tools/:toolId/archive'
-      operationId: 'post_v1_observation-tools_pms_tools_:toolId_archive'
+      summary: 'POST /v1/observation-tools/pms/tools/{toolId}/archive'
+      operationId: post_v1_observation_tools_pms_tools_toolId_archive
       security:
         - BearerAuth: []
       parameters:
@@ -5261,7 +5707,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'GET /v1/observation-tools/pms/submissions'
-      operationId: 'get_v1_observation-tools_pms_submissions'
+      operationId: get_v1_observation_tools_pms_submissions
       security:
         - BearerAuth: []
       responses:
@@ -5272,18 +5718,31 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/observation-tools/pms/submissions/:submissionId':
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+  '/v1/observation-tools/pms/submissions/{submissionId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/observation-tools/pms/submissions/:submissionId'
-      operationId: 'get_v1_observation-tools_pms_submissions_:submissionId'
+      summary: 'GET /v1/observation-tools/pms/submissions/{submissionId}'
+      operationId: get_v1_observation_tools_pms_submissions_submissionId
       security:
         - BearerAuth: []
       parameters:
         - name: submissionId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -5294,18 +5753,24 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/observation-tools/pms/submissions/:submissionId/link-appointment':
+  '/v1/observation-tools/pms/submissions/{submissionId}/link-appointment':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/observation-tools/pms/submissions/:submissionId/link-appointment'
-      operationId: 'post_v1_observation-tools_pms_submissions_:submissionId_link-appointment'
+      summary: 'POST /v1/observation-tools/pms/submissions/{submissionId}/link-appointment'
+      operationId: post_v1_observation_tools_pms_submissions_submissionId_link_appointment
       security:
         - BearerAuth: []
       parameters:
         - name: submissionId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -5316,12 +5781,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/observation-tools/pms/appointments/:appointmentId/submissions':
+  '/v1/observation-tools/pms/appointments/{appointmentId}/submissions':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/observation-tools/pms/appointments/:appointmentId/submissions'
-      operationId: 'post_v1_observation-tools_pms_appointments_:appointmentId_submissions'
+      summary: 'POST /v1/observation-tools/pms/appointments/{appointmentId}/submissions'
+      operationId: post_v1_observation_tools_pms_appointments_appointmentId_submissions
       security:
         - BearerAuth: []
       parameters:
@@ -5338,12 +5803,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/observation-tools/pms/tasks/:taskId/submission':
+  '/v1/observation-tools/pms/tasks/{taskId}/submission':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/observation-tools/pms/tasks/:taskId/submission'
-      operationId: 'get_v1_observation-tools_pms_tasks_:taskId_submission'
+      summary: 'GET /v1/observation-tools/pms/tasks/{taskId}/submission'
+      operationId: get_v1_observation_tools_pms_tasks_taskId_submission
       security:
         - BearerAuth: []
       parameters:
@@ -5360,12 +5825,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/observation-tools/pms/tasks/:taskId/preview':
+  '/v1/observation-tools/pms/tasks/{taskId}/preview':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/observation-tools/pms/tasks/:taskId/preview'
-      operationId: 'get_v1_observation-tools_pms_tasks_:taskId_preview'
+      summary: 'GET /v1/observation-tools/pms/tasks/{taskId}/preview'
+      operationId: get_v1_observation_tools_pms_tasks_taskId_preview
       security:
         - BearerAuth: []
       parameters:
@@ -5382,12 +5847,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/observation-tools/pms/appointments/:appointmentId/task-previews':
+  '/v1/observation-tools/pms/appointments/{appointmentId}/task-previews':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/observation-tools/pms/appointments/:appointmentId/task-previews'
-      operationId: 'get_v1_observation-tools_pms_appointments_:appointmentId_task-previews'
+      summary: 'GET /v1/observation-tools/pms/appointments/{appointmentId}/task-previews'
+      operationId: get_v1_observation_tools_pms_appointments_appointmentId_task_previews
       security:
         - BearerAuth: []
       parameters:
@@ -5404,18 +5869,24 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/organisation-document/pms/:orgId/documents/upload':
+  '/v1/organisation-document/pms/{orgId}/documents/upload':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/organisation-document/pms/:orgId/documents/upload'
-      operationId: 'post_v1_organisation-document_pms_:orgId_documents_upload'
+      summary: 'POST /v1/organisation-document/pms/{orgId}/documents/upload'
+      operationId: post_v1_organisation_document_pms_orgId_documents_upload
       security:
         - BearerAuth: []
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -5448,18 +5919,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/organisation-document/pms/:orgId/documents':
+  '/v1/organisation-document/pms/{orgId}/documents':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/organisation-document/pms/:orgId/documents'
-      operationId: 'post_v1_organisation-document_pms_:orgId_documents'
+      summary: 'POST /v1/organisation-document/pms/{orgId}/documents'
+      operationId: post_v1_organisation_document_pms_orgId_documents
       security:
         - BearerAuth: []
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       requestBody:
@@ -5481,14 +5958,20 @@ paths:
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/organisation-document/pms/:orgId/documents'
-      operationId: 'get_v1_organisation-document_pms_:orgId_documents'
+      summary: 'GET /v1/organisation-document/pms/{orgId}/documents'
+      operationId: get_v1_organisation_document_pms_orgId_documents
       security:
         - BearerAuth: []
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -5499,12 +5982,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/organisation-document/pms/:orgId/documents/:documentId':
+  '/v1/organisation-document/pms/{orgId}/documents/{documentId}':
     patch:
       tags:
         - 'Non-FHIR'
-      summary: 'PATCH /v1/organisation-document/pms/:orgId/documents/:documentId'
-      operationId: 'patch_v1_organisation-document_pms_:orgId_documents_:documentId'
+      summary: 'PATCH /v1/organisation-document/pms/{orgId}/documents/{documentId}'
+      operationId: patch_v1_organisation_document_pms_orgId_documents_documentId
       security:
         - BearerAuth: []
       parameters:
@@ -5516,6 +5999,12 @@ paths:
         - name: documentId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       requestBody:
@@ -5537,8 +6026,8 @@ paths:
     delete:
       tags:
         - 'Non-FHIR'
-      summary: 'DELETE /v1/organisation-document/pms/:orgId/documents/:documentId'
-      operationId: 'delete_v1_organisation-document_pms_:orgId_documents_:documentId'
+      summary: 'DELETE /v1/organisation-document/pms/{orgId}/documents/{documentId}'
+      operationId: delete_v1_organisation_document_pms_orgId_documents_documentId
       security:
         - BearerAuth: []
       parameters:
@@ -5550,6 +6039,12 @@ paths:
         - name: documentId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -5563,8 +6058,8 @@ paths:
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/organisation-document/pms/:orgId/documents/:documentId'
-      operationId: 'get_v1_organisation-document_pms_:orgId_documents_:documentId'
+      summary: 'GET /v1/organisation-document/pms/{orgId}/documents/{documentId}'
+      operationId: get_v1_organisation_document_pms_orgId_documents_documentId
       security:
         - BearerAuth: []
       parameters:
@@ -5578,6 +6073,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         200:
           description: Response
@@ -5586,18 +6087,24 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/organisation-document/pms/:orgId/documents/policy':
+  '/v1/organisation-document/pms/{orgId}/documents/policy':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/organisation-document/pms/:orgId/documents/policy'
-      operationId: 'post_v1_organisation-document_pms_:orgId_documents_policy'
+      summary: 'POST /v1/organisation-document/pms/{orgId}/documents/policy'
+      operationId: post_v1_organisation_document_pms_orgId_documents_policy
       security:
         - BearerAuth: []
       parameters:
         - name: orgId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       requestBody:
@@ -5616,12 +6123,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/organisation-document/mobile/:orgId/documents':
+  '/v1/organisation-document/mobile/{orgId}/documents':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/organisation-document/mobile/:orgId/documents'
-      operationId: 'get_v1_organisation-document_mobile_:orgId_documents'
+      summary: 'GET /v1/organisation-document/mobile/{orgId}/documents'
+      operationId: get_v1_organisation_document_mobile_orgId_documents
       security:
         - BearerAuth: []
       parameters:
@@ -5638,12 +6145,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/organisation-invites/:token/accept':
+  '/fhir/v1/organisation-invites/{token}/accept':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/organisation-invites/:token/accept'
-      operationId: 'post_fhir_v1_organisation-invites_:token_accept'
+      summary: 'POST /fhir/v1/organisation-invites/{token}/accept'
+      operationId: post_fhir_v1_organisation_invites_token_accept
       security:
         - BearerAuth: []
       parameters:
@@ -5689,12 +6196,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/organisation-invites/:token/decline':
+  '/fhir/v1/organisation-invites/{token}/decline':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/organisation-invites/:token/decline'
-      operationId: 'post_fhir_v1_organisation-invites_:token_decline'
+      summary: 'POST /fhir/v1/organisation-invites/{token}/decline'
+      operationId: post_fhir_v1_organisation_invites_token_decline
       security:
         - BearerAuth: []
       parameters:
@@ -5745,7 +6252,7 @@ paths:
       tags:
         - FHIR
       summary: 'GET /fhir/v1/organisation-invites/me/pending'
-      operationId: 'get_fhir_v1_organisation-invites_me_pending'
+      operationId: get_fhir_v1_organisation_invites_me_pending
       security:
         - BearerAuth: []
       responses:
@@ -5781,7 +6288,7 @@ paths:
       tags:
         - FHIR
       summary: 'POST /fhir/v1/organisation-room/'
-      operationId: 'post_fhir_v1_organisation-room'
+      operationId: post_fhir_v1_organisation_room
       security:
         - BearerAuth: []
       responses:
@@ -5803,18 +6310,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/organisation-room/:id':
+  '/fhir/v1/organisation-room/{id}':
     put:
       tags:
         - FHIR
-      summary: 'PUT /fhir/v1/organisation-room/:id'
-      operationId: 'put_fhir_v1_organisation-room_:id'
+      summary: 'PUT /fhir/v1/organisation-room/{id}'
+      operationId: put_fhir_v1_organisation_room_id
       security:
         - BearerAuth: []
       parameters:
         - name: id
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -5857,14 +6370,20 @@ paths:
     delete:
       tags:
         - FHIR
-      summary: 'DELETE /fhir/v1/organisation-room/:id'
-      operationId: 'delete_fhir_v1_organisation-room_:id'
+      summary: 'DELETE /fhir/v1/organisation-room/{id}'
+      operationId: delete_fhir_v1_organisation_room_id
       security:
         - BearerAuth: []
       parameters:
         - name: id
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -5904,18 +6423,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/organisation-room/organization/:organizationId':
+  '/fhir/v1/organisation-room/organization/{organizationId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/organisation-room/organization/:organizationId'
-      operationId: 'get_fhir_v1_organisation-room_organization_:organizationId'
+      summary: 'GET /fhir/v1/organisation-room/organization/{organizationId}'
+      operationId: get_fhir_v1_organisation_room_organization_organizationId
       security:
         - BearerAuth: []
       parameters:
         - name: organizationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -5946,12 +6471,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/organisation-rating/:organisationId':
+  '/v1/organisation-rating/{organisationId}':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/organisation-rating/:organisationId'
-      operationId: 'post_v1_organisation-rating_:organisationId'
+      summary: 'POST /v1/organisation-rating/{organisationId}'
+      operationId: post_v1_organisation_rating_organisationId
       security:
         - BearerAuth: []
       parameters:
@@ -5988,12 +6513,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/organisation-rating/:organisationId/is-rated':
+  '/v1/organisation-rating/{organisationId}/is-rated':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/organisation-rating/:organisationId/is-rated'
-      operationId: 'get_v1_organisation-rating_:organisationId_is-rated'
+      summary: 'GET /v1/organisation-rating/{organisationId}/is-rated'
+      operationId: get_v1_organisation_rating_organisationId_is_rated
       security:
         - BearerAuth: []
       parameters:
@@ -6135,7 +6660,7 @@ paths:
       tags:
         - FHIR
       summary: 'POST /fhir/v1/organization/logo/presigned-url'
-      operationId: 'post_fhir_v1_organization_logo_presigned-url'
+      operationId: post_fhir_v1_organization_logo_presigned_url
       responses:
         400:
           description: Response
@@ -6191,18 +6716,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/organization/:organizationId':
+  '/fhir/v1/organization/{organizationId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/organization/:organizationId'
-      operationId: 'get_fhir_v1_organization_:organizationId'
+      summary: 'GET /fhir/v1/organization/{organizationId}'
+      operationId: get_fhir_v1_organization_organizationId
       security:
         - BearerAuth: []
       parameters:
         - name: organizationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -6245,14 +6776,20 @@ paths:
     put:
       tags:
         - FHIR
-      summary: 'PUT /fhir/v1/organization/:organizationId'
-      operationId: 'put_fhir_v1_organization_:organizationId'
+      summary: 'PUT /fhir/v1/organization/{organizationId}'
+      operationId: put_fhir_v1_organization_organizationId
       security:
         - BearerAuth: []
       parameters:
         - name: organizationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -6295,14 +6832,20 @@ paths:
     delete:
       tags:
         - FHIR
-      summary: 'DELETE /fhir/v1/organization/:organizationId'
-      operationId: 'delete_fhir_v1_organization_:organizationId'
+      summary: 'DELETE /fhir/v1/organization/{organizationId}'
+      operationId: delete_fhir_v1_organization_organizationId
       security:
         - BearerAuth: []
       parameters:
         - name: organizationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -6342,18 +6885,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/organization/:organizationId/specality':
+  '/fhir/v1/organization/{organizationId}/specality':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/organization/:organizationId/specality'
-      operationId: 'get_fhir_v1_organization_:organizationId_specality'
+      summary: 'GET /fhir/v1/organization/{organizationId}/specality'
+      operationId: get_fhir_v1_organization_organizationId_specality
       security:
         - BearerAuth: []
       parameters:
         - name: organizationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -6384,18 +6933,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/organization/:organisationId/invites':
+  '/fhir/v1/organization/{organisationId}/invites':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/organization/:organisationId/invites'
-      operationId: 'post_fhir_v1_organization_:organisationId_invites'
+      summary: 'POST /fhir/v1/organization/{organisationId}/invites'
+      operationId: post_fhir_v1_organization_organisationId_invites
       security:
         - BearerAuth: []
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -6448,14 +7003,20 @@ paths:
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/organization/:organisationId/invites'
-      operationId: 'get_fhir_v1_organization_:organisationId_invites'
+      summary: 'GET /fhir/v1/organization/{organisationId}/invites'
+      operationId: get_fhir_v1_organization_organisationId_invites
       security:
         - BearerAuth: []
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -6486,12 +7047,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/parent-companion/parent/:parentId':
+  '/v1/parent-companion/parent/{parentId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/parent-companion/parent/:parentId'
-      operationId: 'get_v1_parent-companion_parent_:parentId'
+      summary: 'GET /v1/parent-companion/parent/{parentId}'
+      operationId: get_v1_parent_companion_parent_parentId
       security:
         - BearerAuth: []
       parameters:
@@ -6526,12 +7087,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/parent-companion/companion/:companionId':
+  '/v1/parent-companion/companion/{companionId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/parent-companion/companion/:companionId'
-      operationId: 'get_v1_parent-companion_companion_:companionId'
+      summary: 'GET /v1/parent-companion/companion/{companionId}'
+      operationId: get_v1_parent_companion_companion_companionId
       security:
         - BearerAuth: []
       parameters:
@@ -6566,12 +7127,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/parent-companion/:companionId/:targetParentId/permissions':
+  '/v1/parent-companion/{companionId}/{targetParentId}/permissions':
     patch:
       tags:
         - 'Non-FHIR'
-      summary: 'PATCH /v1/parent-companion/:companionId/:targetParentId/permissions'
-      operationId: 'patch_v1_parent-companion_:companionId_:targetParentId_permissions'
+      summary: 'PATCH /v1/parent-companion/{companionId}/{targetParentId}/permissions'
+      operationId: patch_v1_parent_companion_companionId_targetParentId_permissions
       security:
         - BearerAuth: []
       parameters:
@@ -6622,12 +7183,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/parent-companion/:companionId/:targetParentId/promote':
+  '/v1/parent-companion/{companionId}/{targetParentId}/promote':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/parent-companion/:companionId/:targetParentId/promote'
-      operationId: 'post_v1_parent-companion_:companionId_:targetParentId_promote'
+      summary: 'POST /v1/parent-companion/{companionId}/{targetParentId}/promote'
+      operationId: post_v1_parent_companion_companionId_targetParentId_promote
       security:
         - BearerAuth: []
       parameters:
@@ -6678,12 +7239,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/parent-companion/:companionId/:coParentId':
+  '/v1/parent-companion/{companionId}/{coParentId}':
     delete:
       tags:
         - 'Non-FHIR'
-      summary: 'DELETE /v1/parent-companion/:companionId/:coParentId'
-      operationId: 'delete_v1_parent-companion_:companionId_:coParentId'
+      summary: 'DELETE /v1/parent-companion/{companionId}/{coParentId}'
+      operationId: delete_v1_parent_companion_companionId_coParentId
       security:
         - BearerAuth: []
       parameters:
@@ -6790,12 +7351,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/parent/:id':
+  '/fhir/v1/parent/{id}':
     put:
       tags:
         - FHIR
-      summary: 'PUT /fhir/v1/parent/:id'
-      operationId: 'put_fhir_v1_parent_:id'
+      summary: 'PUT /fhir/v1/parent/{id}'
+      operationId: put_fhir_v1_parent_id
       security:
         - BearerAuth: []
       parameters:
@@ -6886,12 +7447,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/parent/:parentId/companions':
+  '/fhir/v1/parent/{parentId}/companions':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/parent/:parentId/companions'
-      operationId: 'get_fhir_v1_parent_:parentId_companions'
+      summary: 'GET /fhir/v1/parent/{parentId}/companions'
+      operationId: get_fhir_v1_parent_parentId_companions
       security:
         - BearerAuth: []
       parameters:
@@ -6975,18 +7536,31 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/parent/pms/parents/:id':
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+  '/fhir/v1/parent/pms/parents/{id}':
     put:
       tags:
         - FHIR
-      summary: 'PUT /fhir/v1/parent/pms/parents/:id'
-      operationId: 'put_fhir_v1_parent_pms_parents_:id'
+      summary: 'PUT /fhir/v1/parent/pms/parents/{id}'
+      operationId: put_fhir_v1_parent_pms_parents_id
       security:
         - BearerAuth: []
       parameters:
         - name: id
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -7109,12 +7683,12 @@ paths:
                 properties:
                   error:
                     type: string
-  '/fhir/v1/service/organisation/:organisationId':
+  '/fhir/v1/service/organisation/{organisationId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/service/organisation/:organisationId'
-      operationId: 'get_fhir_v1_service_organisation_:organisationId'
+      summary: 'GET /fhir/v1/service/organisation/{organisationId}'
+      operationId: get_fhir_v1_service_organisation_organisationId
       parameters:
         - name: organisationId
           in: path
@@ -7136,7 +7710,7 @@ paths:
       tags:
         - FHIR
       summary: 'POST /fhir/v1/service/bookable-slots'
-      operationId: 'post_fhir_v1_service_bookable-slots'
+      operationId: post_fhir_v1_service_bookable_slots
       responses:
         200:
           description: Response
@@ -7145,16 +7719,22 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/fhir/v1/service/:id':
+  '/fhir/v1/service/{id}':
     patch:
       tags:
         - FHIR
-      summary: 'PATCH /fhir/v1/service/:id'
-      operationId: 'patch_fhir_v1_service_:id'
+      summary: 'PATCH /fhir/v1/service/{id}'
+      operationId: patch_fhir_v1_service_id
       parameters:
         - name: id
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -7192,18 +7772,25 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/speciality/:organisationId':
+  '/fhir/v1/speciality/{id}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/speciality/:organisationId'
-      operationId: 'get_fhir_v1_speciality_:organisationId'
+      summary: 'GET /fhir/v1/speciality/{id}'
+      operationId: get_fhir_v1_speciality_organisationId
       security:
         - BearerAuth: []
       parameters:
-        - name: organisationId
+        - name: id
+          description: Identifies the organisation whose specialities are listed.
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -7234,18 +7821,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/speciality/:id':
     put:
       tags:
         - FHIR
-      summary: 'PUT /fhir/v1/speciality/:id'
-      operationId: 'put_fhir_v1_speciality_:id'
+      summary: 'PUT /fhir/v1/speciality/{id}'
+      operationId: put_fhir_v1_speciality_id
       security:
         - BearerAuth: []
       parameters:
         - name: id
+          description: Identifies the speciality being updated.
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -7285,12 +7878,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/speciality/:organisationId/:specialityId':
+  '/fhir/v1/speciality/{organisationId}/{specialityId}':
     delete:
       tags:
         - FHIR
-      summary: 'DELETE /fhir/v1/speciality/:organisationId/:specialityId'
-      operationId: 'delete_fhir_v1_speciality_:organisationId_:specialityId'
+      summary: 'DELETE /fhir/v1/speciality/{organisationId}/{specialityId}'
+      operationId: delete_fhir_v1_speciality_organisationId_specialityId
       security:
         - BearerAuth: []
       parameters:
@@ -7302,6 +7895,12 @@ paths:
         - name: specialityId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -7365,16 +7964,17 @@ paths:
                 properties:
                   error:
                     type: string
-  '/v1/stripe/payment-intent/:appointmentId':
+  '/v1/stripe/payment-intent/{id}':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/stripe/payment-intent/:appointmentId'
-      operationId: 'post_v1_stripe_payment-intent_:appointmentId'
+      summary: 'POST /v1/stripe/payment-intent/{id}'
+      operationId: post_v1_stripe_payment_intent_appointmentId
       security:
         - BearerAuth: []
       parameters:
-        - name: appointmentId
+        - name: id
+          description: Identifies the appointment the payment intent is created for.
           in: path
           required: true
           schema:
@@ -7400,16 +8000,16 @@ paths:
                     type: string
                   message:
                     type: string
-  '/v1/stripe/payment-intent/:paymentIntentId':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/stripe/payment-intent/:paymentIntentId'
-      operationId: 'get_v1_stripe_payment-intent_:paymentIntentId'
+      summary: 'GET /v1/stripe/payment-intent/{id}'
+      operationId: get_v1_stripe_payment_intent_paymentIntentId
       security:
         - BearerAuth: []
       parameters:
-        - name: paymentIntentId
+        - name: id
+          description: Identifies the payment intent being read.
           in: path
           required: true
           schema:
@@ -7435,12 +8035,12 @@ paths:
                     type: string
                   message:
                     type: string
-  '/v1/stripe/checkout-session/:sessionId':
+  '/v1/stripe/checkout-session/{sessionId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/stripe/checkout-session/:sessionId'
-      operationId: 'get_v1_stripe_checkout-session_:sessionId'
+      summary: 'GET /v1/stripe/checkout-session/{sessionId}'
+      operationId: get_v1_stripe_checkout_session_sessionId
       security:
         - BearerAuth: []
       parameters:
@@ -7470,18 +8070,24 @@ paths:
                     type: string
                   message:
                     type: string
-  '/v1/stripe/pms/payment-intent/:invoiceId':
+  '/v1/stripe/pms/payment-intent/{invoiceId}':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/stripe/pms/payment-intent/:invoiceId'
-      operationId: 'post_v1_stripe_pms_payment-intent_:invoiceId'
+      summary: 'POST /v1/stripe/pms/payment-intent/{invoiceId}'
+      operationId: post_v1_stripe_pms_payment_intent_invoiceId
       security:
         - BearerAuth: []
       parameters:
         - name: invoiceId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -7505,18 +8111,24 @@ paths:
                     type: string
                   message:
                     type: string
-  '/v1/stripe/organisation/:organisationId/account':
+  '/v1/stripe/organisation/{organisationId}/account':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/stripe/organisation/:organisationId/account'
-      operationId: 'post_v1_stripe_organisation_:organisationId_account'
+      summary: 'POST /v1/stripe/organisation/{organisationId}/account'
+      operationId: post_v1_stripe_organisation_organisationId_account
       security:
         - BearerAuth: []
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -7540,18 +8152,24 @@ paths:
                     type: string
                   message:
                     type: string
-  '/v1/stripe/organisation/:organisationId/account/status':
+  '/v1/stripe/organisation/{organisationId}/account/status':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/stripe/organisation/:organisationId/account/status'
-      operationId: 'get_v1_stripe_organisation_:organisationId_account_status'
+      summary: 'GET /v1/stripe/organisation/{organisationId}/account/status'
+      operationId: get_v1_stripe_organisation_organisationId_account_status
       security:
         - BearerAuth: []
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -7575,18 +8193,24 @@ paths:
                     type: string
                   message:
                     type: string
-  '/v1/stripe/organisation/:organisationId/onboarding':
+  '/v1/stripe/organisation/{organisationId}/onboarding':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/stripe/organisation/:organisationId/onboarding'
-      operationId: 'post_v1_stripe_organisation_:organisationId_onboarding'
+      summary: 'POST /v1/stripe/organisation/{organisationId}/onboarding'
+      operationId: post_v1_stripe_organisation_organisationId_onboarding
       security:
         - BearerAuth: []
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -7610,18 +8234,24 @@ paths:
                     type: string
                   message:
                     type: string
-  '/v1/stripe/organisation/:organisationId/billing/checkout':
+  '/v1/stripe/organisation/{organisationId}/billing/checkout':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/stripe/organisation/:organisationId/billing/checkout'
-      operationId: 'post_v1_stripe_organisation_:organisationId_billing_checkout'
+      summary: 'POST /v1/stripe/organisation/{organisationId}/billing/checkout'
+      operationId: post_v1_stripe_organisation_organisationId_billing_checkout
       security:
         - BearerAuth: []
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -7645,18 +8275,24 @@ paths:
                 properties:
                   createBusinessCheckout:
                     type: string
-  '/v1/stripe/organisation/:organisationId/billing/portal':
+  '/v1/stripe/organisation/{organisationId}/billing/portal':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/stripe/organisation/:organisationId/billing/portal'
-      operationId: 'post_v1_stripe_organisation_:organisationId_billing_portal'
+      summary: 'POST /v1/stripe/organisation/{organisationId}/billing/portal'
+      operationId: post_v1_stripe_organisation_organisationId_billing_portal
       security:
         - BearerAuth: []
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -7680,18 +8316,24 @@ paths:
                     type: string
                   message:
                     type: string
-  '/v1/stripe/organisation/:organisationId/billing/sync-seats':
+  '/v1/stripe/organisation/{organisationId}/billing/sync-seats':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/stripe/organisation/:organisationId/billing/sync-seats'
-      operationId: 'post_v1_stripe_organisation_:organisationId_billing_sync-seats'
+      summary: 'POST /v1/stripe/organisation/{organisationId}/billing/sync-seats'
+      operationId: post_v1_stripe_organisation_organisationId_billing_sync_seats
       security:
         - BearerAuth: []
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -7764,12 +8406,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/task/mobile/:taskId':
+  '/v1/task/mobile/{taskId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/task/mobile/:taskId'
-      operationId: 'get_v1_task_mobile_:taskId'
+      summary: 'GET /v1/task/mobile/{taskId}'
+      operationId: get_v1_task_mobile_taskId
       security:
         - BearerAuth: []
       parameters:
@@ -7786,12 +8428,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/task/mobile/:taskId/status':
+  '/v1/task/mobile/{taskId}/status':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/task/mobile/:taskId/status'
-      operationId: 'post_v1_task_mobile_:taskId_status'
+      summary: 'POST /v1/task/mobile/{taskId}/status'
+      operationId: post_v1_task_mobile_taskId_status
       security:
         - BearerAuth: []
       parameters:
@@ -7813,12 +8455,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ChangeStatusRequestBody'
-  '/v1/task/mobile/companion/:companionId':
+  '/v1/task/mobile/companion/{companionId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/task/mobile/companion/:companionId'
-      operationId: 'get_v1_task_mobile_companion_:companionId'
+      summary: 'GET /v1/task/mobile/companion/{companionId}'
+      operationId: get_v1_task_mobile_companion_companionId
       security:
         - BearerAuth: []
       parameters:
@@ -7840,7 +8482,7 @@ paths:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/task/pms/from-library'
-      operationId: 'post_v1_task_pms_from-library'
+      operationId: post_v1_task_pms_from_library
       security:
         - BearerAuth: []
       requestBody:
@@ -7859,12 +8501,19 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   '/v1/task/pms/from-template':
     post:
       tags:
         - 'Non-FHIR'
       summary: 'POST /v1/task/pms/from-template'
-      operationId: 'post_v1_task_pms_from-template'
+      operationId: post_v1_task_pms_from_template
       security:
         - BearerAuth: []
       requestBody:
@@ -7883,6 +8532,13 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
   /v1/task/pms/custom:
     post:
       tags:
@@ -7907,18 +8563,31 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/task/pms/organisation/:organisationId':
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
+  '/v1/task/pms/organisation/{organisationId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/task/pms/organisation/:organisationId'
-      operationId: 'get_v1_task_pms_organisation_:organisationId'
+      summary: 'GET /v1/task/pms/organisation/{organisationId}'
+      operationId: get_v1_task_pms_organisation_organisationId
       security:
         - BearerAuth: []
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -7929,12 +8598,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/task/pms/companion/:companionId':
+  '/v1/task/pms/companion/{companionId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/task/pms/companion/:companionId'
-      operationId: 'get_v1_task_pms_companion_:companionId'
+      summary: 'GET /v1/task/pms/companion/{companionId}'
+      operationId: get_v1_task_pms_companion_companionId
       security:
         - BearerAuth: []
       parameters:
@@ -7967,12 +8636,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/task/pms/library/:libraryId':
+  '/v1/task/pms/library/{libraryId}':
     put:
       tags:
         - 'Non-FHIR'
-      summary: 'PUT /v1/task/pms/library/:libraryId'
-      operationId: 'put_v1_task_pms_library_:libraryId'
+      summary: 'PUT /v1/task/pms/library/{libraryId}'
+      operationId: put_v1_task_pms_library_libraryId
       security:
         - BearerAuth: []
       parameters:
@@ -7989,12 +8658,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/task/pms/templates/organisation/:organisationId':
+  '/v1/task/pms/templates/organisation/{organisationId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/task/pms/templates/organisation/:organisationId'
-      operationId: 'get_v1_task_pms_templates_organisation_:organisationId'
+      summary: 'GET /v1/task/pms/templates/organisation/{organisationId}'
+      operationId: get_v1_task_pms_templates_organisation_organisationId
       security:
         - BearerAuth: []
       parameters:
@@ -8011,12 +8680,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/task/pms/templates/:templateId':
+  '/v1/task/pms/templates/{templateId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/task/pms/templates/:templateId'
-      operationId: 'get_v1_task_pms_templates_:templateId'
+      summary: 'GET /v1/task/pms/templates/{templateId}'
+      operationId: get_v1_task_pms_templates_templateId
       security:
         - BearerAuth: []
       parameters:
@@ -8036,8 +8705,8 @@ paths:
     delete:
       tags:
         - 'Non-FHIR'
-      summary: 'DELETE /v1/task/pms/templates/:templateId'
-      operationId: 'delete_v1_task_pms_templates_:templateId'
+      summary: 'DELETE /v1/task/pms/templates/{templateId}'
+      operationId: delete_v1_task_pms_templates_templateId
       security:
         - BearerAuth: []
       parameters:
@@ -8070,12 +8739,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/task/pms/:taskId':
+  '/v1/task/pms/{taskId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/task/pms/:taskId'
-      operationId: 'get_v1_task_pms_:taskId'
+      summary: 'GET /v1/task/pms/{taskId}'
+      operationId: get_v1_task_pms_taskId
       security:
         - BearerAuth: []
       parameters:
@@ -8097,8 +8766,8 @@ paths:
     patch:
       tags:
         - 'Non-FHIR'
-      summary: 'PATCH /v1/task/pms/:taskId'
-      operationId: 'patch_v1_task_pms_:taskId'
+      summary: 'PATCH /v1/task/pms/{taskId}'
+      operationId: patch_v1_task_pms_taskId
       security:
         - BearerAuth: []
       parameters:
@@ -8123,12 +8792,12 @@ paths:
               schema:
                 type: object
                 additionalProperties: true
-  '/v1/task/pms/:taskId/status':
+  '/v1/task/pms/{taskId}/status':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/task/pms/:taskId/status'
-      operationId: 'post_v1_task_pms_:taskId_status'
+      summary: 'POST /v1/task/pms/{taskId}/status'
+      operationId: post_v1_task_pms_taskId_status
       security:
         - BearerAuth: []
       parameters:
@@ -8155,7 +8824,7 @@ paths:
       tags:
         - FHIR
       summary: 'POST /fhir/v1/user-organization/'
-      operationId: 'post_fhir_v1_user-organization'
+      operationId: post_fhir_v1_user_organization
       security:
         - BearerAuth: []
       responses:
@@ -8188,18 +8857,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/user-organization/org/mapping/:organisationId':
+  '/fhir/v1/user-organization/org/mapping/{organisationId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/user-organization/org/mapping/:organisationId'
-      operationId: 'get_fhir_v1_user-organization_org_mapping_:organisationId'
+      summary: 'GET /fhir/v1/user-organization/org/mapping/{organisationId}'
+      operationId: get_fhir_v1_user_organization_org_mapping_organisationId
       security:
         - BearerAuth: []
       parameters:
         - name: organisationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -8230,12 +8905,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/user-organization/:id':
+  '/fhir/v1/user-organization/{id}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/user-organization/:id'
-      operationId: 'get_fhir_v1_user-organization_:id'
+      summary: 'GET /fhir/v1/user-organization/{id}'
+      operationId: get_fhir_v1_user_organization_id
       parameters:
         - name: id
           in: path
@@ -8262,8 +8937,8 @@ paths:
     delete:
       tags:
         - FHIR
-      summary: 'DELETE /fhir/v1/user-organization/:id'
-      operationId: 'delete_fhir_v1_user-organization_:id'
+      summary: 'DELETE /fhir/v1/user-organization/{id}'
+      operationId: delete_fhir_v1_user_organization_id
       parameters:
         - name: id
           in: path
@@ -8307,18 +8982,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/user-profile/:organizationId/profile':
+  '/fhir/v1/user-profile/{organizationId}/profile':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/user-profile/:organizationId/profile'
-      operationId: 'post_fhir_v1_user-profile_:organizationId_profile'
+      summary: 'POST /fhir/v1/user-profile/{organizationId}/profile'
+      operationId: post_fhir_v1_user_profile_organizationId_profile
       security:
         - BearerAuth: []
       parameters:
         - name: organizationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -8345,14 +9026,20 @@ paths:
     put:
       tags:
         - FHIR
-      summary: 'PUT /fhir/v1/user-profile/:organizationId/profile'
-      operationId: 'put_fhir_v1_user-profile_:organizationId_profile'
+      summary: 'PUT /fhir/v1/user-profile/{organizationId}/profile'
+      operationId: put_fhir_v1_user_profile_organizationId_profile
       security:
         - BearerAuth: []
       parameters:
         - name: organizationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -8388,14 +9075,20 @@ paths:
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/user-profile/:organizationId/profile'
-      operationId: 'get_fhir_v1_user-profile_:organizationId_profile'
+      summary: 'GET /fhir/v1/user-profile/{organizationId}/profile'
+      operationId: get_fhir_v1_user_profile_organizationId_profile
       security:
         - BearerAuth: []
       parameters:
         - name: organizationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -8428,12 +9121,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/user-profile/:userId/:organizationId/profile':
+  '/fhir/v1/user-profile/{userId}/{organizationId}/profile':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/user-profile/:userId/:organizationId/profile'
-      operationId: 'get_fhir_v1_user-profile_:userId_:organizationId_profile'
+      summary: 'GET /fhir/v1/user-profile/{userId}/{organizationId}/profile'
+      operationId: get_fhir_v1_user_profile_userId_organizationId_profile
       security:
         - BearerAuth: []
       parameters:
@@ -8447,6 +9140,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
       responses:
         404:
           description: Response
@@ -8477,18 +9176,24 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/user-profile/:organizationId/profile-picture':
+  '/fhir/v1/user-profile/{organizationId}/profile-picture':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/user-profile/:organizationId/profile-picture'
-      operationId: 'post_fhir_v1_user-profile_:organizationId_profile-picture'
+      summary: 'POST /fhir/v1/user-profile/{organizationId}/profile-picture'
+      operationId: post_fhir_v1_user_profile_organizationId_profile_picture
       security:
         - BearerAuth: []
       parameters:
         - name: organizationId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -8559,12 +9264,12 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/user/:id':
+  '/fhir/v1/user/{id}':
     delete:
       tags:
         - FHIR
-      summary: 'DELETE /fhir/v1/user/:id'
-      operationId: 'delete_fhir_v1_user_:id'
+      summary: 'DELETE /fhir/v1/user/{id}'
+      operationId: delete_fhir_v1_user_id
       security:
         - BearerAuth: []
       parameters:

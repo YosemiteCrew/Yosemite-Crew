@@ -25,16 +25,16 @@ const OncologyStageEnum = z.enum([
 ]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  assessedAt: z.string().datetime(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
+  assessedAt: z.iso.datetime(),
   tumorType: z.string().max(200).optional(),
   primaryTumorStage: z.string().max(10).optional(),
   nodeStage: z.string().max(10).optional(),
   metastasisStage: z.string().max(10).optional(),
   overallStage: OncologyStageEnum.optional(),
   chemotherapyProtocol: z.string().max(200).optional(),
-  chemotherapyStartDate: z.string().datetime().optional(),
+  chemotherapyStartDate: z.iso.datetime().optional(),
   chemotherapyCycles: z.number().int().min(1).max(100).optional(),
   qualityOfLifeScore: z.number().int().min(0).max(10).optional(),
   prognosis: z.string().max(3000).optional(),

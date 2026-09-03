@@ -21,9 +21,9 @@ const DrugUnitEnum = z.enum([
 ]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
-  loggedAt: z.string().datetime(),
+  patientId: z.uuid().optional(),
+  encounterId: z.uuid().optional(),
+  loggedAt: z.iso.datetime(),
   drug: z.string().min(1).max(200),
   deaSchedule: DeaScheduleEnum,
   lotNumber: z.string().max(100).optional(),
@@ -52,11 +52,11 @@ const UpdateBodySchema = z.object({
 });
 
 const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
+  patientId: z.uuid().optional(),
   drug: z.string().optional(),
   deaSchedule: DeaScheduleEnum.optional(),
-  fromDate: z.string().datetime().optional(),
-  toDate: z.string().datetime().optional(),
+  fromDate: z.iso.datetime().optional(),
+  toDate: z.iso.datetime().optional(),
 });
 
 const LogParamsSchema = orgParams.extend({ logId: uuid() });

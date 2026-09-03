@@ -13,13 +13,13 @@ const StatusEnum = z.enum(["ACTIVE", "INACTIVE", "RESOLVED"]);
 const SeverityEnum = z.enum(["MILD", "MODERATE", "SEVERE"]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
+  patientId: z.uuid(),
   encounterId: z.string().optional(),
   name: z.string().min(1).max(300),
   codeSystem: z.string().max(50).optional(),
   code: z.string().max(50).optional(),
   severity: SeverityEnum.optional(),
-  onsetDate: z.string().datetime().optional(),
+  onsetDate: z.iso.datetime().optional(),
   notes: z.string().max(2000).optional(),
 });
 
@@ -29,17 +29,17 @@ const UpdateBodySchema = z.object({
   code: z.string().max(50).optional(),
   status: StatusEnum.optional(),
   severity: SeverityEnum.optional(),
-  onsetDate: z.string().datetime().optional(),
-  resolvedDate: z.string().datetime().optional(),
+  onsetDate: z.iso.datetime().optional(),
+  resolvedDate: z.iso.datetime().optional(),
   notes: z.string().max(2000).optional(),
 });
 
 const ResolveBodySchema = z.object({
-  resolvedDate: z.string().datetime().optional(),
+  resolvedDate: z.iso.datetime().optional(),
 });
 
 const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
+  patientId: z.uuid().optional(),
   status: StatusEnum.optional(),
 });
 

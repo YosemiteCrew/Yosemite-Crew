@@ -20,11 +20,11 @@ const TriagePriorityEnum = z.enum([
 ]);
 
 const RecordBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
   triagePriority: TriagePriorityEnum,
   chiefComplaint: z.string().min(1).max(1000),
-  presentationAt: z.string().datetime(),
+  presentationAt: z.iso.datetime(),
   heartRate: z.number().int().min(0).max(500).optional(),
   respiratoryRate: z.number().int().min(0).max(200).optional(),
   temperature: z.number().min(25).max(45).optional(),
@@ -41,8 +41,8 @@ const EscalateBodySchema = z.object({
 });
 
 const ListQuerySchema = patientScopeQuery.extend({
-  from: z.string().datetime().optional(),
-  to: z.string().datetime().optional(),
+  from: z.iso.datetime().optional(),
+  to: z.iso.datetime().optional(),
 });
 
 const TriageParamsSchema = orgParams.extend({ triageId: uuid() });

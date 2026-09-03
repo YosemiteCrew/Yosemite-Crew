@@ -49,7 +49,7 @@ const dischargeEncounterSchema = z
       .array(
         z.object({
           name: z.string(),
-          valueDateTime: z.string().datetime().optional(),
+          valueDateTime: z.iso.datetime().optional(),
           valueString: z.string().trim().min(1).optional(),
         }),
       )
@@ -64,7 +64,7 @@ const assignUnitSchema = z
         z.object({
           name: z.string(),
           valueString: z.string().optional(),
-          valueDateTime: z.string().datetime().optional(),
+          valueDateTime: z.iso.datetime().optional(),
         }),
       )
       .optional(),
@@ -77,7 +77,7 @@ const lifecycleOperationSchema = z
       .array(
         z.object({
           name: z.string(),
-          valueDateTime: z.string().datetime().optional(),
+          valueDateTime: z.iso.datetime().optional(),
         }),
       )
       .optional(),

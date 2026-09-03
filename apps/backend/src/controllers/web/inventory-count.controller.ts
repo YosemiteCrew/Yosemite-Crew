@@ -9,7 +9,7 @@ import { parseOptionalBooleanFlag } from "src/utils/query-flags";
 const RecordCountSchema = z.object({
   inventoryItemId: z.string().min(1),
   countedBy: z.string().optional(),
-  countedAt: z.string().datetime(),
+  countedAt: z.iso.datetime(),
   systemCount: z.number().int().min(0),
   physicalCount: z.number().int().min(0),
   notes: z.string().optional(),
