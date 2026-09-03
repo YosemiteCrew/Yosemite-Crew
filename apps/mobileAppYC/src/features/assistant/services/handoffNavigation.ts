@@ -6,6 +6,7 @@
  * Siri or an Android shortcut, which arrive as the identical URL.
  */
 import type {TabParamList} from '@/navigation/types';
+import {trimEndWhile} from '../utils/trimEdges';
 
 export interface HandoffTarget {
   tab: keyof TabParamList;
@@ -78,7 +79,7 @@ export const parseAssistantLink = (
     return null;
   }
 
-  const path = rawPath.replace(/\/+$/, '') || '/';
+  const path = trimEndWhile(rawPath, char => char === '/') || '/';
   return {path, params: parseQuery(query)};
 };
 

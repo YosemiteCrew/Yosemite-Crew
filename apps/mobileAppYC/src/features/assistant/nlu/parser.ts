@@ -15,6 +15,7 @@ import type {
 import {BARE_NAME_CONFIDENCE} from '../constants';
 import {normalizeText, tokenize} from './normalize';
 import {parseWhen} from './dates';
+import {trimEdgesWhile} from '../utils/trimEdges';
 
 interface KeywordRule {
   actionId: AssistantActionId;
@@ -234,8 +235,26 @@ const escapeRegExp = (value: string): string =>
 const GROUPED_AMOUNT = /\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?/;
 /** A plain number, with an optional two-digit fraction: "45", "12,50". */
 const PLAIN_AMOUNT = /\d+(?:[.,]\d{1,2})?/;
-/** A minus immediately before the number, allowing a currency mark between. */
-const NEGATIVE_PREFIX = /-\s*[$£€]?\s*$/;
+const CURRENCY_MARKS = new Set(['$', '£', '€']);
+
+/**
+ * True when a minus sign immediately precedes the number.
+ *
+ * Walks backwards over whitespace and any currency mark rather than testing an
+ * anchored `-\s*[$£€]?\s*$` against the prefix, which is super-linear.
+ */
+const hasNegativeSign = (text: string, numberIndex: number): boolean => {
+  for (let i = numberIndex - 1; i >= 0; i -= 1) {
+    const char = text[i];
+    if (char === '-') {
+      return true;
+    }
+    if (char !== ' ' && char !== '\t' && !CURRENCY_MARKS.has(char)) {
+      return false;
+    }
+  }
+  return false;
+};
 
 /** Reads a money amount: "45", "45.50", "$45", "€12,50", "1,234". */
 export const parseAmount = (text: string): number | undefined => {
@@ -250,7 +269,7 @@ export const parseAmount = (text: string): number | undefined => {
   }
 
   // "spent -5" is not an expense of five.
-  if (NEGATIVE_PREFIX.test(text.slice(0, match.index))) {
+  if (hasNegativeSign(text, match.index)) {
     return undefined;
   }
 
@@ -312,12 +331,10 @@ export const extractTaskTitle = (
     candidate = candidate.replaceAll(phrase, ' ');
   }
 
-  // Two anchored strips rather than one alternation of unbounded quantifiers.
-  candidate = candidate
-    .replaceAll(/\s+/g, ' ')
-    .replace(/^[\s,.-]+/, '')
-    .replace(/[\s,.-]+$/, '')
-    .trim();
+  candidate = trimEdgesWhile(
+    candidate.replaceAll(/\s+/g, ' '),
+    char => char === ' ' || char === ',' || char === '.' || char === '-',
+  );
 
   return candidate.length >= 2 ? candidate : undefined;
 };

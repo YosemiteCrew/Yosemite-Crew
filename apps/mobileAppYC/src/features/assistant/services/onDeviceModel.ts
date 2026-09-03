@@ -17,6 +17,7 @@ import type {
 } from '../types';
 import {ASSISTANT_ACTION_IDS} from '../actions/catalogue';
 import {getOnDeviceModelModule, platformProviderLabel} from './nativeBridge';
+import {isNotLetter, trimEdgesWhile} from '../utils/trimEdges';
 
 const CLASSIFY_MAX_TOKENS = 24;
 const REPHRASE_MAX_TOKENS = 96;
@@ -115,9 +116,7 @@ export const classify = async (
     // Only the edges are stripped, not every non-letter. A small model reliably
     // wraps its answer in punctuation ("nextAppointment."), which is worth
     // tolerating; interior noise is not.
-    const cleaned = answer
-      .replace(/^[^A-Za-z]+/, '')
-      .replace(/[^A-Za-z]+$/, '');
+    const cleaned = trimEdgesWhile(answer, isNotLetter);
     const match = ASSISTANT_ACTION_IDS.find(
       id => id.toLowerCase() === cleaned.toLowerCase(),
     );
