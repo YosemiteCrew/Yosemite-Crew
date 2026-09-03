@@ -38,6 +38,8 @@ const QUICK_LINKS: QuickLink[] = [
   },
 ];
 
+const formatCount = (value: number | null) => (value === null ? '—' : value.toLocaleString());
+
 const DeveloperPortalHome = () => {
   const { attributes } = useAuthStore();
   const isPhone = useIsPhone();
@@ -92,8 +94,6 @@ const DeveloperPortalHome = () => {
     };
     run();
   }, [loadStatus]);
-
-  const formatCount = (value: number | null) => (value === null ? '—' : value.toLocaleString());
 
   if (isPhone) {
     return (
