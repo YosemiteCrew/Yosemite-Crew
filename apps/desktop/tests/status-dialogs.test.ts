@@ -48,7 +48,7 @@ const makeDeps = (overrides: Partial<StatusDialogDeps> = {}): StatusDialogDeps =
   } as never,
   config: getDesktopConfig({}),
   auditLog: {
-    verifyAll: () => ({ valid: 3, tampered: 0 }),
+    verifyAll: () => ({ valid: 3, tampered: 0, otherKey: 0 }),
     verifyChain: () => true,
     size: () => 3,
     getIntegrity: () => ({
@@ -160,7 +160,7 @@ describe('status dialogs — happy paths', () => {
   test('verifyAuditTrail names the problem when the log is not intact', () => {
     const deps = makeDeps({
       auditLog: {
-        verifyAll: () => ({ valid: 1, tampered: 0 }),
+        verifyAll: () => ({ valid: 1, tampered: 0, otherKey: 0 }),
         verifyChain: () => false,
         size: () => 1,
         getIntegrity: () => ({
@@ -185,7 +185,7 @@ describe('status dialogs — happy paths', () => {
     const deps = makeDeps({
       auditLog: {
         // With a session-only key every historical entry fails its check.
-        verifyAll: () => ({ valid: 0, tampered: 12 }),
+        verifyAll: () => ({ valid: 0, tampered: 12, otherKey: 0 }),
         verifyChain: () => false,
         size: () => 12,
         getIntegrity: () => ({
