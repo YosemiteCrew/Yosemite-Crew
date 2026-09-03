@@ -89,6 +89,18 @@
     max-height: none;
     border-right: 0;
     border-bottom: 1px solid var(--divider);
+    padding: 8px 0;
+  }
+  /*
+   * The nav collapses behind a disclosure here. Left expanded it stacked the
+   * full link list above the article: 919px of navigation on a 390px phone,
+   * so the title of the requested page sat just past the first screen.
+   */
+  .DocsNavToggle {
+    display: flex;
+  }
+  .DocsNavItems[data-mobile-open='false'] {
+    display: none;
   }
 }
 
@@ -101,6 +113,27 @@
   overflow-y: auto;
   padding: 20px 12px 40px 0;
   border-right: 1px solid var(--divider);
+}
+
+/*
+ * Hidden above 860px, where the sidebar is a column of its own and there is
+ * nothing to disclose. Declared outside the media query so the desktop state is
+ * the default rather than an override.
+ */
+.DocsNavToggle {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-text-secondary);
 }
 
 .DocsNavSection {
