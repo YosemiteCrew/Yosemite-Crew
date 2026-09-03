@@ -26,10 +26,13 @@ describe('formatHistoryDateTime', () => {
     expect(formatHistoryDateTime('not-a-date')).toBe('-');
   });
 
-  it('returns formatted string for valid ISO date', () => {
-    const result = formatHistoryDateTime('2025-01-15T10:30:00Z');
-    expect(typeof result).toBe('string');
-    expect(result).toContain('2025');
+  /* Pins the preferred timezone, not the device one. 10:30 UTC is 11:30 in
+     Europe/Berlin (the DEFAULT_TIMEZONE these helpers fall back to when nothing
+     is stored), and the hour is two digits. Before the switch to
+     `formatDateTimeLocal` this read "Jan 15, 2025, 5:30 AM" on a New York
+     laptop and "11:30 AM" on the Audit tab of the same record. */
+  it('formats a valid ISO date in the preferred timezone', () => {
+    expect(formatHistoryDateTime('2025-01-15T10:30:00Z')).toBe('Jan 15, 2025, 11:30 AM');
   });
 });
 
@@ -46,9 +49,8 @@ describe('formatHistoryDate', () => {
     expect(formatHistoryDate('bad-date')).toBe('-');
   });
 
-  it('returns formatted date for valid date', () => {
-    const result = formatHistoryDate('2025-06-01');
-    expect(result).toContain('2025');
+  it('formats a valid date as the app-wide short date', () => {
+    expect(formatHistoryDate('2025-06-01')).toBe('Jun 1, 2025');
   });
 });
 

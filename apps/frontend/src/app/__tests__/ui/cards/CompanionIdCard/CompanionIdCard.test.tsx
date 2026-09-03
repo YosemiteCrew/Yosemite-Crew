@@ -4,10 +4,7 @@ import type { CompanionCardDTO } from '@yosemite-crew/types';
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: { alt: string; src: string }) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img alt={props.alt} src={props.src} />
-  ),
+  default: (props: { alt: string; src: string }) => <img alt={props.alt} src={props.src} />,
 }));
 jest.mock('@/app/lib/urls', () => ({
   getSafeImageUrl: () => 'https://img/x.png',
@@ -61,6 +58,10 @@ describe('CompanionIdCard', () => {
     expect(screen.getByText('Needs muzzle')).toBeInTheDocument();
     expect(screen.getByText('PetCo')).toBeInTheDocument();
     expect(screen.getByText('Yes')).toBeInTheDocument();
+    expect(screen.getByText('Pet parent')).toBeInTheDocument();
+    expect(screen.getByText('Pet parent phone')).toBeInTheDocument();
+    expect(screen.getByText('Pet parent email')).toBeInTheDocument();
+    expect(screen.queryByText('Owner')).not.toBeInTheDocument();
     expect(screen.getByText('Harshit Wandhare')).toBeInTheDocument();
     expect(screen.getByText('h@x.com')).toBeInTheDocument();
     expect(screen.getByText('fulfilled')).toBeInTheDocument();
@@ -74,7 +75,11 @@ describe('CompanionIdCard', () => {
     render(<CompanionIdCard card={publicCard} />);
     expect(screen.getByText('DSH / Feline')).toBeInTheDocument();
     expect(screen.queryByText('Passport')).not.toBeInTheDocument();
-    expect(screen.queryByText('Owner')).not.toBeInTheDocument();
+    // "Pet parent", not "Owner": the record that opens this card called the same
+    // person "Client", so the card now uses the one protected product term.
+    expect(screen.queryByText('Pet parent')).not.toBeInTheDocument();
+    expect(screen.queryByText('Pet parent phone')).not.toBeInTheDocument();
+    expect(screen.queryByText('Pet parent email')).not.toBeInTheDocument();
     expect(screen.queryByText('Insurance')).not.toBeInTheDocument();
   });
 

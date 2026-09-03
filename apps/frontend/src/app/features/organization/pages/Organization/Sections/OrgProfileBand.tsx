@@ -4,6 +4,7 @@ import { IoCreateOutline, IoShieldCheckmark } from 'react-icons/io5';
 import { Organisation } from '@yosemite-crew/types';
 import { getSafeImageUrl } from '@/app/lib/urls';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 import {
   COMPLETED_PILL_TOKENS,
   REQUESTED_PILL_TOKENS,
@@ -96,14 +97,18 @@ const OrgProfileBand = ({ org, canEdit, onEdit }: OrgProfileBandProps) => {
         )}
       </div>
       {canEdit && (
-        <button
-          type="button"
+        /* Was a hand-rolled 38px pill, against the same label rendered as a 34px
+           pill on Settings - neither height on the 32/36/40/44 scale the shared
+           primitive offers, so the identical action changed size with the page.
+           `Secondary size="small"` is 36px / px-4 / 12.5px and carries the same
+           border and hover tokens the hand-rolled version copied. */
+        <Secondary
+          size="small"
+          text="Edit profile"
           onClick={onEdit}
-          className="inline-flex h-[38px] flex-none items-center gap-[7px] rounded-full border border-[var(--divider)] px-4! text-[12.5px] font-semibold text-[var(--ink-body)] hover:border-[var(--blue)] hover:text-[var(--blue-text)] transition-colors cursor-pointer"
-        >
-          <IoCreateOutline size={14} aria-hidden="true" />
-          Edit profile
-        </button>
+          icon={<IoCreateOutline aria-hidden="true" />}
+          className="flex-none cursor-pointer"
+        />
       )}
     </div>
   );

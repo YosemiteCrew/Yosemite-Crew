@@ -7,6 +7,7 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 
 import InvoiceTable from '@/app/ui/tables/InvoiceTable';
 import { getInvoiceStatusStyle, getInvoiceStatusTone } from '@/app/ui/tables/tableUtils';
+import { formatDateLabel } from '@/app/lib/forms';
 import { Invoice } from '@yosemite-crew/types';
 
 const useAppointmentsForPrimaryOrgMock = jest.fn();
@@ -102,8 +103,10 @@ jest.mock('react-icons/io5', () => ({
   IoFileTrayOutline: () => <span data-testid="empty-icon" />,
 }));
 
+// formatDateLabel is a jest.fn so the assertions below can pin WHICH date field
+// each cell formats, not just the string it renders.
 jest.mock('@/app/lib/forms', () => ({
-  formatDateLabel: () => 'Jan 1',
+  formatDateLabel: jest.fn(() => 'Jan 1'),
   formatTimeLabel: () => '10:00 AM',
 }));
 
@@ -303,7 +306,7 @@ describe('InvoiceTable', () => {
     expect(cell.queryByText(/Wellness exam/)).not.toBeInTheDocument();
   });
 
-  it('renders an empty subtitle and no date cell when the appointment is not found', () => {
+  it('renders an empty subtitle and a dash in the Appointment cell when the appointment is not found', () => {
     useAppointmentsForPrimaryOrgMock.mockReturnValue([]);
 
     render(<InvoiceTable filteredList={[invoice]} />);
@@ -312,6 +315,27 @@ describe('InvoiceTable', () => {
       screen.getByTestId('cell-appointment-id').querySelector('.appointment-profile-sub')
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Open finance details/ })).not.toBeInTheDocument();
+    // An invoice converted from an estimate carries no appointmentId at all, so
+    // this cell used to render completely blank - an unexplained hole in the
+    // row. It shows the table's missing-value dash now.
+    expect(screen.getByTestId('cell-date')).toHaveTextContent('-');
+  });
+
+  /* The desktop column over `appointment.appointmentDate` was headed "Date" -
+     the same word InvoiceCard and PhoneInvoiceList put over `invoice.createdAt`.
+     An invoice raised three days after the visit read "Sep 3" on a laptop and
+     "Sep 6" on a phone under one label. The header names its field now. */
+  it('heads the appointment-date column "Appointment" and formats the appointment date, not the invoice date', () => {
+    const dated = { ...invoice, createdAt: new Date('2025-01-04T10:00:00.000Z') } as Invoice;
+
+    render(<InvoiceTable filteredList={[dated]} />);
+
+    const dateColumn = mockGenericTableCalls
+      .find((c) => isDesktopVariant(c.tableClassName))!
+      .columns.find((col: any) => col.key === 'date');
+    expect(dateColumn.label).toBe('Appointment');
+    expect(formatDateLabel).toHaveBeenCalledWith(new Date('2025-01-01T10:00:00.000Z'));
+    expect(formatDateLabel).not.toHaveBeenCalledWith(dated.createdAt);
   });
 
   describe('tablet column set (768-1279)', () => {

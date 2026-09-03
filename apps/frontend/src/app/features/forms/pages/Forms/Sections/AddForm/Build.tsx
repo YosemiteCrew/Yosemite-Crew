@@ -300,12 +300,19 @@ const AddFieldDropdown: React.FC<{
 
   return (
     <div className={`relative ${buttonClassName ?? ''}`} ref={dropdownRef}>
-      <IoIosAddCircleOutline
-        size={28}
-        color="var(--color-neutral-900)"
+      {/* The trigger used to be the bare <IoIosAddCircleOutline> SVG with onClick: no tabindex, no
+          role, so a keyboard or screen-reader user could add fields from the palette but never into
+          a group. It is now a real button, the shape PaletteTile already uses. */}
+      <button
+        type="button"
+        aria-label="Add a field"
+        aria-expanded={open}
+        aria-haspopup="true"
         onClick={() => setOpen((e) => !e)}
-        className="cursor-pointer"
-      />
+        className="cursor-pointer rounded-full text-[var(--color-neutral-900)] transition-colors hover:text-[var(--blue)]"
+      >
+        <IoIosAddCircleOutline size={28} color="currentColor" aria-hidden="true" />
+      </button>
       {open && (
         <div className="absolute top-[120%] z-10 right-0 rounded-2xl border border-grey-noti bg-neutral-0 shadow-md! flex flex-col items-center w-[160px]">
           {options.map((option, i) => (

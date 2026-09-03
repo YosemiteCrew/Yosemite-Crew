@@ -560,7 +560,10 @@ export const MineOnly: Story = {
       'aria-pressed',
       'true'
     );
-    await expect(canvas.getByRole('button', { name: 'All tasks' })).toHaveAttribute(
+    /* "Team", not "All tasks". The wide scope was named here by hand while the
+       list view of the same page named it "Team" from TASK_SCOPE_OPTIONS - one
+       page, one concept, two names. The board reads that list now. */
+    await expect(canvas.getByRole('button', { name: 'Team' })).toHaveAttribute(
       'aria-pressed',
       'false'
     );

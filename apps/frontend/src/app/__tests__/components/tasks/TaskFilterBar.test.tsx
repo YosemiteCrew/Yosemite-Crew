@@ -180,11 +180,25 @@ describe('TaskFilterBar', () => {
     const teamScope = scope.getByRole('button', { name: 'Team' });
     const mineScope = scope.getByRole('button', { name: 'My tasks' });
 
+    /* Pins the ORDER, wide scope first. This bar drew its own segmented control
+       with "My tasks" first while the board view of the same page rendered
+       BoardScopeToggle with it second, so the option changed sides when you
+       switched tabs. Both views render the shared primitive now, which is what
+       fixes the order in one place. */
+    expect(scope.getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'Team',
+      'My tasks',
+    ]);
+
     expect(teamScope).toHaveAttribute('aria-pressed', 'true');
     expect(mineScope).toHaveAttribute('aria-pressed', 'false');
 
     fireEvent.click(mineScope);
     expect(setActiveScope).toHaveBeenCalledWith('mine');
+
+    // The wide segment sets the other key rather than clearing the scope.
+    fireEvent.click(teamScope);
+    expect(setActiveScope).toHaveBeenCalledWith('team');
   });
 
   it("carries the status's own colour as the chip's dot", () => {
@@ -201,16 +215,25 @@ describe('TaskFilterBar', () => {
   });
 
   it('hides the scope control when scope options are not supplied', () => {
-    const { unmount } = renderBar({
-      scopeOptions: [],
-      activeScope: 'team',
-      setActiveScope: jest.fn(),
-    });
-    expect(screen.queryByRole('group', { name: 'Task scope' })).not.toBeInTheDocument();
-    unmount();
+    const expectNoScope = (overrides: Partial<React.ComponentProps<typeof TaskFilterBar>>) => {
+      const { unmount } = renderBar(overrides);
+      expect(screen.queryByRole('group', { name: 'Task scope' })).not.toBeInTheDocument();
+      unmount();
+    };
+
+    expectNoScope({ scopeOptions: [], activeScope: 'team', setActiveScope: jest.fn() });
 
     // Options present but no handler wired: the control still stays hidden.
-    renderBar({ scopeOptions: [{ key: 'mine', name: 'My tasks' }], activeScope: 'mine' });
-    expect(screen.queryByRole('group', { name: 'Task scope' })).not.toBeInTheDocument();
+    expectNoScope({ scopeOptions: TASK_SCOPE_OPTIONS, activeScope: 'mine' });
+
+    /* A single option is not a scope control either. The bar renders the shared
+       two-state BoardScopeToggle, so it needs the narrowed option AND something
+       to widen back to; it used to map whatever list it was handed, which would
+       have drawn a one-segment "toggle" with nothing to toggle to. */
+    expectNoScope({
+      scopeOptions: [{ key: 'mine', name: 'My tasks' }],
+      activeScope: 'mine',
+      setActiveScope: jest.fn(),
+    });
   });
 });

@@ -75,7 +75,15 @@ const DayToggle = ({
   </label>
 );
 
-/** 28px outlined circle action — the design's add-range / copy-to-other-days chrome. */
+/**
+ * 28px outlined circle action — the design's add-range / copy-to-other-days chrome.
+ *
+ * Border and ink are classes, not an inline style: an inline style outranks a
+ * hover class, so this declared `transition-colors` over a colour that could
+ * never change and the add-range circle gave no pointer feedback at all. The
+ * hover pair is Accordion's `iconButtonClass` recipe, which every other
+ * circular icon button in the product already carries.
+ */
 const CircleAction = ({
   label,
   onClick,
@@ -90,8 +98,7 @@ const CircleAction = ({
     aria-label={label}
     title={label}
     onClick={onClick}
-    className="flex size-7 shrink-0 items-center justify-center rounded-full border transition-colors"
-    style={{ borderColor: 'var(--hairline)', color: 'var(--ink-faint)' }}
+    className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-faint)] transition-colors hover:border-[var(--hairline-hover)] hover:text-[var(--ink)]"
   >
     {children}
   </button>

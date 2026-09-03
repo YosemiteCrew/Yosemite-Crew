@@ -84,6 +84,23 @@ describe('Availability', () => {
     expect(screen.getAllByTestId(/slot-Monday/)).toHaveLength(2);
   });
 
+  // The add-range circle declared `transition-colors` while pinning its border
+  // and ink in an INLINE style, which outranks any hover class - so it animated a
+  // colour that could never change and gave no pointer feedback at all. These pin
+  // the Accordion `iconButtonClass` hover pair, and that the colours are classes.
+  it('gives the add-range circle a real hover state and a pointer cursor', () => {
+    render(<Wrapper />);
+
+    const addRange = screen.getByRole('button', { name: 'Add range for Monday' });
+    expect(addRange.className).toContain('hover:border-[var(--hairline-hover)]');
+    expect(addRange.className).toContain('hover:text-[var(--ink)]');
+    expect(addRange.className).toContain('cursor-pointer');
+    // Resting colours must be classes: an inline style would beat the hover rule.
+    expect(addRange.className).toContain('border-[var(--hairline)]');
+    expect(addRange.className).toContain('text-[var(--ink-faint)]');
+    expect(addRange.getAttribute('style')).toBeNull();
+  });
+
   it('renders duplicate controls for enabled day', () => {
     render(<Wrapper />);
 

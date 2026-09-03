@@ -93,6 +93,13 @@ export const Outline: Story = {
        ovals long before it wraps, and an oval "circle icon button" is a bug nobody files. */
     await expect(style.flexShrink).toBe('0');
 
+    /* The enabled half of the pair the `Disabled` story closes with. Nothing in globals.css
+       gives a bare <button> the pointer cursor, so this primitive rendered an arrow over a
+       clickable circle at all 19 of its call sites. Asserted on the computed value because
+       the class only matters if it survives the cascade: `disabled:cursor-not-allowed` is
+       the more specific selector and must keep winning on the disabled state. */
+    await expect(style.cursor).toBe('pointer');
+
     await userEvent.click(button);
     await expect(args.onClick).toHaveBeenCalledTimes(1);
   },

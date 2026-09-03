@@ -31,6 +31,13 @@ jest.mock('@/app/hooks/useOrgSelectors', () => ({
   usePrimaryOrg: () => primaryOrg,
 }));
 
+// Same stub ServicesTab's suite uses, so both surfaces price a currency-less
+// service off the same organisation value. '@/app/lib/money' is deliberately NOT
+// mocked - it is pure, and the point of these assertions is the real Intl output.
+jest.mock('@/app/hooks/useBilling', () => ({
+  useCurrencyForPrimaryOrg: () => 'USD',
+}));
+
 jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: () => ({ notify: notifyMock }),
 }));
@@ -150,10 +157,18 @@ describe('PublicBookingSetup', () => {
 
     expect(loadCatalogMock).toHaveBeenCalledWith('org-1');
     expect(screen.getByText('What can pet parents book?')).toBeInTheDocument();
+    /* Prices come from the shared `formatMoneyPrecise`, not the page's old
+       three-entry {EUR,USD,GBP} symbol table. XCD used to print as the bare ISO
+       code plus a space ("XCD 48.00") because it was not one of the three, and a
+       service carrying no currency of its own was priced in EUR ("€10.00") -
+       the last euro default in the app. It now falls back to the organisation's
+       currency, the same source Specialities prices from. */
     expect(screen.getByText('€64.00')).toBeInTheDocument();
     expect(screen.getByText('$72.00')).toBeInTheDocument();
-    expect(screen.getByText('XCD 48.00')).toBeInTheDocument();
-    expect(screen.getByText('€10.00')).toBeInTheDocument();
+    expect(screen.getByText('EC$48.00')).toBeInTheDocument();
+    expect(screen.getByText('$10.00')).toBeInTheDocument();
+    expect(screen.queryByText('XCD 48.00')).not.toBeInTheDocument();
+    expect(screen.queryByText('€10.00')).not.toBeInTheDocument();
     expect(screen.queryByText('Archived one')).not.toBeInTheDocument();
     expect(screen.queryByText('Not bookable')).not.toBeInTheDocument();
     // The wizard header carries the Yosemite Crew product mark, not an org initial.

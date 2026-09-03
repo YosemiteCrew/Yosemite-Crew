@@ -122,7 +122,7 @@ const CompanionAvatar = ({
 );
 
 const CoParentPill = () => (
-  <span className="ml-1 inline-flex items-center rounded-full border border-[var(--pink)] bg-[var(--glow-p12)] px-[7px] py-px text-[9px] font-bold text-[var(--pink-text)]">
+  <span className="ml-1 inline-flex w-fit shrink-0 items-center whitespace-nowrap rounded-full border border-[var(--pink)] bg-[var(--glow-p12)] px-[7px] py-px text-[9px] font-bold text-[var(--pink-text)]">
     + CO-PARENT
   </span>
 );
@@ -230,8 +230,14 @@ const CompanionGridCard = ({
           title={terminologyText('Open companion history')}
           className="flex min-w-0 flex-col text-left"
         >
-          <span className="truncate font-newsreader text-[17px] tracking-[-0.01em] text-[var(--ink)]">
-            {formatCompanionNameWithOwnerLastName(item.companion.name, item.parent)}
+          {/* The grid card used to omit the co-parent marker the row and the
+              phone card both draw, so grid view never showed that a patient has
+              a second registered parent. */}
+          <span className="flex min-w-0 items-center gap-1">
+            <span className="truncate font-newsreader text-[17px] tracking-[-0.01em] text-[var(--ink)]">
+              {formatCompanionNameWithOwnerLastName(item.companion.name, item.parent)}
+            </span>
+            {hasCoParent(item) ? <CoParentPill /> : null}
           </span>
           <span className="truncate text-[11.5px] text-[var(--ink-faint)]">
             {formatDisplayValue(item.companion.breed)} · {formatParentName(item.parent)}
@@ -305,7 +311,7 @@ const TablePagination = ({
   <div className="flex shrink-0 items-center justify-between border-t border-[var(--hairline)] px-5 py-[11px] text-[12.5px] text-[var(--ink-faint)]">
     <span>{`Showing ${rangeStart}-${rangeEnd} of ${totalItems} ${companionsLabel}`}</span>
     {totalPages > 1 ? (
-      <span className="flex items-center gap-1.5">
+      <span className="flex flex-wrap items-center justify-end gap-1.5">
         <button
           type="button"
           aria-label="Previous page"
@@ -457,17 +463,20 @@ const CompanionsTable = ({
   const rangeStart = filteredList.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * PAGE_SIZE, filteredList.length);
 
-  // Phone: lean tappable cards.
+  // Phone: lean tappable cards, paged through the same slice as the table.
+  // This branch used to map the whole `filteredList`, so a clinic with 400
+  // patients mounted 400 cards on the phone and 10 at a time on the laptop, and
+  // the phone user never saw the "of 400" total.
   if (isPhone) {
     return (
       <div className="flex flex-col gap-2.5">
-        {filteredList.length === 0 ? (
+        {pageItems.length === 0 ? (
           <NoDataMessage
             title="No patients yet"
             subtitle="Patients appear here once they are added to the clinic."
           />
         ) : (
-          filteredList.map((item) => (
+          pageItems.map((item) => (
             <CompanionPhoneCard
               key={item.companion.id || item.companion.name}
               item={item}
@@ -476,6 +485,17 @@ const CompanionsTable = ({
             />
           ))
         )}
+        {filteredList.length > 0 ? (
+          <TablePagination
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            totalItems={filteredList.length}
+            companionsLabel={terminologyText('companions')}
+            totalPages={totalPages}
+            safePage={safePage}
+            onPageChange={setPage}
+          />
+        ) : null}
       </div>
     );
   }

@@ -2,6 +2,7 @@ import { InventoryItem } from './types';
 import {
   displayStatusLabel,
   formatCurrencyValue,
+  formatPercentValue,
   getMarginPercent,
   toDisplayNumber,
 } from './utils';
@@ -93,7 +94,11 @@ export const buildInventoryPhoneMeta = (item: InventoryItem): InventoryPhoneMeta
   const margin = pricing ? getMarginPercent(item) : undefined;
   let priceText: string | null = null;
   if (selling !== undefined && margin !== undefined) {
-    priceText = `${formatCurrencyValue(pricing?.selling, item.currency)} · ${Math.round(margin)}%`;
+    // Was `${Math.round(margin)}%`, so the same item read "33%" on the phone and
+    // "33.33%" in the desktop table — and a 0.4% margin rounded to "0%". The
+    // margin now goes through the same formatter the table and the detail panel
+    // use, so only the window width changes, not the number.
+    priceText = `${formatCurrencyValue(pricing?.selling, item.currency)} · ${formatPercentValue(margin)}`;
   } else if (selling !== undefined) {
     priceText = formatCurrencyValue(pricing?.selling, item.currency);
   } else if (cost !== undefined) {

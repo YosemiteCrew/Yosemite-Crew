@@ -1453,6 +1453,31 @@ describe('<InvoiceStep /> component', () => {
       openSpy.mockRestore();
     });
 
+    // The printed invoice used `new Date(createdAt).toLocaleString()` (device
+    // locale and zone, numeric, with seconds) while the row it was printed from
+    // used a local en-US formatter with no timeZone, so the handed-over document
+    // never matched the screen. Both now go through formatDateTimeLocal, which
+    // pins the preferred timezone (Europe/Berlin by default, hence 01:00 AM for
+    // a midnight-UTC invoice).
+    it('prints the same date string the invoice row shows', async () => {
+      const printWindow = {
+        document: { head: { innerHTML: '' }, body: { innerHTML: '' } },
+        focus: jest.fn(),
+        print: jest.fn(),
+      };
+      const openSpy = jest.spyOn(window, 'open').mockReturnValue(printWindow as never);
+      renderInvoiceStep({ pastInvoices: [settledInvoice()] });
+
+      expect(await screen.findByText('Jan 1, 2026, 01:00 AM')).toBeInTheDocument();
+
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'Download invoice inv-doc' })
+      );
+
+      expect(printWindow.document.body.innerHTML).toContain('Date: Jan 1, 2026, 01:00 AM');
+      openSpy.mockRestore();
+    });
+
     it('warns when the print popup is blocked', async () => {
       const openSpy = jest.spyOn(window, 'open').mockReturnValue(null);
       renderInvoiceStep({ pastInvoices: [settledInvoice()] });

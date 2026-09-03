@@ -123,6 +123,21 @@ const activePill =
   'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]';
 const idlePill = 'border-[var(--hairline)] font-semibold text-[var(--ink-muted)]';
 
+/* The Low pill keeps the cancelled hue in both states because it is the one
+   filter with a severity, but it used to differ selected-vs-idle ONLY by
+   `shadow-[0_1px_3px_var(--sh08)]` - a 1px-offset shadow on an already-tinted
+   pill, close to invisible on a phone - while the pills either side of it swapped
+   border, fill, ink and weight. So the one filter that changes what the list
+   contains gave the least confirmation that it was on. It now inverts the way
+   `idlePill` -> `activePill` does, and keeps the shadow as a secondary cue.
+   The active ink is `--screen` rather than `--status-cancelled-bg`: that token is
+   translucent in dark mode (rgba(249,115,22,0.15)) and would disappear on the new
+   fill. `--screen` on `--status-cancelled-text` is 6.6:1 light and 7.1:1 dark. */
+const lowIdlePill =
+  'border-[var(--status-cancelled-border)] bg-[var(--status-cancelled-bg)] font-semibold text-[var(--status-cancelled-text)]';
+const lowActivePill =
+  'border-[var(--status-cancelled-text)] bg-[var(--status-cancelled-text)] font-bold text-[var(--screen)] shadow-[0_1px_3px_var(--sh08)]';
+
 type InventoryPhoneFilterPillsProps = {
   filters: InventoryFiltersState;
   setFilters: React.Dispatch<React.SetStateAction<InventoryFiltersState>>;
@@ -163,11 +178,7 @@ export const InventoryPhoneFilterPills = ({
             status: prev.status === LOW_STOCK_STATUS ? 'ALL' : LOW_STOCK_STATUS,
           }))
         }
-        className={clsx(
-          pillBase,
-          'inline-flex items-center gap-[5px] border-[var(--status-cancelled-border)] bg-[var(--status-cancelled-bg)] font-bold text-[var(--status-cancelled-text)]',
-          lowActive && 'shadow-[0_1px_3px_var(--sh08)]'
-        )}
+        className={clsx(pillBase, 'gap-[5px]', lowActive ? lowActivePill : lowIdlePill)}
       >
         <IoAlertCircleOutline size={12} aria-hidden="true" />
         Low ({lowStockCount})

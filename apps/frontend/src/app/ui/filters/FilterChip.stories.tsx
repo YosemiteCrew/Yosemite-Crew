@@ -36,6 +36,32 @@ export const WithDot: Story = {
   args: { label: 'Emergencies', dotColor: 'var(--danger)' },
 };
 
+export const DangerTone: Story = {
+  name: 'Danger tone (emergencies)',
+  args: {
+    label: 'Emergencies',
+    tone: 'danger',
+    dotColor: 'var(--danger)',
+    dotLabel: 'Emergency appointments present',
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The Appointments toolbar chip. `tone="danger"` keeps it danger-toned at rest as well ' +
+          'as active, and `dotLabel` gives the dot an accessible name so it can double as the ' +
+          '"emergencies present" marker. `Filters` used to hand-roll this as a second chip ' +
+          'recipe at 12px on an unfixed height; it renders this component now.',
+      },
+    },
+  },
+};
+
+export const DangerToneActive: Story = {
+  name: 'Danger tone, active',
+  args: { ...DangerTone.args, active: true },
+};
+
 const Row = () => {
   const options = [
     { key: 'all', label: 'All', count: 322 },

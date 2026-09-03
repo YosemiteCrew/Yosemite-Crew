@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, fn, waitFor, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import InventoryPhoneCatalog from './InventoryPhoneCatalog';
 import type { InventoryFiltersState, InventoryItem } from './types';
@@ -300,6 +300,46 @@ export const NoRestockPermission: Story = {
           'A reader without the restock permission. The warning border and the reorder hint ' +
           'stay - the item is still low - but the card loses its CTA and with it 38px of ' +
           'height, so a permission difference changes the rhythm of the whole list.',
+      },
+    },
+  },
+};
+
+export const LowFilterSelected: Story = {
+  name: 'The Low filter, on',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // Resolved before any waitFor: the probe mutates the DOM.
+    const cancelledInk = resolveTokenColor('--status-cancelled-text');
+    const cancelledFill = resolveTokenColor('--status-cancelled-bg');
+
+    const low = canvas.getByRole('button', { name: 'Low (2)' });
+    const idle = getComputedStyle(low);
+    await expect(idle.backgroundColor).toBe(cancelledFill);
+    await expect(idle.fontWeight).toBe('600');
+
+    await userEvent.click(low);
+    await expect(low).toHaveAttribute('aria-pressed', 'true');
+
+    /* The whole point of the finding: selected used to differ from idle ONLY by
+       `shadow-[0_1px_3px_var(--sh08)]`, so these two reads were the same colour
+       and the same weight and the assertions below would both have failed. The
+       shadow is still there as a secondary cue, but the fill and the weight now
+       carry the state - the same currency the All and category pills use. */
+    await waitFor(async () => {
+      await expect(getComputedStyle(low).backgroundColor).toBe(cancelledInk);
+    });
+    await expect(getComputedStyle(low).fontWeight).toBe('700');
+    await expect(getComputedStyle(low).boxShadow).not.toBe('none');
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The one filter that changes what the list contains, in both states. Measured as ' +
+          'computed colour and weight rather than by class name: the defect this pins was a ' +
+          'selected state made entirely of a 1px-offset, 3px-blur shadow on an already-tinted ' +
+          'pill, which a "the pill rendered" check would never notice.',
       },
     },
   },

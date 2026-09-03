@@ -177,6 +177,15 @@ describe('GenericTable', () => {
     // 4 rows / pageSize 2 => 2 pages.
     expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
     expect(screen.getByText('2 of 4')).toBeInTheDocument();
+    /* The footer is now the shared `TableFooter`, so this pins that the table
+       still hands it the noun and still renders the numbered run - the card list
+       below xl renders the same component over the same rows. */
+    expect(screen.getByRole('button', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page');
+    expect(
+      screen.getByText((_, node) => node?.textContent?.trim() === 'Showing 2 of 4 items', {
+        selector: '[aria-live="polite"]',
+      })
+    ).toBeInTheDocument();
   });
 
   it('clamps the current page down when the data shrinks below it', () => {
