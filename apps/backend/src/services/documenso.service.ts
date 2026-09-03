@@ -129,16 +129,16 @@ export class DocumensoService {
       logger.info("Creating document with signature placement", {
         placement,
       });
-      const createDocumentResponse = await documenso.documents.createV0({
+      const request = {
         title: title ?? "Form Submission",
         recipients: [
           {
             email: signerEmail,
             name: signerName ?? signerEmail,
-            role: "SIGNER",
+            role: "SIGNER" as const,
             fields: [
               {
-                type: "SIGNATURE",
+                type: "SIGNATURE" as const,
                 pageNumber: placement.pageNumber,
                 pageX: placement.pageX,
                 pageY: placement.pageY,
@@ -148,9 +148,16 @@ export class DocumensoService {
             ],
           },
         ],
-      });
+      };
+      // createV0 is deprecated, but its replacement documents.create() returns
+      // only { envelopeId, id } - no uploadUrl and no recipients. The callers
+      // below read document.recipients[0].token to build the signing URL, so
+      // migrating needs a second documents.get() round-trip and a rewrite of the
+      // upload path. That is a behavioural change on the e-signature flow, so it
+      // is tracked in #2643 and tested there against a live Documenso.
+      const created = await documenso.documents.createV0(request); // NOSONAR
 
-      const { document, uploadUrl } = createDocumentResponse;
+      const { document, uploadUrl } = created;
 
       await uploadPdfBuffer(pdf, uploadUrl);
 
