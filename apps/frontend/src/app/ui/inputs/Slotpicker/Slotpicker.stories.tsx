@@ -19,18 +19,19 @@ const StatefulSlotpicker = (args: ComponentProps<typeof Slotpicker>) => {
 };
 
 const today = new Date();
-const at = (h: number, m: number) => {
-  const d = new Date(today);
-  d.setHours(h, m, 0, 0);
-  return d.toISOString();
-};
 
+/* A slot's time is a UTC clock reading, "HH:MM" - what the API sends
+   (`dayjs(startTime).format("HH:mm")`) and what the chip formatter parses. This
+   fixture used to build full ISO timestamps, which that formatter rejects and
+   returns unchanged, so every chip in this story read
+   "2026-09-04T06:00:00.000Z" and the wrapping grid it is meant to demonstrate
+   collapsed into one chip per row. */
 const SLOTS: Slot[] = [
-  { startTime: at(8, 0), endTime: at(8, 45), vetIds: ['v1'] },
-  { startTime: at(8, 45), endTime: at(9, 30), vetIds: ['v1'] },
-  { startTime: at(9, 30), endTime: at(10, 15), vetIds: ['v1'] },
-  { startTime: at(10, 15), endTime: at(11, 0), vetIds: ['v1'] },
-  { startTime: at(11, 0), endTime: at(11, 45), vetIds: ['v1'] },
+  { startTime: '08:00', endTime: '08:45', vetIds: ['v1'] },
+  { startTime: '08:45', endTime: '09:30', vetIds: ['v1'] },
+  { startTime: '09:30', endTime: '10:15', vetIds: ['v1'] },
+  { startTime: '10:15', endTime: '11:00', vetIds: ['v1'] },
+  { startTime: '11:00', endTime: '11:45', vetIds: ['v1'] },
 ];
 
 const meta = {
@@ -44,7 +45,7 @@ const meta = {
           'Month navigation + horizontal date strip + a wrapping grid of bookable time slots. ' +
           'A chosen slot fills solid blue (white text, glow shadow) to match the design booking sheet.\n\n' +
           'The fill is the *second* cue, not the only one: the day strip and the slot list are each a ' +
-          'named `role="group"`, and every day cell and time chip carries `aria-pressed` (plus ' +
+          'labelled `fieldset`, and every day cell and time chip carries `aria-pressed` (plus ' +
           '`aria-current="date"` on today), the same way `PhoneDayStrip` announces its week.',
       },
     },
@@ -86,6 +87,13 @@ export const WithSelectedSlot: Story = {
 
     const days = within(canvas.getByRole('group', { name: 'Select a day' }));
     await expect(days.getAllByRole('button', { pressed: true })).toHaveLength(1);
+
+    /* And the chip reads as a time. The formatter passes anything that is not
+       "HH:MM" straight through, so a fixture in the wrong shape shows the raw
+       string and nothing here noticed. */
+    for (const chip of times.getAllByRole('button')) {
+      await expect(chip.textContent).toMatch(/^\d{1,2}:\d{2} (AM|PM)$/);
+    }
   },
   parameters: {
     docs: {
