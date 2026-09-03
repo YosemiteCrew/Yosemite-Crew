@@ -50,6 +50,14 @@ const toDomainFromPrisma = (row: {
   updatedAt: row.updatedAt,
 });
 
+/*
+ * CodeQL's js/log-injection barrier is exact: no quantifier in the pattern and
+ * an EMPTY replacement string. `/[\n\r]+/` or replacing with " " both fail to
+ * register - a previous attempt at the wrong spelling left three alerts open
+ * for months. See LogInjectionQuery.qll's StringReplaceSanitizer.
+ */
+const forLog = (value: string): string => value.replace(/[\n\r]/g, "");
+
 const asText = (value: unknown): string | undefined => {
   if (typeof value === "string") return value.trim() || undefined;
   if (typeof value === "number") return String(value);
@@ -93,7 +101,7 @@ const notifyOrganisation = async (
     });
     if (!organisation?.email) {
       logger.info(
-        `Adverse event ${reportId} stored, but organisation ${organisationId} has no email on file; practice not notified`,
+        `Adverse event ${forLog(reportId)} stored, but organisation ${forLog(organisationId)} has no email on file; practice not notified`,
       );
       return;
     }
@@ -151,11 +159,11 @@ const notifyOrganisation = async (
     });
 
     logger.info(
-      `Adverse event ${reportId} notified to practice ${organisationId}`,
+      `Adverse event ${forLog(reportId)} notified to practice ${forLog(organisationId)}`,
     );
   } catch (error) {
     logger.error(
-      `Failed to notify practice ${organisationId} of adverse event ${reportId}; the report is stored`,
+      `Failed to notify practice ${forLog(organisationId)} of adverse event ${forLog(reportId)}; the report is stored`,
       error,
     );
   }

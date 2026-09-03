@@ -991,16 +991,14 @@ const buildAdverseEventReportedTemplate =
       : data.productName;
 
     const detail = (label: string, value?: string) =>
-      value?.trim()
-        ? `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`
-        : "";
+      value?.trim() ? `<p><strong>${label}:</strong> ${value}</p>` : "";
     const detailText = (label: string, value?: string) =>
       value?.trim() ? `${label}: ${value}` : "";
 
     const authorityHtml = data.authorityName
-      ? `<p>Adverse events for this market are handled by <strong>${escapeHtml(data.authorityName)}</strong>.` +
+      ? `<p>Adverse events for this market are handled by <strong>${data.authorityName}</strong>.` +
         (data.authorityUrl
-          ? ` Reporting guidance: <a href="${escapeHtml(data.authorityUrl)}" style="color:#257bed; text-decoration:none;" class="yc-link">${escapeHtml(data.authorityUrl)}</a>.`
+          ? ` Reporting guidance: <a href="${data.authorityUrl}" style="color:#257bed; text-decoration:none;" class="yc-link">${data.authorityUrl}</a>.`
           : "") +
         `</p>
          <p>Yosemite Crew has <strong>not</strong> forwarded this report to them, or to the manufacturer. Nothing has left the practice.</p>`
@@ -1009,8 +1007,8 @@ const buildAdverseEventReportedTemplate =
     return {
       subject: `Adverse event reported for ${data.companionName}: ${data.productName}`,
       contentHtml: `
-      <p>Hi ${escapeHtml(organisationName)},</p>
-      <p><strong>${escapeHtml(data.reporterName)}</strong> reported a suspected adverse event for <strong>${escapeHtml(data.companionName)}</strong>.</p>
+      <p>Hi ${organisationName},</p>
+      <p><strong>${data.reporterName}</strong> reported a suspected adverse event for <strong>${data.companionName}</strong>.</p>
       ${detail("Product", product)}
       ${detail("Batch number", data.batchNumber)}
       ${detail("Amount used", data.quantityUsed)}
