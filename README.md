@@ -23,11 +23,7 @@
 </div>
 <br>
 
-
-
 https://github.com/user-attachments/assets/50209ebc-f966-4916-abb4-d697b5fbf778
-
-
 
 <br>
 
@@ -177,19 +173,19 @@ A pnpm + Turborepo workspace. Apps ship; packages are the shared spine underneat
 | `apps/backend`     | The API. Express 4 on TypeScript, Prisma, Socket.IO realtime, BullMQ workers, Stripe.                   |
 | `apps/mobileAppYC` | The pet parent app. React Native 0.81, Redux, i18next localization, Detox end-to-end.                   |
 | `apps/desktop`     | The desktop shell. Electron, packaged by electron-builder, notarized, with auto-update.                 |
-| `apps/dev-docs`    | The developer documentation site. Docusaurus.                                                           |
+| `apps/frontend`    | Also serves the developer documentation at /docs, from content/docs.                                    |
 
 ### Packages
 
-| Package                        | What it holds                                                                 |
-| ------------------------------ | ----------------------------------------------------------------------------- |
-| `@yosemite-crew/database`      | The Prisma schema and migrations. The schema source of truth.                 |
-| `@yosemite-crew/auth`          | Provider-independent session boundary built on SuperTokens.                   |
-| `@yosemite-crew/types`         | Shared domain and form types across web, mobile, and API.                     |
-| `@yosemite-crew/fhir`          | FHIR R4 helpers.                                                              |
-| `@yosemite-crew/fhirtypes`     | FHIR R4 resource type definitions.                                            |
+| Package                        | What it holds                                                                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `@yosemite-crew/database`      | The Prisma schema and migrations. The schema source of truth.                                                                         |
+| `@yosemite-crew/auth`          | Provider-independent session boundary built on SuperTokens.                                                                           |
+| `@yosemite-crew/types`         | Shared domain and form types across web, mobile, and API.                                                                             |
+| `@yosemite-crew/fhir`          | FHIR R4 helpers.                                                                                                                      |
+| `@yosemite-crew/fhirtypes`     | FHIR R4 resource type definitions.                                                                                                    |
 | `@yosemite-crew/design-tokens` | Semantic token definitions. No app imports it yet; the live web palette is the `@theme` block in `apps/frontend/src/app/globals.css`. |
-| `@yosemite-crew/lib`           | Cross-workspace utilities.                                                    |
+| `@yosemite-crew/lib`           | Cross-workspace utilities.                                                                                                            |
 
 <br>
 
@@ -295,13 +291,13 @@ Open source is a promise about how the code is kept, not only about who can read
 
 # 📚 Documentation
 
-| Where                                                                  | What you will find                                      |
-| ---------------------------------------------------------------------- | ------------------------------------------------------- |
-| [Developer docs](./apps/dev-docs)                                      | The Docusaurus site for platform and API documentation. |
-| [Engineering wiki](https://github.com/YosemiteCrew/Yosemite-Crew/wiki) | The structured engineering knowledge base.              |
-| [Architecture guides](./docs/guide)                                    | PIMS architecture, realtime, notifications, analytics.  |
-| [Architecture decisions](./docs/adr)                                   | The record of why the platform is shaped as it is.      |
-| [DeepWiki](https://deepwiki.com/YosemiteCrew/Yosemite-Crew)            | An AI-generated tour of the codebase.                   |
+| Where                                                                  | What you will find                                                     |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [Developer docs](./apps/frontend/content/docs)                         | The documentation, served at /docs for platform and API documentation. |
+| [Engineering wiki](https://github.com/YosemiteCrew/Yosemite-Crew/wiki) | The structured engineering knowledge base.                             |
+| [Architecture guides](./docs/guide)                                    | PIMS architecture, realtime, notifications, analytics.                 |
+| [Architecture decisions](./docs/adr)                                   | The record of why the platform is shaped as it is.                     |
+| [DeepWiki](https://deepwiki.com/YosemiteCrew/Yosemite-Crew)            | An AI-generated tour of the codebase.                                  |
 
 <br>
 

@@ -15,7 +15,6 @@ server/dist
 public/dist
 .vscode
 
-apps/dev-docs/.docusaurus
 
 # auth keys file for firebase and oAuth config
 apps/mobileAppYC/android/app/src/main/res/values/strings.xml

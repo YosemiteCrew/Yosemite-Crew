@@ -47,7 +47,7 @@ describe('DeveloperDocs reader', () => {
       '/developers/home'
     );
     const openLink = screen.getByRole('link', { name: /Open full docs/i });
-    expect(openLink).toHaveAttribute('href', '/dev-docs/index.html');
+    expect(openLink).toHaveAttribute('href', '/docs');
     expect(openLink).toHaveAttribute('target', '_blank');
     expect(screen.getByRole('link', { name: /Edit on GitHub/i })).toBeInTheDocument();
 

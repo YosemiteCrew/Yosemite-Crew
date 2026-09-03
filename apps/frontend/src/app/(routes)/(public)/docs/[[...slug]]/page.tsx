@@ -72,6 +72,7 @@ export default async function DocsPage({ params }: Readonly<PageProps>) {
       title={entry.title}
       breadcrumb={breadcrumbFor(entry.slug)}
       tree={tree}
+      embedOpenApi={entry.id === 'openapi'}
       editUrl={`${GITHUB_EDIT_BASE}/${entry.file}`}
     />
   );

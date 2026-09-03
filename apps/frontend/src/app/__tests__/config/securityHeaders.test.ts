@@ -63,12 +63,22 @@ describe('security headers', () => {
     );
   });
 
-  test('applies a strict, tightly scoped CSP to the static dev-docs surface', async () => {
+  /*
+   * Scoped to the OpenAPI viewer alone. It was previously /dev-docs/:path*,
+   * covering the whole Docusaurus mirror; the documentation is now rendered by
+   * the app under the default strict policy, and only this standalone page
+   * needs to load Redoc from a CDN. A blocked script here renders the page
+   * empty with no visible error, so the exception is worth asserting.
+   */
+  test('allows the OpenAPI viewer to load Redoc, and nothing wider', async () => {
     const routes = await nextConfig.headers?.();
-    const devDocs = routes?.find((route) => route.source === '/dev-docs/:path*');
-    expect(devDocs).toBeDefined();
+    const viewer = routes?.find((route) => route.source === '/static/openapi/:path*');
+    expect(viewer).toBeDefined();
 
-    const csp = findHeader(devDocs?.headers as HeaderEntry[], 'Content-Security-Policy');
+    // The old, broader exception must be gone.
+    expect(routes?.find((route) => route.source === '/dev-docs/:path*')).toBeUndefined();
+
+    const csp = findHeader(viewer?.headers as HeaderEntry[], 'Content-Security-Policy');
     expect(csp).toBeDefined();
 
     const directives = parseCspDirectives(csp as string);
