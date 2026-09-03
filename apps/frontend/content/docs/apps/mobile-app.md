@@ -14,15 +14,7 @@ slug: /apps/mobile-app
 
 <h1 align="center">Yosemite Crew Mobile App</h1>
 
-<div align="center">
-
-[![React Native 0.81.4](https://img.shields.io/badge/React%20Native-0.81.4-61DAFB?logo=react)](https://reactnative.dev)
-[![PNPM](https://img.shields.io/badge/pnpm-F69220?logo=pnpm&logoColor=white)](https://pnpm.io)
-[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_MobileAppYC&metric=coverage)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_MobileAppYC)
-
-</div>
+[React Native](https://reactnative.dev) · [pnpm](https://pnpm.io) · [TypeScript](https://www.typescriptlang.org) · [Contributing](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) · [Coverage on SonarCloud](https://sonarcloud.io/project/overview?id=yosemitecrew_Yosemite-Crew_MobileAppYC)
 
 <div align="center">
 This directory contains the React Native mobile application for the **Yosemite Crew** open-source operating system for animal health. This app serves as the primary interface for pet parents to connect with veterinary service providers and manage their companion's health.
@@ -30,7 +22,7 @@ This directory contains the React Native mobile application for the **Yosemite C
 
 ## 📲 Store Links
 
-<div align="center"><a href="https://play.google.com/store/apps/details?id=com.mobileappyc&pcampaignid=web_share"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" width="200" alt="Get it on Google Play" align="middle" /></a>&nbsp;<a href="https://apps.apple.com/in/app/yosemite-crew/id6756180296"><img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" width="155" alt="Download on the App Store" align="middle" /></a></div>
+[Get it on Google Play](https://play.google.com/store/apps/details?id=com.mobileappyc) · [Download on the App Store](https://apps.apple.com/in/app/yosemite-crew/id6756180296)
 
 ## 📦 Release Versioning
 
