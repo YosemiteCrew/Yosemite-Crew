@@ -3,7 +3,9 @@ import { GuideVideo } from '@/app/features/guides/types/guides';
 const toSeconds = (duration: string): number | undefined => {
   const parts = duration.split(':');
   if (parts.length !== 2) return undefined;
-  const [minutes, seconds] = parts.map((part) => Number(part));
+  // `map(Number)`, not `map(parseInt)`: Number ignores the index and array
+  // arguments map passes, where parseInt would read the index as a radix.
+  const [minutes, seconds] = parts.map(Number);
   if (!Number.isFinite(minutes) || !Number.isFinite(seconds)) return undefined;
   return minutes * 60 + seconds;
 };
