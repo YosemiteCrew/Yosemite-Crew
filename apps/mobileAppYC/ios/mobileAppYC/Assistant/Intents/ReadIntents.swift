@@ -4,11 +4,23 @@ import Foundation
 /// Shared phrasing for the read-only intents.
 @available(iOS 16.0, *)
 private enum AssistantSpeech {
-  static func noPetMatch(_ name: String?) -> String {
+  /// Spoken when a pet cannot be resolved.
+  ///
+  /// The three cases are genuinely different and were previously collapsed
+  /// into one: an owner with several pets who named none was told to add a pet
+  /// first, which is both wrong and a dead end.
+  static func noPetMatch(_ name: String?, in snapshot: AssistantSnapshot) -> String {
     if let name, !name.isEmpty {
       return "I could not find a pet called \(name) in Yosemite Crew."
     }
-    return "Open Yosemite Crew and add a pet first."
+    if snapshot.pets.isEmpty {
+      return "Open Yosemite Crew and add a pet first."
+    }
+    let names = snapshot.pets.map(\.name)
+    let list = names.count == 2
+      ? "\(names[0]) or \(names[1])"
+      : names.dropLast().joined(separator: ", ") + ", or " + (names.last ?? "")
+    return "Which pet do you mean - \(list)?"
   }
 }
 
@@ -44,7 +56,7 @@ struct NextAppointmentIntent: AppIntent {
     guard let next = entries.first else {
       let name = pet?.name
       let dialog = scopeId == nil && snapshot.pets.isEmpty
-        ? AssistantSpeech.noPetMatch(name)
+        ? AssistantSpeech.noPetMatch(name, in: snapshot)
         : "There are no upcoming appointments booked."
       return .result(dialog: IntentDialog(stringLiteral: dialog))
     }
@@ -77,7 +89,9 @@ struct VaccinationStatusIntent: AppIntent {
     guard let resolved = AssistantSnapshotStore.pet(named: pet?.name, in: snapshot)
     else {
       return .result(
-        dialog: IntentDialog(stringLiteral: AssistantSpeech.noPetMatch(pet?.name))
+        dialog: IntentDialog(
+          stringLiteral: AssistantSpeech.noPetMatch(pet?.name, in: snapshot)
+        )
       )
     }
 
@@ -85,7 +99,7 @@ struct VaccinationStatusIntent: AppIntent {
     guard let soonest = due.first else {
       return .result(
         dialog: IntentDialog(
-          stringLiteral: "\(resolved.name) has no vaccinations due in the next month."
+          stringLiteral: "\(resolved.name) has no vaccinations due or overdue."
         )
       )
     }
