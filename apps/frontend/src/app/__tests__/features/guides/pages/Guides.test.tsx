@@ -52,12 +52,21 @@ describe('Guides page', () => {
   it('renders the warm-bone header and all seed guides', () => {
     render(<ProtectedGuides />);
     expect(screen.getByRole('heading', { name: /Guides \(6\)/ })).toBeInTheDocument();
+    /* The runtime is derived from the library, not asserted in the markup: the
+       header claimed "2-6 minutes each" above guides that run 2:56 to 6:02,
+       so even the low end was wrong. And "Short, practical walkthroughs" used to be on BOTH lines, with
+       neither hidden at any width, so the phrase appeared twice on screen. */
+    /* A function matcher, because the runtime is interpolated: the line is two
+       text nodes, and a plain string query only ever sees one of them. */
     expect(
-      screen.getByText('Short, practical walkthroughs · 2-6 minutes each')
+      screen.getByText(
+        (_, el) =>
+          el?.tagName === 'SPAN' &&
+          el.textContent === 'Short, practical walkthroughs · 3–6 minutes each'
+      )
     ).toBeInTheDocument();
-    expect(
-      screen.getByText('Short, practical walkthroughs · updated with each release')
-    ).toBeInTheDocument();
+    expect(screen.getByText('Updated with each release')).toBeInTheDocument();
+    expect(screen.getAllByText(/Short, practical walkthroughs/)).toHaveLength(1);
     expect(allCards()).toHaveLength(6);
     expect(cardButton('Your first day in the PIMS')).toBeInTheDocument();
     expect(cardButton('Connect IDEXX in 5 minutes')).toBeInTheDocument();

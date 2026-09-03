@@ -15,6 +15,7 @@ import FilteredEmptyState from '@/app/ui/layout/states/FilteredEmptyState';
 import { guidesData } from '@/app/features/guides/data/guidesData';
 import { GuideVideo } from '@/app/features/guides/types/guides';
 import FilterChip from '@/app/ui/filters/FilterChip';
+import { runtimeSummary } from '@/app/features/guides/utils/runtimeSummary';
 
 const ALL_CATEGORY = 'All';
 /* The persona row's "everyone" option, distinct from the guides labelled for
@@ -144,12 +145,13 @@ export const Guides = () => {
             />
           </h1>
           <span className="text-[13.5px] text-[var(--ink-muted)]">
-            Short, practical walkthroughs · 2-6 minutes each
+            Short, practical walkthroughs · {runtimeSummary(guidesData)}
           </span>
         </div>
-        <span className="text-[12.5px] text-[var(--ink-faint)]">
-          Short, practical walkthroughs · updated with each release
-        </span>
+        {/* "Short, practical walkthroughs" was on BOTH of these, and neither is
+            hidden at any width, so the phrase appeared twice on screen at once.
+            This side carries only what the other does not say. */}
+        <span className="text-[12.5px] text-[var(--ink-faint)]">Updated with each release</span>
       </div>
 
       {/* Two rows, because they answer different questions: who are you, then
