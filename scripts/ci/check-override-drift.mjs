@@ -36,14 +36,26 @@
  * Exits non-zero if any override contradicts a declaration.
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const semver = require('semver');
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
+const repoRoot = resolve(join(dirname(fileURLToPath(import.meta.url)), '../..'));
+
+/**
+ * Resolve `segments` under `base` and return the path only if it stays inside the
+ * repository. `root` is a parameter so the tests can point at a fixture directory;
+ * this keeps that from becoming a way to read arbitrary files.
+ */
+export function containedPath(base, ...segments) {
+  const target = resolve(base, ...segments);
+  const anchor = resolve(base);
+  if (target !== anchor && !target.startsWith(anchor + sep)) return null;
+  return target;
+}
 
 /**
  * Drift we knowingly tolerate, each with the reason. An entry here is a bug being
@@ -52,7 +64,7 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
  * Key is `<package>@<pinned>`, so raising the pin retires the entry automatically
  * rather than leaving a stale exemption behind.
  */
-export const ALLOWED = new Map([]);
+export const ALLOWED = new Map();
 
 /** Every first-party manifest, root last so its own overrides block is skippable. */
 export function manifestPaths(root = repoRoot) {
@@ -61,7 +73,8 @@ export function manifestPaths(root = repoRoot) {
     const dir = join(root, group);
     if (!existsSync(dir)) continue;
     for (const name of readdirSync(dir)) {
-      const file = join(dir, name, 'package.json');
+      const file = containedPath(dir, name, 'package.json');
+      if (!file) continue;
       if (existsSync(file)) out.push(file);
     }
   }
@@ -107,30 +120,41 @@ export function classify(name, pinned, declared, file) {
 }
 
 /**
- * Versions of `name` the lockfile actually resolves.
+ * Every version the lockfile resolves, indexed by package name.
+ *
+ * Read once per run. An earlier shape re-read and re-scanned the whole lockfile for
+ * each override, which is 111 full passes over a 2 MB file to answer 111 questions
+ * that one pass answers.
  *
  * Deliberately NOT read from `node_modules/.pnpm`: that directory retains
- * previously-installed versions until it is pruned, so a stale store reports a
- * split that no longer exists. An early draft of this check did exactly that and
- * reported validator 13.15.26 and 13.15.35 as coexisting when only one was
- * resolved. The lockfile is the only authority on what a fresh install produces.
+ * previously-installed versions until it is pruned, so a stale store reports a split
+ * that no longer exists. An early draft did exactly that and reported validator
+ * 13.15.26 and 13.15.35 as coexisting when only one was resolved. The lockfile is the
+ * only authority on what a fresh install produces.
  */
-export function resolvedVersions(name, root = repoRoot) {
-  const found = new Set();
-  const lock = join(root, 'pnpm-lock.yaml');
-  if (!existsSync(lock)) return found;
-  const text = readFileSync(lock, 'utf8');
+export function lockfileIndex(root = repoRoot) {
+  const index = new Map();
+  const lock = containedPath(root, 'pnpm-lock.yaml');
+  if (!lock || !existsSync(lock)) return index;
   // Package entries are `  /<name>@<version>(peers...):` at two-space indent.
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`^ {2}/${escaped}@([0-9][^()\\s:]*)`, 'gm');
-  for (const m of text.matchAll(re)) {
-    if (semver.valid(m[1])) found.add(m[1]);
+  const re = /^ {2}\/((?:@[^/@\s]+\/)?[^@\s/]+)@([0-9][^()\s:]*)/gm;
+  for (const m of readFileSync(lock, 'utf8').matchAll(re)) {
+    if (!semver.valid(m[2])) continue;
+    if (!index.has(m[1])) index.set(m[1], new Set());
+    index.get(m[1]).add(m[2]);
   }
-  return found;
+  return index;
+}
+
+/** Versions of one package the lockfile resolves. Kept for direct querying. */
+export function resolvedVersions(name, root = repoRoot) {
+  return lockfileIndex(root).get(name) ?? new Set();
 }
 
 export function findDrift({ root = repoRoot, overrides, manifests } = {}) {
-  const rootPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  const rootPkgPath = containedPath(root, 'package.json');
+  if (!rootPkgPath) throw new Error(`refusing to read outside ${root}`);
+  const rootPkg = JSON.parse(readFileSync(rootPkgPath, 'utf8'));
   const pins = overrides ?? rootPkg.pnpm?.overrides ?? {};
   const files = manifests ?? manifestPaths(root);
 
@@ -146,6 +170,8 @@ export function findDrift({ root = repoRoot, overrides, manifests } = {}) {
     }
   }
 
+  const lockIndex = lockfileIndex(root);
+
   const findings = [];
   for (const [key, pinned] of Object.entries(pins)) {
     if (!isBareName(key)) continue;
@@ -159,7 +185,7 @@ export function findDrift({ root = repoRoot, overrides, manifests } = {}) {
     // override and a declaration can both be satisfied and still produce two
     // copies. Report only when more than one version is actually on disk AND
     // the pin is one of them, which is the shape that is the override's fault.
-    const present = resolvedVersions(key, root);
+    const present = lockIndex.get(key) ?? new Set();
     if (present.size > 1 && present.has(pinned)) {
       const higher = [...present].filter((v) => semver.gt(v, pinned));
       if (higher.length && (declarations.get(key) ?? []).length) {
