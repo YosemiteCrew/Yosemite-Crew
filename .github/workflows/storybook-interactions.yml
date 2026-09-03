@@ -83,5 +83,5 @@ jobs:
         continue-on-error: true
         run: |
           pnpm --filter frontend exec concurrently -k -s first -n "SB,TEST" \
-            "pnpm --filter frontend exec http-server apps/frontend/storybook-static --port 6006 --silent" \
-            "pnpm --filter frontend exec wait-on http://127.0.0.1:6006/index.json && pnpm --filter frontend exec test-storybook --maxWorkers=2 --shard=${{ matrix.shard }}/4"
+            "pnpm --filter frontend exec http-server storybook-static --port 6006 --silent" \
+            "pnpm --filter frontend exec wait-on -t 120000 http://127.0.0.1:6006/index.json && pnpm --filter frontend exec test-storybook --maxWorkers=2 --shard=${{ matrix.shard }}/4"
