@@ -8,7 +8,7 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoneyPrecise, recordCurrency } from '@/app/lib/money';
 import { toNumberSafe, toTitle } from '@/app/lib/validators';
 import { useInvoicesForPrimaryOrgAppointment } from '@/app/hooks/useInvoices';
 import InvoicePaymentActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions';
@@ -61,6 +61,13 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
   );
 
   const actionInvoice = payableInvoice ?? latestInvoice;
+  /* formatMoneyPrecise and the invoice's OWN currency, matching
+     InvoiceSummaryPanel on the Finance page. These four rows used formatMoney,
+     which rounds to whole units, and the ambient org currency - so one invoice
+     read "$1,235" on the appointment's Finance tab and "$1,234.50" on the
+     Finance page, and a euro invoice was labelled in dollars. Figures that are
+     meant to reconcile cannot round differently. */
+  const invoiceCurrency = recordCurrency(actionInvoice, currency);
 
   const showCashRefundDisclaimer = useMemo(() => {
     const normalizedAppointmentStatus = String(activeAppointment.status ?? '').toUpperCase();
@@ -141,25 +148,25 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
               <div className="text-body-4-emphasis text-text-tertiary">Subtotal: </div>
               <div className="text-body-4 text-text-primary text-right">
-                {formatMoney(totals.subtotal, currency)}
+                {formatMoneyPrecise(totals.subtotal, invoiceCurrency)}
               </div>
             </div>
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
               <div className="text-body-4-emphasis text-text-tertiary">Discount: </div>
               <div className="text-body-4 text-text-primary text-right">
-                {formatMoney(totals.discount, currency)}
+                {formatMoneyPrecise(totals.discount, invoiceCurrency)}
               </div>
             </div>
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
               <div className="text-body-4-emphasis text-text-tertiary">Tax: </div>
               <div className="text-body-4 text-text-primary text-right">
-                {formatMoney(totals.tax, currency)}
+                {formatMoneyPrecise(totals.tax, invoiceCurrency)}
               </div>
             </div>
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
               <div className="text-body-4-emphasis text-text-tertiary">Estimated total: </div>
               <div className="text-body-4 text-text-primary text-right">
-                {formatMoney(totals.total, currency)}
+                {formatMoneyPrecise(totals.total, invoiceCurrency)}
               </div>
             </div>
             {actionInvoice ? (
