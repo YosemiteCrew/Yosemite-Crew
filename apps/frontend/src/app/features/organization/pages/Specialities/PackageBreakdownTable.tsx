@@ -253,7 +253,7 @@ const PackageBreakdownTable = ({
                       type="button"
                       aria-label={`Remove ${item.name}`}
                       onClick={() => onRemoveItem?.(item.id)}
-                      className="flex items-center justify-center size-7 rounded-full border border-transparent hover:border-danger-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600"
+                      className="flex items-center justify-center size-8 rounded-full border border-transparent hover:border-danger-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600"
                     >
                       <IoTrash size={16} color="var(--color-danger-600)" aria-hidden="true" />
                     </button>

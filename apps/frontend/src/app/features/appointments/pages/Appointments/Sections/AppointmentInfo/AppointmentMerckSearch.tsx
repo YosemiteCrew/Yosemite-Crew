@@ -108,9 +108,9 @@ const getAppointmentEntriesContent = (
           onClick={() => globalThis.window.open(entry.primaryUrl, '_blank', 'noopener,noreferrer')}
           aria-label="Open in new tab"
           title="Open in new tab"
-          className="flex size-9 items-center justify-center rounded-full! border border-hairline text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
+          className="flex size-10 items-center justify-center rounded-full! border border-hairline text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
         >
-          <IoOpenOutline size={15} />
+          <IoOpenOutline size={16} />
         </button>
         <button
           type="button"
@@ -119,9 +119,9 @@ const getAppointmentEntriesContent = (
           }}
           aria-label="Copy manual URL"
           title="Copy URL"
-          className="flex size-9 items-center justify-center rounded-full! border border-hairline text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
+          className="flex size-10 items-center justify-center rounded-full! border border-hairline text-[var(--ink-body)] transition-colors hover:bg-[var(--card-hover)]"
         >
-          <IoCopyOutline size={15} />
+          <IoCopyOutline size={16} />
         </button>
       </div>
 
