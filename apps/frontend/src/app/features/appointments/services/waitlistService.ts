@@ -61,7 +61,7 @@ export const fetchWaitlist = async (organisationId: string): Promise<WaitlistEnt
   try {
     const res = await getData<WaitlistEntry[]>(waitlistPath(organisationId));
     if (!Array.isArray(res.data)) {
-      console.warn('Waitlist response is not an array', res.data);
+      console.warn('Waitlist response is not an array; got', typeof res.data);
       return [];
     }
     return res.data;
