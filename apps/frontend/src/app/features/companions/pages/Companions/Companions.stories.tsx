@@ -678,7 +678,11 @@ export const SearchWithNoMatches: Story = {
        search bar and the desktop shell header both feed it - so the directory
        can open already filtered, which is the case worth drawing. */
     await expect(rowNames(canvasElement)).toEqual([]);
-    await expect(canvas.getByText('No data available')).toBeVisible();
+    /* "No patients yet", which is what CompanionsTable actually renders at all
+       three of its empty branches. This asserted the retired NoDataMessage
+       default and had been failing silently - a Storybook play failure is
+       invisible unless something reads the addons channel. */
+    await expect(canvas.getByText('No patients yet')).toBeVisible();
 
     /* And the pager is not rendered at all rather than showing "0 of 0", so the
        empty list loses the only line that would have said why. */
