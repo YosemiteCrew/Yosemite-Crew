@@ -11,6 +11,9 @@ import { sendEmail } from "src/utils/email";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    // The array form runs the batched queries and returns their results in
+    // order, which is all the list path needs from a transaction here.
+    $transaction: jest.fn((operations) => Promise.all(operations)),
     organization: { findUnique: jest.fn(), update: jest.fn() },
     bookingSlugReservation: { findUnique: jest.fn() },
     productItem: { findMany: jest.fn(), count: jest.fn() },
@@ -38,6 +41,7 @@ jest.mock("src/utils/logger", () => ({
 }));
 
 const pm = prisma as unknown as {
+  $transaction: jest.Mock;
   organization: { findUnique: jest.Mock; update: jest.Mock };
   bookingSlugReservation: { findUnique: jest.Mock };
   productItem: { findMany: jest.Mock; count: jest.Mock };
@@ -737,17 +741,59 @@ describe("public-booking.service", () => {
   });
 
   describe("practice queue", () => {
-    it("never lists unconfirmed requests", async () => {
+    it("queries actionable and history separately so history cannot hide actionable", async () => {
       pm.publicBookingRequest.findMany.mockResolvedValue([]);
 
       await PublicBookingRequestService.listForOrganisation("org-1");
 
-      const where = pm.publicBookingRequest.findMany.mock.calls[0][0].where;
-      expect(where.status).toEqual({ in: ["CONFIRMED", "DECLINED", "BOOKED"] });
-      expect(where.organizationId).toBe("org-1");
+      // Two queries, not one shared capped page: a past-dated backlog of
+      // BOOKED/DECLINED can never push a future CONFIRMED request off the end.
+      expect(pm.publicBookingRequest.findMany).toHaveBeenCalledTimes(2);
+      const [actionableCall, historyCall] =
+        pm.publicBookingRequest.findMany.mock.calls;
+
+      expect(actionableCall[0].where).toEqual({
+        organizationId: "org-1",
+        status: "CONFIRMED",
+      });
+      expect(actionableCall[0].take).toBe(200);
+
+      expect(historyCall[0].where).toEqual({
+        organizationId: "org-1",
+        status: { in: ["BOOKED", "DECLINED"] },
+      });
+      // History is context, so it gets a smaller slice than actionable.
+      expect(historyCall[0].take).toBe(50);
     });
 
-    it("honours an explicit status filter", async () => {
+    it("reads both buckets in one RepeatableRead snapshot", async () => {
+      pm.publicBookingRequest.findMany.mockResolvedValue([]);
+
+      await PublicBookingRequestService.listForOrganisation("org-1");
+
+      // A status change committed between two independent reads could duplicate
+      // a row's id across the buckets or drop it; a single snapshot cannot.
+      expect(pm.$transaction).toHaveBeenCalledTimes(1);
+      expect(pm.$transaction.mock.calls[0][1]).toEqual({
+        isolationLevel: "RepeatableRead",
+      });
+    });
+
+    it("returns actionable requests ahead of history", async () => {
+      pm.publicBookingRequest.findMany
+        .mockResolvedValueOnce([{ id: "c1", status: "CONFIRMED" }])
+        .mockResolvedValueOnce([
+          { id: "b1", status: "BOOKED" },
+          { id: "d1", status: "DECLINED" },
+        ]);
+
+      const result =
+        await PublicBookingRequestService.listForOrganisation("org-1");
+
+      expect(result.map((request) => request.id)).toEqual(["c1", "b1", "d1"]);
+    });
+
+    it("honours an explicit status filter with a single query", async () => {
       pm.publicBookingRequest.findMany.mockResolvedValue([]);
 
       await PublicBookingRequestService.listForOrganisation(
@@ -755,6 +801,7 @@ describe("public-booking.service", () => {
         "DECLINED",
       );
 
+      expect(pm.publicBookingRequest.findMany).toHaveBeenCalledTimes(1);
       expect(
         pm.publicBookingRequest.findMany.mock.calls[0][0].where.status,
       ).toBe("DECLINED");
