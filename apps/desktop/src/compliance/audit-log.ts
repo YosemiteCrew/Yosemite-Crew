@@ -22,6 +22,23 @@ export interface AuditEntry {
   // chain (empty string for the genesis entry).
   prevSignature: string;
   signature: string;
+  /**
+   * Which key signed this entry - a truncated HMAC of a fixed label under that
+   * key, so it identifies the key without being usable to recover it.
+   *
+   * Optional because entries written before this existed carry none. An absent
+   * stamp is NOT treated as foreign: those entries were signed with the stored
+   * key, so they verify normally while it reads.
+   *
+   * Without it a degraded session was unattributable after the fact. The
+   * keychain being unreadable is handled at startup - the stored key is left
+   * alone and the session signs with a temporary one - but nothing recorded
+   * WHICH entries that applied to, so once the keychain recovered those rows
+   * failed verify() forever and the trail reported "Tampered" with no
+   * explanation. On the controlled-substance register that is a compliance
+   * alarm nobody can clear (#2553).
+   */
+  keyId?: string;
 }
 
 /**
@@ -29,7 +46,10 @@ export interface AuditEntry {
  * only exists in memory is not an audit entry, so this must reach the caller.
  */
 export class AuditWriteError extends Error {
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown
+  ) {
     super(message);
     this.name = 'AuditWriteError';
   }
@@ -50,7 +70,9 @@ export interface AuditLog {
   getRange: (start: number, end: number) => AuditEntry[];
   size: () => number;
   verify: (entry: AuditEntry) => boolean;
-  verifyAll: () => { valid: number; tampered: number };
+  /** `otherKey` are entries a different signing key produced - unverifiable
+   *  here, and explicitly not tampered. */
+  verifyAll: () => { valid: number; tampered: number; otherKey: number };
   // Verifies the full hash chain: each entry's stored prevSignature must match
   // the actual prior entry, catching deletion, insertion and reordering.
   //
@@ -123,9 +145,26 @@ const generateId = (): string => `audit-${Date.now()}-${++idCounter}`;
 
 // Keyed HMAC-SHA256 over the entry and the previous signature. Without the key
 // the signature cannot be recomputed, so editing the JSON file is detectable.
+/**
+ * A stable, non-reversible identifier for a signing key.
+ *
+ * An HMAC of a fixed label under the key, truncated to 16 hex characters. The
+ * label is constant so the same key always yields the same id, and the HMAC is
+ * one-way so an id on disk reveals nothing about the key that produced it.
+ */
+const KEY_ID_LABEL = 'yosemite-audit-key-id/v1';
+
+export const computeKeyId = (key: string): string =>
+  crypto.createHmac('sha256', key).update(KEY_ID_LABEL).digest('hex').slice(0, 16);
+
 const computeSignature = (entry: Omit<AuditEntry, 'signature'>, key: string): string => {
   const payload = `${entry.id}|${entry.timestamp}|${entry.action}|${entry.actor}|${entry.resourceType}|${entry.resourceId}|${JSON.stringify(entry.details)}|${entry.prevSignature}`;
-  return crypto.createHmac('sha256', key).update(payload).digest('hex');
+  /* keyId joins the signed payload only when present, so an entry written
+     before this field existed hashes to exactly what it did then and still
+     verifies. A new entry covers it, so the provenance cannot be edited to
+     disguise a foreign key as the current one. */
+  const withProvenance = entry.keyId ? `${payload}|${entry.keyId}` : payload;
+  return crypto.createHmac('sha256', key).update(withProvenance).digest('hex');
 };
 
 export const createAuditLog = async (dirPath: string, deps: AuditDeps = {}): Promise<AuditLog> => {
@@ -265,6 +304,8 @@ export const createAuditLog = async (dirPath: string, deps: AuditDeps = {}): Pro
     now,
   });
 
+  const currentKeyId = computeKeyId(key);
+
   const load = (): AuditEntry[] => store.readAll();
 
   const append = (
@@ -277,6 +318,9 @@ export const createAuditLog = async (dirPath: string, deps: AuditDeps = {}): Pro
       id: generateId(),
       timestamp: now(),
       prevSignature,
+      // Stamped from the key actually in hand, whether or not it is the stored
+      // one. That is the whole point: a temporary key must leave a trace.
+      keyId: currentKeyId,
     };
     const entry: AuditEntry = {
       ...unsigned,
@@ -334,6 +378,19 @@ export const createAuditLog = async (dirPath: string, deps: AuditDeps = {}): Pro
 
   const size = (): number => load().length;
 
+  /**
+   * Whether this entry was signed by a key other than the one in hand.
+   *
+   * Requires a stamp that is PRESENT and different. An absent stamp means the
+   * entry predates the field, and those were signed with the stored key - so if
+   * that key still reads, they verify normally and belong in `valid`. Treating
+   * absence as foreign would move every entry of every existing install into
+   * `otherKey` and make getIntegrity report ok:false forever, which is a worse
+   * false alarm than the one this exists to remove. A test covers it.
+   */
+  const signedByAnotherKey = (entry: AuditEntry): boolean =>
+    entry.keyId !== undefined && entry.keyId !== currentKeyId;
+
   const verify = (entry: AuditEntry): boolean => {
     const { signature, ...rest } = entry;
     const candidate = computeSignature(rest, key);
@@ -341,15 +398,23 @@ export const createAuditLog = async (dirPath: string, deps: AuditDeps = {}): Pro
     return crypto.timingSafeEqual(Buffer.from(candidate), Buffer.from(signature));
   };
 
-  const verifyAll = (): { valid: number; tampered: number } => {
+  /**
+   * `otherKey` counts entries a different key signed - during a session where
+   * the stored key was unreadable, for instance. They are NOT tampered, and
+   * counting them as such is the false alarm this exists to prevent. They stay
+   * out of `valid` too, because nothing here can vouch for them.
+   */
+  const verifyAll = (): { valid: number; tampered: number; otherKey: number } => {
     const entries = load();
     let valid = 0;
     let tampered = 0;
+    let otherKey = 0;
     for (const entry of entries) {
-      if (verify(entry)) valid++;
+      if (signedByAnotherKey(entry)) otherKey++;
+      else if (verify(entry)) valid++;
       else tampered++;
     }
-    return { valid, tampered };
+    return { valid, tampered, otherKey };
   };
 
   const verifyChain = (): boolean => {
@@ -357,6 +422,13 @@ export const createAuditLog = async (dirPath: string, deps: AuditDeps = {}): Pro
     let prev = '';
     for (const entry of entries) {
       if (entry.prevSignature !== prev) return false;
+      /* Deliberately NOT skipped for a foreign key. Skipping looks reasonable -
+         the HMAC genuinely cannot be recomputed without that key - but it opens
+         a hole: edit an entry's contents, overwrite its keyId with any other
+         value, and it is excused from verification and the chain walks clean.
+         A test drives exactly that. Without the old key an edit under it is
+         undetectable, so the honest answer is that the chain cannot be attested,
+         never that it is intact. `getIntegrity` explains why. */
       if (!verify(entry)) return false;
       prev = entry.signature;
     }
@@ -373,7 +445,26 @@ export const createAuditLog = async (dirPath: string, deps: AuditDeps = {}): Pro
 
   const getIntegrity = (): AuditIntegrity => {
     const health = store.health();
-    if (keyState.persisted) return { ...health, signingKey: 'persisted' };
+    if (keyState.persisted) {
+      /* Entries a different key signed are unverifiable here even though the
+         stored key is readable again - a window where the keychain was down.
+         Saying so is the point of #2553: the alternative was a permanent
+         "Tampered" with no reason line, which reads as a breach. */
+      const foreign = load().filter(signedByAnotherKey).length;
+      if (foreign > 0) {
+        const foreignReason =
+          `${foreign} ${foreign === 1 ? 'entry was' : 'entries were'} signed with a different key, ` +
+          `recorded while the stored signing key could not be read; their signatures cannot be ` +
+          `re-checked and this is not evidence of tampering`;
+        return {
+          ...health,
+          ok: false,
+          reason: health.reason ? `${health.reason}; ${foreignReason}` : foreignReason,
+          signingKey: 'persisted',
+        };
+      }
+      return { ...health, signingKey: 'persisted' };
+    }
     const keyReason =
       `the audit signing key could not be read (${keyState.reason}), so this session signs with a ` +
       `temporary key; earlier entries cannot be verified until the stored key is readable again`;
