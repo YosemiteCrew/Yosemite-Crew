@@ -7,6 +7,23 @@ expect.extend(toHaveNoViolations);
 
 import ProtectedGuides from '@/app/features/guides/pages/Guides';
 
+/* A getter-backed override so ONE test can render an empty library without a
+   second module registry. `jest.isolateModules` + `require` pulled in a second
+   copy of React and every hook call threw. */
+let mockGuidesOverride: unknown[] | null = null;
+jest.mock('@/app/features/guides/data/guidesData', () => {
+  const actual = jest.requireActual('@/app/features/guides/data/guidesData');
+  return {
+    get guidesData() {
+      return mockGuidesOverride ?? actual.guidesData;
+    },
+  };
+});
+
+afterEach(() => {
+  mockGuidesOverride = null;
+});
+
 jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   __esModule: true,
   default: ({ children }: any) => <>{children}</>,
@@ -153,6 +170,19 @@ describe('Guides page', () => {
     fireEvent.change(screen.getByLabelText('Search guides'), { target: { value: 'nonsense' } });
     expect(allCards()).toHaveLength(0);
     expect(screen.getByText('No guides match your search')).toBeInTheDocument();
+  });
+
+  it('does not blame the search when the library itself is empty', () => {
+    /* FilteredEmptyState offers "Clear filters" and tells the reader to try a
+       different search. With nothing in the library that is a dead end: no
+       filter change can help. Same defect the finance phone band had, blaming
+       filters that were never applied. */
+    mockGuidesOverride = [];
+    render(<ProtectedGuides />);
+
+    expect(screen.getByText('No guides yet')).toBeInTheDocument();
+    expect(screen.queryByText('No guides match your search')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
   });
 
   it('clears filters from the empty state to restore the grid', () => {

@@ -170,6 +170,13 @@ const AvailabilityTable = ({
       <div className="table-list">
         <GenericTable
           itemNoun="time slots"
+          /* The card branch below is `xl:hidden` and said "No availability set /
+             Set consultation hours for a practitioner and they appear here",
+             while this table said "No time slots yet". Same widget, two
+             different sentences either side of 1280px. The card wording wins:
+             it tells the reader what to do. */
+          emptyTitle="No availability set"
+          emptySubtitle="Set consultation hours for a practitioner and they appear here."
           data={filteredList}
           columns={finalColoumns}
           bordered={false}

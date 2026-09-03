@@ -128,6 +128,13 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
       <div className="table-list hidden xl:flex h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
         <GenericTable
           itemNoun="items"
+          /* The `xl:hidden` card branch said "No turnover to report / Turnover
+             appears once stock has moved in this period" while this said "No
+             items yet" - different claims, not different wording: one implies
+             an empty catalogue, the other that stock has not moved. The card
+             copy is the accurate one. */
+          emptyTitle="No turnover to report"
+          emptySubtitle="Turnover appears once stock has moved in this period."
           data={filteredList}
           columns={columns}
           bordered={false}

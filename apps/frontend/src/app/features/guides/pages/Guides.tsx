@@ -1,4 +1,5 @@
 'use client';
+import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
 import Image from 'next/image';
 import React, { useMemo, useState } from 'react';
 import { IoArrowForward, IoInformationCircleOutline, IoPlay } from 'react-icons/io5';
@@ -125,6 +126,23 @@ export const Guides = () => {
     setSearch('');
     setActiveCategory(ALL_CATEGORY);
   };
+
+  /* An empty LIBRARY is not an empty search result. FilteredEmptyState offers
+     "Clear filters" and tells the reader to try a different search, which is a
+     dead end when there is nothing to search - the same defect the finance
+     phone band had, blaming filters that were never applied. Hoisted out of the
+     JSX because nesting it inline is a nested ternary. */
+  const emptyState =
+    guidesData.length === 0 ? (
+      <NoDataMessage {...emptyStateCopy('guides')} />
+    ) : (
+      <FilteredEmptyState
+        title="No guides match your search"
+        message="Try a different search or pick another category."
+        onClearFilters={handleClearFilters}
+        clearLabel="Clear filters"
+      />
+    );
 
   return (
     <div className="yc-page-content">
@@ -272,12 +290,7 @@ export const Guides = () => {
           ))}
         </div>
       ) : (
-        <FilteredEmptyState
-          title="No guides match your search"
-          message="Try a different search or pick another category."
-          onClearFilters={handleClearFilters}
-          clearLabel="Clear filters"
-        />
+        emptyState
       )}
 
       <GuidePlayerModal

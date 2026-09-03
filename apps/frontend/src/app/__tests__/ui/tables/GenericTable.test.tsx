@@ -16,6 +16,46 @@ describe('GenericTable', () => {
     jest.restoreAllMocks();
   });
 
+  it('lets a surface override the derived empty state', () => {
+    /* Two dashboard widgets have an `xl:hidden` card branch whose copy is more
+       useful than "No <noun> yet" - the availability one tells the reader to set
+       consultation hours, the turnover one distinguishes "no items" from "stock
+       has not moved". Without an override those widgets said two different
+       things either side of 1280px. */
+    render(
+      <GenericTable
+        data={[]}
+        itemNoun="time slots"
+        emptyTitle="No availability set"
+        emptySubtitle="Set consultation hours for a practitioner and they appear here."
+        columns={[{ key: 'name', label: 'Name' }]}
+      />
+    );
+
+    expect(screen.getByText('No availability set')).toBeInTheDocument();
+    expect(
+      screen.getByText('Set consultation hours for a practitioner and they appear here.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('No time slots yet')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the noun when only one half of the override is given', () => {
+    render(
+      <GenericTable
+        data={[]}
+        itemNoun="time slots"
+        emptyTitle="No availability set"
+        columns={[{ key: 'name', label: 'Name' }]}
+      />
+    );
+
+    expect(screen.getByText('No availability set')).toBeInTheDocument();
+    // The subtitle still comes from the noun rather than disappearing.
+    expect(
+      screen.getByText('Time slots appear here as soon as there are any.')
+    ).toBeInTheDocument();
+  });
+
   it('renders an optional accessible caption and scoped column headers', () => {
     render(
       <GenericTable

@@ -1,4 +1,5 @@
 'use client';
+import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
 import React, { useMemo } from 'react';
 import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
@@ -222,11 +223,17 @@ const PhoneInvoiceList = ({
       </div>
 
       {filteredList.length === 0 ? (
-        <output
-          className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary"
-          aria-live="polite"
-        >
-          No invoices match the current filters.
+        /* Same derived copy as InvoiceTable's three bands. This said "No
+           invoices match the current filters." while the tables said "No
+           invoices yet", and because Finance/index.tsx branches on `isPhone`
+           the two never render together - so a clinic with zero invoices was
+           told on a phone that its filters hid them and on a laptop that it had
+           none. Fixing InvoiceTable's own phone band was not enough: that band
+           is unreachable on a real phone, where THIS component is what renders.
+           The `output`/`aria-live` wrapper stays; it is the one announced empty
+           state on the finance screen. */
+        <output className="w-full" aria-live="polite">
+          <NoDataMessage {...emptyStateCopy('invoices')} />
         </output>
       ) : (
         <div className="flex flex-col gap-2.5">
