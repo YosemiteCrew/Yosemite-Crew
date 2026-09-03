@@ -1,4 +1,5 @@
 'use client';
+import FilterChip from '@/app/ui/filters/FilterChip';
 import React from 'react';
 import clsx from 'clsx';
 import { IoAdd } from 'react-icons/io5';
@@ -96,27 +97,17 @@ const TaskFilterBar = ({
           const isActive = activeFilter === option.key;
           const isParent = option.key === PARENT_AUDIENCE_KEY;
           return (
-            <button
+            /* Was a hand-rolled 28px chip with 14px padding and 12px type, drawn
+               from the same --chip-selected-* tokens as the shared one but two
+               sizes down from it. The task board's filters are the same control
+               as Finance's and Guides'. */
+            <FilterChip
               key={option.key}
-              type="button"
-              aria-pressed={isActive}
+              label={option.name}
+              active={isActive}
               onClick={() => toggleFilter(option.key)}
-              className={clsx(
-                'inline-flex h-7 items-center gap-1.5 rounded-full border px-3.5 text-[12px] transition-colors',
-                isActive
-                  ? 'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]'
-                  : 'border-[var(--hairline)] font-semibold text-[var(--ink-muted)] hover:bg-card-hover'
-              )}
-            >
-              {isParent && (
-                <span
-                  aria-hidden="true"
-                  className="size-1.5 rounded-full"
-                  style={{ backgroundColor: 'var(--pink)' }}
-                />
-              )}
-              {option.name}
-            </button>
+              dotColor={isParent ? 'var(--pink)' : undefined}
+            />
           );
         })}
 
