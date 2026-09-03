@@ -1,0 +1,78 @@
+name: Storybook Interactions
+
+# Runs the stories' `play` functions against a built Storybook, so the
+# interaction assertions are executed by something rather than only by a human
+# opening the panel.
+#
+# ADVISORY, deliberately. `continue-on-error` is set and this job is NOT part of
+# the `CI Required` aggregate. A full run on dev currently reports 113 failing
+# tests out of 3366, so making it required today would block every merge on a
+# backlog nobody has triaged. #2281 offers exactly this - land advisory, promote
+# once it has been green for a while - and the promotion is a one-line change:
+# drop `continue-on-error` and add this job to the required contexts.
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'apps/frontend/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/storybook-interactions.yml'
+  push:
+    branches: [main, dev]
+    paths:
+      - 'apps/frontend/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/storybook-interactions.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: storybook-interactions-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  interactions:
+    name: Storybook play functions (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Only chromium. The runner defaults to it, and installing three engines
+      # costs minutes for coverage the play functions do not use.
+      - name: Install Playwright chromium
+        run: pnpm --filter frontend exec playwright install chromium --with-deps
+
+      - name: Build Storybook
+        run: pnpm --filter frontend run storybook:build
+
+      # concurrently + http-server + wait-on is the combination the test-runner
+      # documents for CI: serve the static build, wait for it, run, tear down.
+      - name: Run play functions
+        continue-on-error: true
+        run: |
+          pnpm --filter frontend exec concurrently -k -s first -n "SB,TEST" \
+            "pnpm --filter frontend exec http-server apps/frontend/storybook-static --port 6006 --silent" \
+            "pnpm --filter frontend exec wait-on http://127.0.0.1:6006/index.json && pnpm --filter frontend run test:storybook:ci"
