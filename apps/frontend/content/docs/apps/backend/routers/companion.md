@@ -1,0 +1,75 @@
+---
+id: backend-api-companion
+title: Companion API
+slug: /apps/backend/api/companion
+---
+
+Manages companion (pet) records: create, read, update, delete, profile image uploads, and search. Routes without a prefix are called by the mobile app (pet parents); routes under `/org` are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions.
+
+**Endpoints**
+
+### POST /
+
+- Auth: `requireMobileAuth`
+- Controller: `CompanionController.createCompanionMobile`
+- Response: `401`: keys `message`, `201`: keys `message`, `500`: keys `message`
+
+### GET /:id
+
+- Auth: `requireMobileAuth`
+- Params: `id`
+- Controller: `CompanionController.getCompanionById`
+- Response: `400`: keys `message`, `404`: keys `message`, `200`: keys `message`, `500`: keys `message`
+
+### PUT /:id
+
+- Auth: `requireMobileAuth`
+- Params: `id`
+- Controller: `CompanionController.deleteCompanion`
+- Response: `400`: keys `message`, `204`: keys `message`, `500`: keys `message`
+
+### POST /profile/presigned
+
+- Auth: `requireMobileAuth`
+- Controller: `CompanionController.getProfileUploadUrl`
+- Response: `400`: keys `message`, `200`: JSON, `500`: keys `message`
+
+### GET /org/search
+
+- Auth: `requireWebAuth`
+- RBAC: `requirePermission`
+- Query: `name`
+- Controller: `CompanionController.searchCompanionByName`
+- Response: `400`: keys `message`, `200`: keys `message`, `500`: keys `message`
+
+### POST /org/:orgId
+
+- Auth: `requireWebAuth`
+- RBAC: `withOrgPermissions, requirePermission`
+- Params: `orgId`
+- Controller: `CompanionController.createCompanionPMS`
+- Response: `400`: keys `message`, `401`: keys `message`, `404`: keys `message`, `201`: keys `message`, `500`: keys `message`
+
+### GET /org/:id
+
+- Auth: `requireWebAuth`
+- RBAC: `withOrgPermissions, requirePermission`
+- Params: `id`
+- Controller: `CompanionController.getCompanionById`
+- Response: `400`: keys `message`, `404`: keys `message`, `200`: keys `message`, `500`: keys `message`
+
+### PUT /org/:id
+
+- Auth: `requireWebAuth`
+- RBAC: `withOrgPermissions, requirePermission`
+- Params: `id`
+- Controller: `CompanionController.updateCompanion`
+- Response: `400`: keys `message`, `404`: keys `message`, `200`: keys `message`, `500`: keys `message`
+
+### GET /pms/:parentId/:organisationId/list
+
+- Auth: `requireWebAuth`
+- RBAC: `withOrgPermissions, requirePermission`
+- Params: `parentId`, `organisationId`
+- Controller: `CompanionController.listParentCompanionsNotInOrganisation`
+- Response: `400`: keys `message`, `200`: keys `message`, `500`: keys `message`

@@ -1,0 +1,443 @@
+---
+id: mobile-app
+title: Mobile App README
+slug: /apps/mobile-app
+---
+
+(Source: apps/mobileAppYC/README.md)
+
+<p align="center">
+  <a href="https://yosemitecrew.com/">
+    <img src="https://d2il6osz49gpup.cloudfront.net/YC.svg" width="150px" alt="Yosemite Crew Logo" />
+  </a>
+</p>
+
+<h1 align="center">Yosemite Crew Mobile App</h1>
+
+[React Native](https://reactnative.dev) · [pnpm](https://pnpm.io) · [TypeScript](https://www.typescriptlang.org) · [Contributing](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) · [Coverage on SonarCloud](https://sonarcloud.io/project/overview?id=yosemitecrew_Yosemite-Crew_MobileAppYC)
+
+<div align="center">
+This directory contains the React Native mobile application for the **Yosemite Crew** open-source operating system for animal health. This app serves as the primary interface for pet parents to connect with veterinary service providers and manage their companion's health.
+</div>
+
+## 📲 Store Links
+
+[Get it on Google Play](https://play.google.com/store/apps/details?id=com.mobileappyc) · [Download on the App Store](https://apps.apple.com/in/app/yosemite-crew/id6756180296)
+
+## 📦 Release Versioning
+
+Current production releases:
+
+| Platform | Store Version | Build |
+| -------- | ------------- | ----- |
+| Android  | v1.0.12       | 15    |
+| iOS      | v1.0.7        | 12    |
+
+Release history:
+
+| Platform | Version | Notes                                                                                                                                                                                                                                                                                                 |
+| -------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Android  | v1.0.12 | New warm-bone visual theme across the app, with a matching espresso dark mode; new serif typography for greetings, screen titles, and key moments; redesigned onboarding and landing screens; refined buttons, toggles, cards, and other UI elements app-wide; bug fixes and performance improvements |
+| iOS      | v1.0.7  | New warm-bone visual theme across the app, with a matching espresso dark mode; new serif typography for greetings, screen titles, and key moments; redesigned onboarding and landing screens; refined buttons, toggles, cards, and other UI elements app-wide; bug fixes and performance improvements |
+| Android  | v1.0.11 | Booking specialty resolved correctly from selected package; removed redundant GPS retry on business search; fixed flaky test mock leakage; Sonar maintainability fixes                                                                                                                                |
+| iOS      | v1.0.5  | Booking specialty resolved correctly from selected package; removed redundant GPS retry on business search; fixed flaky test mock leakage; Sonar maintainability fixes                                                                                                                                |
+| Android  | v1.0.10 | Map-based vet business discovery with full-screen interactive map; appointment packages during booking; unified clinical packet (SOAP, prescriptions, discharge); bug fixes and performance improvements                                                                                              |
+| iOS      | v1.2    | Map-based vet business discovery with full-screen interactive map; appointment packages during booking; unified clinical packet (SOAP, prescriptions, discharge); bug fixes and performance improvements                                                                                              |
+| Android  | v1.0.6  | Tasks module GA (calendar sync, observational tools); liquid glass UI polish; appointment consent e-signing                                                                                                                                                                                           |
+| iOS      | v1.0.3  | Tasks module GA (calendar sync, observational tools); liquid glass UI polish; appointment consent e-signing                                                                                                                                                                                           |
+| Android  | v1.0.5  | Initial production release                                                                                                                                                                                                                                                                            |
+| iOS      | v1.0.2  | Initial production release                                                                                                                                                                                                                                                                            |
+
+## 🛠️ Getting Started
+
+This guide will walk you through setting up the mobile app on your local machine for development.
+
+### Prerequisites
+
+- **Node.js**: Version `20` or higher.
+- **pnpm**: Ensure you have `pnpm` installed globally.
+- **React Native Environment**: You **must** complete the official setup guide for your OS and target platform (Android/iOS). Follow the instructions under the "**React Native CLI Quickstart**" tab.
+  - [**React Native Environment Setup Guide**](https://reactnative.dev/docs/set-up-your-environment)
+- **Ruby and Bundler**: Required for managing iOS dependencies (CocoaPods).
+
+---
+
+### Reference Development Environment
+
+The mobile app is known to build on the following local setup. Contributors do not need the exact same machine, but matching the major tooling versions below is the safest starting point when debugging native iOS or Android build failures.
+
+#### macOS / shell
+
+| Tool   | Version / value                 |
+| ------ | ------------------------------- |
+| macOS  | `26.4.1`                        |
+| CPU    | Apple Silicon `arm64`, Apple M4 |
+| Memory | `16 GB`                         |
+| Shell  | `zsh 5.9` at `/bin/zsh`         |
+
+#### JavaScript / package tooling
+
+| Tool                        | Version / value                                                                     |
+| --------------------------- | ----------------------------------------------------------------------------------- |
+| Node.js                     | `24.7.0`                                                                            |
+| Node path                   | `/opt/homebrew/bin/node`                                                            |
+| npm                         | `11.5.1` at `/opt/homebrew/bin/npm`                                                 |
+| pnpm                        | `8.15.6`                                                                            |
+| Yarn                        | Not installed / not used                                                            |
+| nvm                         | `0.40.3` installed; active React Native CLI shell uses the Homebrew Node path above |
+| React                       | `19.1.0`                                                                            |
+| React Native                | `0.81.4`                                                                            |
+| React Native CLI            | `@react-native-community/cli 20.0.0`                                                |
+| Global React Native package | Not installed                                                                       |
+
+Use `pnpm` for this repository. Prefer `pnpm exec react-native ...` over `npx react-native ...` when matching the repo-local CLI exactly.
+
+#### iOS tooling
+
+| Tool                 | Version / value                                                              |
+| -------------------- | ---------------------------------------------------------------------------- |
+| Xcode                | `26.0`                                                                       |
+| Xcode build          | `17A324`                                                                     |
+| xcodebuild path      | `/usr/bin/xcodebuild`                                                        |
+| iOS SDK              | `26.0`                                                                       |
+| Other Apple SDKs     | DriverKit `25.0`, macOS `26.0`, tvOS `26.0`, visionOS `26.0`, watchOS `26.0` |
+| CocoaPods            | `1.16.2`                                                                     |
+| CocoaPods path       | `/Users/YOUR_USERNAME/.rbenv/shims/pod`                                      |
+| Ruby                 | `3.3.9` at `/Users/YOUR_USERNAME/.rbenv/shims/ruby`                          |
+| RubyGems             | `3.5.22`                                                                     |
+| Bundler              | `2.5.22`                                                                     |
+| Relevant gems        | `cocoapods 1.16.2`, `xcodeproj 1.27.0`, `activesupport 7.2.2.2`              |
+| iOS Hermes           | Enabled                                                                      |
+| iOS New Architecture | Enabled                                                                      |
+
+If an iOS build works on this setup but fails on a newer Xcode, first compare `xcodebuild -version` and the installed iOS SDK. For example, `Xcode 26.5` with `iOS SDK 26.5` may surface newer native compiler warnings than `Xcode 26.0`.
+
+#### Android tooling
+
+| Tool | Version / value |
+| ------------------------ | ------------------------------------------ | ----------------------- |
+| Java | `17.0.16` |
+| JRE/JDK | OpenJDK Zulu `17.0.16+8-LTS` |
+| javac path | `/usr/bin/javac` |
+| Android Studio | `2025.1 AI-251.26094.121.2512.13930704` |
+| Android SDK path | `/Users/YOUR_USERNAME/Library/Android/sdk` |
+| Android SDK API levels | `35`, `36` |
+| Android SDK Build Tools | `35.0.0` |
+| Android emulator | `36.1.9.0` |
+| adb | `1.0.41`, platform-tools `36.0.0-13206524` |
+| Android system image | `android-35                                | Google Play ARM 64 v8a` |
+| Android NDK | Not installed |
+| Android Hermes | Enabled |
+| Android New Architecture | Enabled |
+| Gradle wrapper | `8.14.3` |
+
+#### Other native tooling
+
+| Tool     | Version / value                                 |
+| -------- | ----------------------------------------------- |
+| Watchman | `2025.09.01.00` at `/opt/homebrew/bin/watchman` |
+
+To compare a contributor machine against this setup, run:
+
+```sh
+pnpm exec react-native info
+node -v
+pnpm -v
+ruby -v
+gem -v
+bundle -v
+pod --version
+xcodebuild -version
+java -version
+javac -version
+watchman --version
+```
+
+---
+
+### Step 1: Install Monorepo Dependencies
+
+Navigate to the **root** of the entire `Yosemite-Crew` monorepo (not this folder) and install all project dependencies using `pnpm`.
+
+```sh
+# From the root of the Yosemite-Crew project
+pnpm install
+```
+
+---
+
+### Step 2: Configure Environment Credentials (Crucial\!)
+
+Several config files are gitignored because they contain keys. We provide example/template files for every one of them. Run the commands below from the **root of the monorepo** unless noted otherwise.
+
+> **A Note on Environment Variables**: We do not use `react-native-config` due to instability with React Native's New Architecture (Fabric). Configuration is done directly in the native project files and a gitignored JS file as described below.
+
+---
+
+#### Quick-start checklist
+
+Copy and tick off each item before trying to build:
+
+- [ ] **A. JS variables** - `variables.local.ts`
+- [ ] **B. Android: Firebase** - `google-services.json`
+- [ ] **C. Android: Native keys** - `strings.xml` + `gradle.properties` + `local.properties`
+- [ ] **D. iOS: Firebase** - `GoogleService-Info.plist`
+- [ ] **E. iOS: Native keys** - `Info.plist` + `Secrets.xcconfig` + `.xcode.env.local` (if needed)
+
+All committed setup templates live under `apps/mobileAppYC/config-templates/`. Files copied out of that folder into `android/`, `ios/`, or the app root are local-only unless this README explicitly says otherwise.
+
+#### Local file inventory
+
+Create these gitignored files when setting up a fresh clone:
+
+| Local file                                                     | Template / source                                                           |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `apps/mobileAppYC/src/config/variables.local.ts`               | `config-templates/env/variables.local.example.ts`                           |
+| `apps/mobileAppYC/android/app/google-services.json`            | `config-templates/android/google-services.example.json` or Firebase Console |
+| `apps/mobileAppYC/android/app/src/main/res/values/strings.xml` | `config-templates/android/strings.example.xml`                              |
+| `apps/mobileAppYC/android/gradle.properties`                   | `config-templates/android/gradle.properties.example`                        |
+| `apps/mobileAppYC/android/local.properties`                    | `config-templates/android/local.properties.example` or Android Studio       |
+| `apps/mobileAppYC/ios/GoogleService-Info.plist`                | `config-templates/ios/GoogleService-Info.example.plist` or Firebase Console |
+| `apps/mobileAppYC/ios/mobileAppYC/Secrets.xcconfig`            | `config-templates/ios/Secrets.xcconfig.example`                             |
+| `apps/mobileAppYC/ios/.xcode.env.local`                        | create manually only if Xcode cannot find Node                              |
+
+Leave these tracked project files committed and do not replace them with local secret copies:
+
+| Tracked file                                                | Purpose                                                    |
+| ----------------------------------------------------------- | ---------------------------------------------------------- |
+| `apps/mobileAppYC/firebase.json`                            | React Native Firebase build/runtime defaults               |
+| `apps/mobileAppYC/ios/.xcode.env`                           | Shared Xcode Node lookup fallback                          |
+| `apps/mobileAppYC/ios/mobileAppYC/Config.debug.xcconfig`    | Debug build includes for optional local secrets and Pods   |
+| `apps/mobileAppYC/ios/mobileAppYC/Config.release.xcconfig`  | Release build includes for optional local secrets and Pods |
+| `apps/mobileAppYC/ios/mobileAppYC/mobileAppYC.entitlements` | iOS app capabilities/entitlements                          |
+
+The template `config-templates/env/.env.example` is informational only. This app does not load `.env` files.
+
+---
+
+#### Authentication (SuperTokens)
+
+The app authenticates with **SuperTokens** sessions against the Yosemite Crew backend (`supertokens-react-native`) - there are no separate auth config files to create. The SDK is initialized at startup against the API selected by `USE_DEV_API` in `variables.local.ts`, attaches the session tokens via headers, and refreshes the access token automatically. Email-OTP sign-in works out of the box; **Google, Facebook, and (on Android) Apple sign-in additionally require the social-provider IDs in `variables.local.ts`** (see section A below - the copied template leaves them empty, and `configureSocialProviders()` skips provider initialization with a warning when they are missing).
+
+- `USE_DEV_API = true` → sessions against `devapi.yosemitecrew.com` (recommended for development)
+- `USE_DEV_API = false` → sessions against `api.yosemitecrew.com` (production)
+
+Sign in with email OTP against the dev API, or use the review-login bypass (`test@yosemitecrew.com`) when `enableReviewLogin` is active on the dev API. The dev API is a shared environment - do not store sensitive data in it.
+
+---
+
+#### A. JavaScript Variables (`variables.local.ts`)
+
+This file controls which backend environment the app points to and holds optional API keys for JavaScript/API services (Stream Chat, Stripe, Google Places web services, PostHog). It is gitignored and never committed.
+
+Create it from the committed template:
+
+```sh
+cp apps/mobileAppYC/config-templates/env/variables.local.example.ts \
+   apps/mobileAppYC/src/config/variables.local.ts
+```
+
+Open the copied file and read the top section. The only required change for development is the **master environment switch** at the top:
+
+```ts
+// true  → devapi.yosemitecrew.com (dev backend)
+// false → api.yosemitecrew.com (production)
+const USE_DEV_API = true;
+```
+
+Setting `USE_DEV_API = true` routes all API calls - including SuperTokens authentication - to `devapi.yosemitecrew.com`.
+
+Everything else in the file has sensible defaults and inline comments explaining each option, with one exception: social sign-in. The template ships `PASSWORDLESS_AUTH_CONFIG.googleWebClientId` and `PASSWORDLESS_AUTH_CONFIG.facebookAppId` empty, and `configureSocialProviders()` (in `src/features/auth/services/socialAuth.ts`) skips initializing a provider whose ID is absent - Google/Facebook sign-in buttons will then fail while email OTP keeps working. To enable them:
+
+| Field                                        | Where to find it                                                                                                                 |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `PASSWORDLESS_AUTH_CONFIG.googleWebClientId` | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs → the **Web** client ID                              |
+| `PASSWORDLESS_AUTH_CONFIG.facebookAppId`     | Meta for Developers → your app → App ID (must match the ID in the native Facebook config, sections C and E)                      |
+| `PASSWORDLESS_AUTH_CONFIG.appleServiceId`    | Apple Developer portal → Certificates, Identifiers & Profiles → Identifiers → Services IDs (a Sign in with Apple **Service ID**) |
+| `PASSWORDLESS_AUTH_CONFIG.appleRedirectUri`  | A return URL registered on that same Service ID's Sign in with Apple configuration                                               |
+
+The two Apple fields are used only by the **Android** web-based flow (`signInWithAppleAndroid()` passes them to `appleAuthAndroid.configure()`); iOS uses the native Apple flow and ignores them. Note the template ships truthy **placeholder** values for both, so Apple sign-in on a fresh Android build fails against Apple's servers until you replace them - leave the placeholders if you do not need Apple sign-in locally.
+
+`GOOGLE_PLACES_CONFIG.apiKey` is used by the React Native JavaScript Google Places service. It is separate from the native Google Maps SDK keys used by Android and iOS map rendering.
+
+PostHog mobile analytics are disabled by default. If you want to enable them for a non-production build, configure `POSTHOG_CONFIG` with a project API key and host, and only switch `enabled` or `defaultOptIn` on after your privacy/consent flow is ready.
+
+> The `variables.ts` file (committed) contains safe defaults and type definitions. Your `variables.local.ts` is layered on top at runtime automatically.
+
+---
+
+#### B. Android: Firebase (`google-services.json`)
+
+Required for push notifications (FCM, Firebase Cloud Messaging). The app boots and runs without real values - you will just not receive push notifications.
+
+**If you have access to the Firebase project:** download `google-services.json` from Firebase Console → Project Settings → Android app → download button, then place it at `apps/mobileAppYC/android/app/google-services.json`.
+
+**If you do not have Firebase access** (UI development only):
+
+```sh
+cp apps/mobileAppYC/config-templates/android/google-services.example.json \
+   apps/mobileAppYC/android/app/google-services.json
+```
+
+The stub file has the correct structure. Firebase init will log a warning on startup and push notifications will not work, but the rest of the app is fully functional.
+
+---
+
+#### C. Android: Native Keys (`strings.xml` + `gradle.properties` + `local.properties`)
+
+These files are local machine/project configuration and are intentionally gitignored. Keep them out of commits; use the example files below as the source of truth.
+
+1. **Facebook SDK keys**:
+
+   ```sh
+   cp apps/mobileAppYC/config-templates/android/strings.example.xml \
+      apps/mobileAppYC/android/app/src/main/res/values/strings.xml
+   ```
+
+   Open the file and replace `YOUR_FACEBOOK_APP_ID` and `YOUR_FACEBOOK_CLIENT_TOKEN` with real values. Facebook login will not work with placeholders, but the app still builds and runs.
+
+2. **Gradle properties** (build settings + release signing):
+
+   ```sh
+   cp apps/mobileAppYC/config-templates/android/gradle.properties.example \
+      apps/mobileAppYC/android/gradle.properties
+   ```
+
+   For debug builds no further changes are needed. Release/bundle builds require filling in the four keystore fields at the bottom of the file (`YC_RELEASE_STORE_FILE`, `YC_RELEASE_STORE_PASSWORD`, `YC_RELEASE_KEY_ALIAS`, `YC_RELEASE_KEY_PASSWORD`).
+
+3. **Android SDK path + Google Maps SDK key** (`local.properties`):
+   ```sh
+   cp apps/mobileAppYC/config-templates/android/local.properties.example \
+      apps/mobileAppYC/android/local.properties
+   ```
+   Open the file and set `sdk.dir` to your local Android SDK path. If you open the project in Android Studio it may generate this file automatically; still add `MAPS_API_KEY` afterward if you need Google Maps rendering.
+   ```
+   # macOS example:
+   sdk.dir=/Users/YOUR_USERNAME/Library/Android/sdk
+   MAPS_API_KEY=YOUR_ANDROID_GOOGLE_MAPS_API_KEY
+   ```
+
+---
+
+#### D. iOS: Firebase (`GoogleService-Info.plist`)
+
+Required for push notifications (APNs, Apple Push Notification service, delivered via FCM). Same story as Android - the app boots without real values.
+
+**If you have access to the Firebase project:** download `GoogleService-Info.plist` from Firebase Console → Project Settings → iOS app, place it at `apps/mobileAppYC/ios/GoogleService-Info.plist`, and **add it to the Xcode project** (drag into Xcode, tick "Copy items if needed").
+
+**If you do not have Firebase access** (UI development only):
+
+```sh
+cp apps/mobileAppYC/config-templates/ios/GoogleService-Info.example.plist \
+   apps/mobileAppYC/ios/GoogleService-Info.plist
+```
+
+Then add this stub file to the Xcode project the same way. Push notifications will not work; everything else will.
+
+---
+
+#### E. iOS: Native Keys (`Info.plist` + `Secrets.xcconfig` + `.xcode.env.local`)
+
+`AppDelegate.swift` is application source code and must stay tracked. So is `Info.plist`: it was gitignored until every checkout drifted apart and App Store builds shipped without the icon fonts. **Do not put keys or tokens in `AppDelegate.swift` or `Info.plist`.** Native secrets belong in the gitignored `GoogleService-Info.plist` and `Secrets.xcconfig` created below, and `Info.plist` references them as `$(BUILD_VARIABLE)`.
+
+1. **Info.plist** - already in the repository. Nothing to copy or edit. It holds the permission usage strings, the font registrations, and `$(...)` references to the values you set in step 2.
+
+   Keep both location purpose keys (`NSLocationWhenInUseUsageDescription` and `NSLocationAlwaysAndWhenInUseUsageDescription`) even if a library triggers the always-location API indirectly; App Store validation requires the purpose string to be present.
+
+   If you find yourself pasting a key into this file, it belongs in `Secrets.xcconfig` instead, referenced here as `$(YOUR_KEY_NAME)`. A value pasted here is committed.
+
+2. **Secrets.xcconfig** - every iOS native key, consumed by `Info.plist` through `$(...)` substitution at build time:
+
+   ```sh
+   cp apps/mobileAppYC/config-templates/ios/Secrets.xcconfig.example \
+      apps/mobileAppYC/ios/mobileAppYC/Secrets.xcconfig
+   ```
+
+   Open the file and replace:
+
+   | Placeholder                    | Where to find it                                                  |
+   | ------------------------------ | ----------------------------------------------------------------- |
+   | `YOUR_IOS_GOOGLE_MAPS_API_KEY` | Google Cloud Console → Credentials, with Maps SDK for iOS enabled |
+   | `YOUR_FACEBOOK_APP_ID`         | Facebook Developer Console → your app → App ID                    |
+   | `YOUR_FACEBOOK_CLIENT_TOKEN`   | Facebook Developer Console → Settings → Advanced → Client Token   |
+   | `YOUR_REVERSED_CLIENT_ID`      | `ios/GoogleService-Info.plist` → `REVERSED_CLIENT_ID` value       |
+
+   The reversed client id must match the `GoogleService-Info.plist` in this checkout. It is the URL scheme Google returns to after sign-in, so a mismatch builds cleanly and then fails at the redirect with nothing to point at.
+
+   Google Maps rendering, Facebook and Google Sign-In will not work with placeholders, but OTP login and everything else in the app will function normally.
+
+3. **`.xcode.env.local`** - tells Xcode's build scripts where Node.js is on your machine. Required for Xcode builds (the Metro bundler script phase uses it). Create it manually:
+   ```sh
+   echo "export NODE_BINARY=$(command -v node)" > apps/mobileAppYC/ios/.xcode.env.local
+   ```
+   If you use nvm or fnm, replace `$(command -v node)` with the full path to your Node binary (e.g. `~/.nvm/versions/node/v20.x.x/bin/node`). The committed `ios/.xcode.env` already has a fallback - `.xcode.env.local` only needs to be created if your Xcode builds fail with "node: command not found".
+
+---
+
+### Step 3: Update Application Identifiers
+
+For a clean build, change the default package name (Android) and bundle identifier (iOS).
+
+- **Android**: In `android/app/build.gradle`, change the `applicationId` from `"com.mobileappyc"` to your own. Also, refactor the directory structure under `android/app/src/main/java/` to match.
+- **iOS**: In Xcode, open `apps/mobileAppYC/ios/mobileAppYC.xcworkspace`, go to the "General" tab, and change the **Bundle Identifier**.
+
+---
+
+### Step 4: Run The Application
+
+All commands below should be run from this directory (`apps/mobileAppYC`).
+
+#### 1\. Start the Metro Server
+
+Open a terminal and keep it running.
+
+```sh
+# Using pnpm
+pnpm start
+```
+
+#### 2\. Build for Android or iOS
+
+Open a **new** terminal window.
+
+##### ▶️ Android
+
+```sh
+pnpm run android
+```
+
+##### ▶️ iOS
+
+```sh
+# Navigate to the iOS directory to install pods
+cd ios
+bundle install
+bundle exec pod install
+cd ..
+
+# Run the app
+pnpm run ios
+```
+
+If everything is set up correctly, you should see the app running. ✨
+
+---
+
+## 🐛 Troubleshooting
+
+If you encounter any issues, please refer to the official documentation first:
+
+- [React Native Troubleshooting Guide](https://reactnative.dev/docs/troubleshooting)
+
+## ⚠️ Known Issues
+
+The following are known bugs that are expected to be resolved in future releases of React Native or related library dependencies.
+
+- **Issue 1053: iOS/Android Build Issue with Library Compatibility**
+  - Link: [https://github.com/YosemiteCrew/Yosemite-Crew/issues/1053](https://github.com/YosemiteCrew/Yosemite-Crew/issues/1053)
+
+---
+
+## 🙌 Contributing
+
+We love contributions\! Please read our [**Contributing Guide**](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) to get started.

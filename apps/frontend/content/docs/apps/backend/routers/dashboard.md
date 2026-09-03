@@ -1,0 +1,72 @@
+---
+id: backend-api-dashboard
+title: Dashboard API
+slug: /apps/backend/api/dashboard
+---
+
+Read-only analytics endpoints (summary, appointment and revenue trends, leaderboards, inventory turnover) for an organisation's dashboard. Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions.
+
+**Endpoints**
+
+### GET /summary/:organisationId
+
+- Auth: `requireWebAuth`
+- RBAC: `withOrgPermissions, requirePermission`
+- Params: `organisationId`
+- Query: `range`
+- Controller: `DashboardController.summary`
+- Response: `500`: keys `message`
+
+### GET /appointments/:organisationId/trend
+
+- Auth: `requireWebAuth`
+- RBAC: `withOrgPermissions, requirePermission`
+- Params: `organisationId`
+- Query: `months`
+- Controller: `DashboardController.appointmentsTrend`
+- Response: `500`: keys `message`
+
+### GET /revenue/:organisationId/trend
+
+- Auth: `requireWebAuth`
+- RBAC: `withOrgPermissions, requirePermission`
+- Params: `organisationId`
+- Query: `months`
+- Controller: `DashboardController.revenueTrend`
+- Response: `500`: keys `message`
+
+### GET /appointment-leaders/:organisationId
+
+- Auth: `requireWebAuth`
+- RBAC: `withOrgPermissions, requirePermission`
+- Params: `organisationId`
+- Query: `limit`, `range`
+- Controller: `DashboardController.appointmentLeaders`
+- Response: `500`: keys `message`
+
+### GET /revenue-leaders/:organisationId
+
+- Auth: `requireWebAuth`
+- RBAC: `withOrgPermissions, requirePermission`
+- Params: `organisationId`
+- Query: `limit`, `range`
+- Controller: `DashboardController.revenueLeaders`
+- Response: `500`: keys `message`
+
+### GET /inventory/:organisationId/turnover
+
+- Auth: `requireWebAuth`
+- RBAC: `withOrgPermissions, requirePermission`
+- Params: `organisationId`
+- Query: `targetTurns`, `year`
+- Controller: `DashboardController.inventoryTurnover`
+- Response: `500`: keys `message`
+
+### GET /inventory/:organisationId/products
+
+- Auth: `requireWebAuth`
+- RBAC: `withOrgPermissions, requirePermission`
+- Params: `organisationId`
+- Query: `limit`, `year`
+- Controller: `DashboardController.productTurnover`
+- Response: `500`: keys `message`
