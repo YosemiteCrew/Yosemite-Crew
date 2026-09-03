@@ -9,7 +9,7 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { formatMoneyPrecise, recordCurrency } from '@/app/lib/money';
-import { toNumberSafe, toTitle } from '@/app/lib/validators';
+import { toDisplayNumber, toTitle } from '@/app/lib/validators';
 import { useInvoicesForPrimaryOrgAppointment } from '@/app/hooks/useInvoices';
 import InvoicePaymentActions from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
@@ -68,6 +68,12 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
      Finance page, and a euro invoice was labelled in dollars. Figures that are
      meant to reconcile cannot round differently. */
   const invoiceCurrency = recordCurrency(actionInvoice, currency);
+  /* An em dash for a figure that is not there, rather than "$0.00". These come
+     from `toDisplayNumber`, which reports a blank field as undefined instead of
+     coercing it to zero, so a missing subtotal no longer reads as a settled
+     nothing. */
+  const money = (amount: number | undefined) =>
+    amount === undefined ? '—' : formatMoneyPrecise(amount, invoiceCurrency);
 
   const showCashRefundDisclaimer = useMemo(() => {
     const normalizedAppointmentStatus = String(activeAppointment.status ?? '').toUpperCase();
@@ -97,17 +103,17 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
   const totals = useMemo(() => {
     if (!actionInvoice) {
       return {
-        subtotal: toNumberSafe(formData.subTotal),
-        discount: toNumberSafe(formData.discount),
-        tax: toNumberSafe(formData.tax),
-        total: toNumberSafe(formData.total),
+        subtotal: toDisplayNumber(formData.subTotal),
+        discount: toDisplayNumber(formData.discount),
+        tax: toDisplayNumber(formData.tax),
+        total: toDisplayNumber(formData.total),
       };
     }
     return {
-      subtotal: toNumberSafe(actionInvoice.subtotal),
-      discount: toNumberSafe(actionInvoice.discountTotal),
-      tax: toNumberSafe(actionInvoice.taxTotal),
-      total: toNumberSafe(actionInvoice.totalAmount),
+      subtotal: toDisplayNumber(actionInvoice.subtotal),
+      discount: toDisplayNumber(actionInvoice.discountTotal),
+      tax: toDisplayNumber(actionInvoice.taxTotal),
+      total: toDisplayNumber(actionInvoice.totalAmount),
     };
   }, [actionInvoice, formData.subTotal, formData.discount, formData.tax, formData.total]);
 
@@ -148,26 +154,22 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
               <div className="text-body-4-emphasis text-text-tertiary">Subtotal: </div>
               <div className="text-body-4 text-text-primary text-right">
-                {formatMoneyPrecise(totals.subtotal, invoiceCurrency)}
+                {money(totals.subtotal)}
               </div>
             </div>
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
               <div className="text-body-4-emphasis text-text-tertiary">Discount: </div>
               <div className="text-body-4 text-text-primary text-right">
-                {formatMoneyPrecise(totals.discount, invoiceCurrency)}
+                {money(totals.discount)}
               </div>
             </div>
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
               <div className="text-body-4-emphasis text-text-tertiary">Tax: </div>
-              <div className="text-body-4 text-text-primary text-right">
-                {formatMoneyPrecise(totals.tax, invoiceCurrency)}
-              </div>
+              <div className="text-body-4 text-text-primary text-right">{money(totals.tax)}</div>
             </div>
             <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
               <div className="text-body-4-emphasis text-text-tertiary">Estimated total: </div>
-              <div className="text-body-4 text-text-primary text-right">
-                {formatMoneyPrecise(totals.total, invoiceCurrency)}
-              </div>
+              <div className="text-body-4 text-text-primary text-right">{money(totals.total)}</div>
             </div>
             {actionInvoice ? (
               <>

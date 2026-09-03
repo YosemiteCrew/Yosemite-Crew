@@ -27,7 +27,7 @@ import {
   getGrossProfitPerUnit,
   getMarginPercent,
   getStockValue,
-  toNumberSafe,
+  toDisplayNumber,
 } from '@/app/features/inventory/pages/Inventory/utils';
 import { formatDate, parseDate } from '@/app/features/inventory/components/inventoryInfoHelpers';
 
@@ -164,7 +164,9 @@ const getReadOnlyStockDisplayValue = (
   value: unknown
 ): string => {
   if (field.name === 'available') {
-    return String(getAvailableStock(formData) ?? toNumberSafe(value) ?? '0');
+    // toDisplayNumber, so a blank field falls through to the explicit '0'
+    // default rather than arriving as a coerced zero that looks like data.
+    return String(getAvailableStock(formData) ?? toDisplayNumber(value) ?? '0');
   }
   if (typeof value === 'string' || typeof value === 'number') {
     return String(value || '0');
