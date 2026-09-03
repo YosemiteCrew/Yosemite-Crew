@@ -151,8 +151,7 @@ const notifyOrganisation = async (
     });
 
     logger.info(
-      { reportId, organisationId },
-      "Adverse event notified to practice",
+      `Adverse event ${reportId} notified to practice ${organisationId}`,
     );
   } catch (error) {
     logger.error(
