@@ -1,4 +1,5 @@
 // contact.controller.ts
+import { randomUUID } from "node:crypto";
 import { Request, Response } from "express";
 import { z } from "zod";
 import {
@@ -17,6 +18,7 @@ import { resolveVerifiedUserId } from "src/utils/request";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { type ContactType, type ContactStatus } from "src/models/contect-us";
 import { SuperadminContactService } from "src/services/superadmin-contact.service";
+import logger from "src/utils/logger";
 
 // Verified session only. The previous form let the client-supplied `x-user-id`
 // header OVERRIDE an established session, so any caller could act as any user.
@@ -52,7 +54,14 @@ const attachmentUploadBodySchema = z.object({
 });
 
 type CreateContactRequestBody = CreateContactRequestInput;
-type CreateWebContactRequestBody = CreateWebContactRequestInput;
+/*
+ * The wire body carries one field the service input does not: `website`, a
+ * honeypot. It is never stored and never forwarded - it exists only to be left
+ * empty by a human (#2645).
+ */
+type CreateWebContactRequestBody = CreateWebContactRequestInput & {
+  website?: unknown;
+};
 
 type ListContactQuery = {
   status?: ContactStatus;
@@ -141,7 +150,27 @@ export const ContactController = {
         organisationId,
         dsarDetails,
         attachments,
+        website,
       } = req.body;
+
+      /*
+       * Honeypot. The form renders `website` hidden from people and from
+       * assistive technology; a form-filling bot has no way to know that and
+       * fills it. Anything non-empty here is discarded.
+       *
+       * Answered 201 with a plausible id rather than 4xx, deliberately: a bot
+       * that learns which submissions were dropped simply stops filling the
+       * field, and the run continues undetected. The SuperAdmin panel's own
+       * /api/contact has had this field all along - the site form just never
+       * rendered one, so nothing was ever filtered (#2645).
+       */
+      if (typeof website === "string" && website.trim() !== "") {
+        logger.warn("Discarded a contact submission that filled the honeypot", {
+          source,
+          type,
+        });
+        return res.status(201).json({ id: randomUUID() });
+      }
 
       const payload = {
         type,
