@@ -437,7 +437,7 @@ const CompanionsTable = ({
     if (canEditTasks) {
       actions.push({
         key: 'add-task',
-        label: 'Add task',
+        label: 'New task',
         icon: <IoCheckmarkDoneOutline size={15} aria-hidden="true" />,
         onSelect: () => handleAddTask(companion),
       });
