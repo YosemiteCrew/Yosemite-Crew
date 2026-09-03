@@ -7,6 +7,7 @@ import FormSection from '@/app/features/inventory/components/AddInventory/FormSe
 import { InventorySectionKey } from '@/app/features/inventory/components/AddInventory/InventoryConfig';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import Labels from '@/app/ui/widgets/Labels/Labels';
+import Switch from '@/app/ui/primitives/Switch/Switch';
 
 const labels: { key: InventorySectionKey; name: string }[] = [
   { key: 'basicInfo', name: 'Basic Details' },
@@ -492,37 +493,16 @@ const useAddInventoryContent = ({
                   <span className="text-body-4-emphasis text-text-primary">
                     Visible in Inventory
                   </span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={formData.basicInfo.visibleInInventory !== false}
-                    aria-label="Visible in Inventory"
-                    onClick={() =>
+                  <Switch
+                    checked={formData.basicInfo.visibleInInventory !== false}
+                    label="Visible in Inventory"
+                    onChange={(next) =>
                       setFormData((prev) => ({
                         ...prev,
-                        basicInfo: {
-                          ...prev.basicInfo,
-                          visibleInInventory: prev.basicInfo.visibleInInventory === false,
-                        },
+                        basicInfo: { ...prev.basicInfo, visibleInInventory: next },
                       }))
                     }
-                    className="inline-flex h-8 w-14 shrink-0 items-center rounded-full p-1 transition-colors"
-                    style={{
-                      backgroundColor:
-                        formData.basicInfo.visibleInInventory === false
-                          ? 'var(--divider)'
-                          : 'var(--blue)',
-                    }}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`block size-6 rounded-full bg-[var(--screen)] shadow-sm transition-transform ${
-                        formData.basicInfo.visibleInInventory === false
-                          ? 'translate-x-0'
-                          : 'translate-x-6'
-                      }`}
-                    />
-                  </button>
+                  />
                 </div>
               ) : undefined
             }

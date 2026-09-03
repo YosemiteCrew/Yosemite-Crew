@@ -277,8 +277,11 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  width: 44px;
-  height: 26px;
+  /* 40x24 with an 18px thumb, the design system's `.switch`. This was 44x26
+     with a 20px thumb, one of six sizes the same control shipped at across the
+     product. */
+  width: 40px;
+  height: 24px;
   flex: none;
   border-radius: 9999px;
   background: var(--color-inset);
@@ -295,8 +298,8 @@
 }
 
 .dev-switch-thumb {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   margin: 0 3px;
   border-radius: 9999px;
   background: var(--color-surface-card);

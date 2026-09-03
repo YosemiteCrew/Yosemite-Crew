@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
+import Switch from '@/app/ui/primitives/Switch/Switch';
 import {
   IoArrowBack,
   IoArrowForward,
@@ -193,22 +194,11 @@ const BookingServicesStep = ({
           <strong className="text-[var(--ink)]">Requests need confirmation.</strong> New bookings
           arrive as requests, not fixed slots.
         </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={needsConfirmation}
-          aria-label="Requests need confirmation"
-          onClick={onToggleConfirmation}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full ${
-            needsConfirmation ? 'bg-primary-600' : 'bg-neutral-300'
-          }`}
-        >
-          <span
-            className={`inline-block h-5 w-5 rounded-full bg-neutral-0 transition-transform ${
-              needsConfirmation ? 'translate-x-5' : 'translate-x-0.5'
-            }`}
-          />
-        </button>
+        <Switch
+          checked={needsConfirmation}
+          label="Requests need confirmation"
+          onChange={onToggleConfirmation}
+        />
       </div>
     </div>
     <div className="flex items-center justify-between gap-3 px-7! py-4! border-t border-[var(--hairline)]">
@@ -451,23 +441,12 @@ const BookingBrandingStep = ({
             ? 'Pet parents can find and use it as soon as you save.'
             : 'Mark at least one service bookable first — an open page with nothing to book helps nobody.'}
         </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={publish}
-          aria-label="Open my booking page"
+        <Switch
+          checked={publish}
           disabled={!hasBookableServices}
-          onClick={onTogglePublish}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full disabled:opacity-50 ${
-            publish ? 'bg-primary-600' : 'bg-neutral-300'
-          }`}
-        >
-          <span
-            className={`inline-block h-5 w-5 rounded-full bg-neutral-0 transition-transform ${
-              publish ? 'translate-x-5' : 'translate-x-0.5'
-            }`}
-          />
-        </button>
+          label="Open my booking page"
+          onChange={onTogglePublish}
+        />
       </div>
 
       {loadFailed ? (
