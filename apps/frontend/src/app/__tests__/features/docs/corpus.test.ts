@@ -1,6 +1,10 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import {
   findBySegments,
   findBySlug,
+  listMarkdownFiles,
   loadCorpus,
   slugToHref,
   slugToSegments,
@@ -140,5 +144,65 @@ describe('corpus file reads stay inside the content root', () => {
 
     const resolved = path.resolve(DOCS_CONTENT_ROOT, loadCorpus()[0].file);
     expect(resolved.startsWith(DOCS_CONTENT_ROOT + path.sep)).toBe(true);
+  });
+});
+
+/*
+ * The corpus is built from files contributed by pull request, so the walker is
+ * a security boundary and not just a file lister.
+ *
+ * A symlink is the cheap version of the attack: it looks like an ordinary .md
+ * in a diff, and the containment check in loadCorpus cannot stop it, because
+ * path.resolve is lexical and a link inside the content root resolves inside
+ * the content root no matter where it points.
+ */
+describe('listMarkdownFiles', () => {
+  let root: string;
+  let secretPath: string;
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-walk-'));
+    fs.writeFileSync(path.join(root, 'real.md'), '# real');
+    secretPath = path.join(root, 'secret.env');
+    fs.writeFileSync(secretPath, 'API_KEY=not-a-real-value');
+  });
+
+  afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
+
+  it('lists ordinary markdown files', () => {
+    expect(listMarkdownFiles(root)).toEqual(['real.md']);
+  });
+
+  it('refuses a symlinked markdown file pointing outside the tree', () => {
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-outside-'));
+    fs.writeFileSync(path.join(outside, 'stolen.md'), '# stolen');
+    fs.symlinkSync(path.join(outside, 'stolen.md'), path.join(root, 'link.md'));
+
+    expect(listMarkdownFiles(root)).toEqual(['real.md']);
+
+    fs.rmSync(outside, { recursive: true, force: true });
+  });
+
+  /*
+   * This one does NOT exercise the isSymbolicLink() guard: readdirSync with
+   * withFileTypes uses lstat, so a link to a directory already reports
+   * isDirectory() false and is never recursed into. What it pins is that
+   * lstat semantics, which a switch to statSync would silently reverse - and
+   * that switch would make symlinked directories traversable again.
+   */
+  it('does not follow a symlinked directory, because readdir does not stat through it', () => {
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'docs-outdir-'));
+    fs.writeFileSync(path.join(outside, 'deep.md'), '# deep');
+    fs.symlinkSync(outside, path.join(root, 'linked-dir'));
+
+    expect(listMarkdownFiles(root)).toEqual(['real.md']);
+
+    fs.rmSync(outside, { recursive: true, force: true });
+  });
+
+  it('recurses into real subdirectories', () => {
+    fs.mkdirSync(path.join(root, 'guides'));
+    fs.writeFileSync(path.join(root, 'guides', 'a.md'), '# a');
+    expect(listMarkdownFiles(root).sort()).toEqual(['guides/a.md', 'real.md']);
   });
 });

@@ -16,9 +16,15 @@ interface DocsShellProps {
   /**
    * Sanitised HAST from render.ts, rendered as React elements.
    *
-   * Deliberately a tree rather than an HTML string: there is no
-   * `dangerouslySetInnerHTML` in this feature, so sanitisation and React's own
-   * text escaping both have to fail before markup could execute.
+   * Deliberately a tree rather than an HTML string: the feature has no raw
+   * HTML sink at all, so the sanitiser and React's own text escaping both have
+   * to fail before contributed markup could execute.
+   *
+   * That claim is enforced by DocsShell.test.tsx, which pushes six injection
+   * attempts through the real render pipeline into a mounted DOM. Stating it
+   * here is documentation; the tests are what keep it true. (The comment used
+   * to name the React API it was ruling out, which read as an occurrence of it
+   * to the security scanners - a sentence cannot be a control.)
    */
   tree: Root;
   editUrl: string;

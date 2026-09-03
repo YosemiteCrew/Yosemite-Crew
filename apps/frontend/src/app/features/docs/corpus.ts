@@ -61,12 +61,28 @@ export const slugToSegments = (slug: string): string[] =>
 export const slugToHref = (slug: string): string =>
   slug === '/' ? DOCS_BASE_PATH : `${DOCS_BASE_PATH}${slug}`;
 
-const walk = (dir: string, base = ''): string[] => {
+/**
+ * Every markdown file under `dir`, as paths relative to it.
+ *
+ * Symlinks are skipped rather than followed, and this is where that has to
+ * happen. The containment check in `loadCorpus` uses `path.resolve`, which is
+ * purely lexical: a link at `content/docs/x.md` pointing at `../../../.env`
+ * resolves INSIDE the content root and sails through it. Here the entry is
+ * still known to be a link, so it can be refused.
+ *
+ * That matters because this repository accepts documentation pull requests. A
+ * contributed symlink is the cheapest way to turn a docs page into a file
+ * disclosure, and it would look like an ordinary .md in the diff.
+ */
+export const listMarkdownFiles = (dir: string, base = ''): string[] => {
   const out: string[] = [];
   for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (item.isSymbolicLink()) {
+      continue;
+    }
     const rel = base ? `${base}/${item.name}` : item.name;
     if (item.isDirectory()) {
-      out.push(...walk(path.join(dir, item.name), rel));
+      out.push(...listMarkdownFiles(path.join(dir, item.name), rel));
     } else if (/\.mdx?$/.test(item.name)) {
       out.push(rel);
     }
@@ -86,16 +102,20 @@ let memo: DocEntry[] | null = null;
 export const loadCorpus = (): DocEntry[] => {
   if (memo) return memo;
 
-  const entries = walk(DOCS_CONTENT_ROOT)
+  const entries = listMarkdownFiles(DOCS_CONTENT_ROOT)
     .sort((a, b) => a.localeCompare(b))
     .map((file) => {
       /*
-       * Containment check before the read. `file` comes from walk(), which
+       * Containment check before the read. `file` comes from listMarkdownFiles(), which
        * only enumerates DOCS_CONTENT_ROOT, so it is not attacker-controlled
        * today - but a resolved path that escapes the content root would mean
-       * something has gone wrong upstream (a symlink, a future caller passing
-       * a path in), and reading it would be a file-disclosure bug. Cheap to
-       * assert, and it fails the build rather than serving the file.
+       * something has gone wrong upstream (a future caller passing a path in),
+       * and reading it would be a file-disclosure bug. Cheap to assert, and it
+       * fails the build rather than serving the file.
+       *
+       * Note this does NOT catch a symlink: path.resolve is lexical, so a link
+       * inside the root resolves inside the root whatever it points at. Links
+       * are refused in listMarkdownFiles, before they reach here.
        */
       const absolute = path.resolve(DOCS_CONTENT_ROOT, file);
       if (absolute !== DOCS_CONTENT_ROOT && !absolute.startsWith(DOCS_CONTENT_ROOT + path.sep)) {
