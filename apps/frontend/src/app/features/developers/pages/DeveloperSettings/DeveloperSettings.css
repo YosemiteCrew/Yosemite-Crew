@@ -302,7 +302,12 @@
   height: 18px;
   margin: 0 3px;
   border-radius: 9999px;
-  background: var(--color-surface-card);
+  /* Fixed white, as the design system's `.switch::after` specifies. This was
+     --color-surface-card, which resolves to --screen and flips: in espresso the
+     off thumb was #2f271e on a #302820 track, so it vanished and an unchecked
+     switch read as an empty capsule. The border stays, which is what separates
+     it from the light track in the other theme. */
+  background: #ffffff;
   border: 1px solid var(--color-card-border);
 }
 
