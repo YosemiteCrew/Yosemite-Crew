@@ -64,7 +64,8 @@ const meta = {
       description: {
         component:
           'Every credit note on an invoice, issued or voided.\n\n' +
-          'A voided note is struck through and keeps its row - removing it would hide that a ' +
+          'A voided note keeps its row, struck through, with the marker on its reason line - ' +
+          'removing it would hide that a ' +
           'credit was raised and reversed, which is exactly the history a practice needs when ' +
           'reconciling. Only an issued note offers a Void control, and only to a role holding ' +
           '`billing:edit:any`; the ledger itself is readable by anyone who can see the ' +
@@ -106,14 +107,17 @@ export const Ledger: Story = {
 
     await expect(canvas.getByText('CN-0001')).toBeInTheDocument();
     await expect(canvas.getByText('Goodwill on the delayed dental')).toBeInTheDocument();
-    await expect(canvas.getByText('CN-0002 (voided)')).toBeInTheDocument();
-    await expect(canvas.getByText('Raised against the wrong invoice')).toBeInTheDocument();
+    /* The REASON is the row's lead line and carries the voided marker; the
+       credit-note number is the caption beneath it. Asserted the way the row
+       reads, because the number and the marker live in different elements. */
+    await expect(canvas.getByText('Raised against the wrong invoice (voided)')).toBeInTheDocument();
+    await expect(canvas.getByText('CN-0002')).toBeInTheDocument();
 
     // The voided amount is struck through; the issued one is not.
-    await expect(getComputedStyle(canvas.getByText('£60')).textDecorationLine).toContain(
+    await expect(getComputedStyle(canvas.getByText('£60.00')).textDecorationLine).toContain(
       'line-through'
     );
-    await expect(getComputedStyle(canvas.getByText('£40')).textDecorationLine).not.toContain(
+    await expect(getComputedStyle(canvas.getByText('£40.00')).textDecorationLine).not.toContain(
       'line-through'
     );
 
@@ -214,7 +218,7 @@ export const WithoutEditPermission: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText('CN-0001')).toBeInTheDocument();
-    await expect(canvas.getByText('CN-0002 (voided)')).toBeInTheDocument();
+    await expect(canvas.getByText('Raised against the wrong invoice (voided)')).toBeInTheDocument();
     await expect(
       canvas.queryByRole('button', { name: 'Void credit note CN-0001' })
     ).not.toBeInTheDocument();

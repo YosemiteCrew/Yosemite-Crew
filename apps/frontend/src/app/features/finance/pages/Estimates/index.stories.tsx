@@ -16,6 +16,10 @@ import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import { useOrganizationDocumentStore } from '@/app/stores/documentStore';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { useAvailabilityStore } from '@/app/stores/availabilityStore';
+import { useUserProfileStore } from '@/app/stores/profileStore';
+import type { ApiDayAvailability } from '@/app/features/appointments/components/Availability/utils';
+import type { UserProfile } from '@/app/features/users/types/profile';
 import { useSearchStore } from '@/app/stores/searchStore';
 import { useSpecialityStore } from '@/app/stores/specialityStore';
 import { useSubscriptionStore } from '@/app/stores/subscriptionStore';
@@ -131,6 +135,53 @@ type ListFixture =
   | { kind: 'pending' }
   | { kind: 'rejects'; message: string };
 
+/**
+ * Enough of a profile and one published availability day to clear
+ * `computeTeamOnboardingStep`. Below step 3 `OrgGuard` redirects the whole route
+ * to /team-onboarding, so an incomplete fixture does not render a worse story -
+ * it renders no story at all.
+ *
+ * These are what let the guards pass on REAL data. The obvious alternative, the
+ * `NEXT_PUBLIC_DISABLE_AUTH_GUARD` bypass, works only under the dev server: a
+ * production/static build inlines every `process.env.NEXT_PUBLIC_*` read at
+ * build time, so assigning one at runtime is a no-op and the guards redirect -
+ * which is exactly how these stories rendered an empty page in the static build
+ * that Chromatic publishes.
+ */
+const PROFILE: UserProfile = {
+  _id: 'profile-storybook',
+  userId: 'user-storybook',
+  organizationId: ORG_ID,
+  personalDetails: {
+    gender: 'FEMALE',
+    dateOfBirth: '1989-11-02',
+    phoneNumber: '+44 20 7946 0958',
+    address: {
+      addressLine: '14 Harbour Row',
+      city: 'Bristol',
+      state: 'Bristol',
+      postalCode: 'BS1 4RN',
+      country: 'United Kingdom',
+    },
+  },
+  professionalDetails: {
+    qualification: 'BVSc MRCVS',
+    yearsOfExperience: 8,
+    specialization: 'Internal medicine',
+  },
+  status: 'COMPLETED',
+};
+
+const AVAILABILITY: ApiDayAvailability = {
+  _id: 'availability-monday',
+  userId: 'user-storybook',
+  organisationId: ORG_ID,
+  dayOfWeek: 'MONDAY',
+  slots: [
+    { startTime: '09:00', endTime: '17:00', isAvailable: true },
+  ] as ApiDayAvailability['slots'],
+};
+
 const respond = (config: InternalAxiosRequestConfig, data: unknown): AxiosResponse => ({
   data,
   status: 200,
@@ -227,13 +278,16 @@ const buildAdapter =
   };
 
 const REAL_ADAPTER = api.defaults.adapter;
-const env = process.env as Record<string, string | undefined>;
 
 /**
- * The page ships behind `ProtectedRoute` and `OrgGuard`. The stories lift both
- * with `NEXT_PUBLIC_DISABLE_AUTH_GUARD` - the local-only flag the shell itself
- * honours through `isLocalGuardBypassEnabled` - so the route renders without a
- * session and without the redirect ladder. OrgGuard still mounts its eleven
+ * The page ships behind `ProtectedRoute` and `OrgGuard`. The stories satisfy the guards with real
+ * data - an authenticated session, a verified org, an active membership, a
+ * profile past onboarding step 3 and one availability row - rather than with the
+ * `NEXT_PUBLIC_DISABLE_AUTH_GUARD` bypass, which only works under the dev server:
+ * a static build inlines every `process.env.NEXT_PUBLIC_*` read at build time, so
+ * assigning one at runtime changes nothing and the guards redirect.
+ *
+ *  its eleven
  * org-scoped loaders, and each store is seeded with an entry for this org so
  * they short-circuit rather than reaching the network. Companions are seeded
  * for real: they name every row and populate the create picker.
@@ -248,12 +302,12 @@ const prepare =
   }) =>
   () => {
     clearInFlightGetRequests();
-    const previousBypass = env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
-    env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = 'true';
 
     const snapshots = {
       appointment: useAppointmentStore.getState(),
       auth: useAuthStore.getState(),
+      profile: useUserProfileStore.getState(),
+      availability: useAvailabilityStore.getState(),
       companion: useCompanionStore.getState(),
       document: useOrganizationDocumentStore.getState(),
       forms: useFormsStore.getState(),
@@ -274,6 +328,12 @@ const prepare =
     const fetchedAt = { [ORG_ID]: new Date().toISOString() };
 
     useAuthStore.setState({ status: 'authenticated' });
+    useUserProfileStore.setState({ profilesByOrgId: { [ORG_ID]: PROFILE }, status: 'loaded' });
+    useAvailabilityStore.setState({
+      availabilitiesById: { [AVAILABILITY._id]: AVAILABILITY },
+      availabilityIdsByOrgId: { [ORG_ID]: [AVAILABILITY._id] },
+      status: 'loaded',
+    });
     useOrgStore.setState({
       primaryOrgId: ORG_ID,
       orgIds: [ORG_ID],
@@ -321,10 +381,10 @@ const prepare =
       useFormsStore.setState(snapshots.forms);
       useOrganizationDocumentStore.setState(snapshots.document);
       useCompanionStore.setState(snapshots.companion);
+      useAvailabilityStore.setState(snapshots.availability);
+      useUserProfileStore.setState(snapshots.profile);
       useAuthStore.setState(snapshots.auth);
       useAppointmentStore.setState(snapshots.appointment);
-      if (previousBypass === undefined) delete env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
-      else env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = previousBypass;
       clearInFlightGetRequests();
     };
   };
@@ -387,7 +447,12 @@ export const Loaded: Story = {
   name: 'Three estimates',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByRole('heading', { level: 1, name: 'Estimates' })).toBeVisible();
+    /* The title carries a live count - "Estimates (3)" - so it is matched on its
+       stem rather than in full, and the count itself is asserted where it means
+       something (the row list below). */
+    await expect(
+      await canvas.findByRole('heading', { level: 1, name: /^Estimates/ })
+    ).toBeVisible();
 
     // Rows are named by companion, resolved from the store rather than printed as ids.
     await expect(
@@ -424,7 +489,9 @@ export const RowSelected: Story = {
     await expect(
       canvas.getByRole('button', { name: 'Convert this estimate to an invoice' })
     ).toBeEnabled();
-    await expect(canvas.getByText('£191.96')).toBeVisible();
+    /* Twice on purpose: the list row and the detail card below it must agree on
+       the total, which is the one figure a client approves. */
+    await expect(canvas.getAllByText('£191.96')).toHaveLength(2);
   },
 };
 
@@ -474,7 +541,7 @@ export const Loading: Story = {
   beforeEach: prepare({ fixture: { kind: 'pending' } }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByRole('heading', { level: 1, name: 'Estimates' });
+    await canvas.findByRole('heading', { level: 1, name: /^Estimates/ });
     await waitFor(() => expect(canvasElement.querySelector('.animate-pulse')).not.toBeNull());
     await expect(canvas.queryByText('No estimates yet')).not.toBeInTheDocument();
   },

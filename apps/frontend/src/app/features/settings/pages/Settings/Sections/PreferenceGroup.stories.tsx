@@ -193,6 +193,12 @@ export const RowInteraction: Story = {
 export const Phone: Story = {
   name: 'Phone',
   globals: { viewport: { value: 'mobile', isRotated: false } },
+  /* Not decoration: `layout: 'centered'` centres by shrink-wrapping
+     `#storybook-root`, and the 420px wrapper then sets a min-content floor the
+     mobile viewport cannot push below - so `max-w-full` never bites and the
+     "phone" story draws a 420px card inside a 375px window. `fullscreen` is what
+     lets the wrapper actually collapse to the phone width. */
+  parameters: { layout: 'fullscreen' },
   args: { title: 'Scheduling', scope: 'organisation' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

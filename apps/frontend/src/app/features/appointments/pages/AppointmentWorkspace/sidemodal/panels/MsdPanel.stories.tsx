@@ -137,12 +137,18 @@ export const Phone: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText('MSD Manual')).toBeInTheDocument();
-    // The search row is `flex-nowrap`: field, Search and the filters button share one line.
+    /* The search row is `flex-nowrap`, so the field, Search and the filters
+       button share one line. They are NOT top-aligned: the cluster holding the
+       last two is `items-center`, and the filters button is a 48px square against
+       a shorter Search pill, so the pair shares a centre line while their tops
+       differ by half the height difference. */
     const search = canvas.getByRole('button', { name: 'Search' });
     const filters = canvas.getByRole('button', { name: 'Show filters' });
-    await expect(
-      Math.abs(search.getBoundingClientRect().top - filters.getBoundingClientRect().top)
-    ).toBeLessThan(2);
+    const centre = (el: HTMLElement) => {
+      const box = el.getBoundingClientRect();
+      return box.top + box.height / 2;
+    };
+    await expect(Math.abs(centre(search) - centre(filters))).toBeLessThan(2);
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
   },
 };
