@@ -6,6 +6,7 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 expect.extend(toHaveNoViolations);
 
 import ProtectedGuides from '@/app/features/guides/pages/Guides';
+import type { GuideVideo } from '@/app/features/guides/types/guides';
 
 /* A getter-backed override so ONE test can render an empty library without a
    second module registry. `jest.isolateModules` + `require` pulled in a second
@@ -65,13 +66,67 @@ jest.mock('@/app/ui/overlays/Modal/GuidePlayerModal', () => ({
 const cardButton = (title: string) => screen.getByRole('button', { name: `Play guide: ${title}` });
 const allCards = () => screen.queryAllByRole('button', { name: /^Play guide:/ });
 
+/* A fixture, not the shipped library. These tests are about what the SHELF
+   does - filter by role, filter by category, search, open the player - and that
+   behaviour must not be re-pinned every time a film is added or re-cut. The
+   generated library gets one test of its own at the bottom of this file. */
+const guide = (over: Partial<GuideVideo> & { id: string; title: string }): GuideVideo => ({
+  persona: 'Everyone',
+  description: 'A short walkthrough.',
+  duration: '0:22',
+  category: 'Getting started',
+  tags: [],
+  videoUrl: `https://cdn.example.test/videos/guides/${over.id}.mp4`,
+  thumbnailUrl: `https://cdn.example.test/guidePosters/${over.id}-poster.png`,
+  ...over,
+});
+
+const FIXTURE: GuideVideo[] = [
+  guide({ id: 'first-day', title: 'Your first day in the PIMS', featured: true }),
+  guide({
+    id: 'run-a-visit',
+    title: 'Run a visit end to end',
+    persona: 'Veterinarian',
+    category: 'The visit',
+  }),
+  guide({
+    id: 'invoices',
+    title: 'Invoices, deposits and payouts',
+    persona: 'Practice manager',
+    category: 'Money',
+  }),
+  guide({
+    id: 'stock',
+    title: 'Stock that counts itself',
+    persona: 'Nurse or technician',
+    category: 'Inventory',
+  }),
+  guide({
+    id: 'idexx',
+    title: 'Connect IDEXX in 5 minutes',
+    persona: 'Practice manager',
+    category: 'Integrations',
+  }),
+  guide({
+    id: 'invite',
+    title: 'Invite your team, set roles',
+    persona: 'Clinic owner',
+    category: 'Your setup',
+    status: 'new',
+  }),
+];
+
 describe('Guides page', () => {
-  it('renders the warm-bone header and all seed guides', () => {
+  beforeEach(() => {
+    mockGuidesOverride = FIXTURE;
+  });
+
+  it('renders the warm-bone header and every guide in the library', () => {
     render(<ProtectedGuides />);
     expect(screen.getByRole('heading', { name: /Guides \(6\)/ })).toBeInTheDocument();
     /* The runtime is derived from the library, not asserted in the markup: the
-       header claimed "2-6 minutes each" above guides that run 2:56 to 6:02,
-       so even the low end was wrong. And "Short, practical walkthroughs" used to be on BOTH lines, with
+       header hardcoded "2-6 minutes each". The fixture's guides all run 0:22, so
+       the derived line says so; the shipped library is the same shape. And "Short, practical walkthroughs" used to be on BOTH lines, with
        neither hidden at any width, so the phrase appeared twice on screen. */
     /* A function matcher, because the runtime is interpolated: the line is two
        text nodes, and a plain string query only ever sees one of them. */
@@ -79,7 +134,7 @@ describe('Guides page', () => {
       screen.getByText(
         (_, el) =>
           el?.tagName === 'SPAN' &&
-          el.textContent === 'Short, practical walkthroughs · 3–6 minutes each'
+          el.textContent === 'Short, practical walkthroughs · a minute or less each'
       )
     ).toBeInTheDocument();
     expect(screen.getByText('Updated with each release')).toBeInTheDocument();
@@ -104,7 +159,7 @@ describe('Guides page', () => {
 
   it('filters the grid by category chip', () => {
     render(<ProtectedGuides />);
-    fireEvent.click(screen.getByRole('button', { name: 'Appointments' }));
+    fireEvent.click(screen.getByRole('button', { name: 'The visit' }));
     expect(allCards()).toHaveLength(1);
     expect(cardButton('Run a visit end to end')).toBeInTheDocument();
     expect(
@@ -187,7 +242,7 @@ describe('Guides page', () => {
 
   it('clears filters from the empty state to restore the grid', () => {
     render(<ProtectedGuides />);
-    fireEvent.click(screen.getByRole('button', { name: 'Finance' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Money' }));
     fireEvent.change(screen.getByLabelText('Search guides'), { target: { value: 'nonsense' } });
     expect(allCards()).toHaveLength(0);
 
