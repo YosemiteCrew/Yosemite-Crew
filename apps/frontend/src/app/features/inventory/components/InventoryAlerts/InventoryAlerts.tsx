@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo } from 'react';
+import React from 'react';
 import clsx from 'clsx';
 import { IoAlertCircleOutline, IoTimeOutline } from 'react-icons/io5';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
@@ -148,7 +148,9 @@ const InventoryAlerts = ({
   expiringWindowDays = 30,
 }: InventoryAlertsProps) => {
   // `now` is captured once per render so every row in a pass agrees on "today".
-  const now = useMemo(() => new Date(), []);
+  // Fresh each render so relative day labels never go stale; one value per
+  // pass, so every row in a render still agrees on "today".
+  const now = new Date();
 
   const lowStockBody = (() => {
     if (loading) return <LoadingRows />;
