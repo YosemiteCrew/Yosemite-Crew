@@ -126,6 +126,25 @@ describe('PublicBookingSetup', () => {
 
   afterEach(() => setClipboard(undefined));
 
+  it('shows keyboard focus on every notched field', async () => {
+    /* globals.css suppresses the outline on input/select/textarea on the grounds
+       that "each field shows border-color on focus", and the inner controls here
+       add their own outline-none. These five wrappers had neither, so tabbing
+       through this page gave a keyboard user no indication of where they were.
+       The affordance lives on the wrapper, so that is what this checks. */
+    await renderSetup();
+
+    // The notched-field recipe exactly: a hairline 14px box. Other 14px-radius
+    // elements on this page are buttons and are not focus surfaces.
+    const notched = document.querySelectorAll('[class*="border-[var(--hairline)] rounded-[14px]"]');
+    // Two on this step; the other three are on later wizard steps. The count
+    // only proves the query found the recipe - the per-field loop is the guard.
+    expect(notched.length).toBeGreaterThanOrEqual(2);
+    for (const field of notched) {
+      expect(field.className).toContain('focus-within:border-[var(--color-input-border-active)]');
+    }
+  });
+
   it('loads the catalog and lists only bookable, active services with formatted prices', async () => {
     await renderSetup();
 
