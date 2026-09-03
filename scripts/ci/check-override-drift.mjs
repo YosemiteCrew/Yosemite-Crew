@@ -2,84 +2,63 @@
 /**
  * Fails when a root `pnpm.overrides` entry contradicts what a workspace declares.
  *
- * An override forces resolution regardless of any manifest, which is what makes
- * it the right tool for a CVE floor and also what makes it a trap. When a
- * dependency bump raises a manifest and the override is left behind, one of two
- * things happens and no existing gate notices either, because the overrides map
- * and `pnpm-lock.yaml` stay consistent with each other. Only the manifests end
- * up disagreeing with the installed tree.
+ * An override forces resolution regardless of any manifest, which is what makes it
+ * the right tool for a CVE floor and also what makes it a trap. When a dependency
+ * bump raises a manifest and the override is left behind, one of two things happens
+ * and no existing gate notices either, because the overrides map and `pnpm-lock.yaml`
+ * stay consistent with each other. Only the manifests end up disagreeing with the
+ * installed tree.
  *
  *   pins-below-declared  The override pins BELOW a declared range, so the bump
- *                        installs nothing. axios was raised ^1.19.0 -> ^1.20.0
- *                        in four manifests while the override held "1.19.0";
- *                        the lockfile resolved only 1.19.0 and every workspace
- *                        ran the old copy while claiming the new one. `validator`
- *                        sat at 13.15.26 against three manifests declaring
- *                        ^13.15.35 for long enough to reach dev.
+ *                        installs nothing. axios was raised ^1.19.0 -> ^1.20.0 in
+ *                        four manifests while the override held "1.19.0"; the
+ *                        lockfile resolved only 1.19.0 and every workspace ran the
+ *                        old copy while claiming the new one. `validator` sat at
+ *                        13.15.26 against three manifests declaring ^13.15.35 for
+ *                        long enough to reach dev.
  *
- *   splits-tree          The override pins a version that satisfies the declared
- *                        range but differs from what the range resolves to, so
- *                        the package ends up installed twice. Two copies of one
- *                        package are two distinct nominal types to TypeScript
- *                        and two module instances at runtime. i18next split this
- *                        way when mobile moved to ^26.4.0 while the override held
- *                        26.3.6; a proposed zod override did the same at 4.5.0
- *                        against a ^4.5.0 that resolved 4.5.4.
+ *   splits-tree          The override pins a version the lockfile resolves alongside
+ *                        a higher one, so the package is installed twice. Two copies
+ *                        are two distinct nominal types to TypeScript and two module
+ *                        instances at runtime. i18next split this way when mobile
+ *                        moved to ^26.4.0 against an override holding 26.3.6.
  *
- * This runs offline against the manifests alone, with no `pnpm audit` and no
- * network, so unlike check-override-advisories.mjs it can be a hard gate.
- * That script answers "is the pinned version vulnerable"; this one answers
- * "does the pin still agree with what the repo asks for".
+ * Pinning ABOVE a declared range is NOT reported: that is the CVE-floor pattern this
+ * repo relies on deliberately.
+ *
+ * This runs offline against the manifests and the lockfile, with no `pnpm audit` and
+ * no network, so unlike check-override-advisories.mjs it can be a hard gate. That
+ * script answers "is the pinned version vulnerable"; this one answers "does the pin
+ * still agree with what the repo asks for".
+ *
+ * Every exported function is pure and takes already-read content. All file reads live
+ * in readRepo() against module constants, so no caller-supplied path reaches a read.
  *
  *   node scripts/ci/check-override-drift.mjs [--json]
  *
  * Exits non-zero if any override contradicts a declaration.
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { join, dirname, resolve, sep } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const semver = require('semver');
 
-const repoRoot = resolve(join(dirname(fileURLToPath(import.meta.url)), '../..'));
-
-/**
- * Resolve `segments` under `base` and return the path only if it stays inside the
- * repository. `root` is a parameter so the tests can point at a fixture directory;
- * this keeps that from becoming a way to read arbitrary files.
- */
-export function containedPath(base, ...segments) {
-  const target = resolve(base, ...segments);
-  const anchor = resolve(base);
-  if (target !== anchor && !target.startsWith(anchor + sep)) return null;
-  return target;
-}
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
+const ROOT_MANIFEST = join(REPO_ROOT, 'package.json');
+const LOCKFILE = join(REPO_ROOT, 'pnpm-lock.yaml');
+const WORKSPACE_GROUPS = ['apps', 'packages'];
 
 /**
  * Drift we knowingly tolerate, each with the reason. An entry here is a bug being
  * tolerated, not a bug that has been fixed, so keep it short and justified.
  *
- * Key is `<package>@<pinned>`, so raising the pin retires the entry automatically
+ * Keyed `<package>@<pinned>`, so raising the pin retires the entry automatically
  * rather than leaving a stale exemption behind.
  */
 export const ALLOWED = new Map();
-
-/** Every first-party manifest, root last so its own overrides block is skippable. */
-export function manifestPaths(root = repoRoot) {
-  const out = [];
-  for (const group of ['apps', 'packages']) {
-    const dir = join(root, group);
-    if (!existsSync(dir)) continue;
-    for (const name of readdirSync(dir)) {
-      const file = containedPath(dir, name, 'package.json');
-      if (!file) continue;
-      if (existsSync(file)) out.push(file);
-    }
-  }
-  return out;
-}
 
 /**
  * A bare package name forces EVERY consumer. A selector carrying its own range
@@ -88,8 +67,7 @@ export function manifestPaths(root = repoRoot) {
  */
 export function isBareName(key) {
   if (key.includes('>')) return false;
-  const at = key.indexOf('@', 1);
-  return at === -1;
+  return key.indexOf('@', 1) === -1;
 }
 
 /**
@@ -98,47 +76,38 @@ export function isBareName(key) {
  */
 export function classify(name, pinned, declared, file) {
   if (!semver.valid(pinned)) return null;
+  if (typeof declared !== 'string' || declared.startsWith('workspace:')) return null;
   if (!semver.validRange(declared)) return null;
-  if (declared.startsWith('workspace:')) return null;
+  if (semver.satisfies(pinned, declared)) return null;
 
-  if (!semver.satisfies(pinned, declared)) {
-    const min = semver.minVersion(declared);
-    // Pinning ABOVE a declared range is the CVE-floor pattern and is deliberate.
-    // Only pinning below it makes the declaration a lie.
-    if (min && semver.lt(pinned, min)) {
-      return { kind: 'pins-below-declared', name, pinned, declared, file, minimum: min.version };
-    }
-    return null;
+  const min = semver.minVersion(declared);
+  // Forcing above a declared range is the CVE-floor pattern and is deliberate.
+  // Only forcing below it makes the declaration a lie.
+  if (min && semver.lt(pinned, min)) {
+    return { kind: 'pins-below-declared', name, pinned, declared, file, minimum: min.version };
   }
-
-  // The pin satisfies the range, so it is not inert. It can still split the tree
-  // when the range would otherwise resolve somewhere else. maxSatisfying over the
-  // versions we can see locally is a lower bound on that, so this reports only
-  // what it can prove: a pin strictly below the highest version the range admits
-  // among versions already present in the tree.
   return null;
 }
 
 /**
  * Every version the lockfile resolves, indexed by package name.
  *
- * Read once per run. An earlier shape re-read and re-scanned the whole lockfile for
- * each override, which is 111 full passes over a 2 MB file to answer 111 questions
- * that one pass answers.
+ * Takes the lockfile TEXT rather than a path: one read per run instead of one per
+ * override, no caller-supplied path, and the parsing is testable without a fixture
+ * directory.
  *
- * Deliberately NOT read from `node_modules/.pnpm`: that directory retains
- * previously-installed versions until it is pruned, so a stale store reports a split
- * that no longer exists. An early draft did exactly that and reported validator
- * 13.15.26 and 13.15.35 as coexisting when only one was resolved. The lockfile is the
- * only authority on what a fresh install produces.
+ * Deliberately not derived from `node_modules/.pnpm`, which retains
+ * previously-installed versions until pruned. An early draft read that directory and
+ * reported validator 13.15.26 and 13.15.35 as coexisting when only one was resolved.
+ * A gate that fires on a stale working tree trains people to ignore it.
  */
-export function lockfileIndex(root = repoRoot) {
+export function parseLockfileVersions(text) {
   const index = new Map();
-  const lock = containedPath(root, 'pnpm-lock.yaml');
-  if (!lock || !existsSync(lock)) return index;
-  // Package entries are `  /<name>@<version>(peers...):` at two-space indent.
+  // Entries are `  /<name>@<version>(peers...):` at two-space indent. The version
+  // capture stops before any peer suffix, which would otherwise make it unparseable
+  // and silently disable split detection.
   const re = /^ {2}\/((?:@[^/@\s]+\/)?[^@\s/]+)@([0-9][^()\s:]*)/gm;
-  for (const m of readFileSync(lock, 'utf8').matchAll(re)) {
+  for (const m of text.matchAll(re)) {
     if (!semver.valid(m[2])) continue;
     if (!index.has(m[1])) index.set(m[1], new Set());
     index.get(m[1]).add(m[2]);
@@ -146,57 +115,52 @@ export function lockfileIndex(root = repoRoot) {
   return index;
 }
 
-/** Versions of one package the lockfile resolves. Kept for direct querying. */
-export function resolvedVersions(name, root = repoRoot) {
-  return lockfileIndex(root).get(name) ?? new Set();
-}
-
-export function findDrift({ root = repoRoot, overrides, manifests } = {}) {
-  const rootPkgPath = containedPath(root, 'package.json');
-  if (!rootPkgPath) throw new Error(`refusing to read outside ${root}`);
-  const rootPkg = JSON.parse(readFileSync(rootPkgPath, 'utf8'));
-  const pins = overrides ?? rootPkg.pnpm?.overrides ?? {};
-  const files = manifests ?? manifestPaths(root);
-
+/** package name -> [{file, range}] across every first-party manifest. */
+export function collectDeclarations(manifests) {
   const declarations = new Map();
-  for (const file of files) {
-    const pkg = JSON.parse(readFileSync(file, 'utf8'));
+  for (const { file, json } of manifests) {
     for (const field of ['dependencies', 'devDependencies', 'optionalDependencies']) {
-      for (const [name, range] of Object.entries(pkg[field] ?? {})) {
+      for (const [name, range] of Object.entries(json[field] ?? {})) {
         if (typeof range !== 'string') continue;
         if (!declarations.has(name)) declarations.set(name, []);
-        declarations.get(name).push({ file: file.replace(`${root}/`, ''), range });
+        declarations.get(name).push({ file, range });
       }
     }
   }
+  return declarations;
+}
 
-  const lockIndex = lockfileIndex(root);
-
+/** Pure: everything it needs is already read. */
+export function findDrift({ overrides, manifests, lockText = '' }) {
+  const declarations = collectDeclarations(manifests);
+  const resolved = parseLockfileVersions(lockText);
   const findings = [];
-  for (const [key, pinned] of Object.entries(pins)) {
+
+  for (const [key, pinned] of Object.entries(overrides)) {
     if (!isBareName(key)) continue;
     if (ALLOWED.has(`${key}@${pinned}`)) continue;
-    for (const decl of declarations.get(key) ?? []) {
+
+    const declared = declarations.get(key) ?? [];
+    for (const decl of declared) {
       const finding = classify(key, pinned, decl.range, decl.file);
       if (finding) findings.push(finding);
     }
 
-    // Split detection needs the installed tree rather than the manifests: an
-    // override and a declaration can both be satisfied and still produce two
-    // copies. Report only when more than one version is actually on disk AND
-    // the pin is one of them, which is the shape that is the override's fault.
-    const present = lockIndex.get(key) ?? new Set();
-    if (present.size > 1 && present.has(pinned)) {
-      const higher = [...present].filter((v) => semver.gt(v, pinned));
-      if (higher.length && (declarations.get(key) ?? []).length) {
-        findings.push({
-          kind: 'splits-tree',
-          name: key,
-          pinned,
-          others: higher.sort(semver.compare),
-          file: (declarations.get(key) ?? [])[0].file,
-        });
-      }
+    // A split needs the lockfile rather than the manifests: an override and a
+    // declaration can both be satisfied and still produce two copies. Report only
+    // when the pin is one of several resolved versions, which is the shape that is
+    // the override's own fault.
+    const present = resolved.get(key);
+    if (!declared.length || !present || present.size < 2 || !present.has(pinned)) continue;
+    const higher = [...present].filter((v) => semver.gt(v, pinned)).sort(semver.compare);
+    if (higher.length) {
+      findings.push({
+        kind: 'splits-tree',
+        name: key,
+        pinned,
+        others: higher,
+        file: declared[0].file,
+      });
     }
   }
   return findings;
@@ -214,28 +178,41 @@ export function formatFinding(f) {
   return [
     `  ${f.name}: the override pins ${f.pinned}, but ${f.others.join(', ')} ${
       f.others.length > 1 ? 'are' : 'is'
-    } also installed.`,
-    `    Two copies of one package are two distinct types to TypeScript and two`,
-    `    module instances at runtime.`,
+    } also resolved.`,
+    '    Two copies of one package are two distinct types to TypeScript and two',
+    '    module instances at runtime.',
     `    Fix: raise the override to ${f.others[f.others.length - 1]} so the tree collapses.`,
   ].join('\n');
 }
 
-function main(argv) {
-  const json = argv.includes('--json');
-  const findings = findDrift();
+/** The only function that touches the filesystem, and only via module constants. */
+function readRepo() {
+  const rootPkg = JSON.parse(readFileSync(ROOT_MANIFEST, 'utf8'));
+  const manifests = [];
+  for (const group of WORKSPACE_GROUPS) {
+    const dir = join(REPO_ROOT, group);
+    if (!existsSync(dir)) continue;
+    for (const name of readdirSync(dir)) {
+      const abs = join(dir, name, 'package.json');
+      if (!existsSync(abs)) continue;
+      manifests.push({ file: `${group}/${name}/package.json`, json: JSON.parse(readFileSync(abs, 'utf8')) });
+    }
+  }
+  const lockText = existsSync(LOCKFILE) ? readFileSync(LOCKFILE, 'utf8') : '';
+  return { overrides: rootPkg.pnpm?.overrides ?? {}, manifests, lockText };
+}
 
-  if (json) {
+function main(argv) {
+  const repo = readRepo();
+  const findings = findDrift(repo);
+
+  if (argv.includes('--json')) {
     console.log(JSON.stringify({ findings }, null, 2));
     process.exitCode = findings.length ? 1 : 0;
     return;
   }
 
-  const overrideCount = Object.keys(
-    JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8')).pnpm?.overrides ?? {},
-  ).length;
-  console.log(`check-override-drift: ${overrideCount} override entries checked`);
-
+  console.log(`check-override-drift: ${Object.keys(repo.overrides).length} override entries checked`);
   if (!findings.length) {
     console.log('  no override contradicts a workspace declaration');
     return;
@@ -244,27 +221,19 @@ function main(argv) {
   const below = findings.filter((f) => f.kind === 'pins-below-declared');
   const splits = findings.filter((f) => f.kind === 'splits-tree');
   console.error(
-    `\ncheck-override-drift: ${below.length} override(s) pinning below a declared range` +
-      `, and ${splits.length} splitting the tree\n`,
+    `\ncheck-override-drift: ${below.length} override(s) pinning below a declared range,` +
+      ` and ${splits.length} splitting the tree\n`,
   );
   for (const f of findings) {
     console.error(formatFinding(f));
     console.error('');
   }
-  console.error(
-    'A pnpm override beats every manifest, so these do not show up in',
-  );
-  console.error(
-    '`pnpm install --frozen-lockfile`, lint or type-check: the overrides map and',
-  );
-  console.error(
-    'the lockfile agree with each other and only the manifests disagree with what',
-  );
-  console.error('is installed. Read the resolution, not the manifest:');
+  console.error('A pnpm override beats every manifest, so these do not show up in');
+  console.error('`pnpm install --frozen-lockfile`, lint or type-check: the overrides map');
+  console.error('and the lockfile agree with each other, and only the manifests disagree');
+  console.error('with what is installed. Read the resolution, not the manifest:');
   console.error('');
-  console.error(
-    "  grep -oE '^  /<pkg>@[0-9.]+' pnpm-lock.yaml | sort -u    # want exactly one line",
-  );
+  console.error("  grep -oE '^  /<pkg>@[0-9.]+' pnpm-lock.yaml | sort -u    # want exactly one line");
   process.exitCode = 1;
 }
 
