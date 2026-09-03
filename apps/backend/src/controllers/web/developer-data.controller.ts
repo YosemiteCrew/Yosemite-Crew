@@ -51,6 +51,21 @@ const parseDate = (raw: unknown): Date | undefined | null => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+/*
+ * Cursors are appointment ids, which are uuids. Checking the shape up front is
+ * what lets every failure from the query itself be reported honestly as a 500:
+ * the alternative, inferring "bad cursor" from a thrown error, turns a database
+ * outage into a 400 telling the caller their cursor is malformed.
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const parseCursor = (raw: unknown): string | undefined | null => {
+  if (typeof raw !== "string" || !raw) {
+    return undefined;
+  }
+  return UUID.test(raw) ? raw : null;
+};
+
 const parseStatus = (raw: unknown): AppointmentStatus | undefined | null => {
   if (typeof raw !== "string" || !raw) {
     return undefined;
@@ -126,10 +141,28 @@ export const DeveloperDataController = {
     }
 
     const limit = clampPageSize(req.query.limit);
-    const cursor =
-      typeof req.query.cursor === "string" && req.query.cursor
-        ? req.query.cursor
-        : undefined;
+    /*
+     * Narrowed here rather than inside the log call: a query value can be an
+     * object or an array, and stringifying one would put "[object Object]" in
+     * the log instead of what the caller actually sent.
+     */
+    const rawCursor =
+      typeof req.query.cursor === "string" ? req.query.cursor : "";
+    const cursor = parseCursor(req.query.cursor);
+    if (cursor === null) {
+      // Logged newline-stripped: the value is caller-controlled and a raw CR/LF
+      // in it would forge a second log line.
+      logger.warn(
+        `DeveloperDataController.listAppointments rejected cursor ${forLog(rawCursor)}`,
+      );
+      fail(
+        res,
+        400,
+        "invalid_request",
+        "Unknown or malformed cursor. Use pagination.nextCursor from the previous response.",
+      );
+      return;
+    }
 
     try {
       const page = await DeveloperDataService.listAppointments({
@@ -145,19 +178,6 @@ export const DeveloperDataController = {
         pagination: { limit, nextCursor: page.nextCursor },
       });
     } catch (err) {
-      /*
-       * An unknown cursor makes Prisma throw rather than return an empty page,
-       * and that is a caller mistake, not a server fault. Logged with the
-       * cursor so a developer can be told which one, newline-stripped.
-       */
-      if (cursor) {
-        logger.error(
-          `DeveloperDataController.listAppointments failed for cursor ${forLog(cursor)}`,
-          err,
-        );
-        fail(res, 400, "invalid_request", "Unknown or malformed cursor");
-        return;
-      }
       logger.error("DeveloperDataController.listAppointments failed", err);
       fail(res, 500, "internal_error", "Internal server error");
     }
