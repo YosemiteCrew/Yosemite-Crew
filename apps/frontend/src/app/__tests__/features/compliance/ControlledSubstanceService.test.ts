@@ -88,10 +88,15 @@ describe('fetchControlledSubstanceLogs', () => {
     expect(await fetchControlledSubstanceLogs(ORG)).toEqual([]);
   });
 
-  it('throws when the organisation id is missing', async () => {
-    await expect(fetchControlledSubstanceLogs('')).rejects.toThrow('Organisation ID missing');
-    expect(mockGetData).not.toHaveBeenCalled();
-  });
+  it.each(['', '../admin', 'org/other', 'https://attacker.test'])(
+    'rejects an unsafe organisation id (%s)',
+    async (organisationId) => {
+      await expect(fetchControlledSubstanceLogs(organisationId)).rejects.toThrow(
+        'Invalid organisation ID'
+      );
+      expect(mockGetData).not.toHaveBeenCalled();
+    }
+  );
 });
 
 describe('createControlledSubstanceLog', () => {
@@ -116,12 +121,15 @@ describe('createControlledSubstanceLog', () => {
     expect(result).toBe(record);
   });
 
-  it('throws when the organisation id is missing', async () => {
-    await expect(createControlledSubstanceLog('', payload)).rejects.toThrow(
-      'Organisation ID missing'
-    );
-    expect(mockPostData).not.toHaveBeenCalled();
-  });
+  it.each(['', '../admin', 'org/other', 'https://attacker.test'])(
+    'rejects an unsafe organisation id (%s)',
+    async (organisationId) => {
+      await expect(createControlledSubstanceLog(organisationId, payload)).rejects.toThrow(
+        'Invalid organisation ID'
+      );
+      expect(mockPostData).not.toHaveBeenCalled();
+    }
+  );
 });
 
 describe('formatAmount', () => {
