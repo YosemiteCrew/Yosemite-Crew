@@ -157,7 +157,7 @@ const CreateProblemForm = ({
   onCancel,
 }: {
   creating: boolean;
-  onCreate?: ProblemListProps['onCreate'];
+  onCreate?: NonNullable<ProblemListProps['onCreate']>;
   onCancel: () => void;
 }) => {
   const [values, setValues] = useState<ProblemFormValues>(emptyForm);
