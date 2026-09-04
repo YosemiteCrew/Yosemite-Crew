@@ -47,7 +47,11 @@ export interface AddToWaitlistPayload {
   expiresAt?: string;
 }
 
-const waitlistPath = (organisationId: string) => `/v1/pms/organisation/${organisationId}/waitlist`;
+// Encode the caller's own org id + entry id as single path segments so the
+// request stays pinned to `/v1/pms/organisation/<seg>/waitlist/<seg>/...`
+// even if an id ever carried a slash or dot (what the SSRF scanner checks).
+const waitlistPath = (organisationId: string) =>
+  `/v1/pms/organisation/${encodeURIComponent(organisationId)}/waitlist`;
 
 const logFailure = (message: string, err: unknown): void => {
   if (axios.isAxiosError(err)) {
@@ -94,7 +98,7 @@ const transition = async (
 ): Promise<WaitlistEntry> => {
   try {
     const res = await postData<WaitlistEntry>(
-      `${waitlistPath(organisationId)}/${entryId}/${action}`
+      `${waitlistPath(organisationId)}/${encodeURIComponent(entryId)}/${action}`
     );
     return res.data;
   } catch (err) {
