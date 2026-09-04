@@ -1,0 +1,41 @@
+name: Close referenced issues on dev
+
+# GitHub only fires `Closes #N` / `Fixes #N` when a PR merges into the DEFAULT
+# branch. This repo merges into `dev`, so issues a PR body marks as closed stay
+# open forever - shipped work reads as live and gets re-started. This closes them
+# here, reading the same keywords GitHub would, only on `dev`.
+on:
+  push:
+    branches:
+      - dev
+
+concurrency:
+  # One run per pushed commit; never cancel a run mid-close.
+  group: close-dev-issues-${{ github.sha }}
+
+permissions: {}
+
+jobs:
+  close:
+    name: Close issues the merged PR resolves
+    # Only the canonical repo; a fork has no business closing these issues.
+    if: github.repository_owner == 'YosemiteCrew'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # No setup-node on purpose, matching tls-expiry.yml: the script imports only
+      # node builtins and shells out to the preinstalled gh CLI, so the runner's
+      # Node is enough and nothing in the workspace can stop an issue from closing.
+      - name: Close referenced issues
+        run: node scripts/ci/close-referenced-issues.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
