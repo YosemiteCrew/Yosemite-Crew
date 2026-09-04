@@ -248,7 +248,8 @@ describe("cleanupCachedCells", () => {
     });
     const now = Date.parse("2026-07-29T12:00:00.000Z");
 
-    await expect(cleanupCachedCells(now)).resolves.toBe(3);
+    const nowSpy = jest.spyOn(Date, "now").mockReturnValue(now);
+    await expect(cleanupCachedCells()).resolves.toBe(3);
 
     expect(prisma.parasiteRiskCell.deleteMany).toHaveBeenCalledWith({
       where: {
@@ -262,6 +263,7 @@ describe("cleanupCachedCells", () => {
         ],
       },
     });
+    nowSpy.mockRestore();
   });
 });
 
