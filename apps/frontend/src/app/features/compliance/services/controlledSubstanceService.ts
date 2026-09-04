@@ -12,7 +12,10 @@ import type {
  * `/v1/pms/organisation/:organisationId/...` family the estimates service uses.
  */
 const basePath = (organisationId: string) =>
-  `/v1/pms/organisation/${organisationId}/controlled-substance-logs`;
+  // Encode the caller's own org id as a single path segment: it keeps the
+  // request pinned to `/v1/pms/organisation/<segment>/...` even if the id ever
+  // carried a slash or dot, which is what the SSRF scanner wants to see.
+  `/v1/pms/organisation/${encodeURIComponent(organisationId)}/controlled-substance-logs`;
 
 const assertOrg = (organisationId: string) => {
   if (!organisationId) throw new Error('Organisation ID missing');

@@ -56,7 +56,7 @@ export const appRoutes: RouteItem[] = [
     name: 'Controlled drugs',
     href: '/controlled-substances',
     verify: true,
-    requiredAnyPermissions: [PERMISSIONS.APPOINTMENTS_VIEW_ANY],
+    requiredAnyPermissions: [PERMISSIONS.PRESCRIPTION_VIEW_ANY, PERMISSIONS.PRESCRIPTION_VIEW_OWN],
   },
   {
     name: 'Integrations',

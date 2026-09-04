@@ -37,8 +37,8 @@ const ControlledSubstancesContent = () => {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  const handleCreate = async (input: CreateControlledSubstanceLogInput) => {
-    if (!primaryOrgId) return;
+  const handleCreate = async (input: CreateControlledSubstanceLogInput): Promise<boolean> => {
+    if (!primaryOrgId) return false;
     setCreating(true);
     setCreateError(null);
     try {
@@ -48,10 +48,12 @@ const ControlledSubstancesContent = () => {
         text: 'The controlled substance entry has been recorded.',
       });
       reload();
+      setCreating(false);
+      return true;
     } catch (err) {
       setCreateError(getControlledSubstanceErrorMessage(err, 'Unable to log the entry.'));
-    } finally {
       setCreating(false);
+      return false;
     }
   };
 
@@ -65,13 +67,16 @@ const ControlledSubstancesContent = () => {
       canRecord={canRecord}
       creating={creating}
       createError={createError}
-      onCreate={(input) => void handleCreate(input)}
+      onCreate={handleCreate}
     />
   );
 };
 
 const ControlledSubstances = () => (
-  <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]} deniedResource="Controlled drugs">
+  <PermissionGate
+    anyOf={[PERMISSIONS.PRESCRIPTION_VIEW_ANY, PERMISSIONS.PRESCRIPTION_VIEW_OWN]}
+    deniedResource="Controlled drugs"
+  >
     <ControlledSubstancesContent />
   </PermissionGate>
 );

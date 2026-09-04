@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import ControlledSubstanceRegister from '@/app/features/compliance/components/ControlledSubstanceRegister';
@@ -247,22 +247,54 @@ describe('ControlledSubstanceRegister', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Server said no.');
   });
 
-  it('closes the form after a create settles successfully', async () => {
+  it('closes the form when the save resolves true', async () => {
     const user = userEvent.setup();
-    const { rerender } = renderRegister({ creating: false });
+    const onCreate = jest.fn().mockResolvedValue(true);
+    renderRegister({ onCreate });
 
     await user.click(screen.getByRole('button', { name: 'Add a controlled substance entry' }));
+    const form = screen.getByRole('form', { name: 'Add controlled substance entry' });
+
+    await user.type(within(form).getByLabelText('Drug name'), 'Midazolam');
+    await user.type(within(form).getByLabelText('Amount drawn'), '5');
+    await user.type(within(form).getByLabelText('Amount administered'), '5');
+    await user.click(screen.getByRole('button', { name: 'Save this controlled substance entry' }));
+
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('form', { name: 'Add controlled substance entry' })
+      ).not.toBeInTheDocument()
+    );
+  });
+
+  it('shows a disabled saving state on the submit button while creating', async () => {
+    const user = userEvent.setup();
+    renderRegister({ creating: true });
+
+    await user.click(screen.getByRole('button', { name: 'Add a controlled substance entry' }));
+    const save = screen.getByRole('button', { name: 'Save this controlled substance entry' });
+    expect(save).toHaveTextContent('Saving');
+    expect(save).toBeDisabled();
+  });
+
+  it('keeps the form open when the save resolves false', async () => {
+    const user = userEvent.setup();
+    const onCreate = jest.fn().mockResolvedValue(false);
+    renderRegister({ onCreate });
+
+    await user.click(screen.getByRole('button', { name: 'Add a controlled substance entry' }));
+    const form = screen.getByRole('form', { name: 'Add controlled substance entry' });
+
+    await user.type(within(form).getByLabelText('Drug name'), 'Midazolam');
+    await user.type(within(form).getByLabelText('Amount drawn'), '5');
+    await user.type(within(form).getByLabelText('Amount administered'), '5');
+    await user.click(screen.getByRole('button', { name: 'Save this controlled substance entry' }));
+
+    expect(onCreate).toHaveBeenCalledTimes(1);
     expect(
       screen.getByRole('form', { name: 'Add controlled substance entry' })
     ).toBeInTheDocument();
-
-    // Parent flips creating on, then off with no error: the form should close.
-    rerender(<ControlledSubstanceRegister {...baseProps} creating={true} />);
-    rerender(<ControlledSubstanceRegister {...baseProps} creating={false} />);
-
-    expect(
-      screen.queryByRole('form', { name: 'Add controlled substance entry' })
-    ).not.toBeInTheDocument();
   });
 
   it('blocks a waste entry that has no witness', async () => {

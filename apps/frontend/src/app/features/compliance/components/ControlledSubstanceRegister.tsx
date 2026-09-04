@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { IoAddOutline, IoSearchOutline, IoWarningOutline } from 'react-icons/io5';
 import clsx from 'clsx';
 
@@ -32,7 +32,8 @@ type ControlledSubstanceRegisterProps = {
   canRecord: boolean;
   creating: boolean;
   createError: string | null;
-  onCreate: (input: CreateControlledSubstanceLogInput) => void;
+  /** Resolves `true` when the entry was saved, so the form can close itself. */
+  onCreate: (input: CreateControlledSubstanceLogInput) => Promise<boolean>;
 };
 
 const fieldClass =
@@ -205,13 +206,12 @@ const ControlledSubstanceRegister = ({
   const [drugQuery, setDrugQuery] = useState('');
   const [addOpen, setAddOpen] = useState(false);
 
-  // Close the form once a create settles successfully (creating true -> false
-  // with no error). A failed create keeps it open so the error stays visible.
-  const wasCreating = useRef(false);
-  useEffect(() => {
-    if (wasCreating.current && !creating && !createError) setAddOpen(false);
-    wasCreating.current = creating;
-  }, [creating, createError]);
+  // Close the form only when the save actually succeeds. Driven by the create
+  // promise resolving inside the submit path, not a useEffect watching a prop,
+  // so a failed save keeps the form (and its values) on screen.
+  const handleFormSubmit = async (input: CreateControlledSubstanceLogInput) => {
+    if (await onCreate(input)) setAddOpen(false);
+  };
 
   const columns = useMemo(() => buildColumns(), []);
 
@@ -300,7 +300,7 @@ const ControlledSubstanceRegister = ({
         <AddEntryForm
           creating={creating}
           createError={createError}
-          onSubmit={onCreate}
+          onSubmit={handleFormSubmit}
           onCancel={() => setAddOpen(false)}
         />
       )}
@@ -480,7 +480,6 @@ const AddEntryForm = ({ creating, createError, onSubmit, onCancel }: AddEntryFor
             value={drug}
             onChange={(event) => setDrug(event.target.value)}
             className={inputClass}
-            placeholder="e.g. Ketamine"
           />
         </Field>
 
@@ -579,7 +578,6 @@ const AddEntryForm = ({ creating, createError, onSubmit, onCancel }: AddEntryFor
             value={wastedWitness}
             onChange={(event) => setWastedWitness(event.target.value)}
             className={inputClass}
-            placeholder="Required when any amount is wasted"
           />
         </Field>
 
