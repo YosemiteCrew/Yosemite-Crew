@@ -1,0 +1,42 @@
+{
+  "name": "@yosemite-crew/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server exposing the Yosemite Crew developer data API to AI agents via a developer API key",
+  "type": "module",
+  "bin": {
+    "yc-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.26.0",
+    "axios": "^1.19.0",
+    "zod": "^4.4.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "26.2.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.12",
+    "tsx": "^4.19.4",
+    "typescript": "5.0.4"
+  }
+}

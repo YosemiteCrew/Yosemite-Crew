@@ -20,13 +20,32 @@ import path from "path";
 
 const ROUTERS_DIR = path.join(__dirname, "..", "..", "src", "routers");
 
-/** Middlewares that establish the caller's identity (`req.userId`). */
+/**
+ * Middlewares that establish the caller's identity (`req.userId`).
+ *
+ * `authorizeApiKey` belongs here for the same reason as the session guards: it
+ * verifies the credential and then sets `req.userId` to the key's owner, which
+ * is the field `withOrgPermissions()` reads. It is applied router-wide with
+ * `.use()` on the developer data plane rather than per route, which the source
+ * order scan below handles - the token appears before every registration in the
+ * file.
+ */
 const AUTH_MIDDLEWARES = [
   "requireWebAuth",
   "requireMobileAuth",
   "requireAnyAuth",
   "attachSessionIfPresent",
+  "authorizeApiKey",
 ];
+
+/*
+ * Built from the list above rather than repeated as a literal. The two were
+ * separate copies of the same alternation, so adding an authenticator to one
+ * and not the other left this test reporting a properly gated router as having
+ * no authentication at all - which is exactly what happened when the API-key
+ * data plane landed.
+ */
+const AUTH_TOKEN_SOURCE = AUTH_MIDDLEWARES.map((m) => `\\b${m}\\b`).join("|");
 
 /**
  * Middlewares that resolve the caller's membership into `req.userPermissions`.
@@ -105,7 +124,10 @@ describe("route authorization invariant", () => {
       // gate is preceded by a loader, which is itself preceded by auth.
       const tokens = [
         ...body.matchAll(
-          /\b(requireWebAuth|requireMobileAuth|requireAnyAuth|attachSessionIfPresent)\b|\bwith[A-Za-z]*OrgPermissions\s*\(|\brequirePermission\s*\(/g,
+          new RegExp(
+            `${AUTH_TOKEN_SOURCE}|\\bwith[A-Za-z]*OrgPermissions\\s*\\(|\\brequirePermission\\s*\\(`,
+            "g",
+          ),
         ),
       ].map((m) => {
         const t = m[0];
