@@ -1,0 +1,637 @@
+[
+  {
+    "id": "create-your-account",
+    "persona": "Clinic owner",
+    "title": "Create an account and verify the email",
+    "description": "The sign-up form, the choice that decides which product you land in, and the six-digit code",
+    "duration": "0:22",
+    "category": "Getting started",
+    "tags": ["getting started", "clinic owner", "admin"]
+  },
+  {
+    "id": "create-your-clinic",
+    "persona": "Clinic owner",
+    "title": "Create your clinic record and start Stripe",
+    "description": "Business type, the address, the two check-in numbers, and the Stripe row",
+    "duration": "0:32",
+    "category": "Getting started",
+    "tags": ["getting started", "clinic owner", "admin"]
+  },
+  {
+    "id": "invite-a-team-member",
+    "persona": "Practice manager",
+    "title": "Invite a colleague and get them onto the roster",
+    "description": "The invite drawer, what it will not let you choose, and what the invitee sees",
+    "duration": "0:32",
+    "category": "Getting started",
+    "tags": ["getting started", "practice manager"]
+  },
+  {
+    "id": "control-what-each-person-can-see",
+    "persona": "Practice manager",
+    "title": "Grant or revoke one person's permissions",
+    "description": "The permission matrix inside a team member's drawer, and the two rules it enforces for you",
+    "duration": "0:27",
+    "category": "Getting started",
+    "tags": ["getting started", "practice manager", "clinic owner"]
+  },
+  {
+    "id": "read-the-dashboard-setup",
+    "persona": "Clinic owner",
+    "title": "Work the dashboard's setup prompts",
+    "description": "The verification banner, the get started strip, and why your row is shorter than a colleague's",
+    "duration": "0:27",
+    "category": "Getting started",
+    "tags": ["getting started", "clinic owner", "admin"]
+  },
+  {
+    "id": "set-up-rooms-and-units",
+    "persona": "Practice manager",
+    "title": "Add a room, and add units to a ward",
+    "description": "Room types, and the four that can hold individually counted units",
+    "duration": "0:22",
+    "category": "Getting started",
+    "tags": ["getting started", "practice manager"]
+  },
+  {
+    "id": "build-the-service-catalogue",
+    "persona": "Practice manager",
+    "title": "Build and maintain the service catalogue",
+    "description": "Specialities, the services and prices under them, packages, and retiring a line",
+    "duration": "0:38",
+    "category": "Getting started",
+    "tags": ["getting started", "practice manager"]
+  },
+  {
+    "id": "set-your-consultation-hours",
+    "persona": "Veterinarian",
+    "title": "Set the hours you can be consulted in",
+    "description": "The seven day grid behind Edit hours",
+    "duration": "0:27",
+    "category": "Your setup",
+    "tags": ["your setup", "veterinarian", "nurse/tech"]
+  },
+  {
+    "id": "fill-in-your-profile",
+    "persona": "Everyone",
+    "title": "Update your profile, and know which fields you cannot change",
+    "description": "The cards behind Edit profile, and the one thing that blocks deleting your account",
+    "duration": "0:22",
+    "category": "Your setup",
+    "tags": ["your setup", "front desk", "nurse/tech", "veterinarian"],
+    "featured": true
+  },
+  {
+    "id": "make-the-app-open-the-way-you-work",
+    "persona": "Everyone",
+    "title": "Set where the app opens, its timezone and its theme",
+    "description": "Three per person preferences that save as you change them",
+    "duration": "0:22",
+    "category": "Your setup",
+    "tags": ["your setup", "front desk", "veterinarian", "nurse/tech"],
+    "featured": true
+  },
+  {
+    "id": "turn-on-an-authenticator-app",
+    "persona": "Everyone",
+    "title": "Turn on an authenticator app for sign-in",
+    "description": "Where the setting lives, the enrolment, and what each refusal means",
+    "duration": "0:27",
+    "category": "Your setup",
+    "tags": ["your setup", "front desk", "nurse/tech", "veterinarian", "practice manager"],
+    "featured": true
+  },
+  {
+    "id": "reset-your-password",
+    "persona": "Everyone",
+    "title": "Reset a password you have lost",
+    "description": "The one field, the deliberately neutral confirmation, and the link that follows",
+    "duration": "0:22",
+    "category": "Your setup",
+    "tags": ["your setup", "front desk", "nurse/tech", "veterinarian"],
+    "featured": true
+  },
+  {
+    "id": "choose-the-right-view-of-the-day",
+    "persona": "Front desk",
+    "title": "Choose the right view of the day",
+    "description": "Calendar, board and list, and the week and team grids inside the calendar",
+    "duration": "0:22",
+    "category": "Appointments",
+    "tags": ["appointments", "front desk"]
+  },
+  {
+    "id": "book-an-appointment",
+    "persona": "Front desk",
+    "title": "Book an appointment from the appointments screen",
+    "description": "The New appointment form, its patient search, and the order it insists on",
+    "duration": "0:22",
+    "category": "Appointments",
+    "tags": ["appointments", "front desk"]
+  },
+  {
+    "id": "move-a-visit-through-its-statuses",
+    "persona": "Nurse or technician",
+    "title": "Accept a request and move a visit through its statuses",
+    "description": "The moves each status allows, and the two places the system refuses",
+    "duration": "0:38",
+    "category": "Appointments",
+    "tags": ["appointments", "nurse/tech", "front desk"]
+  },
+  {
+    "id": "reschedule-an-appointment",
+    "persona": "Front desk",
+    "title": "Move a booked appointment to another time",
+    "description": "The reschedule dialog, and the vet it can swap without saying so",
+    "duration": "0:27",
+    "category": "Appointments",
+    "tags": ["appointments", "front desk"]
+  },
+  {
+    "id": "find-a-patient-in-the-directory",
+    "persona": "Front desk",
+    "title": "Find a patient in the directory",
+    "description": "The list, the species tabs, and sorting by last visit",
+    "duration": "0:22",
+    "category": "Patients",
+    "tags": ["patients", "front desk"]
+  },
+  {
+    "id": "read-a-patients-record",
+    "persona": "Veterinarian",
+    "title": "Read a patient's record, its alerts and its history",
+    "description": "The overview page, the two kinds of alert, and what the timeline search can and cannot reach",
+    "duration": "0:32",
+    "category": "Patients",
+    "tags": ["patients", "veterinarian", "nurse/tech"]
+  },
+  {
+    "id": "read-an-invoice",
+    "persona": "Front desk",
+    "title": "Answer what a client still owes",
+    "description": "The invoice record, and the figure to read it off",
+    "duration": "0:22",
+    "category": "Money",
+    "tags": ["money", "front desk"]
+  },
+  {
+    "id": "collect-cash-or-send-a-card-link",
+    "persona": "Front desk",
+    "title": "Collect cash or send a card link from the appointment",
+    "description": "The Pay card on an appointment, and the guard that stops an invoice being marked paid too early",
+    "duration": "0:32",
+    "category": "Money",
+    "tags": ["money", "front desk"]
+  },
+  {
+    "id": "open-a-visit-in-the-workspace",
+    "persona": "Front desk",
+    "title": "Open a visit in the clinical workspace",
+    "description": "Which appointments open, what the refusal says, and the six steps inside",
+    "duration": "0:22",
+    "category": "The visit",
+    "tags": ["the visit", "front desk", "nurse/tech"]
+  },
+  {
+    "id": "record-a-set-of-vitals",
+    "persona": "Nurse or technician",
+    "title": "Record a set of vitals",
+    "description": "Where the panel opens from, the fields it insists on, and why only one set shows",
+    "duration": "0:32",
+    "category": "The visit",
+    "tags": ["the visit", "nurse/tech"]
+  },
+  {
+    "id": "write-a-soap-note",
+    "persona": "Veterinarian",
+    "title": "Write a SOAP note and sign it with Save and Next",
+    "description": "The four sections, coded terms, what saves and what does not, and the act that signs",
+    "duration": "0:38",
+    "category": "The visit",
+    "tags": ["the visit", "veterinarian"]
+  },
+  {
+    "id": "order-a-reference-lab-test",
+    "persona": "Veterinarian",
+    "title": "Order a reference lab test and read the result back",
+    "description": "The Diagnostics step's order builder, the order queue, and the results",
+    "duration": "0:32",
+    "category": "The visit",
+    "tags": ["the visit", "veterinarian", "nurse/tech"]
+  },
+  {
+    "id": "build-the-treatment-plan",
+    "persona": "Veterinarian",
+    "title": "Prescribe on the treatment step, and know what carries to the invoice",
+    "description": "The prescription search, the save it refuses, and the lines the invoice will offer",
+    "duration": "0:27",
+    "category": "The visit",
+    "tags": ["the visit", "veterinarian"]
+  },
+  {
+    "id": "build-the-invoice-and-take-payment",
+    "persona": "Front desk",
+    "title": "Build the invoice and take payment on a finished visit",
+    "description": "Ready for billing, the bill, the discount caps, and why Collect is grey",
+    "duration": "0:38",
+    "category": "The visit",
+    "tags": ["the visit", "front desk", "practice manager"]
+  },
+  {
+    "id": "get-a-form-signed",
+    "persona": "Veterinarian",
+    "title": "Get a form signed on an appointment",
+    "description": "The signing status on a form, the signing frame, and the finished PDF",
+    "duration": "0:22",
+    "category": "The visit",
+    "tags": ["the visit", "veterinarian", "nurse/tech"]
+  },
+  {
+    "id": "find-and-download-a-document",
+    "persona": "Front desk",
+    "title": "Find and download a document after the visit",
+    "description": "All Documents on the visit summary, and the companion's own record list",
+    "duration": "0:32",
+    "category": "Documents",
+    "tags": ["documents", "front desk", "veterinarian"]
+  },
+  {
+    "id": "admit-and-discharge",
+    "persona": "Veterinarian",
+    "title": "Admit a patient and discharge them",
+    "description": "Converting a visit to an inpatient stay, the day's schedule, and the discharge gate",
+    "duration": "0:38",
+    "category": "The visit",
+    "tags": ["the visit", "veterinarian", "nurse/tech"]
+  },
+  {
+    "id": "take-a-deposit",
+    "persona": "Front desk",
+    "title": "Take a deposit and put it against the bill",
+    "description": "Recording an upfront amount, and the checkbox that makes it count",
+    "duration": "0:27",
+    "category": "Money",
+    "tags": ["money", "front desk"]
+  },
+  {
+    "id": "credit-an-invoice",
+    "persona": "Practice manager",
+    "title": "Credit money back on an invoice",
+    "description": "Issuing a credit note, the ceiling it stays under, and reversing one",
+    "duration": "0:32",
+    "category": "Money",
+    "tags": ["money", "practice manager"]
+  },
+  {
+    "id": "quote-with-an-estimate",
+    "persona": "Veterinarian",
+    "title": "Quote a treatment plan and turn it into an invoice",
+    "description": "Building an estimate, recording the answer, and converting it once",
+    "duration": "0:27",
+    "category": "Money",
+    "tags": ["money", "veterinarian", "practice manager"]
+  },
+  {
+    "id": "attach-a-document-to-a-record",
+    "persona": "Front desk",
+    "title": "Attach a document to a patient's record",
+    "description": "Uploading a certificate or referral onto the timeline, and the four prefills to change",
+    "duration": "0:22",
+    "category": "Documents",
+    "tags": ["documents", "front desk"]
+  },
+  {
+    "id": "work-the-task-board",
+    "persona": "Nurse or technician",
+    "title": "Read the task board and narrow it to your own work",
+    "description": "Four status columns, the scope toggle, and what a card tells you before you open it",
+    "duration": "0:27",
+    "category": "Tasks",
+    "tags": ["tasks", "nurse/tech"]
+  },
+  {
+    "id": "task-statuses-and-who-can-edit",
+    "persona": "Veterinarian",
+    "title": "Change a task's status, and know which tasks you can edit",
+    "description": "Which moves are legal in the task drawer, and why a task can open with no pencils",
+    "duration": "0:27",
+    "category": "Tasks",
+    "tags": ["tasks", "veterinarian", "nurse/tech"]
+  },
+  {
+    "id": "repeating-tasks-and-series-scope",
+    "persona": "Nurse or technician",
+    "title": "Change one occurrence of a repeating task",
+    "description": "The three way question every series edit, reschedule and drag asks",
+    "duration": "0:22",
+    "category": "Tasks",
+    "tags": ["tasks", "nurse/tech"]
+  },
+  {
+    "id": "reply-to-a-client-message",
+    "persona": "Front desk",
+    "title": "Answer a client message with a quick reply",
+    "description": "Finding the thread, reading the safety band above it, and replying",
+    "duration": "0:22",
+    "category": "Chat",
+    "tags": ["chat", "front desk"]
+  },
+  {
+    "id": "team-group-and-cross-clinic-chat",
+    "persona": "Practice manager",
+    "title": "Start a chat with a teammate, a group or another clinic",
+    "description": "The team directory, creating a group, who can change it, and the cross clinic search",
+    "duration": "0:32",
+    "category": "Chat",
+    "tags": ["chat", "practice manager", "veterinarian"]
+  },
+  {
+    "id": "share-a-record-into-a-chat",
+    "persona": "Veterinarian",
+    "title": "Share a patient or appointment record into a chat",
+    "description": "The picker behind the paperclip, and what it can and cannot send",
+    "duration": "0:27",
+    "category": "Chat",
+    "tags": ["chat", "veterinarian", "nurse/tech"]
+  },
+  {
+    "id": "run-your-day-from-the-phone-rail",
+    "persona": "Veterinarian",
+    "title": "Work your day from the phone rail",
+    "description": "The day rail, the window it draws, and starting a visit from it",
+    "duration": "0:27",
+    "category": "Appointments",
+    "tags": ["appointments", "veterinarian", "nurse/tech"]
+  },
+  {
+    "id": "add-a-product-to-the-catalogue",
+    "persona": "Practice manager",
+    "title": "Add a product with its batches, stock and price",
+    "description": "The three steps of the New product drawer that decide what the catalogue can do",
+    "duration": "0:22",
+    "category": "Inventory",
+    "tags": ["inventory", "practice manager", "admin"]
+  },
+  {
+    "id": "retire-a-product",
+    "persona": "Practice manager",
+    "title": "Retire a product without losing its history",
+    "description": "The Active and Hidden scope, deleting, and getting it back",
+    "duration": "0:22",
+    "category": "Inventory",
+    "tags": ["inventory", "practice manager"]
+  },
+  {
+    "id": "dispense-a-prescription",
+    "persona": "Nurse or technician",
+    "title": "Dispense a prescription from the queue",
+    "description": "Reading a request, handing it over, and the outcome you cannot undo",
+    "duration": "0:27",
+    "category": "Inventory",
+    "tags": ["inventory", "nurse/tech"]
+  },
+  {
+    "id": "connect-idexx",
+    "persona": "Practice manager",
+    "title": "Connect IDEXX so the clinic can order lab work",
+    "description": "Store credentials, validate them, and switch lab ordering on",
+    "duration": "0:27",
+    "category": "Integrations",
+    "tags": ["integrations", "admin", "clinic owner"]
+  },
+  {
+    "id": "use-the-msd-veterinary-manual",
+    "persona": "Veterinarian",
+    "title": "Look up the MSD Veterinary Manual beside a visit",
+    "description": "The tile in the workspace rail, and what the panel does when it is off",
+    "duration": "0:22",
+    "category": "Integrations",
+    "tags": ["integrations", "veterinarian", "nurse/tech"]
+  },
+  {
+    "id": "open-your-public-booking-page",
+    "persona": "Practice manager",
+    "title": "Open your public booking page",
+    "description": "Choosing what pet parents can book, and the branding on the page they land on",
+    "duration": "0:27",
+    "category": "Public booking",
+    "tags": ["public booking", "practice manager", "admin"]
+  },
+  {
+    "id": "work-a-booking-request",
+    "persona": "Front desk",
+    "title": "Work the requests from your public booking page",
+    "description": "What the owner is told, and what marking one booked actually does",
+    "duration": "0:27",
+    "category": "Public booking",
+    "tags": ["public booking", "front desk"]
+  },
+  {
+    "id": "capture-pet-passport-records",
+    "persona": "Veterinarian",
+    "title": "Capture the records a pet passport needs during a visit",
+    "description": "The issuance question, the four record kinds, and why a captured record is only a draft",
+    "duration": "0:38",
+    "category": "Pet passport",
+    "tags": ["pet passport", "veterinarian", "nurse/tech"]
+  },
+  {
+    "id": "show-a-pet-passport",
+    "persona": "Front desk",
+    "title": "Show a pet passport to a kennel or a border reader",
+    "description": "Opening the passport, and what the shared link actually shows",
+    "duration": "0:22",
+    "category": "Pet passport",
+    "tags": ["pet passport", "front desk", "veterinarian"]
+  },
+  {
+    "id": "retire-or-update-a-template",
+    "persona": "Practice manager",
+    "title": "Unpublish, archive or restore a form template",
+    "description": "The three states, and the templates whose structure is locked",
+    "duration": "0:27",
+    "category": "Templates",
+    "tags": ["templates", "practice manager", "admin"]
+  },
+  {
+    "id": "register-a-new-patient",
+    "persona": "Front desk",
+    "title": "Register a new patient and their owner",
+    "description": "The two-step wizard, the eight fields it insists on for the client, and the fast-track for an animal that arrives before its paperwork",
+    "duration": "0:58",
+    "category": "Patients",
+    "tags": ["patients", "front desk"]
+  },
+  {
+    "id": "find-your-way-around",
+    "persona": "Everyone",
+    "title": "Find your way around: navigation, search and the bell",
+    "description": "The sidebar, the command palette, notifications, the organisation switcher, and the phone shell",
+    "duration": "0:53",
+    "category": "Getting started",
+    "tags": ["getting started", "front desk", "nurse/tech", "veterinarian"],
+    "featured": true
+  },
+  {
+    "id": "open-the-appointment-record",
+    "persona": "Front desk",
+    "title": "Open an appointment's own record",
+    "description": "Editing the booking, its money, its medical records, its forms, the room, and the audit trail",
+    "duration": "0:48",
+    "category": "Appointments",
+    "tags": ["appointments", "front desk"]
+  },
+  {
+    "id": "take-a-walk-in-emergency",
+    "persona": "Front desk",
+    "title": "Take a walk-in and flag it as an emergency",
+    "description": "Booking from the animal's own record, the emergency flag, and the band showing who is in the building",
+    "duration": "0:43",
+    "category": "Appointments",
+    "tags": ["appointments", "front desk", "nurse/tech"]
+  },
+  {
+    "id": "create-and-assign-a-task",
+    "persona": "Nurse or technician",
+    "title": "Create a task and assign it to someone",
+    "description": "The new task form, team and pet parent assignees, making it repeat, and moving its due date",
+    "duration": "0:53",
+    "category": "Tasks",
+    "tags": ["tasks", "nurse/tech", "practice manager"]
+  },
+  {
+    "id": "find-out-who-owes-money",
+    "persona": "Front desk",
+    "title": "Find out who owes money, and what was actually paid",
+    "description": "The invoice list, the status pills, and the payment ledger under an invoice",
+    "duration": "0:38",
+    "category": "Money",
+    "tags": ["money", "front desk", "practice manager"]
+  },
+  {
+    "id": "finish-stripe-and-pick-a-plan",
+    "persona": "Clinic owner",
+    "title": "Finish Stripe onboarding and lift the free limits",
+    "description": "Getting from Connect to charges enabled, and buying the seats and bookings the free plan refuses",
+    "duration": "0:38",
+    "category": "Money",
+    "tags": ["money", "clinic owner", "admin"]
+  },
+  {
+    "id": "set-the-discount-cap",
+    "persona": "Practice manager",
+    "title": "Set the most anyone can discount an invoice by",
+    "description": "The one number that governs every bill, and who is allowed to change it",
+    "duration": "0:32",
+    "category": "Money",
+    "tags": ["money", "practice manager", "clinic owner"]
+  },
+  {
+    "id": "build-a-form-template",
+    "persona": "Practice manager",
+    "title": "Build a consent or intake form from scratch",
+    "description": "The details step, the field palette, options, a signature field, and linking the form to a service",
+    "duration": "0:58",
+    "category": "Templates",
+    "tags": ["templates", "practice manager", "veterinarian"]
+  },
+  {
+    "id": "put-a-form-in-front-of-a-client",
+    "persona": "Nurse or technician",
+    "title": "Attach a form to a visit and send it for signature",
+    "description": "The documents panel in the workspace, the add-forms dropdown, and the gate that holds signing back",
+    "duration": "0:32",
+    "category": "The visit",
+    "tags": ["the visit", "nurse/tech", "veterinarian"]
+  },
+  {
+    "id": "turn-on-e-signing-and-the-document-shelf",
+    "persona": "Practice manager",
+    "title": "Turn on e-signing and stock the clinic's document shelf",
+    "description": "The Organization documents list, uploading a policy, and the switch the signing frame depends on",
+    "duration": "0:43",
+    "category": "Documents",
+    "tags": ["documents", "admin", "practice manager"]
+  },
+  {
+    "id": "edit-or-offboard-a-team-member",
+    "persona": "Practice manager",
+    "title": "Change a colleague's details, or take them off the roster",
+    "description": "The team member drawer, their professional details and hours, and the delete confirmation",
+    "duration": "0:32",
+    "category": "Getting started",
+    "tags": ["getting started", "practice manager", "clinic owner"]
+  },
+  {
+    "id": "read-the-practice-numbers",
+    "persona": "Clinic owner",
+    "title": "Read how the practice is doing",
+    "description": "Revenue, who books and bills the most, team availability, and the permission that hides all of it",
+    "duration": "0:48",
+    "category": "Reporting",
+    "tags": ["reporting", "clinic owner", "practice manager"]
+  },
+  {
+    "id": "spot-dead-stock-and-what-to-reorder",
+    "persona": "Practice manager",
+    "title": "Spot what is about to run out, what expired, and what is not moving",
+    "description": "The stock health and expiry filters, and the turnover analytics behind them",
+    "duration": "0:48",
+    "category": "Inventory",
+    "tags": ["inventory", "practice manager"]
+  },
+  {
+    "id": "set-the-clinic-wide-preferences",
+    "persona": "Practice manager",
+    "title": "Set the preferences that change the product for everyone",
+    "description": "Terminology, the appointment lock window, cross-clinic messaging, and which practice is your primary",
+    "duration": "0:48",
+    "category": "Your setup",
+    "tags": ["your setup", "admin", "clinic owner"]
+  },
+  {
+    "id": "refer-a-case-to-another-clinic",
+    "persona": "Veterinarian",
+    "title": "Refer a case to another practice, and answer an inbound one",
+    "description": "The licence that unlocks federation, the clinic directory, sending a referral, and the emergency broadcast",
+    "duration": "0:48",
+    "category": "Integrations",
+    "tags": ["integrations", "veterinarian", "practice manager"]
+  },
+  {
+    "id": "attest-a-passport-record",
+    "persona": "Veterinarian",
+    "title": "Sign off a passport record so a border will accept it",
+    "description": "Who is allowed to attest, the declaration, e-signature or the manual fallback, and revoking one",
+    "duration": "0:53",
+    "category": "Pet passport",
+    "tags": ["pet passport", "veterinarian"]
+  },
+  {
+    "id": "use-the-workspace-side-rail",
+    "persona": "Veterinarian",
+    "title": "Work the side rail beside the visit, starting with dose calculators",
+    "description": "The rail's panels, the calculators that prefill from the patient, tasks, chat and the visit timer",
+    "duration": "0:58",
+    "category": "The visit",
+    "tags": ["the visit", "veterinarian", "nurse/tech"]
+  },
+  {
+    "id": "record-observations-and-plan-outpatient-visits",
+    "persona": "Nurse or technician",
+    "title": "Record an observation score, and plan a course of outpatient visits",
+    "description": "The observation tools beside the vitals card, and the schedule for an animal that goes home between visits",
+    "duration": "0:43",
+    "category": "The visit",
+    "tags": ["the visit", "nurse/tech", "veterinarian"]
+  },
+  {
+    "id": "run-in-house-lab-work",
+    "persona": "Nurse or technician",
+    "title": "Run lab work on your own analyser",
+    "description": "The linked devices, the in-house census, and reading a culture or a value against its reference range",
+    "duration": "0:58",
+    "category": "Integrations",
+    "tags": ["integrations", "nurse/tech", "veterinarian"]
+  }
+]
