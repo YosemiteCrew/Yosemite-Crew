@@ -31,10 +31,13 @@ jest.mock('@/app/ui/primitives/GlassTooltip/GlassTooltip', () => ({
 // own tests, and rendering the children inline keeps the form queryable.
 jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
   __esModule: true,
-  default: ({ showModal, children, ariaLabel }: any) =>
+  default: ({ showModal, setShowModal, children, ariaLabel }: any) =>
     showModal ? (
       <div role="dialog" aria-label={ariaLabel}>
         {children}
+        <button type="button" onClick={() => setShowModal(false)}>
+          Dismiss modal
+        </button>
       </div>
     ) : null,
 }));
@@ -305,6 +308,21 @@ describe('InsuranceClaims create form', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Create a new insurance claim' }));
     expect(onCreateOpenChange).toHaveBeenCalledWith(true);
+  });
+
+  it('allows modal dismissal when idle but blocks it while saving', async () => {
+    const onCreateOpenChange = jest.fn();
+    const { rerender } = setup({ createOpen: true, claims: [], onCreateOpenChange });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel creating this claim' }));
+    expect(onCreateOpenChange).toHaveBeenCalledWith(false);
+
+    onCreateOpenChange.mockClear();
+    rerender(
+      <InsuranceClaims {...baseProps} createOpen creating onCreateOpenChange={onCreateOpenChange} />
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss modal' }));
+    expect(onCreateOpenChange).not.toHaveBeenCalled();
   });
 
   it('blocks a submit with no companion chosen', async () => {
