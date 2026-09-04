@@ -1,7 +1,8 @@
 'use client';
+import { emptyStateCopy } from '@/app/ui/tables/tableUtils';
 import React, { useState, type ReactNode } from 'react';
 
-import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
+import { NoDataMessage } from '@/app/ui/tables/common';
 import TableFooter from '@/app/ui/tables/TableFooter';
 
 /* The card list is the sub-xl rendering of the same data the table shows above

@@ -1,7 +1,8 @@
 'use client';
+import { emptyStateCopy } from '@/app/ui/tables/tableUtils';
 import React, { useLayoutEffect, useRef, useState } from 'react';
 
-import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
+import { NoDataMessage } from '@/app/ui/tables/common';
 import TableFooter from '@/app/ui/tables/TableFooter';
 
 import './Generictable.css';

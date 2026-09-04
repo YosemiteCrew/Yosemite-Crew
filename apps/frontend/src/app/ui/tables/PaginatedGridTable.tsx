@@ -1,11 +1,11 @@
 'use client';
 import React, { useState } from 'react';
 import { IoChevronBackOutline, IoChevronForwardOutline } from 'react-icons/io5';
-import { buildPagerPageList } from '@/app/ui/tables/tableUtils';
+import { buildPagerPageList, emptyStateCopy } from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
 import './GenericTable/Generictable.css';
-import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
+import { NoDataMessage } from '@/app/ui/tables/common';
 
 export type GridHeaderCell = { label: string; align?: 'right'; className?: string };
 

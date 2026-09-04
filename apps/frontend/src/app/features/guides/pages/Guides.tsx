@@ -1,5 +1,6 @@
 'use client';
-import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
+import { emptyStateCopy } from '@/app/ui/tables/tableUtils';
+import { NoDataMessage } from '@/app/ui/tables/common';
 import Image from 'next/image';
 import React, { useMemo, useState } from 'react';
 import { IoArrowForward, IoInformationCircleOutline, IoPlay } from 'react-icons/io5';

@@ -88,6 +88,11 @@ const StatusPill = ({ label }: { label: string }) => (
   <SharedStatusPill label={label} style={getInventoryStatusStyle(label)} />
 );
 
+const toCellTitle = (value?: string | null): string | undefined => {
+  const title = value?.trim();
+  return title ? title : undefined;
+};
+
 const ProductCell = ({ item }: { item: InventoryItem }) => {
   const imageSrc = getInventoryImageSrc(item);
   return (
@@ -106,7 +111,7 @@ const ProductCell = ({ item }: { item: InventoryItem }) => {
             title; this one did not. */}
         <div
           className="truncate text-[13px] font-bold leading-tight text-[var(--ink)]"
-          title={item.basicInfo.name || undefined}
+          title={item.basicInfo.name}
         >
           {item.basicInfo.name}
         </div>
@@ -182,7 +187,7 @@ const InventoryRow = ({
           without opening the item. No title on the em-dash placeholder. */}
       <div
         className="cell-ink-link truncate pl-3 text-[12.5px]"
-        title={item.stock.stockLocation?.trim() || undefined}
+        title={toCellTitle(item.stock.stockLocation)}
       >
         {displayValue(item.stock.stockLocation)}
       </div>

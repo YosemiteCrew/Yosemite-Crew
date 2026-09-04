@@ -15,16 +15,6 @@ export type EmptyStateCta = {
   href?: string;
 };
 
-/* Empty-state copy derived from the plural noun the table already passes for
-   its footer summary. Both paginated shells used to hard-code "Nothing here
-   yet" / "Rows appear here", so a dispensary, a task board and an inventory
-   list all claimed the same thing about themselves. Deriving costs no new
-   prop at the call sites. */
-export const emptyStateCopy = (itemNoun: string) => ({
-  title: `No ${itemNoun} yet`,
-  subtitle: `${itemNoun.charAt(0).toUpperCase()}${itemNoun.slice(1)} appear here as soon as there are any.`,
-});
-
 export type NoDataMessageProps = {
   /** Headline — falls back to "No data available". A bare string still works. */
   title?: string;

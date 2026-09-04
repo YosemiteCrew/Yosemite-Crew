@@ -1,15 +1,10 @@
+import { emptyStateCopy } from '@/app/ui/tables/tableUtils';
 import React from 'react';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import DocumentsCard from '@/app/ui/cards/DocumentsCard';
 import { OrganizationDocument } from '@/app/features/documents/types/document';
 import { toTitle } from '@/app/lib/validators';
-import {
-  Column,
-  NoDataMessage,
-  emptyStateCopy,
-  ViewButton,
-  ProfileTitle,
-} from '@/app/ui/tables/common';
+import { Column, NoDataMessage, ViewButton, ProfileTitle } from '@/app/ui/tables/common';
 
 import './DataTable.css';
 

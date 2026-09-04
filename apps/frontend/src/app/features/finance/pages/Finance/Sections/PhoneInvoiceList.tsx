@@ -1,5 +1,5 @@
 'use client';
-import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
+import { NoDataMessage } from '@/app/ui/tables/common';
 import React, { useMemo } from 'react';
 import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
@@ -16,7 +16,7 @@ import {
   getParentNameFromAppointments,
 } from '@/app/lib/invoice';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
-import { getInvoiceStatusTone } from '@/app/ui/tables/tableUtils';
+import { emptyStateCopy, getInvoiceStatusTone } from '@/app/ui/tables/tableUtils';
 import { getInvoiceOutstanding, type FinanceMetrics } from '@/app/lib/financeMetrics';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { getAppointmentCompanion, getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';

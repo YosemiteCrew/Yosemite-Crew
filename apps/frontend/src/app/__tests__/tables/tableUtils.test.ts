@@ -1,5 +1,6 @@
 import {
   buildPagerPageList,
+  emptyStateCopy,
   toSpecialityNames,
   UNNAMED_SPECIALITY,
   getInvoiceItemNames,
@@ -22,6 +23,15 @@ import {
 } from '@/app/ui/tables/tableUtils';
 
 describe('tableUtils', () => {
+  describe('emptyStateCopy', () => {
+    it('uses the supplied noun in both lines', () => {
+      expect(emptyStateCopy('tasks')).toEqual({
+        title: 'No tasks yet',
+        subtitle: 'Tasks appear here as soon as there are any.',
+      });
+    });
+  });
+
   describe('getInvoiceItemNames', () => {
     it('joins trimmed names', () => {
       expect(getInvoiceItemNames([{ name: ' A ' }, { name: 'B' }] as any)).toBe('A, B');
