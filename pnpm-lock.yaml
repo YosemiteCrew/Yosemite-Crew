@@ -458,7 +458,7 @@ importers:
         version: 17.11.0
       jest:
         specifier: ^30.4.2
-        version: 30.4.2(@types/node@26.4.0)
+        version: 30.4.2(@types/node@26.4.0)(ts-node@10.9.2)
       ts-jest:
         specifier: ^29.4.12
         version: 29.4.12(@babel/core@7.29.6)(jest@30.4.2)(typescript@6.0.3)
@@ -1000,7 +1000,7 @@ importers:
         version: 8.57.1
       jest:
         specifier: ^30.4.2
-        version: 30.4.2(@types/node@26.4.0)
+        version: 30.4.2(@types/node@26.4.0)(ts-node@10.9.2)
       prettier:
         specifier: 3.9.6
         version: 3.9.6
@@ -1148,7 +1148,7 @@ importers:
         version: 26.2.0
       jest:
         specifier: ^30.4.2
-        version: 30.4.2(@types/node@26.2.0)
+        version: 30.4.2(@types/node@26.2.0)(ts-node@10.9.2)
       ts-jest:
         specifier: ^29.4.12
         version: 29.4.12(@babel/core@7.29.6)(jest@30.4.2)(typescript@5.0.4)
@@ -9313,7 +9313,7 @@ packages:
       jest:
         optional: true
     dependencies:
-      jest: 30.4.2(@types/node@26.4.0)
+      jest: 30.4.2(@types/node@26.4.0)(ts-node@10.9.2)
       jest-matcher-utils: 30.2.0
       picocolors: 1.1.1
       pretty-format: 30.2.0
@@ -13469,7 +13469,7 @@ packages:
       funpermaproxy: 1.1.0
       glob: 8.1.0
       ini: 1.3.8
-      jest: 30.4.2(@types/node@26.4.0)
+      jest: 30.4.2(@types/node@26.4.0)(ts-node@10.9.2)
       jest-environment-emit: 1.2.0(jest@30.4.2)
       json-cycle: 1.5.0
       lodash: 4.18.0
@@ -14406,7 +14406,7 @@ packages:
       '@typescript-eslint/eslint-plugin': 7.18.0(@typescript-eslint/parser@7.18.0)(eslint@8.57.1)(typescript@5.9.3)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.9.3)
       eslint: 8.57.1
-      jest: 30.4.2(@types/node@26.4.0)
+      jest: 30.4.2(@types/node@26.4.0)(ts-node@10.9.2)
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -17175,34 +17175,6 @@ packages:
       - supports-color
     dev: true
 
-  /jest-cli@30.4.2(@types/node@26.2.0):
-    resolution: {integrity: sha512-jfA2ocvVHMXS2QijrJ0d31ektP+d/W0T5RpcTX2Pq+3sVqHlsXVCM2+FmwpL+bdY8OfHpIg9xMxLF17Zg0U49Q==}
-    engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
-    hasBin: true
-    peerDependencies:
-      node-notifier: ^8.0.1 || ^9.0.0 || ^10.0.0
-    peerDependenciesMeta:
-      node-notifier:
-        optional: true
-    dependencies:
-      '@jest/core': 30.4.2(ts-node@10.9.2)
-      '@jest/test-result': 30.4.1
-      '@jest/types': 30.4.1
-      chalk: 4.1.2
-      exit-x: 0.2.2
-      import-local: 3.2.0
-      jest-config: 30.4.2(@types/node@26.2.0)(ts-node@10.9.2)
-      jest-util: 30.4.1
-      jest-validate: 30.4.1
-      yargs: 17.7.3
-    transitivePeerDependencies:
-      - '@types/node'
-      - babel-plugin-macros
-      - esbuild-register
-      - supports-color
-      - ts-node
-    dev: true
-
   /jest-cli@30.4.2(@types/node@26.2.0)(ts-node@10.9.2):
     resolution: {integrity: sha512-jfA2ocvVHMXS2QijrJ0d31ektP+d/W0T5RpcTX2Pq+3sVqHlsXVCM2+FmwpL+bdY8OfHpIg9xMxLF17Zg0U49Q==}
     engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
@@ -17231,62 +17203,6 @@ packages:
       - ts-node
     dev: true
 
-  /jest-cli@30.4.2(@types/node@26.4.0):
-    resolution: {integrity: sha512-jfA2ocvVHMXS2QijrJ0d31ektP+d/W0T5RpcTX2Pq+3sVqHlsXVCM2+FmwpL+bdY8OfHpIg9xMxLF17Zg0U49Q==}
-    engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
-    hasBin: true
-    peerDependencies:
-      node-notifier: ^8.0.1 || ^9.0.0 || ^10.0.0
-    peerDependenciesMeta:
-      node-notifier:
-        optional: true
-    dependencies:
-      '@jest/core': 30.4.2(ts-node@10.9.2)
-      '@jest/test-result': 30.4.1
-      '@jest/types': 30.4.1
-      chalk: 4.1.2
-      exit-x: 0.2.2
-      import-local: 3.2.0
-      jest-config: 30.4.2(@types/node@26.4.0)(ts-node@10.9.2)
-      jest-util: 30.4.1
-      jest-validate: 30.4.1
-      yargs: 17.7.3
-    transitivePeerDependencies:
-      - '@types/node'
-      - babel-plugin-macros
-      - esbuild-register
-      - supports-color
-      - ts-node
-    dev: true
-
-  /jest-cli@30.4.2(@types/node@26.4.0):
-    resolution: {integrity: sha512-jfA2ocvVHMXS2QijrJ0d31ektP+d/W0T5RpcTX2Pq+3sVqHlsXVCM2+FmwpL+bdY8OfHpIg9xMxLF17Zg0U49Q==}
-    engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
-    hasBin: true
-    peerDependencies:
-      node-notifier: ^8.0.1 || ^9.0.0 || ^10.0.0
-    peerDependenciesMeta:
-      node-notifier:
-        optional: true
-    dependencies:
-      '@jest/core': 30.4.2(ts-node@10.9.2)
-      '@jest/test-result': 30.4.1
-      '@jest/types': 30.4.1
-      chalk: 4.1.2
-      exit-x: 0.2.2
-      import-local: 3.2.0
-      jest-config: 30.4.2(@types/node@26.4.0)(ts-node@10.9.2)
-      jest-util: 30.4.1
-      jest-validate: 30.4.1
-      yargs: 17.7.2
-    transitivePeerDependencies:
-      - '@types/node'
-      - babel-plugin-macros
-      - esbuild-register
-      - supports-color
-      - ts-node
-    dev: true
-
   /jest-cli@30.4.2(@types/node@26.4.0)(ts-node@10.9.2):
     resolution: {integrity: sha512-jfA2ocvVHMXS2QijrJ0d31ektP+d/W0T5RpcTX2Pq+3sVqHlsXVCM2+FmwpL+bdY8OfHpIg9xMxLF17Zg0U49Q==}
     engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
@@ -17306,7 +17222,7 @@ packages:
       jest-config: 30.4.2(@types/node@26.4.0)(ts-node@10.9.2)
       jest-util: 30.4.1
       jest-validate: 30.4.1
-      yargs: 17.7.2
+      yargs: 17.7.3
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
@@ -17478,7 +17394,7 @@ packages:
       bunyan: 2.0.5
       bunyan-debug-stream: 3.1.1(bunyan@2.0.5)
       funpermaproxy: 1.1.0
-      jest: 30.4.2(@types/node@26.4.0)
+      jest: 30.4.2(@types/node@26.4.0)(ts-node@10.9.2)
       lodash.merge: 4.6.2
       node-ipc: 9.2.1
       strip-ansi: 6.0.1
@@ -17900,28 +17816,6 @@ packages:
       supports-color: 8.1.1
     dev: true
 
-  /jest@30.4.2(@types/node@26.2.0):
-    resolution: {integrity: sha512-Yi1jqNC/Oq0N4hBgNH/YvBpP1P57QqundgytzYqy3yqAa7NZPNjSoi4SGbRAXDMdBzNE6xBCi5U7RgfrvMEUVQ==}
-    engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
-    hasBin: true
-    peerDependencies:
-      node-notifier: ^8.0.1 || ^9.0.0 || ^10.0.0
-    peerDependenciesMeta:
-      node-notifier:
-        optional: true
-    dependencies:
-      '@jest/core': 30.4.2(ts-node@10.9.2)
-      '@jest/types': 30.4.1
-      import-local: 3.2.0
-      jest-cli: 30.4.2(@types/node@26.2.0)
-    transitivePeerDependencies:
-      - '@types/node'
-      - babel-plugin-macros
-      - esbuild-register
-      - supports-color
-      - ts-node
-    dev: true
-
   /jest@30.4.2(@types/node@26.2.0)(ts-node@10.9.2):
     resolution: {integrity: sha512-Yi1jqNC/Oq0N4hBgNH/YvBpP1P57QqundgytzYqy3yqAa7NZPNjSoi4SGbRAXDMdBzNE6xBCi5U7RgfrvMEUVQ==}
     engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
@@ -17936,28 +17830,6 @@ packages:
       '@jest/types': 30.4.1
       import-local: 3.2.0
       jest-cli: 30.4.2(@types/node@26.2.0)(ts-node@10.9.2)
-    transitivePeerDependencies:
-      - '@types/node'
-      - babel-plugin-macros
-      - esbuild-register
-      - supports-color
-      - ts-node
-    dev: true
-
-  /jest@30.4.2(@types/node@26.4.0):
-    resolution: {integrity: sha512-Yi1jqNC/Oq0N4hBgNH/YvBpP1P57QqundgytzYqy3yqAa7NZPNjSoi4SGbRAXDMdBzNE6xBCi5U7RgfrvMEUVQ==}
-    engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
-    hasBin: true
-    peerDependencies:
-      node-notifier: ^8.0.1 || ^9.0.0 || ^10.0.0
-    peerDependenciesMeta:
-      node-notifier:
-        optional: true
-    dependencies:
-      '@jest/core': 30.4.2(ts-node@10.9.2)
-      '@jest/types': 30.4.1
-      import-local: 3.2.0
-      jest-cli: 30.4.2(@types/node@26.4.0)
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
@@ -24404,7 +24276,7 @@ packages:
       bs-logger: 0.2.6
       fast-json-stable-stringify: 2.1.0
       handlebars: 4.7.9
-      jest: 30.4.2(@types/node@26.2.0)
+      jest: 30.4.2(@types/node@26.2.0)(ts-node@10.9.2)
       json5: 2.2.3
       lodash.memoize: 4.1.2
       make-error: 1.3.6
@@ -24486,7 +24358,7 @@ packages:
       bs-logger: 0.2.6
       fast-json-stable-stringify: 2.1.0
       handlebars: 4.7.9
-      jest: 30.4.2(@types/node@26.4.0)
+      jest: 30.4.2(@types/node@26.4.0)(ts-node@10.9.2)
       json5: 2.2.3
       lodash.memoize: 4.1.2
       make-error: 1.3.6
