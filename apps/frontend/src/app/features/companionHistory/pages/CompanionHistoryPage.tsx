@@ -18,6 +18,7 @@ import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import PhoneCompanionRecord from '@/app/features/companionHistory/pages/phone/PhoneCompanionRecord';
+import ProblemListPanel from '@/app/features/companionHistory/components/ProblemListPanel';
 import {
   useCompanionsParentsForPrimaryOrg,
   useLoadCompanionsForPrimaryOrg,
@@ -667,6 +668,8 @@ const CompanionHistoryDesktopBody = ({
         </div>
       )}
     </div>
+
+    {hasCompanionId ? <ProblemListPanel companionId={companionId} /> : null}
 
     {hasCompanionId ? (
       <CompanionHistoryTimeline companionId={companionId} showDocumentUpload />

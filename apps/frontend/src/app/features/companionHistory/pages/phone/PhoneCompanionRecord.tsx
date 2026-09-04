@@ -13,6 +13,7 @@ import {
   IoPencilOutline,
 } from 'react-icons/io5';
 import CompanionHistoryTimeline from '@/app/features/companionHistory/components/CompanionHistoryTimeline';
+import ProblemListPanel from '@/app/features/companionHistory/components/ProblemListPanel';
 import AlertPill from '@/app/features/appointments/pages/AppointmentWorkspace/components/AlertPill';
 import type { CompanionAlert } from '@/app/features/appointments/types/workspace';
 import type {
@@ -401,6 +402,8 @@ const PhoneCompanionRecord = ({
             {detailRows.length > 0 ? <PhoneRecordDetails rows={detailRows} /> : null}
           </>
         ) : null}
+
+        <ProblemListPanel companionId={companionId} />
 
         <CompanionHistoryTimeline
           companionId={companionId}
