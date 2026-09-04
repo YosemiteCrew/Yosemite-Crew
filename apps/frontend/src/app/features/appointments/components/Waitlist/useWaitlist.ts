@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   addToWaitlist,
   bookWaitlistEntry,
@@ -37,6 +37,93 @@ export interface WaitlistState {
   add: (payload: AddToWaitlistPayload) => Promise<boolean>;
 }
 
+type WaitlistData = {
+  entries: WaitlistEntry[];
+  setEntries: Dispatch<SetStateAction<WaitlistEntry[]>>;
+  loading: boolean;
+  error: string | null;
+  setError: Dispatch<SetStateAction<string | null>>;
+};
+
+const useWaitlistData = (organisationId: string | null): WaitlistData => {
+  const [entries, setEntries] = useState<WaitlistEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const run = async () => {
+      if (!organisationId) {
+        setEntries([]);
+        setError(null);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await fetchWaitlist(organisationId);
+        if (active) setEntries(data);
+      } catch {
+        if (active) {
+          setEntries([]);
+          setError('Unable to load the waitlist right now.');
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      active = false;
+    };
+  }, [organisationId]);
+
+  return { entries, setEntries, loading, error, setError };
+};
+
+const useWaitlistActions = (
+  organisationId: string | null,
+  setEntries: WaitlistData['setEntries'],
+  setError: WaitlistData['setError']
+) => {
+  const [busyEntryId, setBusyEntryId] = useState<string | null>(null);
+  const runAction = async (
+    id: string,
+    action: (orgId: string, entryId: string) => Promise<WaitlistEntry>
+  ): Promise<void> => {
+    if (!organisationId) return;
+    setBusyEntryId(id);
+    try {
+      await action(organisationId, id);
+      setEntries(await fetchWaitlist(organisationId));
+      setError(null);
+    } catch {
+      setError('That action could not be completed. Try again.');
+    } finally {
+      setBusyEntryId(null);
+    }
+  };
+  const add = async (payload: AddToWaitlistPayload): Promise<boolean> => {
+    if (!organisationId) return false;
+    try {
+      await addToWaitlist(organisationId, payload);
+      setEntries(await fetchWaitlist(organisationId));
+      setError(null);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  return {
+    busyEntryId,
+    offer: (id: string) => runAction(id, offerWaitlistEntry),
+    book: (id: string) => runAction(id, bookWaitlistEntry),
+    cancel: (id: string) => runAction(id, cancelWaitlistEntry),
+    add,
+  };
+};
+
 /**
  * All of the waitlist container's state: it loads the primary org's waitlist,
  * resolves each entry's companion + owner names from the companions store (the
@@ -52,40 +139,8 @@ export const useWaitlist = (): WaitlistState => {
 
   useLoadCompanionsForPrimaryOrg();
   const companionsParents = useCompanionsParentsForPrimaryOrg();
-
-  const [entries, setEntries] = useState<WaitlistEntry[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [busyEntryId, setBusyEntryId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    const run = async () => {
-      if (!primaryOrgId) {
-        setEntries([]);
-        setError(null);
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await fetchWaitlist(primaryOrgId);
-        if (active) setEntries(data);
-      } catch {
-        if (active) {
-          setEntries([]);
-          setError('Unable to load the waitlist right now.');
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-    void run();
-    return () => {
-      active = false;
-    };
-  }, [primaryOrgId]);
+  const { entries, setEntries, loading, error, setError } = useWaitlistData(primaryOrgId);
+  const actions = useWaitlistActions(primaryOrgId, setEntries, setError);
 
   const companionMetaById = useMemo(() => {
     const map = new Map<string, { name: string; ownerName: string }>();
@@ -117,45 +172,12 @@ export const useWaitlist = (): WaitlistState => {
     [companionsParents]
   );
 
-  const runAction = async (
-    id: string,
-    action: (organisationId: string, entryId: string) => Promise<WaitlistEntry>
-  ): Promise<void> => {
-    if (!primaryOrgId) return;
-    setBusyEntryId(id);
-    try {
-      await action(primaryOrgId, id);
-      setEntries(await fetchWaitlist(primaryOrgId));
-      setError(null);
-    } catch {
-      setError('That action could not be completed. Try again.');
-    } finally {
-      setBusyEntryId(null);
-    }
-  };
-
-  const add = async (payload: AddToWaitlistPayload): Promise<boolean> => {
-    if (!primaryOrgId) return false;
-    try {
-      await addToWaitlist(primaryOrgId, payload);
-      setEntries(await fetchWaitlist(primaryOrgId));
-      setError(null);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
   return {
     canEdit,
     entriesView,
     companionOptions,
     loading,
     error,
-    busyEntryId,
-    offer: (id) => runAction(id, offerWaitlistEntry),
-    book: (id) => runAction(id, bookWaitlistEntry),
-    cancel: (id) => runAction(id, cancelWaitlistEntry),
-    add,
+    ...actions,
   };
 };

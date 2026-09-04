@@ -52,6 +52,7 @@ jest.mock('@/app/features/appointments/components/Waitlist/Waitlist', () => ({
         {String(Boolean(onOffer && onBook && onCancel && onAdd))}
       </span>
       {onOffer ? <button onClick={() => onOffer('w-1')}>offer</button> : null}
+      {onBook ? <button onClick={() => onBook('w-1')}>book</button> : null}
       {onCancel ? <button onClick={() => onCancel('w-1')}>cancel</button> : null}
       {onAdd ? <button onClick={() => onAdd({ patientId: 'p-1' })}>add</button> : null}
     </div>
@@ -93,6 +94,14 @@ describe('WaitlistPanel', () => {
     expect(fetchWaitlist).toHaveBeenCalledTimes(2);
   });
 
+  it('books an offered entry then refetches', async () => {
+    render(<WaitlistPanel />);
+    await screen.findByText('book');
+    fireEvent.click(screen.getByText('book'));
+    await waitFor(() => expect(bookWaitlistEntry).toHaveBeenCalledWith('org-1', 'w-1'));
+    expect(fetchWaitlist).toHaveBeenCalledTimes(2);
+  });
+
   it('surfaces an error when an action fails', async () => {
     cancelWaitlistEntry.mockRejectedValueOnce(new Error('x'));
     render(<WaitlistPanel />);
@@ -108,6 +117,15 @@ describe('WaitlistPanel', () => {
     await screen.findByText('add');
     fireEvent.click(screen.getByText('add'));
     await waitFor(() => expect(addToWaitlist).toHaveBeenCalledWith('org-1', { patientId: 'p-1' }));
+  });
+
+  it('does not refetch when adding an entry fails', async () => {
+    addToWaitlist.mockRejectedValueOnce(new Error('x'));
+    render(<WaitlistPanel />);
+    await screen.findByText('add');
+    fireEvent.click(screen.getByText('add'));
+    await waitFor(() => expect(addToWaitlist).toHaveBeenCalled());
+    expect(fetchWaitlist).toHaveBeenCalledTimes(1);
   });
 
   it('shows a load error when the fetch throws', async () => {

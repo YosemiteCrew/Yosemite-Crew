@@ -52,6 +52,34 @@ describe('waitlistService', () => {
     expect(getDataMock).toHaveBeenCalledWith(BASE);
   });
 
+  it.each(['', '../admin', 'org/other', 'https://attacker.test'])(
+    'rejects an unsafe organisation id from fetch (%s)',
+    async (organisationId) => {
+      await expect(fetchWaitlist(organisationId)).rejects.toThrow('Invalid organisation ID');
+      expect(getDataMock).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['', '../admin', 'org/other', 'https://attacker.test'])(
+    'rejects an unsafe organisation id from add (%s)',
+    async (organisationId) => {
+      await expect(addToWaitlist(organisationId, { patientId: 'p-1' })).rejects.toThrow(
+        'Invalid organisation ID'
+      );
+      expect(postDataMock).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['', '../admin', 'org/other', 'https://attacker.test'])(
+    'rejects an unsafe organisation id from transitions (%s)',
+    async (organisationId) => {
+      await expect(offerWaitlistEntry(organisationId, 'w-1')).rejects.toThrow(
+        'Invalid organisation ID'
+      );
+      expect(postDataMock).not.toHaveBeenCalled();
+    }
+  );
+
   it('returns [] and warns when the response is not an array', async () => {
     getDataMock.mockResolvedValue({ data: { nope: true } });
     await expect(fetchWaitlist('org-1')).resolves.toEqual([]);
@@ -94,6 +122,16 @@ describe('waitlistService', () => {
     await fn('org-1', 'w-1');
     expect(postDataMock).toHaveBeenCalledWith(`${BASE}/w-1/${action}`);
   });
+
+  it.each(['', '../admin', 'entry/other', 'https://attacker.test'])(
+    'rejects an unsafe waitlist entry id (%s)',
+    async (entryId) => {
+      await expect(offerWaitlistEntry('org-1', entryId)).rejects.toThrow(
+        'Invalid waitlist entry ID'
+      );
+      expect(postDataMock).not.toHaveBeenCalled();
+    }
+  );
 
   it('rethrows and logs when a transition fails', async () => {
     postDataMock.mockRejectedValue(new Error('t'));

@@ -47,12 +47,6 @@ export interface AddToWaitlistPayload {
   expiresAt?: string;
 }
 
-// Encode the caller's own org id + entry id as single path segments so the
-// request stays pinned to `/v1/pms/organisation/<seg>/waitlist/<seg>/...`
-// even if an id ever carried a slash or dot (what the SSRF scanner checks).
-const waitlistPath = (organisationId: string) =>
-  `/v1/pms/organisation/${encodeURIComponent(organisationId)}/waitlist`;
-
 const logFailure = (message: string, err: unknown): void => {
   if (axios.isAxiosError(err)) {
     console.error(message, err.response?.data?.message ?? err.message);
@@ -62,8 +56,9 @@ const logFailure = (message: string, err: unknown): void => {
 };
 
 export const fetchWaitlist = async (organisationId: string): Promise<WaitlistEntry[]> => {
+  if (!/^[A-Za-z0-9_-]+$/.test(organisationId)) throw new Error('Invalid organisation ID');
   try {
-    const res = await getData<WaitlistEntry[]>(waitlistPath(organisationId));
+    const res = await getData<WaitlistEntry[]>(`/v1/pms/organisation/${organisationId}/waitlist`);
     if (!Array.isArray(res.data)) {
       console.warn('Waitlist response is not an array; got', typeof res.data);
       return [];
@@ -79,9 +74,10 @@ export const addToWaitlist = async (
   organisationId: string,
   payload: AddToWaitlistPayload
 ): Promise<WaitlistEntry> => {
+  if (!/^[A-Za-z0-9_-]+$/.test(organisationId)) throw new Error('Invalid organisation ID');
   try {
     const res = await postData<WaitlistEntry, AddToWaitlistPayload>(
-      waitlistPath(organisationId),
+      `/v1/pms/organisation/${organisationId}/waitlist`,
       payload
     );
     return res.data;
@@ -96,9 +92,11 @@ const transition = async (
   entryId: string,
   action: 'offer' | 'book' | 'cancel'
 ): Promise<WaitlistEntry> => {
+  if (!/^[A-Za-z0-9_-]+$/.test(organisationId)) throw new Error('Invalid organisation ID');
+  if (!/^[A-Za-z0-9_-]+$/.test(entryId)) throw new Error('Invalid waitlist entry ID');
   try {
     const res = await postData<WaitlistEntry>(
-      `${waitlistPath(organisationId)}/${encodeURIComponent(entryId)}/${action}`
+      `/v1/pms/organisation/${organisationId}/waitlist/${entryId}/${action}`
     );
     return res.data;
   } catch (err) {
