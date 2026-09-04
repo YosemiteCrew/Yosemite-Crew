@@ -6,6 +6,7 @@ import {
 import {buildCdnUrlFromKey} from '@/shared/utils/cdnHelpers';
 import {resolveObservationToolIdSync} from '@/features/observationalTools/services/observationToolService';
 import type {
+  HealthSubcategory,
   Task,
   TaskAttachment,
   TaskBackendCategory,
@@ -24,6 +25,7 @@ export interface TaskDraftPayload {
   companionId: string;
   patientId?: string;
   category: TaskBackendCategory;
+  subcategory?: HealthSubcategory;
   name: string;
   description?: string;
   dueAt: string;
@@ -224,6 +226,17 @@ const formatDoseTime = (value?: string | null): string | undefined => {
   return undefined;
 };
 
+const HEALTH_SUBCATEGORIES: readonly HealthSubcategory[] = [
+  'vaccination',
+  'parasite-prevention',
+  'chronic-conditions',
+];
+
+// The backend column is a free-form string, so anything the local union does
+// not model collapses to 'none' rather than being cast through.
+const normalizeSubcategory = (value: unknown): HealthSubcategory | 'none' =>
+  HEALTH_SUBCATEGORIES.find(known => known === value) ?? 'none';
+
 export const mapApiTaskToTask = (apiTask: any): Task => {
   const id = apiTask?._id ?? apiTask?.id ?? `task-${Date.now()}`;
   const dueAt = apiTask?.dueAt ?? apiTask?.due_at;
@@ -246,7 +259,7 @@ export const mapApiTaskToTask = (apiTask: any): Task => {
       apiTask?.companionId ?? apiTask?.patientId ?? apiTask?.companion_id ?? '',
     backendCategory: apiTask?.category,
     category: mapBackendCategoryToUi(apiTask?.category),
-    subcategory: 'none',
+    subcategory: normalizeSubcategory(apiTask?.subcategory),
     title: apiTask?.name ?? apiTask?.title ?? 'Task',
     name: apiTask?.name,
     description: apiTask?.description,
@@ -421,6 +434,7 @@ export const buildTaskDraftFromForm = ({
     companionId,
     patientId: companionId,
     category,
+    subcategory: formData.subcategory ?? undefined,
     name: formData.title || formData.description || 'Task',
     description: formData.description || undefined,
     dueAt,

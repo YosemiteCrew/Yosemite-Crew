@@ -7,6 +7,10 @@ import passportReducer from '@/features/passport/passportSlice';
 import {assistantReducer} from '@/features/assistant/assistantSlice';
 import {clearSnapshot} from '@/features/assistant/services/assistantSnapshot';
 import {
+  parasiteRiskInitialState,
+  parasiteRiskReducer,
+} from '@/features/parasiteRisk/parasiteRiskSlice';
+import {
   initializeAuth,
   refreshSession,
   establishSession,
@@ -39,6 +43,7 @@ const createTestStore = () => {
       forms: formsReducer,
       passport: passportReducer,
       assistant: assistantReducer,
+      parasiteRisk: parasiteRiskReducer,
     },
   });
 };
@@ -752,6 +757,36 @@ describe('auth thunks', () => {
         loadingByCompanionId: {},
         errorByCompanionId: {},
       });
+    });
+
+    it('clears the parasite risk state so it cannot follow the next account', async () => {
+      jest.spyOn(passwordlessAuth, 'signOutEverywhere').mockResolvedValue();
+      (sessionManager.clearSessionData as jest.Mock).mockResolvedValue(
+        undefined,
+      );
+      (sessionManager.resetAuthLifecycle as jest.Mock).mockImplementation(
+        () => {},
+      );
+
+      store.dispatch({
+        type: 'parasiteRisk/loadForLocation/fulfilled',
+        payload: {
+          location: {
+            label: 'Rome',
+            lat: 41.875,
+            lon: 12.375,
+            countryCode: 'IT',
+          },
+          reading: {cell: {lat: 41.875, lon: 12.375}, readings: []},
+        },
+        meta: {requestId: 'req-1'},
+      });
+      expect(store.getState().parasiteRisk.location).not.toBeNull();
+
+      const dispatch = store.dispatch as any;
+      await dispatch(logout());
+
+      expect(store.getState().parasiteRisk).toEqual(parasiteRiskInitialState);
     });
 
     it('re-initializes SuperTokens against the default API domain', async () => {

@@ -7,6 +7,7 @@ import { registerLabStatusScheduler } from "./lab-status.scheduler";
 import { registerLabResultsScheduler } from "./lab-results.scheduler";
 import { registerVaccineReminderScheduler } from "./vaccine.scheduler";
 import { registerPublicBookingSchedulers } from "./public-booking.scheduler";
+import { registerParasiteRiskScheduler } from "./parasite-risk.scheduler";
 import { AppointmentQueue } from "./appointment.queue";
 import { IdexxReferenceQueue } from "./idexx-reference.queue";
 import { LabResultsQueue } from "./lab-results.queue";
@@ -48,5 +49,6 @@ export async function initQueues() {
   await registerLabResultsScheduler();
   await registerVaccineReminderScheduler();
   await registerPublicBookingSchedulers();
+  await registerParasiteRiskScheduler();
   logger.info("📬 BullMQ queues initialized");
 }
