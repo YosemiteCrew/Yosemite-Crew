@@ -48,7 +48,7 @@ export interface AddToWaitlistPayload {
 }
 
 const safePathSegment = (value: string, label: string): string => {
-  const safeValue = value.match(/^[A-Za-z0-9_-]+$/)?.[0];
+  const safeValue = /^[A-Za-z0-9_-]+$/.exec(value)?.[0];
   if (!safeValue) throw new Error(`Invalid ${label} ID`);
   return safeValue;
 };
