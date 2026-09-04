@@ -1,3 +1,4 @@
+import { PLATFORM_STATUS_API_URL } from '@/app/hooks/usePlatformStatus';
 import type { Meta, StoryObj } from '@storybook/react';
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { expect, waitFor, within } from 'storybook/test';
@@ -168,7 +169,7 @@ const muteExpectedFailureLogs = () => {
 const withPlatformStatus = (status: string) => () => {
   const original = globalThis.fetch;
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    if (String(input).includes('openstatus.dev')) {
+    if (String(input).startsWith(PLATFORM_STATUS_API_URL)) {
       return Promise.resolve(
         new Response(JSON.stringify({ status }), {
           status: 200,

@@ -3,7 +3,11 @@
 import { useEffect, useState } from 'react';
 
 export const PLATFORM_STATUS_URL = 'https://yosemite-crew.openstatus.dev/';
-const PLATFORM_STATUS_API_URL = 'https://api.openstatus.dev/public/status/yosemite-crew';
+/* Exported so the stories that stub `fetch` can match on the whole URL. They
+   used to test `String(input).includes('openstatus.dev')`, which CodeQL flagged
+   as an incomplete URL check - it also matches `openstatus.dev.example.com` -
+   and which duplicated a host fragment this module owns. */
+export const PLATFORM_STATUS_API_URL = 'https://api.openstatus.dev/public/status/yosemite-crew';
 
 export type PlatformStatus =
   | 'operational'
