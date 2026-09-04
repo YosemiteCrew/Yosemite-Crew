@@ -184,7 +184,7 @@ const resolveIncident = async (
 };
 
 export const OpenStatusService = {
-  async handleMonitorEvent(event: OpenStatusMonitorEvent) {
+  handleMonitorEvent(event: OpenStatusMonitorEvent) {
     return isRecovery(event) ? resolveIncident(event) : openIncident(event);
   },
 };
