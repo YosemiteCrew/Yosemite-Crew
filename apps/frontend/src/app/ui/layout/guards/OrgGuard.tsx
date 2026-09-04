@@ -35,7 +35,7 @@ import {
   resolveMembershipPermissions,
 } from '@/app/lib/routePermissions';
 import { appRoutes } from '@/app/constants/routes';
-import { isLocalGuardBypassEnabled } from '@/app/lib/localGuardBypass';
+import { useLocalGuardBypass } from '@/app/lib/localGuardBypass';
 
 type OrgGuardProps = {
   children: React.ReactNode;
@@ -280,7 +280,7 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
 
   const pathname = usePathname();
 
-  const isAuthGuardDisabled = isLocalGuardBypassEnabled();
+  const isAuthGuardDisabled = useLocalGuardBypass();
 
   const orgStatus = useOrgStore((s) => s.status);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
