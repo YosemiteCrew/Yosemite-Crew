@@ -7,6 +7,7 @@ import { StripeController } from "./controllers/web/stripe.controller";
 import { FinanceController } from "./controllers/app/finance.controller";
 import cors from "cors";
 import { DocumensoWebhookController } from "./controllers/web/documenso.controller";
+import { OpenStatusWebhookController } from "./controllers/web/openstatus.controller";
 import { ChatWebhookController } from "./controllers/app/chatWebhook.controller";
 import { DeveloperBillingController } from "./controllers/web/developer-billing.controller";
 import mongoSanitize from "express-mongo-sanitize";
@@ -94,6 +95,12 @@ export function createApp() {
     "/v1/documenso/webhook",
     express.raw({ type: "application/json" }),
     (req, res) => DocumensoWebhookController.handle(req, res),
+  );
+
+  app.post(
+    "/v1/openstatus/webhook",
+    express.raw({ type: "application/json" }),
+    (req, res) => OpenStatusWebhookController.handle(req, res),
   );
 
   app.post(
