@@ -5,9 +5,9 @@ import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { Team } from '@/app/features/organization/types/team';
 import { toTitle } from '@/app/lib/validators';
-import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
+import { NoDataMessage } from '@/app/ui/tables/common';
 
-import { joinNames } from '@/app/ui/tables/tableUtils';
+import { emptyStateCopy, joinNames } from '@/app/ui/tables/tableUtils';
 import { IoEyeOutline } from 'react-icons/io5';
 
 // `.TableShell` / `.TableDiv` live in the GenericTable sheet, and this is the one

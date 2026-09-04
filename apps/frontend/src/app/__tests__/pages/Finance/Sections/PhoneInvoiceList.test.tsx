@@ -56,6 +56,7 @@ jest.mock('@/app/lib/invoicePaymentMethod', () => ({
 }));
 
 jest.mock('@/app/ui/tables/tableUtils', () => ({
+  ...jest.requireActual('@/app/ui/tables/tableUtils'),
   getInvoiceStatusTone: () => 'success',
 }));
 

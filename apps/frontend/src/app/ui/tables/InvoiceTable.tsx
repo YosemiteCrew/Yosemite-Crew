@@ -2,13 +2,17 @@ import React from 'react';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { toTitle } from '@/app/lib/validators';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
-import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
+import { NoDataMessage } from '@/app/ui/tables/common';
 import InvoiceCard from '@/app/ui/cards/InvoiceCard';
 import { Invoice } from '@yosemite-crew/types';
 import { useInvoiceRowRenderers } from '@/app/ui/tables/useInvoiceRowRenderers';
 import { getInvoiceNumberLabel } from '@/app/lib/invoice';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
-import { getInvoiceItemNames, getInvoiceStatusTone } from '@/app/ui/tables/tableUtils';
+import {
+  emptyStateCopy,
+  getInvoiceItemNames,
+  getInvoiceStatusTone,
+} from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
 

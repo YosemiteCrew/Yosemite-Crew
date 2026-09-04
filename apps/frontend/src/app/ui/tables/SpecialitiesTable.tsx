@@ -2,15 +2,9 @@ import React from 'react';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import SpecialitiesCard from '@/app/ui/cards/SpecialitiesCard';
-import {
-  Column,
-  NoDataMessage,
-  emptyStateCopy,
-  ViewButton,
-  ProfileTitle,
-} from '@/app/ui/tables/common';
+import { Column, NoDataMessage, ViewButton, ProfileTitle } from '@/app/ui/tables/common';
 
-import { getServiceNames } from '@/app/ui/tables/tableUtils';
+import { emptyStateCopy, getServiceNames } from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
 

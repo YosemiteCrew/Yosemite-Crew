@@ -1,16 +1,11 @@
+import { emptyStateCopy } from '@/app/ui/tables/tableUtils';
 import React from 'react';
 import Link from 'next/link';
 import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import SpecialitiesCard from '@/app/ui/cards/SpecialitiesCard';
-import {
-  Column,
-  NoDataMessage,
-  emptyStateCopy,
-  ViewButton,
-  ProfileTitle,
-} from '@/app/ui/tables/common';
+import { Column, NoDataMessage, ViewButton, ProfileTitle } from '@/app/ui/tables/common';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useShallow } from 'zustand/react/shallow';
 import { getSafeImageUrl } from '@/app/lib/urls';

@@ -18,7 +18,7 @@ jest.mock('@/app/hooks/useTeam', () => ({
    Only the copy is mirrored, not the card, so this file does not need the
    icon mocks NoDataMessage would pull in. */
 jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => {
-  const { emptyStateCopy } = jest.requireActual('@/app/ui/tables/common');
+  const { emptyStateCopy } = jest.requireActual('@/app/ui/tables/tableUtils');
   return {
     __esModule: true,
     default: ({ data, columns, itemNoun }: any) => (

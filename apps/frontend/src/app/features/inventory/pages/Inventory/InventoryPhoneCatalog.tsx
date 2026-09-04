@@ -1,4 +1,5 @@
 'use client';
+import { emptyStateCopy } from '@/app/ui/tables/tableUtils';
 import React from 'react';
 import { IoAlertCircleOutline, IoCubeOutline } from 'react-icons/io5';
 import clsx from 'clsx';
@@ -7,7 +8,7 @@ import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { InventoryFiltersState, InventoryItem } from './types';
 import { getStatusBadgeStyle } from './utils';
 import { buildInventoryPhoneMeta, type InventoryPhoneMeta } from './InventoryPhoneCatalog.utils';
-import { NoDataMessage, emptyStateCopy } from '@/app/ui/tables/common';
+import { NoDataMessage } from '@/app/ui/tables/common';
 
 const LOW_STOCK_STATUS = 'LOW_STOCK';
 
