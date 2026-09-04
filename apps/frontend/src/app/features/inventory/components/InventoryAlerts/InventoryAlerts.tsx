@@ -18,6 +18,13 @@ export type InventoryAlertsProps = {
 };
 
 const DAY_MS = 86_400_000;
+const RELATIVE_DAY_FORMATTER = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+const ABSOLUTE_DATE_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
 
 /** Midnight-anchored day delta, so "in 1 day" flips on the calendar boundary, not at a
  *  clock-time 24h from now — a batch expiring later today should read "today", not "tomorrow". */
@@ -27,11 +34,9 @@ const dayDelta = (target: Date, now: Date): number => {
   return Math.round((t - n) / DAY_MS);
 };
 
-const relativeDays = (delta: number): string =>
-  new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }).format(delta, 'day');
+const relativeDays = (delta: number): string => RELATIVE_DAY_FORMATTER.format(delta, 'day');
 
-const absoluteDate = (date: Date): string =>
-  date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+const absoluteDate = (date: Date): string => ABSOLUTE_DATE_FORMATTER.format(date);
 
 const cardClass =
   'flex flex-col rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03)]';
