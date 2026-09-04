@@ -47,6 +47,12 @@ export interface AddToWaitlistPayload {
   expiresAt?: string;
 }
 
+const safePathSegment = (value: string, label: string): string => {
+  const safeValue = value.match(/^[A-Za-z0-9_-]+$/)?.[0];
+  if (!safeValue) throw new Error(`Invalid ${label} ID`);
+  return safeValue;
+};
+
 const logFailure = (message: string, err: unknown): void => {
   if (axios.isAxiosError(err)) {
     console.error(message, err.response?.data?.message ?? err.message);
@@ -56,9 +62,11 @@ const logFailure = (message: string, err: unknown): void => {
 };
 
 export const fetchWaitlist = async (organisationId: string): Promise<WaitlistEntry[]> => {
-  if (!/^[A-Za-z0-9_-]+$/.test(organisationId)) throw new Error('Invalid organisation ID');
+  const safeOrganisationId = safePathSegment(organisationId, 'organisation');
   try {
-    const res = await getData<WaitlistEntry[]>(`/v1/pms/organisation/${organisationId}/waitlist`);
+    const res = await getData<WaitlistEntry[]>(
+      `/v1/pms/organisation/${safeOrganisationId}/waitlist`
+    );
     if (!Array.isArray(res.data)) {
       console.warn('Waitlist response is not an array; got', typeof res.data);
       return [];
@@ -74,10 +82,10 @@ export const addToWaitlist = async (
   organisationId: string,
   payload: AddToWaitlistPayload
 ): Promise<WaitlistEntry> => {
-  if (!/^[A-Za-z0-9_-]+$/.test(organisationId)) throw new Error('Invalid organisation ID');
+  const safeOrganisationId = safePathSegment(organisationId, 'organisation');
   try {
     const res = await postData<WaitlistEntry, AddToWaitlistPayload>(
-      `/v1/pms/organisation/${organisationId}/waitlist`,
+      `/v1/pms/organisation/${safeOrganisationId}/waitlist`,
       payload
     );
     return res.data;
@@ -92,11 +100,11 @@ const transition = async (
   entryId: string,
   action: 'offer' | 'book' | 'cancel'
 ): Promise<WaitlistEntry> => {
-  if (!/^[A-Za-z0-9_-]+$/.test(organisationId)) throw new Error('Invalid organisation ID');
-  if (!/^[A-Za-z0-9_-]+$/.test(entryId)) throw new Error('Invalid waitlist entry ID');
+  const safeOrganisationId = safePathSegment(organisationId, 'organisation');
+  const safeEntryId = safePathSegment(entryId, 'waitlist entry');
   try {
     const res = await postData<WaitlistEntry>(
-      `/v1/pms/organisation/${organisationId}/waitlist/${entryId}/${action}`
+      `/v1/pms/organisation/${safeOrganisationId}/waitlist/${safeEntryId}/${action}`
     );
     return res.data;
   } catch (err) {
