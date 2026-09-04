@@ -180,6 +180,16 @@ jobs:
       - name: Check peer dependencies
         run: node scripts/ci/check-peer-deps.mjs
 
+      # A pnpm override beats every manifest, so a bump that raises a manifest and
+      # leaves the override behind either installs nothing or splits the package
+      # into two copies. Neither shows up in `pnpm install --frozen-lockfile`, lint
+      # or type-check, because the overrides map and the lockfile agree with each
+      # other and only the manifests disagree with what is installed. axios shipped
+      # inert across four workspaces that way, and validator sat nine patch
+      # releases behind its own declaration on dev.
+      - name: Check override drift
+        run: node scripts/ci/check-override-drift.mjs
+
       # The database package's build compiles against the generated client, so
       # this has to precede the package build rather than sit with the app jobs.
       - name: Generate Prisma client
