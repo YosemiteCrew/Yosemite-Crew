@@ -6,8 +6,14 @@ import type {
   UpdateClaimStatusInput,
 } from '@/app/features/finance/types/insuranceClaim';
 
+// Encode the caller's own org id + claim id as single path segments so the
+// request stays pinned to `/v1/pms/organisation/<seg>/insurance-claims/<seg>`
+// even if an id ever carried a slash or dot (what the SSRF scanner checks).
 const claimsPath = (organisationId: string) =>
-  `/v1/pms/organisation/${organisationId}/insurance-claims`;
+  `/v1/pms/organisation/${encodeURIComponent(organisationId)}/insurance-claims`;
+
+const claimPath = (organisationId: string, claimId: string) =>
+  `${claimsPath(organisationId)}/${encodeURIComponent(claimId)}`;
 
 const assertOrg = (organisationId: string) => {
   if (!organisationId) throw new Error('Organisation ID missing');
@@ -53,7 +59,7 @@ export const getInsuranceClaim = async (
   claimId: string
 ): Promise<InsuranceClaim> => {
   assertOrg(organisationId);
-  const res = await getData<InsuranceClaim>(`${claimsPath(organisationId)}/${claimId}`);
+  const res = await getData<InsuranceClaim>(claimPath(organisationId, claimId));
   return res.data;
 };
 
@@ -82,7 +88,7 @@ export const updateInsuranceClaim = async (
   >
 ): Promise<InsuranceClaim> => {
   assertOrg(organisationId);
-  const res = await putData<InsuranceClaim>(`${claimsPath(organisationId)}/${claimId}`, input);
+  const res = await putData<InsuranceClaim>(claimPath(organisationId, claimId), input);
   return res.data;
 };
 
@@ -91,7 +97,7 @@ export const submitInsuranceClaim = async (
   claimId: string
 ): Promise<InsuranceClaim> => {
   assertOrg(organisationId);
-  const res = await postData<InsuranceClaim>(`${claimsPath(organisationId)}/${claimId}/submit`, {});
+  const res = await postData<InsuranceClaim>(`${claimPath(organisationId, claimId)}/submit`, {});
   return res.data;
 };
 
@@ -101,10 +107,7 @@ export const updateInsuranceClaimStatus = async (
   input: UpdateClaimStatusInput
 ): Promise<InsuranceClaim> => {
   assertOrg(organisationId);
-  const res = await postData<InsuranceClaim>(
-    `${claimsPath(organisationId)}/${claimId}/status`,
-    input
-  );
+  const res = await postData<InsuranceClaim>(`${claimPath(organisationId, claimId)}/status`, input);
   return res.data;
 };
 
@@ -113,6 +116,6 @@ export const cancelInsuranceClaim = async (
   claimId: string
 ): Promise<InsuranceClaim> => {
   assertOrg(organisationId);
-  const res = await postData<InsuranceClaim>(`${claimsPath(organisationId)}/${claimId}/cancel`, {});
+  const res = await postData<InsuranceClaim>(`${claimPath(organisationId, claimId)}/cancel`, {});
   return res.data;
 };
