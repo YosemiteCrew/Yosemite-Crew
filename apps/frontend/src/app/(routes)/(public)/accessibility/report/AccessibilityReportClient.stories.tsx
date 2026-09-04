@@ -1,3 +1,4 @@
+import { PLATFORM_STATUS_API_URL } from '@/app/hooks/usePlatformStatus';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { AxiosError } from 'axios';
@@ -97,7 +98,7 @@ const stubReportEndpoint = () => {
 const stubPlatformStatus = () => {
   const original = globalThis.fetch;
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    if (String(input).includes('openstatus.dev')) {
+    if (String(input).startsWith(PLATFORM_STATUS_API_URL)) {
       return Promise.resolve(
         new Response(JSON.stringify({ status: 'operational' }), {
           status: 200,
