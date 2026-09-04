@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import {
   isMoreSevereTier,
   isTierAtLeast,
@@ -217,11 +217,24 @@ async function processSubscription(
     parseAlertedTiers(row.alertedTiers),
   );
 
-  const persistAlertedTiers = () =>
-    prisma.parasiteRiskSubscription.updateMany({
-      where: { id: row.id },
-      data: { alertedTiers: nextState },
-    });
+  const persistAlertedTiers = async () => {
+    try {
+      await prisma.parasiteRiskSubscription.update({
+        where: { id: row.id },
+        data: { alertedTiers: nextState },
+      });
+    } catch (error) {
+      // Unfollowing while this sweep is in flight means the bookkeeping row is
+      // already gone, which is a successful end state rather than a job error.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        return;
+      }
+      throw error;
+    }
+  };
 
   // Nothing to send: persist the bookkeeping on its own, which is what forgets
   // parasites that fell back below the parent's threshold.

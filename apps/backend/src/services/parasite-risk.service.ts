@@ -55,12 +55,13 @@ const isUsableFallback = (cell: ParasiteRiskCell, now: number): boolean =>
   now - cell.computedAt.getTime() < MAX_STALE_CACHE_AGE_MS;
 
 /** Remove cache rows that cannot be served by the current model. */
-export async function cleanupCachedCells(now = Date.now()): Promise<number> {
+export async function cleanupCachedCells(): Promise<number> {
+  const cutoff = new Date(Date.now() - MAX_STALE_CACHE_AGE_MS);
   const result = await prisma.parasiteRiskCell.deleteMany({
     where: {
       OR: [
         { modelVersion: { not: MODEL_VERSION } },
-        { computedAt: { lt: new Date(now - MAX_STALE_CACHE_AGE_MS) } },
+        { computedAt: { lt: cutoff } },
       ],
     },
   });
@@ -301,8 +302,10 @@ export async function deleteSubscription(
   parentId: string,
   subscriptionId: string,
 ): Promise<void> {
+  const id = String(subscriptionId);
+  const ownerId = String(parentId);
   const result = await prisma.parasiteRiskSubscription.deleteMany({
-    where: { id: subscriptionId, parentId },
+    where: { id, parentId: ownerId },
   });
 
   if (result.count === 0) {
