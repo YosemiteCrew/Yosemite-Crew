@@ -90,7 +90,7 @@ const StatusPill = ({ label }: { label: string }) => (
 
 const toCellTitle = (value?: string | null): string | undefined => {
   const title = value?.trim();
-  return title ? title : undefined;
+  return title || undefined;
 };
 
 const ProductCell = ({ item }: { item: InventoryItem }) => {
