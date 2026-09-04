@@ -59,6 +59,7 @@ import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimar
 import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import DispensaryDetailModal from '@/app/features/inventory/components/DispensaryDetailModal';
 import InventoryPhoneCatalog from '@/app/features/inventory/pages/Inventory/InventoryPhoneCatalog';
+import InventoryAlertsPanel from '@/app/features/inventory/components/InventoryAlerts/InventoryAlertsPanel';
 import type { InventoryTurnoverFilterState } from '@/app/ui/filters/InventoryTurnoverFilters';
 import { StatusOption, status } from '@/app/features/companions/pages/Companions/types';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -1280,6 +1281,12 @@ const useInventoryContent = () => {
                 setDispensarySearch={setDispensarySearch}
               />
             </div>
+
+            {activeView === 'inventory' && (
+              <section aria-label="Inventory alerts" className="w-full shrink-0">
+                <InventoryAlertsPanel organisationId={primaryOrgId ?? undefined} />
+              </section>
+            )}
 
             {loadingList && activeView === 'inventory' && (
               <div className="text-grey-noti text-sm font-satoshi">Loading inventory…</div>

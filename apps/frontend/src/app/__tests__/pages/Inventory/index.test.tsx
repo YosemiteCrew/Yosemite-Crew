@@ -320,6 +320,14 @@ jest.mock('@/app/ui/tables/InventoryTurnoverTable', () => ({
 }));
 
 // Mock Modals (Updated to handle async errors in onClick to prevent Unhandled Promise Rejections)
+// Stub the alerts panel: it fetches low-stock/expiring on mount, which in this
+// page suite errors (no service mock) and logs console.error, tripping
+// jest.setup's strict guard. This suite does not exercise it.
+jest.mock('@/app/features/inventory/components/InventoryAlerts/InventoryAlertsPanel', () => ({
+  __esModule: true,
+  default: () => <div data-testid="inventory-alerts-panel" />,
+}));
+
 jest.mock('@/app/features/inventory/components/AddInventory', () => ({
   __esModule: true,
   default: ({ showModal, onSubmit }: any) =>
