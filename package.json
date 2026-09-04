@@ -46,7 +46,7 @@
     "overrides": {
       "protobufjs": "7.6.5",
       "@protobufjs/utf8": "1.1.1",
-      "qs": "6.15.2",
+      "qs": "6.16.0",
       "serialize-javascript": "7.0.5",
       "undici": "7.29.0",
       "svgo": "3.3.4",
@@ -56,7 +56,7 @@
       "@tootallnate/once": "3.0.1",
       "node-forge": "1.4.0",
       "@modelcontextprotocol/sdk": "1.26.0",
-      "validator": "13.15.26",
+      "validator": "13.15.35",
       "axios": "1.20.0",
       "handlebars": "4.7.9",
       "ajv@6": "6.15.0",
@@ -79,7 +79,7 @@
       "lodash-es": "4.18.0",
       "picomatch@2": "2.3.2",
       "yaml": "2.9.0",
-      "@xmldom/xmldom@<0.8.14": "0.8.14",
+      "@xmldom/xmldom@<0.8.15": "0.8.15",
       "path-to-regexp@0.1.12": "0.1.13",
       "path-to-regexp@8.3.0": "8.4.2",
       "@babel/plugin-transform-modules-systemjs": "7.29.8",
@@ -88,7 +88,7 @@
       "fast-xml-builder": "1.2.1",
       "postcss": "8.5.26",
       "uuid@<11.1.1": "11.1.1",
-      "ip-address": "10.3.1",
+      "ip-address@10": "10.5.1",
       "@grpc/grpc-js@1.9.15": "1.9.16",
       "@grpc/grpc-js@1.14.3": "1.14.4",
       "axios@1.15.2": "1.20.0",
@@ -110,7 +110,7 @@
       "@opentelemetry/sdk-metrics@2.2.0": "2.8.0",
       "@opentelemetry/sdk-trace-base@2.2.0": "2.8.0",
       "protobufjs@7.5.5": "7.6.5",
-      "qs@6.14.2": "6.15.2",
+      "qs@6.14.2": "6.16.0",
       "shell-quote@1.8.3": "1.9.0",
       "tmp@0.2.5": "0.2.7",
       "undici@7.24.0": "7.29.0",
@@ -119,7 +119,7 @@
       "ws@6": "6.2.5",
       "ws@7": "7.5.12",
       "ws@8": "8.21.1",
-      "multer": "2.2.0",
+      "multer": "2.3.0",
       "aws-cdk-lib": "2.266.0",
       "@babel/core@7.29.0": "7.29.6",
       "next": "15.5.24",
@@ -155,7 +155,8 @@
       "sharp": "0.35.3",
       "adm-zip": "0.6.0",
       "http-proxy-middleware": "2.0.10",
-      "stream-chat": "9.52.0"
+      "stream-chat": "9.52.0",
+      "zod": "4.5.4"
     },
     "patchedDependencies": {
       "react-native@0.81.6": "patches/react-native@0.81.6.patch"
