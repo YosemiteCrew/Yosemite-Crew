@@ -186,16 +186,22 @@ export function formatFinding(f) {
 }
 
 /** The only function that touches the filesystem, and only via module constants. */
-function readRepo() {
+export function readRepo() {
   const rootPkg = JSON.parse(readFileSync(ROOT_MANIFEST, 'utf8'));
-  const manifests = [];
+  // The root manifest is a manifest too. `aws-cdk-lib` is both a root devDependency
+  // and a root override, so leaving it out made exactly the drift this gate exists
+  // for invisible in the one file the overrides live in.
+  const manifests = [{ file: 'package.json', json: rootPkg }];
   for (const group of WORKSPACE_GROUPS) {
     const dir = join(REPO_ROOT, group);
     if (!existsSync(dir)) continue;
     for (const name of readdirSync(dir)) {
       const abs = join(dir, name, 'package.json');
       if (!existsSync(abs)) continue;
-      manifests.push({ file: `${group}/${name}/package.json`, json: JSON.parse(readFileSync(abs, 'utf8')) });
+      manifests.push({
+        file: `${group}/${name}/package.json`,
+        json: JSON.parse(readFileSync(abs, 'utf8')),
+      });
     }
   }
   const lockText = existsSync(LOCKFILE) ? readFileSync(LOCKFILE, 'utf8') : '';
@@ -212,7 +218,9 @@ function main(argv) {
     return;
   }
 
-  console.log(`check-override-drift: ${Object.keys(repo.overrides).length} override entries checked`);
+  console.log(
+    `check-override-drift: ${Object.keys(repo.overrides).length} override entries checked`
+  );
   if (!findings.length) {
     console.log('  no override contradicts a workspace declaration');
     return;
@@ -222,7 +230,7 @@ function main(argv) {
   const splits = findings.filter((f) => f.kind === 'splits-tree');
   console.error(
     `\ncheck-override-drift: ${below.length} override(s) pinning below a declared range,` +
-      ` and ${splits.length} splitting the tree\n`,
+      ` and ${splits.length} splitting the tree\n`
   );
   for (const f of findings) {
     console.error(formatFinding(f));
@@ -233,7 +241,9 @@ function main(argv) {
   console.error('and the lockfile agree with each other, and only the manifests disagree');
   console.error('with what is installed. Read the resolution, not the manifest:');
   console.error('');
-  console.error("  grep -oE '^  /<pkg>@[0-9.]+' pnpm-lock.yaml | sort -u    # want exactly one line");
+  console.error(
+    "  grep -oE '^  /<pkg>@[0-9.]+' pnpm-lock.yaml | sort -u    # want exactly one line"
+  );
   process.exitCode = 1;
 }
 

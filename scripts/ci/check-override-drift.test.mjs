@@ -13,6 +13,7 @@ import {
   parseLockfileVersions,
   collectDeclarations,
   findDrift,
+  readRepo,
 } from './check-override-drift.mjs';
 
 test('the axios inert-bump defect is caught', () => {
@@ -85,7 +86,13 @@ test('only bare-name selectors are treated as forcing every consumer', () => {
 
 test('a scoped package name is parsed as one name, not split at the slash', () => {
   const idx = parseLockfileVersions(
-    ['packages:', '  /@xmldom/xmldom@0.8.15:', '  /@xmldom/xmldom@0.9.12:', '  /xmldom@0.6.0:', ''].join('\n'),
+    [
+      'packages:',
+      '  /@xmldom/xmldom@0.8.15:',
+      '  /@xmldom/xmldom@0.9.12:',
+      '  /xmldom@0.6.0:',
+      '',
+    ].join('\n')
   );
   assert.deepEqual([...idx.get('@xmldom/xmldom')].sort(), ['0.8.15', '0.9.12']);
   // The unscoped package must not be folded into the scoped one, or vice versa.
@@ -97,7 +104,12 @@ test('a dot in a package name is not treated as a wildcard', () => {
   // fixtures, a regex that stopped escaping or loosened the name class would be
   // invisible: @xmldom/xmldom contains no metacharacters at all.
   const idx = parseLockfileVersions(
-    ['packages:', '  /@jsonjoy.com/fs-snapshot@4.57.7:', '  /@jsonjoyXcom/fs-snapshot@9.9.9:', ''].join('\n'),
+    [
+      'packages:',
+      '  /@jsonjoy.com/fs-snapshot@4.57.7:',
+      '  /@jsonjoyXcom/fs-snapshot@9.9.9:',
+      '',
+    ].join('\n')
   );
   assert.deepEqual([...idx.get('@jsonjoy.com/fs-snapshot')], ['4.57.7']);
   assert.equal(idx.has('@jsonjoyXcom/fs-snapshot'), true);
@@ -107,7 +119,9 @@ test('a dot in a package name is not treated as a wildcard', () => {
 test('a peer-suffixed entry yields the base version only', () => {
   // Entries carry peer context: /pkg@1.2.3(react@19.0.0). Capturing that suffix
   // would make every version invalid and silently disable split detection.
-  const idx = parseLockfileVersions(['packages:', '  /stream-chat@9.52.0(debug@4.4.3):', ''].join('\n'));
+  const idx = parseLockfileVersions(
+    ['packages:', '  /stream-chat@9.52.0(debug@4.4.3):', ''].join('\n')
+  );
   assert.deepEqual([...idx.get('stream-chat')], ['9.52.0']);
 });
 
@@ -116,12 +130,20 @@ test('an importer block is not mistaken for a resolved package', () => {
   // `specifier:` / `version:` rather than a leading slash. Matching them would
   // invent versions that are not resolutions.
   const idx = parseLockfileVersions(
-    ['importers:', '  apps/backend:', '    dependencies:', '      axios:', '        specifier: ^1.20.0', '        version: 1.20.0', ''].join('\n'),
+    [
+      'importers:',
+      '  apps/backend:',
+      '    dependencies:',
+      '      axios:',
+      '        specifier: ^1.20.0',
+      '        version: 1.20.0',
+      '',
+    ].join('\n')
   );
   assert.equal(idx.size, 0);
 });
 
-test('the lockfile\'s own overrides block is not parsed as resolutions', () => {
+test("the lockfile's own overrides block is not parsed as resolutions", () => {
   // pnpm mirrors the overrides map at the top of the lockfile, at the same two-space
   // indent as package entries but WITHOUT the leading slash, and quotes any selector
   // containing special characters. Dropping the `/` from the pattern matches inside
@@ -132,13 +154,20 @@ test('the lockfile\'s own overrides block is not parsed as resolutions', () => {
       'overrides:',
       '  uuid@<11.1.1: 11.1.1',
       '  ip-address: 10.3.1',
+      // The line with teeth: bare name, bare selector version, no quotes and no
+      // metacharacters, so `  qs@6.14.2` matches the pattern in every respect
+      // except the leading slash. Drop the slash and this registers qs at 6.14.2,
+      // which is the override's OLD version and exactly the false split the anchor
+      // prevents. The three lines around it each fail to match for their own
+      // unrelated reason and so cannot guard it.
+      '  qs@6.14.2: 6.15.2',
       "  '@grpc/grpc-js@1.9.15': 1.9.16",
       'packages:',
       '  /@grpc/grpc-js@1.9.16:',
       '  /@types/node@26.4.0:',
       '  /@commitlint/cli@21.2.1(@types/node@26.4.0)(typescript@5.9.3):',
       '',
-    ].join('\n'),
+    ].join('\n')
   );
   // Only the real package entries, under their full scoped names.
   assert.deepEqual([...idx.keys()].sort(), ['@commitlint/cli', '@grpc/grpc-js', '@types/node']);
@@ -154,6 +183,7 @@ test('the lockfile\'s own overrides block is not parsed as resolutions', () => {
   assert.equal(idx.has('node'), false);
   assert.equal(idx.has('cli'), false);
   assert.equal(idx.has('grpc-js'), false);
+  assert.equal(idx.has('qs'), false);
 });
 
 test('an empty lockfile yields no resolutions rather than throwing', () => {
@@ -168,7 +198,7 @@ test('declarations are collected across all three dependency fields', () => {
   ]);
   assert.deepEqual(
     decls.get('x').map((d) => d.range),
-    ['^1.0.0', '^2.0.0', '^3.0.0'],
+    ['^1.0.0', '^2.0.0', '^3.0.0']
   );
 });
 
@@ -191,7 +221,9 @@ test('end to end: a split tree is reported', () => {
   // is inert, but two copies are resolved and that is the override's fault.
   const findings = findDrift({
     overrides: { i18next: '26.3.6' },
-    manifests: [{ file: 'apps/mobileAppYC/package.json', json: { dependencies: { i18next: '^26.3.0' } } }],
+    manifests: [
+      { file: 'apps/mobileAppYC/package.json', json: { dependencies: { i18next: '^26.3.0' } } },
+    ],
     lockText: ['packages:', '  /i18next@26.3.6:', '  /i18next@26.4.1:', ''].join('\n'),
   });
   assert.equal(findings.length, 1);
@@ -202,7 +234,9 @@ test('end to end: a split tree is reported', () => {
 test('a single resolved copy is not reported as a split', () => {
   const findings = findDrift({
     overrides: { i18next: '26.4.1' },
-    manifests: [{ file: 'apps/mobileAppYC/package.json', json: { dependencies: { i18next: '^26.3.0' } } }],
+    manifests: [
+      { file: 'apps/mobileAppYC/package.json', json: { dependencies: { i18next: '^26.3.0' } } },
+    ],
     lockText: ['packages:', '  /i18next@26.4.1:', ''].join('\n'),
   });
   assert.deepEqual(findings, []);
@@ -214,7 +248,19 @@ test('a package nobody declares is not reported, split or otherwise', () => {
   const findings = findDrift({
     overrides: { 'some-transitive': '1.0.0' },
     manifests: [{ file: 'apps/a/package.json', json: { dependencies: { other: '^1.0.0' } } }],
-    lockText: ['packages:', '  /some-transitive@1.0.0:', '  /some-transitive@2.0.0:', ''].join('\n'),
+    lockText: ['packages:', '  /some-transitive@1.0.0:', '  /some-transitive@2.0.0:', ''].join(
+      '\n'
+    ),
   });
   assert.deepEqual(findings, []);
+});
+
+test('the walk includes the root manifest', () => {
+  // The overrides live in the root package.json, and so do 20-odd devDependencies
+  // that the same overrides can pin below. Walking only apps/ and packages/ made
+  // that one file the single blind spot in the gate.
+  const { manifests } = readRepo();
+  const root = manifests.find((m) => m.file === 'package.json');
+  assert.ok(root, 'root package.json must be walked like any other manifest');
+  assert.ok(Object.keys(root.json.devDependencies ?? {}).length > 0);
 });
