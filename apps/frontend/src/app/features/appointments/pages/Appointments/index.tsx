@@ -46,6 +46,9 @@ const ChangeRoom = React.lazy(
 const WaitlistPanel = React.lazy(
   () => import('@/app/features/appointments/components/Waitlist/WaitlistPanel')
 );
+const CheckInBoardPanel = React.lazy(
+  () => import('@/app/features/appointments/components/CheckInBoard/CheckInBoardPanel')
+);
 import { useSearchStore } from '@/app/stores/searchStore';
 import Filters from '@/app/ui/filters/Filters';
 import {
@@ -329,6 +332,7 @@ const useAppointmentsView = () => {
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
   const [showWaitlist, setShowWaitlist] = useState(false);
+  const [showCheckIn, setShowCheckIn] = useState(false);
   const [addAppointmentPrefill, setAddAppointmentPrefill] =
     useState<AppointmentDraftPrefill | null>(null);
   const [viewPopup, setViewPopup] = useState(false);
@@ -616,6 +620,32 @@ const useAppointmentsView = () => {
               <div id="appointments-waitlist-panel" className="mt-3">
                 <React.Suspense fallback={<PlannerViewSkeleton />}>
                   <WaitlistPanel />
+                </React.Suspense>
+              </div>
+            )}
+          </section>
+          <section aria-labelledby="appointments-checkin-heading" className="mb-3">
+            <button
+              type="button"
+              onClick={() => setShowCheckIn((open) => !open)}
+              aria-expanded={showCheckIn}
+              aria-controls="appointments-checkin-panel"
+              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] px-4 py-2.5 text-left shadow-[0_1px_2px_var(--sh03)] transition-colors hover:bg-[var(--inset)]"
+            >
+              <span
+                id="appointments-checkin-heading"
+                className="text-[13.5px] font-bold text-[var(--ink)]"
+              >
+                Check-in board
+              </span>
+              <span className="text-[12px] font-semibold text-[var(--ink-muted)]">
+                {showCheckIn ? 'Hide' : 'Show'}
+              </span>
+            </button>
+            {showCheckIn && (
+              <div id="appointments-checkin-panel" className="mt-3">
+                <React.Suspense fallback={<PlannerViewSkeleton />}>
+                  <CheckInBoardPanel />
                 </React.Suspense>
               </div>
             )}
