@@ -14,6 +14,18 @@ jest.mock('@/app/features/companionHistory/components/CompanionHistoryTimeline',
   ),
 }));
 
+jest.mock('@/app/features/companionHistory/components/AllergyListPanel', () => ({
+  __esModule: true,
+  default: ({ companionId }: any) => (
+    <div data-testid="allergy-list-panel" data-companion-id={companionId} />
+  ),
+}));
+
+jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
+  __esModule: true,
+  default: ({ children }: any) => children,
+}));
+
 jest.mock('next/image', () => ({
   __esModule: true,
   default: ({ alt }: any) => <span data-testid="avatar">{alt}</span>,
@@ -93,6 +105,10 @@ describe('PhoneCompanionRecord', () => {
     );
     // Timeline is rendered in the phone variant with the upload signal wired.
     expect(screen.getByTestId('timeline')).toHaveTextContent('AC-0092-phone-true-0');
+    expect(screen.getByTestId('allergy-list-panel')).toHaveAttribute(
+      'data-companion-id',
+      'AC-0092'
+    );
   });
 
   it('shows the edit affordance only with permission', () => {

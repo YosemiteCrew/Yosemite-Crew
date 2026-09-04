@@ -15,6 +15,8 @@ import {
 } from 'react-icons/io5';
 import CompanionHistoryTimeline from '@/app/features/companionHistory/components/CompanionHistoryTimeline';
 import ProblemListPanel from '@/app/features/companionHistory/components/ProblemListPanel';
+import AllergyListPanel from '@/app/features/companionHistory/components/AllergyListPanel';
+import PermissionGate from '@/app/ui/layout/guards/PermissionGate';
 import AlertPill from '@/app/features/appointments/pages/AppointmentWorkspace/components/AlertPill';
 import type { CompanionAlert } from '@/app/features/appointments/types/workspace';
 import type {
@@ -25,6 +27,7 @@ import { buildCompanionDetails } from '@/app/lib/companionWorkspaceDetails';
 import { formatCompanionAge } from '@/app/lib/date';
 import { getSafeImageUrl, type ImageType } from '@/app/lib/urls';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import { PERMISSIONS } from '@/app/lib/permissions';
 
 type PhoneCompanionRecordProps = {
   companionId: string;
@@ -408,6 +411,9 @@ const PhoneCompanionRecord = ({
         ) : null}
 
         <ProblemListPanel companionId={companionId} />
+        <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]}>
+          <AllergyListPanel companionId={companionId} />
+        </PermissionGate>
 
         <CompanionHistoryTimeline
           companionId={companionId}
