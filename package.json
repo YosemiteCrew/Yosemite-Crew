@@ -156,7 +156,7 @@
       "adm-zip": "0.6.0",
       "http-proxy-middleware": "2.0.10",
       "stream-chat": "9.52.0",
-      "zod@3": "4.5.4"
+      "zod": "4.5.4"
     },
     "patchedDependencies": {
       "react-native@0.81.6": "patches/react-native@0.81.6.patch"

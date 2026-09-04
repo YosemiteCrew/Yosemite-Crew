@@ -117,7 +117,7 @@ overrides:
   adm-zip: 0.6.0
   http-proxy-middleware: 2.0.10
   stream-chat: 9.52.0
-  zod@3: 4.5.4
+  zod: 4.5.4
 
 patchedDependencies:
   react-native@0.81.6:
@@ -300,7 +300,7 @@ importers:
         specifier: ^3.17.0
         version: 3.19.0
       zod:
-        specifier: ^4.5.0
+        specifier: 4.5.4
         version: 4.5.4
     devDependencies:
       '@eslint/js':
@@ -1133,13 +1133,13 @@ importers:
     dependencies:
       '@modelcontextprotocol/sdk':
         specifier: 1.26.0
-        version: 1.26.0(zod@4.4.3)
+        version: 1.26.0(zod@4.5.4)
       axios:
         specifier: 1.20.0
         version: 1.20.0(debug@4.4.3)
       zod:
-        specifier: ^4.4.0
-        version: 4.4.3
+        specifier: 4.5.4
+        version: 4.5.4
     devDependencies:
       '@types/jest':
         specifier: ^30.0.0
@@ -5914,37 +5914,6 @@ packages:
       '@types/react': 19.2.18
       react: 19.1.4
     dev: true
-
-  /@modelcontextprotocol/sdk@1.26.0(zod@4.4.3):
-    resolution: {integrity: sha512-Y5RmPncpiDtTXDbLKswIJzTqu2hyBKxTNsgKqKclDbhIgg1wgtf1fRuvxgTnRfcnxtvvgbIEcqUOzZrJ6iSReg==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      '@cfworker/json-schema': ^4.1.1
-      zod: 4.5.4
-    peerDependenciesMeta:
-      '@cfworker/json-schema':
-        optional: true
-    dependencies:
-      '@hono/node-server': 2.0.11(hono@4.13.5)
-      ajv: 8.20.0
-      ajv-formats: 3.0.1(ajv@8.20.0)
-      content-type: 1.0.5
-      cors: 2.8.6
-      cross-spawn: 7.0.6
-      eventsource: 3.0.7
-      eventsource-parser: 3.1.0
-      express: 5.2.1
-      express-rate-limit: 8.6.2(express@5.2.1)
-      hono: 4.13.5
-      jose: 6.2.10
-      json-schema-typed: 8.0.2
-      pkce-challenge: 5.0.1
-      raw-body: 3.0.2
-      zod: 4.4.3
-      zod-to-json-schema: 3.25.2(zod@4.4.3)
-    transitivePeerDependencies:
-      - supports-color
-    dev: false
 
   /@modelcontextprotocol/sdk@1.26.0(zod@4.5.4):
     resolution: {integrity: sha512-Y5RmPncpiDtTXDbLKswIJzTqu2hyBKxTNsgKqKclDbhIgg1wgtf1fRuvxgTnRfcnxtvvgbIEcqUOzZrJ6iSReg==}
@@ -17253,7 +17222,7 @@ packages:
       jest-config: 30.4.2(@types/node@26.2.0)(ts-node@10.9.2)
       jest-util: 30.4.1
       jest-validate: 30.4.1
-      yargs: 17.7.2
+      yargs: 17.7.3
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
@@ -17281,7 +17250,7 @@ packages:
       jest-config: 30.4.2(@types/node@26.4.0)(ts-node@10.9.2)
       jest-util: 30.4.1
       jest-validate: 30.4.1
-      yargs: 17.7.2
+      yargs: 17.7.3
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
@@ -25935,14 +25904,6 @@ packages:
       readable-stream: 4.7.0
     dev: false
 
-  /zod-to-json-schema@3.25.2(zod@4.4.3):
-    resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
-    peerDependencies:
-      zod: 4.5.4
-    dependencies:
-      zod: 4.4.3
-    dev: false
-
   /zod-to-json-schema@3.25.2(zod@4.5.4):
     resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
     peerDependencies:
@@ -25959,10 +25920,6 @@ packages:
     dependencies:
       zod: 4.5.4
     dev: true
-
-  /zod@4.4.3:
-    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
-    dev: false
 
   /zod@4.5.4:
     resolution: {integrity: sha512-sC95tT5iHHH9gtpj6A81kh+NEaRAUFN+qlUPDUbRfOMvNf5QCBqsb3WgvnpVtK5Y+4UfA6KqufotuTvMGiTlsA==}
