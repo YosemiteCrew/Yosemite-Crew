@@ -12,6 +12,7 @@ import {
   IoChevronForwardOutline,
   IoCubeOutline,
   IoExtensionPuzzleOutline,
+  IoFlaskOutline,
   IoGitNetworkOutline,
   IoGlobeOutline,
   IoGridOutline,
@@ -50,6 +51,7 @@ const ROUTE_ICONS: Record<string, IconType> = {
   Finance: IoWalletOutline,
   Companions: IoPaw,
   Inventory: IoCubeOutline,
+  'Controlled drugs': IoFlaskOutline,
   Integrations: IoGitNetworkOutline,
   Network: IoGlobeOutline,
   Templates: IoBookOutline,
@@ -64,7 +66,7 @@ const APP_ROUTE_GROUPS = [
   { label: 'Overview', routeNames: ['Dashboard'] },
   { label: 'Schedule & Work', routeNames: ['Appointments', 'Tasks', 'Chat'] },
   { label: 'Clients & Records', routeNames: ['Companions', 'Templates'] },
-  { label: 'Business', routeNames: ['Finance', 'Inventory'] },
+  { label: 'Business', routeNames: ['Finance', 'Inventory', 'Controlled drugs'] },
   { label: 'Administration', routeNames: ['Organization', 'Integrations', 'Network'] },
 ] as const;
 

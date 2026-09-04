@@ -23,6 +23,7 @@ const STRICT_CSP_PATH_PREFIXES = [
   '/book-onboarding',
   '/chat',
   '/companions',
+  '/controlled-substances',
   '/create-org',
   '/dashboard',
   '/developers/api-keys',
