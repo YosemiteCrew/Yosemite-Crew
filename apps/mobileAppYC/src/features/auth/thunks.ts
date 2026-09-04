@@ -14,6 +14,7 @@ import {resetLinkedBusinesses} from '@/features/linkedBusinesses';
 import {resetCoParentState} from '@/features/coParent';
 import {resetNotificationState} from '@/features/notifications';
 import {resetFormsState} from '@/features/forms';
+import {resetParasiteRiskState} from '@/features/parasiteRisk/parasiteRiskSlice';
 import {signOutEverywhere} from '@/features/auth/services/passwordlessAuth';
 import {initSuperTokens} from '@/features/auth/services/superTokensClient';
 import {DeviceEventEmitter} from 'react-native';
@@ -287,6 +288,7 @@ export const logout = createAsyncThunk<
   // it behind would let a signed-out phone still read out the previous
   // owner's appointments.
   await clearSnapshot();
+  dispatch(resetParasiteRiskState());
 });
 
 export const clearAuthError = createAsyncThunk(

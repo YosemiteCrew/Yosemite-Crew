@@ -158,7 +158,9 @@
     "stale_updated_minutes": "Actualizado hace {{count}} min",
     "stale_updated_hours": "Actualizado hace {{count}} h",
     "stale_updated_days": "Actualizado hace {{count}} d",
-    "stale_updated_unknown": "No se pudo actualizar"
+    "stale_updated_unknown": "No se pudo actualizar",
+    "back": "Atrás",
+    "close": "Cerrar"
   },
   "validation": {
     "email_required": "El correo electrónico es requerido",
@@ -700,6 +702,142 @@
       },
       "bookAppointment": {
         "handoff": "Reservar requiere hora y pago, así que he abierto la búsqueda de clínicas."
+      }
+    }
+  },
+  "parasiteRisk": {
+    "title": "Riesgo de parásitos",
+    "headline": "El más alto ahora mismo: {{parasite}}",
+    "sectionTitle": "Qué hay activo cerca de ti",
+    "homeSummary": "{{parasite}} es el riesgo principal en {{label}}",
+    "homePrompt": "Consulta qué hay activo en tu zona",
+    "degraded": "No había datos meteorológicos completos, así que esta lectura es menos precisa de lo habitual.",
+    "disclaimer": "Esta es una estimación modelada a partir del clima local, no un registro de casos confirmados. Es información general, no asesoramiento veterinario. Habla con tu veterinario sobre la prevención de parásitos y busca atención de inmediato si tu mascota no se encuentra bien.",
+    "dialAccessibility": "{{tier}}. Índice de riesgo modelado: {{index}} de 100.",
+    "homeAccessibility": "{{summary}}. Nivel de riesgo: {{tier}}.",
+    "follow": "Seguir esta ubicación",
+    "unfollow": "Dejar de seguir esta ubicación",
+    "errors": {
+      "forecast": "No pudimos cargar el pronóstico de riesgo. Inténtalo de nuevo.",
+      "subscriptions": "No pudimos cargar tus ubicaciones seguidas.",
+      "follow": "No pudimos seguir esa ubicación.",
+      "unfollow": "No pudimos dejar de seguir esa ubicación."
+    },
+    "permission": {
+      "title": "Permiso necesario",
+      "message": "No tienes acceso a {{feature}}. Pide al cuidador principal que lo habilite.",
+      "tasks": "tareas",
+      "appointments": "citas"
+    },
+    "tier": {
+      "low": "Bajo",
+      "moderate": "Moderado",
+      "high": "Alto",
+      "extreme": "Extremo"
+    },
+    "trend": {
+      "rising": "Subiendo durante la próxima semana",
+      "steady": "Estable durante la próxima semana",
+      "falling": "Bajando durante la próxima semana"
+    },
+    "search": {
+      "title": "Buscar una ubicación",
+      "placeholder": "Barrio, ciudad o código postal",
+      "prompt": "Elige una ubicación",
+      "useCurrentLocation": "Usar mi ubicación actual",
+      "currentLocation": "Ubicación actual",
+      "recent": "Recientes",
+      "error": "No hemos podido buscar ahora mismo. Inténtalo de nuevo.",
+      "unresolved": "No hemos podido situar ese lugar.",
+      "locationDenied": "Necesitamos acceso a la ubicación para usar tu posición actual.",
+      "locationUnavailable": "No pudimos obtener tu posición actual. Comprueba que la ubicación esté activada e inténtalo de nuevo."
+    },
+    "cover": {
+      "title": "Cobertura preventiva",
+      "lapsedBody_one": "La prevención de parásitos de {{name}} lleva {{count}} día pendiente y el riesgo local es alto ahora mismo.",
+      "lapsedBody_other": "La prevención de parásitos de {{name}} lleva {{count}} días pendiente y el riesgo local es alto ahora mismo.",
+      "noneBody": "No hay prevención de parásitos programada para {{name}} y el riesgo local es alto ahora mismo.",
+      "addPrevention": "Añadir prevención",
+      "bookVisit": "Reservar una visita"
+    },
+    "detail": {
+      "about": "Descripción",
+      "signs": "Señales a vigilar",
+      "prevention": "Cómo se previene",
+      "near": "Cerca de {{label}}"
+    },
+    "parasite": {
+      "heartworm": {
+        "name": "Gusano del corazón",
+        "summary": "Lo transmiten los mosquitos. Los gusanos maduran en el corazón y los pulmones y los dañan poco a poco, normalmente mucho antes de que aparezca ningún síntoma.",
+        "signs": "Tos persistente, cansancio rápido en los paseos, menos apetito y pérdida de peso. La infección temprana a menudo no da ninguna señal.",
+        "prevention": "Preventivos administrados con una pauta regular allí donde hay mosquitos activos, normalmente tras un análisis de sangre previo. Tu veterinario te indicará las pruebas y el calendario."
+      },
+      "paralysis_tick": {
+        "name": "Garrapata paralizante",
+        "summary": "Una garrapata de la costa húmeda de Australia cuya saliva contiene una toxina que provoca parálisis progresiva. Puede ser mortal sin tratamiento.",
+        "signs": "Patas traseras débiles o inestables, cambio en el ladrido o el maullido, arcadas y respiración dificultosa. Los signos pueden agravarse en cuestión de horas.",
+        "prevention": "Revisar el pelaje y la piel a diario, junto con un preventivo que cubra esta especie. Encontrar una garrapata o ver estos signos es una urgencia: contacta con un veterinario de inmediato."
+      },
+      "brown_dog_tick": {
+        "name": "Garrapata marrón del perro",
+        "summary": "La única garrapata que prospera en interiores y en residencias caninas, de modo que las infestaciones se acumulan tanto en casa como fuera.",
+        "signs": "Garrapatas en las orejas, entre los dedos y alrededor del cuello. Las infestaciones intensas pueden causar anemia, y además transmite otras enfermedades.",
+        "prevention": "Tratar a la mascota y la vivienda a la vez, porque los huevos y las fases juveniles se refugian en grietas y en la cama. Tu veterinario puede orientarte en ambos frentes."
+      },
+      "blacklegged_tick": {
+        "name": "Garrapata de patas negras",
+        "summary": "El principal transmisor de la enfermedad de Lyme en Norteamérica. Es pequeña, y las ninfas tienen aproximadamente el tamaño de una semilla de amapola.",
+        "signs": "A menudo nada por la picadura en sí. La enfermedad de Lyme puede causar cojera cambiante, fiebre, articulaciones inflamadas y apatía semanas después.",
+        "prevention": "Preventivos frente a garrapatas, revisar el pelaje tras pasar por hierba alta o bosque, y retirarlas cuanto antes. En algunas regiones existe vacuna frente a Lyme: consulta a tu veterinario."
+      },
+      "lone_star_tick": {
+        "name": "Garrapata estrella solitaria",
+        "summary": "Una picadora agresiva del sur y el este de Estados Unidos, reconocible por la única mancha clara de la hembra.",
+        "signs": "Garrapatas visibles e irritación en la picadura. Puede transmitir ehrlichiosis, que provoca fiebre, apatía y problemas de coagulación.",
+        "prevention": "Preventivos frente a garrapatas y revisión del pelaje tras estar al aire libre, sobre todo en linderos de bosque y matorral."
+      },
+      "american_dog_tick": {
+        "name": "Garrapata americana del perro",
+        "summary": "Una garrapata extendida por praderas y campo abierto, y principal transmisora de la fiebre maculosa de las Montañas Rocosas.",
+        "signs": "Garrapatas visibles, normalmente en la cabeza y el cuello. Las fiebres transmitidas por garrapatas causan apatía, inapetencia y dolor articular.",
+        "prevention": "Preventivos frente a garrapatas y revisión del pelaje tras los paseos por hierba alta."
+      },
+      "castor_bean_tick": {
+        "name": "Garrapata del ricino",
+        "summary": "La garrapata más común de Europa, presente en bosques, parques y jardines. Transmite la enfermedad de Lyme y la encefalitis por garrapatas.",
+        "signs": "A menudo nada en el momento. Más adelante, la enfermedad transmitida puede dar fiebre, cojera y apatía.",
+        "prevention": "Preventivos durante toda la temporada de actividad, revisión del pelaje tras los paseos y retirada rápida y completa de cualquier garrapata."
+      },
+      "ornate_dog_tick": {
+        "name": "Garrapata ornamentada del perro",
+        "summary": "Una garrapata europea de dibujo jaspeado, activa antes y después en el año que la mayoría. Transmite babesiosis, que destruye los glóbulos rojos.",
+        "signs": "Encías pálidas, orina oscura, fiebre y apatía marcada apuntan a babesiosis y requieren atención urgente.",
+        "prevention": "Preventivos que cubran los picos de primavera y otoño, además de revisar el pelaje tras los paseos por prados y matorral."
+      },
+      "flea": {
+        "name": "Pulgas",
+        "summary": "Un problema de todo el año, porque la mayor parte de la población vive en la casa en forma de huevos y larvas, no sobre la mascota.",
+        "signs": "Rascado, mordisqueo en la base de la cola, suciedad de pulga en el pelaje y pérdida de pelo. Algunas mascotas reaccionan con fuerza a una sola picadura.",
+        "prevention": "Tratar a la vez a todas las mascotas de la casa, además de lavar la ropa de cama y aspirar a fondo, ya que la vivienda es el reservorio."
+      },
+      "sandfly_leishmania": {
+        "name": "Flebótomos",
+        "summary": "Pequeñas moscas picadoras del Mediterráneo que transmiten la leishmaniosis, una enfermedad grave y a menudo de por vida.",
+        "signs": "Llagas en la piel alrededor de la cabeza, pérdida de pelo y de peso, uñas excesivamente largas y sangrado nasal. Los signos pueden aparecer meses o años después.",
+        "prevention": "Productos repelentes, mantener a la mascota dentro desde el anochecer hasta el amanecer y mosquiteras de malla fina. En algunos países existe vacuna: consulta a tu veterinario."
+      },
+      "lungworm": {
+        "name": "Gusano pulmonar",
+        "summary": "Se contrae al comer babosas y caracoles, o hierba y juguetes por los que han pasado. Los gusanos maduran en el corazón y los pulmones.",
+        "signs": "Tos, cansancio fácil y sangrados o hematomas inusuales que no se detienen. Puede poner en peligro la vida.",
+        "prevention": "Un desparasitante que cubra específicamente el gusano pulmonar, ya que no todos lo hacen, y recoger juguetes y comederos por la noche."
+      },
+      "intestinal_worms": {
+        "name": "Gusanos intestinales",
+        "summary": "Ascáridos, anquilostomas y tricocéfalos, que se contraen del suelo contaminado, las heces o las presas. Algunos pueden pasar a las personas.",
+        "signs": "Diarrea, aspecto abombado del vientre en cachorros, pelaje pobre, pérdida de peso y a veces gusanos visibles en las heces.",
+        "prevention": "Desparasitación rutinaria con una frecuencia acorde al estilo de vida de la mascota, además de recoger las heces cuanto antes. Tu veterinario te indicará cada cuánto."
       }
     }
   }

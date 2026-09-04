@@ -2,6 +2,7 @@ import {configureStore, combineReducers} from '@reduxjs/toolkit';
 import {
   persistStore,
   persistReducer,
+  createTransform,
   FLUSH,
   REHYDRATE,
   PAUSE,
@@ -59,6 +60,11 @@ import {notificationReducer} from '@/features/notifications';
 import formsReducer from '@/features/forms/formsSlice';
 import preferencesReducer from '@/features/preferences/preferencesSlice';
 import {assistantReducer} from '@/features/assistant';
+import {
+  parasiteRiskReducer,
+  type ParasiteRiskState,
+} from '@/features/parasiteRisk';
+import {snapToRiskCell} from '@yosemite-crew/types';
 
 const migrateV1ToV2 = (_state: any) => {
   console.log(
@@ -171,9 +177,21 @@ const migrateV8ToV9 = (state: any) => {
     state.expenses.summaryFailedCompanions =
       state.expenses.summaryFailedCompanions ?? {};
   }
+  if (!state.parasiteRisk) {
+    state.parasiteRisk = {
+      location: null,
+      reading: null,
+      recentLocations: [],
+      subscriptions: [],
+      loading: false,
+      subscriptionsLoading: false,
+      error: null,
+      disclaimerAcknowledged: false,
+      latestRiskRequestId: null,
+    };
+  }
 };
 
-// Keyed by the persisted version a state is migrating FROM.
 const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
   1: migrateV1ToV2,
   2: migrateV2ToV3,
@@ -187,10 +205,52 @@ const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
 
 const PERSIST_VERSION = 9;
 
+type PersistedParasiteRiskState = Omit<
+  ParasiteRiskState,
+  'loading' | 'subscriptionsLoading'
+>;
+
+const snapLocation = (location: ParasiteRiskState['location']) => {
+  if (!location) {
+    return null;
+  }
+  return {...location, ...snapToRiskCell(location.lat, location.lon)};
+};
+
+// In-flight request flags must never reach storage: an app killed mid-request would
+// rehydrate with them true and show a spinner no running request is left to clear.
+const parasiteRiskTransform = createTransform<
+  ParasiteRiskState & {latestRiskRequestId?: string | null},
+  PersistedParasiteRiskState
+>(
+  ({
+    loading: _loading,
+    subscriptionsLoading: _subscriptionsLoading,
+    latestRiskRequestId: _latestRiskRequestId,
+    location,
+    recentLocations,
+    ...rest
+  }) => ({
+    ...rest,
+    location: snapLocation(location),
+    recentLocations: recentLocations.map(item => snapLocation(item)!),
+  }),
+  persisted => ({
+    ...persisted,
+    location: snapLocation(persisted.location),
+    recentLocations: persisted.recentLocations.map(item => snapLocation(item)!),
+    loading: false,
+    subscriptionsLoading: false,
+    latestRiskRequestId: null,
+  }),
+  {whitelist: ['parasiteRisk']},
+);
+
 const persistConfig = {
   key: 'root',
   version: PERSIST_VERSION,
   storage: storageForPersist,
+  transforms: [parasiteRiskTransform],
   whitelist: [
     'auth',
     'theme',
@@ -205,6 +265,7 @@ const persistConfig = {
     'notifications',
     'forms',
     'preferences',
+    'parasiteRisk',
   ],
   migrate: (state: any) => {
     const from = state?._persist?.version;
@@ -243,9 +304,16 @@ const rootReducer = combineReducers({
   // conversation, not a record. It should not survive a relaunch, and keeping
   // it out of storage also keeps pet health chatter off disk.
   assistant: assistantReducer,
+  parasiteRisk: parasiteRiskReducer,
 });
 
-const persistedReducer = persistReducer(persistConfig, rootReducer);
+// The state type is pinned explicitly: with `transforms` present, redux-persist's
+// config generic gives inference a second candidate and every slice on RootState
+// would otherwise widen to `| undefined`.
+const persistedReducer = persistReducer<ReturnType<typeof rootReducer>>(
+  persistConfig,
+  rootReducer,
+);
 
 export const store = configureStore({
   reducer: persistedReducer,

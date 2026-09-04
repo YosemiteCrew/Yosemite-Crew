@@ -83,6 +83,7 @@ describe('Redux Store', () => {
         notifications: expect.anything(),
         forms: expect.anything(),
         preferences: expect.anything(),
+        parasiteRisk: expect.anything(),
       }),
     );
   });
@@ -112,7 +113,93 @@ describe('Redux Store', () => {
       'notifications',
       'forms',
       'preferences',
+      'parasiteRisk',
     ]);
+  });
+
+  describe('Parasite risk transform', () => {
+    const getTransform = () => capturedConfig.persistConfig.transforms[0];
+
+    const stateWithFlags = {
+      location: {
+        label: 'Berlin',
+        countryCode: 'DE',
+        lat: 52.520008,
+        lon: 13.404954,
+      },
+      reading: null,
+      recentLocations: [
+        {label: 'Berlin', countryCode: 'DE', lat: 52.520008, lon: 13.404954},
+      ],
+      subscriptions: [],
+      loading: true,
+      subscriptionsLoading: true,
+      latestRiskRequestId: 'request-1',
+      error: null,
+      disclaimerAcknowledged: true,
+    };
+
+    it('registers the transform on the persist config', () => {
+      expect(capturedConfig.persistConfig.transforms).toHaveLength(1);
+    });
+
+    it('strips in-flight flags before writing to storage', () => {
+      const persisted = getTransform().in(stateWithFlags, 'parasiteRisk', {});
+
+      expect(persisted).not.toHaveProperty('loading');
+      expect(persisted).not.toHaveProperty('subscriptionsLoading');
+      expect(persisted).not.toHaveProperty('latestRiskRequestId');
+      expect(persisted).toEqual({
+        location: {
+          label: 'Berlin',
+          countryCode: 'DE',
+          lat: 52.625,
+          lon: 13.375,
+        },
+        reading: null,
+        recentLocations: [
+          {
+            label: 'Berlin',
+            countryCode: 'DE',
+            lat: 52.625,
+            lon: 13.375,
+          },
+        ],
+        subscriptions: [],
+        error: null,
+        disclaimerAcknowledged: true,
+      });
+    });
+
+    it('rehydrates in-flight flags as false', () => {
+      const persisted = getTransform().in(stateWithFlags, 'parasiteRisk', {});
+      const rehydrated = getTransform().out(persisted, 'parasiteRisk', {});
+
+      expect(rehydrated).toEqual({
+        ...persisted,
+        loading: false,
+        subscriptionsLoading: false,
+        latestRiskRequestId: null,
+      });
+    });
+
+    it('forces stale persisted flags to false on rehydrate', () => {
+      const rehydrated = getTransform().out(stateWithFlags, 'parasiteRisk', {});
+
+      expect(rehydrated.loading).toBe(false);
+      expect(rehydrated.subscriptionsLoading).toBe(false);
+      expect(rehydrated.latestRiskRequestId).toBeNull();
+      expect(rehydrated.location).toEqual(
+        expect.objectContaining({lat: 52.625, lon: 13.375}),
+      );
+    });
+
+    it('leaves other slices untouched', () => {
+      const otherSlice = {loading: true};
+
+      expect(getTransform().in(otherSlice, 'auth', {})).toBe(otherSlice);
+      expect(getTransform().out(otherSlice, 'auth', {})).toBe(otherSlice);
+    });
   });
 
   it('configures middleware ignored redux-persist actions', () => {
@@ -502,6 +589,17 @@ describe('Redux Store', () => {
       expect(newState.appointments.lastLoadedAt).toEqual({});
       expect(newState.expenses.lastLoadedAt).toEqual({});
       expect(newState.notifications.lastLoadedAt).toEqual({});
+      expect(newState.parasiteRisk).toEqual({
+        location: null,
+        reading: null,
+        recentLocations: [],
+        subscriptions: [],
+        loading: false,
+        subscriptionsLoading: false,
+        error: null,
+        disclaimerAcknowledged: false,
+        latestRiskRequestId: null,
+      });
     });
 
     it('leaves existing v9 staleness state untouched', async () => {
@@ -513,6 +611,20 @@ describe('Redux Store', () => {
 
       expect(newState.tasks.activeRequests).toEqual({c1: 'r1'});
       expect(newState.tasks.lastLoadedAt).toEqual({c1: 123});
+    });
+
+    it('keeps existing parasite risk state during v8 -> v9 migration', async () => {
+      const oldState = {
+        parasiteRisk: {
+          disclaimerAcknowledged: true,
+        },
+      };
+
+      const newState = await runMigrate(7, oldState);
+
+      expect(newState.parasiteRisk).toEqual({
+        disclaimerAcknowledged: true,
+      });
     });
 
     it('handles non-matching versions gracefully', async () => {
