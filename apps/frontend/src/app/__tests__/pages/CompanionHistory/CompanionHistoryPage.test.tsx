@@ -118,6 +118,14 @@ jest.mock('@/app/features/companionHistory/components/CompanionHistoryTimeline',
   ),
 }));
 
+// Stub the async problem-list panel: like the timeline above, it fetches on
+// mount, which would fire a state update outside act() and trip the strict
+// console.error guard in jest.setup. This suite does not exercise it.
+jest.mock('@/app/features/companionHistory/components/ProblemListPanel', () => ({
+  __esModule: true,
+  default: ({ companionId }: any) => <div data-testid="problem-list-panel">{companionId}</div>,
+}));
+
 jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
   useIsPhone: () => mockIsPhone,
   PHONE_MEDIA_QUERY: '(max-width: 767px)',
