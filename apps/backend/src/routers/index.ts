@@ -135,6 +135,7 @@ import marketingRouter from "./marketing.router";
 import activityPubRouter from "./activitypub.router";
 import developerApiKeyRouter from "./developer-api-key.router";
 import developerBillingRouter from "./developer-billing.router";
+import developerDataRouter from "./developer-data.router";
 import developerUsageRouter from "./developer-usage.router";
 
 export function registerRoutes(app: Express) {
@@ -271,6 +272,14 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/developers/api-keys`, developerApiKeyRouter);
   app.use(`/v1/developers/billing`, developerBillingRouter);
   app.use(`/v1/developers/usage`, developerUsageRouter);
+
+  /*
+   * The API-key data plane. Singular `/v1/developer` on purpose: the plural
+   * routes above are the session-authenticated management plane, and keeping
+   * the two mount points distinct is what stops a session reaching key-only
+   * routes or a key reaching the billing surface.
+   */
+  app.use(`/v1/developer`, developerDataRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);
   app.use(`/v1/marketing`, marketingRouter);
