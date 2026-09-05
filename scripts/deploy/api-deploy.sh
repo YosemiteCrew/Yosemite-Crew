@@ -186,26 +186,10 @@ fi
 # safe direction. A deploy that carries no migrations cannot move the schema at
 # all, so it stays silent.
 #
-# TERM and HUP are trapped alongside it, and the reason is not symmetry. An
-# untrapped fatal signal ends the shell without giving the EXIT trap a non-zero
-# status to see, so the notice is silent on exactly the two signals a cancelled
-# deploy arrives as: the runner kills the local ssh client, the connection
-# closes, and sshd sends SIGHUP to this process group. Measured against the real
-# handler - TERM and HUP silent before, both firing after, and the exit status
-# preserved as 143 and 129 so nothing downstream reads a different result.
-# SIGINT already works: bash sets the status to 130 itself.
-#
-# SIGKILL stays out of reach. No trap catches it, so the ceiling here is every
-# signal that can be trapped, not "the notice can no longer be lost".
-#
-# A trapped signal is also deferred until the running foreground command
-# finishes, where an untrapped one ends the shell immediately. On a cancel that
-# costs nothing - the child is in the same process group and dies too - and on a
-# bare `kill` of this shell it means an in-flight `prisma migrate deploy` runs to
-# completion before the deploy stops, which is the safer of the two.
-trap 'exit 143' TERM
-trap 'exit 129' HUP
-trap deploy_on_exit EXIT
+# The arming itself is deploy_arm_exit_traps in lib/migrate.sh - EXIT plus TERM
+# and HUP, with the reasoning next to it - so the suite can arm the real one and
+# signal it rather than grep this file for three trap lines.
+deploy_arm_exit_traps
 if [ -n "$INCOMING_MIGRATIONS" ]; then
   MIGRATIONS_APPLIED=1
 fi
