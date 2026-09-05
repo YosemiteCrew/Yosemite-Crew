@@ -155,6 +155,42 @@ check "ships when no control is named as blocking" \
   "$(deploy_blocking_control_failures \
       "$(body degraded "$(control authentication failed 'auth env incomplete')")")"
 
+# ---------------------------------------------------------------------------
+# The row the table above does not decide: an unreadable BODY ships, but an
+# interpreter that will not start stops the deploy. api-deploy.sh runs under
+# set -e and an assignment carries its command substitution's status, so this
+# function returning non-zero is the stop.
+#
+# Run inside a command substitution so the stripped PATH cannot outlive the
+# probe: a variable assignment preceding a FUNCTION call persists in bash, and
+# the subshell is what contains it. PATH is checked afterwards rather than
+# assumed.
+# ---------------------------------------------------------------------------
+FAILING_BODY="$(body degraded "$(control authentication failed 'auth env incomplete')")"
+PATH_BEFORE="$PATH"
+
+NODE_GONE_RC=0
+NODE_GONE_OUT="$(PATH=/nonexistent-for-this-probe \
+  deploy_blocking_control_failures "$FAILING_BODY" authentication 2>/dev/null)" \
+  || NODE_GONE_RC=$?
+
+if [ "$NODE_GONE_RC" -ne 0 ]; then
+  ok "stops the deploy when the helper cannot run at all"
+else
+  no "stops the deploy when the helper cannot run at all" \
+     "returned 0 with output '$NODE_GONE_OUT'"
+fi
+
+# The positive control for the probe above. Without it, a harness that broke the
+# call in some other way would look exactly like a node that would not start.
+check "the same body and a working node returns the blocking line" \
+  "authentication: failed (auth env incomplete)" \
+  "$(deploy_blocking_control_failures "$FAILING_BODY" authentication)"
+
+check "the probe did not leak its stripped PATH into the rest of the suite" \
+  "$PATH_BEFORE" \
+  "$PATH"
+
 echo
 echo "api-deploy.sh wiring"
 
@@ -199,6 +235,16 @@ fi
 # `|| true` because set -o pipefail turns "no match" into an abort, which would
 # stop the run before this test could report - a deleted probe would then be a
 # missing result rather than a failure.
+# `|| true` on the assignment would turn the stop above into a ship, which is
+# the one regression that cannot be seen by running the function.
+ASSIGN_LINE="$(grep -nE 'CONTROL_FAILURES=.*deploy_blocking_control_failures' "$DEPLOY_SH" || true)"
+if [ -n "$ASSIGN_LINE" ] && ! printf '%s' "$ASSIGN_LINE" | grep -q '||'; then
+  ok "the helper's exit status is not swallowed at the call site"
+else
+  no "the helper's exit status is not swallowed at the call site" \
+     "assignment line: ${ASSIGN_LINE:-<not found>}"
+fi
+
 PROBE_LINE="$(grep -nE "$PROBE_RE" "$DEPLOY_SH" | head -1 | cut -d: -f1 || true)"
 KILL_LINE="$(grep -nE 'kill .*SMOKE_PID' "$DEPLOY_SH" | head -1 | cut -d: -f1 || true)"
 if [ -n "$PROBE_LINE" ] && [ -n "$KILL_LINE" ] && [ "$PROBE_LINE" -lt "$KILL_LINE" ]; then

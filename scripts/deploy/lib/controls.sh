@@ -37,6 +37,18 @@
 #                               guesses at a body is not one.
 #   unnamed control `failed`    ship. See the Stream reasoning above.
 #
+#   node itself cannot run      STOP THE DEPLOY, and this is the one row that is
+#                               not decided here. Command substitution in an
+#                               assignment carries the command's status, so
+#                               api-deploy.sh's `set -e` fires before the cutover
+#                               checks and the EXIT trap prints the rollback sha.
+#                               Deliberate: an unreadable BODY is a fact about
+#                               the process, but an interpreter that will not
+#                               start is a gate that could not run, and a gate
+#                               that could not run is not a gate that passed.
+#                               The smoke boot proved node works two lines
+#                               earlier, so reaching this is genuinely anomalous.
+#
 # The caller prints the body either way, so every one of those cases is
 # reported. What this function decides is only which of them stops the deploy.
 #
