@@ -247,6 +247,11 @@ echo "deploy_on_exit"
 #
 # So each flag is varied independently against the real function. It reads the
 # caller's state rather than taking arguments, because an EXIT trap has none.
+# Matches the NOTICE, not merely "something reached stderr". A `set -u` abort
+# inside the handler also writes to stderr, and reading that as "the notice
+# fired" would make three of the four checks below pass for the wrong reason -
+# and turn red for the wrong reason too, which is worse. `|| true` because a
+# probe that dies must report as a failed check rather than end the suite.
 on_exit_fired() { # on_exit_fired <status> <migrations-applied> <cutover-done>
   local out
   out="$(
@@ -259,9 +264,12 @@ on_exit_fired() { # on_exit_fired <status> <migrations-applied> <cutover-done>
       . "'"$HERE"'/../lib/migrate.sh"
       ( exit '"$1"' )
       deploy_on_exit
-    ' 2>&1 >/dev/null
+    ' 2>&1 >/dev/null || true
   )"
-  if [ -n "$out" ]; then echo yes; else echo no; fi
+  case "$out" in
+    *"THE SCHEMA IS AHEAD OF THE RUNNING CODE"*) echo yes ;;
+    *) echo no ;;
+  esac
 }
 
 check "the real handler fires when migrations applied and no cutover" \
@@ -285,7 +293,7 @@ ON_EXIT_OUT="$(
     . "'"$HERE"'/../lib/migrate.sh"
     ( exit 1 )
     deploy_on_exit
-  ' 2>&1 >/dev/null
+  ' 2>&1 >/dev/null || true
 )"
 case "$ON_EXIT_OUT" in
   *deadbee*20260102000000_second*20260103000000_third*)
