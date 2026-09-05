@@ -126,6 +126,14 @@ jest.mock('@/app/features/companionHistory/components/ProblemListPanel', () => (
   default: ({ companionId }: any) => <div data-testid="problem-list-panel">{companionId}</div>,
 }));
 
+// Stub the async allergy-list panel: like the timeline above, it fetches on
+// mount, which would fire a state update outside act() and trip the strict
+// console.error guard in jest.setup. This suite does not exercise it.
+jest.mock('@/app/features/companionHistory/components/AllergyListPanel', () => ({
+  __esModule: true,
+  default: ({ companionId }: any) => <div data-testid="allergy-list-panel">{companionId}</div>,
+}));
+
 jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
   useIsPhone: () => mockIsPhone,
   PHONE_MEDIA_QUERY: '(max-width: 767px)',
@@ -333,6 +341,7 @@ describe('CompanionHistoryPage', () => {
     render(<CompanionHistoryPage />);
 
     expect(screen.getByTestId('timeline')).toHaveTextContent('c-1-true');
+    expect(screen.getByTestId('allergy-list-panel')).toHaveTextContent('c-1');
     expect(screen.getByText("Buddy's overview")).toBeInTheDocument();
     expect(screen.getByText('Labrador / Canine')).toBeInTheDocument();
 

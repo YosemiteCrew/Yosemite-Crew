@@ -12,6 +12,8 @@ import {
   runClinicalControllerSuite,
 } from "./clinical-suite";
 
+const LEGACY_PATIENT_ID = "507f1f77bcf86cd799439011";
+
 jest.mock("src/services/patient-allergy.service", () => {
   const actual = jest.requireActual(
     "src/services/patient-allergy.service",
@@ -34,6 +36,37 @@ runClinicalControllerSuite({
   service: PatientAllergyService as unknown as Record<string, unknown>,
   errorClass: PatientAllergyError,
   cases: [
+    {
+      handler: "list",
+      params: { organisationId: ORG_ID },
+      query: { patientId: LEGACY_PATIENT_ID },
+      serviceMethod: "list",
+      expectArgs: [{ organisationId: ORG_ID, patientId: LEGACY_PATIENT_ID }],
+      fallback: "Failed to list allergies",
+    },
+    {
+      handler: "create",
+      params: { organisationId: ORG_ID },
+      body: {
+        patientId: LEGACY_PATIENT_ID,
+        allergen: "Latex",
+        allergyType: "OTHER",
+        severity: "MILD",
+      },
+      serviceMethod: "create",
+      expectArgs: [
+        {
+          organisationId: ORG_ID,
+          recordedBy: USER_ID,
+          patientId: LEGACY_PATIENT_ID,
+          allergen: "Latex",
+          allergyType: "OTHER",
+          severity: "MILD",
+        },
+      ],
+      status: 201,
+      fallback: "Failed to create allergy record",
+    },
     {
       handler: "list",
       params: { organisationId: ORG_ID },
