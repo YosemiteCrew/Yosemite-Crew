@@ -1,3 +1,25 @@
+const mockEmailPasswordInit = jest.fn((config: unknown) => ({
+  name: "emailpassword",
+  config,
+}));
+
+jest.mock("supertokens-node/recipe/emailpassword", () => ({
+  __esModule: true,
+  default: {
+    init: mockEmailPasswordInit,
+  },
+}));
+
+const mockGetUserMetadata = jest.fn();
+
+jest.mock("supertokens-node/recipe/usermetadata", () => ({
+  __esModule: true,
+  default: {
+    init: jest.fn(() => ({ name: "usermetadata" })),
+    getUserMetadata: mockGetUserMetadata,
+  },
+}));
+
 const mockPasswordlessInit = jest.fn((config: unknown) => ({
   name: "passwordless",
   config,
@@ -58,6 +80,8 @@ const restoreEnv = () => {
 describe("@yosemite-crew/auth supertokens config", () => {
   beforeEach(() => {
     jest.resetModules();
+    mockEmailPasswordInit.mockClear();
+    mockGetUserMetadata.mockReset();
     mockPasswordlessInit.mockClear();
     mockThirdPartyInit.mockClear();
     delete process.env.AUTH_APPLE_CLIENT_ID;
@@ -158,6 +182,297 @@ describe("@yosemite-crew/auth supertokens config", () => {
       email: "someone@example.com",
     });
   });
+
+  it("rejects disabled email-password accounts without disclosing their state", async () => {
+    process.env.SMTP_HOST = "smtp.example.test";
+    process.env.SMTP_PORT = "465";
+    process.env.SMTP_SECURE = "true";
+    process.env.SMTP_USER = "smtp-user";
+    process.env.SMTP_PASSWORD = "smtp-password";
+    process.env.SMTP_FROM_NAME = "Yosemite Crew";
+    process.env.SMTP_FROM_EMAIL = "auth@example.test";
+    mockGetUserMetadata.mockResolvedValue({
+      metadata: { disabledAt: Date.now() },
+    });
+
+    const { getSuperTokensConfig } = require("@yosemite-crew/auth");
+    getSuperTokensConfig();
+    const emailPasswordConfig = mockEmailPasswordInit.mock.calls[0]?.[0] as any;
+    const signIn = emailPasswordConfig.override.functions({
+      signIn: jest.fn(async () => ({
+        status: "OK",
+        user: { id: "disabled-business-user" },
+        recipeUserId: { getAsString: () => "recipe-disabled-business" },
+      })),
+    }).signIn;
+
+    await expect(
+      signIn({
+        email: "disabled@example.test",
+        password: "correct-password",
+        userContext: {},
+      }),
+    ).resolves.toEqual({ status: "WRONG_CREDENTIALS_ERROR" });
+    expect(mockGetUserMetadata).toHaveBeenCalledWith("disabled-business-user");
+  });
+
+  it("keeps active and failed email-password sign-ins unchanged", async () => {
+    process.env.SMTP_HOST = "smtp.example.test";
+    process.env.SMTP_PORT = "465";
+    process.env.SMTP_SECURE = "true";
+    process.env.SMTP_USER = "smtp-user";
+    process.env.SMTP_PASSWORD = "smtp-password";
+    process.env.SMTP_FROM_NAME = "Yosemite Crew";
+    process.env.SMTP_FROM_EMAIL = "auth@example.test";
+    mockGetUserMetadata.mockResolvedValue({ metadata: {} });
+
+    const { getSuperTokensConfig } = require("@yosemite-crew/auth");
+    getSuperTokensConfig();
+    const emailPasswordConfig = mockEmailPasswordInit.mock.calls[0]?.[0] as any;
+    const originalSignIn = jest
+      .fn()
+      .mockResolvedValueOnce({ status: "WRONG_CREDENTIALS_ERROR" })
+      .mockResolvedValueOnce({
+        status: "OK",
+        user: { id: "active-business-user" },
+        recipeUserId: { getAsString: () => "recipe-active-business" },
+      });
+    const signIn = emailPasswordConfig.override.functions({
+      signIn: originalSignIn,
+    }).signIn;
+
+    await expect(
+      signIn({
+        email: "unknown@example.test",
+        password: "wrong",
+        userContext: {},
+      }),
+    ).resolves.toEqual({ status: "WRONG_CREDENTIALS_ERROR" });
+    await expect(
+      signIn({
+        email: "active@example.test",
+        password: "correct",
+        userContext: {},
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        status: "OK",
+        user: { id: "active-business-user" },
+      }),
+    );
+    expect(mockGetUserMetadata).toHaveBeenCalledTimes(1);
+    expect(mockGetUserMetadata).toHaveBeenCalledWith("active-business-user");
+  });
+  describe("organisation-disable enforcement is wired to every sign-in path", () => {
+    // The previous implementation of this feature was rejected for proving a
+    // branch instead of an enforcement: its tests mocked the very signal they
+    // asserted on, and returned from the metadata check before reaching the
+    // host hook at all. These tests do the opposite - metadata is clean, so
+    // the ONLY thing that can refuse the sign-in is `isSignInBlocked`, and a
+    // recipe that never calls it fails here.
+    const setSmtpEnv = () => {
+      process.env.SMTP_HOST = "smtp.example.test";
+      process.env.SMTP_PORT = "465";
+      process.env.SMTP_SECURE = "true";
+      process.env.SMTP_USER = "smtp-user";
+      process.env.SMTP_PASSWORD = "smtp-password";
+      process.env.SMTP_FROM_NAME = "Yosemite Crew";
+      process.env.SMTP_FROM_EMAIL = "auth@example.test";
+    };
+
+    const buildWithHook = (blocked: boolean) => {
+      setSmtpEnv();
+      // A third-party provider must be configured or ThirdParty.init is never
+      // called and the social path cannot be reached.
+      process.env.AUTH_APPLE_CLIENT_ID = "com.example.mobile";
+      process.env.AUTH_APPLE_KEY_ID = "KEY123";
+      process.env.AUTH_APPLE_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----";
+      process.env.AUTH_APPLE_TEAM_ID = "TEAM123";
+      mockGetUserMetadata.mockResolvedValue({ metadata: {} });
+
+      const {
+        getSuperTokensConfig,
+        setAuthHooks,
+      } = require("@yosemite-crew/auth");
+      const isSignInBlocked = jest.fn(async () => blocked);
+      setAuthHooks({ isSignInBlocked });
+      getSuperTokensConfig();
+
+      return { isSignInBlocked };
+    };
+
+    const overriddenPasswordless = () => {
+      const config = mockPasswordlessInit.mock.calls[0]?.[0] as any;
+      return config.override.functions({
+        consumeCode: jest.fn(async () => ({
+          status: "OK",
+          user: {
+            id: "disabled-otp-user",
+            emails: ["staff@example.test"],
+          },
+          recipeUserId: { getAsString: () => "recipe-otp" },
+          createdNewRecipeUser: false,
+        })),
+      });
+    };
+
+    const overriddenThirdParty = () => {
+      const initArg = mockThirdPartyInit.mock.calls[0]?.[0] as any;
+      return initArg.override.functions({
+        signInUp: jest.fn(async () => ({
+          status: "OK",
+          user: { id: "disabled-social-user" },
+          recipeUserId: { getAsString: () => "recipe-social" },
+          createdNewRecipeUser: false,
+        })),
+      });
+    };
+
+    const overriddenEmailPassword = () => {
+      const config = mockEmailPasswordInit.mock.calls[0]?.[0] as any;
+      return config.override.functions({
+        signIn: jest.fn(async () => ({
+          status: "OK",
+          user: { id: "disabled-staff-user" },
+          recipeUserId: { getAsString: () => "recipe-staff" },
+        })),
+      });
+    };
+
+    it("refuses an email-password sign-in on the host hook alone", async () => {
+      const { isSignInBlocked } = buildWithHook(true);
+
+      await expect(
+        overriddenEmailPassword().signIn({
+          email: "staff@example.test",
+          password: "correct-password",
+          userContext: {},
+        }),
+      ).resolves.toEqual({ status: "WRONG_CREDENTIALS_ERROR" });
+      expect(isSignInBlocked).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appUserId: "disabled-staff-user",
+          providerUserId: "recipe-staff",
+          loginMethod: "emailpassword",
+        }),
+      );
+    });
+
+    it("refuses a correct email code for a disabled organisation", async () => {
+      // RESTART_FLOW_ERROR, not an incorrect-code status: it is the only
+      // refusal this recipe offers that carries no attempt counters, so it
+      // does not tell the caller whether the code itself was right.
+      const { isSignInBlocked } = buildWithHook(true);
+
+      await expect(
+        overriddenPasswordless().consumeCode({
+          email: "staff@example.test",
+          userContext: {},
+        }),
+      ).resolves.toEqual({ status: "RESTART_FLOW_ERROR" });
+      expect(isSignInBlocked).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appUserId: "disabled-otp-user",
+          providerUserId: "recipe-otp",
+          loginMethod: "otp-email",
+        }),
+      );
+    });
+
+    it("refuses a social sign-in the provider has already vouched for", async () => {
+      const { isSignInBlocked } = buildWithHook(true);
+
+      await expect(
+        overriddenThirdParty().signInUp({
+          thirdPartyId: "apple",
+          email: "staff@example.test",
+          userContext: {},
+        }),
+      ).resolves.toEqual({
+        status: "SIGN_IN_UP_NOT_ALLOWED",
+        reason: "Sign in is not available for this account.",
+      });
+      expect(isSignInBlocked).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appUserId: "disabled-social-user",
+          providerUserId: "recipe-social",
+          loginMethod: "thirdparty-apple",
+        }),
+      );
+    });
+
+    it("lets all three paths through when the hook says the account is live", async () => {
+      const { isSignInBlocked } = buildWithHook(false);
+
+      await expect(
+        overriddenEmailPassword().signIn({
+          email: "staff@example.test",
+          password: "correct-password",
+          userContext: {},
+        }),
+      ).resolves.toEqual(
+        expect.objectContaining({
+          status: "OK",
+          user: { id: "disabled-staff-user" },
+        }),
+      );
+      await expect(
+        overriddenPasswordless().consumeCode({
+          email: "staff@example.test",
+          userContext: {},
+        }),
+      ).resolves.toEqual(expect.objectContaining({ status: "OK" }));
+      await expect(
+        overriddenThirdParty().signInUp({
+          thirdPartyId: "apple",
+          email: "staff@example.test",
+          userContext: {},
+        }),
+      ).resolves.toEqual(expect.objectContaining({ status: "OK" }));
+      expect(isSignInBlocked).toHaveBeenCalledTimes(3);
+    });
+
+    it("does not refuse a sign-in when the hook throws", async () => {
+      // Fail OPEN, deliberately and unlike the rest of this change: a database
+      // blip must not lock every user out of the product, and the account
+      // state it would have reported is still enforced on every authorised
+      // request afterwards.
+      setSmtpEnv();
+      mockGetUserMetadata.mockResolvedValue({ metadata: {} });
+      const consoleError = jest
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const {
+        getSuperTokensConfig,
+        setAuthHooks,
+      } = require("@yosemite-crew/auth");
+      setAuthHooks({
+        isSignInBlocked: jest.fn(async () => {
+          throw new Error("database unavailable");
+        }),
+      });
+      getSuperTokensConfig();
+
+      await expect(
+        overriddenEmailPassword().signIn({
+          email: "staff@example.test",
+          password: "correct-password",
+          userContext: {},
+        }),
+      ).resolves.toEqual(
+        expect.objectContaining({
+          status: "OK",
+          user: { id: "disabled-staff-user" },
+        }),
+      );
+      expect(consoleError).toHaveBeenCalledWith(
+        "[auth] isSignInBlocked hook failed",
+        expect.any(Error),
+      );
+      consoleError.mockRestore();
+    });
+  });
+
   describe("apple id_token audience selection", () => {
     const BUNDLE_ID = "com.example.mobile";
     const SERVICE_ID = "com.example.mobile.auth";
