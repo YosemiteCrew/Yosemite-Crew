@@ -52,6 +52,9 @@ const mockListBusinesses = jest.fn((_, res) =>
 );
 const mockGetBusiness = jest.fn();
 const mockUpdateBusiness = jest.fn();
+const mockListQuarantine = jest.fn((_, res) =>
+  res.status(200).json({ total: 0, returned: 0, results: [] }),
+);
 
 jest.mock("@yosemite-crew/auth", () => ({
   createSessionMiddleware: mockCreateSessionMiddleware,
@@ -73,6 +76,12 @@ jest.mock("src/controllers/web/super-admin-business.controller", () => ({
     listBusinesses: mockListBusinesses,
     getBusiness: mockGetBusiness,
     updateBusiness: mockUpdateBusiness,
+  },
+}));
+
+jest.mock("src/controllers/web/super-admin-lab-ingestion.controller", () => ({
+  SuperAdminLabIngestionController: {
+    listQuarantine: mockListQuarantine,
   },
 }));
 
@@ -218,5 +227,52 @@ describe("super-admin router", () => {
       businesses: [{ id: "org-1" }],
     });
     expect(mockListBusinesses).toHaveBeenCalledTimes(1);
+  });
+
+  // The guard is `router.use(...)` above every route, so a new route inherits it - but
+  // "inherits it" is the kind of thing that is true until someone mounts a route above the
+  // use(). The quarantine list is cross-tenant lab data, so it is asserted rather than
+  // assumed.
+  it("rejects a non-superadmin on the lab ingestion quarantine list", async () => {
+    const response = await request(
+      createApp(
+        {
+          appUserId: "user-1",
+          providerUserId: "st-user-1",
+          authProfile: "pims_web",
+          roles: ["member"],
+        },
+        true,
+        [],
+      ),
+      "/v1/super-admin/lab-ingestion/quarantine",
+    );
+
+    expect(response.statusCode).toBe(403);
+    expect(mockListQuarantine).not.toHaveBeenCalled();
+  });
+
+  it("serves the lab ingestion quarantine list to a superadmin", async () => {
+    const response = await request(
+      createApp(
+        {
+          appUserId: "user-1",
+          providerUserId: "st-user-1",
+          authProfile: "pims_web",
+          roles: ["superadmin"],
+        },
+        true,
+        [],
+      ),
+      "/v1/super-admin/lab-ingestion/quarantine",
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body)).toEqual({
+      total: 0,
+      returned: 0,
+      results: [],
+    });
+    expect(mockListQuarantine).toHaveBeenCalledTimes(1);
   });
 });

@@ -178,6 +178,7 @@ type ResultOrderContext = {
   appointmentId: string | null;
   createdByUserId: string | null;
   patientId: string | null;
+  labOrderId: string | null;
   unmappedStatus: boolean;
 };
 
@@ -189,6 +190,7 @@ const syncLabOrderFromResult = async (
     appointmentId: null,
     createdByUserId: null,
     patientId: null,
+    labOrderId: null,
     unmappedStatus: false,
   };
 
@@ -199,6 +201,7 @@ const syncLabOrderFromResult = async (
     where: { idexxOrderId: orderId },
   });
 
+  context.labOrderId = order?.id ?? null;
   context.organisationId = order?.organisationId ?? null;
   context.appointmentId = order?.appointmentId ?? null;
   context.createdByUserId = order?.createdByUserId ?? null;
@@ -297,6 +300,101 @@ const maybeCreateResultArtifacts = async (
   }
 };
 
+/**
+ * Why a result was held. A plain string rather than a Prisma enum so a new
+ * reason needs no migration; every value in use is named here.
+ */
+export const QUARANTINE_REASON_UNMAPPED_STATUS = "UNMAPPED_RESULT_STATUS";
+
+type UnapplicableResult = {
+  result: IdexxResult;
+  context: ResultOrderContext;
+};
+
+/**
+ * Record a result the mapper could not apply, so the rest of its batch can be
+ * confirmed.
+ *
+ * IDEXX confirms a BATCH, and `pollLatest` builds ONE client from
+ * `IDEXX_GLOBAL_USERNAME` with `organisationId` derived per result. So refusing
+ * to confirm a batch containing an unapplicable row does not hold up one
+ * clinic's queue - it holds up every clinic's, indefinitely, because the
+ * unconfirmed batch is re-fetched on the next poll and meets the same row
+ * again.
+ *
+ * Writing the row here is what makes confirming the rest safe. The LabOrder
+ * transition is still not applied - that part of #2699 is unchanged and
+ * deliberate - but it is now held in a queryable place with the payload needed
+ * to replay it, rather than depending on the batch being re-sent forever.
+ *
+ * `create`, not `upsert`: this table has no unique key on purpose (see the
+ * model comment), because collapsing two rows onto a key is exactly the silent
+ * loss it exists to prevent.
+ */
+const quarantineResult = async (
+  batchId: string,
+  result: IdexxResult,
+  context: ResultOrderContext,
+  reason: string,
+) => {
+  await prisma.labResultQuarantine.create({
+    data: {
+      provider: "IDEXX",
+      batchId,
+      // Null rather than "" when the provider sent nothing usable: an absent id
+      // is worth seeing as absent.
+      resultId: coerceString(result.resultId),
+      orderId: coerceString(result.orderId),
+      labOrderId: context.labOrderId,
+      organisationId: context.organisationId,
+      reason,
+      externalStatus: coerceString(result.status),
+      statusDetail: coerceString(result.statusDetail),
+      modality: coerceString(result.modality),
+      payload: toJsonInput(result),
+    },
+  });
+};
+
+/**
+ * Hold every result in this batch the mapper could not apply.
+ *
+ * Answers the only question the caller has: is this batch now safe to confirm.
+ * False means nothing is holding the skipped transition, so confirming would
+ * lose it - fall back to leaving the batch for the next poll. That stalls
+ * ingestion for every organisation, which is bad, and still better than
+ * confirming a batch whose skipped transition is recorded nowhere at all.
+ */
+const quarantineUnapplicable = async (
+  batchId: string,
+  unapplicable: UnapplicableResult[],
+): Promise<boolean> => {
+  if (unapplicable.length === 0) return true;
+
+  try {
+    for (const { result, context } of unapplicable) {
+      await quarantineResult(
+        batchId,
+        result,
+        context,
+        QUARANTINE_REASON_UNMAPPED_STATUS,
+      );
+    }
+  } catch (err) {
+    logger.error(
+      "IDEXX batch left unconfirmed: could not quarantine an unmapped result",
+      { batchId, err },
+    );
+    return false;
+  }
+
+  logger.error(
+    "IDEXX results quarantined: a result status did not map to a LabOrder status",
+    { batchId, quarantined: unapplicable.length },
+  );
+  return true;
+};
+
 const processIdexxResult = async (
   client: IdexxResultsClient,
   result: IdexxResult,
@@ -305,7 +403,7 @@ const processIdexxResult = async (
   const resultId = coerceStringOrEmpty(result.resultId);
   await upsertLabResult(result, resultId, context.organisationId);
   await maybeCreateResultArtifacts(client, result, resultId, context);
-  return context.unmappedStatus;
+  return context;
 };
 
 const recordBatchSyncState = async (
@@ -357,22 +455,19 @@ export const IdexxResultsService = {
         break;
       }
 
-      let hasUnmappedResult = false;
+      const unapplicable: UnapplicableResult[] = [];
       for (const result of results as IdexxResult[]) {
-        const unmapped = await processIdexxResult(client, result);
-        hasUnmappedResult ||= unmapped;
+        const context = await processIdexxResult(client, result);
+        if (context.unmappedStatus) {
+          unapplicable.push({ result, context });
+        }
       }
 
-      // Confirming tells IDEXX the batch was consumed and stops it being re-sent, so a batch
-      // we only half-applied must not be confirmed: the LabOrder status transition for the
-      // unmapped row was skipped and would be lost for good. Leave it for the next poll and
-      // stop here. Polling stays stuck on this batch until mapResultStatusToLabOrder learns
-      // the status, which is the intent - the warning above names the status to add.
-      if (hasUnmappedResult) {
-        logger.error(
-          "IDEXX batch left unconfirmed: a result status did not map to a LabOrder status",
-          { batchId },
-        );
+      // Confirming tells IDEXX the batch was consumed and stops it being re-sent, so the
+      // transition we skipped must be held somewhere we control BEFORE the batch is
+      // confirmed - otherwise it is lost for good, which is the failure #2699 exists to
+      // stop. Quarantine first, confirm second, and stop here if the first did not happen.
+      if (!(await quarantineUnapplicable(batchId, unapplicable))) {
         break;
       }
 

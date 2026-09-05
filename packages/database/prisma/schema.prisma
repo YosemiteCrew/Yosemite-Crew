@@ -427,6 +427,49 @@ model LabResult {
   @@index([organisationId])
 }
 
+/// A provider result that could not be applied, held aside so that one
+/// unrecognised value cannot stop ingestion for every organisation.
+///
+/// IDEXX confirms a BATCH, not a row, and the poll is global - one client built
+/// from IDEXX_GLOBAL_USERNAME, with organisationId derived per result. Refusing
+/// to confirm a batch containing an unapplicable row therefore halts lab results
+/// for every clinic until the mapper learns the value. Recording the row here is
+/// what makes confirming the rest of the batch safe: the transition is held, not
+/// lost.
+///
+/// Deliberately has NO unique key. The failure this table exists to prevent is a
+/// result disappearing silently, and an upsert key would do exactly that to two
+/// rows in one batch that both arrived without a resultId. A duplicate is cheap;
+/// a dropped row is the bug.
+model LabResultQuarantine {
+  id             String    @id @default(uuid())
+  provider       String
+  batchId        String
+  /// Whatever the provider supplied. Null when it supplied nothing usable,
+  /// which is itself worth seeing rather than coercing to an empty string.
+  resultId       String?
+  orderId        String?
+  labOrderId     String?
+  organisationId String?
+  /// Why it was held. A plain string rather than an enum so a new reason needs
+  /// no migration; the values in use are named as constants in
+  /// idexx-results.service.ts.
+  reason         String
+  externalStatus String?
+  statusDetail   String?
+  modality       String?
+  /// The provider payload as received, so the row can be replayed once the
+  /// mapper is extended.
+  payload        Json?
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([provider, resolvedAt])
+  @@index([provider, resultId])
+  @@index([organisationId])
+}
+
 model LabResultSyncState {
   id            String    @id @default(uuid())
   provider      String    @unique
