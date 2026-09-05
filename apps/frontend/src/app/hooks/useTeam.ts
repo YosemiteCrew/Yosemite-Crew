@@ -24,6 +24,11 @@ export const useTeamForPrimaryOrg = (): Team[] => {
   return useMemo(() => {
     if (!primaryOrgId) return [];
     const ids = teamIdsByOrgId[primaryOrgId] ?? [];
-    return ids.map((id) => teamsById[id]).filter(Boolean);
+    const members: Team[] = [];
+    for (const id of ids) {
+      const member = teamsById[id];
+      if (member) members.push(member);
+    }
+    return members;
   }, [primaryOrgId, teamIdsByOrgId, teamsById]);
 };

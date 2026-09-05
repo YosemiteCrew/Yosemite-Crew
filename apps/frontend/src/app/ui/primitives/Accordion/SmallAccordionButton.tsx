@@ -35,7 +35,7 @@ const SmallAccordionButton: React.FC<SmallAccordionButtonProps> = ({
           <button
             type="button"
             onClick={() => buttonClick(true)}
-            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] transition-all duration-300 ease-in-out px-4 py-2 border border-black-text! rounded-2xl! font-satoshi text-black-text text-[1rem] font-medium"
+            className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] transition-shadow duration-300 ease-in-out px-4 py-2 border border-black-text! rounded-2xl! font-satoshi text-black-text text-[1rem] font-medium"
           >
             {buttonTitle}
           </button>

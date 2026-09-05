@@ -17,20 +17,20 @@ const HamburgerMenuButton = ({ menuOpen, onClick, controlsId }: HamburgerMenuBut
   >
     <div className="relative flex items-center justify-center size-5">
       <span
-        className="yc-hamburger-line absolute transition-all duration-300"
+        className="yc-hamburger-line absolute transition-transform duration-300"
         style={{
           transform: menuOpen ? 'rotate(45deg)' : 'translateY(-5px)',
         }}
       />
       <span
-        className="yc-hamburger-line absolute transition-all duration-300"
+        className="yc-hamburger-line absolute transition-[opacity,transform] duration-300"
         style={{
           opacity: menuOpen ? 0 : 1,
           transform: menuOpen ? 'scaleX(0)' : 'none',
         }}
       />
       <span
-        className="yc-hamburger-line absolute transition-all duration-300"
+        className="yc-hamburger-line absolute transition-transform duration-300"
         style={{
           transform: menuOpen ? 'rotate(-45deg)' : 'translateY(5px)',
         }}

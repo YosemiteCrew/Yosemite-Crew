@@ -697,6 +697,34 @@ describe('Organization ProfileCard', () => {
     );
   });
 
+  // Address autofill writes several fields at once. Their "required" errors were
+  // raised against the blanks the autofill just filled, so they have to clear with
+  // the same write - otherwise the row reads as invalid while holding a value.
+  it('clears the required errors of every field an address autofill filled', () => {
+    render(
+      <ProfileCard
+        title="Address"
+        fields={[
+          { label: 'Address', key: 'address', type: 'googleAddress', editable: true },
+          { label: 'City', key: 'city', type: 'text', required: true, editable: true },
+          { label: 'State', key: 'state', type: 'text', required: true, editable: true },
+        ]}
+        org={{ address: '', city: '', state: '' }}
+        onSave={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Address' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByText('City is required')).toBeInTheDocument();
+    expect(screen.getByText('State is required')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('addr-country-Address'));
+
+    expect(screen.queryByText('City is required')).not.toBeInTheDocument();
+    expect(screen.queryByText('State is required')).not.toBeInTheDocument();
+  });
+
   it('shows a scalar multiSelect value populated by address autofill', () => {
     render(
       <ProfileCard

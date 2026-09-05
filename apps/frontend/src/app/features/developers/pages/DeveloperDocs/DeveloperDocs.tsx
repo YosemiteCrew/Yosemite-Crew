@@ -213,10 +213,12 @@ const DeveloperDocs = () => {
         ...(article?.searchTerms ?? []),
       ].some((field) => field?.toLowerCase().includes(q));
     };
-    return NAV.map((section) => ({
-      ...section,
-      items: section.items.filter(matches),
-    })).filter((section) => section.items.length > 0);
+    const sections: NavSection[] = [];
+    for (const section of NAV) {
+      const items = section.items.filter(matches);
+      if (items.length > 0) sections.push({ ...section, items });
+    }
+    return sections;
   }, [query]);
 
   const handleCopy = (key: string, value: string) => {

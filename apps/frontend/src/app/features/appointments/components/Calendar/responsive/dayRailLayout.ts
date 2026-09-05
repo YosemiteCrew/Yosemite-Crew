@@ -125,6 +125,16 @@ const appointmentRange = (appointment: Appointment): { start: number; end: numbe
 const overlaps = (aStart: number, aEnd: number, bStart: number, bEnd: number): boolean =>
   aStart < bEnd && bStart < aEnd;
 
+/** An appointment clipped to the rail window, keeping its unclipped edges for the label. */
+type VisibleEntry = {
+  appointment: Appointment;
+  /** Clipped to the window. */
+  start: number;
+  end: number;
+  rawStart: number;
+  rawEnd: number;
+};
+
 type EmptyRun = { startHour: number; endHour: number };
 
 const collectEmptyRuns = (busyByHour: readonly boolean[], startHour: number): EmptyRun[] => {
@@ -153,10 +163,16 @@ const buildSegments = (
   foldedRuns: readonly EmptyRun[]
 ): Omit<DayRailSegment, 'topPct' | 'heightPct'>[] => {
   const segments: Omit<DayRailSegment, 'topPct' | 'heightPct'>[] = [];
+  // Indexed by start hour so the walk below is a lookup, not a rescan. Runs never
+  // share a start hour, but keep first-wins anyway to match `find`.
+  const foldByStartHour = new Map<number, EmptyRun>();
+  for (const run of foldedRuns) {
+    if (!foldByStartHour.has(run.startHour)) foldByStartHour.set(run.startHour, run);
+  }
   let hour = bounds.startHour;
 
   while (hour < bounds.endHour) {
-    const fold = foldedRuns.find((run) => run.startHour === hour);
+    const fold = foldByStartHour.get(hour);
     if (fold) {
       segments.push({
         kind: 'folded',
@@ -273,17 +289,19 @@ export const buildDayRailLayout = (options: BuildDayRailLayoutOptions): DayRailL
   const windowStart = startHour * MINUTES_PER_HOUR;
   const windowEnd = endHour * MINUTES_PER_HOUR;
 
-  const visible = appointments
-    .map((appointment) => ({ appointment, ...appointmentRange(appointment) }))
-    .filter((entry) => overlaps(entry.start, entry.end, windowStart, windowEnd))
-    .map((entry) => ({
-      appointment: entry.appointment,
-      start: Math.max(entry.start, windowStart),
-      end: Math.min(entry.end, windowEnd),
-      rawStart: entry.start,
-      rawEnd: entry.end,
-    }))
-    .sort((a, b) => a.start - b.start || a.end - b.end);
+  const visible: VisibleEntry[] = [];
+  for (const appointment of appointments) {
+    const { start, end } = appointmentRange(appointment);
+    if (!overlaps(start, end, windowStart, windowEnd)) continue;
+    visible.push({
+      appointment,
+      start: Math.max(start, windowStart),
+      end: Math.min(end, windowEnd),
+      rawStart: start,
+      rawEnd: end,
+    });
+  }
+  visible.sort((a, b) => a.start - b.start || a.end - b.end);
 
   // An hour is "busy" when any appointment overlaps it — this is what forces an
   // otherwise-empty stretch to stay unfolded.
@@ -323,32 +341,29 @@ export const buildDayRailLayout = (options: BuildDayRailLayoutOptions): DayRailL
     totalUnits: round(totalUnits),
   };
 
-  layout.folds = segments
-    .filter((segment) => segment.kind === 'folded')
-    .map((segment) => ({
+  for (const segment of segments) {
+    if (segment.kind !== 'folded') continue;
+    layout.folds.push({
       key: `fold-${segment.startMinutes}`,
       startMinutes: segment.startMinutes,
       endMinutes: segment.endMinutes,
       topPct: segment.topPct,
       heightPct: segment.heightPct,
       rangeLabel: `${formatRailTime(segment.startMinutes)} to ${formatRailTime(segment.endMinutes)}`,
-    }));
+    });
+  }
 
   const foldStarts = new Set(layout.folds.map((fold) => fold.startMinutes));
   const foldEnds = new Set(layout.folds.map((fold) => fold.endMinutes));
 
-  const boundaries: number[] = [];
   for (let hour = startHour; hour <= endHour; hour += 1) {
-    boundaries.push(hour * MINUTES_PER_HOUR);
-  }
-
-  layout.labels = boundaries
+    const minutes = hour * MINUTES_PER_HOUR;
     // Hours swallowed by a fold get no label — only the fold's own edges show.
-    .filter(
-      (minutes) =>
-        !layout.folds.some((fold) => minutes > fold.startMinutes && minutes < fold.endMinutes)
-    )
-    .map((minutes) => ({
+    const swallowed = layout.folds.some(
+      (fold) => minutes > fold.startMinutes && minutes < fold.endMinutes
+    );
+    if (swallowed) continue;
+    layout.labels.push({
       key: `label-${minutes}`,
       minutes,
       label: formatRailTime(minutes),
@@ -356,7 +371,8 @@ export const buildDayRailLayout = (options: BuildDayRailLayoutOptions): DayRailL
       // No line at the top of the rail, and none at a fold edge — the fold band
       // draws its own dashed rules there.
       hasLine: minutes > windowStart && !foldStarts.has(minutes) && !foldEnds.has(minutes),
-    }));
+    });
+  }
 
   const lanes = assignLanes(visible.map((entry) => ({ start: entry.start, end: entry.end })));
 

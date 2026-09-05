@@ -132,6 +132,13 @@ import { useConfirm } from '@/app/ui/overlays/Modal/ConfirmModal';
 
 const CHAT_PAGE_SKELETON = <PageSkeleton variant="list" />;
 
+// Watching a channel the user just picked deliberately outlives the callback that
+// started it: the channel is handed to `onChannelSelect`, and its owner keeps it
+// live for as long as the thread is on screen. One place for that handoff.
+const watchChannel = async (channel: StreamChannel): Promise<void> => {
+  await channel.watch();
+};
+
 interface ChatContainerProps {
   appointmentId?: string;
   onChannelSelect?: (channel: StreamChannel | null) => void;
@@ -1499,7 +1506,7 @@ const useChatContainerView = ({
         return;
       }
       const channel = client.channel('messaging', channelId);
-      await channel.watch();
+      await watchChannel(channel);
       setIsChannelSelected(true);
       setShowEmptyPlaceholder(false);
       onChannelSelect?.(channel);
@@ -1521,7 +1528,7 @@ const useChatContainerView = ({
         { watch: true, state: true, presence: true, limit: 1 }
       );
       if (queried[0]) {
-        await queried[0].watch();
+        await watchChannel(queried[0]);
         await applyMetadata(queried[0]);
         setIsChannelSelected(true);
         setShowEmptyPlaceholder(false);
@@ -1576,7 +1583,7 @@ const useChatContainerView = ({
             { watch: true, state: true, presence: true, limit: 1 }
           );
           if (queried[0]) {
-            await queried[0].watch();
+            await watchChannel(queried[0]);
             setIsChannelSelected(true);
             setShowEmptyPlaceholder(false);
             onChannelSelect?.(queried[0]);
@@ -1634,7 +1641,7 @@ const useChatContainerView = ({
 
         if (existingDirectChannel) {
           // Channel already exists, just select it
-          await existingDirectChannel.watch();
+          await watchChannel(existingDirectChannel);
           setIsChannelSelected(true);
           setShowEmptyPlaceholder(false);
           onChannelSelect?.(existingDirectChannel);
@@ -1694,7 +1701,7 @@ const useChatContainerView = ({
           { watch: true, state: true, presence: true, limit: 1 }
         );
         const chan = queried[0] ?? client.channel('team', channelId);
-        await chan.watch();
+        await watchChannel(chan);
         await chan.update(
           { chatCategory: 'colleagues', network: true } as Record<string, unknown>,
           {}

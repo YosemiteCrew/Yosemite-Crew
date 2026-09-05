@@ -31,7 +31,12 @@ export const useInvoicesForPrimaryOrg = (): Invoice[] => {
   return useMemo(() => {
     if (!primaryOrgId) return [];
     const ids = invoiceIdsByOrgId[primaryOrgId] ?? [];
-    return ids.map((id) => invoicesById[id]).filter(Boolean);
+    const invoices: Invoice[] = [];
+    for (const id of ids) {
+      const invoice = invoicesById[id];
+      if (invoice) invoices.push(invoice);
+    }
+    return invoices;
   }, [primaryOrgId, invoicesById, invoiceIdsByOrgId]);
 };
 

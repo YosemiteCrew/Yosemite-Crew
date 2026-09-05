@@ -898,11 +898,12 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
           .map((item) => item.sourcePrescriptionId)
           .filter((id): id is string => Boolean(id))
       );
-      const unlinkedPaidNames = new Set(
-        enc.invoiceLineItems
-          .filter((item) => !item.sourceServiceLineId && !item.sourcePrescriptionId)
-          .map((item) => item.name.trim().toLowerCase())
-      );
+      const unlinkedPaidNames = new Set<string>();
+      for (const item of enc.invoiceLineItems) {
+        if (!item.sourceServiceLineId && !item.sourcePrescriptionId) {
+          unlinkedPaidNames.add(item.name.trim().toLowerCase());
+        }
+      }
       const billedAt = nowIso();
       const isPaidService = (service: LineItem) =>
         paidServiceIds.has(service.id) || unlinkedPaidNames.has(service.name.trim().toLowerCase());

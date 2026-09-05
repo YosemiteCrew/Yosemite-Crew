@@ -23,24 +23,26 @@ const sumChunkSizes = async (chunkPaths) => {
 
 const formatKiB = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;
 
+const buildRouteReport = async (route, chunks) => {
+  const jsChunks = chunks.filter((chunkPath) => chunkPath.endsWith('.js'));
+  const totalBytes = await sumChunkSizes(jsChunks);
+  return {
+    route: normalizeRoute(route),
+    jsChunkCount: jsChunks.length,
+    totalBytes,
+    totalKiB: Number((totalBytes / 1024).toFixed(1)),
+  };
+};
+
 const main = async () => {
   const manifest = JSON.parse(await readFile(MANIFEST_PATH, 'utf8'));
   const pages = manifest.pages ?? {};
 
-  const routes = await Promise.all(
-    Object.entries(pages)
-      .filter(([route]) => route.endsWith('/page'))
-      .map(async ([route, chunks]) => {
-        const jsChunks = chunks.filter((chunkPath) => chunkPath.endsWith('.js'));
-        const totalBytes = await sumChunkSizes(jsChunks);
-        return {
-          route: normalizeRoute(route),
-          jsChunkCount: jsChunks.length,
-          totalBytes,
-          totalKiB: Number((totalBytes / 1024).toFixed(1)),
-        };
-      })
-  );
+  const pendingRoutes = [];
+  for (const [route, chunks] of Object.entries(pages)) {
+    if (route.endsWith('/page')) pendingRoutes.push(buildRouteReport(route, chunks));
+  }
+  const routes = await Promise.all(pendingRoutes);
 
   const sortedRoutes = routes.sort((left, right) => right.totalBytes - left.totalBytes);
   await mkdir(OUTPUT_DIR, { recursive: true });

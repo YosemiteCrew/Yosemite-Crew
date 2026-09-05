@@ -136,7 +136,7 @@ let inFlight: Promise<Partial<GithubStats>> | null = null;
 
 const runGithubStatsFetch = async (): Promise<Partial<GithubStats>> => {
   const parts = await Promise.all([fetchGithubStats(), fetchDiscord()]);
-  const fresh = parts.reduce<Partial<GithubStats>>((acc, part) => ({ ...acc, ...part }), {});
+  const fresh: Partial<GithubStats> = Object.assign({}, ...parts);
   const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY) ?? {};
   setJsonStorageItem('session', STATS_CACHE_KEY, { ...EMPTY_STATS, ...cached, ...fresh });
   setStorageItem('session', STATS_TS_KEY, String(Date.now()));

@@ -60,6 +60,18 @@ describe('chatContainerUtils', () => {
     expect(matchesDirectSession({ type: 'ORG_DIRECT', members: ['a', 'b', 'c'] }, ['a', 'b'])).toBe(
       false
     );
+    // Same size, different people: membership is checked against the channel's
+    // ids, so a session that merely has the right count must not match.
+    expect(matchesDirectSession({ type: 'ORG_DIRECT', members: ['a', 'x'] }, ['a', 'b'])).toBe(
+      false
+    );
+    // Only two-party ORG_DIRECT sessions are direct-session candidates.
+    expect(matchesDirectSession({ type: 'ORG_GROUP', members: ['a', 'b'] }, ['a', 'b'])).toBe(
+      false
+    );
+    expect(
+      matchesDirectSession({ type: 'ORG_DIRECT', members: ['a', 'b', 'c'] }, ['a', 'b', 'c'])
+    ).toBe(false);
 
     expect(
       matchesGroupSession(
@@ -71,6 +83,19 @@ describe('chatContainerUtils', () => {
     expect(
       matchesGroupSession({ type: 'ORG_GROUP', members: ['a', 'b', 'c'] }, ['a', 'b'], 'Team')
     ).toBe(false);
+    // One member differs and no title to fall back on: not the same group.
+    expect(
+      matchesGroupSession({ type: 'ORG_GROUP', members: ['a', 'b', 'x'] }, ['a', 'b', 'c'])
+    ).toBe(false);
+    // Disjoint membership fails the overlap floor outright.
+    expect(
+      matchesGroupSession({ type: 'ORG_GROUP', members: ['x', 'y', 'z'] }, ['a', 'b', 'c'], 'Team')
+    ).toBe(false);
+    // Every session member is in the channel, but the channel has one more:
+    // a subset is not the same group.
+    expect(matchesGroupSession({ type: 'ORG_GROUP', members: ['a', 'b'] }, ['a', 'b', 'c'])).toBe(
+      false
+    );
     expect(matchesChannelId({ channelId: 'channel-1' }, channel())).toBe(true);
     expect(matchesChannelId({ channelId: 'messaging:channel-1' }, channel())).toBe(true);
     expect(matchesChannelId({ channelId: 'prefix-channel-1' }, channel())).toBe(true);

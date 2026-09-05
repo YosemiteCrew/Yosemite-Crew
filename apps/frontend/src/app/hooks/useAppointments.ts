@@ -34,10 +34,12 @@ export const useAppointmentsForPrimaryOrg = (): AppointmentWithCompanion[] => {
   return useMemo(() => {
     if (!primaryOrgId) return [];
     const ids = appointmentIdsByOrgId[primaryOrgId] ?? [];
-    return ids
-      .map((id) => appointmentsById[id])
-      .map(withCompanionFallback)
-      .filter((appointment): appointment is AppointmentWithCompanion => appointment !== null);
+    const appointments: AppointmentWithCompanion[] = [];
+    for (const id of ids) {
+      const appointment = withCompanionFallback(appointmentsById[id]);
+      if (appointment !== null) appointments.push(appointment);
+    }
+    return appointments;
   }, [primaryOrgId, appointmentsById, appointmentIdsByOrgId]);
 };
 
@@ -50,10 +52,13 @@ export const useAppointmentsForCompanionInPrimaryOrg = (
   return useMemo(() => {
     if (!primaryOrgId || !companionId) return [];
     const ids = appointmentIdsByOrgId[primaryOrgId] ?? [];
-    return ids
-      .map((id) => appointmentsById[id])
-      .map(withCompanionFallback)
-      .filter((appointment): appointment is AppointmentWithCompanion => appointment !== null)
-      .filter((appointment) => appointment.companion.id === companionId);
+    const appointments: AppointmentWithCompanion[] = [];
+    for (const id of ids) {
+      const appointment = withCompanionFallback(appointmentsById[id]);
+      if (appointment !== null && appointment.companion.id === companionId) {
+        appointments.push(appointment);
+      }
+    }
+    return appointments;
   }, [primaryOrgId, companionId, appointmentsById, appointmentIdsByOrgId]);
 };

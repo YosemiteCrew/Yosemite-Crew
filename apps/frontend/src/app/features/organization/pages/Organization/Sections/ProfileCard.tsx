@@ -309,11 +309,9 @@ const ProfileCard = ({
   const handleMultiChange = (values: Record<string, any>) => {
     setFormValues((prev) => ({ ...prev, ...values }));
     setFormValuesErrors((prev) => {
-      const cleared = Object.keys(values).reduce<Record<string, undefined>>(
-        (acc, k) => ({ ...acc, [k]: undefined }),
-        {}
-      );
-      return { ...prev, ...cleared };
+      const next = { ...prev };
+      for (const key of Object.keys(values)) next[key] = undefined;
+      return next;
     });
   };
 

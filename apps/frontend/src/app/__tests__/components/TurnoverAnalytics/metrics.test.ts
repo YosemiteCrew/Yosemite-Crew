@@ -222,6 +222,22 @@ describe('turnover metrics', () => {
       expect(result.bars.at(-1)?.highlight).toBe(true);
       expect(result.bars[0].highlight).toBe(false);
     });
+    it('gives every month exactly one slot, in first-seen order', () => {
+      // A month repeated inside the current year, a month present in both
+      // years, and a previous-year-only month all have to land on one bar each
+      // - the earlier `find`-based assertions above cannot see a duplicate.
+      const result = buildMonthlyTurnover([
+        { month: 'Jan', year: 2026, turnover: 5 },
+        { month: 'Feb', year: 2026, turnover: 6 },
+        { month: 'Jan', year: 2026, turnover: 7 },
+        { month: 'Jan', year: 2025, turnover: 4 },
+        { month: 'Mar', year: 2025, turnover: 3 },
+      ]);
+      expect(result.bars.map((b) => b.month)).toEqual(['Jan', 'Feb', 'Mar']);
+      expect(result.bars[0].currentValue).toBe(7);
+      expect(result.bars[0].previousValue).toBe(4);
+      expect(result.bars.map((b) => b.highlight)).toEqual([false, false, true]);
+    });
   });
 
   describe('buildAbcRows', () => {

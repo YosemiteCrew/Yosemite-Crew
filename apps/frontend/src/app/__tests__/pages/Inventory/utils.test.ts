@@ -747,6 +747,22 @@ describe('Inventory Utils', () => {
         expect(payload.attributes?.species).toEqual(['Dog']);
       });
 
+      it('drops an empty batch row instead of sending a hole in the batches array', () => {
+        /* A blank row in the batch editor yields no payload at all, and it must
+           not reach the API as an undefined entry - the array is sent as-is. */
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            batches: [...mockInventoryItem.batches!, {}] as any,
+          },
+          'org-1',
+          'VETERINARY' as BusinessType
+        );
+
+        expect(payload.batches).toHaveLength(2);
+        expect(payload.batches).not.toContain(undefined);
+      });
+
       it('sends the cleared SKU as empty rather than falling back to the stale top-level sku', () => {
         const payload = buildInventoryPayload(
           {
@@ -1053,6 +1069,21 @@ describe('inventory metric helpers', () => {
     expect(formatCurrencyValue(19.5, 'EUR')).toBe('€19.50');
     expect(formatCurrencyValue(10, 'NOT_A_CODE')).toBe('$10');
     expect(formatCurrencyValue(undefined)).toBe('—');
+  });
+
+  it('keeps a separate formatter per currency and per precision', () => {
+    /* The Intl formatters are cached so the inventory table does not rebuild a
+       locale-data table per priced cell. A cache keyed on precision alone would
+       hand the second currency the first one's symbol, and one keyed on the
+       currency alone would print a whole-unit price with a fractional one's
+       digits - so both pairs are pinned, and each is asked for twice to cover
+       the cache hit as well as the miss. */
+    expect(formatCurrencyValue(1200, 'USD')).toBe('$1,200');
+    expect(formatCurrencyValue(1200, 'GBP')).toBe('£1,200');
+    expect(formatCurrencyValue(19.5, 'USD')).toBe('$19.50');
+    expect(formatCurrencyValue(19.5, 'GBP')).toBe('£19.50');
+    expect(formatCurrencyValue(1200, 'USD')).toBe('$1,200');
+    expect(formatCurrencyValue(19.5, 'GBP')).toBe('£19.50');
   });
 
   it('treats a blank price as unpriced rather than as zero', () => {

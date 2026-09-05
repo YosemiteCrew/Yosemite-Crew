@@ -108,7 +108,7 @@ export const Display: Story = {
     canvas.getByRole('button', { name: 'Dermatology' }).focus();
     await userEvent.tab();
     await expect(rename).toHaveFocus();
-    // transition-all, so the settled value arrives a frame later than the focus.
+    // The opacity transition means the settled value arrives a frame later than the focus.
     await waitFor(async () => {
       await expect(getComputedStyle(rename).opacity).toBe('1');
     });

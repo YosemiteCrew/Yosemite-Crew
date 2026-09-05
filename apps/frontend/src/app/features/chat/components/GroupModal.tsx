@@ -284,7 +284,7 @@ export const GroupModal: FC<GroupModalProps> = ({
                     availableUsers.map((u) => (
                       <div
                         key={u.keyId}
-                        className="flex justify-between items-center p-3 border border-card-border rounded-2xl bg-chat-surface hover:border-input-border-active transition-all duration-200"
+                        className="flex justify-between items-center p-3 border border-card-border rounded-2xl bg-chat-surface hover:border-input-border-active transition-[border-color] duration-200"
                       >
                         <div className="flex items-center gap-3">
                           <ChatAvatar name={u.name || u.email || '?'} size="sm" />

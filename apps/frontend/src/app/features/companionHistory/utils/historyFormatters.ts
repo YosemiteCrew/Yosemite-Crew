@@ -116,6 +116,28 @@ export const getPayloadBoolean = (
   return null;
 };
 
+/**
+ * One `Intl.NumberFormat` per currency code, built once and reused. The locale is
+ * fixed but the currency is runtime data, so the formatter cannot be a single
+ * module constant; the cache keyed by currency gives the same "construct once"
+ * behaviour without changing any rendered amount. An unknown code still throws
+ * from the constructor, so nothing is cached for it and the caller keeps its
+ * `CODE 12.34` fallback.
+ */
+const currencyFormatters = new Map<string, Intl.NumberFormat>();
+
+const currencyFormatter = (currency: string): Intl.NumberFormat => {
+  const cached = currencyFormatters.get(currency);
+  if (cached) return cached;
+  const formatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 2,
+  });
+  currencyFormatters.set(currency, formatter);
+  return formatter;
+};
+
 export const formatCurrency = (
   amount: number | null,
   currencyCode?: string | null
@@ -123,11 +145,7 @@ export const formatCurrency = (
   if (amount === null) return null;
   const resolvedCurrency = currencyCode?.toUpperCase() || 'USD';
   try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: resolvedCurrency,
-      maximumFractionDigits: 2,
-    }).format(amount);
+    return currencyFormatter(resolvedCurrency).format(amount);
   } catch {
     return `${resolvedCurrency} ${amount.toFixed(2)}`;
   }

@@ -250,6 +250,49 @@ describe('companionStore', () => {
 
   // --- 7. Internal Helpers (Index Logic via store actions) ---
 
+  it('drops ids in an org/parent index that have no stored companion', () => {
+    // The selectors resolve an id list against `companionsById`; an id left behind
+    // by a partial write must not surface as an `undefined` row to callers.
+    useCompanionStore.setState(
+      {
+        ...initialState,
+        companionsById: { c1: createMockCompanion('c1', 'org1', 'p1') },
+        companionsIdsByOrgId: { org1: ['c1', 'ghost'] },
+        companionIdsByParentId: { p1: ['c1', 'ghost'] },
+      },
+      true
+    );
+
+    const { getCompanionsByOrgId, getCompanionsByParentId } = useCompanionStore.getState();
+    expect(getCompanionsByOrgId('org1').map((c) => c.id)).toEqual(['c1']);
+    expect(getCompanionsByParentId('p1').map((c) => c.id)).toEqual(['c1']);
+  });
+
+  it('clearCompanionsForOrg prunes only that org from the parent index', () => {
+    const { setCompanions, clearCompanionsForOrg } = useCompanionStore.getState();
+    // One parent owns a companion in each org, so the prune has to keep 'c2'.
+    setCompanions([
+      createMockCompanion('c1', 'org1', 'p1'),
+      createMockCompanion('c2', 'org2', 'p1'),
+    ]);
+
+    clearCompanionsForOrg('org1');
+
+    const state = useCompanionStore.getState();
+    expect(state.companionIdsByParentId['p1']).toEqual(['c2']);
+    expect(state.companionsById).toEqual({ c2: expect.objectContaining({ id: 'c2' }) });
+    expect(state.companionsIdsByOrgId['org1']).toBeUndefined();
+  });
+
+  it('clearCompanionsForOrg drops a parent whose companions all belonged to that org', () => {
+    const { setCompanions, clearCompanionsForOrg } = useCompanionStore.getState();
+    setCompanions([createMockCompanion('c1', 'org1', 'p1')]);
+
+    clearCompanionsForOrg('org1');
+
+    expect(useCompanionStore.getState().companionIdsByParentId).toEqual({});
+  });
+
   it('should not duplicate ids in indexes (addToIndex logic check)', () => {
     // This verifies `if (arr.includes(id)) return idx;` inside addToIndex indirectly
     const { upsertCompanion } = useCompanionStore.getState();

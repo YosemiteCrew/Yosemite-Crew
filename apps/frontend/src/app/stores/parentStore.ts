@@ -1,7 +1,7 @@
-import { create } from "zustand";
-import { StoredParent } from "@/app/features/companions/pages/Companions/types";
+import { create } from 'zustand';
+import { StoredParent } from '@/app/features/companions/pages/Companions/types';
 
-type ParentStatus = "idle" | "loading" | "loaded" | "error";
+type ParentStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 type ParentState = {
   parentsById: Record<string, StoredParent>;
@@ -29,7 +29,7 @@ export const useParentStore = create<ParentState>()((set, get) => ({
   parentsById: {},
   parentIds: [],
 
-  status: "idle",
+  status: 'idle',
   error: null,
   lastFetchedAt: null,
 
@@ -46,7 +46,7 @@ export const useParentStore = create<ParentState>()((set, get) => ({
       return {
         parentsById,
         parentIds: uniqueParentIds,
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -61,10 +61,8 @@ export const useParentStore = create<ParentState>()((set, get) => ({
           ...state.parentsById,
           [id]: exists ? { ...state.parentsById[id], ...item } : item,
         },
-        parentIds: state.parentIds.includes(id)
-          ? state.parentIds
-          : [...state.parentIds, id],
-        status: "loaded",
+        parentIds: state.parentIds.includes(id) ? state.parentIds : [...state.parentIds, id],
+        status: 'loaded',
         error: null,
       };
     }),
@@ -88,7 +86,7 @@ export const useParentStore = create<ParentState>()((set, get) => ({
       return {
         parentsById,
         parentIds: Array.from(parentIds),
-        status: "loaded",
+        status: 'loaded',
         error: null,
       };
     }),
@@ -104,7 +102,12 @@ export const useParentStore = create<ParentState>()((set, get) => ({
 
   getAllParents: () => {
     const { parentsById, parentIds } = get();
-    return parentIds.map((id) => parentsById[id]).filter(Boolean);
+    const parents: StoredParent[] = [];
+    for (const id of parentIds) {
+      const parent = parentsById[id];
+      if (parent) parents.push(parent);
+    }
+    return parents;
   },
 
   getParentById: (id: string) => {
@@ -116,23 +119,23 @@ export const useParentStore = create<ParentState>()((set, get) => ({
     set(() => ({
       parentsById: {},
       parentIds: [],
-      status: "idle",
+      status: 'idle',
       error: null,
       lastFetchedAt: null,
     })),
 
-  startLoading: () => set(() => ({ status: "loading", error: null })),
+  startLoading: () => set(() => ({ status: 'loading', error: null })),
 
   endLoading: () =>
     set(() => ({
-      status: "loaded",
+      status: 'loaded',
       error: null,
       lastFetchedAt: new Date().toISOString(),
     })),
 
   setError: (message: string) =>
     set(() => ({
-      status: "error",
+      status: 'error',
       error: message,
     })),
 }));

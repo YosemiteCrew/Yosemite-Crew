@@ -30,6 +30,30 @@ const withBusinessType = (item: InventoryItem, fallback: BusinessType): Inventor
   businessType: item.businessType ?? fallback,
 });
 
+const mergeApiWithExistingBatches = (
+  apiItem: InventoryApiItem,
+  existing?: InventoryItem
+): InventoryApiItem => {
+  if (apiItem.batches && apiItem.batches.length > 0) return apiItem;
+  if (!existing?.batches?.length) return apiItem;
+  const mergedBatches: InventoryBatchApi[] = existing.batches.map((b) => ({
+    batchNumber: b.batch,
+    lotNumber: b.serial,
+    regulatoryTrackingId: b.tracking,
+    manufactureDate: b.manufactureDate,
+    expiryDate: b.expiryDate,
+    minShelfLifeAlertDate: b.minShelfLifeAlertDate ?? b.nextRefillDate,
+    quantity: Number.isFinite(Number(b.quantity)) ? Number(b.quantity) : undefined,
+    allocated: Number.isFinite(Number(b.allocated)) ? Number(b.allocated) : undefined,
+    _id: b._id,
+    itemId: b.itemId ?? apiItem._id,
+    organisationId: b.organisationId ?? apiItem.organisationId,
+    createdAt: b.createdAt,
+    updatedAt: b.updatedAt,
+  }));
+  return { ...apiItem, batches: mergedBatches };
+};
+
 const EMPTY_TURNOVER: InventoryTurnoverItem[] = [];
 const EMPTY_IDS: string[] = [];
 const inFlightLoads: Record<string, Promise<any> | undefined> = {};
@@ -60,30 +84,6 @@ export const useInventoryModule = (businessType: BusinessType) => {
   const upsertInventory = useInventoryStore((s) => s.upsertInventory);
   const startLoading = useInventoryStore((s) => s.startLoading);
   const setError = useInventoryStore((s) => s.setError);
-
-  const mergeApiWithExistingBatches = (
-    apiItem: InventoryApiItem,
-    existing?: InventoryItem
-  ): InventoryApiItem => {
-    if (apiItem.batches && apiItem.batches.length > 0) return apiItem;
-    if (!existing?.batches?.length) return apiItem;
-    const mergedBatches: InventoryBatchApi[] = existing.batches.map((b) => ({
-      batchNumber: b.batch,
-      lotNumber: b.serial,
-      regulatoryTrackingId: b.tracking,
-      manufactureDate: b.manufactureDate,
-      expiryDate: b.expiryDate,
-      minShelfLifeAlertDate: b.minShelfLifeAlertDate ?? b.nextRefillDate,
-      quantity: Number.isFinite(Number(b.quantity)) ? Number(b.quantity) : undefined,
-      allocated: Number.isFinite(Number(b.allocated)) ? Number(b.allocated) : undefined,
-      _id: b._id,
-      itemId: b.itemId ?? apiItem._id,
-      organisationId: b.organisationId ?? apiItem.organisationId,
-      createdAt: b.createdAt,
-      updatedAt: b.updatedAt,
-    }));
-    return { ...apiItem, batches: mergedBatches };
-  };
 
   const loadInventory = useCallback(
     async (orgId?: string) => {
@@ -197,17 +197,17 @@ export const useInventoryModule = (businessType: BusinessType) => {
     async (itemId: string, batches: BatchValues[]) => {
       if (!itemId) throw new Error('No inventory item to update.');
       if (!primaryOrgId) throw new Error('No organisation selected.');
-      const payloads = batches
-        .map((b) =>
-          buildBatchPayload({
-            ...b,
-            itemId,
-            organisationId: primaryOrgId,
-          } as any)
-        )
-        .filter(Boolean);
+      const payloads = [];
+      for (const b of batches) {
+        const payload = buildBatchPayload({
+          ...b,
+          itemId,
+          organisationId: primaryOrgId,
+        } as any);
+        if (payload) payloads.push(payload);
+      }
       if (!payloads.length) return;
-      await Promise.all(payloads.map((payload) => createInventoryBatch(itemId, payload!)));
+      await Promise.all(payloads.map((payload) => createInventoryBatch(itemId, payload)));
       await loadInventory(primaryOrgId);
     },
     [primaryOrgId, loadInventory]
@@ -217,20 +217,19 @@ export const useInventoryModule = (businessType: BusinessType) => {
     async (itemId: string, batches: BatchValues[]) => {
       if (!itemId) throw new Error('No inventory item to update.');
       if (!primaryOrgId) throw new Error('No organisation selected.');
-      const updates = batches
-        .filter((b) => b._id)
-        .map((b) => ({
-          batchId: b._id as string,
-          payload: buildBatchPayload({
-            ...b,
-            itemId,
-            organisationId: primaryOrgId,
-          } as any),
-        }))
-        .filter((entry) => entry.payload);
+      const updates = [];
+      for (const b of batches) {
+        if (!b._id) continue;
+        const payload = buildBatchPayload({
+          ...b,
+          itemId,
+          organisationId: primaryOrgId,
+        } as any);
+        if (payload) updates.push({ batchId: b._id, payload });
+      }
       if (!updates.length) return;
       await Promise.all(
-        updates.map(({ batchId, payload }) => updateInventoryBatch(batchId, payload!))
+        updates.map(({ batchId, payload }) => updateInventoryBatch(batchId, payload))
       );
       await loadInventory(primaryOrgId);
     },

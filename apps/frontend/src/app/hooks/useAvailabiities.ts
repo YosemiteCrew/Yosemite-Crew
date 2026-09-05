@@ -28,6 +28,16 @@ export const useLoadAvailabilities = () => {
   }, [isAuthed, primaryOrgId, availabilityIdsByOrgId]);
 };
 
+const normalizeId = (value?: string) =>
+  String(value ?? '')
+    .trim()
+    .split('/')
+    .pop()
+    ?.toLowerCase() ?? '';
+
+const isUserSpecificAvailability = (item: ApiDayAvailability): boolean =>
+  Boolean(item.userId && String(item.userId).trim());
+
 export const usePrimaryAvailability = (): {
   availabilities: AvailabilityState | null;
 } => {
@@ -37,20 +47,14 @@ export const usePrimaryAvailability = (): {
   const availabilityIdsByOrgId = useAvailabilityStore((s) => s.availabilityIdsByOrgId);
   const availabilitiesById = useAvailabilityStore((s) => s.availabilitiesById);
 
-  const normalizeId = (value?: string) =>
-    String(value ?? '')
-      .trim()
-      .split('/')
-      .pop()
-      ?.toLowerCase() ?? '';
-
-  const isUserSpecificAvailability = (item: ApiDayAvailability): boolean =>
-    Boolean(item.userId && String(item.userId).trim());
-
   return useMemo(() => {
     if (!primaryOrgId) return { availabilities: null };
     const ids = availabilityIdsByOrgId[primaryOrgId] ?? [];
-    const temp = ids.map((id) => availabilitiesById[id]).filter(Boolean);
+    const temp: ApiDayAvailability[] = [];
+    for (const id of ids) {
+      const item = availabilitiesById[id];
+      if (item) temp.push(item);
+    }
     const practitionerId = normalizeId(membership?.practitionerReference);
     const membershipIds = new Set(
       [

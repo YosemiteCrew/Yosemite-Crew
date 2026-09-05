@@ -1,8 +1,8 @@
-import { create } from "zustand";
-import { StoredCompanion } from "@/app/features/companions/pages/Companions/types";
-import { addToIndex, removeFromIndex } from "@/app/stores/utils/indexHelpers";
+import { create } from 'zustand';
+import { StoredCompanion } from '@/app/features/companions/pages/Companions/types';
+import { addToIndex, removeFromIndex } from '@/app/stores/utils/indexHelpers';
 
-type CompanionStatus = "idle" | "loading" | "loaded" | "error";
+type CompanionStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 type CompanionState = {
   companionsById: Record<string, StoredCompanion>;
@@ -29,12 +29,22 @@ type CompanionState = {
   setError: (message: string) => void;
 };
 
+/** Resolve ids against the by-id map in one pass, dropping ids with no stored row. */
+const collectById = (byId: Record<string, StoredCompanion>, ids: string[]): StoredCompanion[] => {
+  const rows: StoredCompanion[] = [];
+  for (const id of ids) {
+    const row = byId[id];
+    if (row) rows.push(row);
+  }
+  return rows;
+};
+
 export const useCompanionStore = create<CompanionState>()((set, get) => ({
   companionsById: {},
   companionsIdsByOrgId: {},
   companionIdsByParentId: {},
 
-  status: "idle",
+  status: 'idle',
   error: null,
   lastFetchedAt: null,
 
@@ -64,7 +74,7 @@ export const useCompanionStore = create<CompanionState>()((set, get) => ({
         companionsById,
         companionsIdsByOrgId,
         companionIdsByParentId,
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -80,11 +90,7 @@ export const useCompanionStore = create<CompanionState>()((set, get) => ({
         if (old) {
           const oldParentId = (old as any).parentId as string | undefined;
           if (oldParentId) {
-            companionIdsByParentId = removeFromIndex(
-              companionIdsByParentId,
-              oldParentId,
-              id
-            );
+            companionIdsByParentId = removeFromIndex(companionIdsByParentId, oldParentId, id);
           }
         }
         delete companionsById[id];
@@ -96,11 +102,7 @@ export const useCompanionStore = create<CompanionState>()((set, get) => ({
         newIds.push(id);
         const parentId = (comp as any).parentId as string | undefined;
         if (parentId) {
-          companionIdsByParentId = addToIndex(
-            companionIdsByParentId,
-            parentId,
-            id
-          );
+          companionIdsByParentId = addToIndex(companionIdsByParentId, parentId, id);
         }
       }
       return {
@@ -110,7 +112,7 @@ export const useCompanionStore = create<CompanionState>()((set, get) => ({
           [orgId]: newIds,
         },
         companionIdsByParentId,
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -121,32 +123,20 @@ export const useCompanionStore = create<CompanionState>()((set, get) => ({
       const id = item.id;
       const orgId = item.organisationId;
       const prev = state.companionsById[id];
-      const prevParentId = prev
-        ? ((prev as any).parentId as string | undefined)
-        : undefined;
+      const prevParentId = prev ? ((prev as any).parentId as string | undefined) : undefined;
       const nextParentId = (item as any).parentId as string | undefined;
       const companionsById: Record<string, StoredCompanion> = {
         ...state.companionsById,
         [id]: prev ? { ...prev, ...item } : item,
       };
       const existingOrgIds = state.companionsIdsByOrgId[orgId] ?? [];
-      const orgIds = existingOrgIds.includes(id)
-        ? existingOrgIds
-        : [...existingOrgIds, id];
+      const orgIds = existingOrgIds.includes(id) ? existingOrgIds : [...existingOrgIds, id];
       let companionIdsByParentId = { ...state.companionIdsByParentId };
       if (prevParentId && prevParentId !== nextParentId) {
-        companionIdsByParentId = removeFromIndex(
-          companionIdsByParentId,
-          prevParentId,
-          id
-        );
+        companionIdsByParentId = removeFromIndex(companionIdsByParentId, prevParentId, id);
       }
       if (nextParentId && prevParentId !== nextParentId) {
-        companionIdsByParentId = addToIndex(
-          companionIdsByParentId,
-          nextParentId,
-          id
-        );
+        companionIdsByParentId = addToIndex(companionIdsByParentId, nextParentId, id);
       }
       return {
         companionsById,
@@ -155,7 +145,7 @@ export const useCompanionStore = create<CompanionState>()((set, get) => ({
           [orgId]: orgIds,
         },
         companionIdsByParentId,
-        status: "loaded",
+        status: 'loaded',
         error: null,
       };
     }),
@@ -171,11 +161,7 @@ export const useCompanionStore = create<CompanionState>()((set, get) => ({
       const filteredOrgIds = orgIds.filter((x) => x !== id);
       let companionIdsByParentId = state.companionIdsByParentId;
       if (parentId) {
-        companionIdsByParentId = removeFromIndex(
-          { ...state.companionIdsByParentId },
-          parentId,
-          id
-        );
+        companionIdsByParentId = removeFromIndex({ ...state.companionIdsByParentId }, parentId, id);
       }
       return {
         companionsById: restCompanionsById,
@@ -194,13 +180,12 @@ export const useCompanionStore = create<CompanionState>()((set, get) => ({
         const { [orgId]: _, ...restOrgIdx } = state.companionsIdsByOrgId;
         return { companionsIdsByOrgId: restOrgIdx };
       }
+      const removedIds = new Set(ids);
       const companionsById = { ...state.companionsById };
       for (const id of ids) delete companionsById[id];
       const companionIdsByParentId: Record<string, string[]> = {};
-      for (const [parentId, parentIds] of Object.entries(
-        state.companionIdsByParentId
-      )) {
-        const next = parentIds.filter((cid) => !ids.includes(cid));
+      for (const [parentId, parentIds] of Object.entries(state.companionIdsByParentId)) {
+        const next = parentIds.filter((cid) => !removedIds.has(cid));
         if (next.length) companionIdsByParentId[parentId] = next;
       }
       const { [orgId]: _, ...restOrgIdx } = state.companionsIdsByOrgId;
@@ -208,7 +193,7 @@ export const useCompanionStore = create<CompanionState>()((set, get) => ({
         companionsById,
         companionsIdsByOrgId: restOrgIdx,
         companionIdsByParentId,
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -216,14 +201,12 @@ export const useCompanionStore = create<CompanionState>()((set, get) => ({
 
   getCompanionsByOrgId: (orgId: string) => {
     const { companionsById, companionsIdsByOrgId } = get();
-    const ids = companionsIdsByOrgId[orgId] ?? [];
-    return ids.map((id) => companionsById[id]).filter(Boolean);
+    return collectById(companionsById, companionsIdsByOrgId[orgId] ?? []);
   },
 
   getCompanionsByParentId: (parentId: string) => {
     const { companionsById, companionIdsByParentId } = get();
-    const ids = companionIdsByParentId[parentId] ?? [];
-    return ids.map((id) => companionsById[id]).filter(Boolean);
+    return collectById(companionsById, companionIdsByParentId[parentId] ?? []);
   },
 
   getCompanionById: (id: string) => {
@@ -236,20 +219,19 @@ export const useCompanionStore = create<CompanionState>()((set, get) => ({
       companionsById: {},
       companionsIdsByOrgId: {},
       companionIdsByParentId: {},
-      status: "idle",
+      status: 'idle',
       error: null,
       lastFetchedAt: null,
     })),
 
-  startLoading: () => set(() => ({ status: "loading", error: null })),
+  startLoading: () => set(() => ({ status: 'loading', error: null })),
 
   endLoading: () =>
     set(() => ({
-      status: "loaded",
+      status: 'loaded',
       error: null,
       lastFetchedAt: new Date().toISOString(),
     })),
 
-  setError: (message: string) =>
-    set(() => ({ status: "error", error: message })),
+  setError: (message: string) => set(() => ({ status: 'error', error: message })),
 }));

@@ -24,9 +24,11 @@ export const getAssignableRoomUnits = (
   currentUnitId?: string
 ): RoomUnit[] => {
   if (!roomId) return [];
-  const indexedUnits = (indexes.roomUnitIdsByRoomId[roomId] ?? [])
-    .map((unitId) => indexes.roomUnitsById[unitId])
-    .filter((unit) => isAssignableRoomUnit(unit, currentUnitId));
+  const indexedUnits: RoomUnit[] = [];
+  for (const unitId of indexes.roomUnitIdsByRoomId[roomId] ?? []) {
+    const unit = indexes.roomUnitsById[unitId];
+    if (isAssignableRoomUnit(unit, currentUnitId)) indexedUnits.push(unit);
+  }
 
   if (indexedUnits.length) return indexedUnits;
 

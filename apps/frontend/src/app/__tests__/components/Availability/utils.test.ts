@@ -134,6 +134,17 @@ describe('Availability Utils', () => {
       };
       const result = convertAvailability(input);
       expect(result.availabilities).toHaveLength(0);
+
+      // A day that does reach the merge step and still collapses to nothing:
+      // the final minute of the day formats as 23:59 at both ends, so the
+      // merge drops it and the day must not ship an empty slot list.
+      const lastMinute = convertAvailability({
+        Monday: {
+          enabled: true,
+          intervals: [{ start: '23:59', end: '00:00' }],
+        },
+      });
+      expect(lastMinute.availabilities).toHaveLength(0);
     });
 
     it('splits overnight intervals into next day segments', () => {

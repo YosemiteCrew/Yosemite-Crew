@@ -251,12 +251,18 @@ const buildSegments = (
   const filled = SEGMENT_ORDER.reduce((total, kind) => total + counts[kind], 0);
   const scale = filled > capacity ? capacity / filled : 1;
 
-  return SEGMENT_ORDER.filter((kind) => counts[kind] > 0).map((kind) => ({
-    kind,
-    count: counts[kind],
-    widthPercent: round1((counts[kind] * scale * 100) / capacity),
-    color: SEGMENT_COLORS[kind],
-  }));
+  const segments: PhoneWeekLoadSegment[] = [];
+  for (const kind of SEGMENT_ORDER) {
+    if (counts[kind] > 0) {
+      segments.push({
+        kind,
+        count: counts[kind],
+        widthPercent: round1((counts[kind] * scale * 100) / capacity),
+        color: SEGMENT_COLORS[kind],
+      });
+    }
+  }
+  return segments;
 };
 
 const buildVetsOffClause = (vetsOff: string[]): string | null => {
@@ -381,9 +387,10 @@ export const buildPhoneWeekOverview = ({
   const vetIds = new Set<string>();
   groups.forEach((group) => {
     if (group.meta.isClosed) return;
-    group.appointments.filter(isLoadBearing).forEach((appointment) => {
+    for (const appointment of group.appointments) {
+      if (!isLoadBearing(appointment)) continue;
       if (appointment.lead?.id) vetIds.add(appointment.lead.id);
-    });
+    }
   });
 
   return {

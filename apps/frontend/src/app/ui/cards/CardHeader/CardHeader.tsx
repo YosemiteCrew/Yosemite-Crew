@@ -89,7 +89,7 @@ const CardHeader = ({ title, options, selected, onSelect, variant = 'card' }: Ca
               <button
                 type="button"
                 aria-pressed={option === selectedValue}
-                className="outline-none border-0 bg-neutral-0 hover:bg-card-hover! rounded-2xl! transition-all duration-300 p-2"
+                className="outline-none border-0 bg-neutral-0 hover:bg-card-hover! rounded-2xl! transition-colors duration-300 p-2"
                 key={option}
                 onClick={() => handleSelect(option)}
               >

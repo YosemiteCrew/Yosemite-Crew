@@ -569,9 +569,11 @@ export const buildInventoryPayload = (
 
   const batchesSource =
     formData.batches && formData.batches.length > 0 ? formData.batches : [formData.batch];
-  const batchPayloads = batchesSource
-    .map((b) => buildBatchPayload(b))
-    .filter(Boolean) as InventoryBatchPayload[];
+  const batchPayloads: InventoryBatchPayload[] = [];
+  for (const b of batchesSource) {
+    const payload = buildBatchPayload(b);
+    if (payload) batchPayloads.push(payload);
+  }
   const batchTotals = calculateBatchTotals(batchesSource);
   const firstBatch = batchesSource[0];
 
@@ -734,24 +736,36 @@ export const getStockValue = (item: InventoryItem): number | undefined => {
   return onHand * unitCost;
 };
 
+/* Every construction rebuilds a locale-data table, and this runs once per priced
+   cell of the inventory table. The currency and the fraction digits are per-call,
+   so the formatters are cached by that pair instead of hoisted to one constant.
+   An invalid code throws out of here and is never cached. */
+const currencyFormatters = new Map<string, Intl.NumberFormat>();
+
+const currencyFormatter = (currency: string, maximumFractionDigits: number) => {
+  const key = `${currency}|${maximumFractionDigits}`;
+  const cached = currencyFormatters.get(key);
+  if (cached) return cached;
+  const formatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits,
+  });
+  currencyFormatters.set(key, formatter);
+  return formatter;
+};
+
 export const formatCurrencyValue = (value?: string | number, currency = 'USD') => {
   // An em dash for a missing price, a real "$0" for a price of zero. The blank
   // check lives in toDisplayNumber, which is also what the payload side mirrors.
   const num = toDisplayNumber(value);
   if (num === undefined) return '—';
+  const maximumFractionDigits = Number.isInteger(num) ? 0 : 2;
   try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-      maximumFractionDigits: Number.isInteger(num) ? 0 : 2,
-    }).format(num);
+    return currencyFormatter(currency || 'USD', maximumFractionDigits).format(num);
   } catch {
     // Unknown/invalid ISO currency code — fall back to USD formatting.
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: Number.isInteger(num) ? 0 : 2,
-    }).format(num);
+    return currencyFormatter('USD', maximumFractionDigits).format(num);
   }
 };
 

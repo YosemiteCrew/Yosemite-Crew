@@ -1,4 +1,4 @@
-import React, { useCallback, useId, useMemo } from 'react';
+import React, { useCallback, useId, useMemo, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { IoIosWarning } from 'react-icons/io';
 import { Option } from '@/app/features/companions/types/companion';
@@ -6,6 +6,12 @@ import { IoCheckmarkOutline, IoChevronDown } from 'react-icons/io5';
 import { useDropdown, useFilteredOptions } from '@/app/hooks/useDropdown';
 import { useListboxKeyboardNav } from '@/app/ui/inputs/Dropdown/useDropdownKeyboardNav';
 import { useDropdownPositioning } from '@/app/ui/inputs/Dropdown/useDropdownPositioning';
+
+// The portal host never changes, so the subscription is a no-op; the split
+// client/server snapshots are what keep `document` out of the render body.
+const subscribePortalTarget = () => () => {};
+const getPortalTarget = (): HTMLElement | null => document.body;
+const getServerPortalTarget = (): HTMLElement | null => null;
 
 type DropdownProps = {
   placeholder: string;
@@ -212,6 +218,12 @@ const MultiSelectDropdown = ({
 
   const filteredOptions = useFilteredOptions(list, searchQuery);
 
+  const portalHost = useSyncExternalStore(
+    subscribePortalTarget,
+    getPortalTarget,
+    getServerPortalTarget
+  );
+
   const { portalStyle } = useDropdownPositioning({
     open,
     portal,
@@ -306,10 +318,10 @@ const MultiSelectDropdown = ({
             />
           </span>
         </button>
-        {/* No `typeof document` guard: the panel only renders under `open`, which
-            starts false and is only set by a click, so the server and the first
-            client render both emit nothing here. */}
-        {open && portal && portalStyle && createPortal(panel, document.body)}
+        {/* The portal host comes from useSyncExternalStore, so the server snapshot is
+            null and `document` is never read while React renders. The panel only shows
+            under `open`, which starts false and is only set by a click. */}
+        {open && portal && portalStyle && portalHost && createPortal(panel, portalHost)}
         {open && !portal && <div className="absolute top-full left-0 w-full">{panel}</div>}
       </div>
       {error && (

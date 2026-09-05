@@ -125,6 +125,17 @@ const mergeServicesById = (
   return Array.from(byId.values());
 };
 
+const getNextSelectedSlot = (
+  availableSlots: Slot[],
+  previousSlot: Slot | null,
+  preserveExistingSelection: boolean = false
+) => {
+  if (!previousSlot) return preserveExistingSelection ? null : (availableSlots[0] ?? null);
+  // Match on startTime only — different services can have different durations so endTime varies.
+  const matchingSlot = availableSlots.find((slot) => slot.startTime === previousSlot.startTime);
+  return matchingSlot ?? (preserveExistingSelection ? null : (availableSlots[0] ?? null));
+};
+
 const validateSlotSelection = (
   selectedSlot: Slot | null,
   leadId: string | undefined,
@@ -273,6 +284,26 @@ const resolveSlotScopedMatchForCandidate = (
 };
 
 type ServiceCandidate = { specialityId: string; serviceId: string; serviceName: string };
+
+const collectUniqueServiceIds = (serviceCandidates: ServiceCandidate[]): string[] => {
+  const serviceIds = new Set<string>();
+  for (const candidate of serviceCandidates) {
+    if (candidate.serviceId) serviceIds.add(candidate.serviceId);
+  }
+  return [...serviceIds];
+};
+
+const collectResolvedMatches = (
+  serviceCandidates: ServiceCandidate[],
+  matchesByServiceId: Map<string, SlotScopedMatch>
+): SlotScopedMatch[] => {
+  const matches: SlotScopedMatch[] = [];
+  for (const candidate of serviceCandidates) {
+    const match = matchesByServiceId.get(candidate.serviceId);
+    if (match) matches.push(match);
+  }
+  return matches;
+};
 
 const populateBulkMatches = (
   bulkMatches: CalendarPrefillSlotMatch[],
@@ -535,37 +566,29 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
         ?.toLowerCase() ?? '',
     []
   );
-  const getNextSelectedSlot = (
-    availableSlots: Slot[],
-    previousSlot: Slot | null,
-    preserveExistingSelection: boolean = false
-  ) => {
-    if (!previousSlot) return preserveExistingSelection ? null : (availableSlots[0] ?? null);
-    // Match on startTime only — different services can have different durations so endTime varies.
-    const matchingSlot = availableSlots.find((slot) => slot.startTime === previousSlot.startTime);
-    return matchingSlot ?? (preserveExistingSelection ? null : (availableSlots[0] ?? null));
-  };
-
   const getAppointmentServicesBySpecialityId = useCallback(
     (specialityId: string): AppointmentCatalogService[] => {
       const legacyServices = useServiceStore.getState().getServicesBySpecialityId(specialityId);
-      const currentCatalogServices = revampServices
-        .filter(
-          (service) =>
-            service.specialityId === specialityId &&
-            service.status === 'ACTIVE' &&
-            service.organisationId === primaryOrgId
-        )
-        .map(mapRevampServiceForAppointment);
-      const catalogPackages = revampPackages
-        .filter(
-          (pkg) =>
-            pkg.specialityId === specialityId &&
-            pkg.status === 'ACTIVE' &&
-            pkg.organisationId === primaryOrgId
-        )
-        .map(mapRevampPackageForAppointment);
-      return mergeServicesById([...currentCatalogServices, ...catalogPackages], legacyServices);
+      const catalogEntries: AppointmentCatalogService[] = [];
+      for (const service of revampServices) {
+        if (
+          service.specialityId === specialityId &&
+          service.status === 'ACTIVE' &&
+          service.organisationId === primaryOrgId
+        ) {
+          catalogEntries.push(mapRevampServiceForAppointment(service));
+        }
+      }
+      for (const pkg of revampPackages) {
+        if (
+          pkg.specialityId === specialityId &&
+          pkg.status === 'ACTIVE' &&
+          pkg.organisationId === primaryOrgId
+        ) {
+          catalogEntries.push(mapRevampPackageForAppointment(pkg));
+        }
+      }
+      return mergeServicesById(catalogEntries, legacyServices);
     },
     [primaryOrgId, revampPackages, revampServices]
   );
@@ -594,15 +617,16 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       if (!teams?.length || !slot) return [];
       const vetIdSet = new Set((slot.vetIds ?? []).map((vetId) => normalizeId(vetId)));
       if (!vetIdSet.size) return [];
-      return teams
-        .filter((team) => {
-          const teamId = team.practionerId || team._id;
-          return teamId ? vetIdSet.has(normalizeId(teamId)) : false;
-        })
-        .map((team) => ({
+      const leadOptions = [];
+      for (const team of teams) {
+        const teamId = team.practionerId || team._id;
+        if (!teamId || !vetIdSet.has(normalizeId(teamId))) continue;
+        leadOptions.push({
           label: team.name || team.practionerId || team._id,
           value: team.practionerId || team._id,
-        }));
+        });
+      }
+      return leadOptions;
     },
     [normalizeId, teams]
   );
@@ -733,9 +757,11 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
 
   useEffect(() => {
     if (!calendarSlotFlow || !pendingPrefill || !primaryOrgId || !specialities.length) return;
-    const specialityIds = specialities
-      .map((speciality) => String(speciality._id ?? '').trim())
-      .filter(Boolean);
+    const specialityIds: string[] = [];
+    for (const speciality of specialities) {
+      const specialityId = String(speciality._id ?? '').trim();
+      if (specialityId) specialityIds.push(specialityId);
+    }
     Promise.all(
       specialityIds.map((specialityId) => loadSpecialityCatalog(primaryOrgId, specialityId))
     ).catch((error: unknown) => {
@@ -765,9 +791,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
     let cancelled = false;
     const resolveSlotScopedOptions = async () => {
       setIsLoadingSlotScopedOptions(true);
-      const uniqueServiceIds = [
-        ...new Set(serviceCandidates.map((c) => c.serviceId).filter(Boolean)),
-      ];
+      const uniqueServiceIds = collectUniqueServiceIds(serviceCandidates);
       const matchesByServiceId = new Map<string, SlotScopedMatch>();
       let bulkMatches = await getCalendarPrefillMatchesForPrimaryOrg({
         date: pendingPrefill.date,
@@ -810,9 +834,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       }
       if (cancelled) return;
 
-      const matches = serviceCandidates
-        .map((candidate) => matchesByServiceId.get(candidate.serviceId) ?? null)
-        .filter(Boolean) as SlotScopedMatch[];
+      const matches = collectResolvedMatches(serviceCandidates, matchesByServiceId);
 
       if (!matches.length) {
         setSlotScopedSpecialityIds([]);
@@ -1126,11 +1148,16 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       if (!specialityId) return [];
       return slotScopedServicesBySpecialityId[specialityId] ?? [];
     }
-    return services.filter(isSelectableAppointmentService).map((service) => ({
-      label: service.name,
-      value: service.id,
-      badge: service.isPackage ? 'Package' : undefined,
-    }));
+    const options = [];
+    for (const service of services) {
+      if (!isSelectableAppointmentService(service)) continue;
+      options.push({
+        label: service.name,
+        value: service.id,
+        badge: service.isPackage ? 'Package' : undefined,
+      });
+    }
+    return options;
   }, [
     calendarSlotFlow,
     formData.appointmentType?.speciality.id,

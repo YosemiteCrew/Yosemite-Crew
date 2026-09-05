@@ -30,6 +30,11 @@ export const useRoomsForPrimaryOrg = (): OrganisationRoom[] => {
   return useMemo(() => {
     if (!primaryOrgId) return [];
     const ids = roomIdsByOrgId[primaryOrgId] ?? [];
-    return ids.map((id) => roomsById[id]).filter(Boolean);
+    const rooms: OrganisationRoom[] = [];
+    for (const id of ids) {
+      const room = roomsById[id];
+      if (room) rooms.push(room);
+    }
+    return rooms;
   }, [primaryOrgId, roomsById, roomIdsByOrgId]);
 };

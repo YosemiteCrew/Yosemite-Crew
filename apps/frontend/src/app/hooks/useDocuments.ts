@@ -25,6 +25,11 @@ export const useDocumentsForPrimaryOrg = (): OrganizationDocument[] => {
   return useMemo(() => {
     if (!primaryOrgId) return [];
     const ids = documentIdsByOrgId[primaryOrgId] ?? [];
-    return ids.map((id) => documentsById[id]).filter(Boolean);
+    const documents: OrganizationDocument[] = [];
+    for (const id of ids) {
+      const document = documentsById[id];
+      if (document) documents.push(document);
+    }
+    return documents;
   }, [primaryOrgId, documentsById, documentIdsByOrgId]);
 };

@@ -392,6 +392,44 @@ describe('buildTemplateSchemaSnapshot canonical blueprint merge', () => {
     ]);
   });
 
+  // Only the group the builder marks with `taskGroup` holds task blocks. An
+  // ordinary group that happens to carry `taskBlock` children is authored content,
+  // not schedule, and must not be serialized into schedule.taskBlocks.
+  it('ignores taskBlock groups that do not sit inside a taskGroup', () => {
+    const snapshot = buildTemplateSchemaSnapshot(
+      {
+        name: 'Task',
+        category: 'Task Template',
+        usage: 'Internal',
+        updatedBy: 'user-1',
+        lastUpdated: '',
+        schema: [
+          {
+            id: 'not_task_blocks',
+            type: 'group',
+            label: 'Just a section',
+            fields: [
+              {
+                id: 'task-1',
+                type: 'group',
+                label: 'Vitals',
+                meta: { taskBlock: true },
+                fields: [
+                  { id: 'task-1_name', type: 'input', label: 'Task name', defaultValue: 'Vitals' },
+                ] as unknown as FormField[],
+              },
+            ] as unknown as FormField[],
+          },
+        ] as unknown as FormField[],
+      },
+      'INPATIENT_SCHEDULE'
+    );
+
+    const scheduleSection = snapshot.sections.find((section) => section.id === 'schedule');
+    const taskBlocks = scheduleSection?.fields.find((field) => field.key === 'taskBlocks');
+    expect(taskBlocks?.defaultValue).toEqual([]);
+  });
+
   it('serializes YC-default Task Template (TASK_ASSIGNMENT) task blocks into schedule.taskBlocks', () => {
     // No explicit kind override: category 'Task Template' must resolve to
     // TASK_ASSIGNMENT and still serialize its authored task blocks.

@@ -229,16 +229,18 @@ export const hasSignatureField = (fields: FormField[] = []): boolean =>
       (field.type === 'group' && hasSignatureField(field.fields ?? []))
   );
 
-export const removeSignatureFields = (fields: FormField[] = []): FormField[] =>
-  fields
-    .filter((field) => field.type !== 'signature')
-    .map((field) => {
-      if (field.type !== 'group') return field;
-      return {
-        ...field,
-        fields: removeSignatureFields(field.fields ?? []),
-      };
-    });
+export const removeSignatureFields = (fields: FormField[] = []): FormField[] => {
+  const kept: FormField[] = [];
+  for (const field of fields) {
+    if (field.type === 'signature') continue;
+    kept.push(
+      field.type === 'group'
+        ? { ...field, fields: removeSignatureFields(field.fields ?? []) }
+        : field
+    );
+  }
+  return kept;
+};
 
 export const ensureSingleSignatureAtEnd = (
   fields: FormField[] = [],
@@ -934,19 +936,25 @@ const taskBlockFromGroup = (group: FormField & { fields?: FormField[] }): TaskBl
   return block;
 };
 
-const taskBlocksFromForm = (form: FormsProps): TaskBlockValue[] =>
-  (form.schema ?? [])
-    .flatMap((field) =>
-      field.meta?.taskGroup && field.type === 'group' ? (field.fields ?? []) : []
-    )
-    .filter(
-      (field): field is FormField & { type: 'group'; fields?: FormField[] } =>
-        field.type === 'group' &&
-        (Boolean(field.meta?.taskBlock) ||
-          field.fields?.some((nested) => Boolean(nested.meta?.taskBlockKey)))
-    )
-    .map(taskBlockFromGroup)
-    .filter((block) => block.name.trim().length > 0);
+const isTaskBlockGroup = (
+  field: FormField
+): field is FormField & { type: 'group'; fields?: FormField[] } =>
+  field.type === 'group' &&
+  (Boolean(field.meta?.taskBlock) ||
+    Boolean(field.fields?.some((nested) => Boolean(nested.meta?.taskBlockKey))));
+
+const taskBlocksFromForm = (form: FormsProps): TaskBlockValue[] => {
+  const blocks: TaskBlockValue[] = [];
+  for (const field of form.schema ?? []) {
+    if (!field.meta?.taskGroup || field.type !== 'group') continue;
+    for (const nested of field.fields ?? []) {
+      if (!isTaskBlockGroup(nested)) continue;
+      const block = taskBlockFromGroup(nested);
+      if (block.name.trim().length > 0) blocks.push(block);
+    }
+  }
+  return blocks;
+};
 
 const withTaskBlocks = (
   snapshot: TemplateSchemaSnapshot,

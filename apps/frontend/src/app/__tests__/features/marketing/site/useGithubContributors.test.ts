@@ -58,6 +58,43 @@ describe('useGithubContributors', () => {
     });
   });
 
+  it('filters bot logins GitHub still types as users, and entries with no login', async () => {
+    globalThis.fetch = jest.fn(() =>
+      Promise.resolve(
+        response([
+          {
+            login: 'turbobot-temp',
+            avatar_url: 'https://avatars.githubusercontent.com/u/4?v=4',
+            html_url: 'https://github.com/turbobot-temp',
+            type: 'User',
+          },
+          {
+            login: 'dependabot[bot]',
+            avatar_url: 'https://avatars.githubusercontent.com/u/5?v=4',
+            html_url: 'https://github.com/apps/dependabot',
+            type: 'User',
+          },
+          {
+            avatar_url: 'https://avatars.githubusercontent.com/u/6?v=4',
+            html_url: 'https://github.com/anon',
+            type: 'User',
+          },
+          {
+            login: 'ada',
+            avatar_url: 'https://avatars.githubusercontent.com/u/1?v=4',
+            html_url: 'https://github.com/ada',
+            type: 'User',
+          },
+        ])
+      )
+    ) as unknown as FetchLike;
+
+    const { result } = renderHook(() => useGithubContributors());
+
+    await waitFor(() => expect(result.current).not.toBeNull());
+    expect(result.current?.map((contributor) => contributor.login)).toEqual(['ada']);
+  });
+
   it('stays null when the response is not ok', async () => {
     globalThis.fetch = jest.fn(() =>
       Promise.resolve(response(null, false))

@@ -253,8 +253,7 @@ describe('formatCurrency', () => {
   });
 
   it('formats EUR amount', () => {
-    const result = formatCurrency(100, 'EUR');
-    expect(result).not.toBeNull();
+    expect(formatCurrency(100, 'EUR')).toBe('\u20AC100.00');
   });
 
   it('defaults to USD when no currency provided', () => {
@@ -263,9 +262,26 @@ describe('formatCurrency', () => {
   });
 
   it('falls back gracefully for invalid currency', () => {
-    const result = formatCurrency(10, 'INVALID_CURRENCY_CODE');
-    expect(result).not.toBeNull();
-    expect(typeof result).toBe('string');
+    expect(formatCurrency(10, 'INVALID_CURRENCY_CODE')).toBe('INVALID_CURRENCY_CODE 10.00');
+  });
+
+  // Formatters are cached per currency code. Each of these would pass with a
+  // single shared formatter or a cache keyed on the wrong thing, so they are
+  // asserted together and by exact symbol.
+  it('keeps each currency on its own formatter across repeated calls', () => {
+    expect(formatCurrency(1234.5, 'USD')).toBe('$1,234.50');
+    expect(formatCurrency(1234.5, 'GBP')).toBe('\u00A31,234.50');
+    expect(formatCurrency(1234.5, 'USD')).toBe('$1,234.50');
+    expect(formatCurrency(1234.5, 'GBP')).toBe('\u00A31,234.50');
+  });
+
+  it('lower-cased codes reuse the same formatter as their upper-cased form', () => {
+    expect(formatCurrency(9.5, 'eur')).toBe(formatCurrency(9.5, 'EUR'));
+  });
+
+  it('an unsupported code does not disturb the next supported one', () => {
+    expect(formatCurrency(10, 'NOT_A_CURRENCY')).toBe('NOT_A_CURRENCY 10.00');
+    expect(formatCurrency(10, 'USD')).toBe('$10.00');
   });
 });
 

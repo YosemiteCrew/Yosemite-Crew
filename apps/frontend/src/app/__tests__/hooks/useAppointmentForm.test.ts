@@ -1103,6 +1103,59 @@ describe('useAppointmentForm', () => {
     expect(getSlotsForServiceAndDateForPrimaryOrg).not.toHaveBeenCalled();
   });
 
+  it('drops blank speciality and service ids before requesting calendar prefill matches', async () => {
+    const catalogState = setRevampCatalogState();
+    (useSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'spec-1', name: 'General' },
+      { _id: '  ', name: 'Unsaved speciality' },
+    ]);
+    jest.requireMock('@/app/stores/serviceStore').useServiceStore.getState.mockReturnValue({
+      getServicesBySpecialityId: jest.fn((specialityId: string) =>
+        specialityId === 'spec-1'
+          ? [
+              { id: 'svc-1', name: 'Consult' },
+              { id: '  ', name: 'Unsaved service' },
+            ]
+          : []
+      ),
+    });
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'team-1', name: 'Dr Vet', practionerId: 'vet-1' },
+    ]);
+    (getCalendarPrefillMatchesForPrimaryOrg as jest.Mock).mockResolvedValue([
+      {
+        serviceId: 'svc-1',
+        slot: { startTime: '10:00', endTime: '10:30', vetIds: ['vet-1'] },
+        meta: { localStartMinute: 600, localEndMinute: 630 },
+      },
+    ]);
+
+    const prefill = {
+      date: new Date('2026-04-01T00:00:00.000Z'),
+      minuteOfDay: 600,
+      leadId: 'vet-1',
+    };
+    const { result } = renderHook(() =>
+      useAppointmentForm({
+        initialPrefill: prefill,
+        calendarSlotFlow: true,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectedSlot?.startTime).toBe('10:00');
+    });
+
+    expect(getCalendarPrefillMatchesForPrimaryOrg).toHaveBeenCalledWith({
+      date: prefill.date,
+      minuteOfDay: 600,
+      leadId: 'vet-1',
+      serviceIds: ['svc-1'],
+    });
+    expect(catalogState.loadSpecialityCatalog).toHaveBeenCalledWith('org-1', 'spec-1');
+    expect(catalogState.loadSpecialityCatalog).not.toHaveBeenCalledWith('org-1', '');
+  });
+
   it('falls back to unscoped calendar prefill when the lead id shape differs', async () => {
     (useSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue([
       { _id: 'spec-1', name: 'General' },
@@ -1354,6 +1407,48 @@ describe('useAppointmentForm', () => {
     expect(refetch).toHaveBeenCalled();
     expect(loadInvoicesForOrgPrimaryOrg).toHaveBeenCalledWith({ force: true });
     expect(onSuccess).toHaveBeenCalled();
+  });
+
+  it('offers only the leads attached to the selected slot', async () => {
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'team-1', name: 'Dr A', practionerId: 'vet-1' },
+      { _id: 'team-2', name: 'Dr B', practionerId: 'vet-2' },
+    ]);
+    const slot = { startTime: '09:00', endTime: '09:30', vetIds: ['vet-1'] };
+    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([slot]);
+    (normalizeSlotsForSelectedDay as jest.Mock).mockReturnValue([
+      {
+        slot,
+        meta: { localStartMinute: 540, localEndMinute: 570, dayOffset: 0 },
+      },
+    ]);
+
+    const { result } = renderHook(() => useAppointmentForm());
+    await act(async () => {
+      result.current.setFormData((prev) => ({
+        ...prev,
+        companion: {
+          id: 'comp-1',
+          name: 'Fido',
+          species: 'Dog',
+          breed: '',
+          parent: { id: '', name: '' },
+        },
+        appointmentType: {
+          id: 'svc-1',
+          name: 'Checkup',
+          speciality: { id: 'spec-1', name: 'General' },
+        },
+        concern: 'limp',
+        durationMinutes: 30,
+      }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.formData.lead?.id).toBe('vet-1');
+    });
+
+    expect(result.current.validateForm().leadId).toBeUndefined();
   });
 
   it('validateForm returns lead error when multiple leads are available but none selected', async () => {

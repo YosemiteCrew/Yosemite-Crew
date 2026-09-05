@@ -26,7 +26,12 @@ export const useCompanionsForPrimaryOrg = (): StoredCompanion[] => {
   return useMemo(() => {
     if (!primaryOrgId) return [];
     const ids = companionsIdsByOrgId[primaryOrgId] ?? [];
-    return ids.map((id) => companionsById[id]).filter(Boolean);
+    const companions: StoredCompanion[] = [];
+    for (const id of ids) {
+      const companion = companionsById[id];
+      if (companion) companions.push(companion);
+    }
+    return companions;
   }, [primaryOrgId, companionsById, companionsIdsByOrgId]);
 };
 
@@ -41,14 +46,14 @@ export const useCompanionsParentsForPrimaryOrg = (): CompanionParent[] => {
   return useMemo(() => {
     if (!primaryOrgId) return [];
     const ids = companionsIdsByOrgId[primaryOrgId] ?? [];
-    return ids
-      .map((id) => companionsById[id])
-      .filter(Boolean)
-      .map((companion) => {
-        const parent = parentsById[companion.parentId];
-        if (!parent) return null;
-        return { companion, parent };
-      })
-      .filter((x): x is CompanionParent => x != null);
+    const pairs: CompanionParent[] = [];
+    for (const id of ids) {
+      const companion = companionsById[id];
+      if (!companion) continue;
+      const parent = parentsById[companion.parentId];
+      if (!parent) continue;
+      pairs.push({ companion, parent });
+    }
+    return pairs;
   }, [primaryOrgId, companionsById, companionsIdsByOrgId, parentsById]);
 };

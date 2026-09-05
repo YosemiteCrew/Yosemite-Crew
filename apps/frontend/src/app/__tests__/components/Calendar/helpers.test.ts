@@ -15,6 +15,7 @@ import {
   getNowTopPxForHourRange,
   isAllDayForDate,
   eventsForDay,
+  getFirstRelevantTimedEventStart,
   scrollContainerToTarget,
   PIXELS_PER_STEP,
   MINUTES_PER_STEP,
@@ -385,6 +386,47 @@ describe('Calendar Helpers', () => {
         endTime: new Date(2023, 0, 1, 12, 0),
       } as Appointment;
       expect(isAllDayForDate(ev, day)).toBe(false);
+    });
+  });
+
+  describe('getFirstRelevantTimedEventStart', () => {
+    const rangeStart = new Date(2023, 0, 1, 9, 0);
+    const rangeEnd = new Date(2023, 0, 1, 17, 0);
+
+    it('returns the first upcoming start inside the range', () => {
+      const events = [
+        { startTime: new Date(2023, 0, 1, 8, 0) },
+        { startTime: new Date(2023, 0, 1, 15, 0) },
+        { startTime: new Date(2023, 0, 1, 10, 0) },
+        { startTime: new Date(2023, 0, 1, 18, 0) },
+      ] as Appointment[];
+
+      expect(
+        getFirstRelevantTimedEventStart(events, rangeStart, rangeEnd, new Date(2023, 0, 1, 12, 0))
+      ).toEqual(new Date(2023, 0, 1, 15, 0));
+    });
+
+    it('falls back to the earliest in-range start when every one is in the past', () => {
+      const events = [
+        { startTime: new Date(2023, 0, 1, 11, 0) },
+        { startTime: new Date(2023, 0, 1, 10, 0) },
+        { startTime: new Date(2023, 0, 1, 8, 0) },
+      ] as Appointment[];
+
+      expect(
+        getFirstRelevantTimedEventStart(events, rangeStart, rangeEnd, new Date(2023, 0, 1, 16, 0))
+      ).toEqual(new Date(2023, 0, 1, 10, 0));
+    });
+
+    it('returns null when no event starts inside the range', () => {
+      const events = [
+        { startTime: new Date(2023, 0, 1, 8, 0) },
+        { startTime: new Date(2023, 0, 1, 17, 0) },
+      ] as Appointment[];
+
+      expect(
+        getFirstRelevantTimedEventStart(events, rangeStart, rangeEnd, new Date(2023, 0, 1, 12, 0))
+      ).toBeNull();
     });
   });
 

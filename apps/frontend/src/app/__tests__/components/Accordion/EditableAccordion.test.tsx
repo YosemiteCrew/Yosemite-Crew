@@ -413,6 +413,39 @@ describe('EditableAccordion Component', () => {
     );
   });
 
+  it('clears the required-field errors of every sibling an address autofills', async () => {
+    render(
+      <EditableAccordion
+        title="Address"
+        fields={[
+          { label: 'Address line', key: 'addressLine', type: 'googleAddress', editable: true },
+          { label: 'City', key: 'city', type: 'text', editable: true, required: true },
+          { label: 'State / Province', key: 'state', type: 'text', editable: true, required: true },
+          { label: 'Postal code', key: 'postalCode', type: 'text', editable: true, required: true },
+        ]}
+        data={{ addressLine: '', city: '', state: '', postalCode: '' }}
+        defaultOpen
+        onSave={jest.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Toggle Edit'));
+    await act(async () => {
+      fireEvent.click(screen.getByText('Save'));
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('City is required')).toBeInTheDocument();
+    expect(screen.getByText('State / Province is required')).toBeInTheDocument();
+    expect(screen.getByText('Postal code is required')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('select-address-Address line'));
+
+    expect(screen.queryByText('City is required')).not.toBeInTheDocument();
+    expect(screen.queryByText('State / Province is required')).not.toBeInTheDocument();
+    expect(screen.queryByText('Postal code is required')).not.toBeInTheDocument();
+  });
+
   it('renders googleAddress field value in view mode', () => {
     render(
       <EditableAccordion

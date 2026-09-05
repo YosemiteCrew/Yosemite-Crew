@@ -6,6 +6,7 @@ import {
   resolveDefaultOpenScreenRoute,
   resolveDefaultOpenScreenRouteForProfile,
 } from '@/app/lib/defaultOpenScreen';
+import type { ApiDayAvailability } from '@/app/features/appointments/components/Availability/utils';
 import { computeTeamOnboardingStep } from '@/app/lib/teamOnboarding';
 import { computeOrgOnboardingStep } from '@/app/lib/orgOnboarding';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -166,7 +167,11 @@ export const resolveOrgScopedRedirect = async ({
 
   const profile = profilesByOrgId[orgId] ?? null;
   const availabilityIds = availabilityIdsByOrgId[orgId] ?? [];
-  const availabilities = availabilityIds.map((id) => availabilitiesById[id]).filter(Boolean);
+  const availabilities: ApiDayAvailability[] = [];
+  for (const id of availabilityIds) {
+    const availability = availabilitiesById[id];
+    if (availability) availabilities.push(availability);
+  }
   const profileStep = computeTeamOnboardingStep(profile, availabilities);
 
   if (profileStep < 3) {

@@ -563,10 +563,13 @@ const normalizeInvoiceLineKey = (item: Pick<InvoiceItem, 'name' | 'quantity' | '
 
 const filterNewInvoiceLineItems = (invoice: Invoice, lineItems: InvoiceItem[]): InvoiceItem[] => {
   const existingItems = Array.isArray(invoice.items) ? invoice.items : [];
-  const existingIds = new Set(
-    existingItems.map((item) => String(item.id ?? '').trim()).filter((id) => id.length > 0)
-  );
-  const existingKeys = new Set(existingItems.map(normalizeInvoiceLineKey));
+  const existingIds = new Set<string>();
+  const existingKeys = new Set<string>();
+  for (const item of existingItems) {
+    const id = String(item.id ?? '').trim();
+    if (id.length > 0) existingIds.add(id);
+    existingKeys.add(normalizeInvoiceLineKey(item));
+  }
 
   return lineItems.filter((item) => {
     const id = String(item.id ?? '').trim();

@@ -61,7 +61,7 @@ const DayToggle = ({
       }}
     >
       <span
-        className="absolute top-[3px] size-[18px] rounded-full transition-all duration-150"
+        className="absolute top-[3px] size-[18px] rounded-full transition-[left] duration-150"
         style={{
           left: checked ? '19px' : '3px',
           /* Fixed white in both states: --screen flips with the theme, so the

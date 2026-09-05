@@ -73,10 +73,12 @@ const toSpeciesConstraints = (value?: string | string[]) => {
   let values: string[] = [];
   if (Array.isArray(value)) values = value;
   else if (value) values = [value];
-  const species = values
-    .map((entry) => entry.trim().toUpperCase())
-    .filter((entry) => SUPPORTED_ROOM_SPECIES.has(entry));
-  return species.length ? Array.from(new Set(species)) : undefined;
+  const species = new Set<string>();
+  for (const entry of values) {
+    const normalized = entry.trim().toUpperCase();
+    if (SUPPORTED_ROOM_SPECIES.has(normalized)) species.add(normalized);
+  }
+  return species.size ? Array.from(species) : undefined;
 };
 
 const canSyncUnits = (room: OrganisationRoom) => UNIT_CAPABLE_ROOM_TYPES.has(room.type);
@@ -290,34 +292,31 @@ const syncUnitsForGroup = async (
   speciesConstraints?: string[]
 ) => {
   const currentUnits = await listRoomUnitsForGroup(group.organisationId, group.roomId, group.id);
-  const createdUnits: RoomUnit[] = [];
   const surplusUnits = currentUnits.slice(desiredCount);
 
-  for (const unit of surplusUnits) {
-    await deleteUnit(unit.id);
-  }
+  await Promise.all(surplusUnits.map((unit) => deleteUnit(unit.id)));
 
   const missingCount = desiredCount - currentUnits.length;
   // A previously-deactivated unit under this same group can occupy the exact
   // code a fresh one would get (`@@unique([roomId, code])`), so look for one
   // to reactivate before creating - only when we actually need more units.
-  const archivedByCode =
-    missingCount > 0
-      ? new Map(
-          (await listAllUnitsForGroup(group.organisationId, group.roomId, group.id))
-            .filter((unit) => !unit.isActive)
-            .map((unit) => [unit.code, unit] as const)
-        )
-      : new Map<string, RoomUnit>();
+  const archivedByCode = new Map<string, RoomUnit>();
+  if (missingCount > 0) {
+    const knownUnits = await listAllUnitsForGroup(group.organisationId, group.roomId, group.id);
+    for (const unit of knownUnits) {
+      if (!unit.isActive) archivedByCode.set(unit.code, unit);
+    }
+  }
 
+  const pendingUnits: Array<Promise<RoomUnit>> = [];
   for (let index = currentUnits.length; index < desiredCount; index += 1) {
     const unitNumber = index + 1;
     const code = `${group.name}-${unitNumber}`.replace(/\s+/g, '-').toUpperCase();
     const archived = archivedByCode.get(code);
     const displayName = `${group.name} ${unitNumber}`;
-    createdUnits.push(
+    pendingUnits.push(
       archived
-        ? await updateUnit({
+        ? updateUnit({
             ...archived,
             unitGroupId: group.id,
             displayName,
@@ -325,7 +324,7 @@ const syncUnitsForGroup = async (
             speciesConstraints,
             isActive: true,
           })
-        : await createUnit({
+        : createUnit({
             id: '',
             organisationId: group.organisationId,
             roomId: group.roomId,
@@ -339,6 +338,7 @@ const syncUnitsForGroup = async (
     );
   }
 
+  const createdUnits = await Promise.all(pendingUnits);
   return [...currentUnits.slice(0, desiredCount), ...createdUnits];
 };
 
@@ -349,9 +349,7 @@ const syncUnitsForGroup = async (
 // while dropping them out of the room's active configuration.
 const deactivateUnitGroupAndItsUnits = async (group: RoomUnitGroup) => {
   const staleUnits = await listRoomUnitsForGroup(group.organisationId, group.roomId, group.id);
-  for (const unit of staleUnits) {
-    await updateUnit({ ...unit, isActive: false });
-  }
+  await Promise.all(staleUnits.map((unit) => updateUnit({ ...unit, isActive: false })));
   await updateUnitGroup({ ...group, isActive: false });
 };
 
@@ -402,9 +400,7 @@ const syncRoomUnitGroups = async (
         )
     );
     staleGroups = existingGroups.filter((group) => group.isActive && !desiredIds.has(group.id));
-    for (const group of staleGroups) {
-      await deactivateUnitGroupAndItsUnits(group);
-    }
+    await Promise.all(staleGroups.map((group) => deactivateUnitGroupAndItsUnits(group)));
   }
 
   if (!desiredUnitGroups.length) {

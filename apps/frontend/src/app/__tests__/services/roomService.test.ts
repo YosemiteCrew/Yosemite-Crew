@@ -324,6 +324,53 @@ describe('Room Service', () => {
       expect(mockSetRoomUnitsForRoom).toHaveBeenCalled();
     });
 
+    it('keeps the created units in requested order when their POSTs settle out of order', async () => {
+      const roomInput = {
+        id: 'draft-room',
+        name: 'Ward B',
+        code: '',
+        type: 'INPATIENT',
+        availability: { species: ['CANINE'], totalUnits: 3 },
+      } as OrganisationRoom & {
+        availability: { species: string[]; totalUnits: number };
+      };
+      const createdRoom = {
+        id: 'room-1',
+        name: 'Ward B',
+        organisationId: 'org-123',
+        type: 'INPATIENT',
+      };
+
+      mockedToDTO.mockReturnValue({ resourceType: 'Location' });
+      mockedFromDTO.mockReturnValue(createdRoom);
+      mockedGetData.mockResolvedValue({ data: [] });
+      mockedPostData
+        .mockResolvedValueOnce({ data: { resourceType: 'Location', id: 'room-1' } })
+        .mockImplementation((url: string, body: { code?: string }) => {
+          // Settle the unit creates in reverse order. The synced list has to
+          // follow the order the units were asked for, not whichever POST
+          // came back first.
+          const settleOrderMs: Record<string, number> = {
+            'UNITS-1': 20,
+            'UNITS-2': 10,
+            'UNITS-3': 0,
+          };
+          const settleAfterMs =
+            url === '/fhir/v1/room-unit' ? (settleOrderMs[body.code ?? ''] ?? 0) : 0;
+          return new Promise((resolve) => {
+            setTimeout(() => resolve({ data: body }), settleAfterMs);
+          });
+        });
+
+      await createRoom(roomInput);
+
+      expect(mockSetRoomUnitsForRoom).toHaveBeenCalledWith('room-1', [
+        expect.objectContaining({ code: 'UNITS-1' }),
+        expect.objectContaining({ code: 'UNITS-2' }),
+        expect.objectContaining({ code: 'UNITS-3' }),
+      ]);
+    });
+
     it('logs error and rethrows on failure', async () => {
       const error = new Error('Create Error');
       mockedToDTO.mockReturnValue({});
@@ -705,6 +752,69 @@ describe('Room Service', () => {
         '/fhir/v1/room-unit-group',
         expect.anything()
       );
+    });
+
+    it('deletes only the surplus units when a group is shrunk', async () => {
+      const mockDTO = { resourceType: 'Location', id: 'room-1' };
+      const mockFinalRoom = { id: 'room-1', name: 'Ward A', type: 'INPATIENT' };
+      const activeGroup = {
+        id: 'group-1',
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        name: 'Pod',
+        size: 'Large',
+        unitCount: 3,
+        isActive: true,
+      };
+      const activeUnits = [1, 2, 3].map((unitNumber) => ({
+        id: `unit-${unitNumber}`,
+        organisationId: 'org-123',
+        roomId: 'room-1',
+        unitGroupId: 'group-1',
+        code: `POD-${unitNumber}`,
+        displayName: `Pod ${unitNumber}`,
+        isActive: true,
+      }));
+
+      mockedToDTO.mockReturnValue(mockDTO);
+      mockedFromDTO.mockReturnValue(mockFinalRoom);
+      mockedPutData.mockImplementation((_url: string, body: unknown) =>
+        Promise.resolve({ data: body })
+      );
+      mockedDeleteData.mockImplementation((url: string) =>
+        Promise.resolve({ data: { id: url.split('/').pop() } })
+      );
+      mockedGetData.mockImplementation((url: string) => {
+        if (url.startsWith('/fhir/v1/room-unit-group')) {
+          return Promise.resolve({ data: [activeGroup] });
+        }
+        if (url.startsWith('/fhir/v1/room-unit')) {
+          return Promise.resolve({ data: activeUnits });
+        }
+        return Promise.resolve({ data: [] });
+      });
+
+      await updateRoom({
+        id: 'room-1',
+        name: 'Ward A',
+        type: 'INPATIENT',
+        availability: { species: ['CANINE'], totalUnits: 1 },
+        units: [{ id: 'group-1', name: 'Pod', size: 'Large', count: 1 }],
+      } as OrganisationRoom & {
+        availability: { species: string[]; totalUnits: number };
+        units: Array<{ id: string; name: string; size: string; count: number }>;
+      });
+
+      // Only the rows past the new count go. The survivor keeps its own row
+      // rather than being deleted and recreated, which is what its assignment
+      // history hangs off.
+      expect(mockedDeleteData).toHaveBeenCalledWith('/fhir/v1/room-unit/unit-2');
+      expect(mockedDeleteData).toHaveBeenCalledWith('/fhir/v1/room-unit/unit-3');
+      expect(mockedDeleteData).not.toHaveBeenCalledWith('/fhir/v1/room-unit/unit-1');
+      expect(mockedPostData).not.toHaveBeenCalledWith('/fhir/v1/room-unit', expect.anything());
+      expect(mockSetRoomUnitsForRoom).toHaveBeenCalledWith('room-1', [
+        expect.objectContaining({ id: 'unit-1' }),
+      ]);
     });
   });
 });

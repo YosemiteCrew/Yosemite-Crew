@@ -1,7 +1,7 @@
-import { Invoice, InvoiceStatus } from "@yosemite-crew/types";
-import { create } from "zustand";
+import { Invoice, InvoiceStatus } from '@yosemite-crew/types';
+import { create } from 'zustand';
 
-type StoreStatus = "idle" | "loading" | "loaded" | "error";
+type StoreStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 type InvoiceState = {
   invoicesById: Record<string, Invoice>;
@@ -30,7 +30,7 @@ type InvoiceState = {
 export const useInvoiceStore = create<InvoiceState>()((set, get) => ({
   invoicesById: {},
   invoiceIdsByOrgId: {},
-  status: "idle",
+  status: 'idle',
   error: null,
   lastFetchedAt: null,
 
@@ -53,7 +53,7 @@ export const useInvoiceStore = create<InvoiceState>()((set, get) => ({
       return {
         invoicesById,
         invoiceIdsByOrgId,
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -82,7 +82,7 @@ export const useInvoiceStore = create<InvoiceState>()((set, get) => ({
           ...state.invoiceIdsByOrgId,
           [orgId]: newIds,
         },
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -93,14 +93,14 @@ export const useInvoiceStore = create<InvoiceState>()((set, get) => ({
       const { id, organisationId } = invoice;
 
       if (!id || !organisationId) {
-        console.warn("upsertInvoice: missing organisationId", invoice);
+        console.warn('upsertInvoice: missing organisationId', invoice);
         return state;
       }
 
       const invoicesById = {
         ...state.invoicesById,
         [id]: {
-          ...(state.invoicesById[id]),
+          ...state.invoicesById[id],
           ...invoice,
         },
       };
@@ -108,15 +108,13 @@ export const useInvoiceStore = create<InvoiceState>()((set, get) => ({
       const existingIds = state.invoiceIdsByOrgId[organisationId] ?? [];
       const invoiceIdsByOrgId = {
         ...state.invoiceIdsByOrgId,
-        [organisationId]: existingIds.includes(id)
-          ? existingIds
-          : [...existingIds, id],
+        [organisationId]: existingIds.includes(id) ? existingIds : [...existingIds, id],
       };
 
       return {
         invoicesById,
         invoiceIdsByOrgId,
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -125,7 +123,12 @@ export const useInvoiceStore = create<InvoiceState>()((set, get) => ({
   getInvoicesByOrgId: (orgId) => {
     const { invoicesById, invoiceIdsByOrgId } = get();
     const ids = invoiceIdsByOrgId[orgId] ?? [];
-    return ids.map((id) => invoicesById[id]).filter(Boolean);
+    const invoices: Invoice[] = [];
+    for (const id of ids) {
+      const invoice = invoicesById[id];
+      if (invoice) invoices.push(invoice);
+    }
+    return invoices;
   },
 
   getInvoicesByStatus: (orgId, status) => {
@@ -168,7 +171,7 @@ export const useInvoiceStore = create<InvoiceState>()((set, get) => ({
       return {
         invoicesById,
         invoiceIdsByOrgId: restIdx,
-        status: "loaded",
+        status: 'loaded',
         error: null,
         lastFetchedAt: new Date().toISOString(),
       };
@@ -178,26 +181,26 @@ export const useInvoiceStore = create<InvoiceState>()((set, get) => ({
     set(() => ({
       invoicesById: {},
       invoiceIdsByOrgId: {},
-      status: "idle",
+      status: 'idle',
       error: null,
       lastFetchedAt: null,
     })),
 
   startLoading: () =>
     set(() => ({
-      status: "loading",
+      status: 'loading',
       error: null,
     })),
 
   endLoading: () =>
     set(() => ({
-      status: "loaded",
+      status: 'loaded',
       error: null,
     })),
 
   setError: (message) =>
     set(() => ({
-      status: "error",
+      status: 'error',
       error: message,
     })),
 }));

@@ -190,6 +190,34 @@ describe('specialityService', () => {
       await loadSpecialitiesForOrg();
     });
 
+    it('unwraps a FHIR Bundle, keeping ready-shaped entries and skipping empty ones', async () => {
+      (axiosService.getData as jest.Mock).mockResolvedValue({
+        data: {
+          resourceType: 'Bundle',
+          entry: [
+            {
+              resource: {
+                speciality: { id: 'spec-ready', name: 'Cardiology' },
+                services: [{ id: 'svc-1', name: 'ECG' }],
+              },
+            },
+            { resource: { resourceType: 'Organization', id: 'spec-org', name: 'Dermatology' } },
+            null,
+          ],
+        },
+      });
+
+      await loadSpecialitiesForOrg();
+
+      expect(mockSetSpecialitiesForOrg).toHaveBeenCalledWith('org-1', [
+        expect.objectContaining({ id: 'spec-ready', name: 'Cardiology' }),
+        expect.objectContaining({ id: 'spec-org', name: 'Dermatology' }),
+      ]);
+      expect(mockSetServicesForOrg).toHaveBeenCalledWith('org-1', [
+        expect.objectContaining({ id: 'svc-1', name: 'ECG' }),
+      ]);
+    });
+
     // NOTE: The `loadSpecialitiesForOrg` test assertion for failure was already throwing,
     // which is likely correct for a service layer function that wraps an API call.
     it('throws error on failure', async () => {

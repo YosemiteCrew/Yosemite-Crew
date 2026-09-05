@@ -44,7 +44,8 @@ export const matchesDirectSession = (session: any, channelMemberIds: string[]) =
     return false;
   }
   const sessionMembers = session.members || [];
-  const allMembersMatch = sessionMembers.every((sm: string) => channelMemberIds.includes(sm));
+  const channelMemberIdSet = new Set(channelMemberIds);
+  const allMembersMatch = sessionMembers.every((sm: string) => channelMemberIdSet.has(sm));
   return allMembersMatch && sessionMembers.length === channelMemberIds.length;
 };
 
@@ -57,7 +58,8 @@ export const matchesGroupSession = (
     return false;
   }
   const sessionMembers = session.members || [];
-  const matchingMembers = sessionMembers.filter((sm: string) => channelMemberIds.includes(sm));
+  const channelMemberIdSet = new Set(channelMemberIds);
+  const matchingMembers = sessionMembers.filter((sm: string) => channelMemberIdSet.has(sm));
   if (matchingMembers.length < Math.min(sessionMembers.length, channelMemberIds.length) - 1) {
     return false;
   }

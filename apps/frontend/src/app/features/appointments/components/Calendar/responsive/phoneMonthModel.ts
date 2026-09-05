@@ -185,10 +185,13 @@ const formatMonthPart = (
 ): string =>
   new Intl.DateTimeFormat('en-US', { ...options, timeZone: 'UTC' }).format(utcDate(year, month, 1));
 
+const SHORT_WEEKDAY_FORMAT = new Intl.DateTimeFormat('en-US', {
+  weekday: 'short',
+  timeZone: 'UTC',
+});
+
 const formatShortWeekday = (year: number, month: number, day: number): string =>
-  new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' }).format(
-    utcDate(year, month, day)
-  );
+  SHORT_WEEKDAY_FORMAT.format(utcDate(year, month, day));
 
 const pluraliseAppointments = (count: number): string =>
   `${count} ${count === 1 ? 'appointment' : 'appointments'}`;

@@ -131,16 +131,19 @@ export const buildMonthlyTurnover = (trend: InventoryTurnoverTrendPoint[]): Mont
 
   trend.forEach((point) => {
     if (point.year === currentYear) {
-      if (!monthOrder.includes(point.month)) monthOrder.push(point.month);
+      // currentByMonth holds exactly the current-year months already pushed,
+      // so its O(1) `has` answers what the linear `includes` scan asked.
+      if (!currentByMonth.has(point.month)) monthOrder.push(point.month);
       currentByMonth.set(point.month, point.turnover);
     } else if (point.year === previousYear) {
       previousByMonth.set(point.month, point.turnover);
     }
   });
 
-  // Months only present in the previous year still deserve a slot.
+  // Months only present in the previous year still deserve a slot. Map keys are
+  // unique, so each such month is pushed exactly once.
   previousByMonth.forEach((_value, month) => {
-    if (!monthOrder.includes(month)) monthOrder.push(month);
+    if (!currentByMonth.has(month)) monthOrder.push(month);
   });
 
   const maxValue = trend.reduce((max, point) => Math.max(max, point.turnover), 0);
@@ -211,21 +214,19 @@ export const buildAbcRows = (
 
   const totalValue = Array.from(aggregates.values()).reduce((sum, agg) => sum + agg.value, 0);
 
-  return ABC_CLASSES.filter((label) => aggregates.has(label)).map((label) => {
-    const agg = aggregates.get(label) as {
-      count: number;
-      value: number;
-      turnsSum: number;
-      turnsCount: number;
-    };
-    return {
+  const rows: AbcRow[] = [];
+  for (const label of ABC_CLASSES) {
+    const agg = aggregates.get(label);
+    if (!agg) continue;
+    rows.push({
       label,
       count: agg.count,
       sharePercent: totalValue > 0 ? (agg.value / totalValue) * 100 : 0,
       turns: agg.turnsCount > 0 ? agg.turnsSum / agg.turnsCount : null,
       policy: ABC_POLICY[label],
-    };
-  });
+    });
+  }
+  return rows;
 };
 
 export const isLowStock = (item: InventoryItem): boolean => {

@@ -143,21 +143,23 @@ export const CountriesOptions: Option[] = countries.map((country) => ({
 export const DEFAULT_COUNTRY_DIAL_CODE = '+1';
 export const DEFAULT_COUNTRY_CODE = 'US';
 
-export const CountryDialCodeOptions: CountryDialCodeOption[] = countries
-  .filter((country) => Boolean(country.dial_code))
-  .map((country) => {
-    const dialCode = country.dial_code ?? '';
-    const countryCode = country.code ?? country.name;
-    const flagSuffix = country.flag ? ` ${country.flag}` : '';
-    return {
-      value: `${countryCode}-${dialCode}`,
-      label: `${dialCode} ${country.name}${flagSuffix}`,
-      dialCode,
-      countryCode,
-      countryName: country.name,
-      flag: country.flag,
-    };
+export const CountryDialCodeOptions: CountryDialCodeOption[] = countries.reduce<
+  CountryDialCodeOption[]
+>((options, country) => {
+  const dialCode = country.dial_code ?? '';
+  if (!dialCode) return options;
+  const countryCode = country.code ?? country.name;
+  const flagSuffix = country.flag ? ` ${country.flag}` : '';
+  options.push({
+    value: `${countryCode}-${dialCode}`,
+    label: `${dialCode} ${country.name}${flagSuffix}`,
+    dialCode,
+    countryCode,
+    countryName: country.name,
+    flag: country.flag,
   });
+  return options;
+}, []);
 
 export const getDefaultCountryDialCodeOption = (): CountryDialCodeOption =>
   CountryDialCodeOptions.find((option) => option.countryCode === DEFAULT_COUNTRY_CODE) ??

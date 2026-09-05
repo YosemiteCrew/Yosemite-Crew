@@ -97,7 +97,7 @@ const SpecialityNameEditor = ({
         type="button"
         aria-label={`Rename ${specialityName}`}
         onClick={onEditClick}
-        className="flex items-center justify-center size-9 rounded-full border border-transparent hover:border-card-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand transition-all shrink-0 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+        className="flex items-center justify-center size-9 rounded-full border border-transparent hover:border-card-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand transition-[border-color,opacity,box-shadow] shrink-0 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
       >
         <RiEdit2Line size={18} color="var(--color-neutral-700)" aria-hidden="true" />
       </button>

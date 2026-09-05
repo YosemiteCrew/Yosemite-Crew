@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import Github from '@/app/ui/widgets/Github/Github';
@@ -232,6 +232,59 @@ describe('Github Component', () => {
     clearTimeoutSpy.mockClear();
     unmount();
     expect(clearTimeoutSpy).toHaveBeenCalledWith(abortTimerIds[0]);
+
+    setTimeoutSpy.mockRestore();
+    clearTimeoutSpy.mockRestore();
+  });
+
+  it('falls back to a timer when requestIdleCallback is unavailable', async () => {
+    delete (globalThis.window as any).requestIdleCallback;
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ stargazers_count: 4200 }),
+    });
+
+    render(<Github />);
+    expect(mockFetch).not.toHaveBeenCalled();
+
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/4.2k/i)).toBeInTheDocument();
+    });
+  });
+
+  it('cancels a pending idle callback on unmount', () => {
+    mockFetch.mockReturnValue(new Promise(() => {}));
+    (globalThis.window as any).requestIdleCallback = () => 7;
+
+    const { unmount } = render(<Github />);
+    unmount();
+
+    expect((globalThis.window as any).cancelIdleCallback).toHaveBeenCalledWith(7);
+  });
+
+  it('clears the deferred-load fallback timer on unmount', () => {
+    delete (globalThis.window as any).requestIdleCallback;
+    const setTimeoutSpy = jest.spyOn(globalThis, 'setTimeout');
+    const clearTimeoutSpy = jest.spyOn(globalThis, 'clearTimeout');
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ stargazers_count: 1 }),
+    });
+
+    const { unmount } = render(<Github />);
+
+    const fallbackIds = setTimeoutSpy.mock.calls.flatMap((call, i) =>
+      call[1] === 1000 ? [setTimeoutSpy.mock.results[i].value] : []
+    );
+    expect(fallbackIds).toHaveLength(1);
+
+    clearTimeoutSpy.mockClear();
+    unmount();
+    expect(clearTimeoutSpy).toHaveBeenCalledWith(fallbackIds[0]);
 
     setTimeoutSpy.mockRestore();
     clearTimeoutSpy.mockRestore();

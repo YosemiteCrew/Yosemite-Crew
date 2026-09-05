@@ -238,10 +238,12 @@ export function getFirstRelevantTimedEventStart(
   rangeEnd: Date,
   now = new Date()
 ) {
-  const startsInRange = events
-    .map((event) => event.startTime)
-    .filter((startTime) => startTime >= rangeStart && startTime < rangeEnd)
-    .sort((a, b) => a.getTime() - b.getTime());
+  const startsInRange: Date[] = [];
+  for (const event of events) {
+    const startTime = event.startTime;
+    if (startTime >= rangeStart && startTime < rangeEnd) startsInRange.push(startTime);
+  }
+  startsInRange.sort((a, b) => a.getTime() - b.getTime());
 
   const upcoming = startsInRange.find((startTime) => startTime >= now);
   return upcoming ?? startsInRange[0] ?? null;

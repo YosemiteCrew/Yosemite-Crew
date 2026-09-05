@@ -97,11 +97,12 @@ const parseSyncModeMap = (): Record<string, TimezoneSyncMode> => {
     TIMEZONE_SYNC_MODE_BY_ORG_KEY
   );
   if (!parsed) return {};
-  const entries = Object.entries(parsed)
-    .map(([key, value]) => [key, String(value).trim().toLowerCase()] as const)
-    .filter(([, value]) => value === 'device' || value === 'custom')
-    .map(([key, value]) => [key, value as TimezoneSyncMode] as const);
-  return Object.fromEntries(entries);
+  const modes: Record<string, TimezoneSyncMode> = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    const mode = String(value).trim().toLowerCase();
+    if (mode === 'device' || mode === 'custom') modes[key] = mode;
+  }
+  return modes;
 };
 
 const writeSyncModeMap = (value: Record<string, TimezoneSyncMode>): boolean => {
@@ -286,16 +287,53 @@ export const formatUtcClockTimeLabel = (value: string): string => {
   });
 };
 
+// Intl.DateTimeFormat construction is the expensive part of every timezone-aware read, and these
+// helpers run in tight loops (once per calendar cell, once per slot). A formatter is immutable and
+// reusable for any instant, so cache one per timezone per option set instead of rebuilding per call.
+const cachedZoneFormatter = (options: Intl.DateTimeFormatOptions) => {
+  const cache = new Map<string, Intl.DateTimeFormat>();
+  return (timeZone: string): Intl.DateTimeFormat => {
+    const formatter =
+      cache.get(timeZone) ?? new Intl.DateTimeFormat('en-US', { ...options, timeZone });
+    cache.set(timeZone, formatter);
+    return formatter;
+  };
+};
+
+const getClockFormatter = cachedZoneFormatter({
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+const getDatePartsFormatter = cachedZoneFormatter({
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+const getPreciseClockFormatter = cachedZoneFormatter({
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
+const getOffsetFormatter = cachedZoneFormatter({
+  timeZoneName: 'shortOffset',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
 export const utcClockTimeToMinutesInPreferredTimeZone = (value: string): number => {
   const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
   if (!match) return 0;
   const date = new Date(Date.UTC(1970, 0, 1, Number(match[1]), Number(match[2]), 0, 0));
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: getPreferredTimeZone(),
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(date);
+  const parts = getClockFormatter(getPreferredTimeZone()).formatToParts(date);
   const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? '0');
   const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? '0');
   return hour * 60 + minute;
@@ -313,15 +351,7 @@ export const utcClockTimeToPreferredTimeZoneClock = (value: string): PreferredTi
   const tz = getPreferredTimeZone();
 
   const parseDateParts = (date: Date) => {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: tz,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    }).formatToParts(date);
+    const parts = getDatePartsFormatter(tz).formatToParts(date);
 
     const getPart = (type: Intl.DateTimeFormatPartTypes) =>
       Number(parts.find((part) => part.type === type)?.value ?? '0');
@@ -360,15 +390,7 @@ export type PreferredTimeZoneDateParts = {
 };
 
 export const getDatePartsInPreferredTimeZone = (value: Date): PreferredTimeZoneDateParts => {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: getPreferredTimeZone(),
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(value);
+  const parts = getDatePartsFormatter(getPreferredTimeZone()).formatToParts(value);
 
   const getPart = (type: Intl.DateTimeFormatPartTypes) =>
     Number(parts.find((part) => part.type === type)?.value ?? '0');
@@ -400,13 +422,7 @@ export const getMinutesSinceStartOfDayInPreferredTimeZone = (value: Date): numbe
 };
 
 export const getPreciseMinutesSinceStartOfDayInPreferredTimeZone = (value: Date): number => {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: getPreferredTimeZone(),
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(value);
+  const parts = getPreciseClockFormatter(getPreferredTimeZone()).formatToParts(value);
 
   const getPart = (type: Intl.DateTimeFormatPartTypes) =>
     Number(parts.find((part) => part.type === type)?.value ?? '0');
@@ -419,25 +435,6 @@ export const getPreciseMinutesSinceStartOfDayInPreferredTimeZone = (value: Date)
 
 export const getHourInPreferredTimeZone = (value: Date): number => {
   return getDatePartsInPreferredTimeZone(value).hour;
-};
-
-// Intl.DateTimeFormat construction is the expensive part of an offset lookup, and the offset
-// helper is called in tight loops (e.g. once per cell when building the phone month grid). The
-// formatter is immutable and reusable for any instant, so cache one per timezone.
-const offsetFormatterByTimeZone = new Map<string, Intl.DateTimeFormat>();
-
-const getOffsetFormatter = (timeZone: string): Intl.DateTimeFormat => {
-  const cached = offsetFormatterByTimeZone.get(timeZone);
-  if (cached) return cached;
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    timeZoneName: 'shortOffset',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  });
-  offsetFormatterByTimeZone.set(timeZone, formatter);
-  return formatter;
 };
 
 const getOffsetMinutesForTimeZoneAtInstant = (timeZone: string, instant: Date): number => {

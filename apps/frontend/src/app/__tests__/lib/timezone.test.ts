@@ -209,6 +209,21 @@ describe('timezone utils', () => {
     expect(getTimezoneSyncModeForOrg('org-legacy')).toBe('custom');
   });
 
+  it('setTimezoneSyncModeForOrg normalises stored modes and drops invalid ones', () => {
+    window.localStorage.clear();
+    window.localStorage.setItem(
+      'yc_timezone_sync_mode_by_org',
+      JSON.stringify({ 'org-bad': 'nonsense', 'org-pad': '  CUSTOM ' })
+    );
+    expect(setTimezoneSyncModeForOrg('org-1', 'device')).toBe(true);
+    expect(JSON.parse(window.localStorage.getItem('yc_timezone_sync_mode_by_org') ?? '{}')).toEqual(
+      {
+        'org-pad': 'custom',
+        'org-1': 'device',
+      }
+    );
+  });
+
   it('setPreferredTimeZone returns false when timezone not in canonical list', () => {
     // Mock a timezone that is valid but somehow not in canonical list
     // This is tested indirectly — setPreferredTimeZone for valid TZ should succeed

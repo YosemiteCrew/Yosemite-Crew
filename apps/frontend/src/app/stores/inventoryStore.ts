@@ -1,10 +1,10 @@
-import { create } from "zustand";
+import { create } from 'zustand';
 import {
   InventoryItem,
   InventoryTurnoverItem,
-} from "@/app/features/inventory/pages/Inventory/types";
+} from '@/app/features/inventory/pages/Inventory/types';
 
-type InventoryStatus = "idle" | "loading" | "loaded" | "error";
+type InventoryStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 type InventoryState = {
   itemsById: Record<string, InventoryItem>;
@@ -47,10 +47,7 @@ const withError = (
   [orgId]: error,
 });
 
-const withTimestamp = (
-  lastFetchedByOrgId: Record<string, string | null>,
-  orgId: string
-) => ({
+const withTimestamp = (lastFetchedByOrgId: Record<string, string | null>, orgId: string) => ({
   ...lastFetchedByOrgId,
   [orgId]: new Date().toISOString(),
 });
@@ -82,7 +79,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
       return {
         itemsById,
         itemIdsByOrgId: { ...state.itemIdsByOrgId, [orgId]: nextIds },
-        statusByOrgId: withStatus(state.statusByOrgId, orgId, "loaded"),
+        statusByOrgId: withStatus(state.statusByOrgId, orgId, 'loaded'),
         errorByOrgId: withError(state.errorByOrgId, orgId, null),
         lastFetchedByOrgId: withTimestamp(state.lastFetchedByOrgId, orgId),
       };
@@ -99,14 +96,12 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         [id]: existing ? { ...existing, ...item, id } : { ...item, id },
       };
       const currentIds = state.itemIdsByOrgId[orgId] ?? [];
-      const itemIds = currentIds.includes(id)
-        ? currentIds
-        : [...currentIds, id];
+      const itemIds = currentIds.includes(id) ? currentIds : [...currentIds, id];
 
       return {
         itemsById,
         itemIdsByOrgId: { ...state.itemIdsByOrgId, [orgId]: itemIds },
-        statusByOrgId: withStatus(state.statusByOrgId, orgId, "loaded"),
+        statusByOrgId: withStatus(state.statusByOrgId, orgId, 'loaded'),
         errorByOrgId: withError(state.errorByOrgId, orgId, null),
       };
     }),
@@ -133,7 +128,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
   setTurnoverForOrg: (orgId, items) =>
     set((state) => ({
       turnoverByOrgId: { ...state.turnoverByOrgId, [orgId]: items },
-      statusByOrgId: withStatus(state.statusByOrgId, orgId, "loaded"),
+      statusByOrgId: withStatus(state.statusByOrgId, orgId, 'loaded'),
       errorByOrgId: withError(state.errorByOrgId, orgId, null),
       lastFetchedByOrgId: withTimestamp(state.lastFetchedByOrgId, orgId),
     })),
@@ -141,7 +136,12 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
   getInventoryByOrgId: (orgId) => {
     const { itemsById, itemIdsByOrgId } = get();
     const ids = itemIdsByOrgId[orgId] ?? [];
-    return ids.map((id) => itemsById[id]).filter(Boolean);
+    const items: InventoryItem[] = [];
+    for (const id of ids) {
+      const item = itemsById[id];
+      if (item) items.push(item);
+    }
+    return items;
   },
 
   getTurnoverByOrgId: (orgId) => {
@@ -151,20 +151,20 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
 
   startLoading: (orgId) =>
     set((state) => ({
-      statusByOrgId: withStatus(state.statusByOrgId, orgId, "loading"),
+      statusByOrgId: withStatus(state.statusByOrgId, orgId, 'loading'),
       errorByOrgId: withError(state.errorByOrgId, orgId, null),
     })),
 
   markLoaded: (orgId) =>
     set((state) => ({
-      statusByOrgId: withStatus(state.statusByOrgId, orgId, "loaded"),
+      statusByOrgId: withStatus(state.statusByOrgId, orgId, 'loaded'),
       errorByOrgId: withError(state.errorByOrgId, orgId, null),
       lastFetchedByOrgId: withTimestamp(state.lastFetchedByOrgId, orgId),
     })),
 
   setError: (orgId, message) =>
     set((state) => ({
-      statusByOrgId: withStatus(state.statusByOrgId, orgId, "error"),
+      statusByOrgId: withStatus(state.statusByOrgId, orgId, 'error'),
       errorByOrgId: withError(state.errorByOrgId, orgId, message),
       // Prevent immediate retry loops when API returns errors (e.g., 429)
       lastFetchedByOrgId: withTimestamp(state.lastFetchedByOrgId, orgId),

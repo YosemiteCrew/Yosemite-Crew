@@ -477,13 +477,11 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   const handleChange = useCallback(
     (key: string, value: any) => {
       const resets = fieldResets?.[key] ?? [];
-      const resetValues = resets.reduce<Record<string, string>>(
-        (acc, k) => ({ ...acc, [k]: '' }),
-        {}
+      const resetValues: Record<string, string> = Object.fromEntries(
+        resets.map((k) => [k, ''] as const)
       );
-      const resetErrors = resets.reduce<Record<string, undefined>>(
-        (acc, k) => ({ ...acc, [k]: undefined }),
-        {}
+      const resetErrors: Record<string, undefined> = Object.fromEntries(
+        resets.map((k) => [k, undefined] as const)
       );
       setFormValues((prev) => ({ ...prev, [key]: value, ...resetValues }));
       setFormValuesErrors((prev) => ({ ...prev, [key]: undefined, ...resetErrors }));
@@ -503,9 +501,8 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   const handleMultiChange = (values: Record<string, any>) => {
     setFormValues((prev) => ({ ...prev, ...values }));
     setFormValuesErrors((prev) => {
-      const cleared = Object.keys(values).reduce<Record<string, undefined>>(
-        (acc, k) => ({ ...acc, [k]: undefined }),
-        {}
+      const cleared: Record<string, undefined> = Object.fromEntries(
+        Object.keys(values).map((k) => [k, undefined] as const)
       );
       return { ...prev, ...cleared };
     });

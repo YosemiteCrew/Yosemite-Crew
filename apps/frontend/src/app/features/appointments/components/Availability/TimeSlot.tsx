@@ -92,7 +92,7 @@ const TimeSlot: React.FC<TimeSlotProps> = ({
             <button
               type="button"
               key={opt.value}
-              className="border-none outline-none bg-neutral-0 text-center py-2 hover:bg-card-hover! rounded-2xl! transition-all duration-300"
+              className="border-none outline-none bg-neutral-0 text-center py-2 hover:bg-card-hover! rounded-2xl! transition-colors duration-300"
               onClick={() => handleTimeChange(opt.value)}
             >
               <span className="text-body-4 text-text-primary ">{opt.label}</span>

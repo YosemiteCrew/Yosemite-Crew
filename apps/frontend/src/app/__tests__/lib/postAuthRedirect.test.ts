@@ -13,6 +13,7 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import { useUserProfileStore } from '@/app/stores/profileStore';
 import { useAvailabilityStore } from '@/app/stores/availabilityStore';
 import { useSpecialityStore } from '@/app/stores/specialityStore';
+import { computeTeamOnboardingStep } from '@/app/lib/teamOnboarding';
 
 jest.mock('@/app/features/organization/services/orgService', () => ({
   loadOrgs: jest.fn(),
@@ -138,6 +139,34 @@ describe('resolvePostAuthRedirect', () => {
     await expect(resolvePostAuthRedirect({ fallbackRole: 'owner' })).resolves.toBe(
       '/create-org?orgId=org-1'
     );
+  });
+
+  // The availability index can name an id the by-id map never received (a partial
+  // load, or a slot removed between the two writes). Passing that through as an
+  // `undefined` slot would make the onboarding step count a slot that isn't there.
+  it('drops availability ids that have no stored slot before scoring onboarding', async () => {
+    (useOrgStore.getState as jest.Mock).mockReturnValue({
+      membershipsByOrgId: { 'org-1': { roleDisplay: 'Member' } },
+      orgIds: ['org-1'],
+      orgsById: { 'org-1': { _id: 'org-1', isVerified: true, type: 'clinic' } },
+      primaryOrgId: 'org-1',
+    });
+    (useUserProfileStore.getState as jest.Mock).mockReturnValue({
+      profilesByOrgId: { 'org-1': { _id: 'profile-1' } },
+    });
+    (useAvailabilityStore.getState as jest.Mock).mockReturnValue({
+      availabilityIdsByOrgId: { 'org-1': ['slot-1', 'ghost-slot'] },
+      availabilitiesById: { 'slot-1': { _id: 'slot-1', day: 'Monday' } },
+    });
+
+    await resolvePostAuthRedirect({ fallbackRole: 'member' });
+
+    // `toHaveBeenCalledWith([slot])` also passes for `[slot, undefined]` - Jest
+    // ignores a trailing undefined - so the length is what proves the drop.
+    const [profileArg, slotsArg] = (computeTeamOnboardingStep as jest.Mock).mock.calls[0];
+    expect(profileArg).toEqual({ _id: 'profile-1' });
+    expect(slotsArg).toHaveLength(1);
+    expect(slotsArg[0]).toEqual({ _id: 'slot-1', day: 'Monday' });
   });
 
   it('falls back to the default open screen when org loading fails', async () => {

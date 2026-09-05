@@ -233,6 +233,54 @@ describe('workspaceTemplateService', () => {
     });
   });
 
+  it('drops published prescription templates that carry no medication rows', async () => {
+    getDataMock
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({
+        data: [
+          // No schema snapshot at all, so it maps to zero prescription rows.
+          { ...template('tpl-rx-empty', 'Blank prescription'), kind: 'PRESCRIPTION' },
+          {
+            ...template('tpl-rx-rows', 'Otitis prescription'),
+            kind: 'PRESCRIPTION',
+            versions: [
+              {
+                id: 'ver-rx-rows',
+                templateId: 'tpl-rx-rows',
+                version: 1,
+                schemaSnapshot: {
+                  sections: [
+                    {
+                      id: 'medications',
+                      title: 'Medications',
+                      fields: [
+                        {
+                          key: 'medicationLine',
+                          label: 'Medication lines',
+                          type: 'medicationLine',
+                          defaultValue: [{ inventoryItemId: 'inv-ear', medicineName: 'Ear drops' }],
+                        },
+                      ],
+                    },
+                  ],
+                },
+                renderConfigSnapshot: null,
+                validationSnapshot: null,
+                createdBy: 'user-1',
+                createdAt: new Date('2026-04-20T09:00:00.000Z'),
+              },
+            ],
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ data: [] });
+
+    // An empty template would show up in the picker and prefill nothing.
+    const templates = await listPrescriptionTemplatesForWorkspace('org-1');
+
+    expect(templates.map((option) => option.id)).toEqual(['tpl-rx-rows']);
+  });
+
   it('maps backend templates to SOAP template options', () => {
     expect(templateToSoapTemplate({ ...template('tpl-yc'), ownership: 'YC_LIBRARY' })).toEqual({
       id: 'tpl-yc',
@@ -322,6 +370,39 @@ describe('workspaceTemplateService', () => {
     expect(mapped.content?.plan).toBe('<p>Rx</p>');
     // Sections that map to no S/O/A/P field are ignored.
     expect(mapped.content?.objective).toBeUndefined();
+  });
+
+  it('does not re-emit a canonical field label through the title-keyword fallback', () => {
+    const withSchema = {
+      ...template('tpl-mixed-keys'),
+      schemaSnapshot: {
+        sections: [
+          {
+            id: 's1',
+            title: 'Objective',
+            fields: [
+              // Canonical key with no authored default: the field-key pass leaves
+              // `objective` unset, so the title-keyword fallback still runs for it.
+              { key: 'objective', label: 'Objective findings', type: 'richtext' },
+              {
+                key: 'vitalsNote',
+                label: 'Vitals note',
+                type: 'richtext',
+                defaultValue: '<p>HR 90</p>',
+              },
+            ],
+          },
+          // A mapped section that declares no fields at all contributes nothing.
+          { id: 's2', title: 'Plan' },
+        ],
+      },
+    } as unknown as TemplateLike;
+
+    // Only the non-canonical field contributes. A canonical key belongs to the
+    // field-key pass, so the fallback must not paste its label in as well.
+    const content = templateToSoapTemplate(withSchema).content;
+    expect(content?.objective).toBe('<p>HR 90</p>');
+    expect(content?.plan).toBeUndefined();
   });
 
   it('resolves the SOAP template for an encounter context', async () => {
@@ -519,6 +600,53 @@ describe('workspaceTemplateService', () => {
     });
 
     await expect(resolveScheduleTasksFromTemplate('org-1', 'tpl-schedule-2')).resolves.toEqual([]);
+  });
+
+  it('skips schedule task blocks without a usable name', async () => {
+    getDataMock.mockResolvedValueOnce({
+      data: {
+        ...template('tpl-schedule-3', 'Partly authored pathway'),
+        kind: 'TASK_ASSIGNMENT',
+        versions: [
+          {
+            version: 1,
+            schemaSnapshot: {
+              sections: [
+                {
+                  id: 'schedule',
+                  title: 'Schedule',
+                  fields: [
+                    {
+                      key: 'taskBlocks',
+                      type: 'repeater',
+                      label: 'Task blocks',
+                      defaultValue: [
+                        { name: '   ', category: 'CARE', timeOfDay: '08:00' },
+                        { category: 'CARE', timeOfDay: '08:30' },
+                        {
+                          name: 'Record vitals',
+                          category: 'CARE',
+                          description: 'Check temperature and appetite',
+                          timeOfDay: '09:00',
+                        },
+                        { name: 'Walk patient', category: 'CARE', timeOfDay: '11:00' },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    // A blank or missing name would stage an unlabelled row on the timeline. The
+    // surviving rows keep their authored order.
+    await expect(resolveScheduleTasksFromTemplate('org-1', 'tpl-schedule-3')).resolves.toEqual([
+      expect.objectContaining({ description: 'Record vitals', time: '9:00 AM' }),
+      expect.objectContaining({ description: 'Walk patient', time: '11:00 AM' }),
+    ]);
   });
 
   it('updates catalog links for a workspace template', async () => {

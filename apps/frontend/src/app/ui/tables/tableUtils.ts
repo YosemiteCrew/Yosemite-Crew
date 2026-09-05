@@ -44,10 +44,12 @@ export const buildPagerPageList = (current: number, total: number): PagerEntry[]
 };
 
 export const getInvoiceItemNames = (items: InvoiceItem[]): string => {
-  return items
-    .map((item) => item.name?.trim())
-    .filter(Boolean)
-    .join(', ');
+  const names: string[] = [];
+  for (const item of items) {
+    const name = item.name?.trim();
+    if (name) names.push(name);
+  }
+  return names.join(', ');
 };
 
 export const getInvoiceStatusStyle = (status: string) => {
@@ -108,19 +110,28 @@ export const getInventoryStatusStyle = (status: string) => {
   return getStatusBadgeStyle(status);
 };
 
+const weeklyWorkingHoursFormatter = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
 export const formatWeeklyWorkingHours = (value: Team['weeklyWorkingHours']) => {
   const parsed = Number(value);
   if (Number.isNaN(parsed)) {
     return value || '0';
   }
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(parsed);
+  return weeklyWorkingHoursFormatter.format(parsed);
 };
 
 /** Shown when a speciality record carries neither a name nor a code. */
 export const UNNAMED_SPECIALITY = 'Unnamed speciality';
+
+const toSpecialityName = (spec: unknown): string => {
+  if (typeof spec === 'string') return spec.trim();
+  if (!spec || typeof spec !== 'object') return '';
+  const record = spec as { name?: string; code?: string };
+  return (record.name ?? '').trim() || (record.code ?? '').trim() || UNNAMED_SPECIALITY;
+};
 
 /**
  * Specialities arrive either as plain names or as records. A record with no
@@ -132,14 +143,12 @@ export const UNNAMED_SPECIALITY = 'Unnamed speciality';
  */
 export const toSpecialityNames = (value: Team['speciality']): string[] => {
   if (!Array.isArray(value)) return [];
-  return value
-    .map((spec: unknown) => {
-      if (typeof spec === 'string') return spec.trim();
-      if (!spec || typeof spec !== 'object') return '';
-      const record = spec as { name?: string; code?: string };
-      return (record.name ?? '').trim() || (record.code ?? '').trim() || UNNAMED_SPECIALITY;
-    })
-    .filter(Boolean);
+  const names: string[] = [];
+  for (const spec of value as unknown[]) {
+    const name = toSpecialityName(spec);
+    if (name) names.push(name);
+  }
+  return names;
 };
 
 export const getAvailabilityStatusStyle = (status: string) => {

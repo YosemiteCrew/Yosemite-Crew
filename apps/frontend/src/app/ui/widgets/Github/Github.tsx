@@ -74,6 +74,37 @@ const createStarsStore = (o: string, r: string): StarsStore => {
   };
 };
 
+const IDLE_FALLBACK_MS = 1000;
+const REFRESH_INTERVAL_MS = 15 * 60 * 1000;
+
+// Defer the third-party GitHub API call off the critical load path, then refresh
+// every 15 minutes while the banner is mounted. Firing it synchronously on mount
+// keeps the network busy and prevents `networkidle` from settling (which flakes
+// the Playwright a11y run); the star count is non-essential chrome, so let the
+// page reach idle first, then fetch. Returns the disposer for both timers.
+const scheduleStarRefresh = (run: () => void): (() => void) => {
+  const idleWindow = globalThis.window as
+    | (Window & {
+        requestIdleCallback?: (cb: () => void) => number;
+        cancelIdleCallback?: (handle: number) => void;
+      })
+    | undefined;
+  let idleHandle: number | undefined;
+  let idleTimeout: ReturnType<typeof setTimeout> | undefined;
+  if (idleWindow?.requestIdleCallback) {
+    idleHandle = idleWindow.requestIdleCallback(() => run());
+  } else {
+    idleTimeout = setTimeout(run, IDLE_FALLBACK_MS);
+  }
+  const intervalId = setInterval(run, REFRESH_INTERVAL_MS);
+
+  return () => {
+    clearInterval(intervalId);
+    if (idleHandle !== undefined) idleWindow?.cancelIdleCallback?.(idleHandle);
+    if (idleTimeout !== undefined) clearTimeout(idleTimeout);
+  };
+};
+
 const Github = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [starsStore] = useState(() => createStarsStore(owner, repo));
@@ -129,32 +160,11 @@ const Github = () => {
         clearTimeout(t);
       }
     }
-    // Defer the third-party GitHub API call off the critical load path. Firing it
-    // synchronously on mount keeps the network busy and prevents `networkidle` from
-    // settling (which flakes the Playwright a11y run); the star count is non-essential
-    // chrome, so let the page reach idle first, then fetch.
-    const idleWindow = globalThis.window as
-      | (Window & {
-          requestIdleCallback?: (cb: () => void) => number;
-          cancelIdleCallback?: (handle: number) => void;
-        })
-      | undefined;
-    let idleHandle: number | undefined;
-    let idleTimeout: ReturnType<typeof setTimeout> | undefined;
-    if (idleWindow?.requestIdleCallback) {
-      idleHandle = idleWindow.requestIdleCallback(() => loadStars());
-    } else {
-      idleTimeout = setTimeout(loadStars, 1000);
-    }
-
-    // optional: refresh every 15 minutes while banner is mounted
-    const id = setInterval(loadStars, 15 * 60 * 1000);
+    const stopRefresh = scheduleStarRefresh(() => void loadStars());
 
     return () => {
       cancelled = true;
-      clearInterval(id);
-      if (idleHandle !== undefined) idleWindow?.cancelIdleCallback?.(idleHandle);
-      if (idleTimeout !== undefined) clearTimeout(idleTimeout);
+      stopRefresh();
       // Cancels an abort timer still in flight at unmount; clearing an already
       // cleared id is a no-op.
       if (abortTimer !== undefined) clearTimeout(abortTimer);

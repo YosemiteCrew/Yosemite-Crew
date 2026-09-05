@@ -110,6 +110,18 @@ describe('usePrimaryAvailability', () => {
     expect(result.current.availabilities).toEqual([{ id: 'a1' }]);
   });
 
+  it('drops ids with no availability row', () => {
+    mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: 'org-1' }));
+    mockUseAvailabilityStore.mockImplementation((selector: any) =>
+      selector({
+        availabilityIdsByOrgId: { 'org-1': ['a1', 'missing', 'a2'] },
+        availabilitiesById: { a1: { id: 'a1' }, a2: { id: 'a2' } },
+      })
+    );
+    const { result } = renderHook(() => usePrimaryAvailability());
+    expect(result.current.availabilities).toEqual([{ id: 'a1' }, { id: 'a2' }]);
+  });
+
   it('prefers current user rows when base/all data is mixed', () => {
     mockUseOrgStore.mockImplementation((selector: any) => selector({ primaryOrgId: 'org-1' }));
     mockUseAvailabilityStore.mockImplementation((selector: any) =>

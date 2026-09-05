@@ -233,6 +233,27 @@ const addLocalSegmentsByDay = (
   }
 };
 
+const toApiAvailabilities = (
+  byDay: Map<string, Array<{ startTime: string; endTime: string }>>
+): ApiAvailability['availabilities'] => {
+  const availabilities: ApiAvailability['availabilities'] = [];
+  for (const [dayOfWeek, slots] of byDay) {
+    const merged = mergeIntervals(
+      slots.map((slot) => ({
+        start: slot.startTime,
+        end: slot.endTime,
+      }))
+    ).map((slot) => ({
+      startTime: slot.start,
+      endTime: slot.end,
+    }));
+    if (merged.length > 0) {
+      availabilities.push({ dayOfWeek, slots: merged });
+    }
+  }
+  return availabilities;
+};
+
 export const convertAvailability = (availability: AvailabilityState): ApiAvailability => {
   const byDay = new Map<string, Array<{ startTime: string; endTime: string }>>();
 
@@ -258,22 +279,7 @@ export const convertAvailability = (availability: AvailabilityState): ApiAvailab
     }
   }
 
-  const availabilities = Array.from(byDay.entries())
-    .map(([dayOfWeek, slots]) => ({
-      dayOfWeek,
-      slots: mergeIntervals(
-        slots.map((slot) => ({
-          start: slot.startTime,
-          end: slot.endTime,
-        }))
-      ).map((slot) => ({
-        startTime: slot.start,
-        endTime: slot.end,
-      })),
-    }))
-    .filter((entry) => entry.slots.length > 0);
-
-  return { availabilities };
+  return { availabilities: toApiAvailabilities(byDay) };
 };
 
 export type ApiSlot = {

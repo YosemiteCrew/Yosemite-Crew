@@ -45,12 +45,13 @@ export const getCatalogDependencySummary = (error: unknown): string | undefined 
     appointments: ['appointment', 'appointments'],
     invoices: ['invoice', 'invoices'],
   };
-  const parts = Object.entries(details)
-    .filter(([key, value]) => typeof value === 'number' && value > 0 && labels[key])
-    .map(([key, value]) => {
-      const count = value as number;
-      const [singular, plural] = labels[key];
-      return `${count} ${count === 1 ? singular : plural}`;
-    });
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(details)) {
+    const label = labels[key];
+    if (typeof value === 'number' && value > 0 && label) {
+      const [singular, plural] = label;
+      parts.push(`${value} ${value === 1 ? singular : plural}`);
+    }
+  }
   return parts.length ? parts.join(', ') : undefined;
 };

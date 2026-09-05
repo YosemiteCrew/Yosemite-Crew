@@ -27,7 +27,12 @@ export const useSpecialitiesForPrimaryOrg = (): Speciality[] => {
   return useMemo(() => {
     if (!primaryOrgId) return [];
     const ids = specialityIdsByOrgId[primaryOrgId] ?? [];
-    return ids.map((id) => specialitiesById[id]).filter(Boolean);
+    const result: Speciality[] = [];
+    for (const id of ids) {
+      const speciality = specialitiesById[id];
+      if (speciality) result.push(speciality);
+    }
+    return result;
   }, [primaryOrgId, specialitiesById, specialityIdsByOrgId]);
 };
 

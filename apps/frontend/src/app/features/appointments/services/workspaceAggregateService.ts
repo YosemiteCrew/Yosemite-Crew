@@ -193,25 +193,29 @@ const isMedicationTreatmentItem = (item: Record<string, unknown>): boolean =>
   MEDICATION_TREATMENT_KINDS.has(asString(item.servicePackageKind) ?? '') ||
   Boolean(asString(item.prescriptionId));
 
-const normalizeTreatmentItems = (items: Record<string, unknown>[]): LineItem[] =>
-  items
-    .filter((item) => !isMedicationTreatmentItem(item))
-    .map((item, index) => {
-      const productSnapshot = isRecord(item.productSnapshot) ? item.productSnapshot : {};
-      const priceSnapshot = isRecord(item.priceSnapshot) ? item.priceSnapshot : {};
-      const qty = asNumber(item.quantity) ?? 1;
-      const unitPriceCents = Math.round((asNumber(priceSnapshot.unitPrice) ?? 0) * 100);
-      return {
-        id: asString(item.id) ?? `treatment-${index + 1}`,
-        refId: asString(item.productId) ?? asString(item.id) ?? `product-${index + 1}`,
-        kind: asString(item.servicePackageKind) === 'PACKAGE' ? 'PACKAGE' : 'SERVICE',
-        name: asString(item.name) ?? asString(productSnapshot.name) ?? 'Treatment item',
-        qty,
-        unitPriceCents,
-        amountCents: unitPriceCents * qty,
-        billed: asString(item.billingStatus) === 'BILLED',
-      };
+const normalizeTreatmentItems = (items: Record<string, unknown>[]): LineItem[] => {
+  const lineItems: LineItem[] = [];
+  for (const item of items) {
+    if (isMedicationTreatmentItem(item)) continue;
+    // Fallback ids number the kept rows, not the position in `items`.
+    const index = lineItems.length;
+    const productSnapshot = isRecord(item.productSnapshot) ? item.productSnapshot : {};
+    const priceSnapshot = isRecord(item.priceSnapshot) ? item.priceSnapshot : {};
+    const qty = asNumber(item.quantity) ?? 1;
+    const unitPriceCents = Math.round((asNumber(priceSnapshot.unitPrice) ?? 0) * 100);
+    lineItems.push({
+      id: asString(item.id) ?? `treatment-${index + 1}`,
+      refId: asString(item.productId) ?? asString(item.id) ?? `product-${index + 1}`,
+      kind: asString(item.servicePackageKind) === 'PACKAGE' ? 'PACKAGE' : 'SERVICE',
+      name: asString(item.name) ?? asString(productSnapshot.name) ?? 'Treatment item',
+      qty,
+      unitPriceCents,
+      amountCents: unitPriceCents * qty,
+      billed: asString(item.billingStatus) === 'BILLED',
     });
+  }
+  return lineItems;
+};
 
 const medicationTreatmentItemToPrescription = (
   item: Record<string, unknown>,
@@ -361,12 +365,13 @@ const normalizePrescriptions = (
   // prescription ARTIFACT line does not. Index only backend link ids (treatment-item id and
   // prescriptionId) so a same-drug prescription does not become billed by inventory item alone.
   const billedMedicationIds = new Set<string>();
-  treatmentItems.filter(isMedicationTreatmentItem).forEach((item) => {
-    if (asString(item.billingStatus) !== 'BILLED') return;
-    [asString(item.id), asString(item.prescriptionId)]
-      .filter((value): value is string => Boolean(value))
-      .forEach((value) => billedMedicationIds.add(value));
-  });
+  for (const item of treatmentItems) {
+    if (!isMedicationTreatmentItem(item)) continue;
+    if (asString(item.billingStatus) !== 'BILLED') continue;
+    for (const value of [asString(item.id), asString(item.prescriptionId)]) {
+      if (value) billedMedicationIds.add(value);
+    }
+  }
   const isLineBilled = (line: PrescriptionItem, linkedIds: string[]): boolean =>
     Boolean(line.billed) ||
     billedMedicationIds.has(line.id) ||
@@ -387,16 +392,19 @@ const normalizePrescriptions = (
       byId.set(line.id, { ...line, billed, finalized: line.finalized || billed });
     });
   });
-  treatmentItems.filter(isMedicationTreatmentItem).forEach((item, index) => {
-    const prescription = medicationTreatmentItemToPrescription(item, index);
+  let medicationIndex = 0;
+  for (const item of treatmentItems) {
+    if (!isMedicationTreatmentItem(item)) continue;
+    const prescription = medicationTreatmentItemToPrescription(item, medicationIndex);
+    medicationIndex += 1;
     // The medication-kind treatment item and its prescription artifact share a backend link id, so
     // skip it when the artifact already produced lines.
     const linkedIds = [asString(item.prescriptionId), asString(item.id), prescription.id].filter(
       (value): value is string => Boolean(value)
     );
-    if (byId.has(prescription.id) || linkedIds.some((id) => sourceIds.has(id))) return;
+    if (byId.has(prescription.id) || linkedIds.some((id) => sourceIds.has(id))) continue;
     byId.set(prescription.id, prescription);
-  });
+  }
   return Array.from(byId.values());
 };
 
@@ -989,9 +997,10 @@ export const persistTreatmentItems = async (
   encounterId: string,
   items: LineItem[]
 ): Promise<void> => {
-  const keptPersistedIds = new Set(
-    items.map((item) => item.id).filter((id) => isPersistedTreatmentId(id))
-  );
+  const keptPersistedIds = new Set<string>();
+  for (const item of items) {
+    if (isPersistedTreatmentId(item.id)) keptPersistedIds.add(item.id);
+  }
 
   // Reconcile removals: any unbilled service/package row on the backend that the
   // clinician dropped from the local list must be deleted.

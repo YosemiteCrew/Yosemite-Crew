@@ -104,9 +104,10 @@ export const getTodaysAppointments = (
 ): AppointmentWithCompanion[] =>
   appointments
     .filter(
-      (appointment) => !EXCLUDED_BAND_STATUSES.has(String(appointment.status ?? '').toUpperCase())
+      (appointment) =>
+        !EXCLUDED_BAND_STATUSES.has(String(appointment.status ?? '').toUpperCase()) &&
+        isSameDay(appointmentStart(appointment), now)
     )
-    .filter((appointment) => isSameDay(appointmentStart(appointment), now))
     .sort((a, b) => appointmentStart(a).getTime() - appointmentStart(b).getTime())
     .slice(0, limit);
 
@@ -133,8 +134,11 @@ export const getLastVisit = (
 ): AppointmentWithCompanion | null => {
   if (!companionId) return null;
   const past = appointments
-    .filter((appointment) => appointment.companion?.id === companionId)
-    .filter((appointment) => appointmentStart(appointment).getTime() <= now.getTime())
+    .filter(
+      (appointment) =>
+        appointment.companion?.id === companionId &&
+        appointmentStart(appointment).getTime() <= now.getTime()
+    )
     .sort((a, b) => appointmentStart(b).getTime() - appointmentStart(a).getTime());
   return past[0] ?? null;
 };

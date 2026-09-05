@@ -81,7 +81,7 @@ export const findTeamMemberByIdentity = (
   const normalizedTarget = normalizeId(targetId);
   if (!normalizedTarget) return undefined;
   return teams.find((member) =>
-    getTeamMemberIdentityIds(member, normalizeId).includes(normalizedTarget)
+    getTeamMemberIdentityIds(member, normalizeId).some((id) => id === normalizedTarget)
   );
 };
 

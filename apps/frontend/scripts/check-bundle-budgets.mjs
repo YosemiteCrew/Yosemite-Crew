@@ -63,11 +63,12 @@ const main = async () => {
     );
   }
 
+  const sizes = await Promise.all(jsFiles.map(async (filePath) => (await stat(filePath)).size));
   const failures = [];
   const checked = [];
 
-  for (const filePath of jsFiles) {
-    const size = (await stat(filePath)).size;
+  for (const [index, filePath] of jsFiles.entries()) {
+    const size = sizes[index];
     const category = getChunkCategory(filePath);
     const budget =
       category === 'shared'

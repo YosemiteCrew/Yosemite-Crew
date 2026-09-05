@@ -590,6 +590,51 @@ describe('workspaceAggregateService', () => {
     expect(patch.stepStatus?.TREATMENT).toBe('COMPLETED');
   });
 
+  // Rows the backend sent without an id get a positional fallback id. The position
+  // is the row's place in its own section, not in the mixed `treatmentItems` list,
+  // so an interleaved medication must not leave a gap in the service numbering -
+  // and two un-identified medications must not collide on one fallback id and
+  // dedupe each other away.
+  it('numbers fallback ids per section when treatment items arrive without ids', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      treatmentItems: [
+        {
+          servicePackageKind: 'PROCEDURE',
+          name: 'First service',
+          quantity: 1,
+          priceSnapshot: { unitPrice: 10 },
+        },
+        {
+          servicePackageKind: 'MEDICATION',
+          name: 'First medicine',
+          quantity: 1,
+          priceSnapshot: { unitPrice: 5 },
+        },
+        {
+          servicePackageKind: 'PROCEDURE',
+          name: 'Second service',
+          quantity: 1,
+          priceSnapshot: { unitPrice: 20 },
+        },
+        {
+          servicePackageKind: 'MEDICATION',
+          name: 'Second medicine',
+          quantity: 1,
+          priceSnapshot: { unitPrice: 7 },
+        },
+      ],
+    });
+
+    expect(patch.services?.map((item) => [item.id, item.refId, item.name])).toEqual([
+      ['treatment-1', 'product-1', 'First service'],
+      ['treatment-2', 'product-2', 'Second service'],
+    ]);
+    expect(patch.prescription?.map((item) => [item.id, item.medicineName])).toEqual([
+      ['prescription-1', 'First medicine'],
+      ['prescription-2', 'Second medicine'],
+    ]);
+  });
+
   it('preserves the dispensed quantity on a package-expanded medication', () => {
     const patch = normalizeWorkspaceBootstrapForEncounter({
       treatmentItems: [

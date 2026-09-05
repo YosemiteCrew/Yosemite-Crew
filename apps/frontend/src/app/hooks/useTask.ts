@@ -25,7 +25,12 @@ export const useTasksForPrimaryOrg = (): Task[] => {
   return useMemo(() => {
     if (!primaryOrgId) return [];
     const ids = taskIdsByOrgId[primaryOrgId] ?? [];
-    return ids.map((id) => tasksById[id]).filter(Boolean);
+    const tasks: Task[] = [];
+    for (const id of ids) {
+      const task = tasksById[id];
+      if (task) tasks.push(task);
+    }
+    return tasks;
   }, [primaryOrgId, tasksById, taskIdsByOrgId]);
 };
 
