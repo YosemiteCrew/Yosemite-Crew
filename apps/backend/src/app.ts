@@ -1,7 +1,11 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 import fileUpload from "express-fileupload";
-import { getControlReports, hasFailedControl } from "./config/startup-controls";
+import {
+  getControlReports,
+  hasFailedControl,
+  recordControl,
+} from "./config/startup-controls";
 import { registerRoutes } from "./routers";
 import { StripeController } from "./controllers/web/stripe.controller";
 import { FinanceController } from "./controllers/app/finance.controller";
@@ -24,24 +28,35 @@ import {
 } from "@yosemite-crew/auth";
 import { authHooks } from "./config/auth-hooks";
 
-function isSuperTokensEnabled(): boolean {
+/**
+ * Three states, not two.
+ *
+ * `disabled` and `incomplete` both leave every /auth route a 404 while /health
+ * still answers 200, so from outside they are the same process - one of them
+ * deliberate, the other a deploy that lost a variable. The boolean this used to
+ * return computed the distinction and then threw it away.
+ */
+type AuthGate = "enabled" | "disabled" | "incomplete";
+
+function readAuthGate(): AuthGate {
   const disabled =
     process.env.SUPERTOKENS_DISABLED === "true" ||
     process.env.SUPERTOKENS_DISABLED === "1";
 
-  if (disabled) return false;
+  if (disabled) return "disabled";
 
-  return Boolean(
-    process.env.SUPERTOKENS_CONNECTION_URI &&
+  return process.env.SUPERTOKENS_CONNECTION_URI &&
     process.env.AUTH_API_DOMAIN &&
-    process.env.AUTH_WEBSITE_DOMAIN,
-  );
+    process.env.AUTH_WEBSITE_DOMAIN
+    ? "enabled"
+    : "incomplete";
 }
 
 export function createApp() {
   const app = express();
 
-  const superTokensEnabled = isSuperTokensEnabled();
+  const authGate = readAuthGate();
+  const superTokensEnabled = authGate === "enabled";
   if (superTokensEnabled) {
     // Fail fast at startup on invalid auth config (epic #1672 acceptance).
     const authConfig = readAuthConfig();
@@ -62,8 +77,21 @@ export function createApp() {
     app.use("/auth", authLimiter);
 
     registerSuperTokensBeforeRoutes(app);
+    recordControl("authentication", "applied");
   } else {
     setAuthService(null);
+    // Turning auth off is a deployment fact; booting without the env it needs
+    // is an incident nobody asked for. `failed` is what /health/controls
+    // surfaces as degraded, so a monitor sees an auth-less deploy immediately.
+    //
+    // The detail never names the missing variable: this endpoint is
+    // unauthenticated by design (see startup-controls.ts), and "incomplete" is
+    // already enough to act on.
+    if (authGate === "disabled") {
+      recordControl("authentication", "skipped", "disabled by configuration");
+    } else {
+      recordControl("authentication", "failed", "auth env incomplete");
+    }
   }
   app.use(helmet());
   app.disable("x-powered-by");
