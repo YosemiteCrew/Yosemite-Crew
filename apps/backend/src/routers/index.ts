@@ -32,6 +32,7 @@ import expenseRouter from "./expense.router";
 import deviceTokenRouter from "./deviceToken.router";
 import chatRouter from "./chat.router";
 import notificationRouter from "./notification.router";
+import mobilePrescriptionRouter from "./mobile-prescription.router";
 import contactRouter from "./contact-us.router";
 import accountWithdrawalRouter from "./account-withdrawal.router";
 import { OrganizationDocumentController } from "src/controllers/web/organisation-document.controller";
@@ -181,6 +182,7 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/device-token`, deviceTokenRouter);
   app.use(`/v1/chat`, chatRouter);
   app.use(`/v1/notification`, notificationRouter);
+  app.use(`/v1/prescription`, mobilePrescriptionRouter);
   app.use(`/v1/contact-us`, contactRouter);
   app.use(`/v1/account-withdrawal`, accountWithdrawalRouter);
   app.get(
