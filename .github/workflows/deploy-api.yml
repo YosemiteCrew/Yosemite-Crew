@@ -60,6 +60,12 @@ jobs:
       # it is here rather than mocked.
       - name: Run deploy migration tests
         run: ./scripts/deploy/tests/migrate.test.sh
+      # This suite needs node, for the same reason the gate uses it: the cutover
+      # decision is made by parsing a JSON body, and a gate that mis-parses is
+      # worse than no gate. ubuntu-latest ships one, and the deploy host proves
+      # it has one by booting the bundle before this check ever runs.
+      - name: Run deploy startup-control gate tests
+        run: ./scripts/deploy/tests/controls.test.sh
 
   deploy:
     # Only ever on an explicit dispatch. The pull_request trigger above exists for
