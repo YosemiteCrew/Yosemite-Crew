@@ -14,8 +14,20 @@ const mockLinks = prisma.parentPatient.findMany as jest.Mock;
 const mockEncounters = prisma.encounter.findMany as jest.Mock;
 const mockPrescriptions = prisma.prescription.findMany as jest.Mock;
 
+/**
+ * A CO_PARENT by default, because that is the role the `medicalRecords` flag
+ * actually constrains. A PRIMARY link passes on its role alone, so building
+ * these as PRIMARY would make every permission assertion below vacuous.
+ */
 const activeLink = (patientId: string, medicalRecords = true) => ({
   patientId,
+  role: "CO_PARENT",
+  permissions: { medicalRecords },
+});
+
+const primaryLink = (patientId: string, medicalRecords = true) => ({
+  patientId,
+  role: "PRIMARY",
   permissions: { medicalRecords },
 });
 
@@ -82,13 +94,42 @@ describe("listPermittedPatientIds", () => {
     expect(result).toEqual(["pat-1"]);
   });
 
-  it("excludes a link whose permissions are missing entirely", async () => {
-    mockLinks.mockResolvedValue([{ patientId: "pat-3", permissions: null }]);
+  it("excludes a co-parent link whose permissions are missing entirely", async () => {
+    mockLinks.mockResolvedValue([
+      { patientId: "pat-3", role: "CO_PARENT", permissions: null },
+    ]);
 
     const result =
       await MobilePrescriptionService.listPermittedPatientIds("parent-1");
 
     expect(result).toEqual([]);
+  });
+
+  // The rule is `requireCompanionPermission`'s, not this module's: a primary
+  // parent's permission set describes what they have delegated and never
+  // constrains them. `promoteLinkToPrimary` and `updatePermissions` both merge
+  // caller-supplied overrides over PRIMARY_PARENT_PERMISSIONS and pin only
+  // `assignAsPrimaryParent`, so `medicalRecords: false` on a PRIMARY link is
+  // reachable - and that parent reads the same animal's passport today, which
+  // is gated on the same feature through the middleware.
+  it("includes a PRIMARY parent whose own link has medicalRecords off", async () => {
+    mockLinks.mockResolvedValue([primaryLink("pat-1", false)]);
+
+    const result =
+      await MobilePrescriptionService.listPermittedPatientIds("parent-1");
+
+    expect(result).toEqual(["pat-1"]);
+  });
+
+  it("includes a PRIMARY parent whose link carries no permissions at all", async () => {
+    mockLinks.mockResolvedValue([
+      { patientId: "pat-1", role: "PRIMARY", permissions: null },
+    ]);
+
+    const result =
+      await MobilePrescriptionService.listPermittedPatientIds("parent-1");
+
+    expect(result).toEqual(["pat-1"]);
   });
 });
 

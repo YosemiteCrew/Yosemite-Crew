@@ -1,5 +1,6 @@
 import { ClinicalArtifactStatus } from "@prisma/client";
 import { prisma } from "src/config/prisma";
+import { hasCompanionFeature } from "src/middlewares/companion-access";
 
 /**
  * Owner-facing prescription reads for the pet owner app.
@@ -19,17 +20,23 @@ const OWNER_VISIBLE_ARTIFACT_STATUSES: ClinicalArtifactStatus[] = [
   ClinicalArtifactStatus.SIGNED,
 ];
 
-type ParentPatientPermissions = {
-  medicalRecords?: boolean;
-};
-
 /**
  * The patients whose medical records this parent may read.
  *
- * Two gates, not one. A REVOKED or PENDING link is not access, and a co-parent
+ * Two gates, not one. A REVOKED or PENDING link is not access, and a CO_PARENT
  * link carries a `permissions` object in which `medicalRecords` can be false —
  * that co-parent can see appointments and tasks but must not see what the animal
  * has been prescribed.
+ *
+ * The decision itself is `hasCompanionFeature`, the same predicate
+ * `requireCompanionPermission` enforces on every path-keyed companion route,
+ * rather than a second copy of the rule. That middleware cannot be used here —
+ * it authorises one patient id from the path, and this resolves the whole set
+ * before any patient is named — so sharing the predicate is what keeps the two
+ * answers identical. Notably it means a PRIMARY parent passes on their role: a
+ * primary link with `medicalRecords: false` is reachable, and it already reads
+ * the same animal's passport through the middleware, so refusing here would
+ * have returned an empty list with nothing saying why.
  */
 export const listPermittedPatientIds = async (
   parentId: string,
@@ -40,14 +47,13 @@ export const listPermittedPatientIds = async (
 
   const links = await prisma.parentPatient.findMany({
     where: { parentId, status: "ACTIVE" },
-    select: { patientId: true, permissions: true },
+    select: { patientId: true, role: true, permissions: true },
   });
 
   return links
-    .filter((link) => {
-      const permissions = link.permissions as ParentPatientPermissions | null;
-      return permissions?.medicalRecords === true;
-    })
+    .filter((link) =>
+      hasCompanionFeature(link.role, link.permissions, "medicalRecords"),
+    )
     .map((link) => link.patientId);
 };
 
