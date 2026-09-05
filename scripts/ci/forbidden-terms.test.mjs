@@ -382,10 +382,19 @@ test('every must-pass line is real prose from a tracked file', () => {
 
   const missing = lines.filter((line) => {
     try {
-      execFileSync('git', ['grep', '-qF', '--', line], {
-        cwd: path.join(import.meta.dirname, '..', '..'),
-        stdio: 'ignore',
-      });
+      // EXCLUDING the corpus itself. Without the pathspec this file is a tracked
+      // file, so every line in it proves its own presence and an invented
+      // sentence passes - the assertion satisfied by the very document it is
+      // meant to be checking. Found by mutation: appending a sentence that
+      // appears nowhere else left all 26 cases green.
+      execFileSync(
+        'git',
+        ['grep', '-qF', '--', line, ':(exclude)scripts/ci/forbidden-terms-allowed-prose.txt'],
+        {
+          cwd: path.join(import.meta.dirname, '..', '..'),
+          stdio: 'ignore',
+        }
+      );
       return false;
     } catch {
       return true;
