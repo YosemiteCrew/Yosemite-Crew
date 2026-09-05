@@ -847,6 +847,13 @@ describe("ParentCompanionService.updatePermissions", () => {
     );
 
     expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+    /*
+     * Every key, including `medicalRecords`, which the stored record above does
+     * not have. A row written before that key existed used to keep the gap for
+     * ever, because the merge spread the stored record and nothing filled it in
+     * - so the record disagreed with the type and with what the UI renders,
+     * while `isGranted` answered `false` either way (#2710).
+     */
     expect(mockedPrisma.parentPatient.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "co-link" },
@@ -860,11 +867,100 @@ describe("ParentCompanionService.updatePermissions", () => {
             expenses: false,
             tasks: false,
             chatWithVet: false,
+            medicalRecords: false,
           },
         },
       }),
     );
     expect(result.role).toBe("CO_PARENT");
+  });
+
+  /*
+   * The stored record is a Json column and the input to an authorisation
+   * decision, so what gets written back is reduced to the known keys as
+   * booleans - not merely what arrived on this request (#2710). These two cover
+   * what is already in the row, which the controller's schema cannot reach.
+   */
+  it("drops unrecognised keys that are already in the stored record", async () => {
+    mockedPrisma.parentPatient.findFirst
+      .mockResolvedValueOnce({ id: "co-link" })
+      .mockResolvedValueOnce(
+        linkRecord({
+          id: "co-link",
+          parentId: "parent-2",
+          permissions: {
+            assignAsPrimaryParent: false,
+            appointments: true,
+            isSuperUser: true,
+            "../../etc": "anything",
+          },
+        }),
+      );
+    mockedPrisma.parentPatient.update.mockResolvedValueOnce(
+      linkRecord({ id: "co-link", parentId: "parent-2" }),
+    );
+    mockedPrisma.parent.findUnique.mockResolvedValueOnce(null);
+
+    await ParentCompanionService.updatePermissions(
+      "parent-1",
+      "parent-2",
+      "patient-1",
+      { documents: true },
+    );
+
+    const written = mockedPrisma.parentPatient.update.mock.calls[0][0] as {
+      data: { permissions: Record<string, unknown> };
+    };
+    expect(Object.keys(written.data.permissions).sort()).toEqual([
+      "appointments",
+      "assignAsPrimaryParent",
+      "chatWithVet",
+      "companionProfile",
+      "documents",
+      "emergencyBasedPermissions",
+      "expenses",
+      "medicalRecords",
+      "tasks",
+    ]);
+    expect(written.data.permissions.appointments).toBe(true);
+    expect(written.data.permissions.documents).toBe(true);
+  });
+
+  /*
+   * `=== true`, the same predicate `isGranted` applies, so a stored value that
+   * would deny at the gate is stored as a denial rather than as something a UI
+   * might render as a grant.
+   */
+  it.each([
+    ["a string", "true"],
+    ["a number", 1],
+    ["an object", {}],
+  ])("stores %s in an existing record as false", async (_label, value) => {
+    mockedPrisma.parentPatient.findFirst
+      .mockResolvedValueOnce({ id: "co-link" })
+      .mockResolvedValueOnce(
+        linkRecord({
+          id: "co-link",
+          parentId: "parent-2",
+          permissions: { assignAsPrimaryParent: false, appointments: value },
+        }),
+      );
+    mockedPrisma.parentPatient.update.mockResolvedValueOnce(
+      linkRecord({ id: "co-link", parentId: "parent-2" }),
+    );
+    mockedPrisma.parent.findUnique.mockResolvedValueOnce(null);
+
+    await ParentCompanionService.updatePermissions(
+      "parent-1",
+      "parent-2",
+      "patient-1",
+      { documents: true },
+    );
+
+    const written = mockedPrisma.parentPatient.update.mock.calls[0][0] as {
+      data: { permissions: Record<string, unknown> };
+    };
+    expect(written.data.permissions.appointments).toBe(false);
   });
 
   it("keeps the primary flag set when updating the acting primary's own permissions", async () => {
@@ -900,7 +996,14 @@ describe("ParentCompanionService.updatePermissions", () => {
         data: {
           permissions: {
             assignAsPrimaryParent: true,
+            emergencyBasedPermissions: false,
+            appointments: false,
+            companionProfile: false,
             documents: false,
+            expenses: false,
+            tasks: false,
+            chatWithVet: false,
+            medicalRecords: false,
           },
         },
       }),
@@ -1058,6 +1161,44 @@ describe("ParentCompanionService link queries", () => {
     });
     expect(result[0].parent?.email).toBe("jane@example.com");
     expect(result[1].parent).toBeUndefined();
+  });
+
+  /*
+   * The record that leaves this module is normalised as well as the one that
+   * enters it. A row written before `medicalRecords` existed, or carrying a key
+   * nothing recognises, would otherwise be handed to a client as the shape of
+   * `ParentCompanionPermissions` while being neither (#2710).
+   */
+  it("returns a legacy stored record as the known keys and nothing else", async () => {
+    mockedPrisma.parentPatient.findMany.mockResolvedValueOnce([
+      linkRecord({
+        id: "link-1",
+        permissions: {
+          assignAsPrimaryParent: false,
+          appointments: true,
+          documents: "yes",
+          isSuperUser: true,
+        },
+      }),
+    ]);
+
+    const [link] = await ParentCompanionService.getLinksForParent("parent-1");
+
+    expect(Object.keys(link.permissions).sort()).toEqual([
+      "appointments",
+      "assignAsPrimaryParent",
+      "chatWithVet",
+      "companionProfile",
+      "documents",
+      "emergencyBasedPermissions",
+      "expenses",
+      "medicalRecords",
+      "tasks",
+    ]);
+    expect(link.permissions.appointments).toBe(true);
+    // `"yes"` is not a grant at the gate, so it is not one in the response.
+    expect(link.permissions.documents).toBe(false);
+    expect(link.permissions.medicalRecords).toBe(false);
   });
 
   it("returns a parent's links without hydrating contact details", async () => {

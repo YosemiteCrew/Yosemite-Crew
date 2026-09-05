@@ -67,6 +67,44 @@ const PRIMARY_PARENT_PERMISSIONS: ParentCompanionPermissions = {
   medicalRecords: true,
 };
 
+/*
+ * The permission keys, taken from BASE_PERMISSIONS rather than written out
+ * again, so the set cannot drift from the type that defines it.
+ */
+const PERMISSION_KEYS = Object.keys(
+  BASE_PERMISSIONS,
+) as (keyof ParentCompanionPermissions)[];
+
+/**
+ * Reduce a permission record to exactly the known keys, as booleans.
+ *
+ * `permissions` is a Json column and the input to an authorisation decision, so
+ * what gets stored has to be the nine keys and nothing else. The controller
+ * rejects an unrecognised key at the boundary (#2710); this is the half that
+ * also covers what is already in the row, because the merge that writes it
+ * spreads the stored record and would carry any existing junk forward for ever.
+ *
+ * Applied at the two points that decide what leaves this module - the record
+ * written, and the record returned - and nowhere in between. Normalising the
+ * stored record on the way into that merge as well was a second copy of the
+ * same guarantee: mutating either one alone left every test green, which is
+ * what said one of them was redundant rather than untested.
+ *
+ * `=== true` rather than a truthiness test, deliberately: it is the same
+ * predicate `isGranted` in companion-access.ts applies, so a stored value that
+ * would deny at the gate is stored as a denial rather than as something the UI
+ * might render as a grant. Anything unrecognised is dropped, and anything
+ * missing is `false` - both the safe direction.
+ */
+const normalizePermissions = (value: unknown): ParentCompanionPermissions => {
+  const source = (value ?? {}) as Record<string, unknown>;
+  const normalized = {} as ParentCompanionPermissions;
+  for (const key of PERMISSION_KEYS) {
+    normalized[key] = source[key] === true;
+  }
+  return normalized;
+};
+
 const buildPermissions = (
   role: ParentCompanionRole,
   overrides?: Partial<ParentCompanionPermissions>,
@@ -104,7 +142,7 @@ const toCompanionParentLink = (
   parentId: record.parentId,
   role: record.role,
   status: record.status,
-  permissions: record.permissions as unknown as ParentCompanionPermissions,
+  permissions: normalizePermissions(record.permissions),
   invitedByParentId: record.invitedByParentId ?? undefined,
   acceptedAt: record.acceptedAt?.toISOString(),
   createdAt: record.createdAt?.toISOString(),
@@ -450,10 +488,10 @@ export const ParentCompanionService = {
       );
     }
 
-    const mergedPermissions: ParentCompanionPermissions = {
+    const mergedPermissions = normalizePermissions({
       ...targetPermissions,
       ...updates,
-    };
+    });
 
     if (isCurrentlyPrimary) {
       mergedPermissions.assignAsPrimaryParent = true;
