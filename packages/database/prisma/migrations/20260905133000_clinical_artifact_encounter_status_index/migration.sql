@@ -15,11 +15,34 @@
 -- Purely additive: an index, no column, no constraint. The running process
 -- serves fine against this schema before the new code cuts over (see #2603).
 --
--- NOT "CONCURRENTLY", deliberately. Prisma runs each migration file in one
--- transaction and PostgreSQL refuses CREATE INDEX CONCURRENTLY inside one, so
--- it is not available here without splitting the migration out of Prisma's
--- control. The cost is that writes to ClinicalArtifact block while the index
--- builds; the deploy already applies migrations before cutover, so that window
--- is the migration step rather than the running service.
+-- NOT "CONCURRENTLY", deliberately. Prisma sends each migration file to the
+-- server as a single multi-statement simple query, which PostgreSQL treats as
+-- one implicit transaction block, and CREATE INDEX CONCURRENTLY is refused
+-- inside one. It is not available here without splitting this migration out of
+-- Prisma's control.
+--
+-- So this takes a lock, and the deploy does not hide it. api-deploy.sh runs
+-- prisma:deploy while the old process is still serving and only restarts pm2
+-- afterwards - there is no stop, drain or maintenance step between the two - so
+-- the index builds against live traffic. CREATE INDEX holds SHARE, which
+-- conflicts with the ROW EXCLUSIVE that every INSERT/UPDATE takes. Reads are
+-- unaffected: ACCESS SHARE does not conflict with SHARE. Writes to
+-- ClinicalArtifact are not, and neither is anything behind them - a write
+-- arriving after a CREATE INDEX that is itself still waiting queues behind it,
+-- so one long-running write transaction turns a bounded index build into an
+-- unbounded write stall on the table.
+--
+-- SET LOCAL lock_timeout bounds that. If the lock is not free within 5s the
+-- migration fails, prisma migrate deploy exits non-zero, and #2698 stops the
+-- deploy before cutover and says why - which is the cheap outcome. It cannot
+-- starve the build: a waiting CREATE INDEX makes later writers queue behind it,
+-- so the lock is free as soon as the transactions already open when it arrived
+-- finish, and 5s only expires on one that was long-running to begin with.
+--
+-- LOCAL, not a bare SET. Prisma applies every migration of a run on one
+-- connection, and each file's implicit transaction commits, so a bare SET would
+-- carry this timeout into every later migration in the same deploy.
+SET LOCAL lock_timeout = '5s';
+
 CREATE INDEX IF NOT EXISTS "ClinicalArtifact_encounterId_status_idx"
   ON "ClinicalArtifact" ("encounterId", "status");
