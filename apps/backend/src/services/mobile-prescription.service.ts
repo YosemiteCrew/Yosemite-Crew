@@ -1,6 +1,12 @@
 import { ClinicalArtifactStatus } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { hasCompanionFeature } from "src/middlewares/companion-access";
+import {
+  clampPageSize,
+  encodeKeysetCursor,
+  splitPage,
+} from "src/services/shared/pagination";
+import type { KeysetCursor } from "src/services/shared/pagination";
 
 /**
  * Owner-facing prescription reads for the pet owner app.
@@ -83,6 +89,31 @@ export type MobilePrescription = {
 };
 
 /**
+ * A phone screen, not a data export. 20 is what fits before a scroll and 100 is
+ * the ceiling a caller can ask for; both are this surface's numbers, applied by
+ * the shared clamp in `shared/pagination`.
+ */
+export const DEFAULT_PRESCRIPTION_PAGE_SIZE = 20;
+export const MAX_PRESCRIPTION_PAGE_SIZE = 100;
+
+export type MobilePrescriptionPage = {
+  prescriptions: MobilePrescription[];
+  /** The cursor for the next page, or null when this is the last one. */
+  nextCursor: string | null;
+  /** Whether another page exists. Never inferred from `prescriptions.length`. */
+  hasMore: boolean;
+  /** The page size actually applied, which is not always the one requested. */
+  limit: number;
+};
+
+export type ListPrescriptionsForParentOptions = {
+  /** Clamped, never rejected. See `clampPageSize`. */
+  limit?: unknown;
+  /** A decoded `(createdAt, id)` position from a previous `nextCursor`. */
+  cursor?: KeysetCursor;
+};
+
+/**
  * Prescriptions the parent may read, newest first.
  *
  * Fail-closed on the binding. `ClinicalArtifact` has no companion column, and
@@ -98,30 +129,89 @@ export type MobilePrescription = {
  */
 export const listPrescriptionsForParent = async (
   parentId: string,
-): Promise<MobilePrescription[]> => {
+  options: ListPrescriptionsForParentOptions = {},
+): Promise<MobilePrescriptionPage> => {
+  const limit = clampPageSize(options.limit, {
+    defaultSize: DEFAULT_PRESCRIPTION_PAGE_SIZE,
+    maxSize: MAX_PRESCRIPTION_PAGE_SIZE,
+  });
+  const empty: MobilePrescriptionPage = {
+    prescriptions: [],
+    nextCursor: null,
+    hasMore: false,
+    limit,
+  };
+
   const patientIds = await listPermittedPatientIds(parentId);
   if (patientIds.length === 0) {
-    return [];
+    return empty;
   }
 
+  /*
+   * Deliberately unpaged, and it is the one read here that stays that way.
+   * Bounding it would be silent loss rather than a page: prescriptions are
+   * ordered by their own `createdAt`, so a `take` on the encounters drops
+   * whichever prescriptions hang off the encounters that fell off the end, and
+   * nothing in the response could say which. It is index-served
+   * (`@@index([patientId])`) and scoped to one parent's own animals, so it is
+   * bounded by the domain even though it is not bounded by a `take`. #2709
+   * lists a date floor as the alternative; that changes what the endpoint
+   * returns and is a product decision, not a performance fix.
+   */
   const encounters = await prisma.encounter.findMany({
     where: { patientId: { in: patientIds } },
     select: { id: true, patientId: true },
   });
   if (encounters.length === 0) {
-    return [];
+    return empty;
   }
 
   const patientIdByEncounter = new Map(
     encounters.map((encounter) => [encounter.id, encounter.patientId]),
   );
 
-  const prescriptions = await prisma.prescription.findMany({
+  /*
+   * Keyset pagination on `(createdAt, id)`, one row over the page so `hasMore`
+   * is measured rather than guessed.
+   *
+   * The `id` tiebreak is not decoration: prescriptions written in the same
+   * consultation share a `createdAt` to the millisecond, and without a total
+   * order the cursor position is ambiguous - a page boundary landing inside a
+   * tied group repeats a row or drops one.
+   *
+   * The next page is an exclusive comparison in the `where`, NOT Prisma's
+   * `cursor` with `skip: 1`. That pair looks equivalent and is not: `cursor`
+   * seeks to the row, `skip` is an OFFSET applied to the filtered result, so it
+   * steps past the cursor row only while that row is still in the filter. It is
+   * not, here, the moment a vet voids a prescription - `clinical-artifact`
+   * writes `status: "VOID"`, the row leaves OWNER_VISIBLE_ARTIFACT_STATUSES,
+   * and the OFFSET eats a legitimate row instead. Measured on a real
+   * PostgreSQL: seven prescriptions, page size three, void the cursor row, and
+   * one prescription is never returned on any page while `hasMore: false` says
+   * the list is complete. This form is exclusive by construction and a cursor
+   * row that has left the set is simply behind the window.
+   *
+   * The cursor is a position, never an access grant. `where` is rebuilt from
+   * `patientIdByEncounter` on every page, so a cursor lifted from another
+   * parent's response moves the window and widens nothing.
+   */
+  const rows = await prisma.prescription.findMany({
     where: {
       artifact: {
         encounterId: { in: [...patientIdByEncounter.keys()] },
         status: { in: OWNER_VISIBLE_ARTIFACT_STATUSES },
       },
+      ...(options.cursor
+        ? {
+            OR: [
+              { createdAt: { lt: options.cursor.createdAt } },
+              {
+                createdAt: options.cursor.createdAt,
+                id: { lt: options.cursor.id },
+              },
+            ],
+          }
+        : {}),
     },
     include: {
       items: { orderBy: { sortOrder: "asc" } },
@@ -135,10 +225,23 @@ export const listPrescriptionsForParent = async (
         },
       },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
   });
 
-  return prescriptions.flatMap((prescription) => {
+  /*
+   * Split before mapping. The cursor has to be the last row the query returned
+   * for this page, not the last row that survived the mapping below - a row
+   * dropped as unmappable would otherwise be handed back as the next page's
+   * starting point and re-dropped forever.
+   */
+  const { items, nextCursor, hasMore } = splitPage(
+    rows,
+    limit,
+    encodeKeysetCursor,
+  );
+
+  const prescriptions = items.flatMap((prescription) => {
     const encounterId = prescription.artifact.encounterId;
     // Narrowing only. The query already excluded null encounters; a row that
     // reaches here without one would be a scoping hole, so it is dropped.
@@ -175,6 +278,8 @@ export const listPrescriptionsForParent = async (
       },
     ];
   });
+
+  return { prescriptions, nextCursor, hasMore, limit };
 };
 
 export const MobilePrescriptionService = {

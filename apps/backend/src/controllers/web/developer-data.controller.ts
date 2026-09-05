@@ -22,6 +22,7 @@ import {
   clampPageSize,
   DeveloperDataService,
 } from "../../services/developer-data.service";
+import { parseUuidCursor } from "../../services/shared/pagination";
 import { DeveloperUsageService } from "../../services/developer-usage.service";
 
 type ErrorCode =
@@ -49,21 +50,6 @@ const parseDate = (raw: unknown): Date | undefined | null => {
   const parsed = new Date(raw);
   // null is the "present but unparseable" signal, distinct from absent.
   return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-/*
- * Cursors are appointment ids, which are uuids. Checking the shape up front is
- * what lets every failure from the query itself be reported honestly as a 500:
- * the alternative, inferring "bad cursor" from a thrown error, turns a database
- * outage into a 400 telling the caller their cursor is malformed.
- */
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-const parseCursor = (raw: unknown): string | undefined | null => {
-  if (typeof raw !== "string" || !raw) {
-    return undefined;
-  }
-  return UUID.test(raw) ? raw : null;
 };
 
 const parseStatus = (raw: unknown): AppointmentStatus | undefined | null => {
@@ -148,7 +134,7 @@ export const DeveloperDataController = {
      */
     const rawCursor =
       typeof req.query.cursor === "string" ? req.query.cursor : "";
-    const cursor = parseCursor(req.query.cursor);
+    const cursor = parseUuidCursor(req.query.cursor);
     if (cursor === null) {
       // Logged newline-stripped: the value is caller-controlled and a raw CR/LF
       // in it would forge a second log line.

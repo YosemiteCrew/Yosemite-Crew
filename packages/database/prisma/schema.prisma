@@ -2841,6 +2841,10 @@ model ClinicalArtifact {
   @@index([organisationId, caseId])
   @@index([templateId, templateVersion])
   @@index([templateVersionId])
+  // The owner-facing read has no organisation - a pet owner's animals may have
+  // been seen at several practices - so it filters on encounterId alone and no
+  // organisationId-leading index above applies to it. See #2709.
+  @@index([encounterId, status])
 }
 
 model SoapNote {

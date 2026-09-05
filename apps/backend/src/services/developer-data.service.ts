@@ -10,6 +10,10 @@
  */
 import type { AppointmentStatus, Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
+import {
+  clampPageSize as clampToBounds,
+  splitPage,
+} from "src/services/shared/pagination";
 
 export const MAX_PAGE_SIZE = 100;
 export const DEFAULT_PAGE_SIZE = 50;
@@ -28,18 +32,15 @@ export const normaliseOrganisationReference = (reference: string): string =>
     : reference;
 
 /*
- * Clamp rather than reject. A caller asking for 1000 rows gets 100 and a
- * `pagination.limit` in the response saying so, which is friendlier to an agent
- * than a 400 it has to learn to avoid, and still bounds the query.
+ * This surface's bounds, applied by the shared clamp. The rule itself lives in
+ * `shared/pagination` because the owner prescription list needs the identical
+ * decision with different numbers (#2709).
  */
-export const clampPageSize = (raw: unknown): number => {
-  const parsed =
-    typeof raw === "string" ? Number.parseInt(raw, 10) : Number.NaN;
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return DEFAULT_PAGE_SIZE;
-  }
-  return Math.min(parsed, MAX_PAGE_SIZE);
-};
+export const clampPageSize = (raw: unknown): number =>
+  clampToBounds(raw, {
+    defaultSize: DEFAULT_PAGE_SIZE,
+    maxSize: MAX_PAGE_SIZE,
+  });
 
 export interface OrganizationSummary {
   id: string;
@@ -169,11 +170,9 @@ export const DeveloperDataService = {
       ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
     });
 
-    const hasMore = rows.length > query.limit;
-    const items = hasMore ? rows.slice(0, query.limit) : rows;
-    const last = items.at(-1);
+    const { items, nextCursor } = splitPage(rows, query.limit);
 
-    return { items, nextCursor: hasMore && last ? last.id : null };
+    return { items, nextCursor };
   },
 
   /*
