@@ -119,4 +119,29 @@ export default [
       ],
     },
   },
+  {
+    /* #2711: `import Router from "express"` binds the default export - the app
+       factory - so `Router()` builds a full sub-application and mounting it
+       gives it its own settings. `defaultConfiguration` sets
+       `x-powered-by` as the child's own property, which shadows the
+       `app.disable("x-powered-by")` in app.ts, so the mounted routes answer
+       with the header the rest of the API suppresses.
+
+       Sonar raises this as `typescript:S5689`, but the quality gate measures
+       new code only, so an occurrence that reaches dev stops being enforced.
+       This is scoped to routers because no router needs the app factory;
+       app.ts legitimately default-imports express. */
+    files: ["src/routers/**/*.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "ImportDeclaration[source.value='express'] > ImportDefaultSpecifier",
+          message:
+            'Import { Router } from "express". The default export is the app factory, so calling it mounts a sub-application, not a router.',
+        },
+      ],
+    },
+  },
 ];

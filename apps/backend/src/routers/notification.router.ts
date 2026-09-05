@@ -1,4 +1,4 @@
-import Router from "express";
+import { Router } from "express";
 import { NotificationController } from "../controllers/app/notification.controller";
 import { requireMobileAuth } from "src/middlewares/auth";
 
