@@ -19,5 +19,11 @@ router.get(
   "/lab-ingestion/quarantine",
   SuperAdminLabIngestionController.listQuarantine,
 );
+// Without a writer for resolvedAt the list can only ever grow, so the count an
+// operator reads as severity could never fall.
+router.patch(
+  "/lab-ingestion/quarantine/:id/resolve",
+  SuperAdminLabIngestionController.resolveQuarantine,
+);
 
 export default router;

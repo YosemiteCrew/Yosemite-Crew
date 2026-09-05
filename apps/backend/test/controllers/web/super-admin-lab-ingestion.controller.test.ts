@@ -7,6 +7,7 @@ import logger from "src/utils/logger";
 jest.mock("src/services/lab-ingestion-quarantine.service", () => ({
   LabIngestionQuarantineService: {
     listUnresolved: jest.fn(),
+    resolve: jest.fn(),
   },
 }));
 
@@ -89,5 +90,57 @@ describe("SuperAdminLabIngestionController.listQuarantine", () => {
       "Failed to list quarantined lab results",
       expect.any(Error),
     );
+  });
+});
+
+describe("SuperAdminLabIngestionController.resolveQuarantine", () => {
+  const ID = "3f1c2b4e-9a7d-4c11-8f2a-5b6d7e8f9a0b";
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedService.resolve.mockResolvedValue(true as never);
+  });
+
+  it("resolves a held row", async () => {
+    const { res, status, json } = buildResponse();
+
+    await SuperAdminLabIngestionController.resolveQuarantine(
+      { params: { id: ID } } as unknown as Request,
+      res,
+    );
+
+    expect(mockedService.resolve).toHaveBeenCalledWith(ID);
+    expect(status).toHaveBeenCalledWith(200);
+    expect(json).toHaveBeenCalledWith({ id: ID, resolved: true });
+  });
+
+  // The rows are uuid-keyed, so a malformed id is a bad request rather than a
+  // miss - and it is answered without reaching the database at all.
+  it("refuses a malformed id instead of querying on it", async () => {
+    const { res, status } = buildResponse();
+
+    await SuperAdminLabIngestionController.resolveQuarantine(
+      { params: { id: "not-a-uuid" } } as unknown as Request,
+      res,
+    );
+
+    expect(mockedService.resolve).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(400);
+  });
+
+  it("answers 404 when there was nothing unresolved to resolve", async () => {
+    mockedService.resolve.mockResolvedValue(false as never);
+    const { res, status, json } = buildResponse();
+
+    await SuperAdminLabIngestionController.resolveQuarantine(
+      { params: { id: ID } } as unknown as Request,
+      res,
+    );
+
+    expect(status).toHaveBeenCalledWith(404);
+    expect(json).toHaveBeenCalledWith({
+      error: "No unresolved quarantined result with that id.",
+      code: "QUARANTINE_NOT_FOUND",
+    });
   });
 });

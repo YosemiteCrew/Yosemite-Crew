@@ -331,13 +331,13 @@ type UnapplicableResult = {
  * model comment), because collapsing two rows onto a key is exactly the silent
  * loss it exists to prevent.
  */
-const quarantineResult = async (
+const quarantineOperation = (
   batchId: string,
   result: IdexxResult,
   context: ResultOrderContext,
   reason: string,
-) => {
-  await prisma.labResultQuarantine.create({
+) =>
+  prisma.labResultQuarantine.create({
     data: {
       provider: "IDEXX",
       batchId,
@@ -354,7 +354,6 @@ const quarantineResult = async (
       payload: toJsonInput(result),
     },
   });
-};
 
 /**
  * Hold every result in this batch the mapper could not apply.
@@ -372,14 +371,26 @@ const quarantineUnapplicable = async (
   if (unapplicable.length === 0) return true;
 
   try {
-    for (const { result, context } of unapplicable) {
-      await quarantineResult(
-        batchId,
-        result,
-        context,
-        QUARANTINE_REASON_UNMAPPED_STATUS,
-      );
-    }
+    // One transaction, not a loop of writes. A loop that fails part-way leaves
+    // the earlier rows committed, returns false, and the batch is correctly
+    // left unconfirmed - so the next poll re-fetches the same batch and writes
+    // those rows AGAIN, once per poll, unbounded while the failure persists.
+    // That inflates `total`, which is the single number an operator uses to
+    // judge how bad this is. All-or-nothing also makes the fallback exactly the
+    // previous behaviour rather than the previous behaviour plus orphans.
+    //
+    // This costs the no-unique-key decision nothing: that is about two distinct
+    // rows in one batch, this is about one row written twice across polls.
+    await prisma.$transaction(
+      unapplicable.map(({ result, context }) =>
+        quarantineOperation(
+          batchId,
+          result,
+          context,
+          QUARANTINE_REASON_UNMAPPED_STATUS,
+        ),
+      ),
+    );
   } catch (err) {
     logger.error(
       "IDEXX batch left unconfirmed: could not quarantine an unmapped result",

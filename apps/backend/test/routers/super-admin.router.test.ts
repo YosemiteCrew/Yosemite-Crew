@@ -55,6 +55,9 @@ const mockUpdateBusiness = jest.fn();
 const mockListQuarantine = jest.fn((_, res) =>
   res.status(200).json({ total: 0, returned: 0, results: [] }),
 );
+const mockResolveQuarantine = jest.fn((_, res) =>
+  res.status(200).json({ resolved: true }),
+);
 
 jest.mock("@yosemite-crew/auth", () => ({
   createSessionMiddleware: mockCreateSessionMiddleware,
@@ -82,6 +85,7 @@ jest.mock("src/controllers/web/super-admin-business.controller", () => ({
 jest.mock("src/controllers/web/super-admin-lab-ingestion.controller", () => ({
   SuperAdminLabIngestionController: {
     listQuarantine: mockListQuarantine,
+    resolveQuarantine: mockResolveQuarantine,
   },
 }));
 
@@ -92,14 +96,18 @@ type MockResponse = {
   body: string;
 };
 
-const request = async (app: Express, path: string): Promise<MockResponse> => {
+const request = async (
+  app: Express,
+  path: string,
+  method = "GET",
+): Promise<MockResponse> => {
   const socket = new PassThrough();
   (socket as PassThrough & { remoteAddress?: string }).remoteAddress =
     "127.0.0.1";
   const requestSocket = socket as unknown as Socket;
 
   const req = new IncomingMessage(requestSocket);
-  req.method = "GET";
+  req.method = method;
   req.url = path;
   req.headers = {};
   req.socket = requestSocket;
@@ -274,5 +282,48 @@ describe("super-admin router", () => {
       results: [],
     });
     expect(mockListQuarantine).toHaveBeenCalledTimes(1);
+  });
+
+  // Resolving is the only write on this surface and it clears a row out of the
+  // operator's severity count, so the guard on it is asserted separately rather
+  // than inferred from the read above.
+  it("rejects a non-superadmin resolving a quarantined result", async () => {
+    const response = await request(
+      createApp(
+        {
+          appUserId: "user-1",
+          providerUserId: "st-user-1",
+          authProfile: "pims_web",
+          roles: ["member"],
+        },
+        true,
+        [],
+      ),
+      "/v1/super-admin/lab-ingestion/quarantine/q-1/resolve",
+      "PATCH",
+    );
+
+    expect(response.statusCode).toBe(403);
+    expect(mockResolveQuarantine).not.toHaveBeenCalled();
+  });
+
+  it("lets a superadmin resolve a quarantined result", async () => {
+    const response = await request(
+      createApp(
+        {
+          appUserId: "user-1",
+          providerUserId: "st-user-1",
+          authProfile: "pims_web",
+          roles: ["superadmin"],
+        },
+        true,
+        [],
+      ),
+      "/v1/super-admin/lab-ingestion/quarantine/q-1/resolve",
+      "PATCH",
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(mockResolveQuarantine).toHaveBeenCalledTimes(1);
   });
 });
