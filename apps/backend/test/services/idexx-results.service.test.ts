@@ -39,6 +39,9 @@ jest.mock("src/config/prisma", () => ({
     labResultSyncState: {
       upsert: jest.fn(),
     },
+    labResultQuarantine: {
+      create: jest.fn(),
+    },
     task: {
       findFirst: jest.fn(),
     },
@@ -121,6 +124,7 @@ describe("IdexxResultsService", () => {
     mockedPrisma.labOrder.update.mockResolvedValue({} as any);
     mockedPrisma.labResult.upsert.mockResolvedValue({} as any);
     mockedPrisma.labResultSyncState.upsert.mockResolvedValue({} as any);
+    mockedPrisma.labResultQuarantine.create.mockResolvedValue({} as any);
     mockedPrisma.task.findFirst.mockResolvedValue(null as any);
     mockedPrisma.document.findFirst.mockResolvedValue(null as any);
     mockedDocumentService.create.mockResolvedValue({} as any);
@@ -214,9 +218,75 @@ describe("IdexxResultsService", () => {
     );
   });
 
-  // Confirming the batch tells IDEXX it was consumed, so a batch whose LabOrder transition we
-  // skipped must stay unconfirmed - otherwise the transition is lost for good.
-  it("leaves a batch unconfirmed when a result status does not map", async () => {
+  // The poll is GLOBAL - one client from IDEXX_GLOBAL_USERNAME, organisationId derived per
+  // result - and IDEXX confirms a BATCH. So refusing to confirm because one row did not map
+  // does not hold up one clinic's queue, it holds up every clinic's, indefinitely: the
+  // unconfirmed batch is re-fetched next poll and meets the same row again. The row is held
+  // instead, and the rest of the batch goes through.
+  it("quarantines an unmapped result and confirms the rest of the batch", async () => {
+    mockGetLatestResults.mockResolvedValue({
+      batchId: "batch-1",
+      hasMoreResults: false,
+      results: [
+        {
+          resultId: "result-1",
+          orderId: "order-1",
+          status: "REQUIRES_REVIEW",
+          statusDetail: "awaiting pathologist",
+          modality: "REFERENCE_LAB",
+          updatedDate: "2026-06-17T12:00:00.000Z",
+          patient: { patientId: "patient-1" },
+        },
+      ],
+    });
+
+    await IdexxResultsService.pollLatest(1, 1);
+
+    // The transition is still NOT applied - that part of #2699 is deliberate and unchanged.
+    expect(mockedPrisma.labOrder.update).not.toHaveBeenCalled();
+
+    // It is held somewhere queryable instead, with the payload needed to replay it.
+    expect(mockedPrisma.labResultQuarantine.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        provider: "IDEXX",
+        batchId: "batch-1",
+        resultId: "result-1",
+        orderId: "order-1",
+        labOrderId: "lab-order-1",
+        organisationId: "org-1",
+        reason: "UNMAPPED_RESULT_STATUS",
+        externalStatus: "REQUIRES_REVIEW",
+        statusDetail: "awaiting pathologist",
+        modality: "REFERENCE_LAB",
+        payload: expect.objectContaining({ resultId: "result-1" }),
+      }),
+    });
+
+    // And ingestion continues, which is the whole point.
+    expect(mockConfirmLatestBatch).toHaveBeenCalledWith("batch-1");
+    expect(mockedPrisma.labResultSyncState.upsert).toHaveBeenCalled();
+
+    expect(mockedLogger.warn).toHaveBeenCalledWith(
+      "IDEXX result status did not map to a LabOrder status",
+      expect.objectContaining({
+        resultId: "result-1",
+        orderId: "order-1",
+        status: "REQUIRES_REVIEW",
+      }),
+    );
+    expect(mockedLogger.error).toHaveBeenCalledWith(
+      "IDEXX results quarantined: a result status did not map to a LabOrder status",
+      { batchId: "batch-1", quarantined: 1 },
+    );
+  });
+
+  // The fallback, and the reason the order is quarantine-then-confirm rather than the
+  // reverse. If nothing is holding the skipped transition, confirming would lose it for
+  // good - so a failed quarantine write returns to the old behaviour: stall, loudly.
+  it("does not confirm a batch when the quarantine write fails", async () => {
+    mockedPrisma.labResultQuarantine.create.mockRejectedValue(
+      new Error("database unavailable") as never,
+    );
     mockGetLatestResults.mockResolvedValue({
       batchId: "batch-1",
       hasMoreResults: false,
@@ -233,21 +303,59 @@ describe("IdexxResultsService", () => {
 
     await IdexxResultsService.pollLatest(1, 1);
 
-    expect(mockedPrisma.labOrder.update).not.toHaveBeenCalled();
+    // Both assertions are needed: confirming alone would not prove the batch was not
+    // consumed if the sync state had advanced anyway.
     expect(mockConfirmLatestBatch).not.toHaveBeenCalled();
     expect(mockedPrisma.labResultSyncState.upsert).not.toHaveBeenCalled();
-    expect(mockedLogger.warn).toHaveBeenCalledWith(
-      "IDEXX result status did not map to a LabOrder status",
-      expect.objectContaining({
-        resultId: "result-1",
-        orderId: "order-1",
-        status: "REQUIRES_REVIEW",
-      }),
-    );
     expect(mockedLogger.error).toHaveBeenCalledWith(
-      "IDEXX batch left unconfirmed: a result status did not map to a LabOrder status",
-      { batchId: "batch-1" },
+      "IDEXX batch left unconfirmed: could not quarantine an unmapped result",
+      expect.objectContaining({ batchId: "batch-1" }),
     );
+  });
+
+  // One row per unapplicable result, including when the provider sent no result id at all.
+  // An upsert key would collapse these two onto one row, which is the silent loss the whole
+  // change exists to prevent - hence no unique key on the table.
+  it("records every unmapped result in a batch, including ones with no result id", async () => {
+    mockGetLatestResults.mockResolvedValue({
+      batchId: "batch-1",
+      hasMoreResults: false,
+      results: [
+        {
+          orderId: "order-1",
+          status: "REQUIRES_REVIEW",
+          updatedDate: "2026-06-17T12:00:00.000Z",
+          patient: { patientId: "patient-1" },
+        },
+        {
+          orderId: "order-2",
+          status: "SOMETHING_NEW",
+          updatedDate: "2026-06-17T12:00:00.000Z",
+          patient: { patientId: "patient-2" },
+        },
+      ],
+    });
+
+    await IdexxResultsService.pollLatest(2, 1);
+
+    expect(mockedPrisma.labResultQuarantine.create).toHaveBeenCalledTimes(2);
+    const reasons = mockedPrisma.labResultQuarantine.create.mock.calls.map(
+      (call) =>
+        (call[0] as { data: { resultId: unknown; orderId: unknown } }).data,
+    );
+    // Null, not "": an id the provider never sent is worth seeing as absent.
+    expect(reasons).toEqual([
+      expect.objectContaining({ resultId: null, orderId: "order-1" }),
+      expect.objectContaining({ resultId: null, orderId: "order-2" }),
+    ]);
+    expect(mockConfirmLatestBatch).toHaveBeenCalledWith("batch-1");
+  });
+
+  it("does not quarantine a result whose status maps", async () => {
+    await IdexxResultsService.pollLatest(1, 1);
+
+    expect(mockedPrisma.labResultQuarantine.create).not.toHaveBeenCalled();
+    expect(mockConfirmLatestBatch).toHaveBeenCalledWith("batch-1");
   });
 
   // The result row itself still lands, so an unmapped status is not a lost result - but the
@@ -279,7 +387,10 @@ describe("IdexxResultsService", () => {
     expect(mockedDocumentService.create).not.toHaveBeenCalled();
   });
 
-  it("holds back a mixed batch, applying the rows that do map", async () => {
+  // The mixed batch is the realistic case: one clinic's unrecognised status arriving
+  // alongside other clinics' ordinary results. Before the quarantine, the whole batch was
+  // held for the one row - which is the outage.
+  it("applies the rows that do map in a mixed batch, and holds only the one that does not", async () => {
     mockGetLatestResults.mockResolvedValue({
       batchId: "batch-1",
       hasMoreResults: false,
@@ -304,6 +415,10 @@ describe("IdexxResultsService", () => {
     await IdexxResultsService.pollLatest(2, 1);
 
     expect(mockedPrisma.labOrder.update).toHaveBeenCalledTimes(1);
-    expect(mockConfirmLatestBatch).not.toHaveBeenCalled();
+    expect(mockedPrisma.labResultQuarantine.create).toHaveBeenCalledTimes(1);
+    expect(mockedPrisma.labResultQuarantine.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ resultId: "result-2" }),
+    });
+    expect(mockConfirmLatestBatch).toHaveBeenCalledWith("batch-1");
   });
 });
