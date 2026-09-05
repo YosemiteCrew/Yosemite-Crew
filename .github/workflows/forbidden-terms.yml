@@ -192,6 +192,7 @@ jobs:
         env:
           FORBIDDEN_TERMS_PATTERN_B64: ${{ secrets.FORBIDDEN_TERMS_PATTERN_B64 }}
         run: |
+          set -euo pipefail
           # A directory rather than a list of surfaces, so this step cannot
           # short-pass the guard. Every surface the script knows about is read,
           # and one the step above failed to write is exit 2 rather than a
