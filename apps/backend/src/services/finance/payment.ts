@@ -743,7 +743,13 @@ const ZERO_DECIMAL_CURRENCIES = new Set([
   "mga",
   "pyg",
   "rwf",
-  "ugx",
+  // NOT "ugx". Stripe's Special cases: UGX "became a zero-decimal currency, but
+  // backwards compatibility requires you to represent it as a two-decimal value,
+  // where the decimal amount is always 00. To charge 5 UGX, provide an amount
+  // value of 500." It was in this set, so a UGX invoice was submitted at a
+  // hundredth of its value. ISK carries the identical rule and is correctly
+  // absent - the same exception was applied to one and not the other.
+  // https://docs.stripe.com/currencies#special-cases
   "vnd",
   "vuv",
   "xaf",

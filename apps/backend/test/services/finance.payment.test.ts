@@ -1969,6 +1969,61 @@ describe("FinancePaymentService", () => {
     expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(1000);
   });
 
+  // The other half of the same rule, and the half the JPY test cannot reach.
+  // Stripe's Special cases: UGX "became a zero-decimal currency, but backwards
+  // compatibility requires you to represent it as a two-decimal value, where the
+  // decimal amount is always 00. To charge 5 UGX, provide an amount value of
+  // 500." ISK carries the identical rule and is correctly absent from the set;
+  // ugx was in it, so a UGX invoice was submitted at a hundredth of its value.
+  // https://docs.stripe.com/currencies#special-cases
+  it("submits UGX as a two-decimal value, which Stripe requires despite it being zero-decimal", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_ugx",
+      totalAmount: 5,
+      currency: "ugx",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      organisationId: "org_1",
+      appointmentId: "",
+      parentId: "",
+      items: [{ name: "Consult", quantity: 1, unitPrice: 5, total: 5 }],
+      taxTotal: 0,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_ugx",
+    });
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_ugx",
+    });
+    stripeClient.checkout.sessions.create.mockResolvedValueOnce({
+      id: "cs_ugx",
+      url: "https://checkout.test/ugx",
+    });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice("inv_ugx");
+
+    const [sessionArgs] = stripeClient.checkout.sessions.create.mock
+      .calls[0] as [
+      { line_items: Array<{ price_data: { unit_amount: number } }> },
+    ];
+    // 5 UGX, not 5 minor units.
+    expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(500);
+  });
+
   it("charges the current invoice balance when discounts change the raw item total", async () => {
     const stripeClient = {
       checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
