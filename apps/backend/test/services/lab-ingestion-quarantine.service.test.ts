@@ -7,6 +7,7 @@ jest.mock("src/config/prisma", () => ({
     labResultQuarantine: {
       count: jest.fn(),
       findMany: jest.fn(),
+      updateMany: jest.fn(),
     },
   },
 }));
@@ -71,5 +72,38 @@ describe("LabIngestionQuarantineService.listUnresolved", () => {
     };
     expect(call.select.payload).toBeUndefined();
     expect(call.select.externalStatus).toBe(true);
+  });
+});
+
+describe("LabIngestionQuarantineService.resolve", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedPrisma.labResultQuarantine.updateMany.mockResolvedValue({
+      count: 1,
+    } as never);
+  });
+
+  // resolvedAt is in the `where`, not only the `data`. Without it a second call
+  // would move the timestamp forward and report success again, so "resolved" and
+  // "resolved by this call" would be indistinguishable.
+  it("resolves only a row nobody has resolved yet", async () => {
+    await expect(LabIngestionQuarantineService.resolve("q-1")).resolves.toBe(
+      true,
+    );
+
+    expect(mockedPrisma.labResultQuarantine.updateMany).toHaveBeenCalledWith({
+      where: { id: "q-1", resolvedAt: null },
+      data: { resolvedAt: expect.any(Date) },
+    });
+  });
+
+  it("reports no-op when nothing matched, rather than throwing", async () => {
+    mockedPrisma.labResultQuarantine.updateMany.mockResolvedValue({
+      count: 0,
+    } as never);
+
+    await expect(
+      LabIngestionQuarantineService.resolve("q-missing"),
+    ).resolves.toBe(false);
   });
 });

@@ -42,6 +42,7 @@ jest.mock("src/config/prisma", () => ({
     labResultQuarantine: {
       create: jest.fn(),
     },
+    $transaction: jest.fn(),
     task: {
       findFirst: jest.fn(),
     },
@@ -125,6 +126,10 @@ describe("IdexxResultsService", () => {
     mockedPrisma.labResult.upsert.mockResolvedValue({} as any);
     mockedPrisma.labResultSyncState.upsert.mockResolvedValue({} as any);
     mockedPrisma.labResultQuarantine.create.mockResolvedValue({} as any);
+    // Behaves like the real client: runs what it is handed, all or nothing.
+    (mockedPrisma.$transaction as unknown as jest.Mock).mockImplementation(
+      async (ops: unknown) => Promise.all(ops as Promise<unknown>[]),
+    );
     mockedPrisma.task.findFirst.mockResolvedValue(null as any);
     mockedPrisma.document.findFirst.mockResolvedValue(null as any);
     mockedDocumentService.create.mockResolvedValue({} as any);
@@ -284,7 +289,7 @@ describe("IdexxResultsService", () => {
   // reverse. If nothing is holding the skipped transition, confirming would lose it for
   // good - so a failed quarantine write returns to the old behaviour: stall, loudly.
   it("does not confirm a batch when the quarantine write fails", async () => {
-    mockedPrisma.labResultQuarantine.create.mockRejectedValue(
+    (mockedPrisma.$transaction as unknown as jest.Mock).mockRejectedValue(
       new Error("database unavailable") as never,
     );
     mockGetLatestResults.mockResolvedValue({
@@ -348,6 +353,41 @@ describe("IdexxResultsService", () => {
       expect.objectContaining({ resultId: null, orderId: "order-1" }),
       expect.objectContaining({ resultId: null, orderId: "order-2" }),
     ]);
+    expect(mockConfirmLatestBatch).toHaveBeenCalledWith("batch-1");
+  });
+
+  // Every held row in ONE write, because the fallback is only "the previous
+  // behaviour" if a part-way failure leaves nothing behind. A loop of creates
+  // commits the earlier rows, returns false, and the next poll re-fetches the
+  // same batch and writes them again - once per poll, unbounded, inflating the
+  // one number an operator reads as severity.
+  it("writes every held row in a single transaction", async () => {
+    mockGetLatestResults.mockResolvedValue({
+      batchId: "batch-1",
+      hasMoreResults: false,
+      results: [
+        {
+          resultId: "result-1",
+          orderId: "order-1",
+          status: "REQUIRES_REVIEW",
+          updatedDate: "2026-06-17T12:00:00.000Z",
+          patient: { patientId: "patient-1" },
+        },
+        {
+          resultId: "result-2",
+          orderId: "order-2",
+          status: "SOMETHING_NEW",
+          updatedDate: "2026-06-17T12:00:00.000Z",
+          patient: { patientId: "patient-2" },
+        },
+      ],
+    });
+
+    await IdexxResultsService.pollLatest(2, 1);
+
+    const transaction = mockedPrisma.$transaction as unknown as jest.Mock;
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect((transaction.mock.calls[0][0] as unknown[]).length).toBe(2);
     expect(mockConfirmLatestBatch).toHaveBeenCalledWith("batch-1");
   });
 
