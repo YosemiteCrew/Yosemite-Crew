@@ -17,6 +17,7 @@ import { NotificationService } from "./notification.service";
 
 import { prisma } from "src/config/prisma";
 import { getOrgBillingCurrency } from "src/utils/billing";
+import { toStripeMinorUnits } from "src/utils/stripe-minor-units";
 import { recomputeOrganizationVerification } from "./organization-verification.service";
 import { Prisma } from "@prisma/client";
 
@@ -57,10 +58,6 @@ const getStripeClient = () => {
   stripeClient = new Stripe(apiKey, { apiVersion: "2026-01-28.clover" });
   return stripeClient;
 };
-
-function toStripeAmount(amount: number): number {
-  return Math.round(amount * 100);
-}
 
 // Settlement must use what Stripe actually captured, never the invoice total.
 const resolveCapturedAmount = (
@@ -487,8 +484,8 @@ export const StripeService = {
     if (!organisation?.stripeAccountId)
       throw new Error("Organisation has no Stripe account");
 
-    const amount = toStripeAmount(service.cost);
     const currency = await getOrgBillingCurrency(appointment.organisationId);
+    const amount = toStripeMinorUnits(service.cost, currency);
 
     const { parentId, patientId } = extractAppointmentPatientRefs(appointment);
     const companionId = patientId ?? "";
