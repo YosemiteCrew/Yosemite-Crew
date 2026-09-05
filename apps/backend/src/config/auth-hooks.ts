@@ -1,5 +1,9 @@
 import type { AuthHooks } from "@yosemite-crew/auth";
 import { prisma } from "src/config/prisma";
+import {
+  practitionerReferenceFilter,
+  resolveCanonicalUserId,
+} from "src/services/shared/staff-identity";
 import logger from "src/utils/logger";
 
 // Application-side hooks for the auth boundary. They give the provider layer
@@ -50,13 +54,31 @@ export const authHooks: AuthHooks = {
    *   rejected business from one nobody has looked at yet.
    */
   async isSignInBlocked({ appUserId }) {
-    const practitionerReference = appUserId.trim();
-    if (!practitionerReference) {
+    const suppliedId = appUserId.trim();
+    if (!suppliedId) {
       return false;
     }
 
+    // Both id spaces and both reference forms, via the shared filter.
+    //
+    // This is the one place where a missed membership row is DANGEROUS rather
+    // than merely lossy. `memberships.length === 0` is read below as "pet
+    // parent, not staff, not blocked", so any query that fails to find a
+    // staff user's rows silently un-enforces the disable for them - and the
+    // two states are indistinguishable by construction, so nothing logs.
+    //
+    // `appUserId` here is the raw SuperTokens `result.user.id` from the
+    // sign-in override; unlike every authorised request, which resolves
+    // through `resolveAppUserId` before RBAC reads a membership, nothing has
+    // resolved it yet. A migrated staff account stores its rows under the
+    // legacy app user id, and `practitionerReference` may carry either form.
+    const canonicalId = await resolveCanonicalUserId(suppliedId);
+
     const memberships = await prisma.userOrganization.findMany({
-      where: { practitionerReference, active: true },
+      where: {
+        active: true,
+        OR: practitionerReferenceFilter([suppliedId, canonicalId]),
+      },
       select: { organizationReference: true },
     });
     if (memberships.length === 0) {

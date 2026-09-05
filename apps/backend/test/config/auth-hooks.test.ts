@@ -6,6 +6,7 @@ const mockUpsert: jest.Mock = jest.fn();
 const mockCreateUserIdMapping: jest.Mock = jest.fn();
 const mockUserOrgFindMany: jest.Mock = jest.fn();
 const mockOrganizationCount: jest.Mock = jest.fn();
+const mockUserFindFirst: jest.Mock = jest.fn();
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -13,6 +14,9 @@ jest.mock("src/config/prisma", () => ({
       findFirst: (...args: unknown[]) => mockFindFirst(...args),
       findMany: (...args: unknown[]) => mockFindMany(...args),
       upsert: (...args: unknown[]) => mockUpsert(...args),
+    },
+    user: {
+      findFirst: (...args: unknown[]) => mockUserFindFirst(...args),
     },
     userOrganization: {
       findMany: (...args: unknown[]) => mockUserOrgFindMany(...args),
@@ -224,6 +228,12 @@ describe("authHooks.isSignInBlocked", () => {
   beforeEach(() => {
     mockUserOrgFindMany.mockReset();
     mockOrganizationCount.mockReset();
+    mockUserFindFirst.mockReset();
+    mockFindFirst.mockReset();
+    // Default: the supplied id IS the canonical one (an account created after
+    // the migration). The migrated case is covered explicitly below.
+    mockUserFindFirst.mockResolvedValue(null as never);
+    mockFindFirst.mockResolvedValue(null as never);
   });
 
   it("blocks when every organisation the user belongs to is inactive", async () => {
@@ -288,12 +298,75 @@ describe("authHooks.isSignInBlocked", () => {
     });
   });
 
-  it("reads only active memberships", async () => {
+  it("reads only active memberships, in both reference forms", async () => {
     mockUserOrgFindMany.mockResolvedValue([] as never);
     await blocked("staff-5");
 
     expect(mockUserOrgFindMany).toHaveBeenCalledWith({
-      where: { practitionerReference: "staff-5", active: true },
+      where: {
+        active: true,
+        OR: [
+          { practitionerReference: "staff-5" },
+          { practitionerReference: "Practitioner/staff-5" },
+        ],
+      },
+      select: { organizationReference: true },
+    });
+  });
+
+  it("finds a membership stored as a FHIR Practitioner/ reference", async () => {
+    // The fail-OPEN case, and the reason this query cannot match bare only.
+    // A row stored as `Practitioner/<id>` is invisible to a bare lookup, the
+    // empty result reads as "pet parent, not staff", and a disabled
+    // organisation is silently unenforced - `organization.count` is never even
+    // reached. `UserService.deleteById` matches both forms for the same reason.
+    mockUserOrgFindMany.mockImplementation((async (args: {
+      where: { OR: { practitionerReference: string }[] };
+    }) => {
+      const wanted = args.where.OR.map((c) => c.practitionerReference);
+      return wanted.includes("Practitioner/staff-6")
+        ? [{ organizationReference: "org-3" }]
+        : [];
+    }) as never);
+    mockOrganizationCount.mockResolvedValue(0 as never);
+
+    await expect(blocked("staff-6")).resolves.toBe(true);
+    expect(mockOrganizationCount).toHaveBeenCalledWith({
+      where: { id: { in: ["org-3"] }, isActive: true },
+    });
+  });
+
+  it("finds a migrated account's membership under its legacy app user id", async () => {
+    // `appUserId` here is the raw SuperTokens id from the sign-in override -
+    // nothing has resolved it yet, unlike every authorised request. A migrated
+    // account's rows are stored under the legacy id, so querying the alias
+    // alone finds nothing and lets a disabled organisation sign in.
+    mockFindFirst.mockResolvedValue({ appUserId: "legacy-77" } as never);
+    mockUserOrgFindMany.mockImplementation((async (args: {
+      where: { OR: { practitionerReference: string }[] };
+    }) => {
+      const wanted = args.where.OR.map((c) => c.practitionerReference);
+      return wanted.includes("legacy-77")
+        ? [{ organizationReference: "org-4" }]
+        : [];
+    }) as never);
+    mockOrganizationCount.mockResolvedValue(0 as never);
+
+    await expect(blocked("supertokens-alias-77")).resolves.toBe(true);
+  });
+
+  it("does not double-prefix an id that already carries the Practitioner/ form", async () => {
+    mockUserOrgFindMany.mockResolvedValue([] as never);
+    await blocked("Practitioner/staff-8");
+
+    expect(mockUserOrgFindMany).toHaveBeenCalledWith({
+      where: {
+        active: true,
+        OR: [
+          { practitionerReference: "staff-8" },
+          { practitionerReference: "Practitioner/staff-8" },
+        ],
+      },
       select: { organizationReference: true },
     });
   });
