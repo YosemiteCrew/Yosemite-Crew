@@ -16,6 +16,7 @@ import {
 import CompanionHistoryTimeline from '@/app/features/companionHistory/components/CompanionHistoryTimeline';
 import ProblemListPanel from '@/app/features/companionHistory/components/ProblemListPanel';
 import AllergyListPanel from '@/app/features/companionHistory/components/AllergyListPanel';
+import FlagListPanel from '@/app/features/companionHistory/components/FlagListPanel';
 import PermissionGate from '@/app/ui/layout/guards/PermissionGate';
 import AlertPill from '@/app/features/appointments/pages/AppointmentWorkspace/components/AlertPill';
 import type { CompanionAlert } from '@/app/features/appointments/types/workspace';
@@ -413,6 +414,10 @@ const PhoneCompanionRecord = ({
         <ProblemListPanel companionId={companionId} />
         <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]}>
           <AllergyListPanel companionId={companionId} />
+        </PermissionGate>
+
+        <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]}>
+          <FlagListPanel companionId={companionId} />
         </PermissionGate>
 
         <CompanionHistoryTimeline

@@ -57,6 +57,7 @@ import { useNotify } from '@/app/hooks/useNotify';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import AllergyListPanel from '@/app/features/companionHistory/components/AllergyListPanel';
+import FlagListPanel from '@/app/features/companionHistory/components/FlagListPanel';
 import { isCompanionRevampEnabled } from '@/app/lib/featureFlags';
 import ShareCompanionCardModal from '@/app/features/companionCard/components/ShareCompanionCardModal';
 import { buildStaffCard } from '@/app/features/companionCard/lib/buildStaffCard';
@@ -700,6 +701,11 @@ const CompanionHistoryDesktopBody = ({
     {hasCompanionId ? (
       <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]}>
         <AllergyListPanel companionId={companionId} />
+      </PermissionGate>
+    ) : null}
+    {hasCompanionId ? (
+      <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]}>
+        <FlagListPanel companionId={companionId} />
       </PermissionGate>
     ) : null}
 
