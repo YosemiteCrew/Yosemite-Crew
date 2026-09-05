@@ -16,28 +16,18 @@ import {
 
 const LOAD_ERROR = 'Could not load patient flags. Please try again.';
 
-export type PatientFlagsState = {
-  /** The backend gates the list on `companions:view:any`. */
-  canView: boolean;
-  /** Create and resolve need `companions:edit:any`. */
-  canEdit: boolean;
-  flags: PatientFlag[];
-  loading: boolean;
-  error: string | null;
-  creating: boolean;
-  resolvingId: string | null;
-  create: (values: FlagFormValues) => Promise<boolean>;
-  resolve: (flag: PatientFlag) => Promise<void>;
-};
+type SetFlags = Dispatch<SetStateAction<PatientFlag[]>>;
+type SetError = Dispatch<SetStateAction<string | null>>;
 
-type FlagSetter = Dispatch<SetStateAction<PatientFlag[]>>;
-
-const useActivePatientFlags = (companionId: string, canView: boolean) => {
+/** Loads a companion's active flags and resets to a loading state when the companion changes. */
+const useFlagRecords = (companionId: string, canView: boolean) => {
   const [flags, setFlags] = useState<PatientFlag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [loadedFor, setLoadedFor] = useState(companionId);
 
+  // Reset during render (React's recommended pattern) rather than in an effect;
+  // `loadedFor` tracks which companion the current state belongs to.
+  const [loadedFor, setLoadedFor] = useState(companionId);
   if (companionId !== loadedFor) {
     setLoadedFor(companionId);
     setFlags([]);
@@ -63,14 +53,11 @@ const useActivePatientFlags = (companionId: string, canView: boolean) => {
     };
   }, [canView, companionId]);
 
-  return { flags, setFlags, loading, error, setError };
+  return { flags, loading, error, setFlags, setError };
 };
 
-const useCreateFlag = (
-  companionId: string,
-  setFlags: FlagSetter,
-  setError: Dispatch<SetStateAction<string | null>>
-) => {
+/** The create action and its in-flight flag; refreshes the list from the server on success. */
+const useCreateFlag = (companionId: string, setFlags: SetFlags, setError: SetError) => {
   const { notify } = useNotify();
   const [creating, setCreating] = useState(false);
   const create = useCallback(
@@ -104,10 +91,11 @@ const useCreateFlag = (
     },
     [companionId, notify, setError, setFlags]
   );
-  return { creating, create };
+  return { create, creating };
 };
 
-const useResolveFlag = (setFlags: FlagSetter) => {
+/** The resolve action and the id it is resolving; drops the flag from the active list on success. */
+const useResolveFlag = (setFlags: SetFlags) => {
   const { notify } = useNotify();
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const resolve = useCallback(
@@ -130,22 +118,36 @@ const useResolveFlag = (setFlags: FlagSetter) => {
     },
     [notify, setFlags]
   );
-  return { resolvingId, resolve };
+  return { resolve, resolvingId };
+};
+
+export type PatientFlagsState = {
+  /** The backend gates the list on `companions:view:any`. */
+  canView: boolean;
+  /** Create and resolve need `companions:edit:any`. */
+  canEdit: boolean;
+  flags: PatientFlag[];
+  loading: boolean;
+  error: string | null;
+  creating: boolean;
+  resolvingId: string | null;
+  create: (values: FlagFormValues) => Promise<boolean>;
+  resolve: (flag: PatientFlag) => Promise<void>;
 };
 
 /**
- * All of the flag panel's state: it loads a companion's active flags, exposes
- * the create and resolve actions, and reports the caller's permissions. Kept out
- * of the component so the panel is a thin projection onto the presentational
- * list.
+ * Composes the flag panel's state from three focused sub-hooks - records,
+ * create and resolve - so no single function owns loading, mutation and
+ * notification at once. The panel is a thin projection over what this returns.
  */
 export const usePatientFlags = (companionId: string): PatientFlagsState => {
   const permissions = usePermissions();
   const canView = permissions.can(PERMISSIONS.COMPANIONS_VIEW_ANY);
   const canEdit = permissions.can(PERMISSIONS.COMPANIONS_EDIT_ANY);
-  const { flags, setFlags, loading, error, setError } = useActivePatientFlags(companionId, canView);
-  const { creating, create } = useCreateFlag(companionId, setFlags, setError);
-  const { resolvingId, resolve } = useResolveFlag(setFlags);
+
+  const { flags, loading, error, setFlags, setError } = useFlagRecords(companionId, canView);
+  const { create, creating } = useCreateFlag(companionId, setFlags, setError);
+  const { resolve, resolvingId } = useResolveFlag(setFlags);
 
   return { canView, canEdit, flags, loading, error, creating, resolvingId, create, resolve };
 };
