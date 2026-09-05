@@ -110,10 +110,29 @@ const GuidePlayerModal = ({
           poster={guide.thumbnailUrl}
         >
           <source src={guide.videoUrl} type="video/mp4" />
-          {/* An empty track keeps the captions control present and honest: the
-              films carry no caption file yet, and a missing <track> would hide
-              the affordance rather than show it as empty. */}
-          <track kind="captions" src="data:text/vtt,WEBVTT" srcLang="en" label="English" default />
+          {/* A real captions file served from our own origin.
+
+              This was `<track src="data:text/vtt,WEBVTT">` - an empty track
+              added to satisfy Sonar's S4084 ("media elements must have a track
+              for captions"). It never worked: the app's CSP is
+              `media-src 'self'` plus the CDN hosts (src/securityHeaders.ts), so
+              the browser refused the data: URL and logged a violation on every
+              play, leaving the video with no track at all - the exact outcome
+              the empty track was meant to prevent.
+
+              An empty file would have loaded, but it gives a deaf viewer a
+              captions control that switches on and then shows nothing forever,
+              which reads as a broken feature rather than as "this film has no
+              speech". So the track carries what a captioner would actually
+              write for speech-free media: it names the non-speech audio, says
+              there is no narration, and stops. */}
+          <track
+            kind="captions"
+            src="/captions/no-narration.en.vtt"
+            srcLang="en"
+            label="English"
+            default
+          />
           Your browser cannot play this video.
         </video>
       </div>
