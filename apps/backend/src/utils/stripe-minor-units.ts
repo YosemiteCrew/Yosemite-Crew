@@ -16,6 +16,12 @@
 // to represent it as a two-decimal value, where the decimal amount is always
 // 00." Both are therefore scaled like a two-decimal currency.
 // https://docs.stripe.com/currencies#special-cases
+//
+// Read the name precisely: this is "currencies whose CHARGE amount is
+// unscaled", not "Stripe's zero-decimal currencies". HUF and TWD are
+// zero-decimal for PAYOUTS and are deliberately absent here, because Stripe
+// takes two-decimal amounts when charging them. Anyone adding payout support
+// and reading this set as the general answer gets those two backwards.
 const ZERO_DECIMAL_CURRENCIES = new Set([
   "bif",
   "clp",
