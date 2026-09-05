@@ -320,6 +320,27 @@ describe("DocumensoService", () => {
         expect(logger.error).toHaveBeenCalledWith("Status code:", 400);
         expect(logger.error).toHaveBeenCalledWith("Body:", "Bad Request");
       });
+
+      it("handles a failed lookup after the document is created", async () => {
+        mockCreate.mockResolvedValueOnce({ id: 5, envelopeId: "env_5" });
+        mockGet.mockRejectedValueOnce(
+          new (DocumensoError as any)("Lookup failed", 503, "Unavailable"),
+        );
+
+        const result = await DocumensoService.createDocument({
+          pdf: Buffer.from("test"),
+          signerEmail: "test@test.com",
+        });
+
+        expect(result).toBeUndefined();
+        expect(mockGet).toHaveBeenCalledWith({ documentId: 5 });
+        expect(logger.error).toHaveBeenCalledWith(
+          "API error:",
+          "Lookup failed",
+        );
+        expect(logger.error).toHaveBeenCalledWith("Status code:", 503);
+        expect(logger.error).toHaveBeenCalledWith("Body:", "Unavailable");
+      });
     });
 
     describe("distributeDocument", () => {
