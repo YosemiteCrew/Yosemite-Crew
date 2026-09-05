@@ -668,6 +668,36 @@ check "a blank record is treated as no record" \
   "$(git -C "$REPO" rev-parse HEAD)" \
   "$(deploy_deployed_sha "$REC" "$REPO")"
 
+# A SHA, not a revision. `git rev-parse --verify` resolves anything git can
+# name, so a record holding a BRANCH comes back as that branch's tip - and on a
+# retry the tip of the deploy branch is the commit being deployed, which is the
+# exact value this function exists to stop returning. The check meant to make a
+# corrupt record safe was the way back to the defect.
+git_quiet -C "$REPO" branch -f old-release "$M1"
+# `oldrelease` is pure lower-case alpha, so it also pins the HEX half of the
+# guard specifically: widening the character class to a-z would accept it, and
+# it resolves away from HEAD, so the check fails rather than passing by luck.
+git_quiet -C "$REPO" branch -f oldrelease "$M1"
+for BAD in old-release oldrelease refs/heads/old-release "$(printf '%s' "$M1" | cut -c1-4)"; do
+  printf '%s\n' "$BAD" > "$REC"
+  # Each of these RESOLVES, and resolves to something that is not HEAD - so a
+  # missing guard shows up as the wrong sha rather than as the right one by
+  # coincidence. A branch name is the dangerous shape: on a retry the deploy
+  # branch's tip IS the commit being deployed.
+  check "a record holding a revision rather than a sha [$BAD] is not trusted" \
+    "$(git -C "$REPO" rev-parse HEAD)" \
+    "$(deploy_deployed_sha "$REC" "$REPO")"
+done
+
+# A directory is readable, so `-r` alone let `tr` put "Is a directory" on the
+# deploy's stderr on the way to the right answer.
+mkdir -p "$WORK/record-as-a-dir"
+DIR_ERR="$WORK/record-as-a-dir-stderr.txt"
+check "a record path that is a directory falls back without noise on stderr" \
+  "$(git -C "$REPO" rev-parse HEAD)" \
+  "$(deploy_deployed_sha "$WORK/record-as-a-dir" "$REPO" 2>"$DIR_ERR")"
+check "and writes nothing to stderr doing it" "0" "$(wc -c <"$DIR_ERR" | tr -d ' ')"
+
 deploy_record_deployed_sha "$REC" "$M1"
 deploy_record_deployed_sha "$REC" "$M2"
 check "a later cutover replaces the record rather than appending" \

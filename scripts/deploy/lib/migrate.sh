@@ -89,8 +89,23 @@ deploy_deployed_sha() {
   local repo="${2:-.}"
   local recorded=""
 
-  if [ -r "$record" ]; then
+  # -f as well as -r: a directory is readable, and `tr` would put "Is a
+  # directory" on the deploy's stderr on the way to the right answer.
+  if [ -f "$record" ] && [ -r "$record" ]; then
     recorded="$(tr -d " \t\r\n" < "$record")"
+  fi
+
+  # A SHA, not a revision. `git rev-parse --verify` resolves anything git can
+  # name, so a record holding "dev" or "HEAD" would come back as the tip - which
+  # is the commit being DEPLOYED, the exact value this function exists to stop
+  # returning, arriving through the check meant to prevent it. Only reachable
+  # through a corrupted or hand-edited record, which is precisely the case this
+  # function's own comment anticipates. Raised by ankit-yc on #2732.
+  case "$recorded" in
+    *[!0-9a-f]* | "") recorded="" ;;
+  esac
+  if [ "${#recorded}" -lt 7 ]; then
+    recorded=""
   fi
 
   if [ -n "$recorded" ] \
