@@ -948,6 +948,8 @@ model Parent {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
+  parasiteRiskSubscriptions ParasiteRiskSubscription[]
+
   @@index([email])
 }
 
@@ -6846,4 +6848,55 @@ model TaskRecommendationRule {
 
   @@index([species, isActive])
   @@index([taskDefinitionId])
+}
+
+enum ParasiteRiskTier {
+  LOW
+  MODERATE
+  HIGH
+  EXTREME
+}
+
+/// A cached parasite risk reading for one grid cell.
+/// Cells are ~25km squares, so no precise user location is ever stored here.
+model ParasiteRiskCell {
+  id           String           @id @default(uuid())
+  latBucket    Float
+  lonBucket    Float
+  countryCode  String
+  region       String
+  modelVersion String
+  overallTier  ParasiteRiskTier
+  degraded     Boolean          @default(false)
+  /// ParasiteRiskReading[] as computed by the climate models.
+  readings     Json
+  computedAt   DateTime         @default(now())
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([latBucket, lonBucket, modelVersion])
+  @@index([computedAt])
+  @@index([countryCode])
+}
+
+/// A location a pet parent has asked to be alerted about.
+model ParasiteRiskSubscription {
+  id          String           @id @default(uuid())
+  parentId    String
+  latBucket   Float
+  lonBucket   Float
+  countryCode String
+  label       String
+  alertTier   ParasiteRiskTier @default(HIGH)
+  /// Map of parasiteId to the tier last alerted on, so a sustained high tier
+  /// does not re-notify every day.
+  alertedTiers Json?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  parent      Parent           @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, latBucket, lonBucket])
+  @@index([parentId])
+  @@index([latBucket, lonBucket])
 }
