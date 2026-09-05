@@ -23,32 +23,25 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const kinds = (sql) => classifyMigrationSql(sql).map((h) => h.kind);
 
 test('an additive migration has no hazards', () => {
-  assert.deepEqual(
-    kinds('-- AlterTable\nALTER TABLE "Invoice" ADD COLUMN "note" TEXT;'),
-    [],
-  );
+  assert.deepEqual(kinds('-- AlterTable\nALTER TABLE "Invoice" ADD COLUMN "note" TEXT;'), []);
 });
 
 test('a dropped column is a hazard', () => {
-  assert.deepEqual(
-    kinds('ALTER TABLE "Invoice" DROP COLUMN "note";'),
-    ['drops a column'],
-  );
+  assert.deepEqual(kinds('ALTER TABLE "Invoice" DROP COLUMN "note";'), ['drops a column']);
 });
 
 test('a renamed column is a hazard - the #2599 shape', () => {
   // #2599 renamed three columns. It was safe because all three tables held zero
   // rows, which is a fact about that PR, not about renames.
-  assert.deepEqual(
-    kinds('ALTER TABLE "Invoice" RENAME COLUMN "old" TO "new";'),
-    ['renames a column'],
-  );
+  assert.deepEqual(kinds('ALTER TABLE "Invoice" RENAME COLUMN "old" TO "new";'), [
+    'renames a column',
+  ]);
 });
 
 // The false positive that would have made this gate useless. Prisma writes this
 // header on precisely the migrations worth catching, and
 // 20260615100345_parent_patient_migration in this repo carries a real one.
-test('Prisma\'s warning header is not mistaken for the statement', () => {
+test("Prisma's warning header is not mistaken for the statement", () => {
   const sql = `/*
   Warnings:
 
@@ -64,7 +57,7 @@ ALTER TABLE "AdverseEventReport" ADD COLUMN "patient" JSONB;
 test('the real 20260615100345 migration is classified from its statements, not its prose', () => {
   const path = join(
     repoRoot,
-    'packages/database/prisma/migrations/20260615100345_parent_patient_migration/migration.sql',
+    'packages/database/prisma/migrations/20260615100345_parent_patient_migration/migration.sql'
   );
   const sql = readFileSync(path, 'utf8');
 
@@ -123,7 +116,9 @@ test('renaming an index is not a hazard, renaming a table is', () => {
 test('renaming an enum type is a hazard', () => {
   // Prisma casts enum values to the type by name, so a deployed client keeps
   // naming the old one.
-  assert.deepEqual(kinds('ALTER TYPE "CodeSystem" RENAME TO "CodeSystemV2";'), ['renames an enum type']);
+  assert.deepEqual(kinds('ALTER TYPE "CodeSystem" RENAME TO "CodeSystemV2";'), [
+    'renames an enum type',
+  ]);
 });
 
 test('renaming a constraint is not mistaken for renaming a table', () => {
@@ -133,15 +128,13 @@ test('renaming a constraint is not mistaken for renaming a table', () => {
 test('a required column with no default is caught beside one that has a default', () => {
   // Asking whether DEFAULT appears anywhere in the statement clears the first
   // clause on the strength of the second.
-  const sql = 'ALTER TABLE "Invoice" ADD COLUMN "a" TEXT NOT NULL, ADD COLUMN "b" INT NOT NULL DEFAULT 0;';
+  const sql =
+    'ALTER TABLE "Invoice" ADD COLUMN "a" TEXT NOT NULL, ADD COLUMN "b" INT NOT NULL DEFAULT 0;';
   assert.deepEqual(kinds(sql), ['adds a required column with no default']);
 });
 
 test('a required column WITH a default is additive', () => {
-  assert.deepEqual(
-    kinds(`ALTER TABLE "Invoice" ADD COLUMN "b" INT NOT NULL DEFAULT 0;`),
-    [],
-  );
+  assert.deepEqual(kinds(`ALTER TABLE "Invoice" ADD COLUMN "b" INT NOT NULL DEFAULT 0;`), []);
 });
 
 test('ADD COLUMN IF NOT EXISTS is not read as NOT NULL', () => {
@@ -149,10 +142,9 @@ test('ADD COLUMN IF NOT EXISTS is not read as NOT NULL', () => {
 });
 
 test('tightening an existing column to NOT NULL is a hazard', () => {
-  assert.deepEqual(
-    kinds('ALTER TABLE "CodeEntry" ALTER COLUMN "code" SET NOT NULL;'),
-    ['makes an existing column NOT NULL'],
-  );
+  assert.deepEqual(kinds('ALTER TABLE "CodeEntry" ALTER COLUMN "code" SET NOT NULL;'), [
+    'makes an existing column NOT NULL',
+  ]);
 });
 
 test('relaxing a column to NULL is not', () => {
@@ -162,7 +154,7 @@ test('relaxing a column to NULL is not', () => {
 test('a column type change is a hazard', () => {
   assert.deepEqual(
     kinds('ALTER TABLE "Invoice" ALTER COLUMN "subtotal" SET DATA TYPE DECIMAL(10,2);'),
-    ['changes a column type'],
+    ['changes a column type']
   );
 });
 
@@ -189,7 +181,7 @@ test('a line comment describing a drop is not mistaken for one', () => {
   assert.deepEqual(kinds(sql), []);
 });
 
-test("a doubled quote inside a literal needs no special case", () => {
+test('a doubled quote inside a literal needs no special case', () => {
   // Pinned because the scanner deliberately has no '' branch. Closing the
   // literal at the first quote and reopening at the second spans exactly the
   // same text, so the `--` here can never surface outside a literal and eat the
@@ -238,6 +230,37 @@ test('readDeclaration joins continuation lines', () => {
   assert.match(declaration, /no deployed query names the old one\.$/);
 });
 
+// The gate bypass Aikido found on this change: a plain substring search over
+// the raw file let the marker text inside DATA clear the hazard beside it.
+test('the marker inside a string literal is not a declaration', () => {
+  const sql = [
+    `INSERT INTO "Note" ("body") VALUES ('deployed-code-survives: this is data, not a promise');`,
+    'ALTER TABLE "Invoice" DROP COLUMN "old";',
+  ].join('\n');
+
+  assert.equal(readDeclaration(sql), null);
+  assert.equal(reviewMigration({ name: 'm', sql }).verdict, 'undeclared');
+});
+
+test('a comment that only mentions the marker is not a declaration', () => {
+  const sql = [
+    '-- see the deployed-code-survives: convention in _migration.yaml',
+    'ALTER TABLE "Invoice" DROP COLUMN "old";',
+  ].join('\n');
+
+  assert.equal(readDeclaration(sql), null);
+});
+
+test('the marker is recognised however the comment is indented', () => {
+  const sql = [
+    '   --   deployed-code-survives: nothing has read this column since #2610,',
+    '--   and the table holds zero rows in production.',
+    'ALTER TABLE "Invoice" DROP COLUMN "old";',
+  ].join('\n');
+
+  assert.equal(reviewMigration({ name: 'm', sql }).verdict, 'ok');
+});
+
 test('readDeclaration returns null when the marker is absent or empty', () => {
   assert.equal(readDeclaration('ALTER TABLE "Invoice" DROP COLUMN "old";'), null);
   assert.equal(readDeclaration('-- deployed-code-survives:\nSELECT 1;'), null);
@@ -267,15 +290,20 @@ test('a token declaration is refused', () => {
 });
 
 test('an additive migration needs no declaration', () => {
-  const review = reviewMigration({ name: 'm', sql: 'ALTER TABLE "Invoice" ADD COLUMN "note" TEXT;' });
+  const review = reviewMigration({
+    name: 'm',
+    sql: 'ALTER TABLE "Invoice" ADD COLUMN "note" TEXT;',
+  });
   assert.equal(review.verdict, 'ok');
   assert.equal(review.declaration, null);
 });
 
 test('migrationName reads the directory, which is what Prisma checksums', () => {
   assert.equal(
-    migrationName('packages/database/prisma/migrations/20260901120000_atcvet_code_system/migration.sql'),
-    '20260901120000_atcvet_code_system',
+    migrationName(
+      'packages/database/prisma/migrations/20260901120000_atcvet_code_system/migration.sql'
+    ),
+    '20260901120000_atcvet_code_system'
   );
 });
 

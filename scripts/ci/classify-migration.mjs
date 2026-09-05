@@ -35,7 +35,11 @@
  * Exits non-zero if any file has a hazard with no declaration.
  */
 import { readFileSync } from 'node:fs';
-import { basename, dirname } from 'node:path';
+import { basename, dirname, join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { resolveWithin } from './safe-path.mjs';
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 /**
  * The marker that declares a hazard survivable, and the floor its explanation
@@ -89,8 +93,16 @@ export const stripSqlComments = (sql) => {
       let depth = 1;
       i += 2;
       while (i < sql.length && depth > 0) {
-        if (sql.slice(i, i + 2) === '/*') { depth += 1; i += 2; continue; }
-        if (sql.slice(i, i + 2) === '*/') { depth -= 1; i += 2; continue; }
+        if (sql.slice(i, i + 2) === '/*') {
+          depth += 1;
+          i += 2;
+          continue;
+        }
+        if (sql.slice(i, i + 2) === '*/') {
+          depth -= 1;
+          i += 2;
+          continue;
+        }
         // Newlines inside the comment are kept so line numbers do not shift.
         if (sql[i] === '\n') out += '\n';
         i += 1;
@@ -107,7 +119,11 @@ export const stripSqlComments = (sql) => {
       // the first and reopening at the second covers exactly the same text, so
       // no `--` can surface outside a literal between them.
       while (i < sql.length) {
-        if (sql[i] === quote) { out += quote; i += 1; break; }
+        if (sql[i] === quote) {
+          out += quote;
+          i += 1;
+          break;
+        }
         out += sql[i];
         i += 1;
       }
@@ -147,7 +163,11 @@ export const splitStatements = (sql) => {
       i += 1;
       // Doubled quotes re-pair on their own; see stripSqlComments.
       while (i < sql.length) {
-        if (sql[i] === quote) { current += quote; i += 1; break; }
+        if (sql[i] === quote) {
+          current += quote;
+          i += 1;
+          break;
+        }
         current += sql[i];
         i += 1;
       }
@@ -202,7 +222,10 @@ const RULES = [
   { kind: 'drops a column', test: (u) => u.includes('DROP COLUMN') },
   { kind: 'renames a column', test: (u) => u.includes('RENAME COLUMN') },
   { kind: 'renames a table', test: (u) => u.includes('ALTER TABLE') && u.includes('RENAME TO') },
-  { kind: 'renames an enum type', test: (u) => u.includes('ALTER TYPE') && u.includes('RENAME TO') },
+  {
+    kind: 'renames an enum type',
+    test: (u) => u.includes('ALTER TYPE') && u.includes('RENAME TO'),
+  },
   { kind: 'drops an enum type', test: (u) => u.includes('DROP TYPE') },
   { kind: 'drops a view', test: (u) => u.includes('DROP VIEW') },
   { kind: 'drops a schema', test: (u) => u.includes('DROP SCHEMA') },
@@ -241,6 +264,21 @@ export const classifyMigrationSql = (sql) => {
 };
 
 /**
+ * A line comment whose first content IS the marker. Anchored on purpose.
+ *
+ * A plain substring search over the raw file was a gate bypass: the marker text
+ * inside a string literal - `INSERT ... VALUES ('deployed-code-survives: ...')`
+ * - would have been read as a declaration and cleared the hazardous statement
+ * next to it. Raised by the Aikido review on this change.
+ *
+ * Requiring the comment to START with the marker also rules out a comment that
+ * merely mentions it in passing. The cost is that a declaration written inside
+ * a block comment is not recognised; the failure message names the `--` form,
+ * and refusing an unrecognised declaration fails safe.
+ */
+const DECLARATION_LINE = new RegExp(`^\\s*--\\s*${DECLARATION_MARKER}`);
+
+/**
  * The explanation attached to the marker, or null.
  *
  * Read from the RAW file, before comments are stripped - the declaration is
@@ -249,10 +287,12 @@ export const classifyMigrationSql = (sql) => {
  */
 export const readDeclaration = (sql) => {
   const lines = sql.split('\n');
-  const start = lines.findIndex((line) => line.includes(DECLARATION_MARKER));
+  const start = lines.findIndex((line) => DECLARATION_LINE.test(line));
   if (start === -1) return null;
 
-  const first = lines[start].slice(lines[start].indexOf(DECLARATION_MARKER) + DECLARATION_MARKER.length);
+  const first = lines[start].slice(
+    lines[start].indexOf(DECLARATION_MARKER) + DECLARATION_MARKER.length
+  );
   const parts = [first.trim()];
 
   for (let i = start + 1; i < lines.length; i += 1) {
@@ -294,7 +334,21 @@ const main = (paths) => {
   let failed = 0;
 
   for (const path of paths) {
-    const review = reviewMigration({ name: migrationName(path), sql: readFileSync(path, 'utf8') });
+    // The CI step feeds this repo-relative paths straight out of
+    // `git diff --name-only`, but it is a command-line script and the argument
+    // is not otherwise constrained. resolveWithin is the same containment the
+    // other scripts here apply to paths they did not author.
+    const resolved = resolveWithin(repoRoot, path);
+    if (resolved === null) {
+      console.log(`::error::${path} resolves outside the repository.`);
+      failed += 1;
+      continue;
+    }
+
+    const review = reviewMigration({
+      name: migrationName(relative(repoRoot, resolved)),
+      sql: readFileSync(resolved, 'utf8'),
+    });
 
     if (review.hazards.length === 0) {
       console.log(`ok  ${review.name}: additive only.`);
@@ -311,13 +365,17 @@ const main = (paths) => {
     }
 
     failed += 1;
-    console.log(`::error file=${path}::${review.name} changes the schema in a way the deployed code may not survive.`);
+    console.log(
+      `::error file=${path}::${review.name} changes the schema in a way the deployed code may not survive.`
+    );
     console.log(listed);
 
     if (review.verdict === 'declaration-too-short') {
       console.log(`    The ${DECLARATION_MARKER} note is ${review.declaration.length} characters:`);
       console.log(`      "${review.declaration}"`);
-      console.log(`    It needs at least ${MIN_DECLARATION_LENGTH} - enough to say something a reviewer can disagree with.`);
+      console.log(
+        `    It needs at least ${MIN_DECLARATION_LENGTH} - enough to say something a reviewer can disagree with.`
+      );
       continue;
     }
 
@@ -332,7 +390,9 @@ const main = (paths) => {
   }
 
   if (failed > 0) {
-    console.log(`\n${failed} migration(s) change the schema under the running code with no explanation.`);
+    // Deliberately not "N migrations change the schema": a path that resolves
+    // outside the repository counts here too, and was never read.
+    console.log(`\n${failed} of ${paths.length} new migration(s) did not pass.`);
     return 1;
   }
 
