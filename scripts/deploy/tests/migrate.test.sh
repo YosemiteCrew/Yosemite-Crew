@@ -813,10 +813,17 @@ fi
 # that no stand-in can exercise, and both are the whole of #2714: reading after
 # deploy_git_sync gets the target sha, and writing before CUTOVER_DONE=1 records
 # a deploy that did not happen.
-READ_LINE="$(line_of 'ROLLBACK_SHA="$(deploy_deployed_sha')"
-SYNC_LINE="$(line_of 'deploy_git_sync "$REPO_DIR"')"
+# The literal dollars are escaped in double quotes rather than written inside
+# single ones, for the same reason STAMP_TOKEN and POST_CODE_TOKEN are above:
+# a single-quoted `$REPO_DIR` is an expansion that deliberately will not happen,
+# which is exactly what SC2016 warns about and cannot be spelled otherwise.
+REPO_DIR_TOKEN="\$REPO_DIR"
+DEPLOYED_SHA_RECORD_TOKEN="\$DEPLOYED_SHA_RECORD"
+DEPLOYED_SHA_CALL_TOKEN="\$(deploy_deployed_sha"
+READ_LINE="$(line_of "ROLLBACK_SHA=\"${DEPLOYED_SHA_CALL_TOKEN}")"
+SYNC_LINE="$(line_of "deploy_git_sync \"${REPO_DIR_TOKEN}\"")"
 CUTOVER_LINE="$(line_of_exact 'CUTOVER_DONE=1')"
-WRITE_LINE="$(line_of 'deploy_record_deployed_sha "$DEPLOYED_SHA_RECORD"')"
+WRITE_LINE="$(line_of "deploy_record_deployed_sha \"${DEPLOYED_SHA_RECORD_TOKEN}\"")"
 
 if [ -n "$READ_LINE" ] && [ -n "$SYNC_LINE" ] && [ "$READ_LINE" -lt "$SYNC_LINE" ]; then
   ok "api-deploy.sh reads the deployed sha before the checkout moves the tree"
