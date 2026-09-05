@@ -57,16 +57,11 @@ const isUsableFallback = (cell: ParasiteRiskCell, now: number): boolean =>
 /** Remove cache rows that cannot be served by the current model. */
 export async function cleanupCachedCells(): Promise<number> {
   const cutoff = new Date(Date.now() - MAX_STALE_CACHE_AGE_MS);
-  const result = await prisma.parasiteRiskCell.deleteMany({
-    where: {
-      OR: [
-        { modelVersion: { not: MODEL_VERSION } },
-        { computedAt: { lt: cutoff } },
-      ],
-    },
-  });
-
-  return result.count;
+  return prisma.$executeRaw`
+    DELETE FROM "ParasiteRiskCell"
+    WHERE "modelVersion" <> ${MODEL_VERSION}
+       OR "computedAt" < ${cutoff}
+  `;
 }
 
 /**
@@ -302,13 +297,13 @@ export async function deleteSubscription(
   parentId: string,
   subscriptionId: string,
 ): Promise<void> {
-  const id = String(subscriptionId);
-  const ownerId = String(parentId);
-  const result = await prisma.parasiteRiskSubscription.deleteMany({
-    where: { id, parentId: ownerId },
-  });
+  const deleted = await prisma.$executeRaw`
+    DELETE FROM "ParasiteRiskSubscription"
+    WHERE "id" = ${String(subscriptionId)}
+      AND "parentId" = ${String(parentId)}
+  `;
 
-  if (result.count === 0) {
+  if (deleted === 0) {
     throw new ParasiteRiskServiceError("Location not found", 404);
   }
 }

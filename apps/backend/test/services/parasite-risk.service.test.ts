@@ -243,26 +243,18 @@ describe("getCellRisk", () => {
 
 describe("cleanupCachedCells", () => {
   it("removes expired and obsolete-model cache rows", async () => {
-    (prisma.parasiteRiskCell.deleteMany as jest.Mock).mockResolvedValue({
-      count: 3,
-    });
+    (prisma.$executeRaw as jest.Mock).mockResolvedValue(3);
     const now = Date.parse("2026-07-29T12:00:00.000Z");
 
     const nowSpy = jest.spyOn(Date, "now").mockReturnValue(now);
     await expect(cleanupCachedCells()).resolves.toBe(3);
 
-    expect(prisma.parasiteRiskCell.deleteMany).toHaveBeenCalledWith({
-      where: {
-        OR: [
-          { modelVersion: { not: MODEL_VERSION } },
-          {
-            computedAt: {
-              lt: new Date(now - 7 * 24 * 60 * 60 * 1000),
-            },
-          },
-        ],
-      },
-    });
+    const [query, ...values] = (prisma.$executeRaw as jest.Mock).mock.calls[0];
+    expect(query.join("?")).toContain('DELETE FROM "ParasiteRiskCell"');
+    expect(values).toEqual([
+      MODEL_VERSION,
+      new Date(now - 7 * 24 * 60 * 60 * 1000),
+    ]);
     nowSpy.mockRestore();
   });
 });
@@ -408,11 +400,7 @@ describe("deleteSubscription", () => {
   });
 
   it("refuses to delete another parent's location", async () => {
-    (prisma.parasiteRiskSubscription.deleteMany as jest.Mock).mockResolvedValue(
-      {
-        count: 0,
-      },
-    );
+    (prisma.$executeRaw as jest.Mock).mockResolvedValue(0);
 
     await expect(
       deleteSubscription("parent-1", "sub-belonging-to-someone-else"),
@@ -420,17 +408,12 @@ describe("deleteSubscription", () => {
   });
 
   it("scopes the delete to the requesting parent", async () => {
-    (prisma.parasiteRiskSubscription.deleteMany as jest.Mock).mockResolvedValue(
-      {
-        count: 1,
-      },
-    );
+    (prisma.$executeRaw as jest.Mock).mockResolvedValue(1);
 
     await deleteSubscription("parent-1", "sub-1");
 
-    const [{ where }] = (
-      prisma.parasiteRiskSubscription.deleteMany as jest.Mock
-    ).mock.calls[0];
-    expect(where).toEqual({ id: "sub-1", parentId: "parent-1" });
+    const [query, ...values] = (prisma.$executeRaw as jest.Mock).mock.calls[0];
+    expect(query.join("?")).toContain('DELETE FROM "ParasiteRiskSubscription"');
+    expect(values).toEqual(["sub-1", "parent-1"]);
   });
 });

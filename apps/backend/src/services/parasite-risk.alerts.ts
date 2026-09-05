@@ -218,22 +218,12 @@ async function processSubscription(
   );
 
   const persistAlertedTiers = async () => {
-    try {
-      await prisma.parasiteRiskSubscription.update({
-        where: { id: row.id },
-        data: { alertedTiers: nextState },
-      });
-    } catch (error) {
-      // Unfollowing while this sweep is in flight means the bookkeeping row is
-      // already gone, which is a successful end state rather than a job error.
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2025"
-      ) {
-        return;
-      }
-      throw error;
-    }
+    await prisma.$executeRaw`
+      UPDATE "ParasiteRiskSubscription"
+      SET "alertedTiers" = ${JSON.stringify(nextState)}::jsonb,
+          "updatedAt" = NOW()
+      WHERE "id" = ${String(row.id)}
+    `;
   };
 
   // Nothing to send: persist the bookkeeping on its own, which is what forgets
