@@ -218,9 +218,10 @@ describe("authHooks.resolveAppUserId", () => {
 });
 
 describe("authHooks.isSignInBlocked", () => {
-  const blocked = (appUserId: string) =>
+  const blocked = (appUserId: string, providerUserId = appUserId) =>
     authHooks.isSignInBlocked!({
       appUserId,
+      providerUserId,
       email: "vet@clinic.test",
       loginMethod: "emailpassword",
     });
@@ -300,7 +301,7 @@ describe("authHooks.isSignInBlocked", () => {
 
   it("reads only active memberships, in both reference forms", async () => {
     mockUserOrgFindMany.mockResolvedValue([] as never);
-    await blocked("staff-5");
+    await blocked("staff-5", "recipe-5");
 
     expect(mockUserOrgFindMany).toHaveBeenCalledWith({
       where: {
@@ -308,6 +309,8 @@ describe("authHooks.isSignInBlocked", () => {
         OR: [
           { practitionerReference: "staff-5" },
           { practitionerReference: "Practitioner/staff-5" },
+          { practitionerReference: "recipe-5" },
+          { practitionerReference: "Practitioner/recipe-5" },
         ],
       },
       select: { organizationReference: true },
@@ -341,7 +344,15 @@ describe("authHooks.isSignInBlocked", () => {
     // nothing has resolved it yet, unlike every authorised request. A migrated
     // account's rows are stored under the legacy id, so querying the alias
     // alone finds nothing and lets a disabled organisation sign in.
-    mockFindFirst.mockResolvedValue({ appUserId: "legacy-77" } as never);
+    // authIdentity is keyed on the RECIPE user id, which differs from
+    // `result.user.id` once accounts are linked - so the mapping is only
+    // reachable if the hook resolves `providerUserId` as well.
+    mockFindFirst.mockImplementation((async (args: {
+      where: { providerUserId: string };
+    }) =>
+      args.where.providerUserId === "recipe-77"
+        ? { appUserId: "legacy-77" }
+        : null) as never);
     mockUserOrgFindMany.mockImplementation((async (args: {
       where: { OR: { practitionerReference: string }[] };
     }) => {
@@ -352,7 +363,9 @@ describe("authHooks.isSignInBlocked", () => {
     }) as never);
     mockOrganizationCount.mockResolvedValue(0 as never);
 
-    await expect(blocked("supertokens-alias-77")).resolves.toBe(true);
+    await expect(blocked("supertokens-alias-77", "recipe-77")).resolves.toBe(
+      true,
+    );
   });
 
   it("does not double-prefix an id that already carries the Practitioner/ form", async () => {
@@ -371,8 +384,8 @@ describe("authHooks.isSignInBlocked", () => {
     });
   });
 
-  it("does not query on a blank user id", async () => {
-    await expect(blocked("   ")).resolves.toBe(false);
+  it("does not query when neither id is usable", async () => {
+    await expect(blocked("   ", "  ")).resolves.toBe(false);
     expect(mockUserOrgFindMany).not.toHaveBeenCalled();
   });
 });

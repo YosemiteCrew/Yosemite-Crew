@@ -202,6 +202,7 @@ describe("@yosemite-crew/auth supertokens config", () => {
       signIn: jest.fn(async () => ({
         status: "OK",
         user: { id: "disabled-business-user" },
+        recipeUserId: { getAsString: () => "recipe-disabled-business" },
       })),
     }).signIn;
 
@@ -234,6 +235,7 @@ describe("@yosemite-crew/auth supertokens config", () => {
       .mockResolvedValueOnce({
         status: "OK",
         user: { id: "active-business-user" },
+        recipeUserId: { getAsString: () => "recipe-active-business" },
       });
     const signIn = emailPasswordConfig.override.functions({
       signIn: originalSignIn,
@@ -252,7 +254,12 @@ describe("@yosemite-crew/auth supertokens config", () => {
         password: "correct",
         userContext: {},
       }),
-    ).resolves.toEqual({ status: "OK", user: { id: "active-business-user" } });
+    ).resolves.toEqual(
+      expect.objectContaining({
+        status: "OK",
+        user: { id: "active-business-user" },
+      }),
+    );
     expect(mockGetUserMetadata).toHaveBeenCalledTimes(1);
     expect(mockGetUserMetadata).toHaveBeenCalledWith("active-business-user");
   });
@@ -327,6 +334,7 @@ describe("@yosemite-crew/auth supertokens config", () => {
         signIn: jest.fn(async () => ({
           status: "OK",
           user: { id: "disabled-staff-user" },
+          recipeUserId: { getAsString: () => "recipe-staff" },
         })),
       });
     };
@@ -344,6 +352,7 @@ describe("@yosemite-crew/auth supertokens config", () => {
       expect(isSignInBlocked).toHaveBeenCalledWith(
         expect.objectContaining({
           appUserId: "disabled-staff-user",
+          providerUserId: "recipe-staff",
           loginMethod: "emailpassword",
         }),
       );
@@ -364,6 +373,7 @@ describe("@yosemite-crew/auth supertokens config", () => {
       expect(isSignInBlocked).toHaveBeenCalledWith(
         expect.objectContaining({
           appUserId: "disabled-otp-user",
+          providerUserId: "recipe-otp",
           loginMethod: "otp-email",
         }),
       );
@@ -385,6 +395,7 @@ describe("@yosemite-crew/auth supertokens config", () => {
       expect(isSignInBlocked).toHaveBeenCalledWith(
         expect.objectContaining({
           appUserId: "disabled-social-user",
+          providerUserId: "recipe-social",
           loginMethod: "thirdparty-apple",
         }),
       );
@@ -399,7 +410,12 @@ describe("@yosemite-crew/auth supertokens config", () => {
           password: "correct-password",
           userContext: {},
         }),
-      ).resolves.toEqual({ status: "OK", user: { id: "disabled-staff-user" } });
+      ).resolves.toEqual(
+        expect.objectContaining({
+          status: "OK",
+          user: { id: "disabled-staff-user" },
+        }),
+      );
       await expect(
         overriddenPasswordless().consumeCode({
           email: "staff@example.test",
@@ -443,7 +459,12 @@ describe("@yosemite-crew/auth supertokens config", () => {
           password: "correct-password",
           userContext: {},
         }),
-      ).resolves.toEqual({ status: "OK", user: { id: "disabled-staff-user" } });
+      ).resolves.toEqual(
+        expect.objectContaining({
+          status: "OK",
+          user: { id: "disabled-staff-user" },
+        }),
+      );
       expect(consoleError).toHaveBeenCalledWith(
         "[auth] isSignInBlocked hook failed",
         expect.any(Error),

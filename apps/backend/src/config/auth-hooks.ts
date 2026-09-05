@@ -53,9 +53,11 @@ export const authHooks: AuthHooks = {
    *   pending business is not a disabled one, and the schema cannot tell a
    *   rejected business from one nobody has looked at yet.
    */
-  async isSignInBlocked({ appUserId }) {
-    const suppliedId = appUserId.trim();
-    if (!suppliedId) {
+  async isSignInBlocked({ appUserId, providerUserId }) {
+    const suppliedIds = [appUserId, providerUserId]
+      .map((id) => id?.trim())
+      .filter((id): id is string => !!id);
+    if (suppliedIds.length === 0) {
       return false;
     }
 
@@ -67,17 +69,21 @@ export const authHooks: AuthHooks = {
     // staff user's rows silently un-enforces the disable for them - and the
     // two states are indistinguishable by construction, so nothing logs.
     //
-    // `appUserId` here is the raw SuperTokens `result.user.id` from the
-    // sign-in override; unlike every authorised request, which resolves
-    // through `resolveAppUserId` before RBAC reads a membership, nothing has
-    // resolved it yet. A migrated staff account stores its rows under the
-    // legacy app user id, and `practitionerReference` may carry either form.
-    const canonicalId = await resolveCanonicalUserId(suppliedId);
+    // Nothing has resolved these ids yet, unlike every authorised request,
+    // which goes through `resolveAppUserId` before RBAC reads a membership.
+    // `appUserId` is the raw SuperTokens `result.user.id` and
+    // `providerUserId` the recipe user id; they differ once accounts are
+    // linked, and `authIdentity` is keyed on the second. A migrated staff
+    // account stores its rows under the legacy app user id either of them
+    // maps to, and `practitionerReference` may carry either form.
+    const canonicalIds = await Promise.all(
+      suppliedIds.map((id) => resolveCanonicalUserId(id)),
+    );
 
     const memberships = await prisma.userOrganization.findMany({
       where: {
         active: true,
-        OR: practitionerReferenceFilter([suppliedId, canonicalId]),
+        OR: practitionerReferenceFilter([...suppliedIds, ...canonicalIds]),
       },
       select: { organizationReference: true },
     });

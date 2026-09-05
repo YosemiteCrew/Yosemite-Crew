@@ -100,6 +100,10 @@ export type AuthHooks = {
   // unreachable database must not lock every user out of the product.
   isSignInBlocked?: (input: {
     appUserId: string;
+    // The recipe user id, as onUserCreated records it. A migrated account's
+    // rows can be stored under either id, so the host needs both to look a
+    // membership up; nothing has resolved them at sign-in time.
+    providerUserId: string;
     email?: string;
     loginMethod: LoginMethod;
   }) => Promise<boolean>;

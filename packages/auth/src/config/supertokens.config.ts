@@ -126,6 +126,7 @@ async function reportUserCreated(input: {
  */
 async function isSignInDenied(input: {
   appUserId: string;
+  providerUserId: string;
   email?: string;
   loginMethod: LoginMethod;
 }): Promise<boolean> {
@@ -363,6 +364,7 @@ export function getSuperTokensConfig(): TypeInput {
 
               const denied = await isSignInDenied({
                 appUserId: result.user.id,
+                providerUserId: result.recipeUserId.getAsString(),
                 email: input.email,
                 loginMethod: 'emailpassword',
               });
@@ -474,6 +476,7 @@ export function getSuperTokensConfig(): TypeInput {
                 if (
                   await isSignInDenied({
                     appUserId: result.user.id,
+                    providerUserId: result.recipeUserId.getAsString(),
                     email,
                     loginMethod: 'otp-email',
                   })
@@ -515,6 +518,7 @@ export function getSuperTokensConfig(): TypeInput {
                       if (
                         await isSignInDenied({
                           appUserId: result.user.id,
+                          providerUserId: result.recipeUserId.getAsString(),
                           email: input.email,
                           loginMethod,
                         })
