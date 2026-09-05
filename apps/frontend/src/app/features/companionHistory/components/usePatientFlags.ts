@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { isAuthRedirectError } from '@/app/services/axios';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
@@ -30,28 +30,14 @@ export type PatientFlagsState = {
   resolve: (flag: PatientFlag) => Promise<void>;
 };
 
-/**
- * All of the flag panel's state: it loads a companion's active flags, exposes
- * the create and resolve actions, and reports the caller's permissions. Kept out
- * of the component so the panel is a thin projection onto the presentational
- * list.
- */
-export const usePatientFlags = (companionId: string): PatientFlagsState => {
-  const permissions = usePermissions();
-  const canView = permissions.can(PERMISSIONS.COMPANIONS_VIEW_ANY);
-  const canEdit = permissions.can(PERMISSIONS.COMPANIONS_EDIT_ANY);
-  const { notify } = useNotify();
+type FlagSetter = Dispatch<SetStateAction<PatientFlag[]>>;
 
+const useActivePatientFlags = (companionId: string, canView: boolean) => {
   const [flags, setFlags] = useState<PatientFlag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [resolvingId, setResolvingId] = useState<string | null>(null);
-
-  // Reset to a loading state when the companion changes, adjusting state during
-  // render rather than synchronously inside an effect. `loadedFor` tracks which
-  // companion the current state belongs to.
   const [loadedFor, setLoadedFor] = useState(companionId);
+
   if (companionId !== loadedFor) {
     setLoadedFor(companionId);
     setFlags([]);
@@ -77,6 +63,16 @@ export const usePatientFlags = (companionId: string): PatientFlagsState => {
     };
   }, [canView, companionId]);
 
+  return { flags, setFlags, loading, error, setError };
+};
+
+const useCreateFlag = (
+  companionId: string,
+  setFlags: FlagSetter,
+  setError: Dispatch<SetStateAction<string | null>>
+) => {
+  const { notify } = useNotify();
+  const [creating, setCreating] = useState(false);
   const create = useCallback(
     async (values: FlagFormValues): Promise<boolean> => {
       if (!companionId) return false;
@@ -90,8 +86,7 @@ export const usePatientFlags = (companionId: string): PatientFlagsState => {
           ...(values.description.trim() ? { description: values.description.trim() } : {}),
         };
         await createPatientFlag(input);
-        const refreshed = await fetchPatientFlags({ patientId: companionId, isActive: true });
-        setFlags(refreshed);
+        setFlags(await fetchPatientFlags({ patientId: companionId, isActive: true }));
         setError(null);
         notify('success', {
           title: 'Flag added',
@@ -107,9 +102,14 @@ export const usePatientFlags = (companionId: string): PatientFlagsState => {
         setCreating(false);
       }
     },
-    [companionId, notify]
+    [companionId, notify, setError, setFlags]
   );
+  return { creating, create };
+};
 
+const useResolveFlag = (setFlags: FlagSetter) => {
+  const { notify } = useNotify();
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
   const resolve = useCallback(
     async (flag: PatientFlag): Promise<void> => {
       setResolvingId(flag.id);
@@ -128,8 +128,24 @@ export const usePatientFlags = (companionId: string): PatientFlagsState => {
         setResolvingId(null);
       }
     },
-    [notify]
+    [notify, setFlags]
   );
+  return { resolvingId, resolve };
+};
+
+/**
+ * All of the flag panel's state: it loads a companion's active flags, exposes
+ * the create and resolve actions, and reports the caller's permissions. Kept out
+ * of the component so the panel is a thin projection onto the presentational
+ * list.
+ */
+export const usePatientFlags = (companionId: string): PatientFlagsState => {
+  const permissions = usePermissions();
+  const canView = permissions.can(PERMISSIONS.COMPANIONS_VIEW_ANY);
+  const canEdit = permissions.can(PERMISSIONS.COMPANIONS_EDIT_ANY);
+  const { flags, setFlags, loading, error, setError } = useActivePatientFlags(companionId, canView);
+  const { creating, create } = useCreateFlag(companionId, setFlags, setError);
+  const { resolvingId, resolve } = useResolveFlag(setFlags);
 
   return { canView, canEdit, flags, loading, error, creating, resolvingId, create, resolve };
 };
