@@ -221,7 +221,7 @@ export const NotificationService = {
     }
 
     const sendOptions: SendOptions = notificationId
-      ? { ...options, data: { ...(options?.data ?? {}), notificationId } }
+      ? { ...options, data: { ...options?.data, notificationId } }
       : (options ?? {});
 
     // Use for..of to handle async cleanly
