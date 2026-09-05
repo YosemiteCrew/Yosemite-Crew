@@ -18,8 +18,10 @@ overrides:
   node-forge: 1.4.0
   '@modelcontextprotocol/sdk': 1.26.0
   validator: 13.15.35
+  '@modelcontextprotocol/sdk>raw-body': 4.0.0
   axios: 1.20.0
   handlebars: 4.7.9
+  highlight.js@11: 11.12.0
   ajv@6: 6.15.0
   ajv@7: 8.18.0
   ajv@8: 8.20.0
@@ -55,6 +57,7 @@ overrides:
   axios@1.15.2: 1.20.0
   body-parser@1: 1.20.6
   body-parser@2: 2.3.0
+  body-parser>raw-body: 4.0.0
   esbuild@0.25.12: 0.28.1
   esbuild@0.27.2: 0.28.1
   esbuild@0.27.7: 0.28.1
@@ -120,6 +123,12 @@ overrides:
   zod: 4.5.4
 
 patchedDependencies:
+  body-parser@1.20.6:
+    hash: p2t6jd4nmjjqvfbrjflsm4awd4
+    path: patches/body-parser@1.20.6.patch
+  body-parser@2.3.0:
+    hash: volxp7tpztz57zfuiqqjphe3my
+    path: patches/body-parser@2.3.0.patch
   react-native@0.81.6:
     hash: m4qqoly5dlwssem2g7gghw2o44
     path: patches/react-native@0.81.6.patch
@@ -211,7 +220,7 @@ importers:
         version: 5.1.1
       body-parser:
         specifier: 1.20.6
-        version: 1.20.6
+        version: 1.20.6(patch_hash=p2t6jd4nmjjqvfbrjflsm4awd4)
       bullmq:
         specifier: ^6.3.0
         version: 6.3.4(ioredis@6.0.0)
@@ -5939,7 +5948,7 @@ packages:
       jose: 6.2.10
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
-      raw-body: 3.0.2
+      raw-body: 4.0.0
       zod: 4.5.4
       zod-to-json-schema: 3.25.2(zod@4.5.4)
     transitivePeerDependencies:
@@ -7397,7 +7406,7 @@ packages:
     resolution: {integrity: sha512-u4tUzWnc+qthaDvd1NxdCqCNMY7Px6dAH1ODAXMtt+N27llGMJOl0J3slMx03dScftOWbGM61KA5cCpaxphYVQ==}
     dependencies:
       '@react-native-community/cli-tools': 20.0.2
-      body-parser: 1.20.6
+      body-parser: 1.20.6(patch_hash=p2t6jd4nmjjqvfbrjflsm4awd4)
       compression: 1.8.1
       connect: 3.7.0
       errorhandler: 1.5.2
@@ -11972,7 +11981,7 @@ packages:
     resolution: {integrity: sha512-XpNj6GDQzdfW+r2Wnn7xiSAd7TM3jzkxGXBGTtWKuSXv1xUV+azxAm8jdWZN06QTQk+2N2XB9jRDkvbmQmcRtg==}
     dev: true
 
-  /body-parser@1.20.6:
+  /body-parser@1.20.6(patch_hash=p2t6jd4nmjjqvfbrjflsm4awd4):
     resolution: {integrity: sha512-p5tAzS57i5MV9fZFDj9LeIiTZEufbSe2eDozP+ElheSUq1m74CRq1jI4mYNDdVs9vQztXFLuk/Gd6BWTdwRJ5g==}
     engines: {node: '>= 0.8', npm: 1.2.8000 || >= 1.4.16}
     dependencies:
@@ -11985,13 +11994,14 @@ packages:
       iconv-lite: 0.4.24
       on-finished: 2.4.1
       qs: 6.16.0
-      raw-body: 2.5.3
+      raw-body: 4.0.0
       type-is: 1.6.18
       unpipe: 1.0.0
     transitivePeerDependencies:
       - supports-color
+    patched: true
 
-  /body-parser@2.3.0:
+  /body-parser@2.3.0(patch_hash=volxp7tpztz57zfuiqqjphe3my):
     resolution: {integrity: sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw==}
     engines: {node: '>=18'}
     dependencies:
@@ -12002,11 +12012,12 @@ packages:
       iconv-lite: 0.7.3
       on-finished: 2.4.1
       qs: 6.16.0
-      raw-body: 3.0.2
+      raw-body: 4.0.0
       type-is: 2.1.0
     transitivePeerDependencies:
       - supports-color
     dev: false
+    patched: true
 
   /boolbase@1.0.0:
     resolution: {integrity: sha512-JZOSA7Mo9sNGB8+UjSgzdLtokWAky1zbztM3WRLCbZ70/3cTANmQmOdR7y2g+J0e2WXywy1yS468tY+IruqEww==}
@@ -14937,7 +14948,7 @@ packages:
     dependencies:
       accepts: 1.3.8
       array-flatten: 1.1.1
-      body-parser: 1.20.6
+      body-parser: 1.20.6(patch_hash=p2t6jd4nmjjqvfbrjflsm4awd4)
       content-disposition: 0.5.4
       content-type: 1.0.5
       cookie: 0.7.1
@@ -14974,7 +14985,7 @@ packages:
     engines: {node: '>= 18'}
     dependencies:
       accepts: 2.0.0
-      body-parser: 2.3.0
+      body-parser: 2.3.0(patch_hash=volxp7tpztz57zfuiqqjphe3my)
       content-disposition: 1.1.0
       content-type: 1.0.5
       cookie: 0.7.2
@@ -16247,8 +16258,8 @@ packages:
     dependencies:
       hermes-estree: 0.35.0
 
-  /highlight.js@11.11.2:
-    resolution: {integrity: sha512-oaXMACAU0kzOMXBjWpNcX+vlwSBCIAiZ9BHa7gA15NOTtT2L/l8OSZDuqS2XppOhZBPJ7hm4o8ep2kyuip2uEQ==}
+  /highlight.js@11.12.0:
+    resolution: {integrity: sha512-nbfWpyRMcMrPMmDwJB+dhX/eiaPKtc2RB+0QZskqJ3WjRA/FDS0e9hZrx8EC/lbEv8gXy98FcDbNa/dspAaJMg==}
     engines: {node: '>=12.0.0'}
     dev: false
 
@@ -18521,7 +18532,7 @@ packages:
     dependencies:
       '@types/hast': 3.0.5
       devlop: 1.1.0
-      highlight.js: 11.11.2
+      highlight.js: 11.12.0
     dev: false
 
   /lru-cache@10.4.3:
@@ -21039,16 +21050,14 @@ packages:
       http-errors: 2.0.1
       iconv-lite: 0.4.24
       unpipe: 1.0.0
+    dev: true
 
-  /raw-body@3.0.2:
-    resolution: {integrity: sha512-K5zQjDllxWkf7Z5xJdV0/B0WTNqx6vxG70zJE4N0kBs4LovmEYWJzQGxC9bS9RAKu3bgM40lrd5zoLJ12MQ5BA==}
-    engines: {node: '>= 0.10'}
+  /raw-body@4.0.0:
+    resolution: {integrity: sha512-TMHtwexrgOt9VJ2E5JF9RO8mRXGNgC5wXvKkc5AVSJUt1L5gxvjg7eiCQl96EqUEpCWrnNEkCnbAplYtyuq1IA==}
+    engines: {node: '>=22'}
     dependencies:
       bytes: 3.1.2
       http-errors: 2.0.1
-      iconv-lite: 0.7.3
-      unpipe: 1.0.0
-    dev: false
 
   /rc-config-loader@4.1.4:
     resolution: {integrity: sha512-3GiwEzklkbXTDp52UR5nT8iXgYAx1V9ZG/kDZT7p60u2GCv2XTwQq4NzinMoMpNtXhmt3WkhYXcj6HH8HdwCEQ==}
