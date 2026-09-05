@@ -91,13 +91,11 @@ const BottomSheet = ({ open, title, onClose, children, footer, className }: Bott
 
   return (
     <div className="yc-phone-sheet-root">
-      <button
-        type="button"
-        className="yc-phone-sheet-backdrop"
-        aria-label="Close"
-        tabIndex={-1}
-        onClick={onClose}
-      />
+      {/* Not a button: Escape and the chrome's close chip are the accessible
+          ways out, so a second control named "Close" only duplicated that name
+          in the accessibility tree (and forced tests to disambiguate). Hidden
+          from it entirely; the click keeps tap-outside-to-dismiss. */}
+      <div className="yc-phone-sheet-backdrop" aria-hidden="true" onClick={onClose} />
       <dialog
         open
         ref={panelRef}
