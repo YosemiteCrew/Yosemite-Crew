@@ -101,18 +101,41 @@ deploy_deployed_sha() {
   # returning, arriving through the check meant to prevent it. Only reachable
   # through a corrupted or hand-edited record, which is precisely the case this
   # function's own comment anticipates. Raised by ankit-yc on #2732.
-  case "$recorded" in
-    *[!0-9a-f]* | "") recorded="" ;;
-  esac
   if [ "${#recorded}" -lt 7 ]; then
     recorded=""
   fi
 
-  if [ -n "$recorded" ] \
-    && git -C "$repo" rev-parse --verify --quiet "$recorded^{commit}" >/dev/null 2>&1
-  then
-    git -C "$repo" rev-parse "$recorded^{commit}"
-    return 0
+  # Shape is necessary and not sufficient: a BRANCH whose name is seven or more
+  # hex characters passes every check above and is then resolved as a ref, so
+  # `deadbeef` comes back as whatever that branch points at. Raised by ankit-yc
+  # on #2733 after the shape guard landed.
+  #
+  # So the value is COMPARED rather than described: resolve it, then require the
+  # resolved sha to begin with what was recorded. That subsumes the hex-character
+  # class this replaced - a name git resolves to something not beginning with it
+  # is rejected whatever characters it holds, and no mutation could redden the
+  # class once the comparison was here, which is the definition of dead.
+  #
+  # `"$recorded"*` and not `$recorded*`: the expansion is quoted so a record
+  # holding `*`, `?` or `[a-f]` is compared literally rather than as a pattern.
+  #
+  # NOT PINNED BY THE SUITE, deliberately, and this is the honest reason rather
+  # than an omission: no input can tell the two spellings apart here. To reach
+  # the comparison a record must first RESOLVE, and a value git resolves is a
+  # sha or a ref name, neither of which can contain a glob metacharacter - so
+  # unquoting it is green on every input I could construct. Tests asserting
+  # otherwise were written for this and deleted when the mutation stayed green.
+  # The quoting stays because it is free and correct, not because it is proven. A ref cannot satisfy that
+  # unless it happens to be named after its own target's prefix, in which case
+  # the ref and the object agree and accepting it costs nothing - a coincidence
+  # rather than a hole, and the reason this is a comparison and not a ban on
+  # names that look like shas.
+  if [ -n "$recorded" ]; then
+    local resolved
+    resolved="$(git -C "$repo" rev-parse --verify --quiet "$recorded^{commit}" 2>/dev/null || true)"
+    case "$resolved" in
+      "$recorded"*) printf '%s\n' "$resolved"; return 0 ;;
+    esac
   fi
 
   # No usable record: a first-ever deploy on this box, or one written before

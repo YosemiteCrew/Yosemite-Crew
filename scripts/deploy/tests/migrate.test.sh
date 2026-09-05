@@ -689,6 +689,33 @@ for BAD in old-release oldrelease refs/heads/old-release "$(printf '%s' "$M1" | 
     "$(deploy_deployed_sha "$REC" "$REPO")"
 done
 
+# Shape is necessary and not sufficient. A BRANCH whose name is seven or more
+# hex characters passes every shape check and is then resolved as a ref, so the
+# guard that rejects `old-release` accepts `deadbeef`. #2733.
+#
+# The fixture has to disagree for this to mean anything: the branch points at M1
+# and HEAD is elsewhere, so a missing comparison returns M1 - the wrong sha -
+# rather than HEAD by coincidence.
+git_quiet -C "$REPO" branch -f deadbeef "$M1"
+git_quiet -C "$REPO" branch -f abcdefabc "$M1"
+for HEXREF in deadbeef abcdefabc; do
+  printf '%s\n' "$HEXREF" > "$REC"
+  check "a hex-NAMED branch [$HEXREF] is not trusted as a deployed sha" \
+    "$(git -C "$REPO" rev-parse HEAD)" \
+    "$(deploy_deployed_sha "$REC" "$REPO")"
+done
+
+# The one case the comparison lets through, and it is a coincidence rather than
+# a hole: a branch named after its own target's prefix. The ref and the object
+# agree, so the answer is the same either way and accepting it costs nothing.
+# Pinned so that narrowing this later is a decision rather than a side effect.
+M1_PREFIX="$(printf '%s' "$M1" | cut -c1-8)"
+git_quiet -C "$REPO" branch -f "$M1_PREFIX" "$M1"
+printf '%s\n' "$M1_PREFIX" > "$REC"
+check "a branch named after its own target's prefix resolves to that target" \
+  "$M1" "$(deploy_deployed_sha "$REC" "$REPO")"
+git_quiet -C "$REPO" branch -D "$M1_PREFIX" >/dev/null 2>&1
+
 # A directory is readable, so `-r` alone let `tr` put "Is a directory" on the
 # deploy's stderr on the way to the right answer.
 mkdir -p "$WORK/record-as-a-dir"
