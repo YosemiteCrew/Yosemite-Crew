@@ -21,10 +21,7 @@ import notifee, {
   type Event,
 } from '@notifee/react-native';
 import type {AppDispatch} from '@/app/store';
-import {
-  createNotification,
-  addNotificationToList,
-} from '@/features/notifications';
+import {addNotificationToList} from '@/features/notifications';
 import type {
   CreateNotificationPayload,
   NotificationCategory,
@@ -240,34 +237,33 @@ async function handleRemoteMessage(
   const data = normalizeDataRecord(remoteMessage.data);
 
   if (notificationPayload && cachedDispatch) {
-    try {
-      await (cachedDispatch(
-        createNotification(notificationPayload) as any,
-      ) as Promise<unknown>);
-    } catch (error) {
-      console.error(
-        '[firebaseNotifications] Failed to create notification',
-        error,
-      );
-      cachedDispatch(
-        addNotificationToList({
-          id: data.notificationId || `notif_${Date.now()}`,
-          companionId: notificationPayload.companionId,
-          title: notificationPayload.title,
-          description: notificationPayload.description,
-          category: notificationPayload.category,
-          icon: notificationPayload.icon,
-          avatarUrl: notificationPayload.avatarUrl,
-          timestamp: new Date().toISOString(),
-          status: 'unread',
-          priority: notificationPayload.priority ?? 'medium',
-          deepLink: notificationPayload.deepLink,
-          relatedId: notificationPayload.relatedId,
-          relatedType: notificationPayload.relatedType,
-          metadata: notificationPayload.metadata,
-        }),
-      );
-    }
+    // Seat the push in the list directly. This used to go through a
+    // `createNotification` thunk that awaited a mock delay and then built this
+    // same object, with this dispatch as its catch-block fallback - two copies
+    // of one mapping, and no API call in either, because the backend already
+    // wrote the row before it sent the push.
+    //
+    // `data.notificationId` is that row's id and comes from the same send. The
+    // local fallback keeps a malformed push visible, but nothing keyed by id
+    // will reach the server for it until the next fetch replaces the item.
+    cachedDispatch(
+      addNotificationToList({
+        id: data.notificationId || `notif_${Date.now()}`,
+        companionId: notificationPayload.companionId,
+        title: notificationPayload.title,
+        description: notificationPayload.description,
+        category: notificationPayload.category,
+        icon: notificationPayload.icon,
+        avatarUrl: notificationPayload.avatarUrl,
+        timestamp: new Date().toISOString(),
+        status: 'unread',
+        priority: notificationPayload.priority ?? 'medium',
+        deepLink: notificationPayload.deepLink,
+        relatedId: notificationPayload.relatedId,
+        relatedType: notificationPayload.relatedType,
+        metadata: notificationPayload.metadata,
+      }),
+    );
   }
 
   const hasNativeNotificationPayload = Boolean(remoteMessage.notification);

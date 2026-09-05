@@ -9,7 +9,6 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 
 // 2. Mock Redux Actions
 jest.mock('@/features/notifications', () => ({
-  createNotification: jest.fn(payload => ({type: 'MOCK_CREATE', payload})),
   addNotificationToList: jest.fn(payload => ({type: 'MOCK_ADD_LIST', payload})),
 }));
 
@@ -370,7 +369,7 @@ describe('firebaseNotifications Service', () => {
       data: {category: 'tasks', priority: 'high'},
     };
 
-    it('dispatches CREATE_NOTIFICATION and displays via Notifee', async () => {
+    it('seats the notification in the list and displays via Notifee', async () => {
       const {initializeNotifications} = loadService();
 
       await initializeNotifications({
@@ -397,7 +396,7 @@ describe('firebaseNotifications Service', () => {
       );
     });
 
-    it('falls back to addNotificationToList on dispatch error', async () => {
+    it('keys the seated item by the id the backend sent, so it can be archived', async () => {
       const {initializeNotifications} = loadService();
       await initializeNotifications({
         dispatch: mockDispatch,
@@ -406,12 +405,31 @@ describe('firebaseNotifications Service', () => {
 
       const registeredCallback = mockMessaging.onMessage.mock.calls[0][1];
 
-      // Make dispatch fail
-      mockDispatch.mockRejectedValueOnce(new Error('Fail'));
+      await registeredCallback({
+        ...mockRemoteMessage,
+        data: {...mockRemoteMessage.data, notificationId: 'row-42'},
+      });
+
+      const [[payload]] = require('@/features/notifications')
+        .addNotificationToList.mock.calls;
+      expect(payload.id).toBe('row-42');
+      expect(payload.status).toBe('unread');
+    });
+
+    it('falls back to a local id when the push carries none', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+
+      const registeredCallback = mockMessaging.onMessage.mock.calls[0][1];
 
       await registeredCallback(mockRemoteMessage);
 
-      expect(consoleErrorSpy).toHaveBeenCalled();
+      const [[payload]] = require('@/features/notifications')
+        .addNotificationToList.mock.calls;
+      expect(payload.id).toMatch(/^notif_\d+$/);
     });
 
     it('handles background messages via exported handler', async () => {
@@ -440,8 +458,8 @@ describe('firebaseNotifications Service', () => {
         },
       });
 
-      const [[payload]] = require('@/features/notifications').createNotification
-        .mock.calls;
+      const [[payload]] = require('@/features/notifications')
+        .addNotificationToList.mock.calls;
       expect(payload.relatedType).toBe('appointment');
       expect(payload.metadata.navigationId).toBe('nav-1');
       expect(payload.metadata.trackingId).toBe('track-1');
@@ -461,8 +479,8 @@ describe('firebaseNotifications Service', () => {
         data: {relatedType: 'not-a-real-type'},
       });
 
-      const [[payload]] = require('@/features/notifications').createNotification
-        .mock.calls;
+      const [[payload]] = require('@/features/notifications')
+        .addNotificationToList.mock.calls;
       expect(payload.relatedType).toBeUndefined();
     });
 
