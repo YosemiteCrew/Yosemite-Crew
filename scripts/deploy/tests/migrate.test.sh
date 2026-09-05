@@ -554,6 +554,33 @@ else
      "destination was '$DEFAULT_DEST'"
 fi
 
+# The other half of `${HAZARD_LOG:-...}`, and the half that was lost. The
+# restructure that moved the traps into the library retired four source-level
+# checks correctly - runtime checks replaced them - and retired a fifth by
+# accident, because a diff cannot tell those two apart and I was reading the
+# count rather than the names. What went was the assertion that api-deploy.sh
+# names the destination before arming, and with it went any red for moving or
+# deleting that line.
+#
+# Behavioural rather than positional this time: the caller's value has to
+# survive the arming. If it does not, the notice still lands - the default
+# catches it - but it stops being keyed to the same $STAMP as
+# /tmp/api-rollback-$STAMP.txt and /tmp/api-dist-before-$STAMP.tgz, so an
+# operator correlating one deploy's artifacts loses the link and nothing fails.
+CALLER_DEST="$(
+  HAZARD_LOG="$WORK/caller-named.txt" \
+  MIGRATIONS_APPLIED=0 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+  INCOMING_MIGRATIONS="" \
+  bash -c '
+    set -euo pipefail
+    . "'"$HERE"'/../lib/migrate.sh"
+    deploy_arm_exit_traps
+    echo "$HAZARD_LOG"
+  ' 2>/dev/null || true
+)"
+check "arming does not override a destination the caller named" \
+  "$WORK/caller-named.txt" "$CALLER_DEST"
+
 # ---------------------------------------------------------------------------
 # The regression itself.
 #
@@ -636,6 +663,22 @@ if [ -n "$TRAP_LINE" ] && [ -n "$FLAG_LINE" ] && [ -n "$DEPLOY_LINE" ] \
 else
   no "api-deploy.sh arms the traps and raises the flag before applying migrations" \
      "trap=$TRAP_LINE flag=$FLAG_LINE deploy=$DEPLOY_LINE"
+fi
+
+# The $STAMP keying, which only a string match can carry: the behavioural check
+# above proves the caller's value survives the arming, and this proves
+# api-deploy.sh still names one. Whole-line, for the same reason line_of_exact
+# exists - the substring form matches the comment above the assignment.
+# The literal dollar is escaped in double quotes rather than written inside
+# single ones: `'$STAMP'` is an expansion that deliberately will not happen,
+# which is precisely what SC2016 warns about and cannot be spelled otherwise.
+STAMP_TOKEN="\$STAMP"
+HAZARD_LINE="$(line_of "HAZARD_LOG=\"/tmp/api-schema-hazard-${STAMP_TOKEN}.txt\"")"
+if [ -n "$HAZARD_LINE" ]; then
+  ok "api-deploy.sh keys the durable destination to the preflight \$STAMP"
+else
+  no "api-deploy.sh keys the durable destination to the preflight \$STAMP" \
+     "no assignment naming /tmp/api-schema-hazard-\$STAMP.txt"
 fi
 
 # The one thing left that a string match has to carry: that the script calls the
