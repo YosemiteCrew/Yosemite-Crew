@@ -49,31 +49,6 @@ deploy_incoming_migrations() {
     | sort
 }
 
-# deploy_on_exit
-#
-# The EXIT trap api-deploy.sh installs before it lets the schema move.
-#
-# Lives here rather than in api-deploy.sh because the test that proves the
-# notice survives `set -e` cannot run api-deploy.sh - it wants pm2, node, a
-# database and a box. It used to hand-write its own copy of this handler, which
-# meant the only thing tying the copy to the real one was a grep on line
-# ordering, and transposing the two flags in the real one left the whole suite
-# green while inverting the notice: fires only after a verified cutover, silent
-# exactly when the schema is ahead. Three positional flags of the same type and
-# nothing to catch a swap. Now there is one handler, so there is one place for
-# the order to be wrong and a test that exercises it.
-#
-# Reads the caller's state rather than taking arguments, because an EXIT trap
-# has no arguments to take. Callers must set MIGRATIONS_APPLIED, CUTOVER_DONE,
-# ROLLBACK_SHA and INCOMING_MIGRATIONS before arming it; under `set -u` a
-# missing one aborts loudly, which is the right direction - the alternative is a
-# default, and the only sensible default for "did the schema move" is the silent
-# one.
-#
-# SMOKE_PID is the exception and IS defaulted: no smoke process is a normal
-# state for most of the script's life, not a caller mistake. HAZARD_LOG is
-# supplied by deploy_arm_exit_traps rather than demanded here - see
-# deploy_schema_hazard_notice for why neither of the obvious options works.
 # deploy_arm_exit_traps
 #
 # Installs every trap the deploy needs, in one place, because the arming is as
@@ -116,6 +91,31 @@ deploy_arm_exit_traps() {
   trap deploy_on_exit EXIT
 }
 
+# deploy_on_exit
+#
+# The EXIT trap api-deploy.sh installs before it lets the schema move.
+#
+# Lives here rather than in api-deploy.sh because the test that proves the
+# notice survives `set -e` cannot run api-deploy.sh - it wants pm2, node, a
+# database and a box. It used to hand-write its own copy of this handler, which
+# meant the only thing tying the copy to the real one was a grep on line
+# ordering, and transposing the two flags in the real one left the whole suite
+# green while inverting the notice: fires only after a verified cutover, silent
+# exactly when the schema is ahead. Three positional flags of the same type and
+# nothing to catch a swap. Now there is one handler, so there is one place for
+# the order to be wrong and a test that exercises it.
+#
+# Reads the caller's state rather than taking arguments, because an EXIT trap
+# has no arguments to take. Callers must set MIGRATIONS_APPLIED, CUTOVER_DONE,
+# ROLLBACK_SHA and INCOMING_MIGRATIONS before arming it; under `set -u` a
+# missing one aborts loudly, which is the right direction - the alternative is a
+# default, and the only sensible default for "did the schema move" is the silent
+# one.
+#
+# SMOKE_PID is the exception and IS defaulted: no smoke process is a normal
+# state for most of the script's life, not a caller mistake. HAZARD_LOG is
+# supplied by deploy_arm_exit_traps rather than demanded here - see
+# deploy_schema_hazard_notice for why neither of the obvious options works.
 deploy_on_exit() {
   local status=$?
 
@@ -224,6 +224,14 @@ deploy_schema_hazard_notice() {
   local text
   text="$(deploy_schema_hazard_text "$rollback_sha" "$@")"
 
+  # What the suite proves about this write, and what it does not. It proves a
+  # durable write happens, that it happens before the stderr write, and that the
+  # caller's destination survives the arming. It does NOT prove the `|| true`
+  # earns its place, that appending rather than truncating matters, or that the
+  # `$$` in the default is load-bearing - mutating any of those three leaves the
+  # suite green. They are reasoned, not pinned, and a reader should not credit
+  # 41 green with covering them.
+  #
   # `|| true` because a destination that cannot be written must not cost the
   # other one. A full disk here would otherwise end the handler under `set -e`.
   # `/dev/null` rather than an `if`, because a caller that armed the traps always
