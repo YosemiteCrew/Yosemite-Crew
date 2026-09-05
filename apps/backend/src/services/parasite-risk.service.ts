@@ -169,7 +169,7 @@ export async function getCellRisk(
   // One row is shared by every caller in the square and carries the region it
   // was computed under, so a row from another region is not an answer to this
   // request, fresh or stale.
-  const usable = cached && cached.region === region ? cached : null;
+  const usable = cached?.region === region ? cached : null;
 
   if (usable && isFresh(usable, Date.now())) {
     return toResponse(usable);

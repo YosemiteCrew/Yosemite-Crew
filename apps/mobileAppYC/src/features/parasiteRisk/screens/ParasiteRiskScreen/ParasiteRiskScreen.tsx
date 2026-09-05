@@ -92,6 +92,48 @@ const isReadingStale = (
   return Number.isNaN(computedAt) || now - computedAt >= READING_MAX_AGE_MS;
 };
 
+const FollowLocationButton = ({
+  visible,
+  following,
+  loading,
+  onPress,
+}: {
+  visible: boolean;
+  following: boolean;
+  loading: boolean;
+  onPress: () => void;
+}) => {
+  const {theme} = useTheme();
+  const {t} = useTranslation();
+  if (!visible) return null;
+  const labelKey = following ? 'parasiteRisk.unfollow' : 'parasiteRisk.follow';
+  const iconName = following
+    ? 'notifications-off-outline'
+    : 'notifications-outline';
+
+  return (
+    <PressableOpacity
+      onPress={onPress}
+      disabled={loading}
+      accessibilityRole="button"
+      accessibilityLabel={t(labelKey)}
+      style={[
+        styles.followButton,
+        {borderColor: theme.colors.blue},
+        loading && styles.followDisabled,
+      ]}>
+      {loading ? (
+        <ActivityIndicator size="small" color={theme.colors.blue} />
+      ) : (
+        <Ionicons name={iconName} size={18} color={theme.colors.blue} />
+      )}
+      <Text style={[styles.followLabel, {color: theme.colors.blueText}]}>
+        {t(labelKey)}
+      </Text>
+    </PressableOpacity>
+  );
+};
+
 export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
   const {t} = useTranslation();
@@ -299,43 +341,12 @@ export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
           </Text>
         ) : null}
 
-        {location && reading ? (
-          <PressableOpacity
-            onPress={handleToggleFollow}
-            disabled={subscriptionsLoading}
-            accessibilityRole="button"
-            accessibilityLabel={t(
-              currentSubscription
-                ? 'parasiteRisk.unfollow'
-                : 'parasiteRisk.follow',
-            )}
-            style={[
-              styles.followButton,
-              {borderColor: theme.colors.blue},
-              subscriptionsLoading && styles.followDisabled,
-            ]}>
-            {subscriptionsLoading ? (
-              <ActivityIndicator size="small" color={theme.colors.blue} />
-            ) : (
-              <Ionicons
-                name={
-                  currentSubscription
-                    ? 'notifications-off-outline'
-                    : 'notifications-outline'
-                }
-                size={18}
-                color={theme.colors.blue}
-              />
-            )}
-            <Text style={[styles.followLabel, {color: theme.colors.blueText}]}>
-              {t(
-                currentSubscription
-                  ? 'parasiteRisk.unfollow'
-                  : 'parasiteRisk.follow',
-              )}
-            </Text>
-          </PressableOpacity>
-        ) : null}
+        <FollowLocationButton
+          visible={Boolean(location && reading)}
+          following={Boolean(currentSubscription)}
+          loading={subscriptionsLoading}
+          onPress={handleToggleFollow}
+        />
 
         {reading && headline ? (
           <>

@@ -164,7 +164,7 @@ function splitAtCurrentDay(
   dates: readonly string[],
 ): CellWeatherSeries {
   const currentDate =
-    dates[Math.max(0, dates.length - FORECAST_DAYS)] ?? dates[dates.length - 1];
+    dates[Math.max(0, dates.length - FORECAST_DAYS)] ?? dates.at(-1);
 
   return {
     past: days.filter((day) => day.date <= currentDate),

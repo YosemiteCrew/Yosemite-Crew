@@ -1,11 +1,6 @@
 import type {
-  ParasiteGroup,
-  ParasiteId,
   ParasiteRiskCellReading,
-  ParasiteRiskReading,
   ParasiteRiskSubscriptionRecord,
-  RiskTier,
-  RiskTrend,
 } from '@yosemite-crew/types';
 
 export type {
@@ -16,7 +11,7 @@ export type {
   ParasiteRiskSubscriptionRecord,
   RiskTier,
   RiskTrend,
-};
+} from '@yosemite-crew/types';
 
 /**
  * A place the user has searched for, or their current position.
