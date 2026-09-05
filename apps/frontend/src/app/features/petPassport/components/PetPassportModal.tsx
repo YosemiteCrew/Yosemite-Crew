@@ -23,7 +23,28 @@ type PetPassportModalProps = {
 type PetPassportModalContentProps = Omit<PetPassportModalProps, 'open'>;
 
 type LoadState = 'loading' | 'ready' | 'error';
+type WalletState = 'not-issued' | 'no-share-link' | 'ready';
 type WalletTarget = 'apple' | 'google' | null;
+
+// The three things this modal renders from - which panel shows, which wallet
+// message applies, and the short pet name - are pure functions of the loaded
+// passport, so they are decided here rather than inline in the component.
+const derivePassportView = (
+  passport: PetPassportDTO | null,
+  failed: boolean,
+  companionName: string
+): { state: LoadState; walletState: WalletState; petName: string } => {
+  let state: LoadState = 'loading';
+  if (failed) state = 'error';
+  else if (passport) state = 'ready';
+
+  let walletState: WalletState = 'not-issued';
+  if (passport?.issuance) {
+    walletState = passport.publicShareActive ? 'ready' : 'no-share-link';
+  }
+
+  return { state, walletState, petName: companionName.split(' ')[0] || companionName };
+};
 
 const PetPassportModalContent = ({
   companionId,
@@ -61,16 +82,7 @@ const PetPassportModalContent = ({
     };
   }, [companionId]);
 
-  let state: LoadState = 'loading';
-  if (failed) state = 'error';
-  else if (passport) state = 'ready';
-
-  const petName = companionName.split(' ')[0] || companionName;
-
-  let walletState: 'not-issued' | 'no-share-link' | 'ready' = 'not-issued';
-  if (passport?.issuance) {
-    walletState = passport.publicShareActive ? 'ready' : 'no-share-link';
-  }
+  const { state, walletState, petName } = derivePassportView(passport, failed, companionName);
 
   const handleAddToApple = () => {
     setBusy('apple');

@@ -22,6 +22,101 @@ type ZoomInMarkerProps = MarkerInteractionProps & {
   blockHeightPx: number;
 };
 
+/** Companion name plus the trimmed service/concern strings the marker renders,
+ * and the `title` tooltip that joins all three. */
+const getMarkerLabels = (ev: Appointment) => {
+  const serviceName = ev.appointmentType?.name?.trim() ?? '';
+  const concern = ev.concern?.trim() ?? '';
+  const companionDisplayName = getCompanionDisplayName(ev);
+  return {
+    serviceName,
+    concern,
+    companionDisplayName,
+    markerTitle: [companionDisplayName, serviceName, concern].filter(Boolean).join(' • '),
+  };
+};
+
+// Frame appointment card: 12px radius over a 1px status outline, thickened to a
+// 3px status spine on the leading edge. A requested (not yet confirmed) booking
+// draws that outline dashed, keeping the spine solid.
+const getAppointmentBlockStyle = (
+  ev: Appointment,
+  geometry: {
+    topPx: number;
+    leftPercent: number;
+    widthPercent: number;
+    laneGapPx: number;
+    blockHeightPx: number;
+  }
+): React.CSSProperties => {
+  const statusStyle = getStatusStyle(ev.status);
+  const isRequested = String(ev.status ?? '').toUpperCase() === 'REQUESTED';
+  const { topPx, leftPercent, widthPercent, laneGapPx, blockHeightPx } = geometry;
+  return {
+    ...statusStyle,
+    borderWidth: '1px',
+    borderLeftWidth: '3px',
+    borderStyle: isRequested ? 'dashed' : 'solid',
+    borderLeftStyle: 'solid',
+    borderColor: statusStyle.borderColor,
+    top: topPx,
+    left: `calc(${leftPercent}% + ${laneGapPx}px)`,
+    width: `calc(${widthPercent}% - ${laneGapPx * 2}px)`,
+    minHeight: blockHeightPx,
+    height: blockHeightPx,
+  };
+};
+
+// Frame subtitle: 11px in the status text colour. The frame asked for 0.75
+// opacity, but these are --status-<x>-text tokens on their own fill, which
+// only clear AA at full strength; font-normal against the title's weight is
+// what separates them.
+const subtitleClass =
+  'truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px]';
+
+type MarkerSubtitleProps = {
+  tall: boolean;
+  medium: boolean;
+  multiLane: boolean;
+  serviceName: string;
+  concern: string;
+};
+
+/** Service/concern lines under the companion name. Tall blocks get one bulleted
+ * line each, medium blocks a single joined line, multi-lane blocks the service
+ * only, and short single-lane blocks nothing. */
+const MarkerSubtitle = ({ tall, medium, multiLane, serviceName, concern }: MarkerSubtitleProps) => {
+  if (tall) {
+    return (
+      <>
+        {serviceName && (
+          <div className={`${subtitleClass} mt-1.5`}>
+            {'• '}
+            {serviceName}
+          </div>
+        )}
+        {concern && (
+          <div className={`${subtitleClass} mt-1`}>
+            {'• '}
+            {concern}
+          </div>
+        )}
+      </>
+    );
+  }
+  if (medium && (serviceName || concern)) {
+    return (
+      <div className={`${subtitleClass} mt-1.5`}>
+        {[serviceName, concern].filter(Boolean).join(' • ')}
+      </div>
+    );
+  }
+  if (multiLane && serviceName) {
+    return <div className={`${subtitleClass} mt-1`}>{serviceName}</div>;
+  }
+  return null;
+};
+
 const ZoomInMarker = ({
   ev,
   laneIndex,
@@ -30,11 +125,7 @@ const ZoomInMarker = ({
   blockHeightPx,
   ...interaction
 }: ZoomInMarkerProps) => {
-  const statusStyle = getStatusStyle(ev.status);
-  const serviceName = ev.appointmentType?.name?.trim() ?? '';
-  const concern = ev.concern?.trim() ?? '';
-  const companionDisplayName = getCompanionDisplayName(ev);
-  const markerTitle = [companionDisplayName, serviceName, concern].filter(Boolean).join(' • ');
+  const { serviceName, concern, companionDisplayName, markerTitle } = getMarkerLabels(ev);
   const buttonProps = getMarkerButtonProps(ev, interaction, markerTitle);
   // 2px lane gap on top of the slot's own 4px inset lands the block on the frame's
   // `left: 6px; right: 6px` inset.
@@ -56,57 +147,14 @@ const ZoomInMarker = ({
     ? 'cursor-grab active:cursor-grabbing'
     : 'cursor-pointer';
 
-  // Frame subtitle: 11px in the status text colour. The frame asked for 0.75
-  // opacity, but these are --status-<x>-text tokens on their own fill, which
-  // only clear AA at full strength; font-normal against the title's weight is
-  // what separates them.
-  const subtitleClass =
-    'truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px]';
-  let subtitleNode: React.ReactNode = null;
-  if (tall) {
-    subtitleNode = (
-      <>
-        {serviceName && (
-          <div className={`${subtitleClass} mt-1.5`}>
-            {'• '}
-            {serviceName}
-          </div>
-        )}
-        {concern && (
-          <div className={`${subtitleClass} mt-1`}>
-            {'• '}
-            {concern}
-          </div>
-        )}
-      </>
-    );
-  } else if (medium && (serviceName || concern)) {
-    subtitleNode = (
-      <div className={`${subtitleClass} mt-1.5`}>
-        {[serviceName, concern].filter(Boolean).join(' • ')}
-      </div>
-    );
-  } else if (multiLane && serviceName) {
-    subtitleNode = <div className={`${subtitleClass} mt-1`}>{serviceName}</div>;
-  }
-
-  // Frame appointment card: 12px radius over a 1px status outline, thickened to a
-  // 3px status spine on the leading edge. A requested (not yet confirmed) booking
-  // draws that outline dashed, keeping the spine solid.
-  const isRequested = String(ev.status ?? '').toUpperCase() === 'REQUESTED';
-  const appointmentBlockStyle: React.CSSProperties = {
-    ...statusStyle,
-    borderWidth: '1px',
-    borderLeftWidth: '3px',
-    borderStyle: isRequested ? 'dashed' : 'solid',
-    borderLeftStyle: 'solid',
-    borderColor: statusStyle.borderColor,
-    top: topPx,
-    left: `calc(${leftPercent}% + ${laneGapPx}px)`,
-    width: `calc(${widthPercent}% - ${laneGapPx * 2}px)`,
-    minHeight: blockHeightPx,
-    height: blockHeightPx,
-  };
+  const subject = ev.companion ?? ev.patient;
+  const appointmentBlockStyle = getAppointmentBlockStyle(ev, {
+    topPx,
+    leftPercent,
+    widthPercent,
+    laneGapPx,
+    blockHeightPx,
+  });
 
   return (
     <div className="absolute z-20 overflow-hidden rounded-[12px]!" style={appointmentBlockStyle}>
@@ -120,7 +168,7 @@ const ZoomInMarker = ({
             <AvatarImage
               src={getSafeImageUrl(
                 getAppointmentCompanionPhotoUrl(ev.companion),
-                (ev.companion ?? ev.patient).species.toLowerCase() as ImageType
+                subject.species.toLowerCase() as ImageType
               )}
               size={imgSize}
               className="rounded-full border border-white/60 object-cover"
@@ -128,8 +176,8 @@ const ZoomInMarker = ({
               alt=""
               fallback={
                 <CompanionAvatar
-                  name={(ev.companion ?? ev.patient).name}
-                  seed={(ev.companion ?? ev.patient).id}
+                  name={subject.name}
+                  seed={subject.id}
                   size={imgSize}
                   textClassName="text-[11px]"
                 />
@@ -141,7 +189,13 @@ const ZoomInMarker = ({
           <div className="truncate text-[12.5px] font-bold leading-[1.2] tracking-[-0.25px]">
             {companionDisplayName}
           </div>
-          {subtitleNode}
+          <MarkerSubtitle
+            tall={tall}
+            medium={medium}
+            multiLane={multiLane}
+            serviceName={serviceName}
+            concern={concern}
+          />
         </div>
       </button>
     </div>

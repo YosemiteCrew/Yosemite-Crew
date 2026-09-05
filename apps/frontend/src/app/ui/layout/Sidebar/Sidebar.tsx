@@ -38,7 +38,7 @@ import { resolveDefaultOpenScreenRouteForProfile } from '@/app/lib/defaultOpenSc
 import { useIsTabletRail } from './useIsTabletRail';
 
 import './Sidebar.css';
-import { usePlatformStatus } from '@/app/hooks/usePlatformStatus';
+import { usePlatformStatus, type PlatformStatusState } from '@/app/hooks/usePlatformStatus';
 import { useLocalGuardBypass } from '@/app/lib/localGuardBypass';
 
 const ROUTE_ICONS: Record<string, IconType> = {
@@ -104,6 +104,73 @@ const subscribeCollapsePreference = (onStoreChange: () => void) => {
 };
 
 const getServerCollapsePreference = () => false;
+
+/** Brand mark and its home link. The wordmark only appears on the expanded dev portal. */
+const SidebarTop = ({
+  isCollapsed,
+  isDevPortal,
+  logoHref,
+}: {
+  isCollapsed: boolean;
+  isDevPortal: boolean;
+  logoHref: string;
+}) => (
+  <div className={`sidebar-top ${isCollapsed ? 'sidebar-top-collapsed' : ''}`}>
+    <Link
+      href={logoHref}
+      className={`logo ${isCollapsed ? 'logo-collapsed' : ''}`}
+      aria-label="Yosemite Crew dashboard"
+    >
+      <Image src="/icon.svg" alt="Yosemite Crew" width={40} height={40} priority />
+      {/* The mark alone carries the brand here; the link keeps its aria-label
+          so the accessible name survives dropping the wordmark. */}
+      {!isCollapsed && isDevPortal && (
+        <span className="sidebar-wordmark-group">
+          <span className="sidebar-dev-sublabel">Developers</span>
+        </span>
+      )}
+    </Link>
+  </div>
+);
+
+/** Platform status line and the collapse toggle. */
+const SidebarFooter = ({
+  isCollapsed,
+  isTabletRail,
+  platformStatus,
+  onToggleCollapse,
+}: {
+  isCollapsed: boolean;
+  isTabletRail: boolean;
+  platformStatus: PlatformStatusState;
+  onToggleCollapse: () => void;
+}) => (
+  <div className="sidebar-footer">
+    {!isCollapsed && (
+      <span className={`sidebar-status sidebar-status-${platformStatus.tone}`}>
+        <span className="sidebar-status-dot" aria-hidden />
+        {platformStatus.label}
+      </span>
+    )}
+    {/* Tablet is locked to the rail by the breakpoint contract, so there is
+        nothing to toggle between there. */}
+    {!isTabletRail && (
+      <GlassTooltip
+        content={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        side={isCollapsed ? 'right' : 'top'}
+      >
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          className="sidebar-collapse-btn"
+          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {isCollapsed ? <IoChevronForwardOutline size={17} /> : <IoChevronBackOutline size={17} />}
+        </button>
+      </GlassTooltip>
+    )}
+  </div>
+);
 
 const Sidebar = () => {
   useLoadSpecialitiesForPrimaryOrg();
@@ -179,22 +246,11 @@ const Sidebar = () => {
     <div
       className={`sidebar ${isCollapsed ? 'sidebar-collapsed' : ''} ${isDevPortal ? 'sidebar-dev' : ''}`}
     >
-      <div className={`sidebar-top ${isCollapsed ? 'sidebar-top-collapsed' : ''}`}>
-        <Link
-          href={authenticatedLogoHref}
-          className={`logo ${isCollapsed ? 'logo-collapsed' : ''}`}
-          aria-label="Yosemite Crew dashboard"
-        >
-          <Image src="/icon.svg" alt="Yosemite Crew" width={40} height={40} priority />
-          {/* The mark alone carries the brand here; the link keeps its aria-label
-              so the accessible name survives dropping the wordmark. */}
-          {!isCollapsed && isDevPortal && (
-            <span className="sidebar-wordmark-group">
-              <span className="sidebar-dev-sublabel">Developers</span>
-            </span>
-          )}
-        </Link>
-      </div>
+      <SidebarTop
+        isCollapsed={isCollapsed}
+        isDevPortal={isDevPortal}
+        logoHref={authenticatedLogoHref}
+      />
       <div className="sidebar-routes">
         {groupedRoutes.map((group) => (
           <div className="sidebar-route-group" key={group.label}>
@@ -288,35 +344,12 @@ const Sidebar = () => {
           </div>
         ))}
       </div>
-      <div className="sidebar-footer">
-        {!isCollapsed && (
-          <span className={`sidebar-status sidebar-status-${platformStatus.tone}`}>
-            <span className="sidebar-status-dot" aria-hidden />
-            {platformStatus.label}
-          </span>
-        )}
-        {/* Tablet is locked to the rail by the breakpoint contract, so there is
-            nothing to toggle between there. */}
-        {!isTabletRail && (
-          <GlassTooltip
-            content={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            side={isCollapsed ? 'right' : 'top'}
-          >
-            <button
-              type="button"
-              onClick={handleToggleCollapse}
-              className="sidebar-collapse-btn"
-              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              {isCollapsed ? (
-                <IoChevronForwardOutline size={17} />
-              ) : (
-                <IoChevronBackOutline size={17} />
-              )}
-            </button>
-          </GlassTooltip>
-        )}
-      </div>
+      <SidebarFooter
+        isCollapsed={isCollapsed}
+        isTabletRail={isTabletRail}
+        platformStatus={platformStatus}
+        onToggleCollapse={handleToggleCollapse}
+      />
     </div>
   );
 };

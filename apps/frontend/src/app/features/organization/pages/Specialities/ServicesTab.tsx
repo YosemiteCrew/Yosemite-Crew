@@ -319,6 +319,112 @@ const ServicesTableHeader = () => (
   </div>
 );
 
+/**
+ * The loader / empty pair. Both are mutually exclusive placeholders for the row
+ * list, so they own their own visibility instead of spreading three conditions
+ * across the tab's render.
+ */
+const ServicesPanelStates = ({
+  loading,
+  isEmpty,
+  draftOpen,
+}: {
+  loading: boolean;
+  isEmpty: boolean;
+  draftOpen: boolean;
+}) => (
+  <>
+    {loading && isEmpty && (
+      <div className="flex items-center justify-center py-8">
+        <YosemiteLoader variant="inline" size={48} label="Loading services" />
+      </div>
+    )}
+
+    {!loading && isEmpty && !draftOpen && (
+      <div className="flex items-center justify-center gap-2 py-8 text-body-4 text-text-secondary">
+        <IoInformationCircleOutline size={16} aria-hidden="true" />
+        You haven&apos;t added any services yet.
+      </div>
+    )}
+  </>
+);
+
+/** The blank-service draft, rendered either above the table or below the rows. */
+const ServiceDraftBlock = ({
+  visible,
+  className,
+  specialityId,
+  organisationId,
+  onClose,
+}: {
+  visible: boolean;
+  className: string;
+  specialityId: string;
+  organisationId: string;
+  onClose: () => void;
+}) => {
+  if (!visible) return null;
+  return (
+    <div className={className}>
+      <ServiceFormDraft
+        specialityId={specialityId}
+        organisationId={organisationId}
+        onClose={onClose}
+      />
+    </div>
+  );
+};
+
+const AddServiceFooter = ({
+  visible,
+  specialityName,
+  onClick,
+}: {
+  visible: boolean;
+  specialityName?: string;
+  onClick: () => void;
+}) => {
+  if (!visible) return null;
+  return (
+    <div className="border-t border-[var(--hairline)] px-5! py-[11px]! @3xl:px-[22px]!">
+      <button
+        type="button"
+        onClick={onClick}
+        className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[var(--blue-text)] hover:text-[var(--nav-active)] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)] rounded"
+      >
+        <IoAddOutline size={14} aria-hidden="true" />
+        {specialityName ? `Add service to ${specialityName}` : 'Add service'}
+      </button>
+    </div>
+  );
+};
+
+/** Archive confirmation. Renders nothing until a service is staged for archiving. */
+const ArchiveServiceModal = ({
+  service,
+  onCancel,
+  onConfirm,
+}: {
+  service: ServiceRevamp | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) => {
+  if (!service) return null;
+  return (
+    <CenterModal showModal setShowModal={onCancel}>
+      <ModalHeader title="Archive service" onClose={onCancel} />
+      <p className="text-body-4 text-text-primary">
+        Are you sure you want to archive <strong>{service.name}</strong>? It will be hidden from
+        active lists and the package builder, and you can restore it later from the Archive tab.
+      </p>
+      <div className="grid grid-cols-2 gap-3">
+        <Secondary href="#" text="Cancel" onClick={onCancel} />
+        <Delete href="#" text="Archive" onClick={onConfirm} />
+      </div>
+    </CenterModal>
+  );
+};
+
 function ServicesTab({
   specialityId,
   organisationId,
@@ -363,6 +469,11 @@ function ServicesTab({
     setDraftOpen(true);
   };
 
+  const clearAction = () => {
+    setActionMode(null);
+    setActiveService(null);
+  };
+
   const handleEdit = (svc: ServiceRevamp) => {
     setActiveService(svc);
     setActionMode('edit');
@@ -397,30 +508,23 @@ function ServicesTab({
     setActionMode(null);
   };
 
+  const blankDraftOpen = draftOpen && !activeService;
+
   return (
     <div className="@container flex flex-col">
-      {draftOpen && !activeService && draftAtTop && (
-        <div className="px-5! py-4!">
-          <ServiceFormDraft
-            specialityId={specialityId}
-            organisationId={organisationId}
-            onClose={handleCloseForm}
-          />
-        </div>
-      )}
+      <ServiceDraftBlock
+        visible={blankDraftOpen && draftAtTop}
+        className="px-5! py-4!"
+        specialityId={specialityId}
+        organisationId={organisationId}
+        onClose={handleCloseForm}
+      />
 
-      {loading && services.length === 0 && (
-        <div className="flex items-center justify-center py-8">
-          <YosemiteLoader variant="inline" size={48} label="Loading services" />
-        </div>
-      )}
-
-      {!loading && services.length === 0 && !draftOpen && (
-        <div className="flex items-center justify-center gap-2 py-8 text-body-4 text-text-secondary">
-          <IoInformationCircleOutline size={16} aria-hidden="true" />
-          You haven&apos;t added any services yet.
-        </div>
-      )}
+      <ServicesPanelStates
+        loading={loading}
+        isEmpty={services.length === 0}
+        draftOpen={draftOpen}
+      />
 
       {services.length > 0 && <ServicesTableHeader />}
 
@@ -449,68 +553,27 @@ function ServicesTab({
         )
       )}
 
-      {draftOpen && !activeService && !draftAtTop && (
-        <div className="border-t border-[var(--hairline)] px-5! py-4!">
-          <ServiceFormDraft
-            specialityId={specialityId}
-            organisationId={organisationId}
-            onClose={handleCloseForm}
-          />
-        </div>
-      )}
+      <ServiceDraftBlock
+        visible={blankDraftOpen && !draftAtTop}
+        className="border-t border-[var(--hairline)] px-5! py-4!"
+        specialityId={specialityId}
+        organisationId={organisationId}
+        onClose={handleCloseForm}
+      />
 
-      {!draftOpen && (
-        <div className="border-t border-[var(--hairline)] px-5! py-[11px]! @3xl:px-[22px]!">
-          <button
-            type="button"
-            onClick={handleAddClick}
-            className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[var(--blue-text)] hover:text-[var(--nav-active)] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)] rounded"
-          >
-            <IoAddOutline size={14} aria-hidden="true" />
-            {specialityName ? `Add service to ${specialityName}` : 'Add service'}
-          </button>
-        </div>
-      )}
+      <AddServiceFooter
+        visible={!draftOpen}
+        specialityName={specialityName}
+        onClick={handleAddClick}
+      />
 
-      {actionMode === 'archive' && activeService && (
-        <CenterModal
-          showModal
-          setShowModal={() => {
-            setActionMode(null);
-            setActiveService(null);
-          }}
-        >
-          <ModalHeader
-            title="Archive service"
-            onClose={() => {
-              setActionMode(null);
-              setActiveService(null);
-            }}
-          />
-          <p className="text-body-4 text-text-primary">
-            Are you sure you want to archive <strong>{activeService.name}</strong>? It will be
-            hidden from active lists and the package builder, and you can restore it later from the
-            Archive tab.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <Secondary
-              href="#"
-              text="Cancel"
-              onClick={() => {
-                setActionMode(null);
-                setActiveService(null);
-              }}
-            />
-            <Delete
-              href="#"
-              text="Archive"
-              onClick={() => {
-                Promise.resolve(handleArchiveConfirm()).catch(() => undefined);
-              }}
-            />
-          </div>
-        </CenterModal>
-      )}
+      <ArchiveServiceModal
+        service={actionMode === 'archive' ? activeService : null}
+        onCancel={clearAction}
+        onConfirm={() => {
+          Promise.resolve(handleArchiveConfirm()).catch(() => undefined);
+        }}
+      />
     </div>
   );
 }

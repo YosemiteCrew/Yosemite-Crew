@@ -308,6 +308,10 @@ const resolveDeepLinkState = (
   return target ? { appointmentId, deepLinkKey, initialIntent, target } : null;
 };
 
+// The list view carries its own filter bar above the planner, so it needs the
+// taller sticky offset; every other view starts flush with the page padding.
+const getPlannerTopOffset = (activeView: string) => (activeView === 'list' ? 72 : 16);
+
 const useAppointmentsView = () => {
   const router = useRouter();
   const { notify } = useNotify();
@@ -370,7 +374,7 @@ const useAppointmentsView = () => {
   const [weekStart, setWeekStart] = useState(() => startOfDay(currentDate));
   const { plannerSectionRef } = usePlannerAutoLock({
     activeView,
-    topOffset: activeView === 'list' ? 72 : 16,
+    topOffset: getPlannerTopOffset(activeView),
   });
 
   const viewInitializedFromProfileRef = useRef(false);
@@ -619,64 +623,62 @@ const useAppointmentsView = () => {
               onPrefillConsumed={() => setAddAppointmentPrefill(null)}
             />
             {activeAppointment && (
-              <ViewAppointmentOverviewModal
-                showModal={viewPopup}
-                setShowModal={setViewPopup}
-                activeAppointment={activeAppointment}
-                canEditAppointments={canEditActiveAppointment}
-                onOpenDetails={(appointment, intent) => {
-                  setActiveAppointment(appointment);
-                  setViewIntent(intent ?? null);
-                  setViewPopup(false);
-                  if (appointment.id) {
-                    startRouteLoader();
-                    router.push(buildWorkspaceHref(appointment.id));
-                  }
-                }}
-              />
-            )}
-            {activeAppointment && (
-              <AppoitmentInfo
-                showModal={detailPopup}
-                setShowModal={setDetailPopup}
-                activeAppointment={activeAppointment}
-                initialViewIntent={viewIntent}
-                canEditAppointments={canEditActiveAppointment}
-                onReschedule={(appointment) => {
-                  setActiveAppointment(appointment);
-                  setDetailPopup(false);
-                  if (!allowReschedule(appointment.status as any)) {
-                    notify('warning', {
-                      title: 'Reschedule blocked',
-                      text: 'Checked-in, in-progress, completed, cancelled, and no-show appointments cannot be rescheduled.',
-                    });
-                    return;
-                  }
-                  setReschedulePopup(true);
-                }}
-              />
-            )}
-            {canEditAppointments && activeAppointment && (
-              <Reschedule
-                showModal={reschedulePopup}
-                setShowModal={setReschedulePopup}
-                activeAppointment={activeAppointment}
-              />
-            )}
-            {canEditAppointments && activeAppointment && (
-              <ChangeStatus
-                showModal={changeStatusPopup}
-                setShowModal={setChangeStatusPopup}
-                activeAppointment={activeAppointment}
-                preferredStatus={changeStatusPreferredStatus}
-              />
-            )}
-            {canEditAppointments && activeAppointment && (
-              <ChangeRoom
-                showModal={changeRoomPopup}
-                setShowModal={setChangeRoomPopup}
-                activeAppointment={activeAppointment}
-              />
+              <>
+                <ViewAppointmentOverviewModal
+                  showModal={viewPopup}
+                  setShowModal={setViewPopup}
+                  activeAppointment={activeAppointment}
+                  canEditAppointments={canEditActiveAppointment}
+                  onOpenDetails={(appointment, intent) => {
+                    setActiveAppointment(appointment);
+                    setViewIntent(intent ?? null);
+                    setViewPopup(false);
+                    if (appointment.id) {
+                      startRouteLoader();
+                      router.push(buildWorkspaceHref(appointment.id));
+                    }
+                  }}
+                />
+                <AppoitmentInfo
+                  showModal={detailPopup}
+                  setShowModal={setDetailPopup}
+                  activeAppointment={activeAppointment}
+                  initialViewIntent={viewIntent}
+                  canEditAppointments={canEditActiveAppointment}
+                  onReschedule={(appointment) => {
+                    setActiveAppointment(appointment);
+                    setDetailPopup(false);
+                    if (!allowReschedule(appointment.status as any)) {
+                      notify('warning', {
+                        title: 'Reschedule blocked',
+                        text: 'Checked-in, in-progress, completed, cancelled, and no-show appointments cannot be rescheduled.',
+                      });
+                      return;
+                    }
+                    setReschedulePopup(true);
+                  }}
+                />
+                {canEditAppointments && (
+                  <>
+                    <Reschedule
+                      showModal={reschedulePopup}
+                      setShowModal={setReschedulePopup}
+                      activeAppointment={activeAppointment}
+                    />
+                    <ChangeStatus
+                      showModal={changeStatusPopup}
+                      setShowModal={setChangeStatusPopup}
+                      activeAppointment={activeAppointment}
+                      preferredStatus={changeStatusPreferredStatus}
+                    />
+                    <ChangeRoom
+                      showModal={changeRoomPopup}
+                      setShowModal={setChangeRoomPopup}
+                      activeAppointment={activeAppointment}
+                    />
+                  </>
+                )}
+              </>
             )}
           </React.Suspense>
         </PermissionGate>

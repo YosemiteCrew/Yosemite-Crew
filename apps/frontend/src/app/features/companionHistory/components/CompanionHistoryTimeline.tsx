@@ -45,6 +45,7 @@ import {
   HISTORY_FILTER_TYPE_MAP,
   HistoryEntry,
   HistoryEntryType,
+  HistoryFilterDefinition,
   HistoryFilterKey,
   getHistoryFilters,
 } from '@/app/features/companionHistory/types/history';
@@ -1309,6 +1310,76 @@ const TimelineLoadMore = ({
   );
 };
 
+// "History" heading + the filter tab strip. Owns the phone/desktop class swap,
+// the active-chip style branch, and the optional full-overview link so the
+// timeline's return carries none of them.
+const TimelineFilterTabs = ({
+  isPhoneVariant,
+  historyFilters,
+  activeFilter,
+  onSelectFilter,
+  fullPageHref,
+}: {
+  isPhoneVariant: boolean;
+  historyFilters: HistoryFilterDefinition[];
+  activeFilter: HistoryFilterKey;
+  onSelectFilter: (key: HistoryFilterKey) => void;
+  fullPageHref?: string;
+}) => (
+  <div className="flex flex-wrap items-center justify-between gap-3">
+    <span className="text-[14px] font-bold tracking-[-0.02em] text-[var(--ink)] md:text-[16px]">
+      History
+    </span>
+    <div
+      role="tablist"
+      className={
+        isPhoneVariant
+          ? 'flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+          : 'flex flex-wrap items-center gap-1.5'
+      }
+    >
+      {historyFilters.map((filter) => {
+        const active = filter.key === activeFilter;
+        return (
+          <button
+            key={filter.key}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onSelectFilter(filter.key)}
+            className={
+              isPhoneVariant ? `${FILTER_CHIP_BASE} shrink-0 whitespace-nowrap` : FILTER_CHIP_BASE
+            }
+            style={
+              active
+                ? {
+                    background: 'var(--inset)',
+                    border: '1px solid var(--divider)',
+                    fontWeight: 700,
+                    color: 'var(--ink)',
+                  }
+                : {
+                    border: '1px solid var(--hairline)',
+                    fontWeight: 600,
+                    color: 'var(--ink-muted)',
+                  }
+            }
+          >
+            {filter.label}
+          </button>
+        );
+      })}
+      {fullPageHref ? (
+        <Secondary
+          href={fullPageHref}
+          text="Open full overview"
+          className="px-3 py-1.5! text-caption-1"
+        />
+      ) : null}
+    </div>
+  </div>
+);
+
 const useCompanionHistoryTimelineView = ({
   companionId,
   activeAppointmentId,
@@ -1950,63 +2021,16 @@ const useCompanionHistoryTimelineView = ({
               : 'flex flex-col gap-3 overflow-hidden rounded-[18px] border border-hairline bg-[var(--screen)] px-[22px] py-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]'
           }
         >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-[14px] font-bold tracking-[-0.02em] text-[var(--ink)] md:text-[16px]">
-              History
-            </span>
-            <div
-              role="tablist"
-              className={
-                isPhoneVariant
-                  ? 'flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
-                  : 'flex flex-wrap items-center gap-1.5'
-              }
-            >
-              {historyFilters.map((filter) => {
-                const active = filter.key === activeFilter;
-                return (
-                  <button
-                    key={filter.key}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    onClick={() => {
-                      setActiveFilter(filter.key);
-                      setStatusFilter(STATUS_FILTER_ALL);
-                    }}
-                    className={
-                      isPhoneVariant
-                        ? `${FILTER_CHIP_BASE} shrink-0 whitespace-nowrap`
-                        : FILTER_CHIP_BASE
-                    }
-                    style={
-                      active
-                        ? {
-                            background: 'var(--inset)',
-                            border: '1px solid var(--divider)',
-                            fontWeight: 700,
-                            color: 'var(--ink)',
-                          }
-                        : {
-                            border: '1px solid var(--hairline)',
-                            fontWeight: 600,
-                            color: 'var(--ink-muted)',
-                          }
-                    }
-                  >
-                    {filter.label}
-                  </button>
-                );
-              })}
-              {fullPageHref ? (
-                <Secondary
-                  href={fullPageHref}
-                  text="Open full overview"
-                  className="px-3 py-1.5! text-caption-1"
-                />
-              ) : null}
-            </div>
-          </div>
+          <TimelineFilterTabs
+            isPhoneVariant={isPhoneVariant}
+            historyFilters={historyFilters}
+            activeFilter={activeFilter}
+            onSelectFilter={(key) => {
+              setActiveFilter(key);
+              setStatusFilter(STATUS_FILTER_ALL);
+            }}
+            fullPageHref={fullPageHref}
+          />
 
           {showDocumentUpload && activeFilter === 'MEDICAL_RECORDS' ? (
             <HistoryDocumentUpload companionId={companionId} onUploaded={handleDocumentUploaded} />

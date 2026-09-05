@@ -211,6 +211,60 @@ const CompactFilterPill = ({
   </button>
 );
 
+/** Query row: the search box, the Search button and the filters toggle. */
+const MerckSearchControls = ({
+  query,
+  onQueryChange,
+  loading,
+  onSearch,
+  advancedOpen,
+  onToggleAdvanced,
+  copied,
+}: {
+  query: string;
+  onQueryChange: (next: string) => void;
+  loading: boolean;
+  onSearch: () => void;
+  advancedOpen: boolean;
+  onToggleAdvanced: () => void;
+  copied: boolean;
+}) => (
+  <div className="flex items-end gap-2 flex-nowrap">
+    <div className="flex-1 min-w-0">
+      <FormInput
+        intype="text"
+        inname="appointment-merck-search"
+        inlabel="Search manuals"
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        className="h-12! px-4"
+      />
+    </div>
+    <div className="flex items-center gap-2 shrink-0">
+      <Primary
+        href="#"
+        text={loading ? 'Searching...' : 'Search'}
+        onClick={onSearch}
+        isDisabled={loading || !query.trim()}
+      />
+      <button
+        type="button"
+        onClick={onToggleAdvanced}
+        aria-label={advancedOpen ? 'Hide filters' : 'Show filters'}
+        title={advancedOpen ? 'Hide filters' : 'Show filters'}
+        className={`size-12 rounded-2xl! border border-card-border flex items-center justify-center transition-colors cursor-pointer ${
+          advancedOpen
+            ? 'bg-card-hover text-text-primary'
+            : 'text-text-secondary hover:bg-card-hover'
+        }`}
+      >
+        <IoOptionsOutline size={18} />
+      </button>
+      {copied ? <span className="text-body-4 text-pill-success-text">URL copied</span> : null}
+    </div>
+  </div>
+);
+
 /** Language filters, revealed by the options button next to Search. */
 const MerckRefinePanel = ({
   language,
@@ -547,40 +601,15 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
           />
         </div>
 
-        <div className="flex items-end gap-2 flex-nowrap">
-          <div className="flex-1 min-w-0">
-            <FormInput
-              intype="text"
-              inname="appointment-merck-search"
-              inlabel="Search manuals"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="h-12! px-4"
-            />
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Primary
-              href="#"
-              text={loading ? 'Searching...' : 'Search'}
-              onClick={() => void performFreshSearch()}
-              isDisabled={loading || !query.trim()}
-            />
-            <button
-              type="button"
-              onClick={() => setAdvancedOpen((prev) => !prev)}
-              aria-label={advancedOpen ? 'Hide filters' : 'Show filters'}
-              title={advancedOpen ? 'Hide filters' : 'Show filters'}
-              className={`size-12 rounded-2xl! border border-card-border flex items-center justify-center transition-colors cursor-pointer ${
-                advancedOpen
-                  ? 'bg-card-hover text-text-primary'
-                  : 'text-text-secondary hover:bg-card-hover'
-              }`}
-            >
-              <IoOptionsOutline size={18} />
-            </button>
-            {copied ? <span className="text-body-4 text-pill-success-text">URL copied</span> : null}
-          </div>
-        </div>
+        <MerckSearchControls
+          query={query}
+          onQueryChange={setQuery}
+          loading={loading}
+          onSearch={() => void performFreshSearch()}
+          advancedOpen={advancedOpen}
+          onToggleAdvanced={() => setAdvancedOpen((prev) => !prev)}
+          copied={copied}
+        />
 
         {advancedOpen ? (
           <MerckRefinePanel

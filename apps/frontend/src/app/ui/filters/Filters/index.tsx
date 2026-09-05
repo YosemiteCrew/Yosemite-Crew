@@ -35,6 +35,35 @@ const getStatusPillStyle = (status: StatusOption, isActive: boolean): React.CSSP
   };
 };
 
+/** Which status is showing, and which of the two status surfaces (inline pill row vs
+ *  compact dropdown) the toolbar is in - the pill row only appears alongside filter chips. */
+const getFiltersState = (
+  filterOptions: FilterOption[] | undefined,
+  statusOptions: StatusOption[] | undefined,
+  activeStatus: string | undefined
+) => {
+  const selectedStatus = statusOptions?.find((s) => s.key === activeStatus) ?? statusOptions?.[0];
+  const hasFilterOptions = Boolean(filterOptions?.length);
+  const isAllStatus = (selectedStatus?.key?.toLowerCase() ?? 'all') === 'all';
+  const showStatusTint = !isAllStatus && Boolean(selectedStatus?.bg);
+  return {
+    selectedStatus,
+    hasFilterOptions,
+    // List toolbars (the only place filter chips appear) surface the statuses as an
+    // inline pill row; the standalone toolbars keep the compact "All statuses" dropdown.
+    showInlineStatusPills: hasFilterOptions && Boolean(statusOptions?.length),
+    statusTriggerLabel: isAllStatus ? 'All statuses' : (selectedStatus?.name ?? 'All statuses'),
+    // The trigger only carries a status tint once a specific status is picked.
+    statusTriggerStyle: showStatusTint
+      ? {
+          backgroundColor: selectedStatus?.bg,
+          color: selectedStatus?.text ?? 'var(--color-black-pure)',
+          borderColor: selectedStatus?.border ?? selectedStatus?.bg,
+        }
+      : undefined,
+  };
+};
+
 type FiltersProps = {
   filterOptions?: FilterOption[];
   statusOptions?: StatusOption[];
@@ -68,13 +97,13 @@ const Filters = ({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const selectedStatus = statusOptions?.find((s) => s.key === activeStatus) ?? statusOptions?.[0];
-  const hasFilterOptions = Boolean(filterOptions?.length);
-  // List toolbars (the only place filter chips appear) surface the statuses as an
-  // inline pill row; the standalone toolbars keep the compact "All statuses" dropdown.
-  const showInlineStatusPills = hasFilterOptions && Boolean(statusOptions?.length);
-  const isAllStatus = (selectedStatus?.key?.toLowerCase() ?? 'all') === 'all';
-  const showStatusTint = !isAllStatus && Boolean(selectedStatus?.bg);
+  const {
+    selectedStatus,
+    hasFilterOptions,
+    showInlineStatusPills,
+    statusTriggerLabel,
+    statusTriggerStyle,
+  } = getFiltersState(filterOptions, statusOptions, activeStatus);
   const handleFilterToggle = (filterKey: string) => {
     if (!setActiveFilter) return;
     setActiveFilter(activeFilter === filterKey ? 'all' : filterKey);
@@ -163,17 +192,9 @@ const Filters = ({
               type="button"
               onClick={() => setOpen((v) => !v)}
               className="inline-flex items-center gap-1.5 rounded-full! border border-[var(--hairline)] px-[11px] py-1.5 text-[11px] font-semibold text-[var(--ink-muted)] transition-colors"
-              style={
-                showStatusTint
-                  ? {
-                      backgroundColor: selectedStatus?.bg,
-                      color: selectedStatus?.text ?? 'var(--color-black-pure)',
-                      borderColor: selectedStatus?.border ?? selectedStatus?.bg,
-                    }
-                  : undefined
-              }
+              style={statusTriggerStyle}
             >
-              <span>{isAllStatus ? 'All statuses' : (selectedStatus?.name ?? 'All statuses')}</span>
+              <span>{statusTriggerLabel}</span>
               <IoChevronDown
                 size={12}
                 className={clsx('shrink-0 transition-transform', open && 'rotate-180')}

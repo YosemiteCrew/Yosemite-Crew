@@ -65,6 +65,23 @@ const toNonNegativeNumber = (value: string | number | undefined) => {
   return Math.max(0, parsed);
 };
 
+/** Every fallback and label the form renders, resolved once so the JSX stays branch-free. */
+const getCompanionFieldValues = (formData: CompanionFormData) => ({
+  ageWhenNeutered: formData.ageWhenNeutered || '',
+  neuteredAgeLabel: `Age when ${formData.gender === 'female' ? 'spayed' : 'neutered'} (optional)`,
+  neuteredValue: formData.isneutered ? 'true' : 'false',
+  colour: formData.colour || '',
+  bloodGroup: formData.bloodGroup || '',
+  bloodGroupOptions: BLOOD_GROUP_OPTIONS_BY_SPECIES[formData.type] ?? [],
+  source: formData.source || 'unknown',
+  microchipNumber: formData.microchipNumber || '',
+  passportNumber: formData.passportNumber || '',
+  insuredValue: formData.isInsured ? 'true' : 'false',
+  insuranceCompanyName: formData.insurance?.companyName || '',
+  insurancePolicyNumber: formData.insurance?.policyNumber || '',
+  allergy: formData.allergy || '',
+});
+
 type CompanionProps = {
   setActiveLabel: React.Dispatch<React.SetStateAction<string>>;
   formData: CompanionFormData;
@@ -302,6 +319,8 @@ const useCompanionContent = ({
     setQuery(`${selected.name}`);
   };
 
+  const fieldValues = getCompanionFieldValues(formData);
+
   return (
     <div className="flex flex-col justify-between flex-1 gap-6 w-full">
       <div className="flex flex-col gap-6">
@@ -386,7 +405,7 @@ const useCompanionContent = ({
             <SelectLabel
               title="Neutered status"
               options={getNeuteredOptions(formData.gender)}
-              activeOption={formData.isneutered ? 'true' : 'false'}
+              activeOption={fieldValues.neuteredValue}
               setOption={(value: string) =>
                 setFormData({
                   ...formData,
@@ -399,8 +418,8 @@ const useCompanionContent = ({
               <FormInput
                 intype="number"
                 inname="ageWhenNeutered"
-                value={formData.ageWhenNeutered || ''}
-                inlabel={`Age when ${formData.gender === 'female' ? 'spayed' : 'neutered'} (optional)`}
+                value={fieldValues.ageWhenNeutered}
+                inlabel={fieldValues.neuteredAgeLabel}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -413,7 +432,7 @@ const useCompanionContent = ({
               <FormInput
                 intype="text"
                 inname="color"
-                value={formData.colour || ''}
+                value={fieldValues.colour}
                 inlabel="Color (optional)"
                 onChange={(e) => setFormData({ ...formData, colour: e.target.value })}
               />
@@ -421,8 +440,8 @@ const useCompanionContent = ({
                 <LabelDropdown
                   placeholder="Blood group (optional)"
                   onSelect={(option) => setFormData({ ...formData, bloodGroup: option.value })}
-                  defaultOption={formData.bloodGroup || ''}
-                  options={BLOOD_GROUP_OPTIONS_BY_SPECIES[formData.type] ?? []}
+                  defaultOption={fieldValues.bloodGroup}
+                  options={fieldValues.bloodGroupOptions}
                 />
               )}
             </div>
@@ -449,21 +468,21 @@ const useCompanionContent = ({
                 <SelectLabel
                   title={terminologyText('My companion comes from:')}
                   options={OriginOptions}
-                  activeOption={formData.source || 'unknown'}
+                  activeOption={fieldValues.source}
                   setOption={(value) => setFormData({ ...formData, source: value })}
                   type="coloumn"
                 />
                 <FormInput
                   intype="text"
                   inname="microchip"
-                  value={formData.microchipNumber || ''}
+                  value={fieldValues.microchipNumber}
                   inlabel="Microchip number (optional)"
                   onChange={(e) => setFormData({ ...formData, microchipNumber: e.target.value })}
                 />
                 <FormInput
                   intype="text"
                   inname="passport"
-                  value={formData.passportNumber || ''}
+                  value={fieldValues.passportNumber}
                   inlabel="Passport number (optional)"
                   onChange={(e) =>
                     setFormData({
@@ -475,7 +494,7 @@ const useCompanionContent = ({
                 <SelectLabel
                   title="Insurance"
                   options={InsuredOptions}
-                  activeOption={formData.isInsured ? 'true' : 'false'}
+                  activeOption={fieldValues.insuredValue}
                   setOption={(value: string) =>
                     setFormData({
                       ...formData,
@@ -494,7 +513,7 @@ const useCompanionContent = ({
                     <FormInput
                       intype="text"
                       inname="weight"
-                      value={formData.insurance?.companyName || ''}
+                      value={fieldValues.insuranceCompanyName}
                       inlabel="Company name"
                       onChange={(e) =>
                         setFormData({
@@ -511,7 +530,7 @@ const useCompanionContent = ({
                     <FormInput
                       intype="text"
                       inname="weight"
-                      value={formData.insurance?.policyNumber || ''}
+                      value={fieldValues.insurancePolicyNumber}
                       inlabel="Policy number"
                       onChange={(e) =>
                         setFormData({
@@ -532,7 +551,7 @@ const useCompanionContent = ({
             <FormDesc
               intype="text"
               inname="allergies"
-              value={formData.allergy || ''}
+              value={fieldValues.allergy}
               inlabel="Allergies (optional)"
               onChange={(e) => setFormData({ ...formData, allergy: e.target.value })}
               className="min-h-[120px]!"

@@ -81,6 +81,108 @@ const getNextSelectedTask = (current: Task | null, tasks: Task[]): Task | null =
   return tasks[0];
 };
 
+/* Per-table chrome (status filters + the "open the full list" link), keyed by the
+   segmented-pill value so the component reads one descriptor instead of repeating
+   the same `activeTable === 'Appointments' ? … : …` test for every piece. */
+const TABLE_VIEWS: Record<
+  'Appointments' | 'Tasks',
+  { labels: typeof AppointmentStatusFiltersUI; href: string; linkLabel: string }
+> = {
+  Appointments: {
+    labels: AppointmentStatusFiltersUI,
+    href: '/appointments',
+    linkLabel: 'Open appointments',
+  },
+  Tasks: { labels: TaskStatusFilters, href: '/tasks', linkLabel: 'Open tasks' },
+};
+
+type AppointmentTaskModalsProps = {
+  activeAppointment: Appointment | null;
+  activeTask: Task | null;
+  canEditAppointments: boolean;
+  viewPopup: boolean;
+  setViewPopup: React.Dispatch<React.SetStateAction<boolean>>;
+  detailPopup: boolean;
+  setDetailPopup: React.Dispatch<React.SetStateAction<boolean>>;
+  viewIntent: AppointmentViewIntent | null;
+  viewTaskPopup: boolean;
+  setViewTaskPopup: React.Dispatch<React.SetStateAction<boolean>>;
+  reschedulePopup: boolean;
+  setReschedulePopup: React.Dispatch<React.SetStateAction<boolean>>;
+  changeStatusPopup: boolean;
+  setChangeStatusPopup: React.Dispatch<React.SetStateAction<boolean>>;
+  changeRoomPopup: boolean;
+  setChangeRoomPopup: React.Dispatch<React.SetStateAction<boolean>>;
+  onOpenDetails: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
+};
+
+const AppointmentTaskModals = ({
+  activeAppointment,
+  activeTask,
+  canEditAppointments,
+  viewPopup,
+  setViewPopup,
+  detailPopup,
+  setDetailPopup,
+  viewIntent,
+  viewTaskPopup,
+  setViewTaskPopup,
+  reschedulePopup,
+  setReschedulePopup,
+  changeStatusPopup,
+  setChangeStatusPopup,
+  changeRoomPopup,
+  setChangeRoomPopup,
+  onOpenDetails,
+}: AppointmentTaskModalsProps) => (
+  <>
+    {activeAppointment && (
+      <ViewAppointmentOverviewModal
+        showModal={viewPopup}
+        setShowModal={setViewPopup}
+        activeAppointment={activeAppointment}
+        canEditAppointments={canEditAppointments}
+        onOpenDetails={onOpenDetails}
+      />
+    )}
+
+    {activeAppointment && (
+      <AppoitmentInfo
+        showModal={detailPopup}
+        setShowModal={setDetailPopup}
+        activeAppointment={activeAppointment}
+        initialViewIntent={viewIntent}
+      />
+    )}
+
+    {activeTask && (
+      <TaskInfo showModal={viewTaskPopup} setShowModal={setViewTaskPopup} activeTask={activeTask} />
+    )}
+
+    {canEditAppointments && activeAppointment && (
+      <Reschedule
+        showModal={reschedulePopup}
+        setShowModal={setReschedulePopup}
+        activeAppointment={activeAppointment}
+      />
+    )}
+    {canEditAppointments && activeAppointment && (
+      <ChangeStatus
+        showModal={changeStatusPopup}
+        setShowModal={setChangeStatusPopup}
+        activeAppointment={activeAppointment}
+      />
+    )}
+    {canEditAppointments && activeAppointment && (
+      <ChangeRoom
+        showModal={changeRoomPopup}
+        setShowModal={setChangeRoomPopup}
+        activeAppointment={activeAppointment}
+      />
+    )}
+  </>
+);
+
 const AppointmentTask = () => {
   const appointments = useAppointmentsForPrimaryOrg();
   const { can } = usePermissions();
@@ -99,8 +201,7 @@ const AppointmentTask = () => {
     appointments[0] ?? null
   );
   const [activeTask, setActiveTask] = useState<Task | null>(tasks[0] ?? null);
-  const activeLabels =
-    activeTable === 'Appointments' ? AppointmentStatusFiltersUI : TaskStatusFilters;
+  const tableView = TABLE_VIEWS[activeTable];
   const [activeSubLabel, setActiveSubLabel] = useState('all');
 
   const popupsOpen = viewPopup || detailPopup;
@@ -177,7 +278,7 @@ const AppointmentTask = () => {
             ]}
           />
           <Filters
-            statusOptions={activeLabels}
+            statusOptions={tableView.labels}
             activeStatus={activeSubLabel}
             setActiveStatus={setActiveSubLabel}
             className="w-auto"
@@ -210,69 +311,40 @@ const AppointmentTask = () => {
             Showing {Math.min(SUMMARY_PAGE_SIZE, visibleCount)} of {visibleCount}
           </span>
           <Link
-            href={activeTable === 'Appointments' ? '/appointments' : '/tasks'}
+            href={tableView.href}
             className="text-[12.5px] font-semibold text-[var(--blue-text)]"
           >
-            {activeTable === 'Appointments' ? 'Open appointments' : 'Open tasks'} &rarr;
+            {tableView.linkLabel} &rarr;
           </Link>
         </div>
 
-        {activeAppointment && (
-          <ViewAppointmentOverviewModal
-            showModal={viewPopup}
-            setShowModal={setViewPopup}
-            activeAppointment={activeAppointment}
-            canEditAppointments={canEditAppointments}
-            onOpenDetails={(appointment, intent) => {
-              setActiveAppointment(appointment);
-              setViewIntent(intent ?? null);
-              setViewPopup(false);
-              if (appointment.id) {
-                startRouteLoader();
-                router.push(buildWorkspaceHref(appointment.id));
-              }
-            }}
-          />
-        )}
-
-        {activeAppointment && (
-          <AppoitmentInfo
-            showModal={detailPopup}
-            setShowModal={setDetailPopup}
-            activeAppointment={activeAppointment}
-            initialViewIntent={viewIntent}
-          />
-        )}
-
-        {activeTask && (
-          <TaskInfo
-            showModal={viewTaskPopup}
-            setShowModal={setViewTaskPopup}
-            activeTask={activeTask}
-          />
-        )}
-
-        {canEditAppointments && activeAppointment && (
-          <Reschedule
-            showModal={reschedulePopup}
-            setShowModal={setReschedulePopup}
-            activeAppointment={activeAppointment}
-          />
-        )}
-        {canEditAppointments && activeAppointment && (
-          <ChangeStatus
-            showModal={changeStatusPopup}
-            setShowModal={setChangeStatusPopup}
-            activeAppointment={activeAppointment}
-          />
-        )}
-        {canEditAppointments && activeAppointment && (
-          <ChangeRoom
-            showModal={changeRoomPopup}
-            setShowModal={setChangeRoomPopup}
-            activeAppointment={activeAppointment}
-          />
-        )}
+        <AppointmentTaskModals
+          activeAppointment={activeAppointment}
+          activeTask={activeTask}
+          canEditAppointments={canEditAppointments}
+          viewPopup={viewPopup}
+          setViewPopup={setViewPopup}
+          detailPopup={detailPopup}
+          setDetailPopup={setDetailPopup}
+          viewIntent={viewIntent}
+          viewTaskPopup={viewTaskPopup}
+          setViewTaskPopup={setViewTaskPopup}
+          reschedulePopup={reschedulePopup}
+          setReschedulePopup={setReschedulePopup}
+          changeStatusPopup={changeStatusPopup}
+          setChangeStatusPopup={setChangeStatusPopup}
+          changeRoomPopup={changeRoomPopup}
+          setChangeRoomPopup={setChangeRoomPopup}
+          onOpenDetails={(appointment, intent) => {
+            setActiveAppointment(appointment);
+            setViewIntent(intent ?? null);
+            setViewPopup(false);
+            if (appointment.id) {
+              startRouteLoader();
+              router.push(buildWorkspaceHref(appointment.id));
+            }
+          }}
+        />
       </div>
     </PermissionGate>
   );

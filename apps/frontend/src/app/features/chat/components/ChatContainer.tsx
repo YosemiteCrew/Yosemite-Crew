@@ -1041,6 +1041,56 @@ const INITIAL_GROUP_MODAL: GroupModalState = {
   busy: false,
 };
 
+type ChatViewGate = { phase: 'loading' } | { phase: 'error'; message: string } | { phase: 'ready' };
+
+/**
+ * Which of the three top-level chat states renders: the loader while auth/org/Stream
+ * are still settling, the message when the client could not be established, or the
+ * chat itself. Kept as one derivation so the order of those checks stays fixed.
+ */
+const getChatViewGate = ({
+  authStatus,
+  authLoading,
+  orgStatus,
+  loading,
+  client,
+  error,
+}: {
+  authStatus: string;
+  authLoading: boolean;
+  orgStatus: string;
+  loading: boolean;
+  client: StreamChat | null;
+  error: string | null;
+}): ChatViewGate => {
+  const isAuthPending = authStatus === 'checking' || authLoading || orgStatus === 'loading';
+  const isLoading = loading || (!client && (!error || isAuthPending));
+  const hasError = error || (!client && !isAuthPending && !loading);
+  if (isLoading) {
+    return { phase: 'loading' };
+  }
+  if (hasError) {
+    let message = error;
+    if (!message) {
+      /* v8 ignore next -- unreachable: the error phase is only reached when `error` holds a message — when `error` is null and `client` is null the loading phase above returns first — so this generic fallback never renders */
+      message = 'Unable to load chat';
+    }
+    return { phase: 'error', message };
+  }
+  return { phase: 'ready' };
+};
+
+/** Stream channel query for the signed-in user, narrowed to the archived (hidden) channels on demand. */
+const buildChannelFilters = (userId: string, showArchived: boolean) => ({
+  type: { $in: ['messaging', 'team'] },
+  members: { $in: [userId] },
+  ...(showArchived ? { hidden: true } : {}),
+});
+
+/** Remount key: an appointment thread gets its own <Chat> instance, the scope views share one. */
+const getChatInstanceKey = (appointmentId?: string) =>
+  appointmentId ? `appointment-${appointmentId}` : 'chat-scopes';
+
 const useChatContainerView = ({
   appointmentId,
   onChannelSelect,
@@ -1924,11 +1974,9 @@ const useChatContainerView = ({
   );
 
   // Extract conditional rendering logic
-  const isAuthPending = authStatus === 'checking' || authLoading || orgStatus === 'loading';
-  const isLoading = loading || (!client && (!error || isAuthPending));
-  const hasError = error || (!client && !isAuthPending && !loading);
+  const gate = getChatViewGate({ authStatus, authLoading, orgStatus, loading, client, error });
 
-  if (isLoading) {
+  if (gate.phase === 'loading') {
     return (
       <div
         style={{
@@ -1945,12 +1993,7 @@ const useChatContainerView = ({
     );
   }
 
-  if (hasError) {
-    let errorMessage = error;
-    if (!errorMessage) {
-      /* v8 ignore next -- unreachable: `hasError` can only be truthy when `error` holds a message — when `error` is null and `client` is null the isLoading guard above returns first — so this generic fallback never renders */
-      errorMessage = 'Unable to load chat';
-    }
+  if (gate.phase === 'error') {
     return (
       <div
         style={{
@@ -1962,22 +2005,18 @@ const useChatContainerView = ({
           minHeight: '360px',
         }}
       >
-        <p style={{ color: 'var(--color-text-error)' }}>{errorMessage}</p>
+        <p style={{ color: 'var(--color-text-error)' }}>{gate.message}</p>
       </div>
     );
   }
 
-  /* v8 ignore start -- unreachable: the isLoading/hasError guards above already return for every null-client state, so control never reaches here with a null client */
+  /* v8 ignore start -- unreachable: the loading/error phases above already return for every null-client state, so control never reaches here with a null client */
   if (!client) {
     return null;
   }
   /* v8 ignore stop */
 
-  const filters = {
-    type: { $in: ['messaging', 'team'] },
-    members: { $in: [client.userID!] },
-    ...(showArchived ? { hidden: true } : {}),
-  };
+  const filters = buildChannelFilters(client.userID!, showArchived);
 
   const chatContent = (
     <>
@@ -2053,7 +2092,7 @@ const useChatContainerView = ({
         <ChatShareContext.Provider value={shareContextValue}>
           <div className={className}>
             <Chat
-              key={appointmentId ? `appointment-${appointmentId}` : 'chat-scopes'}
+              key={getChatInstanceKey(appointmentId)}
               client={client}
               theme="str-chat__theme-light"
             >

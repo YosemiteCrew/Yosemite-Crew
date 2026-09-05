@@ -36,7 +36,7 @@ import { useInventoryModule } from '@/app/hooks/useInventory';
 import { useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { useSearchStore } from '@/app/stores/searchStore';
-import { usePermissions } from '@/app/hooks/usePermissions';
+import { usePermissions, type PermissionCheckResult } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
@@ -736,15 +736,132 @@ const useOnValueChange = <T,>(value: T, onChange: () => void): void => {
   }
 };
 
+const resolveInventoryPermissions = (permissions: Pick<PermissionCheckResult, 'can'>) => ({
+  canEditInventory: permissions.can(PERMISSIONS.INVENTORY_EDIT_ANY),
+  canViewPrescription: permissions.can(PERMISSIONS.PRESCRIPTION_VIEW_ANY),
+  canEditPrescription:
+    permissions.can(PERMISSIONS.PRESCRIPTION_EDIT_ANY) &&
+    permissions.can(PERMISSIONS.INVENTORY_EDIT_ANY),
+});
+
+const resolveBusinessType = (
+  primaryOrgId: string | null,
+  orgsById: Record<string, { type?: unknown }>
+): BusinessType => {
+  const resolvedOrgType = primaryOrgId ? orgsById[primaryOrgId]?.type : undefined;
+  return (resolvedOrgType as BusinessType | undefined) ?? 'GROOMER';
+};
+
+// A category that is no longer offered by the loaded turnover rows falls back to
+// "all" so the list never silently renders empty against a stale selection.
+const resolveEffectiveTurnoverCategory = (category: string, options: string[]): string =>
+  category !== 'all' && !options.includes(category) ? 'all' : category;
+
+const readDeepLinkInventoryId = (searchParams: { get: (key: string) => string | null }): string =>
+  String(searchParams.get('inventoryId') ?? '').trim();
+
+const resolveDeepLinkTarget = (
+  deepLinkedInventoryId: string,
+  handledDeepLinkId: string | null,
+  inventory: InventoryItem[]
+): InventoryItem | undefined =>
+  deepLinkedInventoryId && handledDeepLinkId !== deepLinkedInventoryId
+    ? inventory.find((item) => item.id === deepLinkedInventoryId)
+    : undefined;
+
+const resolveTitleCount = (
+  activeView: InventoryView,
+  dispensaryCount: number,
+  turnoverCount: number,
+  inventoryCount: number
+): number => {
+  if (activeView === 'turnover') return dispensaryCount;
+  if (activeView === 'analytics') return turnoverCount;
+  return inventoryCount;
+};
+
+const InventoryPageHeader = ({
+  pageTitle,
+  titleCount,
+  subtitle,
+  activeView,
+  setActiveView,
+  canViewPrescription,
+  canEditInventory,
+  isPhone,
+  savingItem,
+  primaryOrgId,
+  onAddProduct,
+}: {
+  pageTitle: string;
+  titleCount: number;
+  subtitle: string | null;
+  activeView: InventoryView;
+  setActiveView: (value: InventoryView) => void;
+  canViewPrescription: boolean;
+  canEditInventory: boolean;
+  isPhone: boolean;
+  savingItem: boolean;
+  primaryOrgId: string | null;
+  onAddProduct: () => void;
+}) => {
+  const viewOptions = [
+    { value: 'inventory' as const, label: 'Catalog' },
+    ...(canViewPrescription ? [{ value: 'turnover' as const, label: 'Dispensary' }] : []),
+    { value: 'analytics' as const, label: 'Turnover' },
+  ];
+
+  return (
+    <div className="flex justify-between items-center w-full flex-wrap gap-3">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-page-title flex items-center gap-2">
+          <span>{pageTitle}</span>
+          <span className="text-page-title-count">({titleCount})</span>
+          {activeView === 'inventory' && (
+            <GlassTooltip
+              content="Organize stock, track batches and expiry, and monitor turnover so you know what to reorder and which items need attention."
+              side="bottom"
+            >
+              <button
+                type="button"
+                aria-label="Inventory info"
+                className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
+              >
+                <IoInformationCircleOutline size={20} />
+              </button>
+            </GlassTooltip>
+          )}
+        </h1>
+        {subtitle && <p className="text-[13.5px] text-[var(--ink-muted)]">{subtitle}</p>}
+      </div>
+      <div className="ml-auto flex items-center justify-end gap-3 flex-wrap">
+        <SegmentedPill
+          ariaLabel="Inventory view"
+          options={viewOptions}
+          value={activeView}
+          onChange={setActiveView}
+        />
+        {canEditInventory && activeView !== 'turnover' && !isPhone && (
+          <Primary
+            href="#"
+            text={savingItem ? 'Saving...' : 'New product'}
+            onClick={onAddProduct}
+            isDisabled={savingItem || !primaryOrgId}
+            icon={<IoAddOutline size={18} aria-hidden="true" />}
+            className="h-10!"
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
 const useInventoryContent = () => {
   useLoadOrg();
 
   const permissions = usePermissions();
-  const canEditInventory = permissions.can(PERMISSIONS.INVENTORY_EDIT_ANY);
-  const canViewPrescription = permissions.can(PERMISSIONS.PRESCRIPTION_VIEW_ANY);
-  const canEditPrescription =
-    permissions.can(PERMISSIONS.PRESCRIPTION_EDIT_ANY) &&
-    permissions.can(PERMISSIONS.INVENTORY_EDIT_ANY);
+  const { canEditInventory, canViewPrescription, canEditPrescription } =
+    resolveInventoryPermissions(permissions);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const orgsById = useOrgStore((s) => s.orgsById);
   const rooms = useRoomsForPrimaryOrg();
@@ -752,9 +869,7 @@ const useInventoryContent = () => {
   const searchParams = useSearchParams();
   const [handledDeepLinkId, setHandledDeepLinkId] = useState<string | null>(null);
 
-  const resolvedOrgType = primaryOrgId ? orgsById[primaryOrgId]?.type : undefined;
-  const resolvedBusinessType: BusinessType =
-    (resolvedOrgType as BusinessType | undefined) ?? 'GROOMER';
+  const resolvedBusinessType = resolveBusinessType(primaryOrgId, orgsById);
 
   const inventoryModule = useInventoryModule(resolvedBusinessType);
   const { inventory, turnover, status, error: loadError } = inventoryModule;
@@ -857,11 +972,10 @@ const useInventoryContent = () => {
     [turnover]
   );
 
-  const effectiveTurnoverCategory =
-    turnoverFilters.category !== 'all' &&
-    !turnoverCategoryOptions.includes(turnoverFilters.category)
-      ? 'all'
-      : turnoverFilters.category;
+  const effectiveTurnoverCategory = resolveEffectiveTurnoverCategory(
+    turnoverFilters.category,
+    turnoverCategoryOptions
+  );
 
   const filteredTurnoverList = useMemo(
     () =>
@@ -935,11 +1049,8 @@ const useInventoryContent = () => {
     }
   });
 
-  const deepLinkedInventoryId = String(searchParams.get('inventoryId') ?? '').trim();
-  const deepLinkTarget =
-    deepLinkedInventoryId && handledDeepLinkId !== deepLinkedInventoryId
-      ? inventory.find((item) => item.id === deepLinkedInventoryId)
-      : undefined;
+  const deepLinkedInventoryId = readDeepLinkInventoryId(searchParams);
+  const deepLinkTarget = resolveDeepLinkTarget(deepLinkedInventoryId, handledDeepLinkId, inventory);
   if (deepLinkTarget !== undefined) {
     setHandledDeepLinkId(deepLinkedInventoryId);
     setActiveInventory(deepLinkTarget);
@@ -1044,6 +1155,10 @@ const useInventoryContent = () => {
     },
     [inventoryModule]
   );
+
+  const handleOpenAddProduct = useCallback(() => {
+    setAddPopup(true);
+  }, []);
 
   const handleRestock = useCallback((item: InventoryItem) => {
     setActiveInventory(item);
@@ -1153,6 +1268,8 @@ const useInventoryContent = () => {
     return chips;
   }, [filters, toggleCategoryFilter, toggleListFilter]);
 
+  // `primaryOrgId` is null until an org resolves; the modals take it as optional.
+  const organisationId = primaryOrgId ?? undefined;
   const pageTitle = getInventoryPageTitle(activeView);
   const filteredDispensaryRecords = useMemo(
     () => filterDispensaryRecords(dispensaryRecords, dispensaryStatusFilter, dispensarySearch),
@@ -1181,19 +1298,13 @@ const useInventoryContent = () => {
     [visibilityScopedInventory]
   );
 
-  const getTitleCount = () => {
-    if (activeView === 'turnover') return filteredDispensaryRecords.length;
-    if (activeView === 'analytics') return filteredTurnoverList.length;
-    return filteredInventory.length;
-  };
-  const titleCount = getTitleCount();
+  const titleCount = resolveTitleCount(
+    activeView,
+    filteredDispensaryRecords.length,
+    filteredTurnoverList.length,
+    filteredInventory.length
+  );
   const subtitle = getInventorySubtitle(activeView, lowStockCount, expiredCount);
-
-  const viewOptions = [
-    { value: 'inventory' as const, label: 'Catalog' },
-    ...(canViewPrescription ? [{ value: 'turnover' as const, label: 'Dispensary' }] : []),
-    { value: 'analytics' as const, label: 'Turnover' },
-  ];
 
   const handleDispense = useCallback(
     async (record: DispensaryRecord) => {
@@ -1210,47 +1321,19 @@ const useInventoryContent = () => {
 
   return (
     <div className="relative min-w-0 h-full min-h-0 yc-page-content">
-      <div className="flex justify-between items-center w-full flex-wrap gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-page-title flex items-center gap-2">
-            <span>{pageTitle}</span>
-            <span className="text-page-title-count">({titleCount})</span>
-            {activeView === 'inventory' && (
-              <GlassTooltip
-                content="Organize stock, track batches and expiry, and monitor turnover so you know what to reorder and which items need attention."
-                side="bottom"
-              >
-                <button
-                  type="button"
-                  aria-label="Inventory info"
-                  className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
-                >
-                  <IoInformationCircleOutline size={20} />
-                </button>
-              </GlassTooltip>
-            )}
-          </h1>
-          {subtitle && <p className="text-[13.5px] text-[var(--ink-muted)]">{subtitle}</p>}
-        </div>
-        <div className="ml-auto flex items-center justify-end gap-3 flex-wrap">
-          <SegmentedPill
-            ariaLabel="Inventory view"
-            options={viewOptions}
-            value={activeView}
-            onChange={setActiveView}
-          />
-          {canEditInventory && activeView !== 'turnover' && !isPhone && (
-            <Primary
-              href="#"
-              text={savingItem ? 'Saving...' : 'New product'}
-              onClick={() => setAddPopup(true)}
-              isDisabled={savingItem || !primaryOrgId}
-              icon={<IoAddOutline size={18} aria-hidden="true" />}
-              className="h-10!"
-            />
-          )}
-        </div>
-      </div>
+      <InventoryPageHeader
+        pageTitle={pageTitle}
+        titleCount={titleCount}
+        subtitle={subtitle}
+        activeView={activeView}
+        setActiveView={setActiveView}
+        canViewPrescription={canViewPrescription}
+        canEditInventory={canEditInventory}
+        isPhone={isPhone}
+        savingItem={savingItem}
+        primaryOrgId={primaryOrgId}
+        onAddProduct={handleOpenAddProduct}
+      />
 
       {error && <div className="text-text-error text-sm font-satoshi font-semibold">{error}</div>}
 
@@ -1321,7 +1404,7 @@ const useInventoryContent = () => {
           record={activeDispensaryRecord}
           showModal={dispensaryModalOpen}
           setShowModal={setDispensaryModalOpen}
-          organisationId={primaryOrgId ?? ''}
+          organisationId={organisationId ?? ''}
           onActionComplete={fetchDispensaryRecords}
         />
 
@@ -1331,7 +1414,7 @@ const useInventoryContent = () => {
           businessType={resolvedBusinessType}
           onSubmit={handleCreateInventory}
           stockLocationOptions={stockLocationOptions}
-          organisationId={primaryOrgId ?? undefined}
+          organisationId={organisationId}
         />
 
         <InventoryFilterModal
@@ -1366,7 +1449,7 @@ const useInventoryContent = () => {
             canEdit={canEditInventory}
             stockLocationOptions={stockLocationOptions}
             initialSection={infoInitialSection}
-            organisationId={primaryOrgId ?? undefined}
+            organisationId={organisationId}
           />
         )}
       </PermissionGate>

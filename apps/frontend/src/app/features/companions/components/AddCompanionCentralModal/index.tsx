@@ -166,6 +166,39 @@ const addCompanionModalReducer = (
   };
 };
 
+/** True when the open/mode props changed since the last render, so the modal must re-sync. */
+const modalOpenStateChanged = (prev: ModalSyncState, initialMode: ModalMode, showModal: boolean) =>
+  prev.initialMode !== initialMode || prev.showModal !== showModal;
+
+/** True when the edit source changed since the last render, so the form must re-populate. */
+const editSourceChanged = (
+  prev: { mode: ModalMode; viewCompanion?: CompanionParent | null },
+  mode: ModalMode,
+  viewCompanion?: CompanionParent | null
+) => prev.mode !== mode || prev.viewCompanion !== viewCompanion;
+
+/** View-mode display values, derived purely from the companion being viewed. */
+const getCompanionViewDerived = (
+  viewCompanion: CompanionParent | null | undefined,
+  pendingStatus: RecordStatus | null
+) => {
+  const vc = viewCompanion?.companion;
+  const vp = viewCompanion?.parent;
+  const displayStatus: RecordStatus = pendingStatus ?? vc?.status ?? 'active';
+  return {
+    vc,
+    vp,
+    displayStatus,
+    statusStyle: vc ? getCompanionStatusStyle(displayStatus) : {},
+    speciesLabel: vc ? (SPECIES_LABEL[vc.type?.toLowerCase()] ?? toTitleCase(vc.type)) : '',
+    vcAlerts: fromStoredCompanionAlerts((vc as any)?.alerts ?? []) as CompanionAlert[],
+    vpAlerts: fromStoredCompanionAlerts(
+      (vp as { alerts?: unknown } | undefined)?.alerts as never
+    ) as CompanionAlert[],
+    companionTitle: vc && vp ? formatCompanionNameWithOwnerLastName(vc.name, vp) : '',
+  };
+};
+
 const useAddCompanionCentralModalContent = ({
   showModal,
   setShowModal,
@@ -422,14 +455,14 @@ const useAddCompanionCentralModalContent = ({
     }
   };
   const [prevModalSync, setPrevModalSync] = useState<ModalSyncState>({ initialMode, showModal });
-  if (prevModalSync.initialMode !== initialMode || prevModalSync.showModal !== showModal) {
+  if (modalOpenStateChanged(prevModalSync, initialMode, showModal)) {
     setPrevModalSync({ initialMode, showModal });
     syncModalOpenState();
   }
 
   // ── Populate edit form from viewCompanion ──
   const [prevEditSync, setPrevEditSync] = useState({ mode, viewCompanion });
-  if (prevEditSync.mode !== mode || prevEditSync.viewCompanion !== viewCompanion) {
+  if (editSourceChanged(prevEditSync, mode, viewCompanion)) {
     setPrevEditSync({ mode, viewCompanion });
     syncEditForm();
   }
@@ -745,16 +778,8 @@ const useAddCompanionCentralModalContent = ({
   };
 
   // ── Derived values for view mode ──
-  const vc = viewCompanion?.companion;
-  const vp = viewCompanion?.parent;
-  const displayStatus: RecordStatus = pendingStatus ?? vc?.status ?? 'active';
-  const statusStyle = vc ? getCompanionStatusStyle(displayStatus) : {};
-  const speciesLabel = vc ? (SPECIES_LABEL[vc.type?.toLowerCase()] ?? toTitleCase(vc.type)) : '';
-  const vcAlerts: CompanionAlert[] = fromStoredCompanionAlerts((vc as any)?.alerts ?? []);
-  const vpAlerts: CompanionAlert[] = fromStoredCompanionAlerts(
-    (vp as { alerts?: unknown } | undefined)?.alerts as never
-  );
-  const companionTitle = vc && vp ? formatCompanionNameWithOwnerLastName(vc.name, vp) : '';
+  const { vc, vp, displayStatus, statusStyle, speciesLabel, vcAlerts, vpAlerts, companionTitle } =
+    getCompanionViewDerived(viewCompanion, pendingStatus);
 
   const parentSearchOptions = useMemo(
     () =>
@@ -818,7 +843,8 @@ const useAddCompanionCentralModalContent = ({
   const isCreate = mode === 'create';
   // Create phone renders as a bottom sheet (design add flow); edit/view keep the
   // centered modal at every width.
-  const formVariant: 'modal' | 'sheet' = isCreate && isPhone ? 'sheet' : 'modal';
+  const isPhoneCreate = isCreate && isPhone;
+  const formVariant: 'modal' | 'sheet' = isPhoneCreate ? 'sheet' : 'modal';
   const attemptClose = () => {
     if (canCloseModal()) setShowModal(false);
   };
@@ -937,7 +963,7 @@ const useAddCompanionCentralModalContent = ({
   );
 
   // ── Phone add-companion: a bottom sheet with the wizard + a sticky step footer.
-  if (isCreate && isPhone) {
+  if (isPhoneCreate) {
     return (
       <>
         <BottomSheet

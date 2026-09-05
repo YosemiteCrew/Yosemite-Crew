@@ -1,6 +1,5 @@
 'use client';
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
-import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
@@ -34,7 +33,6 @@ import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
-import { isCompanionRevampEnabled } from '@/app/lib/featureFlags';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import InClinicTodayBand from '@/app/features/companions/pages/Companions/InClinicTodayBand';
 import SpeciesTabs from '@/app/features/companions/pages/Companions/SpeciesTabs';
@@ -44,24 +42,7 @@ import {
   resolveSpeciesBucket,
   sortByLastVisit,
 } from '@/app/features/companions/pages/Companions/companionsDirectory';
-
-const AddCompanion = dynamic(() => import('@/app/features/companions/components/AddCompanion'));
-const AddCompanionCentralModal = dynamic(
-  () => import('@/app/features/companions/components/AddCompanionCentralModal')
-);
-const CompanionInfo = dynamic(() =>
-  import('@/app/features/companions/components').then((m) => ({ default: m.CompanionInfo }))
-);
-const BookAppointment = dynamic(
-  () => import('@/app/features/companions/pages/Companions/BookAppointment')
-);
-const AddAppointmentCentralModal = dynamic(
-  () => import('@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal')
-);
-const AddTask = dynamic(() => import('@/app/features/companions/pages/Companions/AddTask'));
-const ChangeCompanionStatus = dynamic(
-  () => import('@/app/features/companions/pages/Companions/ChangeStatus')
-);
+import CompanionsModals from '@/app/features/companions/pages/Companions/CompanionsModals';
 
 const Companions = () => {
   const terminologyText = useCompanionTerminologyText();
@@ -304,61 +285,23 @@ const Companions = () => {
           </div>
         </div>
 
-        {isCompanionRevampEnabled() ? (
-          <>
-            <AddCompanionCentralModal showModal={addPopup} setShowModal={setAddPopup} />
-            <AddCompanionCentralModal
-              showModal={!!(activeCompanion && viewCompanion)}
-              setShowModal={setViewCompanion}
-              viewCompanion={activeCompanion}
-              canEditCompanionStatus={canEditCompanions}
-            />
-          </>
-        ) : (
-          <>
-            <AddCompanion showModal={addPopup} setShowModal={setAddPopup} />
-            {activeCompanion && viewCompanion && (
-              <CompanionInfo
-                showModal={viewCompanion}
-                setShowModal={setViewCompanion}
-                activeCompanion={activeCompanion}
-                canEditCompanionStatus={canEditCompanions}
-                initialLabel={companionInfoInitialLabel}
-              />
-            )}
-          </>
-        )}
-        {activeCompanion && canEditCompanions && (
-          <ChangeCompanionStatus
-            showModal={changeStatusPopup}
-            setShowModal={setChangeStatusPopup}
-            activeCompanion={activeCompanion}
-          />
-        )}
-        {canEditAppointments &&
-          activeCompanion &&
-          (isCompanionRevampEnabled() ? (
-            <AddAppointmentCentralModal
-              showModal={bookAppointment}
-              setShowModal={setBookAppointment}
-              setActiveFilter={() => undefined}
-              setActiveStatus={() => undefined}
-              initialCompanionId={activeCompanion.companion.id}
-            />
-          ) : (
-            <BookAppointment
-              showModal={bookAppointment}
-              setShowModal={setBookAppointment}
-              activeCompanion={activeCompanion}
-            />
-          ))}
-        {canEditTasks && activeCompanion && (
-          <AddTask
-            showModal={addTask}
-            setShowModal={setAddTask}
-            activeCompanion={activeCompanion}
-          />
-        )}
+        <CompanionsModals
+          activeCompanion={activeCompanion}
+          addPopup={addPopup}
+          setAddPopup={setAddPopup}
+          viewCompanion={viewCompanion}
+          setViewCompanion={setViewCompanion}
+          companionInfoInitialLabel={companionInfoInitialLabel}
+          changeStatusPopup={changeStatusPopup}
+          setChangeStatusPopup={setChangeStatusPopup}
+          bookAppointment={bookAppointment}
+          setBookAppointment={setBookAppointment}
+          addTask={addTask}
+          setAddTask={setAddTask}
+          canEditCompanions={canEditCompanions}
+          canEditAppointments={canEditAppointments}
+          canEditTasks={canEditTasks}
+        />
       </PermissionGate>
     </div>
   );

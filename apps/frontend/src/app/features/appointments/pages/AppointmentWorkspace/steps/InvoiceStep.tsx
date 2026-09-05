@@ -101,6 +101,31 @@ const PAYMENT_LABELS: Record<PaymentMethod, string> = {
 
 const DEFAULT_CURRENCY = 'USD';
 
+type PricedCatalogEntry = { organisationId: string; currency?: string };
+
+/**
+ * Currency is encounter-scoped (hydrated from finance, defaults to USD). Precedence:
+ * the finance-hydrated encounter currency (server truth), else the organisation's
+ * catalog currency (its configured / country-derived pricing currency), and only then
+ * a last-resort default — so a fresh, not-yet-invoiced appointment shows the org's
+ * currency instead of a hardcoded USD. The catalog lookup is scoped to this
+ * appointment's organisation: in a multi-org session the catalog store can hold another
+ * org's services/packages, so an unfiltered lookup could surface the wrong currency.
+ */
+const resolveInvoiceCurrency = (
+  encounterCurrency: string | undefined,
+  organisationId: string | undefined,
+  services: PricedCatalogEntry[],
+  packages: PricedCatalogEntry[]
+): string => {
+  if (encounterCurrency) return encounterCurrency;
+  if (!organisationId) return DEFAULT_CURRENCY;
+  const isOrgPriced = (entry: PricedCatalogEntry) =>
+    entry.organisationId === organisationId && Boolean(entry.currency);
+  const priced = services.find(isOrgPriced) ?? packages.find(isOrgPriced);
+  return priced?.currency?.toUpperCase() ?? DEFAULT_CURRENCY;
+};
+
 type PersistInvoiceFn = (options?: { finalize?: boolean }) => Promise<{ id?: string } | undefined>;
 
 type RecordInvoicePaymentFn = (
@@ -985,23 +1010,13 @@ const useInvoiceStepContent = ({
   const paymentDisabledReason = isReadyForBilling
     ? undefined
     : 'Mark this visit ready for billing before sending to client, collecting cash, or paying online.';
-  // Currency is encounter-scoped (hydrated from finance, defaults to USD). The
-  // finance API works in lower-case ISO codes; display uses the upper-case code.
-  // Currency precedence: the finance-hydrated encounter currency (server truth),
-  // else the organisation's catalog currency (its configured/ country-derived
-  // pricing currency), and only then a last-resort default — so a fresh, not-yet-
-  // invoiced appointment shows the org's currency instead of a hardcoded USD.
-  // Scope the currency to this appointment's organisation: in a multi-org
-  // session the catalog store can hold another org's services/packages, so an
-  // unfiltered lookup could surface the wrong currency on a fresh invoice.
-  const catalogCurrency = organisationId
-    ? (catalogServices.find(
-        (service) => service.organisationId === organisationId && service.currency
-      )?.currency ??
-      catalogPackages.find((pkg) => pkg.organisationId === organisationId && pkg.currency)
-        ?.currency)
-    : undefined;
-  const currency = encounter.currency || catalogCurrency?.toUpperCase() || DEFAULT_CURRENCY;
+  // The finance API works in lower-case ISO codes; display uses the upper-case code.
+  const currency = resolveInvoiceCurrency(
+    encounter.currency,
+    organisationId,
+    catalogServices,
+    catalogPackages
+  );
   const financeCurrency = currency.toLowerCase();
 
   const incompleteMedicationNames = useMemo(

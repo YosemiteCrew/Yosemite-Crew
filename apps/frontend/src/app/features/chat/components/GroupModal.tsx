@@ -74,6 +74,192 @@ function resolveIsCreator(
   );
 }
 
+type OrgUserOptionWithKey = OrgUserOption & { keyId: string };
+
+/** Up to ten org users who are not already members, matched against the search term. */
+function selectAvailableUsers(
+  orgUsers: OrgUserOption[],
+  members: string[],
+  currentUserId: string | undefined,
+  search: string
+): OrgUserOptionWithKey[] {
+  const searchLower = search.toLowerCase();
+  const membersSet = new Set(members);
+  const availableUsers: OrgUserOptionWithKey[] = [];
+  for (const u of orgUsers) {
+    const keyId = u.userId ?? u.id;
+    if (
+      !keyId ||
+      keyId === currentUserId ||
+      membersSet.has(keyId) ||
+      membersSet.has(u.id) ||
+      !(u.name + (u.email ?? '') + (u.role ?? '')).toLowerCase().includes(searchLower)
+    )
+      continue;
+    availableUsers.push({ ...u, keyId });
+    if (availableUsers.length === 10) break;
+  }
+  return availableUsers;
+}
+
+function resolveEmptyTeammatesMessage(orgUsersCount: number, search: string): string {
+  if (orgUsersCount === 0) return 'No teammates available. Please wait...';
+  if (search.trim()) return 'No teammates match your search.';
+  return 'All teammates have been added.';
+}
+
+const GroupTitleField = ({
+  mode,
+  title,
+  placeholder,
+  busy,
+  onTitleChange,
+  onSaveTitle,
+}: {
+  mode: 'create' | 'edit';
+  title: string;
+  placeholder: string;
+  busy: boolean;
+  onTitleChange: (val: string) => void;
+  onSaveTitle: () => void;
+}) => (
+  <div className="flex flex-col gap-3">
+    <FormInput
+      intype="text"
+      inname="groupTitle"
+      inlabel={mode === 'edit' && placeholder ? placeholder : 'Group Title'}
+      value={title}
+      onChange={(e) => onTitleChange(e.target.value)}
+    />
+    {mode === 'edit' && (
+      <Primary
+        text={busy ? 'Saving...' : 'Save Title'}
+        onClick={onSaveTitle}
+        isDisabled={busy || !title.trim()}
+        className="self-start"
+      />
+    )}
+  </div>
+);
+
+const AddMembersSection = ({
+  mode,
+  members,
+  currentUserId,
+  search,
+  busy,
+  orgUsers,
+  orgUsersLoading,
+  onSearchChange,
+  onAddMember,
+}: {
+  mode: 'create' | 'edit';
+  members: string[];
+  currentUserId?: string;
+  search: string;
+  busy: boolean;
+  orgUsers: OrgUserOption[];
+  orgUsersLoading: boolean;
+  onSearchChange: (val: string) => void;
+  onAddMember: (userId: string) => void;
+}) => {
+  const availableUsers = selectAvailableUsers(orgUsers, members, currentUserId, search);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="text-body-2 text-text-primary font-medium">
+        {mode === 'create' ? 'Add members' : 'Add more members'}
+      </div>
+
+      <FormInput
+        intype="text"
+        inname="searchMembers"
+        inlabel="Search teammates"
+        value={search}
+        onChange={(e) => onSearchChange(e.target.value)}
+      />
+
+      <div className="min-h-30 max-h-75 overflow-y-auto flex flex-col gap-2 pr-1">
+        {orgUsersLoading && (
+          <div className="flex items-center justify-center py-4">
+            <span className="text-caption-1 text-text-secondary">Loading teammates…</span>
+          </div>
+        )}
+        {!orgUsersLoading && availableUsers.length === 0 && (
+          <div className="flex items-center justify-center py-4">
+            <span className="text-caption-1 text-text-secondary">
+              {resolveEmptyTeammatesMessage(orgUsers.length, search)}
+            </span>
+          </div>
+        )}
+        {!orgUsersLoading &&
+          availableUsers.map((u) => (
+            <div
+              key={u.keyId}
+              className="flex justify-between items-center p-3 border border-card-border rounded-2xl bg-chat-surface hover:border-input-border-active transition-[border-color] duration-200"
+            >
+              <div className="flex items-center gap-3">
+                <ChatAvatar name={u.name || u.email || '?'} size="sm" />
+                <div className="flex flex-col">
+                  <span className="text-body-4 text-text-primary">{u.name}</span>
+                  {u.email && <span className="text-caption-2 text-text-secondary">{u.email}</span>}
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label={`Add ${u.name || u.email || 'teammate'} to group`}
+                onClick={() => onAddMember(u.keyId)}
+                disabled={busy}
+                className={`p-1.5 rounded-lg hover:bg-chat-surface-soft transition-all duration-200 ${
+                  busy ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                }`}
+                title="Add member"
+              >
+                <IoIosAddCircleOutline size={24} color="var(--color-neutral-900)" />
+              </button>
+            </div>
+          ))}
+      </div>
+    </div>
+  );
+};
+
+const GroupModalFooter = ({
+  mode,
+  isCreator,
+  busy,
+  title,
+  members,
+  onCreate,
+  onDelete,
+}: {
+  mode: 'create' | 'edit';
+  isCreator: boolean;
+  busy: boolean;
+  title: string;
+  members: string[];
+  onCreate: () => void;
+  onDelete: () => void;
+}) => {
+  if (mode === 'create') {
+    return (
+      <ModalFooter align="stretch">
+        <Primary
+          text={busy ? 'Creating...' : 'Create Group'}
+          onClick={onCreate}
+          isDisabled={busy || !title.trim() || members.length === 0}
+        />
+      </ModalFooter>
+    );
+  }
+  if (!isCreator) return null;
+  return (
+    <ModalFooter align="stretch">
+      <Delete text={busy ? 'Deleting...' : 'Delete Group'} onClick={onDelete} isDisabled={busy} />
+    </ModalFooter>
+  );
+};
+
 export const GroupModal: FC<GroupModalProps> = ({
   open,
   mode,
@@ -113,24 +299,6 @@ export const GroupModal: FC<GroupModalProps> = ({
     };
   });
 
-  type OrgUserOptionWithKey = OrgUserOption & { keyId: string };
-  const searchLower = search.toLowerCase();
-  const membersSet = new Set(members);
-  const availableUsers: OrgUserOptionWithKey[] = [];
-  for (const u of orgUsers) {
-    const keyId = u.userId ?? u.id;
-    if (
-      !keyId ||
-      keyId === currentUserId ||
-      membersSet.has(keyId) ||
-      membersSet.has(u.id) ||
-      !(u.name + (u.email ?? '') + (u.role ?? '')).toLowerCase().includes(searchLower)
-    )
-      continue;
-    availableUsers.push({ ...u, keyId });
-    if (availableUsers.length === 10) break;
-  }
-
   const handleCreate = async () => {
     if (!title.trim() || members.length === 0) return;
     await onCreate(title.trim(), members);
@@ -157,12 +325,6 @@ export const GroupModal: FC<GroupModalProps> = ({
     }
   };
 
-  const emptyTeammatesMessage = () => {
-    if (orgUsers.length === 0) return 'No teammates available. Please wait...';
-    if (search.trim()) return 'No teammates match your search.';
-    return 'All teammates have been added.';
-  };
-
   return (
     <Modal
       showModal={open}
@@ -183,23 +345,14 @@ export const GroupModal: FC<GroupModalProps> = ({
         <div className="flex-1 flex flex-col overflow-hidden gap-6">
           <div className="flex-1 overflow-y-auto flex flex-col gap-6 pt-1 scrollbar-hidden pr-1">
             {(mode === 'create' || isCreator) && (
-              <div className="flex flex-col gap-3">
-                <FormInput
-                  intype="text"
-                  inname="groupTitle"
-                  inlabel={mode === 'edit' && placeholder ? placeholder : 'Group Title'}
-                  value={title}
-                  onChange={(e) => onTitleChange(e.target.value)}
-                />
-                {mode === 'edit' && (
-                  <Primary
-                    text={busy ? 'Saving...' : 'Save Title'}
-                    onClick={handleSaveTitle}
-                    isDisabled={busy || !title.trim()}
-                    className="self-start"
-                  />
-                )}
-              </div>
+              <GroupTitleField
+                mode={mode}
+                title={title}
+                placeholder={placeholder}
+                busy={busy}
+                onTitleChange={onTitleChange}
+                onSaveTitle={handleSaveTitle}
+              />
             )}
 
             <div className="flex flex-col gap-3">
@@ -254,63 +407,17 @@ export const GroupModal: FC<GroupModalProps> = ({
             </div>
 
             {(mode === 'create' || isCreator) && (
-              <div className="flex flex-col gap-3">
-                <div className="text-body-2 text-text-primary font-medium">
-                  {mode === 'create' ? 'Add members' : 'Add more members'}
-                </div>
-
-                <FormInput
-                  intype="text"
-                  inname="searchMembers"
-                  inlabel="Search teammates"
-                  value={search}
-                  onChange={(e) => onSearchChange(e.target.value)}
-                />
-
-                <div className="min-h-30 max-h-75 overflow-y-auto flex flex-col gap-2 pr-1">
-                  {orgUsersLoading && (
-                    <div className="flex items-center justify-center py-4">
-                      <span className="text-caption-1 text-text-secondary">Loading teammates…</span>
-                    </div>
-                  )}
-                  {!orgUsersLoading && availableUsers.length === 0 && (
-                    <div className="flex items-center justify-center py-4">
-                      <span className="text-caption-1 text-text-secondary">
-                        {emptyTeammatesMessage()}
-                      </span>
-                    </div>
-                  )}
-                  {!orgUsersLoading &&
-                    availableUsers.map((u) => (
-                      <div
-                        key={u.keyId}
-                        className="flex justify-between items-center p-3 border border-card-border rounded-2xl bg-chat-surface hover:border-input-border-active transition-[border-color] duration-200"
-                      >
-                        <div className="flex items-center gap-3">
-                          <ChatAvatar name={u.name || u.email || '?'} size="sm" />
-                          <div className="flex flex-col">
-                            <span className="text-body-4 text-text-primary">{u.name}</span>
-                            {u.email && (
-                              <span className="text-caption-2 text-text-secondary">{u.email}</span>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          aria-label={`Add ${u.name || u.email || 'teammate'} to group`}
-                          onClick={() => handleAddMemberClick(u.keyId)}
-                          disabled={busy}
-                          className={`p-1.5 rounded-lg hover:bg-chat-surface-soft transition-all duration-200 ${
-                            busy ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                          }`}
-                          title="Add member"
-                        >
-                          <IoIosAddCircleOutline size={24} color="var(--color-neutral-900)" />
-                        </button>
-                      </div>
-                    ))}
-                </div>
-              </div>
+              <AddMembersSection
+                mode={mode}
+                members={members}
+                currentUserId={currentUserId}
+                search={search}
+                busy={busy}
+                orgUsers={orgUsers}
+                orgUsersLoading={orgUsersLoading}
+                onSearchChange={onSearchChange}
+                onAddMember={handleAddMemberClick}
+              />
             )}
 
             {!isCreator && mode === 'edit' && (
@@ -322,24 +429,15 @@ export const GroupModal: FC<GroupModalProps> = ({
             )}
           </div>
 
-          {mode === 'create' && (
-            <ModalFooter align="stretch">
-              <Primary
-                text={busy ? 'Creating...' : 'Create Group'}
-                onClick={handleCreate}
-                isDisabled={busy || !title.trim() || members.length === 0}
-              />
-            </ModalFooter>
-          )}
-          {mode === 'edit' && isCreator && (
-            <ModalFooter align="stretch">
-              <Delete
-                text={busy ? 'Deleting...' : 'Delete Group'}
-                onClick={onDelete}
-                isDisabled={busy}
-              />
-            </ModalFooter>
-          )}
+          <GroupModalFooter
+            mode={mode}
+            isCreator={isCreator}
+            busy={busy}
+            title={title}
+            members={members}
+            onCreate={handleCreate}
+            onDelete={onDelete}
+          />
         </div>
       </div>
     </Modal>

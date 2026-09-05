@@ -271,6 +271,9 @@ const buildCompanionPayload = (
     : undefined,
 });
 
+const neuteredAgeLabel = (gender: string | undefined): string =>
+  `Age when ${gender === 'female' ? 'spayed' : 'neutered'}`;
+
 const getNeuteredStatusLabel = (
   gender: string | undefined,
   isNeutered: boolean | undefined
@@ -281,11 +284,19 @@ const getNeuteredStatusLabel = (
   return isNeutered ? 'Neutered' : 'Not neutered';
 };
 
+/** Renders the em-less placeholder for every blank field, so callers pass the raw value. */
 const CompanionRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div className="py-2.5! flex items-center gap-2 justify-between border-t border-card-border">
     <div className="text-body-4-emphasis text-text-tertiary">{label}</div>
     <div className="text-body-4 text-text-primary text-right">{value || '-'}</div>
   </div>
+);
+
+const CompanionInsuranceRows = ({ insurance }: { insurance: StoredCompanion['insurance'] }) => (
+  <>
+    <CompanionRow label="Insurance company" value={insurance?.companyName} />
+    <CompanionRow label="Insurance policy number" value={insurance?.policyNumber} />
+  </>
 );
 
 const CompanionReadOnlySection = ({
@@ -301,37 +312,26 @@ const CompanionReadOnlySection = ({
     <CompanionRow label="Species" value={speciesLabel} />
     <CompanionRow label="Breed" value={companion.companion.breed} />
     <CompanionRow label="Date of birth" value={formatDateLabel(companion.companion.dateOfBirth)} />
-    <CompanionRow label="Gender" value={companion.companion.gender || '-'} />
+    <CompanionRow label="Gender" value={companion.companion.gender} />
     <CompanionRow
       label="Neutered status"
       value={getNeuteredStatusLabel(companion.companion.gender, companion.companion.isneutered)}
     />
     {companion.companion.isneutered ? (
       <CompanionRow
-        label={`Age when ${companion.companion.gender === 'female' ? 'spayed' : 'neutered'}`}
+        label={neuteredAgeLabel(companion.companion.gender)}
         value={String(companion.companion.ageWhenNeutered || '-')}
       />
     ) : null}
-    <CompanionRow label="Current weight (kg)" value={companion.companion.currentWeight || '-'} />
-    <CompanionRow label="Color" value={companion.companion.colour || '-'} />
-    <CompanionRow label="Blood group" value={companion.companion.bloodGroup || '-'} />
-    <CompanionRow label="Country of origin" value={companion.companion.countryOfOrigin || '-'} />
-    <CompanionRow label="Companion came from" value={companion.companion.source || '-'} />
-    <CompanionRow label="Microchip number" value={companion.companion.microchipNumber || '-'} />
-    <CompanionRow label="Passport number" value={companion.companion.passportNumber || '-'} />
+    <CompanionRow label="Current weight (kg)" value={companion.companion.currentWeight} />
+    <CompanionRow label="Color" value={companion.companion.colour} />
+    <CompanionRow label="Blood group" value={companion.companion.bloodGroup} />
+    <CompanionRow label="Country of origin" value={companion.companion.countryOfOrigin} />
+    <CompanionRow label="Companion came from" value={companion.companion.source} />
+    <CompanionRow label="Microchip number" value={companion.companion.microchipNumber} />
+    <CompanionRow label="Passport number" value={companion.companion.passportNumber} />
     <CompanionRow label="Insurance status" value={isInsured ? 'Insured' : 'Not insured'} />
-    {isInsured ? (
-      <>
-        <CompanionRow
-          label="Insurance company"
-          value={companion.companion.insurance?.companyName || '-'}
-        />
-        <CompanionRow
-          label="Insurance policy number"
-          value={companion.companion.insurance?.policyNumber || '-'}
-        />
-      </>
-    ) : null}
+    {isInsured ? <CompanionInsuranceRows insurance={companion.companion.insurance} /> : null}
   </div>
 );
 

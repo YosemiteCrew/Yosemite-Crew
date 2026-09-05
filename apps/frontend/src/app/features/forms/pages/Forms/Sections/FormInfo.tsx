@@ -60,6 +60,30 @@ const buildPreviewValues = (fields: FormField[]): Record<string, any> => {
   return acc;
 };
 
+/** Tasks summary (task templates) or a read-only render of the form schema.
+ * Renders nothing while the form carries no schema. */
+const FormSchemaSection = ({ activeForm }: Readonly<{ activeForm: FormsProps }>) => {
+  const schema = activeForm.schema ?? [];
+  if (schema.length === 0) return null;
+  if (activeForm.category === 'Task Template') {
+    return (
+      <Accordion title="Tasks" defaultOpen showEditIcon={false} isEditing={true}>
+        <TaskTemplateSummary schema={schema} />
+      </Accordion>
+    );
+  }
+  return (
+    <Accordion title="Form preview" defaultOpen showEditIcon={false} isEditing={true}>
+      <FormRenderer
+        fields={schema}
+        values={buildPreviewValues(schema)}
+        onChange={() => {}}
+        readOnly
+      />
+    </Accordion>
+  );
+};
+
 type FormInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -118,6 +142,7 @@ const FormInfo = ({
   const canEditTemplateStructure = canEdit;
   const canMutateTemplateState = canEdit && Boolean(activeForm._id);
   const modalTitle = getModalTitle(activeForm, canEditTemplateStructure);
+  const formKey = activeForm._id || activeForm.name;
   const usageData = React.useMemo(
     () => ({
       ...activeForm,
@@ -296,19 +321,14 @@ const FormInfo = ({
   };
 
   return (
-    <Modal
-      key={activeForm._id || activeForm.name}
-      showModal={showModal}
-      setShowModal={setShowModal}
-      size="md"
-    >
+    <Modal key={formKey} showModal={showModal} setShowModal={setShowModal} size="md">
       <div className="flex flex-col h-full gap-6">
         <ModalHeader title={modalTitle} onClose={() => setShowModal(false)} />
 
         <div className="flex flex-col gap-6 w-full flex-1 overflow-y-auto pr-1 scrollbar-hidden">
           <div className="flex flex-col gap-6">
             <EditableAccordion
-              key={`details-${activeForm._id || activeForm.name}`}
+              key={`details-${formKey}`}
               title="Form details"
               fields={detailsFields}
               data={detailsData}
@@ -317,7 +337,7 @@ const FormInfo = ({
               readOnly
             />
             <EditableAccordion
-              key={`usage-${activeForm._id || activeForm.name}`}
+              key={`usage-${formKey}`}
               title="Usage & visibility"
               fields={[
                 ...UsageFields.slice(0, 1),
@@ -329,21 +349,7 @@ const FormInfo = ({
               showEditIcon={false}
               readOnly
             />
-            {(activeForm.schema?.length ?? 0) > 0 &&
-              (activeForm.category === 'Task Template' ? (
-                <Accordion title="Tasks" defaultOpen showEditIcon={false} isEditing={true}>
-                  <TaskTemplateSummary schema={activeForm.schema ?? []} />
-                </Accordion>
-              ) : (
-                <Accordion title="Form preview" defaultOpen showEditIcon={false} isEditing={true}>
-                  <FormRenderer
-                    fields={activeForm.schema ?? []}
-                    values={buildPreviewValues(activeForm.schema ?? [])}
-                    onChange={() => {}}
-                    readOnly
-                  />
-                </Accordion>
-              ))}
+            <FormSchemaSection activeForm={activeForm} />
           </div>
         </div>
         <ModalFooter align="stretch">

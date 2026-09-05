@@ -219,6 +219,69 @@ const resolveReadyOrgGuardRedirect = ({
   return applyDefaultLandingRedirect(pathname, primaryOrgId, preferredLanding);
 };
 
+const resolveShouldWaitForData = ({
+  primaryOrgId,
+  availabilityStatus,
+  profileStatus,
+  teamStatus,
+  teamIdsByOrgId,
+}: {
+  primaryOrgId: string | null;
+  availabilityStatus: string;
+  profileStatus: string;
+  teamStatus: string;
+  teamIdsByOrgId: Record<string, string[]> | null | undefined;
+}): boolean => {
+  const hasTeamDataForOrg =
+    !teamIdsByOrgId || (primaryOrgId ? Object.hasOwn(teamIdsByOrgId, primaryOrgId) : false);
+  return (
+    primaryOrgId !== null &&
+    shouldWaitForOrgGuardData(availabilityStatus, profileStatus, teamStatus, hasTeamDataForOrg)
+  );
+};
+
+// The cached pass is keyed by organisation only. It carries no information
+// about the current path, the permission set, or which user recorded it, and
+// sessionStorage is writable by anything running on the origin - so it is
+// only ever consulted for paths that declare no permission requirement
+// (`cacheMayApply`). A permission-gated path always waits for the real check,
+// which needs the membership to have loaded.
+const readInitialCachedPass = (cacheMayApply: boolean, primaryOrgId: string | null): boolean =>
+  cacheMayApply && (primaryOrgId ? readOrgGuardPassed(primaryOrgId) : readAnyOrgGuardPassed());
+
+const readOrgScopedCachedPass = (cacheMayApply: boolean, primaryOrgId: string | null): boolean =>
+  Boolean(cacheMayApply && primaryOrgId && readOrgGuardPassed(primaryOrgId));
+
+// The guard passes when the bypass is on, when there is no org to check, or
+// when all data is loaded and no redirect applies.
+const resolveGuardPassed = ({
+  isAuthGuardDisabled,
+  orgStatus,
+  primaryOrgId,
+  shouldWaitForData,
+  primaryOrg,
+  membership,
+  guardRedirect,
+}: {
+  isAuthGuardDisabled: boolean;
+  orgStatus: string;
+  primaryOrgId: string | null;
+  shouldWaitForData: boolean;
+  primaryOrg: Organisation | null;
+  membership: UserOrganization | null;
+  guardRedirect: string | null;
+}): boolean =>
+  isAuthGuardDisabled ||
+  (!isStatusPending(orgStatus) &&
+    (!primaryOrgId ||
+      Boolean(
+        !shouldWaitForData &&
+        primaryOrg &&
+        membership &&
+        membership.active !== false &&
+        guardRedirect === null
+      )));
+
 const resolveGuardRedirect = ({
   isAuthGuardDisabled,
   orgStatus,
@@ -302,11 +365,13 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
     primaryOrgId ? (s.profilesByOrgId[primaryOrgId] ?? null) : null
   );
   const profileStatus = useUserProfileStore((s) => s.status);
-  const hasTeamDataForOrg =
-    !teamIdsByOrgId || (primaryOrgId ? Object.hasOwn(teamIdsByOrgId, primaryOrgId) : false);
-  const shouldWaitForData =
-    primaryOrgId !== null &&
-    shouldWaitForOrgGuardData(availabilityStatus, profileStatus, teamStatus, hasTeamDataForOrg);
+  const shouldWaitForData = resolveShouldWaitForData({
+    primaryOrgId,
+    availabilityStatus,
+    profileStatus,
+    teamStatus,
+    teamIdsByOrgId,
+  });
 
   const guardRedirect = resolveGuardRedirect({
     isAuthGuardDisabled,
@@ -320,17 +385,11 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
     getAvailabilitiesByOrgId,
   });
 
-  // The cached pass is keyed by organisation only. It carries no information
-  // about the current path, the permission set, or which user recorded it, and
-  // sessionStorage is writable by anything running on the origin - so it is
-  // only ever consulted for paths that declare no permission requirement.
-  // A permission-gated path always waits for the real check below, which needs
-  // the membership to have loaded.
   const cacheMayApply = !pathRequiresPermissions(pathname);
-  const readCachedPass = () =>
-    cacheMayApply && (primaryOrgId ? readOrgGuardPassed(primaryOrgId) : readAnyOrgGuardPassed());
 
-  const [checked, setChecked] = useState(() => isAuthGuardDisabled || readCachedPass());
+  const [checked, setChecked] = useState(
+    () => isAuthGuardDisabled || readInitialCachedPass(cacheMayApply, primaryOrgId)
+  );
   useFullscreenLoader('org-guard', !isAuthGuardDisabled && !checked);
 
   // Render-phase adjustment: re-evaluate the cached guard pass whenever the
@@ -341,26 +400,22 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
   if (syncedOrgId !== primaryOrgId || syncedPath !== pathname) {
     setSyncedOrgId(primaryOrgId);
     setSyncedPath(pathname);
-    setChecked(Boolean(cacheMayApply && primaryOrgId && readOrgGuardPassed(primaryOrgId)));
+    setChecked(readOrgScopedCachedPass(cacheMayApply, primaryOrgId));
   }
 
-  // The guard passes when the bypass is on, when there is no org to check, or
-  // when all data is loaded and no redirect applies. `checked` stays sticky:
-  // once a pass is observed it survives later data refetches until the primary
-  // org changes (reset above). Skipped while a redirect is about to throw, so a
-  // pass is only recorded for renders that actually commit — mirroring the
-  // previous effect-based timing.
-  const guardPassed =
-    isAuthGuardDisabled ||
-    (!isStatusPending(orgStatus) &&
-      (!primaryOrgId ||
-        Boolean(
-          !shouldWaitForData &&
-          primaryOrg &&
-          membership &&
-          membership.active !== false &&
-          guardRedirect === null
-        )));
+  // `checked` stays sticky: once a pass is observed it survives later data
+  // refetches until the primary org changes (reset above). Skipped while a
+  // redirect is about to throw, so a pass is only recorded for renders that
+  // actually commit — mirroring the previous effect-based timing.
+  const guardPassed = resolveGuardPassed({
+    isAuthGuardDisabled,
+    orgStatus,
+    primaryOrgId,
+    shouldWaitForData,
+    primaryOrg,
+    membership,
+    guardRedirect,
+  });
   if (!guardRedirect && guardPassed && !checked) {
     setChecked(true);
   }

@@ -31,7 +31,10 @@ import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceS
 import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
 import { getTemplateSchemaSnapshot } from '@/app/features/appointments/pages/AppointmentWorkspace/templateSchemaSnapshot';
 import { isRichTextEmpty, sanitizeRichText } from '@/app/lib/richText';
-import type { AppointmentEncounter } from '@/app/features/appointments/types/workspace';
+import type {
+  AppointmentEncounter,
+  WorkspaceSaveState,
+} from '@/app/features/appointments/types/workspace';
 import { formatStampDate, formatStampTime } from '@/app/lib/appointmentWorkspace';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import {
@@ -769,6 +772,170 @@ const DischargeActionBar = ({
   </div>
 );
 
+// Autosave state + discharge-template search. Owns the saved/hidden gate, the
+// dropdown's open condition, and the no-matches / error branches so the step's
+// own body carries none of them.
+const DischargeTemplateBar = ({
+  saveState,
+  searchRef,
+  dischargeSaved,
+  templateQuery,
+  setTemplateQuery,
+  templateError,
+  templateMatches,
+  onSelectTemplate,
+}: {
+  saveState?: WorkspaceSaveState;
+  searchRef: React.RefObject<HTMLDivElement | null>;
+  dischargeSaved: boolean;
+  templateQuery: string;
+  setTemplateQuery: React.Dispatch<React.SetStateAction<string>>;
+  templateError: string | null;
+  templateMatches: TemplateLike[];
+  onSelectTemplate: (template: TemplateLike) => void;
+}) => (
+  <div className="flex flex-wrap items-center justify-between gap-3">
+    <AutosaveIndicator status={saveState?.status ?? 'idle'} savedAt={saveState?.at} />
+    {/* Hidden once the summary is saved: the saved view is read-only,
+        and offering a control that cannot apply is worse than not
+        offering it. Reopening the summary brings it back. */}
+    <div
+      ref={searchRef}
+      className={`relative w-full sm:max-w-90 ${dischargeSaved ? 'hidden' : ''}`}
+    >
+      <Search
+        value={templateQuery}
+        setSearch={setTemplateQuery}
+        placeholder="Search discharge templates"
+        label="Search discharge templates"
+        className="w-full!"
+      />
+      <SearchResultsDropdown
+        anchorRef={searchRef}
+        open={Boolean(templateQuery.trim()) && !templateError}
+        onClose={() => setTemplateQuery('')}
+      >
+        {templateMatches.length > 0 ? (
+          <ul>
+            {templateMatches.map((template) => (
+              <WorkspaceSearchResultRow
+                key={template.id}
+                name={template.name}
+                leadingIcon={<IoSearchOutline aria-hidden="true" className="shrink-0" />}
+                onSelect={() => onSelectTemplate(template)}
+              />
+            ))}
+          </ul>
+        ) : (
+          <p className="px-4 py-3 text-body-4 text-text-secondary">
+            No discharge templates match this search.
+          </p>
+        )}
+      </SearchResultsDropdown>
+      {templateError && <p className="mt-2 text-caption-1 text-text-error">{templateError}</p>}
+    </div>
+  </div>
+);
+
+// Read-only render of a saved discharge summary: sanitized body, a locked
+// follow-up date, and the "saved by / at" stamp. The Edit pencil is offered
+// only while the encounter itself is still editable.
+const SavedDischargeSummary = ({
+  encounter,
+  followUpDate,
+  onReopen,
+}: {
+  encounter: AppointmentEncounter;
+  followUpDate: Date | null;
+  onReopen: () => void;
+}) => (
+  <div className="relative">
+    {/* Editable until the encounter is locked (window closed / completed /
+    discharged). Absolutely positioned so it overlays the top-right
+    without pushing the summary down a row. */}
+    {!encounter.viewOnly && (
+      <div className="absolute top-0 right-0 z-10">
+        <CircleIconButton
+          icon={<IoPencilOutline aria-hidden="true" />}
+          label="Edit discharge summary"
+          variant="dark"
+          onClick={onReopen}
+        />
+      </div>
+    )}
+    <div
+      className="text-body-4 leading-[150%] text-text-primary [&_li]:my-0 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 sm:pr-12"
+      dangerouslySetInnerHTML={{
+        __html: sanitizeRichText(encounter.dischargeSummary ?? '') || '-',
+      }}
+    />
+    <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+      {/* Same Datepicker container as edit mode, rendered non-interactive.
+      Dimmed to match the other read-only state below: without it the
+      field still reads as an editable input, so the date looks broken
+      rather than locked (the Edit pencil above reopens it). */}
+      <div
+        className="pointer-events-none w-full select-none opacity-60 sm:max-w-72"
+        aria-disabled="true"
+      >
+        <Datepicker
+          type="input"
+          currentDate={followUpDate}
+          setCurrentDate={() => undefined}
+          placeholder="Follow up date"
+        />
+      </div>
+      <div className="flex flex-col items-end leading-[120%]">
+        <span className="text-[12px] font-bold text-neutral-900">
+          Saved by {encounter.dischargeSavedByName}
+        </span>
+        <span className="text-[12px] font-medium text-blue-text">
+          {formatDateTime(encounter.dischargeSavedAt ?? '')}
+        </span>
+      </div>
+    </div>
+  </div>
+);
+
+// Editable discharge summary: rich-text body plus the follow-up date, both
+// dimmed and non-interactive while the encounter is read-only.
+const DischargeSummaryEditor = ({
+  value,
+  readOnly,
+  followUpDate,
+  onChange,
+  onFollowUpChange,
+}: {
+  value: string;
+  readOnly: boolean;
+  followUpDate: Date | null;
+  onChange: (html: string) => void;
+  onFollowUpChange: (next: Date | null) => void;
+}) => (
+  <>
+    <RichTextEditor
+      ariaLabel="Discharge summary"
+      value={value}
+      readOnly={readOnly}
+      onChange={onChange}
+      placeholder="Discharge instructions and follow-up care"
+    />
+    <div className="mt-3 flex justify-end">
+      <div
+        className={`w-full sm:max-w-72 ${readOnly ? 'pointer-events-none opacity-60' : ''}`}
+        aria-disabled={readOnly}
+      >
+        <Datepicker
+          type="input"
+          currentDate={followUpDate}
+          setCurrentDate={onFollowUpChange as React.Dispatch<React.SetStateAction<Date | null>>}
+          placeholder="Follow up date"
+        />
+      </div>
+    </div>
+  </>
+);
+
 const useSummaryStepContent = ({
   appointmentId,
   appointment,
@@ -1124,126 +1291,35 @@ const useSummaryStepContent = ({
           {/* Discharge-template search sits above the container (like the SOAP step's
           template search) — selecting a template fills the editor. The autosave
           indicator (design micro-state) sits to its left, driven off the save. */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <AutosaveIndicator status={saveState?.status ?? 'idle'} savedAt={saveState?.at} />
-            {/* Hidden once the summary is saved: the saved view is read-only,
-                and offering a control that cannot apply is worse than not
-                offering it. Reopening the summary brings it back. */}
-            <div
-              ref={templateSearchRef}
-              className={`relative w-full sm:max-w-90 ${dischargeSaved ? 'hidden' : ''}`}
-            >
-              <Search
-                value={templateQuery}
-                setSearch={setTemplateQuery}
-                placeholder="Search discharge templates"
-                label="Search discharge templates"
-                className="w-full!"
-              />
-              <SearchResultsDropdown
-                anchorRef={templateSearchRef}
-                open={Boolean(templateQuery.trim()) && !templateState.error}
-                onClose={() => setTemplateQuery('')}
-              >
-                {templateMatches.length > 0 ? (
-                  <ul>
-                    {templateMatches.map((template) => (
-                      <WorkspaceSearchResultRow
-                        key={template.id}
-                        name={template.name}
-                        leadingIcon={<IoSearchOutline aria-hidden="true" className="shrink-0" />}
-                        onSelect={() => handleTemplateSelect(template)}
-                      />
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="px-4 py-3 text-body-4 text-text-secondary">
-                    No discharge templates match this search.
-                  </p>
-                )}
-              </SearchResultsDropdown>
-              {templateState.error && (
-                <p className="mt-2 text-caption-1 text-text-error">{templateState.error}</p>
-              )}
-            </div>
-          </div>
+          <DischargeTemplateBar
+            saveState={saveState}
+            searchRef={templateSearchRef}
+            dischargeSaved={dischargeSaved}
+            templateQuery={templateQuery}
+            setTemplateQuery={setTemplateQuery}
+            templateError={templateState.error}
+            templateMatches={templateMatches}
+            onSelectTemplate={handleTemplateSelect}
+          />
 
           {/* Mirrors the SOAP step sections: title + inset rich-text editor only.
           Once saved, the editor is replaced by a read-only render of the summary
           with a fixed follow-up date and a "Saved on … by …" stamp. */}
           <SectionContainer title="Discharge Summary" compactTop disableFocusBorder>
             {dischargeSaved ? (
-              <div className="relative">
-                {/* Editable until the encounter is locked (window closed / completed /
-                discharged). Absolutely positioned so it overlays the top-right
-                without pushing the summary down a row. */}
-                {!encounter.viewOnly && (
-                  <div className="absolute top-0 right-0 z-10">
-                    <CircleIconButton
-                      icon={<IoPencilOutline aria-hidden="true" />}
-                      label="Edit discharge summary"
-                      variant="dark"
-                      onClick={() => reopenDischargeSummary(appointmentId)}
-                    />
-                  </div>
-                )}
-                <div
-                  className="text-body-4 leading-[150%] text-text-primary [&_li]:my-0 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 sm:pr-12"
-                  dangerouslySetInnerHTML={{
-                    __html: sanitizeRichText(encounter.dischargeSummary ?? '') || '-',
-                  }}
-                />
-                <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-                  {/* Same Datepicker container as edit mode, rendered non-interactive.
-                  Dimmed to match the other read-only state below: without it the
-                  field still reads as an editable input, so the date looks broken
-                  rather than locked (the Edit pencil above reopens it). */}
-                  <div
-                    className="pointer-events-none w-full select-none opacity-60 sm:max-w-72"
-                    aria-disabled="true"
-                  >
-                    <Datepicker
-                      type="input"
-                      currentDate={followUpDate}
-                      setCurrentDate={() => undefined}
-                      placeholder="Follow up date"
-                    />
-                  </div>
-                  <div className="flex flex-col items-end leading-[120%]">
-                    <span className="text-[12px] font-bold text-neutral-900">
-                      Saved by {encounter.dischargeSavedByName}
-                    </span>
-                    <span className="text-[12px] font-medium text-blue-text">
-                      {formatDateTime(encounter.dischargeSavedAt ?? '')}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <SavedDischargeSummary
+                encounter={encounter}
+                followUpDate={followUpDate}
+                onReopen={() => reopenDischargeSummary(appointmentId)}
+              />
             ) : (
-              <>
-                <RichTextEditor
-                  ariaLabel="Discharge summary"
-                  value={encounter.dischargeSummary}
-                  readOnly={readOnly}
-                  onChange={(html) => setDischargeSummary(appointmentId, html)}
-                  placeholder="Discharge instructions and follow-up care"
-                />
-                <div className="mt-3 flex justify-end">
-                  <div
-                    className={`w-full sm:max-w-72 ${readOnly ? 'pointer-events-none opacity-60' : ''}`}
-                    aria-disabled={readOnly}
-                  >
-                    <Datepicker
-                      type="input"
-                      currentDate={followUpDate}
-                      setCurrentDate={
-                        handleFollowUpChange as React.Dispatch<React.SetStateAction<Date | null>>
-                      }
-                      placeholder="Follow up date"
-                    />
-                  </div>
-                </div>
-              </>
+              <DischargeSummaryEditor
+                value={encounter.dischargeSummary}
+                readOnly={readOnly}
+                followUpDate={followUpDate}
+                onChange={(html) => setDischargeSummary(appointmentId, html)}
+                onFollowUpChange={handleFollowUpChange}
+              />
             )}
           </SectionContainer>
           <DischargeActionBar

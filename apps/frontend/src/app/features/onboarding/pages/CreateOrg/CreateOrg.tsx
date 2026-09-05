@@ -85,6 +85,32 @@ type AddressStepErrors = {
   state?: string;
 };
 
+/** The onboarding snapshot adopted during render, guarded by the previous values. */
+type OnboardingSnapshot = {
+  org: Organisation | null | undefined;
+  computedStep: number;
+  isReady: boolean;
+};
+
+const hasOnboardingChanged = (prev: OnboardingSnapshot | null, next: OnboardingSnapshot) =>
+  prev?.org !== next.org ||
+  prev?.computedStep !== next.computedStep ||
+  prev?.isReady !== next.isReady;
+
+const adoptOnboardingSnapshot = (
+  snapshot: OnboardingSnapshot,
+  setActiveStep: (step: number) => void,
+  setFormData: (org: Organisation) => void
+) => {
+  if (!snapshot.isReady) return;
+  if (snapshot.computedStep >= 0 && snapshot.computedStep <= 1) {
+    setActiveStep(snapshot.computedStep);
+  }
+  if (snapshot.org) {
+    setFormData(snapshot.org);
+  }
+};
+
 const CreateOrg = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -103,25 +129,11 @@ const CreateOrg = () => {
 
   // Adopt the onboarding snapshot during render (guarded by the previous
   // values) instead of mirroring it through an effect.
-  const [prevOnboarding, setPrevOnboarding] = useState<{
-    org: typeof org;
-    computedStep: number;
-    isReady: boolean;
-  } | null>(null);
-  if (
-    prevOnboarding?.org !== org ||
-    prevOnboarding?.computedStep !== computedStep ||
-    prevOnboarding?.isReady !== isReady
-  ) {
-    setPrevOnboarding({ org, computedStep, isReady });
-    if (isReady) {
-      if (computedStep >= 0 && computedStep <= 1) {
-        setActiveStep(computedStep);
-      }
-      if (org) {
-        setFormData(org);
-      }
-    }
+  const [prevOnboarding, setPrevOnboarding] = useState<OnboardingSnapshot | null>(null);
+  const onboarding: OnboardingSnapshot = { org, computedStep, isReady };
+  if (hasOnboardingChanged(prevOnboarding, onboarding)) {
+    setPrevOnboarding(onboarding);
+    adoptOnboardingSnapshot(onboarding, setActiveStep, setFormData);
   }
 
   if (isCompletedRedirect) {

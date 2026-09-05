@@ -41,6 +41,11 @@ export type ConversationRowProps = Readonly<{
   onUnarchive?: () => void;
 }>;
 
+type ConversationActionsProps = Pick<
+  ConversationRowProps,
+  'muted' | 'onMute' | 'onUnmute' | 'onSnooze' | 'onArchive' | 'onUnarchive'
+>;
+
 const HOUR_MS = 60 * 60 * 1000;
 
 /**
@@ -83,6 +88,142 @@ function MenuItem({
   );
 }
 
+/**
+ * The open triage panel. Which rows it contains is decided by which callbacks
+ * were passed, not by a prop enumerating them, so an archived muted
+ * conversation and a live one produce panels with no rows in common.
+ */
+function ConversationMenu({
+  muted,
+  close,
+  onMute,
+  onUnmute,
+  onSnooze,
+  onArchive,
+  onUnarchive,
+}: Readonly<ConversationActionsProps & { close: () => void }>) {
+  return (
+    <div className="absolute right-0 top-9 z-20 w-[190px] rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] p-1.5 shadow-lg">
+      {onArchive && (
+        <MenuItem
+          icon={<IoArchiveOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
+          label="Archive"
+          onClick={() => {
+            onArchive();
+            close();
+          }}
+        />
+      )}
+      {onUnarchive && (
+        <MenuItem
+          icon={<IoArchiveOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
+          label="Unarchive"
+          onClick={() => {
+            onUnarchive();
+            close();
+          }}
+        />
+      )}
+      {muted
+        ? onUnmute && (
+            <MenuItem
+              active
+              icon={<IoNotificationsOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
+              label="Unmute"
+              onClick={() => {
+                onUnmute();
+                close();
+              }}
+            />
+          )
+        : onMute && (
+            <MenuItem
+              active
+              icon={<IoNotificationsOffOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
+              label="Mute"
+              onClick={() => {
+                onMute();
+                close();
+              }}
+            />
+          )}
+      {onSnooze && (
+        <>
+          <hr className="my-1 h-px border-0 bg-[var(--hairline)]" />
+          <MenuItem
+            icon={<IoMoonOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
+            label="Snooze · 1 hour"
+            onClick={() => {
+              onSnooze(HOUR_MS);
+              close();
+            }}
+          />
+          <MenuItem
+            icon={<IoMoonOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
+            label="Snooze · 1 day"
+            onClick={() => {
+              onSnooze(24 * HOUR_MS);
+              close();
+            }}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The kebab and its menu. Renders nothing when no triage callback was passed,
+ * which is the row's `hasActions` gate.
+ */
+function ConversationActions(props: Readonly<ConversationActionsProps>) {
+  const { muted, onMute, onUnmute, onSnooze, onArchive, onUnarchive } = props;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const close = () => setMenuOpen(false);
+  const hasActions = Boolean(onMute || onUnmute || onSnooze || onArchive || onUnarchive);
+
+  if (!hasActions) return null;
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        aria-label="Conversation actions"
+        onClick={() => setMenuOpen((o) => !o)}
+        className={clsx(
+          // On the wide desktop frame the kebab is a persistent filled inset
+          // circle; on tablet it stays a hover-revealed action.
+          'inline-flex size-8 items-center justify-center rounded-full text-[var(--ink-faint)] transition-colors hover:bg-[var(--screen-2)] hover:text-[var(--ink)] xl:size-7 xl:bg-[var(--inset)] xl:text-[var(--ink-body)]',
+          menuOpen
+            ? 'opacity-100'
+            : 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100 xl:opacity-100'
+        )}
+      >
+        <IoEllipsisVertical className="h-4 w-4" />
+      </button>
+      {menuOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="Close menu"
+            className="fixed inset-0 z-10 cursor-default"
+            onClick={close}
+          />
+          <ConversationMenu
+            muted={muted}
+            close={close}
+            onMute={onMute}
+            onUnmute={onUnmute}
+            onSnooze={onSnooze}
+            onArchive={onArchive}
+            onUnarchive={onUnarchive}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
 export function ConversationRow({
   name,
   preview,
@@ -101,10 +242,6 @@ export function ConversationRow({
   onArchive,
   onUnarchive,
 }: ConversationRowProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const hasActions = Boolean(onMute || onUnmute || onSnooze || onArchive || onUnarchive);
-  const close = () => setMenuOpen(false);
-
   return (
     <div
       className={clsx(
@@ -186,105 +323,14 @@ export function ConversationRow({
         </span>
       </button>
 
-      {hasActions && (
-        <div className="relative shrink-0">
-          <button
-            type="button"
-            aria-label="Conversation actions"
-            onClick={() => setMenuOpen((o) => !o)}
-            className={clsx(
-              // On the wide desktop frame the kebab is a persistent filled inset
-              // circle; on tablet it stays a hover-revealed action.
-              'inline-flex size-8 items-center justify-center rounded-full text-[var(--ink-faint)] transition-colors hover:bg-[var(--screen-2)] hover:text-[var(--ink)] xl:size-7 xl:bg-[var(--inset)] xl:text-[var(--ink-body)]',
-              menuOpen
-                ? 'opacity-100'
-                : 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100 xl:opacity-100'
-            )}
-          >
-            <IoEllipsisVertical className="h-4 w-4" />
-          </button>
-          {menuOpen && (
-            <>
-              <button
-                type="button"
-                aria-label="Close menu"
-                className="fixed inset-0 z-10 cursor-default"
-                onClick={close}
-              />
-              <div className="absolute right-0 top-9 z-20 w-[190px] rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] p-1.5 shadow-lg">
-                {onArchive && (
-                  <MenuItem
-                    icon={<IoArchiveOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
-                    label="Archive"
-                    onClick={() => {
-                      onArchive();
-                      close();
-                    }}
-                  />
-                )}
-                {onUnarchive && (
-                  <MenuItem
-                    icon={<IoArchiveOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
-                    label="Unarchive"
-                    onClick={() => {
-                      onUnarchive();
-                      close();
-                    }}
-                  />
-                )}
-                {muted
-                  ? onUnmute && (
-                      <MenuItem
-                        active
-                        icon={
-                          <IoNotificationsOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />
-                        }
-                        label="Unmute"
-                        onClick={() => {
-                          onUnmute();
-                          close();
-                        }}
-                      />
-                    )
-                  : onMute && (
-                      <MenuItem
-                        active
-                        icon={
-                          <IoNotificationsOffOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />
-                        }
-                        label="Mute"
-                        onClick={() => {
-                          onMute();
-                          close();
-                        }}
-                      />
-                    )}
-                {onSnooze && (
-                  <>
-                    <hr className="my-1 h-px border-0 bg-[var(--hairline)]" />
-                    <MenuItem
-                      icon={<IoMoonOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
-                      label="Snooze · 1 hour"
-                      onClick={() => {
-                        onSnooze(HOUR_MS);
-                        close();
-                      }}
-                    />
-                    <MenuItem
-                      icon={<IoMoonOutline className="h-3.5 w-3.5 text-[var(--ink-muted)]" />}
-                      label="Snooze · 1 day"
-                      onClick={() => {
-                        onSnooze(24 * HOUR_MS);
-                        close();
-                      }}
-                    />
-                  </>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+      <ConversationActions
+        muted={muted}
+        onMute={onMute}
+        onUnmute={onUnmute}
+        onSnooze={onSnooze}
+        onArchive={onArchive}
+        onUnarchive={onUnarchive}
+      />
     </div>
   );
 }

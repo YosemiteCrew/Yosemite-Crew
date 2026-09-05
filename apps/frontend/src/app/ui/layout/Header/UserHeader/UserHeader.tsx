@@ -8,6 +8,7 @@ import {
   IoSettingsOutline,
 } from 'react-icons/io5';
 import { usePathname, useRouter } from 'next/navigation';
+import type { Organisation } from '@yosemite-crew/types';
 import { useSignOut } from '@/app/hooks/useAuth';
 import { useHasMounted } from '@/app/hooks/useHasMounted';
 import { removeStorageItem } from '@/app/lib/browserStorage';
@@ -61,6 +62,190 @@ const getSearchPlaceholder = (
 };
 
 const CLOSED_MENUS = { selectOrg: false, selectProfile: false };
+
+/** The signed-in user's name for the profile trigger, or a neutral fallback. */
+const getDisplayName = (attributes: Record<string, string> | null): string =>
+  `${attributes?.given_name ?? ''} ${attributes?.family_name ?? ''}`.trim() || 'Account';
+
+type MenuToggle = (value: boolean | ((prev: boolean) => boolean)) => void;
+
+/** Org chip + "Switch organization" menu. Rendered only for a member of an org. */
+const OrgSwitcher = ({
+  dropdownRef,
+  primaryOrg,
+  orgs,
+  orgMenuId,
+  selectOrg,
+  setSelectOrg,
+  onOrgClick,
+}: {
+  dropdownRef: React.RefObject<HTMLDivElement | null>;
+  primaryOrg: Organisation;
+  orgs: Organisation[];
+  orgMenuId: string;
+  selectOrg: boolean;
+  setSelectOrg: MenuToggle;
+  onOrgClick: (orgId: string) => void;
+}) => (
+  <div className="yc-header-dropdown-wrap" ref={dropdownRef}>
+    <button
+      type="button"
+      className={`yc-header-org-trigger ${selectOrg ? 'yc-header-trigger-open' : ''}`}
+      onClick={() => setSelectOrg((e) => !e)}
+      aria-expanded={selectOrg}
+      aria-controls={orgMenuId}
+      aria-haspopup="menu"
+    >
+      {/* The design's org chip is a --blue-soft monogram; the logo image
+          is only used when the organization actually carries one. */}
+      {primaryOrg.imageURL ? (
+        <Image
+          src={getSafeImageUrl(primaryOrg.imageURL, 'business')}
+          alt=""
+          height={32}
+          width={32}
+          className="yc-header-avatar"
+        />
+      ) : (
+        <span className="yc-header-org-chip" aria-hidden>
+          {primaryOrg.name.trim().charAt(0) || 'O'}
+        </span>
+      )}
+      <span className="yc-header-trigger-copy">
+        <span className="yc-header-kicker">Organization</span>
+        <span className="yc-header-primary-text">{primaryOrg?.name}</span>
+      </span>
+      <IoCaretDown className={selectOrg ? 'yc-chevron-open' : ''} size={11} />
+    </button>
+    {selectOrg && (
+      <div
+        id={orgMenuId}
+        className="yc-header-dropdown-panel"
+        role="menu"
+        tabIndex={-1}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            setSelectOrg(false);
+          }
+        }}
+      >
+        <div className="yc-header-dropdown-title">Switch organization</div>
+        {orgs.slice(0, 4).map((org) => (
+          <button
+            key={org._id?.toString() || org.name}
+            type="button"
+            className="yc-menu-row"
+            onClick={() => onOrgClick(org._id?.toString() || org.name)}
+            role="menuitem"
+          >
+            {org.name}
+          </button>
+        ))}
+        <Link
+          href="/organizations"
+          onClick={() => setSelectOrg(false)}
+          className="yc-menu-row yc-menu-row-accent"
+          role="menuitem"
+        >
+          View all organizations
+        </Link>
+      </div>
+    )}
+  </div>
+);
+
+/** Avatar trigger + account menu (settings, manuals, guides, sign out). */
+const ProfileMenu = ({
+  dropdownRef,
+  profileMenuId,
+  selectProfile,
+  setSelectProfile,
+  avatarUrl,
+  displayName,
+  isDev,
+  showMerckManual,
+  onLogout,
+}: {
+  dropdownRef: React.RefObject<HTMLDivElement | null>;
+  profileMenuId: string;
+  selectProfile: boolean;
+  setSelectProfile: MenuToggle;
+  avatarUrl: string;
+  displayName: string;
+  isDev: boolean;
+  showMerckManual: boolean;
+  onLogout: () => void;
+}) => (
+  <div className="yc-profile-wrap" ref={dropdownRef}>
+    <button
+      type="button"
+      className={`yc-profile-trigger ${selectProfile ? 'yc-header-trigger-open' : ''}`}
+      onClick={() => setSelectProfile((e) => !e)}
+      aria-expanded={selectProfile}
+      aria-controls={profileMenuId}
+      aria-haspopup="menu"
+    >
+      <Image src={avatarUrl} alt="" height={30} width={30} className="yc-header-avatar" />
+      <span className="yc-profile-name">{displayName}</span>
+      <IoCaretDown className={selectProfile ? 'yc-chevron-open' : ''} size={10} />
+    </button>
+    {selectProfile && (
+      <div
+        id={profileMenuId}
+        className="yc-header-dropdown-panel yc-profile-panel"
+        role="menu"
+        tabIndex={-1}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            setSelectProfile(false);
+          }
+        }}
+      >
+        <div className="yc-header-dropdown-title">Account</div>
+        <Link
+          href={isDev ? '/developers/settings' : '/settings'}
+          onClick={() => setSelectProfile(false)}
+          className="yc-menu-row"
+          role="menuitem"
+        >
+          <IoSettingsOutline size={16} className="yc-menu-row-icon" aria-hidden />
+          Settings
+        </Link>
+        {showMerckManual && (
+          <Link
+            href="/integrations/merck-manuals"
+            onClick={() => setSelectProfile(false)}
+            className="yc-menu-row"
+            role="menuitem"
+          >
+            <IoBookOutline size={16} className="yc-menu-row-icon" aria-hidden />
+            MSD Veterinary Manual
+          </Link>
+        )}
+        {!isDev && (
+          <Link
+            href="/guides"
+            onClick={() => setSelectProfile(false)}
+            className="yc-menu-row"
+            role="menuitem"
+          >
+            <IoHelpCircleOutline size={16} className="yc-menu-row-icon" aria-hidden />
+            Guides
+          </Link>
+        )}
+        <button
+          type="button"
+          onClick={onLogout}
+          className="yc-menu-row yc-menu-row-danger"
+          role="menuitem"
+        >
+          <IoLogOutOutline size={16} className="yc-menu-row-icon" aria-hidden />
+          Sign out
+        </button>
+      </div>
+    )}
+  </div>
+);
 
 const useUserHeaderContent = () => {
   const terminologyText = useCompanionTerminologyText();
@@ -177,78 +362,20 @@ const useUserHeaderContent = () => {
   const searchPlaceholder = getSearchPlaceholder(pathname, terminologyText, mounted);
 
   const hideSearch = shouldHideSearch(pathname);
-  const displayName =
-    `${attributes?.given_name ?? ''} ${attributes?.family_name ?? ''}`.trim() || 'Account';
 
   return (
     <div className="yc-user-header">
       <div className="yc-header-left">
         {primaryOrg && !isDev && (
-          <div className="yc-header-dropdown-wrap" ref={desktopOrgDropdownRef}>
-            <button
-              type="button"
-              className={`yc-header-org-trigger ${selectOrg ? 'yc-header-trigger-open' : ''}`}
-              onClick={() => setSelectOrg((e) => !e)}
-              aria-expanded={selectOrg}
-              aria-controls={orgMenuId}
-              aria-haspopup="menu"
-            >
-              {/* The design's org chip is a --blue-soft monogram; the logo image
-                  is only used when the organization actually carries one. */}
-              {primaryOrg.imageURL ? (
-                <Image
-                  src={getSafeImageUrl(primaryOrg.imageURL, 'business')}
-                  alt=""
-                  height={32}
-                  width={32}
-                  className="yc-header-avatar"
-                />
-              ) : (
-                <span className="yc-header-org-chip" aria-hidden>
-                  {primaryOrg.name.trim().charAt(0) || 'O'}
-                </span>
-              )}
-              <span className="yc-header-trigger-copy">
-                <span className="yc-header-kicker">Organization</span>
-                <span className="yc-header-primary-text">{primaryOrg?.name}</span>
-              </span>
-              <IoCaretDown className={selectOrg ? 'yc-chevron-open' : ''} size={11} />
-            </button>
-            {selectOrg && (
-              <div
-                id={orgMenuId}
-                className="yc-header-dropdown-panel"
-                role="menu"
-                tabIndex={-1}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape') {
-                    setSelectOrg(false);
-                  }
-                }}
-              >
-                <div className="yc-header-dropdown-title">Switch organization</div>
-                {orgs.slice(0, 4).map((org) => (
-                  <button
-                    key={org._id?.toString() || org.name}
-                    type="button"
-                    className="yc-menu-row"
-                    onClick={() => handleOrgClick(org._id?.toString() || org.name)}
-                    role="menuitem"
-                  >
-                    {org.name}
-                  </button>
-                ))}
-                <Link
-                  href="/organizations"
-                  onClick={() => setSelectOrg(false)}
-                  className="yc-menu-row yc-menu-row-accent"
-                  role="menuitem"
-                >
-                  View all organizations
-                </Link>
-              </div>
-            )}
-          </div>
+          <OrgSwitcher
+            dropdownRef={desktopOrgDropdownRef}
+            primaryOrg={primaryOrg}
+            orgs={orgs}
+            orgMenuId={orgMenuId}
+            selectOrg={selectOrg}
+            setSelectOrg={setSelectOrg}
+            onOrgClick={handleOrgClick}
+          />
         )}
       </div>
 
@@ -265,81 +392,17 @@ const useUserHeaderContent = () => {
 
         <NotificationsBell />
 
-        <div className="yc-profile-wrap" ref={profileDropdownRef}>
-          <button
-            type="button"
-            className={`yc-profile-trigger ${selectProfile ? 'yc-header-trigger-open' : ''}`}
-            onClick={() => setSelectProfile((e) => !e)}
-            aria-expanded={selectProfile}
-            aria-controls={profileMenuId}
-            aria-haspopup="menu"
-          >
-            <Image
-              src={getSafeImageUrl(profile?.personalDetails?.profilePictureUrl, 'person')}
-              alt=""
-              height={30}
-              width={30}
-              className="yc-header-avatar"
-            />
-            <span className="yc-profile-name">{displayName}</span>
-            <IoCaretDown className={selectProfile ? 'yc-chevron-open' : ''} size={10} />
-          </button>
-          {selectProfile && (
-            <div
-              id={profileMenuId}
-              className="yc-header-dropdown-panel yc-profile-panel"
-              role="menu"
-              tabIndex={-1}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') {
-                  setSelectProfile(false);
-                }
-              }}
-            >
-              <div className="yc-header-dropdown-title">Account</div>
-              <Link
-                href={isDev ? '/developers/settings' : '/settings'}
-                onClick={() => setSelectProfile(false)}
-                className="yc-menu-row"
-                role="menuitem"
-              >
-                <IoSettingsOutline size={16} className="yc-menu-row-icon" aria-hidden />
-                Settings
-              </Link>
-              {!isDev && merckEnabled && orgVerified && (
-                <Link
-                  href="/integrations/merck-manuals"
-                  onClick={() => setSelectProfile(false)}
-                  className="yc-menu-row"
-                  role="menuitem"
-                >
-                  <IoBookOutline size={16} className="yc-menu-row-icon" aria-hidden />
-                  MSD Veterinary Manual
-                </Link>
-              )}
-              {!isDev && (
-                <Link
-                  href="/guides"
-                  onClick={() => setSelectProfile(false)}
-                  className="yc-menu-row"
-                  role="menuitem"
-                >
-                  <IoHelpCircleOutline size={16} className="yc-menu-row-icon" aria-hidden />
-                  Guides
-                </Link>
-              )}
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="yc-menu-row yc-menu-row-danger"
-                role="menuitem"
-              >
-                <IoLogOutOutline size={16} className="yc-menu-row-icon" aria-hidden />
-                Sign out
-              </button>
-            </div>
-          )}
-        </div>
+        <ProfileMenu
+          dropdownRef={profileDropdownRef}
+          profileMenuId={profileMenuId}
+          selectProfile={selectProfile}
+          setSelectProfile={setSelectProfile}
+          avatarUrl={getSafeImageUrl(profile?.personalDetails?.profilePictureUrl, 'person')}
+          displayName={getDisplayName(attributes)}
+          isDev={isDev}
+          showMerckManual={!isDev && merckEnabled && orgVerified}
+          onLogout={handleLogout}
+        />
       </div>
     </div>
   );

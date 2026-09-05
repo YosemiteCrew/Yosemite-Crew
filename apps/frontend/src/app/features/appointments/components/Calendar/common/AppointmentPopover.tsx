@@ -13,7 +13,8 @@ import { getAppointmentPaymentDisplay } from '@/app/lib/paymentStatus';
 import { normalizeAppointmentId } from '@/app/lib/invoice';
 import { formatMoney } from '@/app/lib/money';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
-import { Appointment, Invoice } from '@yosemite-crew/types';
+import { Appointment, Invoice, Organisation } from '@yosemite-crew/types';
+import { StoredCompanion } from '@/app/features/companions/pages/Companions/types';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useCompanionStore } from '@/app/stores/companionStore';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
@@ -29,7 +30,10 @@ import { getAppointmentRoomDisplay } from '@/app/lib/appointmentRoomDisplay';
 import PopoverHeader from '@/app/features/appointments/components/Calendar/common/PopoverHeader';
 import RequestActionButtons from '@/app/features/appointments/components/Calendar/common/RequestActionButtons';
 import WorkspaceQuickActions from '@/app/features/appointments/components/Calendar/common/WorkspaceQuickActions';
-import { CompanionWeightSource } from '@/app/features/appointments/components/Calendar/common/appointmentPopoverHelpers';
+import {
+  CompanionWeightSource,
+  PopoverCompanion,
+} from '@/app/features/appointments/components/Calendar/common/appointmentPopoverHelpers';
 
 type AppointmentPopoverProps = {
   appointment: Appointment;
@@ -83,6 +87,28 @@ const getPaymentValue = (paymentLabel: string | undefined, invoice: Invoice | un
   return formatMoney(invoice.totalAmount, invoice.currency);
 };
 
+// The appointment's own companion is authoritative, but weight and physical
+// attributes are only ever loaded into the companion store, so fall back to the
+// stored record for those two fields alone.
+const buildCompanionDetails = (
+  companion: PopoverCompanion,
+  storeCompanion: StoredCompanion | undefined
+) =>
+  ({
+    ...storeCompanion,
+    ...companion,
+    currentWeight:
+      (companion as CompanionWeightSource).currentWeight ?? storeCompanion?.currentWeight,
+    physicalAttribute:
+      (companion as CompanionWeightSource).physicalAttribute ?? storeCompanion?.physicalAttribute,
+  }) as CompanionWeightSource & PopoverCompanion;
+
+const resolveOrgType = (appointment: Appointment, orgsById: Record<string, Organisation>) =>
+  (appointment.organisationId && orgsById[appointment.organisationId]?.type) || 'HOSPITAL';
+
+const formatSupportStaff = (appointment: Appointment) =>
+  appointment.supportStaff?.map((staff) => staff.name).join(', ') || '-';
+
 const updatePrimaryActionGlowPosition = (event: React.PointerEvent<HTMLButtonElement>) => {
   const rect = event.currentTarget.getBoundingClientRect();
   event.currentTarget.style.setProperty('--yc-button-x', `${event.clientX - rect.left}px`);
@@ -108,18 +134,10 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
   const roomUnitsById = useOrganisationRoomStore((s) => s.roomUnitsById);
   const companion = appointment.companion ?? appointment.patient;
   const storeCompanion = useCompanionStore((s) => s.getCompanionById(companion.id));
-  const companionDetails = {
-    ...storeCompanion,
-    ...companion,
-    currentWeight:
-      (companion as CompanionWeightSource).currentWeight ?? storeCompanion?.currentWeight,
-    physicalAttribute:
-      (companion as CompanionWeightSource).physicalAttribute ?? storeCompanion?.physicalAttribute,
-  } as CompanionWeightSource & typeof companion;
+  const companionDetails = buildCompanionDetails(companion, storeCompanion);
   const payment = getAppointmentPaymentDisplay(appointment, invoicesByAppointmentId);
   const companionDisplayName = getCompanionDisplayName(appointment);
-  const orgType =
-    (appointment.organisationId && orgsById[appointment.organisationId]?.type) || 'HOSPITAL';
+  const orgType = resolveOrgType(appointment, orgsById);
   const clinicalNotesLabel = getClinicalNotesLabel(orgType);
   const clinicalNotesIntent = getClinicalNotesIntent(orgType);
 
@@ -129,7 +147,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
   const appointmentInvoice = getInvoiceForAppointment(appointment.id, invoicesByAppointmentId);
   const paymentTitle = getPaymentTitle(payment?.state);
   const paymentValue = getPaymentValue(payment?.label, appointmentInvoice);
-  const supportStaffValue = appointment.supportStaff?.map((staff) => staff.name).join(', ') || '-';
+  const supportStaffValue = formatSupportStaff(appointment);
   const roomDisplay = getAppointmentRoomDisplay(appointment, encountersById, roomUnitsById);
   const canOpenWorkspace = canEnterAppointmentWorkspace(appointment.status);
   const primaryActionLabel =

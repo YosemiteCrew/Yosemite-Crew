@@ -24,6 +24,27 @@ type ChangeRoomProps = {
   activeAppointment: Appointment;
 };
 
+type RoomIndexes = Parameters<typeof getFirstAssignableRoomUnitId>[1];
+
+/**
+ * The room + unit the dropdowns should be showing for this appointment: the
+ * room it is already booked into, and the unit the encounter already holds -
+ * falling back to the first unit that room can still take. Used both for the
+ * initial `useState` values and for the reset when the modal reopens on a
+ * different appointment, so the two can never drift apart.
+ */
+const resolveRoomSelection = (
+  activeAppointment: Appointment,
+  roomIndexes: RoomIndexes,
+  currentUnitId?: string
+) => {
+  const roomId = activeAppointment.room?.id || '';
+  return {
+    roomId,
+    unitId: currentUnitId || getFirstAssignableRoomUnitId(roomId, roomIndexes, currentUnitId) || '',
+  };
+};
+
 const ChangeRoom = ({ showModal, setShowModal, activeAppointment }: ChangeRoomProps) => {
   const rooms = useRoomsForPrimaryOrg();
   const roomUnitsById = useOrganisationRoomStore((state) => state.roomUnitsById);
@@ -51,12 +72,9 @@ const ChangeRoom = ({ showModal, setShowModal, activeAppointment }: ChangeRoomPr
       ),
     [activeAppointment.room?.id, currentUnitId, isInpatient, roomIndexes, rooms]
   );
-  const [selectedRoomId, setSelectedRoomId] = useState<string>(activeAppointment.room?.id || '');
-  const [selectedUnitId, setSelectedUnitId] = useState<string>(
-    currentUnitId ||
-      getFirstAssignableRoomUnitId(activeAppointment.room?.id || '', roomIndexes, currentUnitId) ||
-      ''
-  );
+  const initialSelection = resolveRoomSelection(activeAppointment, roomIndexes, currentUnitId);
+  const [selectedRoomId, setSelectedRoomId] = useState<string>(initialSelection.roomId);
+  const [selectedUnitId, setSelectedUnitId] = useState<string>(initialSelection.unitId);
   const selectedRoomUnits = useMemo(
     () => getAssignableRoomUnits(selectedRoomId, roomIndexes, currentUnitId),
     [currentUnitId, roomIndexes, selectedRoomId]
@@ -80,11 +98,9 @@ const ChangeRoom = ({ showModal, setShowModal, activeAppointment }: ChangeRoomPr
   const [prevResetKey, setPrevResetKey] = useState({ appointment: activeAppointment, showModal });
   if (prevResetKey.appointment !== activeAppointment || prevResetKey.showModal !== showModal) {
     setPrevResetKey({ appointment: activeAppointment, showModal });
-    const newRoomId = activeAppointment.room?.id || '';
-    if (selectedRoomId !== newRoomId) setSelectedRoomId(newRoomId);
-    const newUnitId =
-      currentUnitId || getFirstAssignableRoomUnitId(newRoomId, roomIndexes, currentUnitId) || '';
-    if (selectedUnitId !== newUnitId) setSelectedUnitId(newUnitId);
+    const next = resolveRoomSelection(activeAppointment, roomIndexes, currentUnitId);
+    if (selectedRoomId !== next.roomId) setSelectedRoomId(next.roomId);
+    if (selectedUnitId !== next.unitId) setSelectedUnitId(next.unitId);
     if (errorMessage !== null) setErrorMessage(null);
   }
 

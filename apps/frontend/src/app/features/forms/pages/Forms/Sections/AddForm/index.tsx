@@ -84,6 +84,27 @@ const defaultForm = (): FormsProps => {
   };
 };
 
+/** Header meta line: category, field count and how many services the template is linked to. */
+const getDetailsSummary = (formData: FormsProps): string => {
+  const fieldCount = formData.schema?.length ?? 0;
+  const serviceCount = formData.services?.length ?? 0;
+  return `${formData.category || 'Uncategorised'} · ${fieldCount} field${
+    fieldCount === 1 ? '' : 's'
+  } · linked to ${serviceCount} service${serviceCount === 1 ? '' : 's'}`;
+};
+
+/** Modal title: the mode, plus the template name once it has one. */
+const getModalTitle = (isEditing: boolean, name?: string): string => {
+  const mode = isEditing ? 'Edit template' : 'Add template';
+  return name ? `${mode} · ${name}` : mode;
+};
+
+// Coerce a stale 'merck' view back to 'build' while rendering when the MSD
+// integration is disabled - deriving this avoids the extra render a useEffect
+// sync would cost.
+const resolveEffectiveView = (view: BuilderView, merckEnabled: boolean): BuilderView =>
+  view === 'merck' && !merckEnabled ? 'build' : view;
+
 const AddForm = ({
   showModal,
   setShowModal,
@@ -115,11 +136,7 @@ const AddForm = ({
 
   const isEditing = useMemo(() => Boolean(initialForm?._id), [initialForm]);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const fieldCount = formData.schema?.length ?? 0;
-  const serviceCount = formData.services?.length ?? 0;
-  const detailsSummary = `${formData.category || 'Uncategorised'} · ${fieldCount} field${
-    fieldCount === 1 ? '' : 's'
-  } · linked to ${serviceCount} service${serviceCount === 1 ? '' : 's'}`;
+  const detailsSummary = getDetailsSummary(formData);
 
   useLayoutEffect(() => {
     if (showModal && !wasOpenRef.current) {
@@ -210,18 +227,13 @@ const AddForm = ({
     }
   };
 
-  // Coerce a stale 'merck' view back to 'build' while rendering when the MSD
-  // integration is disabled — deriving this avoids the extra render a useEffect
-  // sync would cost.
-  const effectiveView = view === 'merck' && !merckEnabled ? 'build' : view;
+  const effectiveView = resolveEffectiveView(view, merckEnabled);
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal} onClose={onClose}>
       <div className="flex h-full flex-col gap-4">
         <ModalHeader
-          title={`${isEditing ? 'Edit template' : 'Add template'}${
-            formData.name ? ` · ${formData.name}` : ''
-          }`}
+          title={getModalTitle(isEditing, formData.name)}
           meta={<span className="block truncate">{detailsSummary}</span>}
           onClose={closeModal}
           actions={

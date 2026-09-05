@@ -87,6 +87,179 @@ type DispensaryItemRowProps = {
   idx: number;
 };
 
+/** Headline quantity: packs once a pack size is known, otherwise the raw total. */
+const formatDispenseSummary = (
+  packs: number | null,
+  stockUnit: string,
+  totalUnits: number
+): string =>
+  packs !== null && stockUnit
+    ? `${packs} ${pluralizeUnit(stockUnit, packs)}`
+    : `${totalUnits} ${pluralizeUnit(stockUnit || 'unit', totalUnits)}`;
+
+/** Item header row: position, name, Rx/controlled flags and the dispense total. */
+const DispensaryItemHeader = ({
+  item,
+  idx,
+  dispenseSummary,
+}: Readonly<{ item: DispensaryItem; idx: number; dispenseSummary: string }>) => (
+  <div className="flex items-center gap-2">
+    <span className="text-body-4 text-text-secondary shrink-0">{idx + 1}.</span>
+    <div className="flex flex-1 items-center gap-2 min-w-0">
+      <span className="text-body-4 font-semibold text-text-primary truncate">{item.name}</span>
+      {item.isRx && (
+        <span className="inline-flex size-6 items-center justify-center rounded-full bg-[var(--blue-strong)] text-white text-[10px] font-bold shrink-0">
+          Rx
+        </span>
+      )}
+      {item.isControlled && (
+        <span className="inline-flex items-center rounded-full border border-card-border px-2 py-0.5 text-caption-1 text-text-secondary shrink-0">
+          Controlled
+        </span>
+      )}
+    </div>
+    <span className="text-body-4 font-semibold text-blue-text shrink-0">{dispenseSummary}</span>
+  </div>
+);
+
+/** What was prescribed: quantity, frequency, duration and refills remaining. */
+const PrescribedSummary = ({ item }: Readonly<{ item: DispensaryItem }>) => (
+  <div>
+    <div className="text-caption-1 text-text-secondary mb-1.5">Prescription:</div>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption-1">
+      <span className="text-text-secondary">Qnt.</span>
+      <span className="text-text-primary font-medium">{item.quantity}</span>
+      {item.frequency && (
+        <>
+          <span className="text-text-secondary">Freq.</span>
+          <span className="text-text-primary font-medium">{item.frequency}</span>
+        </>
+      )}
+      {item.durationDays != null && (
+        <>
+          <span className="text-text-secondary">Duration</span>
+          <span className="text-text-primary font-medium">
+            {item.durationDays} {item.durationUnit ?? 'days'}
+          </span>
+        </>
+      )}
+      <span className="text-text-secondary">Refill</span>
+      <span className="text-text-primary font-medium">
+        {item.refillsRemaining == null ? '—' : `${item.refillsRemaining} remaining`}
+      </span>
+    </div>
+  </div>
+);
+
+/** Right-hand column of the calculation: pack size and the rounded pack count. */
+const DispensePackSummary = ({
+  item,
+  packs,
+  doseUnit,
+  stockUnit,
+}: Readonly<{ item: DispensaryItem; packs: number; doseUnit: string; stockUnit: string }>) => (
+  <div className="text-right shrink-0">
+    {stockUnit && item.stockUnitQty && (
+      <div className="text-caption-1 text-text-secondary">
+        1 {stockUnit.toLowerCase()} of {item.stockUnitQty} {doseUnit || 'units'}
+      </div>
+    )}
+    <div className="text-caption-1">
+      <span className="text-text-secondary">To dispense: </span>
+      <span className="font-semibold text-[var(--success-text)]">
+        {packs} {pluralizeUnit(stockUnit || 'unit', packs)}
+      </span>
+    </div>
+  </div>
+);
+
+/** How the dispense total was reached, shown when frequency and duration are known. */
+const DispenseCalculation = ({
+  item,
+  freqPerDay,
+  totalUnits,
+  packs,
+  doseUnit,
+  stockUnit,
+}: Readonly<{
+  item: DispensaryItem;
+  freqPerDay: number;
+  totalUnits: number;
+  packs: number | null;
+  doseUnit: string;
+  stockUnit: string;
+}>) => (
+  <div className="flex items-end justify-between gap-4 pt-2">
+    <div className="min-w-0">
+      <div className="text-caption-1 text-text-secondary mb-1">Dispense qnt. calculation:</div>
+      <div className="text-caption-1 text-text-primary">
+        {freqPerDay < 1 ? (
+          <>
+            {item.quantity} x {item.durationDays} {item.durationUnit ?? 'days'} ({item.frequency}) ={' '}
+            <span className="font-bold">
+              {Math.ceil(totalUnits)} {pluralizeUnit(doseUnit || 'unit', Math.ceil(totalUnits))}
+            </span>
+          </>
+        ) : (
+          <>
+            {item.quantity} x {Number(freqPerDay.toFixed(2))}/day x {item.durationDays}{' '}
+            {item.durationUnit ?? 'days'} ={' '}
+            <span className="font-bold">
+              {Number(totalUnits.toFixed(2))} {pluralizeUnit(doseUnit || 'unit', totalUnits)}
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+    {packs !== null && (
+      <DispensePackSummary item={item} packs={packs} doseUnit={doseUnit} stockUnit={stockUnit} />
+    )}
+  </div>
+);
+
+/**
+ * Free-text prescription block for legacy records that carry no enriched
+ * numeric fields. Dose and route are medication instructions a pharmacist reads
+ * before dispensing; they must not be dropped just because this record lacks
+ * the enriched numeric fields.
+ */
+const PrescriptionTextFallback = ({
+  prescription,
+}: Readonly<{ prescription: NonNullable<DispensaryItem['prescription']> }>) => (
+  <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1">
+    {prescription.dose && (
+      <>
+        <span className="text-text-secondary">Dose</span>
+        <span className="text-text-primary">{prescription.dose}</span>
+      </>
+    )}
+    {prescription.freq && (
+      <>
+        <span className="text-text-secondary">Freq.</span>
+        <span className="text-text-primary">{prescription.freq}</span>
+      </>
+    )}
+    {prescription.duration && (
+      <>
+        <span className="text-text-secondary">Duration</span>
+        <span className="text-text-primary">{prescription.duration}</span>
+      </>
+    )}
+    {prescription.route && (
+      <>
+        <span className="text-text-secondary">Route</span>
+        <span className="text-text-primary">{prescription.route}</span>
+      </>
+    )}
+    {prescription.refill && (
+      <>
+        <span className="text-text-secondary">Refill</span>
+        <span className="text-text-primary">{prescription.refill}</span>
+      </>
+    )}
+  </div>
+);
+
 const DispensaryItemRow = ({ item, idx }: Readonly<DispensaryItemRowProps>) => {
   const effectiveFreqPerDay = item.frequencyPerDay ?? parseFrequencyPerDay(item.frequency);
   const totalUnits = calcTotalUnits(item, effectiveFreqPerDay);
@@ -95,145 +268,35 @@ const DispensaryItemRow = ({ item, idx }: Readonly<DispensaryItemRowProps>) => {
   const stockUnit = item.stockUnitType ?? '';
   const hasCalc = effectiveFreqPerDay != null && item.durationDays != null;
 
-  const dispenseSummary =
-    packs !== null && stockUnit
-      ? `${packs} ${pluralizeUnit(stockUnit, packs)}`
-      : `${totalUnits} ${pluralizeUnit(stockUnit || 'unit', totalUnits)}`;
-
   return (
     <div className="flex flex-col gap-2">
       {/* Item header row */}
-      <div className="flex items-center gap-2">
-        <span className="text-body-4 text-text-secondary shrink-0">{idx + 1}.</span>
-        <div className="flex flex-1 items-center gap-2 min-w-0">
-          <span className="text-body-4 font-semibold text-text-primary truncate">{item.name}</span>
-          {item.isRx && (
-            <span className="inline-flex size-6 items-center justify-center rounded-full bg-[var(--blue-strong)] text-white text-[10px] font-bold shrink-0">
-              Rx
-            </span>
-          )}
-          {item.isControlled && (
-            <span className="inline-flex items-center rounded-full border border-card-border px-2 py-0.5 text-caption-1 text-text-secondary shrink-0">
-              Controlled
-            </span>
-          )}
-        </div>
-        <span className="text-body-4 font-semibold text-blue-text shrink-0">{dispenseSummary}</span>
-      </div>
+      <DispensaryItemHeader
+        item={item}
+        idx={idx}
+        dispenseSummary={formatDispenseSummary(packs, stockUnit, totalUnits)}
+      />
 
       {/* Prescription + calculation card */}
       <div className="rounded-xl border border-card-border bg-[var(--screen-2)] p-3 flex flex-col gap-3">
         {/* Prescription row */}
-        <div>
-          <div className="text-caption-1 text-text-secondary mb-1.5">Prescription:</div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption-1">
-            <span className="text-text-secondary">Qnt.</span>
-            <span className="text-text-primary font-medium">{item.quantity}</span>
-            {item.frequency && (
-              <>
-                <span className="text-text-secondary">Freq.</span>
-                <span className="text-text-primary font-medium">{item.frequency}</span>
-              </>
-            )}
-            {item.durationDays != null && (
-              <>
-                <span className="text-text-secondary">Duration</span>
-                <span className="text-text-primary font-medium">
-                  {item.durationDays} {item.durationUnit ?? 'days'}
-                </span>
-              </>
-            )}
-            <span className="text-text-secondary">Refill</span>
-            <span className="text-text-primary font-medium">
-              {item.refillsRemaining == null ? '—' : `${item.refillsRemaining} remaining`}
-            </span>
-          </div>
-        </div>
+        <PrescribedSummary item={item} />
 
         {/* Dispense calculation */}
         {hasCalc && (
-          <div className="flex items-end justify-between gap-4 pt-2">
-            <div className="min-w-0">
-              <div className="text-caption-1 text-text-secondary mb-1">
-                Dispense qnt. calculation:
-              </div>
-              <div className="text-caption-1 text-text-primary">
-                {effectiveFreqPerDay! < 1 ? (
-                  <>
-                    {item.quantity} x {item.durationDays} {item.durationUnit ?? 'days'} (
-                    {item.frequency}) ={' '}
-                    <span className="font-bold">
-                      {Math.ceil(totalUnits)}{' '}
-                      {pluralizeUnit(doseUnit || 'unit', Math.ceil(totalUnits))}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    {item.quantity} x {Number(effectiveFreqPerDay!.toFixed(2))}/day x{' '}
-                    {item.durationDays} {item.durationUnit ?? 'days'} ={' '}
-                    <span className="font-bold">
-                      {Number(totalUnits.toFixed(2))}{' '}
-                      {pluralizeUnit(doseUnit || 'unit', totalUnits)}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-            {packs !== null && (
-              <div className="text-right shrink-0">
-                {stockUnit && item.stockUnitQty && (
-                  <div className="text-caption-1 text-text-secondary">
-                    1 {stockUnit.toLowerCase()} of {item.stockUnitQty} {doseUnit || 'units'}
-                  </div>
-                )}
-                <div className="text-caption-1">
-                  <span className="text-text-secondary">To dispense: </span>
-                  <span className="font-semibold text-[var(--success-text)]">
-                    {packs} {pluralizeUnit(stockUnit || 'unit', packs)}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
+          <DispenseCalculation
+            item={item}
+            freqPerDay={effectiveFreqPerDay!}
+            totalUnits={totalUnits}
+            packs={packs}
+            doseUnit={doseUnit}
+            stockUnit={stockUnit}
+          />
         )}
 
         {/* Fallback for items without enriched fields */}
         {!hasCalc && item.prescription && !item.frequency && !item.durationDays && (
-          <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1">
-            {/* Dose and route are medication instructions a pharmacist reads
-                before dispensing; they must not be dropped just because this
-                record lacks the enriched numeric fields. */}
-            {item.prescription.dose && (
-              <>
-                <span className="text-text-secondary">Dose</span>
-                <span className="text-text-primary">{item.prescription.dose}</span>
-              </>
-            )}
-            {item.prescription.freq && (
-              <>
-                <span className="text-text-secondary">Freq.</span>
-                <span className="text-text-primary">{item.prescription.freq}</span>
-              </>
-            )}
-            {item.prescription.duration && (
-              <>
-                <span className="text-text-secondary">Duration</span>
-                <span className="text-text-primary">{item.prescription.duration}</span>
-              </>
-            )}
-            {item.prescription.route && (
-              <>
-                <span className="text-text-secondary">Route</span>
-                <span className="text-text-primary">{item.prescription.route}</span>
-              </>
-            )}
-            {item.prescription.refill && (
-              <>
-                <span className="text-text-secondary">Refill</span>
-                <span className="text-text-primary">{item.prescription.refill}</span>
-              </>
-            )}
-          </div>
+          <PrescriptionTextFallback prescription={item.prescription} />
         )}
       </div>
     </div>

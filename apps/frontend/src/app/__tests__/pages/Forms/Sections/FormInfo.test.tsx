@@ -83,9 +83,14 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
   ),
 }));
 
+const mockFormRendererProps: any[] = [];
+
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer', () => ({
   __esModule: true,
-  default: () => <div>form-renderer</div>,
+  default: (props: any) => {
+    mockFormRendererProps.push(props);
+    return <div>form-renderer</div>;
+  },
 }));
 
 jest.mock('@/app/ui/icons/Icon', () => ({
@@ -103,6 +108,7 @@ describe('FormInfo', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFormRendererProps.length = 0;
   });
 
   afterAll(() => {
@@ -294,5 +300,74 @@ describe('FormInfo', () => {
     expect(screen.getByText('Care')).toBeInTheDocument();
     expect(screen.queryByText(/Care\s*·\s*$/)).not.toBeInTheDocument();
     expect(screen.getByText('Watch appetite and hydration')).toBeInTheDocument();
+  });
+
+  it('renders the schema preview for a non-task form and seeds every field type', () => {
+    render(
+      <FormInfo
+        showModal
+        setShowModal={jest.fn()}
+        activeForm={
+          {
+            _id: 'f-preview',
+            name: 'Intake',
+            status: 'Draft',
+            category: 'Intake',
+            schema: [
+              {
+                id: 'group-1',
+                type: 'group',
+                label: 'Vitals',
+                fields: [
+                  { id: 'weight', type: 'number', label: 'Weight', placeholder: '12' },
+                  { id: 'temp', type: 'number', label: 'Temperature' },
+                ],
+              },
+              { id: 'allergies', type: 'checkbox', label: 'Allergies' },
+              { id: 'neutered', type: 'boolean', label: 'Neutered', defaultValue: true },
+              { id: 'seen-on', type: 'date', label: 'Seen on' },
+              { id: 'notes', type: 'textarea', label: 'Notes', placeholder: 'Anything else?' },
+              { id: 'vet', type: 'text', label: 'Vet', defaultValue: 'Dr Hartmann' },
+            ],
+          } as any
+        }
+        onEdit={jest.fn()}
+        serviceOptions={[]}
+      />
+    );
+
+    expect(screen.getByText('Form preview')).toBeInTheDocument();
+    expect(screen.queryByText('Tasks')).not.toBeInTheDocument();
+    expect(screen.getByText('form-renderer')).toBeInTheDocument();
+
+    /* The preview seeds a value per leaf field - groups are walked, not seeded -
+       so an empty checkbox starts as [], a boolean as its default, and every text
+       field falls back to its placeholder rather than rendering as undefined. */
+    expect(mockFormRendererProps).toHaveLength(1);
+    expect(mockFormRendererProps[0].values).toEqual({
+      weight: '12',
+      temp: '',
+      allergies: [],
+      neutered: true,
+      'seen-on': '',
+      notes: 'Anything else?',
+      vet: 'Dr Hartmann',
+    });
+    expect(mockFormRendererProps[0].readOnly).toBe(true);
+  });
+
+  it('renders neither preview nor tasks when the form carries no schema', () => {
+    render(
+      <FormInfo
+        showModal
+        setShowModal={jest.fn()}
+        activeForm={{ _id: 'f-empty', name: 'Empty', status: 'Draft', schema: [] } as any}
+        onEdit={jest.fn()}
+        serviceOptions={[]}
+      />
+    );
+
+    expect(screen.queryByText('Form preview')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tasks')).not.toBeInTheDocument();
   });
 });

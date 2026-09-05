@@ -754,6 +754,16 @@ type AppointmentFormContentProps = {
   variant?: 'modal' | 'sheet';
 };
 
+/** Every fallback the form fields render, resolved once so the JSX stays branch-free. */
+const getAppointmentFieldValues = (formData: any) => ({
+  leadId: formData.lead?.id ?? '',
+  supportStaffIds: formData.supportStaff?.map((s: { id?: string }) => s.id ?? '') ?? [],
+  specialityId: formData.appointmentType?.speciality?.id ?? '',
+  serviceId: formData.appointmentType?.id ?? '',
+  concern: formData.concern ?? '',
+  isEmergency: formData.isEmergency ?? false,
+});
+
 export const AppointmentFormContent = ({
   patientLabel,
   selectedPatientName,
@@ -799,217 +809,221 @@ export const AppointmentFormContent = ({
   handleSubmit,
   onCancel,
   variant = 'modal',
-}: AppointmentFormContentProps) => (
-  // Rebind --field-bg to the warm surface so every field (Date/Time/Slot/Type and
-  // the person pickers) shares one warm token instead of the cool #fafafa default.
-  <div className="relative [--field-bg:var(--color-neutral-0)]">
-    <div
-      className={
-        variant === 'sheet'
-          ? 'grid grid-cols-1 gap-y-4'
-          : 'grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2'
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <PersonRow
-          fieldId="central-patient"
-          label={patientLabel}
-          icon={<IoPaw size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-          selectedName={selectedPatientName}
-          selectedPhotoUrl={selectedPatientPhoto}
-          query={patientQuery}
-          setQuery={setPatientQuery}
-          options={patientOptions}
-          onSelect={handlePatientSelect}
-          onClear={handlePatientClear}
-          onNew={() => setAddCompanionTarget('patient')}
-          error={showError('companionId')}
-        />
+}: AppointmentFormContentProps) => {
+  const fieldValues = getAppointmentFieldValues(formData);
 
-        <PersonRow
-          fieldId="central-client"
-          label="Client"
-          icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-          selectedName={selectedClientName}
-          query={clientQuery}
-          setQuery={setClientQuery}
-          options={clientOptions}
-          onSelect={handleClientSelect}
-          onClear={handleClientClear}
-          onNew={() => setAddCompanionTarget('client')}
-        />
+  return (
+    // Rebind --field-bg to the warm surface so every field (Date/Time/Slot/Type and
+    // the person pickers) shares one warm token instead of the cool #fafafa default.
+    <div className="relative [--field-bg:var(--color-neutral-0)]">
+      <div
+        className={
+          variant === 'sheet'
+            ? 'grid grid-cols-1 gap-y-4'
+            : 'grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2'
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <PersonRow
+            fieldId="central-patient"
+            label={patientLabel}
+            icon={<IoPaw size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+            selectedName={selectedPatientName}
+            selectedPhotoUrl={selectedPatientPhoto}
+            query={patientQuery}
+            setQuery={setPatientQuery}
+            options={patientOptions}
+            onSelect={handlePatientSelect}
+            onClear={handlePatientClear}
+            onNew={() => setAddCompanionTarget('patient')}
+            error={showError('companionId')}
+          />
 
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="flex-1">
-            <Datepicker
-              currentDate={selectedDate}
-              setCurrentDate={handleDateChange}
-              placeholder="Date"
-              type="input"
-              portal
-              minDate={today}
-            />
+          <PersonRow
+            fieldId="central-client"
+            label="Client"
+            icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+            selectedName={selectedClientName}
+            query={clientQuery}
+            setQuery={setClientQuery}
+            options={clientOptions}
+            onSelect={handleClientSelect}
+            onClear={handleClientClear}
+            onNew={() => setAddCompanionTarget('client')}
+          />
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex-1">
+              <Datepicker
+                currentDate={selectedDate}
+                setCurrentDate={handleDateChange}
+                placeholder="Date"
+                type="input"
+                portal
+                minDate={today}
+              />
+            </div>
+
+            <div className="flex-1">
+              <TimeSlotDropdown
+                timeSlots={timeSlots}
+                selectedSlot={selectedSlot}
+                setSelectedSlot={onSlotSelect}
+                isLoading={
+                  (formState.loadingTimeSlots && formState.serviceSelected) ||
+                  formState.loadingSlotScopedOptions
+                }
+                hasService={formState.serviceSelected}
+                noSlotsMessage={noSlotsMessage}
+                prefillLabel={prefillTimeLabel}
+                error={showError('slot') ?? showError('duration')}
+              />
+            </div>
           </div>
 
-          <div className="flex-1">
-            <TimeSlotDropdown
-              timeSlots={timeSlots}
-              selectedSlot={selectedSlot}
-              setSelectedSlot={onSlotSelect}
-              isLoading={
-                (formState.loadingTimeSlots && formState.serviceSelected) ||
-                formState.loadingSlotScopedOptions
-              }
-              hasService={formState.serviceSelected}
-              noSlotsMessage={noSlotsMessage}
-              prefillLabel={prefillTimeLabel}
-              error={showError('slot') ?? showError('duration')}
-            />
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex-1">
+              <SlotBadge label={durationDisplay} />
+            </div>
+            <div className="flex-1">
+              <LabelDropdown
+                placeholder="Type of visit"
+                options={VISIT_TYPE_OPTIONS}
+                defaultOption={visitType}
+                onSelect={handleVisitTypeSelect}
+                searchable={false}
+                portal
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="flex-1">
-            <SlotBadge label={durationDisplay} />
-          </div>
-          <div className="flex-1">
+          <div>
             <LabelDropdown
-              placeholder="Type of visit"
-              options={VISIT_TYPE_OPTIONS}
-              defaultOption={visitType}
-              onSelect={handleVisitTypeSelect}
-              searchable={false}
+              placeholder="Lead"
+              options={LeadOptions}
+              defaultOption={fieldValues.leadId}
+              onSelect={handleLeadSelectWithReset}
+              error={showError('leadId')}
+              searchable
               portal
+              icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+              noOptionsMessage={leadEmptyStateMessage}
             />
           </div>
-        </div>
 
-        <div>
-          <LabelDropdown
-            placeholder="Lead"
-            options={LeadOptions}
-            defaultOption={formData.lead?.id ?? ''}
-            onSelect={handleLeadSelectWithReset}
-            error={showError('leadId')}
-            searchable
+          <MultiSelectDropdown
+            placeholder="Support"
+            options={supportOptions}
+            value={fieldValues.supportStaffIds}
+            onChange={handleSupportStaffChange}
             portal
             icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-            noOptionsMessage={leadEmptyStateMessage}
           />
         </div>
 
-        <MultiSelectDropdown
-          placeholder="Support"
-          options={supportOptions}
-          value={formData.supportStaff?.map((s: { id?: string }) => s.id ?? '') ?? []}
-          onChange={handleSupportStaffChange}
-          portal
-          icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-        />
-      </div>
+        <div className="flex flex-col gap-4">
+          <LabelDropdown
+            placeholder="Speciality"
+            options={SpecialitiesOptions}
+            defaultOption={fieldValues.specialityId}
+            onSelect={handleSpecialitySelect}
+            error={showError('specialityId')}
+            searchable
+            portal
+            icon={<IoAdd size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+          />
 
-      <div className="flex flex-col gap-4">
-        <LabelDropdown
-          placeholder="Speciality"
-          options={SpecialitiesOptions}
-          defaultOption={formData.appointmentType?.speciality?.id ?? ''}
-          onSelect={handleSpecialitySelect}
-          error={showError('specialityId')}
-          searchable
-          portal
-          icon={<IoAdd size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-        />
+          <LabelDropdown
+            placeholder="Services / packages"
+            options={ServicesOptions}
+            defaultOption={fieldValues.serviceId}
+            onSelect={handleServiceSelect}
+            error={showError('serviceId')}
+            searchable
+            portal
+            icon={<IoAdd size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+          />
 
-        <LabelDropdown
-          placeholder="Services / packages"
-          options={ServicesOptions}
-          defaultOption={formData.appointmentType?.id ?? ''}
-          onSelect={handleServiceSelect}
-          error={showError('serviceId')}
-          searchable
-          portal
-          icon={<IoAdd size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-        />
+          <FormDesc
+            intype="text"
+            inlabel="Chief complaint"
+            value={fieldValues.concern}
+            onChange={(e) => setFormData((prev: any) => ({ ...prev, concern: e.target.value }))}
+            error={showError('concern')}
+            className="min-h-20"
+          />
 
-        <FormDesc
-          intype="text"
-          inlabel="Chief complaint"
-          value={formData.concern ?? ''}
-          onChange={(e) => setFormData((prev: any) => ({ ...prev, concern: e.target.value }))}
-          error={showError('concern')}
-          className="min-h-20"
-        />
+          <AppointmentEstimatePanel
+            cost={ServiceInfoData?.cost}
+            maxDiscount={ServiceInfoData?.maxDiscount}
+          />
 
-        <AppointmentEstimatePanel
-          cost={ServiceInfoData?.cost}
-          maxDiscount={ServiceInfoData?.maxDiscount}
-        />
-
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
-          <label className="flex cursor-pointer select-none items-center gap-2.5">
-            <input
-              type="checkbox"
-              aria-label="Mark appointment as emergency"
-              checked={formData.isEmergency ?? false}
-              onChange={(e) =>
-                setFormData((prev: any) => ({ ...prev, isEmergency: e.target.checked }))
-              }
-              className="peer sr-only"
-            />
-            <span
-              aria-hidden="true"
-              className="relative h-6 w-10 shrink-0 rounded-full transition-colors duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-text-brand"
-              style={{
-                backgroundColor: (formData.isEmergency ?? false) ? 'var(--cta)' : 'var(--divider)',
-              }}
-            >
-              <span
-                /* Fixed white: --screen flips with the theme, so in espresso the
-                   knob was #2f271e on a #3a3128 track, a contrast of 1.15. */
-                className="absolute top-[3px] size-[18px] rounded-full bg-white transition-[left] duration-150"
-                style={{ left: (formData.isEmergency ?? false) ? '19px' : '3px' }}
+          <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
+            <label className="flex cursor-pointer select-none items-center gap-2.5">
+              <input
+                type="checkbox"
+                aria-label="Mark appointment as emergency"
+                checked={fieldValues.isEmergency}
+                onChange={(e) =>
+                  setFormData((prev: any) => ({ ...prev, isEmergency: e.target.checked }))
+                }
+                className="peer sr-only"
               />
+              <span
+                aria-hidden="true"
+                className="relative h-6 w-10 shrink-0 rounded-full transition-colors duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-text-brand"
+                style={{
+                  backgroundColor: fieldValues.isEmergency ? 'var(--cta)' : 'var(--divider)',
+                }}
+              >
+                <span
+                  /* Fixed white: --screen flips with the theme, so in espresso the
+                     knob was #2f271e on a #3a3128 track, a contrast of 1.15. */
+                  className="absolute top-[3px] size-[18px] rounded-full bg-white transition-[left] duration-150"
+                  style={{ left: fieldValues.isEmergency ? '19px' : '3px' }}
+                />
+              </span>
+              <span className="text-[13px] font-semibold text-[var(--ink-body)]">
+                Mark as emergency
+              </span>
+            </label>
+            <span className="text-[12.5px] text-[var(--ink-faint)]">
+              {selectedClientName?.split(' ')[0] ?? 'The client'} will be notified by push + email
             </span>
-            <span className="text-[13px] font-semibold text-[var(--ink-body)]">
-              Mark as emergency
-            </span>
-          </label>
-          <span className="text-[12.5px] text-[var(--ink-faint)]">
-            {selectedClientName?.split(' ')[0] ?? 'The client'} will be notified by push + email
-          </span>
+          </div>
         </div>
       </div>
+
+      {formState.submitted && formDataErrors.booking && (
+        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-input-border-error px-4 py-3">
+          <IoIosWarning className="shrink-0 text-text-error" size={16} aria-hidden="true" />
+          <span style={{ ...text14M, color: 'var(--color-text-error, #d32f2f)' }}>
+            {formDataErrors.booking}
+          </span>
+        </div>
+      )}
+
+      {variant === 'sheet' ? null : (
+        <div className="mt-6 flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-end">
+          <Secondary
+            text="Cancel"
+            onClick={onCancel}
+            isDisabled={formState.loading}
+            className="h-10 justify-center px-5 py-0 text-[13.5px] font-semibold"
+          />
+          <Primary
+            text="Book appointment"
+            onClick={handleSubmit}
+            isDisabled={formState.loading}
+            icon={<IoArrowForward aria-hidden="true" />}
+            iconPosition="right"
+            className="h-10 justify-center gap-[7px] px-5 py-0 text-[13.5px] font-semibold hover:scale-100"
+          />
+        </div>
+      )}
     </div>
-
-    {formState.submitted && formDataErrors.booking && (
-      <div className="mt-4 flex items-center gap-2 rounded-2xl border border-input-border-error px-4 py-3">
-        <IoIosWarning className="shrink-0 text-text-error" size={16} aria-hidden="true" />
-        <span style={{ ...text14M, color: 'var(--color-text-error, #d32f2f)' }}>
-          {formDataErrors.booking}
-        </span>
-      </div>
-    )}
-
-    {variant === 'sheet' ? null : (
-      <div className="mt-6 flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-end">
-        <Secondary
-          text="Cancel"
-          onClick={onCancel}
-          isDisabled={formState.loading}
-          className="h-10 justify-center px-5 py-0 text-[13.5px] font-semibold"
-        />
-        <Primary
-          text="Book appointment"
-          onClick={handleSubmit}
-          isDisabled={formState.loading}
-          icon={<IoArrowForward aria-hidden="true" />}
-          iconPosition="right"
-          className="h-10 justify-center gap-[7px] px-5 py-0 text-[13.5px] font-semibold hover:scale-100"
-        />
-      </div>
-    )}
-  </div>
-);
+  );
+};
 
 // ─── Phone sticky footer "Book" button ────────────────────────────────────────
 export const buildBookButtonLabel = (selectedClientName?: string): string => {

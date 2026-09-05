@@ -21,6 +21,28 @@ type UsePackageFormDraftControllerParams = {
   onClose: () => void;
 };
 
+/**
+ * The draft's opening values: every field of the package being edited, or the
+ * blank-form default when there is none. Kept out of the hook body so the
+ * fallback chain is one readable block instead of nine inline `??`s spread
+ * across the `useState` calls.
+ */
+const buildPackageDraftDefaults = (editPackage?: PackageRevamp) => ({
+  name: editPackage?.name ?? '',
+  description: editPackage?.description ?? '',
+  durationText: editPackage?.durationText ?? 'Approx. 30 mins',
+  leadCount: (editPackage?.leadCount ?? 1) >= 1 ? '1' : '0',
+  supportCount: String(editPackage?.supportCount ?? 0),
+  isBookable: editPackage?.isBookable ?? false,
+  isInpatientPreferred: editPackage?.isInpatientPreferred ?? false,
+  additionalDiscount: String(editPackage?.additionalDiscount ?? 0),
+  breakdown: editPackage?.breakdown ?? [],
+});
+
+/** "Annual wellness (draft)" — the title slot while the form is unsaved. */
+const buildPackageDraftTitle = (isEditing: boolean, name: string) =>
+  `${isEditing ? name || 'Package' : 'New Package'} (draft)`;
+
 export const usePackageFormDraftController = ({
   specialityId,
   organisationId,
@@ -40,19 +62,16 @@ export const usePackageFormDraftController = ({
   );
   const { notify } = useNotify();
 
-  const [name, setName] = useState(editPackage?.name ?? '');
-  const [description, setDescription] = useState(editPackage?.description ?? '');
-  const [durationText, setDurationText] = useState(editPackage?.durationText ?? 'Approx. 30 mins');
-  const [leadCount, setLeadCount] = useState((editPackage?.leadCount ?? 1) >= 1 ? '1' : '0');
-  const [supportCount, setSupportCount] = useState(String(editPackage?.supportCount ?? 0));
-  const [isBookable, setIsBookable] = useState(editPackage?.isBookable ?? false);
-  const [isInpatientPreferred, setIsInpatientPreferred] = useState(
-    editPackage?.isInpatientPreferred ?? false
-  );
-  const [additionalDiscount, setAdditionalDiscount] = useState(
-    String(editPackage?.additionalDiscount ?? 0)
-  );
-  const [breakdown, setBreakdown] = useState<PackageBreakdownItem[]>(editPackage?.breakdown ?? []);
+  const defaults = buildPackageDraftDefaults(editPackage);
+  const [name, setName] = useState(defaults.name);
+  const [description, setDescription] = useState(defaults.description);
+  const [durationText, setDurationText] = useState(defaults.durationText);
+  const [leadCount, setLeadCount] = useState(defaults.leadCount);
+  const [supportCount, setSupportCount] = useState(defaults.supportCount);
+  const [isBookable, setIsBookable] = useState(defaults.isBookable);
+  const [isInpatientPreferred, setIsInpatientPreferred] = useState(defaults.isInpatientPreferred);
+  const [additionalDiscount, setAdditionalDiscount] = useState(defaults.additionalDiscount);
+  const [breakdown, setBreakdown] = useState<PackageBreakdownItem[]>(defaults.breakdown);
   const [syncedBreakdownRef, setSyncedBreakdownRef] = useState(editPackage?.breakdown);
   const [searchQuery, setSearchQuery] = useState('');
   const [catalogResults, setCatalogResults] = useState<CatalogEntry[]>([]);
@@ -323,7 +342,7 @@ export const usePackageFormDraftController = ({
     confirmDelete,
     descId,
     description,
-    draftTitle: `${isEditing ? name || 'Package' : 'New Package'} (draft)`,
+    draftTitle: buildPackageDraftTitle(isEditing, name),
     effectiveBookable,
     effectiveInpatientPreferred,
     errors,

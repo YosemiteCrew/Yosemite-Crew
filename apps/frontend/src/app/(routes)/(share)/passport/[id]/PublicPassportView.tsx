@@ -227,12 +227,108 @@ const VaccinationRow = ({
   );
 };
 
+// The travel-facing summary chips. Rendered only when there is something to
+// claim, so an absent rabies record and an unfit exam leave no empty strip.
+const TravelChips = ({
+  rabiesStatus,
+  rabiesValidUntil,
+  fitExam,
+}: {
+  rabiesStatus?: RabiesValidity;
+  rabiesValidUntil?: string;
+  fitExam?: ClinicalExamDTO;
+}) => {
+  if (rabiesStatus !== 'valid' && rabiesStatus !== 'expired' && !fitExam) return null;
+  return (
+    <div className="flex flex-wrap gap-[6px]">
+      {rabiesStatus === 'valid' && (
+        <StatusChip
+          tone="success"
+          icon={<IoShieldCheckmark className="text-[10px]" />}
+          label={`Rabies valid to ${dateLabel(rabiesValidUntil)}`}
+        />
+      )}
+      {rabiesStatus === 'expired' && (
+        <StatusChip
+          tone="danger"
+          icon={<IoAlertCircle className="text-[10px]" />}
+          label={`Rabies expired ${dateLabel(rabiesValidUntil)}`}
+        />
+      )}
+      {fitExam && (
+        <StatusChip
+          tone="neutral"
+          icon={<IoAirplaneOutline className="text-[10px]" />}
+          label={`Fit to travel · ${dateLabel(fitExam.examinedAt)}`}
+        />
+      )}
+    </div>
+  );
+};
+
+const VaccinationsCard = ({
+  rabies,
+  rabiesStatus,
+  vaccinations,
+}: {
+  rabies?: VaccinationDTO;
+  rabiesStatus?: RabiesValidity;
+  vaccinations: VaccinationDTO[];
+}) => {
+  if (!rabies && vaccinations.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-[11px] rounded-[18px] p-4" style={cardStyle}>
+      <span
+        className="text-[9.5px] font-bold uppercase tracking-[0.12em]"
+        style={{ color: 'var(--ink-faint)' }}
+      >
+        Vaccinations
+      </span>
+      {rabies && <VaccinationRow vaccination={rabies} validity={rabiesStatus} />}
+      {vaccinations.flatMap((vaccination) =>
+        vaccination.id === rabies?.id
+          ? []
+          : [<VaccinationRow key={vaccination.id} vaccination={vaccination} />]
+      )}
+    </div>
+  );
+};
+
+const IssuingPracticeCard = ({ issuance }: { issuance?: PetPassportDTO['issuance'] }) => {
+  if (!issuance) return null;
+  const practiceInitial = (issuance.issuingPractice ?? 'Y').charAt(0).toUpperCase();
+  return (
+    <div className="flex items-center gap-[10px] rounded-[18px] p-[13px_16px]" style={cardStyle}>
+      <span
+        className="flex size-[34px] flex-none items-center justify-center rounded-[11px] text-[13px] font-bold"
+        style={{ background: 'var(--blue-soft)', color: 'var(--blue-text)' }}
+      >
+        {practiceInitial}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[12.5px] font-bold" style={{ color: 'var(--ink)' }}>
+          {issuance.issuingPractice ?? 'Yosemite Crew'}
+        </span>
+        <span className="block text-[10.5px]" style={{ color: 'var(--ink-faint)' }}>
+          {[
+            issuance.issuingVetName ? `Issued by ${issuance.issuingVetName}` : undefined,
+            issuance.issuingCountry,
+            dateLabel(issuance.issueDate),
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </span>
+      </span>
+      <IoCheckmarkCircle className="text-[16px]" style={{ color: 'var(--success)' }} />
+    </div>
+  );
+};
+
 const PublicPassportView = ({ passport }: { passport: PetPassportDTO }) => {
   const { identity, microchip, rabies, vaccinations, issuance, clinicalExams } = passport;
   const rabiesStatus = rabies ? rabiesValidity(rabies.validUntil) : undefined;
   const newestExam = latestExamination(clinicalExams);
   const fitExam = newestExam?.fitForTravel ? newestExam : undefined;
-  const practiceInitial = (issuance?.issuingPractice ?? 'Y').charAt(0).toUpperCase();
 
   return (
     <div className="flex w-full flex-col gap-3">
@@ -290,31 +386,11 @@ const PublicPassportView = ({ passport }: { passport: PetPassportDTO }) => {
             </span>
           </span>
         </div>
-        {(rabiesStatus === 'valid' || rabiesStatus === 'expired' || fitExam) && (
-          <div className="flex flex-wrap gap-[6px]">
-            {rabiesStatus === 'valid' && (
-              <StatusChip
-                tone="success"
-                icon={<IoShieldCheckmark className="text-[10px]" />}
-                label={`Rabies valid to ${dateLabel(rabies?.validUntil)}`}
-              />
-            )}
-            {rabiesStatus === 'expired' && (
-              <StatusChip
-                tone="danger"
-                icon={<IoAlertCircle className="text-[10px]" />}
-                label={`Rabies expired ${dateLabel(rabies?.validUntil)}`}
-              />
-            )}
-            {fitExam && (
-              <StatusChip
-                tone="neutral"
-                icon={<IoAirplaneOutline className="text-[10px]" />}
-                label={`Fit to travel · ${dateLabel(fitExam.examinedAt)}`}
-              />
-            )}
-          </div>
-        )}
+        <TravelChips
+          rabiesStatus={rabiesStatus}
+          rabiesValidUntil={rabies?.validUntil}
+          fitExam={fitExam}
+        />
       </div>
 
       {/* Identity */}
@@ -332,52 +408,10 @@ const PublicPassportView = ({ passport }: { passport: PetPassportDTO }) => {
       </div>
 
       {/* Vaccinations */}
-      {(rabies || vaccinations.length > 0) && (
-        <div className="flex flex-col gap-[11px] rounded-[18px] p-4" style={cardStyle}>
-          <span
-            className="text-[9.5px] font-bold uppercase tracking-[0.12em]"
-            style={{ color: 'var(--ink-faint)' }}
-          >
-            Vaccinations
-          </span>
-          {rabies && <VaccinationRow vaccination={rabies} validity={rabiesStatus} />}
-          {vaccinations.flatMap((vaccination) =>
-            vaccination.id === rabies?.id
-              ? []
-              : [<VaccinationRow key={vaccination.id} vaccination={vaccination} />]
-          )}
-        </div>
-      )}
+      <VaccinationsCard rabies={rabies} rabiesStatus={rabiesStatus} vaccinations={vaccinations} />
 
       {/* Issuing practice */}
-      {issuance && (
-        <div
-          className="flex items-center gap-[10px] rounded-[18px] p-[13px_16px]"
-          style={cardStyle}
-        >
-          <span
-            className="flex size-[34px] flex-none items-center justify-center rounded-[11px] text-[13px] font-bold"
-            style={{ background: 'var(--blue-soft)', color: 'var(--blue-text)' }}
-          >
-            {practiceInitial}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[12.5px] font-bold" style={{ color: 'var(--ink)' }}>
-              {issuance.issuingPractice ?? 'Yosemite Crew'}
-            </span>
-            <span className="block text-[10.5px]" style={{ color: 'var(--ink-faint)' }}>
-              {[
-                issuance.issuingVetName ? `Issued by ${issuance.issuingVetName}` : undefined,
-                issuance.issuingCountry,
-                dateLabel(issuance.issueDate),
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </span>
-          </span>
-          <IoCheckmarkCircle className="text-[16px]" style={{ color: 'var(--success)' }} />
-        </div>
-      )}
+      <IssuingPracticeCard issuance={issuance} />
 
       {/* Disclaimer */}
       <p

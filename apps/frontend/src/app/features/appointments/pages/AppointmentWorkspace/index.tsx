@@ -265,6 +265,105 @@ const getSummaryTerminalLabel = ({
   return alreadyDischarged ? 'Completed' : 'Complete';
 };
 
+type CompanionRecord = ReturnType<typeof useCompanionStore.getState>['companionsById'][string];
+type WorkspaceCompanion = ReturnType<typeof getAppointmentCompanion>;
+
+/**
+ * Identity and photo fields the header, the companion card and the phone shell
+ * all show. The stored companion record wins; the appointment's own copy is the
+ * fallback while the record is still loading.
+ */
+const buildCompanionMedia = (
+  record: CompanionRecord | undefined,
+  companion: WorkspaceCompanion
+) => ({
+  photoUrl: record?.photoUrl,
+  speciesType: record?.type ?? companion.species,
+  breed: record?.breed ?? companion.breed,
+  ageLabel: formatCompanionAge(record?.dateOfBirth),
+  weightKg: record?.currentWeight,
+  allergy: record?.allergy,
+});
+
+/**
+ * The "In room" timer's start (#1903): the real actual-start stamped when the
+ * encounter goes In Progress, then the inpatient admission time, then the booked
+ * appointment start. Shared by the desktop header and the phone shell so the two
+ * can never drift apart.
+ */
+const resolveVisitStartAt = (encounter: AppointmentEncounter, appointment: Appointment) =>
+  encounter.startedAt ?? encounter.admittedAt ?? appointment.startTime;
+
+/**
+ * Identity of the encounter seed. A change means the workspace is looking at a
+ * different appointment, encounter, mode or staffing, and must re-init.
+ */
+const buildEncounterInitKey = ({
+  appointmentId,
+  appointment,
+  initialMode,
+  supportStaffMember,
+}: {
+  appointmentId: string;
+  appointment: Appointment;
+  initialMode: ReturnType<typeof resolveEncounterMode>;
+  supportStaffMember?: RequiredStaffMember;
+}): string => {
+  if (!appointmentId) return '';
+  return [
+    appointmentId,
+    appointment.encounterId ?? '',
+    initialMode,
+    appointment.lead?.id ?? '',
+    appointment.lead?.name ?? '',
+    supportStaffMember?.id ?? '',
+    supportStaffMember?.name ?? '',
+  ].join('|');
+};
+
+/** Alerts shown in the header: the stored companion alerts win over the encounter's own copy. */
+const resolveDisplayedAlerts = (
+  persisted: CompanionAlert[],
+  encounter: AppointmentEncounter | undefined
+): CompanionAlert[] => (persisted.length ? persisted : (encounter?.alerts ?? []));
+
+/** A real inpatient admission, as opposed to the bare stamp a check-in leaves behind. */
+const hasRealAdmission = (
+  encounter: AppointmentEncounter | undefined,
+  appointment: Appointment
+): boolean => Boolean(encounter?.admittedAt && !isBareCheckInAdmission(encounter, appointment));
+
+/** Room and unit are frozen once the appointment is completed or the encounter discharged. */
+const isRoomAssignmentLocked = (
+  encounter: AppointmentEncounter | undefined,
+  isCompletedAppointment: boolean
+): boolean => isCompletedAppointment || Boolean(encounter?.dischargedAt);
+
+/** Admission is offered only for an inpatient encounter that has checked in and is still open. */
+const canAdmitNow = ({
+  encounterMode,
+  canAdmitAppointmentStatus,
+  hasAdmission,
+  viewOnly,
+}: {
+  encounterMode: ReturnType<typeof resolveEncounterMode>;
+  canAdmitAppointmentStatus: boolean;
+  hasAdmission: boolean;
+  viewOnly: boolean;
+}): boolean =>
+  encounterMode === 'INPATIENT' && canAdmitAppointmentStatus && !hasAdmission && !viewOnly;
+
+/** Lead and support staffing the encounter is seeded with. */
+const buildEncounterInitOptions = (
+  appointment: Appointment,
+  supportStaffMember?: RequiredStaffMember
+) => ({
+  leadId: appointment.lead?.id,
+  leadName: (appointment.lead?.name ?? '').trim(),
+  nurseId: supportStaffMember?.id,
+  nurseName: supportStaffMember?.name?.trim(),
+});
+
 type DischargeDateTimeModalProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -376,6 +475,117 @@ export const DischargeDateTimeModal = ({
   );
 };
 
+type WorkspaceStepBodyProps = {
+  activeStep: WorkspaceStep;
+  appointment: Appointment;
+  appointmentId: string;
+  appointmentReason: string;
+  actor: { id: string | undefined; name: string };
+  companion: WorkspaceCompanion;
+  effectiveEncounter: AppointmentEncounter;
+  operationalEncounter: AppointmentEncounter;
+  resolvedEncounterId?: string;
+  isCompletedAppointment: boolean;
+  ensureEncounterId: () => Promise<string | undefined>;
+  onStepChange: (step: WorkspaceStep) => void;
+  onSaveAndNext: () => void;
+  onOpenRecord: (tab: RecordTab) => void;
+};
+
+/**
+ * The active step body, shared verbatim by the desktop layout and the phone
+ * shell so every step's wiring stays identical between the two.
+ */
+const WorkspaceStepBody = ({
+  activeStep,
+  appointment,
+  appointmentId,
+  appointmentReason,
+  actor,
+  companion,
+  effectiveEncounter,
+  operationalEncounter,
+  resolvedEncounterId,
+  isCompletedAppointment,
+  ensureEncounterId,
+  onStepChange,
+  onSaveAndNext,
+  onOpenRecord,
+}: WorkspaceStepBodyProps) => (
+  <>
+    {activeStep === 'SOAP' && (
+      <SoapStep
+        appointmentId={appointmentId}
+        organisationId={appointment.organisationId}
+        encounterId={appointment.encounterId}
+        authorId={actor.id}
+        authorName={actor.name}
+        appointmentReason={appointmentReason}
+        appointmentService={appointment.appointmentType?.name}
+        appointmentSpeciality={appointment.appointmentType?.speciality?.name}
+        encounter={effectiveEncounter}
+        visitStarted={hasVisitStarted(appointment.status)}
+        onRecordVitals={() => onOpenRecord('VITALS')}
+        // The observation rail's "+ New" opens the observation tool, not the
+        // vitals form. Passing onRecordVitals for both landed the user on the
+        // wrong tab and made them navigate there by hand.
+        onOpenObservations={() => onOpenRecord('OBSERVATION')}
+        onSaveAndNext={onSaveAndNext}
+      />
+    )}
+    {activeStep === 'DIAGNOSTICS' && (
+      <DiagnosticsStep
+        appointment={appointment}
+        readOnly={operationalEncounter.viewOnly}
+        onOpenTreatment={() => onStepChange('TREATMENT')}
+      />
+    )}
+    {activeStep === 'TREATMENT' && (
+      <TreatmentStep
+        appointmentId={appointmentId}
+        organisationId={appointment.organisationId}
+        encounterId={appointment.encounterId}
+        authorId={actor.id}
+        encounter={operationalEncounter}
+        companionSpecies={companion.species}
+        ensureEncounterId={ensureEncounterId}
+        onOpenInvoice={() => onStepChange('INVOICE')}
+      />
+    )}
+    {activeStep === 'PASSPORT' && (
+      <PassportStep
+        companionId={companion.id}
+        companionName={companion.name}
+        encounterId={resolvedEncounterId ?? appointment.encounterId}
+        ensureEncounterId={ensureEncounterId}
+        readOnly={effectiveEncounter.viewOnly}
+      />
+    )}
+    {activeStep === 'INVOICE' && (
+      <InvoiceStep
+        appointmentId={appointmentId}
+        organisationId={appointment.organisationId}
+        encounterId={appointment.encounterId}
+        authorId={actor.id}
+        patientId={companion.id}
+        parentId={companion.parent.id}
+        encounter={operationalEncounter}
+        hideBillBuilder={isCompletedAppointment}
+        bookedItemName={appointment.appointmentType?.name}
+        onOpenSummary={() => onStepChange('SUMMARY')}
+      />
+    )}
+    {activeStep === 'SUMMARY' && (
+      <SummaryStep
+        appointmentId={appointmentId}
+        appointment={appointment}
+        encounter={effectiveEncounter}
+        resolvedEncounterId={resolvedEncounterId ?? appointment.encounterId}
+      />
+    )}
+  </>
+);
+
 /**
  * Full-page clinical workspace shell. Hosts the header, companion card, stepper,
  * meta bar, and the active step. Step bodies are layered in per phase.
@@ -456,27 +666,20 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
     );
   }, [appointment.lead?.name, appointment.supportStaff]);
 
-  const encounterInitKey = appointmentId
-    ? [
-        appointmentId,
-        appointment.encounterId ?? '',
-        initialMode,
-        appointment.lead?.id ?? '',
-        appointment.lead?.name ?? '',
-        supportStaffMember?.id ?? '',
-        supportStaffMember?.name ?? '',
-      ].join('|')
-    : '';
+  const encounterInitKey = buildEncounterInitKey({
+    appointmentId,
+    appointment,
+    initialMode,
+    supportStaffMember,
+  });
   if (appointmentId && initializedEncounterKey !== encounterInitKey) {
     setInitializedEncounterKey(encounterInitKey);
     setResolvedEncounterId(appointment.encounterId);
-    const leadName = (appointment.lead?.name ?? '').trim();
-    initEncounter(appointmentId, initialMode, {
-      leadId: appointment.lead?.id,
-      leadName,
-      nurseId: supportStaffMember?.id,
-      nurseName: supportStaffMember?.name?.trim(),
-    });
+    initEncounter(
+      appointmentId,
+      initialMode,
+      buildEncounterInitOptions(appointment, supportStaffMember)
+    );
   }
 
   // Ref half of the reset above — refs cannot be written during render, so the
@@ -702,9 +905,7 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
     () => storedAlertsToCompanionAlerts(companionRecord?.alerts, 'patient-alert'),
     [companionRecord?.alerts]
   );
-  const displayedPatientAlerts = persistedPatientAlerts.length
-    ? persistedPatientAlerts
-    : (effectiveEncounter?.alerts ?? []);
+  const displayedPatientAlerts = resolveDisplayedAlerts(persistedPatientAlerts, effectiveEncounter);
   // Client (parent) alerts: surfaced read-only alongside the patient alerts so
   // the same alert state is visible in the workspace, not only the companion modal.
   const parentRecord = useParentStore((s) => s.parentsById[companion.parent.id]);
@@ -787,10 +988,8 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
     }
     return optionsByRoom;
   }, [effectiveEncounter?.unitId, roomUnitIdsByRoomId, roomUnitsById, rooms]);
-  const hasAdmission = Boolean(
-    effectiveEncounter?.admittedAt && !isBareCheckInAdmission(effectiveEncounter, appointment)
-  );
-  const roomAssignmentLocked = isCompletedAppointment || Boolean(effectiveEncounter?.dischargedAt);
+  const hasAdmission = hasRealAdmission(effectiveEncounter, appointment);
+  const roomAssignmentLocked = isRoomAssignmentLocked(effectiveEncounter, isCompletedAppointment);
   const supportOptions = useMemo(() => {
     const seen = new Set<string>();
     const options: { label: string; value: string }[] = [];
@@ -1556,87 +1755,31 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
   const persistedViewOnly = encounter?.viewOnly ?? false;
   /* v8 ignore stop */
 
+  const companionMedia = buildCompanionMedia(companionRecord, companion);
+  const visitStartAt = resolveVisitStartAt(effectiveEncounter, appointment);
+
   // The active step body, shared verbatim by the desktop layout and the phone
   // shell so every step's wiring (and the recent step fixes) stays identical.
   const stepContent = (
-    <>
-      {activeStep === 'SOAP' && (
-        <SoapStep
-          appointmentId={appointmentId}
-          organisationId={appointment.organisationId}
-          encounterId={appointment.encounterId}
-          authorId={actor.id}
-          authorName={actor.name}
-          appointmentReason={appointmentReason}
-          appointmentService={appointment.appointmentType?.name}
-          appointmentSpeciality={appointment.appointmentType?.speciality?.name}
-          encounter={effectiveEncounter}
-          visitStarted={hasVisitStarted(appointment.status)}
-          onRecordVitals={() => {
-            setRecordTab('VITALS');
-            setActiveSideAction('RECORD');
-          }}
-          // The observation rail's "+ New" opens the observation tool, not the
-          // vitals form. Passing onRecordVitals for both landed the user on the
-          // wrong tab and made them navigate there by hand.
-          onOpenObservations={() => {
-            setRecordTab('OBSERVATION');
-            setActiveSideAction('RECORD');
-          }}
-          onSaveAndNext={handleSaveAndNext}
-        />
-      )}
-      {activeStep === 'DIAGNOSTICS' && (
-        <DiagnosticsStep
-          appointment={appointment}
-          readOnly={operationalEncounter.viewOnly}
-          onOpenTreatment={() => handleStepChange('TREATMENT')}
-        />
-      )}
-      {activeStep === 'TREATMENT' && (
-        <TreatmentStep
-          appointmentId={appointmentId}
-          organisationId={appointment.organisationId}
-          encounterId={appointment.encounterId}
-          authorId={actor.id}
-          encounter={operationalEncounter}
-          companionSpecies={companion.species}
-          ensureEncounterId={ensureEncounterId}
-          onOpenInvoice={() => handleStepChange('INVOICE')}
-        />
-      )}
-      {activeStep === 'PASSPORT' && (
-        <PassportStep
-          companionId={companion.id}
-          companionName={companion.name}
-          encounterId={resolvedEncounterId ?? appointment.encounterId}
-          ensureEncounterId={ensureEncounterId}
-          readOnly={effectiveEncounter.viewOnly}
-        />
-      )}
-      {activeStep === 'INVOICE' && (
-        <InvoiceStep
-          appointmentId={appointmentId}
-          organisationId={appointment.organisationId}
-          encounterId={appointment.encounterId}
-          authorId={actor.id}
-          patientId={companion.id}
-          parentId={companion.parent.id}
-          encounter={operationalEncounter}
-          hideBillBuilder={isCompletedAppointment}
-          bookedItemName={appointment.appointmentType?.name}
-          onOpenSummary={() => handleStepChange('SUMMARY')}
-        />
-      )}
-      {activeStep === 'SUMMARY' && (
-        <SummaryStep
-          appointmentId={appointmentId}
-          appointment={appointment}
-          encounter={effectiveEncounter}
-          resolvedEncounterId={resolvedEncounterId ?? appointment.encounterId}
-        />
-      )}
-    </>
+    <WorkspaceStepBody
+      activeStep={activeStep}
+      appointment={appointment}
+      appointmentId={appointmentId}
+      appointmentReason={appointmentReason}
+      actor={actor}
+      companion={companion}
+      effectiveEncounter={effectiveEncounter}
+      operationalEncounter={operationalEncounter}
+      resolvedEncounterId={resolvedEncounterId}
+      isCompletedAppointment={isCompletedAppointment}
+      ensureEncounterId={ensureEncounterId}
+      onStepChange={handleStepChange}
+      onSaveAndNext={handleSaveAndNext}
+      onOpenRecord={(tab) => {
+        setRecordTab(tab);
+        setActiveSideAction('RECORD');
+      }}
+    />
   );
 
   // Overlays are layout-independent — rendered by both the desktop tree and the
@@ -1759,17 +1902,13 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
         <PhoneWorkspaceShell
           appointment={appointment}
           companionName={companion.name}
-          photoUrl={companionRecord?.photoUrl}
-          speciesType={companionRecord?.type ?? companion.species}
-          breed={companionRecord?.breed ?? companion.breed}
-          ageLabel={formatCompanionAge(companionRecord?.dateOfBirth)}
-          weightKg={companionRecord?.currentWeight}
-          allergy={companionRecord?.allergy}
-          // Same visit-start binding as the desktop header (#1903): real actual-start,
-          // then inpatient admission, then booked start.
-          visitStartAt={
-            effectiveEncounter.startedAt ?? effectiveEncounter.admittedAt ?? appointment.startTime
-          }
+          photoUrl={companionMedia.photoUrl}
+          speciesType={companionMedia.speciesType}
+          breed={companionMedia.breed}
+          ageLabel={companionMedia.ageLabel}
+          weightKg={companionMedia.weightKg}
+          allergy={companionMedia.allergy}
+          visitStartAt={visitStartAt}
           bookedEndAt={appointment.endTime}
           onBack={() => {
             startRouteLoader();
@@ -1816,35 +1955,30 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
             }
             setIsHospitalizeOpen(true);
           }}
-          canAdmit={
-            encounterMode === 'INPATIENT' &&
-            canAdmitAppointmentStatus &&
-            !hasAdmission &&
-            !effectiveEncounter.viewOnly
-          }
+          canAdmit={canAdmitNow({
+            encounterMode,
+            canAdmitAppointmentStatus,
+            hasAdmission,
+            viewOnly: effectiveEncounter.viewOnly,
+          })}
           isAdmitting={isAdmitting}
           onAdmit={() => handleAdmit(effectiveEncounter.unitId, effectiveEncounter.roomId)}
           canHospitalize={encounterMode !== 'INPATIENT'}
           onAddAlert={() => setIsAddAlertOpen(true)}
           onRemoveAlert={handleRemovePatientAlert}
-          // The "In room" timer counts up from the best available start: the real
-          // actual-start stamped when the encounter goes In Progress (startedAt),
-          // then the inpatient admission time (admittedAt), then the booked
-          // appointment start. It turns amber past the booked end and never gates
+          // The "In room" timer turns amber past the booked end and never gates
           // any action.
-          visitStartAt={
-            effectiveEncounter.startedAt ?? effectiveEncounter.admittedAt ?? appointment.startTime
-          }
+          visitStartAt={visitStartAt}
           bookedEndAt={appointment.endTime}
-          photoUrl={companionRecord?.photoUrl}
-          speciesType={companionRecord?.type ?? companion.species}
+          photoUrl={companionMedia.photoUrl}
+          speciesType={companionMedia.speciesType}
           metaLine={companionMetaLine}
         />
 
         <CompanionContextCard
           name={companion.name}
-          photoUrl={companionRecord?.photoUrl}
-          speciesType={companionRecord?.type ?? companion.species}
+          photoUrl={companionMedia.photoUrl}
+          speciesType={companionMedia.speciesType}
           details={companionDetails}
           mode={encounterMode}
           onViewDetails={() =>

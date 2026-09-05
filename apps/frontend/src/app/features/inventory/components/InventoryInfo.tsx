@@ -419,6 +419,138 @@ const PricingCurrencySummary = ({ inventory }: { inventory: InventoryItem }) => 
   );
 };
 
+/**
+ * Identity of one "open" of the modal. A change means the panel was reopened on
+ * a different item or with a different requested section, which resets the tab.
+ */
+const buildOpenKey = (
+  showModal: boolean,
+  activeInventory: InventoryItem | null,
+  initialSection?: InventorySectionKey
+) => (showModal ? `${activeInventory?.id ?? ''}:${initialSection ?? ''}` : null);
+
+/** Header subtitle: category, then the SKU when the item has one. */
+const formatItemMeta = (activeInventory: InventoryItem | null) => {
+  const category = activeInventory?.basicInfo.category || 'Inventory item';
+  const skuCode = activeInventory?.basicInfo.skuCode;
+  return skuCode ? `${category} · ${skuCode}` : category;
+};
+
+type FooterActionState = {
+  secondaryText: string;
+  secondaryDisabled: boolean;
+  showPrimary: boolean;
+  /* Outside edit mode the trailing action hides or deletes the item: a
+     destructive action is the outlined danger button, never the dark primary.
+     Save and Unhide stay primary because they construct. */
+  primaryIsDanger: boolean;
+  primaryText: string;
+  primaryDisabled: boolean;
+};
+
+const resolveFooterActions = ({
+  canEdit,
+  inEditMode,
+  isUpdating,
+  isHiding,
+  isHidden,
+  itemId,
+}: {
+  canEdit: boolean;
+  inEditMode: boolean;
+  isUpdating: boolean;
+  isHiding: boolean;
+  isHidden: boolean;
+  itemId?: string;
+}): FooterActionState => {
+  const primaryIsDanger = !inEditMode && !isHidden;
+  return {
+    secondaryText: inEditMode ? 'Cancel' : 'Close',
+    secondaryDisabled: isUpdating || isHiding,
+    showPrimary: canEdit || inEditMode,
+    primaryIsDanger,
+    primaryText: getPrimaryButtonText(inEditMode, isUpdating, isHiding, isHidden),
+    primaryDisabled: primaryIsDanger
+      ? isHiding || !itemId
+      : (inEditMode && isUpdating) || (!inEditMode && (isHiding || !itemId)),
+  };
+};
+
+const InventoryFooterActions = ({
+  actions,
+  onPrimaryAction,
+  onSecondaryAction,
+}: {
+  actions: FooterActionState;
+  onPrimaryAction: () => void;
+  onSecondaryAction: () => void;
+}) => (
+  <ModalFooter align="stretch">
+    <Secondary
+      href="#"
+      text={actions.secondaryText}
+      onClick={onSecondaryAction}
+      isDisabled={actions.secondaryDisabled}
+    />
+    {actions.showPrimary &&
+      (actions.primaryIsDanger ? (
+        <Secondary
+          danger
+          href="#"
+          text={actions.primaryText}
+          onClick={onPrimaryAction}
+          isDisabled={actions.primaryDisabled}
+        />
+      ) : (
+        <Primary
+          href="#"
+          text={actions.primaryText}
+          onClick={onPrimaryAction}
+          isDisabled={actions.primaryDisabled}
+        />
+      ))}
+  </ModalFooter>
+);
+
+type DeleteConfirmProps = {
+  open: boolean;
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  itemName?: string;
+  isHiding: boolean;
+  onConfirm: () => Promise<void>;
+};
+
+const DeleteInventoryConfirm = ({
+  open,
+  setOpen,
+  itemName,
+  isHiding,
+  onConfirm,
+}: DeleteConfirmProps) => {
+  if (!open) return null;
+  return (
+    <CenterModal showModal={open} setShowModal={setOpen}>
+      <ModalHeader title="Delete inventory item?" onClose={() => setOpen(false)} />
+      <div className="text-body-4 text-text-primary">
+        This will remove {itemName || 'this item'} from active inventory. Backend hard delete is not
+        enabled yet, so the item will be hidden and can be restored.
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Secondary href="#" text="Discard" onClick={() => setOpen(false)} />
+        <Delete
+          href="#"
+          text={isHiding ? 'Deleting...' : 'Delete'}
+          onClick={async () => {
+            await onConfirm();
+            setOpen(false);
+          }}
+          isDisabled={isHiding}
+        />
+      </div>
+    </CenterModal>
+  );
+};
+
 const InventoryInfo = ({
   showModal,
   setShowModal,
@@ -441,7 +573,7 @@ const InventoryInfo = ({
   // or fall back to the first tab. Adjusted during render via a prev-prop comparison
   // rather than an effect, so the correct tab shows on the first commit.
   const [lastOpenKey, setLastOpenKey] = useState<string | null>(null);
-  const openKey = showModal ? `${activeInventory?.id ?? ''}:${initialSection ?? ''}` : null;
+  const openKey = buildOpenKey(showModal, activeInventory, initialSection);
   if (openKey !== null && openKey !== lastOpenKey) {
     setLastOpenKey(openKey);
     setActiveLabel(initialSection ?? modalSections[0].key);
@@ -494,6 +626,7 @@ const InventoryInfo = ({
     sectionValidationHandlers,
   });
   const inEditMode = isSectionEditing;
+  const disableEditing = !canEdit || isUpdating || isHiding;
 
   return (
     <>
@@ -501,9 +634,7 @@ const InventoryInfo = ({
         <div className="flex flex-col h-full gap-6">
           <ModalHeader
             title={activeInventory?.basicInfo.name ?? ''}
-            meta={`${activeInventory?.basicInfo.category || 'Inventory item'}${
-              activeInventory?.basicInfo.skuCode ? ` · ${activeInventory.basicInfo.skuCode}` : ''
-            }`}
+            meta={formatItemMeta(activeInventory)}
             onClose={() => setShowModal(false)}
           />
 
@@ -521,7 +652,7 @@ const InventoryInfo = ({
                     businessType={businessType}
                     inventory={activeInventory}
                     onSave={(vals) => handleSectionSave('batch', vals)}
-                    disableEditing={!canEdit || isUpdating || isHiding}
+                    disableEditing={disableEditing}
                     onEditingChange={setIsSectionEditing}
                     ref={batchActions}
                   />
@@ -532,7 +663,7 @@ const InventoryInfo = ({
                     sectionTitle={currentLabelConfig.name}
                     inventory={activeInventory}
                     onSaveSection={handleSectionSave}
-                    disableEditing={!canEdit || isUpdating || isHiding}
+                    disableEditing={disableEditing}
                     onEditingChange={setIsSectionEditing}
                     stockLocationOptions={stockLocationOptions}
                     organisationId={organisationId}
@@ -546,61 +677,28 @@ const InventoryInfo = ({
             )}
           </div>
 
-          <ModalFooter align="stretch">
-            <Secondary
-              href="#"
-              text={inEditMode ? 'Cancel' : 'Close'}
-              onClick={handleSecondaryAction}
-              isDisabled={isUpdating || isHiding}
-            />
-            {/* Outside edit mode the trailing action hides or deletes the item: a
-                destructive action is the outlined danger button, never the dark
-                primary. Save and Unhide stay primary because they construct. */}
-            {(canEdit || inEditMode) &&
-              (!inEditMode && !isHidden ? (
-                <Secondary
-                  danger
-                  href="#"
-                  text={getPrimaryButtonText(inEditMode, isUpdating, isHiding, isHidden)}
-                  onClick={handlePrimaryAction}
-                  isDisabled={isHiding || !activeInventory?.id}
-                />
-              ) : (
-                <Primary
-                  href="#"
-                  text={getPrimaryButtonText(inEditMode, isUpdating, isHiding, isHidden)}
-                  onClick={handlePrimaryAction}
-                  isDisabled={
-                    (inEditMode && isUpdating) ||
-                    (!inEditMode && (isHiding || !activeInventory?.id))
-                  }
-                />
-              ))}
-          </ModalFooter>
+          <InventoryFooterActions
+            actions={resolveFooterActions({
+              canEdit,
+              inEditMode,
+              isUpdating,
+              isHiding,
+              isHidden,
+              itemId: activeInventory?.id,
+            })}
+            onPrimaryAction={handlePrimaryAction}
+            onSecondaryAction={handleSecondaryAction}
+          />
         </div>
       </Modal>
 
-      {showDeleteConfirm && (
-        <CenterModal showModal={showDeleteConfirm} setShowModal={setShowDeleteConfirm}>
-          <ModalHeader title="Delete inventory item?" onClose={() => setShowDeleteConfirm(false)} />
-          <div className="text-body-4 text-text-primary">
-            This will remove {activeInventory?.basicInfo.name || 'this item'} from active inventory.
-            Backend hard delete is not enabled yet, so the item will be hidden and can be restored.
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Secondary href="#" text="Discard" onClick={() => setShowDeleteConfirm(false)} />
-            <Delete
-              href="#"
-              text={isHiding ? 'Deleting...' : 'Delete'}
-              onClick={async () => {
-                await handleHide();
-                setShowDeleteConfirm(false);
-              }}
-              isDisabled={isHiding}
-            />
-          </div>
-        </CenterModal>
-      )}
+      <DeleteInventoryConfirm
+        open={showDeleteConfirm}
+        setOpen={setShowDeleteConfirm}
+        itemName={activeInventory?.basicInfo.name}
+        isHiding={isHiding}
+        onConfirm={handleHide}
+      />
     </>
   );
 };

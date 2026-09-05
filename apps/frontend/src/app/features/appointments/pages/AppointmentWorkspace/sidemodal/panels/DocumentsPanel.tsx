@@ -185,6 +185,56 @@ const downloadPacket = (url: string) => {
   link.remove();
 };
 
+// Signing may only begin while the appointment is actively in progress; before
+// that (e.g. checked-in/upcoming) or after completion the action is disabled and
+// a tooltip explains why (mirrors SummaryStep).
+const resolveSignGateReason = (
+  appointmentStatus: AppointmentStatus | undefined,
+  isSigned: boolean,
+  isInProgress: boolean
+): string | undefined =>
+  appointmentStatus === 'IN_PROGRESS' || isSigned || isInProgress
+    ? undefined
+    : 'Signing is available only while the appointment is In progress.';
+
+const resolvePacketLabels = (
+  packet: PacketState | null
+): { statusLabel: string | null; signingLabel: string | null } => ({
+  statusLabel: packet?.status ? (PACKET_STATUS_LABEL[packet.status] ?? null) : null,
+  signingLabel: packet?.signingStatus ? (SIGNING_STATUS_LABEL[packet.signingStatus] ?? null) : null,
+});
+
+const PacketStateRow = ({
+  hasContext,
+  statusLabel,
+  signingLabel,
+  isSigned,
+}: {
+  hasContext: boolean;
+  statusLabel: string | null;
+  signingLabel: string | null;
+  isSigned: boolean;
+}) => {
+  if (!hasContext) {
+    return (
+      <p className="text-[12px] text-text-secondary">
+        Open this from an encounter to print or sign the combined packet.
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {statusLabel && <StateBadge label={statusLabel} tone="text-text-primary" />}
+      {signingLabel && (
+        <StateBadge
+          label={signingLabel}
+          tone={isSigned ? 'text-success-600' : 'text-text-secondary'}
+        />
+      )}
+    </div>
+  );
+};
+
 const ClinicalPacketSection = ({
   organisationId,
   encounterId,
@@ -278,18 +328,8 @@ const ClinicalPacketSection = ({
 
   const isSigned = packet?.signingStatus === 'SIGNED';
   const isInProgress = packet?.signingStatus === 'IN_PROGRESS';
-  // Signing may only begin while the appointment is actively in progress; before
-  // that (e.g. checked-in/upcoming) or after completion the action is disabled and
-  // a tooltip explains why (mirrors SummaryStep).
-  const appointmentInProgress = appointmentStatus === 'IN_PROGRESS';
-  const signGateReason =
-    appointmentInProgress || isSigned || isInProgress
-      ? undefined
-      : 'Signing is available only while the appointment is In progress.';
-  const statusLabel = packet?.status ? (PACKET_STATUS_LABEL[packet.status] ?? null) : null;
-  const signingLabel = packet?.signingStatus
-    ? (SIGNING_STATUS_LABEL[packet.signingStatus] ?? null)
-    : null;
+  const signGateReason = resolveSignGateReason(appointmentStatus, isSigned, isInProgress);
+  const { statusLabel, signingLabel } = resolvePacketLabels(packet);
 
   const handlePrint = async () => {
     /* v8 ignore next -- re-entrancy guard: Print is disabled without org+encounter context and while isPrinting, so this early return is unreachable via the UI */
@@ -385,21 +425,12 @@ const ClinicalPacketSection = ({
           Combined SOAP, prescription and discharge documents.
         </span>
       </div>
-      {hasContext ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {statusLabel && <StateBadge label={statusLabel} tone="text-text-primary" />}
-          {signingLabel && (
-            <StateBadge
-              label={signingLabel}
-              tone={isSigned ? 'text-success-600' : 'text-text-secondary'}
-            />
-          )}
-        </div>
-      ) : (
-        <p className="text-[12px] text-text-secondary">
-          Open this from an encounter to print or sign the combined packet.
-        </p>
-      )}
+      <PacketStateRow
+        hasContext={hasContext}
+        statusLabel={statusLabel}
+        signingLabel={signingLabel}
+        isSigned={isSigned}
+      />
       {signError && (
         <p role="alert" className="text-[12px] text-text-error">
           {signError}

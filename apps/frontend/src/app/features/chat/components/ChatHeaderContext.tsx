@@ -44,6 +44,34 @@ const getVisibleAppointmentActions = (
   });
 };
 
+/** Safety bar copy: the companion allergy plus every critical/high alert title. */
+const getClinicalFlags = (allergy?: string, alerts?: ClinicalAlert[]): string[] => {
+  const flags: string[] = [];
+  if (allergy) flags.push(`Allergy: ${allergy}`);
+  for (const a of alerts ?? []) {
+    if ((a.severity === 'critical' || a.severity === 'high') && a.title) flags.push(a.title);
+  }
+  return flags;
+};
+
+/** Appointment chip copy: the start time in the user's preferred zone and the
+ * patient (falling back to the companion) name. */
+const getAppointmentSummary = (appointment?: Appointment) => {
+  const apptTime = appointment?.startTime ? new Date(appointment.startTime) : undefined;
+  return {
+    apptLabel: apptTime
+      ? formatDateInPreferredTimeZone(apptTime, {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      : undefined,
+    apptName: appointment?.patient?.name ?? appointment?.companion?.name,
+  };
+};
+
 /** Design (thread): 'Pinned · "…" + N more' banner on --surface-soft. */
 function PinnedBanner({
   pinned,
@@ -96,23 +124,8 @@ export function ChatHeaderContext({
   onOpenPinned,
   onAction,
 }: ChatHeaderContextProps) {
-  const flags: string[] = [];
-  if (allergy) flags.push(`Allergy: ${allergy}`);
-  for (const a of alerts ?? []) {
-    if ((a.severity === 'critical' || a.severity === 'high') && a.title) flags.push(a.title);
-  }
-
-  const apptTime = appointment?.startTime ? new Date(appointment.startTime) : undefined;
-  const apptLabel = apptTime
-    ? formatDateInPreferredTimeZone(apptTime, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      })
-    : undefined;
-  const apptName = appointment?.patient?.name ?? appointment?.companion?.name;
+  const flags = getClinicalFlags(allergy, alerts);
+  const { apptLabel, apptName } = getAppointmentSummary(appointment);
   const visibleActions = getVisibleAppointmentActions(appointment, completing);
 
   const pinnedMessages = pinned ?? [];

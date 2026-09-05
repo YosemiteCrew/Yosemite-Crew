@@ -836,20 +836,16 @@ const useAppointmentInfoView = ({
                 <>
                   <ReadOnlyEditField
                     label="Date"
-                    value={
-                      formatDisplayDate(String(activeAppointment.appointmentDate ?? '')) || '-'
-                    }
+                    value={formatDisplayDate(String(activeAppointment.appointmentDate ?? ''))}
                   />
                   <ReadOnlyEditField
                     label="Time"
-                    value={formatTimeLabel(activeAppointment.startTime) || '-'}
+                    value={formatTimeLabel(activeAppointment.startTime)}
                   />
                   <ReadOnlyEditField label="Lead" value={activeAppointment.lead?.name} />
                   <ReadOnlyEditField
                     label="Staff"
-                    value={
-                      activeAppointment.supportStaff?.map((staff) => staff.name).join(', ') || '-'
-                    }
+                    value={activeAppointment.supportStaff?.map((staff) => staff.name).join(', ')}
                   />
                 </>
               )}

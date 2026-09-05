@@ -40,6 +40,17 @@ type PhoneOrganizationProps = {
   primaryOrg: Organisation;
 };
 
+/* Re-point the team selection when the list changes: keep the same member if it
+   is still present, otherwise fall back to the first row (or nothing). */
+const nextSelectedTeam = (previous: TeamProp | null, teams: TeamProp[]): TeamProp | null => {
+  if (teams.length === 0) return null;
+  if (previous?._id) {
+    const updated = teams.find((team) => team._id === previous._id);
+    if (updated) return updated;
+  }
+  return teams[0];
+};
+
 const Eyebrow = ({ children }: { children: React.ReactNode }) => (
   <span className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
     {children}
@@ -248,6 +259,113 @@ const SpecialityAccordion = ({ specialities }: { specialities: SpecialityWeb[] }
   );
 };
 
+const PhoneOrgHeader = ({
+  canEditOrg,
+  isEditing,
+  onBack,
+  onToggleEditing,
+}: {
+  canEditOrg: boolean;
+  isEditing: boolean;
+  onBack: () => void;
+  onToggleEditing: () => void;
+}) => (
+  <div className="sticky top-0 z-10 flex h-[54px] flex-none items-center gap-[10px] border-b border-[var(--hairline)] bg-[var(--screen)] px-[14px]!">
+    <button
+      type="button"
+      aria-label="Go back"
+      onClick={onBack}
+      className="flex size-[34px] flex-none items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-soft)] cursor-pointer"
+    >
+      <IoArrowBack size={15} aria-hidden="true" />
+    </button>
+    <span className="flex-1 text-[15px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+      Organization
+    </span>
+    {canEditOrg && (
+      <button
+        type="button"
+        aria-label={isEditing ? 'Done editing' : 'Edit organization'}
+        onClick={onToggleEditing}
+        className="flex size-[34px] flex-none items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-soft)] cursor-pointer"
+      >
+        {isEditing ? (
+          <IoCheckmark size={16} aria-hidden="true" />
+        ) : (
+          <IoCreateOutline size={15} aria-hidden="true" />
+        )}
+      </button>
+    )}
+  </div>
+);
+
+const PhoneTeamCard = ({
+  teams,
+  canEditTeam,
+  onOpenTeam,
+  onInvite,
+}: {
+  teams: TeamProp[];
+  canEditTeam: boolean;
+  onOpenTeam: (team: TeamProp) => void;
+  onInvite: () => void;
+}) => (
+  <>
+    <Eyebrow>Team · {teams.length}</Eyebrow>
+    <div className="overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]">
+      {teams.length === 0 ? (
+        <div className="px-[14px]! py-[14px]! text-[12px] text-[var(--ink-faint)]">
+          No team members yet.
+        </div>
+      ) : (
+        teams.map((team) => <TeamListRow key={team._id} team={team} onOpen={onOpenTeam} />)
+      )}
+      {canEditTeam && (
+        <button
+          type="button"
+          onClick={onInvite}
+          className="flex w-full items-center justify-center gap-[5px] border-t border-[var(--hairline)] px-[14px]! py-[11px]! text-[12px] font-semibold text-[var(--blue-text)] cursor-pointer"
+        >
+          <IoAdd size={13} aria-hidden="true" />
+          Invite team member
+        </button>
+      )}
+    </div>
+  </>
+);
+
+const StripeStatusRow = ({
+  subscription,
+  canManageStripe,
+}: {
+  subscription: ReturnType<typeof useSubscriptionForPrimaryOrg>;
+  canManageStripe: boolean;
+}) => {
+  const stripeConnected = !!subscription?.connectChargesEnabled;
+  const showManage = canManageStripe && !!subscription?.orgId;
+  return (
+    <div className="flex items-center gap-[10px] rounded-2xl border border-[var(--hairline)] px-[14px]! py-[11px]!">
+      <span
+        className={`mx-1 size-[7px] flex-none rounded-full ${
+          stripeConnected ? 'bg-[var(--success)] animate-pulse' : 'bg-[var(--ink-faint2)]'
+        }`}
+        aria-hidden="true"
+      />
+      <span className="flex-1 text-[12px] font-semibold text-[var(--ink-body)]">
+        {stripeConnected ? 'Stripe payments connected' : 'Stripe not connected'}
+      </span>
+      {showManage && (
+        <a
+          href={`/stripe-onboarding?orgId=${subscription?.orgId}`}
+          className="text-[11.5px] font-semibold text-[var(--blue-text)]"
+        >
+          {stripeConnected ? 'Manage' : 'Connect'}
+        </a>
+      )}
+    </div>
+  );
+};
+
 const PhoneOrganization = ({ primaryOrg }: PhoneOrganizationProps) => {
   const router = useRouter();
   const teams = useTeamForPrimaryOrg();
@@ -288,14 +406,7 @@ const PhoneOrganization = ({ primaryOrg }: PhoneOrganizationProps) => {
   const [prevTeams, setPrevTeams] = useState(teams);
   if (prevTeams !== teams) {
     setPrevTeams(teams);
-    setActiveTeam((prev) => {
-      if (teams.length === 0) return null;
-      if (prev?._id) {
-        const updated = teams.find((s) => s._id === prev._id);
-        if (updated) return updated;
-      }
-      return teams[0];
-    });
+    setActiveTeam((prev) => nextSelectedTeam(prev, teams));
   }
 
   const handleOpenTeam = (team: TeamProp) => {
@@ -303,38 +414,14 @@ const PhoneOrganization = ({ primaryOrg }: PhoneOrganizationProps) => {
     setViewPopup(true);
   };
 
-  const stripeConnected = !!subscription?.connectChargesEnabled;
-  const showManage = canManageStripe && !!subscription?.orgId;
-
   return (
     <div className="flex flex-col">
-      <div className="sticky top-0 z-10 flex h-[54px] flex-none items-center gap-[10px] border-b border-[var(--hairline)] bg-[var(--screen)] px-[14px]!">
-        <button
-          type="button"
-          aria-label="Go back"
-          onClick={() => router.back()}
-          className="flex size-[34px] flex-none items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-soft)] cursor-pointer"
-        >
-          <IoArrowBack size={15} aria-hidden="true" />
-        </button>
-        <span className="flex-1 text-[15px] font-bold tracking-[-0.02em] text-[var(--ink)]">
-          Organization
-        </span>
-        {canEditOrg && (
-          <button
-            type="button"
-            aria-label={isEditing ? 'Done editing' : 'Edit organization'}
-            onClick={() => setIsEditing((value) => !value)}
-            className="flex size-[34px] flex-none items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-soft)] cursor-pointer"
-          >
-            {isEditing ? (
-              <IoCheckmark size={16} aria-hidden="true" />
-            ) : (
-              <IoCreateOutline size={15} aria-hidden="true" />
-            )}
-          </button>
-        )}
-      </div>
+      <PhoneOrgHeader
+        canEditOrg={canEditOrg}
+        isEditing={isEditing}
+        onBack={() => router.back()}
+        onToggleEditing={() => setIsEditing((value) => !value)}
+      />
 
       <div className="flex flex-col gap-[11px] px-[18px]! py-[14px]!">
         {isEditing ? (
@@ -344,54 +431,18 @@ const PhoneOrganization = ({ primaryOrg }: PhoneOrganizationProps) => {
             <ProfileCardCompact org={form.formData} />
 
             {canViewTeam && (
-              <>
-                <Eyebrow>Team · {teams.length}</Eyebrow>
-                <div className="overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]">
-                  {teams.length === 0 ? (
-                    <div className="px-[14px]! py-[14px]! text-[12px] text-[var(--ink-faint)]">
-                      No team members yet.
-                    </div>
-                  ) : (
-                    teams.map((team) => (
-                      <TeamListRow key={team._id} team={team} onOpen={handleOpenTeam} />
-                    ))
-                  )}
-                  {canEditTeam && (
-                    <button
-                      type="button"
-                      onClick={() => setAddPopup(true)}
-                      className="flex w-full items-center justify-center gap-[5px] border-t border-[var(--hairline)] px-[14px]! py-[11px]! text-[12px] font-semibold text-[var(--blue-text)] cursor-pointer"
-                    >
-                      <IoAdd size={13} aria-hidden="true" />
-                      Invite team member
-                    </button>
-                  )}
-                </div>
-              </>
+              <PhoneTeamCard
+                teams={teams}
+                canEditTeam={canEditTeam}
+                onOpenTeam={handleOpenTeam}
+                onInvite={() => setAddPopup(true)}
+              />
             )}
 
             <Eyebrow>Specialities &amp; services</Eyebrow>
             <SpecialityAccordion specialities={specialities} />
 
-            <div className="flex items-center gap-[10px] rounded-2xl border border-[var(--hairline)] px-[14px]! py-[11px]!">
-              <span
-                className={`mx-1 size-[7px] flex-none rounded-full ${
-                  stripeConnected ? 'bg-[var(--success)] animate-pulse' : 'bg-[var(--ink-faint2)]'
-                }`}
-                aria-hidden="true"
-              />
-              <span className="flex-1 text-[12px] font-semibold text-[var(--ink-body)]">
-                {stripeConnected ? 'Stripe payments connected' : 'Stripe not connected'}
-              </span>
-              {showManage && (
-                <a
-                  href={`/stripe-onboarding?orgId=${subscription?.orgId}`}
-                  className="text-[11.5px] font-semibold text-[var(--blue-text)]"
-                >
-                  {stripeConnected ? 'Manage' : 'Connect'}
-                </a>
-              )}
-            </div>
+            <StripeStatusRow subscription={subscription} canManageStripe={canManageStripe} />
           </>
         )}
       </div>

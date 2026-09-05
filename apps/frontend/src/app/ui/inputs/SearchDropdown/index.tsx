@@ -23,6 +23,115 @@ type SearchDropdownProps = {
   optionClassName?: string;
 };
 
+/**
+ * Where the active-option highlight belongs once the option list, the open
+ * state or the query length changes: `-1` when there is nothing to highlight,
+ * `0` when the previous index no longer addresses an option, and `null` to
+ * leave the current index alone.
+ */
+const resolveActiveIndex = (
+  open: boolean,
+  filteredLength: number,
+  queryLength: number,
+  minChars: number,
+  activeIndex: number
+): number | null => {
+  if (!open || filteredLength === 0 || queryLength < minChars) return -1;
+  if (activeIndex < 0 || activeIndex >= filteredLength) return 0;
+  return null;
+};
+
+const getActiveOptionId = (listboxId: string, filtered: OptionProps[], activeIndex: number) =>
+  activeIndex >= 0 && activeIndex < filtered.length
+    ? `${listboxId}-option-${filtered[activeIndex].value}`
+    : undefined;
+
+type DropdownOptionsProps = {
+  listboxId: string;
+  accessibleLabel: string;
+  filtered: OptionProps[];
+  activeOptionId?: string;
+  optionClassName?: string;
+  renderOption?: (option: OptionProps) => React.ReactNode;
+  isLoadingMore: boolean;
+  onScroll: (e: React.UIEvent<HTMLDivElement>) => void;
+  onHoverOption: (index: number) => void;
+  onSelectOption: (value: string) => void;
+};
+
+/** The listbox panel under the search field: one button per filtered option,
+ * plus the live "loading more" status while the next page is in flight. */
+const DropdownOptions = ({
+  listboxId,
+  accessibleLabel,
+  filtered,
+  activeOptionId,
+  optionClassName,
+  renderOption,
+  isLoadingMore,
+  onScroll,
+  onHoverOption,
+  onSelectOption,
+}: DropdownOptionsProps) => (
+  <div
+    id={listboxId}
+    aria-label={accessibleLabel}
+    className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-[12px] border-l border-r border-b border-t bg-neutral-0 flex flex-col items-center w-full px-3 py-2.5"
+    onScroll={onScroll}
+  >
+    {filtered.map((option) => (
+      <button
+        type="button"
+        key={option.value}
+        id={`${listboxId}-option-${option.value}`}
+        onMouseEnter={() => onHoverOption(filtered.indexOf(option))}
+        onClick={() => onSelectOption(option.value)}
+        className={
+          optionClassName ??
+          `px-5 py-2 text-[13px] hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full text-start ${
+            activeOptionId === `${listboxId}-option-${option.value}`
+              ? 'bg-card-hover text-text-primary!'
+              : ''
+          }`
+        }
+      >
+        {renderOption ? renderOption(option) : option.label}
+      </button>
+    ))}
+    {isLoadingMore ? (
+      <output
+        aria-live="polite"
+        className="text-caption-1 py-2 text-text-secondary w-full text-center"
+      >
+        Loading more results…
+      </output>
+    ) : null}
+  </div>
+);
+
+type DropdownErrorProps = {
+  errorId: string;
+  error?: string;
+  open: boolean;
+  hasSelected: boolean;
+};
+
+/** Field-level validation message. Suppressed while the list is open and once
+ * the user has picked an option, so a stale error cannot outlive the fix. */
+const DropdownError = ({ errorId, error, open, hasSelected }: DropdownErrorProps) => {
+  if (open || !error || hasSelected) return null;
+  return (
+    <div
+      id={errorId}
+      role="alert"
+      className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error"
+    >
+      <IoIosWarning className="text-text-error" size={14} aria-hidden="true" />
+      <span>{error}</span>
+    </div>
+  );
+};
+
 const SearchDropdown = ({
   onSelect,
   options,
@@ -82,17 +191,17 @@ const SearchDropdown = ({
     query.length !== activeIndexDeps.queryLength
   ) {
     setActiveIndexDeps({ filtered, open, queryLength: query.length });
-    if (!open || filtered.length === 0 || query.length < minChars) {
-      setActiveIndex(-1);
-    } else if (activeIndex < 0 || activeIndex >= filtered.length) {
-      setActiveIndex(0);
-    }
+    const nextActiveIndex = resolveActiveIndex(
+      open,
+      filtered.length,
+      query.length,
+      minChars,
+      activeIndex
+    );
+    if (nextActiveIndex !== null) setActiveIndex(nextActiveIndex);
   }
 
-  const activeOptionId =
-    activeIndex >= 0 && activeIndex < filtered.length
-      ? `${listboxId}-option-${filtered[activeIndex].value}`
-      : undefined;
+  const activeOptionId = getActiveOptionId(listboxId, filtered, activeIndex);
 
   useEffect(() => {
     if (!open || !activeOptionId) return;
@@ -182,52 +291,21 @@ const SearchDropdown = ({
       </div>
 
       {canSearch && (
-        <div
-          id={listboxId}
-          aria-label={accessibleLabel}
-          className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-[12px] border-l border-r border-b border-t bg-neutral-0 flex flex-col items-center w-full px-3 py-2.5"
+        <DropdownOptions
+          listboxId={listboxId}
+          accessibleLabel={accessibleLabel}
+          filtered={filtered}
+          activeOptionId={activeOptionId}
+          optionClassName={optionClassName}
+          renderOption={renderOption}
+          isLoadingMore={isLoadingMore}
           onScroll={handleScroll}
-        >
-          {filtered.map((option) => (
-            <button
-              type="button"
-              key={option.value}
-              id={`${listboxId}-option-${option.value}`}
-              onMouseEnter={() => setActiveIndex(filtered.indexOf(option))}
-              onClick={() => onSelectOption(option.value)}
-              className={
-                optionClassName ??
-                `px-5 py-2 text-[13px] hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full text-start ${
-                  activeOptionId === `${listboxId}-option-${option.value}`
-                    ? 'bg-card-hover text-text-primary!'
-                    : ''
-                }`
-              }
-            >
-              {renderOption ? renderOption(option) : option.label}
-            </button>
-          ))}
-          {isLoadingMore ? (
-            <output
-              aria-live="polite"
-              className="text-caption-1 py-2 text-text-secondary w-full text-center"
-            >
-              Loading more results…
-            </output>
-          ) : null}
-        </div>
+          onHoverOption={setActiveIndex}
+          onSelectOption={onSelectOption}
+        />
       )}
 
-      {!open && error && !hasSelected && (
-        <div
-          id={errorId}
-          role="alert"
-          className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error"
-        >
-          <IoIosWarning className="text-text-error" size={14} aria-hidden="true" />
-          <span>{error}</span>
-        </div>
-      )}
+      <DropdownError errorId={errorId} error={error} open={open} hasSelected={hasSelected} />
     </div>
   );
 };

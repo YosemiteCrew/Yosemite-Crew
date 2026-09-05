@@ -42,6 +42,58 @@ type ServiceFormDraftProps = {
 
 type FormErrors = Partial<Record<string, string>>;
 
+/** Field defaults for a new draft, or the values of the service being edited. */
+const getServiceDraftDefaults = (editService: ServiceRevamp | undefined, orgCurrency: string) => {
+  const type: CatalogItemType = editService?.type ?? 'CONSULTATION';
+  return {
+    name: editService?.name ?? '',
+    description: editService?.description ?? '',
+    type,
+    duration: String(editService?.durationMinutes ?? 30),
+    grossAmount: String(editService?.grossAmount ?? ''),
+    defaultDiscount: String(editService?.defaultDiscount ?? '0'),
+    maxDiscount: String(editService?.maxDiscount ?? ''),
+    isBookable: editService?.isBookable ?? true,
+    isInpatient: editService?.isInpatientPreferred ?? false,
+    currency: editService?.currency ?? orgCurrency,
+  };
+};
+
+const getServiceDraftTitle = (isEditing: boolean, name: string) =>
+  `${isEditing ? name || 'Service' : 'New service'} (draft)`;
+
+type ServiceDraftTitleSlotProps = {
+  previewCode: string;
+  isBookable: boolean;
+  isInpatient: boolean;
+};
+
+const ServiceDraftTitleSlot = ({
+  previewCode,
+  isBookable,
+  isInpatient,
+}: ServiceDraftTitleSlotProps) => (
+  <>
+    {previewCode && (
+      <span className="text-caption-1 text-text-secondary border border-card-border rounded-2xl px-3 py-1">
+        {previewCode}
+      </span>
+    )}
+    {isBookable && (
+      <Badge tone="brand">
+        <IoCheckmarkOutline size={14} aria-hidden="true" />
+        Bookable
+      </Badge>
+    )}
+    {isInpatient && (
+      <Badge tone="brand">
+        <IoBedOutline size={14} aria-hidden="true" />
+        In-patient
+      </Badge>
+    )}
+  </>
+);
+
 type ServiceFormFieldsProps = {
   name: string;
   onNameChange: (value: string) => void;
@@ -221,19 +273,18 @@ const ServiceFormDraft = ({
   const generateCode = useRevampCatalogStore((s) => s.generateItemCode);
   const { notify } = useNotify();
   const orgCurrency = useCurrencyForPrimaryOrg();
-  const currency = editService?.currency ?? orgCurrency;
+  const defaults = getServiceDraftDefaults(editService, orgCurrency);
+  const currency = defaults.currency;
 
-  const [name, setName] = useState(editService?.name ?? '');
-  const [description, setDescription] = useState(editService?.description ?? '');
-  const [type, setType] = useState<CatalogItemType>(editService?.type ?? 'CONSULTATION');
-  const [duration, setDuration] = useState(String(editService?.durationMinutes ?? 30));
-  const [grossAmount, setGrossAmount] = useState(String(editService?.grossAmount ?? ''));
-  const [defaultDiscount, setDefaultDiscount] = useState(
-    String(editService?.defaultDiscount ?? '0')
-  );
-  const [maxDiscount, setMaxDiscount] = useState(String(editService?.maxDiscount ?? ''));
-  const [isBookable, setIsBookable] = useState(editService?.isBookable ?? true);
-  const [isInpatient, setIsInpatient] = useState(editService?.isInpatientPreferred ?? false);
+  const [name, setName] = useState(defaults.name);
+  const [description, setDescription] = useState(defaults.description);
+  const [type, setType] = useState<CatalogItemType>(defaults.type);
+  const [duration, setDuration] = useState(defaults.duration);
+  const [grossAmount, setGrossAmount] = useState(defaults.grossAmount);
+  const [defaultDiscount, setDefaultDiscount] = useState(defaults.defaultDiscount);
+  const [maxDiscount, setMaxDiscount] = useState(defaults.maxDiscount);
+  const [isBookable, setIsBookable] = useState(defaults.isBookable);
+  const [isInpatient, setIsInpatient] = useState(defaults.isInpatient);
   const [errors, setErrors] = useState<FormErrors>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -339,33 +390,16 @@ const ServiceFormDraft = ({
     }
   };
 
-  const draftTitle = `${isEditing ? name || 'Service' : 'New service'} (draft)`;
-  const draftTitleSlot = (
-    <>
-      {previewCode && (
-        <span className="text-caption-1 text-text-secondary border border-card-border rounded-2xl px-3 py-1">
-          {previewCode}
-        </span>
-      )}
-      {isBookable && (
-        <Badge tone="brand">
-          <IoCheckmarkOutline size={14} aria-hidden="true" />
-          Bookable
-        </Badge>
-      )}
-      {isInpatient && (
-        <Badge tone="brand">
-          <IoBedOutline size={14} aria-hidden="true" />
-          In-patient
-        </Badge>
-      )}
-    </>
-  );
-
   return (
     <SectionContainer
-      title={draftTitle}
-      titleSlot={draftTitleSlot}
+      title={getServiceDraftTitle(isEditing, name)}
+      titleSlot={
+        <ServiceDraftTitleSlot
+          previewCode={previewCode}
+          isBookable={isBookable}
+          isInpatient={isInpatient}
+        />
+      }
       className="@container flex flex-col gap-5"
     >
       {/* Two-column: collapses to one column in narrow containers (e.g. side drawer) */}

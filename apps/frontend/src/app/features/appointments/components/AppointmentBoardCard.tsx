@@ -97,6 +97,49 @@ const buildServiceLine = (appointment: Appointment) =>
   [appointment.appointmentType?.name, appointment.lead?.name].filter(Boolean).join(' · ') || '-';
 
 /**
+ * The card's own chrome: border emphasis, lift shadow and drag affordance.
+ *
+ * Emergency outranks checked-in on the border, and a muted (closed-out) card
+ * drops its shadow entirely so live work stays dominant in the column. The
+ * design's 72% opacity on muted cards is deliberately NOT applied: it
+ * composited the card's own text-text-tertiary meta line below AA, and the
+ * flattened shadow already carries the state.
+ */
+const buildBoardCardClassName = ({
+  isEmergency,
+  isCheckedIn,
+  isMuted,
+  isDragging,
+  isCardDraggable,
+}: {
+  isEmergency: boolean;
+  isCheckedIn: boolean;
+  isMuted: boolean;
+  isDragging: boolean;
+  isCardDraggable: boolean;
+}) => {
+  let emphasisClass = 'border-card-border';
+  if (isEmergency) {
+    emphasisClass = 'border-[var(--danger-border)] border-l-[3px] border-l-[var(--danger)]';
+  } else if (isCheckedIn) {
+    emphasisClass = 'border-[1.5px] border-[var(--status-checked-in-border)]';
+  }
+  const emphasisShadowClass = isCheckedIn
+    ? 'shadow-[0_4px_14px_var(--sh08)]'
+    : 'shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]';
+
+  return clsx(
+    'relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-[14px] py-[12px] text-left transition-colors flex flex-col items-stretch justify-start gap-2 border',
+    emphasisClass,
+    isMuted ? 'shadow-none' : emphasisShadowClass,
+    isDragging
+      ? 'opacity-60 shadow-none'
+      : 'hover:border-input-border-active! hover:bg-card-hover!',
+    isCardDraggable && 'cursor-grab active:cursor-grabbing'
+  );
+};
+
+/**
  * Tooltip + round icon button — the shape every action-bar control shares.
  * The click always stops short of the card's own open-on-click overlay.
  */
@@ -400,9 +443,7 @@ const AppointmentBoardCard = ({
   const isDragging = draggedAppointmentId === (appointment.id ?? null);
   const isEmergency = !!appointment.isEmergency;
   // Completed / cancelled / no-show cards recede by losing the lift shadow, so
-  // live work stays dominant in the column. The design's 72% opacity is
-  // deliberately not applied: it composited the card's own text-text-tertiary
-  // meta line below AA, and the flattened shadow already carries the state.
+  // live work stays dominant in the column.
   const isMuted = isMutedBoardStatus(normalizeStatus(appointment.status));
   const isRequested = isRequestedLikeStatus(appointment.status);
   // Checked-in patients are the ones actually waiting in the clinic, so the design
@@ -412,16 +453,6 @@ const AppointmentBoardCard = ({
   const isCheckedIn = normalizeStatus(appointment.status) === 'CHECKED_IN';
   const waitingLabel = buildWaitingLabel(appointment.checkedInAt);
 
-  let emphasisClass = 'border-card-border';
-  if (isEmergency) {
-    emphasisClass = 'border-[var(--danger-border)] border-l-[3px] border-l-[var(--danger)]';
-  } else if (isCheckedIn) {
-    emphasisClass = 'border-[1.5px] border-[var(--status-checked-in-border)]';
-  }
-  const emphasisShadowClass = isCheckedIn
-    ? 'shadow-[0_4px_14px_var(--sh08)]'
-    : 'shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]';
-
   return (
     <article
       aria-label={
@@ -429,15 +460,13 @@ const AppointmentBoardCard = ({
           ? `Draggable appointment ${companionDisplayName}`
           : `Appointment ${companionDisplayName}`
       }
-      className={clsx(
-        'relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-[14px] py-[12px] text-left transition-colors flex flex-col items-stretch justify-start gap-2 border',
-        emphasisClass,
-        isMuted ? 'shadow-none' : emphasisShadowClass,
-        isDragging
-          ? 'opacity-60 shadow-none'
-          : 'hover:border-input-border-active! hover:bg-card-hover!',
-        isCardDraggable && 'cursor-grab active:cursor-grabbing'
-      )}
+      className={buildBoardCardClassName({
+        isEmergency,
+        isCheckedIn,
+        isMuted,
+        isDragging,
+        isCardDraggable,
+      })}
       draggable={isCardDraggable}
       onDragStart={(event) => handleAppointmentDragStart(event, appointment.id)}
       onDragEnd={() => setDraggedAppointmentId(null)}

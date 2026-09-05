@@ -414,6 +414,84 @@ const getRequiredError = (field: FieldConfig, value: any): string | undefined =>
   return (value || '').toString().trim() ? undefined : label;
 };
 
+type AccordionFieldRowProps = {
+  field: FieldConfig;
+  formValues: FormValues;
+  displayValues: FormValues;
+  error: string | undefined;
+  readOnly: boolean;
+  isEditing: boolean;
+  optionsResolver?: EditableAccordionProps['optionsResolver'];
+  onChange: (value: any) => void;
+  onMultiChange: (values: Record<string, any>) => void;
+};
+
+const AccordionFieldRow = ({
+  field,
+  formValues,
+  displayValues,
+  error,
+  readOnly,
+  isEditing,
+  optionsResolver,
+  onChange,
+  onMultiChange,
+}: AccordionFieldRowProps) => {
+  const resolvedOptions = optionsResolver?.(field.key, formValues);
+  const resolvedField = resolvedOptions ? { ...field, options: resolvedOptions } : field;
+  const canEditThisField = !readOnly && isEditing && isFieldEditable(field);
+  return (
+    <div>
+      {canEditThisField ? (
+        <div className="flex-1 mb-3">
+          <EditableField
+            field={resolvedField}
+            value={formValues[field.key]}
+            error={error}
+            onChange={onChange}
+            onMultiChange={onMultiChange}
+          />
+        </div>
+      ) : (
+        <div className="flex-1">{RenderValue(field, displayValues)}</div>
+      )}
+    </div>
+  );
+};
+
+type InlineActionsProps = {
+  compact: boolean;
+  error: string | null;
+  isSaving: boolean;
+  onCancel: () => void;
+  onSave: () => void;
+};
+
+const InlineActions = ({ compact, error, isSaving, onCancel, onSave }: InlineActionsProps) => (
+  <div
+    className={
+      compact
+        ? 'flex justify-center items-center gap-3 w-full flex-row'
+        : 'flex justify-end items-end gap-3 w-full flex-col'
+    }
+  >
+    {error && <div className="text-[var(--danger-text)] text-sm text-center">{error}</div>}
+    <div
+      className={
+        compact ? 'flex items-center justify-center gap-3' : 'grid grid-cols-2 gap-3 w-full'
+      }
+    >
+      <Secondary href="#" onClick={onCancel} text="Cancel" isDisabled={isSaving} />
+      <Primary
+        href="#"
+        text={isSaving ? 'Saving...' : 'Save'}
+        onClick={onSave}
+        isDisabled={isSaving}
+      />
+    </div>
+  </div>
+);
+
 const EditableAccordion: React.FC<EditableAccordionProps> = ({
   title,
   fields,
@@ -589,57 +667,32 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
       >
         <div className={`flex flex-col`}>
           {dynamicFooter && <div className="mb-3">{dynamicFooter(formValues)}</div>}
-          {visibleFields.map((field) => {
-            const resolvedOptions = optionsResolver?.(field.key, formValues);
-            const resolvedField = resolvedOptions ? { ...field, options: resolvedOptions } : field;
-            const canEditThisField = !readOnly && effectiveEditing && isFieldEditable(field);
-            return (
-              <div key={field.key}>
-                {canEditThisField ? (
-                  <div className="flex-1 mb-3">
-                    <EditableField
-                      field={resolvedField}
-                      value={formValues[field.key]}
-                      error={formValuesErrors[field.key]}
-                      onChange={(value) => handleChange(field.key, value)}
-                      onMultiChange={handleMultiChange}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex-1">{RenderValue(field, displayValues)}</div>
-                )}
-              </div>
-            );
-          })}
+          {visibleFields.map((field) => (
+            <AccordionFieldRow
+              key={field.key}
+              field={field}
+              formValues={formValues}
+              displayValues={displayValues}
+              error={formValuesErrors[field.key]}
+              readOnly={readOnly}
+              isEditing={effectiveEditing}
+              optionsResolver={optionsResolver}
+              onChange={(value) => handleChange(field.key, value)}
+              onMultiChange={handleMultiChange}
+            />
+          ))}
           {renderedFooter && <div className="mt-3">{renderedFooter}</div>}
         </div>
       </Accordion>
 
       {effectiveEditing && !hideInlineActions && (
-        <div
-          className={
-            compactInlineActions
-              ? 'flex justify-center items-center gap-3 w-full flex-row'
-              : 'flex justify-end items-end gap-3 w-full flex-col'
-          }
-        >
-          {error && <div className="text-[var(--danger-text)] text-sm text-center">{error}</div>}
-          <div
-            className={
-              compactInlineActions
-                ? 'flex items-center justify-center gap-3'
-                : 'grid grid-cols-2 gap-3 w-full'
-            }
-          >
-            <Secondary href="#" onClick={handleCancel} text="Cancel" isDisabled={isSaving} />
-            <Primary
-              href="#"
-              text={isSaving ? 'Saving...' : 'Save'}
-              onClick={handleSave}
-              isDisabled={isSaving}
-            />
-          </div>
-        </div>
+        <InlineActions
+          compact={compactInlineActions}
+          error={error}
+          isSaving={isSaving}
+          onCancel={handleCancel}
+          onSave={handleSave}
+        />
       )}
     </div>
   );

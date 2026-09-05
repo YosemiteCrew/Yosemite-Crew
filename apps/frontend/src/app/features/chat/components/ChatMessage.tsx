@@ -498,6 +498,77 @@ function MessageGutter({
   return <ChatAvatar name={name} size="xs" />;
 }
 
+/** Placeholder left behind once the sender removes a message. */
+function DeletedMessageNotice({ mine }: Readonly<{ mine: boolean }>) {
+  return (
+    <div className={clsx('flex w-full px-1 py-0.5', mine ? 'justify-end' : 'justify-start')}>
+      <Text
+        as="span"
+        variant="caption-1"
+        className={clsx('italic text-[var(--ink-faint)]', mine ? '' : 'ml-11')}
+      >
+        This message was deleted
+      </Text>
+    </div>
+  );
+}
+
+type ChatMessageSource = ReactionSource & {
+  created_at?: string | Date;
+  status?: string;
+  text?: string;
+  attachments?: unknown[] | null;
+  user?: { id?: string; name?: string } | null;
+  sharedEntity?: SharedEntityData;
+};
+
+/** The three interchangeable bodies of a row: editor, shared card, or bubble. */
+function MessageBody({
+  editing,
+  message,
+  mine,
+  sharedEntity,
+  onSave,
+  onCancel,
+}: Readonly<{
+  editing: boolean;
+  message: ChatMessageSource;
+  mine: boolean;
+  sharedEntity?: SharedEntityData;
+  onSave: (text: string) => void;
+  onCancel: () => void;
+}>) {
+  if (editing) {
+    return <MessageEditor initialText={message.text ?? ''} onSave={onSave} onCancel={onCancel} />;
+  }
+  if (sharedEntity) return <SharedEntityCard entity={sharedEntity} mine={mine} />;
+  return (
+    <MessageBubble mine={mine} text={message.text ?? ''} attachments={message.attachments ?? []} />
+  );
+}
+
+/** Everything the row displays that is derived from the message, in one place. */
+function deriveMessageView(
+  message: ChatMessageSource,
+  mine: boolean,
+  readBy: readonly unknown[] | undefined
+) {
+  return {
+    reactions: getReactionChips(message),
+    time: message.created_at
+      ? formatDateInPreferredTimeZone(new Date(message.created_at), {
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      : '',
+    seen: mine && (readBy?.length ?? 0) > 0,
+    sending: message.status === 'sending',
+    counterpartName: message.user?.name || message.user?.id || 'User',
+    senderName: message.user?.name,
+    sharedEntity: message.sharedEntity,
+  };
+}
+
 export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean }>) {
   const { message, isMyMessage, handleReaction, handleOpenThread, readBy } = useMessageContext();
   const { editMessage, deleteMessage } = useChannelActionContext();
@@ -505,31 +576,12 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
   const [editing, setEditing] = useState(false);
 
   if (message.deleted_at || message.type === 'deleted') {
-    return (
-      <div className={clsx('flex w-full px-1 py-0.5', mine ? 'justify-end' : 'justify-start')}>
-        <Text
-          as="span"
-          variant="caption-1"
-          className={clsx('italic text-[var(--ink-faint)]', mine ? '' : 'ml-11')}
-        >
-          This message was deleted
-        </Text>
-      </div>
-    );
+    return <DeletedMessageNotice mine={mine} />;
   }
 
-  const reactions = getReactionChips(message as ReactionSource);
-  const time = message.created_at
-    ? formatDateInPreferredTimeZone(new Date(message.created_at), {
-        hour: 'numeric',
-        minute: '2-digit',
-      })
-    : '';
-  const seen = mine && (readBy?.length ?? 0) > 0;
-  const sending = message.status === 'sending';
-  const counterpartName = message.user?.name || message.user?.id || 'User';
-  const senderName = message.user?.name;
-  const sharedEntity = (message as unknown as { sharedEntity?: SharedEntityData }).sharedEntity;
+  const source = message as unknown as ChatMessageSource;
+  const { reactions, time, seen, sending, counterpartName, senderName, sharedEntity } =
+    deriveMessageView(source, mine, readBy);
 
   const actions = (
     <MessageActions
@@ -541,29 +593,19 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
     />
   );
 
-  let body: ReactNode;
-  if (editing) {
-    body = (
-      <MessageEditor
-        initialText={message.text ?? ''}
-        onSave={(text) => {
-          void editMessage({ ...message, text });
-          setEditing(false);
-        }}
-        onCancel={() => setEditing(false)}
-      />
-    );
-  } else if (sharedEntity) {
-    body = <SharedEntityCard entity={sharedEntity} mine={mine} />;
-  } else {
-    body = (
-      <MessageBubble
-        mine={mine}
-        text={message.text ?? ''}
-        attachments={message.attachments ?? []}
-      />
-    );
-  }
+  const body = (
+    <MessageBody
+      editing={editing}
+      message={source}
+      mine={mine}
+      sharedEntity={sharedEntity}
+      onSave={(text) => {
+        void editMessage({ ...message, text });
+        setEditing(false);
+      }}
+      onCancel={() => setEditing(false)}
+    />
+  );
 
   return (
     <div

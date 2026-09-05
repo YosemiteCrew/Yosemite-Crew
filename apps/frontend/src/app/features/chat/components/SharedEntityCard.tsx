@@ -73,21 +73,54 @@ const STATUS_TONES: Record<string, string> = {
 const readString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim() ? value.trim() : undefined;
 
+/** Pill tokens for a snapshot status; an unmapped status keeps the neutral trio. */
+const statusTokensFor = (status: string | undefined) => {
+  const tone = (status ? STATUS_TONES[status.toUpperCase()] : undefined) ?? 'requested';
+  return {
+    bg: `var(--status-${tone}-bg)`,
+    text: `var(--status-${tone}-text)`,
+    border: `var(--status-${tone}-border)`,
+  };
+};
+
+/**
+ * Everything the card renders, derived from the shared snapshot. Only the
+ * COMPANION label and its deep link pass through the org terminology rewrite.
+ */
+const resolveSharedEntity = (entity: SharedEntityData, rewrite: (text: string) => string) => {
+  const isCompanion = entity.entityType === 'COMPANION';
+  const baseLabel = LABELS[entity.entityType] ?? 'Shared item';
+  const deepLink = DEEP_LINKS[entity.entityType];
+  const amount = readString(entity.snapshot?.amount);
+  const status = readString(entity.snapshot?.status);
+  return {
+    Icon: ICONS[entity.entityType] ?? IoDocumentTextOutline,
+    label: isCompanion ? rewrite(baseLabel) : baseLabel,
+    subtitle: readString(entity.snapshot?.subtitle),
+    amount,
+    status,
+    statusTokens: statusTokensFor(status),
+    deepLink,
+    deepLinkLabel: deepLink && isCompanion ? rewrite(deepLink.label) : deepLink?.label,
+    showValueRow: Boolean(amount || deepLink),
+  };
+};
+
 export function SharedEntityCard({
   entity,
 }: Readonly<{ entity: SharedEntityData; mine?: boolean }>) {
   const rewrite = useCompanionTerminologyText();
-  const Icon = ICONS[entity.entityType] ?? IoDocumentTextOutline;
-  const baseLabel = LABELS[entity.entityType] ?? 'Shared item';
-  const label = entity.entityType === 'COMPANION' ? rewrite(baseLabel) : baseLabel;
-  const subtitle = readString(entity.snapshot?.subtitle);
-  const amount = readString(entity.snapshot?.amount);
-  const status = readString(entity.snapshot?.status);
-  const statusTone = status ? STATUS_TONES[status.toUpperCase()] : undefined;
-  const deepLink = DEEP_LINKS[entity.entityType];
-  const deepLinkLabel =
-    deepLink && entity.entityType === 'COMPANION' ? rewrite(deepLink.label) : deepLink?.label;
-  const showValueRow = Boolean(amount || deepLink);
+  const {
+    Icon,
+    label,
+    subtitle,
+    amount,
+    status,
+    statusTokens,
+    deepLink,
+    deepLinkLabel,
+    showValueRow,
+  } = resolveSharedEntity(entity, rewrite);
 
   return (
     <div className="w-64 max-w-full overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] xl:w-[340px]">
@@ -119,16 +152,7 @@ export function SharedEntityCard({
             </Text>
           )}
         </span>
-        {status && (
-          <StatusPill
-            label={status}
-            tokens={{
-              bg: `var(--status-${statusTone ?? 'requested'}-bg)`,
-              text: `var(--status-${statusTone ?? 'requested'}-text)`,
-              border: `var(--status-${statusTone ?? 'requested'}-border)`,
-            }}
-          />
-        )}
+        {status && <StatusPill label={status} tokens={statusTokens} />}
       </div>
       {showValueRow && (
         <div className="flex items-center justify-between gap-2 px-3.5 py-2.5">

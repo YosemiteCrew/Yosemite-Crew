@@ -237,6 +237,207 @@ const InstructionsField = ({
   </div>
 );
 
+/**
+ * Header: number + name + brand + Rx badge on the left; pills, fulfillment
+ * dropdown and the remove button on the right.
+ */
+const PrescriptionRowHeader = ({
+  item,
+  index,
+  isBilled,
+  isFinalized,
+  rowReadOnly,
+  deleteLocked,
+  onUpdateItem,
+  onRemoveItem,
+}: {
+  item: PrescriptionItem;
+  index: number;
+  isBilled: boolean;
+  isFinalized: boolean;
+  rowReadOnly: boolean;
+  deleteLocked: boolean;
+  onUpdateItem: (id: string, patch: Partial<PrescriptionItem>) => void;
+  onRemoveItem: (id: string) => void;
+}) => (
+  <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3">
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="font-medium text-text-primary">
+        {index + 1}. {item.medicineName}
+      </span>
+      {item.brand && (
+        <span className="rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-blue-text">
+          {item.brand}
+        </span>
+      )}
+      <RxBadge />
+    </div>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      {item.controlledSubstance && <ControlledPill schedule={item.drugSchedule} />}
+      {item.stockQty != null && (
+        <StockHealthPill qty={item.stockQty} low={item.lowStock ?? false} />
+      )}
+      {isBilled && <BilledBadge />}
+      {isFinalized && (
+        <span className="inline-flex items-center gap-1 rounded-2xl border border-card-border bg-neutral-100 px-2 py-0.5 text-caption-2 font-medium text-text-secondary">
+          <IoLockClosedOutline size={12} aria-hidden="true" />
+          Finalized
+        </span>
+      )}
+      <FulfillmentDropdown
+        value={item.fulfillment}
+        // A line picked from the classification has no inventory item, SKU or
+        // batch behind it, so "in-house" would finalize into a dispense request
+        // against stock that does not exist. Such a line stays prescription-only
+        // until it is linked to real stock.
+        disabled={rowReadOnly || isClassificationOnly(item)}
+        onChange={(fulfillment) => onUpdateItem(item.id, { fulfillment })}
+      />
+      {isBilled ? null : (
+        <CircleIconButton
+          icon={<IoTrashOutline aria-hidden="true" />}
+          label={`Remove ${item.medicineName}`}
+          variant="danger"
+          disabled={deleteLocked}
+          onClick={() => onRemoveItem(item.id)}
+        />
+      )}
+    </div>
+  </div>
+);
+
+/** Inventory-owned facts (read-only chips) — only rendered when present. */
+const PrescriptionFactChips = ({
+  item,
+  strengthLabel,
+  hasForm,
+  hasRoute,
+}: {
+  item: PrescriptionItem;
+  strengthLabel?: string;
+  hasForm: boolean;
+  hasRoute: boolean;
+}) => {
+  if (!item.genericName && !strengthLabel && !hasForm && !hasRoute) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <FactChip label="Generic" value={item.genericName} />
+      <FactChip label="Strength" value={strengthLabel} />
+      {hasForm && <FactChip label="Form" value={item.dosageForm} />}
+      {hasRoute && <FactChip label="Route" value={item.route} />}
+    </div>
+  );
+};
+
+/**
+ * Prescribing fields (clinician-entered). The fields wrap inside their own flex column so
+ * the line price stays pinned to the right edge of the row no matter how many field lines
+ * there are. Without that column the price joins the wrap and lands at the start of a new
+ * line whenever Form/Route are rendered. Each control is sized to its content: dropdowns
+ * wide enough for their longest option, number fields kept narrow, and Instructions flexes
+ * to fill the remaining space. Strength comes from inventory (chip above), so there is no
+ * separate Dose field. Form/Route appear here only when inventory did not define them
+ * (else they show as chips above).
+ */
+const PrescriptionRowFields = ({
+  item,
+  errors,
+  rowReadOnly,
+  hasForm,
+  hasRoute,
+  currency,
+  onUpdateItem,
+}: {
+  item: PrescriptionItem;
+  errors: ReturnType<typeof validatePrescriptionItem>;
+  rowReadOnly: boolean;
+  hasForm: boolean;
+  hasRoute: boolean;
+  currency: string;
+  onUpdateItem: (id: string, patch: Partial<PrescriptionItem>) => void;
+}) => (
+  <div className="flex items-start gap-3">
+    <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
+      {/* Frequency dropdown: widest option is "TID (three times daily)". */}
+      <div className="w-full sm:w-56">
+        <SelectCell
+          label="Frequency"
+          value={item.frequency}
+          options={FREQUENCY_OPTIONS}
+          readOnly={rowReadOnly}
+          onChange={(frequency) => onUpdateItem(item.id, { frequency })}
+        />
+      </div>
+      <div className="w-24">
+        <EditableCell
+          label="Duration"
+          value={item.durationDays ?? ''}
+          readOnly={rowReadOnly}
+          error={errors.durationDays}
+          onChange={(durationDays) => onUpdateItem(item.id, { durationDays })}
+        />
+      </div>
+      <div className="w-full sm:w-36">
+        <SelectCell
+          label="Unit"
+          value={item.durationUnit ?? 'days'}
+          options={DURATION_UNIT_OPTIONS}
+          readOnly={rowReadOnly}
+          onChange={(durationUnit) => onUpdateItem(item.id, { durationUnit })}
+        />
+      </div>
+      <div className="w-20">
+        <EditableCell
+          label="Qty"
+          value={item.qty ?? ''}
+          readOnly={rowReadOnly}
+          error={errors.qty}
+          onChange={(qty) => onUpdateItem(item.id, { qty })}
+        />
+      </div>
+      <div className="w-20">
+        <EditableCell
+          label="Refills"
+          value={item.refill ?? ''}
+          readOnly={rowReadOnly}
+          error={errors.refill}
+          onChange={(refill) => onUpdateItem(item.id, { refill })}
+        />
+      </div>
+      {!hasForm && (
+        <div className="w-full sm:w-36">
+          <SelectCell
+            label="Form"
+            value={item.dosageForm}
+            options={FormOptions}
+            readOnly={rowReadOnly}
+            onChange={(dosageForm) => onUpdateItem(item.id, { dosageForm })}
+          />
+        </div>
+      )}
+      {!hasRoute && (
+        <div className="w-full sm:w-36">
+          <SelectCell
+            label="Route"
+            value={item.route}
+            options={AdminstrationOptions}
+            readOnly={rowReadOnly}
+            onChange={(route) => onUpdateItem(item.id, { route })}
+          />
+        </div>
+      )}
+      <InstructionsField
+        value={item.instructions ?? ''}
+        readOnly={rowReadOnly}
+        onChange={(value) => onUpdateItem(item.id, { instructions: value })}
+      />
+    </div>
+    <span className="shrink-0 self-start text-body-3-emphasis font-bold text-text-primary">
+      {item.priceCents == null ? '-' : formatCents(item.priceCents, currency)}
+    </span>
+  </div>
+);
+
 const PrescriptionRow = ({
   item,
   index,
@@ -261,7 +462,6 @@ const PrescriptionRow = ({
   // silently dropped (never persisted) yet still shown/invoiced. Lock the fields like billed rows.
   const isFinalized = !isBilled && Boolean(item.finalized);
   const rowReadOnly = readOnly || isBilled || isFinalized;
-  const errors = validatePrescriptionItem(item);
 
   // Inventory-owned facts. Form/Route only become editable when inventory did not supply them.
   const strengthLabel = joinValue(item.strength, item.strengthUnit);
@@ -270,151 +470,33 @@ const PrescriptionRow = ({
 
   return (
     <li className="flex flex-col gap-4 rounded-2xl border border-card-border p-4">
-      {/* Header: number + name + brand + Rx badge on the left; pills, fulfillment
-        dropdown and the remove button on the right. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium text-text-primary">
-            {index + 1}. {item.medicineName}
-          </span>
-          {item.brand && (
-            <span className="rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-blue-text">
-              {item.brand}
-            </span>
-          )}
-          <RxBadge />
-        </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          {item.controlledSubstance && <ControlledPill schedule={item.drugSchedule} />}
-          {item.stockQty != null && (
-            <StockHealthPill qty={item.stockQty} low={item.lowStock ?? false} />
-          )}
-          {isBilled && <BilledBadge />}
-          {isFinalized && (
-            <span className="inline-flex items-center gap-1 rounded-2xl border border-card-border bg-neutral-100 px-2 py-0.5 text-caption-2 font-medium text-text-secondary">
-              <IoLockClosedOutline size={12} aria-hidden="true" />
-              Finalized
-            </span>
-          )}
-          <FulfillmentDropdown
-            value={item.fulfillment}
-            // A line picked from the classification has no inventory item, SKU or
-            // batch behind it, so "in-house" would finalize into a dispense request
-            // against stock that does not exist. Such a line stays prescription-only
-            // until it is linked to real stock.
-            disabled={rowReadOnly || isClassificationOnly(item)}
-            onChange={(fulfillment) => onUpdateItem(item.id, { fulfillment })}
-          />
-          {isBilled ? null : (
-            <CircleIconButton
-              icon={<IoTrashOutline aria-hidden="true" />}
-              label={`Remove ${item.medicineName}`}
-              variant="danger"
-              disabled={deleteLocked}
-              onClick={() => onRemoveItem(item.id)}
-            />
-          )}
-        </div>
-      </div>
+      <PrescriptionRowHeader
+        item={item}
+        index={index}
+        isBilled={isBilled}
+        isFinalized={isFinalized}
+        rowReadOnly={rowReadOnly}
+        deleteLocked={deleteLocked}
+        onUpdateItem={onUpdateItem}
+        onRemoveItem={onRemoveItem}
+      />
 
-      {/* Inventory-owned facts (read-only chips) — only rendered when present. */}
-      {(item.genericName || strengthLabel || hasForm || hasRoute) && (
-        <div className="flex flex-wrap items-center gap-2">
-          <FactChip label="Generic" value={item.genericName} />
-          <FactChip label="Strength" value={strengthLabel} />
-          {hasForm && <FactChip label="Form" value={item.dosageForm} />}
-          {hasRoute && <FactChip label="Route" value={item.route} />}
-        </div>
-      )}
+      <PrescriptionFactChips
+        item={item}
+        strengthLabel={strengthLabel}
+        hasForm={hasForm}
+        hasRoute={hasRoute}
+      />
 
-      {/* Prescribing fields (clinician-entered). The fields wrap inside their own flex column so
-        the line price stays pinned to the right edge of the row no matter how many field lines
-        there are. Without that column the price joins the wrap and lands at the start of a new
-        line whenever Form/Route are rendered. Each control is sized to its content: dropdowns
-        wide enough for their longest option, number fields kept narrow, and Instructions flexes
-        to fill the remaining space. Strength comes from inventory (chip above), so there is no
-        separate Dose field. Form/Route appear here only when inventory did not define them
-        (else they show as chips above). */}
-      <div className="flex items-start gap-3">
-        <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
-          {/* Frequency dropdown: widest option is "TID (three times daily)". */}
-          <div className="w-full sm:w-56">
-            <SelectCell
-              label="Frequency"
-              value={item.frequency}
-              options={FREQUENCY_OPTIONS}
-              readOnly={rowReadOnly}
-              onChange={(frequency) => onUpdateItem(item.id, { frequency })}
-            />
-          </div>
-          <div className="w-24">
-            <EditableCell
-              label="Duration"
-              value={item.durationDays ?? ''}
-              readOnly={rowReadOnly}
-              error={errors.durationDays}
-              onChange={(durationDays) => onUpdateItem(item.id, { durationDays })}
-            />
-          </div>
-          <div className="w-full sm:w-36">
-            <SelectCell
-              label="Unit"
-              value={item.durationUnit ?? 'days'}
-              options={DURATION_UNIT_OPTIONS}
-              readOnly={rowReadOnly}
-              onChange={(durationUnit) => onUpdateItem(item.id, { durationUnit })}
-            />
-          </div>
-          <div className="w-20">
-            <EditableCell
-              label="Qty"
-              value={item.qty ?? ''}
-              readOnly={rowReadOnly}
-              error={errors.qty}
-              onChange={(qty) => onUpdateItem(item.id, { qty })}
-            />
-          </div>
-          <div className="w-20">
-            <EditableCell
-              label="Refills"
-              value={item.refill ?? ''}
-              readOnly={rowReadOnly}
-              error={errors.refill}
-              onChange={(refill) => onUpdateItem(item.id, { refill })}
-            />
-          </div>
-          {!hasForm && (
-            <div className="w-full sm:w-36">
-              <SelectCell
-                label="Form"
-                value={item.dosageForm}
-                options={FormOptions}
-                readOnly={rowReadOnly}
-                onChange={(dosageForm) => onUpdateItem(item.id, { dosageForm })}
-              />
-            </div>
-          )}
-          {!hasRoute && (
-            <div className="w-full sm:w-36">
-              <SelectCell
-                label="Route"
-                value={item.route}
-                options={AdminstrationOptions}
-                readOnly={rowReadOnly}
-                onChange={(route) => onUpdateItem(item.id, { route })}
-              />
-            </div>
-          )}
-          <InstructionsField
-            value={item.instructions ?? ''}
-            readOnly={rowReadOnly}
-            onChange={(value) => onUpdateItem(item.id, { instructions: value })}
-          />
-        </div>
-        <span className="shrink-0 self-start text-body-3-emphasis font-bold text-text-primary">
-          {item.priceCents == null ? '-' : formatCents(item.priceCents, currency)}
-        </span>
-      </div>
+      <PrescriptionRowFields
+        item={item}
+        errors={validatePrescriptionItem(item)}
+        rowReadOnly={rowReadOnly}
+        hasForm={hasForm}
+        hasRoute={hasRoute}
+        currency={currency}
+        onUpdateItem={onUpdateItem}
+      />
     </li>
   );
 };
