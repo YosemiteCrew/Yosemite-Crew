@@ -313,3 +313,242 @@ test('every hazard reports the statement that caused it', () => {
   // line in the CI log.
   assert.equal(hazard.statement, 'ALTER TABLE "Invoice" DROP COLUMN "old"');
 });
+
+// The access dimension (#2724). These statements change no object's shape, so
+// every rule above passes them - and on a table with no policies the first one
+// takes every row out of the running code's sight the moment it commits.
+//
+// They are also the hazards CI cannot check dynamically: the migration job
+// connects as `postgres` and a table's owner bypasses row-level security, so a
+// test that applied one of these and read a row would pass here whatever it
+// would do in production. The classification IS the check.
+
+test('forcing row-level security is a hazard, and lifting it is not', () => {
+  assert.deepEqual(kinds('ALTER TABLE "Appointment" FORCE ROW LEVEL SECURITY;'), [
+    'removes the owner bypass on row-level security',
+  ]);
+  // NO FORCE contains FORCE, so a substring search would report the reverse of
+  // what this statement does.
+  assert.deepEqual(kinds('ALTER TABLE "Appointment" NO FORCE ROW LEVEL SECURITY;'), []);
+});
+
+test('enabling row-level security is a hazard, and disabling it is not', () => {
+  assert.deepEqual(kinds('ALTER TABLE "Appointment" ENABLE ROW LEVEL SECURITY;'), [
+    'enables row-level security',
+  ]);
+  assert.deepEqual(kinds('ALTER TABLE "Appointment" DISABLE ROW LEVEL SECURITY;'), []);
+});
+
+test('revoking is a hazard, granting is not', () => {
+  assert.deepEqual(kinds('REVOKE ALL ON "Appointment" FROM PUBLIC;'), ['revokes a privilege']);
+  assert.deepEqual(kinds('GRANT SELECT ON "Appointment" TO app_readonly;'), []);
+});
+
+test('changing an object owner is a hazard - it moves the row-level bypass', () => {
+  assert.deepEqual(kinds('ALTER TABLE "Appointment" OWNER TO app_readonly;'), [
+    'changes an object owner',
+  ]);
+});
+
+test('a restrictive policy narrows and is a hazard; a permissive one does not', () => {
+  assert.deepEqual(kinds('CREATE POLICY tenant ON "Appointment" AS RESTRICTIVE USING (false);'), [
+    'narrows or removes a row-level policy',
+  ]);
+  // On an RLS table with no policies, a permissive policy is the difference
+  // between seeing nothing and seeing something.
+  assert.deepEqual(kinds('CREATE POLICY tenant ON "Appointment" USING (true);'), []);
+  assert.deepEqual(kinds('DROP POLICY tenant ON "Appointment";'), [
+    'narrows or removes a row-level policy',
+  ]);
+});
+
+test('removing a role or what it owns is a hazard', () => {
+  assert.deepEqual(kinds('DROP OWNED BY app_user;'), ['drops objects owned by a role']);
+  assert.deepEqual(kinds('ALTER ROLE app_user NOLOGIN;'), [
+    'removes a role or its ability to connect',
+  ]);
+  assert.deepEqual(kinds('DROP ROLE app_user;'), ['removes a role or its ability to connect']);
+});
+
+test('ALTER DEFAULT PRIVILEGES is not a hazard - it cannot change what is read today', () => {
+  assert.deepEqual(
+    kinds('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO app_readonly;'),
+    []
+  );
+  // The REVOKE form is the one that mattered: the GRANT form above agrees with
+  // the exclusion whether or not the exclusion exists, because no rule here
+  // matches GRANT. Only this input can tell the two apart.
+  assert.deepEqual(
+    kinds('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC;'),
+    []
+  );
+  assert.deepEqual(
+    kinds('ALTER DEFAULT PRIVILEGES FOR ROLE app REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;'),
+    []
+  );
+  // And a plain REVOKE is still a hazard - the exclusion is scoped, not a hole.
+  assert.deepEqual(kinds('REVOKE ALL ON "Appointment" FROM PUBLIC;'), ['revokes a privilege']);
+
+  // The exclusion is a substring test, so an object name containing the
+  // excluded text is what tells a narrow exclusion from a wide one: widening it
+  // to `ALTER` alone leaves every other case in this test passing and quietly
+  // excuses these two. Raised by ankit-yc on #2731.
+  assert.deepEqual(kinds('REVOKE ALL ON "alter_log" FROM PUBLIC;'), ['revokes a privilege']);
+  assert.deepEqual(kinds('REVOKE ALL ON "altered_records" FROM PUBLIC;'), ['revokes a privilege']);
+
+  // Nor can the exclusion be borrowed from a neighbouring statement or from a
+  // comment: statements are split, and comments are stripped before matching.
+  assert.deepEqual(
+    kinds(
+      'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC;\n' +
+        'REVOKE ALL ON "Appointment" FROM PUBLIC;'
+    ),
+    ['revokes a privilege']
+  );
+  assert.deepEqual(kinds('-- ALTER DEFAULT PRIVILEGES\nREVOKE ALL ON "Appointment" FROM PUBLIC;'), [
+    'revokes a privilege',
+  ]);
+});
+
+test('access hazards are tagged as such, so the report can name the right thing', () => {
+  const [access] = classifyMigrationSql('ALTER TABLE "Appointment" FORCE ROW LEVEL SECURITY;');
+  const [shape] = classifyMigrationSql('ALTER TABLE "Appointment" DROP COLUMN "notes";');
+  assert.equal(access.dimension, 'access');
+  assert.equal(shape.dimension, 'shape');
+});
+
+test('an access hazard needs a declaration like any other', () => {
+  const undeclared = reviewMigration({
+    name: 'm',
+    sql: 'ALTER TABLE "Appointment" ENABLE ROW LEVEL SECURITY;',
+  });
+  assert.equal(undeclared.verdict, 'undeclared');
+
+  const declared = reviewMigration({
+    name: 'm',
+    sql:
+      '-- deployed-code-survives: the API connects as the owning role, which bypasses\n' +
+      '--   row-level security, so its reads are unaffected.\n' +
+      'ALTER TABLE "Appointment" ENABLE ROW LEVEL SECURITY;',
+  });
+  assert.equal(declared.verdict, 'ok');
+});
+
+// The access rules are a predicate over SQL text, so what matters is not the
+// seven spellings in the tests above but whether a real migration can say the
+// same thing and slip past. These are the forms this repo's migrations and
+// Prisma actually emit.
+
+test('access rules see through schema qualifiers, case, line breaks and DO blocks', () => {
+  assert.deepEqual(kinds('ALTER TABLE public."Appointment" FORCE ROW LEVEL SECURITY;'), [
+    'removes the owner bypass on row-level security',
+  ]);
+  assert.deepEqual(kinds('alter table "Appointment" enable row level security;'), [
+    'enables row-level security',
+  ]);
+  assert.deepEqual(kinds('ALTER TABLE "Appointment"\n  FORCE ROW LEVEL\n  SECURITY;'), [
+    'removes the owner bypass on row-level security',
+  ]);
+  // DDL executed from a string inside a DO block is why stripSqlComments leaves
+  // literals intact; the access rules inherit that and must not miss it.
+  assert.deepEqual(
+    kinds(`DO $$ BEGIN EXECUTE 'ALTER TABLE "X" FORCE ROW LEVEL SECURITY'; END $$;`),
+    ['removes the owner bypass on row-level security']
+  );
+  assert.deepEqual(kinds('ALTER TABLE IF EXISTS "Appointment" ENABLE ROW LEVEL SECURITY;'), [
+    'enables row-level security',
+  ]);
+});
+
+test('an owner change is caught on any object, not just a table', () => {
+  assert.deepEqual(kinds('ALTER SEQUENCE "Appointment_id_seq" OWNER TO app_user;'), [
+    'changes an object owner',
+  ]);
+  assert.deepEqual(kinds('ALTER VIEW "v" OWNER TO app_user;'), ['changes an object owner']);
+});
+
+test('a wholesale REVOKE is caught', () => {
+  assert.deepEqual(kinds('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM app_readonly;'), [
+    'revokes a privilege',
+  ]);
+});
+
+// Both halves of this are the file's existing trade rather than anything the
+// access rules introduce, and the assertions are paired so they stay that way:
+// comments are stripped, so prose about a hazard is not one; string literals
+// are NOT, because a DO block's DDL lives in one, so a hazard word inside a
+// literal reports. An access rule behaves exactly as a shape rule does here.
+test('access rules inherit the comment and literal handling, unchanged', () => {
+  const inComment = (phrase) => `-- we had to ${phrase}\nALTER TABLE "A" ADD COLUMN "b" TEXT;`;
+  const inLiteral = (phrase) => `INSERT INTO "Audit" ("note") VALUES ('we had to ${phrase}');`;
+
+  assert.deepEqual(kinds(inComment('DROP COLUMN x')), []);
+  assert.deepEqual(kinds(inComment('REVOKE ALL on x')), []);
+
+  assert.deepEqual(kinds(inLiteral('DROP COLUMN x')), ['drops a column']);
+  assert.deepEqual(kinds(inLiteral('REVOKE ALL on x')), ['revokes a privilege']);
+});
+
+// SECURITY LABEL is the one access-adjacent statement not covered, and it is
+// out on purpose: it does nothing without a label provider (selinux, anon) and
+// none is configured on this database. Pinned so that changing the answer is a
+// decision rather than a side effect of widening a pattern.
+test('SECURITY LABEL is not flagged', () => {
+  assert.deepEqual(kinds(`SECURITY LABEL FOR selinux ON TABLE "Appointment" IS 'x';`), []);
+});
+
+// Three statements that mean what a rule above means and did not match it.
+// Raised by ankit-yc reviewing #2731, and each is one entry rather than a new
+// concept - which is the test of whether the dimension is real.
+
+test('REASSIGN OWNED BY is an owner change, in bulk', () => {
+  // OWNER TO applied to every object a role owns. On this database that is the
+  // one statement that takes all eleven row-level-security tables out of the
+  // API's sight at once, since every one rests on the owner bypass.
+  assert.deepEqual(kinds('REASSIGN OWNED BY app_role TO other_role;'), ['changes an object owner']);
+});
+
+test('CONNECTION LIMIT 0 locks a role out; a positive limit does not', () => {
+  assert.deepEqual(kinds('ALTER ROLE app_role CONNECTION LIMIT 0;'), [
+    'removes a role or its ability to connect',
+  ]);
+  // A cap is not a lockout, and -1 is the default meaning no limit at all.
+  assert.deepEqual(kinds('ALTER ROLE app_role CONNECTION LIMIT 10;'), []);
+  assert.deepEqual(kinds('ALTER ROLE app_role CONNECTION LIMIT -1;'), []);
+});
+
+test('moving an object to another schema is a hazard, and a shape one', () => {
+  // The object still exists and its grants are unchanged, so this is not an
+  // access change - but a deployed query naming it unqualified stops resolving.
+  const [hazard] = classifyMigrationSql('ALTER TABLE "X" SET SCHEMA hidden;');
+  assert.equal(hazard.kind, 'moves an object to another schema');
+  assert.equal(hazard.dimension, 'shape');
+  // IN SCHEMA is not SET SCHEMA.
+  assert.deepEqual(
+    kinds('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO r;'),
+    []
+  );
+});
+
+// ALTER USER and DROP USER are exact aliases for ALTER ROLE and DROP ROLE in
+// PostgreSQL, not near synonyms, so matching one spelling matches half the
+// language. Raised by ankit-yc reviewing #2731.
+test('the role rule matches the USER spelling too', () => {
+  for (const spelling of ['ROLE', 'USER']) {
+    assert.deepEqual(kinds(`ALTER ${spelling} app_role NOLOGIN;`), [
+      'removes a role or its ability to connect',
+    ]);
+    assert.deepEqual(kinds(`ALTER ${spelling} app_role CONNECTION LIMIT 0;`), [
+      'removes a role or its ability to connect',
+    ]);
+    assert.deepEqual(kinds(`DROP ${spelling} app_role;`), [
+      'removes a role or its ability to connect',
+    ]);
+    // Still a cap rather than a lockout in either spelling.
+    assert.deepEqual(kinds(`ALTER ${spelling} app_role CONNECTION LIMIT 10;`), []);
+  }
+  // A padded zero is still zero; `\b` alone could not see it.
+  assert.deepEqual(kinds('ALTER USER app_role CONNECTION LIMIT 00;'), [
+    'removes a role or its ability to connect',
+  ]);
+});
