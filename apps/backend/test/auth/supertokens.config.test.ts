@@ -1,3 +1,25 @@
+const mockEmailPasswordInit = jest.fn((config: unknown) => ({
+  name: "emailpassword",
+  config,
+}));
+
+jest.mock("supertokens-node/recipe/emailpassword", () => ({
+  __esModule: true,
+  default: {
+    init: mockEmailPasswordInit,
+  },
+}));
+
+const mockGetUserMetadata = jest.fn();
+
+jest.mock("supertokens-node/recipe/usermetadata", () => ({
+  __esModule: true,
+  default: {
+    init: jest.fn(() => ({ name: "usermetadata" })),
+    getUserMetadata: mockGetUserMetadata,
+  },
+}));
+
 const mockPasswordlessInit = jest.fn((config: unknown) => ({
   name: "passwordless",
   config,
@@ -58,6 +80,8 @@ const restoreEnv = () => {
 describe("@yosemite-crew/auth supertokens config", () => {
   beforeEach(() => {
     jest.resetModules();
+    mockEmailPasswordInit.mockClear();
+    mockGetUserMetadata.mockReset();
     mockPasswordlessInit.mockClear();
     mockThirdPartyInit.mockClear();
     delete process.env.AUTH_APPLE_CLIENT_ID;
@@ -157,6 +181,80 @@ describe("@yosemite-crew/auth supertokens config", () => {
     expect(originalSendEmail).toHaveBeenCalledWith({
       email: "someone@example.com",
     });
+  });
+
+  it("rejects disabled email-password accounts without disclosing their state", async () => {
+    process.env.SMTP_HOST = "smtp.example.test";
+    process.env.SMTP_PORT = "465";
+    process.env.SMTP_SECURE = "true";
+    process.env.SMTP_USER = "smtp-user";
+    process.env.SMTP_PASSWORD = "smtp-password";
+    process.env.SMTP_FROM_NAME = "Yosemite Crew";
+    process.env.SMTP_FROM_EMAIL = "auth@example.test";
+    mockGetUserMetadata.mockResolvedValue({
+      metadata: { disabledAt: Date.now() },
+    });
+
+    const { getSuperTokensConfig } = require("@yosemite-crew/auth");
+    getSuperTokensConfig();
+    const emailPasswordConfig = mockEmailPasswordInit.mock.calls[0]?.[0] as any;
+    const signIn = emailPasswordConfig.override.functions({
+      signIn: jest.fn(async () => ({
+        status: "OK",
+        user: { id: "disabled-business-user" },
+      })),
+    }).signIn;
+
+    await expect(
+      signIn({
+        email: "disabled@example.test",
+        password: "correct-password",
+        userContext: {},
+      }),
+    ).resolves.toEqual({ status: "WRONG_CREDENTIALS_ERROR" });
+    expect(mockGetUserMetadata).toHaveBeenCalledWith("disabled-business-user");
+  });
+
+  it("keeps active and failed email-password sign-ins unchanged", async () => {
+    process.env.SMTP_HOST = "smtp.example.test";
+    process.env.SMTP_PORT = "465";
+    process.env.SMTP_SECURE = "true";
+    process.env.SMTP_USER = "smtp-user";
+    process.env.SMTP_PASSWORD = "smtp-password";
+    process.env.SMTP_FROM_NAME = "Yosemite Crew";
+    process.env.SMTP_FROM_EMAIL = "auth@example.test";
+    mockGetUserMetadata.mockResolvedValue({ metadata: {} });
+
+    const { getSuperTokensConfig } = require("@yosemite-crew/auth");
+    getSuperTokensConfig();
+    const emailPasswordConfig = mockEmailPasswordInit.mock.calls[0]?.[0] as any;
+    const originalSignIn = jest
+      .fn()
+      .mockResolvedValueOnce({ status: "WRONG_CREDENTIALS_ERROR" })
+      .mockResolvedValueOnce({
+        status: "OK",
+        user: { id: "active-business-user" },
+      });
+    const signIn = emailPasswordConfig.override.functions({
+      signIn: originalSignIn,
+    }).signIn;
+
+    await expect(
+      signIn({
+        email: "unknown@example.test",
+        password: "wrong",
+        userContext: {},
+      }),
+    ).resolves.toEqual({ status: "WRONG_CREDENTIALS_ERROR" });
+    await expect(
+      signIn({
+        email: "active@example.test",
+        password: "correct",
+        userContext: {},
+      }),
+    ).resolves.toEqual({ status: "OK", user: { id: "active-business-user" } });
+    expect(mockGetUserMetadata).toHaveBeenCalledTimes(1);
+    expect(mockGetUserMetadata).toHaveBeenCalledWith("active-business-user");
   });
   describe("apple id_token audience selection", () => {
     const BUNDLE_ID = "com.example.mobile";

@@ -311,7 +311,15 @@ export function getSuperTokensConfig(): TypeInput {
               const ctx = input.userContext as MutableContext;
               ctx[CTX_LOGIN_METHOD] = 'emailpassword';
               ctx[CTX_EMAIL] = input.email;
-              return original.signIn(input);
+              const result = await original.signIn(input);
+              if (result.status !== 'OK') {
+                return result;
+              }
+
+              const { metadata } = await UserMetadata.getUserMetadata(result.user.id);
+              return typeof metadata.disabledAt === 'number'
+                ? { status: 'WRONG_CREDENTIALS_ERROR' }
+                : result;
             },
           }),
         },
