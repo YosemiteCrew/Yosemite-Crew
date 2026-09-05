@@ -49,6 +49,43 @@ deploy_incoming_migrations() {
     | sort
 }
 
+# deploy_on_exit
+#
+# The EXIT trap api-deploy.sh installs before it lets the schema move.
+#
+# Lives here rather than in api-deploy.sh because the test that proves the
+# notice survives `set -e` cannot run api-deploy.sh - it wants pm2, node, a
+# database and a box. It used to hand-write its own copy of this handler, which
+# meant the only thing tying the copy to the real one was a grep on line
+# ordering, and transposing the two flags in the real one left the whole suite
+# green while inverting the notice: fires only after a verified cutover, silent
+# exactly when the schema is ahead. Three positional flags of the same type and
+# nothing to catch a swap. Now there is one handler, so there is one place for
+# the order to be wrong and a test that exercises it.
+#
+# Reads the caller's state rather than taking arguments, because an EXIT trap
+# has no arguments to take. Callers must set MIGRATIONS_APPLIED, CUTOVER_DONE,
+# ROLLBACK_SHA and INCOMING_MIGRATIONS before arming it; under `set -u` a
+# missing one aborts loudly, which is the right direction - the alternative is a
+# default, and the only sensible default for "did the schema move" is the silent
+# one.
+#
+# SMOKE_PID is the exception and IS defaulted: no smoke process is a normal
+# state for most of the script's life, not a caller mistake.
+deploy_on_exit() {
+  local status=$?
+
+  if [ -n "${SMOKE_PID:-}" ]; then
+    kill "$SMOKE_PID" 2>/dev/null || true
+  fi
+
+  # Deliberate word splitting - one argument per migration. Prisma directory
+  # names are <timestamp>_<snake_case>, so there is nothing here to glob.
+  # shellcheck disable=SC2086
+  deploy_stop_notice "$status" "$MIGRATIONS_APPLIED" "$CUTOVER_DONE" \
+    "$ROLLBACK_SHA" $INCOMING_MIGRATIONS
+}
+
 # deploy_stop_notice <exit-status> <migrations-applied> <cutover-done> <rollback-sha> <migration>...
 #
 # Whether an exiting deploy owes the operator the hazard notice.
