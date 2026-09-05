@@ -16,6 +16,7 @@ import { TaskScheduleQueue } from "./task-schedule.queue";
 import { TaskRecurrenceQueue, TaskReminderQueue } from "./task.queues";
 import { VaccineReminderQueue } from "./vaccine.queues";
 import { PublicBookingQueue } from "./public-booking.queue";
+import { ParasiteRiskQueue } from "./parasite-risk.queue";
 import {
   pruneLegacyRepeatablesAcross,
   SchedulerCapableQueue,
@@ -31,6 +32,7 @@ export const scheduledQueues = [
   TaskReminderQueue,
   VaccineReminderQueue,
   PublicBookingQueue,
+  ParasiteRiskQueue,
 ] as unknown as SchedulerCapableQueue[];
 import "./ap-delivery.queue";
 import "./ap-inbox.queue";
