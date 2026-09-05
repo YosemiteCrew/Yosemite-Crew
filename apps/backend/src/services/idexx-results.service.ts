@@ -330,8 +330,7 @@ type UnapplicableResult = {
  * `create`, not `upsert`: this table has no unique key on purpose (see the
  * model comment), because collapsing two rows onto a key is exactly the silent
  * loss it exists to prevent.
- */
-/**
+ *
  * NOT `async`, and not `await`ed. A `PrismaPromise` is lazy - the write does not
  * run until `$transaction` runs it - so returning the unexecuted operation IS
  * the atomicity, not a tidiness choice.
