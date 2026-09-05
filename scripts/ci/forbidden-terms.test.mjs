@@ -292,10 +292,13 @@ test('every surface is a bare filename', () => {
   // a separator or a `..` reads a file the collector never wrote. Cardinality
   // pins WHICH surfaces are read; nothing above pins their SHAPE. `../body` is
   // caught several other ways because the file does not exist under the fixture
-  // root - which is a fact about where the test writes its files, not about this
-  // set. `./body` is the case that shows what this assertion is for: it resolves
-  // to the SAME file, every other test stays green, and only a statement about
-  // the shape of the entry sees it at all.
+  // root - a fact about where the test writes its files, not about this set.
+  // `./title` is the case that shows what this assertion is for: it resolves to
+  // the SAME file, every other test stays green (28 / 1), and only a statement
+  // about the shape of the entry sees it at all. NOT `./body`, which is 27 / 2
+  // because it also trips the exit-2 test - and that one matches
+  // `Cannot read the 'body' surface`, a hardcoded name in an error message
+  // rather than anything about containment.
   //
   // HALF of the argument that the file-inclusion finding on that join is
   // unreachable, and the half that is checked. The join has two operands. This
