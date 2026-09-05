@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS "LabResultQuarantine" (
   CONSTRAINT "LabResultQuarantine_pkey" PRIMARY KEY ("id")
 );
 
+-- Deny direct Supabase PostgREST access; the API connects as the owning role.
+ALTER TABLE "LabResultQuarantine" ENABLE ROW LEVEL SECURITY;
+
 -- The operator read is "what is still stuck for this provider", so resolvedAt
 -- follows provider in the index rather than standing alone.
 CREATE INDEX IF NOT EXISTS "LabResultQuarantine_provider_resolvedAt_idx"
