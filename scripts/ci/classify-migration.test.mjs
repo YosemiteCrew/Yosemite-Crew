@@ -400,3 +400,66 @@ test('an access hazard needs a declaration like any other', () => {
   });
   assert.equal(declared.verdict, 'ok');
 });
+
+// The access rules are a predicate over SQL text, so what matters is not the
+// seven spellings in the tests above but whether a real migration can say the
+// same thing and slip past. These are the forms this repo's migrations and
+// Prisma actually emit.
+
+test('access rules see through schema qualifiers, case, line breaks and DO blocks', () => {
+  assert.deepEqual(kinds('ALTER TABLE public."Appointment" FORCE ROW LEVEL SECURITY;'), [
+    'removes the owner bypass on row-level security',
+  ]);
+  assert.deepEqual(kinds('alter table "Appointment" enable row level security;'), [
+    'enables row-level security',
+  ]);
+  assert.deepEqual(kinds('ALTER TABLE "Appointment"\n  FORCE ROW LEVEL\n  SECURITY;'), [
+    'removes the owner bypass on row-level security',
+  ]);
+  // DDL executed from a string inside a DO block is why stripSqlComments leaves
+  // literals intact; the access rules inherit that and must not miss it.
+  assert.deepEqual(
+    kinds(`DO $$ BEGIN EXECUTE 'ALTER TABLE "X" FORCE ROW LEVEL SECURITY'; END $$;`),
+    ['removes the owner bypass on row-level security']
+  );
+  assert.deepEqual(kinds('ALTER TABLE IF EXISTS "Appointment" ENABLE ROW LEVEL SECURITY;'), [
+    'enables row-level security',
+  ]);
+});
+
+test('an owner change is caught on any object, not just a table', () => {
+  assert.deepEqual(kinds('ALTER SEQUENCE "Appointment_id_seq" OWNER TO app_user;'), [
+    'changes an object owner',
+  ]);
+  assert.deepEqual(kinds('ALTER VIEW "v" OWNER TO app_user;'), ['changes an object owner']);
+});
+
+test('a wholesale REVOKE is caught', () => {
+  assert.deepEqual(kinds('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM app_readonly;'), [
+    'revokes a privilege',
+  ]);
+});
+
+// Both halves of this are the file's existing trade rather than anything the
+// access rules introduce, and the assertions are paired so they stay that way:
+// comments are stripped, so prose about a hazard is not one; string literals
+// are NOT, because a DO block's DDL lives in one, so a hazard word inside a
+// literal reports. An access rule behaves exactly as a shape rule does here.
+test('access rules inherit the comment and literal handling, unchanged', () => {
+  const inComment = (phrase) => `-- we had to ${phrase}\nALTER TABLE "A" ADD COLUMN "b" TEXT;`;
+  const inLiteral = (phrase) => `INSERT INTO "Audit" ("note") VALUES ('we had to ${phrase}');`;
+
+  assert.deepEqual(kinds(inComment('DROP COLUMN x')), []);
+  assert.deepEqual(kinds(inComment('REVOKE ALL on x')), []);
+
+  assert.deepEqual(kinds(inLiteral('DROP COLUMN x')), ['drops a column']);
+  assert.deepEqual(kinds(inLiteral('REVOKE ALL on x')), ['revokes a privilege']);
+});
+
+// SECURITY LABEL is the one access-adjacent statement not covered, and it is
+// out on purpose: it does nothing without a label provider (selinux, anon) and
+// none is configured on this database. Pinned so that changing the answer is a
+// decision rather than a side effect of widening a pattern.
+test('SECURITY LABEL is not flagged', () => {
+  assert.deepEqual(kinds(`SECURITY LABEL FOR selinux ON TABLE "Appointment" IS 'x';`), []);
+});
