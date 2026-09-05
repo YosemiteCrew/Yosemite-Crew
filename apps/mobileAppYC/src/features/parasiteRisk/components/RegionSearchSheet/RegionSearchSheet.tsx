@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useReducer, useRef} from 'react';
+import React, {useCallback} from 'react';
 import {
   View,
   Text,
@@ -11,18 +11,12 @@ import {
 import {useTranslation} from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {snapToRiskCell} from '@yosemite-crew/types';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {fonts} from '@/theme/typography';
-import {
-  fetchPlaceDetails,
-  fetchPlaceSuggestions,
-  REGION_PRIMARY_TYPES,
-  type PlaceSuggestion,
-} from '@/shared/services/maps/googlePlaces';
-import LocationService from '@/shared/services/LocationService';
+import type {PlaceSuggestion} from '@/shared/services/maps/googlePlaces';
 import type {RiskLocation} from '../../types';
+import {useRegionSearchSheet} from './useRegionSearchSheet';
 
 interface RegionSearchSheetProps {
   visible: boolean;
@@ -30,30 +24,6 @@ interface RegionSearchSheetProps {
   onSelect: (location: RiskLocation) => void;
   recentLocations: readonly RiskLocation[];
 }
-
-const SEARCH_DEBOUNCE_MS = 300;
-const MIN_QUERY_LENGTH = 3;
-
-interface RegionSearchState {
-  query: string;
-  suggestions: PlaceSuggestion[];
-  searching: boolean;
-  resolving: boolean;
-  errorKey: string | null;
-}
-
-const INITIAL_SEARCH_STATE: RegionSearchState = {
-  query: '',
-  suggestions: [],
-  searching: false,
-  resolving: false,
-  errorKey: null,
-};
-
-const mergeSearchState = (
-  state: RegionSearchState,
-  update: Partial<RegionSearchState>,
-): RegionSearchState => ({...state, ...update});
 
 /**
  * Place search for the risk forecast.
@@ -67,131 +37,17 @@ const RegionSearchSheetContent: React.FC<
 > = ({onClose, onSelect, recentLocations}) => {
   const {theme} = useTheme();
   const {t} = useTranslation();
-  const [{query, suggestions, searching, resolving, errorKey}, updateSearch] =
-    useReducer(mergeSearchState, INITIAL_SEARCH_STATE);
-  const detailRequestId = useRef(0);
-
-  const reset = useCallback(() => {
-    detailRequestId.current += 1;
-    updateSearch(INITIAL_SEARCH_STATE);
-  }, []);
-
-  const handleClose = useCallback(() => {
-    reset();
-    onClose();
-  }, [onClose, reset]);
-
-  useEffect(() => {
-    if (query.trim().length < MIN_QUERY_LENGTH) {
-      // Shortening the query cancels the in-flight search, whose `finally` is
-      // then skipped, so the spinner has to be cleared here too.
-      updateSearch({suggestions: [], searching: false});
-      return;
-    }
-
-    let cancelled = false;
-    updateSearch({searching: true, errorKey: null, suggestions: []});
-
-    const timer = setTimeout(() => {
-      // Region-level types, not the wrapper's street-level default: this sheet
-      // searches by suburb, town or postcode.
-      fetchPlaceSuggestions({query, includedPrimaryTypes: REGION_PRIMARY_TYPES})
-        .then(results => {
-          if (!cancelled) updateSearch({suggestions: results});
-        })
-        .catch(() => {
-          if (!cancelled) {
-            updateSearch({
-              suggestions: [],
-              errorKey: 'parasiteRisk.search.error',
-            });
-          }
-        })
-        .finally(() => {
-          if (!cancelled) updateSearch({searching: false});
-        });
-    }, SEARCH_DEBOUNCE_MS);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [query]);
-
-  const handleSuggestion = useCallback(
-    async (suggestion: PlaceSuggestion) => {
-      const requestId = ++detailRequestId.current;
-      updateSearch({resolving: true, errorKey: null});
-
-      try {
-        const details = await fetchPlaceDetails(suggestion.placeId);
-        if (requestId !== detailRequestId.current) return;
-
-        if (
-          details?.latitude === undefined ||
-          details?.longitude === undefined
-        ) {
-          updateSearch({errorKey: 'parasiteRisk.search.unresolved'});
-          return;
-        }
-
-        onSelect({
-          label: details.city ?? suggestion.primaryText,
-          lat: details.latitude,
-          lon: details.longitude,
-          countryCode: details.countryCode,
-        });
-        handleClose();
-      } catch {
-        if (requestId === detailRequestId.current) {
-          updateSearch({errorKey: 'parasiteRisk.search.error'});
-        }
-      } finally {
-        if (requestId === detailRequestId.current) {
-          updateSearch({resolving: false});
-        }
-      }
-    },
-    [handleClose, onSelect],
-  );
-
-  const handleUseCurrentLocation = useCallback(async () => {
-    const requestId = ++detailRequestId.current;
-    updateSearch({resolving: true, errorKey: null});
-
-    try {
-      const coords = await LocationService.getCurrentPosition();
-      if (requestId !== detailRequestId.current) return;
-      // Snapped here rather than at the API boundary: the chosen location is
-      // persisted to AsyncStorage, and the precise device fix must not be. The
-      // forecast is per cell anyway, so nothing is lost by rounding early.
-      const cell = snapToRiskCell(coords.latitude, coords.longitude);
-
-      // No country code here: there is no reverse geocoder on this path, and
-      // the API resolves the region from the coordinate instead.
-      onSelect({
-        label: t('parasiteRisk.search.currentLocation'),
-        lat: cell.lat,
-        lon: cell.lon,
-      });
-      handleClose();
-    } catch (error) {
-      if (requestId === detailRequestId.current) {
-        const denied =
-          error instanceof Error &&
-          /permission|denied|blocked/i.test(error.message);
-        updateSearch({
-          errorKey: denied
-            ? 'parasiteRisk.search.locationDenied'
-            : 'parasiteRisk.search.locationUnavailable',
-        });
-      }
-    } finally {
-      if (requestId === detailRequestId.current) {
-        updateSearch({resolving: false});
-      }
-    }
-  }, [handleClose, onSelect, t]);
+  const {
+    query,
+    setQuery,
+    suggestions,
+    searching,
+    resolving,
+    errorKey,
+    handleClose,
+    handleSuggestion,
+    handleUseCurrentLocation,
+  } = useRegionSearchSheet(onClose, onSelect);
 
   const renderSuggestion = useCallback(
     ({item}: {item: PlaceSuggestion}) => (
@@ -253,7 +109,7 @@ const RegionSearchSheetContent: React.FC<
           <Ionicons name="search" size={18} color={theme.colors.placeholder} />
           <TextInput
             value={query}
-            onChangeText={value => updateSearch({query: value})}
+            onChangeText={setQuery}
             placeholder={t('parasiteRisk.search.placeholder')}
             placeholderTextColor={theme.colors.placeholder}
             style={[styles.input, {color: theme.colors.ink}]}
