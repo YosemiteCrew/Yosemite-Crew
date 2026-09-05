@@ -1,6 +1,13 @@
 'use client';
 import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
+import {
+  PanelEmptyState,
+  PanelLoadingRows,
+  panelFieldLabelClass as fieldLabelClass,
+  panelInputClass as inputClass,
+} from '@/app/ui/primitives/PanelStates/PanelStates';
+import { CompanionSelect } from '@/app/features/appointments/components/CompanionSelect';
 import { IoPulseOutline, IoAddOutline } from 'react-icons/io5';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import type {
@@ -124,9 +131,6 @@ const cardClass =
 const rowClass = 'flex items-start justify-between gap-3 px-4 py-3';
 const titleClass = 'text-[13px] font-bold text-[var(--ink)]';
 const metaClass = 'text-[11.5px] text-[var(--ink-faint)]';
-const fieldLabelClass = 'text-[11.5px] font-semibold text-[var(--ink-muted)]';
-const inputClass =
-  'w-full rounded-lg border border-[var(--hairline)] bg-[var(--screen)] px-2.5 py-1.5 text-[12.5px] text-[var(--ink)] outline-none focus:border-[var(--ink-muted)]';
 
 const sortForBoard = (entries: PatientCheckInView[]): PatientCheckInView[] =>
   [...entries].sort((a, b) => {
@@ -352,25 +356,15 @@ const AddCheckInForm = ({
       onSubmit={submit}
       className="flex flex-col gap-3 border-b border-[var(--divider)] px-4 py-3"
     >
-      <label className="flex flex-col gap-1" htmlFor="checkin-companion">
-        <span className={fieldLabelClass}>Patient</span>
-        <select
-          id="checkin-companion"
-          className={inputClass}
-          value={patientId}
-          onChange={(e) => setPatientId(e.target.value)}
-          disabled={companions.length === 0}
-        >
-          <option value="">
-            {companions.length === 0 ? 'No patients available' : 'Select a patient'}
-          </option>
-          {companions.map((companion) => (
-            <option key={companion.id} value={companion.id}>
-              {companion.ownerName ? `${companion.name} — ${companion.ownerName}` : companion.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <CompanionSelect
+        id="checkin-companion"
+        label="Patient"
+        placeholder="Select a patient"
+        emptyLabel="No patients available"
+        value={patientId}
+        onChange={setPatientId}
+        companions={companions}
+      />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1" htmlFor="checkin-triage">
@@ -441,21 +435,6 @@ const AddCheckInForm = ({
     </form>
   );
 };
-
-const EmptyState = ({ message }: { message: string }) => (
-  <p className="px-4 py-6 text-center text-[12.5px] text-[var(--ink-faint)]">{message}</p>
-);
-
-const LoadingRows = () => (
-  <ul className="divide-y divide-[var(--divider)]" aria-hidden="true">
-    {[0, 1, 2].map((i) => (
-      <li key={i} className={rowClass}>
-        <span className="h-3.5 w-40 rounded bg-[var(--inset)]" />
-        <span className="h-5 w-16 rounded-full bg-[var(--inset)]" />
-      </li>
-    ))}
-  </ul>
-);
 
 const BoardHeader = ({
   count,
@@ -546,9 +525,11 @@ const CheckInBoard = ({
   const sorted = useMemo(() => sortForBoard(entries), [entries]);
 
   const body = (() => {
-    if (loading) return <LoadingRows />;
+    if (loading) return <PanelLoadingRows rowClass={rowClass} />;
     if (sorted.length === 0) {
-      return <EmptyState message={showAll ? 'No check-ins yet' : 'No patients are checked in'} />;
+      return (
+        <PanelEmptyState message={showAll ? 'No check-ins yet' : 'No patients are checked in'} />
+      );
     }
     return (
       <ul className="divide-y divide-[var(--divider)]">

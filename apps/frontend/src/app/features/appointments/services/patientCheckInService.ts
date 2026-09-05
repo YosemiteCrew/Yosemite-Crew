@@ -86,14 +86,12 @@ const logFailure = (message: string, err: unknown): void => {
   }
 };
 
-const basePath = (organisationId: string): string =>
-  `/v1/pms/organisation/${assertUuid(organisationId, 'organisation')}/check-in`;
-
 export const fetchCheckIns = async (
   organisationId: string,
   filter: CheckInListFilter = {}
 ): Promise<PatientCheckIn[]> => {
-  const url = basePath(organisationId);
+  const safeOrganisationId = assertUuid(organisationId, 'organisation');
+  const url = `/v1/pms/organisation/${safeOrganisationId}/check-in`;
   const params: Record<string, string> = {};
   if (filter.patientId) params.patientId = filter.patientId;
   if (filter.status) params.status = filter.status;
@@ -114,7 +112,9 @@ export const fetchCheckIn = async (
   organisationId: string,
   checkInId: string
 ): Promise<PatientCheckIn> => {
-  const url = `${basePath(organisationId)}/${assertUuid(checkInId, 'check-in')}`;
+  const safeOrganisationId = assertUuid(organisationId, 'organisation');
+  const safeCheckInId = assertUuid(checkInId, 'check-in');
+  const url = `/v1/pms/organisation/${safeOrganisationId}/check-in/${safeCheckInId}`;
   try {
     const res = await getData<PatientCheckIn>(url);
     return res.data;
@@ -128,7 +128,8 @@ export const createCheckIn = async (
   organisationId: string,
   payload: CreateCheckInPayload
 ): Promise<PatientCheckIn> => {
-  const url = basePath(organisationId);
+  const safeOrganisationId = assertUuid(organisationId, 'organisation');
+  const url = `/v1/pms/organisation/${safeOrganisationId}/check-in`;
   try {
     const res = await postData<PatientCheckIn, CreateCheckInPayload>(url, payload);
     return res.data;
@@ -145,7 +146,9 @@ const transition = async (
   checkInId: string,
   action: CheckInTransition
 ): Promise<PatientCheckIn> => {
-  const url = `${basePath(organisationId)}/${assertUuid(checkInId, 'check-in')}/${action}`;
+  const safeOrganisationId = assertUuid(organisationId, 'organisation');
+  const safeCheckInId = assertUuid(checkInId, 'check-in');
+  const url = `/v1/pms/organisation/${safeOrganisationId}/check-in/${safeCheckInId}/${action}`;
   try {
     const res = await postData<PatientCheckIn>(url);
     return res.data;
@@ -172,7 +175,9 @@ export const assignCheckInRoom = async (
   checkInId: string,
   roomId: string
 ): Promise<PatientCheckIn> => {
-  const url = `${basePath(organisationId)}/${assertUuid(checkInId, 'check-in')}/room`;
+  const safeOrganisationId = assertUuid(organisationId, 'organisation');
+  const safeCheckInId = assertUuid(checkInId, 'check-in');
+  const url = `/v1/pms/organisation/${safeOrganisationId}/check-in/${safeCheckInId}/room`;
   try {
     const res = await postData<PatientCheckIn, { roomId: string }>(url, { roomId });
     return res.data;
