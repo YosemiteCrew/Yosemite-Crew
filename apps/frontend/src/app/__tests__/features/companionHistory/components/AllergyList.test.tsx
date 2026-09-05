@@ -52,7 +52,7 @@ const ALLERGIES: PatientAllergy[] = [
 
 describe('AllergyList', () => {
   it('renders active and resolved allergies with status and severity pills', () => {
-    render(<AllergyList allergies={ALLERGIES} canEdit />);
+    const { container } = render(<AllergyList allergies={ALLERGIES} canEdit />);
 
     expect(screen.getByText('Penicillin')).toBeInTheDocument();
     expect(screen.getByText('Flea saliva')).toBeInTheDocument();
@@ -72,6 +72,7 @@ describe('AllergyList', () => {
 
     // Active count summary.
     expect(screen.getByText('2 active')).toBeInTheDocument();
+    expect(container.innerHTML).toMatchSnapshot();
   });
 
   it('shows a resolve action only for active allergies and fires onResolve', async () => {
@@ -148,6 +149,14 @@ describe('AllergyList', () => {
       <AllergyList allergies={[]} error="Could not load the allergy list. Please try again." />
     );
     expect(screen.getByRole('alert')).toHaveTextContent('Could not load the allergy list');
+    expect(screen.queryByText(/No allergies recorded/)).not.toBeInTheDocument();
+  });
+
+  it('shows full reaction text and disables every resolve action during a mutation', () => {
+    render(<AllergyList allergies={ALLERGIES} canEdit resolvingId="a-1" />);
+    expect(screen.getByText(/Reaction: Anaphylaxis/)).not.toHaveClass('line-clamp-2');
+    expect(screen.getByRole('button', { name: 'Resolve Penicillin' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Resolve Chicken protein' })).toBeDisabled();
   });
 
   it('hides the add and resolve controls when the member cannot edit', () => {

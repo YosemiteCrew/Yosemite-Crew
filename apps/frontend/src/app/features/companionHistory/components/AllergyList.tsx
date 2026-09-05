@@ -93,11 +93,13 @@ const AllergyRow = ({
   canEdit,
   onResolve,
   resolving,
+  resolveDisabled,
 }: {
   allergy: PatientAllergy;
   canEdit: boolean;
   onResolve?: (allergy: PatientAllergy) => void;
   resolving: boolean;
+  resolveDisabled: boolean;
 }) => {
   const onset = formatDate(allergy.onsetDate);
   const resolved = formatDate(allergy.resolvedDate);
@@ -111,8 +113,9 @@ const AllergyRow = ({
           {onset ? ` · Onset ${onset}` : ''}
         </span>
         {allergy.reaction ? (
-          <span className={clsx(metaClass, 'mt-1 block line-clamp-2 text-[var(--ink-muted)]')}>
-            Reaction: {allergy.reaction}
+          <span className={clsx(metaClass, 'mt-1 block text-[var(--ink-muted)]')}>
+            {'Reaction: '}
+            {allergy.reaction}
           </span>
         ) : null}
         {allergy.notes ? (
@@ -134,13 +137,16 @@ const AllergyRow = ({
             size="compact"
             text={resolving ? 'Resolving…' : 'Resolve'}
             icon={<IoCheckmarkOutline size={15} aria-hidden="true" />}
-            isDisabled={resolving}
+            isDisabled={resolveDisabled}
             onClick={() => onResolve?.(allergy)}
             ariaLabel={`Resolve ${allergy.allergen}`}
           />
         ) : null}
         {allergy.status === 'RESOLVED' && resolved ? (
-          <span className={metaClass}>Resolved {resolved}</span>
+          <span className={metaClass}>
+            {'Resolved '}
+            {resolved}
+          </span>
         ) : null}
       </span>
     </li>
@@ -310,6 +316,7 @@ const AllergyList = ({
 
   const body = (() => {
     if (loading) return <ClinicalListLoadingRows />;
+    if (error) return null;
     if (allergies.length === 0)
       return <ClinicalListEmpty message="No allergies recorded for this patient yet." />;
     return (
@@ -321,6 +328,7 @@ const AllergyList = ({
             canEdit={canEdit}
             onResolve={onResolve}
             resolving={resolvingId === allergy.id}
+            resolveDisabled={resolvingId !== null}
           />
         ))}
       </ul>

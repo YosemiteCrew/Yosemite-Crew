@@ -13,6 +13,7 @@ import {
 
 const mockNotify = jest.fn();
 let mockPermissions: string[] = ['appointments:view:any', 'appointments:edit:any'];
+let mockOrgId = 'org-1';
 
 jest.mock('@/app/services/axios', () => ({
   isAuthRedirectError: jest.fn(() => false),
@@ -24,6 +25,11 @@ jest.mock('@/app/hooks/useNotify', () => ({
 
 jest.mock('@/app/hooks/usePermissions', () => ({
   usePermissions: () => ({ can: (perm: string) => mockPermissions.includes(perm) }),
+}));
+
+jest.mock('@/app/stores/orgStore', () => ({
+  useOrgStore: (selector: (state: { primaryOrgId: string }) => unknown) =>
+    selector({ primaryOrgId: mockOrgId }),
 }));
 
 jest.mock('@/app/features/companionHistory/services/patientAllergyService', () => ({
@@ -58,6 +64,7 @@ const allergy = (
 beforeEach(() => {
   jest.clearAllMocks();
   mockPermissions = ['appointments:view:any', 'appointments:edit:any'];
+  mockOrgId = 'org-1';
   fetchMock.mockResolvedValue([]);
 });
 
@@ -215,6 +222,42 @@ describe('AllergyListPanel', () => {
     // The previous companion's allergy is cleared, not carried over.
     expect(screen.queryByText('Penicillin')).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenLastCalledWith({ patientId: 'comp-2' });
+  });
+
+  it('does not apply a create response after the companion changes', async () => {
+    let finishCreate!: (value: PatientAllergy) => void;
+    createMock.mockReturnValue(new Promise((resolve) => (finishCreate = resolve)));
+    const { rerender } = render(<AllergyListPanel companionId="comp-1" />);
+    await screen.findByText(/No allergies recorded/);
+    await userEvent.click(screen.getByRole('button', { name: /Add allergy/ }));
+    await userEvent.type(screen.getByLabelText('Allergen'), 'Latex');
+    await userEvent.click(screen.getByRole('button', { name: 'Save allergy' }));
+
+    rerender(<AllergyListPanel companionId="comp-2" />);
+    finishCreate(allergy({ id: 'a-old', allergen: 'Latex' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith({ patientId: 'comp-2' }));
+    expect(screen.queryByText('Latex')).not.toBeInTheDocument();
+    expect(mockNotify).not.toHaveBeenCalledWith(
+      'success',
+      expect.objectContaining({ title: 'Allergy added' })
+    );
+  });
+
+  it('keeps backend severity ordering after a create', async () => {
+    fetchMock.mockResolvedValue([
+      allergy({ id: 'a-severe', allergen: 'Penicillin', severity: 'SEVERE' }),
+    ]);
+    createMock.mockResolvedValue(allergy({ id: 'a-mild', allergen: 'Latex', severity: 'MILD' }));
+    render(<AllergyListPanel companionId="comp-1" />);
+    await screen.findByText('Penicillin');
+    await userEvent.click(screen.getByRole('button', { name: /Add allergy/ }));
+    await userEvent.type(screen.getByLabelText('Allergen'), 'Latex');
+    await userEvent.click(screen.getByRole('button', { name: 'Save allergy' }));
+
+    await screen.findByText('Latex');
+    const names = screen.getAllByText(/^(Penicillin|Latex)$/).map((node) => node.textContent);
+    expect(names).toEqual(['Penicillin', 'Latex']);
   });
 
   it('renders nothing when the member cannot view allergies', () => {

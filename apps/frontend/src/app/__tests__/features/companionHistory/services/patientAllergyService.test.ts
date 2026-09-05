@@ -20,6 +20,7 @@ jest.mock('@/app/lib/logger', () => ({
 
 const ORG_ID = '11111111-1111-4111-8111-111111111111';
 const ALLERGY_ID = '22222222-2222-4222-8222-222222222222';
+const LEGACY_ORG_ID = '507f1f77bcf86cd799439011';
 
 let mockOrgId: string | null = ORG_ID;
 jest.mock('@/app/stores/orgStore', () => ({
@@ -61,14 +62,25 @@ describe('patientAllergyService', () => {
     expect(getMock).not.toHaveBeenCalled();
   });
 
-  it('returns [] and logs the typeof (not the payload) when the list is not an array', async () => {
+  it('rejects malformed lists and logs the typeof (not the payload)', async () => {
     getMock.mockResolvedValue({ data: { message: 'unexpected object' } });
-    const result = await fetchPatientAllergies({ patientId: 'pat-1' });
-    expect(result).toEqual([]);
+    await expect(fetchPatientAllergies({ patientId: 'pat-1' })).rejects.toThrow(
+      'Invalid patient-allergies response'
+    );
     expect(warnMock).toHaveBeenCalledWith(expect.any(String), 'object');
     // The payload itself must never be logged (PII).
     const loggedArgs = warnMock.mock.calls[0];
     expect(loggedArgs).not.toContainEqual({ message: 'unexpected object' });
+  });
+
+  it('accepts a legacy ObjectId organisation id', async () => {
+    mockOrgId = LEGACY_ORG_ID;
+    getMock.mockResolvedValue({ data: [] });
+    await fetchPatientAllergies({ patientId: 'pat-1' });
+    expect(getMock).toHaveBeenCalledWith(
+      `/v1/pms/organisation/${LEGACY_ORG_ID}/patient-allergies`,
+      { patientId: 'pat-1' }
+    );
   });
 
   it('fetches a single allergy by id', async () => {
@@ -115,7 +127,7 @@ describe('patientAllergyService', () => {
   it('rejects non-UUID path segments before making a request', async () => {
     mockOrgId = 'org/1';
     await expect(fetchPatientAllergies({ patientId: 'pat-1' })).rejects.toThrow(
-      'Organisation ID must be a UUID'
+      'Organisation ID must be a UUID or ObjectId'
     );
     mockOrgId = ORG_ID;
     await expect(fetchPatientAllergy('../allergy')).rejects.toThrow('Allergy ID must be a UUID');

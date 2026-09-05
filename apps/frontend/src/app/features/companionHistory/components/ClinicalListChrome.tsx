@@ -26,7 +26,12 @@ export const formatDate = (value: string | null): string | null => {
   if (!value) return null;
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return parsed.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
 };
 
 export const ClinicalListEmpty = ({ message }: { message: string }) => (

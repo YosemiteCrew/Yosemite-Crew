@@ -31,7 +31,10 @@ describe('formatDate', () => {
   });
 
   it('formats a valid ISO date', () => {
+    const spy = jest.spyOn(Date.prototype, 'toLocaleDateString');
     expect(formatDate('2026-03-04T00:00:00.000Z')).toMatch(/2026/);
+    expect(spy).toHaveBeenCalledWith(undefined, expect.objectContaining({ timeZone: 'UTC' }));
+    spy.mockRestore();
   });
 });
 

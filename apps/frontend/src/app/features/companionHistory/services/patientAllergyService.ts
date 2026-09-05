@@ -4,6 +4,7 @@ import { useOrgStore } from '@/app/stores/orgStore';
 
 const UUID_PATH_SEGMENT =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const OBJECT_ID_PATH_SEGMENT = /^[0-9a-f]{24}$/i;
 
 // Mirrors the backend PatientAllergy enums (packages/database/prisma/schema.prisma).
 export type AllergyType = 'DRUG' | 'FOOD' | 'ENVIRONMENTAL' | 'OTHER';
@@ -58,7 +59,9 @@ export type UpdatePatientAllergyInput = {
 const requireOrgId = (): string => {
   const orgId = useOrgStore.getState().primaryOrgId;
   if (!orgId) throw new Error('No active organisation selected.');
-  if (!UUID_PATH_SEGMENT.test(orgId)) throw new Error('Organisation ID must be a UUID');
+  if (!UUID_PATH_SEGMENT.test(orgId) && !OBJECT_ID_PATH_SEGMENT.test(orgId)) {
+    throw new Error('Organisation ID must be a UUID or ObjectId');
+  }
   return orgId;
 };
 
@@ -70,8 +73,8 @@ export type FetchPatientAllergiesParams = {
 
 /**
  * GET the allergy list for a patient. The controller returns a raw array; guard
- * against a malformed body and return `[]` rather than handing a non-array to
- * the UI. The warning logs only the received `typeof`, never the payload (PII).
+ * against a malformed body rather than falsely presenting it as an empty list.
+ * The warning logs only the received `typeof`, never the payload (PII).
  */
 export const fetchPatientAllergies = async ({
   patientId,
@@ -89,7 +92,7 @@ export const fetchPatientAllergies = async ({
   );
   if (!Array.isArray(res.data)) {
     logger.warn('patient-allergies list was not an array; got', typeof res.data);
-    return [];
+    throw new Error('Invalid patient-allergies response');
   }
   return res.data;
 };
