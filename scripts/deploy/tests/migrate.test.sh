@@ -300,7 +300,9 @@ fi
 # the assignment was unreachable in exactly the case it described.
 # ---------------------------------------------------------------------------
 DEPLOY_SH="$HERE/../api-deploy.sh"
-line_of() { grep -n -m1 -F "$1" "$DEPLOY_SH" | cut -d: -f1; }
+# `|| true` so a missing line reports as a failed check rather than aborting
+# the whole suite through `set -e` on the assignment below.
+line_of() { grep -n -m1 -F "$1" "$DEPLOY_SH" | cut -d: -f1 || true; }
 
 TRAP_LINE="$(line_of 'trap on_exit EXIT')"
 FLAG_LINE="$(line_of 'MIGRATIONS_APPLIED=1')"
