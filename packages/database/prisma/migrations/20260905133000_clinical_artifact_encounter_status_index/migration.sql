@@ -42,6 +42,20 @@
 -- LOCAL, not a bare SET. Prisma applies every migration of a run on one
 -- connection, and each file's implicit transaction commits, so a bare SET would
 -- carry this timeout into every later migration in the same deploy.
+--
+-- IF IT FIRES, THE PIPELINE IS BLOCKED UNTIL SOMEONE CLEARS IT. A migration
+-- that dies on 55P03 is recorded as failed in "_prisma_migrations", and every
+-- later `prisma migrate deploy` then refuses with P3009 - including someone
+-- else's unrelated change, naming a migration they have never heard of. The
+-- state is clean, because a CREATE INDEX that times out on the lock creates
+-- nothing, so the recovery is:
+--
+--   prisma migrate resolve --rolled-back \
+--     "20260905133000_clinical_artifact_encounter_status_index"
+--
+-- then redeploy. Verified end to end against prisma 5.22.0: 55P03 -> P3009 on
+-- the next deploy -> resolve --rolled-back -> deploy exit 0, index created. The
+-- IF NOT EXISTS makes the re-run safe whatever state it is re-run from.
 SET LOCAL lock_timeout = '5s';
 
 CREATE INDEX IF NOT EXISTS "ClinicalArtifact_encounterId_status_idx"

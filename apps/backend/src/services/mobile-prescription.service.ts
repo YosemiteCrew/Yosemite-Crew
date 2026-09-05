@@ -1,7 +1,12 @@
 import { ClinicalArtifactStatus } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { hasCompanionFeature } from "src/middlewares/companion-access";
-import { clampPageSize, splitPage } from "src/services/shared/pagination";
+import {
+  clampPageSize,
+  encodeKeysetCursor,
+  splitPage,
+} from "src/services/shared/pagination";
+import type { KeysetCursor } from "src/services/shared/pagination";
 
 /**
  * Owner-facing prescription reads for the pet owner app.
@@ -104,8 +109,8 @@ export type MobilePrescriptionPage = {
 export type ListPrescriptionsForParentOptions = {
   /** Clamped, never rejected. See `clampPageSize`. */
   limit?: unknown;
-  /** A prescription id from a previous `nextCursor`. */
-  cursor?: string;
+  /** A decoded `(createdAt, id)` position from a previous `nextCursor`. */
+  cursor?: KeysetCursor;
 };
 
 /**
@@ -174,6 +179,18 @@ export const listPrescriptionsForParent = async (
    * order the cursor position is ambiguous - a page boundary landing inside a
    * tied group repeats a row or drops one.
    *
+   * The next page is an exclusive comparison in the `where`, NOT Prisma's
+   * `cursor` with `skip: 1`. That pair looks equivalent and is not: `cursor`
+   * seeks to the row, `skip` is an OFFSET applied to the filtered result, so it
+   * steps past the cursor row only while that row is still in the filter. It is
+   * not, here, the moment a vet voids a prescription - `clinical-artifact`
+   * writes `status: "VOID"`, the row leaves OWNER_VISIBLE_ARTIFACT_STATUSES,
+   * and the OFFSET eats a legitimate row instead. Measured on a real
+   * PostgreSQL: seven prescriptions, page size three, void the cursor row, and
+   * one prescription is never returned on any page while `hasMore: false` says
+   * the list is complete. This form is exclusive by construction and a cursor
+   * row that has left the set is simply behind the window.
+   *
    * The cursor is a position, never an access grant. `where` is rebuilt from
    * `patientIdByEncounter` on every page, so a cursor lifted from another
    * parent's response moves the window and widens nothing.
@@ -184,6 +201,17 @@ export const listPrescriptionsForParent = async (
         encounterId: { in: [...patientIdByEncounter.keys()] },
         status: { in: OWNER_VISIBLE_ARTIFACT_STATUSES },
       },
+      ...(options.cursor
+        ? {
+            OR: [
+              { createdAt: { lt: options.cursor.createdAt } },
+              {
+                createdAt: options.cursor.createdAt,
+                id: { lt: options.cursor.id },
+              },
+            ],
+          }
+        : {}),
     },
     include: {
       items: { orderBy: { sortOrder: "asc" } },
@@ -199,7 +227,6 @@ export const listPrescriptionsForParent = async (
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
-    ...(options.cursor ? { cursor: { id: options.cursor }, skip: 1 } : {}),
   });
 
   /*
@@ -208,7 +235,11 @@ export const listPrescriptionsForParent = async (
    * dropped as unmappable would otherwise be handed back as the next page's
    * starting point and re-dropped forever.
    */
-  const { items, nextCursor, hasMore } = splitPage(rows, limit);
+  const { items, nextCursor, hasMore } = splitPage(
+    rows,
+    limit,
+    encodeKeysetCursor,
+  );
 
   const prescriptions = items.flatMap((prescription) => {
     const encounterId = prescription.artifact.encounterId;

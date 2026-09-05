@@ -1,5 +1,7 @@
 import {
   clampPageSize,
+  encodeKeysetCursor,
+  parseKeysetCursor,
   parseUuidCursor,
   splitPage,
 } from "src/services/shared/pagination";
@@ -96,4 +98,88 @@ describe("splitPage", () => {
   it("takes the cursor from the last row of the page, not of the read", () => {
     expect(splitPage(rows(10), 2).nextCursor).toBe("row-2");
   });
+
+  it("uses the supplied encoder rather than the row id when one is given", () => {
+    expect(splitPage(rows(4), 3, (row) => `k:${row.id}`).nextCursor).toBe(
+      "k:row-3",
+    );
+  });
+});
+
+describe("keyset cursors", () => {
+  const CREATED_AT = new Date("2026-09-01T10:00:00.000Z");
+  const ID = "3f7c1a9e-2b4d-4c8e-9a1f-0d6b5e4c3a2b";
+
+  it("round-trips the whole sort key", () => {
+    expect(
+      parseKeysetCursor(encodeKeysetCursor({ createdAt: CREATED_AT, id: ID })),
+    ).toEqual({ createdAt: CREATED_AT, id: ID });
+  });
+
+  /*
+   * `createdAt` is TIMESTAMP(3) on every model paged this way, so the
+   * millisecond is the whole precision of the column. A cursor that dropped it
+   * would land on the wrong side of a tie.
+   */
+  it("preserves the millisecond", () => {
+    const createdAt = new Date("2026-09-01T10:00:00.123Z");
+    expect(
+      parseKeysetCursor(encodeKeysetCursor({ createdAt, id: ID })),
+    ).toEqual({ createdAt, id: ID });
+  });
+
+  it("is URL-safe, so a cursor survives a query string unescaped", () => {
+    const encoded = encodeKeysetCursor({ createdAt: CREATED_AT, id: ID });
+    expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(encodeURIComponent(encoded)).toBe(encoded);
+  });
+
+  it("does not hand the caller a readable id or timestamp to build on", () => {
+    const encoded = encodeKeysetCursor({ createdAt: CREATED_AT, id: ID });
+    expect(encoded).not.toContain(ID);
+    expect(encoded).not.toContain(String(CREATED_AT.getTime()));
+    expect(encoded).not.toContain(CREATED_AT.toISOString());
+  });
+
+  it("reports an absent cursor as undefined, not as malformed", () => {
+    expect(parseKeysetCursor(undefined)).toBeUndefined();
+    expect(parseKeysetCursor("")).toBeUndefined();
+    expect(parseKeysetCursor(7)).toBeUndefined();
+  });
+
+  /*
+   * base64url decoding does not throw on rubbish, it returns rubbish. Every
+   * one of these decodes to something; the shape check is what rejects them,
+   * which is why it is asserted case by case rather than through one example.
+   */
+  it.each([
+    ["a bare row id, the pre-#2720 format", ID],
+    ["no separator", Buffer.from(ID, "utf8").toString("base64url")],
+    ["an empty timestamp", Buffer.from(`|${ID}`, "utf8").toString("base64url")],
+    [
+      "a non-numeric timestamp",
+      Buffer.from(`when|${ID}`, "utf8").toString("base64url"),
+    ],
+    [
+      "a timestamp too long to be milliseconds",
+      Buffer.from(`1234567890123456|${ID}`, "utf8").toString("base64url"),
+    ],
+    [
+      "an id that is not a uuid",
+      Buffer.from("1756720800000|rx-7", "utf8").toString("base64url"),
+    ],
+    [
+      "an empty id",
+      Buffer.from("1756720800000|", "utf8").toString("base64url"),
+    ],
+    [
+      "a third field bolted on the end",
+      Buffer.from(`1756720800000|${ID}|extra`, "utf8").toString("base64url"),
+    ],
+  ])(
+    "rejects %s as malformed rather than passing it to the query",
+    (_label, raw) => {
+      expect(parseKeysetCursor(raw)).toBeNull();
+    },
+  );
 });

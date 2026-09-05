@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { MobilePrescriptionService } from "src/services/mobile-prescription.service";
 import { resolveVerifiedUserId } from "src/utils/request";
-import { parseUuidCursor } from "src/services/shared/pagination";
+import { parseKeysetCursor } from "src/services/shared/pagination";
 import logger from "src/utils/logger";
 
 /**
@@ -50,7 +50,7 @@ export const MobilePrescriptionController = {
        * CR/LF in it forges a second log line, and the 400 already tells the
        * only party who can act on it.
        */
-      const cursor = parseUuidCursor(req.query.cursor);
+      const cursor = parseKeysetCursor(req.query.cursor);
       if (cursor === null) {
         return res.status(400).json({
           message:

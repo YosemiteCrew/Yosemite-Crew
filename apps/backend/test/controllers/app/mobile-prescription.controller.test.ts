@@ -16,6 +16,7 @@ jest.mock("src/utils/logger", () => ({ error: jest.fn(), warn: jest.fn() }));
 
 import type { Request, Response } from "express";
 import { MobilePrescriptionController } from "src/controllers/app/prescription.controller";
+import { encodeKeysetCursor } from "src/services/shared/pagination";
 
 type MockResponse = {
   status: jest.Mock;
@@ -87,8 +88,15 @@ describe("MobilePrescriptionController.listPrescriptions", () => {
     expect(listPrescriptionsForParent).not.toHaveBeenCalled();
   });
 
+  /*
+   * The service is handed the decoded position, not the opaque string. The
+   * controller owns the 400 for a cursor it cannot decode, so the service can
+   * treat every failure below it as a real failure.
+   */
   it("passes a well-formed cursor and the requested limit through", async () => {
-    const cursor = "3f7c1a9e-2b4d-4c8e-9a1f-0d6b5e4c3a2b";
+    const createdAt = new Date("2026-09-01T10:00:00.000Z");
+    const id = "3f7c1a9e-2b4d-4c8e-9a1f-0d6b5e4c3a2b";
+    const cursor = encodeKeysetCursor({ createdAt, id });
     const res = response();
 
     await MobilePrescriptionController.listPrescriptions(
@@ -97,9 +105,27 @@ describe("MobilePrescriptionController.listPrescriptions", () => {
     );
 
     expect(listPrescriptionsForParent).toHaveBeenCalledWith("parent-1", {
-      cursor,
+      cursor: { createdAt, id },
       limit: "5",
     });
+  });
+
+  /*
+   * A bare row id was the cursor format before #2720 and is not one now. It
+   * decodes to rubbish rather than throwing, so the 400 comes from the shape
+   * check and not from an exception - which is the same reason the malformed
+   * case above is rejected before the query.
+   */
+  it("rejects a bare row id, which is what the old cursor format was", async () => {
+    const res = response();
+
+    await MobilePrescriptionController.listPrescriptions(
+      asReq({ cursor: "3f7c1a9e-2b4d-4c8e-9a1f-0d6b5e4c3a2b" }),
+      asRes(res),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(listPrescriptionsForParent).not.toHaveBeenCalled();
   });
 
   it("sends no cursor when the caller sent none", async () => {

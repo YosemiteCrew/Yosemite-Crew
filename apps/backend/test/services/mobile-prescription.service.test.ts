@@ -13,6 +13,7 @@ jest.mock("src/config/prisma", () => ({
 }));
 
 import { prisma } from "src/config/prisma";
+import { encodeKeysetCursor } from "src/services/shared/pagination";
 
 const mockLinks = prisma.parentPatient.findMany as jest.Mock;
 const mockEncounters = prisma.encounter.findMany as jest.Mock;
@@ -34,6 +35,8 @@ const primaryLink = (patientId: string, medicalRecords = true) => ({
   role: "PRIMARY",
   permissions: { medicalRecords },
 });
+
+const CURSOR_CREATED_AT = new Date("2026-09-01T10:00:00.000Z");
 
 const prescriptionRow = (overrides: Record<string, unknown> = {}) => ({
   id: "rx-1",
@@ -296,7 +299,9 @@ describe("listPrescriptionsForParent pagination", () => {
 
     expect(result.prescriptions).toHaveLength(3);
     expect(result.hasMore).toBe(true);
-    expect(result.nextCursor).toBe("rx-3");
+    expect(result.nextCursor).toBe(
+      encodeKeysetCursor({ id: "rx-3", createdAt: CURSOR_CREATED_AT }),
+    );
     expect(result.limit).toBe(3);
   });
 
@@ -345,23 +350,35 @@ describe("listPrescriptionsForParent pagination", () => {
 
     expect(result.prescriptions.map((p) => p.id)).toEqual(["rx-1", "rx-2"]);
     expect(result.hasMore).toBe(true);
-    expect(result.nextCursor).toBe("rx-3");
+    expect(result.nextCursor).toBe(
+      encodeKeysetCursor({ id: "rx-3", createdAt: CURSOR_CREATED_AT }),
+    );
   });
 
-  it("steps past the cursor row rather than returning it twice", async () => {
+  /*
+   * The next page is an exclusive comparison, not `cursor` + `skip: 1`. This
+   * asserts the form because it is the only half a mocked `findMany` can
+   * testify about - a mock cannot say what an OFFSET does to a filtered result.
+   * The behaviour itself was reproduced against a real PostgreSQL (#2720).
+   */
+  it("asks for rows strictly after the cursor rather than offsetting past it", async () => {
     onePatientWithOneEncounter();
     mockPrescriptions.mockResolvedValue([]);
 
     await MobilePrescriptionService.listPrescriptionsForParent("parent-1", {
-      cursor: "rx-7",
+      cursor: { id: "rx-7", createdAt: CURSOR_CREATED_AT },
     });
 
     const args = mockPrescriptions.mock.calls[0][0];
-    expect(args.cursor).toEqual({ id: "rx-7" });
-    expect(args.skip).toBe(1);
+    expect(args.where.OR).toEqual([
+      { createdAt: { lt: CURSOR_CREATED_AT } },
+      { createdAt: CURSOR_CREATED_AT, id: { lt: "rx-7" } },
+    ]);
+    expect(args).not.toHaveProperty("cursor");
+    expect(args).not.toHaveProperty("skip");
   });
 
-  it("sends no cursor and no skip on the first page", async () => {
+  it("sends no cursor, no skip and no keyset filter on the first page", async () => {
     onePatientWithOneEncounter();
     mockPrescriptions.mockResolvedValue([]);
 
@@ -370,6 +387,7 @@ describe("listPrescriptionsForParent pagination", () => {
     const args = mockPrescriptions.mock.calls[0][0];
     expect(args).not.toHaveProperty("cursor");
     expect(args).not.toHaveProperty("skip");
+    expect(args.where).not.toHaveProperty("OR");
   });
 
   /*
@@ -382,7 +400,10 @@ describe("listPrescriptionsForParent pagination", () => {
     mockPrescriptions.mockResolvedValue([]);
 
     await MobilePrescriptionService.listPrescriptionsForParent("parent-1", {
-      cursor: "rx-belonging-to-someone-else",
+      cursor: {
+        id: "rx-belonging-to-someone-else",
+        createdAt: CURSOR_CREATED_AT,
+      },
     });
 
     const where = mockPrescriptions.mock.calls[0][0].where;

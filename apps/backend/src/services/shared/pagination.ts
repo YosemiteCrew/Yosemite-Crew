@@ -62,13 +62,85 @@ export const parseUuidCursor = (raw: unknown): string | undefined | null => {
  * The extra row is the whole mechanism: it is how the endpoint can say there is
  * more without a second count query, and it is why the cursor is taken from the
  * last row of the *page* rather than of the read.
+ *
+ * `toCursor` defaults to the row id, which is what a surface paging on `id`
+ * alone needs. A surface paging on `(createdAt, id)` passes
+ * `encodeKeysetCursor`, so the cursor carries the whole sort key rather than
+ * half of it.
  */
 export const splitPage = <T extends { id: string }>(
   rows: T[],
   limit: number,
+  toCursor: (row: T) => string = (row) => row.id,
 ): { items: T[]; nextCursor: string | null; hasMore: boolean } => {
   const hasMore = rows.length > limit;
   const items = hasMore ? rows.slice(0, limit) : rows;
   const last = items.at(-1);
-  return { items, nextCursor: hasMore && last ? last.id : null, hasMore };
+  return {
+    items,
+    nextCursor: hasMore && last ? toCursor(last) : null,
+    hasMore,
+  };
+};
+
+export type KeysetCursor = {
+  createdAt: Date;
+  id: string;
+};
+
+const KEYSET_SEPARATOR = "|";
+const KEYSET_MILLIS = /^\d{1,15}$/;
+
+/**
+ * A cursor that carries the whole sort key, for `(createdAt, id)` lists.
+ *
+ * A row id alone is only usable as a cursor through Prisma's `cursor` +
+ * `skip: 1`, and that pair is exclusive only while the cursor row is still in
+ * the filtered set: `cursor` seeks to the row, `skip` is an OFFSET on the
+ * *result*, so once the row leaves the filter the OFFSET eats a legitimate row
+ * instead. On this list a vet voiding a prescription takes it out of
+ * OWNER_VISIBLE_ARTIFACT_STATUSES and the next page silently loses one - with
+ * `hasMore: false` claiming the list was complete. #2720.
+ *
+ * Carrying `createdAt` as well lets the next page be an exclusive comparison in
+ * the `where`, which is exclusive by construction and cannot be affected by a
+ * row leaving the set. `createdAt` is `TIMESTAMP(3)` on every model paged this
+ * way, so epoch milliseconds round-trip the value exactly.
+ *
+ * Opaque on purpose - base64url, no padding, URL-safe - so that a caller cannot
+ * read a timestamp out of it and start constructing cursors of their own.
+ */
+export const encodeKeysetCursor = ({ createdAt, id }: KeysetCursor): string =>
+  Buffer.from(
+    `${createdAt.getTime()}${KEYSET_SEPARATOR}${id}`,
+    "utf8",
+  ).toString("base64url");
+
+/**
+ * Three outcomes, for the same reason `parseUuidCursor` has three: `undefined`
+ * for "no cursor sent", `null` for "sent and unusable", the value when it is
+ * usable. Every field is re-validated after decoding - base64url decoding does
+ * not throw on rubbish, it just returns rubbish, so the shape check is the only
+ * thing standing between a hand-made cursor and the query.
+ *
+ * There is no Invalid Date branch below because the digit bound removes it: 15
+ * digits of milliseconds is 999999999999999 and the largest a Date can hold is
+ * 8640000000000000, so anything the regex admits is a valid Date.
+ */
+export const parseKeysetCursor = (
+  raw: unknown,
+): KeysetCursor | undefined | null => {
+  if (typeof raw !== "string" || !raw) {
+    return undefined;
+  }
+  const decoded = Buffer.from(raw, "base64url").toString("utf8");
+  const parts = decoded.split(KEYSET_SEPARATOR);
+  if (parts.length !== 2) {
+    return null;
+  }
+  const [millis, id] = parts;
+  if (!KEYSET_MILLIS.test(millis) || !UUID.test(id)) {
+    return null;
+  }
+  return { createdAt: new Date(Number(millis)), id };
 };
