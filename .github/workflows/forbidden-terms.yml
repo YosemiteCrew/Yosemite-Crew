@@ -197,3 +197,26 @@ jobs:
           # and one the step above failed to write is exit 2 rather than a
           # surface quietly missing from the run.
           node scripts/ci/forbidden-terms.mjs scan --dir "${RUNNER_TEMP}/surfaces"
+          # Evidence that the scan happened, read by the last step. Written only
+          # after a clean exit, so it records a scan rather than an attempt.
+          touch "${RUNNER_TEMP}/scanned"
+
+      # No `if:`, deliberately. Every step above is conditional on the trigger,
+      # so a `workflow_dispatch` run - or any future edit that skips them -
+      # checks out, arms, self-tests and then SUCCEEDS having read no surface at
+      # all. This job's own rule is that exit 1 is a finding, exit 2 is a guard
+      # that could not run, and both are red: a run that scanned nothing is the
+      # second of those and must not be reported as the first.
+      #
+      # So a manual dispatch is a smoke test of the secrets and ends red on
+      # purpose, with the self-test's result above it, which is the honest
+      # report for it.
+      - name: Refuse to report clean without having scanned
+        run: |
+          set -euo pipefail
+          if [ ! -f "${RUNNER_TEMP}/scanned" ]; then
+            echo "forbidden-terms: no surface was scanned in this run." >&2
+            echo "A green check here would mean 'nothing found' when it means 'nothing looked at'." >&2
+            exit 1
+          fi
+          echo 'forbidden-terms: surfaces scanned.'

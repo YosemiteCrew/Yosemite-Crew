@@ -12,7 +12,7 @@
 
 import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -37,6 +37,28 @@ const PROSE = path.join(import.meta.dirname, 'forbidden-terms-allowed-prose.txt'
  * again - the defect this exclusion exists to fix, restored by the fix.
  */
 const PROSE_PATHSPEC = `:(exclude)${path.relative(ROOT, PROSE)}`;
+const WORKFLOW = path.join(ROOT, '.github', 'workflows', 'forbidden-terms.yml');
+
+/** The only action the job may run, pinned by SHA. */
+const PINNED_CHECKOUT = 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1';
+
+/**
+ * Tokens that must not appear in the job body, and what each one would cost.
+ *
+ * NOT a general workflow linter, and it must not become one. The whole list is
+ * "things that run code the pull-request head can choose", because that is the
+ * single condition the `pull_request_target` argument rests on. A broader
+ * version would be a second, worse check wearing the same name.
+ */
+const VOIDS_THE_ACCEPTANCE = [
+  // `pnpm` before `npm `, because 'pnpm install' contains 'npm ' and the
+  // message should name the token the line actually uses.
+  ['pnpm', "an install runs the head's package.json and its lifecycle scripts"],
+  ['npm ', "an install runs the head's package.json and its lifecycle scripts"],
+  ['yarn ', "an install runs the head's package.json and its lifecycle scripts"],
+  ['npx ', 'npx fetches and executes a package the head can name'],
+  ['set -x', 'tracing prints the decoded pattern before masking can help'],
+];
 
 /** Stands in for the real term list. Names nothing that exists. */
 const SYNTHETIC = 'acmehealth|acme health|acme-health';
@@ -375,6 +397,68 @@ test("this repository's own prose passes every surface", () => {
   const result = run(['scan', '--dir', dir], { FORBIDDEN_TERMS_PATTERN_B64: b64(SYNTHETIC) });
   assert.equal(result.code, 0);
   assert.match(result.stdout, /clean/);
+});
+
+// ---------------------------------------------------------------------------
+// The pull_request_target acceptance
+// ---------------------------------------------------------------------------
+
+test('the pull_request_target job runs nothing the head can choose', () => {
+  // The workflow header argues that this trigger is safe because the job runs
+  // no install, no build, no head-provided script and no action pinned by the
+  // head. That argument IS the control, and until this case existed it was a
+  // paragraph: the next person adding a step reads it, agrees, and is still the
+  // only thing enforcing it.
+  //
+  // An exemption is the cheapest place to put an unchecked claim, because the
+  // claim is the reason you are allowed to skip the check. Half of this one is
+  // a fact a machine can settle, so it is settled here - with no dependency,
+  // because the job's own test step deliberately runs before any install.
+  const workflow = readFileSync(WORKFLOW, 'utf8');
+
+  // Comments stripped first, so the header may keep DISCUSSING `set -x` without
+  // this check firing on the very sentence explaining why not to write it. A
+  // guard that scans a file for a token will find the prose about the token,
+  // which is a hazard specific to a codebase that writes its reasoning down.
+  const body = workflow
+    .split('\n')
+    .filter((line) => !/^\s*#/u.test(line))
+    .join('\n');
+
+  // The canary. A moved or renamed workflow throws on read, which is loud; this
+  // catches the quiet one - a body that is no longer this trigger, leaving every
+  // assertion below true of something else.
+  assert.match(
+    body,
+    /^\s*pull_request_target:$/mu,
+    'the job body does not declare pull_request_target: this test is reading the wrong thing'
+  );
+
+  const uses = [...body.matchAll(/^\s*uses:\s*(\S+)/gmu)].map((match) => match[1]);
+  assert.deepEqual(
+    uses,
+    [PINNED_CHECKOUT],
+    `this job may run one action and only ${PINNED_CHECKOUT}: anything else, or the same ` +
+      'action unpinned, is code this workflow does not control running beside the secret'
+  );
+
+  for (const [token, cost] of VOIDS_THE_ACCEPTANCE) {
+    assert.ok(
+      !body.includes(token),
+      `the job runs \`${token}\`, which voids the pull_request_target acceptance: ${cost}`
+    );
+  }
+
+  assert.doesNotMatch(
+    body,
+    /^\s*ref:/mu,
+    'the checkout takes a ref: the guard would come from the tree it is meant to be checking'
+  );
+  assert.match(
+    body,
+    /^\s*persist-credentials:\s*false$/mu,
+    'the checkout leaves a credential in the tree for later steps to reach'
+  );
 });
 
 // ---------------------------------------------------------------------------
