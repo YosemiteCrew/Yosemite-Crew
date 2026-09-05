@@ -71,7 +71,8 @@ deploy_incoming_migrations() {
 # one.
 #
 # SMOKE_PID is the exception and IS defaulted: no smoke process is a normal
-# state for most of the script's life, not a caller mistake.
+# state for most of the script's life, not a caller mistake. HAZARD_LOG is
+# defaulted for a different reason - see deploy_schema_hazard_notice.
 deploy_on_exit() {
   local status=$?
 
@@ -119,12 +120,12 @@ deploy_stop_notice() {
   deploy_schema_hazard_notice "$rollback_sha" "$@"
 }
 
-# deploy_schema_hazard_notice <rollback-sha> <migration>...
+# deploy_schema_hazard_text <rollback-sha> <migration>...
 #
-# What to say when the deploy stops after the schema has moved. Written to
-# stderr beside the code rollback, because the code rollback on its own reads as
-# if the box has been restored, and it has not.
-deploy_schema_hazard_notice() {
+# The wording, on stdout, so the two destinations below write the same bytes.
+# Separated from the destinations because they have different failure modes:
+# the wording cannot fail, and writing it can.
+deploy_schema_hazard_text() {
   local rollback_sha="${1:?rollback sha required}"
   shift
 
@@ -143,5 +144,47 @@ deploy_schema_hazard_notice() {
     echo "forward and re-deploy, or write and apply a migration that reverses them."
     echo "Prisma has no down-migration; there is nothing to run that undoes this by"
     echo "itself."
-  } >&2
+  }
+}
+
+# deploy_schema_hazard_notice <rollback-sha> <migration>...
+#
+# What to say when the deploy stops after the schema has moved, and where.
+#
+# Two destinations, and the ORDER between them is load-bearing rather than
+# stylistic. stderr on the box is the ssh pipe, and the teardown of that
+# connection is what sends the SIGHUP this notice most needs to survive - so by
+# the time the handler runs, the reader may already be gone. Writing into a pipe
+# with no reader takes SIGPIPE and ends the handler where it stands, so anything
+# sequenced after the stderr write does not happen at all.
+#
+# Measured against the real handler, HUP to the process group, the only variable
+# being the order of the two writes:
+#
+#   reader gone,  file then stderr -> exit 141, 590 bytes on disk
+#   reader gone,  stderr then file -> exit 141,   0 bytes on disk
+#   reader alive, either order     -> exit 129, 590 bytes on disk
+#
+# The exit status is 141 in both failing cases, so nothing downstream can tell
+# the two apart. The order is the whole of it.
+#
+# HAZARD_LOG is defaulted rather than required, which is the opposite of the
+# rule the rest of this file follows, and deliberately: a `set -u` abort on an
+# unset HAZARD_LOG would destroy the notice in order to enforce a rule about
+# keeping it. The loud check belongs where the mistake is actually made - the
+# suite pins that api-deploy.sh sets it before arming the trap.
+deploy_schema_hazard_notice() {
+  local rollback_sha="${1:?rollback sha required}"
+  shift
+
+  local text
+  text="$(deploy_schema_hazard_text "$rollback_sha" "$@")"
+
+  # `|| true` because a destination that cannot be written must not cost the
+  # other one. A full disk here would otherwise end the handler under `set -e`.
+  if [ -n "${HAZARD_LOG:-}" ]; then
+    printf '%s\n' "$text" >> "$HAZARD_LOG" 2>/dev/null || true
+  fi
+
+  printf '%s\n' "$text" >&2
 }

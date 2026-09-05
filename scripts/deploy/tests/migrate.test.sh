@@ -400,6 +400,121 @@ check "the reap cannot be swallowed by a notice that fails" \
   "REAPED NOTICE" "$(printf '%s' "$REAP_ORDER" | tr '\n' ' ' | sed 's/ $//')"
 
 # ---------------------------------------------------------------------------
+# The notice has to survive being killed, and survive its own destination.
+#
+# An untrapped fatal signal ends the shell without handing the EXIT trap a
+# non-zero status, so the notice was silent on exactly the two signals a
+# cancelled deploy arrives as. SIGINT was already covered - bash sets the status
+# to 130 itself - and SIGKILL never can be.
+#
+# Signalled with a plain `kill` of the script rather than of its process group,
+# because a group signal would reach this suite too. That is also the slower of
+# the two paths on purpose: a trapped signal is deferred until the running
+# foreground command finishes, so the `sleep 1` below is what the deferral costs
+# and the check would be worthless without something in flight to defer behind.
+# ---------------------------------------------------------------------------
+echo
+echo "deploy signal traps"
+
+signalled_notice() { # signalled_notice <signal> <expected-status>
+  local sig="$1" ready="$WORK/ready.$1" out="$WORK/out.$1" pid status
+  rm -f "$ready" "$out"
+  HAZARD_LOG="" \
+  MIGRATIONS_APPLIED=1 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+  INCOMING_MIGRATIONS="20260102000000_second" \
+  bash -c '
+    set -euo pipefail
+    . "'"$HERE"'/../lib/migrate.sh"
+    trap "exit 143" TERM
+    trap "exit 129" HUP
+    trap deploy_on_exit EXIT
+    echo ready > "'"$ready"'"
+    sleep 1
+  ' > /dev/null 2>"$out" &
+  pid=$!
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    [ -s "$ready" ] && break
+    sleep 0.2
+  done
+  kill "-$sig" "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null
+  status=$?
+  case "$(cat "$out")" in
+    *"THE SCHEMA IS AHEAD OF THE RUNNING CODE"*) echo "$status fired" ;;
+    *) echo "$status silent" ;;
+  esac
+}
+
+check "SIGTERM reaches the notice, with its status preserved" \
+  "143 fired" "$(signalled_notice TERM)"
+check "SIGHUP reaches the notice, with its status preserved" \
+  "129 fired" "$(signalled_notice HUP)"
+
+# ---------------------------------------------------------------------------
+# And the destination. stderr on the box is the ssh pipe, and the teardown of
+# that connection is what sends the SIGHUP - so the reader is gone in the case
+# the notice matters most, the write takes SIGPIPE, and the handler ends there.
+#
+# The fifo below is opened while a reader still exists, because opening one for
+# writing blocks until it has a reader; the reader is killed afterwards, which
+# is what makes the write fail. Then the ordinary destination test, so that a
+# green result here cannot mean "the file write never happens at all".
+# ---------------------------------------------------------------------------
+HAZ_PLAIN="$WORK/hazard-plain.txt"
+: > "$HAZ_PLAIN"
+HAZARD_LOG="$HAZ_PLAIN" \
+MIGRATIONS_APPLIED=1 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+INCOMING_MIGRATIONS="20260102000000_second" \
+bash -c '
+  set -u
+  . "'"$HERE"'/../lib/migrate.sh"
+  ( exit 1 )
+  deploy_on_exit
+' >/dev/null 2>&1 || true
+case "$(cat "$HAZ_PLAIN")" in
+  *"THE SCHEMA IS AHEAD OF THE RUNNING CODE"*)
+    ok "the notice is written to the durable destination as well as stderr" ;;
+  *) no "the notice is written to the durable destination as well as stderr" \
+       "the file holds: $(cat "$HAZ_PLAIN")" ;;
+esac
+
+HAZ_PIPE="$WORK/hazard-brokenpipe.txt"
+FIFO="$WORK/stderr.fifo"
+rm -f "$FIFO"; mkfifo "$FIFO"
+: > "$HAZ_PIPE"
+cat "$FIFO" > /dev/null &
+FIFO_READER=$!
+BROKEN_READY="$WORK/ready.pipe"
+rm -f "$BROKEN_READY"
+HAZARD_LOG="$HAZ_PIPE" \
+MIGRATIONS_APPLIED=1 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+INCOMING_MIGRATIONS="20260102000000_second" \
+bash -c '
+  set -euo pipefail
+  . "'"$HERE"'/../lib/migrate.sh"
+  trap "exit 143" TERM
+  trap deploy_on_exit EXIT
+  echo ready > "'"$BROKEN_READY"'"
+  sleep 1
+' >/dev/null 2>"$FIFO" &
+BROKEN_PID=$!
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  [ -s "$BROKEN_READY" ] && break
+  sleep 0.2
+done
+kill -9 "$FIFO_READER" 2>/dev/null || true
+wait "$FIFO_READER" 2>/dev/null || true
+kill -TERM "$BROKEN_PID" 2>/dev/null || true
+wait "$BROKEN_PID" 2>/dev/null || true
+
+case "$(cat "$HAZ_PIPE")" in
+  *"THE SCHEMA IS AHEAD OF THE RUNNING CODE"*)
+    ok "the notice survives an stderr whose reader has gone" ;;
+  *) no "the notice survives an stderr whose reader has gone" \
+       "the file holds: $(cat "$HAZ_PIPE")" ;;
+esac
+
+# ---------------------------------------------------------------------------
 # The regression itself.
 #
 # api-deploy.sh runs under `set -euo pipefail`. `prisma migrate deploy` applies
@@ -477,6 +592,31 @@ else
   no "api-deploy.sh arms the trap and raises the flag before applying migrations" \
      "trap=$TRAP_LINE flag=$FLAG_LINE deploy=$DEPLOY_LINE"
 fi
+
+# HAZARD_LOG is the one piece of state deploy_on_exit defaults rather than
+# demanding, because a `set -u` abort on it would destroy the notice to enforce
+# a rule about keeping it. So the loud check lives here instead, on the file
+# where the mistake would actually be made: an edit that drops the assignment,
+# or moves it below the arming, silently returns the notice to stderr-only - and
+# stderr is the destination that is gone in the case it exists for.
+HAZARD_LINE="$(line_of 'HAZARD_LOG="/tmp/api-schema-hazard-')"
+if [ -n "$HAZARD_LINE" ] && [ -n "$TRAP_LINE" ] && [ "$HAZARD_LINE" -lt "$TRAP_LINE" ]; then
+  ok "api-deploy.sh names the durable notice destination before arming the trap"
+else
+  no "api-deploy.sh names the durable notice destination before arming the trap" \
+     "hazard=$HAZARD_LINE trap=$TRAP_LINE"
+fi
+
+# The two signal traps, on the real file. Their absence is what #2721 was: the
+# handler exists, is armed, and never runs on the signal a cancelled deploy
+# actually arrives as.
+for SIG_TRAP in "trap 'exit 143' TERM" "trap 'exit 129' HUP"; do
+  if grep -qF "$SIG_TRAP" "$DEPLOY_SH"; then
+    ok "api-deploy.sh arms [$SIG_TRAP]"
+  else
+    no "api-deploy.sh arms [$SIG_TRAP]" "it is not in the file"
+  fi
+done
 
 if grep -q 'trap - EXIT' "$DEPLOY_SH"; then
   no "api-deploy.sh keeps one exit handler" "it disarms the EXIT trap somewhere"
