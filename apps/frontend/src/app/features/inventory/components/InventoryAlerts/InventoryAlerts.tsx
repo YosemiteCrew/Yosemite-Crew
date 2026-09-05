@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import clsx from 'clsx';
+import { PanelEmptyState, PanelLoadingRows } from '@/app/ui/primitives/PanelStates/PanelStates';
 import { IoAlertCircleOutline, IoTimeOutline } from 'react-icons/io5';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import type {
@@ -70,21 +71,6 @@ const AlertCard = ({ icon, title, count, children }: AlertCardProps) => {
     </section>
   );
 };
-
-const EmptyState = ({ message }: { message: string }) => (
-  <p className="px-4 py-6 text-center text-[12.5px] text-[var(--ink-faint)]">{message}</p>
-);
-
-const LoadingRows = () => (
-  <ul className="divide-y divide-[var(--divider)]" aria-hidden="true">
-    {[0, 1, 2].map((i) => (
-      <li key={i} className={rowClass}>
-        <span className="h-3.5 w-40 rounded bg-[var(--inset)]" />
-        <span className="h-5 w-16 rounded-full bg-[var(--inset)]" />
-      </li>
-    ))}
-  </ul>
-);
 
 const LowStockRow = ({ item }: { item: LowStockAlertItem }) => {
   const out = (item.onHand ?? 0) <= 0;
@@ -158,8 +144,8 @@ const InventoryAlerts = ({
   const now = new Date();
 
   const lowStockBody = (() => {
-    if (loading) return <LoadingRows />;
-    if (lowStock.length === 0) return <EmptyState message="No low-stock items" />;
+    if (loading) return <PanelLoadingRows rowClass={rowClass} />;
+    if (lowStock.length === 0) return <PanelEmptyState message="No low-stock items" />;
     return (
       <ul className="divide-y divide-[var(--divider)]">
         {lowStock.map((item) => (
@@ -170,9 +156,11 @@ const InventoryAlerts = ({
   })();
 
   const expiringBody = (() => {
-    if (loading) return <LoadingRows />;
+    if (loading) return <PanelLoadingRows rowClass={rowClass} />;
     if (expiring.length === 0) {
-      return <EmptyState message={`Nothing expiring in the next ${expiringWindowDays} days`} />;
+      return (
+        <PanelEmptyState message={`Nothing expiring in the next ${expiringWindowDays} days`} />
+      );
     }
     return (
       <ul className="divide-y divide-[var(--divider)]">
