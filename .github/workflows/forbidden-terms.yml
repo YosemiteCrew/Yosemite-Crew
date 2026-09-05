@@ -1,0 +1,199 @@
+name: Forbidden Terms
+
+# Both repositories are public. Prior art may be studied freely; the source may
+# never be NAMED - in code, comments, tests, fixtures, docs, commit messages,
+# branch names, or pull-request text.
+#
+# scripts/ci/forbidden-terms.mjs is the implementation and carries the reasoning
+# for every decision here; scripts/ci/forbidden-terms.test.mjs pins the
+# machinery with a synthetic pattern and runs first, because a guard whose own
+# tests are broken has no business reporting on a pull request.
+#
+# The same gate runs on the other public repository in this organisation, and the
+# two secrets hold ONE pattern covering both products' prior art. A control
+# present on one of two public repositories invites exactly the mistake it
+# prevents. The guard and its tests are the same file in both; the must-pass
+# corpus is this repository's own prose, and this workflow is written against
+# this repository's conventions rather than copied - there is no zizmor gate
+# here, so the acceptance record that accompanies `pull_request_target` over
+# there lives in this header instead.
+#
+# ---------------------------------------------------------------------------
+# WHY pull_request_target, AND THE CONSTRAINT THAT MAKES IT SAFE
+# ---------------------------------------------------------------------------
+#
+# The pattern IS the term list, so it cannot be committed to a public
+# repository; it has to be a secret. GitHub deliberately withholds secrets from
+# `pull_request` runs triggered by a FORK, which would leave the pattern empty
+# on exactly the contributions that most need checking - an outside contributor
+# has no local hook at all. An empty pattern is not a no-op: one formulation
+# matches every line and another matches none, so it either fails every pull
+# request or passes every one silently.
+#
+# `pull_request_target` runs in the BASE repository's context and does carry
+# secrets. It is safe ONLY because of what this job does and does not do:
+#
+#   * it checks out the BASE repository, and reads the head only as DATA,
+#     through `git` on refs/pull/<n>/head
+#   * it runs no install, no build, no test of the head, no repo-provided
+#     script from the head, no action pinned by the head - nothing from the
+#     pull request's package.json or its workflows
+#   * it greps, and it exits
+#
+# THE MOMENT A STEP RUNS HEAD-PROVIDED CODE, A FORK CAN READ THE SECRET.
+# If you are adding a step here, that is the rule you are working against, and
+# it is the whole reason this trigger is acceptable. This repository has no
+# workflow-security audit to record that acceptance for you, so it is recorded
+# here: any step that executes code, an action or a script coming from the pull
+# request head voids the argument above, and the answer then is to restructure
+# the workflow rather than to keep the trigger.
+#
+# ---------------------------------------------------------------------------
+# MASKING
+# ---------------------------------------------------------------------------
+#
+# GitHub masks the LITERAL secret value and nothing derived from it, so the
+# decoded pattern is unmasked unless we mask it ourselves. Both forms are
+# masked below, and `set -x` must never appear in this job. Masking is a
+# backstop and not the design: the guard reports a surface, a file and a line,
+# and never the match.
+#
+# ---------------------------------------------------------------------------
+# ROTATION
+# ---------------------------------------------------------------------------
+#
+# If the term list changes, BOTH secrets change together and every open pull
+# request's result for this check goes stale - re-run it rather than trusting a
+# green from before the rotation.
+
+on:
+  pull_request_target:
+    # `edited` is load-bearing. The event payload carries the title and body AT
+    # TRIGGER TIME, so without it the highest-visibility surface we have is
+    # checked once and then left editable.
+    types: [opened, edited, synchronize, reopened]
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: forbidden-terms-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  forbidden-terms:
+    name: No named external product
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # read refs; this job writes nothing back
+
+    steps:
+      # The BASE repository, so the guard, its tests and the must-pass corpus
+      # are the reviewed versions rather than whatever the pull request says
+      # they are. A pull request cannot edit the thing that checks it.
+      - name: Checkout base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # The runner's system Node. The guard is dependency-free by design, so
+      # there is nothing to install - which is also the security constraint.
+      - name: Test the guard itself
+        run: node --test scripts/ci/forbidden-terms.test.mjs
+
+      - name: Arm the pattern
+        env:
+          PATTERN_B64: ${{ secrets.FORBIDDEN_TERMS_PATTERN_B64 }}
+          CORPUS_B64: ${{ secrets.FORBIDDEN_TERMS_CORPUS_B64 }}
+        run: |
+          set -euo pipefail
+          # Mask the encoded forms too: base64 of a word list is as good a
+          # starting point for someone curious as the plaintext, and it costs
+          # nothing.
+          echo "::add-mask::${PATTERN_B64}"
+          echo "::add-mask::${CORPUS_B64}"
+          PATTERN=$(printf '%s' "${PATTERN_B64}" | base64 -d 2>/dev/null || true)
+          CORPUS=$(printf '%s' "${CORPUS_B64}" | base64 -d 2>/dev/null || true)
+          # Mask the decoded values BEFORE they are used for anything at all.
+          [ -n "${PATTERN}" ] && echo "::add-mask::${PATTERN}"
+          [ -n "${CORPUS}" ] && while IFS= read -r entry; do
+            [ -n "${entry}" ] && echo "::add-mask::${entry}"
+          done <<< "${CORPUS}"
+          echo 'armed'
+
+      # The job asserts ITSELF before it asserts anything about the pull
+      # request: the pattern compiles, it catches every known positive, it stays
+      # silent on this repository's own prose, and the corpus is not truncated.
+      # An empty or rotated secret is red here rather than quietly green there.
+      #
+      # MIN_CORPUS is in the clear on purpose. A number is not a term list, and
+      # it turns "the secret lost half its entries" from silent into red. Six
+      # because the pattern carries six alternatives; raise it with the corpus,
+      # never lower it to make a run pass.
+      - name: Self-test
+        env:
+          FORBIDDEN_TERMS_PATTERN_B64: ${{ secrets.FORBIDDEN_TERMS_PATTERN_B64 }}
+          FORBIDDEN_TERMS_CORPUS_B64: ${{ secrets.FORBIDDEN_TERMS_CORPUS_B64 }}
+        run: node scripts/ci/forbidden-terms.mjs selftest --min-corpus 6
+
+      # refs/pull/<n>/head exists in the BASE repository for every pull request,
+      # forks included, so the head arrives without adding the fork as a remote
+      # and without any of its code running.
+      - name: Fetch the pull request head as data
+        if: ${{ github.event_name == 'pull_request_target' }}
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --quiet origin "+refs/heads/${BASE_REF}:refs/remotes/origin/gate-base"
+          git fetch --no-tags --quiet origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/origin/gate-head"
+
+      # Three dots: the diff from the MERGE BASE, which is what this pull
+      # request adds rather than how it differs from a base that has moved on.
+      #
+      # It is also what answers the promotion case. A term that reached `dev`
+      # through an earlier pull request sits in the BASE of every later `dev`
+      # comparison and is never looked at again - but a `main` pull request's
+      # merge base is the previous promotion, so the whole of `dev` since then
+      # is in scope. That is why this workflow is required on BOTH branches.
+      - name: Collect the surfaces
+        if: ${{ github.event_name == 'pull_request_target' }}
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/surfaces"
+          MERGE_BASE=$(git merge-base refs/remotes/origin/gate-base refs/remotes/origin/gate-head)
+          git diff --unified=0 --diff-filter=ACMR "${MERGE_BASE}" refs/remotes/origin/gate-head \
+            > "${RUNNER_TEMP}/surfaces/diff"
+          git diff --name-only --diff-filter=ACMR "${MERGE_BASE}" refs/remotes/origin/gate-head \
+            > "${RUNNER_TEMP}/surfaces/names"
+          git log --format=%B "${MERGE_BASE}..refs/remotes/origin/gate-head" \
+            > "${RUNNER_TEMP}/surfaces/messages"
+          # Through env and never interpolated into the script: the title and
+          # body are attacker-controlled text, and this file is the one place in
+          # the repository where that text meets a shell.
+          printf '%s\n' "${PR_HEAD_REF}" > "${RUNNER_TEMP}/surfaces/branch"
+          printf '%s\n' "${PR_TITLE}" > "${RUNNER_TEMP}/surfaces/title"
+          printf '%s\n' "${PR_BODY}" > "${RUNNER_TEMP}/surfaces/body"
+
+      # Exit 1 is a finding, exit 2 is a guard that could not run. Both are red,
+      # and neither is reported as clean.
+      - name: Scan every surface
+        if: ${{ github.event_name == 'pull_request_target' }}
+        env:
+          FORBIDDEN_TERMS_PATTERN_B64: ${{ secrets.FORBIDDEN_TERMS_PATTERN_B64 }}
+        run: |
+          # A directory rather than a list of surfaces, so this step cannot
+          # short-pass the guard. Every surface the script knows about is read,
+          # and one the step above failed to write is exit 2 rather than a
+          # surface quietly missing from the run.
+          node scripts/ci/forbidden-terms.mjs scan --dir "${RUNNER_TEMP}/surfaces"
