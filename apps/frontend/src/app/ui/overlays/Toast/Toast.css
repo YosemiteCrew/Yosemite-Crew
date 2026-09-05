@@ -1,4 +1,12 @@
 .SignError {
+  /* The three tints below (--color-toast-error/warning/success-bg) are FIXED
+     light pastels: they do not flip with the theme. So the ink on them must not
+     flip either. It used to be --ink and --ink-body, which go cream in espresso,
+     putting cream text on a peach bar: 1.37 on the error toast, 1.31 on success
+     and 1.01 on warning - a user who mistyped a password in dark mode was shown
+     an empty coloured strip. These two are the light-theme ink values, pinned. */
+  --auth-toast-ink: #1d1c1b;
+  --auth-toast-ink-muted: #302f2e;
   width: 100%;
   min-height: 48px;
   /* Fixed (not absolute): the toast renders inside the auth card's stacking
@@ -60,19 +68,23 @@
 }
 .SignError .ErroItemDiv .errortopbar .Errortexted h6 {
   margin: 0;
-  font-weight: 500;
+  /* Same type scale as the runtime toast (ui/widgets/Toast/NotifyToast): a
+     13.5px/700 heading and a 12.5px detail line, so the auth strip and the
+     in-app toast read as one family rather than two sizes of the same idea. */
+  font-weight: 700;
   font-family: var(--satoshi-font);
-  font-size: 16px;
-  line-height: 120%;
-  color: var(--black-text);
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--auth-toast-ink);
 }
 .SignError .ErroItemDiv .errortopbar p {
   margin: 0;
   font-weight: 400;
   font-family: var(--satoshi-font);
-  font-size: 16px;
-  line-height: 120%;
-  color: var(--black-text);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--auth-toast-ink-muted);
 }
 .SignError .ErroItemDiv button {
   /* Pin the close button to the right edge of the full toast bar and vertically
@@ -86,5 +98,7 @@
   border: none !important;
 }
 .SignError .ErroItemDiv button svg {
-  color: var(--black-bg);
+  /* Same reasoning: --black-bg resolves through --color-neutral-900 to
+     --ink-body, so the close glyph went cream on the pastel too. */
+  color: var(--auth-toast-ink);
 }

@@ -1,7 +1,7 @@
 import React from 'react';
-import Image from 'next/image';
 import { getInitials } from './appointmentCentralModalUtils';
 import { getSafeImageUrl } from '@/app/lib/urls';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
 
 type AppointmentAvatarProps = {
   name: string;
@@ -11,22 +11,7 @@ type AppointmentAvatarProps = {
 
 const AppointmentAvatar = ({ name, photoUrl, size = 32 }: AppointmentAvatarProps) => {
   const initials = getInitials(name);
-
-  if (photoUrl) {
-    const safePhotoUrl = getSafeImageUrl(photoUrl, 'person');
-    return (
-      <Image
-        src={safePhotoUrl}
-        alt={name}
-        width={size}
-        height={size}
-        className="object-cover shrink-0"
-        style={{ width: size, height: size, borderRadius: 16 }}
-      />
-    );
-  }
-
-  return (
+  const initialsDisc = (
     <div
       className="flex items-center justify-center shrink-0 select-none"
       style={{
@@ -53,6 +38,21 @@ const AppointmentAvatar = ({ name, photoUrl, size = 32 }: AppointmentAvatarProps
         {initials}
       </span>
     </div>
+  );
+
+  if (!photoUrl) return initialsDisc;
+
+  // A photo whose URL no longer resolves degrades to the same initials disc
+  // rather than leaving an empty box beside the name.
+  return (
+    <AvatarImage
+      src={getSafeImageUrl(photoUrl, 'person')}
+      alt={name}
+      size={size}
+      className="object-cover shrink-0"
+      style={{ width: size, height: size, borderRadius: 16 }}
+      fallback={initialsDisc}
+    />
   );
 };
 

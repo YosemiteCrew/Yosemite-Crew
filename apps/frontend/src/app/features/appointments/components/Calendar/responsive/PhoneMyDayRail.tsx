@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import clsx from 'clsx';
 import { IoBedOutline, IoCheckboxOutline, IoCheckmark } from 'react-icons/io5';
 import { getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
@@ -146,15 +147,23 @@ const NextAppointmentCard = ({
     <div className="flex flex-1 flex-col gap-[7px] rounded-[13px] border-[1.5px] border-[var(--blue)] bg-[var(--screen)] px-3 py-2.5 shadow-[0_0_0_3px_var(--glow-b10)]">
       <span className="flex items-center gap-2">
         <span className="size-[30px] flex-none overflow-hidden rounded-full bg-[var(--avatar-amber-bg)]">
-          <Image
+          <AvatarImage
             src={getSafeImageUrl(
               getAppointmentCompanionPhotoUrl(entry.appointment.companion),
               companion.species.toLowerCase() as ImageType
             )}
             alt={companion.name}
-            width={30}
-            height={30}
+            size={30}
             className="size-full object-cover"
+            fallback={
+              <CompanionAvatar
+                name={companion.name}
+                seed={companion.id}
+                size={30}
+                textClassName="text-[13px]"
+                alt={companion.name}
+              />
+            }
           />
         </span>
         <span className="min-w-0 flex-1">

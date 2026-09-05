@@ -514,7 +514,7 @@ const meta = {
           '`title`. `selectedProvider` therefore never changes, and nothing below the pills reads ' +
           'it - the IDEXX section renders unconditionally.\n\n' +
           '**Queueing here needs two steps.** Picking a search result only STAGES the test in a ' +
-          'confirmation card; "Add to Queue" is what puts it in the queue (bug #1973). The ' +
+          'confirmation card; "Add to queue" is what puts it in the queue (bug #1973). The ' +
           'appointment-drawer panel at `Appointments/LabTests` queues on pick, so the same hook ' +
           'behaves differently in the two surfaces.\n\n' +
           'Every IDEXX endpoint is answered by an axios adapter stub, and the PDFs are locally ' +
@@ -656,7 +656,7 @@ export const QueueingATest: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Create Lab Order' })).toBeDisabled();
 
-    await userEvent.click(within(pending).getByRole('button', { name: 'Add to Queue' }));
+    await userEvent.click(within(pending).getByRole('button', { name: 'Add to queue' }));
 
     /* Now it is a queue card, and only now can an order be placed. The card
        carries the code and the price the clinician is committing to. */

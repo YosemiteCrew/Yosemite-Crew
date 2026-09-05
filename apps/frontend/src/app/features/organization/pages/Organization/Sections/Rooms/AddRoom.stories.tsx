@@ -106,7 +106,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'The "Adding new room" drawer. It is opened from the Rooms section and had never been ' +
+          'The "New room" drawer. It is opened from the Rooms section and had never been ' +
           'drawn in Storybook, so neither its resting layout nor either of the two states it can ' +
           'refuse to close in were reviewable.\n\n' +
           '**Closing is conditional.** The header X, the backdrop and Escape all route through ' +
@@ -135,12 +135,12 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Drawer: Story = {
-  name: 'Adding new room',
+  name: 'New room',
   play: async () => {
     await waitFor(() => expect(openDialogs()).toHaveLength(1));
     const panel = within(drawer());
 
-    await expect(panel.getByRole('heading', { name: 'Adding new room' })).toBeVisible();
+    await expect(panel.getByRole('heading', { name: 'New room' })).toBeVisible();
     // Every section starts open, so the drawer opens at its full height rather
     // than as four collapsed rows.
     await expect(panel.getByRole('button', { name: 'Basic details' })).toHaveAttribute(
@@ -151,7 +151,7 @@ export const Drawer: Story = {
     await expect(panel.getByLabelText('Room code')).toHaveValue('');
     // No type chosen yet, so the trigger shows the bare placeholder and both
     // unit-capable sections show their "not supported" copy.
-    await expect(panel.getByRole('button', { name: 'Room Type' })).toBeInTheDocument();
+    await expect(panel.getByRole('button', { name: 'Room type' })).toBeInTheDocument();
     await expect(
       panel.getByText('Units are available for ICU, Inpatient, Isolation, and Boarding rooms.')
     ).toBeInTheDocument();
@@ -159,10 +159,10 @@ export const Drawer: Story = {
     // Both option triggers show their bare placeholder, so nothing is preselected.
     await expect(panel.getByRole('button', { name: 'Speciality (optional)' })).toBeInTheDocument();
     await expect(
-      panel.getByRole('button', { name: 'Assigned Staff (optional)' })
+      panel.getByRole('button', { name: 'Assigned staff (optional)' })
     ).toBeInTheDocument();
 
-    await expect(panel.getByRole('button', { name: 'Add room' })).toBeInTheDocument();
+    await expect(panel.getByRole('button', { name: 'New room' })).toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -216,7 +216,7 @@ export const RequiredFieldErrors: Story = {
     const panel = within(drawer());
     await expect(panel.queryAllByRole('alert')).toHaveLength(0);
 
-    await userEvent.click(panel.getByRole('button', { name: 'Add room' }));
+    await userEvent.click(panel.getByRole('button', { name: 'New room' }));
 
     // Two required fields, reported in two different components: the name gets a
     // `role="alert"` line wired to the input, the room type gets a plain message
@@ -232,7 +232,7 @@ export const RequiredFieldErrors: Story = {
     // Validation runs before the request, so a failed Add leaves the drawer open
     // and the footer label unchanged rather than flashing "Adding room...".
     await expect(openDialogs()).toHaveLength(1);
-    await expect(panel.getByRole('button', { name: 'Add room' })).toBeInTheDocument();
+    await expect(panel.getByRole('button', { name: 'New room' })).toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -269,7 +269,7 @@ export const DiscardConfirm: Story = {
     const confirmHeading = sheet.getByRole('heading', { name: 'Discard changes?' });
     await waitFor(() => expect(confirmHeading).toBeVisible());
     await expect(
-      sheet.getByText('You have unsaved room details. Are you sure you want to discard them?')
+      sheet.getByText('You have unsaved changes. Are you sure you want to discard them?')
     ).toBeInTheDocument();
     await expect(sheet.getByRole('button', { name: 'Keep editing' })).toBeInTheDocument();
     await expect(sheet.getByRole('button', { name: 'Discard' })).toBeInTheDocument();

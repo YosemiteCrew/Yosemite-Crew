@@ -133,7 +133,7 @@ const meta = {
           'sees any of it is the moment they press Book - at which point up to six fields ' +
           'change at once. They are not all the same control either: the patient picker and the ' +
           'time dropdown render a `FieldError` with `role="alert"`, while Lead, Speciality, ' +
-          'Service and Chief Complaint render their own inline error rows with no alert ' +
+          'Service and Chief complaint render their own inline error rows with no alert ' +
           'semantics, so a screen reader hears two of the six. Below the grid a separate ' +
           'booking-level banner appears for `formDataErrors.booking`, which is the server ' +
           'refusing the booking rather than a field being wrong.\n\n' +
@@ -212,19 +212,18 @@ export const Resting: Story = {
       'aria-expanded',
       'false'
     );
-    await expect(canvas.getByRole('button', { name: 'Type of Visit: Outpatient' })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'Type of visit: Outpatient' })).toBeVisible();
     await expect(canvas.getByRole('button', { name: 'Lead' })).toBeVisible();
 
     // Right column, including the estimate derived from the selected service.
     await expect(canvas.getByRole('button', { name: 'Speciality' })).toBeVisible();
-    await expect(canvas.getByRole('button', { name: 'Services / Packages' })).toBeVisible();
-    await expect(canvas.getByLabelText('Chief Complaint')).toHaveValue('');
+    await expect(canvas.getByRole('button', { name: 'Services / packages' })).toBeVisible();
+    await expect(canvas.getByLabelText('Chief complaint')).toHaveValue('');
     await expect(canvas.getByText('Cost (USD):')).toBeInTheDocument();
     /* Cost and Estimate print the SAME number here: `computeEstimate` is
        `max(0, cost)` and ignores maxDiscount entirely, while the appointment overview
-       modal subtracts it from the same catalogue figures. Two nodes, not one - and the
-       two are formatted differently as well ('$ 82.00' against '$12.00'). */
-    await expect(canvas.getAllByText('$ 82.00')).toHaveLength(2);
+       modal subtracts it from the same catalogue figures. Two nodes, not one. */
+    await expect(canvas.getAllByText('$82.00')).toHaveLength(2);
     await expect(canvas.getByText('$12.00')).toBeInTheDocument();
     await expect(canvas.getByLabelText('Mark appointment as emergency')).not.toBeChecked();
 
@@ -572,7 +571,7 @@ export const RestingNarrow: Story = {
 
     // Every field survives the collapse - the grid reflows, it does not drop controls.
     await expect(canvas.getByLabelText('Patient')).toHaveValue('');
-    await expect(canvas.getByLabelText('Chief Complaint')).toHaveValue('');
+    await expect(canvas.getByLabelText('Chief complaint')).toHaveValue('');
     await expect(canvas.getByRole('button', { name: 'Speciality' })).toBeVisible();
     await expect(canvas.getByRole('button', { name: 'Book appointment' })).toBeEnabled();
   },

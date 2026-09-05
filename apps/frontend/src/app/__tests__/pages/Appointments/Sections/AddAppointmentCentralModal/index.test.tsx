@@ -104,12 +104,12 @@ jest.mock('@/app/lib/companionName', () => ({
   formatCompanionNameWithOwnerLastName: jest.fn((name: string) => name),
 }));
 
-jest.mock('@/app/lib/forms', () => ({
-  formatTimeLabel: jest.fn((t: string) => t),
-}));
-
+// The lib/forms mock is gone with the formatTimeLabel call it stood in for: the prefill
+// summary now uses the same clock helper as the slot list.
+// The marker (rather than an identity fn) is deliberate — with `(t) => t` a regression that
+// dropped the formatter altogether still printed the raw value and the tests stayed green.
 jest.mock('@/app/features/appointments/components/Availability/utils', () => ({
-  formatUtcTimeToLocalLabel: jest.fn((t: string) => t),
+  formatUtcTimeToLocalLabel: jest.fn((t: string) => `clock(${t})`),
 }));
 
 jest.mock(
@@ -491,7 +491,7 @@ describe('AddAppointmentCentralModal', () => {
       'data-default-option',
       ''
     );
-    expect(screen.getByTestId('label-dropdown-Services / Packages')).toHaveAttribute(
+    expect(screen.getByTestId('label-dropdown-Services / packages')).toHaveAttribute(
       'data-default-option',
       ''
     );
@@ -773,7 +773,7 @@ describe('AddAppointmentCentralModal', () => {
       'data-default-option',
       'spec-1'
     );
-    expect(screen.getByTestId('label-dropdown-Services / Packages')).toHaveAttribute(
+    expect(screen.getByTestId('label-dropdown-Services / packages')).toHaveAttribute(
       'data-default-option',
       'svc-1'
     );
@@ -860,7 +860,7 @@ describe('AddAppointmentCentralModal', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByText('Type of Visit'));
+      fireEvent.click(screen.getByText('Type of visit'));
     });
 
     expect(mockAppointmentForm.setFormData).toHaveBeenCalled();
@@ -900,16 +900,18 @@ describe('AddAppointmentCentralModal', () => {
   it('renders the prefill time label when a prefill start time is present and no slot chosen', () => {
     mockAppointmentForm.formData = {
       ...mockFormData,
-      startTime: '2025-06-01T10:00:00',
+      startTime: '2025-06-01T10:00:00Z',
     } as unknown as typeof mockFormData;
     const prefill = {
       date: new Date('2025-06-01'),
       minuteOfDay: 600,
-      startTime: new Date('2025-06-01T10:00:00'),
+      startTime: new Date('2025-06-01T10:00:00Z'),
     };
     render(<AddAppointmentCentralModal {...defaultProps} prefill={prefill} />);
-    // formatTimeLabel (mocked to identity) surfaces the prefill time in the time trigger
-    expect(screen.getAllByText('2025-06-01T10:00:00').length).toBeGreaterThan(0);
+    // Pins the prefill summary to the SAME clock helper the slot buttons use. It used to call
+    // formatTimeLabel (hour:'2-digit'), so a prefilled 8am read "08:00 AM" under slot buttons
+    // that said "8:00 AM". The UTC clock time is extracted first, then formatted once.
+    expect(screen.getAllByText('clock(10:00)').length).toBeGreaterThan(0);
   });
 
   it('computePrefillKey tolerates a prefill without a startTime (non-Date branch)', () => {
@@ -994,7 +996,7 @@ describe('AddAppointmentCentralModal', () => {
     });
 
     await act(async () => {
-      fireEvent.mouseDown(screen.getByText('2025-06-01T10:00:00Z'));
+      fireEvent.mouseDown(screen.getByText('clock(2025-06-01T10:00:00Z)'));
     });
 
     expect(mockAppointmentForm.setSelectedSlot).toHaveBeenCalled();
@@ -1406,7 +1408,7 @@ describe('TimeSlotMenuContent', () => {
       />
     );
 
-    fireEvent.mouseDown(screen.getByText('2025-06-01T10:00:00Z'));
+    fireEvent.mouseDown(screen.getByText('clock(2025-06-01T10:00:00Z)'));
     expect(setSelectedSlot).toHaveBeenCalledWith(null);
     expect(closeMenu).toHaveBeenCalled();
   });
@@ -1423,7 +1425,7 @@ describe('TimeSlotMenuContent', () => {
       />
     );
 
-    fireEvent.mouseDown(screen.getByText('2025-06-01T11:00:00Z'));
+    fireEvent.mouseDown(screen.getByText('clock(2025-06-01T11:00:00Z)'));
     expect(setSelectedSlot).toHaveBeenCalledWith(slot);
   });
 });
@@ -1444,7 +1446,7 @@ describe('TimeSlotDropdown (direct)', () => {
         selectedSlot={{ startTime: '09:00', endTime: '09:30' } as never}
       />
     );
-    expect(screen.getByText('09:00')).toBeInTheDocument();
+    expect(screen.getByText('clock(09:00)')).toBeInTheDocument();
   });
 
   it('shows the loading message and error styling while open, opening upward when space is tight', () => {

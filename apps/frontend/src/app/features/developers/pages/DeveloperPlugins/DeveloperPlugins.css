@@ -199,8 +199,12 @@
 }
 
 .dev-website-cta.primary {
+  /* The ink is pinned because the fill is. --color-cyan is declared once and
+     never flips, while --color-ink resolves to --ink and goes cream in espresso,
+     which put 1.37 cream-on-cyan on this CTA against 10.83 in light. The
+     `.ghost` sibling below already hardcodes its own ink for the same reason. */
   background: var(--color-cyan);
-  color: var(--color-ink);
+  color: #1d1c1b;
 }
 
 .dev-website-cta.ghost {

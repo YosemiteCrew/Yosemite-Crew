@@ -14,7 +14,7 @@ function NetworkPageContent() {
   return (
     <ProtectedRoute>
       <OrgGuard>
-        <div className="p-6">
+        <div className="yc-page-content">
           <NetworkDirectory />
         </div>
       </OrgGuard>

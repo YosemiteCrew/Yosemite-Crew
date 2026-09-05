@@ -123,7 +123,7 @@ const rowFor = (canvasElement: HTMLElement, fieldId: string): HTMLElement =>
 /** The private AddFieldDropdown trigger sitting beside a group's title. */
 const groupAddTrigger = (settings: HTMLElement, groupTitle: string): Element => {
   const header = within(settings).getByText(groupTitle).parentElement as HTMLElement;
-  return header.querySelector('svg') as Element;
+  return within(header).getByRole('button', { name: 'Add a field' });
 };
 
 /**
@@ -367,9 +367,10 @@ export const AddFieldInsideGroup: Story = {
     const groupName = await within(settings).findByRole('textbox', { name: 'Group name' });
     await expect(groupName).toHaveValue('Objective');
 
-    /* The private dropdown. Its trigger is a bare `<svg>` with an onClick and no
-       role, name or keyboard handler, so it is unreachable by keyboard and
-       invisible to a role query - which is part of why it had never been drawn. */
+    /* The private dropdown. Its trigger used to be a bare `<svg>` with an onClick and no
+       role, name or keyboard handler - unreachable by keyboard and invisible to a role
+       query, which is part of why it had never been drawn. It is now a real button, so
+       the query below finds it by name the way the palette tiles are found. */
     await userEvent.click(groupAddTrigger(settings, 'Objective'));
     const menu = await waitFor(() => {
       const el = groupAddMenu(settingsOf(canvasElement), 'Objective');

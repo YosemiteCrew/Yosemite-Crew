@@ -154,17 +154,21 @@ const MultiSelectTriggerContent = ({
           event.stopPropagation();
           onKeyDown(event);
         }}
-        placeholder={hasSelection ? selectedLabel : ''}
+        placeholder={hasSelection ? selectedLabel : placeholder}
         className="w-full bg-transparent text-left text-[13px] text-[var(--ink-body)] outline-none placeholder:text-[var(--ink-faint)]"
       />
     );
   }
   return (
     <span
-      className="min-w-0 flex-1 truncate text-left text-[13px] text-[var(--ink-body)]"
+      className={`min-w-0 flex-1 truncate text-left text-[13px] ${
+        hasSelection ? 'text-[var(--ink-body)]' : 'text-[var(--ink-faint)]'
+      }`}
       title={hasSelection ? selectedLabel : placeholder}
     >
-      {hasSelection ? selectedLabel : ''}
+      {/* Empty means "nothing chosen yet", not "no control here": the design
+          requires a visible placeholder on every select. */}
+      {hasSelection ? selectedLabel : placeholder}
     </span>
   );
 };

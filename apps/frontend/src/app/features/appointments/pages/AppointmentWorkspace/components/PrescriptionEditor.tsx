@@ -53,6 +53,8 @@ type PrescriptionEditorProps = {
   onUpdateItem: (id: string, patch: Partial<PrescriptionItem>) => void;
   onRemoveItem: (id: string) => void;
   onPrint: () => void;
+  /** The encounter's currency; prices must agree with the total beside them. */
+  currency: string;
 };
 
 const FULFILLMENT_LABELS: Record<PrescriptionFulfillment, string> = {
@@ -64,7 +66,10 @@ const FULFILLMENT_OPTIONS = Object.keys(FULFILLMENT_LABELS) as PrescriptionFulfi
 const EMPTY_CATALOG_ITEMS: Omit<PrescriptionItem, 'id'>[] = [];
 const EMPTY_TEMPLATE_ITEMS: PrescriptionTemplateOption[] = [];
 
-const formatCents = (cents: number): string => formatMoney(cents / 100, 'USD');
+/* The encounter's own currency, not a literal 'USD'. The running total in the
+   summary column beside these rows uses `encounter.currency`, so a sterling
+   clinic read dollar line items adding up to a pound total on one screen. */
+const formatCents = (cents: number, currency: string): string => formatMoney(cents / 100, currency);
 
 const copyValue = (value?: string) => {
   if (!value || !globalThis.navigator?.clipboard) return;
@@ -239,6 +244,7 @@ const PrescriptionRow = ({
   deleteLocked,
   onUpdateItem,
   onRemoveItem,
+  currency,
 }: {
   item: PrescriptionItem;
   index: number;
@@ -246,6 +252,7 @@ const PrescriptionRow = ({
   deleteLocked: boolean;
   onUpdateItem: (id: string, patch: Partial<PrescriptionItem>) => void;
   onRemoveItem: (id: string) => void;
+  currency: string;
 }) => {
   // Billed/paid items are locked: fields render read-only and there is no delete.
   const isBilled = Boolean(item.billed);
@@ -405,7 +412,7 @@ const PrescriptionRow = ({
           />
         </div>
         <span className="shrink-0 self-start text-body-3-emphasis font-bold text-text-primary">
-          {item.priceCents == null ? '-' : formatCents(item.priceCents)}
+          {item.priceCents == null ? '-' : formatCents(item.priceCents, currency)}
         </span>
       </div>
     </li>
@@ -486,6 +493,7 @@ const PrescriptionEditor = ({
   onUpdateItem,
   onRemoveItem,
   onPrint,
+  currency,
 }: PrescriptionEditorProps) => {
   const [search, setSearch] = useState('');
   const searchRef = React.useRef<HTMLDivElement>(null);
@@ -519,7 +527,7 @@ const PrescriptionEditor = ({
       <div className="relative z-50 flex items-center justify-end gap-3">
         <CircleIconButton
           icon={<IoPrintOutline aria-hidden="true" />}
-          label="Print Labels"
+          label="Print labels"
           onClick={onPrint}
         />
         {!readOnly && (
@@ -625,6 +633,7 @@ const PrescriptionEditor = ({
           <ul className="flex flex-col gap-3">
             {items.map((item, index) => (
               <PrescriptionRow
+                currency={currency}
                 key={item.id}
                 item={item}
                 index={index}

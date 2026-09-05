@@ -219,7 +219,7 @@ describe('ViewAppointmentOverviewModal', () => {
 
   it('renders the modal title', () => {
     render(<ViewAppointmentOverviewModal {...defaultProps} />);
-    expect(screen.getByText('Appointment Details')).toBeInTheDocument();
+    expect(screen.getByText('Appointment details')).toBeInTheDocument();
   });
 
   it('renders patient name', () => {
@@ -276,24 +276,24 @@ describe('ViewAppointmentOverviewModal', () => {
     expect(screen.getByText('Yes')).toBeInTheDocument();
   });
 
-  it('shows Start Appointment button for UPCOMING appointments', () => {
+  it('shows Start appointment button for UPCOMING appointments', () => {
     render(<ViewAppointmentOverviewModal {...defaultProps} />);
-    expect(screen.getByText('Start Appointment')).toBeInTheDocument();
+    expect(screen.getByText('Start appointment')).toBeInTheDocument();
   });
 
-  it('shows View Details button for non-UPCOMING appointments', () => {
+  it('shows View details button for non-UPCOMING appointments', () => {
     render(
       <ViewAppointmentOverviewModal
         {...defaultProps}
         activeAppointment={{ ...baseAppointment, status: 'COMPLETED' }}
       />
     );
-    expect(screen.getByText('View Details')).toBeInTheDocument();
+    expect(screen.getByText('View details')).toBeInTheDocument();
   });
 
   it('calls onOpenDetails when primary action button is clicked', () => {
     render(<ViewAppointmentOverviewModal {...defaultProps} />);
-    fireEvent.click(screen.getByText('Start Appointment'));
+    fireEvent.click(screen.getByText('Start appointment'));
     expect(defaultProps.onOpenDetails).toHaveBeenCalledWith(
       baseAppointment,
       expect.objectContaining({ label: expect.any(String) })
@@ -400,33 +400,46 @@ describe('ViewAppointmentOverviewModal', () => {
   it('shows the estimate from a matching invoice when one exists', () => {
     mockInvoiceMap = { 'appt-1': { totalAmount: 123, currency: 'USD' } };
     render(<ViewAppointmentOverviewModal {...defaultProps} />);
-    expect(screen.getByText('$123')).toBeInTheDocument();
+    /* "$123.00", not "$123": every branch of this field goes through
+       formatMoneyPrecise now. It used to print whole units once an invoice
+       existed and a hand-built "$123.00" before one did - the same figure in
+       two precisions, and in two currencies for a non-USD clinic. */
+    expect(screen.getByText('$123.00')).toBeInTheDocument();
   });
 
   it('falls back to cost when discount cancels the estimate to zero', () => {
     mockServices = [{ id: 'serv-1', name: 'Consultation', cost: '80', maxDiscount: '100' }];
     render(<ViewAppointmentOverviewModal {...defaultProps} />);
     // Estimate cancels to zero, so both the estimate and the cost row show the cost.
-    expect(screen.getAllByText('$ 80.00').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$80.00').length).toBeGreaterThan(0);
+    // A live figure takes the blue ink; the sign sits flush against the digits.
+    const estimateRow = screen.getByText('Estimate').closest('div') as HTMLElement;
+    expect(within(estimateRow).getByText('$80.00')).toHaveStyle({ color: 'var(--blue-text)' });
+    expect(screen.queryByText('$ 80.00')).not.toBeInTheDocument();
   });
 
-  it('renders "-" for cost, max discount and estimate when the service has no pricing', () => {
+  it('renders an em dash for cost, max discount and estimate when the service has no pricing', () => {
     mockServices = [{ id: 'serv-1', name: 'Consultation', cost: 0, maxDiscount: 0 }];
     render(<ViewAppointmentOverviewModal {...defaultProps} />);
     const costRow = screen.getByText('Cost:').closest('div') as HTMLElement;
-    expect(within(costRow).getByText('-')).toBeInTheDocument();
+    expect(within(costRow).getByText('—')).toBeInTheDocument();
     const discountRow = screen.getByText('Max discount:').closest('div') as HTMLElement;
-    expect(within(discountRow).getByText('-')).toBeInTheDocument();
+    expect(within(discountRow).getByText('—')).toBeInTheDocument();
     const estimateRow = screen.getByText('Estimate').closest('div') as HTMLElement;
-    expect(within(estimateRow).getByText('-')).toBeInTheDocument();
+    const estimate = within(estimateRow).getByText('—');
+    expect(estimate).toBeInTheDocument();
+    // The empty slot keeps the tertiary ink: the ink branches on the same
+    // EMPTY_VALUE the display falls back to, so a dash never reads as a total.
+    expect(estimate).toHaveStyle({ color: 'var(--color-text-tertiary)' });
+    expect(estimate).not.toHaveStyle({ color: 'var(--blue-text)' });
   });
 
-  it('hides the service cost rows and shows "-" estimate when no service is resolved', () => {
+  it('hides the service cost rows and shows an em dash estimate when no service is resolved', () => {
     mockServices = [];
     render(<ViewAppointmentOverviewModal {...defaultProps} />);
     expect(screen.queryByText('Cost:')).not.toBeInTheDocument();
     const estimateRow = screen.getByText('Estimate').closest('div') as HTMLElement;
-    expect(within(estimateRow).getByText('-')).toBeInTheDocument();
+    expect(within(estimateRow).getByText('—')).toBeInTheDocument();
   });
 
   it('hides the estimate panel for COMPLETED appointments', () => {
@@ -772,7 +785,7 @@ describe('ViewAppointmentOverviewModal', () => {
         activeAppointment={{ ...baseAppointment, status: 'CHECKED_IN' }}
       />
     );
-    fireEvent.click(screen.getByText('View Details'));
+    fireEvent.click(screen.getByText('View details'));
     expect(onOpenDetails).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'appt-1' }),
       undefined
@@ -786,7 +799,7 @@ describe('ViewAppointmentOverviewModal', () => {
         activeAppointment={{ ...baseAppointment, organisationId: 'missing-org' }}
       />
     );
-    fireEvent.click(screen.getByText('Start Appointment'));
+    fireEvent.click(screen.getByText('Start appointment'));
     expect(defaultProps.onOpenDetails).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'appt-1' }),
       expect.objectContaining({ label: 'prescription' })
@@ -803,7 +816,7 @@ describe('ViewAppointmentOverviewModal', () => {
         activeAppointment={baseAppointment}
       />
     );
-    fireEvent.click(screen.getByText('Start Appointment'));
+    fireEvent.click(screen.getByText('Start appointment'));
     expect(onOpenDetails).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'appt-1' }),
       expect.objectContaining({ label: 'care' })

@@ -20,7 +20,7 @@ import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/
 import { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
-import { formatTimeLabel } from '@/app/lib/forms';
+import { getUtcTimeValue } from '@/app/lib/date';
 import { formatUtcTimeToLocalLabel } from '@/app/features/appointments/components/Availability/utils';
 import { Slot } from '@/app/features/appointments/types/appointments';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
@@ -417,13 +417,7 @@ export const PersonRow = ({
                 setQuery('');
                 onNew();
               }}
-              className="rounded-full px-3 font-satoshi font-medium text-white whitespace-nowrap shrink-0"
-              style={{
-                background: 'var(--color-primary-600)',
-                fontSize: 13,
-                lineHeight: '30px',
-                height: 30,
-              }}
+              className="inline-flex h-[30px] shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[var(--hairline)] bg-transparent px-3 font-satoshi text-[13px] font-medium text-[var(--ink-body)] transition-colors hover:border-[var(--ink-muted)]"
             >
               + New
             </button>
@@ -520,9 +514,15 @@ export const TimeSlotMenuContent = ({
 type TimeSlotTriggerValueProps = {
   isLoading: boolean;
   selectedLabel: string | null;
+  /** Shown while nothing is chosen; never blank. */
+  placeholder?: string;
 };
 
-export const TimeSlotTriggerValue = ({ isLoading, selectedLabel }: TimeSlotTriggerValueProps) => {
+export const TimeSlotTriggerValue = ({
+  isLoading,
+  selectedLabel,
+  placeholder = 'Select a time',
+}: TimeSlotTriggerValueProps) => {
   if (isLoading) {
     return (
       <span
@@ -558,7 +558,9 @@ export const TimeSlotTriggerValue = ({ isLoading, selectedLabel }: TimeSlotTrigg
     return <span style={text16R}>{selectedLabel}</span>;
   }
 
-  return <span style={{ ...text16R, color: INPUT_PLACEHOLDER }} />;
+  // An unchosen slot showed an empty span, so the Time control read as a blank
+  // box beside a filled Date. The design requires a placeholder on every select.
+  return <span style={{ ...text16R, color: INPUT_PLACEHOLDER }}>{placeholder}</span>;
 };
 
 /** Trigger border: open state wins over the error state, which wins over resting. */
@@ -872,7 +874,7 @@ export const AppointmentFormContent = ({
           </div>
           <div className="flex-1">
             <LabelDropdown
-              placeholder="Type of Visit"
+              placeholder="Type of visit"
               options={VISIT_TYPE_OPTIONS}
               defaultOption={visitType}
               onSelect={handleVisitTypeSelect}
@@ -919,7 +921,7 @@ export const AppointmentFormContent = ({
         />
 
         <LabelDropdown
-          placeholder="Services / Packages"
+          placeholder="Services / packages"
           options={ServicesOptions}
           defaultOption={formData.appointmentType?.id ?? ''}
           onSelect={handleServiceSelect}
@@ -931,7 +933,7 @@ export const AppointmentFormContent = ({
 
         <FormDesc
           intype="text"
-          inlabel="Chief Complaint"
+          inlabel="Chief complaint"
           value={formData.concern ?? ''}
           onChange={(e) => setFormData((prev: any) => ({ ...prev, concern: e.target.value }))}
           error={showError('concern')}
@@ -962,7 +964,9 @@ export const AppointmentFormContent = ({
               }}
             >
               <span
-                className="absolute top-[3px] size-[18px] rounded-full bg-[var(--screen)] transition-all duration-150"
+                /* Fixed white: --screen flips with the theme, so in espresso the
+                   knob was #2f271e on a #3a3128 track, a contrast of 1.15. */
+                className="absolute top-[3px] size-[18px] rounded-full bg-white transition-all duration-150"
                 style={{ left: (formData.isEmergency ?? false) ? '19px' : '3px' }}
               />
             </span>
@@ -1372,10 +1376,12 @@ const useAddAppointmentCentralModalView = ({
     [handleLeadSelect]
   );
 
+  // Same clock as the slot list above it. This used formatTimeLabel (hour:'2-digit'), so a
+  // prefilled 8am appointment read "08:00 AM" here while the slot buttons said "8:00 AM".
   const prefillTimeLabel = useMemo(
     () =>
       prefillActive && !selectedSlot && formData.startTime
-        ? formatTimeLabel(formData.startTime)
+        ? formatUtcTimeToLocalLabel(getUtcTimeValue(formData.startTime, ''))
         : null,
     [prefillActive, selectedSlot, formData.startTime]
   );

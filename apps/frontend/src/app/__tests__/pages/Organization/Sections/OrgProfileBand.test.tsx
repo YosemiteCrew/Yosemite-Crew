@@ -58,6 +58,25 @@ describe('OrgProfileBand', () => {
     expect(onEdit).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * Pins the shared primitive rather than the old hand-rolled string. This pill
+   * was `h-[38px] … px-4! text-[12.5px]` here and `h-[34px] … px-[15px]
+   * text-[12px]` on Settings for the identical action, so "Edit profile" changed
+   * size with the page and neither height was on the 32/36/40/44 scale
+   * `Secondary` offers. `min-h-9 px-4 text-[12.5px]` IS Secondary's `small`
+   * (Buttons/Secondary.tsx:11), so this fails if the button is hand-rolled again
+   * or moved to another size.
+   */
+  it('renders Edit profile through the shared Secondary primitive at size small', () => {
+    render(<OrgProfileBand org={baseOrg} canEdit onEdit={jest.fn()} />);
+
+    const edit = screen.getByRole('button', { name: /Edit profile/ });
+    expect(edit.className).toContain('min-h-9');
+    expect(edit.className).toContain('px-4');
+    expect(edit.className).toContain('text-[12.5px]');
+    expect(edit.className).not.toContain('h-[38px]');
+  });
+
   it('hides the Edit profile pill when editing is not permitted', () => {
     render(<OrgProfileBand org={baseOrg} canEdit={false} onEdit={jest.fn()} />);
 

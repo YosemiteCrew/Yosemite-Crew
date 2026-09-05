@@ -261,7 +261,7 @@ export const NewTaskForm: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getAllByRole('tab')).toHaveLength(2);
 
-    await userEvent.click(canvas.getByRole('button', { name: 'New Task' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'New task' }));
 
     expect(await canvas.findByRole('heading', { name: 'New task' })).toBeInTheDocument();
     /* The list and the tab strip are GONE, not covered: the early return replaces
@@ -269,7 +269,7 @@ export const NewTaskForm: Story = {
        overlay, and it is the thing the source makes hardest to see. */
     await expect(canvas.queryAllByRole('tab')).toHaveLength(0);
     await expect(canvas.queryByText(DRESSING)).not.toBeInTheDocument();
-    await expect(canvas.queryByRole('button', { name: 'New Task' })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: 'New task' })).not.toBeInTheDocument();
 
     await expect(canvas.getByRole('button', { name: 'Back to tasks' })).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Save task' })).toBeInTheDocument();
@@ -366,7 +366,7 @@ export const EmptyPanel: Story = {
     await expect(canvas.getByText('No tasks yet.')).toBeInTheDocument();
     // Empty list, but the panel still offers its one action.
     await expect(canvas.queryAllByRole('listitem')).toHaveLength(0);
-    await expect(canvas.getByRole('button', { name: 'New Task' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'New task' })).toBeInTheDocument();
   },
   parameters: {
     docs: {

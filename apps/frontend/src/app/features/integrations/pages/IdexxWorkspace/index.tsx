@@ -1682,11 +1682,17 @@ const IdexxWorkspacePage = () => {
           <>
             {/* Desktop (>=1280px): full-detail table. */}
             <div className="hidden xl:block">
-              <GenericTable data={s.paginatedResults} columns={s.resultsColumns} bordered={false} />
+              <GenericTable
+                data={s.paginatedResults}
+                columns={s.resultsColumns}
+                bordered={false}
+                itemNoun="results"
+              />
             </div>
             {/* Tablet (768-1279px): the pruned table (drops Order ID + IVLS). */}
             <div className="hidden md:block xl:hidden">
               <GenericTable
+                itemNoun="results"
                 data={s.paginatedResults}
                 columns={s.tabletResultsColumns}
                 bordered={false}

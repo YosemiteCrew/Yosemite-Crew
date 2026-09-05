@@ -325,7 +325,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
         }}
       >
         <div className="flex h-full flex-col gap-5">
-          <ModalHeader title="Adding new room" onClose={requestClose} />
+          <ModalHeader title="New room" onClose={requestClose} />
 
           <div className="flex flex-1 flex-col gap-6 overflow-y-auto pr-1 scrollbar-hidden">
             <BasicDetailsSection
@@ -368,7 +368,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
           <ModalFooter align="start">
             <Primary
               href="#"
-              text={saving ? 'Adding room...' : 'Add room'}
+              text={saving ? 'Adding room...' : 'New room'}
               onClick={handleSave}
               icon={<IoCheckmarkOutline size={16} aria-hidden="true" />}
             />
@@ -379,7 +379,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
       <CenterModal showModal={showDiscardConfirm} setShowModal={setShowDiscardConfirm}>
         <ModalHeader title="Discard changes?" onClose={() => setShowDiscardConfirm(false)} />
         <p className="text-body-4 text-text-primary">
-          You have unsaved room details. Are you sure you want to discard them?
+          You have unsaved changes. Are you sure you want to discard them?
         </p>
         <div className="grid grid-cols-2 gap-2">
           <Secondary href="#" text="Keep editing" onClick={() => setShowDiscardConfirm(false)} />

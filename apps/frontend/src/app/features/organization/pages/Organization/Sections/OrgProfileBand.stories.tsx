@@ -127,9 +127,12 @@ export const Verified: Story = {
     await expect(logo).toHaveAttribute('alt', '');
 
     const edit = canvas.getByRole('button', { name: 'Edit profile' });
-    // 38px is the design's small pill height and the band's row height depends on
-    // it - the avatar is 62px, so a taller button silently grows the whole band.
-    await expect(edit.getBoundingClientRect().height).toBe(38);
+    /* 36px: `Secondary size="small"`. This pill was hand-rolled at 38px while the
+       identical "Edit profile" action on Settings was hand-rolled at 34px, and
+       neither height is on the primitive's 32/36/40/44 scale. The band's row
+       height depends on it - the avatar is 62px, so a taller button silently
+       grows the whole band. */
+    await expect(Math.round(edit.getBoundingClientRect().height)).toBe(36);
 
     await userEvent.click(edit);
     await expect(args.onEdit).toHaveBeenCalledTimes(1);

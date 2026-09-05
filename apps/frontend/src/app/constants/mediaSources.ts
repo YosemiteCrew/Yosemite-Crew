@@ -141,12 +141,13 @@ export const MEDIA_SOURCES = {
     stripe: ycCdn('payment/stripe.png'),
   },
   guides: {
-    addTeamVideo: ycCdn('videos/addTeam.mp4'),
-    addCompanionVideo: ycCdn('videos/addCompanion.mp4'),
-    formsVideo: ycCdn('videos/formModule.mp4'),
-    thumb1: ycCdn('guideImages/1.png'),
-    thumb2: ycCdn('guideImages/2.png'),
-    thumb3: ycCdn('guideImages/3.png'),
+    /* One film and one poster per guide id. These replaced three fixed clips -
+       addTeam.mp4, addCompanion.mp4 and formModule.mp4 - which were screen
+       recordings of the PRE-REDESIGN UI, carried junk test data and a real
+       person's name, and were shared between six library entries whose titles
+       and durations matched none of them. */
+    film: (id: string) => ycCdn(`videos/guides/${id}.mp4`),
+    poster: (id: string) => ycCdn(`guidePosters/${id}-poster.png`),
   },
   subProcessorLogos: {
     aws: 'https://upload.wikimedia.org/wikipedia/commons/9/93/Amazon_Web_Services_Logo.svg',

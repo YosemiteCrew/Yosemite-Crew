@@ -135,7 +135,7 @@ const SpecialitySearchBase = <T extends { name: string }>({
             ))
           ) : (
             <button type="button" className="step-search-add" onClick={handleAddSpeciality}>
-              Add speciality “{query.trim()}”
+              New speciality “{query.trim()}”
             </button>
           )}
         </div>

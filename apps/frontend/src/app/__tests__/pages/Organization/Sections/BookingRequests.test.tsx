@@ -197,6 +197,20 @@ describe('BookingRequests', () => {
     expect(text).not.toContain('Limping');
   });
 
+  /**
+   * Pins the shared PMS stamp. This line used to be
+   * `${date.toLocaleDateString()} ${date.toLocaleTimeString([], …)}`, which read
+   * "9/1/2026 11:00 AM" on an en-US runner, "01/09/2026 11:00" on an en-GB one,
+   * and moved with the DEVICE timezone. `formatDateTimeLocal` pins
+   * `getPreferredTimeZone()`, which is Europe/Berlin with nothing saved, so
+   * 09:00Z is 11:00 AM CEST here on every machine.
+   */
+  it('prints the requested time as the month-name stamp the rest of the PMS uses', async () => {
+    const container = await renderSection();
+
+    expect(container.textContent).toContain('Sep 1, 2026, 11:00 AM · 30 min');
+  });
+
   it('shows an unparseable date as given rather than as Invalid Date', async () => {
     listMock.mockResolvedValue([request({ requestedStart: 'not-a-date' })]);
     const container = await renderSection();

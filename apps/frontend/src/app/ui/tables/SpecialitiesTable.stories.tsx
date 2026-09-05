@@ -125,7 +125,9 @@ export const Empty: Story = {
   play: async ({ canvasElement }) => {
     /* Exact text: Storybook's preview decorator renders the story name in an
        sr-only h1, so a loose /no /i matches that too. */
-    await expect(within(canvasElement).getByText('No data available')).toBeInTheDocument();
+    await expect(within(canvasElement).getAllByText('No specialities yet').length).toBeGreaterThan(
+      0
+    );
   },
 };
 

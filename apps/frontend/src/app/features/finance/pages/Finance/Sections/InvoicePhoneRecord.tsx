@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { IoClose, IoDownloadOutline, IoOpenOutline } from 'react-icons/io5';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
@@ -100,12 +101,19 @@ const InvoicePhoneRecord = ({
       <div className="flex items-center justify-between gap-2 pt-1">
         <span className="flex items-center gap-2.5 min-w-0">
           <span className="flex size-9 shrink-0 overflow-hidden rounded-full bg-card-hover">
-            <Image
+            <AvatarImage
               src={avatarSrc}
               alt=""
-              width={36}
-              height={36}
+              size={36}
               className="size-9 rounded-full object-cover"
+              fallback={
+                <CompanionAvatar
+                  name={companion?.name}
+                  seed={companion?.id}
+                  size={36}
+                  textClassName="text-[16px]"
+                />
+              }
             />
           </span>
           <span className="flex flex-col min-w-0">

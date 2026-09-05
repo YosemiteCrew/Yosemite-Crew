@@ -1,4 +1,5 @@
 'use client';
+import { emptyStateCopy } from '@/app/ui/tables/tableUtils';
 import React from 'react';
 import { IoAlertCircleOutline, IoCubeOutline } from 'react-icons/io5';
 import clsx from 'clsx';
@@ -7,6 +8,7 @@ import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { InventoryFiltersState, InventoryItem } from './types';
 import { getStatusBadgeStyle } from './utils';
 import { buildInventoryPhoneMeta, type InventoryPhoneMeta } from './InventoryPhoneCatalog.utils';
+import { NoDataMessage } from '@/app/ui/tables/common';
 
 const LOW_STOCK_STATUS = 'LOW_STOCK';
 
@@ -113,11 +115,29 @@ export const InventoryPhoneCard = ({
   );
 };
 
+/* Same 32px/13px/12.5px recipe as the desktop filter row above it: this was
+   `px-[14px] py-2`, so the same list rendered a different chip depending on the
+   window width. */
 const pillBase =
-  'flex-none rounded-full! border px-[14px] py-2 text-[12px] transition-colors whitespace-nowrap';
+  'inline-flex h-8 flex-none items-center rounded-full! border px-[13px] text-[12.5px] transition-colors whitespace-nowrap';
 const activePill =
   'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]';
 const idlePill = 'border-[var(--hairline)] font-semibold text-[var(--ink-muted)]';
+
+/* The Low pill keeps the cancelled hue in both states because it is the one
+   filter with a severity, but it used to differ selected-vs-idle ONLY by
+   `shadow-[0_1px_3px_var(--sh08)]` - a 1px-offset shadow on an already-tinted
+   pill, close to invisible on a phone - while the pills either side of it swapped
+   border, fill, ink and weight. So the one filter that changes what the list
+   contains gave the least confirmation that it was on. It now inverts the way
+   `idlePill` -> `activePill` does, and keeps the shadow as a secondary cue.
+   The active ink is `--screen` rather than `--status-cancelled-bg`: that token is
+   translucent in dark mode (rgba(249,115,22,0.15)) and would disappear on the new
+   fill. `--screen` on `--status-cancelled-text` is 6.6:1 light and 7.1:1 dark. */
+const lowIdlePill =
+  'border-[var(--status-cancelled-border)] bg-[var(--status-cancelled-bg)] font-semibold text-[var(--status-cancelled-text)]';
+const lowActivePill =
+  'border-[var(--status-cancelled-text)] bg-[var(--status-cancelled-text)] font-bold text-[var(--screen)] shadow-[0_1px_3px_var(--sh08)]';
 
 type InventoryPhoneFilterPillsProps = {
   filters: InventoryFiltersState;
@@ -159,11 +179,7 @@ export const InventoryPhoneFilterPills = ({
             status: prev.status === LOW_STOCK_STATUS ? 'ALL' : LOW_STOCK_STATUS,
           }))
         }
-        className={clsx(
-          pillBase,
-          'inline-flex items-center gap-[5px] border-[var(--status-cancelled-border)] bg-[var(--status-cancelled-bg)] font-bold text-[var(--status-cancelled-text)]',
-          lowActive && 'shadow-[0_1px_3px_var(--sh08)]'
-        )}
+        className={clsx(pillBase, 'gap-[5px]', lowActive ? lowActivePill : lowIdlePill)}
       >
         <IoAlertCircleOutline size={12} aria-hidden="true" />
         Low ({lowStockCount})
@@ -222,8 +238,12 @@ const InventoryPhoneCatalog = ({
     ) : (
       <div className="flex flex-col gap-[9px]">
         {filteredInventory.length === 0 ? (
-          <div className="rounded-[16px] border border-[var(--hairline)] bg-[var(--screen)] py-10 text-center text-[13px] text-[var(--ink-muted)]">
-            Looks like a quiet day… for now.
+          /* Was a hardcoded "Looks like a quiet day… for now." — the sentence the
+             inventory TABLE used to show, kept here by hand and left behind when
+             that table moved to copy derived from its own noun. Derived from the
+             same helper now, so the phone catalogue and the table agree. */
+          <div className="rounded-[16px] border border-[var(--hairline)] bg-[var(--screen)] py-10 text-center">
+            <NoDataMessage {...emptyStateCopy('items')} />
           </div>
         ) : (
           filteredInventory.map((item) => (

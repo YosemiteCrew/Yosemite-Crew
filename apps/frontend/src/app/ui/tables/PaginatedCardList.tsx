@@ -1,15 +1,22 @@
 'use client';
+import { emptyStateCopy } from '@/app/ui/tables/tableUtils';
 import React, { useState, type ReactNode } from 'react';
 
-import Next from '@/app/ui/primitives/Icons/Next';
-import Back from '@/app/ui/primitives/Icons/Back';
+import { NoDataMessage } from '@/app/ui/tables/common';
+import TableFooter from '@/app/ui/tables/TableFooter';
 
 /* The card list is the sub-xl rendering of the same data the table shows above
    xl, so it has to page like the table does. Without this it rendered every row
    at once: on a dashboard page - where nothing bounds its height - a few hundred
    appointments became a ~64,000px slab that pushed the rest of the page off
-   screen and stalled the renderer. GenericTable keeps its pagination in internal
-   state, so this mirrors its pager rather than sharing it. */
+   screen and stalled the renderer.
+
+   Paging state stays local - GenericTable keeps its own too - but the footer is
+   now the shared `TableFooter` rather than a mirror of it. It used to be a
+   centred Back/count/Next cluster with no page numbers, so crossing xl over the
+   same rows swapped a numbered pager for two bare arrows, dropped `aria-current`
+   and the noun from the count, and left the disabled arrow at full strength
+   where the table's is dimmed. */
 
 type PaginatedCardListProps<T> = {
   items: T[];
@@ -17,6 +24,11 @@ type PaginatedCardListProps<T> = {
   renderCard: (item: T, index: number) => ReactNode;
   className?: string;
   listClassName?: string;
+  /**
+   * Plural noun for the empty state and the footer count, e.g. `tasks` ->
+   * "No tasks yet" and "Showing 10 of 12 tasks".
+   */
+  itemNoun?: string;
 };
 
 const PaginatedCardList = <T,>({
@@ -25,6 +37,7 @@ const PaginatedCardList = <T,>({
   renderCard,
   className = '',
   listClassName = '',
+  itemNoun = 'records',
 }: PaginatedCardListProps<T>) => {
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -40,41 +53,26 @@ const PaginatedCardList = <T,>({
   const pageItems = items.slice(startIdx, endIdx);
   const showPagination = totalPages > 1;
 
-  const handlePrev = () => setCurrentPage((p) => Math.max(1, p - 1));
-  const handleNext = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
-
   return (
     <div className={`flex h-full min-h-0 flex-col gap-3 ${className}`}>
       <div
         className={`min-h-0 flex-1 overflow-y-auto pr-1 flex gap-4 sm:gap-6 flex-wrap content-start ${listClassName}`}
       >
         {total === 0 ? (
-          <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-            No data available
-          </div>
+          <NoDataMessage {...emptyStateCopy(itemNoun)} />
         ) : (
           pageItems.map((item, index) => renderCard(item, startIdx + index))
         )}
       </div>
       {showPagination && (
-        <div className="shrink-0 flex items-center justify-center gap-3">
-          <Back
-            onClick={handlePrev}
-            disabled={clampedPage === 1}
-            className={clampedPage === 1 ? 'hover:bg-neutral-0! cursor-not-allowed' : ''}
-          />
-          <div className="text-body-4 text-text-primary" aria-live="polite">
-            Showing{' '}
-            <span>
-              {Math.min(endIdx, total)} of {total}
-            </span>
-          </div>
-          <Next
-            onClick={handleNext}
-            disabled={clampedPage === totalPages}
-            className={clampedPage === totalPages ? 'hover:bg-neutral-0! cursor-not-allowed' : ''}
-          />
-        </div>
+        <TableFooter
+          currentPage={clampedPage}
+          totalPages={totalPages}
+          rangeEnd={Math.min(endIdx, total)}
+          total={total}
+          itemNoun={itemNoun}
+          onPageChange={setCurrentPage}
+        />
       )}
     </div>
   );

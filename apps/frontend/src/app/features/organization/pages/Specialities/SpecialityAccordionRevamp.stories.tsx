@@ -164,7 +164,7 @@ const meta = {
           'drawn.\n\n' +
           'Closed, the right-hand cluster is a single `ACTIVE` status pill. Open, that pill is ' +
           'replaced by a three-way `SegmentedPill` (Services / Packages / Archive) plus a ' +
-          'contextual primary action whose label follows the tab - New Service, New Package, and ' +
+          'contextual primary action whose label follows the tab - New service, New package, and ' +
           'nothing at all on Archive. Renaming replaces the entire cluster, pill and tabs and ' +
           'action together, with an inline text field and three round controls. So the same row ' +
           'has three layouts with almost no shared markup, and two of them are behind state a ' +
@@ -217,7 +217,7 @@ export const Collapsed: Story = {
     await expect(
       canvas.queryByRole('group', { name: 'Speciality catalog view' })
     ).not.toBeInTheDocument();
-    await expect(canvas.queryByRole('button', { name: /New Service/ })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: /New service/ })).not.toBeInTheDocument();
     // The panel is unmounted, not hidden, so no row exists at any width.
     await expect(canvas.queryAllByText('Dental consultation')).toHaveLength(0);
   },
@@ -289,8 +289,8 @@ export const Open: Story = {
     );
 
     // The contextual action names the tab it will act on.
-    await expect(canvas.getByRole('button', { name: /New Service/ })).toBeInTheDocument();
-    await expect(canvas.queryByRole('button', { name: /New Package/ })).not.toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: /New service/ })).toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: /New package/ })).not.toBeInTheDocument();
 
     /* The panel mounted the real ServicesTab. Each service renders TWICE - once
        as the wide table row and once as the stacked card - because the two forms
@@ -326,7 +326,7 @@ export const OpensFromCollapsed: Story = {
     await expect(
       canvas.getByRole('group', { name: 'Speciality catalog view' })
     ).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: /New Service/ })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: /New service/ })).toBeInTheDocument();
     // And the panel underneath it mounts a tab that was not in the DOM at all.
     expect(await canvas.findAllByText('Scale and polish')).toHaveLength(2);
   },
@@ -353,8 +353,8 @@ export const PackagesTabSelected: Story = {
 
     // The primary action is relabelled, not hidden and re-added - and it now
     // targets a different ref, so the label is the only thing that says which.
-    await expect(canvas.getByRole('button', { name: /New Package/ })).toBeInTheDocument();
-    await expect(canvas.queryByRole('button', { name: /New Service/ })).not.toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: /New package/ })).toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: /New service/ })).not.toBeInTheDocument();
     await expect(within(tabs).getByRole('button', { name: 'Packages' })).toHaveAttribute(
       'aria-pressed',
       'true'
@@ -388,9 +388,9 @@ export const ArchiveTabSelected: Story = {
     // Archive is the one tab with no primary action at all: there is nothing to
     // add, so the button is removed rather than disabled.
     await waitFor(() =>
-      expect(canvas.queryByRole('button', { name: /New Service/ })).not.toBeInTheDocument()
+      expect(canvas.queryByRole('button', { name: /New service/ })).not.toBeInTheDocument()
     );
-    await expect(canvas.queryByRole('button', { name: /New Package/ })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: /New package/ })).not.toBeInTheDocument();
     await expect(within(tabs).getByRole('button', { name: 'Archive' })).toHaveAttribute(
       'aria-pressed',
       'true'
@@ -432,7 +432,7 @@ export const RenamingReplacesTheHeader: Story = {
     await expect(
       canvas.queryByRole('group', { name: 'Speciality catalog view' })
     ).not.toBeInTheDocument();
-    await expect(canvas.queryByRole('button', { name: /New Service/ })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: /New service/ })).not.toBeInTheDocument();
 
     // The panel below is untouched, so the catalog stays on screen while the
     // name is edited.

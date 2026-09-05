@@ -51,6 +51,15 @@ const companion = (index: number): CompanionParent => {
 const TWELVE = ROSTER.map((_, index) => companion(index));
 const FOUR = TWELVE.slice(0, 4);
 
+/** A second registered parent, which draws the `+ CO-PARENT` marker. */
+const withCoParent = (item: CompanionParent): CompanionParent => ({
+  ...item,
+  companion: {
+    ...item.companion,
+    parentLinks: [{ role: 'CO_PARENT', status: 'ACTIVE' }],
+  } as CompanionParent['companion'],
+});
+
 /**
  * Seeds only the primary organisation id, and a unique one.
  *
@@ -116,8 +125,9 @@ const meta = {
           'Note the two different asymmetries. The rail is `totalPages > 1`, but the FOOTER is ' +
           '`filteredList.length > 0` - so a single page of results still gets a count line with ' +
           'nothing next to it, and an empty list gets no footer at all rather than "Showing 0 of ' +
-          '0". And below 768 the table becomes a card list with **no pager whatsoever**: every ' +
-          'companion is rendered at once, which the phone story below is here to show.\n\n' +
+          '0". Below 768 the table becomes a card list, which now takes the same paged slice and ' +
+          'the same footer - it used to render every companion at once with no count at all, ' +
+          'which the phone story below is here to show.\n\n' +
           'The noun in the count is the org’s companion terminology, so it reads "patients" for a ' +
           'hospital and "animals" for a breeder.',
       },
@@ -275,7 +285,7 @@ export const NoCompanions: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.getByText('No data available')).toBeVisible();
+    await expect(canvas.getByText('No patients yet')).toBeVisible();
     // Not "Showing 0-0 of 0": the whole footer is gated on the list being
     // non-empty, so the empty table has no count line and no border above it.
     await expect(footerText(canvas)).toBeUndefined();
@@ -298,7 +308,7 @@ export const NoCompanions: Story = {
 };
 
 export const PhoneCards: Story = {
-  name: 'Phone: every row, no pager',
+  name: 'Phone: paged cards',
   // Pinned as a GLOBAL: `parameters.viewport.defaultViewport` was removed in
   // Storybook 10 and is inert, and `useIsPhone` reads a real media query - so
   // the wrong spelling here would silently draw the desktop table.
@@ -306,15 +316,20 @@ export const PhoneCards: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    /* All twelve, not ten: the phone branch returns before the paged slice is
-       ever used, so `PAGE_SIZE` does not apply below 768. On a large directory
-       this is the branch that renders hundreds of cards in one go. */
-    await waitFor(() => expect(canvas.getAllByTitle('Open companion history')).toHaveLength(12));
-    await expect(canvas.getByText('Comet · Whitfield')).toBeInTheDocument();
+    /* Ten of twelve, and the same count line the table draws. This branch used
+       to map the whole `filteredList`, so a large directory mounted every card
+       at once and the phone user never saw the total. */
+    await waitFor(() => expect(canvas.getAllByTitle('Open companion history')).toHaveLength(10));
+    await expect(footerText(canvas)).toBe('Showing 1-10 of 12 companions');
+    await expect(canvas.queryByText('Comet · Whitfield')).not.toBeInTheDocument();
 
-    await expect(footerText(canvas)).toBeUndefined();
-    await expect(canvas.queryByRole('button', { name: 'Page 2' })).not.toBeInTheDocument();
-    await expect(canvas.queryByRole('button', { name: 'Next page' })).not.toBeInTheDocument();
+    // The rail pages the cards exactly as it pages the rows above 768.
+    await userEvent.click(canvas.getByRole('button', { name: 'Page 2' }));
+    await waitFor(() => expect(footerText(canvas)).toBe('Showing 11-12 of 12 companions'));
+    await expect(canvas.getAllByTitle('Open companion history')).toHaveLength(2);
+    await expect(canvas.getByText('Comet · Whitfield')).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Next page' })).toBeDisabled();
+
     // And no kebabs: the phone card is a single tap target onto the history page.
     await expect(rowCount(canvas)).toBe(0);
   },
@@ -323,8 +338,35 @@ export const PhoneCards: Story = {
       description: {
         story:
           '`useIsPhone` is false during SSR and the first client render and flips after mount, so ' +
-          'this is a post-mount swap into a completely different tree - not a CSS breakpoint. That ' +
-          'is why the pager is not hidden here; it is not rendered.',
+          'this is a post-mount swap into a completely different tree - not a CSS breakpoint. The ' +
+          'pager rides along into that tree: same page size, same footer, same numbered rail, ' +
+          'wrapped onto more than one line when the directory is long enough to need it.',
+      },
+    },
+  },
+};
+
+export const GridCoParent: Story = {
+  name: 'Grid view, co-parented patient',
+  globals: { viewport: { value: 'desktop', isRotated: false } },
+  args: { viewMode: 'grid', filteredList: [withCoParent(TWELVE[0]), TWELVE[1]] },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    /* The grid card used to drop this marker while the table row and the phone
+       card both drew it, so grid view never showed a second registered parent -
+       information that matters for consent and billing. */
+    await expect(canvas.getByText('+ CO-PARENT')).toBeVisible();
+    await expect(canvas.getAllByText('+ CO-PARENT')).toHaveLength(1);
+    await expect(canvas.getByText('Kizie · Doe')).toBeInTheDocument();
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Grid and list are a toggle on the same screen, so the two cards have to carry the same ' +
+          'markers. Only the first patient here has a co-parent, which is why exactly one pill is ' +
+          'asserted.',
       },
     },
   },

@@ -94,21 +94,23 @@ const meta = {
   component: InvoiceTable,
   parameters: {
     layout: 'padded',
-    // The Date cell pushes to /appointments through next/navigation's router.
+    // The Appointment cell pushes to /appointments through next/navigation's router.
     nextjs: { appDirectory: true },
     docs: {
       description: {
         component:
           'The finance list, which is three separate renderings of one array rather than one ' +
           'responsive table: a ten-column ledger above 1280, a six-column tablet table between 768 ' +
-          'and 1279 (Services and Date fold into the identity sub-line, Subtotal/Discount/Tax fold ' +
+          'and 1279 (Services and Appointment fold into the identity sub-line, Subtotal/Discount/Tax fold ' +
           'under Total), and a card band below 768. All three are always in the DOM; Tailwind ' +
           'hides two of them.\n\n' +
           'That is why the phone band’s empty state had never been drawn. It is its own branch - ' +
-          '`filteredList.length === 0` inside the card band - and it prints different copy from the ' +
-          'tables above it: **"No invoices match the current filters."** against `GenericTable`’s ' +
-          '"Looks like a quiet day… for now." An empty finance page therefore says one thing on a ' +
-          'laptop and another on a phone, and both sentences are in the DOM at every width.\n\n' +
+          '`filteredList.length === 0` inside the card band - and it used to print different copy ' +
+          'from the tables above it. All three bands now derive the same sentence from `itemNoun`. ' +
+          'Note this band is NOT what a real phone renders: `Finance/index.tsx` branches on ' +
+          '`isPhone` and swaps in `PhoneInvoiceList`, which had the same divergence and was fixed ' +
+          'separately - a reminder that a responsive band in Storybook is not proof of what ships ' +
+          'at that width.\n\n' +
           'It is also the only one of the three that announces itself: it is an `<output ' +
           'aria-live="polite">`, so a filter change that empties the list is spoken on a phone and ' +
           'silent on a desktop.',
@@ -146,31 +148,40 @@ export const PhoneEmpty: Story = {
     const canvas = within(canvasElement);
     const { desktop, tablet, phone } = bands(canvasElement);
 
-    const message = canvas.getByText('No invoices match the current filters.');
-    await expect(message).toBeVisible();
-    // An <output>, not a div: it is the only empty state on this page that a
-    // screen reader is told about when a filter empties the list.
-    await expect(message.tagName).toBe('OUTPUT');
-    await expect(message).toHaveAttribute('aria-live', 'polite');
-    await expect(phone.children).toHaveLength(1);
+    /* One sentence across all three bands now. It used to be two: the phone said
+       "No invoices match the current filters." - blaming filters even with none
+       applied - while the tables said "Looks like a quiet day… for now.". */
+    const messages = canvas.getAllByText('No invoices yet');
+    await expect(messages).toHaveLength(3);
+    await expect(within(phone).getByText('No invoices yet')).toBeVisible();
+    await expect(
+      canvas.queryByText('No invoices match the current filters.')
+    ).not.toBeInTheDocument();
+    await expect(canvas.queryByText('Looks like a quiet day… for now.')).not.toBeInTheDocument();
 
-    /* The two table bands are still mounted, still carrying their own - different -
-       empty copy, and only `display: none` separates them from this one. Asserted
-       because it is the whole reason this branch went unnoticed. */
+    // Still an <output aria-live>: the phone band is the one empty state on this
+    // page a screen reader is told about. A hidden band is not announced, so the
+    // three mounted copies do not talk over each other.
+    const live = within(phone).getByText('No invoices yet').closest('output');
+    await expect(live).not.toBeNull();
+    await expect(live).toHaveAttribute('aria-live', 'polite');
+
+    /* Both table bands are still mounted, and only `display: none` separates them
+       from this one. Asserted because it is the whole reason the phone branch
+       went unnoticed. */
     await expect(desktop).not.toBeVisible();
     await expect(tablet).not.toBeVisible();
-    const quietDay = canvas.getAllByText('Looks like a quiet day… for now.');
-    await expect(quietDay).toHaveLength(2);
-    await expect(quietDay[0]).not.toBeVisible();
-    await expect(quietDay[1]).not.toBeVisible();
+    await expect(within(desktop).getByText('No invoices yet')).not.toBeVisible();
+    await expect(within(tablet).getByText('No invoices yet')).not.toBeVisible();
   },
   parameters: {
     docs: {
       description: {
         story:
-          'The gated surface: an empty finance list at 375. The copy is about the FILTERS, not ' +
-          'about the practice being quiet, which is the more useful of the two sentences and the ' +
-          'one only phone users get.',
+          'The gated surface: an empty finance list at 375. All three bands now render the same ' +
+          'derived empty state, so the sentence no longer depends on window width. The phone ' +
+          'band keeps its `output`/`aria-live` wrapper, so it stays the one empty state here ' +
+          'that is announced.',
       },
     },
   },
@@ -235,14 +246,17 @@ export const DesktopEmpty: Story = {
 
     await expect(desktop).toBeVisible();
     await expect(tablet).not.toBeVisible();
-    // The phone sentence is mounted here too, one `display: none` away.
+    // The phone band is mounted here too, one `display: none` away.
     await expect(phone).not.toBeVisible();
-    await expect(canvas.getByText('No invoices match the current filters.')).not.toBeVisible();
+    await expect(within(phone).getByText('No invoices yet')).not.toBeVisible();
 
-    // Scoped to the desktop band rather than filtered by visibility: the same
-    // sentence exists twice, and this names WHICH copy the reader is looking at.
-    await expect(within(desktop).getByText('Looks like a quiet day… for now.')).toBeVisible();
-    await expect(within(tablet).getByText('Looks like a quiet day… for now.')).not.toBeVisible();
+    // All three bands carry the same sentence, whichever one is on screen.
+    await expect(canvas.getAllByText('No invoices yet')).toHaveLength(3);
+
+    // Scoped to a band rather than filtered by visibility: the same sentence now
+    // exists three times, and this names WHICH copy the reader is looking at.
+    await expect(within(desktop).getByText('No invoices yet')).toBeVisible();
+    await expect(within(tablet).getByText('No invoices yet')).not.toBeVisible();
 
     /* Column counts, so the two table bands are provably the ledger and the
        pruned one rather than the same markup twice: ten columns of ledger against
@@ -251,6 +265,13 @@ export const DesktopEmpty: Story = {
     await expect(tablet.querySelectorAll('thead th')).toHaveLength(6);
     await expect(within(desktop).getByText('Subtotal')).toBeInTheDocument();
     await expect(within(tablet).queryByText('Subtotal')).not.toBeInTheDocument();
+
+    /* This column formats `appointment.appointmentDate`, while the card band
+       below 768 and PhoneInvoiceList format `invoice.createdAt`. It was headed
+       "Date" - the same word the cards use - so an invoice raised three days
+       after the visit showed a different date depending on window width. */
+    await expect(within(desktop).getByText('Appointment')).toBeInTheDocument();
+    await expect(within(desktop).queryByText('Date')).not.toBeInTheDocument();
   },
   parameters: {
     docs: {

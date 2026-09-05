@@ -7,7 +7,13 @@ type PageSkeletonProps = {
   variant?: PageSkeletonVariant;
 };
 
-const shimmer = 'animate-pulse bg-card-hover rounded-xl';
+/* --hairline, not --card-hover. The skeleton has no surface of its own, so it
+   paints on the page ground, and --card-hover resolves through --neutral-100 to
+   --screen-2, one step off that ground: 1.012 in dark and 1.027 in light. The
+   bars were present and optically invisible on every loading page. The hairline
+   step reads against the page in both themes (1.435 and 1.115). ChatSkeletons
+   already made this exact move for the same reason. */
+const shimmer = 'animate-pulse bg-[var(--hairline)] rounded-xl';
 
 const TILE_IDS = ['tile-a', 'tile-b', 'tile-c'];
 const GENERIC_ROWS = [
@@ -38,7 +44,7 @@ const PlannerSkeleton = () => (
     {/* Header bar skeleton (mimics the calendar header with filter pills) */}
     <div className={`h-14 w-full rounded-2xl ${shimmer}`} />
     {/* Main content area */}
-    <div className="h-[calc(100vh-200px)] min-h-[480px] rounded-2xl bg-card-hover animate-pulse" />
+    <div className={`h-[calc(100vh-200px)] min-h-[480px] ${shimmer}`} />
   </div>
 );
 

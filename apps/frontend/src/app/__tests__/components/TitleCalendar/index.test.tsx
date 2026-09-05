@@ -21,7 +21,7 @@ jest.mock('@/app/ui/inputs/Datepicker', () => ({
 }));
 
 describe('TitleCalendar', () => {
-  it('renders title, count, and add button', () => {
+  it('renders title, count, and the page-named create button', () => {
     const setAddPopup = jest.fn();
 
     render(
@@ -33,6 +33,7 @@ describe('TitleCalendar', () => {
         activeView="calendar"
         setActiveView={jest.fn()}
         showAdd
+        addLabel="New appointment"
       />
     );
 
@@ -40,8 +41,24 @@ describe('TitleCalendar', () => {
     expect(screen.getByText('(3)')).toBeInTheDocument();
     expect(screen.getByText('Daily schedule')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('Add'));
+    fireEvent.click(screen.getByRole('button', { name: 'New appointment' }));
     expect(setAddPopup).toHaveBeenCalledWith(true);
+  });
+
+  it('falls back to a bare "New" when no addLabel is given', () => {
+    render(
+      <TitleCalendar
+        title="Tasks"
+        setAddPopup={jest.fn()}
+        count={1}
+        activeView="board"
+        setActiveView={jest.fn()}
+        showAdd
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'New' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add' })).not.toBeInTheDocument();
   });
 
   it('has no axe violations', async () => {
@@ -54,6 +71,7 @@ describe('TitleCalendar', () => {
         activeView="calendar"
         setActiveView={jest.fn()}
         showAdd
+        addLabel="New appointment"
       />
     );
     const results = await axe(container);

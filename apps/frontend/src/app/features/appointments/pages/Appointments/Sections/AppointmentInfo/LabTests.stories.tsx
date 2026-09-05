@@ -512,7 +512,7 @@ export const NoOrdersYet: Story = {
 
     // Ordering nothing is not an order: the CTA stays disabled until the queue
     // has something in it.
-    await expect(canvas.getByRole('button', { name: 'Create IDEXX order' })).toBeDisabled();
+    await expect(canvas.getByRole('button', { name: 'Create lab order' })).toBeDisabled();
 
     // Pre-fill wiring. The lead becomes the veterinarian and the first support
     // member who is NOT the lead becomes the technician; both silently fall back
@@ -563,14 +563,14 @@ export const QueueingTests: Story = {
 
     const chip = await canvas.findByTitle('Remove test from selection');
     await expect(chip).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Create IDEXX order' })).toBeEnabled();
+    await expect(canvas.getByRole('button', { name: 'Create lab order' })).toBeEnabled();
 
     // The queue is the only thing between the two states, so removing the chip
     // has to put the CTA back to disabled - a stale enabled button posts an
     // order with no tests on it.
     await userEvent.click(chip);
     await expect(await canvas.findByText('No tests selected yet.')).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Create IDEXX order' })).toBeDisabled();
+    await expect(canvas.getByRole('button', { name: 'Create lab order' })).toBeDisabled();
   },
 };
 

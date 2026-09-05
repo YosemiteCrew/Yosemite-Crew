@@ -20,23 +20,8 @@ jest.mock('@/app/hooks/useBilling', () => ({
   useCurrencyForPrimaryOrg: () => 'USD',
 }));
 
-jest.mock('@/app/lib/money', () => ({
-  formatMoney: (amount: number) => `$ ${amount.toFixed(2)}`,
-  recordCurrency: (record: { currency?: string | null } | null | undefined, fallback: string) =>
-    record?.currency ?? fallback,
-  formatMoneyPrecise: (amount: number, currency: string) =>
-    `${currency} ${Number(amount).toFixed(2)}`,
-  sharedCurrency: (records: ReadonlyArray<{ currency?: string | null }>, fallback: string) => {
-    let shared: string | null = null;
-    for (const record of records) {
-      const own = record.currency;
-      if (typeof own !== 'string' || !own.trim()) continue;
-      if (shared === null) shared = own.trim();
-      else if (shared !== own.trim()) return fallback;
-    }
-    return shared ?? fallback;
-  },
-}));
+// '@/app/lib/money' is deliberately NOT mocked: it is pure and Intl-backed, so the
+// real formatMoney runs here and the currency assertions pin its actual output.
 
 jest.mock('zustand/react/shallow', () => ({
   useShallow: (fn: any) => fn,
@@ -289,6 +274,31 @@ describe('PackagesTab', () => {
   it('does not show empty state when packages exist', () => {
     render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
     expect(screen.queryByText(/haven.*t added any packages yet/i)).not.toBeInTheDocument();
+  });
+
+  it('renders the package total with the real formatMoney output', () => {
+    render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
+    // Pins real formatMoney: "$100" — the Intl symbol and whole units, not the old
+    // fake's "$ 100.00". computePackageTotals is stubbed to totalCost 100, and each
+    // of the two cards prints it in both the narrow and the wide layout.
+    expect(screen.getAllByText('$100')).toHaveLength(4);
+  });
+
+  it('formats the total in the package own currency, not the org currency', () => {
+    (useRevampCatalogStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({
+        packages: [{ ...mockPackage, currency: 'GBP' }],
+        archivePackage: mockArchivePackage,
+        hydratePackageDetail: mockHydratePackageDetail,
+        loadSpecialityCatalog: mockLoadSpecialityCatalog,
+        loadedSpecialityIds: ['spec-1:active'],
+      })
+    );
+    render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
+    // Pins the symbol Intl picks for the record's own currency: "£100" in both
+    // layouts, and nothing in the USD org currency.
+    expect(screen.getAllByText('£100')).toHaveLength(2);
+    expect(screen.queryByText('$100')).not.toBeInTheDocument();
   });
 
   it('only renders packages matching the specialityId and ACTIVE status', () => {

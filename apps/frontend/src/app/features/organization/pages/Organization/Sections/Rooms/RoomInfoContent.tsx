@@ -206,7 +206,7 @@ const RoomInfoContent = ({
     <CenterModal showModal={visibility.showDiscardConfirm} setShowModal={setShowDiscardConfirm}>
       <ModalHeader title="Discard changes?" onClose={() => setShowDiscardConfirm(false)} />
       <p className="text-body-4 text-text-primary">
-        You have unsaved room changes. Are you sure you want to discard them?
+        You have unsaved changes. Are you sure you want to discard them?
       </p>
       <div className="grid grid-cols-2 gap-2">
         <Secondary href="#" text="Keep editing" onClick={() => setShowDiscardConfirm(false)} />

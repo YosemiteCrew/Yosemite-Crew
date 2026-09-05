@@ -62,6 +62,16 @@
      thread — so the line colour is neutralised here as well as hidden below. */
   --str-chat__date-separator-line-color: transparent;
   --str-chat__date-separator-color: var(--ink-faint);
+  /* Loading placeholders. Stream paints its skeleton bars and the panels
+     behind them from these; unmapped they defaulted to white and cool grey,
+     which is what flashed in dark mode before the first channel arrived. */
+  --str-chat__channel-list-background-color: var(--screen-2);
+  --str-chat__channel-header-background-color: var(--screen);
+  --str-chat__message-list-background-color: var(--screen);
+  --str-chat__channel-preview-loading-state-color: var(--hairline);
+  --str-chat__channel-preview-loading-state-highlight-color: var(--inset);
+  --str-chat__channel-loading-state-color: var(--hairline);
+  --str-chat__channel-loading-state-highlight-color: var(--inset);
 }
 
 .str-chat {

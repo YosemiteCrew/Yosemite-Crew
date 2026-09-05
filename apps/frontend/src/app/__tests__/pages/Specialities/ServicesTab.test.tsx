@@ -37,23 +37,8 @@ jest.mock('@/app/hooks/useBilling', () => ({
   useCurrencyForPrimaryOrg: () => 'USD',
 }));
 
-jest.mock('@/app/lib/money', () => ({
-  formatMoney: (amount: number) => `$ ${amount.toFixed(2)}`,
-  recordCurrency: (record: { currency?: string | null } | null | undefined, fallback: string) =>
-    record?.currency ?? fallback,
-  formatMoneyPrecise: (amount: number, currency: string) =>
-    `${currency} ${Number(amount).toFixed(2)}`,
-  sharedCurrency: (records: ReadonlyArray<{ currency?: string | null }>, fallback: string) => {
-    let shared: string | null = null;
-    for (const record of records) {
-      const own = record.currency;
-      if (typeof own !== 'string' || !own.trim()) continue;
-      if (shared === null) shared = own.trim();
-      else if (shared !== own.trim()) return fallback;
-    }
-    return shared ?? fallback;
-  },
-}));
+// '@/app/lib/money' is deliberately NOT mocked: it is pure and dependency-free,
+// so the real Intl.NumberFormat output is what these assertions pin.
 
 jest.mock('@/app/features/organization/services/catalogCalculations', () => ({
   computeServiceTotal: jest.fn(() => ({ total: 90 })),
@@ -207,7 +192,9 @@ describe('ServicesTab', () => {
       setupStoreMock([mockService]);
       render(<ServicesTab {...defaultProps} />);
       expect(screen.getAllByText('30 min').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('$ 90.00').length).toBeGreaterThanOrEqual(1);
+      // Real formatMoney(90, 'USD') — pins the USD symbol, no space after it, and
+      // whole units (maximumFractionDigits 0). Both the wide and compact rows print it.
+      expect(screen.getAllByText('$90')).toHaveLength(2);
       expect(screen.getAllByText('Active').length).toBeGreaterThanOrEqual(1);
     });
 

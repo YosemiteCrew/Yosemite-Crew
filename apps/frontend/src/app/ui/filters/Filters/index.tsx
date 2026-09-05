@@ -5,27 +5,13 @@ import { FilterOption, StatusOption } from '@/app/features/companions/pages/Comp
 import clsx from 'clsx';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { IoAdd, IoChevronDown } from 'react-icons/io5';
+import FilterChip from '@/app/ui/filters/FilterChip';
 import StatusOptionButtons from '@/app/ui/filters/StatusOptionButtons';
 import { useFilterDropdownDismiss } from '@/app/ui/filters/useFilterDropdownDismiss';
 const getDropdownStatusTextColor = (status: StatusOption): string =>
   status.dropdownText ?? status.text ?? 'var(--color-text-primary)';
 
-// Design filter-chip recipe (list toolbars): pill, 6px 13px, 12px text.
-// Neutral: active = --chip-selected-* ink fill; rest = --hairline border + --ink-muted.
-// Emergency: always danger-toned (--danger-border/--danger-text); active adds --danger-bg fill.
-const getFilterChipClassName = (filterKey: string, activeFilter: string): string => {
-  const isActive = filterKey === activeFilter;
-  if (filterKey === 'emergencies') {
-    return isActive
-      ? 'bg-[var(--danger-bg)] border-[var(--danger-border)]! text-[var(--danger-text)]! font-bold'
-      : 'border-[var(--danger-border)]! text-[var(--danger-text)]! font-semibold';
-  }
-  return isActive
-    ? 'bg-[var(--chip-selected-bg)] border-[var(--chip-selected-border)]! text-[var(--chip-selected-ink)]! font-bold'
-    : 'border-[var(--hairline)]! text-[var(--ink-muted)]! font-semibold hover:border-[var(--divider)]!';
-};
-
-// Design status-pill recipe (list toolbar): same pill geometry as the filter chips.
+// Design status-pill recipe (list toolbar): same pill geometry as the filter chips (FilterChip).
 // Active carries the status' own bg/border/text at weight 700 ("all" falls back to
 // the neutral --inset/--divider/--ink recipe); the rest stay --hairline/--ink-muted.
 // Tokens are applied inline so they keep following the live theme.
@@ -61,7 +47,6 @@ type FiltersProps = {
   onAddButtonClick?: () => void;
   addButtonText?: string;
   className?: string;
-  compactFilterPills?: boolean;
 };
 
 const Filters = ({
@@ -76,7 +61,6 @@ const Filters = ({
   onAddButtonClick,
   addButtonText = 'New appointment',
   className,
-  compactFilterPills = false,
 }: FiltersProps) => {
   const [open, setOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -128,27 +112,18 @@ const Filters = ({
           {filterOptions?.map((filter) => {
             const isEmergency = filter.key === 'emergencies';
             return (
-              <button
+              <FilterChip
                 key={filter.key}
-                type="button"
+                label={filter.name}
+                active={filter.key === activeFilter}
                 onClick={() => handleFilterToggle(filter.key)}
-                className={clsx(
-                  'inline-flex items-center justify-center gap-1.5 rounded-full! border text-[12px] transition-colors',
-                  compactFilterPills ? 'px-3 py-1' : 'px-[13px] py-1.5',
-                  getFilterChipClassName(filter.key, activeFilter ?? '')
-                )}
-              >
-                {isEmergency && (
-                  // 6px danger dot; it doubles as the "emergencies present" marker.
-                  <span
-                    aria-label={hasEmergency ? 'Emergency appointments present' : undefined}
-                    aria-hidden={hasEmergency ? undefined : true}
-                    className="size-1.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: 'var(--danger)' }}
-                  />
-                )}
-                <span>{filter.name}</span>
-              </button>
+                tone={isEmergency ? 'danger' : 'neutral'}
+                // 6px danger dot; it doubles as the "emergencies present" marker.
+                dotColor={isEmergency ? 'var(--danger)' : undefined}
+                dotLabel={
+                  isEmergency && hasEmergency ? 'Emergency appointments present' : undefined
+                }
+              />
             );
           })}
 
@@ -167,7 +142,7 @@ const Filters = ({
                     type="button"
                     aria-pressed={isActive}
                     onClick={() => setActiveStatus?.(status.key)}
-                    className="inline-flex items-center justify-center rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors"
+                    className="inline-flex h-8 shrink-0 items-center justify-center rounded-full! border px-[13px] text-[12.5px] transition-colors"
                     style={getStatusPillStyle(status, isActive)}
                   >
                     {status.name}

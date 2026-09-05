@@ -253,12 +253,12 @@ export const AddRoomDrawer: Story = {
 
     await waitFor(() => expect(openDialogs()).toHaveLength(1));
     const panel = within(openDialogs()[0]);
-    await expect(panel.getByRole('heading', { name: 'Adding new room' })).toBeVisible();
+    await expect(panel.getByRole('heading', { name: 'New room' })).toBeVisible();
     /* The drawer's speciality and staff pickers read the same seeded stores the
        list rows do, so the options are real rather than placeholders. The
-       footer action reads "Add room" too, which is why it is queried inside the
-       dialog rather than on the canvas - the section's own "+ Add room" link is
-       still there behind the scrim. */
+       footer action is queried inside the dialog rather than on the canvas
+       because the section's own "+ Add room" link is still there behind the
+       scrim. */
     await expect(panel.getByRole('button', { name: 'Basic details' })).toHaveAttribute(
       'aria-expanded',
       'true'
@@ -278,7 +278,7 @@ export const AddRoomDrawer: Story = {
         'true'
       );
     }
-    await expect(panel.getByRole('button', { name: 'Add room' })).toBeInTheDocument();
+    await expect(panel.getByRole('button', { name: 'New room' })).toBeInTheDocument();
   },
   parameters: {
     docs: {

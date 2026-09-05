@@ -1,3 +1,4 @@
+import { PLATFORM_STATUS_API_URL } from '@/app/hooks/usePlatformStatus';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, waitFor, within } from 'storybook/test';
 
@@ -12,7 +13,7 @@ import PhoneDevHome from './PhoneDevHome';
 const withPlatformStatus = (status: string) => () => {
   const original = globalThis.fetch;
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    if (String(input).includes('openstatus.dev')) {
+    if (String(input).startsWith(PLATFORM_STATUS_API_URL)) {
       return Promise.resolve(
         new Response(JSON.stringify({ status }), {
           status: 200,
@@ -96,7 +97,8 @@ export const StatusUnreachable: Story = {
   beforeEach: () => {
     const original = globalThis.fetch;
     globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-      if (String(input).includes('openstatus.dev')) return Promise.reject(new Error('offline'));
+      if (String(input).startsWith(PLATFORM_STATUS_API_URL))
+        return Promise.reject(new Error('offline'));
       return original.call(globalThis, input, init);
     }) as typeof globalThis.fetch;
     return () => {

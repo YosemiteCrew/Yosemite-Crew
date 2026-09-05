@@ -949,7 +949,7 @@ describe('Inventory Page', () => {
     expect(screen.getByRole('button', { name: 'Dispensary' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sort: Name' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add product' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New product' })).toBeInTheDocument();
     expect(screen.getByTestId('inventory-table')).toBeInTheDocument();
     expect(screen.queryByTestId('dispensary-table')).not.toBeInTheDocument();
 
@@ -1467,7 +1467,7 @@ describe('Inventory Page', () => {
   it('opens add modal on button click', () => {
     render(<ProtectedInventory />);
     expect(screen.queryByTestId('add-modal')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New product' }));
     expect(screen.getByTestId('add-modal')).toBeInTheDocument();
   });
 
@@ -1500,10 +1500,10 @@ describe('Inventory Page', () => {
     expect(screen.queryByTestId('add-modal')).not.toBeInTheDocument();
   });
 
-  it('ignores the phone primary action on the turnover view, where Add product is hidden', () => {
+  it('ignores the phone primary action on the turnover view, where New product is hidden', () => {
     render(<ProtectedInventory />);
     fireEvent.click(screen.getByRole('button', { name: 'Dispensary' }));
-    expect(screen.queryByRole('button', { name: 'Add product' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New product' })).not.toBeInTheDocument();
 
     act(() => {
       globalThis.window.dispatchEvent(
@@ -1730,7 +1730,7 @@ describe('Inventory Page', () => {
     });
     render(<ProtectedInventory />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New product' }));
     fireEvent.click(screen.getByTestId('submit-add'));
 
     await waitFor(() => {
@@ -1748,7 +1748,7 @@ describe('Inventory Page', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     render(<ProtectedInventory />);
-    const btn = screen.getByRole('button', { name: 'Add product' });
+    const btn = screen.getByRole('button', { name: 'New product' });
     expect(btn).toBeDisabled();
 
     // Cleanup before re-rendering for the error test part
@@ -1764,7 +1764,7 @@ describe('Inventory Page', () => {
     render(<ProtectedInventory />);
 
     mockCreateItem.mockRejectedValue(new Error('API Fail'));
-    fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New product' }));
     fireEvent.click(screen.getByTestId('submit-add'));
 
     await waitFor(() => {
@@ -1778,7 +1778,7 @@ describe('Inventory Page', () => {
     const { rerender } = render(<ProtectedInventory />);
 
     // Open the add modal while an org is selected.
-    fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New product' }));
     expect(screen.getByTestId('add-modal')).toBeInTheDocument();
 
     // Org is cleared while the modal stays open — submitting now hits the guard.
@@ -2250,7 +2250,7 @@ describe('Inventory Page', () => {
       (useIsPhone as jest.Mock).mockReturnValue(false);
     });
 
-    it('renders the bespoke phone catalog instead of the desktop table and hides Add product', () => {
+    it('renders the bespoke phone catalog instead of the desktop table and hides New product', () => {
       render(<ProtectedInventory />);
 
       // Bespoke phone cards replace the shared table; the pill row + FAB own
@@ -2258,7 +2258,7 @@ describe('Inventory Page', () => {
       expect(screen.getByRole('button', { name: 'View Item A' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'View Item B' })).toBeInTheDocument();
       expect(screen.queryByTestId('inventory-table')).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Add product' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'New product' })).not.toBeInTheDocument();
       // The phone filter pill row is present.
       expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
     });

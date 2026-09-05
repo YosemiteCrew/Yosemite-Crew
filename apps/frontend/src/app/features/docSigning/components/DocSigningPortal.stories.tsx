@@ -16,12 +16,14 @@ const REDIRECT_ENDPOINT = `/v1/documenso/pms/redirect/${ORG_ID}`;
  * `NEXT_PUBLIC_DOCUMENSO_HOST` (defaulting to `https://ds.yosemitecrew.com`) and
  * returns `''` on any mismatch - so with no `.env` reaching the preview, the
  * iframe branch is only reachable if the fixture URL sits on the shipped host.
- * Rather than depend on what the shell happened to export, the stories pin the
- * variable themselves and point it at a `.invalid` host: the TLD is reserved and
- * never resolves, so the frame lays out its box without a request leaving for
- * the real production portal. `SessionInitializer` and `GithubSignInButton` pin
- * `NEXT_PUBLIC_*` the same way - the vite framework installs a writable
- * `process.env` shim rather than inlining these at build time.
+ * The origin is pinned at BUILD time in `.storybook/main.ts`, not assigned here.
+ * Next inlines every `NEXT_PUBLIC_*` when it builds, so a story that writes to
+ * `process.env` works against `storybook dev` - whose shim is writable - and
+ * silently does nothing in `storybook build`, which is what Chromatic publishes.
+ * These stories were red there: the guard fell back to the real host, rejected
+ * this fixture URL and never mounted the frame, while Storybook still reported
+ * the story finished. The `.invalid` TLD is reserved and never resolves, so the
+ * frame lays out its box without a request leaving for the production portal.
  *
  * What this costs: these stories no longer prove the DEFAULT allowlist entry is
  * `ds.yosemitecrew.com`, only that the check is against the configured origin.
@@ -108,8 +110,6 @@ type PortalFixture =
  */
 const withRedirectEndpoint = (fixture: PortalFixture) => () => {
   const originalAdapter = api.defaults.adapter;
-  const previousHost = process.env.NEXT_PUBLIC_DOCUMENSO_HOST;
-  process.env.NEXT_PUBLIC_DOCUMENSO_HOST = PORTAL_ORIGIN;
   requests.length = 0;
 
   api.defaults.adapter = (async (config: InternalAxiosRequestConfig) => {
@@ -150,11 +150,6 @@ const withRedirectEndpoint = (fixture: PortalFixture) => () => {
 
   return () => {
     api.defaults.adapter = originalAdapter;
-    if (previousHost === undefined) {
-      delete process.env.NEXT_PUBLIC_DOCUMENSO_HOST;
-    } else {
-      process.env.NEXT_PUBLIC_DOCUMENSO_HOST = previousHost;
-    }
   };
 };
 

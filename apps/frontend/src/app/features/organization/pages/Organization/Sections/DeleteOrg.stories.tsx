@@ -87,14 +87,14 @@ const meta = {
           'band, no node.\n\n' +
           'The band itself is the only place in PIMS that uses `--danger-border` as a resting ' +
           'container border rather than an error state, paired with `--danger-text` on the title ' +
-          'and the outlined `Delete…` pill while the supporting line stays in ordinary faint ' +
+          'and the outlined `Delete organization` pill while the supporting line stays in ordinary faint ' +
           'ink. That mix is deliberate - it reads as a zone, not as an error - and it is exactly ' +
           'what a token rename would flatten without failing anything.\n\n' +
           'The confirmation is the shared `DeleteConfirmationModal` (which has its own stories ' +
           'for the consent gate), so what is worth reviewing here is the copy THIS caller ' +
           'passes into it: six bullets naming every category of data that goes, an email prompt ' +
-          'that asks for the owner address specifically, and the ellipsis on the trigger that ' +
-          'promises a further step before anything happens.',
+          'that asks for the owner address specifically, and a trigger that names what it ' +
+          'deletes - "Delete organization", not a bare "Delete".',
       },
     },
   },
@@ -120,9 +120,9 @@ export const DangerBand: Story = {
     await expect(
       canvas.getByText('Removes the clinic and revokes all team access')
     ).toBeInTheDocument();
-    const trigger = canvas.getByRole('button', { name: 'Delete…' });
+    const trigger = canvas.getByRole('button', { name: 'Delete organization' });
 
-    /* Three colours, three roles. The title is `--danger-text` and the ellipsis
+    /* Three colours, three roles. The title is `--danger-text` and the outlined
        pill matches it exactly, which is what makes the pair read as one control;
        the supporting line stays ordinary faint ink so the band is not a wall of
        red; and the container border is `--danger-border`, a translucent red that
@@ -163,7 +163,7 @@ export const ConfirmationOpen: Story = {
   name: 'Confirmation open',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Delete…' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Delete organization' }));
 
     await waitFor(() => expect(openDialog()).not.toBeNull());
     const dialog = within(openDialog() as HTMLElement);

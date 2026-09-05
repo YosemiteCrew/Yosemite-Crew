@@ -450,7 +450,7 @@ export const Empty: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.getByText('No invoices match the current filters.')).toBeInTheDocument();
+    await expect(canvas.getByText('No invoices yet')).toBeInTheDocument();
     await expect(cards(canvasElement)).toHaveLength(0);
 
     /* The tiles and the rail survive an empty list, and they must: the tiles are
@@ -464,7 +464,7 @@ export const Empty: Story = {
     // empties the list is spoken rather than silently blanking the screen.
     const empty = canvas.getByRole('status');
     await expect(empty).toHaveAttribute('aria-live', 'polite');
-    await expect(empty).toHaveTextContent('No invoices match the current filters.');
+    await expect(empty).toHaveTextContent('No invoices yet');
   },
   parameters: {
     docs: {

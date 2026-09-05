@@ -93,6 +93,15 @@ export const Organization = () => {
 
   return (
     <div className="yc-page-content flex flex-col gap-[14px]">
+      {/* Page-header contract: every page opens with the serif title and a
+          subtitle. This page used to start straight on the profile card, so it
+          was the one PIMS screen with no H1. */}
+      <div className="flex min-w-0 flex-col gap-[3px]">
+        <h1 className="text-page-title">Organization</h1>
+        <p className="text-[13.5px] text-[var(--ink-muted)]">
+          Clinic profile, team, rooms, specialities and the services you offer
+        </p>
+      </div>
       <Profile primaryOrg={primaryorg} />
       {primaryorg.isVerified ? (
         <div className="grid gap-[14px] xl:grid-cols-[1.5fr_1fr] xl:items-stretch">

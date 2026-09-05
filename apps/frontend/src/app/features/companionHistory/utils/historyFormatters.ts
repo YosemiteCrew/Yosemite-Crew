@@ -1,34 +1,24 @@
 import { HistoryEntry, HistoryEntryType } from '@/app/features/companionHistory/types/history';
+import { formatDateTimeLocal, formatDisplayDate } from '@/app/lib/date';
 
 type BadgeTone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger';
 
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-});
+/**
+ * The History tab and the Audit tab are two tabs of one companion record showing
+ * overlapping events, and the Audit tab stamps its rows with `formatDateTimeLocal`
+ * (CompanionHistoryTimeline.tsx). These two were module-scope `Intl.DateTimeFormat`
+ * instances with no `timeZone`, so they resolved to the DEVICE zone while the tab
+ * next to them used the clinic's preferred zone: one event read "Sep 3, 2026,
+ * 9:05 PM" on History and "Sep 3, 2026, 10:05 PM" on Audit, and near midnight the
+ * two tabs disagreed on the date. The shared helpers pin `getPreferredTimeZone()`.
+ *
+ * The clock also widens from `hour: 'numeric'` to `hour: '2-digit'` as a
+ * consequence ("9:05 PM" -> "09:05 PM"), which is what every other timestamp in
+ * the product built on `formatDateTimeLocal` already shows.
+ */
+export const formatHistoryDateTime = (value?: string | null) => formatDateTimeLocal(value, '-');
 
-const DATE_ONLY_FORMATTER = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-});
-
-export const formatHistoryDateTime = (value?: string | null) => {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return DATE_TIME_FORMATTER.format(date);
-};
-
-export const formatHistoryDate = (value?: string | null) => {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return DATE_ONLY_FORMATTER.format(date);
-};
+export const formatHistoryDate = (value?: string | null) => formatDisplayDate(value, '-');
 
 export const getHistoryTypeLabel = (type: HistoryEntryType): string => {
   if (type === 'FORM_SUBMISSION') return 'SOAP / Form';

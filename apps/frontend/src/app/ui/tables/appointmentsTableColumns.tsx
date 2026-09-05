@@ -1,6 +1,7 @@
 import React from 'react';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { FaCheckCircle } from 'react-icons/fa';
 import { IoIosCloseCircle, IoIosCalendar } from 'react-icons/io';
 import { IoEyeOutline, IoCardOutline, IoDocumentTextOutline } from 'react-icons/io5';
@@ -84,15 +85,22 @@ export const buildAppointmentColumns = ({
         {(() => {
           const companion = item.companion ?? item.patient;
           return (
-            <Image
+            <AvatarImage
               src={getSafeImageUrl(
                 getAppointmentCompanionPhotoUrl(companion),
                 companion.species as ImageType
               )}
               alt=""
-              height={40}
-              width={40}
+              size={40}
               className="size-10 rounded-full object-cover"
+              fallback={
+                <CompanionAvatar
+                  name={companion.name}
+                  seed={companion.id}
+                  size={40}
+                  textClassName="text-[18px]"
+                />
+              }
             />
           );
         })()}

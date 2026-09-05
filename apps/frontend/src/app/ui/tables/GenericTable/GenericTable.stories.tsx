@@ -74,6 +74,12 @@ export const EmptyState: Story = {
   name: 'Empty state',
   args: { data: [], columns: COLUMNS },
   parameters: {
-    docs: { description: { story: 'Empty data renders a "quiet day" placeholder row.' } },
+    docs: {
+      description: {
+        story:
+          'Empty data renders a placeholder row whose copy is derived from `itemNoun`, so each ' +
+          'table names its own records. With no noun it falls back to "No records yet".',
+      },
+    },
   },
 };

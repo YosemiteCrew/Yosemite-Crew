@@ -187,6 +187,9 @@ export const ServicesStep: Story = {
     await expect(rows).toHaveLength(3);
     await expect(rows[0]).toHaveTextContent('Wellness consultation');
     await expect(rows[0]).toHaveTextContent('30 min · any practitioner');
+    /* The price is the shared `formatMoneyPrecise`, not the page's old
+       three-entry {EUR,USD,GBP} symbol table - so this pins the same formatter
+       Specialities prices from rather than a local copy of it. */
     await expect(rows[0]).toHaveTextContent('€72.00');
     await expect(canvas.queryByText('Full mouth radiograph')).not.toBeInTheDocument();
     await expect(canvas.queryByText('Retired nail trim')).not.toBeInTheDocument();

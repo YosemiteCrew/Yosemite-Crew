@@ -10,6 +10,12 @@ import {
   BatchValues,
 } from '@/app/features/inventory/pages/Inventory/types';
 import { formatDisplayDate as formatGlobalDisplayDate } from '@/app/lib/date';
+/* The blank-aware pair lives in lib/validators, beside the other coercions, so
+   surfaces outside inventory can use it too. Re-exported here because this
+   file's own consumers already import their numeric helpers from it. */
+import { toDisplayNumber, toPayloadNumber } from '@/app/lib/validators';
+
+export { toDisplayNumber, toPayloadNumber };
 
 export const toStringSafe = (value: unknown): string => {
   if (value === undefined || value === null) return '';
@@ -19,6 +25,14 @@ export const toStringSafe = (value: unknown): string => {
   return '';
 };
 
+/**
+ * Numeric coercion that treats blank and null as 0, because `Number('')` is 0.
+ *
+ * Prefer `toDisplayNumber` or `toPayloadNumber` above: each states which meaning
+ * of "blank" it wants, and this one cannot. Kept for the call sites that
+ * genuinely want the coercion, and exported because tests and callers still
+ * reach for it.
+ */
 export const toNumberSafe = (value: unknown): number | undefined => {
   const num = Number(value);
   return Number.isFinite(num) ? num : undefined;
@@ -60,8 +74,10 @@ export const calculateBatchTotals = (
   let hasAllocated = false;
 
   batches.forEach((batch) => {
-    const qty = batch.quantity === '' ? undefined : toNumberSafe(batch.quantity);
-    const alloc = batch.allocated === '' ? undefined : toNumberSafe(batch.allocated);
+    /* Was `=== '' ? undefined :` inline here, one of three hand-rolled guards
+       around the same root. A blank must not count as a zero in a total. */
+    const qty = toDisplayNumber(batch.quantity);
+    const alloc = toDisplayNumber(batch.allocated);
     if (qty !== undefined) {
       onHand += qty;
       hasOnHand = true;
@@ -284,21 +300,21 @@ export const mapApiItemToInventoryItem = (apiItem: InventoryApiItem): InventoryI
   const batchTotals = calculateBatchTotals(batches);
   const onHandVal = firstDefined(
     batchTotals.onHand,
-    toNumberSafe(apiItem.onHand),
-    toNumberSafe(attributes.onHand),
-    toNumberSafe(attributes.current),
-    toNumberSafe(attributes.available)
+    toDisplayNumber(apiItem.onHand),
+    toDisplayNumber(attributes.onHand),
+    toDisplayNumber(attributes.current),
+    toDisplayNumber(attributes.available)
   );
   const allocatedVal = firstDefined(
-    toNumberSafe(apiItem.allocated),
+    toDisplayNumber(apiItem.allocated),
     batchTotals.allocated,
-    toNumberSafe(attributes.allocated)
+    toDisplayNumber(attributes.allocated)
   );
   const available = firstDefined(
     onHandVal !== undefined && allocatedVal !== undefined ? onHandVal - allocatedVal : onHandVal,
-    toNumberSafe(apiItem.onHand),
+    toDisplayNumber(apiItem.onHand),
     batchTotals.available,
-    toNumberSafe(attributes.available)
+    toDisplayNumber(attributes.available)
   );
 
   const primaryBatch = selectPrimaryBatch(batches);
@@ -399,7 +415,7 @@ export const mapApiItemToInventoryItem = (apiItem: InventoryApiItem): InventoryI
       leadTime: toStringSafe(attributes.leadTime),
     },
     stock: {
-      current: toStringSafe(onHandVal ?? toNumberSafe(attributes.current) ?? attributes.current),
+      current: toStringSafe(onHandVal ?? toDisplayNumber(attributes.current) ?? attributes.current),
       allocated: toStringSafe(allocatedVal ?? attributes.allocated),
       available: toStringSafe(available),
       maxStock: toStringSafe(attributes.maxStock),
@@ -463,8 +479,8 @@ const normalizeStatusForApi = (status?: string) => {
 
 export const buildBatchPayload = (batch: BatchValues): InventoryBatchPayload | undefined => {
   const batchRecord = batch as BatchValues & { current?: unknown; available?: unknown };
-  const quantity = toNumberSafe(batch.quantity ?? batchRecord.current ?? batchRecord.available);
-  const allocated = batch.allocated === '' ? undefined : toNumberSafe(batch.allocated);
+  const quantity = toPayloadNumber(batch.quantity ?? batchRecord.current ?? batchRecord.available);
+  const allocated = toPayloadNumber(batch.allocated);
   const normalizeDateForApi = (val?: string) => {
     if (!val) return undefined;
     if (val.includes('/')) {
@@ -542,10 +558,13 @@ export const buildInventoryPayload = (
   const unitOfMeasure = Array.isArray(unitOfMeasureValue)
     ? unitOfMeasureValue[0]
     : unitOfMeasureValue?.trim() || undefined;
+  /* The `??` fallback here was dead: a blank pack size gave `Number('') === 0`,
+     and `0 ?? x` is 0, so the unit-quantity fallback never fired. With blank
+     mapping to null it does, because `??` falls through on null. */
   const packageQuantity =
-    toNumberSafe(formData.classification.packSize) ?? toNumberSafe(formData.stock.unitQnt);
+    toPayloadNumber(formData.classification.packSize) ?? toPayloadNumber(formData.stock.unitQnt);
   const storageLocation = formData.stock.stockLocation?.trim() || undefined;
-  const minimumStock = toNumberSafe(formData.stock.minStockAlert);
+  const minimumStock = toPayloadNumber(formData.stock.minStockAlert);
   const statusForApi = normalizeStatusForApi(formData.status ?? formData.basicInfo.status);
 
   const batchesSource =
@@ -594,7 +613,7 @@ export const buildInventoryPayload = (
     withdrawlPeriod: formData.stock.withdrawlPeriod ?? formData.classification.withdrawlPeriod,
     minStockAlert: formData.stock.minStockAlert,
     reorderQuantity: formData.stock.reorderQuantity,
-    available: batchTotals.available ?? toNumberSafe(formData.stock.available),
+    available: batchTotals.available ?? toPayloadNumber(formData.stock.available),
     expiryWarningBefore:
       formData.attributes?.expiryWarningBefore ?? firstBatch?.expiryWarningBefore,
     barcode: formData.attributes?.barcode ?? firstBatch?.barcode,
@@ -623,7 +642,7 @@ export const buildInventoryPayload = (
     storageInstructions,
     unitOfMeasure,
     packageQuantity,
-    unitQuantity: toNumberSafe(formData.stock.unitQnt),
+    unitQuantity: toPayloadNumber(formData.stock.unitQnt),
     stockUnitType: formData.stock.stockType?.trim() || undefined,
     storageLocation,
     minimumStock,
@@ -634,13 +653,13 @@ export const buildInventoryPayload = (
     },
     // onHand/initialOnHand reflect the item-level "on hand stock" field the user edits directly;
     // batch quantities are a separate concept and must not override it here.
-    onHand: toNumberSafe(formData.stock.current),
-    allocated: toNumberSafe(formData.stock.allocated),
-    initialOnHand: toNumberSafe(formData.stock.current),
-    initialAllocated: toNumberSafe(formData.stock.allocated),
-    reorderLevel: toNumberSafe(formData.stock.reorderLevel),
-    unitCost: toNumberSafe(formData.pricing.purchaseCost),
-    sellingPrice: toNumberSafe(formData.pricing.selling),
+    onHand: toPayloadNumber(formData.stock.current),
+    allocated: toPayloadNumber(formData.stock.allocated),
+    initialOnHand: toPayloadNumber(formData.stock.current),
+    initialAllocated: toPayloadNumber(formData.stock.allocated),
+    reorderLevel: toPayloadNumber(formData.stock.reorderLevel),
+    unitCost: toPayloadNumber(formData.pricing.purchaseCost),
+    sellingPrice: toPayloadNumber(formData.pricing.selling),
     // Currency is derived server-side from the org billing settings; do not send a hardcoded value.
     vendorId: formData.vendor.vendor,
     status: formData.basicInfo.visibleInInventory === false ? 'HIDDEN' : statusForApi,
@@ -678,42 +697,47 @@ export const displayStatusLabel = (item: InventoryItem): string => {
 };
 
 export const getAvailableStock = (item: InventoryItem): number | undefined => {
-  const onHand = toNumberSafe(item.stock?.current);
-  const allocated = toNumberSafe(item.stock?.allocated) ?? 0;
+  const onHand = toDisplayNumber(item.stock?.current);
+  const allocated = toDisplayNumber(item.stock?.allocated) ?? 0;
   if (onHand === undefined) return undefined;
   return onHand - allocated;
 };
 
 export const getGrossProfitPerUnit = (item: InventoryItem): number | undefined => {
-  const selling = toNumberSafe(item.pricing.selling);
-  const unitCost = toNumberSafe(item.pricing.purchaseCost);
+  const selling = toDisplayNumber(item.pricing.selling);
+  const unitCost = toDisplayNumber(item.pricing.purchaseCost);
   if (selling === undefined || unitCost === undefined) return undefined;
   return selling - unitCost;
 };
 
 export const getMarginPercent = (item: InventoryItem): number | undefined => {
-  const selling = toNumberSafe(item.pricing.selling);
+  const selling = toDisplayNumber(item.pricing.selling);
   const profit = getGrossProfitPerUnit(item);
   if (selling === undefined || selling === 0 || profit === undefined) return undefined;
   return (profit / selling) * 100;
 };
 
 export const getMarkupPercent = (item: InventoryItem): number | undefined => {
-  const unitCost = toNumberSafe(item.pricing.purchaseCost);
+  const unitCost = toDisplayNumber(item.pricing.purchaseCost);
   const profit = getGrossProfitPerUnit(item);
   if (unitCost === undefined || unitCost === 0 || profit === undefined) return undefined;
   return (profit / unitCost) * 100;
 };
 
 export const getStockValue = (item: InventoryItem): number | undefined => {
-  const onHand = toNumberSafe(item.stock.current);
-  const unitCost = toNumberSafe(item.pricing.purchaseCost);
+  // Blank is unknown, not zero: an uncounted or unpriced item has no stock
+  // value, and reporting 0 claimed the practice was holding nothing. The guard
+  // that used to sit here is inside toDisplayNumber now.
+  const onHand = toDisplayNumber(item.stock.current);
+  const unitCost = toDisplayNumber(item.pricing.purchaseCost);
   if (onHand === undefined || unitCost === undefined) return undefined;
   return onHand * unitCost;
 };
 
 export const formatCurrencyValue = (value?: string | number, currency = 'USD') => {
-  const num = toNumberSafe(value);
+  // An em dash for a missing price, a real "$0" for a price of zero. The blank
+  // check lives in toDisplayNumber, which is also what the payload side mirrors.
+  const num = toDisplayNumber(value);
   if (num === undefined) return '—';
   try {
     return new Intl.NumberFormat('en-US', {
@@ -750,15 +774,15 @@ export const getDerivedStockHealth = (
   }
 
   const available = getAvailableStock(item);
-  const reorderPoint = toNumberSafe(item.stock?.reorderLevel);
-  const maxStock = toNumberSafe(item.stock?.maxStock);
+  const reorderPoint = toDisplayNumber(item.stock?.reorderLevel);
+  const maxStock = toDisplayNumber(item.stock?.maxStock);
   if (available !== undefined && available <= 0) {
     return { key: 'OUT_OF_STOCK', label: 'Out of stock' };
   }
   if (available !== undefined && reorderPoint !== undefined && available <= reorderPoint) {
     return { key: 'LOW_STOCK', label: 'Low stock' };
   }
-  const onHand = toNumberSafe(item.stock?.current);
+  const onHand = toDisplayNumber(item.stock?.current);
   if (onHand !== undefined && maxStock !== undefined && onHand > maxStock) {
     return { key: 'OVERSTOCKED', label: 'Overstocked' };
   }

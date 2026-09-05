@@ -187,7 +187,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'The "Appointment Details" panel that opens from a board card - the two-column ' +
+          'The "Appointment details" panel that opens from a board card - the two-column ' +
           'overview a clinician reads before starting a visit. The shell around it had a story; ' +
           'the body inside it never did, and the body is where every conditional lives.\n\n' +
           'Three of them matter. **RoomSelectorSection** renders the same field two completely ' +
@@ -226,7 +226,7 @@ export const Overview: Story = {
     const panel = await openOverview(canvasElement);
 
     // Left column: the people and the schedule.
-    await expect(panel.getByRole('heading', { name: 'Appointment Details' })).toBeInTheDocument();
+    await expect(panel.getByRole('heading', { name: 'Appointment details' })).toBeInTheDocument();
     await expect(panel.getByText('Poppy')).toBeInTheDocument();
     await expect(panel.getByText('Lena Hartmann')).toBeInTheDocument();
     await expect(panel.getByText('Dr. Weber')).toBeInTheDocument();
@@ -252,8 +252,8 @@ export const Overview: Story = {
 
     // Estimate falls back to the catalogue (82 cost - 12 max discount) because no
     // invoice exists for this appointment.
-    await expect(panel.getByText('$ 70.00')).toBeInTheDocument();
-    await expect(panel.getByRole('button', { name: 'Start Appointment' })).toBeEnabled();
+    await expect(panel.getByText('$70.00')).toBeInTheDocument();
+    await expect(panel.getByRole('button', { name: 'Start appointment' })).toBeEnabled();
 
     // The "two-column" claim, measured: two resolved tracks holding exactly the two
     // column components. A collapse to one track would still render every row above.
@@ -266,8 +266,8 @@ export const Overview: Story = {
       description: {
         story:
           'The everyday panel. Both columns are populated, the room is a live dropdown, and ' +
-          'the footer reads "Start Appointment" because the status is UPCOMING - the label ' +
-          'switches to "View Details" for every other status.',
+          'the footer reads "Start appointment" because the status is UPCOMING - the label ' +
+          'switches to "View details" for every other status.',
       },
     },
   },
@@ -355,7 +355,7 @@ export const BlockedWorkspace: Story = {
     await expect(
       panel.getByText('Cancelled appointments cannot be opened in the clinical workspace.')
     ).toBeInTheDocument();
-    await expect(panel.getByRole('button', { name: 'View Details' })).toBeDisabled();
+    await expect(panel.getByRole('button', { name: 'View details' })).toBeDisabled();
 
     // Room has fallen to the read-only branch: the label survives, the control does not.
     await expect(panel.queryByRole('button', { name: /^Room/ })).not.toBeInTheDocument();
@@ -386,9 +386,9 @@ export const CompletedHidesEstimate: Story = {
 
     // A completed visit has a bill, not an estimate, so the whole panel is dropped.
     await expect(panel.queryByText('Estimate')).not.toBeInTheDocument();
-    await expect(panel.queryByText('$ 70.00')).not.toBeInTheDocument();
+    await expect(panel.queryByText('$70.00')).not.toBeInTheDocument();
     // The workspace is still reachable for a completed appointment.
-    await expect(panel.getByRole('button', { name: 'View Details' })).toBeEnabled();
+    await expect(panel.getByRole('button', { name: 'View details' })).toBeEnabled();
     // Room is read-only here too - assignment stops at IN_PROGRESS.
     await expect(panel.queryByRole('button', { name: /^Room/ })).not.toBeInTheDocument();
 
@@ -396,7 +396,7 @@ export const CompletedHidesEstimate: Story = {
        be four absence checks, which a panel that failed to render at all would also
        satisfy - the estimate is missing because the status says so, not because the
        body is empty. Room keeps its value in the read-only box. */
-    await expect(panel.getByRole('heading', { name: 'Appointment Details' })).toBeInTheDocument();
+    await expect(panel.getByRole('heading', { name: 'Appointment details' })).toBeInTheDocument();
     await expect(panel.getByText('Poppy')).toBeInTheDocument();
     await expect(panel.getByText('General practice')).toBeInTheDocument();
     await expect(panel.getByText('Room')).toBeInTheDocument();
@@ -438,14 +438,14 @@ export const OverviewNarrow: Story = {
     await expect(panel.getByText('Lena Hartmann')).toBeInTheDocument();
     await expect(panel.getByText('General practice')).toBeInTheDocument();
     await expect(panel.getByRole('button', { name: 'Room: Consult 2' })).toBeInTheDocument();
-    await expect(panel.getByRole('button', { name: 'Start Appointment' })).toBeEnabled();
+    await expect(panel.getByRole('button', { name: 'Start appointment' })).toBeEnabled();
   },
   parameters: {
     docs: {
       description: {
         story:
           'The stacked panel on a phone. Everything a clinician reads before starting a visit ' +
-          'is now one column deep, which puts the estimate and the Start Appointment button ' +
+          'is now one column deep, which puts the estimate and the Start appointment button ' +
           'below a full screen of patient detail - the ordering worth judging here, since the ' +
           'desktop layout keeps the CTA in view and this one does not.',
       },

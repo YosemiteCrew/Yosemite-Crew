@@ -550,7 +550,7 @@ const CompanionEditSection = ({
           intype="text"
           inname="insurancePolicy"
           value={formData.insurance?.policyNumber || ''}
-          inlabel="Policy Number"
+          inlabel="Policy number"
           onChange={(e) =>
             setFormData((prev) => ({
               ...prev,

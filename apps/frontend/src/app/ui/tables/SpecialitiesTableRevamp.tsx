@@ -1,6 +1,7 @@
+import { emptyStateCopy } from '@/app/ui/tables/tableUtils';
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import SpecialitiesCard from '@/app/ui/cards/SpecialitiesCard';
@@ -9,6 +10,10 @@ import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useShallow } from 'zustand/react/shallow';
 import { getSafeImageUrl } from '@/app/lib/urls';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import {
+  avatarAccentFor,
+  initialsOf,
+} from '@/app/features/organization/pages/Organization/Sections/orgDisplay';
 
 import './DataTable.css';
 
@@ -83,12 +88,19 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
         const picUrl = headTeam?.image ?? item.headProfilePicUrl;
         return (
           <div className="appointment-profile">
-            <Image
+            <AvatarImage
               src={getSafeImageUrl(picUrl, 'person')}
               alt={headName}
-              width={36}
-              height={36}
+              size={36}
               className="size-9 rounded-full object-cover shrink-0"
+              fallback={
+                <span
+                  className={`flex size-9 shrink-0 items-center justify-center rounded-full text-[12px] font-bold ${avatarAccentFor(item.headUserId || headName)}`}
+                >
+                  <span aria-hidden="true">{initialsOf(headName)}</span>
+                  <span className="sr-only">{headName}</span>
+                </span>
+              }
             />
             <div className="appointment-profile-two min-w-0">
               <div className="appointment-profile-title cell-truncate" title={headName}>
@@ -124,6 +136,7 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
       {/* Table on wide screens; the table scrolls horizontally if space is tight */}
       <div className="hidden lg:block w-full overflow-x-auto">
         <GenericTable
+          itemNoun="specialities"
           data={filteredList}
           columns={columns}
           bordered={false}
@@ -134,7 +147,7 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
       {/* Responsive card grid below lg: 1 col on mobile, 2 on sm, 3 on md */}
       <div className="grid lg:hidden grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {filteredList.length === 0 ? (
-          <NoDataMessage />
+          <NoDataMessage {...emptyStateCopy('specialities')} />
         ) : (
           filteredList.map((item, i) => (
             <SpecialitiesCard

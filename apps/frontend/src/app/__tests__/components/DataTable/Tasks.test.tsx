@@ -10,20 +10,36 @@ jest.mock('@/app/hooks/useTeam', () => ({
   useTeamForPrimaryOrg: () => useTeamMock(),
 }));
 
-jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => ({
-  __esModule: true,
-  default: ({ data, columns }: any) => (
-    <div data-testid="table">
-      {data.map((item: any) => (
-        <div key={item.id}>
-          {columns.map((col: any) => (
-            <div key={col.key || col.label}>{col.render ? col.render(item) : item[col.key]}</div>
-          ))}
-        </div>
-      ))}
-    </div>
-  ),
-}));
+/* The stub renders the EMPTY branch as well as rows, and derives its copy the
+   way the real table does. It used to drop the empty state entirely, which is
+   how the desktop table and the phone card list beside it were allowed to
+   disagree unseen: the table had no `itemNoun` and fell back to "No records
+   yet" while the cards said "No tasks yet", and no test could see it.
+   Only the copy is mirrored, not the card, so this file does not need the
+   icon mocks NoDataMessage would pull in. */
+jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => {
+  const { emptyStateCopy } = jest.requireActual('@/app/ui/tables/tableUtils');
+  return {
+    __esModule: true,
+    default: ({ data, columns, itemNoun }: any) => (
+      <div data-testid="table">
+        {data.length === 0 ? (
+          <div>{emptyStateCopy(itemNoun ?? 'records').title}</div>
+        ) : (
+          data.map((item: any) => (
+            <div key={item.id}>
+              {columns.map((col: any) => (
+                <div key={col.key || col.label}>
+                  {col.render ? col.render(item) : item[col.key]}
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+    ),
+  };
+});
 
 jest.mock('@/app/ui/cards/TaskCard', () => ({
   __esModule: true,
@@ -135,7 +151,13 @@ describe('Tasks table', () => {
 
   it('shows empty state for mobile list', () => {
     render(<Tasks filteredList={[]} />);
-    expect(screen.getByText('No data available')).toBeInTheDocument();
+    /* TWO nodes, and that is the point: the desktop table and the phone card
+       list are both in the jsdom DOM, and both must say the same thing. The
+       table had no `itemNoun`, so it fell back to "No records yet" while the
+       card list beside it said "No tasks yet" - the same split-on-window-width
+       defect this sweep set out to remove, left half-fixed in this very file. */
+    expect(screen.getAllByText('No tasks yet')).toHaveLength(2);
+    expect(screen.queryByText('No records yet')).not.toBeInTheDocument();
   });
 
   it('maps dashboard task statuses to inventory-style pill tones', () => {

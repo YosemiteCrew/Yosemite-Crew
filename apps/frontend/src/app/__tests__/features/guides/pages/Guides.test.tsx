@@ -6,6 +6,24 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 expect.extend(toHaveNoViolations);
 
 import ProtectedGuides from '@/app/features/guides/pages/Guides';
+import type { GuideVideo } from '@/app/features/guides/types/guides';
+
+/* A getter-backed override so ONE test can render an empty library without a
+   second module registry. `jest.isolateModules` + `require` pulled in a second
+   copy of React and every hook call threw. */
+let mockGuidesOverride: unknown[] | null = null;
+jest.mock('@/app/features/guides/data/guidesData', () => {
+  const actual = jest.requireActual('@/app/features/guides/data/guidesData');
+  return {
+    get guidesData() {
+      return mockGuidesOverride ?? actual.guidesData;
+    },
+  };
+});
+
+afterEach(() => {
+  mockGuidesOverride = null;
+});
 
 jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   __esModule: true,
@@ -48,16 +66,79 @@ jest.mock('@/app/ui/overlays/Modal/GuidePlayerModal', () => ({
 const cardButton = (title: string) => screen.getByRole('button', { name: `Play guide: ${title}` });
 const allCards = () => screen.queryAllByRole('button', { name: /^Play guide:/ });
 
+/* A fixture, not the shipped library. These tests are about what the SHELF
+   does - filter by role, filter by category, search, open the player - and that
+   behaviour must not be re-pinned every time a film is added or re-cut. The
+   generated library gets one test of its own at the bottom of this file. */
+const guide = (over: Partial<GuideVideo> & { id: string; title: string }): GuideVideo => ({
+  persona: 'Everyone',
+  description: 'A short walkthrough.',
+  duration: '0:22',
+  category: 'Getting started',
+  tags: [],
+  videoUrl: `https://cdn.example.test/videos/guides/${over.id}.mp4`,
+  thumbnailUrl: `https://cdn.example.test/guidePosters/${over.id}-poster.png`,
+  ...over,
+});
+
+const FIXTURE: GuideVideo[] = [
+  guide({ id: 'first-day', title: 'Your first day in the PIMS', featured: true }),
+  guide({
+    id: 'run-a-visit',
+    title: 'Run a visit end to end',
+    persona: 'Veterinarian',
+    category: 'The visit',
+  }),
+  guide({
+    id: 'invoices',
+    title: 'Invoices, deposits and payouts',
+    persona: 'Practice manager',
+    category: 'Money',
+  }),
+  guide({
+    id: 'stock',
+    title: 'Stock that counts itself',
+    persona: 'Nurse or technician',
+    category: 'Inventory',
+  }),
+  guide({
+    id: 'idexx',
+    title: 'Connect IDEXX in 5 minutes',
+    persona: 'Practice manager',
+    category: 'Integrations',
+  }),
+  guide({
+    id: 'invite',
+    title: 'Invite your team, set roles',
+    persona: 'Clinic owner',
+    category: 'Your setup',
+    status: 'new',
+  }),
+];
+
 describe('Guides page', () => {
-  it('renders the warm-bone header and all seed guides', () => {
+  beforeEach(() => {
+    mockGuidesOverride = FIXTURE;
+  });
+
+  it('renders the warm-bone header and every guide in the library', () => {
     render(<ProtectedGuides />);
     expect(screen.getByRole('heading', { name: /Guides \(6\)/ })).toBeInTheDocument();
+    /* The runtime is derived from the library, not asserted in the markup: the
+       header hardcoded "2-6 minutes each". The fixture's guides all run 0:22, so
+       the derived line says so; the shipped library is the same shape. And "Short, practical walkthroughs" used to be on BOTH lines, with
+       neither hidden at any width, so the phrase appeared twice on screen. */
+    /* A function matcher, because the runtime is interpolated: the line is two
+       text nodes, and a plain string query only ever sees one of them. */
     expect(
-      screen.getByText('Short, practical walkthroughs · 2-6 minutes each')
+      screen.getByText(
+        (_, el) =>
+          el?.tagName === 'SPAN' &&
+          el.textContent === 'Short, practical walkthroughs · a minute or less each'
+      )
     ).toBeInTheDocument();
-    expect(
-      screen.getByText('Short, practical walkthroughs · updated with each release')
-    ).toBeInTheDocument();
+    expect(screen.getByText('Updated with each release')).toBeInTheDocument();
+    expect(screen.getAllByText(/Short, practical walkthroughs/)).toHaveLength(1);
     expect(allCards()).toHaveLength(6);
     expect(cardButton('Your first day in the PIMS')).toBeInTheDocument();
     expect(cardButton('Connect IDEXX in 5 minutes')).toBeInTheDocument();
@@ -78,12 +159,61 @@ describe('Guides page', () => {
 
   it('filters the grid by category chip', () => {
     render(<ProtectedGuides />);
-    fireEvent.click(screen.getByRole('button', { name: 'Appointments' }));
+    fireEvent.click(screen.getByRole('button', { name: 'The visit' }));
     expect(allCards()).toHaveLength(1);
     expect(cardButton('Run a visit end to end')).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Play guide: Your first day in the PIMS' })
     ).not.toBeInTheDocument();
+  });
+
+  it('narrows the shelf to one role, and keeps what everyone needs', () => {
+    render(<ProtectedGuides />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Veterinarian' }));
+
+    /* Two, not one: a role's track carries its own guides AND the ones cut for
+       the whole clinic. Picking a role that hid "Your first day in the PIMS"
+       would bury the orientation guide for every reader but a new owner. */
+    expect(allCards()).toHaveLength(2);
+    expect(cardButton('Run a visit end to end')).toBeInTheDocument();
+    expect(cardButton('Your first day in the PIMS')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Play guide: Connect IDEXX in 5 minutes' })
+    ).toBeNull();
+  });
+
+  it('drops a role filter that no longer applies when All roles is picked', () => {
+    render(<ProtectedGuides />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clinic owner' }));
+    expect(allCards()).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'All roles' }));
+    expect(allCards()).toHaveLength(6);
+  });
+
+  it('offers a chip for every role present and none that is not', () => {
+    render(<ProtectedGuides />);
+
+    // Derived from the library rather than hardcoded, so a role with no guides
+    // never gets a chip that filters to an empty shelf.
+    for (const role of ['All roles', 'Everyone', 'Veterinarian', 'Practice manager']) {
+      expect(screen.getByRole('button', { name: role })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole('button', { name: 'Developer' })).toBeNull();
+  });
+
+  it('combines a role with a category', () => {
+    render(<ProtectedGuides />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Practice manager' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Integrations' }));
+
+    // Both filters apply; "Everyone" survives the role filter but still has to
+    // match the category, so the orientation guide drops out here.
+    expect(allCards()).toHaveLength(1);
+    expect(cardButton('Connect IDEXX in 5 minutes')).toBeInTheDocument();
   });
 
   it('filters the grid by search text', () => {
@@ -97,9 +227,22 @@ describe('Guides page', () => {
     expect(screen.getByText('No guides match your search')).toBeInTheDocument();
   });
 
+  it('does not blame the search when the library itself is empty', () => {
+    /* FilteredEmptyState offers "Clear filters" and tells the reader to try a
+       different search. With nothing in the library that is a dead end: no
+       filter change can help. Same defect the finance phone band had, blaming
+       filters that were never applied. */
+    mockGuidesOverride = [];
+    render(<ProtectedGuides />);
+
+    expect(screen.getByText('No guides yet')).toBeInTheDocument();
+    expect(screen.queryByText('No guides match your search')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
+  });
+
   it('clears filters from the empty state to restore the grid', () => {
     render(<ProtectedGuides />);
-    fireEvent.click(screen.getByRole('button', { name: 'Finance' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Money' }));
     fireEvent.change(screen.getByLabelText('Search guides'), { target: { value: 'nonsense' } });
     expect(allCards()).toHaveLength(0);
 

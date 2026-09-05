@@ -175,7 +175,7 @@ const PackageCard = ({
                 </div>
                 <div>
                   <span className="text-caption-2 font-bold text-text-tertiary block">
-                    Total Amount
+                    Total amount
                   </span>
                   <span className="text-body-4-emphasis text-text-primary">
                     {formatMoney(totalCost, currency)}
@@ -220,7 +220,7 @@ const PackageCard = ({
                 </div>
                 <div>
                   <span className="text-caption-2 font-bold text-text-tertiary block">
-                    Total Amount
+                    Total amount
                   </span>
                   <span className="text-body-4-emphasis text-text-primary whitespace-nowrap">
                     {formatMoney(totalCost, currency)}

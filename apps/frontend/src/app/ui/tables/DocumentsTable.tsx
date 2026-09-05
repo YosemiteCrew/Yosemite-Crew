@@ -1,3 +1,4 @@
+import { emptyStateCopy } from '@/app/ui/tables/tableUtils';
 import React from 'react';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import DocumentsCard from '@/app/ui/cards/DocumentsCard';
@@ -54,6 +55,7 @@ const DocumentsTable = ({ filteredList, setActive, setView }: DocumentsTableProp
     <div className="w-full">
       <div className="hidden xl:flex">
         <GenericTable
+          itemNoun="documents"
           data={filteredList}
           columns={columns}
           bordered={false}
@@ -64,7 +66,7 @@ const DocumentsTable = ({ filteredList, setActive, setView }: DocumentsTableProp
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
         {filteredList.length === 0 ? (
-          <NoDataMessage />
+          <NoDataMessage {...emptyStateCopy('documents')} />
         ) : (
           filteredList.map((item, i) => (
             <DocumentsCard

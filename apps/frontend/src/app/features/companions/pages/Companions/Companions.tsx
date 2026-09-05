@@ -244,7 +244,7 @@ const Companions = () => {
           </span>
           {canEditCompanions && (
             <Primary
-              text={terminologyText('Add companion')}
+              text={terminologyText('New companion')}
               onClick={openAddCompanion}
               icon={<IoAdd size={18} aria-hidden="true" />}
               className="max-md:hidden! shrink-0"

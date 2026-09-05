@@ -138,7 +138,7 @@ const RoomInfoSections = ({
           />
           <div className="sm:col-span-2">
             <LabelDropdown
-              placeholder="Room Type"
+              placeholder="Room type"
               options={RoomsTypes}
               defaultOption={formData.type}
               onSelect={(option) => onRoomTypeChange(option.value as OrganisationRoom['type'])}
@@ -214,7 +214,7 @@ const RoomInfoSections = ({
             <FormInput
               intype="number"
               value={String(formData.availability?.totalUnits ?? 0)}
-              inlabel="Total Units"
+              inlabel="Total units"
               onChange={(event) => {
                 const parsed = Number(event.target.value);
                 onUpdateAvailability({
@@ -229,7 +229,7 @@ const RoomInfoSections = ({
           )}
           <div className="sm:col-span-2">
             <MultiSelectDropdown
-              placeholder="Assigned Staff (optional)"
+              placeholder="Assigned staff (optional)"
               value={formData.assignedStaffs ?? []}
               onChange={(value) => onFormChange({ assignedStaffs: value })}
               options={options.team}

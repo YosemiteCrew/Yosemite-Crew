@@ -7,6 +7,7 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 
 import InvoiceTable from '@/app/ui/tables/InvoiceTable';
 import { getInvoiceStatusStyle, getInvoiceStatusTone } from '@/app/ui/tables/tableUtils';
+import { formatDateLabel } from '@/app/lib/forms';
 import { Invoice } from '@yosemite-crew/types';
 
 const useAppointmentsForPrimaryOrgMock = jest.fn();
@@ -26,12 +27,17 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
+// A plain <img> that forwards `onError`, so the dead-photo path is reachable.
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt, className }: any) => (
-    <span data-testid="companion-avatar" className={className}>
-      {alt}
-    </span>
+  default: ({ alt, className, src, onError }: any) => (
+    <img
+      data-testid="companion-avatar"
+      className={className}
+      alt={alt}
+      src={src}
+      onError={onError}
+    />
   ),
 }));
 
@@ -90,10 +96,17 @@ jest.mock('@/app/ui/cards/InvoiceCard', () => ({
 jest.mock('react-icons/io5', () => ({
   IoEye: () => <span data-testid="eye-icon" />,
   IoOpenOutline: () => <span data-testid="open-icon" />,
+  /* Needed by the shared `NoDataMessage` the empty state renders. A hand-listed
+     icon mock silently returns undefined for anything it forgot, which React
+     reports as an invalid element type from inside the component rather than as
+     a missing mock. */
+  IoFileTrayOutline: () => <span data-testid="empty-icon" />,
 }));
 
+// formatDateLabel is a jest.fn so the assertions below can pin WHICH date field
+// each cell formats, not just the string it renders.
 jest.mock('@/app/lib/forms', () => ({
-  formatDateLabel: () => 'Jan 1',
+  formatDateLabel: jest.fn(() => 'Jan 1'),
   formatTimeLabel: () => '10:00 AM',
 }));
 
@@ -182,10 +195,28 @@ describe('InvoiceTable', () => {
     expect(setViewInvoice).toHaveBeenCalledWith(true);
   });
 
+  // Design rule: the initials fallback is mandatory, never an empty circle. A
+  // companion photo whose URL stopped resolving degrades to the monogram on the
+  // species-tinted disc that already rings the row avatar.
+  it('swaps a dead companion photo for the monogram', () => {
+    render(<InvoiceTable filteredList={[invoice]} />);
+    const desktop = within(screen.getByTestId('generic-table'));
+    expect(desktop.queryByText('B')).not.toBeInTheDocument();
+
+    fireEvent.error(desktop.getByTestId('companion-avatar'));
+
+    expect(desktop.queryByTestId('companion-avatar')).not.toBeInTheDocument();
+    expect(desktop.getByText('B')).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('shows an accessible empty state when no invoices match', () => {
     render(<InvoiceTable filteredList={[]} />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('No invoices match the current filters.');
+    /* The phone band keeps its `output` (role="status") wrapper, so this stays
+       the one announced empty state on the page — but the copy is now derived
+       from the table's own noun instead of blaming filters that may not be
+       applied. */
+    expect(screen.getByRole('status')).toHaveTextContent('No invoices yet');
   });
 
   it('has no axe accessibility violations', async () => {
@@ -275,7 +306,7 @@ describe('InvoiceTable', () => {
     expect(cell.queryByText(/Wellness exam/)).not.toBeInTheDocument();
   });
 
-  it('renders an empty subtitle and no date cell when the appointment is not found', () => {
+  it('renders an empty subtitle and a dash in the Appointment cell when the appointment is not found', () => {
     useAppointmentsForPrimaryOrgMock.mockReturnValue([]);
 
     render(<InvoiceTable filteredList={[invoice]} />);
@@ -284,6 +315,27 @@ describe('InvoiceTable', () => {
       screen.getByTestId('cell-appointment-id').querySelector('.appointment-profile-sub')
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Open finance details/ })).not.toBeInTheDocument();
+    // An invoice converted from an estimate carries no appointmentId at all, so
+    // this cell used to render completely blank - an unexplained hole in the
+    // row. It shows the table's missing-value dash now.
+    expect(screen.getByTestId('cell-date')).toHaveTextContent('-');
+  });
+
+  /* The desktop column over `appointment.appointmentDate` was headed "Date" -
+     the same word InvoiceCard and PhoneInvoiceList put over `invoice.createdAt`.
+     An invoice raised three days after the visit read "Sep 3" on a laptop and
+     "Sep 6" on a phone under one label. The header names its field now. */
+  it('heads the appointment-date column "Appointment" and formats the appointment date, not the invoice date', () => {
+    const dated = { ...invoice, createdAt: new Date('2025-01-04T10:00:00.000Z') } as Invoice;
+
+    render(<InvoiceTable filteredList={[dated]} />);
+
+    const dateColumn = mockGenericTableCalls
+      .find((c) => isDesktopVariant(c.tableClassName))!
+      .columns.find((col: any) => col.key === 'date');
+    expect(dateColumn.label).toBe('Appointment');
+    expect(formatDateLabel).toHaveBeenCalledWith(new Date('2025-01-01T10:00:00.000Z'));
+    expect(formatDateLabel).not.toHaveBeenCalledWith(dated.createdAt);
   });
 
   describe('tablet column set (768-1279)', () => {

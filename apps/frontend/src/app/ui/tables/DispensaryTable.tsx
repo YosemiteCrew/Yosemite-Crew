@@ -7,6 +7,7 @@ import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 
 import './DataTable.css';
+import { formatMoneyPrecise } from '@/app/lib/money';
 
 type DispensaryTableProps = {
   filteredList: DispensaryRecord[];
@@ -56,11 +57,14 @@ const STATUS_LABELS: Record<DispensaryStatus, string> = {
   NOT_DISPENSED: 'Not dispensed',
 };
 
-const formatAmount = (cents: number, currency = 'USD') => {
-  const upper = currency.toUpperCase();
-  const symbol = upper === 'USD' ? '$' : upper;
-  return `${symbol} ${(cents / 100).toFixed(2)}`;
-};
+/* Delegates to the shared money helper rather than building the string here.
+   The hand-rolled version knew exactly one symbol - `upper === 'USD' ? '$' :
+   upper` - so a sterling clinic read "GBP 45.00" where every other surface in
+   the app shows "£45.00", and even the dollar case carried a space the design
+   does not use. Intl also knows each currency's minor unit, so a JPY amount no
+   longer gains two decimals it does not have. */
+const formatAmount = (cents: number, currency = 'USD') =>
+  formatMoneyPrecise(cents / 100, currency.toUpperCase());
 
 // Format dispensary timestamps in the viewer's own timezone (they used to be
 // forced to UTC, #1879). Resolving it explicitly documents the intent and keeps

@@ -2,7 +2,12 @@
 
 import React, { Suspense, useCallback, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
+import {
+  avatarAccentFor,
+  initialsOf,
+} from '@/app/features/organization/pages/Organization/Sections/orgDisplay';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { IoIosArrowBack } from 'react-icons/io';
 import {
@@ -235,15 +240,23 @@ const CompanionProfilePanel = ({
       aria-label="Companion profile"
       className="flex min-h-36 flex-col gap-4 rounded-[18px] border border-card-border bg-neutral-0 px-5 py-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
     >
-      <Image
+      <AvatarImage
         alt={record.companion.name}
         src={getSafeImageUrl(
           record.companion.photoUrl,
           resolveCompanionImageType(record.companion.type)
         )}
         className="size-16 shrink-0 rounded-full object-cover"
-        height={64}
-        width={64}
+        size={64}
+        fallback={
+          <CompanionAvatar
+            name={record.companion.name}
+            seed={record.companion.id}
+            size={64}
+            textClassName="text-[28px]"
+            alt={record.companion.name}
+          />
+        }
       />
       <div className="grid flex-1 grid-cols-1 gap-x-7 gap-y-2 lg:grid-cols-2">
         {selectedDetails.map((detail) => (
@@ -286,12 +299,16 @@ const ParentProfilePanel = ({
   onAddAlert: () => void;
   onRemoveAlert: (id: string) => void;
 }) => {
+  // "Pet parent", not "Client": the share-card modal this record opens called the
+  // same person "Owner", so one screen used two nouns for them one click apart.
+  // "pet parent" is the term companionTerminology.ts protects from the org's
+  // noun rewrite, which makes it the one that cannot drift per organisation.
   const details = [
-    { label: 'Client', value: formatParentName(parent) },
+    { label: 'Pet parent', value: formatParentName(parent) },
     { label: 'Email', value: clean(parent.email) },
     { label: 'Age / DOB', value: formatAgeDob(parent.birthDate) },
     { label: 'Phone', value: clean(parent.phoneNumber) },
-    { label: 'Client ID', value: clean(parent.id || companionId) },
+    { label: 'Pet parent ID', value: clean(parent.id || companionId) },
   ];
 
   return (
@@ -300,12 +317,19 @@ const ParentProfilePanel = ({
       className="flex min-h-36 flex-col gap-4 rounded-[18px] border border-card-border bg-neutral-0 px-5 py-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
     >
       <div className="flex w-16 shrink-0 items-start">
-        <Image
+        <AvatarImage
           alt={formatParentName(parent)}
           src={getSafeImageUrl(parent.profileImageUrl, 'person')}
           className="size-16 rounded-full object-cover"
-          height={64}
-          width={64}
+          size={64}
+          fallback={
+            <span
+              className={`flex size-16 items-center justify-center rounded-full text-[22px] font-bold ${avatarAccentFor(parent.id || formatParentName(parent))}`}
+            >
+              <span aria-hidden="true">{initialsOf(formatParentName(parent))}</span>
+              <span className="sr-only">{formatParentName(parent)}</span>
+            </span>
+          }
         />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-3 md:flex-row md:items-start md:justify-between">

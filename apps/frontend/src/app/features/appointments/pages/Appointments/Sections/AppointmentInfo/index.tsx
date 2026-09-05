@@ -1,6 +1,8 @@
 import Labels from '@/app/ui/widgets/Labels/Labels';
 import Modal from '@/app/ui/overlays/Modal';
 import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Summary from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/Summary';
@@ -1034,12 +1036,20 @@ const AppointmentInfoModalHeader = ({
       meta={companion.breed}
       onClose={() => setShowModal(false)}
       icon={
-        <Image
+        <AvatarImage
           alt="pet image"
           src={companionImageSrc}
           className="size-10 shrink-0 rounded-full object-cover border border-card-border bg-neutral-0"
-          height={40}
-          width={40}
+          size={40}
+          fallback={
+            <CompanionAvatar
+              name={companion.name}
+              seed={companion.id}
+              size={40}
+              textClassName="text-[18px]"
+              alt="pet image"
+            />
+          }
         />
       }
       actions={

@@ -65,9 +65,13 @@ const meta = {
           'are both conditional - the pager only when `totalPages > 1` - and its only consumers wrap ' +
           'it in `xl:hidden`, so at any Storybook width where a story of those tables is readable ' +
           'this component is `display: none`. Rendering it directly is the only way to see it.\n\n' +
-          'Read the caption carefully: `Showing 8 of 9` is the index of the last card on the page, ' +
-          'not a count of the cards on it. On the final page it reads `9 of 9` with one card ' +
-          'visible.\n\n' +
+          'Read the caption carefully: `Showing 8 of 9 records` is the index of the last card on ' +
+          'the page, not a count of the cards on it. On the final page it reads `9 of 9` with one ' +
+          'card visible.\n\n' +
+          'The footer is the shared `TableFooter` the table above xl uses. It used to be a centred ' +
+          '`Back`/count/`Next` cluster with no page numbers, no `aria-current` and a full-strength ' +
+          'disabled arrow, so crossing the breakpoint over the same rows swapped the control and ' +
+          'dropped the noun from the count.\n\n' +
           'Paging is internal state with no URL or caller involvement, and the page is clamped ' +
           'during render rather than corrected in an effect, so a list that shrinks under the ' +
           'current page never flashes an empty slice.',
@@ -130,17 +134,28 @@ export const FirstPage: Story = {
       'Discharge call, Bailey',
       'Restock consult room 2',
     ]);
-    await expect(caption(canvasElement)).toBe('Showing 4 of 9');
+    await expect(caption(canvasElement)).toBe('Showing 4 of 9 records');
 
     await expect(canvas.getByRole('button', { name: 'Previous' })).toBeDisabled();
     await expect(canvas.getByRole('button', { name: 'Next' })).toBeEnabled();
+
+    /* The numbered run, which this side of xl did not have at all. Page one is
+       the only one carrying aria-current. */
+    await expect(canvas.getByRole('button', { name: 'Page 1' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    await expect(canvas.getByRole('button', { name: 'Page 3' })).not.toHaveAttribute(
+      'aria-current'
+    );
   },
   parameters: {
     docs: {
       description: {
         story:
           'Nine items at a page size of four. Previous is disabled rather than hidden, so the ' +
-          'footer keeps the same three-slot shape on every page.',
+          'footer keeps the same shape on every page - and it is disabled AND dimmed, which is ' +
+          'the treatment the table has always had and this side of the breakpoint never did.',
       },
     },
   },
@@ -152,7 +167,7 @@ export const SecondPage: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Next' }));
 
-    await waitFor(() => expect(caption(canvasElement)).toBe('Showing 8 of 9'));
+    await waitFor(() => expect(caption(canvasElement)).toBe('Showing 8 of 9 records'));
     await expect(cardNames(canvas)).toEqual([
       'Post-op check, Nala',
       'Lab courier handover',
@@ -179,14 +194,13 @@ export const LastPage: Story = {
   name: 'Pager, last page (one card)',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const next = canvas.getByRole('button', { name: 'Next' });
-    await userEvent.click(next);
-    await userEvent.click(next);
+    // Jumping straight to the last page - the thing two arrows could not do.
+    await userEvent.click(canvas.getByRole('button', { name: 'Page 3' }));
 
     await waitFor(() => expect(canvas.getByRole('button', { name: 'Next' })).toBeDisabled());
     // 9 of 9 with a single card on screen: the caption counts the last INDEX,
     // not the cards, and this is the frame where the difference is visible.
-    await expect(caption(canvasElement)).toBe('Showing 9 of 9');
+    await expect(caption(canvasElement)).toBe('Showing 9 of 9 records');
     await expect(cardNames(canvas)).toEqual(['Overnight handover notes']);
     await expect(canvas.getByRole('button', { name: 'Previous' })).toBeEnabled();
   },
@@ -202,11 +216,13 @@ export const LastPage: Story = {
 };
 
 export const Empty: Story = {
-  name: 'No data available',
+  name: 'Empty - the derived default',
   args: { items: [] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText('No data available')).toBeInTheDocument();
+    /* No `itemNoun` here, so this pins the neutral fallback a caller that does
+       not name its records gets. */
+    await expect(canvas.getByText('No records yet')).toBeInTheDocument();
     await expect(cardNames(canvas)).toHaveLength(0);
 
     /* Empty is not "page zero": `totalPages` is 0, the clamp holds the page at 1
@@ -219,10 +235,9 @@ export const Empty: Story = {
     docs: {
       description: {
         story:
-          'The empty branch is a plain centred sentence with no icon and no call to action - ' +
-          'noticeably plainer than `GenericTable`’s "Looks like a quiet day… for now." card, ' +
-          'which is what the same table shows one breakpoint up. Two empty states for one dataset ' +
-          'is the thing to look at here.',
+          'The empty branch renders the same `NoDataMessage` card as `GenericTable`, with copy ' +
+          'derived from the same `itemNoun`, so one dataset gets one empty state instead of a ' +
+          'different sentence at each breakpoint.',
       },
     },
   },

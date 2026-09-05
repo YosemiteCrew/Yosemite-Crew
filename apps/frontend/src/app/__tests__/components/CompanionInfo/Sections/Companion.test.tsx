@@ -538,7 +538,7 @@ describe('CompanionInfo Companion section', () => {
     await waitFor(() => expect(fetchSpeciesCodeEntriesMock).toHaveBeenCalled());
 
     fireEvent.change(screen.getByTestId('input-Company name'), { target: { value: 'NewCo' } });
-    fireEvent.change(screen.getByTestId('input-Policy Number'), { target: { value: 'POL-9' } });
+    fireEvent.change(screen.getByTestId('input-Policy number'), { target: { value: 'POL-9' } });
 
     fireEvent.click(screen.getByText('Save'));
 

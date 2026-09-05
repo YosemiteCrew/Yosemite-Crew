@@ -45,8 +45,12 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
         <div className="text-caption-1 text-text-extra">Service:</div>
         <div className="text-caption-1 text-text-primary">{getInvoiceItemNames(invoice.items)}</div>
       </div>
+      {/* Was "Date", the same label the desktop table put over the APPOINTMENT
+          date, so an invoice raised days after the visit showed two different
+          dates under one word depending on window width. This is the invoice's
+          own date; the table's column is headed "Appointment". */}
       <div className="flex gap-1">
-        <div className="text-caption-1 text-text-extra">Date:</div>
+        <div className="text-caption-1 text-text-extra">Invoice date:</div>
         <div className="text-caption-1 text-text-primary">{formatDateLabel(invoice.createdAt)}</div>
       </div>
       <div className="flex gap-1">

@@ -200,7 +200,7 @@ describe('RoomInfoSections', () => {
     expect(props.onFormChange).toHaveBeenCalledWith({ name: 'New Room' });
     fireEvent.change(screen.getByLabelText('Room code'), { target: { value: 'R-002' } });
     expect(props.onFormChange).toHaveBeenCalledWith({ code: 'R-002' });
-    fireEvent.click(screen.getByRole('button', { name: 'Room Type option SURGERY' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Room type option SURGERY' }));
     expect(props.onRoomTypeChange).toHaveBeenCalledWith('SURGERY');
     fireEvent.click(screen.getByRole('button', { name: 'Speciality (optional)' }));
     expect(props.onFormChange).toHaveBeenCalledWith({ assignedSpecialiteis: ['PICKED'] });
@@ -213,11 +213,11 @@ describe('RoomInfoSections', () => {
     expect(props.onUpdateAvailability).toHaveBeenCalledWith({ endTime: '18:00' });
     fireEvent.click(screen.getByRole('button', { name: 'Species' }));
     expect(props.onUpdateAvailability).toHaveBeenCalledWith({ species: ['PICKED'] });
-    fireEvent.change(screen.getByLabelText('Total Units'), { target: { value: '4' } });
+    fireEvent.change(screen.getByLabelText('Total units'), { target: { value: '4' } });
     expect(props.onUpdateAvailability).toHaveBeenCalledWith({ totalUnits: 4 });
-    fireEvent.change(screen.getByLabelText('Total Units'), { target: { value: 'abc' } });
+    fireEvent.change(screen.getByLabelText('Total units'), { target: { value: 'abc' } });
     expect(props.onUpdateAvailability).toHaveBeenCalledWith({ totalUnits: 0 });
-    fireEvent.click(screen.getByRole('button', { name: 'Assigned Staff (optional)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Assigned staff (optional)' }));
     expect(props.onFormChange).toHaveBeenCalledWith({ assignedStaffs: ['PICKED'] });
 
     fireEvent.click(screen.getByRole('button', { name: 'Add unit type' }));
@@ -247,7 +247,7 @@ describe('RoomInfoSections', () => {
     expect(screen.getByLabelText('Room code')).toHaveValue('');
     expect(screen.getByLabelText('Start time')).toHaveValue('');
     expect(screen.getByLabelText('End time')).toHaveValue('');
-    expect(screen.getByLabelText('Total Units')).toHaveValue('0');
+    expect(screen.getByLabelText('Total units')).toHaveValue('0');
     expect(screen.getByRole('switch', { name: 'Toggle room availability' })).toHaveAttribute(
       'aria-checked',
       'true'
@@ -263,7 +263,7 @@ describe('RoomInfoSections', () => {
     });
     render(<RoomInfoSections {...props} />);
 
-    expect(screen.queryByLabelText('Total Units')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Total units')).not.toBeInTheDocument();
     expect(
       screen.getByText('Units are available for ICU, Inpatient, Isolation, and Boarding rooms.')
     ).toBeInTheDocument();

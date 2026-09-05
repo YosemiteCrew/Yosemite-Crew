@@ -1,7 +1,11 @@
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import React from 'react';
 import { Team } from '@/app/features/organization/types/team';
+import {
+  avatarAccentFor,
+  initialsOf,
+} from '@/app/features/organization/pages/Organization/Sections/orgDisplay';
 import { getSafeImageUrl } from '@/app/lib/urls';
 import {
   formatWeeklyWorkingHours,
@@ -21,12 +25,18 @@ const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-2 items-center">
         <div className="size-10">
-          <Image
+          <AvatarImage
             alt={''}
             src={getSafeImageUrl(team.image, 'person')}
-            height={40}
-            width={40}
+            size={40}
             className="size-10 rounded-full object-cover"
+            fallback={
+              <span
+                className={`flex size-10 items-center justify-center rounded-full text-[13px] font-bold ${avatarAccentFor(team._id || team.name || '')}`}
+              >
+                {initialsOf(team.name)}
+              </span>
+            }
           />
         </div>
         <div className="flex flex-col gap-0">

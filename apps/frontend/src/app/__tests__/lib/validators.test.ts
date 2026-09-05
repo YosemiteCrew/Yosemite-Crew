@@ -1,4 +1,6 @@
 import {
+  toDisplayNumber,
+  toPayloadNumber,
   validatePhone,
   getCountryCode,
   isValidEmail,
@@ -127,5 +129,53 @@ describe('toNumberSafe', () => {
   it('returns 0 for empty string', () => {
     // Number('') === 0, which is finite
     expect(toNumberSafe('')).toBe(0);
+  });
+});
+
+describe('toDisplayNumber and toPayloadNumber', () => {
+  /* The two disagree on exactly one input - a blank - and that disagreement is
+     the whole point. `Number('')`, `Number('   ')` and `Number(null)` are all 0,
+     so toNumberSafe cannot tell "nobody filled this in" from "somebody typed 0".
+     That conflation printed "$0" for an unpriced item and, worse, SAVED a blank
+     price as a real zero. */
+  const blanks = ['', '   ', null, undefined];
+
+  it.each(blanks)('reads a blank (%p) as unknown, not zero', (value) => {
+    expect(toDisplayNumber(value)).toBeUndefined();
+  });
+
+  it.each(blanks)('sends a blank (%p) as null, so the field is cleared', (value) => {
+    // null, not undefined: the API's update path skips undefined and leaves the
+    // stored value alone, and writes `value ?? null` for anything else. A user
+    // who clears a price means clear it.
+    expect(toPayloadNumber(value)).toBeNull();
+  });
+
+  it('keeps a real zero in both', () => {
+    for (const zero of [0, '0', '0.00']) {
+      expect(toDisplayNumber(zero)).toBe(0);
+      expect(toPayloadNumber(zero)).toBe(0);
+    }
+  });
+
+  it('passes ordinary numbers through unchanged', () => {
+    expect(toDisplayNumber('12.5')).toBe(12.5);
+    expect(toPayloadNumber('12.5')).toBe(12.5);
+    expect(toDisplayNumber(-3)).toBe(-3);
+    expect(toPayloadNumber(-3)).toBe(-3);
+  });
+
+  it('omits a malformed value rather than clearing the stored one', () => {
+    // undefined from the payload helper, so a typo leaves the saved figure
+    // alone instead of wiping it; undefined from the display helper so the
+    // surface shows an em dash.
+    expect(toPayloadNumber('abc')).toBeUndefined();
+    expect(toDisplayNumber('abc')).toBeUndefined();
+  });
+
+  it('differs from toNumberSafe only on the blank', () => {
+    expect(toNumberSafe('')).toBe(0);
+    expect(toDisplayNumber('')).toBeUndefined();
+    expect(toPayloadNumber('')).toBeNull();
   });
 });

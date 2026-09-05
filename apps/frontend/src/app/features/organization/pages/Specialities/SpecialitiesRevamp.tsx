@@ -66,7 +66,7 @@ const SpecialitiesRevamp = () => {
           <Link
             href="/organization"
             aria-label="Back to Organisation"
-            className="flex items-center justify-center size-9 rounded-full border border-[var(--hairline)] hover:border-text-brand transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+            className="flex items-center justify-center size-8 rounded-full border border-[var(--hairline)] hover:border-text-brand transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
           >
             <IoChevronBack size={18} color="var(--color-neutral-900)" aria-hidden="true" />
           </Link>
@@ -76,7 +76,7 @@ const SpecialitiesRevamp = () => {
         <Primary
           href="#"
           icon={<span>+</span>}
-          text="Add speciality"
+          text="New speciality"
           onClick={(e) => {
             e.preventDefault();
             setAddModalOpen(true);
@@ -102,7 +102,7 @@ const SpecialitiesRevamp = () => {
               <Primary
                 href="#"
                 icon={<span>+</span>}
-                text="Add speciality"
+                text="New speciality"
                 onClick={(e) => {
                   e.preventDefault();
                   setAddModalOpen(true);

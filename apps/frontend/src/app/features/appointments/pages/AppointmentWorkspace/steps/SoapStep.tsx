@@ -181,7 +181,7 @@ const CustomSoapFields = ({
     />
     <div className="mt-3 flex justify-end">
       <Secondary
-        text="Record Vitals"
+        text="Record vitals"
         onClick={onRecordVitals}
         icon={<LuClipboardList aria-hidden="true" />}
       />

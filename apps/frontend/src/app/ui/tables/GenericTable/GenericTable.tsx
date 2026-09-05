@@ -1,9 +1,9 @@
 'use client';
+import { emptyStateCopy } from '@/app/ui/tables/tableUtils';
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { IoChevronBackOutline, IoChevronForwardOutline } from 'react-icons/io5';
 
 import { NoDataMessage } from '@/app/ui/tables/common';
-import { buildPagerPageList } from '@/app/ui/tables/tableUtils';
+import TableFooter from '@/app/ui/tables/TableFooter';
 
 import './Generictable.css';
 
@@ -22,17 +22,43 @@ interface GenericTableProps<T extends object> {
   pageSize?: number;
   tableClassName?: string;
   caption?: string;
-  /** Plural noun for the footer caption, e.g. `appointments` -> "of 14 appointments". */
-  itemNoun?: string;
+  /**
+   * Plural noun for this table's records, e.g. `appointments` -> "of 14
+   * appointments" in the footer and "No appointments yet" in the empty state.
+   *
+   * REQUIRED on purpose. It was optional, and the one call site that forgot it
+   * (the task board) fell back to "No records yet" while the phone card list
+   * beside it said "No tasks yet" - the same dataset described two ways
+   * depending on window width. A required prop makes that unrepresentable
+   * rather than something a review has to catch.
+   */
+  itemNoun: string;
+  /**
+   * Overrides the derived empty state when a surface has more useful words than
+   * "No <noun> yet". Two dashboard widgets did: the availability table's card
+   * branch said "No availability set / Set consultation hours for a practitioner
+   * and they appear here", which tells the reader what to DO, and the turnover
+   * card branch distinguished "no items" from "stock has not moved this period".
+   * Those branches are `xl:hidden` siblings of this table, so without an
+   * override the same widget said two different things either side of 1280px.
+   */
+  emptyTitle?: string;
+  emptySubtitle?: string;
   /** Extra classes for one body row — used for row-level states (e.g. emergency). */
   rowClassName?: (item: T, index: number) => string;
 }
 
-const pagerStepClass =
-  'flex size-7 items-center justify-center rounded-[9px] border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)]';
-
 // Bottom padding applied by .TableBodyScroll — must match Generictable.css
 const TABLE_BODY_PADDING_BOTTOM = 16;
+
+/* Derived from the noun, with either half overridable. A named helper rather
+   than two conditional spreads inside the component: those read as nested
+   ternaries to the complexity rule and pushed the render past its budget. */
+const emptyStateProps = (itemNoun: string, title?: string, subtitle?: string) => ({
+  ...emptyStateCopy(itemNoun),
+  ...(title === undefined ? {} : { title }),
+  ...(subtitle === undefined ? {} : { subtitle }),
+});
 
 const GenericTable = <T extends object>({
   data,
@@ -43,6 +69,8 @@ const GenericTable = <T extends object>({
   tableClassName,
   caption,
   itemNoun,
+  emptyTitle,
+  emptySubtitle,
   rowClassName,
 }: Readonly<GenericTableProps<T>>) => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -119,8 +147,7 @@ const GenericTable = <T extends object>({
   // Keep h-full only when data overflows (needs scroll or pagination).
   const needsFill = pagination && total > autoPageSize;
 
-  const handlePrev = () => setCurrentPage((p) => Math.max(1, p - 1));
-  const handleNext = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
+  const emptyCopy = emptyStateProps(itemNoun, emptyTitle, emptySubtitle);
 
   return (
     <div
@@ -164,7 +191,7 @@ const GenericTable = <T extends object>({
               ) : (
                 <tr>
                   <td colSpan={columns.length}>
-                    <NoDataMessage title="Looks like a quiet day… for now." />
+                    <NoDataMessage {...emptyCopy} />
                   </td>
                 </tr>
               )}
@@ -172,64 +199,18 @@ const GenericTable = <T extends object>({
           </table>
         </div>
       </div>
-      {/* Design footer: the count sits left, the pager right — not a centred
-          prev/count/next cluster. */}
+      {/* Design footer: the count sits left, the pager right - not a centred
+          prev/count/next cluster. Shared with the sub-xl card list so one resize
+          does not swap the control. */}
       {showPagination && (
-        <div className="shrink-0 flex items-center justify-between gap-3 px-5 text-[12.5px] text-[var(--ink-faint)]">
-          <div aria-live="polite">
-            Showing{' '}
-            <span>
-              {Math.min(endIdx, total)} of {total}
-            </span>
-            {itemNoun ? ` ${itemNoun}` : ''}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              aria-label="Previous"
-              onClick={handlePrev}
-              disabled={currentPage === 1}
-              className={`${pagerStepClass} ${currentPage === 1 ? 'cursor-not-allowed opacity-40' : ''}`}
-            >
-              <IoChevronBackOutline size={13} aria-hidden="true" />
-            </button>
-            {buildPagerPageList(currentPage, totalPages).map(({ key, page }) =>
-              page === null ? (
-                <span
-                  key={key}
-                  aria-hidden="true"
-                  className="flex size-7 items-center justify-center"
-                >
-                  …
-                </span>
-              ) : (
-                <button
-                  key={key}
-                  type="button"
-                  aria-label={`Page ${page}`}
-                  aria-current={page === currentPage ? 'page' : undefined}
-                  onClick={() => setCurrentPage(page)}
-                  className={`flex size-7 items-center justify-center rounded-[9px] text-[12px] tabular-nums transition-colors ${
-                    page === currentPage
-                      ? 'bg-[var(--nav-active-bg)] font-bold text-[var(--nav-active)]'
-                      : 'font-semibold text-[var(--ink-muted)] hover:bg-[var(--surface-soft)]'
-                  }`}
-                >
-                  {page}
-                </button>
-              )
-            )}
-            <button
-              type="button"
-              aria-label="Next"
-              onClick={handleNext}
-              disabled={currentPage === totalPages}
-              className={`${pagerStepClass} ${currentPage === totalPages ? 'cursor-not-allowed opacity-40' : ''}`}
-            >
-              <IoChevronForwardOutline size={13} aria-hidden="true" />
-            </button>
-          </div>
-        </div>
+        <TableFooter
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rangeEnd={Math.min(endIdx, total)}
+          total={total}
+          itemNoun={itemNoun}
+          onPageChange={setCurrentPage}
+        />
       )}
     </div>
   );

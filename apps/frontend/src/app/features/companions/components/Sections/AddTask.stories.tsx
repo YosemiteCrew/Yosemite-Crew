@@ -11,7 +11,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'The "Add task" section of the companion record, as it stands: a 23px heading and one ' +
+          'The "New task" section of the companion record, as it stands: a 23px heading and one ' +
           'accordion, and nothing else. It takes no props and holds no state, so this is its ' +
           'only state.\n\n' +
           'The accordion is passed `defaultOpen` but no children, and `Accordion` only renders ' +
@@ -47,13 +47,12 @@ export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    /* "Add task" is both the section heading and the accordion title, so a text
-       query matches five nodes (heading, accordion root, header row, button, span).
-       Walking up from the one button is the only unambiguous handle. */
-    const trigger = canvas.getByRole('button', { name: 'Add task' });
+    /* The panel heading and the accordion title now name different things, so
+       each is reachable directly; they used to share the words "Add task" and a
+       text query matched five nodes. */
+    const trigger = canvas.getByRole('button', { name: 'Task details' });
     const headerRow = trigger.parentElement as HTMLElement;
     const accordionRoot = headerRow.parentElement as HTMLElement;
-    const heading = accordionRoot.previousElementSibling as HTMLElement;
 
     // Open, and yet the accordion root has exactly one child - the header strip.
     // `hasChildren` gates the panel, so `defaultOpen` alone renders nothing. Add a
@@ -64,13 +63,14 @@ export const Default: Story = {
     // `showEditIcon={false}`, so there is no pencil beside the title. The default
     // is true, so dropping the prop silently adds an edit control to a section that
     // has nothing to edit.
-    await expect(canvas.queryByRole('button', { name: 'Edit Add task' })).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByRole('button', { name: 'Edit Task details' })
+    ).not.toBeInTheDocument();
 
-    // The section heading is the 23px Satoshi line the other companion sections use.
-    // It is a plain `<div>`, not a heading element, so nothing but the measurement
-    // distinguishes it from the accordion title beneath it.
-    await expect(heading.textContent).toBe('Add task');
-    await expect(globalThis.getComputedStyle(heading).fontSize).toBe('23px');
+    // The panel heading is the design's 17px sans panel title and a real <h2>, so
+    // it is announced as a heading rather than being told apart by measurement.
+    const heading = canvas.getByRole('heading', { name: 'New task' });
+    await expect(globalThis.getComputedStyle(heading).fontSize).toBe('17px');
   },
 };
 
@@ -78,7 +78,7 @@ export const Phone: Story = {
   name: 'Phone: full-width strip',
   globals: { viewport: { value: 'mobile', isRotated: false } },
   play: async ({ canvasElement }) => {
-    const trigger = within(canvasElement).getByRole('button', { name: 'Add task' });
+    const trigger = within(canvasElement).getByRole('button', { name: 'Task details' });
     const headerRow = trigger.parentElement as HTMLElement;
     // The header strip is `w-full` inside a `w-full` column, so at 375 it should
     // still fill the viewport rather than shrinking to its content or overflowing.

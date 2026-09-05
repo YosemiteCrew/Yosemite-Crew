@@ -286,9 +286,16 @@ type InventoryFilterBarProps = {
   setSortMode: React.Dispatch<React.SetStateAction<SortMode>>;
 };
 
+/* The shared filter-chip geometry: 32px tall, 13px padding, 12.5px type, the
+   design system's --control-h-sm. These were `py-1.5` + 12px type on desktop and
+   `py-2` on the phone catalogue, so the SAME inventory list changed chip size
+   with the window, and both were a size down from the chip Finance, Guides,
+   Forms and the task board use. Not the shared `ui/filters/FilterChip` component
+   yet because the phone row's low-stock pill carries its own icon and status
+   tokens; the geometry is what a user sees. */
 const chipClass = (active: boolean) =>
   clsx(
-    'inline-flex items-center rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors',
+    'inline-flex h-8 items-center rounded-full! border px-[13px] text-[12.5px] transition-colors',
     active
       ? 'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] text-[var(--chip-selected-ink)] font-bold'
       : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:bg-card-hover'
@@ -822,7 +829,7 @@ const useInventoryContent = () => {
   const showPhoneCatalog = isPhone && activeView === 'inventory';
 
   // The phone shell's FAB has no reference to this page's create flow; opt in so
-  // "New product" opens the same modal the desktop "Add product" button does,
+  // "New product" opens the same modal the desktop "New product" button does,
   // under the same guards that enable that button.
   usePhonePrimaryAction('product', () => {
     if (!canEditInventory || activeView === 'turnover' || savingItem || !primaryOrgId) return;
@@ -1236,7 +1243,7 @@ const useInventoryContent = () => {
           {canEditInventory && activeView !== 'turnover' && !isPhone && (
             <Primary
               href="#"
-              text={savingItem ? 'Saving...' : 'Add product'}
+              text={savingItem ? 'Saving...' : 'New product'}
               onClick={() => setAddPopup(true)}
               isDisabled={savingItem || !primaryOrgId}
               icon={<IoAddOutline size={18} aria-hidden="true" />}

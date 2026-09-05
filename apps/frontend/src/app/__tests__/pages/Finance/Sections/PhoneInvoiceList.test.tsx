@@ -56,6 +56,7 @@ jest.mock('@/app/lib/invoicePaymentMethod', () => ({
 }));
 
 jest.mock('@/app/ui/tables/tableUtils', () => ({
+  ...jest.requireActual('@/app/ui/tables/tableUtils'),
   getInvoiceStatusTone: () => 'success',
 }));
 
@@ -178,9 +179,18 @@ describe('PhoneInvoiceList', () => {
     expect(screen.getByText('Deposit EUR 20.00 applied')).toBeInTheDocument();
   });
 
-  it('renders the empty state when there are no invoices', () => {
+  it('says the same thing the invoice tables say, and still announces it', () => {
+    /* This is the component a real phone renders - Finance/index.tsx branches on
+       `isPhone`, so InvoiceTable's own phone band never mounts there. It used to
+       say "No invoices match the current filters." while the tables said "No
+       invoices yet", so a clinic with zero invoices was told its filters hid
+       them on a phone and that it had none on a laptop. */
     render(<PhoneInvoiceList {...baseProps} filteredList={[]} />);
-    expect(screen.getByText('No invoices match the current filters.')).toBeInTheDocument();
+
+    expect(screen.getByText('No invoices yet')).toBeInTheDocument();
+    expect(screen.queryByText('No invoices match the current filters.')).not.toBeInTheDocument();
+    // Still the one announced empty state on the finance screen.
+    expect(screen.getByRole('status')).toHaveTextContent('No invoices yet');
   });
 
   it('shows just the companion when there is no parent name', () => {

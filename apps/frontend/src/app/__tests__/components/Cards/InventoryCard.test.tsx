@@ -48,8 +48,8 @@ describe('<InventoryCard />', () => {
     expect(screen.getByText('Heartworm Med')).toBeInTheDocument();
     expect(screen.getByText('Medicine')).toBeInTheDocument();
     expect(screen.getByText('3 units')).toBeInTheDocument();
-    expect(screen.getByText('$ 12')).toBeInTheDocument();
-    expect(screen.getByText('$ 15')).toBeInTheDocument();
+    expect(screen.getByText('$12')).toBeInTheDocument();
+    expect(screen.getByText('$15')).toBeInTheDocument();
     expect(screen.getByText('Feb 1, 2030')).toBeInTheDocument();
     expect(screen.getByText('Pharmacy')).toBeInTheDocument();
     expect(screen.getByText('Low stock')).toBeInTheDocument();
@@ -76,11 +76,15 @@ describe('<InventoryCard />', () => {
       />
     );
 
-    // Blank stock and null location both fall back to the em-dash placeholder.
-    expect(screen.getAllByText('—')).toHaveLength(3); // stock, expiry, location
+    // Blank stock, null location and the two missing prices all fall back to the
+    // em-dash placeholder. A missing price used to coerce to `$ 0`, which told the
+    // clinic the item was free rather than that nobody had priced it.
+    // Six, not five: "Total value" is derived from the selling price and the
+    // count, so when both are missing it must also read as unknown. It used to
+    // coerce them to zero and print "$0".
+    expect(screen.getAllByText('—')).toHaveLength(6);
     expect(screen.queryByText(/units/)).not.toBeInTheDocument();
-    // Missing prices coerce to 0 via `value ?? 0`, they are not placeholders.
-    expect(screen.getAllByText('$ 0')).toHaveLength(3); // unit cost, selling, total
+    expect(screen.queryByText(/\$\s*0/)).not.toBeInTheDocument();
   });
 
   test('renders a numeric stock value and treats an undefined location as missing', () => {
@@ -98,7 +102,7 @@ describe('<InventoryCard />', () => {
     expect(screen.getByText('5 units')).toBeInTheDocument();
     // undefined location hits the first side of `val === undefined || val === null`.
     expect(screen.getByText('—')).toBeInTheDocument();
-    expect(screen.getByText('$ 75')).toBeInTheDocument(); // 15 * 5
+    expect(screen.getByText('$75')).toBeInTheDocument(); // 15 * 5
   });
 
   test('renders a placeholder when a price is not a finite number', () => {
@@ -129,7 +133,7 @@ describe('<InventoryCard />', () => {
 
     // Price is finite, so the second side of the totalValue guard decides.
     expect(screen.getByText('xyz units')).toBeInTheDocument();
-    expect(screen.getByText('$ 12')).toBeInTheDocument();
+    expect(screen.getByText('$12')).toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument();
   });
 });

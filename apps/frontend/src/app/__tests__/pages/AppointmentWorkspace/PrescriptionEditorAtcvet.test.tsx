@@ -31,6 +31,7 @@ const renderEditor = (
 ) =>
   render(
     <PrescriptionEditor
+      currency="USD"
       items={[]}
       catalogItems={[]}
       templateItems={[]}

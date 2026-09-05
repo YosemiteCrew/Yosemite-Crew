@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import InventoryPhoneCatalog, {
   InventoryPhoneCard,
@@ -109,7 +109,11 @@ describe('InventoryPhoneCatalog helpers', () => {
     expect(meta.locationText).toBe('Shelf B2');
     expect(meta.expiryText).toBe('exp 03/2027');
     expect(meta.expiryDanger).toBe(false);
-    expect(meta.priceText).toBe('€1.68 · 49%');
+    // Pins the margin to formatPercentValue, the same formatter the desktop
+    // table and the inventory detail panel use. The phone card used to round to
+    // a whole number, so this item read "49%" here and "49.4%" one breakpoint
+    // up, and a 0.4% margin read "0%".
+    expect(meta.priceText).toBe('€1.68 · 49.4%');
   });
 
   it('buildInventoryPhoneMeta marks expired items danger and shows cost-only pricing', () => {
@@ -174,7 +178,7 @@ describe('InventoryPhoneCard', () => {
     expect(screen.getByText('Low stock')).toBeInTheDocument();
     expect(screen.getByText('6 u')).toBeInTheDocument();
     expect(screen.getByText('reorder at 20')).toBeInTheDocument();
-    expect(screen.getByText('€1.68 · 49%')).toBeInTheDocument();
+    expect(screen.getByText('€1.68 · 49.4%')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'View Carprofen 50 mg' }));
     expect(onView).toHaveBeenCalledWith(lowItem);
@@ -279,6 +283,32 @@ describe('InventoryPhoneFilterPills', () => {
     expect(setFilters).toHaveBeenCalled();
   });
 
+  /**
+   * The Low pill's selected state used to be `shadow-[0_1px_3px_var(--sh08)]` and
+   * nothing else: border, fill, ink and weight were pinned to the cancelled
+   * tokens in BOTH states, so the only filter that changes what the list contains
+   * gave a near-invisible confirmation while the pills either side of it swapped
+   * colour completely. It now inverts - solid `--status-cancelled-text` fill,
+   * `--screen` ink, bold - the same currency `idlePill` -> `activePill` uses.
+   */
+  it('gives the Low pill a filled, inverted selected state, not a shadow alone', () => {
+    renderPills({ ...defaultFilters, status: 'LOW_STOCK' });
+    const active = screen.getByRole('button', { name: 'Low (3)' });
+    expect(active).toHaveClass('bg-[var(--status-cancelled-text)]');
+    expect(active).toHaveClass('text-[var(--screen)]');
+    expect(active).toHaveClass('font-bold');
+    cleanup();
+
+    renderPills({ ...defaultFilters, status: 'ALL' });
+    const idle = screen.getByRole('button', { name: 'Low (3)' });
+    // The idle pill keeps the soft cancelled tint; it must not carry the fill or
+    // the weight that now mark the pill as on.
+    expect(idle).toHaveClass('bg-[var(--status-cancelled-bg)]');
+    expect(idle).toHaveClass('font-semibold');
+    expect(idle).not.toHaveClass('bg-[var(--status-cancelled-text)]');
+    expect(idle).not.toHaveClass('font-bold');
+  });
+
   it('marks a selected category active and toggles categories', () => {
     const { toggleCategoryFilter } = renderPills({
       ...defaultFilters,
@@ -349,6 +379,8 @@ describe('InventoryPhoneCatalog', () => {
 
   it('shows the empty state when there are no items', () => {
     render(<InventoryPhoneCatalog {...baseProps} filteredInventory={[]} />);
-    expect(screen.getByText(/Looks like a quiet day/)).toBeInTheDocument();
+    // Same derived copy as the inventory table; this surface used to hardcode
+    // the table's older sentence and drifted when the table changed.
+    expect(screen.getByText('No items yet')).toBeInTheDocument();
   });
 });
