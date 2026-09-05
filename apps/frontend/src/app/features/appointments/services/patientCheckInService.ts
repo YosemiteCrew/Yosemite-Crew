@@ -21,6 +21,10 @@ export type CheckInStatus = 'WAITING' | 'IN_CONSULTATION' | 'COMPLETED' | 'NO_SH
  * so `DateTime` columns arrive as ISO strings and nullable columns arrive as
  * `null`, not `undefined`.
  */
+/** A check-in still on the board: waiting to be seen, or in consultation. */
+export const isActiveCheckInStatus = (status: CheckInStatus): boolean =>
+  status === 'WAITING' || status === 'IN_CONSULTATION';
+
 export interface PatientCheckIn {
   id: string;
   organisationId: string;
@@ -91,12 +95,14 @@ export const fetchCheckIns = async (
   filter: CheckInListFilter = {}
 ): Promise<PatientCheckIn[]> => {
   const safeOrganisationId = assertUuid(organisationId, 'organisation');
-  const url = `/v1/pms/organisation/${safeOrganisationId}/check-in`;
   const params: Record<string, string> = {};
   if (filter.patientId) params.patientId = filter.patientId;
   if (filter.status) params.status = filter.status;
   try {
-    const res = await getData<PatientCheckIn[]>(url, params);
+    const res = await getData<PatientCheckIn[]>(
+      `/v1/pms/organisation/${safeOrganisationId}/check-in`,
+      params
+    );
     if (!Array.isArray(res.data)) {
       console.warn('Check-in response is not an array; got', typeof res.data);
       return [];
@@ -114,9 +120,10 @@ export const fetchCheckIn = async (
 ): Promise<PatientCheckIn> => {
   const safeOrganisationId = assertUuid(organisationId, 'organisation');
   const safeCheckInId = assertUuid(checkInId, 'check-in');
-  const url = `/v1/pms/organisation/${safeOrganisationId}/check-in/${safeCheckInId}`;
   try {
-    const res = await getData<PatientCheckIn>(url);
+    const res = await getData<PatientCheckIn>(
+      `/v1/pms/organisation/${safeOrganisationId}/check-in/${safeCheckInId}`
+    );
     return res.data;
   } catch (err) {
     logFailure('Failed to load the check-in:', err);
@@ -129,9 +136,11 @@ export const createCheckIn = async (
   payload: CreateCheckInPayload
 ): Promise<PatientCheckIn> => {
   const safeOrganisationId = assertUuid(organisationId, 'organisation');
-  const url = `/v1/pms/organisation/${safeOrganisationId}/check-in`;
   try {
-    const res = await postData<PatientCheckIn, CreateCheckInPayload>(url, payload);
+    const res = await postData<PatientCheckIn, CreateCheckInPayload>(
+      `/v1/pms/organisation/${safeOrganisationId}/check-in`,
+      payload
+    );
     return res.data;
   } catch (err) {
     logFailure('Failed to create the check-in:', err);
@@ -148,9 +157,10 @@ const transition = async (
 ): Promise<PatientCheckIn> => {
   const safeOrganisationId = assertUuid(organisationId, 'organisation');
   const safeCheckInId = assertUuid(checkInId, 'check-in');
-  const url = `/v1/pms/organisation/${safeOrganisationId}/check-in/${safeCheckInId}/${action}`;
   try {
-    const res = await postData<PatientCheckIn>(url);
+    const res = await postData<PatientCheckIn>(
+      `/v1/pms/organisation/${safeOrganisationId}/check-in/${safeCheckInId}/${action}`
+    );
     return res.data;
   } catch (err) {
     logFailure(`Failed to ${action} the check-in:`, err);
@@ -177,9 +187,11 @@ export const assignCheckInRoom = async (
 ): Promise<PatientCheckIn> => {
   const safeOrganisationId = assertUuid(organisationId, 'organisation');
   const safeCheckInId = assertUuid(checkInId, 'check-in');
-  const url = `/v1/pms/organisation/${safeOrganisationId}/check-in/${safeCheckInId}/room`;
   try {
-    const res = await postData<PatientCheckIn, { roomId: string }>(url, { roomId });
+    const res = await postData<PatientCheckIn, { roomId: string }>(
+      `/v1/pms/organisation/${safeOrganisationId}/check-in/${safeCheckInId}/room`,
+      { roomId }
+    );
     return res.data;
   } catch (err) {
     logFailure('Failed to assign a room to the check-in:', err);

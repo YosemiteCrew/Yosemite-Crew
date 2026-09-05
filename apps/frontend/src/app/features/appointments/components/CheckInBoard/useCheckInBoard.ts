@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import {
+  isActiveCheckInStatus,
   assignCheckInRoom,
   cancelCheckIn,
   completeCheckIn,
@@ -27,9 +28,6 @@ import type {
 
 const ownerNameOf = (firstName?: string | null, lastName?: string | null): string =>
   [firstName, lastName].filter(Boolean).join(' ').trim();
-
-const isActive = (checkIn: PatientCheckIn): boolean =>
-  checkIn.status === 'WAITING' || checkIn.status === 'IN_CONSULTATION';
 
 export interface CheckInBoardState {
   canEdit: boolean;
@@ -180,7 +178,7 @@ export const useCheckInBoard = (): CheckInBoardState => {
   }, [rooms]);
 
   const entriesView = useMemo<PatientCheckInView[]>(() => {
-    const visible = showAll ? checkIns : checkIns.filter(isActive);
+    const visible = showAll ? checkIns : checkIns.filter((c) => isActiveCheckInStatus(c.status));
     return visible.map((entry) => {
       const meta = companionMetaById.get(entry.patientId);
       return {

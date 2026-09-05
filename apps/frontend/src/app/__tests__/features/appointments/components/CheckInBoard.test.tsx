@@ -127,11 +127,27 @@ describe('CheckInBoard', () => {
   });
 
   it('renders no row actions for a terminal (completed) entry', () => {
-    render(<CheckInBoard entries={[row('1', 'COMPLETED', 'STANDARD')]} {...handlers()} />);
+    // `showAll` so the completed row actually renders - without it the board
+    // filters terminal statuses out and the assertions below would pass for the
+    // wrong reason.
+    render(<CheckInBoard entries={[row('1', 'COMPLETED', 'STANDARD')]} showAll {...handlers()} />);
 
+    expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Start consult' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Complete' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+  });
+
+  it('hides terminal statuses unless showing all', () => {
+    const entries = [row('1', 'WAITING', 'STANDARD'), row('2', 'COMPLETED', 'STANDARD')];
+    const { rerender } = render(<CheckInBoard entries={entries} {...handlers()} />);
+
+    expect(screen.getByText('Waiting')).toBeInTheDocument();
+    expect(screen.queryByText('Completed')).not.toBeInTheDocument();
+
+    rerender(<CheckInBoard entries={entries} showAll {...handlers()} />);
+    expect(screen.getByText('Waiting')).toBeInTheDocument();
+    expect(screen.getByText('Completed')).toBeInTheDocument();
   });
 
   it('invokes the seen handler with the entry id', async () => {

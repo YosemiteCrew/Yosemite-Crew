@@ -20,6 +20,9 @@ jest.mock('@/app/features/appointments/services/patientCheckInService', () => ({
   cancelCheckIn: (...a: unknown[]) => cancelCheckIn(...a),
   markCheckInNoShow: (...a: unknown[]) => markCheckInNoShow(...a),
   assignCheckInRoom: (...a: unknown[]) => assignCheckInRoom(...a),
+  // Pure predicate the hook and board share; keep the real behaviour so the
+  // active-only filtering under test is the production one.
+  isActiveCheckInStatus: (status: string) => status === 'WAITING' || status === 'IN_CONSULTATION',
 }));
 
 let primaryOrgId: string | null = 'org-1';

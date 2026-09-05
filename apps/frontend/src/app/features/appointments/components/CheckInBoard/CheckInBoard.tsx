@@ -16,6 +16,7 @@ import type {
   TriagePriority,
   CreateCheckInPayload,
 } from '@/app/features/appointments/services/patientCheckInService';
+import { isActiveCheckInStatus } from '@/app/features/appointments/services/patientCheckInService';
 
 /** A companion the add-form offers as the subject of a new check-in. */
 export type CheckInCompanionOption = {
@@ -522,7 +523,13 @@ const CheckInBoard = ({
   // "Now" is read fresh every render so the live wait times keep advancing; it
   // is deliberately not memoised.
   const now = new Date();
-  const sorted = useMemo(() => sortForBoard(entries), [entries]);
+  // `showAll` is part of this component's contract, so filter here rather than
+  // trusting the caller to have done it; the container filters too and the
+  // predicate is idempotent.
+  const sorted = useMemo(
+    () => sortForBoard(showAll ? entries : entries.filter((e) => isActiveCheckInStatus(e.status))),
+    [entries, showAll]
+  );
 
   const body = (() => {
     if (loading) return <PanelLoadingRows rowClass={rowClass} />;
