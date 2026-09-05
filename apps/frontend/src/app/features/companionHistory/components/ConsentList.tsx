@@ -354,6 +354,42 @@ const GrantConsentForm = ({
   );
 };
 
+/** The list body: loading skeleton, error's null slot, empty state, or the rows. */
+const ConsentListBody = ({
+  loading,
+  error,
+  consents,
+  canEdit,
+  onRevoke,
+  revokingId,
+}: {
+  loading: boolean;
+  error: string | null;
+  consents: PatientConsent[];
+  canEdit: boolean;
+  onRevoke?: ConsentListProps['onRevoke'];
+  revokingId: string | null;
+}) => {
+  if (loading) return <ClinicalListLoadingRows />;
+  if (error) return null;
+  if (consents.length === 0)
+    return <ClinicalListEmpty message="No consents recorded for this patient yet." />;
+  return (
+    <ul className="divide-y divide-[var(--divider)]">
+      {consents.map((consent) => (
+        <ConsentRow
+          key={consent.id}
+          consent={consent}
+          canEdit={canEdit}
+          onRevoke={onRevoke}
+          revoking={revokingId === consent.id}
+          revokeDisabled={revokingId !== null}
+        />
+      ))}
+    </ul>
+  );
+};
+
 /**
  * Presentational clinical consent-list panel. Renders the consents the caller
  * supplies and surfaces grant/revoke intents through callbacks; it never
@@ -374,27 +410,6 @@ const ConsentList = ({
     () => consents.filter((c) => c.status === 'ACTIVE').length,
     [consents]
   );
-
-  const body = (() => {
-    if (loading) return <ClinicalListLoadingRows />;
-    if (error) return null;
-    if (consents.length === 0)
-      return <ClinicalListEmpty message="No consents recorded for this patient yet." />;
-    return (
-      <ul className="divide-y divide-[var(--divider)]">
-        {consents.map((consent) => (
-          <ConsentRow
-            key={consent.id}
-            consent={consent}
-            canEdit={canEdit}
-            onRevoke={onRevoke}
-            revoking={revokingId === consent.id}
-            revokeDisabled={revokingId !== null}
-          />
-        ))}
-      </ul>
-    );
-  })();
 
   return (
     <section className={cardClass} aria-labelledby="consent-list-heading">
@@ -420,7 +435,14 @@ const ConsentList = ({
         />
       ) : null}
 
-      {body}
+      <ConsentListBody
+        loading={loading}
+        error={error}
+        consents={consents}
+        canEdit={canEdit}
+        onRevoke={onRevoke}
+        revokingId={revokingId}
+      />
     </section>
   );
 };
