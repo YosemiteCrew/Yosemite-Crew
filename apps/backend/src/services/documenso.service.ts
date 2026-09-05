@@ -84,21 +84,6 @@ const getDocumensoClient = (apiKeyOverride?: string) => {
   return client;
 };
 
-async function uploadPdfBuffer(pdf: Buffer, uploadUrl: string) {
-  const response = await fetch(uploadUrl, {
-    method: "PUT",
-    body: new Uint8Array(pdf),
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Length": pdf.length.toString(),
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Upload failed: ${response.status}`);
-  }
-}
-
 export type SignedDocument = {
   downloadUrl?: string;
   filename?: string;
@@ -129,7 +114,7 @@ export class DocumensoService {
       logger.info("Creating document with signature placement", {
         placement,
       });
-      const request = {
+      const payload = {
         title: title ?? "Form Submission",
         recipients: [
           {
@@ -149,19 +134,15 @@ export class DocumensoService {
           },
         ],
       };
-      // createV0 is deprecated, but its replacement documents.create() returns
-      // only { envelopeId, id } - no uploadUrl and no recipients. The callers
-      // below read document.recipients[0].token to build the signing URL, so
-      // migrating needs a second documents.get() round-trip and a rewrite of the
-      // upload path. That is a behavioural change on the e-signature flow, so it
-      // is tracked in #2643 and tested there against a live Documenso.
-      const created = await documenso.documents.createV0(request); // NOSONAR
+      const created = await documenso.documents.create({
+        payload,
+        file: {
+          fileName: "document.pdf",
+          content: new Uint8Array(pdf),
+        },
+      });
 
-      const { document, uploadUrl } = created;
-
-      await uploadPdfBuffer(pdf, uploadUrl);
-
-      return document;
+      return await documenso.documents.get({ documentId: created.id });
     } catch (error) {
       if (error instanceof errors.DocumensoError) {
         logger.error("API error:", error.message);
