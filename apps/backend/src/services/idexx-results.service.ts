@@ -178,6 +178,7 @@ type ResultOrderContext = {
   appointmentId: string | null;
   createdByUserId: string | null;
   patientId: string | null;
+  unmappedStatus: boolean;
 };
 
 const syncLabOrderFromResult = async (
@@ -188,6 +189,7 @@ const syncLabOrderFromResult = async (
     appointmentId: null,
     createdByUserId: null,
     patientId: null,
+    unmappedStatus: false,
   };
 
   const orderId = coerceString(result.orderId);
@@ -212,6 +214,15 @@ const syncLabOrderFromResult = async (
           externalStatus: coerceString(result.status),
           responsePayload: toJsonInput(result),
         },
+      });
+    } else {
+      context.unmappedStatus = true;
+      logger.warn("IDEXX result status did not map to a LabOrder status", {
+        resultId: coerceString(result.resultId),
+        orderId,
+        status: coerceString(result.status),
+        statusDetail: coerceString(result.statusDetail),
+        modality: coerceString(result.modality),
       });
     }
   }
@@ -294,6 +305,7 @@ const processIdexxResult = async (
   const resultId = coerceStringOrEmpty(result.resultId);
   await upsertLabResult(result, resultId, context.organisationId);
   await maybeCreateResultArtifacts(client, result, resultId, context);
+  return context.unmappedStatus;
 };
 
 const recordBatchSyncState = async (
@@ -345,8 +357,23 @@ export const IdexxResultsService = {
         break;
       }
 
+      let hasUnmappedResult = false;
       for (const result of results as IdexxResult[]) {
-        await processIdexxResult(client, result);
+        const unmapped = await processIdexxResult(client, result);
+        hasUnmappedResult = hasUnmappedResult || unmapped;
+      }
+
+      // Confirming tells IDEXX the batch was consumed and stops it being re-sent, so a batch
+      // we only half-applied must not be confirmed: the LabOrder status transition for the
+      // unmapped row was skipped and would be lost for good. Leave it for the next poll and
+      // stop here. Polling stays stuck on this batch until mapResultStatusToLabOrder learns
+      // the status, which is the intent - the warning above names the status to add.
+      if (hasUnmappedResult) {
+        logger.error(
+          "IDEXX batch left unconfirmed: a result status did not map to a LabOrder status",
+          { batchId },
+        );
+        break;
       }
 
       await client.confirmLatestBatch(batchId);
