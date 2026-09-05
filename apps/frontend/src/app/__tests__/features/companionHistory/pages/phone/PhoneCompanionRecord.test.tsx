@@ -21,6 +21,13 @@ jest.mock('@/app/features/companionHistory/components/AllergyListPanel', () => (
   ),
 }));
 
+jest.mock('@/app/features/companionHistory/components/ConsentListPanel', () => ({
+  __esModule: true,
+  default: ({ companionId }: any) => (
+    <div data-testid="consent-list-panel" data-companion-id={companionId} />
+  ),
+}));
+
 jest.mock('@/app/features/companionHistory/components/FlagListPanel', () => ({
   __esModule: true,
   default: ({ companionId }: any) => (
@@ -113,6 +120,10 @@ describe('PhoneCompanionRecord', () => {
     // Timeline is rendered in the phone variant with the upload signal wired.
     expect(screen.getByTestId('timeline')).toHaveTextContent('AC-0092-phone-true-0');
     expect(screen.getByTestId('allergy-list-panel')).toHaveAttribute(
+      'data-companion-id',
+      'AC-0092'
+    );
+    expect(screen.getByTestId('consent-list-panel')).toHaveAttribute(
       'data-companion-id',
       'AC-0092'
     );
