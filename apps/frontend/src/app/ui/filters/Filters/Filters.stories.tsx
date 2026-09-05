@@ -51,7 +51,6 @@ const meta = {
   tags: ['autodocs'],
   argTypes: {
     showAddButton: { control: 'boolean' },
-    compactFilterPills: { control: 'boolean' },
     hasEmergency: { control: 'boolean' },
   },
   args: {
@@ -95,22 +94,24 @@ export const EmergencySelected: Story = {
   },
 };
 
-export const CompactPills: Story = {
-  name: 'Compact pills, no add button',
+export const WrappingRow: Story = {
+  name: 'Wrapping row, no add button',
   args: {
     filterOptions: CompanionsSpeciesFilters,
     statusOptions: CompanionsStatusFilters,
     activeFilter: 'dog',
     activeStatus: 'active',
-    compactFilterPills: true,
     showAddButton: false,
   },
   parameters: {
     docs: {
       description: {
         story:
-          'Five species chips plus four status pills at the compact 3px/12px padding — the ' +
-          'wrapping case the toolbar has to survive on tablet widths.',
+          'Five species chips plus four status pills — the wrapping case the toolbar has to ' +
+          'survive on tablet widths. Every pill in the row is now 32px tall at 12.5px: the ' +
+          'chips are the shared `FilterChip`, and the status pills carry its geometry. The ' +
+          'toolbar previously hand-rolled a second 12px chip on an unfixed height, plus a ' +
+          '`compactFilterPills` variant that no page ever passed.',
       },
     },
   },

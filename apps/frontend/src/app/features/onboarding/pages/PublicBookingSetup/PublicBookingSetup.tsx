@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
+import Switch from '@/app/ui/primitives/Switch/Switch';
 import {
   IoArrowBack,
   IoArrowForward,
@@ -13,6 +14,8 @@ import {
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
+import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
+import { formatMoneyPrecise, recordCurrency } from '@/app/lib/money';
 import { useNotify } from '@/app/hooks/useNotify';
 import type { ServiceRevamp } from '@/app/features/organization/types/revamp';
 import {
@@ -34,14 +37,6 @@ const BUFFER_OPTIONS: { label: string; minutes: number }[] = [
   { label: '15 minutes', minutes: 15 },
   { label: '30 minutes', minutes: 30 },
 ];
-const CURRENCY_SYMBOLS: Record<string, string> = { EUR: '€', USD: '$', GBP: '£' };
-
-const formatPrice = (amount: number, currency?: string): string => {
-  const code = String(currency ?? 'EUR').toUpperCase();
-  const symbol = CURRENCY_SYMBOLS[code] ?? `${code} `;
-  return `${symbol}${Number(amount).toFixed(2)}`;
-};
-
 const copyText = async (value: string): Promise<boolean> => {
   try {
     const clip = globalThis.navigator?.clipboard;
@@ -73,6 +68,8 @@ const SetupHeader = ({ step, label }: { step: 1 | 2; label: string }) => (
 type ServicesStepProps = {
   step: 1 | 2;
   bookableServices: ServiceRevamp[];
+  /** The organisation's currency, used only where a service carries none. */
+  currency: string;
   selected: Set<string>;
   onToggleService: (id: string) => void;
   bookingWindowDays: number;
@@ -88,6 +85,7 @@ type ServicesStepProps = {
 const BookingServicesStep = ({
   step,
   bookableServices,
+  currency,
   selected,
   onToggleService,
   bookingWindowDays,
@@ -142,8 +140,13 @@ const BookingServicesStep = ({
                     {service.durationMinutes} min · any practitioner
                   </span>
                 </span>
+                {/* Was a hand-rolled three-symbol table (EUR/USD/GBP) defaulting
+                    to EUR, so a clinic in any other currency read "INR 143.00"
+                    here and "₹143" for the same service in Specialities, and a
+                    service with no currency of its own was priced in euros. The
+                    shared helper knows every ISO code and its real minor unit. */}
                 <span className="text-[12.5px] font-bold text-[var(--ink)] tabular-nums">
-                  {formatPrice(service.grossAmount, service.currency)}
+                  {formatMoneyPrecise(service.grossAmount, recordCurrency(service, currency))}
                 </span>
               </button>
             );
@@ -152,7 +155,13 @@ const BookingServicesStep = ({
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+        {/* focus-within on the WRAPPER, because nothing else can show focus
+            here: globals.css suppresses the outline on input, select and
+            textarea on the grounds that each field shows border-color on focus,
+            and the inner control adds its own outline-none. These five notched
+            fields had neither, so a keyboard user tabbing through the public
+            booking setup got no indication of where they were at all. */}
+        <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px] focus-within:border-[var(--color-input-border-active)]">
           <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
             Bookable window
           </span>
@@ -169,7 +178,7 @@ const BookingServicesStep = ({
             ))}
           </select>
         </label>
-        <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+        <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px] focus-within:border-[var(--color-input-border-active)]">
           <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
             Buffer between visits
           </span>
@@ -193,22 +202,11 @@ const BookingServicesStep = ({
           <strong className="text-[var(--ink)]">Requests need confirmation.</strong> New bookings
           arrive as requests, not fixed slots.
         </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={needsConfirmation}
-          aria-label="Requests need confirmation"
-          onClick={onToggleConfirmation}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full ${
-            needsConfirmation ? 'bg-primary-600' : 'bg-neutral-300'
-          }`}
-        >
-          <span
-            className={`inline-block h-5 w-5 rounded-full bg-neutral-0 transition-transform ${
-              needsConfirmation ? 'translate-x-5' : 'translate-x-0.5'
-            }`}
-          />
-        </button>
+        <Switch
+          checked={needsConfirmation}
+          label="Requests need confirmation"
+          onChange={onToggleConfirmation}
+        />
       </div>
     </div>
     <div className="flex items-center justify-between gap-3 px-7! py-4! border-t border-[var(--hairline)]">
@@ -374,7 +372,7 @@ const BookingBrandingStep = ({
       </span>
       <div className="flex flex-col md:flex-row gap-3.5">
         <div className="flex-1 flex flex-col gap-2.5">
-          <div className="relative flex items-center gap-2.5 h-[52px] px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+          <div className="relative flex items-center gap-2.5 h-[52px] px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px] focus-within:border-[var(--color-input-border-active)]">
             <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
               Practice logo
             </span>
@@ -392,7 +390,7 @@ const BookingBrandingStep = ({
               Replace
             </button>
           </div>
-          <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+          <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px] focus-within:border-[var(--color-input-border-active)]">
             <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
               Welcome message
             </span>
@@ -403,7 +401,7 @@ const BookingBrandingStep = ({
               className="flex-1 min-w-0 bg-transparent text-[13px] text-[var(--ink-body)] outline-none"
             />
           </label>
-          <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+          <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px] focus-within:border-[var(--color-input-border-active)]">
             <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
               Confirmation email reply-to
             </span>
@@ -451,23 +449,12 @@ const BookingBrandingStep = ({
             ? 'Pet parents can find and use it as soon as you save.'
             : 'Mark at least one service bookable first — an open page with nothing to book helps nobody.'}
         </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={publish}
-          aria-label="Open my booking page"
+        <Switch
+          checked={publish}
           disabled={!hasBookableServices}
-          onClick={onTogglePublish}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full disabled:opacity-50 ${
-            publish ? 'bg-primary-600' : 'bg-neutral-300'
-          }`}
-        >
-          <span
-            className={`inline-block h-5 w-5 rounded-full bg-neutral-0 transition-transform ${
-              publish ? 'translate-x-5' : 'translate-x-0.5'
-            }`}
-          />
-        </button>
+          label="Open my booking page"
+          onChange={onTogglePublish}
+        />
       </div>
 
       {loadFailed ? (
@@ -523,6 +510,7 @@ const PublicBookingSetup = () => {
   const { notify } = useNotify();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const primaryOrg = usePrimaryOrg();
+  const orgCurrency = useCurrencyForPrimaryOrg();
   const services = useRevampCatalogStore((s) => s.services);
   const specialities = useRevampCatalogStore((s) => s.specialities);
   const loadOrganisationCatalog = useRevampCatalogStore((s) => s.loadOrganisationCatalog);
@@ -704,6 +692,7 @@ const PublicBookingSetup = () => {
           <BookingServicesStep
             step={step}
             bookableServices={bookableServices}
+            currency={orgCurrency}
             selected={selected}
             onToggleService={toggleService}
             bookingWindowDays={bookingWindowDays}

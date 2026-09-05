@@ -1,4 +1,5 @@
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import clsx from 'clsx';
 import { Appointment } from '@yosemite-crew/types';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
@@ -143,15 +144,22 @@ const BoardCardHeader = ({
 }) => (
   <div className="relative z-10 flex items-start justify-between gap-2">
     <div className="flex min-w-0 items-center gap-2.5">
-      <Image
+      <AvatarImage
         src={getSafeImageUrl(
           getAppointmentCompanionPhotoUrl(companion),
           companion.species.toLowerCase() as ImageType
         )}
-        height={28}
-        width={28}
+        size={28}
         className="size-[28px] shrink-0 rounded-full border border-card-border bg-neutral-0 object-cover"
         alt=""
+        fallback={
+          <CompanionAvatar
+            name={companion.name}
+            seed={companion.id}
+            size={28}
+            textClassName="text-[13px]"
+          />
+        }
       />
       <div className="min-w-0">
         <button

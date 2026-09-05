@@ -84,6 +84,12 @@ describe('Slotpicker Component', () => {
     const otherBtn = screen.getByText('10').closest('button');
     expect(selectedBtn).toHaveClass('text-blue-text');
     expect(otherBtn).not.toHaveClass('text-blue-text');
+    /* Selection was carried by the fill colour alone, so a screen-reader user
+       heard an undifferentiated run of day buttons. Pins the state that is now
+       announced as well as painted. Apr 2 is both selected and today here, so
+       aria-current is read off the future-date case below. */
+    expect(selectedBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(otherBtn).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('shows blue border for the current date when not selected', () => {
@@ -99,6 +105,34 @@ describe('Slotpicker Component', () => {
     );
     const todayButton = screen.getByText('02').closest('button');
     expect(todayButton).toHaveClass('border-blue-text!');
+    // Today and selected are two different states and now say so separately.
+    expect(todayButton).toHaveAttribute('aria-current', 'date');
+    expect(todayButton).toHaveAttribute('aria-pressed', 'false');
+    const selectedButton = screen.getByText('10').closest('button');
+    expect(selectedButton).toHaveAttribute('aria-pressed', 'true');
+    expect(selectedButton).not.toHaveAttribute('aria-current');
+  });
+
+  it('names the day strip and the slot list as groups', () => {
+    render(
+      <Slotpicker
+        selectedDate={baseDate}
+        setSelectedDate={mockSetSelectedDate}
+        selectedSlot={null}
+        setSelectedSlot={mockSetSelectedSlot}
+        timeSlots={mockTimeSlots}
+      />
+    );
+    /* Both runs of buttons were unlabelled containers, so the day cells and the
+       time chips arrived as one flat list of controls. PhoneDayStrip already
+       ships `role="group" aria-label="Select a day"`; a labelled fieldset
+       carries that same role natively, which is what these query. */
+    expect(screen.getByRole('group', { name: 'Select a day' })).toContainElement(
+      screen.getByText('15').closest('button')
+    );
+    expect(screen.getByRole('group', { name: 'Select a time' })).toContainElement(
+      screen.getByText('Formatted 10:00')
+    );
   });
 
   it('past dates have opacity-40 and cursor-not-allowed', () => {
@@ -163,6 +197,11 @@ describe('Slotpicker Component', () => {
       'text-white'
     );
     expect(screen.getByText('Formatted 11:00')).not.toHaveClass('bg-[var(--blue-strong)]');
+    /* The chosen slot was blue fill and nothing else - no aria-pressed, no
+       aria-label - so the booking control announced a run of bare times with
+       nothing marking the one about to be confirmed. */
+    expect(screen.getByText('Formatted 10:00')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Formatted 11:00')).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('calls setSelectedSlot when a slot is clicked', () => {

@@ -1,4 +1,7 @@
 'use client';
+import { emptyStateCopy } from '@/app/ui/tables/tableUtils';
+import { NoDataMessage } from '@/app/ui/tables/common';
+import Image from 'next/image';
 import React, { useMemo, useState } from 'react';
 import { IoArrowForward, IoInformationCircleOutline, IoPlay } from 'react-icons/io5';
 
@@ -13,8 +16,14 @@ import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import FilteredEmptyState from '@/app/ui/layout/states/FilteredEmptyState';
 import { guidesData } from '@/app/features/guides/data/guidesData';
 import { GuideVideo } from '@/app/features/guides/types/guides';
+import FilterChip from '@/app/ui/filters/FilterChip';
+import { runtimeSummary } from '@/app/features/guides/utils/runtimeSummary';
 
 const ALL_CATEGORY = 'All';
+/* The persona row's "everyone" option, distinct from the guides labelled for
+   everyone, which appear in every persona's track. */
+const ALL_PERSONAS = 'All roles';
+const EVERYONE = 'Everyone';
 
 const GuideCardStatus = ({ guide }: { guide: GuideVideo }) => {
   if (typeof guide.progressPercent === 'number') {
@@ -51,6 +60,7 @@ const GuideCardStatus = ({ guide }: { guide: GuideVideo }) => {
 export const Guides = () => {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState(ALL_CATEGORY);
+  const [activePersona, setActivePersona] = useState(ALL_PERSONAS);
   const [showModal, setShowModal] = useState(false);
   const [activeVideo, setActiveVideo] = useState<GuideVideo | null>(null);
 
@@ -60,19 +70,46 @@ export const Guides = () => {
     return [ALL_CATEGORY, ...Array.from(items)];
   }, []);
 
+  /* Personas come from the data rather than the type, so a persona with no film
+     yet does not offer an empty filter. "Everyone" leads: it is what a new
+     starter should watch before their own track. */
+  const personas = useMemo(() => {
+    const items = new Set<string>();
+    guidesData.forEach((guide) => {
+      if (guide.persona) items.add(guide.persona);
+    });
+    const rest = Array.from(items).filter((p) => p !== EVERYONE);
+    return [ALL_PERSONAS, ...(items.has(EVERYONE) ? [EVERYONE] : []), ...rest];
+  }, []);
+
   const filteredGuides = useMemo(() => {
     const query = search.trim().toLowerCase();
     return guidesData.filter((guide) => {
       if (activeCategory !== ALL_CATEGORY && guide.category !== activeCategory) {
         return false;
       }
+      /* A persona's track includes the guides everyone needs, so picking
+         "Front desk" does not hide "Your first day in the PIMS". */
+      if (
+        activePersona !== ALL_PERSONAS &&
+        guide.persona !== activePersona &&
+        guide.persona !== EVERYONE
+      ) {
+        return false;
+      }
       if (!query) return true;
-      const haystack = [guide.title, guide.description, guide.category, guide.tags.join(' ')]
+      const haystack = [
+        guide.title,
+        guide.description,
+        guide.category,
+        guide.persona ?? '',
+        guide.tags.join(' '),
+      ]
         .join(' ')
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [activeCategory, search]);
+  }, [activeCategory, activePersona, search]);
 
   const activeIndex = activeVideo
     ? guidesData.findIndex((guide) => guide.id === activeVideo.id)
@@ -90,6 +127,23 @@ export const Guides = () => {
     setSearch('');
     setActiveCategory(ALL_CATEGORY);
   };
+
+  /* An empty LIBRARY is not an empty search result. FilteredEmptyState offers
+     "Clear filters" and tells the reader to try a different search, which is a
+     dead end when there is nothing to search - the same defect the finance
+     phone band had, blaming filters that were never applied. Hoisted out of the
+     JSX because nesting it inline is a nested ternary. */
+  const emptyState =
+    guidesData.length === 0 ? (
+      <NoDataMessage {...emptyStateCopy('guides')} />
+    ) : (
+      <FilteredEmptyState
+        title="No guides match your search"
+        message="Try a different search or pick another category."
+        onClearFilters={handleClearFilters}
+        clearLabel="Clear filters"
+      />
+    );
 
   return (
     <div className="yc-page-content">
@@ -110,13 +164,33 @@ export const Guides = () => {
             />
           </h1>
           <span className="text-[13.5px] text-[var(--ink-muted)]">
-            Short, practical walkthroughs · 2-6 minutes each
+            Short, practical walkthroughs · {runtimeSummary(guidesData)}
           </span>
         </div>
-        <span className="text-[12.5px] text-[var(--ink-faint)]">
-          Short, practical walkthroughs · updated with each release
-        </span>
+        {/* "Short, practical walkthroughs" was on BOTH of these, and neither is
+            hidden at any width, so the phrase appeared twice on screen at once.
+            This side carries only what the other does not say. */}
+        <span className="text-[12.5px] text-[var(--ink-faint)]">Updated with each release</span>
       </div>
+
+      {/* Two rows, because they answer different questions: who are you, then
+          what are you trying to do. Personas lead, since a viewer picks their
+          own track once and then browses within it. */}
+      {personas.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+            For
+          </span>
+          {personas.map((persona) => (
+            <FilterChip
+              key={persona}
+              label={persona}
+              active={persona === activePersona}
+              onClick={() => setActivePersona(persona)}
+            />
+          ))}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -166,10 +240,17 @@ export const Guides = () => {
               aria-label={`Play guide: ${video.title}`}
               className="flex flex-col overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] text-left shadow-[0_1px_2px_var(--sh03),0_10px_28px_var(--sh05)] transition-shadow hover:shadow-[0_4px_10px_var(--sh05),0_20px_50px_var(--sh10)]"
             >
-              <div
-                className="relative flex aspect-video w-full items-center justify-center"
-                style={{ backgroundColor: '#23211f' }}
-              >
+              <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden bg-[var(--ink)]">
+                {/* The card painted a flat slab and never read `thumbnailUrl`, so
+                    every guide looked identical and the poster the film ships
+                    with went unused. */}
+                <Image
+                  src={video.thumbnailUrl}
+                  alt=""
+                  fill
+                  sizes="(max-width: 768px) 100vw, 380px"
+                  className="object-cover"
+                />
                 <span
                   aria-hidden="true"
                   className="flex size-[52px] items-center justify-center rounded-full"
@@ -210,12 +291,7 @@ export const Guides = () => {
           ))}
         </div>
       ) : (
-        <FilteredEmptyState
-          title="No guides match your search"
-          message="Try a different search or pick another category."
-          onClearFilters={handleClearFilters}
-          clearLabel="Clear filters"
-        />
+        emptyState
       )}
 
       <GuidePlayerModal

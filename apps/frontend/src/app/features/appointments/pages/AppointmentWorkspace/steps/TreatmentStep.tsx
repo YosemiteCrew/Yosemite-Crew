@@ -951,6 +951,7 @@ const TreatmentStep = ({
         {scheduleError && <p className="text-caption-1 text-text-error">{scheduleError}</p>}
 
         <ServicesPackagesEditor
+          currency={encounter.currency}
           items={encounter.services}
           catalogItems={servicePackageCatalogItems}
           readOnly={readOnly}
@@ -961,6 +962,7 @@ const TreatmentStep = ({
         />
 
         <PrescriptionEditor
+          currency={encounter.currency}
           items={prescriptionItems}
           catalogItems={prescriptionCatalogItems}
           templateItems={prescriptionTemplates}
@@ -986,7 +988,7 @@ const TreatmentStep = ({
 
         <div className="flex flex-wrap justify-between gap-3">
           <Secondary
-            text={printingLabels ? 'Printing...' : 'Print Labels'}
+            text={printingLabels ? 'Printing...' : 'Print labels'}
             icon={<IoPrintOutline aria-hidden="true" />}
             onClick={() => void handlePrintPrescriptionLabels()}
             isDisabled={printingLabels}

@@ -695,6 +695,38 @@ describe('Inventory Utils', () => {
     });
 
     describe('buildInventoryPayload', () => {
+      it('sends null for a blank price rather than saving it as a real zero', () => {
+        /* This is the bug the display fix could not reach. A blank price used to
+           coerce to 0 and be SAVED as 0, so the item really was priced at
+           nothing and no amount of formatting could show otherwise. null tells
+           the API to clear the field: its update path writes `value ?? null`,
+           and its create path maps null back to undefined and omits it. */
+        const blankPriced = {
+          ...mockInventoryItem,
+          pricing: { ...mockInventoryItem.pricing, purchaseCost: '', selling: '   ' },
+          stock: { ...mockInventoryItem.stock, reorderLevel: '' },
+        };
+
+        const payload = buildInventoryPayload(blankPriced, 'org-1', 'VETERINARY' as BusinessType);
+
+        expect(payload.unitCost).toBeNull();
+        expect(payload.sellingPrice).toBeNull();
+        expect(payload.reorderLevel).toBeNull();
+      });
+
+      it('still sends a real zero as zero', () => {
+        // A free sample is priced at 0 and must be stored as 0, not cleared.
+        const freeItem = {
+          ...mockInventoryItem,
+          pricing: { ...mockInventoryItem.pricing, purchaseCost: '0', selling: '0' },
+        };
+
+        const payload = buildInventoryPayload(freeItem, 'org-1', 'VETERINARY' as BusinessType);
+
+        expect(payload.unitCost).toBe(0);
+        expect(payload.sellingPrice).toBe(0);
+      });
+
       it('constructs full payload correctly', () => {
         const payload = buildInventoryPayload(
           mockInventoryItem,
@@ -1009,11 +1041,30 @@ describe('inventory metric helpers', () => {
     expect(getStockValue(metricItem({ pricing: { selling: 20 } } as never))).toBeUndefined();
   });
 
+  it('has no stock value when the count or the cost is blank', () => {
+    // Not 0: an uncounted or unpriced item's stock value is unknown, and
+    // reporting zero claimed the practice was holding nothing of value.
+    expect(getStockValue(metricItem({ stock: { current: '' } } as never))).toBeUndefined();
+    expect(getStockValue(metricItem({ pricing: { purchaseCost: '' } } as never))).toBeUndefined();
+  });
+
   it('formats currency values with USD fallback for unknown codes', () => {
     expect(formatCurrencyValue(1200)).toBe('$1,200');
     expect(formatCurrencyValue(19.5, 'EUR')).toBe('€19.50');
     expect(formatCurrencyValue(10, 'NOT_A_CODE')).toBe('$10');
     expect(formatCurrencyValue(undefined)).toBe('—');
+  });
+
+  it('treats a blank price as unpriced rather than as zero', () => {
+    /* The API maps a missing unitCost/sellingPrice through toStringSafe, so it
+       arrives here as '' — and Number('') is 0. Every blank case below printed
+       "$0", telling the clinic an item was free when in truth nobody had priced
+       it. A real zero must still print, so that case is pinned too. */
+    expect(formatCurrencyValue('')).toBe('—');
+    expect(formatCurrencyValue('   ')).toBe('—');
+    expect(formatCurrencyValue(null as unknown as undefined)).toBe('—');
+    expect(formatCurrencyValue(0)).toBe('$0');
+    expect(formatCurrencyValue('0')).toBe('$0');
   });
 
   it('formats percent values and dashes for non-finite input', () => {

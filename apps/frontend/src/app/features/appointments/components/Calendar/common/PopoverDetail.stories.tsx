@@ -52,7 +52,7 @@ const meta = {
   },
   tags: ['autodocs'],
   args: {
-    label: 'Client Name',
+    label: 'Client name',
     value: 'Lena Hartmann',
   },
   decorators: [
@@ -71,7 +71,7 @@ export const Default: Story = {
   name: 'Label and value',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const label = canvas.getByText('Client Name');
+    const label = canvas.getByText('Client name');
     const value = canvas.getByText('Lena Hartmann');
     const cell = label.parentElement as HTMLElement;
 

@@ -1,10 +1,10 @@
 'use client';
+import FilterChip from '@/app/ui/filters/FilterChip';
 import React from 'react';
-import clsx from 'clsx';
 import { IoAdd } from 'react-icons/io5';
 import { FilterOption, StatusOption } from '@/app/features/companions/pages/Companions/types';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import StatusPill, { type StatusPillTokens } from '@/app/ui/primitives/StatusPill/StatusPill';
+import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
 
 /**
  * Task filter row rebuilt to the design: fully-rounded audience pills (All /
@@ -32,11 +32,12 @@ type TaskFilterBarProps = {
 
 const PARENT_AUDIENCE_KEY = 'parent_task';
 
-const getStatusPillTokens = (option: StatusOption): StatusPillTokens => ({
-  bg: option.bg ?? 'var(--color-pill-neutral-bg)',
-  text: option.text ?? 'var(--color-pill-neutral-text)',
-  border: option.border ?? option.bg ?? 'var(--color-pill-neutral-border)',
-});
+/**
+ * The scope option that narrows to the signed-in member. The other option, whatever
+ * it is called, is the un-narrowed one - `BoardScopeToggle` is a two-state control,
+ * so the pair is "mine" and "not mine".
+ */
+const MINE_SCOPE_KEY = 'mine';
 
 const TaskFilterBar = ({
   filterOptions,
@@ -53,7 +54,8 @@ const TaskFilterBar = ({
   addButtonText = 'New task',
 }: TaskFilterBarProps) => {
   const statusPills = statusOptions.filter((option) => option.key.toLowerCase() !== 'all');
-  const showScope = !!scopeOptions && scopeOptions.length > 0 && !!setActiveScope;
+  const mineScope = scopeOptions?.find((option) => option.key === MINE_SCOPE_KEY);
+  const allScope = scopeOptions?.find((option) => option.key !== MINE_SCOPE_KEY);
 
   const toggleFilter = (key: string) => setActiveFilter(activeFilter === key ? 'all' : key);
   const toggleStatus = (key: string) => setActiveStatus(activeStatus === key ? 'all' : key);
@@ -61,32 +63,28 @@ const TaskFilterBar = ({
   return (
     <div className="flex w-full flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        {showScope && (
+        {mineScope && allScope && setActiveScope && (
           <>
+            {/* Was a hand-rolled segmented control: an unfilled `p-0.5` track with
+                `h-6 px-3` segments, a solid --chip-selected-bg active state, and
+                "My tasks" FIRST. The board view of the same page rendered the same
+                concept through BoardScopeToggle - a --band track, raised `px-4
+                py-[7px]` segments, "My tasks" SECOND - so switching tabs swapped
+                the control's shape and moved the option to the opposite side.
+                Both views render the shared primitive now. */}
             <div /* NOSONAR: styled inline-flex segmented control; native <fieldset> defaults (block layout, border, required legend) break the pill design */
               role="group"
               aria-label="Task scope"
-              className="inline-flex items-center rounded-full border border-[var(--hairline)] p-0.5"
+              className="inline-flex shrink-0"
             >
-              {scopeOptions.map((option) => {
-                const isActive = activeScope === option.key;
-                return (
-                  <button
-                    key={option.key}
-                    type="button"
-                    aria-pressed={isActive}
-                    onClick={() => setActiveScope(option.key)}
-                    className={clsx(
-                      'inline-flex h-6 items-center rounded-full px-3 text-[12px] transition-colors',
-                      isActive
-                        ? 'bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]'
-                        : 'font-semibold text-[var(--ink-muted)] hover:bg-card-hover'
-                    )}
-                  >
-                    {option.name}
-                  </button>
-                );
-              })}
+              <BoardScopeToggle
+                showMineOnly={activeScope === mineScope.key}
+                onChange={(nextShowMineOnly) =>
+                  setActiveScope(nextShowMineOnly ? mineScope.key : allScope.key)
+                }
+                allLabel={allScope.name}
+                mineLabel={mineScope.name}
+              />
             </div>
             <span aria-hidden="true" className="mx-1 h-[18px] w-px shrink-0 bg-[var(--hairline)]" />
           </>
@@ -96,27 +94,17 @@ const TaskFilterBar = ({
           const isActive = activeFilter === option.key;
           const isParent = option.key === PARENT_AUDIENCE_KEY;
           return (
-            <button
+            /* Was a hand-rolled 28px chip with 14px padding and 12px type, drawn
+               from the same --chip-selected-* tokens as the shared one but two
+               sizes down from it. The task board's filters are the same control
+               as Finance's and Guides'. */
+            <FilterChip
               key={option.key}
-              type="button"
-              aria-pressed={isActive}
+              label={option.name}
+              active={isActive}
               onClick={() => toggleFilter(option.key)}
-              className={clsx(
-                'inline-flex h-7 items-center gap-1.5 rounded-full border px-3.5 text-[12px] transition-colors',
-                isActive
-                  ? 'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]'
-                  : 'border-[var(--hairline)] font-semibold text-[var(--ink-muted)] hover:bg-card-hover'
-              )}
-            >
-              {isParent && (
-                <span
-                  aria-hidden="true"
-                  className="size-1.5 rounded-full"
-                  style={{ backgroundColor: 'var(--pink)' }}
-                />
-              )}
-              {option.name}
-            </button>
+              dotColor={isParent ? 'var(--pink)' : undefined}
+            />
           );
         })}
 
@@ -127,25 +115,20 @@ const TaskFilterBar = ({
         {statusPills.map((option) => {
           const isActive = activeStatus === option.key;
           return (
-            <button
+            /* Was an ALL-CAPS StatusPill wrapped in a button, with the selected
+               one marked by a focus-style ring. FilterChip's own doc says it
+               "replaces the ALL-CAPS status pills that Templates and Finance
+               used as filters, which made a filter row read as a row of
+               statuses" - Finance and Templates moved, the task board did not,
+               so the same interaction looked like two different controls. The
+               status colour survives as the chip's leading dot. */
+            <FilterChip
               key={option.key}
-              type="button"
-              aria-pressed={isActive}
+              label={option.name}
+              active={isActive}
               onClick={() => toggleStatus(option.key)}
-              className={clsx(
-                'inline-flex min-h-[38px] items-center justify-center rounded-full px-1 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand',
-                // The selected filter needs a visible state of its own. It used
-                // to be the ABSENCE of an opacity-65 dim on the others, which
-                // meant the only way to see which filter was active was that the
-                // rest were faded - and that dim composited their labels below
-                // AA. A ring marks the selected one instead, so nothing has to
-                // be made unreadable to show it.
-                isActive &&
-                  'ring-2 ring-[var(--blue-strong)] ring-offset-1 ring-offset-[var(--screen)]'
-              )}
-            >
-              <StatusPill tokens={getStatusPillTokens(option)} label={option.name} />
-            </button>
+              dotColor={option.text ?? option.bg ?? 'var(--color-pill-neutral-text)'}
+            />
           );
         })}
       </div>

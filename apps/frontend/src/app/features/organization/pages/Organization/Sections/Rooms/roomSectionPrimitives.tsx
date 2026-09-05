@@ -1,5 +1,6 @@
 import type React from 'react';
 import { FiChevronDown } from 'react-icons/fi';
+import Switch from '@/app/ui/primitives/Switch/Switch';
 
 type SectionHeaderProps = {
   title: string;
@@ -41,24 +42,4 @@ export const ToggleSwitch = ({
   disabled?: boolean;
   onChange: (checked: boolean) => void;
   label: string;
-}) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={checked}
-    aria-label={label}
-    disabled={disabled}
-    onClick={() => onChange(!checked)}
-    className="inline-flex h-6 w-12 shrink-0 items-center rounded-full p-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-    style={{
-      backgroundColor: checked ? 'var(--color-success-bright)' : 'var(--color-neutral-300)',
-    }}
-  >
-    <span
-      aria-hidden="true"
-      className={`block size-4 rounded-full bg-[var(--screen)] shadow-sm transition-transform ${
-        checked ? 'translate-x-6' : 'translate-x-0'
-      }`}
-    />
-  </button>
-);
+}) => <Switch checked={checked} disabled={disabled} label={label} onChange={onChange} />;

@@ -570,7 +570,7 @@ export const Directory: Story = {
       'aria-pressed',
       'false'
     );
-    await expect(canvas.getByRole('button', { name: 'Add companion' })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'New companion' })).toBeVisible();
   },
 };
 
@@ -678,7 +678,11 @@ export const SearchWithNoMatches: Story = {
        search bar and the desktop shell header both feed it - so the directory
        can open already filtered, which is the case worth drawing. */
     await expect(rowNames(canvasElement)).toEqual([]);
-    await expect(canvas.getByText('No data available')).toBeVisible();
+    /* "No patients yet", which is what CompanionsTable actually renders at all
+       three of its empty branches. This asserted the retired NoDataMessage
+       default and had been failing silently - a Storybook play failure is
+       invisible unless something reads the addons channel. */
+    await expect(canvas.getByText('No patients yet')).toBeVisible();
 
     /* And the pager is not rendered at all rather than showing "0 of 0", so the
        empty list loses the only line that would have said why. */
@@ -730,7 +734,7 @@ export const ReadOnly: Story = {
     /* Add is not disabled, it is not rendered. A disabled control at least says
        the action exists; this one leaves no trace, which is the behaviour worth
        pinning because nothing else on the page changes shape. */
-    await expect(canvas.queryByRole('button', { name: 'Add companion' })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: 'New companion' })).not.toBeInTheDocument();
 
     await userEvent.click(canvas.getAllByRole('button', { name: 'Companion row actions' })[0]);
     const menu = await waitFor(() => {
@@ -786,7 +790,7 @@ export const AddCompanionDrawer: Story = {
     const canvas = within(canvasElement);
     await canvas.findByText('8 patients, 6 active');
 
-    await userEvent.click(canvas.getByRole('button', { name: 'Add companion' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'New companion' }));
     const dialog = await openedDialog();
     const rect = dialog.getBoundingClientRect();
     const viewport = globalThis.document.documentElement.clientWidth;
@@ -821,7 +825,7 @@ export const AddCompanionRevamped: Story = {
     /* Same button, same page, same title - a completely different panel. The
        directory around it does not change at all, which is why the flag is
        invisible until something is opened. */
-    await userEvent.click(canvas.getByRole('button', { name: 'Add companion' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'New companion' }));
     const dialog = await openedDialog();
     const rect = dialog.getBoundingClientRect();
     const viewport = globalThis.document.documentElement.clientWidth;

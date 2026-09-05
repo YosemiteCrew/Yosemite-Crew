@@ -43,6 +43,25 @@ describe('Team section', () => {
     expect(screen.getByText('Employment')).toBeInTheDocument();
   });
 
+  // Pins the section heading to the shared `text-heading-3` ramp (20px/500), the
+  // one SectionCard gives Specialities/Documents/Booking requests below it on the
+  // Organization page. It was hand-rolled at `text-[15.5px] font-bold`, so the
+  // reader scrolled past section titles that swung between two type ramps.
+  it('heads the section on the shared heading-3 ramp, not a hand-rolled size', () => {
+    render(<Team isVerified={true} />);
+
+    const heading = screen.getByRole('heading', { name: /Team/ });
+    expect(heading.className).toContain('text-heading-3');
+    expect(heading.className).toContain('text-text-primary');
+    expect(heading.className).not.toContain('text-[15.5px]');
+    expect(heading.className).not.toContain('font-bold');
+    // The count is set apart by colour only: a weight of its own would out-bold
+    // the title under the mobile heading-3 override, which drops it to 400.
+    const count = screen.getByText('(1)');
+    expect(count.className).toContain('text-[var(--ink-faint)]');
+    expect(count.className).not.toContain('font-medium');
+  });
+
   it('renders role, employment and a status pill for a member', () => {
     useTeamMock.mockReturnValue([
       {
@@ -84,6 +103,29 @@ describe('Team section', () => {
 
     expect(container.querySelector('img')).toBeInTheDocument();
     expect(screen.getByText('Vet tech')).toBeInTheDocument();
+  });
+
+  // Design rule: the initials fallback is mandatory, never an empty circle. A
+  // member photo whose URL stopped resolving must degrade to the initials disc.
+  it('swaps a dead photo for the initials disc', () => {
+    useTeamMock.mockReturnValue([
+      {
+        _id: 'team-1',
+        name: 'Elif Kaya',
+        role: 'TECHNICIAN',
+        status: 'Available',
+        image: 'https://example.com/gone.png',
+      },
+    ]);
+    const { container } = render(<Team isVerified={true} />);
+    const photo = container.querySelector('img') as HTMLImageElement;
+    expect(photo).toBeInTheDocument();
+    expect(screen.queryByText('EK')).not.toBeInTheDocument();
+
+    fireEvent.error(photo);
+
+    expect(container.querySelector('img')).not.toBeInTheDocument();
+    expect(screen.getByText('EK')).toBeInTheDocument();
   });
 
   it('falls back to placeholder labels when member fields are missing', () => {

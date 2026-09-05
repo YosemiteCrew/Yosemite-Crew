@@ -72,24 +72,6 @@ jest.mock('@/app/hooks/useBilling', () => ({
   useCurrencyForPrimaryOrg: () => 'USD',
 }));
 
-jest.mock('@/app/lib/money', () => ({
-  formatMoney: (amount: number) => `$ ${amount.toFixed(2)}`,
-  recordCurrency: (record: { currency?: string | null } | null | undefined, fallback: string) =>
-    record?.currency ?? fallback,
-  formatMoneyPrecise: (amount: number, currency: string) =>
-    `${currency} ${Number(amount).toFixed(2)}`,
-  sharedCurrency: (records: ReadonlyArray<{ currency?: string | null }>, fallback: string) => {
-    let shared: string | null = null;
-    for (const record of records) {
-      const own = record.currency;
-      if (typeof own !== 'string' || !own.trim()) continue;
-      if (shared === null) shared = own.trim();
-      else if (shared !== own.trim()) return fallback;
-    }
-    return shared ?? fallback;
-  },
-}));
-
 const baseItem: PackageBreakdownItem = {
   id: 'item-1',
   type: 'CONSULTATION',
@@ -116,16 +98,19 @@ describe('PackageBreakdownTable', () => {
 
     it('renders unit price and gross amount correctly', () => {
       render(<PackageBreakdownTable items={makeItems()} additionalDiscount={0} />);
-      // unitPrice = 100, qty = 2, gross = 200
-      expect(screen.getByText('$ 100.00')).toBeInTheDocument();
-      expect(screen.getByText('$ 200.00')).toBeInTheDocument();
+      // unitPrice = 100, qty = 2, gross = 200. Pins the real formatMoney output:
+      // the "$" symbol with no space and no minor units (maximumFractionDigits: 0).
+      expect(screen.getByText('$100')).toBeInTheDocument();
+      expect(screen.getByText('$200')).toBeInTheDocument();
     });
 
     it('renders net amount after discount', () => {
       // gross=200, 10% discount → net=180
       render(<PackageBreakdownTable items={makeItems()} additionalDiscount={0} />);
-      const cells = screen.getAllByText('$ 180.00');
-      expect(cells.length).toBeGreaterThan(0);
+      // Real formatMoney prints "$180"; exactly two cells carry it - the row's
+      // Amount and the Total cost pill (additionalDiscount = 0, so they agree).
+      const cells = screen.getAllByText('$180');
+      expect(cells).toHaveLength(2);
     });
 
     it('shows total cost without additional discount', () => {
@@ -157,7 +142,8 @@ describe('PackageBreakdownTable', () => {
     it('renders total cost with correct value in read-only mode (pill style)', () => {
       // net = 180, additionalDiscount = 10 → total = 180 - 18 = 162
       render(<PackageBreakdownTable items={makeItems()} additionalDiscount={10} />);
-      expect(screen.getByText('$ 162.00')).toBeInTheDocument();
+      // Pins the real formatMoney output for the total: "$162", not "$ 162.00".
+      expect(screen.getByText('$162')).toBeInTheDocument();
     });
 
     it('uses fallback type label when type is not in TYPE_LABELS', () => {
@@ -289,9 +275,10 @@ describe('PackageBreakdownTable', () => {
 
     it('shows total cost in brand style in editable mode', () => {
       render(<PackageBreakdownTable items={makeItems()} additionalDiscount={0} editable />);
-      // net = 180, no additional discount → total = 180; multiple elements may show this value
-      const costElements = screen.getAllByText('$ 180.00');
-      expect(costElements.length).toBeGreaterThanOrEqual(1);
+      // net = 180, no additional discount → total = 180. Real formatMoney prints
+      // "$180", and exactly two elements show it: the Amount cell and the total.
+      const costElements = screen.getAllByText('$180');
+      expect(costElements).toHaveLength(2);
     });
 
     it('does not call handlers when they are not provided', () => {

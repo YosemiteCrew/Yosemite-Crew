@@ -62,30 +62,18 @@ describe('FormsFilters Component', () => {
     expect(screen.getByRole('button', { name: 'Archived' })).toBeInTheDocument();
   });
 
-  it('gives status filters the shared inventory-style pill treatment', () => {
+  it('gives status filters the shared filter-chip treatment', () => {
     renderFilters({ status: 'Published', category: 'All' });
     const active = screen.getByRole('button', { name: 'Published' });
     expect(active).toHaveAttribute('aria-pressed', 'true');
-    expect(active).toHaveClass('min-h-[38px]', 'px-1', 'py-1');
-    const activePill = within(active).getByText('Published');
-    expect(activePill).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
-    expect(activePill).toHaveAttribute(
-      'style',
-      expect.stringContaining('background-color: var(--color-pill-success-bg)')
-    );
-    expect(activePill).toHaveAttribute(
-      'style',
-      expect.stringContaining('border-color: var(--color-pill-success-border)')
-    );
-
-    const inactive = screen.getByRole('button', { name: 'Archived' });
-    expect(inactive).toHaveAttribute('aria-pressed', 'false');
-    const inactivePill = within(inactive).getByText('Archived');
-    expect(inactivePill).toHaveClass('rounded-full!', 'text-[10px]', 'uppercase');
-    expect(inactivePill).toHaveAttribute(
-      'style',
-      expect.stringContaining('color: var(--ink-muted)')
-    );
+    // Sentence-case 12.5px pill; the active chip is the solid ink pill, never the
+    // ALL-CAPS status pill that made the toolbar read as a row of statuses.
+    expect(active).toHaveClass('h-8', 'rounded-full!', 'text-[12.5px]', 'font-bold');
+    expect(active).toHaveClass('bg-[var(--chip-selected-bg)]');
+    expect(active).not.toHaveClass('uppercase');
+    const rest = screen.getByRole('button', { name: 'Draft' });
+    expect(rest).toHaveAttribute('aria-pressed', 'false');
+    expect(rest).toHaveClass('font-semibold', 'text-[var(--ink-muted)]');
   });
 
   it('emits a status change without touching the category', () => {

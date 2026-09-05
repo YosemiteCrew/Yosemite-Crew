@@ -1,5 +1,6 @@
 import type { CreditNote, CreditNoteStatus } from '@yosemite-crew/types';
 import {
+  formatCap,
   getCreditNoteErrorMessage,
   issueCreditNote,
   remainingCreditable,
@@ -337,5 +338,33 @@ describe('remainingCreditable', () => {
 
   it('handles a zero-total invoice', () => {
     expect(remainingCreditable(0, [])).toBe(0);
+  });
+});
+
+// formatCap was `currencySymbol(currency) + amount.toFixed(2)`, which dropped the
+// thousands separator that the "Credited" row directly above it keeps, and pinned
+// two decimals onto every currency. These pin the shared formatMoneyPrecise output.
+describe('formatCap', () => {
+  it('groups thousands, matching the Credited row in the same card', () => {
+    expect(formatCap(1234.56, 'GBP')).toBe('\u00a31,234.56');
+  });
+
+  it('keeps the exact minor units so the advertised cap is not rounded up', () => {
+    // 159.97 shown as "160" invited a 409 from the service, whose cap is exact.
+    expect(formatCap(159.97, 'GBP')).toBe('\u00a3159.97');
+    expect(formatCap(0.05, 'GBP')).toBe('\u00a30.05');
+  });
+
+  it("uses each currency's own minor unit rather than a hardcoded two decimals", () => {
+    // JPY has none; toFixed(2) printed "\u00a51200.00" for a whole-yen amount.
+    expect(formatCap(1200, 'JPY')).toBe('\u00a51,200');
+    // KWD has three; toFixed(2) displayed a different amount from the stored one.
+    expect(formatCap(1.234, 'KWD')).toBe('KWD\u00a01.234');
+  });
+
+  it('falls back to the bare code instead of throwing on a malformed currency', () => {
+    // Intl throws only on a non-3-letter code; formatMoneyPrecise catches it so a
+    // single bad record cannot blank the credit-note card, which has no boundary.
+    expect(formatCap(12.5, 'ZZ')).toBe('ZZ 12.50');
   });
 });

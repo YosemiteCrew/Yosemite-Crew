@@ -198,7 +198,7 @@ describe('ServiceFormDraft', () => {
   describe('create mode', () => {
     it('renders the draft title for new service', () => {
       render(<ServiceFormDraft {...defaultProps} />);
-      expect(screen.getByText('New Service (draft)')).toBeInTheDocument();
+      expect(screen.getByText('New service (draft)')).toBeInTheDocument();
     });
 
     it('renders Name, Description, Type, Duration, Gross amt., Default Discount, Max Discount fields', () => {
@@ -256,7 +256,7 @@ describe('ServiceFormDraft', () => {
       render(<ServiceFormDraft {...defaultProps} />);
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Service A' } });
       fireEvent.change(screen.getByLabelText('Gross amt.'), { target: { value: '200' } });
-      fireEvent.change(screen.getByLabelText('Default Discount (%)'), {
+      fireEvent.change(screen.getByLabelText('Default discount (%)'), {
         target: { value: '150' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Save Service' }));
@@ -267,7 +267,7 @@ describe('ServiceFormDraft', () => {
       render(<ServiceFormDraft {...defaultProps} />);
       fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Service A' } });
       fireEvent.change(screen.getByLabelText('Gross amt.'), { target: { value: '200' } });
-      fireEvent.change(screen.getByLabelText('Default Discount (%)'), {
+      fireEvent.change(screen.getByLabelText('Default discount (%)'), {
         target: { value: '20' },
       });
       fireEvent.change(screen.getByLabelText('Max. Discount (%)'), { target: { value: '10' } });
@@ -445,13 +445,13 @@ describe('ServiceFormDraft', () => {
   describe('total amount display', () => {
     it('renders total amount input as readonly', () => {
       render(<ServiceFormDraft {...defaultProps} editService={mockEditService} />);
-      const totalInput = screen.getByLabelText('Total Amount');
+      const totalInput = screen.getByLabelText('Total amount');
       expect(totalInput).toHaveAttribute('readonly');
     });
 
     it('total amount shows empty when grossAmount is 0', () => {
       render(<ServiceFormDraft {...defaultProps} />);
-      const totalInput = screen.getByLabelText('Total Amount');
+      const totalInput = screen.getByLabelText('Total amount');
       expect(totalInput).toHaveValue('');
     });
   });
@@ -507,7 +507,7 @@ describe('ServiceFormDraft', () => {
 
     it('defaults cleared discounts to 0 when updating an existing service', () => {
       render(<ServiceFormDraft {...defaultProps} editService={mockEditService} />);
-      fireEvent.change(screen.getByLabelText('Default Discount (%)'), { target: { value: '' } });
+      fireEvent.change(screen.getByLabelText('Default discount (%)'), { target: { value: '' } });
       fireEvent.change(screen.getByLabelText('Max. Discount (%)'), { target: { value: '' } });
       fireEvent.click(screen.getByRole('button', { name: 'Save Service' }));
       expect(mockUpdateService).toHaveBeenCalledWith(

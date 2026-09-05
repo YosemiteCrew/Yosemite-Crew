@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-export const metadata: Metadata = { title: 'Forms — Yosemite Crew' };
+export const metadata: Metadata = { title: 'Templates — Yosemite Crew' };
 import React from 'react';
 import dynamic from 'next/dynamic';
 

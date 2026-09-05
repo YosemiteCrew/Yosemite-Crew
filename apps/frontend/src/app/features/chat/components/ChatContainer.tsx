@@ -38,6 +38,8 @@ import {
   IoSearchOutline,
 } from 'react-icons/io5';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
+import Secondary from '@/app/ui/primitives/Buttons/Secondary';
+import { ChatListSkeleton, ChatThreadSkeleton } from '@/app/features/chat/components/ChatSkeletons';
 import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 import Text from '@/app/ui/Text';
 import ConversationRow from './ConversationRow';
@@ -534,8 +536,10 @@ const createPreviewComponent = (
   return PreviewComponent;
 };
 
-// Channel-list pagination using our reusable Primary button instead of
-// Stream's full-width default. Rendered by ChannelList at the foot of the list.
+// Channel-list pagination as a quiet secondary control instead of Stream's
+// full-width default: the design never gives "Load more" primary weight, since
+// it reads as an action rather than navigation. Rendered by ChannelList at the
+// foot of the list.
 const ChatChannelListPaginator: FC<
   PropsWithChildren<{ loadNextPage: () => void; hasNextPage?: boolean; isLoading?: boolean }>
 > = ({ children, loadNextPage, hasNextPage, isLoading }) => (
@@ -543,7 +547,8 @@ const ChatChannelListPaginator: FC<
     {children}
     {hasNextPage && (
       <div className="flex justify-center p-3">
-        <Primary
+        <Secondary
+          size="small"
           text={isLoading ? 'Loading…' : 'Load more'}
           onClick={loadNextPage}
           isDisabled={isLoading}
@@ -640,13 +645,48 @@ const ChatWindow: FC<ChatWindowProps> = ({ showBackButton, onBack, currentUserId
 
   return (
     <ChatBackContext.Provider value={backContextValue}>
-      <Channel Message={ChatMessage} EmptyStateIndicator={ChatEmptyThread}>
+      <Channel
+        Message={ChatMessage}
+        EmptyStateIndicator={ChatEmptyThread}
+        LoadingIndicator={ChatThreadSkeleton}
+        EmptyPlaceholder={<ChatEmptyPane />}
+      >
         <RegularChannelWindow currentUserId={currentUserId} />
         <Thread />
       </Channel>
     </ChatBackContext.Provider>
   );
 };
+
+/**
+ * The right pane with nothing selected. Also handed to Stream as the
+ * `<Channel EmptyPlaceholder>`: with no active channel Stream used to draw its
+ * own placeholder there, whose surfaces are painted from theme variables the
+ * warm-bone bridge never mapped, so the pane flashed white in dark mode.
+ */
+const ChatEmptyPane: FC = () => (
+  <div className="chat-empty-state">
+    <span className="chat-empty-state__art" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.6}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+      </svg>
+    </span>
+    <Text as="h2" variant="heading-3" className="chat-empty-state__title">
+      Your conversations live here
+    </Text>
+    <Text as="p" variant="body-3" className="chat-empty-state__subtitle">
+      Pick a chat from the list to read and reply, or start a new one to message a client or a
+      colleague.
+    </Text>
+  </div>
+);
 
 const ChatMainPanel: FC<ChatMainPanelProps> = ({ mode, onBack, currentUserId, showEmpty }) => {
   const shouldShowChat = mode !== 'mobile-list';
@@ -663,27 +703,7 @@ const ChatMainPanel: FC<ChatMainPanelProps> = ({ mode, onBack, currentUserId, sh
       }}
     >
       {showEmpty ? (
-        <div className="chat-empty-state">
-          <span className="chat-empty-state__art" aria-hidden="true">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.6}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-            </svg>
-          </span>
-          <Text as="h2" variant="heading-3" className="chat-empty-state__title">
-            Your conversations live here
-          </Text>
-          <Text as="p" variant="body-3" className="chat-empty-state__subtitle">
-            Pick a chat from the list to read and reply, or start a new one to message a client or a
-            colleague.
-          </Text>
-        </div>
+        <ChatEmptyPane />
       ) : (
         <ChatWindow showBackButton={showBackButton} onBack={onBack} currentUserId={currentUserId} />
       )}
@@ -725,6 +745,7 @@ const ChatLayout: FC<ChatLayoutProps> = ({
             options={options}
             Preview={previewComponent}
             Paginator={ChatChannelListPaginator}
+            LoadingIndicator={ChatListSkeleton}
             channelRenderFilterFn={channelFilter}
             setActiveChannelOnMount={false}
           />

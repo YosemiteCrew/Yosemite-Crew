@@ -7,7 +7,7 @@ import { Team } from '@/app/features/organization/types/team';
 import { toTitle } from '@/app/lib/validators';
 import { NoDataMessage } from '@/app/ui/tables/common';
 
-import { joinNames } from '@/app/ui/tables/tableUtils';
+import { emptyStateCopy, joinNames } from '@/app/ui/tables/tableUtils';
 import { IoEyeOutline } from 'react-icons/io5';
 
 // `.TableShell` / `.TableDiv` live in the GenericTable sheet, and this is the one
@@ -16,6 +16,7 @@ import { IoEyeOutline } from 'react-icons/io5';
 // same route bundle.
 import './GenericTable/Generictable.css';
 import './DataTable.css';
+import Switch from '@/app/ui/primitives/Switch/Switch';
 
 type RoomUnit = {
   id?: string;
@@ -89,25 +90,15 @@ const AvailabilitySwitch = ({
   onChange: (checked: boolean) => void;
   roomName: string;
 }) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={checked}
-    aria-label={`${checked ? 'Disable' : 'Enable'} availability for ${roomName}`}
+  /* Was a 48x24 track with a 16px knob and a green fill from the status tokens.
+     The shared switch is the design's 40x24 with an 18px knob, and it fills
+     with --blue: availability is a setting, not a success state. */
+  <Switch
+    checked={checked}
     disabled={disabled}
-    onClick={() => onChange(!checked)}
-    className="inline-flex h-6 w-12 shrink-0 items-center rounded-full p-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-    style={{
-      backgroundColor: checked ? 'var(--color-success-bright)' : 'var(--color-neutral-300)',
-    }}
-  >
-    <span
-      aria-hidden="true"
-      className={`block h-4 w-4 rounded-full bg-neutral-0 shadow-sm transition-transform ${
-        checked ? 'translate-x-6' : 'translate-x-0'
-      }`}
-    />
-  </button>
+    label={`${checked ? 'Disable' : 'Enable'} availability for ${roomName}`}
+    onChange={onChange}
+  />
 );
 
 const RoomCellText = ({
@@ -167,7 +158,7 @@ const RoomTable = ({
           clip the trailing columns with no way to reach them. */}
       <div className="table-list TableShell">
         {filteredList.length === 0 ? (
-          <NoDataMessage />
+          <NoDataMessage {...emptyStateCopy('rooms')} />
         ) : (
           <div className="overflow-x-auto">
             <table className="TableDiv w-full min-w-[980px]">
@@ -179,7 +170,7 @@ const RoomTable = ({
                   <th scope="col">Type</th>
                   <th scope="col">Speciality</th>
                   <th scope="col">Occupancy</th>
-                  <th scope="col">Assigned Staff</th>
+                  <th scope="col">Assigned staff</th>
                   <th scope="col">Availability</th>
                   <th scope="col" className="text-center!">
                     Action
@@ -256,7 +247,7 @@ const RoomTable = ({
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
         {filteredList.length === 0 ? (
-          <NoDataMessage />
+          <NoDataMessage {...emptyStateCopy('rooms')} />
         ) : (
           filteredList.map((item, i) => (
             <RoomCard

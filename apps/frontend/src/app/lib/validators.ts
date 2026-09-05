@@ -56,3 +56,48 @@ export const toNumberSafe = (value: unknown, fallback = 0): number => {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
 };
+
+/**
+ * True when a field carries no value at all, as opposed to the value zero.
+ *
+ * `Number('')`, `Number('   ')` and `Number(null)` are all 0, so neither
+ * `toNumberSafe` above nor the inventory one can tell "nobody filled this in"
+ * from "somebody typed 0". That conflation is the root of a family of bugs: an
+ * unpriced item reported as free, an uncounted item reported as worthless, and
+ * a blank price SAVED as a real zero.
+ */
+const isBlank = (value: unknown): boolean =>
+  value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
+
+/**
+ * For anything a person READS: blank is unknown, not zero. Returns undefined
+ * for a missing value so the caller can show an em dash, and for a value that
+ * is not a number at all.
+ */
+export const toDisplayNumber = (value: unknown): number | undefined => {
+  if (isBlank(value)) return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+};
+
+/**
+ * For anything the app SENDS to an API. Three states, because the API has
+ * three:
+ *
+ * - blank -> `null`, which an update path writes as null and so CLEARS the
+ *   field, and which a create path maps back to undefined and so omits.
+ *   Sending 0 here is what stored an unpriced item as costing nothing.
+ * - not a number -> `undefined`, omitted, so a malformed field leaves the
+ *   stored value alone rather than wiping it.
+ * - a number -> itself, zero included.
+ *
+ * Verified against apps/backend/src/services/inventory.service.ts:
+ * `applyNullableUpdates` skips undefined and writes `value ?? null`, the create
+ * path does `input.sellingPrice ?? undefined`, and `ensureNonNegativeNumbers`
+ * only rejects negatives, so it tolerates both null and undefined.
+ */
+export const toPayloadNumber = (value: unknown): number | null | undefined => {
+  if (isBlank(value)) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+};

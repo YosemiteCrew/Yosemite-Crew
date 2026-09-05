@@ -56,7 +56,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'The one-field dialog behind "Add speciality". Almost all of its behaviour is refusal, ' +
+          'The one-field dialog behind "New speciality". Almost all of its behaviour is refusal, ' +
           'and all of it is client-side: a blank name and a name the organisation already uses are ' +
           'both rejected before anything is sent, so neither branch has ever been reachable from a ' +
           'static render.\n\n' +
@@ -65,7 +65,7 @@ const meta = {
           'for every organisation the user can see, so an unscoped check would refuse a name purely ' +
           'because some other practice uses it. Both halves of that are asserted, since they fail ' +
           'in opposite and equally silent directions.\n\n' +
-          'There are two ways to submit and they do not share a code path: the "Add speciality" ' +
+          'There are two ways to submit and they do not share a code path: the "New speciality" ' +
           'button is `type="button"` and calls the handler directly, while the field is the only ' +
           'one in the form, so Enter triggers implicit submission through `onSubmit`. `noValidate` ' +
           'is what lets an empty submit reach the JavaScript check at all rather than being ' +
@@ -93,7 +93,7 @@ export const Empty: Story = {
   play: async () => {
     const panel = await findDialog();
 
-    await expect(panel.getByRole('heading', { name: 'Add speciality' })).toBeInTheDocument();
+    await expect(panel.getByRole('heading', { name: 'New speciality' })).toBeInTheDocument();
     const input = panel.getByLabelText('Speciality name');
     await expect(input).toHaveValue('');
     // Nothing is validated until a submit, so the field opens clean.
@@ -103,7 +103,7 @@ export const Empty: Story = {
     /* `href="#"` must not produce anchors. An <a href="#"> looks identical, takes
        focus the same way, and then navigates instead of submitting. */
     const cancel = panel.getByRole('button', { name: 'Cancel' });
-    const add = panel.getByRole('button', { name: 'Add speciality' });
+    const add = panel.getByRole('button', { name: 'New speciality' });
     await expect(cancel.tagName).toBe('BUTTON');
     await expect(add.tagName).toBe('BUTTON');
 
@@ -112,10 +112,10 @@ export const Empty: Story = {
        reader announces an unnamed dialog. Queried by name so the assertion fails
        if the id linkage breaks rather than only if the attribute disappears. */
     const dialog = await within(globalThis.document.body).findByRole('dialog', {
-      name: 'Add speciality',
+      name: 'New speciality',
     });
     await expect(dialog).toHaveAttribute('aria-labelledby', 'add-speciality-modal-title');
-    await expect(panel.getByRole('heading', { name: 'Add speciality' })).toHaveAttribute(
+    await expect(panel.getByRole('heading', { name: 'New speciality' })).toHaveAttribute(
       'id',
       'add-speciality-modal-title'
     );
@@ -161,7 +161,7 @@ export const DuplicateName: Story = {
        "  dermatology  " has to be caught. Comparing raw strings would let a second
        "dermatology" through and leave the org with two of everything. */
     await userEvent.type(input, '  dermatology  ');
-    await userEvent.click(panel.getByRole('button', { name: 'Add speciality' }));
+    await userEvent.click(panel.getByRole('button', { name: 'New speciality' }));
 
     await expect(await panel.findByRole('alert')).toHaveTextContent(
       'A speciality with this name already exists.'
@@ -182,7 +182,7 @@ export const AddsAndCloses: Story = {
     const input = panel.getByLabelText('Speciality name');
 
     await userEvent.type(input, '  Cardiology  ');
-    await userEvent.click(panel.getByRole('button', { name: 'Add speciality' }));
+    await userEvent.click(panel.getByRole('button', { name: 'New speciality' }));
 
     /* Trimmed on the way out, and sent against THIS organisation. An unscoped
        duplicate check would have refused this outright; a missing trim would
@@ -203,7 +203,7 @@ export const AddFails: Story = {
     const input = panel.getByLabelText('Speciality name');
 
     await userEvent.type(input, 'Oncology');
-    await userEvent.click(panel.getByRole('button', { name: 'Add speciality' }));
+    await userEvent.click(panel.getByRole('button', { name: 'New speciality' }));
 
     await expect(addSpeciality).toHaveBeenCalledWith('Oncology', ORG_ID);
     /* The failure is reported by a toast and nowhere else: the dialog stays open

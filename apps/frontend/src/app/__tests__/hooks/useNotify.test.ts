@@ -32,7 +32,7 @@ describe('useNotify', () => {
         closeButton: false,
         icon: false,
         hideProgressBar: true,
-        className: expect.stringContaining('w-[400px]'),
+        className: 'yc-toast',
       })
     );
   });

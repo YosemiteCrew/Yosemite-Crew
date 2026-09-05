@@ -50,15 +50,18 @@ describe('TaskFilterBar', () => {
     expect(screen.getByRole('button', { name: 'Pending' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'In progress' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Completed' })).toBeInTheDocument();
+    /* The status filters are the shared FilterChip now, not ALL-CAPS StatusPills
+       wrapped in buttons. FilterChip's own doc says it replaced exactly that
+       pattern for Templates and Finance, "which made a filter row read as a row
+       of statuses"; the task board was the one that had not moved. Sentence
+       case, the 32px chip geometry, and the status colour surviving as the
+       chip's leading dot. */
     expect(screen.getByRole('button', { name: 'Pending' })).toHaveClass(
-      'min-h-[38px]',
-      'px-1',
-      'py-1'
+      'h-8',
+      'px-[13px]',
+      'text-[12.5px]'
     );
-    expect(screen.getByTitle('Pending')).toHaveClass('text-[10px]', 'uppercase');
-    expect(screen.getByTitle('Pending')).toHaveStyle({
-      backgroundColor: 'var(--color-pill-neutral-bg)',
-    });
+    expect(screen.queryByTitle('Pending')).not.toBeInTheDocument();
     expect(screen.queryByText('All statuses')).not.toBeInTheDocument();
   });
 
@@ -124,21 +127,22 @@ describe('TaskFilterBar', () => {
     expect(collisions).toEqual([]);
   });
 
-  it('gives the selected status pill a visible ring, not just aria-pressed', () => {
-    // The selected state used to be the ABSENCE of an opacity-65 dim on the
-    // other pills, which composited their labels below AA. aria-pressed alone
-    // is invisible to a sighted user, so the ring is the actual affordance and
-    // has to be asserted - otherwise deleting it leaves this file green.
+  it('gives the selected status filter a visible fill, not just aria-pressed', () => {
+    /* The selected state used to be the ABSENCE of an opacity-65 dim on the
+       other pills, which composited their labels below AA. That was replaced by
+       a ring, and now by the shared chip's solid fill. aria-pressed alone is
+       invisible to a sighted user, so whatever the affordance is has to be
+       asserted - otherwise deleting it leaves this file green. */
     renderBar({ activeStatus: 'in_progress' });
 
     const active = screen.getByRole('button', { name: 'In progress' });
-    expect(active.className).toContain('ring-2');
-    expect(active.className).toContain('ring-[var(--blue-strong)]');
-    expect(active.className).toContain('ring-offset-[var(--screen)]');
+    expect(active).toHaveAttribute('aria-pressed', 'true');
+    expect(active.className).toContain('bg-[var(--chip-selected-bg)]');
 
     const inactive = screen.getByRole('button', { name: 'Completed' });
-    expect(inactive.className).not.toContain('ring-2 ring-[var(--blue-strong)]');
-    // ...and no pill is dimmed to make the selection legible.
+    expect(inactive).toHaveAttribute('aria-pressed', 'false');
+    expect(inactive.className).not.toContain('bg-[var(--chip-selected-bg)]');
+    // ...and no chip is dimmed to make the selection legible.
     expect(inactive.className).not.toMatch(/opacity-/);
   });
 
@@ -176,35 +180,60 @@ describe('TaskFilterBar', () => {
     const teamScope = scope.getByRole('button', { name: 'Team' });
     const mineScope = scope.getByRole('button', { name: 'My tasks' });
 
+    /* Pins the ORDER, wide scope first. This bar drew its own segmented control
+       with "My tasks" first while the board view of the same page rendered
+       BoardScopeToggle with it second, so the option changed sides when you
+       switched tabs. Both views render the shared primitive now, which is what
+       fixes the order in one place. */
+    expect(scope.getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'Team',
+      'My tasks',
+    ]);
+
     expect(teamScope).toHaveAttribute('aria-pressed', 'true');
     expect(mineScope).toHaveAttribute('aria-pressed', 'false');
 
     fireEvent.click(mineScope);
     expect(setActiveScope).toHaveBeenCalledWith('mine');
+
+    // The wide segment sets the other key rather than clearing the scope.
+    fireEvent.click(teamScope);
+    expect(setActiveScope).toHaveBeenCalledWith('team');
   });
 
-  it('falls back to the pill fill for the active border when none is provided', () => {
+  it("carries the status's own colour as the chip's dot", () => {
+    // The status colour is not lost in the move to a chip: it becomes the
+    // leading dot, so Pending and Completed still read apart at a glance.
     renderBar({
       statusOptions: [{ key: 'pending', name: 'Pending', bg: '#eeeeee', text: '#111111' }],
       activeStatus: 'pending',
     });
     const button = screen.getByRole('button', { name: 'Pending' });
-    const pill = screen.getByTitle('Pending');
     expect(button).toHaveAttribute('aria-pressed', 'true');
-    expect(pill).toHaveStyle({ borderColor: '#eeeeee' });
+    const dot = button.querySelector('span[aria-hidden="true"]');
+    expect(dot).toHaveStyle({ backgroundColor: '#111111' });
   });
 
   it('hides the scope control when scope options are not supplied', () => {
-    const { unmount } = renderBar({
-      scopeOptions: [],
-      activeScope: 'team',
-      setActiveScope: jest.fn(),
-    });
-    expect(screen.queryByRole('group', { name: 'Task scope' })).not.toBeInTheDocument();
-    unmount();
+    const expectNoScope = (overrides: Partial<React.ComponentProps<typeof TaskFilterBar>>) => {
+      const { unmount } = renderBar(overrides);
+      expect(screen.queryByRole('group', { name: 'Task scope' })).not.toBeInTheDocument();
+      unmount();
+    };
+
+    expectNoScope({ scopeOptions: [], activeScope: 'team', setActiveScope: jest.fn() });
 
     // Options present but no handler wired: the control still stays hidden.
-    renderBar({ scopeOptions: [{ key: 'mine', name: 'My tasks' }], activeScope: 'mine' });
-    expect(screen.queryByRole('group', { name: 'Task scope' })).not.toBeInTheDocument();
+    expectNoScope({ scopeOptions: TASK_SCOPE_OPTIONS, activeScope: 'mine' });
+
+    /* A single option is not a scope control either. The bar renders the shared
+       two-state BoardScopeToggle, so it needs the narrowed option AND something
+       to widen back to; it used to map whatever list it was handed, which would
+       have drawn a one-segment "toggle" with nothing to toggle to. */
+    expectNoScope({
+      scopeOptions: [{ key: 'mine', name: 'My tasks' }],
+      activeScope: 'mine',
+      setActiveScope: jest.fn(),
+    });
   });
 });

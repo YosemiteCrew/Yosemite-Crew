@@ -102,12 +102,21 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
       {text}
     </button>
   ),
-  Secondary: ({ text, onClick, isDisabled }: any) => (
-    <button onClick={onClick} disabled={isDisabled} data-testid="secondary-btn">
+  // The destructive footer action renders as the outlined danger Secondary, so
+  // it gets its own test id and `getAction()` below resolves whichever of the
+  // two trailing actions the panel is showing.
+  Secondary: ({ text, onClick, isDisabled, danger }: any) => (
+    <button
+      onClick={onClick}
+      disabled={isDisabled}
+      data-testid={danger ? 'danger-btn' : 'secondary-btn'}
+    >
       {text}
     </button>
   ),
 }));
+
+const getAction = () => screen.queryByTestId('danger-btn') ?? screen.getByTestId('primary-btn');
 
 jest.mock('@/app/ui/inputs/Datepicker', () => ({
   __esModule: true,
@@ -337,7 +346,7 @@ describe('InventoryInfo Component', () => {
     render(<InventoryInfo {...defaultProps} />);
     expect(screen.getByTestId('modal')).toBeInTheDocument();
     expect(screen.getByText('Item 1')).toBeInTheDocument();
-    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Delete item');
+    expect(getAction()).toHaveTextContent('Delete item');
   });
 
   it('opens directly on the requested initialSection (Restock → Stock Control)', () => {
@@ -366,11 +375,11 @@ describe('InventoryInfo Component', () => {
   it('handles validation failure in Basic Info', async () => {
     render(<InventoryInfo {...defaultProps} />);
     fireEvent.click(screen.getByTestId('simulate-edit-start'));
-    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Save');
+    expect(getAction()).toHaveTextContent('Save');
     expect(screen.getByTestId('secondary-btn')).toHaveTextContent('Cancel');
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(mockOnUpdate).toHaveBeenCalledWith(
@@ -432,7 +441,7 @@ describe('InventoryInfo Component', () => {
     fireEvent.click(dropdown);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
   });
 
@@ -447,7 +456,7 @@ describe('InventoryInfo Component', () => {
     fireEvent.click(screen.getAllByText(/Expiring warning before/i)[0]);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(mockOnUpdateBatch).toHaveBeenCalledWith(
@@ -473,7 +482,7 @@ describe('InventoryInfo Component', () => {
     fireEvent.click(screen.getByTestId('accordion-edit-btn'));
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     // FIX: Added waitFor because validation often has async or state-update tick delays
@@ -486,10 +495,10 @@ describe('InventoryInfo Component', () => {
   it('hides an active item', async () => {
     render(<InventoryInfo {...defaultProps} />);
 
-    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Delete item');
+    expect(getAction()).toHaveTextContent('Delete item');
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     await act(async () => {
@@ -504,10 +513,10 @@ describe('InventoryInfo Component', () => {
     const hiddenItem = { ...activeInventory, status: 'HIDDEN' };
     render(<InventoryInfo {...defaultProps} activeInventory={hiddenItem} />);
 
-    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Restore item');
+    expect(getAction()).toHaveTextContent('Restore item');
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(mockOnUnhide).toHaveBeenCalledWith('item-1');
@@ -537,7 +546,7 @@ describe('InventoryInfo Component', () => {
     fireEvent.click(screen.getByTestId('simulate-edit-start'));
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(mockOnUpdate).toHaveBeenCalled();
@@ -594,7 +603,7 @@ describe('InventoryInfo Component', () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(mockOnUpdateBatch).toHaveBeenCalledWith(
@@ -626,7 +635,7 @@ describe('InventoryInfo Component', () => {
     render(<InventoryInfo {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(screen.getByTestId('center-modal')).toBeInTheDocument();
@@ -641,7 +650,7 @@ describe('InventoryInfo Component', () => {
     render(<InventoryInfo {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     // The drawer and the delete confirmation each render a ModalHeader; the
@@ -658,7 +667,7 @@ describe('InventoryInfo Component', () => {
     render(<InventoryInfo {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     await act(async () => {
@@ -679,7 +688,7 @@ describe('InventoryInfo Component', () => {
     render(<InventoryInfo {...defaultProps} activeInventory={hiddenItem} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(consoleSpy).toHaveBeenCalledWith('Failed to unhide inventory item:', expect.any(Error));
@@ -764,7 +773,7 @@ describe('InventoryInfo Component', () => {
     fireEvent.click(screen.getByTestId('simulate-edit-start'));
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(consoleSpy).toHaveBeenCalledWith(
@@ -804,7 +813,7 @@ describe('InventoryInfo Component', () => {
 
     fireEvent.click(screen.getByTestId('accordion-edit-btn'));
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     // The fallback batch carries no _id, so it is matched positionally against
@@ -845,7 +854,7 @@ describe('InventoryInfo Component', () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(mockOnUpdateBatch).not.toHaveBeenCalled();
@@ -858,7 +867,7 @@ describe('InventoryInfo Component', () => {
     fireEvent.click(screen.getByTestId('simulate-edit-start'));
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(mockOnUpdate).toHaveBeenCalledWith(expect.objectContaining({ vendor: {} }));
@@ -876,8 +885,8 @@ describe('InventoryInfo Component', () => {
     render(<InventoryInfo {...defaultProps} />);
     fireEvent.click(screen.getByTestId('simulate-edit-start'));
 
-    fireEvent.click(screen.getByTestId('primary-btn'));
-    expect(screen.getByTestId('primary-btn')).toHaveTextContent('Saving...');
+    fireEvent.click(getAction());
+    expect(getAction()).toHaveTextContent('Saving...');
 
     // The in-flight save short-circuits any further save attempt.
     fireEvent.click(screen.getByTestId('simulate-invalid-save'));
@@ -897,7 +906,7 @@ describe('InventoryInfo Component', () => {
     render(<InventoryInfo {...defaultProps} activeInventory={unnamed} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('primary-btn'));
+      fireEvent.click(getAction());
     });
 
     expect(

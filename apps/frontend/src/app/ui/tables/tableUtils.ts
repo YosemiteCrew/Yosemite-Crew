@@ -8,6 +8,11 @@ import type { StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
    footer so the pill run reads the same everywhere. */
 const PAGE_PILL_LIMIT = 7;
 
+export const emptyStateCopy = (itemNoun: string) => ({
+  title: `No ${itemNoun} yet`,
+  subtitle: `${itemNoun.charAt(0).toUpperCase()}${itemNoun.slice(1)} appear here as soon as there are any.`,
+});
+
 /** One slot in the pager run: a numbered pill, or the collapsed ellipsis when
  *  `page` is null. `key` is a stable React key — a page pill is identified by its
  *  own number and a gap by the page it follows, both unique within a run, so no

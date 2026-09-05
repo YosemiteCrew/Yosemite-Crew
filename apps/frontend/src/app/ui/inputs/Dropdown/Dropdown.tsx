@@ -10,6 +10,7 @@ import { useDropdownPositioning } from './useDropdownPositioning';
 import { useDropdownKeyboardNav } from './useDropdownKeyboardNav';
 
 import './Dropdown.css';
+import { deriveEmptyLabel } from '@/app/ui/inputs/Dropdown/emptyLabel';
 
 type DropdownType = 'country' | 'breed' | 'general';
 
@@ -26,6 +27,8 @@ type DropdownProps = {
   disabled?: boolean;
   returnObject?: boolean;
   portal?: boolean;
+  /** Text shown while nothing is selected. Defaults to `Select <placeholder>`. */
+  emptyLabel?: string;
 };
 
 const Dropdown = ({
@@ -41,6 +44,7 @@ const Dropdown = ({
   disabled = false,
   returnObject = false,
   portal = true,
+  emptyLabel,
 }: DropdownProps) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -190,7 +194,16 @@ const Dropdown = ({
           disabled={disabled}
           onKeyDown={handleKeyDown}
         >
-          <span className="select-input-selected">{selected ? selected.label : ''}</span>
+          {/* Never an empty box: the design makes a placeholder mandatory on every
+              select. This control reuses `placeholder` as its label above, so the
+              empty state derives "Select <label>" unless a caller names its own. */}
+          <span
+            className={classNames('select-input-selected', {
+              'select-input-placeholder': !selected,
+            })}
+          >
+            {selected ? selected.label : (emptyLabel ?? deriveEmptyLabel(placeholder))}
+          </span>
           <span className="select-input-drop-icon" aria-hidden="true">
             <IoChevronDown color="var(--color-text-tertiary)" size={14} />
           </span>

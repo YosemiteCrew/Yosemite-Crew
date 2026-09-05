@@ -1,3 +1,4 @@
+import { PLATFORM_STATUS_API_URL } from '@/app/hooks/usePlatformStatus';
 import type { Meta, StoryObj } from '@storybook/react';
 
 import Footer from './Footer';
@@ -11,7 +12,7 @@ import Footer from './Footer';
 const withPlatformStatus = (status: string) => () => {
   const original = globalThis.fetch;
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    if (String(input).includes('openstatus.dev')) {
+    if (String(input).startsWith(PLATFORM_STATUS_API_URL)) {
       return Promise.resolve(
         new Response(JSON.stringify({ status }), {
           status: 200,
@@ -30,7 +31,7 @@ const withPlatformStatus = (status: string) => () => {
 const withFailingStatusFetch = () => {
   const original = globalThis.fetch;
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    if (String(input).includes('openstatus.dev')) {
+    if (String(input).startsWith(PLATFORM_STATUS_API_URL)) {
       return Promise.reject(new Error('offline'));
     }
     return original.call(globalThis, input, init);

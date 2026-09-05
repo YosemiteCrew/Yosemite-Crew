@@ -158,12 +158,14 @@ export const DocumentList: Story = {
     /* Assert the whole row button. Title and subline are two independent
        derivations of one record, and checking them apart passes with the
        category of one document rendered under the title of another. */
-    await expect(canvas.getByRole('button', { name: 'View Cancellation policy' }).textContent).toBe(
-      'Cancellation policyCancellation policy · Merge fields: parent, visit, practitioner.'
+    await expect(
+      canvas.getByRole('button', { name: 'View Cancellation policy, E-SIGN' }).textContent
+    ).toBe(
+      'Cancellation policyCancellation policy · Merge fields: parent, visit, practitioner.E-SIGN'
     );
     // No description: the ` · ` separator goes with it, not just the text.
-    await expect(canvas.getByRole('button', { name: 'View Boarding terms' }).textContent).toBe(
-      'Boarding termsTerms and conditions'
+    await expect(canvas.getByRole('button', { name: 'View Boarding terms, DOC' }).textContent).toBe(
+      'Boarding termsTerms and conditionsDOC'
     );
 
     // One badge per branch, in the order getDocTypeBadge tests them.
@@ -172,7 +174,11 @@ export const DocumentList: Story = {
     await expect(canvas.getByText('DOC')).toBeInTheDocument();
     await expect(canvas.getByText('FILE')).toBeInTheDocument();
 
-    await expect(canvas.getAllByRole('button', { name: /^Actions for / })).toHaveLength(4);
+    /* One control per row, not two. The row used to end in a second button
+       labelled "Actions for <title>" that opened this same drawer - a kebab
+       promising a menu that never existed, on a ~15px target. */
+    await expect(canvas.queryAllByRole('button', { name: /^Actions for / })).toHaveLength(0);
+    await expect(canvas.getAllByRole('button', { name: /^View / })).toHaveLength(4);
     await expect(canvas.getByRole('button', { name: 'Add' })).toBeInTheDocument();
     await expect(
       canvas.getByText('Templates support merge fields: patient, parent, visit, practitioner')
@@ -183,9 +189,9 @@ export const DocumentList: Story = {
     docs: {
       description: {
         story:
-          'The resting list. Each row carries two routes into the same drawer - the row body ' +
-          'and the trailing kebab - wired to the same handler, so the kebab is a visual ' +
-          'affordance for a target that already spans the row.',
+          'The resting list. Each row is ONE button spanning the row and ending in a chevron, ' +
+          'so the visible affordance and the target are the same element. The badge sits inside ' +
+          'that button, which is why the label carries it: "View Boarding terms, DOC".',
       },
     },
   },
@@ -234,7 +240,7 @@ export const Empty: Story = {
     await expect(
       canvas.getByText('No documents yet. Add clinic-wide templates and files.')
     ).toBeInTheDocument();
-    await expect(canvas.queryAllByRole('button', { name: /^Actions for / })).toHaveLength(0);
+    await expect(canvas.queryAllByRole('button', { name: /^View / })).toHaveLength(0);
     /* The two grey strips above and below the rows are not part of the list, so
        they survive the empty branch - the sentence lands between them. */
     await expect(canvas.getByText('Clinic-wide templates and files')).toBeInTheDocument();
@@ -297,7 +303,7 @@ export const RowOpensDetail: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await userEvent.click(canvas.getByRole('button', { name: 'Actions for Fire evacuation plan' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'View Fire evacuation plan, FILE' }));
 
     await waitFor(() => expect(openDialogs()).toHaveLength(1));
     const panel = within(openDialogs()[0]);
@@ -313,9 +319,9 @@ export const RowOpensDetail: Story = {
     docs: {
       description: {
         story:
-          'The kebab and the row body call the same handler, which sets the selection and opens ' +
-          'the drawer together. The fourth row is used here on purpose: a drawer that shows the ' +
-          'first document instead is the failure this catches.',
+          'The row button sets the selection and opens the drawer together. The fourth row is ' +
+          'used here on purpose: a drawer that shows the first document instead is the failure ' +
+          'this catches.',
       },
     },
   },
@@ -327,10 +333,10 @@ export const WithoutEditPermission: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.queryByRole('button', { name: 'Add' })).not.toBeInTheDocument();
-    // document:view:any survives, so the list and both routes into it remain.
-    await expect(canvas.getAllByRole('button', { name: /^Actions for / })).toHaveLength(4);
-    await expect(canvas.getByRole('button', { name: 'View Boarding terms' }).textContent).toBe(
-      'Boarding termsTerms and conditions'
+    // document:view:any survives, so every row is still its own View button.
+    await expect(canvas.getAllByRole('button', { name: /^View / })).toHaveLength(4);
+    await expect(canvas.getByRole('button', { name: 'View Boarding terms, DOC' }).textContent).toBe(
+      'Boarding termsTerms and conditionsDOC'
     );
   },
   parameters: {

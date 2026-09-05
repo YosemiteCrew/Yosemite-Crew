@@ -1,6 +1,7 @@
 'use client';
 
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import {
   IoShieldCheckmark,
   IoShieldCheckmarkOutline,
@@ -262,12 +263,19 @@ const PublicPassportView = ({ passport }: { passport: PetPassportDTO }) => {
             className="size-[54px] flex-none overflow-hidden rounded-full"
             style={{ background: 'var(--avatar-amber-bg)' }}
           >
-            <Image
+            <AvatarImage
               alt={identity.name}
               src={getSafeImageUrl(identity.photoUrl, identity.species as ImageType)}
-              height={54}
-              width={54}
+              size={54}
               className="size-full object-cover"
+              fallback={
+                <CompanionAvatar
+                  name={identity.name}
+                  size={54}
+                  textClassName="text-[24px]"
+                  alt={identity.name}
+                />
+              }
             />
           </span>
           <span className="min-w-0 flex-1">

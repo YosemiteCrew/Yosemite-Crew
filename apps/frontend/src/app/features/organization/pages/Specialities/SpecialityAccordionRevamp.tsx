@@ -147,7 +147,7 @@ const SpecialityAccordionHeader = ({
             <Primary
               href="#"
               icon={<span>+</span>}
-              text={activeTab === 'packages' ? 'New Package' : 'New Service'}
+              text={activeTab === 'packages' ? 'New package' : 'New service'}
               onClick={onOpenAdd}
               className="w-full sm:w-auto"
             />

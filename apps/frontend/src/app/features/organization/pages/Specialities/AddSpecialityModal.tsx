@@ -70,7 +70,7 @@ const AddSpecialityModal = ({
       onClose={handleClose}
       ariaLabelledBy={TITLE_ID}
     >
-      <ModalHeader title="Add speciality" onClose={handleClose} titleId={TITLE_ID} />
+      <ModalHeader title="New speciality" onClose={handleClose} titleId={TITLE_ID} />
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <FormInput
           intype="text"
@@ -86,7 +86,7 @@ const AddSpecialityModal = ({
           <Secondary href="#" text="Cancel" onClick={handleClose} />
           <Primary
             href="#"
-            text="Add speciality"
+            text="New speciality"
             onClick={() => {
               Promise.resolve(submitSpeciality()).catch(() => undefined);
             }}

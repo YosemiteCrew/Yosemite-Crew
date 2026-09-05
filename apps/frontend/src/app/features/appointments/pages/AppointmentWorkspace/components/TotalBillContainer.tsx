@@ -532,16 +532,16 @@ const TotalsFooter = ({
         </label>
         <FooterAmountRow label="Total Deposit" value={money(depositCents)} />
         <FooterAmountRow
-          label="Invoice Amount"
+          label="Invoice amount"
           value={money(totals.estimatedTotalCents)}
           valueStyle={{ color: PRIMARY_TEXT }}
         />
-        <FooterAmountRow label="Remaining Deposit" value={money(totals.remainingDepositCents)} />
+        <FooterAmountRow label="Remaining deposit" value={money(totals.remainingDepositCents)} />
       </div>
 
       <div className="flex h-full items-center justify-center py-1 lg:py-0">
         <div className="text-center">
-          <p style={FOOTER_LABEL_STYLE}>Total Amount</p>
+          <p style={FOOTER_LABEL_STYLE}>Total amount</p>
           <p className="text-right" style={FOOTER_TOTAL_VALUE_STYLE}>
             {money(totals.estimatedTotalCents)}
           </p>

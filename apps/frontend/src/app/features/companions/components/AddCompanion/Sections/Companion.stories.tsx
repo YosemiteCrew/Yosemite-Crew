@@ -316,7 +316,7 @@ export const Default: Story = {
     await expect(
       canvas.queryByRole('spinbutton', { name: 'Age when neutered (optional)' })
     ).not.toBeInTheDocument();
-    await expect(canvas.queryByRole('textbox', { name: 'Policy Number' })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('textbox', { name: 'Policy number' })).not.toBeInTheDocument();
 
     // Back returns to step 1 rather than closing the modal - the two are next to
     // each other and swapping them loses everything typed so far.
@@ -442,7 +442,7 @@ export const Insured: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole('textbox', { name: 'Company name' })).toBeInTheDocument();
-    await expect(canvas.getByRole('textbox', { name: 'Policy Number' })).toBeInTheDocument();
+    await expect(canvas.getByRole('textbox', { name: 'Policy number' })).toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
 

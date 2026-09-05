@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import { IoEllipsisHorizontal, IoPersonAddOutline } from 'react-icons/io5';
 import AddTeam from '@/app/features/organization/pages/Organization/Sections/Team/AddTeam';
 import TeamInfo from '@/app/features/organization/pages/Organization/Sections/Team/TeamInfo';
@@ -37,23 +37,24 @@ const employmentLabel = (team: TeamProp): string => {
 };
 
 const TeamAvatar = ({ team }: { team: TeamProp }) => {
-  if (team.image) {
-    return (
-      <Image
-        src={getSafeImageUrl(team.image, 'person')}
-        alt=""
-        height={30}
-        width={30}
-        className="size-[30px] flex-none rounded-full object-cover"
-      />
-    );
-  }
-  return (
+  const initials = (
     <span
       className={`flex size-[30px] flex-none items-center justify-center rounded-full text-[10.5px] font-bold ${avatarAccentFor(team._id || team.name || '')}`}
     >
       {initialsOf(team.name)}
     </span>
+  );
+  if (!team.image) return initials;
+  // A photo whose URL stopped resolving degrades to the same initials disc,
+  // never an empty circle.
+  return (
+    <AvatarImage
+      src={getSafeImageUrl(team.image, 'person')}
+      alt=""
+      size={30}
+      className="size-[30px] flex-none rounded-full object-cover"
+      fallback={initials}
+    />
   );
 };
 
@@ -130,8 +131,14 @@ const Team = ({ isVerified = false }: { isVerified?: boolean }) => {
     >
       <section className="flex flex-col overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
         <div className="flex items-center justify-between gap-3 px-5! pt-4! pb-3!">
-          <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[var(--ink)]">
-            Team <span className="font-medium text-[var(--ink-faint)]">({teams.length})</span>
+          {/* Section heading: `text-heading-3` (20px/500), the same ramp SectionCard
+              gives Specialities, Documents, Online booking and Booking requests
+              further down this page. This was hand-rolled at 15.5px/700, so
+              scrolling Organization swung the section title between two type
+              ramps. The count keeps only its faint colour - a weight of its own
+              would out-bold the title under the mobile heading-3 override. */}
+          <h2 className="text-heading-3 text-text-primary">
+            Team <span className="text-[var(--ink-faint)]">({teams.length})</span>
           </h2>
           {showInvite && (
             <button

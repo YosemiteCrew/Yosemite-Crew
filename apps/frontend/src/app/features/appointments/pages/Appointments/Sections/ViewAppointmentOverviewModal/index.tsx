@@ -19,7 +19,8 @@ import {
 import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
 import { formatTimeLabel } from '@/app/lib/forms';
 import { createInvoiceByAppointmentId } from '@/app/lib/paymentStatus';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoneyPrecise } from '@/app/lib/money';
+import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { normalizeAppointmentId } from '@/app/lib/invoice';
 import {
   assignEncounterUnit,
@@ -97,25 +98,35 @@ const OverviewRow = ({ label, value }: OverviewRowProps) => (
   </div>
 );
 
+// Money prints as "$143.00"; an empty money slot is an em dash. The estimate's
+// ink branches on this same value, so the two can never drift apart.
+const EMPTY_VALUE = '—';
+
+/* Every branch goes through the same formatter and the same currency. The
+   invoice branch used `formatMoney` (whole units, the invoice's own currency)
+   while the estimate branches built `$${n.toFixed(2)}` by hand, so the SAME
+   field printed "£144" once an invoice existed and "$143.50" before it did -
+   two currencies and two precisions for one figure. */
 const resolveEstimateDisplay = (
   appointmentId: string | undefined,
   invoicesByAppointmentId: Record<string, import('@yosemite-crew/types').Invoice>,
   serviceInfoCost: string | number,
-  serviceInfoMaxDiscount: string | number
+  serviceInfoMaxDiscount: string | number,
+  orgCurrency: string
 ): string => {
   const normalizedId = normalizeAppointmentId(appointmentId);
   if (normalizedId) {
     const invoice = invoicesByAppointmentId[normalizedId];
     if (invoice?.totalAmount !== undefined) {
-      return formatMoney(invoice.totalAmount, invoice.currency);
+      return formatMoneyPrecise(invoice.totalAmount, invoice.currency ?? orgCurrency);
     }
   }
   const cost = Number(serviceInfoCost) || 0;
   const discount = Number(serviceInfoMaxDiscount) || 0;
   const estimate = Math.max(0, cost - discount);
-  if (estimate > 0) return `$ ${estimate.toFixed(2)}`;
-  if (cost > 0) return `$ ${cost.toFixed(2)}`;
-  return '-';
+  if (estimate > 0) return formatMoneyPrecise(estimate, orgCurrency);
+  if (cost > 0) return formatMoneyPrecise(cost, orgCurrency);
+  return EMPTY_VALUE;
 };
 
 type RoomSelectorSectionProps = {
@@ -261,6 +272,8 @@ type OverviewRightColumnProps = {
     ? Item | null
     : never;
   estimateDisplay: string;
+  /** The org's currency, so the cost and discount rows match the estimate above them. */
+  orgCurrency: string;
 };
 
 const OverviewRightColumn = ({
@@ -278,6 +291,7 @@ const OverviewRightColumn = ({
   handleUnitChange,
   serviceInfo,
   estimateDisplay,
+  orgCurrency,
 }: OverviewRightColumnProps) => (
   <div className="flex flex-col gap-4">
     {/* Appointment detail rows */}
@@ -288,7 +302,7 @@ const OverviewRightColumn = ({
       </div>
       <OverviewRow label="Speciality" value={activeAppointment.appointmentType?.speciality?.name} />
       <OverviewRow label="Service" value={activeAppointment.appointmentType?.name} />
-      <OverviewRow label="Chief Complaint" value={activeAppointment.concern} />
+      <OverviewRow label="Chief complaint" value={activeAppointment.concern} />
       <OverviewRow label="Emergency" value={activeAppointment.isEmergency ? 'Yes' : 'No'} />
     </div>
 
@@ -331,7 +345,9 @@ const OverviewRightColumn = ({
             <div className="flex items-center justify-between">
               <span className="font-satoshi text-sm font-medium text-text-secondary">Cost:</span>
               <span className="font-satoshi text-sm font-bold text-text-primary">
-                {serviceInfo.cost ? `$ ${Number(serviceInfo.cost).toFixed(2)}` : '-'}
+                {serviceInfo.cost
+                  ? formatMoneyPrecise(Number(serviceInfo.cost), orgCurrency)
+                  : EMPTY_VALUE}
               </span>
             </div>
             <div className="flex items-center justify-between">
@@ -339,7 +355,9 @@ const OverviewRightColumn = ({
                 Max discount:
               </span>
               <span className="font-satoshi text-sm font-bold text-text-primary">
-                {serviceInfo.maxDiscount ? `$${Number(serviceInfo.maxDiscount).toFixed(2)}` : '-'}
+                {serviceInfo.maxDiscount
+                  ? formatMoneyPrecise(Number(serviceInfo.maxDiscount), orgCurrency)
+                  : EMPTY_VALUE}
               </span>
             </div>
           </>
@@ -354,7 +372,8 @@ const OverviewRightColumn = ({
           <span
             className="font-satoshi text-2xl font-bold"
             style={{
-              color: estimateDisplay === '-' ? 'var(--color-text-tertiary)' : 'var(--blue-text)',
+              color:
+                estimateDisplay === EMPTY_VALUE ? 'var(--color-text-tertiary)' : 'var(--blue-text)',
               letterSpacing: '-0.48px',
             }}
           >
@@ -453,15 +472,17 @@ const ViewAppointmentOverviewModal = ({
     return services.find((s) => s.id === serviceId) ?? null;
   }, [activeAppointment.appointmentType, getServicesBySpecialityId]);
 
+  const orgCurrency = useCurrencyForPrimaryOrg();
   const estimateDisplay = useMemo(
     () =>
       resolveEstimateDisplay(
         activeAppointment.id,
         invoicesByAppointmentId,
         serviceInfo?.cost ?? '',
-        serviceInfo?.maxDiscount ?? ''
+        serviceInfo?.maxDiscount ?? '',
+        orgCurrency
       ),
-    [activeAppointment.id, invoicesByAppointmentId, serviceInfo]
+    [activeAppointment.id, invoicesByAppointmentId, serviceInfo, orgCurrency]
   );
 
   const dateDisplay = useMemo(() => {
@@ -590,7 +611,7 @@ const ViewAppointmentOverviewModal = ({
     <AppointmentCentralModalShell
       showModal={showModal}
       setShowModal={setShowModal}
-      title="Appointment Details"
+      title="Appointment details"
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
         <OverviewLeftColumn
@@ -606,6 +627,7 @@ const ViewAppointmentOverviewModal = ({
         />
 
         <OverviewRightColumn
+          orgCurrency={orgCurrency}
           activeAppointment={activeAppointment}
           canEditAppointments={canEditAppointments}
           savingField={savingField}
@@ -632,7 +654,7 @@ const ViewAppointmentOverviewModal = ({
       {/* Footer */}
       <div className="flex justify-end mt-6 pt-4 border-t border-card-border">
         <Primary
-          text={isUpcoming ? 'Start Appointment' : 'View Details'}
+          text={isUpcoming ? 'Start appointment' : 'View details'}
           icon={<IoArrowForward aria-hidden="true" />}
           iconPosition="right"
           onClick={handlePrimaryAction}

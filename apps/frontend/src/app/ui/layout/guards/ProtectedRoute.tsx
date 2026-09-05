@@ -5,7 +5,7 @@ import { redirect, usePathname } from 'next/navigation';
 import { removeStorageItem, setStorageItem } from '@/app/lib/browserStorage';
 import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 import { useAuthStore } from '@/app/stores/authStore';
-import { isLocalGuardBypassEnabled } from '@/app/lib/localGuardBypass';
+import { useLocalGuardBypass } from '@/app/lib/localGuardBypass';
 
 type ProtectedRouteProps = {
   children: React.ReactNode;
@@ -23,7 +23,7 @@ const ProtectedRoute = ({ children, skeleton = null }: ProtectedRouteProps) => {
   const isChecking = status === 'idle' || status === 'checking';
   const isAuthed = status === 'authenticated' || status === 'signin-authenticated';
 
-  const isAuthGuardDisabled = isLocalGuardBypassEnabled();
+  const isAuthGuardDisabled = useLocalGuardBypass();
 
   useFullscreenLoader('auth-guard', !isAuthGuardDisabled && isChecking);
 

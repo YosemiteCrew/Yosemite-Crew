@@ -1,4 +1,5 @@
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import React from 'react';
 import { IoCalendarOutline, IoEye, IoListOutline, IoSyncOutline } from 'react-icons/io5';
@@ -49,16 +50,23 @@ const CompanionCard = ({
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-2 items-center">
-        <Image
+        <AvatarImage
           alt={''}
           src={getSafeImageUrl(
             companion.companion.photoUrl,
             companion.companion.type.toLowerCase() as ImageType
           )}
-          height={40}
-          width={40}
+          size={40}
           style={{ borderRadius: '50%' }}
           className="size-10 rounded-full"
+          fallback={
+            <CompanionAvatar
+              name={companion.companion.name}
+              seed={companion.companion.id}
+              size={40}
+              textClassName="text-[18px]"
+            />
+          }
         />
         <div className="flex flex-col gap-0">
           <div className="text-body-3-emphasis text-text-primary">

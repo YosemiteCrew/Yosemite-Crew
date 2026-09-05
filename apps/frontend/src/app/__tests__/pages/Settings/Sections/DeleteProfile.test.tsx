@@ -94,7 +94,7 @@ jest.mock('axios', () => ({
 }));
 
 const openModal = () => {
-  fireEvent.click(screen.getByRole('button', { name: 'Delete…' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Delete profile' }));
   fireEvent.change(screen.getByLabelText('Enter email address'), {
     target: { value: 'me@example.com' },
   });
@@ -118,13 +118,13 @@ describe('Settings DeleteProfile', () => {
     expect(
       screen.getByText('Leaves all organizations and erases your account')
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Delete…' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete profile' })).toBeInTheDocument();
   });
 
   it('opens modal and validates required email', () => {
     render(<DeleteProfile />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete profile' }));
     fireEvent.click(screen.getByLabelText('Confirm deletion consent'));
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
@@ -150,7 +150,7 @@ describe('Settings DeleteProfile', () => {
     };
     render(<DeleteProfile />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete profile' }));
 
     expect(notifyMock).toHaveBeenCalledWith('warning', {
       title: 'Transfer ownership first',

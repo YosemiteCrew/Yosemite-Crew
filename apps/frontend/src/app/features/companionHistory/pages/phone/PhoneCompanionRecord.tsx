@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import {
   IoArrowBack,
   IoAddOutline,
@@ -123,12 +124,12 @@ const PhoneRecordIdentity = ({
 }) => (
   <>
     <div className="flex items-center gap-3">
-      <Image
+      <AvatarImage
         src={getSafeImageUrl(photoUrl, resolveImageType(speciesType))}
         alt={name}
-        width={58}
-        height={58}
+        size={58}
         className="size-[58px] shrink-0 rounded-full object-cover"
+        fallback={<CompanionAvatar name={name} size={58} textClassName="text-[26px]" alt={name} />}
       />
       <div className="min-w-0 flex-1">
         <span className="block truncate font-newsreader text-[22px] leading-tight tracking-[-0.015em] text-(--ink)">
@@ -189,20 +190,23 @@ const PhoneParentContact = ({
   note?: string;
 }) => {
   const detail = joinMeta([phone, note]);
+  const initialsDisc = (
+    <span className="flex size-[34px] shrink-0 items-center justify-center rounded-full bg-(--avatar-violet-bg) text-[12px] font-bold text-(--avatar-violet-ink)">
+      {initials}
+    </span>
+  );
   return (
     <div className="flex items-center gap-2.5 rounded-[14px] border border-(--hairline) bg-(--screen) px-3.5 py-2.5 shadow-[0_1px_2px_var(--sh03)]">
       {photoUrl ? (
-        <Image
+        <AvatarImage
           src={getSafeImageUrl(photoUrl, 'person')}
           alt={name}
-          width={34}
-          height={34}
+          size={34}
           className="size-[34px] shrink-0 rounded-full object-cover"
+          fallback={initialsDisc}
         />
       ) : (
-        <span className="flex size-[34px] shrink-0 items-center justify-center rounded-full bg-(--avatar-violet-bg) text-[12px] font-bold text-(--avatar-violet-ink)">
-          {initials}
-        </span>
+        initialsDisc
       )}
       <div className="min-w-0 flex-1">
         <span className="block truncate text-[13px] font-bold text-(--ink)">{name}</span>

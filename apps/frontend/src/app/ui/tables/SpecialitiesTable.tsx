@@ -4,7 +4,7 @@ import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import SpecialitiesCard from '@/app/ui/cards/SpecialitiesCard';
 import { Column, NoDataMessage, ViewButton, ProfileTitle } from '@/app/ui/tables/common';
 
-import { getServiceNames } from '@/app/ui/tables/tableUtils';
+import { emptyStateCopy, getServiceNames } from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
 
@@ -72,6 +72,7 @@ const SpecialitiesTable = ({ filteredList, setActive, setView }: SpecialitiesTab
     <div className="w-full">
       <div className="hidden xl:flex">
         <GenericTable
+          itemNoun="specialities"
           data={filteredList}
           columns={columns}
           bordered={false}
@@ -81,7 +82,7 @@ const SpecialitiesTable = ({ filteredList, setActive, setView }: SpecialitiesTab
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
         {filteredList.length === 0 ? (
-          <NoDataMessage />
+          <NoDataMessage {...emptyStateCopy('specialities')} />
         ) : (
           filteredList.map((item, i) => (
             <SpecialitiesCard

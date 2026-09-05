@@ -2,9 +2,13 @@ import React from 'react';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import { IoEyeOutline } from 'react-icons/io5';
 import { Team } from '@/app/features/organization/types/team';
+import {
+  avatarAccentFor,
+  initialsOf,
+} from '@/app/features/organization/pages/Organization/Sections/orgDisplay';
 
 import AvailabilityCard from '@/app/ui/cards/AvailabilityCard';
 import { toTitleCase } from '@/app/lib/validators';
@@ -17,6 +21,7 @@ import {
 } from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
+import { NoDataMessage } from '@/app/ui/tables/common';
 
 type Column<T> = {
   label: string;
@@ -50,12 +55,18 @@ const AvailabilityTable = ({
       width: '56px',
       render: (item: Team) => (
         <div className="appointment-profile size-10">
-          <Image
+          <AvatarImage
             src={getSafeImageUrl(item.image, 'person')}
             alt=""
-            height={40}
-            width={40}
+            size={40}
             className="size-10 object-cover rounded-full"
+            fallback={
+              <span
+                className={`flex size-10 items-center justify-center rounded-full text-[13px] font-bold ${avatarAccentFor(item._id || item.name || '')}`}
+              >
+                {initialsOf(item.name)}
+              </span>
+            }
           />
         </div>
       ),
@@ -158,6 +169,14 @@ const AvailabilityTable = ({
     <div className="table-wrapper">
       <div className="table-list">
         <GenericTable
+          itemNoun="time slots"
+          /* The card branch below is `xl:hidden` and said "No availability set /
+             Set consultation hours for a practitioner and they appear here",
+             while this table said "No time slots yet". Same widget, two
+             different sentences either side of 1280px. The card wording wins:
+             it tells the reader what to do. */
+          emptyTitle="No availability set"
+          emptySubtitle="Set consultation hours for a practitioner and they appear here."
           data={filteredList}
           columns={finalColoumns}
           bordered={false}
@@ -169,9 +188,10 @@ const AvailabilityTable = ({
         {(() => {
           if (filteredList.length === 0) {
             return (
-              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-                No data available
-              </div>
+              <NoDataMessage
+                title="No availability set"
+                subtitle="Set consultation hours for a practitioner and they appear here."
+              />
             );
           }
           return filteredList.map((item, i) => (

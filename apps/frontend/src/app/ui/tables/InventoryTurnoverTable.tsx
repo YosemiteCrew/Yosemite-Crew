@@ -8,6 +8,7 @@ import InventoryTurnoverCard from '@/app/ui/cards/InventoryTurnoverCard';
 import { formatTurnoverStatus, getInventoryTurnoverStatusStyle } from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
+import { NoDataMessage } from '@/app/ui/tables/common';
 
 type Column<T> = {
   label: string;
@@ -126,6 +127,14 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     <div className="table-wrapper inventory-turnover-scroll-x h-full min-h-0 overflow-hidden">
       <div className="table-list hidden xl:flex h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
         <GenericTable
+          itemNoun="items"
+          /* The `xl:hidden` card branch said "No turnover to report / Turnover
+             appears once stock has moved in this period" while this said "No
+             items yet" - different claims, not different wording: one implies
+             an empty catalogue, the other that stock has not moved. The card
+             copy is the accurate one. */
+          emptyTitle="No turnover to report"
+          emptySubtitle="Turnover appears once stock has moved in this period."
           data={filteredList}
           columns={columns}
           bordered={false}
@@ -138,9 +147,10 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
         {(() => {
           if (filteredList.length === 0) {
             return (
-              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-                No data available
-              </div>
+              <NoDataMessage
+                title="No turnover to report"
+                subtitle="Turnover appears once stock has moved in this period."
+              />
             );
           }
           return filteredList.map((item: any) => (

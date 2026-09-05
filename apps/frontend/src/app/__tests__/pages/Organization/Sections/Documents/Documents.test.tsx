@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import Documents from '@/app/features/organization/pages/Organization/Sections/Documents/Documents';
@@ -57,7 +57,7 @@ jest.mock(
 jest.mock('react-icons/io5', () => ({
   IoCreateOutline: () => <span data-testid="icon-template" />,
   IoDocumentTextOutline: () => <span data-testid="icon-doc" />,
-  IoEllipsisHorizontal: () => <span data-testid="icon-kebab" />,
+  IoChevronForward: () => <span data-testid="icon-chevron" />,
 }));
 
 const doc = (over: Partial<Record<string, unknown>> = {}) => ({
@@ -122,12 +122,31 @@ describe('Organization documents section', () => {
     render(<Documents />);
     expect(screen.queryByTestId('document-info')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'View Anaesthesia consent' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View Anaesthesia consent, PDF' }));
     expect(screen.getByTestId('document-info')).toHaveTextContent('Anaesthesia consent');
+  });
 
-    // kebab also opens the view
-    fireEvent.click(screen.getByRole('button', { name: 'Actions for Anaesthesia consent' }));
-    expect(screen.getByTestId('document-info')).toBeInTheDocument();
+  // The row used to end in a second button drawn as a kebab, labelled
+  // "Actions for <title>" and wired to the same handleView - it promised an
+  // overflow menu that never opened, on a ~15px glyph. The row is one button
+  // now, ending in a decorative chevron inside it.
+  it('gives each row a single View control ending in a decorative chevron', () => {
+    useDocumentsMock.mockReturnValue([doc()]);
+
+    render(<Documents />);
+
+    expect(
+      screen.queryByRole('button', { name: 'Actions for Anaesthesia consent' })
+    ).not.toBeInTheDocument();
+    const rowButtons = screen.getAllByRole('button', { name: 'View Anaesthesia consent, PDF' });
+    expect(rowButtons).toHaveLength(1);
+    // Title, subline and type badge are all inside the one button now, which is
+    // why the label repeats the badge - an aria-label hides its own content.
+    expect(rowButtons[0].textContent).toBe('Anaesthesia consentGENERAL · consentPDF');
+    // The chevron is the row's visible affordance, so it has to sit inside the
+    // button rather than beside it.
+    expect(within(rowButtons[0]).getByTestId('icon-chevron')).toBeInTheDocument();
+    expect(screen.getByTestId('icon-chevron').parentElement).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('shows an empty state and hides the add button without edit permission', () => {
@@ -147,7 +166,7 @@ describe('Organization documents section', () => {
   it('keeps the active document in sync as the list changes', () => {
     useDocumentsMock.mockReturnValue([doc(), doc({ _id: 'doc-2', title: 'Second' })]);
     const { rerender } = render(<Documents />);
-    fireEvent.click(screen.getByRole('button', { name: 'View Anaesthesia consent' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View Anaesthesia consent, PDF' }));
     expect(screen.getByTestId('document-info')).toHaveTextContent('Anaesthesia consent');
 
     // Remove the active doc -> falls back to the first remaining doc

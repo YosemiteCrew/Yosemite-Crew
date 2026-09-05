@@ -18,7 +18,7 @@ import { loadInvoicesForOrgPrimaryOrg } from '@/app/features/billing/services/in
 import { loadTasksForPrimaryOrg } from '@/app/features/tasks/services/taskService';
 import { loadTeam } from '@/app/features/organization/services/teamService';
 import { loadRoomsForOrgPrimaryOrg } from '@/app/features/organization/services/roomService';
-import { isLocalGuardBypassEnabled } from '@/app/lib/localGuardBypass';
+import { useLocalGuardBypass } from '@/app/lib/localGuardBypass';
 import { loadDocumentsForOrgPrimaryOrg } from '@/app/features/documents/services/documentService';
 import { loadForms } from '@/app/features/forms/services/formService';
 import { loadIntegrationsForPrimaryOrg } from '@/app/hooks/useIntegrations';
@@ -222,7 +222,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   // short-circuit on this flag). The shared helper is what makes the "localhost"
   // part true: reading the env var directly let a build that set the flag by
   // accident render the private shell on a deployed host.
-  const authGuardDisabled = isLocalGuardBypassEnabled();
+  const authGuardDisabled = useLocalGuardBypass();
   const isChecking = !authGuardDisabled && (status === 'idle' || status === 'checking');
   useFullscreenLoader('session-initializer', isChecking);
 

@@ -596,6 +596,39 @@ describe('DocumentsPanel form rows', () => {
     errorSpy.mockRestore();
   });
 
+  it('stamps the assigned-form rows in the preferred timezone, not the device zone', async () => {
+    (fetchAppointmentForms as jest.Mock).mockResolvedValueOnce({
+      appointmentId: 'appt-1',
+      forms: [
+        {
+          // 23:30 UTC is already the next day in Europe/Berlin (the default
+          // preferred zone), so the date pins the zone rather than the device's.
+          form: { _id: 'form-rollover', name: 'Rollover form', updatedAt: '2026-01-01T23:30:00Z' },
+          submission: null,
+          status: 'pending',
+        },
+        {
+          // 07:05 UTC is 08:05 in Berlin; the leading zero pins hour: '2-digit',
+          // which is what the Activity tab's formatDateTimeLocal renders.
+          form: { _id: 'form-morning', name: 'Morning form', updatedAt: '2026-03-04T07:05:00Z' },
+          submission: null,
+          status: 'pending',
+        },
+      ],
+    });
+
+    renderPanel();
+
+    // Was date.toLocaleDateString(undefined, …) / toLocaleTimeString(undefined, …):
+    // the browser's locale in the device zone, so an en-GB machine read
+    // "2 Jan 2026" / "00:30" and a UTC machine read "Jan 1, 2026" / "11:30 PM".
+    expect(await screen.findByText('Jan 2, 2026')).toBeInTheDocument();
+    expect(screen.getByText('12:30 AM')).toBeInTheDocument();
+    expect(screen.getByText('Mar 4, 2026')).toBeInTheDocument();
+    expect(screen.getByText('08:05 AM')).toBeInTheDocument();
+    await settle();
+  });
+
   it('formats string, missing, and invalid timestamps and falls back through the id chain', async () => {
     (fetchAppointmentForms as jest.Mock).mockResolvedValueOnce({
       appointmentId: 'appt-1',

@@ -70,24 +70,6 @@ jest.mock('@/app/lib/invoice', () => ({
   normalizeAppointmentId: jest.fn((value: string | undefined) => value),
 }));
 
-jest.mock('@/app/lib/money', () => ({
-  formatMoney: jest.fn(() => '$ 0.00'),
-  recordCurrency: (record: { currency?: string | null } | null | undefined, fallback: string) =>
-    record?.currency ?? fallback,
-  formatMoneyPrecise: (amount: number, currency: string) =>
-    `${currency} ${Number(amount).toFixed(2)}`,
-  sharedCurrency: (records: ReadonlyArray<{ currency?: string | null }>, fallback: string) => {
-    let shared: string | null = null;
-    for (const record of records) {
-      const own = record.currency;
-      if (typeof own !== 'string' || !own.trim()) continue;
-      if (shared === null) shared = own.trim();
-      else if (shared !== own.trim()) return fallback;
-    }
-    return shared ?? fallback;
-  },
-}));
-
 jest.mock('@/app/lib/timezone', () => ({
   formatDateInPreferredTimeZone: jest.fn(() => 'Jan 6, 2025'),
 }));
@@ -314,9 +296,10 @@ describe('AppointmentPopover', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: 'Start Appointment' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start appointment' })).toBeInTheDocument();
     expect(screen.getByText('Amount Due')).toBeInTheDocument();
-    expect(screen.getByText('$ 0.00')).toBeInTheDocument();
+    // Real formatMoney: the 1200 USD invoice total, whole units, symbol with no space.
+    expect(screen.getByText('$1,200')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Reschedule appointment' }));
     expect(handleRescheduleAppointment).toHaveBeenCalledWith(nonRequestedAppointment);
@@ -344,7 +327,7 @@ describe('AppointmentPopover', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start Appointment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start appointment' }));
 
     expect(mockPush).toHaveBeenCalledWith('/workspace');
     expect(onClose).toHaveBeenCalled();
@@ -370,7 +353,7 @@ describe('AppointmentPopover', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finance summary' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lab tests' }));
     fireEvent.click(screen.getByRole('button', { name: 'Clinical notes' }));
-    fireEvent.click(screen.getByRole('button', { name: 'View Appointment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'View appointment' }));
 
     expect(mockPush).toHaveBeenCalledTimes(4);
     expect(mockPush).toHaveBeenCalledWith('/workspace');
@@ -421,7 +404,7 @@ describe('AppointmentPopover', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start Appointment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start appointment' }));
 
     expect(mockPush).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
@@ -540,7 +523,7 @@ describe('AppointmentPopover', () => {
     expect(screen.queryByRole('button', { name: 'Appointment overview' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Finance summary' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Lab tests' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'View Appointment' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'View appointment' })).not.toBeInTheDocument();
   });
 
   it('falls back to generic companion details when optional data is missing', () => {
@@ -647,7 +630,7 @@ describe('AppointmentPopover', () => {
       />
     );
 
-    const primaryAction = screen.getByRole('button', { name: 'Start Appointment' });
+    const primaryAction = screen.getByRole('button', { name: 'Start appointment' });
     fireEvent.pointerDown(primaryAction, { clientX: 10, clientY: 20 });
     expect(primaryAction.style.getPropertyValue('--yc-button-x')).toMatch(/px$/);
     expect(primaryAction.style.getPropertyValue('--yc-button-y')).toMatch(/px$/);
@@ -715,7 +698,7 @@ describe('AppointmentPopover', () => {
 
     expect(screen.getByTestId('detail-value-Speciality')).toHaveTextContent('-');
     expect(screen.getByTestId('detail-value-Service')).toHaveTextContent('-');
-    expect(screen.getByTestId('detail-value-Client Name')).toHaveTextContent('-');
+    expect(screen.getByTestId('detail-value-Client name')).toHaveTextContent('-');
     expect(screen.getByTestId('detail-value-Reason')).toHaveTextContent('-');
     expect(screen.getByTestId('detail-value-Estimate')).toHaveTextContent('-');
     expect(screen.getByTestId('staff-value-Lead')).toHaveTextContent('-');

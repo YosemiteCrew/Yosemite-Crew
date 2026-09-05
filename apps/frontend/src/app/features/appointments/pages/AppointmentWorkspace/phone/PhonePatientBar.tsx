@@ -1,5 +1,6 @@
 import React from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { IoArrowBack } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
 import { getSafeImageUrl, type ImageType } from '@/app/lib/urls';
@@ -68,12 +69,19 @@ const PhonePatientBar = ({
       >
         <IoArrowBack size={15} aria-hidden="true" />
       </button>
-      <Image
+      <AvatarImage
         src={getSafeImageUrl(photoUrl, resolveImageType(speciesType))}
         alt={companionName}
-        width={38}
-        height={38}
+        size={38}
         className="size-[38px] shrink-0 rounded-full object-cover"
+        fallback={
+          <CompanionAvatar
+            name={companionName}
+            size={38}
+            textClassName="text-[17px]"
+            alt={companionName}
+          />
+        }
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">

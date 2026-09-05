@@ -151,7 +151,7 @@ describe('Filters', () => {
     expect(screen.queryByLabelText('Emergency appointments present')).not.toBeInTheDocument();
   });
 
-  it('renders compact pills and ignores clicks when no setActiveFilter is supplied', () => {
+  it('ignores clicks when no setActiveFilter is supplied', () => {
     render(
       <Filters
         filterOptions={[
@@ -159,13 +159,75 @@ describe('Filters', () => {
           { key: 'recent', name: 'Recent' },
         ]}
         activeFilter="all"
-        compactFilterPills
       />
     );
 
     // No handler wired up: click is a no-op and must not throw.
     fireEvent.click(screen.getByText('Recent'));
     expect(screen.getByText('Recent')).toBeInTheDocument();
+  });
+
+  it('renders the filter chips through the shared FilterChip recipe', () => {
+    render(
+      <Filters
+        filterOptions={[
+          { key: 'all', name: 'All' },
+          { key: 'emergencies', name: 'Emergencies' },
+        ]}
+        statusOptions={statusOptions}
+        activeFilter="all"
+        activeStatus="available"
+        setActiveFilter={jest.fn()}
+        setActiveStatus={jest.fn()}
+      />
+    );
+
+    // The toolbar used to hand-roll a second chip recipe: 12px text on an
+    // unfixed height (px-[13px] py-1.5), against FilterChip's 12.5px locked to
+    // 32px used by Templates, Tasks, Finance and Guides. Both rows are the
+    // shared recipe now, and the status pills beside them carry its geometry so
+    // the row is one height.
+    const chip = screen.getByRole('button', { name: 'All' });
+    expect(chip).toHaveClass('h-8', 'text-[12.5px]', 'px-[13px]');
+    // FilterChip announces selection; the hand-rolled chip never did.
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Emergencies' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+    expect(screen.getByRole('button', { name: 'Available' })).toHaveClass('h-8', 'text-[12.5px]');
+  });
+
+  it('keeps the emergencies chip danger-toned in both states', () => {
+    const { rerender } = render(
+      <Filters
+        filterOptions={[
+          { key: 'all', name: 'All' },
+          { key: 'emergencies', name: 'Emergencies' },
+        ]}
+        activeFilter="all"
+        setActiveFilter={jest.fn()}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Emergencies' })).toHaveClass(
+      'text-[var(--danger-text)]!'
+    );
+
+    rerender(
+      <Filters
+        filterOptions={[
+          { key: 'all', name: 'All' },
+          { key: 'emergencies', name: 'Emergencies' },
+        ]}
+        activeFilter="emergencies"
+        setActiveFilter={jest.fn()}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Emergencies' })).toHaveClass(
+      'bg-[var(--danger-bg)]'
+    );
   });
 
   it('falls back to default colours for a status pill defined only by its border', () => {

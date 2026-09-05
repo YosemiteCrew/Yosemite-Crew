@@ -1,29 +1,10 @@
 import React from 'react';
+import type { ToastContentProps } from 'react-toastify';
+import NotifyToast, { type NotifyToastData } from '@/app/ui/widgets/Toast/NotifyToast';
 
-import { ToastContentProps } from 'react-toastify';
-import Close from '../../primitives/Icons/Close';
-import { IoIosWarning } from 'react-icons/io';
-
-type MsgData = {
-  title: string;
-  text: string;
-};
-
-const Warning = ({ data, closeToast }: ToastContentProps<MsgData>) => {
-  return (
-    <div className="flex gap-0 justify-between w-full">
-      <div className="flex gap-3 items-center">
-        <IoIosWarning size={34} color="#f68523" />
-        <div className="flex flex-col gap-0">
-          <div className="text-body-3 text-text-primary">{data.title}</div>
-          <div className="text-body-4 text-text-tertiary">{data.text}</div>
-        </div>
-      </div>
-      <div className="">
-        <Close onClick={closeToast} />
-      </div>
-    </div>
-  );
-};
+/** The `warning` tone of the shared runtime toast; kept as its own module so `toast.warning(...)` call sites and their tests keep importing it by name. */
+const Warning = (props: ToastContentProps<NotifyToastData>) => (
+  <NotifyToast tone="warning" {...props} />
+);
 
 export default Warning;

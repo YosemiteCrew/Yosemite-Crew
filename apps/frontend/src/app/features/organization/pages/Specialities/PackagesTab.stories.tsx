@@ -247,7 +247,7 @@ export const BreakdownExpanded: Story = {
     /* Assert the table it revealed, not that a flag flipped. Eight columns with
        `editable={false}` (a ninth actions column appears only in the editor), one
        row per breakdown item, and the footer total agreeing with the card's own
-       "Total Amount" - both are computed from the same items, so a divergence here
+       "Total amount" - both are computed from the same items, so a divergence here
        is a real arithmetic bug rather than a formatting one. */
     const table = canvasElement.querySelectorAll('table')[1] as HTMLTableElement;
     await expect(table.querySelectorAll('thead th')).toHaveLength(8);

@@ -79,9 +79,14 @@ describe('PaginatedGridTable', () => {
   it('renders the empty state, the noun-aware summary and no pagination when there are no rows', () => {
     renderTable([]);
 
-    expect(screen.getByText('Looks like a quiet day… for now.')).toBeInTheDocument();
+    /* The empty state is derived from `itemNoun`, so it names the caller's own
+       records. Two nodes, not "at least one": the table branch and the card
+       branch are both in the jsdom DOM and each needs its own. (This assertion
+       was duplicated verbatim before, which checked the same thing twice and
+       the card branch not at all.) */
+    expect(screen.getAllByText('No items yet')).toHaveLength(2);
+    expect(screen.getAllByText('Items appear here as soon as there are any.')).toHaveLength(2);
     expect(screen.getByText('No items')).toBeInTheDocument();
-    expect(screen.getByText('No data available')).toBeInTheDocument();
     expect(screen.queryByTestId('row')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Next')).not.toBeInTheDocument();
   });
@@ -142,7 +147,7 @@ describe('PaginatedGridTable', () => {
   it('omits the card-branch pager entirely when there are no rows', () => {
     const { container } = renderTable([]);
 
-    expect(cardBranch(container).getByText('No data available')).toBeInTheDocument();
+    expect(cardBranch(container).getByText('No items yet')).toBeInTheDocument();
     expect(cardBranch(container).queryByText('No items')).not.toBeInTheDocument();
     expect(cardBranch(container).queryByLabelText('Next')).not.toBeInTheDocument();
   });
