@@ -257,6 +257,14 @@ const addColumnClauses = (upper) => upper.split('ADD COLUMN').slice(1);
  *                                    flagged.
  *   ALTER DEFAULT PRIVILEGES       - governs objects created later. It cannot
  *                                    change what the deployed code reads today.
+ *   SECURITY LABEL                 - does nothing without a label provider, and
+ *                                    none is configured on this database.
+ *
+ * These read the same normalised statement text as the rules above, so they
+ * inherit that machinery exactly: a hazard word in a comment is not a hazard,
+ * and one inside a string literal is - because a DO block's DDL lives in a
+ * literal, which is the trade stripSqlComments documents. Pinned both ways in
+ * the tests so an access rule cannot quietly diverge from a shape rule.
  */
 const ACCESS_RULES = [
   {
