@@ -101,6 +101,16 @@ deploy_deployed_sha() {
   # returning, arriving through the check meant to prevent it. Only reachable
   # through a corrupted or hand-edited record, which is precisely the case this
   # function's own comment anticipates. Raised by ankit-yc on #2732.
+  #
+  # Nearly, but not entirely, subsumed by the prefix comparison below: "dev" and
+  # "HEAD" resolve to something that does not begin with themselves, so the
+  # comparison would reject them too. One input still tells the two apart - a
+  # VALID short abbreviation, the first six characters of a real sha, which the
+  # comparison accepts and this rejects. Keeping it is the deliberate choice: a
+  # six-character prefix is one collision away from ambiguity as the repo grows,
+  # and falling back to HEAD is the safe answer when the record is that thin.
+  # An earlier version of this comment called the class dead; it is not, and the
+  # abbreviation above is the counterexample that reddens it.
   if [ "${#recorded}" -lt 7 ]; then
     recorded=""
   fi
@@ -113,8 +123,11 @@ deploy_deployed_sha() {
   # So the value is COMPARED rather than described: resolve it, then require the
   # resolved sha to begin with what was recorded. That subsumes the hex-character
   # class this replaced - a name git resolves to something not beginning with it
-  # is rejected whatever characters it holds, and no mutation could redden the
-  # class once the comparison was here, which is the definition of dead.
+  # is rejected whatever characters it holds. A ref cannot satisfy that unless it
+  # happens to be named after its own target's prefix, in which case the ref and
+  # the object agree and accepting it costs nothing - a coincidence rather than a
+  # hole, and the reason this is a comparison and not a ban on names that look
+  # like shas.
   #
   # `"$recorded"*` and not `$recorded*`: the expansion is quoted so a record
   # holding `*`, `?` or `[a-f]` is compared literally rather than as a pattern.
@@ -125,11 +138,7 @@ deploy_deployed_sha() {
   # sha or a ref name, neither of which can contain a glob metacharacter - so
   # unquoting it is green on every input I could construct. Tests asserting
   # otherwise were written for this and deleted when the mutation stayed green.
-  # The quoting stays because it is free and correct, not because it is proven. A ref cannot satisfy that
-  # unless it happens to be named after its own target's prefix, in which case
-  # the ref and the object agree and accepting it costs nothing - a coincidence
-  # rather than a hole, and the reason this is a comparison and not a ban on
-  # names that look like shas.
+  # The quoting stays because it is free and correct, not because it is proven.
   if [ -n "$recorded" ]; then
     local resolved
     resolved="$(git -C "$repo" rev-parse --verify --quiet "$recorded^{commit}" 2>/dev/null || true)"
