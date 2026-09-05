@@ -30,6 +30,16 @@ describe("toStripeMinorUnits", () => {
     expect(toStripeMinorUnits(0.1 + 0.2, "usd")).toBe(30);
   });
 
+  // The same guarantee on the OTHER branch, which the test above does not
+  // reach: it only exercises `usd`, so the rounding on the unscaled branch was
+  // pinned by nothing and could be deleted with every test still green. Stripe
+  // rejects a non-integer amount, and this branch is reachable with one --
+  // `Service.cost` is a Float, so a 1000.5 JPY service is a real input.
+  it("rounds a fractional zero-decimal amount rather than passing it through", () => {
+    expect(toStripeMinorUnits(1000.5, "jpy")).toBe(1001);
+    expect(Number.isInteger(toStripeMinorUnits(1000.5, "jpy"))).toBe(true);
+  });
+
   // KNOWN DRIFT, pinned as it behaves rather than as it should. 8.165 * 100 is
   // 816.4999999999999 in binary floating point, so the multiply-then-round loses
   // the cent that a decimal reading of 8.165 would keep. Deliberately NOT fixed
