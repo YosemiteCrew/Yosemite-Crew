@@ -8,13 +8,10 @@ import { Readable } from "node:stream";
 /**
  * Pins the body-parser contract that keeps AIKIDO-2026-274460 out of reach.
  *
- * raw-body resolves at 2.5.3 on the request path and cannot be moved. 2.5.3 is
- * the last release on the 2.x line - there is no patched 2.x - and the patched
- * floor is 4.0.0, which express 4's body-parser@1.20.6 cannot take: it does
- * `var getBody = require('raw-body')` and calls the result, while raw-body 4 is
- * ESM, so require() hands back a namespace object and every request dies on
- * "getBody is not a function". Closing this needs body-parser to adopt raw-body
- * 4 upstream.
+ * raw-body resolves at the patched 4.x floor on every request path. Express 4's
+ * body-parser@1.20.6 is CommonJS, so the workspace patch unwraps raw-body's ESM
+ * default export until body-parser supports raw-body 4 upstream. The backend
+ * images use Node 22, matching raw-body's declared runtime floor.
  *
  * What makes that survivable is not luck. The advisory is that raw-body skips
  * BOTH of its size checks when its `limit` option is null:
@@ -23,10 +20,9 @@ import { Readable } from "node:stream";
  *   if (limit !== null && length > limit) ...  // both guarded on limit !== null
  *   if (limit !== null && received > limit) ...
  *
- * body-parser never lets that null through - it throws at configuration time
- * instead. So the vulnerable branch is only reachable by calling raw-body
- * directly, and nothing here does: it is in no workspace manifest, no source
- * file imports it, and body-parser@1.20.6 is its only consumer in the tree.
+ * raw-body 4 rejects invalid values itself, and body-parser also refuses them at
+ * configuration time. The direct call below distinguishes an explicit null
+ * (the supported opt-out) from an invalid value.
  *
  * These tests exist because that containment is a property of a transitive
  * dependency, invisible to every other test in the suite. Swapping the body
@@ -71,8 +67,7 @@ describe("raw-body limit containment", () => {
       request.end(body);
     });
 
-  // The defect itself. If this ever stops holding, raw-body has been patched
-  // and the override this test justifies can go.
+  // An explicit null remains the supported way to opt out of a limit.
   it("raw-body buffers without bound when its limit is null", async () => {
     const payload = Buffer.alloc(256 * 1024, 0x61);
 
@@ -91,8 +86,8 @@ describe("raw-body limit containment", () => {
     ).rejects.toMatchObject({ type: "entity.too.large" });
   });
 
-  // The containment: every unparseable limit is refused up front, so the null
-  // above can never be what body-parser hands to raw-body.
+  // Every unparseable limit is refused up front, so the explicit null above
+  // cannot be reached accidentally through body-parser configuration.
   const UNPARSEABLE = ["ten mb", "", "not-a-size", "mb"];
 
   it.each(UNPARSEABLE)(

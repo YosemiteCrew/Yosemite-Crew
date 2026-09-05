@@ -58,8 +58,10 @@
       "node-forge": "1.4.0",
       "@modelcontextprotocol/sdk": "1.26.0",
       "validator": "13.15.35",
+      "@modelcontextprotocol/sdk>raw-body": "4.0.0",
       "axios": "1.20.0",
       "handlebars": "4.7.9",
+      "highlight.js@11": "11.12.0",
       "ajv@6": "6.15.0",
       "ajv@7": "8.18.0",
       "ajv@8": "8.20.0",
@@ -95,6 +97,7 @@
       "axios@1.15.2": "1.20.0",
       "body-parser@1": "1.20.6",
       "body-parser@2": "2.3.0",
+      "body-parser>raw-body": "4.0.0",
       "esbuild@0.25.12": "0.28.1",
       "esbuild@0.27.2": "0.28.1",
       "esbuild@0.27.7": "0.28.1",
@@ -160,7 +163,9 @@
       "zod": "4.5.4"
     },
     "patchedDependencies": {
-      "react-native@0.81.6": "patches/react-native@0.81.6.patch"
+      "react-native@0.81.6": "patches/react-native@0.81.6.patch",
+      "body-parser@1.20.6": "patches/body-parser@1.20.6.patch",
+      "body-parser@2.3.0": "patches/body-parser@2.3.0.patch"
     }
   }
 }
