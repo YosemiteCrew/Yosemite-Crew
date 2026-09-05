@@ -303,15 +303,13 @@ const CheckInRow = ({
   );
 };
 
-const AddCheckInForm = ({
-  companions,
-  onAdd,
-  onClose,
-}: {
+type AddCheckInFormProps = {
   companions: CheckInCompanionOption[];
   onAdd: (payload: CreateCheckInPayload) => Promise<boolean>;
   onClose: () => void;
-}) => {
+};
+
+const useAddCheckInForm = ({ companions, onAdd, onClose }: AddCheckInFormProps) => {
   const [patientId, setPatientId] = useState('');
   const [triagePriority, setTriagePriority] = useState<TriagePriority>('STANDARD');
   const [arrivedAt, setArrivedAt] = useState(() => toLocalInputValue(new Date()));
@@ -320,7 +318,7 @@ const AddCheckInForm = ({
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const submit = async (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
     const selected = companions.find((companion) => companion.id === patientId);
     if (!selected) {
@@ -352,9 +350,86 @@ const AddCheckInForm = ({
     }
   };
 
+  return {
+    patientId,
+    setPatientId,
+    triagePriority,
+    setTriagePriority,
+    arrivedAt,
+    setArrivedAt,
+    triageNote,
+    setTriageNote,
+    notes,
+    setNotes,
+    submitting,
+    formError,
+    submit,
+  };
+};
+
+type AddCheckInFormState = ReturnType<typeof useAddCheckInForm>;
+
+const CheckInTimingFields = ({ form }: { form: AddCheckInFormState }) => (
+  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <label className="flex flex-col gap-1" htmlFor="checkin-triage">
+      <span className={fieldLabelClass}>Triage priority</span>
+      <select
+        id="checkin-triage"
+        className={inputClass}
+        value={form.triagePriority}
+        onChange={(e) => form.setTriagePriority(e.target.value as TriagePriority)}
+      >
+        {TRIAGE_ORDER.map((priority) => (
+          <option key={priority} value={priority}>
+            {TRIAGE_LABEL[priority]}
+          </option>
+        ))}
+      </select>
+    </label>
+    <label className="flex flex-col gap-1" htmlFor="checkin-arrived">
+      <span className={fieldLabelClass}>Arrived at</span>
+      <input
+        id="checkin-arrived"
+        type="datetime-local"
+        className={inputClass}
+        value={form.arrivedAt}
+        onChange={(e) => form.setArrivedAt(e.target.value)}
+      />
+    </label>
+  </div>
+);
+
+const CheckInNotesFields = ({ form }: { form: AddCheckInFormState }) => (
+  <>
+    <label className="flex flex-col gap-1" htmlFor="checkin-triage-note">
+      <span className={fieldLabelClass}>Triage note</span>
+      <input
+        id="checkin-triage-note"
+        className={inputClass}
+        value={form.triageNote}
+        onChange={(e) => form.setTriageNote(e.target.value)}
+        maxLength={200}
+      />
+    </label>
+    <label className="flex flex-col gap-1" htmlFor="checkin-notes">
+      <span className={fieldLabelClass}>Notes</span>
+      <textarea
+        id="checkin-notes"
+        className={clsx(inputClass, 'min-h-16 resize-y')}
+        value={form.notes}
+        onChange={(e) => form.setNotes(e.target.value)}
+        maxLength={500}
+      />
+    </label>
+  </>
+);
+
+const AddCheckInForm = (props: AddCheckInFormProps) => {
+  const form = useAddCheckInForm(props);
+
   return (
     <form
-      onSubmit={submit}
+      onSubmit={form.submit}
       className="flex flex-col gap-3 border-b border-[var(--divider)] px-4 py-3"
     >
       <CompanionSelect
@@ -362,75 +437,32 @@ const AddCheckInForm = ({
         label="Patient"
         placeholder="Select a patient"
         emptyLabel="No patients available"
-        value={patientId}
-        onChange={setPatientId}
-        companions={companions}
+        value={form.patientId}
+        onChange={form.setPatientId}
+        companions={props.companions}
       />
+      <CheckInTimingFields form={form} />
+      <CheckInNotesFields form={form} />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1" htmlFor="checkin-triage">
-          <span className={fieldLabelClass}>Triage priority</span>
-          <select
-            id="checkin-triage"
-            className={inputClass}
-            value={triagePriority}
-            onChange={(e) => setTriagePriority(e.target.value as TriagePriority)}
-          >
-            {TRIAGE_ORDER.map((priority) => (
-              <option key={priority} value={priority}>
-                {TRIAGE_LABEL[priority]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1" htmlFor="checkin-arrived">
-          <span className={fieldLabelClass}>Arrived at</span>
-          <input
-            id="checkin-arrived"
-            type="datetime-local"
-            className={inputClass}
-            value={arrivedAt}
-            onChange={(e) => setArrivedAt(e.target.value)}
-          />
-        </label>
-      </div>
-
-      <label className="flex flex-col gap-1" htmlFor="checkin-triage-note">
-        <span className={fieldLabelClass}>Triage note</span>
-        <input
-          id="checkin-triage-note"
-          className={inputClass}
-          value={triageNote}
-          onChange={(e) => setTriageNote(e.target.value)}
-          maxLength={200}
-        />
-      </label>
-
-      <label className="flex flex-col gap-1" htmlFor="checkin-notes">
-        <span className={fieldLabelClass}>Notes</span>
-        <textarea
-          id="checkin-notes"
-          className={clsx(inputClass, 'min-h-16 resize-y')}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          maxLength={500}
-        />
-      </label>
-
-      {formError && (
+      {form.formError && (
         <p role="alert" className="text-[11.5px] font-semibold text-[var(--danger-text)]">
-          {formError}
+          {form.formError}
         </p>
       )}
 
       <div className="flex justify-end gap-2">
-        <ActionButton label="Cancel" tone="default" disabled={submitting} onClick={onClose} />
+        <ActionButton
+          label="Cancel"
+          tone="default"
+          disabled={form.submitting}
+          onClick={props.onClose}
+        />
         <button
           type="submit"
-          disabled={submitting}
+          disabled={form.submitting}
           className="rounded-lg border border-[var(--ink)] bg-[var(--ink)] px-3 py-1 text-[11.5px] font-semibold text-[var(--screen)] transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {submitting ? 'Checking in…' : 'Check in patient'}
+          {form.submitting ? 'Checking in…' : 'Check in patient'}
         </button>
       </div>
     </form>
