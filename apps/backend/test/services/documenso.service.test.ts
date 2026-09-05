@@ -126,7 +126,7 @@ describe("DocumensoService", () => {
       });
       await Service.downloadSignedDocument({ documentId: 1 });
       expect(logger.error).toHaveBeenCalledWith(
-        "An unexpected error occurred:",
+        "Documenso signed-document download failed",
         expect.objectContaining({ message: "DOCUMENSO_API_KEY is not set" }),
       );
     });
@@ -449,8 +449,43 @@ describe("DocumensoService", () => {
         );
         await DocumensoService.downloadSignedDocument({ documentId: 1 });
         expect(logger.error).toHaveBeenCalledWith(
-          "An unexpected error occurred:",
-          expect.any(Error),
+          "Documenso signed-document download failed",
+          expect.objectContaining({ message: "Download failed" }),
+        );
+      });
+
+      /*
+       * The property, not the wording. Axios hangs the outbound request off the
+       * error as `config`, so logging the error object writes
+       * `config.headers.Authorization` - the Documenso API key - into the log.
+       * The logger does not redact it: production is `json()`, which serialises
+       * the whole meta, and the development field list replaces `req`, `res`,
+       * `request` and `response` but not `config`, because it exists to keep log
+       * lines small rather than to redact.
+       *
+       * So this asserts on the SERIALISED arguments rather than on their shape:
+       * a future change that logs the raw error again reddens here whatever it
+       * calls the message.
+       */
+      it("never writes the API key into the log when the download fails", async () => {
+        const apiKeyValue = "documenso-api-key-placeholder";
+        (axios.get as jest.Mock).mockRejectedValueOnce(
+          Object.assign(new Error("Download failed"), {
+            isAxiosError: true,
+            config: {
+              url: "http://valid.com/document/1/download-beta",
+              headers: { Authorization: apiKeyValue },
+            },
+            response: { status: 502 },
+          }),
+        );
+
+        await DocumensoService.downloadSignedDocument({ documentId: 1 });
+
+        const logged = (logger.error as jest.Mock).mock.calls.at(-1);
+        expect(JSON.stringify(logged)).not.toContain(apiKeyValue);
+        expect(logged?.[1]).toEqual(
+          expect.objectContaining({ message: "Download failed", status: 502 }),
         );
       });
     });
@@ -528,8 +563,38 @@ describe("DocumensoService", () => {
           DocumensoService.generateExternalRedirectUrl({} as any),
         ).rejects.toThrow("Network Err");
         expect(logger.error).toHaveBeenCalledWith(
-          "Documenso external auth error:",
-          axError,
+          "Documenso external auth error",
+          expect.objectContaining({ message: "Network Err" }),
+        );
+      });
+
+      /*
+       * The same property on the other call site, where the credential is in
+       * the request BODY rather than a header - axios attaches that to the
+       * error as `config.data`, so the shape of the leak differs and the fix
+       * and the check do not.
+       */
+      it("never writes the external auth secret into the log when the call fails", async () => {
+        const secretValue = "external-auth-secret-placeholder";
+        (axios.post as jest.Mock).mockRejectedValueOnce(
+          Object.assign(new Error("Network Err"), {
+            isAxiosError: true,
+            config: {
+              url: "http://valid.com/api/auth/external/generate-token",
+              data: JSON.stringify({ externalSecret: secretValue }),
+            },
+            response: { status: 500 },
+          }),
+        );
+
+        await expect(
+          DocumensoService.generateExternalRedirectUrl({} as any),
+        ).rejects.toThrow("Network Err");
+
+        const logged = (logger.error as jest.Mock).mock.calls.at(-1);
+        expect(JSON.stringify(logged)).not.toContain(secretValue);
+        expect(logged?.[1]).toEqual(
+          expect.objectContaining({ message: "Network Err", status: 500 }),
         );
       });
     });
