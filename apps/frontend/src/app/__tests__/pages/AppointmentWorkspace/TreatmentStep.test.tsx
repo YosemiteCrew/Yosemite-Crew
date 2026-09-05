@@ -1199,6 +1199,36 @@ describe('TreatmentStep', () => {
     errorSpy.mockRestore();
   });
 
+  it('lets the clinician retry after a failed save instead of wedging the button', async () => {
+    // The saving flag gates the handler (`if (isSavingTreatment) return`), so a
+    // failure that leaves it set locks the step out of a second attempt for the
+    // life of the page - with the button still reading "Saving…".
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (persistTreatmentItems as jest.Mock).mockRejectedValueOnce(new Error('save failed'));
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+    expect(await screen.findByText(/save failed/)).toBeInTheDocument();
+
+    const retry = screen.getByRole('button', { name: /save treatment/i });
+    expect(retry).toBeEnabled();
+
+    fireEvent.click(retry);
+    await waitFor(() => expect(onOpenInvoice).toHaveBeenCalledTimes(1));
+    expect(persistTreatmentItems).toHaveBeenCalledTimes(2);
+    errorSpy.mockRestore();
+  });
+
   // The backend refuses a plain save against an already-final prescription (409) instead of
   // silently reopening it to DRAFT and wiping its items. Retrying can never succeed, so the
   // generic retry copy must give way to the real reason.

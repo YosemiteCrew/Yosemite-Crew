@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { fetchOverviewSources } from './overviewStatsSources';
 
 export type TrafficDataPoint = {
   dateKey: string;
@@ -16,11 +17,6 @@ export type StarsDataPoint = {
   'Github Stars': number;
 };
 
-const SUMMARY_URL =
-  'https://raw.githubusercontent.com/YosemiteCrew/Yosemite-Crew/github-repo-stats/YosemiteCrew/Yosemite-Crew/latest-report/summary.json';
-const GITHUB_REPO_URL = 'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew';
-const GITHUB_CONTRIBUTORS_URL =
-  'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew/contributors?per_page=100&anon=true';
 const DISCORD_MEMBERS_COUNT = 169;
 
 const extractChartData = (json: any, chartKey: string) => {
@@ -151,21 +147,7 @@ export const useOverviewStats = () => {
       try {
         setTotalDiscordMembers(DISCORD_MEMBERS_COUNT);
 
-        const [summaryRes, repoRes, contributorsRes] = await Promise.all([
-          fetch(`${SUMMARY_URL}?t=${Date.now()}`, { cache: 'no-store' }),
-          fetch(GITHUB_REPO_URL, {
-            headers: { Accept: 'application/vnd.github+json' },
-          }),
-          fetch(GITHUB_CONTRIBUTORS_URL, {
-            headers: { Accept: 'application/vnd.github+json' },
-          }),
-        ]);
-
-        if (!summaryRes.ok) throw new Error('Failed to load repo stats');
-
-        const json = await summaryRes.json();
-        const repoJson = repoRes.ok ? await repoRes.json() : null;
-        const contributorsJson = contributorsRes.ok ? await contributorsRes.json() : [];
+        const { json, repoJson, contributorsJson } = await fetchOverviewSources();
 
         const clonesData = extractChartData(json, '#clones_total');
         const clonesUniqueData = extractChartData(json, '#clones_unique');

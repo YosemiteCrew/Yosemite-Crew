@@ -26,6 +26,8 @@ describe('payment-status public page', () => {
     getParamMock.mockReturnValue(null);
     global.fetch = fetchMock as any;
     fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
       json: async () => ({ status: 'paid', total: 100 }),
     });
     process.env.NEXT_PUBLIC_BASE_URL = 'https://api.example.com';
@@ -84,6 +86,8 @@ describe('payment-status public page', () => {
   it('renders paid state after successful fetch', async () => {
     getParamMock.mockReturnValue('sess_1234567890ABCDE');
     fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
       json: async () => ({ status: 'paid', total: 100 }),
     });
 
@@ -102,6 +106,8 @@ describe('payment-status public page', () => {
   it('renders cancelled state when no payment is required', async () => {
     getParamMock.mockReturnValue('sess_cancelled_1111');
     fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
       json: async () => ({ status: 'no_payment_required', total: 0 }),
     });
 
@@ -116,6 +122,8 @@ describe('payment-status public page', () => {
   it('renders waiting state for unpaid status', async () => {
     getParamMock.mockReturnValue('sess_pending_2222');
     fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
       json: async () => ({ status: 'unpaid', total: 200 }),
     });
 
@@ -131,6 +139,8 @@ describe('payment-status public page', () => {
     jest.useFakeTimers();
     getParamMock.mockReturnValue('sess_polling_3333');
     fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
       json: async () => ({ status: 'unpaid', total: 10 }),
     });
 
@@ -151,6 +161,8 @@ describe('payment-status public page', () => {
     jest.useFakeTimers();
     getParamMock.mockReturnValue('sess_paid_5555');
     fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
       json: async () => ({ status: 'paid', total: 10 }),
     });
 
@@ -163,6 +175,73 @@ describe('payment-status public page', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Auto-check stopped')).toBeInTheDocument();
+  });
+
+  it('strips the stray quotes Stripe appends to the session id', async () => {
+    getParamMock.mockReturnValue('"sess_1234567890ABCDE"');
+
+    render(<PaymentStatusPage />);
+
+    await waitFor(() => expect(screen.getByText('Payment complete')).toBeInTheDocument());
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.com/fhir/v1/invoice/?session_id=sess_1234567890ABCDE',
+      { cache: 'no-store' }
+    );
+  });
+
+  it('shows the waiting copy, and no mark, for a status it does not know', async () => {
+    getParamMock.mockReturnValue('sess_odd_6666');
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: 'processing', total: 0 }),
+    });
+
+    const { container } = render(<PaymentStatusPage />);
+
+    await waitFor(() => expect(screen.getByText('Waiting for confirmation')).toBeInTheDocument());
+    expect(screen.getByText('Status processing')).toBeInTheDocument();
+    expect(container.querySelector('svg')).toBeNull();
+  });
+
+  it('restarts from a clean slate when the session id changes', async () => {
+    getParamMock.mockReturnValue('sess_1234567890ABCDE');
+
+    const { rerender } = render(<PaymentStatusPage />);
+    await waitFor(() => expect(screen.getByText('Payment complete')).toBeInTheDocument());
+
+    getParamMock.mockReturnValue('sess_second_7777');
+    fetchMock.mockImplementation(
+      () =>
+        new Promise(() => {
+          return undefined;
+        })
+    );
+    rerender(<PaymentStatusPage />);
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Checking payment status' })
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Amount 100')).not.toBeInTheDocument();
+  });
+
+  it('treats an HTTP error response as a failed lookup, not a status', async () => {
+    // fetch resolves on 4xx/5xx: without the status check the error body would
+    // parse as a status and the page would keep polling a broken endpoint.
+    getParamMock.mockReturnValue('sess_http_error_8888');
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ message: 'boom' }),
+    });
+
+    render(<PaymentStatusPage />);
+
+    await waitFor(() =>
+      expect(screen.getByText('We could not confirm your payment')).toBeInTheDocument()
+    );
+    expect(screen.getByText('Status Unable to confirm')).toBeInTheDocument();
     expect(screen.getByText('Auto-check stopped')).toBeInTheDocument();
   });
 

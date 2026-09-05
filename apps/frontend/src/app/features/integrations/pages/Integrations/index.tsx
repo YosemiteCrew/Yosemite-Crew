@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
@@ -28,12 +28,12 @@ import {
   enableIntegration,
   getApiErrorMessage,
   listIdexxIvlsDevices,
-  listIdexxOrders,
   storeIntegrationCredentials,
   validateIntegrationCredentials,
 } from '@/app/features/integrations/services/idexxService';
 import { IvlsDevice, LabOrder } from '@/app/features/integrations/services/types';
 import { getMerckGateway } from '@/app/features/integrations/services/merckService';
+import { useIdexxLabData } from '@/app/features/integrations/pages/Integrations/useIdexxLabData';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import {
@@ -488,6 +488,51 @@ const useIdexxActions = (s: IdexxActionsState) => {
   };
 };
 
+/**
+ * Every value the two integration cards read off the stored IDEXX record and the
+ * active filter. Pure, and outside the page hook so the hook is state and effects
+ * only.
+ */
+const deriveIntegrationsView = ({
+  idexxIntegration,
+  activeFilter,
+  merckEnabled,
+  saving,
+}: {
+  idexxIntegration: ReturnType<typeof useIntegrationByProviderForPrimaryOrg>;
+  activeFilter: IntegrationFilterKey;
+  merckEnabled: boolean;
+  saving: boolean;
+}) => {
+  const idexxStatus = (idexxIntegration?.status ?? 'disabled').toLowerCase();
+  const idexxEnabled = idexxStatus === 'enabled';
+  const credentialsStatusKey = String(
+    idexxIntegration?.credentialsStatus ?? 'missing'
+  ).toLowerCase();
+  const hasStoredCredentials =
+    (credentialsStatusKey && credentialsStatusKey !== 'missing') ||
+    Boolean(idexxIntegration?.lastValidatedAt);
+  return {
+    idexxStatus,
+    idexxEnabled,
+    credentialsStatusKey,
+    credentialsStatusLabel: `${credentialsStatusKey.charAt(0).toUpperCase()}${credentialsStatusKey.slice(1)}`,
+    hasStoredCredentials,
+    credentialsActionLabel: getCredentialsActionLabel(saving, hasStoredCredentials),
+    showIdexxCard: matchesFilter(activeFilter, idexxEnabled),
+    showMerckCard: matchesFilter(activeFilter, merckEnabled),
+  };
+};
+
+/**
+ * A card shows under "All", and otherwise only on the side its status falls.
+ * "Coming soon" matches nothing here - both cards have shipped.
+ */
+const matchesFilter = (activeFilter: IntegrationFilterKey, enabled: boolean): boolean =>
+  activeFilter === 'all' ||
+  (activeFilter === 'connected' && enabled) ||
+  (activeFilter === 'available' && !enabled);
+
 const useIntegrationsPage = () => {
   const primaryOrg = usePrimaryOrg();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
@@ -509,8 +554,6 @@ const useIntegrationsPage = () => {
   const integrationStatus = useIntegrationStore((s) => s.status);
   const integrationError = useIntegrationStore((s) => s.error);
   const integrationsLastFetchedAt = useIntegrationStore((s) => s.lastFetchedAt);
-  const [devices, setDevices] = useState<IvlsDevice[]>([]);
-  const [recentOrders, setRecentOrders] = useState<LabOrder[]>([]);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -531,43 +574,19 @@ const useIntegrationsPage = () => {
     if (integrationError) setError(integrationError);
   }
 
-  useEffect(() => {
-    const run = async () => {
-      if (!primaryOrgId) return;
-      if (!canViewLabs) {
-        // Losing lab access (org switch, or the permission revoked) must drop
-        // anything fetched under the previous one, or the settings modal keeps
-        // rendering stale devices and orders.
-        setDevices([]);
-        setRecentOrders([]);
-        return;
-      }
-      if (idexxIntegration?.status === 'enabled') {
-        try {
-          const ivls = await listIdexxIvlsDevices(primaryOrgId);
-          setDevices(ivls.ivlsDeviceList ?? []);
-        } catch (e) {
-          setDevices([]);
-          setError(getApiErrorMessage(e, 'Unable to load linked IDEXX devices.'));
-        }
-        // Recent orders feed the settings modal's activity section. They are secondary to the
-        // devices load, so a failure here is swallowed rather than surfaced as an error.
-        try {
-          // Only three rows are rendered; ask for three. Without a limit the
-          // search returns every lab order the organisation has, which is a lot
-          // of patient and result data to move for a footer list.
-          const orders = await listIdexxOrders({ organisationId: primaryOrgId, limit: 3 });
-          setRecentOrders(orders);
-        } catch {
-          setRecentOrders([]);
-        }
-      } else {
-        setDevices([]);
-        setRecentOrders([]);
-      }
-    };
-    run().catch(() => undefined);
-  }, [primaryOrgId, idexxIntegration?.status, canViewLabs]);
+  const { devices, recentOrders, setDevices, deviceError } = useIdexxLabData({
+    primaryOrgId,
+    canViewLabs,
+    idexxStatus: idexxIntegration?.status,
+  });
+
+  // Render-phase adjustment: raise a failed device read into the page banner the
+  // same way the store-level error is raised, without clobbering later local ones.
+  const [syncedDeviceError, setSyncedDeviceError] = useState<string | null>(null);
+  if (deviceError !== syncedDeviceError) {
+    setSyncedDeviceError(deviceError);
+    if (deviceError) setError(deviceError);
+  }
 
   // Render-phase adjustment: follow the stored credentials status whenever it
   // changes without clobbering later local validate-state updates.
@@ -609,24 +628,16 @@ const useIntegrationsPage = () => {
     return enabledProviders.size;
   }, [integrations, merckEnabled]);
 
-  const idexxStatus = (idexxIntegration?.status ?? 'disabled').toLowerCase();
-  const idexxEnabled = idexxStatus === 'enabled';
-  const credentialsStatusKey = String(
-    idexxIntegration?.credentialsStatus ?? 'missing'
-  ).toLowerCase();
-  const hasStoredCredentials =
-    (credentialsStatusKey && credentialsStatusKey !== 'missing') ||
-    Boolean(idexxIntegration?.lastValidatedAt);
-  const credentialsStatusLabel = `${credentialsStatusKey.charAt(0).toUpperCase()}${credentialsStatusKey.slice(1)}`;
-  const showIdexxCard =
-    activeFilter === 'all' ||
-    (activeFilter === 'connected' && idexxEnabled) ||
-    (activeFilter === 'available' && !idexxEnabled);
-  const showMerckCard =
-    activeFilter === 'all' ||
-    (activeFilter === 'connected' && merckEnabled) ||
-    (activeFilter === 'available' && !merckEnabled);
-  const credentialsActionLabel = getCredentialsActionLabel(saving, hasStoredCredentials);
+  const {
+    idexxStatus,
+    idexxEnabled,
+    credentialsStatusKey,
+    credentialsStatusLabel,
+    hasStoredCredentials,
+    credentialsActionLabel,
+    showIdexxCard,
+    showMerckCard,
+  } = deriveIntegrationsView({ idexxIntegration, activeFilter, merckEnabled, saving });
 
   const handleMerckEnableDisable = useCallback(async () => {
     if (!primaryOrgId || merckSaving) return;

@@ -104,6 +104,38 @@ const PracticeHeader = ({ practice }: { practice: PublicPractice }) => (
 type SlotsResult = { key: string; windows: PublicSlot[]; error: string | null };
 
 /**
+ * The grid of times for one day part. Its own component only so the click
+ * handler is not a fifth nested function inside SlotPicker (sonarjs
+ * no-nested-functions); the markup and class names are unchanged.
+ */
+const SlotPills = ({
+  slots,
+  selectedTime,
+  onSelect,
+}: {
+  slots: PublicSlot[];
+  selectedTime: string | null;
+  onSelect: (startTime: string) => void;
+}) => (
+  <div className={SLOT_GRID}>
+    {slots.map((slot) => (
+      // The button's entire text is the bare startTime. No end time, no
+      // duration, no aria-label: getByRole('button', { name: '09:00' })
+      // is an exact match in both the tests and the story.
+      <button
+        key={slot.startTime}
+        type="button"
+        aria-pressed={selectedTime === slot.startTime}
+        onClick={() => onSelect(slot.startTime)}
+        className={PILL}
+      >
+        {slot.startTime}
+      </button>
+    ))}
+  </div>
+);
+
+/**
  * The time picker and its four states.
  *
  * Extracted from `BookClient` rather than inlined: those four conditionals sat
@@ -181,22 +213,7 @@ const SlotPicker = ({
             {group.label}
           </h3>
         </legend>
-        <div className={SLOT_GRID}>
-          {group.slots.map((slot) => (
-            // The button's entire text is the bare startTime. No end time, no
-            // duration, no aria-label: getByRole('button', { name: '09:00' })
-            // is an exact match in both the tests and the story.
-            <button
-              key={slot.startTime}
-              type="button"
-              aria-pressed={selectedTime === slot.startTime}
-              onClick={() => onSelect(slot.startTime)}
-              className={PILL}
-            >
-              {slot.startTime}
-            </button>
-          ))}
-        </div>
+        <SlotPills slots={group.slots} selectedTime={selectedTime} onSelect={onSelect} />
       </fieldset>
     ));
   };
@@ -513,7 +530,7 @@ const ServiceFieldset = ({
           />
           <span
             aria-hidden="true"
-            className="mt-1 flex size-5 shrink-0 rounded-full border-[1.5px] border-[var(--ink-6b)] bg-[var(--screen)] transition-[background-color,border-color] duration-150 ease-out before:m-auto before:size-2 before:scale-0 before:rounded-full before:bg-[var(--white-text)] before:transition-transform before:duration-150 before:content-[''] peer-checked:border-[var(--blue-strong)] peer-checked:bg-[var(--blue-strong)] peer-checked:before:scale-100 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--color-input-border-active)]"
+            className="mt-1 flex size-5 shrink-0 rounded-full border-[1.5px] border-[var(--ink-6b)] bg-[var(--screen)] transition-[background-color,border-color] duration-150 ease-out before:m-auto before:size-2 before:scale-90 before:rounded-full before:bg-[var(--white-text)] before:opacity-0 before:transition-[scale,opacity] before:duration-150 before:content-[''] peer-checked:border-[var(--blue-strong)] peer-checked:bg-[var(--blue-strong)] peer-checked:before:scale-100 peer-checked:before:opacity-100 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--color-input-border-active)]"
           />
           {/* --ink-body, not --ink-muted. Muted ink measures 4.04:1 on
                 the selected row's wash in dark - the row is the one place

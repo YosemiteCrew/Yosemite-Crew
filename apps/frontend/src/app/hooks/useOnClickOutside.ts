@@ -19,7 +19,9 @@ export const useOnClickOutside = (
       handler();
     };
     document.addEventListener('mousedown', listener);
-    document.addEventListener('touchstart', listener);
+    // Passive: the handler only closes the dropdown, it never calls
+    // preventDefault(), so the browser can keep scrolling without waiting on it.
+    document.addEventListener('touchstart', listener, { passive: true });
     return () => {
       document.removeEventListener('mousedown', listener);
       document.removeEventListener('touchstart', listener);

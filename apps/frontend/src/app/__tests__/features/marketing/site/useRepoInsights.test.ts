@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useRepoInsights } from '@/app/features/marketing/site/useRepoInsights';
 
 type FetchLike = typeof fetch;
@@ -306,5 +306,46 @@ describe('useRepoInsights', () => {
 
     await waitFor(() => expect(result.current.heartbeat).toEqual([4, 8]), { timeout: 4000 });
     expect(activityCalls).toBe(2);
+  });
+
+  it('loads once for both page instances and drops a response from an abandoned visit', async () => {
+    // Hold the repo request open so the load is still in flight while the two
+    // Insights hook instances mount and then leave the page.
+    let releaseRepo: (value: Response) => void = () => {};
+    const repoGate = new Promise<Response>((resolve) => {
+      releaseRepo = resolve;
+    });
+    const fetchMock = jest.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/Yosemite-Crew')) return repoGate;
+      return Promise.resolve(res(null));
+    });
+    globalThis.fetch = fetchMock as unknown as FetchLike;
+
+    const liveConsole = renderHook(() => useRepoInsights());
+    const repositoryPulse = renderHook(() => useRepoInsights());
+
+    // The second instance joins the first one's load rather than doubling it.
+    const repoCalls = fetchMock.mock.calls.filter(([input]) =>
+      String(input).endsWith('/Yosemite-Crew')
+    );
+    expect(repoCalls).toHaveLength(1);
+
+    // One instance leaving keeps the shared store alive; the last one clears it.
+    repositoryPulse.unmount();
+    liveConsole.unmount();
+
+    await act(async () => {
+      releaseRepo(res({ forks_count: 41 }));
+      await repoGate;
+    });
+
+    // The abandoned visit's response must not seed the next visit's first render.
+    const nextVisit = renderHook(() => useRepoInsights());
+    expect(nextVisit.result.current.facts).toBeNull();
+    expect(nextVisit.result.current.forks).toBeNull();
+
+    // It pulls live for itself instead, which is the whole no-cache point.
+    await waitFor(() => expect(nextVisit.result.current.facts?.forks).toBe('41'));
   });
 });

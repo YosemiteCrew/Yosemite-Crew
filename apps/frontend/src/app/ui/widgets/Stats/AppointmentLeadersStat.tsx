@@ -62,7 +62,7 @@ const AppointmentLeadersStat = () => {
           const width = maxCompleted > 0 ? (leader.Completed / maxCompleted) * 100 : 0;
           return (
             <div
-              key={`${leader.staffId}-${index + 1}`}
+              key={leader.staffId}
               className="grid grid-cols-[minmax(0,130px)_1fr_34px] items-center gap-2.5"
             >
               <span className="truncate text-[12.5px] font-semibold text-[var(--ink-body)]">

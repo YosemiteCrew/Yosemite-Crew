@@ -1338,20 +1338,11 @@ const CanvasRow: React.FC<{
     if (isSignature) return 'border border-dashed border-[var(--pink)]';
     return 'border border-[var(--hairline)]';
   })();
+  // The shell is inert: it draws the row and owns the drag, while the selectable
+  // region inside it is the only interactive element, so the action buttons are
+  // its SIBLINGS rather than controls nested inside another control.
   return (
-    <div /* NOSONAR: draggable selection row that wraps action <button>s; a native <button> would nest interactive buttons (forbidden), so role="button" + tabIndex + onKeyDown provide equivalent keyboard access */
-      role="button"
-      tabIndex={0}
-      aria-pressed={selected}
-      aria-label={`${fieldTypeName(field)} field`}
-      data-testid={`canvas-row-${field.id}`}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
+    <div
       draggable={draggable}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -1361,19 +1352,43 @@ const CanvasRow: React.FC<{
         isDragging ? 'opacity-60' : ''
       }`}
     >
-      <span data-drag-handle className={draggable ? 'cursor-grab' : ''}>
-        {isSignature ? (
-          <IoCreateOutline size={15} className="text-[var(--pink)]" aria-hidden="true" />
-        ) : (
-          <IoReorderTwoOutline size={15} className="text-[var(--ink-faint2)]" aria-hidden="true" />
-        )}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-bold text-[var(--ink)]">{title}</span>
-        <span className="block text-[11px] text-[var(--ink-faint)]">
-          {fieldRowSummary(field, selected)}
+      <button
+        type="button"
+        aria-pressed={selected}
+        aria-label={`${fieldTypeName(field)} field`}
+        data-testid={`canvas-row-${field.id}`}
+        onClick={onSelect}
+        /* Enter and Space select here and suppress the native activation, so the row
+           still selects exactly once however it is reached. */
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelect();
+          }
+        }}
+        /* The negative margins cancel the shell's own padding, so the hit area still
+           reaches the row's top, bottom and left edges as it did when the whole row
+           was the button. */
+        className="-my-3 -ml-4 flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 py-3 pl-4 text-start"
+      >
+        <span data-drag-handle className={draggable ? 'cursor-grab' : ''}>
+          {isSignature ? (
+            <IoCreateOutline size={15} className="text-[var(--pink)]" aria-hidden="true" />
+          ) : (
+            <IoReorderTwoOutline
+              size={15}
+              className="text-[var(--ink-faint2)]"
+              aria-hidden="true"
+            />
+          )}
         </span>
-      </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13px] font-bold text-[var(--ink)]">{title}</span>
+          <span className="block text-[11px] text-[var(--ink-faint)]">
+            {fieldRowSummary(field, selected)}
+          </span>
+        </span>
+      </button>
       {selected && !locked ? (
         <span className="flex items-center gap-1.5">
           {onMoveUp && (

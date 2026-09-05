@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import DocSigningPortal from '@/app/features/docSigning/components/DocSigningPortal';
@@ -74,6 +74,81 @@ describe('DocSigningPortal', () => {
     render(<DocSigningPortal />);
 
     expect(await screen.findByText('Doc portal disabled')).toBeInTheDocument();
+    consoleSpy.mockRestore();
+  });
+
+  it('ignores a response for an organisation the user has already switched away from', async () => {
+    const resolvers: Record<string, (value: { redirectUrl: string }) => void> = {};
+    (fetchDocumensoRedirectUrl as jest.Mock).mockImplementation(
+      (orgId: string) =>
+        new Promise<{ redirectUrl: string }>((resolve) => {
+          resolvers[orgId] = resolve;
+        })
+    );
+    let currentOrgId = 'org-1';
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: currentOrgId })
+    );
+
+    const { container, rerender } = render(<DocSigningPortal />);
+    await waitFor(() => {
+      expect(fetchDocumensoRedirectUrl).toHaveBeenCalledWith('org-1');
+    });
+
+    currentOrgId = 'org-2';
+    rerender(<DocSigningPortal />);
+    await waitFor(() => {
+      expect(fetchDocumensoRedirectUrl).toHaveBeenCalledWith('org-2');
+    });
+
+    // The first organisation's request lands late: it must neither frame its
+    // portal nor clear the spinner the second request is still earning.
+    await act(async () => {
+      resolvers['org-1']({ redirectUrl: 'https://ds.yosemitecrew.com/stale' });
+    });
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(screen.getByText('Loading Doc Signing')).toBeInTheDocument();
+
+    await act(async () => {
+      resolvers['org-2']({ redirectUrl: 'https://ds.yosemitecrew.com/fresh' });
+    });
+    const iframe = container.querySelector('iframe') as HTMLIFrameElement;
+    expect(iframe.src).toBe('https://ds.yosemitecrew.com/fresh');
+  });
+
+  it('ignores a failure from an organisation the user has already switched away from', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const rejecters: Record<string, (reason: unknown) => void> = {};
+    (fetchDocumensoRedirectUrl as jest.Mock).mockImplementation(
+      (orgId: string) =>
+        new Promise<never>((_resolve, reject) => {
+          rejecters[orgId] = reject;
+        })
+    );
+    let currentOrgId = 'org-1';
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: currentOrgId })
+    );
+
+    const { rerender } = render(<DocSigningPortal />);
+    await waitFor(() => {
+      expect(fetchDocumensoRedirectUrl).toHaveBeenCalledWith('org-1');
+    });
+
+    currentOrgId = 'org-2';
+    rerender(<DocSigningPortal />);
+    await waitFor(() => {
+      expect(fetchDocumensoRedirectUrl).toHaveBeenCalledWith('org-2');
+    });
+
+    // The abandoned organisation's failure is logged but must not surface as the
+    // current organisation's error.
+    await act(async () => {
+      rejecters['org-1'](new Error('org-1 portal is gone'));
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText('Loading Doc Signing')).toBeInTheDocument();
+    expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
 });

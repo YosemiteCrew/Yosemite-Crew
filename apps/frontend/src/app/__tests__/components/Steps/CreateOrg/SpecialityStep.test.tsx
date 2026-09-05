@@ -1238,6 +1238,45 @@ describe('SpecialityStep Component', () => {
     expect(mockRouterPush).not.toHaveBeenCalled();
   });
 
+  it('re-enables the submit button after a failed save', async () => {
+    // The busy flag is cleared in `finally`. Cleared only on the success path it
+    // would stay raised here, leaving the fullscreen loader up and the button dead
+    // with the error message showing underneath it and no way to retry.
+    (createOrg as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+    const specialities = [
+      { name: 'Cardiology', organisationId: '', services: [] } as SpecialityWeb,
+    ];
+
+    render(<SpecialityStep {...getProps({ specialities })} />);
+
+    fireEvent.click(screen.getByTestId('btn-next'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('We could not save your specialties. Please try again.')
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('btn-next')).not.toBeDisabled();
+    expect(screen.getByTestId('btn-next')).toHaveTextContent('Create organisation');
+  });
+
+  it('stays busy after a successful save while the next route loads', async () => {
+    // The one path that deliberately keeps the flag raised: clearing it here would
+    // drop the fullscreen loader and re-arm the button for a second submission in
+    // the gap before the router leaves the page.
+    const specialities = [
+      { name: 'Cardiology', organisationId: '', services: [] } as SpecialityWeb,
+    ];
+
+    render(<SpecialityStep {...getProps({ specialities })} />);
+
+    fireEvent.click(screen.getByTestId('btn-next'));
+
+    await waitFor(() => expect(mockRouterPush).toHaveBeenCalled());
+    expect(screen.getByTestId('btn-next')).toBeDisabled();
+    expect(screen.getByTestId('btn-next')).toHaveTextContent('Creating organisation...');
+  });
+
   it('notifies onRedirectingChange across a submission lifecycle', async () => {
     const onRedirectingChange = jest.fn();
     const specialities = [

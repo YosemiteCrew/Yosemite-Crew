@@ -91,9 +91,18 @@ const DISCORD_MEMBERS_ENDPOINT = '/api/community/discord-members';
 const GITHUB_STATS_ENDPOINT = '/api/community/github-stats';
 const GITHUB_RELEASES_ENDPOINT = '/api/community/github-releases';
 
-const fetchJson = async (url: string, accept?: string): Promise<unknown> => {
+/**
+ * Shared response handling: a non-OK status and a network/abort rejection both
+ * resolve to null, so a caller only ever sees a body or nothing.
+ *
+ * It takes the request rather than the URL so the `fetch` call stays at the call
+ * site. The per-instance hooks below hand it an `AbortController` signal their
+ * effect cleanup aborts; folding the call back in here would put the request out
+ * of reach of that cleanup and leave an unmounted hook's request running.
+ */
+const readJson = async (request: Promise<Response>): Promise<unknown> => {
   try {
-    const res = await fetch(url, accept ? { headers: { Accept: accept } } : undefined);
+    const res = await request;
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -102,7 +111,7 @@ const fetchJson = async (url: string, accept?: string): Promise<unknown> => {
 };
 
 const fetchGithubStats = async (): Promise<Partial<GithubStats>> => {
-  const json = (await fetchJson(GITHUB_STATS_ENDPOINT)) as Partial<GithubStats> | null;
+  const json = (await readJson(fetch(GITHUB_STATS_ENDPOINT))) as Partial<GithubStats> | null;
   if (!json) return {};
   // Only contribute keys that actually resolved, so a partial upstream failure
   // leaves the previously cached values in place rather than blanking them.
@@ -112,7 +121,7 @@ const fetchGithubStats = async (): Promise<Partial<GithubStats>> => {
 };
 
 const fetchDiscord = async (): Promise<Partial<GithubStats>> => {
-  const json = (await fetchJson(DISCORD_MEMBERS_ENDPOINT)) as {
+  const json = (await readJson(fetch(DISCORD_MEMBERS_ENDPOINT))) as {
     discordMembers?: string | null;
   } | null;
   if (typeof json?.discordMembers !== 'string') return {};
@@ -398,17 +407,19 @@ export function useReleaseLanes(): ReleaseLane[] {
   const [fetched, setFetched] = useState<ReleaseLane[] | null>(null);
 
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
     void (async () => {
-      const list = (await fetchJson(`${GITHUB_RELEASES_ENDPOINT}?list=1`)) as RawRelease[] | null;
-      if (!active || !Array.isArray(list) || list.length === 0) return;
+      const list = (await readJson(
+        fetch(`${GITHUB_RELEASES_ENDPOINT}?list=1`, { signal: controller.signal })
+      )) as RawRelease[] | null;
+      if (controller.signal.aborted || !Array.isArray(list) || list.length === 0) return;
       const resolved = toLanes(list);
       setJsonStorageItem('session', LANES_CACHE_KEY, resolved);
       emitSessionCacheChange();
       setFetched(resolved);
     })();
     return () => {
-      active = false;
+      controller.abort();
     };
   }, []);
 
@@ -443,17 +454,19 @@ const useTaggedReleaseFromList = (
   );
 
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
     void (async () => {
-      const list = (await fetchJson(`${GITHUB_RELEASES_ENDPOINT}?list=1`)) as RawRelease[] | null;
-      if (!active || !Array.isArray(list)) return;
+      const list = (await readJson(
+        fetch(`${GITHUB_RELEASES_ENDPOINT}?list=1`, { signal: controller.signal })
+      )) as RawRelease[] | null;
+      if (controller.signal.aborted || !Array.isArray(list)) return;
       const match = list.find((entry) => matchesTag((entry.tag_name ?? '').toLowerCase()));
       if (!match?.html_url) return;
       setJsonStorageItem('session', cacheKey, toReleaseInfo(match));
       emitSessionCacheChange();
     })();
     return () => {
-      active = false;
+      controller.abort();
     };
   }, [cacheKey, matchesTag]);
 
@@ -480,17 +493,19 @@ export function useLatestRelease(options?: LiveFetchOptions): ReleaseInfo {
   const [liveRelease, setLiveRelease] = useState<ReleaseInfo>(EMPTY_RELEASE);
 
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
     void (async () => {
-      const json = (await fetchJson(GITHUB_RELEASES_ENDPOINT)) as RawRelease | null;
-      if (!active || !json?.tag_name) return;
+      const json = (await readJson(
+        fetch(GITHUB_RELEASES_ENDPOINT, { signal: controller.signal })
+      )) as RawRelease | null;
+      if (controller.signal.aborted || !json?.tag_name) return;
       const next = toReleaseInfo(json);
       setLiveRelease(next);
       setJsonStorageItem('session', cacheKey, next);
       emitSessionCacheChange();
     })();
     return () => {
-      active = false;
+      controller.abort();
     };
   }, [live]);
 

@@ -180,20 +180,26 @@ const LicenseTokenCard = ({
         <span className={TEXT_MUTED}>{config.hint}</span>
       </div>
       {status !== 'valid' && (
-        <div className="flex gap-2 pt-1">
-          <input
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="Paste license token..."
-            className="flex-1 text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary font-mono"
-          />
-          <Primary
-            href="#"
-            text={submitting ? 'Saving...' : 'Save'}
-            onClick={handleSubmit}
-            isDisabled={submitting || !token.trim()}
-          />
+        <div className="pt-1">
+          <label htmlFor="federation-license-token" className={FIELD_LABEL_CLS}>
+            License token
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="federation-license-token"
+              type="password"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="Paste license token..."
+              className="flex-1 text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+            />
+            <Primary
+              href="#"
+              text={submitting ? 'Saving...' : 'Save'}
+              onClick={handleSubmit}
+              isDisabled={submitting || !token.trim()}
+            />
+          </div>
         </div>
       )}
     </SectionCard>
@@ -382,20 +388,26 @@ const FollowingCard = () => {
 
   return (
     <SectionCard title="Following">
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={actorUri}
-          onChange={(e) => setActorUri(e.target.value)}
-          placeholder="https://other-clinic.example/ap/organizations/abc"
-          className="flex-1 text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary"
-        />
-        <Primary
-          href="#"
-          text={submitting ? 'Sending...' : 'Follow'}
-          onClick={handleFollow}
-          isDisabled={submitting || !actorUri.trim()}
-        />
+      <div>
+        <label htmlFor="federation-follow-actor-uri" className={FIELD_LABEL_CLS}>
+          Remote actor URI
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="federation-follow-actor-uri"
+            type="text"
+            value={actorUri}
+            onChange={(e) => setActorUri(e.target.value)}
+            placeholder="https://other-clinic.example/ap/organizations/abc"
+            className="flex-1 text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <Primary
+            href="#"
+            text={submitting ? 'Sending...' : 'Follow'}
+            onClick={handleFollow}
+            isDisabled={submitting || !actorUri.trim()}
+          />
+        </div>
       </div>
       {renderState === 'loading' && <div className={TEXT_MUTED}>Loading...</div>}
       {renderState === 'empty' && (
@@ -751,13 +763,19 @@ const EmergencyCard = () => {
       <div className={TEXT_MUTED}>
         Announces an emergency to all approved followers across the federation network.
       </div>
-      <textarea
-        className="w-full text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-        rows={3}
-        placeholder="Describe the emergency or critical notice..."
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-      />
+      <div>
+        <label htmlFor="federation-emergency-content" className={FIELD_LABEL_CLS}>
+          Emergency notice
+        </label>
+        <textarea
+          id="federation-emergency-content"
+          className="w-full text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+          rows={3}
+          placeholder="Describe the emergency or critical notice..."
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+        />
+      </div>
       <div className="flex justify-end">
         <button
           type="button"

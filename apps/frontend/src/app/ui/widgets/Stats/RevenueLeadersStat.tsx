@@ -45,7 +45,7 @@ const RevenueLeadersStat = () => {
           const width = maxRevenue > 0 ? (leader.revenue / maxRevenue) * 100 : 0;
           return (
             <div
-              key={`${leader.label}-${index + 1}`}
+              key={leader.label}
               className="grid grid-cols-[minmax(0,130px)_1fr_56px] items-center gap-2.5"
             >
               <span className="truncate text-[12.5px] font-semibold text-[var(--ink-body)]">

@@ -862,9 +862,17 @@ describe('Slot (Appointments)', () => {
       screen.queryByRole('menu', { name: 'Appointment context actions' })
     ).not.toBeInTheDocument();
 
-    // Drag ends - the prev-compare tracks the cleared id without dismissing anything.
+    // Drag ends - the prev-compare tracks the cleared id without dismissing anything,
+    // and the menu that was open when the drag began stays dismissed.
     rerender(<Slot {...slotProps} draggedAppointmentId={null} />);
     expect(screen.getByRole('button', { name: /Rex/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('menu', { name: 'Appointment context actions' })
+    ).not.toBeInTheDocument();
+
+    // A fresh right-click after the drag opens the menu again.
+    fireEvent.contextMenu(screen.getByRole('button', { name: /Rex/i }));
+    expect(screen.getByRole('menu', { name: 'Appointment context actions' })).toBeInTheDocument();
   });
 
   it('renders zoom-in markers via the patient fallback when companion is missing', () => {

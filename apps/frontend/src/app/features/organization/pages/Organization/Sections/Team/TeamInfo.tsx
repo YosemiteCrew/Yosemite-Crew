@@ -586,7 +586,9 @@ const useTeamMemberRecord = ({
           }
         }
       } catch {
-        setProfile(null);
+        // Same cancellation gate as the success path: a rejected request from a
+        // previous member must not blank the profile a newer one already wrote.
+        if (!cancelled) setProfile(null);
       }
     })();
     return () => {

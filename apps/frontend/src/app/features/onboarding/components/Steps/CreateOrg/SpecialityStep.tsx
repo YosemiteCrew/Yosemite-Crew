@@ -342,6 +342,11 @@ const useSpecialityStepContent = ({
       return;
     }
 
+    // The busy flag is settled in `finally` so a rejected save can never strand the
+    // spinner. The one path that deliberately keeps it raised is a successful
+    // navigation, which is why `navigated` is set only once `router.push` has
+    // returned without throwing.
+    let navigated = false;
     try {
       setIsSubmitting(true);
       onRedirectingChange?.(true);
@@ -357,19 +362,23 @@ const useSpecialityStepContent = ({
       });
       if ('errorMessage' in result) {
         setError(result.errorMessage);
-        onRedirectingChange?.(false);
-        setIsSubmitting(false);
         return;
       }
       router.push(result.nextRoute);
+      navigated = true;
     } catch (submissionError) {
       console.error('Failed to save specialties:', submissionError);
       const message = axios.isAxiosError(submissionError)
         ? (submissionError.response?.data?.message ?? submissionError.message)
         : 'We could not save your specialties. Please try again.';
       setError(message);
-      onRedirectingChange?.(false);
-      setIsSubmitting(false);
+    } finally {
+      // Re-asserted rather than cleared on the navigation path: the step stays busy
+      // (fullscreen loader up, button disabled) until the next route takes over.
+      // `isSubmitting` is already true there, so this is a no-op rather than a
+      // second render.
+      if (!navigated) onRedirectingChange?.(false);
+      setIsSubmitting(navigated);
     }
   };
 

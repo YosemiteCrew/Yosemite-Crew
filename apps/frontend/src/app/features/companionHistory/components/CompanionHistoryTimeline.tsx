@@ -1002,10 +1002,7 @@ export const AuditTimeline = ({
   return (
     <ol className="flex flex-col px-1 py-1">
       {entries.map((entry, index) => (
-        <li
-          key={entry.id ?? `${entry.eventType}-${entry.occurredAt}-${index}`}
-          className="flex gap-3"
-        >
+        <li key={entry.id || `${entry.eventType}-${entry.occurredAt}`} className="flex gap-3">
           <span className="w-40 shrink-0 whitespace-nowrap pt-2.5 text-right text-caption-1 font-medium text-pill-success-text">
             {formatDateTimeLocal(entry.occurredAt, '-')}
           </span>
@@ -1381,6 +1378,19 @@ const useCompanionHistoryTimelineView = ({
   const [pdfPreview, setPdfPreview] = useState<PdfPreviewState | null>(null);
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
+
+  // A blob preview (a lab-result PDF fetched as bytes) owns its object URL: the
+  // cleanup revokes it when another preview replaces it, when the overlay closes,
+  // and on unmount, so a Blob is never pinned for the document's lifetime. Remote
+  // https: previews are not object URLs and are left alone.
+  useEffect(() => {
+    const previewUrl = pdfPreview?.url;
+    if (!previewUrl?.startsWith('blob:')) return;
+    return () => {
+      URL.revokeObjectURL(previewUrl);
+    };
+  }, [pdfPreview]);
+
   const historyFilters = useMemo(() => getHistoryFilters(orgType), [orgType]);
   const statusFilterOptions = useMemo(() => getStatusFilterOptions(activeFilter), [activeFilter]);
 
@@ -1548,12 +1558,7 @@ const useCompanionHistoryTimelineView = ({
           });
           return;
         }
-        setPdfPreview((current) => {
-          if (current?.url.startsWith('blob:')) {
-            URL.revokeObjectURL(current.url);
-          }
-          return { title: entry.title || 'Medical record preview', url: pdfUrl };
-        });
+        setPdfPreview({ title: entry.title || 'Medical record preview', url: pdfUrl });
       } finally {
         setPdfLoadingId((current) => (current === entry.id ? null : current));
       }
@@ -1714,9 +1719,6 @@ const useCompanionHistoryTimelineView = ({
     setExpandedId((current) => (current === id ? null : id));
 
   const handlePreviewPdf = (entry: HistoryEntry, url: string) => {
-    if (pdfPreview?.url.startsWith('blob:')) {
-      URL.revokeObjectURL(pdfPreview.url);
-    }
     setPdfPreview({ title: entry.title || 'Medical record preview', url });
   };
 
@@ -1846,15 +1848,11 @@ const useCompanionHistoryTimelineView = ({
       setPdfLoadingId(entry.id);
       getIdexxResultPdfBlob({ organisationId, resultId })
         .then((pdfBlob) => {
-          const objectUrl = URL.createObjectURL(pdfBlob);
-          setPdfPreview((current) => {
-            if (current?.url.startsWith('blob:')) {
-              URL.revokeObjectURL(current.url);
-            }
-            return {
-              title: `IDEXX Result PDF #${resultId}`,
-              url: objectUrl,
-            };
+          // Revoked by the previewObjectUrl effect's cleanup, which fires when this
+          // URL is replaced by the next preview, closed, or unmounted.
+          setPdfPreview({
+            title: `IDEXX Result PDF #${resultId}`,
+            url: URL.createObjectURL(pdfBlob),
           });
         })
         .catch((resultPdfError) => {
@@ -1872,12 +1870,7 @@ const useCompanionHistoryTimelineView = ({
   );
 
   const handleClosePdfPreview = useCallback(() => {
-    setPdfPreview((current) => {
-      if (current?.url.startsWith('blob:')) {
-        URL.revokeObjectURL(current.url);
-      }
-      return null;
-    });
+    setPdfPreview(null);
   }, []);
 
   const handleOpenLinkedFromDrawer = useCallback(

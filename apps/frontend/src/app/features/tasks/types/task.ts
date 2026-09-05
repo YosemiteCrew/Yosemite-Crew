@@ -153,7 +153,13 @@ export const EMPTY_TASK: Task = {
   },
   name: '',
   description: '',
-  dueAt: new Date(),
+  // An accessor, not a literal: `new Date()` at module scope runs once on first
+  // import, so under SSR every blank task in the process would carry the
+  // server's start-up instant. Both callers spread this constant, so the spread
+  // still snapshots a plain Date - it is just today's, not the build's.
+  get dueAt() {
+    return new Date();
+  },
   status: 'PENDING',
 };
 
@@ -172,7 +178,13 @@ export const EMPTY_COMPANION_TASK: Task = {
   },
   name: '',
   description: '',
-  dueAt: new Date(),
+  // An accessor, not a literal: `new Date()` at module scope runs once on first
+  // import, so under SSR every blank task in the process would carry the
+  // server's start-up instant. Both callers spread this constant, so the spread
+  // still snapshots a plain Date - it is just today's, not the build's.
+  get dueAt() {
+    return new Date();
+  },
   status: 'PENDING',
 };
 

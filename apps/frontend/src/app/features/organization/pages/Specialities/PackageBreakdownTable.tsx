@@ -232,9 +232,11 @@ const PackageBreakdownTable = ({
                       max={item.maxDiscount ?? 100}
                       value={item.discount}
                       onChange={(e) => {
-                        const raw = Number.parseFloat(e.target.value);
+                        // A cleared or half-typed field reads NaN, not 0: fall back to
+                        // no discount rather than storing NaN on the line item.
+                        const raw = e.currentTarget.valueAsNumber;
                         const max = item.maxDiscount ?? 100;
-                        const v = Number.isNaN(raw) ? 0 : Math.min(max, Math.max(0, raw));
+                        const v = Number.isFinite(raw) ? Math.min(max, Math.max(0, raw)) : 0;
                         onChangeDiscount?.(item.id, v);
                       }}
                       className="w-24 text-right bg-transparent border border-input-border-default rounded-xl px-3 h-9 text-body-4 focus-visible:outline-none focus-visible:border-input-border-active"

@@ -294,6 +294,13 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
   }
 
   useEffect(() => {
+    /* A superseded run must not write its device list or error: switching
+       organisation re-runs this effect while the previous request is still in
+       flight, and the slower answer would otherwise land last and show the old
+       org's analysers. `loading` is still cleared unconditionally in `finally`,
+       because the run that replaced this one may have taken the disabled branch
+       below, which never raises the flag and so would never lower it either. */
+    let cancelled = false;
     const run = async () => {
       if (!primaryOrgId || !integrationEnabled) {
         setDevices([]);
@@ -303,8 +310,10 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
       setError(null);
       try {
         const ivls = await listIdexxIvlsDevices(primaryOrgId);
+        if (cancelled) return;
         setDevices(ivls.ivlsDeviceList ?? []);
       } catch (e) {
+        if (cancelled) return;
         setDevices([]);
         setError(getApiErrorMessage(e, 'Unable to load IDEXX integration/device state.'));
       } finally {
@@ -312,6 +321,9 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
       }
     };
     void run();
+    return () => {
+      cancelled = true;
+    };
   }, [primaryOrgId, integrationEnabled]);
 
   /* Guards against an out-of-order response. The backend now filters on `query`
@@ -327,7 +339,11 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     async (page: number, append: boolean) => {
       if (!primaryOrgId || !integrationEnabled) return;
       const seq = ++testsRequestSeq.current;
-      if (append) setTestsLoadingMore(true);
+      /* A fresh (non-append) search takes the spinner down as it starts. It
+         never raises it, so without this a "load more" it supersedes would
+         never be cleared by anyone - the finally below skips a superseded run -
+         and both the spinner and `loadMoreTests` would stay stuck. */
+      setTestsLoadingMore(append);
       try {
         const res = await listIdexxTests({
           organisationId: primaryOrgId,
@@ -1330,6 +1346,14 @@ const IdexxOrderIframeOverlay = ({ url, title, onClose }: IdexxOrderIframeOverla
               <YosemiteLoader label="Loading IDEXX" size={120} testId="idexx-order-loader" />
             </div>
           )}
+          {/* `allow-scripts` + `allow-same-origin` is flagged generically because the
+              pair lets a SAME-ORIGIN frame reach out and strip its own sandbox. This
+              src is host-allowlisted to IDEXX over https by getSafeIdexxIframeUrl, so
+              the frame lands in idexx.com's origin and can touch neither this document
+              nor its cookies. Both tokens are load-bearing: the ordering UI is a script
+              app, and without same-origin it gets an opaque origin with no cookies and
+              a throwing localStorage, which signs the user out of IDEXX. Do not remove
+              them - the remaining tokens still deny top-navigation and downloads. */}
           <iframe
             key={url}
             src={url}

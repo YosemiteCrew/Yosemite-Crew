@@ -42,6 +42,19 @@ describe('InvoiceBilledItems', () => {
     expect(screen.getAllByText('$0.00').length).toBeGreaterThanOrEqual(2);
   });
 
+  // Line items carry only an optional id, so two byte-identical lines would
+  // share a content-derived key. React reports that as "Encountered two
+  // children with the same key" on console.error, which jest.setup turns into a
+  // thrown error - so this passing IS the assertion that the keys stay unique.
+  it('keeps two byte-identical id-less lines on distinct row keys', () => {
+    const line: InvoiceItem = { name: 'Nail trim', quantity: 1, unitPrice: 12, total: 12 };
+    render(<InvoiceBilledItems items={[line, { ...line }]} currency="USD" />);
+
+    expect(screen.getAllByText('Nail trim')).toHaveLength(2);
+    // Gross and amount of both rows format to $12.
+    expect(screen.getAllByText('$12.00')).toHaveLength(4);
+  });
+
   it('has no axe accessibility violations', async () => {
     const { container } = render(<InvoiceBilledItems items={items} currency="USD" />);
     const results = await axe(container);

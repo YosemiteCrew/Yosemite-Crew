@@ -160,7 +160,15 @@ export const emptyCompanionRecord: CompanionRecord = {
   appointmentId: undefined,
   visitType: 'HOSPITAL',
   issuingBusinessName: undefined,
-  issueDate: new Date().toISOString().split('T')[0],
+  /**
+   * A getter, not a literal: evaluated at module load this would freeze one
+   * date into the server process, so every SSR request would prefill the same
+   * "today". Reading the property - including through the `{ ...emptyCompanionRecord }`
+   * spreads the upload forms use - resolves it to the current date instead.
+   */
+  get issueDate() {
+    return new Date().toISOString().split('T')[0];
+  },
   hasIssueDate: true,
 };
 

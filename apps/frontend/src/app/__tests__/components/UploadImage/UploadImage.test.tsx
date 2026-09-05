@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, createEvent } from '@testing-library/react';
+import { render, screen, fireEvent, createEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import UploadImage from '@/app/ui/widgets/UploadImage/UploadImage';
@@ -46,6 +46,12 @@ beforeAll(() => {
 });
 
 expect.extend(toHaveNoViolations);
+
+beforeEach(() => {
+  // Every preview <img> reads its src from URL.createObjectURL, so the stub has to
+  // return something truthy in every test, not just the ones that set it.
+  mockCreateObjectURL.mockReturnValue('blob:test-url');
+});
 
 afterEach(() => {
   jest.clearAllMocks();
@@ -104,8 +110,6 @@ describe('UploadImage Component', () => {
     const file = new File(['dummy content'], 'doc.pdf', {
       type: 'application/pdf',
     });
-    mockCreateObjectURL.mockReturnValue('blob:test-url');
-
     // Select the hidden input by selector
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
 
@@ -263,16 +267,61 @@ describe('UploadImage Component', () => {
     expect(clickSpy).toHaveBeenCalled();
   });
 
-  it('revokes object URL on image load', () => {
+  it('previews an image from an object URL and revokes it on unmount', async () => {
     mockCreateObjectURL.mockReturnValue('blob:test-revoke');
     const file = new File([''], 'img-revoke.png', { type: 'image/png' });
+    const { unmount } = render(<UploadImage {...defaultProps} value={[file]} />);
+
+    expect(mockCreateObjectURL).toHaveBeenCalledWith(file);
+    expect(screen.getByAltText('img-revoke.png')).toHaveAttribute('src', 'blob:test-revoke');
+    expect(mockRevokeObjectURL).not.toHaveBeenCalled();
+
+    unmount();
+
+    // The release is deferred by a tick so React's dev remount can cancel it.
+    await waitFor(() => expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:test-revoke'));
+  });
+
+  it('keeps the object URLs alive across a StrictMode remount', async () => {
+    mockCreateObjectURL.mockReturnValue('blob:strict');
+    const file = new File([''], 'strict.png', { type: 'image/png' });
+    render(<UploadImage {...defaultProps} value={[file]} />, { wrapper: React.StrictMode });
+
+    expect(screen.getByAltText('strict.png')).toHaveAttribute('src', 'blob:strict');
+
+    // StrictMode tears the effect down and sets it straight back up; the pending
+    // release has to be cancelled or the thumbnail points at a revoked URL.
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    expect(mockRevokeObjectURL).not.toHaveBeenCalled();
+    expect(screen.getByAltText('strict.png')).toHaveAttribute('src', 'blob:strict');
+  });
+
+  it('revokes the previous object URL when the file list changes', async () => {
+    let mint = 0;
+    mockCreateObjectURL.mockImplementation((f: File) => `blob:${f.name}-${++mint}`);
+    const file = new File([''], 'first.png', { type: 'image/png' });
     render(<UploadImage {...defaultProps} value={[file]} />);
 
-    const img = screen.getByAltText('img-revoke.png');
-    // Simulate image loading
-    fireEvent.load(img);
+    expect(screen.getByAltText('first.png')).toHaveAttribute('src', 'blob:first.png-1');
 
-    expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:test-revoke');
+    const added = new File([''], 'second.png', { type: 'image/png' });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [added] } });
+
+    // The batch minted for the first render is released once the new one replaces it,
+    // and both files are previewed from URLs the current batch owns.
+    await waitFor(() => expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:first.png-1'));
+    expect(screen.getByAltText('first.png')).toHaveAttribute('src', 'blob:first.png-2');
+    expect(screen.getByAltText('second.png')).toHaveAttribute('src', 'blob:second.png-3');
+  });
+
+  it('does not mint an object URL for a non-image file', () => {
+    const file = new File([''], 'notes.pdf', { type: 'application/pdf' });
+    render(<UploadImage {...defaultProps} value={[file]} />);
+
+    expect(mockCreateObjectURL).not.toHaveBeenCalled();
+    expect(screen.getByText('notes.pdf')).toBeInTheDocument();
   });
 
   it('has no axe accessibility violations', async () => {

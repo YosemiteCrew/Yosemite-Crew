@@ -130,6 +130,10 @@ jest.mock('@/app/features/inventory/components/AddInventory/FormSection', () => 
         onChange={(e) => onFieldChange('batch', 'batch', e.target.value, 0)}
       />
       <input
+        data-testid="in-batch-1"
+        onChange={(e) => onFieldChange('batch', 'batch', e.target.value, 1)}
+      />
+      <input
         data-testid="in-tracking"
         onChange={(e) => onFieldChange('batch', 'tracking', e.target.value, 0)}
       />
@@ -444,6 +448,21 @@ describe('AddInventory Component', () => {
     // Remove Batch
     fireEvent.click(screen.getByTestId('remove-batch'));
     expect(InventoryUtils.calculateBatchTotals).toHaveBeenCalled();
+  });
+
+  it('edits the batch the field addresses, leaving the others alone', async () => {
+    render(<AddInventory {...props} />);
+
+    fireEvent.click(screen.getByTestId('add-batch'));
+    fireEvent.change(screen.getByTestId('in-batch-0'), { target: { value: 'B-ONE' } });
+    fireEvent.change(screen.getByTestId('in-batch-1'), { target: { value: 'B-TWO' } });
+
+    // The totals helper is handed the whole list on every edit, so its last call
+    // is the freshest view of the batches state.
+    const batches = (InventoryUtils.calculateBatchTotals as jest.Mock).mock.calls.at(-1)?.[0];
+    expect(batches).toHaveLength(2);
+    expect(batches[0].batch).toBe('B-ONE');
+    expect(batches[1].batch).toBe('B-TWO');
   });
 
   it('prevents submission if validation fails (Jump Check)', async () => {

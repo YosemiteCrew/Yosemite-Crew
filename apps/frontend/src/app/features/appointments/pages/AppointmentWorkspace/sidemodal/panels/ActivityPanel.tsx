@@ -144,7 +144,7 @@ const ActivityPanel = ({ appointment }: ActivityPanelProps) => {
               const timestamp = formatDateTimeLocal(entry.occurredAt, '—');
               return (
                 <li
-                  key={entry.id ?? `${entry.eventType}-${String(entry.occurredAt)}-${index}`}
+                  key={entry.id ?? `${entry.eventType}-${String(entry.occurredAt)}`}
                   className="flex gap-3 font-satoshi"
                 >
                   <div className="flex flex-col items-center">

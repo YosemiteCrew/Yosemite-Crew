@@ -471,7 +471,6 @@ const SignUp = ({
     clearSignUpDraft();
     globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
     setStorageItem('session', 'devAuth', effectiveDeveloper ? 'true' : 'false');
-    setIsSubmitting(false);
     setShowVerifyModal(true);
   };
 
@@ -488,7 +487,6 @@ const SignUp = ({
       iconElement: <Icon icon="mdi:error" width="20" height="20" color="var(--color-danger-600)" />,
       className: status === 409 ? 'errofoundbg' : 'oppsbg',
     });
-    setIsSubmitting(false);
     setShowVerifyModal(false);
   };
 
@@ -523,6 +521,10 @@ const SignUp = ({
       }
     } catch (error: any) {
       handleSignupError(error);
+    } finally {
+      // Also covers the falsy-`result` path, which used to leave the loader up
+      // for the life of the page with no way to retry.
+      setIsSubmitting(false);
     }
   };
 

@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import Modal from '@/app/ui/overlays/Modal';
-import { InventoryItem, InventoryErrors } from '@/app/features/inventory/pages/Inventory/types';
+import {
+  InventoryItem,
+  InventoryErrors,
+  BatchValues,
+} from '@/app/features/inventory/pages/Inventory/types';
 import { calculateBatchTotals } from '@/app/features/inventory/pages/Inventory/utils';
 import { BusinessType } from '@/app/features/organization/types/org';
 import FormSection from '@/app/features/inventory/components/AddInventory/FormSection';
@@ -153,6 +157,21 @@ const clearDrugOnlyFields = (prev: InventoryItem): InventoryItem => ({
   batches: prev.batches?.map((batch) => ({ ...batch, tracking: undefined })),
 });
 
+/**
+ * One batch replaced in a fresh copy of the list. Kept out of the state updater:
+ * React may replay an updater, and an index assignment inside one reads as a
+ * mutation of the state it was handed.
+ */
+const withBatchAt = (
+  batches: BatchValues[],
+  targetIndex: number,
+  patch: Record<string, any>
+): BatchValues[] => {
+  const next = [...batches];
+  next[targetIndex] = { ...(next[targetIndex] ?? emptyInventoryItem.batch), ...patch };
+  return next;
+};
+
 type AddInventoryProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -185,10 +204,8 @@ const useAddInventoryContent = ({
   ) => {
     if (section === 'batch') {
       setFormData((prev) => {
-        const batches = prev.batches && prev.batches.length > 0 ? [...prev.batches] : [prev.batch];
-        const targetIndex = index ?? 0;
-        const currentBatch = batches[targetIndex] ?? emptyInventoryItem.batch;
-        batches[targetIndex] = { ...currentBatch, ...patch };
+        const source = prev.batches && prev.batches.length > 0 ? prev.batches : [prev.batch];
+        const batches = withBatchAt(source, index ?? 0, patch);
         const totals = calculateBatchTotals(batches);
         const stock = { ...prev.stock };
         if (totals.onHand !== undefined) stock.current = String(totals.onHand);

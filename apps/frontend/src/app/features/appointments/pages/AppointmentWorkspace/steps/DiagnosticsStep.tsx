@@ -1,5 +1,5 @@
 import { useRouter } from 'next/navigation';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import type { Appointment } from '@yosemite-crew/types';
@@ -579,7 +579,7 @@ const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
             const orderActionLabel = isComplete ? 'Result PDF' : getOrderActionLabel(order);
             return (
               <li
-                key={order._id ?? order.idexxOrderId ?? `order-${index}`}
+                key={order._id || order.idexxOrderId}
                 className={`${ORDER_STATUS_ROW_GRID} rounded-2xl border border-card-border p-4`}
               >
                 <span className="flex min-w-0 flex-col gap-1">
@@ -789,6 +789,10 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
             loading="lazy"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
+            // allow-same-origin keeps VetConnect PLUS on its OWN origin so its session
+            // cookies and storage survive; without it the ordering UI cannot sign in.
+            // It cannot reach this document: getSafeIdexxIframeUrl only admits https
+            // idexx.com / vetconnectplus.com hosts, which are never our origin.
             sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-same-origin"
             onLoad={() => setLoaded(true)}
           />
@@ -939,7 +943,8 @@ const DiagnosticsStep = ({
     setPrintingAll(true);
     try {
       const blob = await getIdexxCombinedResultsPdfBlob({ organisationId, resultIds });
-      setCombinedPdfUrl(URL.createObjectURL(blob));
+      const objectUrl = URL.createObjectURL(blob);
+      setCombinedPdfUrl(objectUrl);
     } catch (error) {
       console.error('Unable to build combined results PDF:', error);
       globalThis.window.print();
@@ -948,12 +953,14 @@ const DiagnosticsStep = ({
     }
   }, [printingAll, appointment.organisationId, s.results]);
 
-  const closeCombinedPdf = useCallback(() => {
-    setCombinedPdfUrl((current) => {
-      if (current) URL.revokeObjectURL(current);
-      return null;
-    });
-  }, []);
+  // The object URL owns the merged-PDF blob until it is revoked, so release it
+  // whenever the preview closes, a newer PDF replaces it, or the step unmounts.
+  useEffect(() => {
+    if (!combinedPdfUrl) return;
+    return () => URL.revokeObjectURL(combinedPdfUrl);
+  }, [combinedPdfUrl]);
+
+  const closeCombinedPdf = useCallback(() => setCombinedPdfUrl(null), []);
 
   return (
     <div className="flex flex-col gap-5">

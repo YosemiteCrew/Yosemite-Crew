@@ -1005,22 +1005,25 @@ export const persistTreatmentItems = async (
   // Reconcile removals: any unbilled service/package row on the backend that the
   // clinician dropped from the local list must be deleted.
   const backendRows = await listEncounterTreatmentItems(organisationId, encounterId);
-  for (const row of backendRows) {
+  const removedRowIds = backendRows.flatMap((row) => {
     const rowId = asString(row.id);
-    if (!rowId || keptPersistedIds.has(rowId) || !isEditableServiceRow(row)) continue;
-    await deleteEncounterTreatmentItem(organisationId, rowId);
-  }
+    if (!rowId || keptPersistedIds.has(rowId) || !isEditableServiceRow(row)) return [];
+    return [rowId];
+  });
 
-  for (const item of items) {
-    if (isPersistedTreatmentId(item.id)) {
-      // Push edits to an existing row.
-      await updateEncounterTreatmentItem(
-        organisationId,
-        item.id,
-        lineItemToTreatmentUpdateDTO(item)
-      );
-    } else {
-      await createEncounterTreatmentItem(organisationId, encounterId, lineItemToTreatmentDTO(item));
-    }
-  }
+  // Each row is addressed by its own id, so the deletes are independent of one
+  // another and of their order. They still all settle before the writes below,
+  // which is the one ordering this function relies on.
+  await Promise.all(
+    removedRowIds.map((rowId) => deleteEncounterTreatmentItem(organisationId, rowId))
+  );
+
+  await Promise.all(
+    items.map((item) =>
+      isPersistedTreatmentId(item.id)
+        ? // Push edits to an existing row.
+          updateEncounterTreatmentItem(organisationId, item.id, lineItemToTreatmentUpdateDTO(item))
+        : createEncounterTreatmentItem(organisationId, encounterId, lineItemToTreatmentDTO(item))
+    )
+  );
 };

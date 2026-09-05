@@ -140,6 +140,24 @@ describe('Insights page', () => {
     expect(screen.getByText(/Tagged and published on GitHub Releases/)).toBeInTheDocument();
   });
 
+  test('keys sha-less commits apart instead of falling back to the index', () => {
+    // GitHub can answer without a sha, which `parseCommits` normalises to ''.
+    // Keying two of those on the empty sha collides, and React's duplicate-key
+    // console.error is a test failure here (jest.setup throws on it).
+    repo = {
+      ...defaultRepo,
+      commits: [
+        { ...defaultRepo.commits[0], sha: '', message: 'chore: bump deps', url: 'https://gh/c/9' },
+        { ...defaultRepo.commits[0], sha: '', message: 'docs: fix a typo', url: 'https://gh/c/8' },
+      ],
+    };
+
+    render(<Insights />);
+
+    expect(screen.getByText('chore: bump deps')).toBeInTheDocument();
+    expect(screen.getByText('docs: fix a typo')).toBeInTheDocument();
+  });
+
   test('renders a commit avatar image when the author has one', () => {
     repo = {
       ...defaultRepo,

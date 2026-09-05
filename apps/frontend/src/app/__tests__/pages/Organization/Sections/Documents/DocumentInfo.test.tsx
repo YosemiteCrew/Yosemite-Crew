@@ -1,36 +1,36 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 
-import DocumentInfo from "@/app/features/organization/pages/Organization/Sections/Documents/DocumentInfo";
+import DocumentInfo from '@/app/features/organization/pages/Organization/Sections/Documents/DocumentInfo';
 
 const updateDocumentMock = jest.fn();
 const deleteRoomMock = jest.fn();
 
-jest.mock("@/app/features/documents/services/documentService", () => ({
+jest.mock('@/app/features/documents/services/documentService', () => ({
   updateDocument: (...args: any[]) => updateDocumentMock(...args),
   deleteRoom: (...args: any[]) => deleteRoomMock(...args),
 }));
 
-jest.mock("@/app/ui/overlays/Modal", () => ({
+jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
   default: ({ showModal, children }: any) => (showModal ? <div>{children}</div> : null),
 }));
 
 const accordionCalls: any[] = [];
 
-jest.mock("@/app/ui/primitives/Accordion/EditableAccordion", () => (props: any) => {
+jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => (props: any) => {
   accordionCalls.push(props);
   return <div data-testid="document-accordion" />;
 });
 
-jest.mock("@/app/ui/widgets/UploadImage/DocUploader", () => (props: any) => (
-  <button type="button" onClick={() => props.onChange("updated.pdf")}>
+jest.mock('@/app/ui/widgets/UploadImage/DocUploader', () => (props: any) => (
+  <button type="button" onClick={() => props.onChange('updated.pdf')}>
     Upload
   </button>
 ));
 
-jest.mock("@/app/ui/primitives/Buttons", () => ({
+jest.mock('@/app/ui/primitives/Buttons', () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -43,7 +43,7 @@ jest.mock("@/app/ui/primitives/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/primitives/Icons/Close", () => ({
+jest.mock('@/app/ui/primitives/Icons/Close', () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -52,14 +52,14 @@ jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   ),
 }));
 
-describe("DocumentInfo modal", () => {
+describe('DocumentInfo modal', () => {
   const activeDocument: any = {
-    _id: "doc-1",
-    organisationId: "org-1",
-    fileUrl: "https://example.com/doc.pdf",
-    title: "Doc",
-    description: "Desc",
-    category: "POLICY",
+    _id: 'doc-1',
+    organisationId: 'org-1',
+    fileUrl: 'https://example.com/doc.pdf',
+    title: 'Doc',
+    description: 'Desc',
+    category: 'POLICY',
   };
 
   beforeEach(() => {
@@ -67,7 +67,7 @@ describe("DocumentInfo modal", () => {
     accordionCalls.length = 0;
   });
 
-  it("updates document info and file", async () => {
+  it('updates document info and file', async () => {
     const setShowModal = jest.fn();
     render(
       <DocumentInfo
@@ -79,25 +79,47 @@ describe("DocumentInfo modal", () => {
     );
 
     await accordionCalls[0].onSave({
-      title: "Updated",
-      description: "New",
-      category: "OTHER",
+      title: 'Updated',
+      description: 'New',
+      category: 'OTHER',
     });
 
     expect(updateDocumentMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        _id: "doc-1",
-        title: "Updated",
-        description: "New",
-        category: "OTHER",
+        _id: 'doc-1',
+        title: 'Updated',
+        description: 'New',
+        category: 'OTHER',
       })
     );
 
-    fireEvent.click(screen.getByText("Upload"));
-    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(screen.getByText('Upload'));
+    fireEvent.click(screen.getByText('Save'));
 
     expect(updateDocumentMock).toHaveBeenCalledWith(
-      expect.objectContaining({ fileUrl: "updated.pdf" })
+      expect.objectContaining({ fileUrl: 'updated.pdf' })
     );
+  });
+
+  it('opens the download in a new tab with noopener and noreferrer', () => {
+    const openSpy = jest.spyOn(globalThis, 'open').mockImplementation(() => null);
+
+    render(
+      <DocumentInfo
+        showModal
+        setShowModal={jest.fn()}
+        activeDocument={activeDocument}
+        canEditDocument={false}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Download document'));
+
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://example.com/doc.pdf',
+      '_blank',
+      'noopener,noreferrer'
+    );
+    openSpy.mockRestore();
   });
 });

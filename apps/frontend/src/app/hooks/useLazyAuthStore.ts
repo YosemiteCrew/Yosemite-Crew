@@ -88,23 +88,27 @@ export function useLazyAuthSlice<T>(
   });
 
   useEffect(() => {
-    if (!enabled) {
-      // Drop back to the fallback rather than keeping the last slice read. A
-      // caller disables this hook because it is no longer entitled to the value
-      // - PostHogUserSync does it when analytics consent is revoked - and
-      // retaining it would hand back the previous session's auth state. If the
-      // user then signs out and re-consents, the stale value would identify
-      // analytics events to the account that just left.
-      setValue(initialRef.current);
-      return undefined;
-    }
+    if (!enabled) return undefined;
 
-    return subscribeToAuthStore((state) =>
+    const unsubscribe = subscribeToAuthStore((state) =>
       setValue((previous) => {
         const next = selectRef.current(state);
         return isEqualRef.current(previous, next) ? previous : next;
       })
     );
+
+    return () => {
+      unsubscribe();
+      // Drop back to the fallback rather than keeping the last slice read. A
+      // caller disables this hook because it is no longer entitled to the value
+      // - PostHogUserSync does it when analytics consent is revoked - and
+      // retaining it would hand back the previous session's auth state. If the
+      // user then signs out and re-consents, the stale value would identify
+      // analytics events to the account that just left. Doing it here rather
+      // than in the disabled branch keeps the reset paired with the
+      // unsubscribe, so no code path can drop one without the other.
+      setValue(initialRef.current);
+    };
   }, [enabled]);
 
   return value;

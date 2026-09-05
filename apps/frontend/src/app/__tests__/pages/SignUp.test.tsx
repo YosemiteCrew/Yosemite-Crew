@@ -217,6 +217,21 @@ describe('SignUp page', () => {
     });
   });
 
+  test('clears the loader when the signup resolves without a result', async () => {
+    // The falsy branch opens no verification modal, so nothing else clears the
+    // flag: without the reset the loader and the disabled button stayed up for
+    // the life of the page and the visitor could not retry.
+    authStoreMock.signUp.mockResolvedValue(undefined);
+
+    render(<SignUp />);
+    fillValidForm();
+    fireEvent.click(getSubmitBtn());
+
+    await waitFor(() => expect(screen.queryByTestId('signup-loader')).not.toBeInTheDocument());
+    expect(getSubmitBtn()).toBeEnabled();
+    expect(latestOtpModalProps?.showVerifyModal).toBeFalsy();
+  });
+
   test('surfaces toast error when Cognito returns UsernameExistsException', async () => {
     authStoreMock.signUp.mockRejectedValue({
       code: 'UsernameExistsException',

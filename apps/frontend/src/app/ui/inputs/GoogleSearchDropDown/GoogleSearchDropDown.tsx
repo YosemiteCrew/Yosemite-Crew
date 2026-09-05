@@ -206,13 +206,14 @@ const GoogleSearchDropDown = ({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const suppressNextOpenRef = useRef(false);
   const shouldFetchRef = useRef(false);
+  const trimmedValue = (value ?? '').trim();
   // Seeded with the initial value so a pre-filled field does not re-query itself. This used to be a
   // render-phase `lastQueriedRef.current ??= ...`; useRef's argument is only read on mount, which is
   // the same one-shot seeding without mutating a ref during render.
-  const lastQueriedRef = useRef<string>((value ?? '').trim());
+  const lastQueriedRef = useRef<string>(trimmedValue);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const fetchDetails = true;
-  const canShowPredictions = !readonly && (value ?? '').trim().length >= 2;
+  const canShowPredictions = !readonly && trimmedValue.length >= 2;
   const isDropdownOpen = open && canShowPredictions;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -416,10 +417,10 @@ const GoogleSearchDropDown = ({
           className="border-[var(--blue)] max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-[12px] border-l border-r border-b bg-neutral-0 flex flex-col items-center w-full px-[12px] py-[10px]"
           onPointerDown={(e) => e.preventDefault()}
         >
-          {predictions?.map((pred, index: number) => (
+          {predictions?.map((pred) => (
             <button
               className="flex w-full flex-col items-start gap-1 rounded-2xl! px-[1.25rem] py-2 text-left hover:bg-card-hover"
-              key={pred.placeId ?? `${pred.kind}-${pred.description}-${index}`}
+              key={pred.placeId ?? `${pred.kind}-${pred.description}`}
               type="button"
               onMouseDown={(e) => {
                 e.preventDefault();

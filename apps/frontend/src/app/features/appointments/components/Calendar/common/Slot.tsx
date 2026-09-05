@@ -196,16 +196,21 @@ const SlotComponent: React.FC<SlotProps> = ({
   const popoverStyle = getPopoverStyle(440, 490);
 
   // Dismiss the popover, drop preview, and context menu the moment a drag starts —
-  // adjusted during render via a prev-compare rather than an effect.
+  // adjusted during render via a prev-compare rather than an effect. The menu is
+  // hidden by remembering the open menu object rather than by calling the
+  // interaction hook's setter during render; a later right-click builds a fresh
+  // object, so it is no longer the suppressed one and shows again.
   const [prevDraggedAppointmentId, setPrevDraggedAppointmentId] = useState(draggedAppointmentId);
+  const [suppressedContextMenu, setSuppressedContextMenu] = useState<typeof contextMenu>(null);
   if (draggedAppointmentId !== prevDraggedAppointmentId) {
     setPrevDraggedAppointmentId(draggedAppointmentId);
     if (draggedAppointmentId) {
       setActivePopoverKey(null);
       setDropPreviewMinute(null);
-      setContextMenu(null);
+      setSuppressedContextMenu(contextMenu);
     }
   }
+  const visibleContextMenu = contextMenu === suppressedContextMenu ? null : contextMenu;
 
   const getMinuteFromSlotPointer = (clientY: number, container: HTMLDivElement) =>
     minuteFromSlotPointer(clientY, container, dropHour);
@@ -361,7 +366,7 @@ const SlotComponent: React.FC<SlotProps> = ({
         popoverDialogRef={popoverDialogRef}
         popoverStyle={popoverStyle}
         registerAnchorEl={registerAnchorEl}
-        contextMenu={contextMenu}
+        contextMenu={visibleContextMenu}
         contextMenuRef={contextMenuRef}
         contextMenuStyle={contextMenuStyle}
         handleViewAppointment={handleViewAppointment}

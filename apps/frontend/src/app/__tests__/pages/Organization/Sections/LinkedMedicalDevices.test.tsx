@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import LinkedMedicalDevices from '@/app/features/organization/pages/Organization/Sections/LinkedMedicalDevices';
 import { loadIntegrationsForPrimaryOrg } from '@/app/hooks/useIntegrations';
@@ -331,5 +331,35 @@ describe('LinkedMedicalDevices', () => {
     await waitFor(() =>
       expect(screen.getByText('No linked IVLS devices found.')).toBeInTheDocument()
     );
+  });
+
+  it('drops a device list that lands after the integration was disabled', async () => {
+    /* The effect re-runs on the integration status, so a request started while
+       IDEXX was enabled can still be in flight when it is turned off. Its answer
+       used to land last and repopulate the list the disabled branch had just
+       cleared. */
+    let resolveDevices!: (value: unknown) => void;
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'enabled' });
+    listIdexxIvlsDevicesMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveDevices = resolve;
+      })
+    );
+
+    const { rerender } = render(<LinkedMedicalDevices />);
+    await waitFor(() => expect(listIdexxIvlsDevicesMock).toHaveBeenCalledTimes(1));
+
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'disabled' });
+    rerender(<LinkedMedicalDevices />);
+    await waitFor(() =>
+      expect(screen.getByText('No linked IVLS devices found.')).toBeInTheDocument()
+    );
+
+    await act(async () => {
+      resolveDevices({ ivlsDeviceList: [device({ displayName: 'Stale Analyser' })] });
+    });
+
+    expect(screen.queryByText('Stale Analyser')).not.toBeInTheDocument();
+    expect(screen.getByText('No linked IVLS devices found.')).toBeInTheDocument();
   });
 });

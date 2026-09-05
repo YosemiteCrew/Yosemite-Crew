@@ -379,6 +379,7 @@ const SoapStep = ({
     // engine): "Saving…" now, then "Autosaved" on success or "Offline" on failure.
     setSaveStatus(appointmentId, 'saving');
     let persistedId: string | undefined;
+    let saveFailed = false;
     try {
       if (organisationId) {
         const noteForSave =
@@ -407,20 +408,22 @@ const SoapStep = ({
       } else {
         signSoap(appointmentId, authorName?.trim() || encounter.leadName || 'Clinician', false);
       }
+      // Only reached when the save succeeded (or there was nothing to persist).
+      setSaveStatus(appointmentId, 'saved');
     } catch (error) {
       // Do NOT advance or mark COMPLETED on a failed save — that would show an
       // unsaved clinical note as signed. Surface the backend error and stop.
+      saveFailed = true;
       console.error('Unable to persist SOAP note:', error);
       setSaveError(
         error instanceof Error ? error.message : 'Unable to save the SOAP note. Please try again.'
       );
       setSaveStatus(appointmentId, 'offline');
+    } finally {
+      // In `finally` so a throw from anywhere above can never strand the spinner.
       setIsSaving(false);
-      return;
     }
-    // Only reached when the save succeeded (or there was nothing to persist).
-    setSaveStatus(appointmentId, 'saved');
-    setIsSaving(false);
+    if (saveFailed) return;
     onSaveAndNext();
   };
 

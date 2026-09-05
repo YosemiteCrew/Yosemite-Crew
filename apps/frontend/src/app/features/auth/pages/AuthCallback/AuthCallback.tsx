@@ -57,13 +57,19 @@ const messageStyle: CSSProperties = {
 const backLinkStyle: CSSProperties = { padding: '13px 22px', borderRadius: 9999, fontSize: 15 };
 
 /**
+ * The handshake has exactly one terminal outcome, so it is held as one piece of
+ * state rather than two independent slots that could both be set.
+ */
+type CallbackOutcome =
+  { kind: 'redirect'; redirectTo: string } | { kind: 'error'; message: string };
+
+/**
  * Completes the SuperTokens GitHub sign in on the OAuth redirect: SuperTokens
  * exchanges the code + state (read from the URL) via the backend GitHub provider,
  * establishes the session, and forwards the developer onward.
  */
 export default function AuthCallback() {
-  const [error, setError] = useState<string | null>(null);
-  const [redirectTo, setRedirectTo] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<CallbackOutcome | null>(null);
   const startedRef = useRef(false);
 
   // The handshake must run in the browser (it reads the OAuth code + state from the URL
@@ -76,12 +82,15 @@ export default function AuthCallback() {
 
     completeGithubSignIn()
       .then(({ redirectTo: nextRoute }) => {
-        setRedirectTo(nextRoute);
+        setOutcome({ kind: 'redirect', redirectTo: nextRoute });
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : GENERIC_ERROR);
+        setOutcome({ kind: 'error', message: err instanceof Error ? err.message : GENERIC_ERROR });
       });
   }, []);
+
+  const redirectTo = outcome?.kind === 'redirect' ? outcome.redirectTo : null;
+  const error = outcome?.kind === 'error' ? outcome.message : null;
 
   if (redirectTo) {
     redirect(redirectTo);

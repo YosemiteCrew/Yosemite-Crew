@@ -520,6 +520,159 @@ const pruneSelectionsOutsideSlotScope = (
   }));
 };
 
+const NO_LEAD_FOR_SLOT = 'No lead is available for this slot. Please choose another slot.';
+
+type AppointmentLead = NonNullable<AppointmentWithCompanion['lead']>;
+
+/**
+ * `keepLead` means "leave `formData.lead` exactly as it is" - the caller passes
+ * `prev` straight back so React bails out instead of minting a new form object.
+ * `commitLeadId` is the value to stamp on the current-lead ref, or `null` for
+ * "do not touch the ref" (distinct from the empty string, which clears it).
+ */
+type LeadForSlotResolution = {
+  clearSlot: boolean;
+  keepLead: boolean;
+  lead: AppointmentLead | undefined;
+  commitLeadId: string | null;
+  slotError: string | undefined;
+  leadIdError: string | undefined;
+};
+
+const toAppointmentLead = (
+  option: LeadOption,
+  getLeadProfileUrl: (leadId: string) => string | undefined
+): AppointmentLead => ({
+  id: option.value,
+  name: option.label,
+  profileUrl: getLeadProfileUrl(option.value),
+});
+
+/** Reconciles `formData.lead` with the leads the newly selected slot actually offers. */
+const resolveLeadForSelectedSlot = (
+  options: LeadOption[],
+  currentLeadId: string,
+  prefillLeadId: string,
+  normalizeId: (value?: string) => string,
+  getLeadProfileUrl: (leadId: string) => string | undefined
+): LeadForSlotResolution => {
+  const untouched: LeadForSlotResolution = {
+    clearSlot: false,
+    keepLead: true,
+    lead: undefined,
+    commitLeadId: null,
+    slotError: undefined,
+    leadIdError: undefined,
+  };
+
+  if (options.length === 0) {
+    return {
+      ...untouched,
+      clearSlot: true,
+      keepLead: false,
+      slotError: NO_LEAD_FOR_SLOT,
+      leadIdError: 'No lead is available for this slot.',
+    };
+  }
+
+  if (options.length === 1) {
+    const onlyLead = options[0];
+    if (currentLeadId === onlyLead.value) return untouched;
+    return { ...untouched, keepLead: false, lead: toAppointmentLead(onlyLead, getLeadProfileUrl) };
+  }
+
+  if (options.some((option) => option.value === currentLeadId)) return untouched;
+
+  // Try to match the prefill lead regardless of flow mode.
+  const matchedPrefillLead = prefillLeadId
+    ? options.find((option) => normalizeId(option.value) === normalizeId(prefillLeadId))
+    : undefined;
+  if (matchedPrefillLead) {
+    return {
+      ...untouched,
+      keepLead: false,
+      lead: toAppointmentLead(matchedPrefillLead, getLeadProfileUrl),
+      commitLeadId: matchedPrefillLead.value,
+    };
+  }
+
+  return { ...untouched, keepLead: false };
+};
+
+/**
+ * `errors` is `null` when the prefill must not touch the error map at all, and a
+ * partial patch otherwise - the multi-lead case deliberately leaves `slot` alone.
+ */
+type PrefillLeadOutcome = {
+  keepLead: boolean;
+  lead: AppointmentLead | undefined;
+  commitLeadId: string | null;
+  errors: Partial<AppointmentFormErrors> | null;
+};
+
+const CLEARED_SLOT_ERRORS: Partial<AppointmentFormErrors> = { slot: undefined, leadId: undefined };
+
+/** Decides which lead a non-calendar prefill lands on once its slot has been matched. */
+const resolvePrefillLeadOutcome = (
+  leadOptionsForSlot: LeadOption[],
+  prefillLeadId: string | undefined,
+  normalizeId: (value?: string) => string,
+  getLeadProfileUrl: (leadId: string) => string | undefined
+): PrefillLeadOutcome => {
+  const onlyLead = leadOptionsForSlot.length === 1 ? leadOptionsForSlot[0] : undefined;
+
+  if (prefillLeadId) {
+    const prefillLeadOption = leadOptionsForSlot.find(
+      (option) => normalizeId(option.value) === normalizeId(prefillLeadId)
+    );
+    if (prefillLeadOption) {
+      // Prefill lead supports this slot — keep it. Stamp ref so selectedSlot effect
+      // sees it as already committed and does not clear it.
+      return {
+        keepLead: false,
+        lead: toAppointmentLead(prefillLeadOption, getLeadProfileUrl),
+        commitLeadId: prefillLeadOption.value,
+        errors: CLEARED_SLOT_ERRORS,
+      };
+    }
+    if (onlyLead) {
+      // Prefill lead not available for this service/slot, but only one other lead is —
+      // auto-select that one and clear the prefill lead.
+      return {
+        keepLead: false,
+        lead: toAppointmentLead(onlyLead, getLeadProfileUrl),
+        commitLeadId: onlyLead.value,
+        errors: CLEARED_SLOT_ERRORS,
+      };
+    }
+    // Prefill lead not available and multiple other leads exist — clear prefill lead,
+    // require manual selection.
+    return {
+      keepLead: false,
+      lead: undefined,
+      commitLeadId: '',
+      errors: {
+        leadId:
+          leadOptionsForSlot.length > 1
+            ? 'Multiple leads are available for this service. Please choose a lead.'
+            : NO_LEAD_FOR_SLOT,
+      },
+    };
+  }
+
+  if (onlyLead) {
+    // No prefill lead — auto-select if only one available.
+    return {
+      keepLead: false,
+      lead: toAppointmentLead(onlyLead, getLeadProfileUrl),
+      commitLeadId: onlyLead.value,
+      errors: CLEARED_SLOT_ERRORS,
+    };
+  }
+
+  return { keepLead: true, lead: undefined, commitLeadId: null, errors: null };
+};
+
 export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const {
     onSuccess,
@@ -847,7 +1000,6 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
           slot: 'Selected calendar slot is unavailable. Please choose another slot.',
         }));
         setPendingPrefill(null);
-        setIsLoadingSlotScopedOptions(false);
         return;
       }
 
@@ -877,16 +1029,20 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
         slot: undefined,
       }));
       setPendingPrefill(null);
-      setIsLoadingSlotScopedOptions(false);
     };
 
-    resolveSlotScopedOptions().catch(() => {
-      if (!cancelled) {
-        setSlotScopedSpecialityIds([]);
-        setSlotScopedServicesBySpecialityId({});
+    // The reset lives in `finally` so a rejection - or an early return from any
+    // branch above - can never strand the slot-options spinner on forever.
+    resolveSlotScopedOptions()
+      .catch(() => {
+        if (!cancelled) {
+          setSlotScopedSpecialityIds([]);
+          setSlotScopedServicesBySpecialityId({});
+        }
+      })
+      .finally(() => {
         setIsLoadingSlotScopedOptions(false);
-      }
-    });
+      });
     return () => {
       cancelled = true;
     };
@@ -957,59 +1113,21 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
 
   useEffect(() => {
     if (!selectedSlot) return;
-    const options = getLeadOptionsRef.current(selectedSlot);
-    const currentLeadId = currentLeadIdRef.current;
-    if (options.length === 0) {
-      setSelectedSlot(null);
-      setFormData((prev) => ({ ...prev, lead: undefined }));
-      setFormDataErrors((prev) => ({
-        ...prev,
-        slot: 'No lead is available for this slot. Please choose another slot.',
-        leadId: 'No lead is available for this slot.',
-      }));
-      return;
-    }
-    if (options.length === 1) {
-      const onlyLead = options[0];
-      if (currentLeadId !== onlyLead.value) {
-        setFormData((prev) => ({
-          ...prev,
-          lead: {
-            id: onlyLead.value,
-            name: onlyLead.label,
-            profileUrl: getLeadProfileUrlRef.current(onlyLead.value),
-          },
-        }));
-      }
-      setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
-      return;
-    }
-    const hasValidLead = options.some((option) => option.value === currentLeadId);
-    if (!hasValidLead) {
-      // Try to match the prefill lead regardless of flow mode.
-      if (prefillLeadIdRef.current) {
-        const matchedPrefillLead = options.find(
-          (option) => normalizeId(option.value) === normalizeId(prefillLeadIdRef.current)
-        );
-        if (matchedPrefillLead) {
-          currentLeadIdRef.current = matchedPrefillLead.value;
-          setFormData((prev) => ({
-            ...prev,
-            lead: {
-              id: matchedPrefillLead.value,
-              name: matchedPrefillLead.label,
-              profileUrl: getLeadProfileUrlRef.current(matchedPrefillLead.value),
-            },
-          }));
-          setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
-          return;
-        }
-      }
-      setFormData((prev) => ({ ...prev, lead: undefined }));
-      setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
-      return;
-    }
-    setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
+    const resolution = resolveLeadForSelectedSlot(
+      getLeadOptionsRef.current(selectedSlot),
+      currentLeadIdRef.current,
+      prefillLeadIdRef.current,
+      normalizeId,
+      getLeadProfileUrlRef.current
+    );
+    if (resolution.commitLeadId !== null) currentLeadIdRef.current = resolution.commitLeadId;
+    setSelectedSlot((prev) => (resolution.clearSlot ? null : prev));
+    setFormData((prev) => (resolution.keepLead ? prev : { ...prev, lead: resolution.lead }));
+    setFormDataErrors((prev) => ({
+      ...prev,
+      slot: resolution.slotError,
+      leadId: resolution.leadIdError,
+    }));
   }, [calendarSlotFlow, normalizeId, selectedSlot]);
 
   useEffect(() => {
@@ -1030,74 +1148,26 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       return diff < Math.abs(getSlotStartMinute(best) - minute) ? slot : best;
     }, null);
 
-    if (!matchingSlot) {
-      setPendingPrefill(null);
-      return;
+    const outcome = matchingSlot
+      ? resolvePrefillLeadOutcome(
+          getLeadOptionsForSlot(matchingSlot),
+          pendingPrefill.leadId,
+          normalizeId,
+          getLeadProfileUrl
+        )
+      : null;
+
+    if (outcome) {
+      if (outcome.commitLeadId !== null) currentLeadIdRef.current = outcome.commitLeadId;
+      setFormData((prev) => (outcome.keepLead ? prev : { ...prev, lead: outcome.lead }));
+      setFormDataErrors((prev) => (outcome.errors ? { ...prev, ...outcome.errors } : prev));
     }
 
-    const leadOptionsForSlot = getLeadOptionsForSlot(matchingSlot);
-
-    if (pendingPrefill.leadId) {
-      const prefillLeadOption = leadOptionsForSlot.find(
-        (option) => normalizeId(option.value) === normalizeId(pendingPrefill.leadId)
-      );
-      if (prefillLeadOption) {
-        // Prefill lead supports this slot — keep it. Stamp ref so selectedSlot effect
-        // sees it as already committed and does not clear it.
-        currentLeadIdRef.current = prefillLeadOption.value;
-        setFormData((prev) => ({
-          ...prev,
-          lead: {
-            id: prefillLeadOption.value,
-            name: prefillLeadOption.label,
-            profileUrl: getLeadProfileUrl(prefillLeadOption.value),
-          },
-        }));
-        setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
-      } else if (leadOptionsForSlot.length === 1) {
-        // Prefill lead not available for this service/slot, but only one other lead is —
-        // auto-select that one and clear the prefill lead.
-        const onlyLead = leadOptionsForSlot[0];
-        currentLeadIdRef.current = onlyLead.value;
-        setFormData((prev) => ({
-          ...prev,
-          lead: {
-            id: onlyLead.value,
-            name: onlyLead.label,
-            profileUrl: getLeadProfileUrl(onlyLead.value),
-          },
-        }));
-        setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
-      } else {
-        // Prefill lead not available and multiple other leads exist — clear prefill lead,
-        // require manual selection.
-        currentLeadIdRef.current = '';
-        setFormData((prev) => ({ ...prev, lead: undefined }));
-        setFormDataErrors((prev) => ({
-          ...prev,
-          leadId:
-            leadOptionsForSlot.length > 1
-              ? 'Multiple leads are available for this service. Please choose a lead.'
-              : 'No lead is available for this slot. Please choose another slot.',
-        }));
-      }
-    } else if (leadOptionsForSlot.length === 1) {
-      // No prefill lead — auto-select if only one available.
-      const onlyLead = leadOptionsForSlot[0];
-      currentLeadIdRef.current = onlyLead.value;
-      setFormData((prev) => ({
-        ...prev,
-        lead: {
-          id: onlyLead.value,
-          name: onlyLead.label,
-          profileUrl: getLeadProfileUrl(onlyLead.value),
-        },
-      }));
-      setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
-    }
-
-    setSelectedSlot(matchingSlot);
-    setPendingPrefill(null);
+    setSelectedSlot((prev) => matchingSlot ?? prev);
+    // The prefill is consumed either way - applied to the matched slot, or dropped
+    // because nothing matched. Compare-and-swap so a newer prefill queued while this
+    // effect was pending is not thrown away.
+    setPendingPrefill((prev) => (prev === pendingPrefill ? null : prev));
   }, [
     calendarSlotFlow,
     formData.appointmentType?.id,

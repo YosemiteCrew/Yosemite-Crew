@@ -106,7 +106,7 @@ const DocumentInfo = ({
   };
 
   const handleDownload = () => {
-    globalThis.open(activeDocument.fileUrl, '_blank');
+    globalThis.open(activeDocument.fileUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (

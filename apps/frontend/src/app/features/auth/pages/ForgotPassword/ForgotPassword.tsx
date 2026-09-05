@@ -116,7 +116,6 @@ const ForgotPassword = () => {
         setSentTo(normalized);
         return;
       }
-      setIsSubmitting(false);
       showErrorTost({
         message:
           error instanceof Error
@@ -133,6 +132,9 @@ const ForgotPassword = () => {
         ),
         className: 'errofoundbg',
       });
+    } finally {
+      // In `finally` so a rejected send can never strand the button on "Sending...".
+      setIsSubmitting(false);
     }
   };
 
@@ -168,14 +170,7 @@ const ForgotPassword = () => {
             </AuthSubtitle>
             <AuthAltNote>
               Did not get it? Check spam, or{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setSentTo(null);
-                  setIsSubmitting(false);
-                }}
-                style={RETRY_BUTTON_STYLE}
-              >
+              <button type="button" onClick={() => setSentTo(null)} style={RETRY_BUTTON_STYLE}>
                 try another email
               </button>
               {'.'}

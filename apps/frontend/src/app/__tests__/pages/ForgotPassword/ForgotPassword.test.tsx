@@ -127,6 +127,9 @@ describe('ForgotPassword page (reset link flow)', () => {
 
     expect(screen.getByLabelText('Work email')).toBeInTheDocument();
     expect(screen.queryByTestId('forgot-sent')).not.toBeInTheDocument();
+    // The submit handler cleared `isSubmitting` in its `finally`, so the form the
+    // user comes back to is live rather than stuck on a disabled "Sending...".
+    expect(screen.getByRole('button', { name: 'Send reset link' })).toBeEnabled();
   });
 
   test('surfaces a toast when the request fails and stays on the form', async () => {
@@ -141,6 +144,7 @@ describe('ForgotPassword page (reset link flow)', () => {
       )
     );
     expect(screen.getByLabelText('Work email')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send reset link' })).toBeEnabled();
   });
 
   test('treats a not-allowed reset as a neutral confirmation without leaking the reason', async () => {

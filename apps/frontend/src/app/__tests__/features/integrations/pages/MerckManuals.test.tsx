@@ -476,6 +476,39 @@ describe('MerckManuals page', () => {
     }
   });
 
+  it('keeps the reader load timeout on its original deadline across a page re-render', async () => {
+    jest.useFakeTimers();
+    try {
+      render(<ProtectedMerckManuals />);
+      fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fever' } });
+      fireEvent.click(screen.getByText('Search'));
+      await waitFor(() => expect(screen.getByText('Canine Fever')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByText('Open'));
+      await screen.findByTitle('Canine Fever');
+
+      act(() => {
+        jest.advanceTimersByTime(11000);
+      });
+
+      // Typing in the search field behind the reader re-renders the page. The 12s
+      // deadline has to survive that: if the reader's setters were rebuilt on every
+      // render, the timeout effect would re-subscribe here and the spinner would never
+      // fall back.
+      act(() => {
+        fireEvent.change(screen.getByLabelText('Search manuals'), { target: { value: 'fevers' } });
+      });
+      act(() => {
+        jest.advanceTimersByTime(1500);
+      });
+
+      expect(screen.getByText('This manual didn’t load')).toBeInTheDocument();
+      expect(screen.queryByTitle('Canine Fever')).not.toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('resets the blocked fallback when a new reader is opened', async () => {
     jest.useFakeTimers();
     try {

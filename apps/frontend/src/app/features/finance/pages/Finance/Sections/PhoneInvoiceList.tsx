@@ -237,9 +237,12 @@ const PhoneInvoiceList = ({
         </output>
       ) : (
         <div className="flex flex-col gap-2.5">
-          {cards.map(({ invoice, appointment, ownerAndCompanion }, index) => (
+          {cards.map(({ invoice, appointment, ownerAndCompanion }) => (
             <PhoneInvoiceCard
-              key={invoice.id ?? `invoice-${index}`}
+              key={
+                invoice.id ??
+                `${invoice.appointmentId ?? invoice.patientId ?? 'unlinked'}-${invoice.status}-${invoice.totalAmount}`
+              }
               invoice={invoice}
               appointment={appointment}
               ownerAndCompanion={ownerAndCompanion}

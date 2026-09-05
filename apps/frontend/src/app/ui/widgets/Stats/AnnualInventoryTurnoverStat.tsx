@@ -20,7 +20,7 @@ const AnnualInventoryTurnoverStat = () => {
           const isPeak = point.turnover === maxTurnover && maxTurnover > 0;
           return (
             <div
-              key={`${point.month}-${point.year}-${index + 1}`}
+              key={`${point.year}-${point.month}`}
               className="flex h-full flex-1 flex-col items-center justify-end gap-1"
             >
               <div

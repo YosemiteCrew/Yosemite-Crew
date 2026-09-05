@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useReducer, useState } from 'react';
 import Image from 'next/image';
 import Switch from '@/app/ui/primitives/Switch/Switch';
 import {
@@ -506,6 +506,103 @@ const resolveSavedMessage = (saved: BookingPageConfig): string => {
   return 'Saved. Your booking page is closed to pet parents until you open it.';
 };
 
+/**
+ * The booking page is one form, not nine independent switches: a load fills the
+ * whole thing at once, a failed load clears it, and a save both records the
+ * stored config and drops the local selection override. Keeping those fields in
+ * one reducer makes each of those a single named transition instead of a run of
+ * setters that has to be kept in step by hand.
+ *
+ * `selectionOverride` and `publishOverride` stay null until the practice
+ * actually touches a control - that is what lets the visible value derive from
+ * the stored config during render rather than from an effect.
+ */
+type BookingSetupState = {
+  config: BookingPageConfig | null;
+  loadFailed: boolean;
+  selectionOverride: Set<string> | null;
+  bookingWindowDays: number;
+  bufferMinutes: number;
+  needsConfirmation: boolean;
+  welcome: string;
+  replyTo: string;
+  publishOverride: boolean | null;
+};
+
+type BookingSetupAction =
+  | { type: 'loaded'; config: BookingPageConfig }
+  | { type: 'loadFailed' }
+  | { type: 'saved'; config: BookingPageConfig }
+  | { type: 'toggleService'; id: string; visible: Set<string> }
+  | { type: 'bookingWindowDays'; value: number }
+  | { type: 'bufferMinutes'; value: number }
+  | { type: 'toggleConfirmation' }
+  | { type: 'welcome'; value: string }
+  | { type: 'replyTo'; value: string }
+  | { type: 'publish'; value: boolean };
+
+const initialBookingSetupState = (orgName: string): BookingSetupState => ({
+  config: null,
+  loadFailed: false,
+  selectionOverride: null,
+  bookingWindowDays: WINDOW_OPTIONS[1].days,
+  bufferMinutes: BUFFER_OPTIONS[1].minutes,
+  needsConfirmation: true,
+  welcome: `Book a visit for your companion at ${orgName}.`,
+  replyTo: '',
+  publishOverride: null,
+});
+
+const bookingSetupReducer = (
+  state: BookingSetupState,
+  action: BookingSetupAction
+): BookingSetupState => {
+  switch (action.type) {
+    case 'loaded':
+      return {
+        ...state,
+        config: action.config,
+        loadFailed: false,
+        bookingWindowDays: action.config.bookingWindowDays,
+        bufferMinutes: action.config.bufferMinutes,
+        needsConfirmation: !action.config.autoConfirm,
+        publishOverride: null,
+        // A stored blank keeps the generated greeting rather than emptying the
+        // field, which is what the two guarded setters here used to do.
+        welcome: action.config.welcomeMessage || state.welcome,
+        replyTo: action.config.replyToEmail || state.replyTo,
+      };
+    case 'loadFailed':
+      // `config` is cleared too, because it is what decides whether a booking
+      // address is shown at all.
+      return { ...state, config: null, loadFailed: true };
+    case 'saved':
+      return { ...state, config: action.config, selectionOverride: null };
+    case 'toggleService': {
+      // Seeded from what is on screen, not from every bookable id: before the
+      // first toggle the override is null and the visible selection is the
+      // stored one, so seeding from all of them would silently re-select
+      // services the practice had removed.
+      const next = new Set(state.selectionOverride ?? action.visible);
+      if (next.has(action.id)) next.delete(action.id);
+      else next.add(action.id);
+      return { ...state, selectionOverride: next };
+    }
+    case 'bookingWindowDays':
+      return { ...state, bookingWindowDays: action.value };
+    case 'bufferMinutes':
+      return { ...state, bufferMinutes: action.value };
+    case 'toggleConfirmation':
+      return { ...state, needsConfirmation: !state.needsConfirmation };
+    case 'welcome':
+      return { ...state, welcome: action.value };
+    case 'replyTo':
+      return { ...state, replyTo: action.value };
+    case 'publish':
+      return { ...state, publishOverride: action.value };
+  }
+};
+
 const PublicBookingSetup = () => {
   const { notify } = useNotify();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
@@ -529,19 +626,22 @@ const PublicBookingSetup = () => {
   );
 
   const [step, setStep] = useState<1 | 2>(1);
+  const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
   // Every bookable service starts selected; `selectionOverride` holds the user's
   // explicit choices once they toggle, so selection derives from render, not an effect.
-  const [selectionOverride, setSelectionOverride] = useState<Set<string> | null>(null);
-  const [bookingWindowDays, setBookingWindowDays] = useState(WINDOW_OPTIONS[1].days);
-  const [bufferMinutes, setBufferMinutes] = useState(BUFFER_OPTIONS[1].minutes);
-  const [needsConfirmation, setNeedsConfirmation] = useState(true);
-  const [welcome, setWelcome] = useState(`Book a visit for your companion at ${orgName}.`);
-  const [replyTo, setReplyTo] = useState('');
-  const [copied, setCopied] = useState(false);
-  const [config, setConfig] = useState<BookingPageConfig | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [publishOverride, setPublishOverride] = useState<boolean | null>(null);
+  const [form, dispatch] = useReducer(bookingSetupReducer, orgName, initialBookingSetupState);
+  const {
+    config,
+    loadFailed,
+    selectionOverride,
+    bookingWindowDays,
+    bufferMinutes,
+    needsConfirmation,
+    welcome,
+    replyTo,
+    publishOverride,
+  } = form;
 
   // A practice that has saved before gets its own selection back, including a
   // deliberate empty one; a practice that has never saved gets everything
@@ -591,25 +691,15 @@ const PublicBookingSetup = () => {
       .getConfig(primaryOrgId)
       .then((loaded) => {
         if (cancelled) return;
-        setLoadFailed(false);
-        setConfig(loaded);
-        setBookingWindowDays(loaded.bookingWindowDays);
-        setBufferMinutes(loaded.bufferMinutes);
-        setNeedsConfirmation(!loaded.autoConfirm);
-        setPublishOverride(null);
-        if (loaded.welcomeMessage) setWelcome(loaded.welcomeMessage);
-        if (loaded.replyToEmail) setReplyTo(loaded.replyToEmail);
+        dispatch({ type: 'loaded', config: loaded });
       })
       .catch(() => {
         // A failed load leaves the form on its defaults, which are NOT this
         // practice's settings. Saving them would overwrite a stored selection
         // with defaults the user never chose, turning a transient read outage
         // into data loss - so record the failure and let it disable saving.
-        // `config` is also cleared, because it is what decides whether a
-        // booking address is shown at all.
         if (cancelled) return;
-        setConfig(null);
-        setLoadFailed(true);
+        dispatch({ type: 'loadFailed' });
       });
 
     return () => {
@@ -617,17 +707,8 @@ const PublicBookingSetup = () => {
     };
   }, [primaryOrgId]);
 
-  const toggleService = (id: string) => {
-    setSelectionOverride((prev) => {
-      // `selected`, not `allBookableIds`: before the first toggle the override is
-      // null and the visible selection is the stored one, so seeding from every
-      // bookable id would silently re-select services the practice had removed.
-      const next = new Set(prev ?? selected);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  // `selected`, not `allBookableIds`: the reducer seeds from what is on screen.
+  const toggleService = (id: string) => dispatch({ type: 'toggleService', id, visible: selected });
 
   // Takes the address as an argument rather than reading it back out of state:
   // the only caller is the button inside the published branch, which already
@@ -656,8 +737,7 @@ const PublicBookingSetup = () => {
         publicBookingEnabled: publish,
       })
       .then((saved) => {
-        setConfig(saved);
-        setSelectionOverride(null);
+        dispatch({ type: 'saved', config: saved });
         notify('success', {
           title: 'Booking setup saved',
           text: resolveSavedMessage(saved),
@@ -696,11 +776,11 @@ const PublicBookingSetup = () => {
             selected={selected}
             onToggleService={toggleService}
             bookingWindowDays={bookingWindowDays}
-            onBookingWindowChange={setBookingWindowDays}
+            onBookingWindowChange={(value) => dispatch({ type: 'bookingWindowDays', value })}
             bufferMinutes={bufferMinutes}
-            onBufferChange={setBufferMinutes}
+            onBufferChange={(value) => dispatch({ type: 'bufferMinutes', value })}
             needsConfirmation={needsConfirmation}
-            onToggleConfirmation={() => setNeedsConfirmation((v) => !v)}
+            onToggleConfirmation={() => dispatch({ type: 'toggleConfirmation' })}
             onSkip={handleSkip}
             onContinue={() => setStep(2)}
           />
@@ -711,9 +791,9 @@ const PublicBookingSetup = () => {
             orgName={orgName}
             hasLogo={Boolean(primaryOrg?.imageURL)}
             welcome={welcome}
-            onWelcomeChange={setWelcome}
+            onWelcomeChange={(value) => dispatch({ type: 'welcome', value })}
             replyTo={replyTo}
-            onReplyToChange={setReplyTo}
+            onReplyToChange={(value) => dispatch({ type: 'replyTo', value })}
             slug={config?.slug ?? null}
             publicUrl={config?.publicUrl ?? null}
             publicBookingEnabled={config?.publicBookingEnabled ?? false}
@@ -725,7 +805,7 @@ const PublicBookingSetup = () => {
             saving={saving}
             loadFailed={loadFailed}
             publish={publish}
-            onTogglePublish={() => setPublishOverride(!publish)}
+            onTogglePublish={() => dispatch({ type: 'publish', value: !publish })}
             hasBookableServices={hasBookableServices}
           />
         )}

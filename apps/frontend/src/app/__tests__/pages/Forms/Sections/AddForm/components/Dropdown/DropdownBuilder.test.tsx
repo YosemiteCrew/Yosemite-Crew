@@ -126,6 +126,21 @@ describe('DropdownBuilder Component', () => {
     });
   });
 
+  it('names each remove button after the option it deletes', () => {
+    render(<DropdownBuilder field={mockField} onChange={mockOnChange} />);
+
+    // The glyph is the visible mark; the accessible name is what a screen reader
+    // reads, and it has to tell the two delete controls apart.
+    expect(screen.getAllByRole('button', { name: /^Remove dropdown option/ })).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove dropdown option 1' }));
+
+    expect(mockOnChange).toHaveBeenCalledWith({
+      ...mockField,
+      options: [{ label: 'Red', value: 'red' }],
+    });
+  });
+
   // --- Section 3: Read-Only Rendering (Inventory Integration) ---
 
   it('renders readonly view when meta.readonly is true', () => {

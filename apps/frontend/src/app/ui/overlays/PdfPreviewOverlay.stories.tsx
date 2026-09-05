@@ -1,4 +1,3 @@
-import { type ComponentProps, useEffect, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { fn } from 'storybook/test';
 import PdfPreviewOverlay from './PdfPreviewOverlay';
@@ -35,18 +34,12 @@ const DOCUMENT_MARKUP = `<!doctype html>
     <td class="num"><strong>&euro;115.40</strong></td></tr></table>
 </div></body></html>`;
 
-type OverlayProps = ComponentProps<typeof PdfPreviewOverlay>;
-
-const PreviewWithDocument = (args: Omit<OverlayProps, 'pdfUrl'>) => {
-  // Created during render rather than in an effect so the frame is present on
-  // the first paint; revoked on unmount so switching stories does not leak.
-  const [url] = useState(() =>
-    URL.createObjectURL(new Blob([DOCUMENT_MARKUP], { type: 'text/html' }))
-  );
-  useEffect(() => () => URL.revokeObjectURL(url), [url]);
-
-  return <PdfPreviewOverlay {...args} pdfUrl={url} />;
-};
+/**
+ * The object URL is minted outside React - before the story renders, so the frame
+ * has its document on the first paint, and revoked by the cleanup `beforeEach`
+ * returns, so switching stories does not leak the blob.
+ */
+let documentUrl = '';
 
 /**
  * No `autodocs` tag on purpose: the overlay portals a `fixed inset-0` panel onto
@@ -73,7 +66,14 @@ const meta = {
     title: 'Invoice INV-2026-0481.pdf',
     onClose: fn(),
   },
-  render: ({ pdfUrl: _pdfUrl, ...args }) => <PreviewWithDocument {...args} />,
+  beforeEach: () => {
+    documentUrl = URL.createObjectURL(new Blob([DOCUMENT_MARKUP], { type: 'text/html' }));
+    return () => {
+      URL.revokeObjectURL(documentUrl);
+      documentUrl = '';
+    };
+  },
+  render: ({ pdfUrl: _pdfUrl, ...args }) => <PdfPreviewOverlay {...args} pdfUrl={documentUrl} />,
 } satisfies Meta<typeof PdfPreviewOverlay>;
 
 export default meta;

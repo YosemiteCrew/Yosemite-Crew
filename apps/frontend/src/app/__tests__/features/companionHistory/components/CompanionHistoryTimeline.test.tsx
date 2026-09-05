@@ -2177,6 +2177,75 @@ describe('CompanionHistoryTimeline', () => {
     }
   });
 
+  it('notifies instead of downloading when the record resolves to no file', async () => {
+    (loadDocumentDownloadURL as jest.Mock).mockResolvedValueOnce([]);
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[3],
+          title: 'Referral letter',
+          payload: { documentId: 'd-1', pdfUrl: 'https://example.com/referral.pdf' },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { DOCUMENT: 1 } },
+    });
+
+    const anchorClickSpy = jest
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+
+    try {
+      render(<CompanionHistoryTimeline companionId="c-1" />);
+
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Open record detail for Referral letter' })
+      );
+      const drawer = await screen.findByRole('dialog', { name: /Referral letter/ });
+      fireEvent.click(within(drawer).getByRole('button', { name: 'Download PDF' }));
+
+      await waitFor(() => {
+        expect(mockNotify).toHaveBeenCalledWith(
+          'error',
+          expect.objectContaining({ title: 'Document unavailable' })
+        );
+      });
+      expect(anchorClickSpy).not.toHaveBeenCalled();
+    } finally {
+      anchorClickSpy.mockRestore();
+    }
+  });
+
+  it('notifies when resolving the record download rejects', async () => {
+    (loadDocumentDownloadURL as jest.Mock).mockRejectedValueOnce(new Error('download failed'));
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[3],
+          title: 'Referral letter',
+          payload: { documentId: 'd-1', pdfUrl: 'https://example.com/referral.pdf' },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { DOCUMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open record detail for Referral letter' })
+    );
+    const drawer = await screen.findByRole('dialog', { name: /Referral letter/ });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Download PDF' }));
+
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Download failed' })
+      );
+    });
+  });
+
   // Regression: the drawer's only primary action used to be "Download PDF", which
   // pushed entry.link.id into the document download endpoint. A lab / invoice /
   // task id is not a document id, so those records lost their open path and got a
@@ -2314,6 +2383,24 @@ describe('CompanionHistoryTimeline', () => {
       expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:lab-result');
     });
     expect(screen.queryByTestId('pdf-preview')).not.toBeInTheDocument();
+  });
+
+  it('revokes an open blob preview when the timeline unmounts', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [baseEntries[4]],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { LAB_RESULT: 1 } },
+    });
+
+    const { unmount } = render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Result PDF' }));
+    await screen.findByTestId('pdf-preview');
+    revokeObjectUrlSpy.mockClear();
+
+    unmount();
+
+    expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:lab-result');
   });
 
   it('closes a non-blob preview without revoking an object URL', async () => {

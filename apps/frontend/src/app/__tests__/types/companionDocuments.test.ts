@@ -109,6 +109,17 @@ describe('companionDocuments types', () => {
     it('has issueDate initialized', () => {
       expect(emptyCompanionRecord.issueDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
+
+    it('resolves issueDate on read, so the date is not frozen at module load', () => {
+      jest.useFakeTimers().setSystemTime(new Date('2024-03-01T12:00:00.000Z'));
+      expect(emptyCompanionRecord.issueDate).toBe('2024-03-01');
+
+      jest.setSystemTime(new Date('2024-03-02T12:00:00.000Z'));
+      expect(emptyCompanionRecord.issueDate).toBe('2024-03-02');
+      expect({ ...emptyCompanionRecord }.issueDate).toBe('2024-03-02');
+
+      jest.useRealTimers();
+    });
   });
 
   describe('type validation', () => {

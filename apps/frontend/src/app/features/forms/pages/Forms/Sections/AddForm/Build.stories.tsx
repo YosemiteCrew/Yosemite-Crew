@@ -120,6 +120,10 @@ const canvasRows = (canvasElement: HTMLElement): HTMLElement[] =>
 const rowFor = (canvasElement: HTMLElement, fieldId: string): HTMLElement =>
   canvasElement.querySelector(`[data-testid="canvas-row-${fieldId}"]`) as HTMLElement;
 
+/** The wrapper holding a row's selectable region and, when unlocked, its action buttons. */
+const rowShellFor = (canvasElement: HTMLElement, fieldId: string): HTMLElement =>
+  rowFor(canvasElement, fieldId).parentElement as HTMLElement;
+
 /** The private AddFieldDropdown trigger sitting beside a group's title. */
 const groupAddTrigger = (settings: HTMLElement, groupTitle: string): Element => {
   const header = within(settings).getByText(groupTitle).parentElement as HTMLElement;
@@ -711,15 +715,19 @@ export const StructureLocked: Story = {
       expect(groupRow).toHaveAttribute('aria-pressed', 'true');
     });
     await expect(within(groupRow).getByText('Section · selected')).toBeInTheDocument();
-    await expect(within(groupRow).queryAllByRole('button')).toHaveLength(0);
+    /* Scoped to the row's shell, not to `groupRow`: the action buttons are siblings
+       of the selectable region, so asserting inside it could never fail. The only
+       button-role element in the shell is the selectable region itself. */
+    const groupShell = rowShellFor(canvasElement, 'objective_group');
+    await expect(within(groupShell).getAllByRole('button')).toEqual([groupRow]);
     await expect(
-      within(groupRow).queryByRole('button', { name: 'Move up' })
+      within(groupShell).queryByRole('button', { name: 'Move up' })
     ).not.toBeInTheDocument();
     await expect(
-      within(groupRow).queryByRole('button', { name: /^Duplicate / })
+      within(groupShell).queryByRole('button', { name: /^Duplicate / })
     ).not.toBeInTheDocument();
     await expect(
-      within(groupRow).queryByRole('button', { name: 'delete-objective_group' })
+      within(groupShell).queryByRole('button', { name: 'delete-objective_group' })
     ).not.toBeInTheDocument();
 
     /* Inside the group the lock reaches further than the canvas suggests: the

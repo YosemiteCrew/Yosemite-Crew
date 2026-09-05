@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   IoCloudUploadOutline,
   IoDocumentTextOutline,
@@ -19,6 +19,31 @@ const allowedTypes = new Set([
 
 const DEFAULT_FILES: File[] = [];
 const DEFAULT_EXISTING_FILES: ExistingFile[] = [];
+/**
+ * One object URL per image in the list, minted and released as a batch: an object
+ * URL pins its File in memory for the whole document lifetime until it is revoked.
+ *
+ * `release` defers the revoke by a tick and `hold` cancels a pending one, because
+ * React's dev-only remount tears an effect down and sets it straight back up with
+ * the same batch — revoking on the spot there would leave every thumbnail broken.
+ */
+const mintPreviews = (list: File[]) => {
+  const urls = new Map<File, string>();
+  for (const file of list) {
+    if (file.type.startsWith('image/')) urls.set(file, URL.createObjectURL(file));
+  }
+  let pending: ReturnType<typeof setTimeout> | null = null;
+  const hold = () => {
+    if (pending) clearTimeout(pending);
+    pending = null;
+  };
+  const release = () => {
+    pending = setTimeout(() => {
+      for (const url of urls.values()) URL.revokeObjectURL(url);
+    }, 0);
+  };
+  return { urls, hold, release };
+};
 
 function getFileIcon(type: string) {
   if (type === 'application/pdf') return <IoDocumentTextOutline className="file-icon pdf" />;
@@ -49,17 +74,26 @@ const UploadImage = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>(value);
   const [apiFiles, setApiFiles] = useState<ExistingFile[]>(existingFiles);
+  const [previews, setPreviews] = useState(() => mintPreviews(value));
+
+  // Release the batch as soon as a newly minted one replaces it, and on unmount.
+  useEffect(() => {
+    previews.hold();
+    return previews.release;
+  }, [previews]);
+
+  const applyFiles = (next: File[]) => {
+    setFiles(next);
+    setPreviews(mintPreviews(next));
+    if (onChange) onChange(next);
+  };
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList) return;
     const newFiles = Array.from(fileList ?? []).filter(
       (file) => allowedTypes.has(file.type) && file.size <= 20 * 1024 * 1024
     );
-    setFiles((prev) => {
-      const merged = [...prev, ...newFiles];
-      if (onChange) onChange(merged);
-      return merged;
-    });
+    applyFiles([...files, ...newFiles]);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
@@ -68,9 +102,7 @@ const UploadImage = ({
   };
 
   const handleDelete = (idx: number) => {
-    const updated = files.filter((_, i) => i !== idx);
-    setFiles(updated);
-    if (onChange) onChange(updated);
+    applyFiles(files.filter((_, i) => i !== idx));
   };
 
   const handleDeleteExisting = (idx: number) => {
@@ -114,14 +146,15 @@ const UploadImage = ({
         {files.map((file, idx) => (
           <div className="upload-preview-item" key={`file-${file.name}`}>
             {file.type.startsWith('image/') ? (
-              <Image
-                src={URL.createObjectURL(file)}
-                alt={file.name}
-                className="preview-img"
-                width={100}
-                height={100}
-                onLoad={() => URL.revokeObjectURL(URL.createObjectURL(file))}
-              />
+              previews.urls.get(file) && (
+                <Image
+                  src={previews.urls.get(file) as string}
+                  alt={file.name}
+                  className="preview-img"
+                  width={100}
+                  height={100}
+                />
+              )
             ) : (
               <div className="preview-doc">
                 {getFileIcon(file.type)}

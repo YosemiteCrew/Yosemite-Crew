@@ -286,7 +286,11 @@ describe('InvoicePaymentActions', () => {
 
     fireEvent.click(screen.getByText('Download'));
 
-    expect(window.open).toHaveBeenCalledWith('https://stripe.test/receipt', '_blank');
+    expect(window.open).toHaveBeenCalledWith(
+      'https://stripe.test/receipt',
+      '_blank',
+      'noopener,noreferrer'
+    );
   });
 
   it('notifies when recording the cash payment fails', async () => {

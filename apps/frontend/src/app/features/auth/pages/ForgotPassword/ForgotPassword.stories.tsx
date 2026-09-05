@@ -295,17 +295,16 @@ export const TryAnotherEmail: Story = {
     const field = await canvas.findByRole('textbox', { name: 'Work email' });
     await expect(canvas.queryByTestId('forgot-sent')).not.toBeInTheDocument();
 
-    /* The reset clears `sentTo` and `isSubmitting` and nothing else, so the field
+    /* The reset clears `sentTo` and nothing else, so the field
        comes back holding exactly what the form state held - which is the trimmed
        address, because `type="email"` sanitized the trailing space away at the
        keystroke. "Try another email" leaves the last address in place for the
        user to edit rather than starting from empty. */
     await expect(field).toHaveValue(NORMALIZED_EMAIL);
 
-    /* And the button is live again. `setIsSubmitting(false)` in that same handler
-       is the only thing preventing a form that returns stuck on a disabled
-       "Sending..." - the success path never resets it, because it never expected
-       to come back. */
+    /* And the button is live again. The submit handler clears `isSubmitting` in a
+       `finally`, so it is already false by the time the confirmation renders and a
+       form that returns can never come back stuck on a disabled "Sending...". */
     await expect(canvas.getByRole('button', { name: 'Send reset link' })).toBeEnabled();
   },
   parameters: {

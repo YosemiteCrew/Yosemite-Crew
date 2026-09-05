@@ -21,7 +21,9 @@ describe('useOnClickOutside', () => {
     });
 
     expect(addEventListenerMock).toHaveBeenCalledWith('mousedown', expect.any(Function));
-    expect(addEventListenerMock).toHaveBeenCalledWith('touchstart', expect.any(Function));
+    expect(addEventListenerMock).toHaveBeenCalledWith('touchstart', expect.any(Function), {
+      passive: true,
+    });
 
     unmount();
 

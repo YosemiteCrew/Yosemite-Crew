@@ -7,6 +7,7 @@ import {
   startGithubSignIn,
   redirectToUrl,
 } from '@/app/features/auth/lib/githubOAuth';
+import { logger } from '@/app/lib/logger';
 
 interface GithubSignInButtonProps {
   /** Where to land after a successful GitHub sign in. */
@@ -30,11 +31,20 @@ export function GithubSignInButton({
 
   const handleClick = async () => {
     setPending(true);
-    const url = await startGithubSignIn(redirectTo);
-    if (url) {
-      redirectToUrl(url);
-    } else {
-      setPending(false);
+    let redirecting = false;
+    try {
+      const url = await startGithubSignIn(redirectTo);
+      if (url) {
+        redirecting = true;
+        redirectToUrl(url);
+      }
+    } catch (error) {
+      logger.error('GitHub sign in could not start', error);
+    } finally {
+      // Busy only while the browser is actually leaving for GitHub. Every other
+      // exit - no URL, or a rejected handshake - hands the button back, which is
+      // why this sits in `finally` rather than after the await.
+      setPending(redirecting);
     }
   };
 

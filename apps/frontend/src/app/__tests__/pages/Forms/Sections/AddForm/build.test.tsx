@@ -191,6 +191,14 @@ const renderBuild = (
   return render(<Wrapper />);
 };
 
+/**
+ * A canvas row's shell. `canvas-row-<id>` marks the selectable region; the row's
+ * action buttons (move/duplicate/delete) are its SIBLINGS inside this wrapper, so
+ * that a control never nests inside another control.
+ */
+const rowShell = (fieldId: string): HTMLElement =>
+  screen.getByTestId(`canvas-row-${fieldId}`).parentElement as HTMLElement;
+
 const readSchema = (): FormField[] =>
   JSON.parse(screen.getByTestId('schema-state').textContent || '[]') as FormField[];
 
@@ -401,7 +409,7 @@ describe('Build form (single-screen builder)', () => {
       renderBuild(baseFormData({ requiredSigner: 'CLIENT', schema: [signatureField] }));
 
       // Auto-selected → its row exposes the delete control.
-      const row = screen.getByTestId('canvas-row-sig-1');
+      const row = rowShell('sig-1');
       fireEvent.click(within(row).getByRole('button', { name: 'delete-sig-1' }));
 
       expect(readSchema()).toHaveLength(1);
@@ -456,12 +464,12 @@ describe('Build form (single-screen builder)', () => {
       );
 
       // f-1 is auto-selected; move it down.
-      fireEvent.click(within(screen.getByTestId('canvas-row-f-1')).getByTitle('Move down'));
+      fireEvent.click(within(rowShell('f-1')).getByTitle('Move down'));
       expect(readSchema().map((field) => field.id)).toEqual(['f-2', 'f-1']);
 
       // Select the now-last row and move down again → guard no-ops.
       fireEvent.click(screen.getByTestId('canvas-row-f-1'));
-      fireEvent.click(within(screen.getByTestId('canvas-row-f-1')).getByTitle('Move down'));
+      fireEvent.click(within(rowShell('f-1')).getByTitle('Move down'));
       expect(readSchema().map((field) => field.id)).toEqual(['f-2', 'f-1']);
     });
 
@@ -476,11 +484,11 @@ describe('Build form (single-screen builder)', () => {
       );
 
       fireEvent.click(screen.getByTestId('canvas-row-f-2'));
-      fireEvent.click(within(screen.getByTestId('canvas-row-f-2')).getByTitle('Move up'));
+      fireEvent.click(within(rowShell('f-2')).getByTitle('Move up'));
       expect(readSchema().map((field) => field.id)).toEqual(['f-2', 'f-1']);
 
       // f-2 is now at the top; moving up again computes a negative index and bails.
-      fireEvent.click(within(screen.getByTestId('canvas-row-f-2')).getByTitle('Move up'));
+      fireEvent.click(within(rowShell('f-2')).getByTitle('Move up'));
       expect(readSchema().map((field) => field.id)).toEqual(['f-2', 'f-1']);
     });
 
@@ -1425,7 +1433,7 @@ describe('Build form (single-screen builder)', () => {
 
       const row = screen.getByTestId('canvas-row-sig-1');
       expect(row).toHaveAttribute('aria-pressed', 'false');
-      expect(row.className).toContain('border-dashed');
+      expect(rowShell('sig-1').className).toContain('border-dashed');
       expect(within(row).getByText(/signed in the pet-parent app/i)).toBeInTheDocument();
     });
 
@@ -1512,7 +1520,7 @@ describe('Build form (single-screen builder)', () => {
       );
 
       fireEvent.click(screen.getByTestId('canvas-row-f-2'));
-      const row = screen.getByTestId('canvas-row-f-2');
+      const row = rowShell('f-2');
 
       // Both clicks land in one React batch, so the duplicate's updater runs against a schema
       // the delete has already shortened — index 1 no longer exists and the guard bails.

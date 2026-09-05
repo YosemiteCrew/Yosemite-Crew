@@ -24,13 +24,15 @@ const SESSION = {
   paid: 'cs_test_paid',
   unpaid: 'cs_test_unpaid',
   noPayment: 'cs_test_no_payment',
+  httpError: 'cs_test_http_error',
 } as const;
 
-const OUTCOME_BY_SESSION: Record<string, Outcome | 'pending'> = {
+const OUTCOME_BY_SESSION: Record<string, Outcome | 'pending' | 'http_error'> = {
   [SESSION.loading]: 'pending',
   [SESSION.paid]: 'paid',
   [SESSION.unpaid]: 'unpaid',
   [SESSION.noPayment]: 'no_payment_required',
+  [SESSION.httpError]: 'http_error',
 };
 
 const NEVER_SETTLES = new Promise<never>(() => {
@@ -49,11 +51,17 @@ const stubStatus = () => {
     if (!session) return original(input as RequestInfo);
 
     const outcome = OUTCOME_BY_SESSION[session];
-    return outcome === 'pending'
-      ? NEVER_SETTLES
-      : Promise.resolve({
-          json: () => Promise.resolve({ status: outcome, total: 4250 }),
-        });
+    if (outcome === 'pending') return NEVER_SETTLES;
+    // `ok` is what the lookup checks: fetch resolves on 4xx/5xx, so a stub that
+    // omitted it would send every story down the "could not confirm" branch.
+    if (outcome === 'http_error') {
+      return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) });
+    }
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ status: outcome, total: 4250 }),
+    });
   }) as typeof globalThis.fetch;
 
   return () => {
@@ -112,6 +120,12 @@ export const Unpaid: Story = {
 export const NoPaymentRequired: Story = {
   name: 'No payment required',
   parameters: withSession(SESSION.noPayment),
+  beforeEach: stubStatus,
+};
+
+export const RequestFailed: Story = {
+  name: 'Lookup returned an HTTP error',
+  parameters: withSession(SESSION.httpError),
   beforeEach: stubStatus,
 };
 

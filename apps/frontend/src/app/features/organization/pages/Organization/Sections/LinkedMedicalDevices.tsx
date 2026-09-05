@@ -164,22 +164,31 @@ const LinkedMedicalDevices = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    // A superseded run must not write its result: two effect runs (org switched,
+    // integration enabled) resolve independently and the slower one would
+    // otherwise overwrite the newer device list.
+    let cancelled = false;
     const run = async () => {
       if (!primaryOrgId) return;
       try {
         setError(null);
         if ((integration?.status ?? '').toLowerCase() === 'enabled') {
           const ivls = await listIdexxIvlsDevices(primaryOrgId);
+          if (cancelled) return;
           setDevices(ivls.ivlsDeviceList ?? []);
         } else {
           setDevices([]);
         }
       } catch {
+        if (cancelled) return;
         setError('Unable to refresh linked IVLS devices.');
         setDevices([]);
       }
     };
     void run();
+    return () => {
+      cancelled = true;
+    };
   }, [primaryOrgId, integration?.status]);
 
   const handleManualRefresh = async () => {

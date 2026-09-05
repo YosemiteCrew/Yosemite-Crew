@@ -135,10 +135,11 @@ export const Editable: Story = {
       'Over (6-9)'
     );
 
-    /* Every delete control is named the same bare glyph, so a screen reader
-       hears "✕ button" three times with nothing to tell them apart. This is the
-       kind of thing that never shows up visually and never fails a render. */
-    const removes = canvas.getAllByRole('button', { name: '✕' });
+    /* The glyph is drawn but never read: each delete control carries an
+       `aria-label` naming the position it removes, so a screen reader hears
+       "Remove dropdown option 0" rather than three identical "✕ button"s. */
+    const removes = canvas.getAllByRole('button', { name: /^Remove dropdown option/ });
+    await expect(removes[0]).toHaveAccessibleName('Remove dropdown option 0');
     await expect(removes).toHaveLength(3);
 
     const firstOption = canvas.getByRole('textbox', { name: 'Dropdown option 0' });
@@ -171,7 +172,9 @@ export const NoOptions: Story = {
        `DropdownRenderer` returns null for a field with no options - so the
        question disappears from the form entirely rather than rendering empty. */
     await expect(canvas.getAllByRole('textbox')).toHaveLength(1);
-    await expect(canvas.queryAllByRole('button', { name: '✕' })).toHaveLength(0);
+    await expect(canvas.queryAllByRole('button', { name: /^Remove dropdown option/ })).toHaveLength(
+      0
+    );
     await expect(canvas.getByRole('button', { name: '+ Add option' })).toBeInTheDocument();
   },
 };
@@ -193,7 +196,7 @@ export const AddAndRemove: Story = {
     await expect(added).toHaveValue('Option 4');
 
     // Delete the middle option.
-    await userEvent.click(canvas.getAllByRole('button', { name: '✕' })[1]);
+    await userEvent.click(canvas.getAllByRole('button', { name: /^Remove dropdown option/ })[1]);
     await expect(args.onChange).toHaveBeenLastCalledWith(
       expect.objectContaining({
         options: [
@@ -295,7 +298,9 @@ export const ReadOnlyFromInventory: Story = {
        looking at this row cannot see what the field will actually offer. */
     await expect(canvas.getAllByRole('textbox')).toHaveLength(2);
     await expect(canvas.queryByRole('button', { name: '+ Add option' })).not.toBeInTheDocument();
-    await expect(canvas.queryAllByRole('button', { name: '✕' })).toHaveLength(0);
+    await expect(canvas.queryAllByRole('button', { name: /^Remove dropdown option/ })).toHaveLength(
+      0
+    );
   },
 };
 
@@ -335,7 +340,7 @@ export const Phone: Story = {
        narrowest place the caption has to survive: "Dropdown option 0" is
        truncated by the label's `truncate`, not wrapped. */
     const input = canvas.getByRole('textbox', { name: 'Dropdown option 0' });
-    const remove = canvas.getAllByRole('button', { name: '✕' })[0];
+    const remove = canvas.getAllByRole('button', { name: /^Remove dropdown option/ })[0];
     const inputBox = input.getBoundingClientRect();
     const removeBox = remove.getBoundingClientRect();
     await expect(removeBox.right).toBeLessThan(inputBox.right);

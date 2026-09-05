@@ -10,6 +10,21 @@ type InvoiceBilledItemsProps = {
 
 const gridTemplate = 'minmax(0,1.9fr) 50px 90px 90px';
 
+// Line items carry only an OPTIONAL id (it comes from the FHIR charge-item
+// code), so a row without one keys off its own content instead of its position.
+// The `#n` suffix separates two byte-identical lines, which are the only rows
+// position can still decide - every distinguishable row keeps a stable key
+// across a reorder.
+const withRowKeys = (items: InvoiceItem[]): Array<{ item: InvoiceItem; key: string }> => {
+  const seen = new Map<string, number>();
+  return items.map((item) => {
+    const base = item.id ?? `${item.name}|${item.quantity}|${item.unitPrice}|${item.total}`;
+    const occurrence = (seen.get(base) ?? 0) + 1;
+    seen.set(base, occurrence);
+    return { item, key: occurrence === 1 ? base : `${base}#${occurrence}` };
+  });
+};
+
 const InvoiceBilledItems = ({ items, currency }: InvoiceBilledItemsProps) => {
   return (
     <section className="flex flex-col gap-3" aria-label="Billed items">
@@ -34,9 +49,9 @@ const InvoiceBilledItems = ({ items, currency }: InvoiceBilledItemsProps) => {
             No billed items recorded for this invoice.
           </output>
         ) : (
-          items.map((item, index) => (
+          withRowKeys(items).map(({ item, key }) => (
             <div
-              key={item.id ?? `${item.name}-${index}`}
+              key={key}
               className="grid gap-2.5 px-4 py-[11px] border-t border-card-border text-[13px] text-[var(--ink-body)] items-center"
               style={{ gridTemplateColumns: gridTemplate }}
             >

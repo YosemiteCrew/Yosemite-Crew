@@ -639,10 +639,56 @@ const useStartPacketSigning = ({
   };
 };
 
+/**
+ * Which document action the packet is up to: none until the summary is saved,
+ * then Sign while it is unsigned and Download Signed once it is. One variant
+ * rather than two flags, because only three of their four combinations exist.
+ */
+type DischargeDocumentAction = 'none' | 'sign' | 'download';
+
+const getDischargeDocumentAction = (
+  showDocumentActions: boolean,
+  isPacketSigned: boolean
+): DischargeDocumentAction => {
+  if (!showDocumentActions) return 'none';
+  return isPacketSigned ? 'download' : 'sign';
+};
+
+type DischargeSignActionProps = {
+  isSigning: boolean;
+  signDisabled: boolean;
+  signDisabledReason?: string;
+  onSign: () => void;
+};
+
+/** The Sign button, wrapped in its explaining tooltip only while it is blocked. */
+const DischargeSignAction = ({
+  isSigning,
+  signDisabled,
+  signDisabledReason,
+  onSign,
+}: DischargeSignActionProps) => {
+  const signButton = (
+    <Secondary
+      text={isSigning ? 'Signing…' : 'Sign'}
+      icon={<IoDocumentTextOutline aria-hidden="true" />}
+      onClick={onSign}
+      isDisabled={signDisabled}
+    />
+  );
+
+  if (!signDisabledReason) return signButton;
+
+  return (
+    <GlassTooltip content={signDisabledReason} side="top">
+      {signButton}
+    </GlassTooltip>
+  );
+};
+
 type DischargeActionBarProps = {
   signError: string | null;
-  showDocumentActions: boolean;
-  isPacketSigned: boolean;
+  documentAction: DischargeDocumentAction;
   dischargeSaved: boolean;
   isPrinting: boolean;
   isSaving: boolean;
@@ -667,8 +713,7 @@ type DischargeActionBarProps = {
  */
 const DischargeActionBar = ({
   signError,
-  showDocumentActions,
-  isPacketSigned,
+  documentAction,
   dischargeSaved,
   isPrinting,
   isSaving,
@@ -688,7 +733,7 @@ const DischargeActionBar = ({
       </p>
     )}
     <div className="flex flex-wrap items-center justify-end gap-3">
-      {showDocumentActions && (
+      {documentAction !== 'none' && (
         <Secondary
           text={isPrinting ? 'Preparing…' : 'Print All'}
           icon={<IoPrintOutline aria-hidden="true" />}
@@ -704,7 +749,7 @@ const DischargeActionBar = ({
           isDisabled={viewOnly || isSaving}
         />
       )}
-      {showDocumentActions && isPacketSigned && (
+      {documentAction === 'download' && (
         <Secondary
           text="Download Signed"
           icon={<IoDownloadOutline aria-hidden="true" />}
@@ -712,22 +757,12 @@ const DischargeActionBar = ({
           isDisabled={isPrinting}
         />
       )}
-      {showDocumentActions && !isPacketSigned && signDisabledReason && (
-        <GlassTooltip content={signDisabledReason} side="top">
-          <Secondary
-            text={isSigning ? 'Signing…' : 'Sign'}
-            icon={<IoDocumentTextOutline aria-hidden="true" />}
-            onClick={onSign}
-            isDisabled={signDisabled}
-          />
-        </GlassTooltip>
-      )}
-      {showDocumentActions && !isPacketSigned && !signDisabledReason && (
-        <Secondary
-          text={isSigning ? 'Signing…' : 'Sign'}
-          icon={<IoDocumentTextOutline aria-hidden="true" />}
-          onClick={onSign}
-          isDisabled={signDisabled}
+      {documentAction === 'sign' && (
+        <DischargeSignAction
+          isSigning={isSigning}
+          signDisabled={signDisabled}
+          signDisabledReason={signDisabledReason}
+          onSign={onSign}
         />
       )}
     </div>
@@ -1213,8 +1248,7 @@ const useSummaryStepContent = ({
           </SectionContainer>
           <DischargeActionBar
             signError={signError}
-            showDocumentActions={showDocumentActions}
-            isPacketSigned={isPacketSigned}
+            documentAction={getDischargeDocumentAction(showDocumentActions, isPacketSigned)}
             dischargeSaved={dischargeSaved}
             isPrinting={isPrinting}
             isSaving={isSaving}

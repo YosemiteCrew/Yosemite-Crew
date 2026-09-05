@@ -188,6 +188,21 @@ describe('FederationSection', () => {
       expect(screen.getByPlaceholderText('Paste license token...')).toBeInTheDocument();
     });
 
+    // A placeholder is not a label: it vanishes the moment the field has text, so a
+    // screen reader announces an unnamed edit box and a sighted user loses the only
+    // clue about what they are pasting. The visible label must stay wired to the input.
+    it('names the token field with a visible label, not just the placeholder', async () => {
+      (getActorSettings as jest.Mock).mockResolvedValue({
+        ...mockActor,
+        licenseTokenStatus: 'none',
+      });
+      render(<FederationSection />);
+      await waitFor(() => screen.getByText('Not set'));
+      expect(screen.getByLabelText('License token')).toBe(
+        screen.getByPlaceholderText('Paste license token...')
+      );
+    });
+
     it('shows token input when licenseTokenStatus is invalid', async () => {
       (getActorSettings as jest.Mock).mockResolvedValue({
         ...mockActor,
@@ -269,6 +284,14 @@ describe('FederationSection', () => {
       render(<FederationSection />);
       await waitFor(() =>
         expect(screen.getByText('Not following any instances yet.')).toBeInTheDocument()
+      );
+    });
+
+    it('names the follow field with a visible label, not just the placeholder', async () => {
+      render(<FederationSection />);
+      await waitFor(() => screen.getByText('Not following any instances yet.'));
+      expect(screen.getByLabelText('Remote actor URI')).toBe(
+        screen.getByPlaceholderText('https://other-clinic.example/ap/organizations/abc')
       );
     });
 
@@ -470,6 +493,14 @@ describe('FederationSection', () => {
       render(<FederationSection />);
       await waitFor(() => screen.getByText('Emergency broadcast'));
       expect(screen.getByRole('button', { name: 'Broadcast emergency' })).toBeDisabled();
+    });
+
+    it('names the broadcast textarea with a visible label, not just the placeholder', async () => {
+      render(<FederationSection />);
+      await waitFor(() => screen.getByText('Emergency broadcast'));
+      expect(screen.getByLabelText('Emergency notice')).toBe(
+        screen.getByPlaceholderText('Describe the emergency or critical notice...')
+      );
     });
 
     it('calls announceEmergency when broadcast button clicked', async () => {

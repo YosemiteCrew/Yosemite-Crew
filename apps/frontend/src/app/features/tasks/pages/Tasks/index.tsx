@@ -1,7 +1,6 @@
 'use client';
 import React, { Suspense, useCallback, useMemo, useState } from 'react';
 import type { SetStateAction } from 'react';
-import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
@@ -24,6 +23,8 @@ import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/useP
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
 import { TASK_SCOPE_OPTIONS } from '@/app/features/tasks/pages/Tasks/taskScopeOptions';
+import TaskPlanner from '@/app/features/tasks/pages/Tasks/TaskPlanner';
+import TaskModals from '@/app/features/tasks/pages/Tasks/TaskModals';
 
 const TASKS_PAGE_SKELETON = <PageSkeleton variant="planner" />;
 
@@ -44,29 +45,6 @@ const PARENT_AUDIENCE_KEY = 'parent_task';
 
 const TASK_CALENDAR_FILTERS = TaskFilters.flatMap((option) =>
   option.key === PARENT_AUDIENCE_KEY ? [{ ...option, dotColor: 'var(--pink)' }] : []
-);
-
-const TaskPlannerSkeleton = () => (
-  <div className="h-full min-h-125 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
-);
-
-const TasksTable = dynamic(() => import('@/app/ui/tables/Tasks'), {
-  loading: () => <TaskPlannerSkeleton />,
-});
-const TaskCalendar = dynamic(
-  () => import('@/app/features/appointments/components/Calendar/TaskCalendar'),
-  { loading: () => <TaskPlannerSkeleton /> }
-);
-const TaskBoard = dynamic(() => import('@/app/features/tasks/components/TaskBoard'), {
-  loading: () => <TaskPlannerSkeleton />,
-});
-const AddTask = dynamic(() => import('@/app/features/tasks/pages/Tasks/Sections/AddTask'));
-const TaskInfo = dynamic(() => import('@/app/features/tasks/pages/Tasks/Sections/TaskInfo'));
-const ChangeTaskStatus = dynamic(
-  () => import('@/app/features/tasks/pages/Tasks/Sections/ChangeStatus')
-);
-const RescheduleTask = dynamic(
-  () => import('@/app/features/tasks/pages/Tasks/Sections/Reschedule')
 );
 
 const Tasks = () => {
@@ -246,63 +224,6 @@ const Tasks = () => {
       'w-full h-[calc(100vh-200px)] sm:h-[calc(100vh-220px)] min-h-[620px] max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-220px)] lg:sticky lg:top-4 lg:mb-0 lg:h-[calc(100dvh-105px)] lg:min-h-[calc(100dvh-105px)] lg:max-h-[calc(100dvh-105px)]',
   });
 
-  let plannerContent: React.ReactNode;
-  if (activeView === 'calendar') {
-    // Tasks share the appointments-grade planner: the header switches between the
-    // Day, Week and Team grids on tablet/desktop, while TaskCalendar drops to the
-    // thumb-checkable PhoneTaskDayList below 768px.
-    plannerContent = (
-      <TaskCalendar
-        filteredList={filteredList}
-        allTasks={tasks}
-        setActiveTask={setActiveTask}
-        setViewPopup={setViewPopup}
-        setChangeStatusPopup={setChangeStatusPopup}
-        setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
-        setReschedulePopup={setReschedulePopup}
-        activeCalendar={activeCalendar}
-        setActiveCalendar={handleActiveCalendarChange}
-        currentDate={currentDate}
-        setCurrentDate={handleCurrentDateChange}
-        weekStart={weekStart}
-        setWeekStart={setWeekStart}
-        canEditTasks={canEditTasks}
-        onAddTask={openAddTask}
-        onCreateFromCalendarSlot={handleCreateFromCalendarSlot}
-        filterOptions={TASK_CALENDAR_FILTERS}
-        activeFilter={appliedFilter}
-        setActiveFilter={setActiveFilter}
-        statusOptions={TASK_STATUS_PILLS}
-        activeStatus={activeStatus}
-        setActiveStatus={setActiveStatus}
-      />
-    );
-  } else if (activeView === 'board') {
-    plannerContent = (
-      <TaskBoard
-        tasks={filteredList}
-        canEditTasks={canEditTasks}
-        setActiveTask={setActiveTask}
-        setViewPopup={setViewPopup}
-        onAddTask={openAddTask}
-      />
-    );
-  } else {
-    plannerContent = (
-      <div className="h-full min-h-0 overflow-hidden">
-        <TasksTable
-          filteredList={filteredList}
-          setActiveTask={setActiveTask}
-          setViewPopup={setViewPopup}
-          setChangeStatusPopup={setChangeStatusPopup}
-          setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
-          setReschedulePopup={setReschedulePopup}
-          canEditTasks={canEditTasks}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col relative">
       <div className="yc-page-content">
@@ -351,41 +272,50 @@ const Tasks = () => {
               />
             )}
             <div ref={plannerSectionRef} className={plannerSectionClassName}>
-              {plannerContent}
+              <TaskPlanner
+                activeView={activeView}
+                filteredList={filteredList}
+                allTasks={tasks}
+                canEditTasks={canEditTasks}
+                setActiveTask={setActiveTask}
+                setViewPopup={setViewPopup}
+                setChangeStatusPopup={setChangeStatusPopup}
+                setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
+                setReschedulePopup={setReschedulePopup}
+                activeCalendar={activeCalendar}
+                setActiveCalendar={handleActiveCalendarChange}
+                currentDate={currentDate}
+                setCurrentDate={handleCurrentDateChange}
+                weekStart={weekStart}
+                setWeekStart={setWeekStart}
+                onAddTask={openAddTask}
+                onCreateFromCalendarSlot={handleCreateFromCalendarSlot}
+                filterOptions={TASK_CALENDAR_FILTERS}
+                activeFilter={appliedFilter}
+                setActiveFilter={setActiveFilter}
+                statusOptions={TASK_STATUS_PILLS}
+                activeStatus={activeStatus}
+                setActiveStatus={setActiveStatus}
+              />
             </div>
           </div>
 
-          <AddTask
-            showModal={addPopup}
-            setShowModal={(value) => {
-              setAddPopup(value);
-              if (value === false) setAddTaskPrefill(null);
-            }}
-            prefill={addTaskPrefill}
+          <TaskModals
+            addPopup={addPopup}
+            setAddPopup={setAddPopup}
+            addTaskPrefill={addTaskPrefill}
+            setAddTaskPrefill={setAddTaskPrefill}
+            activeTask={activeTask}
+            viewPopup={viewPopup}
+            setViewPopup={setViewPopup}
+            onReuseTask={handleReuseTask}
+            canEditTasks={canEditTasks}
+            changeStatusPopup={changeStatusPopup}
+            setChangeStatusPopup={setChangeStatusPopup}
+            changeStatusPreferredStatus={changeStatusPreferredStatus}
+            reschedulePopup={reschedulePopup}
+            setReschedulePopup={setReschedulePopup}
           />
-          {activeTask && viewPopup && (
-            <TaskInfo
-              showModal={viewPopup}
-              setShowModal={setViewPopup}
-              activeTask={activeTask}
-              onReuseTask={handleReuseTask}
-            />
-          )}
-          {activeTask && canEditTasks && (
-            <ChangeTaskStatus
-              showModal={changeStatusPopup}
-              setShowModal={setChangeStatusPopup}
-              activeTask={activeTask}
-              preferredStatus={changeStatusPreferredStatus}
-            />
-          )}
-          {activeTask && canEditTasks && (
-            <RescheduleTask
-              showModal={reschedulePopup}
-              setShowModal={setReschedulePopup}
-              activeTask={activeTask}
-            />
-          )}
         </PermissionGate>
       </div>
     </div>

@@ -46,16 +46,28 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
     closeDropdown();
   };
 
+  const toggleClassName = `custom-dropdown-toggle ${open ? 'open' : ''}`;
+  const caret = (
+    <IoCaretDown
+      className={`dropdown-caret ${open ? 'rotate' : ''}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        toggleDropdown();
+      }}
+    />
+  );
+
   return (
     <div className="SelectedInptDropdown" ref={dropdownRef}>
-      <button
-        type="button"
-        className={`custom-dropdown-toggle ${open ? 'open' : ''}`}
-        onClick={() => {
-          if (!open) openDropdown();
-        }}
-      >
-        {open && searchable ? (
+      {/*
+        Two shapes for the same bar. While the inline search is showing, the bar is a
+        plain <div>: an <input> nested inside a <button> is invalid HTML - the parser
+        splits them apart and the input loses its own semantics. The toggle is only a
+        <button> when it actually acts as one, which is exactly when the search input
+        is not rendered (its onClick already no-ops once the menu is open).
+      */}
+      {open && searchable ? (
+        <div className={toggleClassName}>
           <input
             ref={inputRef}
             type="text"
@@ -65,17 +77,20 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
             aria-label={`Search ${placeholder}`}
             className="dropdown-inline-search"
           />
-        ) : (
-          <span>{selectedLabel}</span>
-        )}
-        <IoCaretDown
-          className={`dropdown-caret ${open ? 'rotate' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleDropdown();
+          {caret}
+        </div>
+      ) : (
+        <button
+          type="button"
+          className={toggleClassName}
+          onClick={() => {
+            if (!open) openDropdown();
           }}
-        />
-      </button>
+        >
+          <span>{selectedLabel}</span>
+          {caret}
+        </button>
+      )}
 
       {open && (
         <div className="custom-dropdown-menu show">

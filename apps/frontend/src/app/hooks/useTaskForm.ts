@@ -39,10 +39,10 @@ export const useTaskForm = (options: UseTaskFormOptions = {}) => {
     ...emptyTask,
     ...initialTask,
   });
-  const [due, setDue] = useState<Date | null>(
+  const [due, setDue] = useState<Date | null>(() =>
     initialTask?.dueAt ? new Date(initialTask.dueAt) : new Date()
   );
-  const [dueTimeValue, setDueTimeValue] = useState(
+  const [dueTimeValue, setDueTimeValue] = useState(() =>
     getPreferredTimeValue(initialTask?.dueAt, '00:00')
   );
   const [formDataErrors, setFormDataErrors] = useState<TaskFormErrors>({});

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { GITHUB_API_REPO } from './assets';
 
 export interface RepoLanguage {
@@ -247,6 +247,49 @@ const loadHeartbeatShared = (): Promise<number[] | null> => {
   return heartbeatInFlight;
 };
 
+// The metrics belong to the page, not to either hook instance, so they live in a
+// small external store the instances read: the first subscriber starts the load,
+// the second joins it, and the last one to leave clears the store again (`visit`
+// invalidates anything still in flight) so the next visit pulls live.
+let snapshot: RepoInsights = EMPTY;
+let visit = 0;
+let loading = false;
+const listeners = new Set<() => void>();
+
+const publish = (next: RepoInsights) => {
+  snapshot = next;
+  for (const listener of listeners) listener();
+};
+
+const startLoad = () => {
+  if (loading) return;
+  loading = true;
+  const forVisit = visit;
+  void loadCoreShared().then((core) => {
+    // Spreading the live snapshot preserves a heartbeat that resolved first.
+    if (forVisit === visit) publish({ ...core, heartbeat: snapshot.heartbeat });
+  });
+  void loadHeartbeatShared().then((heartbeat) => {
+    if (forVisit === visit) publish({ ...snapshot, heartbeat });
+  });
+};
+
+const subscribe = (listener: () => void): (() => void) => {
+  listeners.add(listener);
+  startLoad();
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size > 0) return;
+    visit += 1;
+    loading = false;
+    snapshot = EMPTY;
+  };
+};
+
+// Also the server snapshot: only `subscribe` ever loads, and it only runs in the
+// browser, so on the server (and during hydration) this is still the placeholder.
+const getSnapshot = (): RepoInsights => snapshot;
+
 /**
  * Live repository metrics for the Insights page: languages, recent commits,
  * contributors, repo facts and a weekly commit heartbeat. Read straight from the
@@ -257,23 +300,5 @@ const loadHeartbeatShared = (): Promise<number[] | null> => {
  * placeholder so the server render and the first client render agree.
  */
 export function useRepoInsights(): RepoInsights {
-  const [data, setData] = useState<RepoInsights>(EMPTY);
-
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      const core = await loadCoreShared();
-      // Functional update preserves a heartbeat that may have resolved first.
-      if (active) setData((prev) => ({ ...core, heartbeat: prev.heartbeat }));
-    })();
-    void (async () => {
-      const heartbeat = await loadHeartbeatShared();
-      if (active) setData((prev) => ({ ...prev, heartbeat }));
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  return data;
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

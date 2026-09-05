@@ -60,7 +60,12 @@ const Details = ({ activeAppointment }: DetailsProps) => {
             </div>
           ) : null}
           {invoices.map((payment, i) => {
-            const invoiceKey = payment.id || `${payment.appointmentId || 'appointment'}-${i}`;
+            // Real invoices are read out of the store BY id, so `payment.id` is always the
+            // key. The content fallback only covers malformed rows, and stays off the row
+            // index so a reorder cannot carry one invoice's state onto another.
+            const invoiceKey =
+              payment.id ||
+              `${payment.appointmentId || 'appointment'}-${payment.createdAt}-${payment.totalAmount}`;
             return (
               <Accordion
                 key={invoiceKey}

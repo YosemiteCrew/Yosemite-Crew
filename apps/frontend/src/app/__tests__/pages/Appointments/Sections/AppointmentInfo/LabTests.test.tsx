@@ -1816,4 +1816,84 @@ describe('LabTests', () => {
 
     expect(screen.getByText('Loading appointment lab orders...')).toBeInTheDocument();
   });
+
+  it('clears a superseded "load more" spinner when a fresh search starts', async () => {
+    /* The append fetch raises `testsLoadingMore` and only lowers it while it is
+       still the newest request. A search typed while it is in flight supersedes
+       it WITHOUT ever raising the flag itself, so nobody lowered it: the picker
+       spinner stayed up and `loadMoreTests` refused to fire ever again. */
+    let resolveAppend!: (value: unknown) => void;
+    const appendPending = new Promise((resolve) => {
+      resolveAppend = resolve;
+    });
+
+    listIdexxTestsMock
+      .mockResolvedValueOnce({
+        tests: Array.from({ length: 25 }, (_, i) => ({
+          _id: `t${i}`,
+          code: `code-${i}`,
+          display: `Test ${i}`,
+        })),
+      })
+      .mockReturnValueOnce(appendPending)
+      .mockResolvedValueOnce({ tests: [{ _id: 'sdma', code: '3638', display: 'IDEXX SDMA' }] });
+
+    const { result } = renderHook(() => useLabTests(appointment));
+
+    await waitFor(() => {
+      expect(result.current.testsHasMore).toBe(true);
+    });
+
+    act(() => {
+      result.current.loadMoreTests();
+    });
+    await waitFor(() => {
+      expect(result.current.testsLoadingMore).toBe(true);
+    });
+
+    act(() => {
+      result.current.setQuery('SDMA');
+    });
+    await waitFor(() => {
+      expect(listIdexxTestsMock).toHaveBeenCalledTimes(3);
+    });
+
+    expect(result.current.testsLoadingMore).toBe(false);
+
+    // The superseded append lands late and must not put the spinner back up.
+    await act(async () => {
+      resolveAppend({ tests: [] });
+    });
+
+    expect(result.current.testsLoadingMore).toBe(false);
+  });
+
+  it('drops a device list that lands after the integration was disabled', async () => {
+    let resolveDevices!: (value: unknown) => void;
+    listIdexxIvlsDevicesMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveDevices = resolve;
+      })
+    );
+
+    const { result, rerender } = renderHook(() => useLabTests(appointment));
+
+    await waitFor(() => {
+      expect(listIdexxIvlsDevicesMock).toHaveBeenCalledTimes(1);
+    });
+
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'disabled' });
+    rerender();
+    await waitFor(() => {
+      expect(result.current.integrationEnabled).toBe(false);
+    });
+
+    await act(async () => {
+      resolveDevices({
+        ivlsDeviceList: [{ deviceSerialNumber: 'stale-1', displayName: 'Stale Analyser' }],
+      });
+    });
+
+    expect(result.current.devices).toEqual([]);
+  });
 });

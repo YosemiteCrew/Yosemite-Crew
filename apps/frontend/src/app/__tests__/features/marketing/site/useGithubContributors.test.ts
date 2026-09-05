@@ -114,4 +114,26 @@ describe('useGithubContributors', () => {
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
     expect(result.current).toBeNull();
   });
+
+  it('aborts the in-flight request on unmount and leaves the roster untouched', async () => {
+    let capturedSignal: AbortSignal | undefined;
+    let resolveFetch: ((value: Response) => void) | undefined;
+    globalThis.fetch = jest.fn((_url: unknown, init?: RequestInit) => {
+      capturedSignal = init?.signal ?? undefined;
+      return new Promise<Response>((resolve) => {
+        resolveFetch = resolve;
+      });
+    }) as unknown as FetchLike;
+
+    const { result, unmount } = renderHook(() => useGithubContributors());
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(capturedSignal?.aborted).toBe(false);
+
+    unmount();
+    expect(capturedSignal?.aborted).toBe(true);
+
+    resolveFetch?.(response([{ login: 'ada', type: 'User' }]));
+    await Promise.resolve();
+    expect(result.current).toBeNull();
+  });
 });

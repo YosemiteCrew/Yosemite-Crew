@@ -761,6 +761,15 @@ const IdexxFollowUpPortal = ({ open, followUpFrameUrl, onClose }: IdexxFollowUpP
             title="IDEXX follow-up hub"
             className="size-full border-0"
             loading="lazy"
+            // allow-scripts + allow-same-origin is flagged generically because the pair
+            // lets a SAME-ORIGIN frame strip its own sandbox. This src is host-allowlisted
+            // to https idexx.com / vetconnectplus.com by getSafeIdexxIframeUrl, so the frame
+            // lands in IDEXX's origin and can reach neither this document nor its cookies.
+            // Both tokens are load-bearing: the follow-up hub is a script app, and without
+            // same-origin it gets an opaque origin with no cookies and a throwing
+            // localStorage, which signs the user out of IDEXX. Same decision as LabTests.tsx
+            // and DiagnosticsStep.tsx; the remaining tokens still deny top-navigation and
+            // downloads.
             sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"

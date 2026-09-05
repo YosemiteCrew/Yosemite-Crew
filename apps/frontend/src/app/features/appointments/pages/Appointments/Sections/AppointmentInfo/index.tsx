@@ -245,7 +245,6 @@ const getFormBadge = (
 
 type SubmittedFormEntryProps = {
   entry: AppointmentFormEntry;
-  idx: number;
   canEdit: boolean;
   activeAppointment: Appointment | null;
   attributes: ReturnType<typeof useAuthStore.getState>['attributes'];
@@ -261,9 +260,58 @@ type SubmittedFormEntryProps = {
   ) => void;
 };
 
-const SubmittedFormEntry = ({
+type SubmittedFormAnswersProps = {
+  entry: AppointmentFormEntry;
+  submission: FormSubmission & { signatureRequired?: boolean };
+  label: string;
+  badgeClass: string;
+  isClientSigner: boolean;
+  isSigned: boolean;
+};
+
+/** Read-only view of an already-submitted form. */
+const SubmittedFormAnswers = ({
   entry,
-  idx,
+  submission,
+  label,
+  badgeClass,
+  isClientSigner,
+  isSigned,
+}: SubmittedFormAnswersProps) => (
+  <div className="border border-card-border rounded-2xl p-4 flex flex-col gap-2">
+    <FormRenderer
+      fields={entry.form.schema ?? []}
+      values={(submission.answers ?? {}) as Record<string, unknown>}
+      onChange={() => {}}
+      readOnly
+    />
+    {submission.signatureRequired ? (
+      <div className="mt-3">
+        <FormBadge label={label} badgeClass={badgeClass} />
+      </div>
+    ) : null}
+    {isClientSigner ? (
+      <div className="text-xs text-text-secondary">
+        {isSigned
+          ? 'Signed by pet parent.'
+          : 'Sent to pet parent. It will update when they sign the document.'}
+      </div>
+    ) : null}
+  </div>
+);
+
+type PendingFormEditorProps = Omit<SubmittedFormEntryProps, 'onSubmissionUpdate'> & {
+  formId: string;
+  isClientSigner: boolean;
+  signatureRequired: boolean;
+};
+
+/** Fillable view of a form that has no submission yet, plus its Save action. */
+const PendingFormEditor = ({
+  entry,
+  formId,
+  isClientSigner,
+  signatureRequired,
   canEdit,
   activeAppointment,
   attributes,
@@ -273,9 +321,95 @@ const SubmittedFormEntry = ({
   setSubmittingId,
   setSubmitError,
   onSubmission,
-  onSubmissionUpdate,
-}: SubmittedFormEntryProps) => {
-  const answers = entry.submission?.answers ?? {};
+}: PendingFormEditorProps) => {
+  const formValues = valuesByForm[formId] ?? buildInitialValues(entry.form.schema ?? []);
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="border border-card-border rounded-2xl p-4">
+        <FormRenderer
+          fields={entry.form.schema ?? []}
+          values={formValues}
+          onChange={(id, value) =>
+            setValuesByForm((prev) => ({
+              ...prev,
+              [formId]: { ...(prev[formId] ?? formValues), [id]: value },
+            }))
+          }
+          readOnly={!canEdit || isClientSigner}
+        />
+      </div>
+      {canEdit && !isClientSigner && (
+        <Primary
+          href="#"
+          text={submittingId === formId ? 'Saving...' : 'Save'}
+          onClick={async () => {
+            if (!activeAppointment?.id || !attributes?.sub) return;
+            setSubmitError(null);
+            setSubmittingId(formId);
+            try {
+              const requiresSignature = signatureRequired;
+              const companion = activeAppointment?.companion;
+              const valuesToSubmit = valuesByForm[formId] ?? formValues;
+              const missingRequired = collectMissingRequiredFields(
+                entry.form.schema ?? [],
+                valuesToSubmit
+              );
+              if (missingRequired.length > 0) {
+                setSubmitError(
+                  `Please complete the required field(s): ${missingRequired.join(', ')}`
+                );
+                setSubmittingId(null);
+                return;
+              }
+              const submission: FormSubmission = {
+                _id: '',
+                /* v8 ignore next -- this Save handler only renders in the `!entry.submission` branch, so formVersion always falls back to 1 */
+                formVersion: entry.submission?.formVersion ?? 1,
+                submittedAt: createSubmissionTimestamp(),
+                formId: entry.form._id,
+                appointmentId: activeAppointment.id,
+                companionId: companion?.id ?? '',
+                parentId: companion?.parent?.id ?? '',
+                answers: valuesToSubmit,
+                submittedBy: attributes.sub,
+              };
+              const created = await createSubmission(submission);
+              const submissionWithSigning = requiresSignature
+                ? {
+                    ...created,
+                    signatureRequired: true,
+                    signing: created.signing ?? {
+                      required: true,
+                      status: 'NOT_STARTED',
+                      provider: 'DOCUMENSO',
+                    },
+                  }
+                : created;
+              onSubmission?.({
+                form: entry.form,
+                submission: submissionWithSigning,
+                status: 'completed',
+              });
+            } catch (e) {
+              console.error('Failed to submit form', e);
+              setSubmitError('Failed to submit form. Please try again.');
+            } finally {
+              setSubmittingId(null);
+            }
+          }}
+        />
+      )}
+      {isClientSigner ? (
+        <div className="text-xs text-text-secondary">
+          Sent to pet parent. It will update when they sign the document.
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+const SubmittedFormEntry = (props: SubmittedFormEntryProps) => {
+  const { entry, onSubmissionUpdate } = props;
   const requiredSigner = entry.form.requiredSigner ?? '';
   const isClientSigner = requiredSigner === 'CLIENT';
   const isExplicitNone = requiredSigner === '';
@@ -285,8 +419,7 @@ const SubmittedFormEntry = ({
     requiredSigner === 'VET' &&
     hasSignatureField(entry.form.schema ?? []);
   const formId = entry.form._id ?? entry.form.name;
-  const formValues = valuesByForm[formId] ?? buildInitialValues(entry.form.schema ?? []);
-  const key = entry.submission?._id ?? `${formId}-${idx}`;
+  const key = entry.submission?._id ?? formId;
   const submissionWithMeta = entry.submission
     ? ({
         ...entry.submission,
@@ -297,7 +430,6 @@ const SubmittedFormEntry = ({
   const isSigned = signingStatus === 'SIGNED' || Boolean(submissionWithMeta?.signing?.pdf?.url);
   const needsSignature = submissionWithMeta?.signatureRequired;
   const { label, badgeClass } = getFormBadge(entry, needsSignature, isSigned, isClientSigner);
-  const shouldOpenByDefault = label === 'Signature Pending';
   const signatureActions = submissionWithMeta?.signatureRequired ? (
     <SignatureActions
       submission={submissionWithMeta}
@@ -308,114 +440,27 @@ const SubmittedFormEntry = ({
     <Accordion
       key={key}
       title={entry.form.name}
-      defaultOpen={shouldOpenByDefault}
+      defaultOpen={label === 'Signature Pending'}
       showEditIcon={false}
       isEditing
       rightElement={signatureActions ?? <FormBadge label={label} badgeClass={badgeClass} />}
     >
-      {entry.submission ? (
-        <div className="border border-card-border rounded-2xl p-4 flex flex-col gap-2">
-          <FormRenderer
-            fields={entry.form.schema ?? []}
-            values={answers as Record<string, unknown>}
-            onChange={() => {}}
-            readOnly
-          />
-          {submissionWithMeta?.signatureRequired ? (
-            <div className="mt-3">
-              <FormBadge label={label} badgeClass={badgeClass} />
-            </div>
-          ) : null}
-          {isClientSigner ? (
-            <div className="text-xs text-text-secondary">
-              {isSigned
-                ? 'Signed by pet parent.'
-                : 'Sent to pet parent. It will update when they sign the document.'}
-            </div>
-          ) : null}
-        </div>
+      {submissionWithMeta ? (
+        <SubmittedFormAnswers
+          entry={entry}
+          submission={submissionWithMeta}
+          label={label}
+          badgeClass={badgeClass}
+          isClientSigner={isClientSigner}
+          isSigned={isSigned}
+        />
       ) : (
-        <div className="flex flex-col gap-3">
-          <div className="border border-card-border rounded-2xl p-4">
-            <FormRenderer
-              fields={entry.form.schema ?? []}
-              values={formValues}
-              onChange={(id, value) =>
-                setValuesByForm((prev) => ({
-                  ...prev,
-                  [formId]: { ...(prev[formId] ?? formValues), [id]: value },
-                }))
-              }
-              readOnly={!canEdit || isClientSigner}
-            />
-          </div>
-          {canEdit && !isClientSigner && (
-            <Primary
-              href="#"
-              text={submittingId === formId ? 'Saving...' : 'Save'}
-              onClick={async () => {
-                if (!activeAppointment?.id || !attributes?.sub) return;
-                setSubmitError(null);
-                setSubmittingId(formId);
-                try {
-                  const requiresSignature = signatureRequired;
-                  const companion = activeAppointment?.companion;
-                  const valuesToSubmit = valuesByForm[formId] ?? formValues;
-                  const missingRequired = collectMissingRequiredFields(
-                    entry.form.schema ?? [],
-                    valuesToSubmit
-                  );
-                  if (missingRequired.length > 0) {
-                    setSubmitError(
-                      `Please complete the required field(s): ${missingRequired.join(', ')}`
-                    );
-                    setSubmittingId(null);
-                    return;
-                  }
-                  const submission: FormSubmission = {
-                    _id: '',
-                    /* v8 ignore next -- this Save handler only renders in the `!entry.submission` branch, so formVersion always falls back to 1 */
-                    formVersion: entry.submission?.formVersion ?? 1,
-                    submittedAt: createSubmissionTimestamp(),
-                    formId: entry.form._id,
-                    appointmentId: activeAppointment.id,
-                    companionId: companion?.id ?? '',
-                    parentId: companion?.parent?.id ?? '',
-                    answers: valuesToSubmit,
-                    submittedBy: attributes.sub,
-                  };
-                  const created = await createSubmission(submission);
-                  const submissionWithSigning = requiresSignature
-                    ? {
-                        ...created,
-                        signatureRequired: true,
-                        signing: created.signing ?? {
-                          required: true,
-                          status: 'NOT_STARTED',
-                          provider: 'DOCUMENSO',
-                        },
-                      }
-                    : created;
-                  onSubmission?.({
-                    form: entry.form,
-                    submission: submissionWithSigning,
-                    status: 'completed',
-                  });
-                } catch (e) {
-                  console.error('Failed to submit form', e);
-                  setSubmitError('Failed to submit form. Please try again.');
-                } finally {
-                  setSubmittingId(null);
-                }
-              }}
-            />
-          )}
-          {isClientSigner ? (
-            <div className="text-xs text-text-secondary">
-              Sent to pet parent. It will update when they sign the document.
-            </div>
-          ) : null}
-        </div>
+        <PendingFormEditor
+          {...props}
+          formId={formId}
+          isClientSigner={isClientSigner}
+          signatureRequired={signatureRequired}
+        />
       )}
     </Accordion>
   );
@@ -633,14 +678,13 @@ export const CustomFormsView = ({
           </div>
         ) : null}
 
-        {forms.map((entry, idx) => {
+        {forms.map((entry) => {
           const formId = entry.form._id ?? entry.form.name;
-          const key = entry.submission?._id ?? `${formId}-${idx}`;
+          const key = entry.submission?._id ?? formId;
           return (
             <SubmittedFormEntry
               key={key}
               entry={entry}
-              idx={idx}
               canEdit={canEdit}
               activeAppointment={activeAppointment}
               attributes={attributes}

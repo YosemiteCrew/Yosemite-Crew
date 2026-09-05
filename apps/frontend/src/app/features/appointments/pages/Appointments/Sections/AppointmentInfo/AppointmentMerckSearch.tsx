@@ -452,9 +452,10 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
       setEntries([]);
       setError(getMerckSearchError(e));
     } finally {
-      if (reqId === requestRef.current) {
-        setLoading(false);
-      }
+      // Unconditional so a rejection can never strand the spinner. Only the newest
+      // request owns it: a superseded response re-asserts `true`, which the newer
+      // in-flight request already set, so this is a no-op on that path.
+      setLoading(reqId !== requestRef.current);
     }
   };
 

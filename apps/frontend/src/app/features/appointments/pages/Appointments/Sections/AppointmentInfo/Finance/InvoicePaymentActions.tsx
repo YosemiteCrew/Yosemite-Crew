@@ -168,7 +168,7 @@ const InvoicePaymentActions = ({
   };
 
   const handleDownload = () => {
-    globalThis.open(stripeReceiptUrl, '_blank');
+    globalThis.open(stripeReceiptUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleCollectOfflinePayment = () => {

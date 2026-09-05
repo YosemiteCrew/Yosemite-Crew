@@ -1719,6 +1719,8 @@ describe('useAppointmentForm', () => {
       );
     });
     expect(result.current.timeSlots).toEqual([]);
+    // The early return on "no matches" must still clear the spinner.
+    expect(result.current.isLoadingSlotScopedOptions).toBe(false);
   });
 
   it('clears slot-scoped options when resolving calendar prefill options throws', async () => {
@@ -1823,6 +1825,166 @@ describe('useAppointmentForm', () => {
       expect(result.current.formData.lead?.id).toBe('vet-1');
       expect(result.current.selectedSlot?.startTime).toBe('10:00');
     });
+  });
+
+  // The three `pendingPrefill.leadId` outcomes for a matching slot. Characterised
+  // before the effect was rewritten to a single derived write per store, so a
+  // behaviour drift in any branch fails here rather than in the clinic.
+  const renderPrefillWithLead = async (
+    leadId: string,
+    vetIds: string[],
+    teams: Array<{ _id: string; name: string; practionerId: string }>
+  ) => {
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue(teams);
+    const slot = { startTime: '10:00', endTime: '10:30', vetIds };
+    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([slot]);
+    (normalizeSlotsForSelectedDay as jest.Mock).mockReturnValue([
+      { slot, meta: { localStartMinute: 600, localEndMinute: 630, dayOffset: 0 } },
+    ]);
+    (utcClockTimeToPreferredTimeZoneClock as jest.Mock).mockReturnValue({
+      minutes: 600,
+      dayOffset: 0,
+    });
+
+    const prefill = { date: new Date('2026-04-01T00:00:00.000Z'), minuteOfDay: 600, leadId };
+    const { result } = renderHook(() => useAppointmentForm({ initialPrefill: prefill }));
+
+    await act(async () => {
+      result.current.handleSpecialitySelect({ label: 'General', value: 'spec-1' });
+      result.current.handleServiceSelect({ label: 'Consult', value: 'svc-1' });
+    });
+    await waitFor(() => {
+      expect(result.current.timeSlots).toHaveLength(1);
+    });
+    return result;
+  };
+
+  it('non-calendar prefill keeps the prefilled lead when the matched slot supports it', async () => {
+    const result = await renderPrefillWithLead(
+      'vet-2',
+      ['vet-1', 'vet-2'],
+      [
+        { _id: 'team-1', name: 'Dr One', practionerId: 'vet-1' },
+        { _id: 'team-2', name: 'Dr Two', practionerId: 'vet-2' },
+      ]
+    );
+
+    await waitFor(() => {
+      expect(result.current.formData.lead?.id).toBe('vet-2');
+    });
+    expect(result.current.formData.lead?.name).toBe('Dr Two');
+    expect(result.current.selectedSlot?.startTime).toBe('10:00');
+    expect(result.current.formDataErrors.leadId).toBeUndefined();
+    expect(result.current.formDataErrors.slot).toBeUndefined();
+  });
+
+  it('non-calendar prefill falls back to the single available lead when the prefilled one is not bookable', async () => {
+    const result = await renderPrefillWithLead(
+      'vet-9',
+      ['vet-1'],
+      [{ _id: 'team-1', name: 'Dr One', practionerId: 'vet-1' }]
+    );
+
+    await waitFor(() => {
+      expect(result.current.formData.lead?.id).toBe('vet-1');
+    });
+    expect(result.current.formData.lead?.name).toBe('Dr One');
+    expect(result.current.selectedSlot?.startTime).toBe('10:00');
+    expect(result.current.formDataErrors.leadId).toBeUndefined();
+  });
+
+  it('non-calendar prefill clears the lead when the prefilled one is not bookable and several others are', async () => {
+    const result = await renderPrefillWithLead(
+      'vet-9',
+      ['vet-1', 'vet-2'],
+      [
+        { _id: 'team-1', name: 'Dr One', practionerId: 'vet-1' },
+        { _id: 'team-2', name: 'Dr Two', practionerId: 'vet-2' },
+      ]
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectedSlot?.startTime).toBe('10:00');
+    });
+    expect(result.current.formData.lead).toBeUndefined();
+  });
+
+  it('non-calendar prefill leaves the lead unset when it names none and the slot offers several', async () => {
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'team-1', name: 'Dr One', practionerId: 'vet-1' },
+      { _id: 'team-2', name: 'Dr Two', practionerId: 'vet-2' },
+    ]);
+    const slot = { startTime: '10:00', endTime: '10:30', vetIds: ['vet-1', 'vet-2'] };
+    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([slot]);
+    (normalizeSlotsForSelectedDay as jest.Mock).mockReturnValue([
+      { slot, meta: { localStartMinute: 600, localEndMinute: 630, dayOffset: 0 } },
+    ]);
+    (utcClockTimeToPreferredTimeZoneClock as jest.Mock).mockReturnValue({
+      minutes: 600,
+      dayOffset: 0,
+    });
+
+    const prefill = { date: new Date('2026-04-01T00:00:00.000Z'), minuteOfDay: 600 };
+    const { result } = renderHook(() => useAppointmentForm({ initialPrefill: prefill }));
+
+    await act(async () => {
+      result.current.handleSpecialitySelect({ label: 'General', value: 'spec-1' });
+      result.current.handleServiceSelect({ label: 'Consult', value: 'svc-1' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedSlot?.startTime).toBe('10:00');
+    });
+    expect(result.current.formData.lead).toBeUndefined();
+  });
+
+  it('non-calendar prefill with a lead falls back to the slot-unavailable error when the slot has no leads', async () => {
+    const result = await renderPrefillWithLead('vet-9', [], []);
+
+    await waitFor(() => {
+      expect(result.current.formDataErrors.slot).toBe(
+        'No lead is available for this slot. Please choose another slot.'
+      );
+    });
+    expect(result.current.formData.lead).toBeUndefined();
+  });
+
+  it('re-adopts the prefilled lead when the chosen multi-lead slot excludes the current one', async () => {
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'team-1', name: 'Dr One', practionerId: 'vet-1' },
+      { _id: 'team-2', name: 'Dr Two', practionerId: 'vet-2' },
+      { _id: 'team-3', name: 'Dr Three', practionerId: 'vet-3' },
+    ]);
+    const prefill = {
+      date: new Date('2026-04-01T00:00:00.000Z'),
+      minuteOfDay: 600,
+      leadId: 'vet-2',
+    };
+    const { result } = renderHook(() =>
+      useAppointmentForm({ initialPrefill: prefill, calendarSlotFlow: true })
+    );
+
+    // Move off the prefilled lead, then pick a slot that does not offer the new one.
+    await act(async () => {
+      result.current.handleLeadSelect({ label: 'Dr Three', value: 'vet-3' });
+    });
+    await waitFor(() => {
+      expect(result.current.formData.lead?.id).toBe('vet-3');
+    });
+
+    await act(async () => {
+      result.current.setSelectedSlot({
+        startTime: '10:00',
+        endTime: '10:30',
+        vetIds: ['vet-1', 'vet-2'],
+      } as never);
+    });
+
+    await waitFor(() => {
+      expect(result.current.formData.lead?.id).toBe('vet-2');
+    });
+    expect(result.current.formData.lead?.name).toBe('Dr Two');
+    expect(result.current.formDataErrors.leadId).toBeUndefined();
   });
 
   it('non-calendar prefill clears itself when no timeslot is close enough to match', async () => {

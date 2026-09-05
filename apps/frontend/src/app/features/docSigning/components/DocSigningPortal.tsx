@@ -21,22 +21,40 @@ const DocSigningPortal = ({ embedded = false }: DocSigningPortalProps) => {
   }, [redirectUrl]);
 
   useEffect(() => {
+    if (!primaryOrgId) return;
+    // A second org id can arrive while the first request is still open; the
+    // cleanup marks the earlier run stale so its response cannot overwrite the
+    // newer one (or land on an unmounted portal).
+    let cancelled = false;
+
     const run = async () => {
-      if (!primaryOrgId) return;
       setLoading(true);
       setError(null);
-      try {
-        const res = await fetchDocumensoRedirectUrl(primaryOrgId);
-        setRedirectUrl(res.redirectUrl);
-      } catch (e: any) {
-        console.error('Failed to fetch Documenso portal URL', e);
-        setError(e?.response?.data?.message || e?.message || 'Unable to load Doc Signing portal');
-      } finally {
-        setLoading(false);
-      }
+      return (
+        fetchDocumensoRedirectUrl(primaryOrgId)
+          .then((res) => {
+            if (!cancelled) setRedirectUrl(res.redirectUrl);
+          })
+          .catch((e: any) => {
+            console.error('Failed to fetch Documenso portal URL', e);
+            if (!cancelled) {
+              setError(
+                e?.response?.data?.message || e?.message || 'Unable to load Doc Signing portal'
+              );
+            }
+          })
+          // Settles on both paths, so a rejection cannot strand the spinner.
+          .finally(() => {
+            if (!cancelled) setLoading(false);
+          })
+      );
     };
 
     void run();
+
+    return () => {
+      cancelled = true;
+    };
   }, [primaryOrgId]);
 
   if (loading) {

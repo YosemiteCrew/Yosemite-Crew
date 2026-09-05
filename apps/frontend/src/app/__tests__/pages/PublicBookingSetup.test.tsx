@@ -638,6 +638,37 @@ describe('PublicBookingSetup', () => {
       });
     });
 
+    // A successful save hands the selection back to what the API stored. The
+    // local override has to be dropped for that, or a server that normalised the
+    // list (dropped an id, kept one it insists on) would keep showing the
+    // practice a selection it no longer has.
+    it('shows the saved selection the API returned, not the local override', async () => {
+      saveConfigMock.mockResolvedValue(config({ configured: true, serviceIds: ['s1'] }));
+      await renderSetup();
+      await waitFor(() => expect(getConfigMock).toHaveBeenCalled());
+
+      // Deselect s1 locally - the opposite of what the API will report back.
+      fireEvent.click(screen.getByRole('button', { name: /Wellness & vaccination/ }));
+      expect(screen.getByRole('button', { name: /Wellness & vaccination/ })).toHaveAttribute(
+        'aria-pressed',
+        'false'
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /Continue/ }));
+      fireEvent.click(screen.getByRole('button', { name: /Save booking setup/ }));
+      await waitFor(() => expect(saveConfigMock).toHaveBeenCalled());
+
+      fireEvent.click(screen.getByRole('button', { name: /Back/ }));
+      expect(screen.getByRole('button', { name: /Wellness & vaccination/ })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
+      expect(screen.getByRole('button', { name: /Sick visit/ })).toHaveAttribute(
+        'aria-pressed',
+        'false'
+      );
+    });
+
     it('sends blank optional text as null', async () => {
       await goToBranding();
 

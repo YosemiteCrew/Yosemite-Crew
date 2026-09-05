@@ -633,6 +633,45 @@ describe('TeamInfo', () => {
     expect(upsertUserProfile).not.toHaveBeenCalled();
   });
 
+  it('ignores a profile rejection that lands after the effect was cleaned up', async () => {
+    let rejectFirstFetch: (reason: unknown) => void = () => {};
+    (getProfileForUserForPrimaryOrg as jest.Mock)
+      .mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectFirstFetch = reject;
+          })
+      )
+      .mockImplementationOnce(() => Promise.resolve(mockProfileResponse));
+
+    const secondTeam = { ...activeTeam, _id: 'team-2', practionerId: 'Practitioner/prac-2' };
+    useTeamStore.setState({
+      teamsById: { 'team-1': activeTeam, 'team-2': secondTeam },
+      teamIdsByOrgId: {},
+    });
+
+    const { rerender } = render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+    rerender(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={secondTeam} canEditTeam={true} />
+    );
+
+    await waitFor(() => expect(getProfileForUserForPrimaryOrg).toHaveBeenCalledTimes(2));
+    const orgDetails = await screen.findByTestId('editable-Org details');
+    await waitFor(() => expect(orgDetails).toHaveTextContent('"employmentType":"FULL_TIME"'));
+
+    // The first member's request rejects only now, long after its effect was
+    // cleaned up. It must not blank the profile the second request wrote.
+    await act(async () => {
+      rejectFirstFetch(new Error('stale fetch failed'));
+    });
+
+    expect(screen.getByTestId('editable-Org details')).toHaveTextContent(
+      '"employmentType":"FULL_TIME"'
+    );
+  });
+
   it('closes the delete modal when the delete is cancelled', async () => {
     render(
       <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />

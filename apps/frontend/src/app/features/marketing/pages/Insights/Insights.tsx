@@ -950,6 +950,14 @@ function CommitRow({ commit, isLast }: Readonly<{ commit: RepoCommit; isLast: bo
   );
 }
 
+/**
+ * The sha identifies the row, but `parseCommits` hands back `''` when GitHub
+ * omits one, so fall back to the rest of the row's content rather than to its
+ * position - the list is replaced wholesale when the fetch resolves.
+ */
+const commitKey = (commit: RepoCommit) =>
+  commit.sha || `${commit.url}|${commit.when}|${commit.message}`;
+
 function CommitsCard({ commits }: Readonly<{ commits: RepoCommit[] | null }>) {
   return (
     <Reveal style={CARD_STYLE}>
@@ -986,7 +994,7 @@ function CommitsCard({ commits }: Readonly<{ commits: RepoCommit[] | null }>) {
         {commits ? (
           commits.map((commit, index) => (
             <CommitRow
-              key={commit.sha || index}
+              key={commitKey(commit)}
               commit={commit}
               isLast={index === commits.length - 1}
             />

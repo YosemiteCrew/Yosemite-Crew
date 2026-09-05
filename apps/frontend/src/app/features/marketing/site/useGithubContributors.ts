@@ -48,24 +48,27 @@ export function useGithubContributors(): GithubContributor[] | null {
   const [contributors, setContributors] = useState<GithubContributor[] | null>(null);
 
   useEffect(() => {
-    let active = true;
+    // AbortController rather than a boolean flag so unmounting actually cancels
+    // the in-flight request instead of only ignoring its answer.
+    const controller = new AbortController();
 
     void (async () => {
       try {
         const response = await fetch(GITHUB_CONTRIBUTORS_API, {
           headers: { Accept: 'application/vnd.github+json' },
+          signal: controller.signal,
         });
         if (!response.ok) return;
         const json = (await response.json()) as GithubContributorResponse[] | null;
-        if (!active) return;
+        if (controller.signal.aborted) return;
         setContributors(parseGithubContributors(json));
       } catch {
-        if (active) setContributors(null);
+        if (!controller.signal.aborted) setContributors(null);
       }
     })();
 
     return () => {
-      active = false;
+      controller.abort();
     };
   }, []);
 

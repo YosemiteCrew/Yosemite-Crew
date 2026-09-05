@@ -1,6 +1,14 @@
 'use client';
 
-import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
@@ -712,27 +720,122 @@ export const MerckReaderPortal = ({
   );
 };
 
+/** `useState`'s value-or-updater argument, resolved against the current value. */
+const resolveSetStateAction = <T,>(value: React.SetStateAction<T>, current: T): T =>
+  typeof value === 'function' ? (value as (prev: T) => T)(current) : value;
+
+/**
+ * Exposes one field of a reducer slice with the `Dispatch<SetStateAction<T>>` shape
+ * that `MerckSearchPanel`, `MerckReaderPortal` and `executeMerckSearch` already take,
+ * so grouping the page's state leaves every call site as it was. Built once per slice
+ * so the identities stay stable - `MerckReaderPortal` hangs its load-timeout effect off
+ * them, and a fresh function each render would restart that timer on every render.
+ */
+const fieldSetter =
+  <S, K extends keyof S>(
+    dispatch: React.Dispatch<(state: S) => Partial<S>>,
+    key: K
+  ): React.Dispatch<React.SetStateAction<S[K]>> =>
+  (value) =>
+    dispatch((state) => {
+      const next: Partial<S> = {};
+      next[key] = resolveSetStateAction(value, state[key]);
+      return next;
+    });
+
+/** What the search half of the page is showing: the criteria and their results. */
+type MerckSearchState = {
+  audience: MerckAudience;
+  language: MerckLanguage;
+  query: string;
+  advancedOpen: boolean;
+  entries: MerckEntry[];
+  loading: boolean;
+  hasSearched: boolean;
+  error: string | null;
+  copied: string | null;
+};
+
+/** What the reader overlay is showing. */
+type MerckReaderState = {
+  open: boolean;
+  title: string;
+  url: string | null;
+  loading: boolean;
+  blocked: boolean;
+};
+
+const searchReducer = (
+  state: MerckSearchState,
+  update: (state: MerckSearchState) => Partial<MerckSearchState>
+): MerckSearchState => ({ ...state, ...update(state) });
+
+const readerReducer = (
+  state: MerckReaderState,
+  update: (state: MerckReaderState) => Partial<MerckReaderState>
+): MerckReaderState => ({ ...state, ...update(state) });
+
+const buildInitialSearchState = (query: string): MerckSearchState => ({
+  audience: 'PROV',
+  language: 'en',
+  query,
+  advancedOpen: false,
+  entries: [],
+  loading: false,
+  hasSearched: false,
+  error: null,
+  copied: null,
+});
+
+const INITIAL_READER_STATE: MerckReaderState = {
+  open: false,
+  title: 'Merck Manual',
+  url: null,
+  loading: false,
+  blocked: false,
+};
+
 const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   const searchParams = useSearchParams();
   const routeQuery = String(searchParams.get('q') ?? '').trim();
   const { isEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
 
-  const [audience, setAudience] = useState<MerckAudience>('PROV');
-  const [language, setLanguage] = useState<MerckLanguage>('en');
-  const [query, setQuery] = useState(() => routeQuery || '');
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [entries, setEntries] = useState<MerckEntry[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
+  // The search criteria and their results move together, as do the five reader
+  // fields, so each group is one reducer slice rather than nine and five useStates.
+  const [search, dispatchSearch] = useReducer(searchReducer, routeQuery, buildInitialSearchState);
+  const { audience, language, query, advancedOpen, entries, loading, hasSearched, error, copied } =
+    search;
+  const [reader, dispatchReader] = useReducer(readerReducer, INITIAL_READER_STATE);
+  const {
+    open: readerOpen,
+    title: readerTitle,
+    url: readerUrl,
+    loading: readerLoading,
+    blocked: readerBlocked,
+  } = reader;
 
-  const [readerOpen, setReaderOpen] = useState(false);
-  const [readerTitle, setReaderTitle] = useState('Merck Manual');
-  const [readerUrl, setReaderUrl] = useState<string | null>(null);
-  const [readerLoading, setReaderLoading] = useState(false);
-  const [readerBlocked, setReaderBlocked] = useState(false);
+  const set = useMemo(
+    () => ({
+      query: fieldSetter(dispatchSearch, 'query'),
+      advancedOpen: fieldSetter(dispatchSearch, 'advancedOpen'),
+      language: fieldSetter(dispatchSearch, 'language'),
+      entries: fieldSetter(dispatchSearch, 'entries'),
+      loading: fieldSetter(dispatchSearch, 'loading'),
+      hasSearched: fieldSetter(dispatchSearch, 'hasSearched'),
+      error: fieldSetter(dispatchSearch, 'error'),
+      copied: fieldSetter(dispatchSearch, 'copied'),
+    }),
+    []
+  );
+  const setReader = useMemo(
+    () => ({
+      open: fieldSetter(dispatchReader, 'open'),
+      loading: fieldSetter(dispatchReader, 'loading'),
+      blocked: fieldSetter(dispatchReader, 'blocked'),
+    }),
+    []
+  );
 
   const requestIdRef = useRef(0);
   // Allocated once by useState's lazy initialiser. This was a `useRef(null!)` plus a
@@ -753,9 +856,9 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
 
   useEffect(() => {
     if (!copied) return;
-    const timer = setTimeout(() => setCopied(null), 1500);
+    const timer = setTimeout(() => set.copied(null), 1500);
     return () => clearTimeout(timer);
-  }, [copied]);
+  }, [copied, set]);
 
   const performSearch = useCallback(
     async (nextQuery?: string, fresh?: boolean) => {
@@ -768,15 +871,16 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         requestIdRef,
         resultCacheRef,
         fresh,
-        setLoading,
-        setError,
-        setEntries,
+        setLoading: set.loading,
+        setError: set.error,
+        setEntries: set.entries,
         onSearchSaved: () => setRecentSearchesKey((k) => k + 1),
-        setHasSearched,
+        setHasSearched: set.hasSearched,
       });
     },
-    // resultCacheRef is a useState box and never re-created, so it never invalidates this.
-    [audience, language, primaryOrgId, query, resultCacheRef]
+    // resultCacheRef is a useState box and `set` a useMemo with no deps, so neither
+    // is ever re-created and neither invalidates this.
+    [audience, language, primaryOrgId, query, resultCacheRef, set]
   );
 
   useEffect(() => {
@@ -791,26 +895,28 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   const onCopyUrl = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
-      setCopied(url);
+      set.copied(url);
     } catch {
-      setError('Unable to copy URL.');
+      set.error('Unable to copy URL.');
     }
   };
 
   const onOpenInFrame = (entry: MerckEntry, url: string) => {
     if (!isAllowedMerckUrl(url)) {
-      setError('Blocked URL: only Merck/MSD Vet Manual links are allowed.');
+      set.error('Blocked URL: only Merck/MSD Vet Manual links are allowed.');
       return;
     }
-    setReaderTitle(entry.title);
-    setReaderUrl(url);
-    setReaderLoading(true);
-    setReaderBlocked(false);
-    setReaderOpen(true);
+    dispatchReader(() => ({
+      title: entry.title,
+      url,
+      loading: true,
+      blocked: false,
+      open: true,
+    }));
   };
 
   const onAudienceChange = (next: MerckAudience) => {
-    setAudience(next);
+    dispatchSearch(() => ({ audience: next }));
     if (primaryOrgId && query.trim()) {
       void executeMerckSearch({
         organisationId: primaryOrgId,
@@ -820,11 +926,11 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         requestIdRef,
         resultCacheRef,
         // fresh: false (default) — serve from cache if available
-        setLoading,
-        setError,
-        setEntries,
+        setLoading: set.loading,
+        setError: set.error,
+        setEntries: set.entries,
         onSearchSaved: () => setRecentSearchesKey((k) => k + 1),
-        setHasSearched,
+        setHasSearched: set.hasSearched,
       });
     }
   };
@@ -880,13 +986,13 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         <div className="flex min-h-0 flex-col gap-4">
           <MerckSearchPanel
             query={query}
-            setQuery={setQuery}
+            setQuery={set.query}
             loading={loading}
             performSearch={performSearch}
             advancedOpen={advancedOpen}
-            setAdvancedOpen={setAdvancedOpen}
+            setAdvancedOpen={set.advancedOpen}
             language={language}
-            setLanguage={setLanguage}
+            setLanguage={set.language}
             recentSearches={recentSearches}
             audience={audience}
             onAudienceChange={onAudienceChange}
@@ -934,9 +1040,9 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         audience={audience}
         copied={copied}
         onCopyUrl={onCopyUrl}
-        setReaderOpen={setReaderOpen}
-        setReaderLoading={setReaderLoading}
-        setReaderBlocked={setReaderBlocked}
+        setReaderOpen={setReader.open}
+        setReaderLoading={setReader.loading}
+        setReaderBlocked={setReader.blocked}
       />
 
       {entries.length === 0 ? (

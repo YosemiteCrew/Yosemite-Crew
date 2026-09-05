@@ -1,4 +1,3 @@
-import { type ComponentProps, useEffect, useMemo, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from 'storybook/test';
 import type { WorkspaceDocumentRow } from '@yosemite-crew/types';
@@ -89,25 +88,17 @@ const DOCUMENTS: WorkspaceDocumentRow[] = [
   },
 ];
 
-type TableProps = ComponentProps<typeof AllDocumentsTable>;
-
 /**
- * Swaps the `RENDERED` marker for a live blob URL so the preview frame has a
- * real document in it. Created during render rather than in an effect, so the
- * frame is populated on first paint, and revoked on unmount so switching
- * stories does not leak.
+ * Minted outside React - before the story renders, so the frame has its document
+ * on the first paint - and revoked by the cleanup `beforeEach` returns, so
+ * switching stories does not leak the blob. Same shape as the sibling
+ * PdfPreviewOverlay stories.
  */
-const TableWithRenderedDocuments = ({ documents, ...args }: TableProps) => {
-  const [url] = useState(() =>
-    URL.createObjectURL(new Blob([DOCUMENT_MARKUP], { type: 'text/html' }))
-  );
-  useEffect(() => () => URL.revokeObjectURL(url), [url]);
-  const seeded = useMemo(
-    () => documents.map((row) => (row.pdfUrl === RENDERED ? { ...row, pdfUrl: url } : row)),
-    [documents, url]
-  );
-  return <AllDocumentsTable {...args} documents={seeded} />;
-};
+let documentUrl = '';
+
+/** Hands every `RENDERED` row the live blob URL so its preview opens a real document. */
+const seedRenderedDocuments = (documents: WorkspaceDocumentRow[]): WorkspaceDocumentRow[] =>
+  documents.map((row) => (row.pdfUrl === RENDERED ? { ...row, pdfUrl: documentUrl } : row));
 
 const meta = {
   title: 'Workspace/AllDocumentsTable',
@@ -143,7 +134,16 @@ const meta = {
     organisationId: 'org-storybook',
     canView: true,
   },
-  render: (args) => <TableWithRenderedDocuments {...args} />,
+  beforeEach: () => {
+    documentUrl = URL.createObjectURL(new Blob([DOCUMENT_MARKUP], { type: 'text/html' }));
+    return () => {
+      URL.revokeObjectURL(documentUrl);
+      documentUrl = '';
+    };
+  },
+  render: ({ documents, ...args }) => (
+    <AllDocumentsTable {...args} documents={seedRenderedDocuments(documents)} />
+  ),
 } satisfies Meta<typeof AllDocumentsTable>;
 
 export default meta;

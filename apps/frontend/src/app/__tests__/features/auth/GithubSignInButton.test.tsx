@@ -65,4 +65,20 @@ describe('GithubSignInButton', () => {
     await waitFor(() => expect(button).not.toBeDisabled());
     expect(redirectToUrl).not.toHaveBeenCalled();
   });
+
+  it('re-enables the button when the handshake rejects', async () => {
+    isEnabled.mockReturnValue(true);
+    startGithubSignIn.mockRejectedValue(new Error('authorisation URL unavailable'));
+    render(<GithubSignInButton />);
+
+    const button = screen.getByRole('button', { name: /continue with github/i });
+    fireEvent.click(button);
+
+    // A rejected handshake never navigates, so the reset has to come from the
+    // `finally`: without it the button stays disabled and the user is stuck.
+    await waitFor(() => expect(startGithubSignIn).toHaveBeenCalledWith('/developers/home'));
+    await waitFor(() => expect(button).not.toBeDisabled());
+    expect(button).toHaveTextContent('Continue with GitHub');
+    expect(redirectToUrl).not.toHaveBeenCalled();
+  });
 });

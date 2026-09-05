@@ -58,6 +58,213 @@ const buildLedgerCaption = (invoice: Invoice, payerName?: string): string => {
   return parts.filter(Boolean).join(' · ');
 };
 
+const getNumberLabel = (invoice: Invoice): string => getInvoiceNumberLabel(invoice) || 'Invoice';
+
+type HeaderProps = {
+  titleId: string;
+  invoice: Invoice;
+  appointment?: Appointment;
+  statusLabel: string;
+  statusStyle?: React.CSSProperties;
+  statusTone?: StatusTone;
+  onClose: () => void;
+};
+
+/** Avatar + invoice number + status pill + close button. */
+const PhoneRecordHeader = ({
+  titleId,
+  invoice,
+  appointment,
+  statusLabel,
+  statusStyle,
+  statusTone,
+  onClose,
+}: HeaderProps) => {
+  const companion = appointment ? getAppointmentCompanion(appointment) : undefined;
+  const avatarSrc = getSafeImageUrl(
+    getAppointmentCompanionPhotoUrl(companion),
+    (companion?.species as ImageType) ?? 'other'
+  );
+  const subtitle = buildSubtitle(invoice, appointment);
+
+  return (
+    <div className="flex items-center justify-between gap-2 pt-1">
+      <span className="flex items-center gap-2.5 min-w-0">
+        <span className="flex size-9 shrink-0 overflow-hidden rounded-full bg-card-hover">
+          <AvatarImage
+            src={avatarSrc}
+            alt=""
+            size={36}
+            className="size-9 rounded-full object-cover"
+            fallback={
+              <CompanionAvatar
+                name={companion?.name}
+                seed={companion?.id}
+                size={36}
+                textClassName="text-[16px]"
+              />
+            }
+          />
+        </span>
+        <span className="flex flex-col min-w-0">
+          <span className="flex items-center gap-1.5">
+            <h2
+              id={titleId}
+              className="text-[15.5px] font-bold tracking-[-0.01em] text-[var(--ink)] truncate"
+            >
+              {getNumberLabel(invoice)}
+            </h2>
+            {statusLabel && (
+              <StatusPill
+                className="shrink-0"
+                label={statusLabel}
+                tone={statusTone}
+                style={statusStyle}
+              />
+            )}
+          </span>
+          {subtitle && (
+            <span className="text-[11px] text-[var(--ink-faint)] truncate" title={subtitle}>
+              {subtitle}
+            </span>
+          )}
+        </span>
+      </span>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="flex size-[30px] shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-faint)]"
+      >
+        <IoClose size={15} aria-hidden="true" />
+      </button>
+    </div>
+  );
+};
+
+/** Billed items, optional discount row, tax row and the big total row. */
+const PhoneRecordTotals = ({ invoice, currency }: { invoice: Invoice; currency: string }) => {
+  const items = invoice.items ?? [];
+  const discount = invoice.discountTotal ?? 0;
+  const taxLabel = invoice.taxPercent ? `Tax ${invoice.taxPercent}%` : 'Tax';
+
+  return (
+    <div className="rounded-[14px] border border-[var(--hairline)] overflow-hidden">
+      {items.length === 0 ? (
+        <output className="block px-3.5 py-2.5 text-[12px] text-[var(--ink-faint)]">
+          No billed items recorded.
+        </output>
+      ) : (
+        items.map((item) => (
+          <div
+            key={item.id ?? `${item.name}-${item.quantity}-${item.unitPrice}`}
+            className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-[12.5px] text-[var(--ink-body)] [&:not(:first-child)]:border-t [&:not(:first-child)]:border-[var(--hairline)]"
+          >
+            <span className="font-semibold truncate" title={item.name}>
+              {item.name}
+            </span>
+            <span className="shrink-0 font-bold tabular-nums">
+              {formatMoneyPrecise(item.total ?? 0, currency)}
+            </span>
+          </div>
+        ))
+      )}
+      {discount > 0 && (
+        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 border-t border-[var(--hairline)] bg-[var(--screen-2)] text-[12.5px] text-[var(--ink-muted)]">
+          <span>Discount</span>
+          <span className="font-semibold tabular-nums">
+            -{formatMoneyPrecise(discount, currency)}
+          </span>
+        </div>
+      )}
+      <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 border-t border-[var(--hairline)] bg-[var(--screen-2)] text-[12.5px] text-[var(--ink-muted)]">
+        <span>{taxLabel}</span>
+        <span className="font-semibold tabular-nums">
+          {formatMoneyPrecise(invoice.taxTotal ?? 0, currency)}
+        </span>
+      </div>
+      <div className="flex items-baseline justify-between gap-3 px-3.5 py-3 border-t border-[var(--hairline)]">
+        <span className="text-[12.5px] font-bold text-[var(--ink)]">Total</span>
+        <span className="text-[20px] font-bold tracking-[-0.03em] tabular-nums text-[var(--ink)]">
+          {formatMoneyPrecise(invoice.totalAmount ?? 0, currency)}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+/** One payment row, shown only once the invoice is settled. */
+const PhoneRecordLedger = ({ invoice, payerName }: { invoice: Invoice; payerName?: string }) => {
+  if (!isSettledInvoice(invoice)) return null;
+  const { Icon: ChannelIcon, title: channelTitle } = getLedgerChannel(invoice);
+  const caption = buildLedgerCaption(invoice, payerName);
+  const receiptUrl = invoice.stripeReceiptUrl;
+
+  return (
+    <div className="flex items-center gap-2.5 rounded-[14px] border border-[var(--hairline)] px-3.5 py-3">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-blue-light text-blue-text">
+        <ChannelIcon size={15} aria-hidden="true" />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-[12.5px] font-bold text-[var(--ink)]">{channelTitle}</span>
+        <span className="block text-[10.5px] text-[var(--ink-faint)] truncate" title={caption}>
+          {caption}
+        </span>
+      </span>
+      {receiptUrl && (
+        <a
+          href={receiptUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 text-[11px] font-semibold text-blue-text"
+        >
+          Receipt
+        </a>
+      )}
+    </div>
+  );
+};
+
+type ActionsProps = {
+  invoice: Invoice;
+  appointment?: Appointment;
+  onOpenAppointment?: () => void;
+};
+
+/** PDF outline button + "Open appointment" CTA; nothing when neither applies. */
+const PhoneRecordActions = ({ invoice, appointment, onOpenAppointment }: ActionsProps) => {
+  const pdfUrl = invoice.pdfUrl;
+  const canOpenAppointment = Boolean(appointment && onOpenAppointment);
+  if (!pdfUrl && !canOpenAppointment) return null;
+
+  return (
+    <div className="flex gap-2.5 pt-1">
+      {pdfUrl && (
+        <a
+          href={pdfUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex flex-1 items-center justify-center gap-1.5 h-11 rounded-full border border-[var(--divider)] text-[12.5px] font-semibold text-[var(--ink-body)]"
+          aria-label={`Download invoice ${getNumberLabel(invoice)} PDF`}
+        >
+          <IoDownloadOutline size={14} aria-hidden="true" />
+          PDF
+        </a>
+      )}
+      {canOpenAppointment && (
+        <button
+          type="button"
+          onClick={onOpenAppointment}
+          className="flex flex-[1.4] items-center justify-center gap-1.5 h-11 rounded-full bg-[var(--cta)] text-[12.5px] font-bold text-[var(--cta-text)]"
+        >
+          <IoOpenOutline size={14} aria-hidden="true" />
+          Open appointment
+        </button>
+      )}
+    </div>
+  );
+};
+
 /**
  * The phone (< 768px) invoice record, per the responsive design's sheet: a
  * compact 36px-avatar header, a single Item + amount block that ends in a
@@ -78,178 +285,27 @@ const InvoicePhoneRecord = ({
   payerName,
   onClose,
   onOpenAppointment,
-}: InvoicePhoneRecordProps) => {
-  const numberLabel = getInvoiceNumberLabel(invoice) || 'Invoice';
-  const subtitle = buildSubtitle(invoice, appointment);
-  const companion = appointment ? getAppointmentCompanion(appointment) : undefined;
-  const avatarSrc = getSafeImageUrl(
-    getAppointmentCompanionPhotoUrl(companion),
-    (companion?.species as ImageType) ?? 'other'
-  );
-  const items = invoice.items ?? [];
-  const discount = invoice.discountTotal ?? 0;
-  const taxLabel = invoice.taxPercent ? `Tax ${invoice.taxPercent}%` : 'Tax';
-  const settled = isSettledInvoice(invoice);
-  const caption = buildLedgerCaption(invoice, payerName);
-  const { Icon: ChannelIcon, title: channelTitle } = getLedgerChannel(invoice);
-  const pdfUrl = invoice.pdfUrl;
-  const receiptUrl = invoice.stripeReceiptUrl;
-
-  return (
-    <div className="flex flex-col gap-3 pb-1">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2 pt-1">
-        <span className="flex items-center gap-2.5 min-w-0">
-          <span className="flex size-9 shrink-0 overflow-hidden rounded-full bg-card-hover">
-            <AvatarImage
-              src={avatarSrc}
-              alt=""
-              size={36}
-              className="size-9 rounded-full object-cover"
-              fallback={
-                <CompanionAvatar
-                  name={companion?.name}
-                  seed={companion?.id}
-                  size={36}
-                  textClassName="text-[16px]"
-                />
-              }
-            />
-          </span>
-          <span className="flex flex-col min-w-0">
-            <span className="flex items-center gap-1.5">
-              <h2
-                id={titleId}
-                className="text-[15.5px] font-bold tracking-[-0.01em] text-[var(--ink)] truncate"
-              >
-                {numberLabel}
-              </h2>
-              {statusLabel && (
-                <StatusPill
-                  className="shrink-0"
-                  label={statusLabel}
-                  tone={statusTone}
-                  style={statusStyle}
-                />
-              )}
-            </span>
-            {subtitle && (
-              <span className="text-[11px] text-[var(--ink-faint)] truncate" title={subtitle}>
-                {subtitle}
-              </span>
-            )}
-          </span>
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="flex size-[30px] shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-faint)]"
-        >
-          <IoClose size={15} aria-hidden="true" />
-        </button>
-      </div>
-
-      {/* Items + tax + total */}
-      <div className="rounded-[14px] border border-[var(--hairline)] overflow-hidden">
-        {items.length === 0 ? (
-          <output className="block px-3.5 py-2.5 text-[12px] text-[var(--ink-faint)]">
-            No billed items recorded.
-          </output>
-        ) : (
-          items.map((item, index) => (
-            <div
-              key={item.id ?? `${item.name}-${index}`}
-              className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-[12.5px] text-[var(--ink-body)] [&:not(:first-child)]:border-t [&:not(:first-child)]:border-[var(--hairline)]"
-            >
-              <span className="font-semibold truncate" title={item.name}>
-                {item.name}
-              </span>
-              <span className="shrink-0 font-bold tabular-nums">
-                {formatMoneyPrecise(item.total ?? 0, currency)}
-              </span>
-            </div>
-          ))
-        )}
-        {discount > 0 && (
-          <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 border-t border-[var(--hairline)] bg-[var(--screen-2)] text-[12.5px] text-[var(--ink-muted)]">
-            <span>Discount</span>
-            <span className="font-semibold tabular-nums">
-              -{formatMoneyPrecise(discount, currency)}
-            </span>
-          </div>
-        )}
-        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 border-t border-[var(--hairline)] bg-[var(--screen-2)] text-[12.5px] text-[var(--ink-muted)]">
-          <span>{taxLabel}</span>
-          <span className="font-semibold tabular-nums">
-            {formatMoneyPrecise(invoice.taxTotal ?? 0, currency)}
-          </span>
-        </div>
-        <div className="flex items-baseline justify-between gap-3 px-3.5 py-3 border-t border-[var(--hairline)]">
-          <span className="text-[12.5px] font-bold text-[var(--ink)]">Total</span>
-          <span className="text-[20px] font-bold tracking-[-0.03em] tabular-nums text-[var(--ink)]">
-            {formatMoneyPrecise(invoice.totalAmount ?? 0, currency)}
-          </span>
-        </div>
-      </div>
-
-      {/* Payment ledger */}
-      {settled && (
-        <div className="flex items-center gap-2.5 rounded-[14px] border border-[var(--hairline)] px-3.5 py-3">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-blue-light text-blue-text">
-            <ChannelIcon size={15} aria-hidden="true" />
-          </span>
-          <span className="flex-1 min-w-0">
-            <span className="block text-[12.5px] font-bold text-[var(--ink)]">{channelTitle}</span>
-            <span className="block text-[10.5px] text-[var(--ink-faint)] truncate" title={caption}>
-              {caption}
-            </span>
-          </span>
-          {receiptUrl && (
-            <a
-              href={receiptUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="shrink-0 text-[11px] font-semibold text-blue-text"
-            >
-              Receipt
-            </a>
-          )}
-        </div>
-      )}
-
-      {/* No "Receipt sent to ..." note - see InvoicePaymentLedger for why the
-          presence of a payer email is not evidence a receipt was delivered. */}
-
-      {/* Actions */}
-      {(pdfUrl || (appointment && onOpenAppointment)) && (
-        <div className="flex gap-2.5 pt-1">
-          {pdfUrl && (
-            <a
-              href={pdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex flex-1 items-center justify-center gap-1.5 h-11 rounded-full border border-[var(--divider)] text-[12.5px] font-semibold text-[var(--ink-body)]"
-              aria-label={`Download invoice ${numberLabel} PDF`}
-            >
-              <IoDownloadOutline size={14} aria-hidden="true" />
-              PDF
-            </a>
-          )}
-          {appointment && onOpenAppointment && (
-            <button
-              type="button"
-              onClick={onOpenAppointment}
-              className="flex flex-[1.4] items-center justify-center gap-1.5 h-11 rounded-full bg-[var(--cta)] text-[12.5px] font-bold text-[var(--cta-text)]"
-            >
-              <IoOpenOutline size={14} aria-hidden="true" />
-              Open appointment
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
+}: InvoicePhoneRecordProps) => (
+  <div className="flex flex-col gap-3 pb-1">
+    <PhoneRecordHeader
+      titleId={titleId}
+      invoice={invoice}
+      appointment={appointment}
+      statusLabel={statusLabel}
+      statusStyle={statusStyle}
+      statusTone={statusTone}
+      onClose={onClose}
+    />
+    <PhoneRecordTotals invoice={invoice} currency={currency} />
+    <PhoneRecordLedger invoice={invoice} payerName={payerName} />
+    {/* No "Receipt sent to ..." note - see InvoicePaymentLedger for why the
+        presence of a payer email is not evidence a receipt was delivered. */}
+    <PhoneRecordActions
+      invoice={invoice}
+      appointment={appointment}
+      onOpenAppointment={onOpenAppointment}
+    />
+  </div>
+);
 
 export default InvoicePhoneRecord;

@@ -200,18 +200,23 @@ const Forms = () => {
     })();
   }, [list.length]);
 
+  // Keeps the store's selected id in step with what the filtered list can
+  // actually show. It is a store sync, not an event handler: `filteredList`
+  // moves on fetch completion and on filter/search changes, none of which any
+  // single click owns. The next id is derived first and written once.
+  const syncedActiveFormId = (() => {
+    if (!filteredList.length) return null;
+    const stillVisible =
+      Boolean(activeFormId) && filteredList.some((item) => item._id === activeFormId);
+    if (stillVisible) return activeFormId;
+    // `||`, not `??`: a first row with a blank id is no better a selection than
+    // the current one, so the store is left where it is.
+    return filteredList[0]?._id || activeFormId;
+  })();
+
   useEffect(() => {
-    const { setActiveForm } = useFormsStore.getState();
-    if (!filteredList.length) {
-      setActiveForm(null);
-      return;
-    }
-    const isActiveInFilter = activeFormId && filteredList.some((item) => item._id === activeFormId);
-    if (!isActiveInFilter) {
-      const first = filteredList[0];
-      if (first?._id) setActiveForm(first._id);
-    }
-  }, [activeFormId, filteredList]);
+    useFormsStore.getState().setActiveForm(syncedActiveFormId);
+  }, [syncedActiveFormId]);
 
   // Deep link: open the info modal once per formId in the URL. The render-time
   // adjust owns the local popup state; the layout effect mirrors the handled id

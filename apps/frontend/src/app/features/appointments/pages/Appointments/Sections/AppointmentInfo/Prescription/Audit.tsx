@@ -72,9 +72,9 @@ const Audit = ({ activeAppointment }: AuditProps) => {
           </div>
         ) : (
           <div className="w-full max-w-3xl mx-auto flex flex-col gap-1.5">
-            {entries.map((e, idx) => (
+            {entries.map((e) => (
               <Card
-                key={e.id ?? `${e.eventType}-${e.occurredAt}-${idx}`}
+                key={e.id || `${e.eventType}-${String(e.occurredAt)}`}
                 variant="default"
                 className="w-full font-satoshi px-3 py-2.5"
               >

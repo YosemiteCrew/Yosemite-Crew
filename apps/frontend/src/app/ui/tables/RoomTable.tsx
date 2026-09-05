@@ -184,7 +184,7 @@ const RoomTable = ({
                   const specialityNames = joinNames(specialityNameById, room.assignedSpecialiteis);
                   const staffNames = joinNames(staffNameById, room.assignedStaffs);
                   return (
-                    <tr key={room.id || `${room.name}-${index}`}>
+                    <tr key={room.id || `${room.name}-${room.code}`}>
                       <td className="align-middle">
                         <RoomCellText value={`${index + 1}.`} />
                       </td>

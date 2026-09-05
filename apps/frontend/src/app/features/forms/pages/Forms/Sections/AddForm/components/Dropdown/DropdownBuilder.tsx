@@ -65,7 +65,7 @@ const DropdownBuilder: React.FC<{
       />
 
       {options.map((opt, i) => (
-        <div key={opt.value ?? i} className="relative">
+        <div key={opt.value || 'option-' + opt.label} className="relative">
           <FormInput
             intype="text"
             inname="dropdown"
@@ -73,7 +73,12 @@ const DropdownBuilder: React.FC<{
             inlabel={'Dropdown option ' + i}
             onChange={(e) => updateOption(i, e.target.value)}
           />
-          <button type="button" onClick={() => removeOption(i)} className="absolute right-4 top-3">
+          <button
+            type="button"
+            onClick={() => removeOption(i)}
+            aria-label={'Remove dropdown option ' + i}
+            className="absolute right-4 top-3"
+          >
             ✕
           </button>
         </div>

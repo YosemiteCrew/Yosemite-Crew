@@ -16,7 +16,6 @@ import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import './Step.css';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 
-const CURRENT_YEAR = new Date().getFullYear();
 import {
   CountryDialCodeOption,
   CountryDialCodeOptions,
@@ -104,6 +103,9 @@ function PersonalStep({
   ref,
 }: PersonalStepProps) {
   const [formDataErrors, setFormDataErrors] = useState<PersonalStepErrors>({});
+  // Read per render, not at module load: at module scope the year would be frozen
+  // into the server process, so the date-of-birth range would go stale on New Year.
+  const currentYear = new Date().getFullYear();
   const currentDate = formData.personalDetails?.dateOfBirth
     ? new Date(formData.personalDetails.dateOfBirth)
     : null;
@@ -250,8 +252,8 @@ function PersonalStep({
               containerClassName="w-full"
               placeholder="Date of birth"
               error={formDataErrors.dateOfBirth}
-              minYear={CURRENT_YEAR - 100}
-              maxYear={CURRENT_YEAR}
+              minYear={currentYear - 100}
+              maxYear={currentYear}
             />
           </div>
           <div className="col-span-5 md:col-span-3">

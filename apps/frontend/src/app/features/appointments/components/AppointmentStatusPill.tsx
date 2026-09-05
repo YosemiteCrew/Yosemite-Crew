@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IoCaretDown } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
@@ -67,10 +67,20 @@ const AppointmentStatusPill = ({
     if (open) positionMenu();
   }, [open]);
 
-  useEffect(() => {
-    if (!open || !registerAnchorEl) return;
-    return registerAnchorEl(panelRef.current);
-  }, [open, registerAnchorEl]);
+  // The anchor registration is owned by the panel element itself: React attaches this
+  // ref when the portal mounts and runs the returned cleanup when it unmounts, so there
+  // is no effect mirroring `open` back out to the parent.
+  const attachPanel = useCallback(
+    (el: HTMLDivElement) => {
+      panelRef.current = el;
+      const unregister = registerAnchorEl?.(el);
+      return () => {
+        panelRef.current = null;
+        unregister?.();
+      };
+    },
+    [registerAnchorEl]
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -152,7 +162,7 @@ const AppointmentStatusPill = ({
         createPortal(
           <div
             id={menuId}
-            ref={panelRef}
+            ref={attachPanel}
             data-popover-panel="true"
             role="menu"
             onPointerDown={(e) => e.stopPropagation()}

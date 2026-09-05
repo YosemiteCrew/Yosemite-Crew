@@ -1,59 +1,174 @@
 'use client';
-import { buildPaymentStatusUrl } from '@/app/lib/paymentStatusUrl';
 import { Secondary } from '@/app/ui/primitives/Buttons';
+import { fetchPaymentStatus, type PaymentStatusResult } from '@/app/lib/paymentStatusRequest';
 import { useSearchParams } from 'next/navigation';
-import React, { useMemo, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
-type DisplayState = 'paid' | 'no_payment_required' | 'unpaid';
 type RequestState = 'missing_session' | 'loading' | 'ready' | 'error';
 
-type Return = {
-  status: DisplayState;
-  total: number;
-};
+/** Which of the three marks sits above the copy; `null` draws none. */
+type MarkKind = 'failed' | 'paid' | 'pending' | null;
 
 type PaymentStatusState = {
-  data: Return | null;
+  data: PaymentStatusResult | null;
   requestState: RequestState;
   stopped: boolean;
+};
+
+type PaymentStatusView = {
+  title: string;
+  subtitle: string;
+  chipLabel: string | null;
+  amountLabel: string | null;
+  mark: MarkKind;
 };
 
 const shortId = (value: string) =>
   value.length > 12 ? `${value.slice(0, 6)}...${value.slice(-4)}` : value;
 
-const fetchPaymentStatus = async (sessionId: string): Promise<Return> => {
-  const res = await fetch(buildPaymentStatusUrl(sessionId), {
-    cache: 'no-store',
-  });
-  return (await res.json()) as Return;
+// Stripe's configured redirect appends a stray quote to the session id
+// (…{CHECKOUT_SESSION_ID}"), which arrives here as a trailing " / %22 and breaks
+// the status lookup. Strip any surrounding quotes/whitespace before using it.
+const normalizeSessionId = (raw: string | null) =>
+  raw ? raw.trim().replaceAll('"', '').replaceAll("'", '') || null : raw;
+
+const initialStateFor = (sessionId: string | null): PaymentStatusState => ({
+  data: null,
+  requestState: sessionId ? 'loading' : 'missing_session',
+  stopped: !sessionId,
+});
+
+const amountLabelFor = (data: PaymentStatusResult) =>
+  typeof data.total !== 'number' || data.total <= 0 ? null : `Amount ${data.total}`;
+
+/** Everything the card reads off one request state - title, copy, chips, mark. */
+const describeStatus = (
+  requestState: RequestState,
+  data: PaymentStatusResult | null
+): PaymentStatusView => {
+  if (requestState === 'missing_session') {
+    return {
+      title: 'Missing payment session',
+      subtitle: 'We could not find a payment session in the URL.',
+      chipLabel: null,
+      amountLabel: null,
+      mark: 'failed',
+    };
+  }
+  if (requestState === 'loading') {
+    return {
+      title: 'Checking payment status',
+      subtitle: 'We are confirming your payment with the bank. This usually takes a few seconds.',
+      chipLabel: 'Checking',
+      amountLabel: null,
+      mark: 'pending',
+    };
+  }
+  if (requestState === 'error') {
+    return {
+      title: 'We could not confirm your payment',
+      subtitle:
+        'We could not confirm this payment right now. Please refresh this page or contact support if the issue continues.',
+      chipLabel: 'Unable to confirm',
+      amountLabel: null,
+      mark: 'failed',
+    };
+  }
+  if (!data) {
+    return {
+      title: 'Checking payment status',
+      subtitle: 'We are checking your payment status.',
+      chipLabel: null,
+      amountLabel: null,
+      mark: null,
+    };
+  }
+
+  const chipLabel = data.status ? data.status.replaceAll('_', ' ') : null;
+  const amountLabel = amountLabelFor(data);
+
+  if (data.status === 'paid') {
+    return {
+      title: 'Payment complete',
+      subtitle: 'Thanks for your payment. Your receipt will arrive shortly.',
+      chipLabel,
+      amountLabel,
+      mark: 'paid',
+    };
+  }
+  if (data.status === 'no_payment_required') {
+    return {
+      title: 'Payment cancelled',
+      subtitle: 'This payment did not complete. If this looks wrong, contact support.',
+      chipLabel,
+      amountLabel,
+      mark: 'failed',
+    };
+  }
+  return {
+    title: 'Waiting for confirmation',
+    subtitle: 'We are still waiting on confirmation. You can safely close this tab.',
+    chipLabel,
+    amountLabel,
+    mark: data.status === 'unpaid' ? 'pending' : null,
+  };
+};
+
+const StatusMark = ({ kind }: { kind: MarkKind }) => {
+  if (kind === 'failed') {
+    return (
+      <svg className="size-24" viewBox="0 0 120 120" aria-hidden>
+        <circle cx="60" cy="60" r="46" fill="none" stroke="#dc2626" strokeWidth="6" />
+        <path d="M42 42l36 36" fill="none" stroke="#dc2626" strokeWidth="7" strokeLinecap="round" />
+        <path
+          d="M78 42l-36 36"
+          fill="none"
+          stroke="#dc2626"
+          strokeWidth="7"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+  if (kind === 'paid') {
+    return (
+      <svg className="size-24" viewBox="0 0 120 120" aria-hidden>
+        <circle cx="60" cy="60" r="46" fill="none" stroke="#16a34a" strokeWidth="6" />
+        <path
+          d="M38 62l16 16 30-34"
+          fill="none"
+          stroke="#16a34a"
+          strokeWidth="7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+  if (kind === 'pending') {
+    return (
+      <div className="flex gap-2" aria-hidden>
+        <span className="size-3.5 rounded-full bg-[var(--ink-fixed)] animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite]" />
+        <span className="size-3.5 rounded-full bg-[var(--ink-fixed)] animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite_150ms]" />
+        <span className="size-3.5 rounded-full bg-[var(--ink-fixed)] animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite_300ms]" />
+      </div>
+    );
+  }
+  return null;
 };
 
 export function PaymentStatusContent() {
   const searchParams = useSearchParams();
-  // Stripe's configured redirect appends a stray quote to the session id
-  // (…{CHECKOUT_SESSION_ID}"), which arrives here as a trailing " / %22 and breaks
-  // the status lookup. Strip any surrounding quotes/whitespace before using it.
-  const rawSessionId = searchParams.get('session_id');
-  const session_id = rawSessionId
-    ? rawSessionId.trim().replaceAll('"', '').replaceAll("'", '') || null
-    : rawSessionId;
+  const session_id = normalizeSessionId(searchParams.get('session_id'));
 
-  const [state, setState] = useState<PaymentStatusState>({
-    data: null,
-    requestState: session_id ? 'loading' : 'missing_session',
-    stopped: !session_id,
-  });
+  const [state, setState] = useState<PaymentStatusState>(() => initialStateFor(session_id));
   const stopPollingRef = useRef(false);
 
   // Render-phase adjustment: restart from a clean slate when the session id changes.
   const [prevSessionId, setPrevSessionId] = useState(session_id);
   if (prevSessionId !== session_id) {
     setPrevSessionId(session_id);
-    setState({
-      data: null,
-      requestState: session_id ? 'loading' : 'missing_session',
-      stopped: !session_id,
-    });
+    setState(initialStateFor(session_id));
   }
 
   useEffect(() => {
@@ -92,9 +207,8 @@ export function PaymentStatusContent() {
         }
       } catch {
         if (!alive) return;
-        setState((current) => ({ ...current, requestState: 'error', data: null }));
         stopPollingRef.current = true;
-        setState((current) => ({ ...current, stopped: true }));
+        setState((current) => ({ ...current, requestState: 'error', data: null, stopped: true }));
       }
     }
 
@@ -109,53 +223,12 @@ export function PaymentStatusContent() {
   }, [session_id]);
 
   const { data, requestState, stopped } = state;
-
-  const title = useMemo(() => {
-    if (!session_id || requestState === 'missing_session') return 'Missing payment session';
-    if (requestState === 'loading') return 'Checking payment status';
-    if (requestState === 'error') return 'We could not confirm your payment';
-    if (!data) return 'Checking payment status';
-    if (data.status === 'paid') return 'Payment complete';
-    if (data.status === 'no_payment_required') return 'Payment cancelled';
-    return 'Waiting for confirmation';
-  }, [data, requestState, session_id]);
-
-  const subtitle = useMemo(() => {
-    if (!session_id || requestState === 'missing_session') {
-      return 'We could not find a payment session in the URL.';
-    }
-    if (requestState === 'loading') {
-      return 'We are confirming your payment with the bank. This usually takes a few seconds.';
-    }
-    if (requestState === 'error') {
-      return 'We could not confirm this payment right now. Please refresh this page or contact support if the issue continues.';
-    }
-    if (!data) {
-      return 'We are checking your payment status.';
-    }
-    if (data.status === 'paid') {
-      return 'Thanks for your payment. Your receipt will arrive shortly.';
-    }
-    if (data.status === 'no_payment_required') {
-      return 'This payment did not complete. If this looks wrong, contact support.';
-    }
-    return 'We are still waiting on confirmation. You can safely close this tab.';
-  }, [data, requestState, session_id]);
-
-  const statusChipLabel = useMemo(() => {
-    if (requestState === 'loading') return 'Checking';
-    if (requestState === 'error') return 'Unable to confirm';
-    if (!data?.status) return null;
-    return data.status.replaceAll('_', ' ');
-  }, [data, requestState]);
-
-  const amountLabel = useMemo(() => {
-    if (typeof data?.total !== 'number' || data.total <= 0) return null;
-    return `Amount ${data.total}`;
-  }, [data]);
-
+  // A session id that never reached state (first render after a URL change is
+  // reconciled above) still reads as "missing", exactly as the copy used to.
+  const effectiveState: RequestState = session_id ? requestState : 'missing_session';
+  const view = describeStatus(effectiveState, data);
   const statusToneRole =
-    requestState === 'error' || requestState === 'missing_session' ? 'alert' : 'status';
+    effectiveState === 'error' || effectiveState === 'missing_session' ? 'alert' : 'status';
 
   return (
     // A light product surface outside the (app) layout, reached by both
@@ -175,75 +248,18 @@ export function PaymentStatusContent() {
       <div className="w-full max-w-xl bg-white border border-card-border rounded-2xl px-6 py-10">
         <div className="flex flex-col items-center text-center gap-4">
           <div className="relative flex items-center justify-center size-24 rounded-full">
-            {(requestState === 'missing_session' || requestState === 'error') && (
-              <svg className="size-24" viewBox="0 0 120 120" aria-hidden>
-                <circle cx="60" cy="60" r="46" fill="none" stroke="#dc2626" strokeWidth="6" />
-                <path
-                  d="M42 42l36 36"
-                  fill="none"
-                  stroke="#dc2626"
-                  strokeWidth="7"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M78 42l-36 36"
-                  fill="none"
-                  stroke="#dc2626"
-                  strokeWidth="7"
-                  strokeLinecap="round"
-                />
-              </svg>
-            )}
-            {data?.status === 'paid' && (
-              <svg className="size-24" viewBox="0 0 120 120" aria-hidden>
-                <circle cx="60" cy="60" r="46" fill="none" stroke="#16a34a" strokeWidth="6" />
-                <path
-                  d="M38 62l16 16 30-34"
-                  fill="none"
-                  stroke="#16a34a"
-                  strokeWidth="7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
-            {(requestState === 'loading' || data?.status === 'unpaid') && (
-              <div className="flex gap-2" aria-hidden>
-                <span className="size-3.5 rounded-full bg-[var(--ink-fixed)] animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite]" />
-                <span className="size-3.5 rounded-full bg-[var(--ink-fixed)] animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite_150ms]" />
-                <span className="size-3.5 rounded-full bg-[var(--ink-fixed)] animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite_300ms]" />
-              </div>
-            )}
-            {data?.status === 'no_payment_required' && (
-              <svg className="size-24" viewBox="0 0 120 120" aria-hidden>
-                <circle cx="60" cy="60" r="46" fill="none" stroke="#dc2626" strokeWidth="6" />
-                <path
-                  d="M42 42l36 36"
-                  fill="none"
-                  stroke="#dc2626"
-                  strokeWidth="7"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M78 42l-36 36"
-                  fill="none"
-                  stroke="#dc2626"
-                  strokeWidth="7"
-                  strokeLinecap="round"
-                />
-              </svg>
-            )}
+            <StatusMark kind={view.mark} />
           </div>
 
           <div
             className="flex flex-col gap-2"
             role={statusToneRole}
-            aria-live={requestState === 'ready' ? 'polite' : 'assertive'}
-            aria-busy={requestState === 'loading'}
+            aria-live={effectiveState === 'ready' ? 'polite' : 'assertive'}
+            aria-busy={effectiveState === 'loading'}
           >
             <div className="text-body-4 text-text-tertiary">Yosemite Crew</div>
-            <h1 className="text-heading-1 text-text-primary">{title}</h1>
-            <div className="text-body-3 text-text-secondary max-w-xl">{subtitle}</div>
+            <h1 className="text-heading-1 text-text-primary">{view.title}</h1>
+            <div className="text-body-3 text-text-secondary max-w-xl">{view.subtitle}</div>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-3 text-caption-1 text-text-primary">
@@ -252,14 +268,14 @@ export function PaymentStatusContent() {
                 Session {shortId(session_id)}
               </span>
             )}
-            {statusChipLabel && (
+            {view.chipLabel && (
               <span className="px-4 py-2 rounded-full border border-card-border bg-white/70">
-                Status {statusChipLabel}
+                Status {view.chipLabel}
               </span>
             )}
-            {amountLabel && (
+            {view.amountLabel && (
               <span className="px-4 py-2 rounded-full border border-card-border bg-white/70">
-                {amountLabel}
+                {view.amountLabel}
               </span>
             )}
             {stopped && (

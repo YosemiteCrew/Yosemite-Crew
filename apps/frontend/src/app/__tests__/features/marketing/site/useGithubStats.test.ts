@@ -366,7 +366,7 @@ describe('useGithubStats hooks', () => {
   });
 
   it('yields no stats (all placeholders) when every request rejects', async () => {
-    // Every fetch throwing exercises the fetchJson and fetchContributors catch paths.
+    // Every fetch rejecting exercises the readJson catch path on every caller.
     globalThis.fetch = jest.fn(() => Promise.reject(new Error('network'))) as unknown as FetchLike;
     const { result } = renderHook(() => useGithubStats());
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
@@ -429,6 +429,52 @@ describe('useGithubStats hooks', () => {
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
     expect(result.current.tag).toBeNull();
     expect(result.current.url).toBeNull();
+  });
+
+  it('aborts the in-flight release request when the hook unmounts', async () => {
+    // The effect owns an AbortController and aborts it on cleanup, so a hook that
+    // goes away takes its request with it instead of leaving it running to resolve
+    // into nothing. The signal handed to `fetch` is the proof.
+    let signal: AbortSignal | undefined;
+    let release: (() => void) | undefined;
+    globalThis.fetch = jest.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      signal = init?.signal ?? undefined;
+      return new Promise<Response>((resolve) => {
+        release = () => resolve(makeRes({ tag_name: 'v1.0.0', html_url: 'https://x/1' }));
+      });
+    }) as unknown as FetchLike;
+
+    const { unmount } = renderHook(() => useLatestRelease());
+    await waitFor(() => expect(signal).toBeDefined());
+    expect(signal?.aborted).toBe(false);
+
+    unmount();
+
+    expect(signal?.aborted).toBe(true);
+    release?.();
+  });
+
+  it('ignores a non-OK release response even when it carries a body', async () => {
+    // A 4xx/5xx from the route handler can still return JSON (an error envelope).
+    // The status check is what stops that body being read as a release; without it
+    // the card would publish whatever the failure happened to contain.
+    sessionStorage.setItem(
+      'yc_rel_platform_v1',
+      JSON.stringify({ tag: 'v9.9.9', date: 'Jan 1, 2026', url: 'https://x/cached' })
+    );
+    globalThis.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: false,
+        json: () =>
+          Promise.resolve({ tag_name: 'v6.6.6', html_url: 'https://x/from-an-error-body' }),
+        headers: { get: () => null },
+      } as unknown as Response)
+    ) as unknown as FetchLike;
+
+    const { result } = renderHook(() => useLatestRelease());
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(result.current.tag).toBe('v9.9.9');
+    expect(result.current.url).toBe('https://x/cached');
   });
 
   it('seeds the mobile release from cache and keeps it when no release tag is mobile', async () => {

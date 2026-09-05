@@ -6,6 +6,15 @@ import { useAuthStore } from '@/app/stores/authStore';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 
 /**
+ * Navigates during its own render, so the redirect is a node in the tree rather
+ * than a side effect the parent performs on the way past.
+ */
+function PostAuthRedirect({ route }: Readonly<{ route: string }>) {
+  redirect(route);
+  return null;
+}
+
+/**
  * Wrapper for the sign in / sign up route pages: forwards an already-authenticated
  * visitor to their post-auth destination, and renders the auth screen inside a
  * Suspense boundary otherwise.
@@ -41,7 +50,7 @@ export default function AuthedRedirectShell({ children }: Readonly<{ children: R
   }, [isAuthenticated, role, roles]);
 
   if (route) {
-    redirect(route);
+    return <PostAuthRedirect route={route} />;
   }
 
   if (isAuthenticated) {
