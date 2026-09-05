@@ -134,6 +134,14 @@ jest.mock('@/app/features/companionHistory/components/AllergyListPanel', () => (
   default: ({ companionId }: any) => <div data-testid="allergy-list-panel">{companionId}</div>,
 }));
 
+// Stub the async consent-list panel: like the timeline above, it fetches on
+// mount, which would fire a state update outside act() and trip the strict
+// console.error guard in jest.setup. This suite does not exercise it.
+jest.mock('@/app/features/companionHistory/components/ConsentListPanel', () => ({
+  __esModule: true,
+  default: ({ companionId }: any) => <div data-testid="consent-list-panel">{companionId}</div>,
+}));
+
 jest.mock('@/app/features/companionHistory/components/FlagListPanel', () => ({
   __esModule: true,
   default: ({ companionId }: any) => <div data-testid="flag-list-panel">{companionId}</div>,
@@ -347,6 +355,7 @@ describe('CompanionHistoryPage', () => {
 
     expect(screen.getByTestId('timeline')).toHaveTextContent('c-1-true');
     expect(screen.getByTestId('allergy-list-panel')).toHaveTextContent('c-1');
+    expect(screen.getByTestId('consent-list-panel')).toHaveTextContent('c-1');
     expect(screen.getByTestId('flag-list-panel')).toHaveTextContent('c-1');
     expect(screen.getByText("Buddy's overview")).toBeInTheDocument();
     expect(screen.getByText('Labrador / Canine')).toBeInTheDocument();
