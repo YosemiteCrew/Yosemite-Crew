@@ -26,8 +26,17 @@ import {
   selfTest,
 } from './forbidden-terms.mjs';
 
+const ROOT = path.join(import.meta.dirname, '..', '..');
 const SCRIPT = path.join(import.meta.dirname, 'forbidden-terms.mjs');
 const PROSE = path.join(import.meta.dirname, 'forbidden-terms-allowed-prose.txt');
+/**
+ * The corpus, excluded from its own verbatim check. DERIVED from {@link PROSE}
+ * rather than written out a second time: a `:(exclude)` pathspec matching no
+ * file is not an error to git, so a second spelling of this path could quietly
+ * stop excluding anything and every corpus line would prove its own presence
+ * again - the defect this exclusion exists to fix, restored by the fix.
+ */
+const PROSE_PATHSPEC = `:(exclude)${path.relative(ROOT, PROSE)}`;
 
 /** Stands in for the real term list. Names nothing that exists. */
 const SYNTHETIC = 'acmehealth|acme health|acme-health';
@@ -380,6 +389,27 @@ test('every must-pass line is real prose from a tracked file', () => {
   const lines = corpusLines(execFileSync('cat', [PROSE], { encoding: 'utf8' }));
   assert.ok(lines.length >= 20, `expected a corpus worth having, got ${lines.length} lines`);
 
+  // The exclusion has to exclude THIS file, and two ways it stops doing so are
+  // both silent: a pathspec naming a path nothing tracks is a no-op to git, and
+  // one naming a different tracked file excludes the wrong thing. Either way
+  // every corpus line proves its own presence again, and a rail that excludes
+  // nothing looks exactly like one with nothing to exclude.
+  //
+  // Asserted off PROSE_PATHSPEC itself rather than off PROSE, because the value
+  // that can be wrong is the one the search will use. A property of the correct
+  // value says nothing about the value actually being evaluated.
+  const excludedPath = PROSE_PATHSPEC.replace(/^:\(exclude\)/u, '');
+  assert.equal(
+    excludedPath,
+    path.relative(ROOT, PROSE),
+    'the corpus exclusion names some other file, so the corpus is still searching itself'
+  );
+  assert.notEqual(
+    execFileSync('git', ['ls-files', '--', excludedPath], { cwd: ROOT, encoding: 'utf8' }).trim(),
+    '',
+    `${PROSE_PATHSPEC} names a path git does not track: the exclusion is a no-op`
+  );
+
   const missing = lines.filter((line) => {
     try {
       // EXCLUDING the corpus itself. Without the pathspec this file is a tracked
@@ -387,14 +417,10 @@ test('every must-pass line is real prose from a tracked file', () => {
       // sentence passes - the assertion satisfied by the very document it is
       // meant to be checking. Found by mutation: appending a sentence that
       // appears nowhere else left all 26 cases green.
-      execFileSync(
-        'git',
-        ['grep', '-qF', '--', line, ':(exclude)scripts/ci/forbidden-terms-allowed-prose.txt'],
-        {
-          cwd: path.join(import.meta.dirname, '..', '..'),
-          stdio: 'ignore',
-        }
-      );
+      execFileSync('git', ['grep', '-qF', '--', line, PROSE_PATHSPEC], {
+        cwd: ROOT,
+        stdio: 'ignore',
+      });
       return false;
     } catch {
       return true;
