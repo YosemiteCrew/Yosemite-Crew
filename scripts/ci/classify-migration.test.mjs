@@ -313,3 +313,90 @@ test('every hazard reports the statement that caused it', () => {
   // line in the CI log.
   assert.equal(hazard.statement, 'ALTER TABLE "Invoice" DROP COLUMN "old"');
 });
+
+// The access dimension (#2724). These statements change no object's shape, so
+// every rule above passes them - and on a table with no policies the first one
+// takes every row out of the running code's sight the moment it commits.
+//
+// They are also the hazards CI cannot check dynamically: the migration job
+// connects as `postgres` and a table's owner bypasses row-level security, so a
+// test that applied one of these and read a row would pass here whatever it
+// would do in production. The classification IS the check.
+
+test('forcing row-level security is a hazard, and lifting it is not', () => {
+  assert.deepEqual(kinds('ALTER TABLE "Appointment" FORCE ROW LEVEL SECURITY;'), [
+    'removes the owner bypass on row-level security',
+  ]);
+  // NO FORCE contains FORCE, so a substring search would report the reverse of
+  // what this statement does.
+  assert.deepEqual(kinds('ALTER TABLE "Appointment" NO FORCE ROW LEVEL SECURITY;'), []);
+});
+
+test('enabling row-level security is a hazard, and disabling it is not', () => {
+  assert.deepEqual(kinds('ALTER TABLE "Appointment" ENABLE ROW LEVEL SECURITY;'), [
+    'enables row-level security',
+  ]);
+  assert.deepEqual(kinds('ALTER TABLE "Appointment" DISABLE ROW LEVEL SECURITY;'), []);
+});
+
+test('revoking is a hazard, granting is not', () => {
+  assert.deepEqual(kinds('REVOKE ALL ON "Appointment" FROM PUBLIC;'), ['revokes a privilege']);
+  assert.deepEqual(kinds('GRANT SELECT ON "Appointment" TO app_readonly;'), []);
+});
+
+test('changing an object owner is a hazard - it moves the row-level bypass', () => {
+  assert.deepEqual(kinds('ALTER TABLE "Appointment" OWNER TO app_readonly;'), [
+    'changes an object owner',
+  ]);
+});
+
+test('a restrictive policy narrows and is a hazard; a permissive one does not', () => {
+  assert.deepEqual(kinds('CREATE POLICY tenant ON "Appointment" AS RESTRICTIVE USING (false);'), [
+    'narrows or removes a row-level policy',
+  ]);
+  // On an RLS table with no policies, a permissive policy is the difference
+  // between seeing nothing and seeing something.
+  assert.deepEqual(kinds('CREATE POLICY tenant ON "Appointment" USING (true);'), []);
+  assert.deepEqual(kinds('DROP POLICY tenant ON "Appointment";'), [
+    'narrows or removes a row-level policy',
+  ]);
+});
+
+test('removing a role or what it owns is a hazard', () => {
+  assert.deepEqual(kinds('DROP OWNED BY app_user;'), ['drops objects owned by a role']);
+  assert.deepEqual(kinds('ALTER ROLE app_user NOLOGIN;'), [
+    'removes a role or its ability to connect',
+  ]);
+  assert.deepEqual(kinds('DROP ROLE app_user;'), ['removes a role or its ability to connect']);
+});
+
+test('ALTER DEFAULT PRIVILEGES is not a hazard - it cannot change what is read today', () => {
+  assert.deepEqual(
+    kinds('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO app_readonly;'),
+    []
+  );
+});
+
+test('access hazards are tagged as such, so the report can name the right thing', () => {
+  const [access] = classifyMigrationSql('ALTER TABLE "Appointment" FORCE ROW LEVEL SECURITY;');
+  const [shape] = classifyMigrationSql('ALTER TABLE "Appointment" DROP COLUMN "notes";');
+  assert.equal(access.dimension, 'access');
+  assert.equal(shape.dimension, 'shape');
+});
+
+test('an access hazard needs a declaration like any other', () => {
+  const undeclared = reviewMigration({
+    name: 'm',
+    sql: 'ALTER TABLE "Appointment" ENABLE ROW LEVEL SECURITY;',
+  });
+  assert.equal(undeclared.verdict, 'undeclared');
+
+  const declared = reviewMigration({
+    name: 'm',
+    sql:
+      '-- deployed-code-survives: the API connects as the owning role, which bypasses\n' +
+      '--   row-level security, so its reads are unaffected.\n' +
+      'ALTER TABLE "Appointment" ENABLE ROW LEVEL SECURITY;',
+  });
+  assert.equal(declared.verdict, 'ok');
+});

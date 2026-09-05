@@ -217,6 +217,89 @@ const addColumnClauses = (upper) => upper.split('ADD COLUMN').slice(1);
  * ALTER TYPE ... RENAME TO is here: Prisma sends enum values with an explicit
  * cast to the type name, so a deployed client keeps naming the old type.
  */
+/**
+ * The second way a migration breaks deployed code, and the one the rules above
+ * cannot see: it leaves every object exactly as it was and changes who may read
+ * it.
+ *
+ * `ALTER TABLE "X" FORCE ROW LEVEL SECURITY` alters no column, drops nothing and
+ * renames nothing, so every rule above passes it as additive. On a table with no
+ * policies it takes every row out of the running code's sight at the moment it
+ * commits - before the cutover, and permanently if the deploy then stops. That
+ * is precisely the failure this gate exists to stop, arriving through a door it
+ * was not watching.
+ *
+ * CI CANNOT CATCH THESE FOR YOU, WHICH IS WHY THEY ARE HERE. The migration
+ * workflow connects as `postgres`, and a table's owner bypasses row-level
+ * security - so a test that applies one of these and then reads a row passes in
+ * CI whatever it would do in production. A static rule and a written declaration
+ * are the only checks available; there is no dynamic one to fall back on.
+ *
+ * Whether ENABLE alone is survivable turns on which role the API connects as,
+ * and that is recorded nowhere in this repository - `apps/backend/.env.example`
+ * names no database connection variable at all. So it cannot be settled from the
+ * diff, which is exactly the case the declaration is for: the migrations already
+ * doing this assert "the API connects as the owning role" in prose, and this
+ * asks for that assertion in a form a reviewer is shown.
+ *
+ * Deliberately NOT here, because each of these widens access or touches nothing
+ * that exists:
+ *   GRANT                          - adds a privilege.
+ *   DISABLE / NO FORCE ROW LEVEL   - restores the bypass rather than removing it.
+ *     SECURITY                       Both contain a flagged phrase as a
+ *                                    substring, so the tests below anchor on the
+ *                                    negating word rather than searching for the
+ *                                    positive one.
+ *   CREATE POLICY, permissive      - on an RLS table with no policies, a
+ *                                    permissive policy is the difference between
+ *                                    seeing nothing and seeing something. AS
+ *                                    RESTRICTIVE is the narrowing form and IS
+ *                                    flagged.
+ *   ALTER DEFAULT PRIVILEGES       - governs objects created later. It cannot
+ *                                    change what the deployed code reads today.
+ */
+const ACCESS_RULES = [
+  {
+    dimension: 'access',
+    kind: 'enables row-level security',
+    // No guard against DISABLE, deliberately: "DISABLE" does not contain
+    // "ENABLE" as a substring, so the plain match is already exact. NO FORCE
+    // below DOES contain FORCE and therefore needs one - the asymmetry is real
+    // and a guard here would be a branch no mutation could redden.
+    test: (u) => u.includes('ENABLE ROW LEVEL SECURITY'),
+  },
+  {
+    dimension: 'access',
+    kind: 'removes the owner bypass on row-level security',
+    test: (u) =>
+      u.includes('FORCE ROW LEVEL SECURITY') && !u.includes('NO FORCE ROW LEVEL SECURITY'),
+  },
+  { dimension: 'access', kind: 'revokes a privilege', test: (u) => /\bREVOKE\b/.test(u) },
+  {
+    dimension: 'access',
+    kind: 'changes an object owner',
+    test: (u) => /\bOWNER TO\b/.test(u),
+  },
+  {
+    dimension: 'access',
+    kind: 'narrows or removes a row-level policy',
+    test: (u) =>
+      u.includes('DROP POLICY') ||
+      u.includes('ALTER POLICY') ||
+      (u.includes('CREATE POLICY') && u.includes('AS RESTRICTIVE')),
+  },
+  {
+    dimension: 'access',
+    kind: 'drops objects owned by a role',
+    test: (u) => u.includes('DROP OWNED BY'),
+  },
+  {
+    dimension: 'access',
+    kind: 'removes a role or its ability to connect',
+    test: (u) => u.includes('DROP ROLE') || (u.includes('ALTER ROLE') && u.includes('NOLOGIN')),
+  },
+];
+
 const RULES = [
   { kind: 'drops a table', test: (u) => u.includes('DROP TABLE') },
   { kind: 'drops a column', test: (u) => u.includes('DROP COLUMN') },
@@ -242,6 +325,7 @@ const RULES = [
     kind: 'adds a required column with no default',
     test: (u) => addColumnClauses(u).some((c) => c.includes('NOT NULL') && !c.includes('DEFAULT')),
   },
+  ...ACCESS_RULES,
 ];
 
 /**
@@ -255,7 +339,11 @@ export const classifyMigrationSql = (sql) => {
     const upper = normalise(statement);
     for (const rule of RULES) {
       if (rule.test(upper)) {
-        hazards.push({ kind: rule.kind, statement: statement.replace(/\s+/g, ' ').trim() });
+        hazards.push({
+          kind: rule.kind,
+          dimension: rule.dimension ?? 'shape',
+          statement: statement.replace(/\s+/g, ' ').trim(),
+        });
       }
     }
   }
@@ -365,8 +453,17 @@ const main = (paths) => {
     }
 
     failed += 1;
+    // "the schema" is wrong for an access hazard: FORCE ROW LEVEL SECURITY
+    // alters nothing about the schema and takes every row out of the running
+    // code's sight anyway. Naming the right one is what tells the reader which
+    // of the two paragraphs below applies to them.
+    const changes = review.hazards.some((h) => h.dimension === 'access')
+      ? review.hazards.every((h) => h.dimension === 'access')
+        ? 'changes who may read the schema'
+        : 'changes the schema and who may read it'
+      : 'changes the schema';
     console.log(
-      `::error file=${path}::${review.name} changes the schema in a way the deployed code may not survive.`
+      `::error file=${path}::${review.name} ${changes} in a way the deployed code may not survive.`
     );
     console.log(listed);
 
@@ -387,6 +484,16 @@ const main = (paths) => {
     console.log(`    remove the old thing in a later release), or say why no deployed reader`);
     console.log(`    names what this changes, in the migration itself:`);
     console.log(`      -- ${DECLARATION_MARKER} <why the deployed code keeps working>`);
+
+    if (review.hazards.some((h) => h.dimension === 'access')) {
+      console.log(`    An access hazard above changes no column and drops nothing, so the`);
+      console.log(`    expand step does not apply to it - what changes is which rows the`);
+      console.log(`    connecting role can see, at the moment the statement commits.`);
+      console.log(`    NOTE THAT CI CANNOT CHECK THIS ONE FOR YOU: the migration job connects`);
+      console.log(`    as postgres, and a table's owner bypasses row-level security, so a test`);
+      console.log(`    that applies this and reads a row passes here whatever production does.`);
+      console.log(`    Say which role the API connects as and why this leaves its reads intact.`);
+    }
   }
 
   if (failed > 0) {
