@@ -395,6 +395,41 @@ describe("StripeService", () => {
       );
     });
 
+    // The appointment path converted with a currency-blind x100 while resolving
+    // the org's currency on the very next line. A zero-decimal org was charged a
+    // hundred times the service cost, and nothing asserted the amount reaching
+    // Stripe - the test above pins only the absence of transfer_data.
+    it("submits a zero-decimal appointment cost unscaled", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "appt_jpy",
+        status: "REQUESTED",
+        organisationId: "org_jpy",
+        appointmentType: { id: "service_jpy" },
+        companion: { id: "comp_1", parent: { id: "parent_1" } },
+      });
+      (prisma.service.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "service_jpy",
+        cost: 1000,
+      });
+      (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+        stripeAccountId: "acct_jpy",
+      });
+      (
+        prisma.organizationBilling.findUnique as jest.Mock
+      ).mockResolvedValueOnce({ currency: "jpy" });
+      mStripe.paymentIntents.create.mockResolvedValueOnce({
+        id: "pi_jpy",
+        client_secret: "cs_jpy",
+      });
+
+      await StripeService.createPaymentIntentForAppointment("appt_jpy");
+
+      expect(mStripe.paymentIntents.create).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 1000, currency: "jpy" }),
+        { stripeAccount: "acct_jpy" },
+      );
+    });
+
     it("should throw if appointment not found", async () => {
       (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce(null);
       await expect(
