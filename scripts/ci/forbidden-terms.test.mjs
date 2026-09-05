@@ -392,7 +392,7 @@ test('selftest without --min-corpus exits 2', () => {
 });
 
 test("this repository's own prose passes every surface", () => {
-  const prose = execFileSync('cat', [PROSE], { encoding: 'utf8' });
+  const prose = readFileSync(PROSE, 'utf8');
   const dir = surfaceDir({ body: prose, messages: prose, title: prose });
   const result = run(['scan', '--dir', dir], { FORBIDDEN_TERMS_PATTERN_B64: b64(SYNTHETIC) });
   assert.equal(result.code, 0);
@@ -506,6 +506,17 @@ test('the step that refuses a run which scanned nothing is not itself skippable'
     'the step refusing a run that scanned nothing is itself conditional, so the run it exists ' +
       'to catch skips it too and the job reports clean having read no surface'
   );
+  // `if:` is not the only line that unmakes this step. `continue-on-error: true`
+  // leaves it running, leaves it red in the log, and concludes the JOB as
+  // success - so the refusal still reports "nothing was scanned" and the check
+  // beside it is green anyway. Both edits end in a clean report over an unread
+  // pull request; only the first one is visible in the step's condition.
+  assert.doesNotMatch(
+    reads[0],
+    /^\s*continue-on-error:/mu,
+    'the step refusing a run that scanned nothing cannot fail the job, so its refusal is ' +
+      'printed into a log nothing reads and the check reports clean regardless'
+  );
 
   // The reader being unconditional and the writer being the step that actually
   // scans are two halves of one property, and only the first half was asserted.
@@ -516,17 +527,36 @@ test('the step that refuses a run which scanned nothing is not itself skippable'
   // Keyed on the scan command rather than on the step's `if:`, for the same reason
   // the marker was preferred to the step name: the trigger expression is one
   // rewording away, the scan invocation is the mechanism.
-  assert.match(
-    writes[0],
-    // Not `mjs scan` adjacently: reordering the subcommand after the flag is a
-    // legal, behaviour-preserving edit of the same command, and rejecting it
-    // would be a false red on a correct workflow - the failure mode that gets a
-    // check deleted rather than the one that lets a defect through. `\bscan\b`
-    // does not match the marker path `.../scanned`, which is the only other
-    // occurrence in any step.
-    /forbidden-terms\.mjs\b[\s\S]*?\bscan\b/u,
+  // Not `mjs scan` adjacently: reordering the subcommand after the flag is a
+  // legal, behaviour-preserving edit of the same command, and rejecting it
+  // would be a false red on a correct workflow - the failure mode that gets a
+  // check deleted rather than the one that lets a defect through. `\bscan\b`
+  // does not match the marker path `.../scanned`, which is the only other
+  // occurrence in any step.
+  const invocation = /forbidden-terms\.mjs\b[\s\S]*?\bscan\b/u.exec(writes[0]);
+  assert.ok(
+    invocation,
     'the scanned marker is written by a step that does not run the scan, so it records that ' +
       'a run reached that line rather than that a scan succeeded, and the refusal below passes'
+  );
+
+  // The comment beside the `touch` makes two claims and the assertion above
+  // pins only the first. `Written only after a clean exit, so it records a scan
+  // rather than an attempt` is the second, and it is the ORDER of two lines in
+  // one step - the cheapest thing in this file to change by accident.
+  //
+  // Neither half is a defect alone. `touch` above the scan is still red today,
+  // because a failing scan fails the step and the refusal never gets to decide;
+  // `continue-on-error: true` on the scan step is still red today, because
+  // `set -e` skips the `touch` and the refusal turns the job red on the missing
+  // marker. Together they are fail-open: the marker is already written, the
+  // failure is swallowed, and the job reports CLEAN on a run that found a term.
+  // The order is the half that is free to move, which is why it must not be the
+  // unchecked one.
+  assert.ok(
+    invocation.index < writes[0].indexOf(`touch ${MARKER}`),
+    'the scanned marker is written before the scan runs, so it records an attempt rather than ' +
+      'a clean exit and any later edit that stops a failed scan failing the step reports clean'
   );
 });
 
@@ -539,7 +569,7 @@ test('every must-pass line is real prose from a tracked file', () => {
   // near-misses drift towards what the author imagines the pattern does, and a
   // corpus of those proves nothing about the documentation a false positive
   // would actually fire on.
-  const lines = corpusLines(execFileSync('cat', [PROSE], { encoding: 'utf8' }));
+  const lines = corpusLines(readFileSync(PROSE, 'utf8'));
   assert.ok(lines.length >= 20, `expected a corpus worth having, got ${lines.length} lines`);
 
   // The exclusion has to exclude THIS file, and two ways it stops doing so are
