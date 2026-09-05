@@ -205,5 +205,121 @@ else
 fi
 
 echo
+echo "deploy_stop_notice"
+
+# The notice text was never the defect. The defect was that it could not be
+# reached on the path most likely to need it, so what is pinned here is when it
+# fires - each condition separately, and then the `set -e` behaviour that made
+# the original unreachable.
+
+fired() { # fired <status> <applied> <cutover>
+  if [ -n "$(deploy_stop_notice "$1" "$2" "$3" abc1234 20260102000000_second 2>&1 >/dev/null)" ]; then
+    echo yes
+  else
+    echo no
+  fi
+}
+
+check "fires when a failed deploy left migrations applied before cutover" \
+  "yes" "$(fired 1 1 0)"
+check "silent on a clean exit" "no" "$(fired 0 1 0)"
+check "silent when the schema never moved" "no" "$(fired 1 0 0)"
+check "silent once the cutover is verified" "no" "$(fired 1 1 1)"
+check "a non-1 failure status still fires" "yes" "$(fired 127 1 0)"
+
+STOP_NOTICE="$(deploy_stop_notice 1 1 0 abc1234 20260102000000_second 20260103000000_third 2>&1 >/dev/null)"
+case "$STOP_NOTICE" in
+  *20260102000000_second*20260103000000_third*) ok "passes every migration through to the notice" ;;
+  *) no "passes every migration through to the notice" "$STOP_NOTICE" ;;
+esac
+
+# ---------------------------------------------------------------------------
+# The regression itself.
+#
+# api-deploy.sh runs under `set -euo pipefail`. `prisma migrate deploy` applies
+# migrations one at a time and halts at the first failure, having applied the
+# earlier ones - a bare non-zero exit, not a status this script tests. The
+# original hung the notice off two `if` branches further down, so `set -e` ended
+# the script before either was reached and the operator was told nothing.
+#
+# Driven through a real bash process rather than by calling the function,
+# because what is under test is that an EXIT trap survives `set -e` where a call
+# site below the failure does not.
+# ---------------------------------------------------------------------------
+cat > "$WORK/deploy-shape.sh" <<SHAPE
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HERE/../lib/migrate.sh"
+
+MIGRATIONS_APPLIED=0
+CUTOVER_DONE=0
+INCOMING_MIGRATIONS="20260102000000_second"
+
+on_exit() {
+  local status=\$?
+  # shellcheck disable=SC2086
+  deploy_stop_notice "\$status" "\$MIGRATIONS_APPLIED" "\$CUTOVER_DONE" \\
+    abc1234 \$INCOMING_MIGRATIONS
+}
+
+trap on_exit EXIT
+MIGRATIONS_APPLIED=1
+# Stands in for prisma halting part-way: two applied, then a bare failure.
+echo "applied 20260101000000_first"
+echo "applied 20260102000000_second"
+false
+echo "UNREACHABLE"
+SHAPE
+chmod +x "$WORK/deploy-shape.sh"
+
+SHAPE_ERR="$("$WORK/deploy-shape.sh" 2>&1 >/dev/null || true)"
+SHAPE_OUT="$("$WORK/deploy-shape.sh" 2>/dev/null || true)"
+
+case "$SHAPE_ERR" in
+  *"THE SCHEMA IS AHEAD OF THE RUNNING CODE"*)
+    ok "a bare command failure under set -e still reaches the notice" ;;
+  *) no "a bare command failure under set -e still reaches the notice" \
+       "stderr was: $SHAPE_ERR" ;;
+esac
+
+case "$SHAPE_OUT" in
+  *UNREACHABLE*) no "the failing command still ends the deploy" "it kept going" ;;
+  *) ok "the failing command still ends the deploy" ;;
+esac
+
+if "$WORK/deploy-shape.sh" >/dev/null 2>&1; then
+  no "the deploy still exits non-zero" "it returned 0"
+else
+  ok "the deploy still exits non-zero"
+fi
+
+# ---------------------------------------------------------------------------
+# And the same invariant on the real file, since the behaviour above is only
+# the notice's if api-deploy.sh keeps this order: arm the trap, then raise the
+# flag, then move the schema. Setting the flag after the command was the bug -
+# the assignment was unreachable in exactly the case it described.
+# ---------------------------------------------------------------------------
+DEPLOY_SH="$HERE/../api-deploy.sh"
+line_of() { grep -n -m1 -F "$1" "$DEPLOY_SH" | cut -d: -f1; }
+
+TRAP_LINE="$(line_of 'trap on_exit EXIT')"
+FLAG_LINE="$(line_of 'MIGRATIONS_APPLIED=1')"
+DEPLOY_LINE="$(line_of 'run prisma:deploy')"
+
+if [ -n "$TRAP_LINE" ] && [ -n "$FLAG_LINE" ] && [ -n "$DEPLOY_LINE" ] \
+   && [ "$TRAP_LINE" -lt "$FLAG_LINE" ] && [ "$FLAG_LINE" -lt "$DEPLOY_LINE" ]; then
+  ok "api-deploy.sh arms the trap and raises the flag before applying migrations"
+else
+  no "api-deploy.sh arms the trap and raises the flag before applying migrations" \
+     "trap=$TRAP_LINE flag=$FLAG_LINE deploy=$DEPLOY_LINE"
+fi
+
+if grep -q 'trap - EXIT' "$DEPLOY_SH"; then
+  no "api-deploy.sh keeps one exit handler" "it disarms the EXIT trap somewhere"
+else
+  ok "api-deploy.sh keeps one exit handler rather than an arm/disarm pair"
+fi
+
+echo
 printf '%s passed, %s failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

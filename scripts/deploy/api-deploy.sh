@@ -99,6 +99,8 @@ deploy_git_sync "$REPO_DIR" "$GIT_REF" "${REQUIRE_PROMOTED_FROM:-}"
 # loud if the deploy stops after the schema has moved.
 INCOMING_MIGRATIONS="$(deploy_incoming_migrations "$ROLLBACK_SHA" HEAD)"
 MIGRATIONS_APPLIED=0
+CUTOVER_DONE=0
+SMOKE_PID=""
 
 if [ -n "$INCOMING_MIGRATIONS" ]; then
   echo "this deploy adds $(printf '%s\n' "$INCOMING_MIGRATIONS" | grep -c '') migration(s):"
@@ -107,14 +109,28 @@ else
   echo "this deploy adds no migrations - the schema does not move"
 fi
 
-# Said once, here, so every later exit can just point at it.
-stopped_without_cutover() {
-  if [ "$MIGRATIONS_APPLIED" = "1" ]; then
-    # Deliberate word splitting - one argument per migration. Prisma directory
-    # names are <timestamp>_<snake_case>, so there is nothing here to glob.
-    # shellcheck disable=SC2086
-    deploy_schema_hazard_notice "$ROLLBACK_SHA" $INCOMING_MIGRATIONS
+# Said on the way out, not from the branches that remembered to say it.
+#
+# This script runs under `set -e`, so a command that simply fails ends it where
+# it stands. Hanging the notice off the two branches that test a status meant
+# every other exit between the migration and the cutover was silent - including
+# the likeliest one of all, `prisma migrate deploy` halting part-way through and
+# leaving the earlier migrations applied. An EXIT trap cannot be walked past.
+#
+# It also owns the smoke process, so there is one handler rather than an
+# arm/disarm pair around the boot that a later edit could fall out of.
+on_exit() {
+  local status=$?
+
+  if [ -n "$SMOKE_PID" ]; then
+    kill "$SMOKE_PID" 2>/dev/null || true
   fi
+
+  # Deliberate word splitting - one argument per migration. Prisma directory
+  # names are <timestamp>_<snake_case>, so there is nothing here to glob.
+  # shellcheck disable=SC2086
+  deploy_stop_notice "$status" "$MIGRATIONS_APPLIED" "$CUTOVER_DONE" \
+    "$ROLLBACK_SHA" $INCOMING_MIGRATIONS
 }
 
 say "install"
@@ -166,15 +182,24 @@ say "migrations"
 if [ -n "$INCOMING_MIGRATIONS" ]; then
   echo "  applying, after which a rollback to $ROLLBACK_SHA no longer restores the box on its own"
 fi
+# Armed before the schema can move, and the flag is set before the command
+# rather than after it: `prisma migrate deploy` halting on migration three of
+# three has already applied two. Setting it after was the bug - the assignment
+# was unreachable in exactly the case it described. It over-reports only if
+# Prisma fails having applied nothing, and over-reporting a schema hazard is the
+# safe direction. A deploy that carries no migrations cannot move the schema at
+# all, so it stays silent.
+trap on_exit EXIT
+if [ -n "$INCOMING_MIGRATIONS" ]; then
+  MIGRATIONS_APPLIED=1
+fi
 pnpm --filter @yosemite-crew/database run prisma:deploy
-MIGRATIONS_APPLIED=1
 
 say "smoke boot on :$SMOKE_PORT"
 cd apps/backend
 rm -f /tmp/api-smoke.log
 PORT="$SMOKE_PORT" nohup node dist/index.js >/tmp/api-smoke.log 2>&1 &
 SMOKE_PID=$!
-trap 'kill "$SMOKE_PID" 2>/dev/null || true' EXIT
 sleep 25
 CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "http://127.0.0.1:$SMOKE_PORT/health" || echo 000)"
 echo "  /health -> $CODE"
@@ -184,11 +209,10 @@ echo "  real route : $(curl -s --max-time 10 "http://127.0.0.1:$SMOKE_PORT/v1/pe
 echo "  bogus route: $(curl -s --max-time 10 "http://127.0.0.1:$SMOKE_PORT/v1/definitely-not-a-route" | head -c 30)"
 grep -iE 'ERR_REQUIRE_ESM|Cannot find module|FATAL ERROR' /tmp/api-smoke.log | head -5 || true
 kill "$SMOKE_PID" 2>/dev/null || true
-trap - EXIT
+SMOKE_PID=""
 sleep 2
 if [ "$CODE" != "200" ]; then
   echo "smoke boot failed - NOT cutting over. Rollback sha: $ROLLBACK_SHA" >&2
-  stopped_without_cutover
   exit 1
 fi
 
@@ -202,8 +226,10 @@ pm2 describe "$PM2_TARGET" | grep -iE 'status|node.js version' || true
 ss -ltn 2>/dev/null | grep -q ':8080' \
   && echo "  listening on 8080" \
   || { echo "  NOTHING LISTENING on 8080 - roll back to $ROLLBACK_SHA" >&2
-       stopped_without_cutover
        exit 1; }
+# Past here the running process IS the new code, so the schema being ahead of it
+# is no longer true and the notice must stop claiming it.
+CUTOVER_DONE=1
 
 say "done"
 echo "deployed $(git -C "$REPO_DIR" rev-parse --short HEAD)  (rollback: $ROLLBACK_SHA)"

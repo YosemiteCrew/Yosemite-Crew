@@ -49,6 +49,39 @@ deploy_incoming_migrations() {
     | sort
 }
 
+# deploy_stop_notice <exit-status> <migrations-applied> <cutover-done> <rollback-sha> <migration>...
+#
+# Whether an exiting deploy owes the operator the hazard notice.
+#
+# Separated from the notice text because the two failed independently: the
+# wording was right while the notice was unreachable on the path most likely to
+# need it. api-deploy.sh runs under `set -e`, so a bare command failure ends the
+# script where it stands - it does not fall through to a call site further
+# down. `prisma migrate deploy` applies migrations one at a time and halts at
+# the first failure, leaving the earlier ones applied, which is precisely the
+# state the notice exists to announce and precisely the state that skipped it.
+#
+# So the caller installs this on an EXIT trap instead of calling it from the
+# branches it remembered to cover, and the decision lives here where it can be
+# tested without a live box.
+#
+# Silent on a clean exit, on a deploy whose schema never moved, and after a
+# verified cutover - past that point the running code is the new code, so the
+# schema being ahead of it is no longer true.
+deploy_stop_notice() {
+  local status="${1:?exit status required}"
+  local applied="${2:?migrations-applied flag required}"
+  local cutover="${3:?cutover-done flag required}"
+  local rollback_sha="${4:?rollback sha required}"
+  shift 4
+
+  if [ "$status" = "0" ]; then return 0; fi
+  if [ "$applied" != "1" ]; then return 0; fi
+  if [ "$cutover" = "1" ]; then return 0; fi
+
+  deploy_schema_hazard_notice "$rollback_sha" "$@"
+}
+
 # deploy_schema_hazard_notice <rollback-sha> <migration>...
 #
 # What to say when the deploy stops after the schema has moved. Written to
