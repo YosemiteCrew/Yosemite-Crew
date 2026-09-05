@@ -206,6 +206,12 @@ jest.mock(
   }
 );
 
+// The check-in board panel fetches on mount; stub it so its data-fetching never
+// runs in this suite (jest.setup throws on any unexpected console.error).
+jest.mock('@/app/features/appointments/components/CheckInBoard/CheckInBoardPanel', () => () => (
+  <div data-testid="check-in-board-panel" />
+));
+
 describe('Appointments page', () => {
   const renderAppointments = async () => {
     await act(async () => {
