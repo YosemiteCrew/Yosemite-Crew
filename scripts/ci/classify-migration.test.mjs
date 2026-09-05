@@ -388,6 +388,26 @@ test('ALTER DEFAULT PRIVILEGES is not a hazard - it cannot change what is read t
   );
   // And a plain REVOKE is still a hazard - the exclusion is scoped, not a hole.
   assert.deepEqual(kinds('REVOKE ALL ON "Appointment" FROM PUBLIC;'), ['revokes a privilege']);
+
+  // The exclusion is a substring test, so an object name containing the
+  // excluded text is what tells a narrow exclusion from a wide one: widening it
+  // to `ALTER` alone leaves every other case in this test passing and quietly
+  // excuses these two. Raised by ankit-yc on #2731.
+  assert.deepEqual(kinds('REVOKE ALL ON "alter_log" FROM PUBLIC;'), ['revokes a privilege']);
+  assert.deepEqual(kinds('REVOKE ALL ON "altered_records" FROM PUBLIC;'), ['revokes a privilege']);
+
+  // Nor can the exclusion be borrowed from a neighbouring statement or from a
+  // comment: statements are split, and comments are stripped before matching.
+  assert.deepEqual(
+    kinds(
+      'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC;\n' +
+        'REVOKE ALL ON "Appointment" FROM PUBLIC;'
+    ),
+    ['revokes a privilege']
+  );
+  assert.deepEqual(kinds('-- ALTER DEFAULT PRIVILEGES\nREVOKE ALL ON "Appointment" FROM PUBLIC;'), [
+    'revokes a privilege',
+  ]);
 });
 
 test('access hazards are tagged as such, so the report can name the right thing', () => {
