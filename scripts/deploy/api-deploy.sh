@@ -74,7 +74,13 @@ cd "$REPO_DIR"
 
 say "preflight"
 node -v
-ROLLBACK_SHA="$(git rev-parse HEAD)"
+# The commit this box is SERVING, which is not the same question as "what is
+# HEAD". Read from the record written at the last verified cutover, before
+# deploy_git_sync moves the tree - see deploy_deployed_sha for why HEAD alone is
+# wrong on every retry, and why the stamped file written just below is not the
+# record despite looking exactly like it.
+DEPLOYED_SHA_RECORD="/tmp/api-deployed-sha.txt"
+ROLLBACK_SHA="$(deploy_deployed_sha "$DEPLOYED_SHA_RECORD" "$REPO_DIR")"
 echo "rollback sha: $ROLLBACK_SHA"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 echo "$ROLLBACK_SHA" > "/tmp/api-rollback-$STAMP.txt"
@@ -271,6 +277,12 @@ ss -ltn 2>/dev/null | grep -q ':8080' \
 # Past here the running process IS the new code, so the schema being ahead of it
 # is no longer true and the notice must stop claiming it.
 CUTOVER_DONE=1
+# The new code is now the thing answering, so this is the first moment it is
+# true that the box serves this commit. Recorded here and nowhere earlier: every
+# step above can still fail, and a record written before the cutover would
+# describe a deploy that did not happen - which is the exact defect that made
+# the preflight file unusable as a record.
+deploy_record_deployed_sha "$DEPLOYED_SHA_RECORD" "$(git -C "$REPO_DIR" rev-parse HEAD)"
 
 say "done"
 echo "deployed $(git -C "$REPO_DIR" rev-parse --short HEAD)  (rollback: $ROLLBACK_SHA)"
