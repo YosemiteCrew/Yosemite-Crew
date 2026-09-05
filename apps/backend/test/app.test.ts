@@ -71,6 +71,11 @@ jest.mock("../src/config/auth-hooks", () => ({
 }));
 
 import { createApp } from "../src/app";
+import {
+  getControlReports,
+  hasFailedControl,
+  resetControlsForTest,
+} from "../src/config/startup-controls";
 
 type Layer = {
   route?: {
@@ -317,5 +322,177 @@ describe("createApp auth wiring", () => {
 
     expect(mockInitSuperTokens).not.toHaveBeenCalled();
     expect(mockSetAuthService).toHaveBeenCalledWith(null);
+  });
+});
+
+// #2750: a missing auth variable disabled the whole SuperTokens stack with no
+// log line, no throw and no control report - so "somebody turned auth off" and
+// "a deploy lost a variable" were the same observable process from outside.
+describe("createApp reports the authentication control", () => {
+  const authEnv = {
+    SUPERTOKENS_CONNECTION_URI: "https://core.example.test",
+    AUTH_API_DOMAIN: "https://api.example.test",
+    AUTH_WEBSITE_DOMAIN: "https://web.example.test",
+  };
+  const envKeys = [
+    "SUPERTOKENS_DISABLED",
+    "SUPERTOKENS_CONNECTION_URI",
+    "AUTH_API_DOMAIN",
+    "AUTH_WEBSITE_DOMAIN",
+  ];
+  const saved: Record<string, string | undefined> = {};
+
+  const authControl = () =>
+    getControlReports().find((report) => report.name === "authentication");
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    resetControlsForTest();
+    for (const key of envKeys) {
+      saved[key] = process.env[key];
+      delete process.env[key];
+    }
+  });
+
+  afterEach(() => {
+    resetControlsForTest();
+    for (const key of envKeys) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+  });
+
+  it("records applied when the auth env is complete", () => {
+    Object.assign(process.env, authEnv);
+
+    createApp();
+
+    expect(authControl()).toMatchObject({ state: "applied" });
+    expect(authControl()).not.toHaveProperty("detail");
+    expect(hasFailedControl()).toBe(false);
+  });
+
+  it("records skipped, not failed, when auth is deliberately turned off", () => {
+    Object.assign(process.env, authEnv);
+    process.env.SUPERTOKENS_DISABLED = "true";
+
+    createApp();
+
+    expect(authControl()).toMatchObject({
+      state: "skipped",
+      detail: "disabled by configuration",
+    });
+    // A kill switch somebody threw is a deployment fact, not an incident: if it
+    // paged, people would learn to ignore this endpoint.
+    expect(hasFailedControl()).toBe(false);
+  });
+
+  it("records failed when the auth env is incomplete", () => {
+    Object.assign(process.env, authEnv);
+    delete process.env.AUTH_WEBSITE_DOMAIN;
+
+    createApp();
+
+    expect(authControl()).toMatchObject({
+      state: "failed",
+      detail: "auth env incomplete",
+    });
+    expect(hasFailedControl()).toBe(true);
+  });
+
+  // The distinction the issue is about: the two unmounted boots must not read
+  // the same. Both skip the SuperTokens wiring; only one of them is a fault.
+  it("distinguishes the deliberate boot from the accidental one", () => {
+    Object.assign(process.env, authEnv);
+    process.env.SUPERTOKENS_DISABLED = "1";
+    createApp();
+    const deliberate = authControl()?.state;
+
+    resetControlsForTest();
+    jest.clearAllMocks();
+    delete process.env.SUPERTOKENS_DISABLED;
+    delete process.env.AUTH_API_DOMAIN;
+    createApp();
+    const accidental = authControl()?.state;
+
+    expect(mockRegisterSuperTokensBeforeRoutes).not.toHaveBeenCalled();
+    expect(deliberate).toBe("skipped");
+    expect(accidental).toBe("failed");
+    expect(deliberate).not.toBe(accidental);
+  });
+
+  // Precedence, and it is the case that could mask an accident: the kill switch
+  // wins over an incomplete env, so a boot that is BOTH still reports the
+  // deliberate state. That is the right way round - somebody asked for this
+  // process - but it is worth pinning rather than leaving to the read order.
+  it("reports skipped when auth is switched off and the env is incomplete too", () => {
+    process.env.SUPERTOKENS_DISABLED = "true";
+
+    createApp();
+
+    expect(authControl()).toMatchObject({
+      state: "skipped",
+      detail: "disabled by configuration",
+    });
+    expect(hasFailedControl()).toBe(false);
+  });
+
+  // /health/controls is unauthenticated by design, so the detail must never say
+  // which variable is missing - that is a map of the deployment to anyone.
+  it("never names the missing variable in the reported detail", () => {
+    Object.assign(process.env, authEnv);
+    delete process.env.SUPERTOKENS_CONNECTION_URI;
+
+    createApp();
+
+    const detail = authControl()?.detail ?? "";
+    for (const key of envKeys) {
+      expect(detail).not.toContain(key);
+    }
+    expect(detail).toBe("auth env incomplete");
+  });
+
+  it("degrades /health/controls but not /health when auth did not mount", async () => {
+    Object.assign(process.env, authEnv);
+    delete process.env.AUTH_WEBSITE_DOMAIN;
+
+    const app = createApp();
+
+    const liveness = await request(app, { path: "/health" });
+    const controls = await request(app, { path: "/health/controls" });
+    const body = JSON.parse(controls.body) as {
+      status: string;
+      controls: Array<{ name: string; state: string; detail?: string }>;
+    };
+
+    // Liveness is unchanged on purpose: the process is up, the control is not.
+    expect(liveness.statusCode).toBe(200);
+    expect(controls.statusCode).toBe(503);
+    expect(body.status).toBe("degraded");
+    expect(body.controls).toContainEqual(
+      expect.objectContaining({
+        name: "authentication",
+        state: "failed",
+        detail: "auth env incomplete",
+      }),
+    );
+  });
+
+  it("keeps /health/controls green when auth mounted", async () => {
+    Object.assign(process.env, authEnv);
+
+    const app = createApp();
+
+    const controls = await request(app, { path: "/health/controls" });
+    const body = JSON.parse(controls.body) as {
+      status: string;
+      controls: Array<{ name: string; state: string }>;
+    };
+
+    expect(controls.statusCode).toBe(200);
+    expect(body.status).toBe("ok");
+    expect(body.controls).toContainEqual(
+      expect.objectContaining({ name: "authentication", state: "applied" }),
+    );
   });
 });
