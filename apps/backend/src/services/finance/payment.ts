@@ -13,6 +13,7 @@ import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
 import { FinanceEventService } from "./events";
 import { roundMoney } from "./pricing";
+import { toStripeMinorUnits } from "src/utils/stripe-minor-units";
 import { markInvoiceTreatmentItemsSettled } from "./settlement";
 
 type PaymentLineSummary = {
@@ -721,47 +722,6 @@ type CheckoutLineItemSource = {
   unitPrice?: number;
   discountPercent?: number;
 };
-
-/**
- * Currencies Stripe treats as ZERO-DECIMAL: the API takes the amount in the
- * currency's own units, not in hundredths.
- *
- * Multiplying by 100 unconditionally overcharges every one of them by 100x -
- * a 1,000 JPY invoice would be submitted as 100,000 JPY. The currency became
- * configurable per invoice, so this is no longer hypothetical.
- *
- * https://docs.stripe.com/currencies#zero-decimal
- */
-const ZERO_DECIMAL_CURRENCIES = new Set([
-  "bif",
-  "clp",
-  "djf",
-  "gnf",
-  "jpy",
-  "kmf",
-  "krw",
-  "mga",
-  "pyg",
-  "rwf",
-  // NOT "ugx". Stripe's Special cases: UGX "became a zero-decimal currency, but
-  // backwards compatibility requires you to represent it as a two-decimal value,
-  // where the decimal amount is always 00. To charge 5 UGX, provide an amount
-  // value of 500." It was in this set, so a UGX invoice was submitted at a
-  // hundredth of its value. ISK carries the identical rule and is correctly
-  // absent - the same exception was applied to one and not the other.
-  // https://docs.stripe.com/currencies#special-cases
-  "vnd",
-  "vuv",
-  "xaf",
-  "xof",
-  "xpf",
-]);
-
-/** An amount in the smallest unit Stripe accepts for `currency`. */
-const toStripeMinorUnits = (amount: number, currency: string): number =>
-  ZERO_DECIMAL_CURRENCIES.has(currency.trim().toLowerCase())
-    ? Math.round(amount)
-    : Math.round(amount * 100);
 
 // Charge the full bill as itemised, pre-tax lines (letting Stripe apply tax)
 // UNLESS we must charge a remaining/adjusted balance instead: when a prior

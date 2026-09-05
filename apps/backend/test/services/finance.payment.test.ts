@@ -1970,12 +1970,13 @@ describe("FinancePaymentService", () => {
   });
 
   // The other half of the same rule, and the half the JPY test cannot reach.
-  // Stripe's Special cases: UGX "became a zero-decimal currency, but backwards
-  // compatibility requires you to represent it as a two-decimal value, where the
-  // decimal amount is always 00. To charge 5 UGX, provide an amount value of
-  // 500." ISK carries the identical rule and is correctly absent from the set;
-  // ugx was in it, so a UGX invoice was submitted at a hundredth of its value.
-  // https://docs.stripe.com/currencies#special-cases
+  // Stripe's Special cases: UGX "transitioned to a zero-decimal currency, but
+  // backwards compatibility requires you to represent it as a two-decimal value,
+  // where the decimal amount is always 00. For example, to charge 5 UGX, provide
+  // an amount value of 500." ISK carries the identical rule and is correctly
+  // absent from the set; ugx was in it, so a UGX invoice was submitted at a
+  // hundredth of its value.
+  // https://docs.stripe.com/currencies?locale=en-US#special-cases
   it("submits UGX as a two-decimal value, which Stripe requires despite it being zero-decimal", async () => {
     const stripeClient = {
       checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
