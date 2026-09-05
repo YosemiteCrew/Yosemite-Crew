@@ -154,6 +154,6 @@ export const config = {
   // with "can't recognize the exported `config` field". The rule is turned off
   // for this file in sonar-project.properties.
   matcher: [
-    '/((?!(?:api|_next|fonts|images|assets|dev-docs|static)(?:/|$)|.*\\.(?:ico|png|jpg|jpeg|gif|svg|webp|woff2?|ttf|eot|css|js|map|json|txt|xml|csv|yaml|html|webmanifest)$).*)',
+    '/((?!(?:api|_next|fonts|images|assets|captions|dev-docs|static)(?:/|$)|.*\\.(?:ico|png|jpg|jpeg|gif|svg|webp|woff2?|ttf|eot|css|js|map|json|txt|xml|csv|yaml|html|webmanifest|vtt)$).*)',
   ],
 };

@@ -55,9 +55,12 @@ const VideoPlayerModal = ({
             onLoadedData={() => setIsVideoLoaded(true)}
           >
             <source src={activeVideo.videoUrl} type="video/mp4" />
+            {/* Same real captions file as GuidePlayerModal, and the same reason:
+                the data: URL this used to carry was refused by our own CSP on
+                every play. */}
             <track
               kind="captions"
-              src="data:text/vtt,WEBVTT"
+              src="/captions/no-narration.en.vtt"
               srcLang="en"
               label="English"
               default
