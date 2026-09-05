@@ -461,6 +461,53 @@ test('the pull_request_target job runs nothing the head can choose', () => {
   );
 });
 
+test('the step that refuses a run which scanned nothing is not itself skippable', () => {
+  // `No `if:`, deliberately` is the enforcement, and it is a paragraph three
+  // lines above the fact it asserts. Adding that one line is the likeliest edit
+  // in the file rather than a contrived one: every other step concerning the
+  // pull request carries exactly that `if:`, the refusal is the single step
+  // without one, and adding it makes the job MORE internally consistent. The
+  // job then checks out, arms, self-tests, skips all three scan steps, skips
+  // the refusal, and reports clean having read nothing.
+  //
+  // Keyed on the marker rather than on the step's name: the name is prose and
+  // can be reworded, the marker is the mechanism.
+  const workflow = readFileSync(WORKFLOW, 'utf8');
+  const body = workflow
+    .split('\n')
+    .filter((line) => !/^\s*#/u.test(line))
+    .join('\n');
+
+  const steps = body.split(/^ {6}- name: /mu).slice(1);
+
+  // Zero rather than a threshold. Any count above zero also fires when the
+  // split read FEWER steps than expected, which is a different defect with a
+  // better message below, so it would steal the failure from the assertion
+  // that names the cause.
+  assert.notEqual(steps.length, 0, 'no steps parsed out of the job: this test is reading nothing');
+
+  const MARKER = '"${RUNNER_TEMP}/scanned"';
+  const writes = steps.filter((step) => step.includes(`touch ${MARKER}`));
+  const reads = steps.filter((step) => step.includes(`-f ${MARKER}`));
+
+  assert.equal(
+    writes.length,
+    1,
+    'exactly one step may write the scanned marker: a second one records a scan that did not happen'
+  );
+  assert.equal(
+    reads.length,
+    1,
+    'exactly one step must read the scanned marker: with none, a run that scanned nothing reports clean'
+  );
+  assert.doesNotMatch(
+    reads[0],
+    /^\s*if:/mu,
+    'the step refusing a run that scanned nothing is itself conditional, so the run it exists ' +
+      'to catch skips it too and the job reports clean having read no surface'
+  );
+});
+
 // ---------------------------------------------------------------------------
 // The must-pass corpus is what it claims to be
 // ---------------------------------------------------------------------------
