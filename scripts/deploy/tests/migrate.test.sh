@@ -686,6 +686,63 @@ fi
 # against the real function, so this pins the call site and nothing else - which
 # is the smallest seam available, since no test can run api-deploy.sh itself.
 
+# ---------------------------------------------------------------------------
+# The pre-cutover body-parse probe (#2712).
+#
+# Source-level, and that is the right tool here rather than a compromise: what
+# is being pinned IS the text of a curl invocation in a script no test can run.
+# The failure modes are all in the invocation, so a decision function extracted
+# from it would pin none of them.
+#
+# Each assertion below names a way the probe can be present and prove nothing,
+# and each one is mutation-tested in the commit that added it.
+# ---------------------------------------------------------------------------
+POST_PROBE_LINE="$(line_of 'POST_CODE=')"
+# The literal dollar is escaped in double quotes rather than written inside
+# single ones, for the same reason STAMP_TOKEN is above: `'"'"'$POST_CODE'"'"'` is an
+# expansion that deliberately will not happen, which is what SC2016 warns about.
+POST_CODE_TOKEN="\$POST_CODE"
+POST_GATE_LINE="$(line_of "\"${POST_CODE_TOKEN}\" != \"404\"")"
+CUTOVER_LINE="$(line_of 'say "cutover"')"
+
+# Scoped to the probe's own lines, not to the file. Grepping the whole script
+# for `|| echo 000` passes on /health's probe, which has one - so deleting the
+# fallback from THIS probe left the check green. Found by mutating it, and it is
+# the same defect as a grep matching the comment above the line it pins: a check
+# satisfied by something other than the thing it is about.
+POST_PROBE="$(sed -n '/^POST_CODE=/,/)"$/p' "$DEPLOY_SH")"
+
+probe_has() { # probe_has <label> <fixed-string>
+  if printf '%s' "$POST_PROBE" | grep -qF -- "$2"; then
+    ok "the body-parse probe $1"
+  else
+    no "the body-parse probe $1" "not found in the probe: $2"
+  fi
+}
+
+# A bare `-X POST` returns the same 404 as a healthy one while short-circuiting
+# express.json() entirely, because the parser dispatches on content-type. The
+# probe would then pass whether or not raw-body works.
+probe_has "sends a content type" "content-type: application/json"
+probe_has "sends a body" "-d '{\"smoke\":true}'"
+# A probe whose status is printed rather than captured cannot fail a deploy -
+# which is what the other two route probes in that section do - and one with no
+# fallback reports an empty string on a hang, which is not 404 but is also not
+# a code anyone can read.
+probe_has "captures a status code" "%{http_code}"
+probe_has "falls back to 000 on a hang" "|| echo 000"
+
+# Equality with 404, not inequality with 500: a malformed body is a 400 and a
+# hang is 000, and `!= 500` would let both through.
+if [ -n "$POST_GATE_LINE" ] && [ -n "$POST_PROBE_LINE" ] && [ -n "$CUTOVER_LINE" ] \
+   && [ "$POST_PROBE_LINE" -lt "$POST_GATE_LINE" ] \
+   && [ "$POST_GATE_LINE" -lt "$CUTOVER_LINE" ]; then
+  ok "the body-parse verdict is checked for equality, before the cutover"
+else
+  no "the body-parse verdict is checked for equality, before the cutover" \
+     "probe=$POST_PROBE_LINE gate=$POST_GATE_LINE cutover=$CUTOVER_LINE"
+fi
+
 if grep -q 'trap - EXIT' "$DEPLOY_SH"; then
   no "api-deploy.sh keeps one exit handler" "it disarms the EXIT trap somewhere"
 else
