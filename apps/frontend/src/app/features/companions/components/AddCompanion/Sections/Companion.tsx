@@ -4,7 +4,7 @@ import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import SelectLabel from '@/app/ui/inputs/SelectLabel';
 import {
   CountriesOptions,
-  EMPTY_STORED_COMPANION,
+  createEmptyStoredCompanion,
   EMPTY_STORED_PARENT,
   CompanionFormData,
   fromStoredCompanionAlerts,
@@ -265,7 +265,7 @@ const useCompanionContent = ({
       }
       setShowModal(false);
       setFormDataErrors({});
-      setFormData(EMPTY_STORED_COMPANION);
+      setFormData(createEmptyStoredCompanion());
       setParentFormData(EMPTY_STORED_PARENT);
       setActiveLabel('parents');
     } catch (error) {

@@ -4,7 +4,7 @@ import type { ParentSectionRef } from '@/app/features/companions/components/AddC
 import Companion from '@/app/features/companions/components/AddCompanion/Sections/Companion';
 import Modal from '@/app/ui/overlays/Modal';
 import {
-  EMPTY_STORED_COMPANION,
+  createEmptyStoredCompanion,
   EMPTY_STORED_PARENT,
   CompanionFormData,
 } from '@/app/features/companions/components/AddCompanion/type';
@@ -43,8 +43,9 @@ const AddCompanion = ({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const parentSectionRef = useRef<ParentSectionRef | null>(null);
   const [parentFormData, setParentFormData] = useState<StoredParent>(EMPTY_STORED_PARENT);
-  const [companionFormData, setCompanionFormData] =
-    useState<CompanionFormData>(EMPTY_STORED_COMPANION);
+  const [companionFormData, setCompanionFormData] = useState<CompanionFormData>(
+    createEmptyStoredCompanion()
+  );
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });

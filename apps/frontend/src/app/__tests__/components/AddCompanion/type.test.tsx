@@ -6,7 +6,7 @@ import {
   SpeciesOptions,
   CountryDialCodeOptions,
   EMPTY_STORED_PARENT,
-  EMPTY_STORED_COMPANION,
+  createEmptyStoredCompanion,
 } from '@/app/features/companions/components/AddCompanion/type';
 
 // A country with no dial code cannot label a phone field, so it must not reach
@@ -91,7 +91,7 @@ describe('AddCompanion type constants', () => {
       })
     );
 
-    expect(EMPTY_STORED_COMPANION).toEqual(
+    expect(createEmptyStoredCompanion()).toEqual(
       expect.objectContaining({
         name: '',
         type: 'dog',
@@ -99,5 +99,37 @@ describe('AddCompanion type constants', () => {
         source: 'unknown',
       })
     );
+  });
+});
+
+/* The literal this replaced ran `new Date()` once at import, so every blank form
+   for the life of the tab pre-filled the day the bundle loaded rather than
+   today. A test that only checked the shape could not see that. */
+describe('createEmptyStoredCompanion', () => {
+  it('dates each blank form when it is created, not when the module loaded', () => {
+    jest.useFakeTimers();
+    try {
+      jest.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      const first = createEmptyStoredCompanion();
+
+      jest.setSystemTime(new Date('2026-06-15T00:00:00Z'));
+      const second = createEmptyStoredCompanion();
+
+      expect(first.dateOfBirth.toISOString()).toBe('2026-01-01T00:00:00.000Z');
+      expect(second.dateOfBirth.toISOString()).toBe('2026-06-15T00:00:00.000Z');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('hands every caller its own object', () => {
+    // A shared const let one form's edits leak into the next blank form.
+    const a = createEmptyStoredCompanion();
+    const b = createEmptyStoredCompanion();
+    a.name = 'Rex';
+    a.alerts?.push({ id: 'x', type: 'medical', message: 'test' } as never);
+
+    expect(b.name).toBe('');
+    expect(b.alerts).toEqual([]);
   });
 });

@@ -163,3 +163,12 @@ afterEach(() => {
   // Clear any pending timers
   jest.clearAllTimers();
 });
+
+/* jsdom implements URL.createObjectURL but not URL.revokeObjectURL, so any
+   component that correctly pairs the two throws in tests while behaving fine in
+   a browser. Individual suites used to patch it in one at a time; this makes it
+   available everywhere, and leaves it a jest.fn so a suite can still assert on
+   it (or replace it with its own spy). */
+if (typeof URL.revokeObjectURL !== 'function') {
+  URL.revokeObjectURL = jest.fn();
+}

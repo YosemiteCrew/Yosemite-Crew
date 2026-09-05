@@ -20,7 +20,7 @@ import {
   CompanionParent,
 } from '@/app/features/companions/pages/Companions/types';
 import {
-  EMPTY_STORED_COMPANION,
+  createEmptyStoredCompanion,
   EMPTY_STORED_PARENT,
   CompanionAlert,
   fromStoredCompanionAlerts,
@@ -133,7 +133,7 @@ const createInitialModalState = (
   parentResults: [],
   selectedCountryCode,
   localPhoneNumber: '',
-  companionFormData: EMPTY_STORED_COMPANION,
+  companionFormData: createEmptyStoredCompanion(),
   companionErrors: {},
   companionDOB: null,
   speciesOptions: DEFAULT_SPECIES_OPTIONS,

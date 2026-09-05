@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom';
 import Companion from '@/app/features/companions/components/AddCompanion/Sections/Companion';
 import {
-  EMPTY_STORED_COMPANION,
+  createEmptyStoredCompanion,
   EMPTY_STORED_PARENT,
 } from '@/app/features/companions/components/AddCompanion/type';
 
@@ -256,8 +256,8 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 }));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const makeFormData = (overrides: Partial<typeof EMPTY_STORED_COMPANION> = {}) => ({
-  ...EMPTY_STORED_COMPANION,
+const makeFormData = (overrides: Partial<ReturnType<typeof createEmptyStoredCompanion>> = {}) => ({
+  ...createEmptyStoredCompanion(),
   ...overrides,
 });
 
@@ -268,7 +268,7 @@ const makeParentData = (overrides: Partial<typeof EMPTY_STORED_PARENT> = {}) => 
 
 interface CompanionProps {
   setActiveLabel?: jest.Mock;
-  formData?: typeof EMPTY_STORED_COMPANION;
+  formData?: ReturnType<typeof createEmptyStoredCompanion>;
   setFormData?: jest.Mock;
   parentFormData?: typeof EMPTY_STORED_PARENT;
   setParentFormData?: jest.Mock;

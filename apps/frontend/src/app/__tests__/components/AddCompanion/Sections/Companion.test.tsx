@@ -4,7 +4,7 @@ import Companion from '@/app/features/companions/components/AddCompanion/Section
 import * as companionService from '@/app/features/companions/services/companionService';
 import * as codeEntriesService from '@/app/features/companions/services/codeEntriesService';
 import {
-  EMPTY_STORED_COMPANION,
+  createEmptyStoredCompanion,
   EMPTY_STORED_PARENT,
 } from '@/app/features/companions/components/AddCompanion/type';
 import { StoredCompanion } from '@/app/features/companions/pages/Companions/types';
@@ -145,7 +145,7 @@ describe('Companion Component', () => {
 
   // Ensure valid date initially to avoid ISOString crash
   const validFormData = {
-    ...EMPTY_STORED_COMPANION,
+    ...createEmptyStoredCompanion(),
     dateOfBirth: new Date('2023-01-01'),
   };
 
@@ -361,7 +361,7 @@ describe('Companion Component', () => {
     // We explicitly set fields to empty to force validation errors
     // Use 'as any' to force invalid/missing date type for test scenario
     const invalidData = {
-      ...EMPTY_STORED_COMPANION,
+      ...createEmptyStoredCompanion(),
       name: '',
       type: '',
       breed: '',

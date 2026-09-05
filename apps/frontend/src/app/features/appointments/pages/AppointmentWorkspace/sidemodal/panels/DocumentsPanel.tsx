@@ -253,6 +253,19 @@ const ClinicalPacketSection = ({
   const [signError, setSignError] = useState<string | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [packetPreviewUrl, setPacketPreviewUrl] = useState<string | null>(null);
+  /* The preview URL was revoked only by the explicit close handler, so closing
+     the workspace (or navigating away) while a packet preview was open left the
+     blob URL and its PDF pinned for the lifetime of the document. Keying the
+     cleanup on the url revokes the previous one when it is replaced and the last
+     one on unmount; revoking an already-revoked url is a no-op, so this is safe
+     alongside the close handler that still revokes eagerly. */
+  useEffect(
+    () => () => {
+      if (packetPreviewUrl) URL.revokeObjectURL(packetPreviewUrl);
+    },
+    [packetPreviewUrl]
+  );
+
   // The packet only exists with org + encounter context; without it the actions
   // are disabled (mirrors SummaryStep's fallbacks).
   const hasContext = Boolean(organisationId && encounterId);

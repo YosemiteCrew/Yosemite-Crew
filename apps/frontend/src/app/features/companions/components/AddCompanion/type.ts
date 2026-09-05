@@ -255,7 +255,19 @@ export const EMPTY_STORED_PARENT: StoredParent = {
   createdFrom: 'pms',
 };
 
-export const EMPTY_STORED_COMPANION: CompanionFormData = {
+/**
+ * A blank companion form.
+ *
+ * This used to be a module-level const, which meant `new Date()` ran once at
+ * import and every blank form for the life of the tab pre-filled the same
+ * date-of-birth - the day the bundle happened to be loaded, not today. A
+ * long-lived tab drifted further from correct the longer it stayed open.
+ *
+ * It is a factory so each caller gets today's date. `dateOfBirth` is a required
+ * Date on CompanionFormData and the field renders into a Datepicker, so there
+ * is no honest static sentinel to use instead.
+ */
+export const createEmptyStoredCompanion = (): CompanionFormData => ({
   id: '',
   organisationId: '',
   parentId: '',
@@ -278,4 +290,4 @@ export const EMPTY_STORED_COMPANION: CompanionFormData = {
   countryOfOrigin: '',
   source: 'unknown',
   alerts: [],
-};
+});

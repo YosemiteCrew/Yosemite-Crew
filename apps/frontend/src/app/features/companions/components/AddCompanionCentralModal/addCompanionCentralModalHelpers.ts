@@ -1,5 +1,5 @@
 import {
-  EMPTY_STORED_COMPANION,
+  createEmptyStoredCompanion,
   EMPTY_STORED_PARENT,
   CompanionFormData,
   AlertPriority,
@@ -224,9 +224,9 @@ export type EditSnapshot = {
 };
 
 export const EMPTY_SNAPSHOT: EditSnapshot = {
-  companionName: EMPTY_STORED_COMPANION.name,
-  companionType: EMPTY_STORED_COMPANION.type,
-  companionBreed: EMPTY_STORED_COMPANION.breed,
+  companionName: createEmptyStoredCompanion().name,
+  companionType: createEmptyStoredCompanion().type,
+  companionBreed: createEmptyStoredCompanion().breed,
   firstName: EMPTY_STORED_PARENT.firstName,
   lastName: EMPTY_STORED_PARENT.lastName ?? '',
   email: EMPTY_STORED_PARENT.email,
