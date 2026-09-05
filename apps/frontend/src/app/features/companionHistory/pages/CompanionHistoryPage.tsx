@@ -19,6 +19,7 @@ import {
 } from 'react-icons/io5';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
+import PermissionGate from '@/app/ui/layout/guards/PermissionGate';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
@@ -55,6 +56,7 @@ import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { useNotify } from '@/app/hooks/useNotify';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
+import AllergyListPanel from '@/app/features/companionHistory/components/AllergyListPanel';
 import { isCompanionRevampEnabled } from '@/app/lib/featureFlags';
 import ShareCompanionCardModal from '@/app/features/companionCard/components/ShareCompanionCardModal';
 import { buildStaffCard } from '@/app/features/companionCard/lib/buildStaffCard';
@@ -694,6 +696,12 @@ const CompanionHistoryDesktopBody = ({
     </div>
 
     {hasCompanionId ? <ProblemListPanel companionId={companionId} /> : null}
+
+    {hasCompanionId ? (
+      <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]}>
+        <AllergyListPanel companionId={companionId} />
+      </PermissionGate>
+    ) : null}
 
     {hasCompanionId ? (
       <CompanionHistoryTimeline companionId={companionId} showDocumentUpload />

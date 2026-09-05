@@ -1,8 +1,21 @@
 'use client';
 import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { IoAddOutline, IoCheckmarkOutline, IoMedkitOutline } from 'react-icons/io5';
+import { IoCheckmarkOutline, IoMedkitOutline } from 'react-icons/io5';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
+import {
+  ClinicalListEmpty,
+  ClinicalListError,
+  ClinicalListHeader,
+  ClinicalListLoadingRows,
+  cardClass,
+  controlClass,
+  fieldLabelClass,
+  formatDate,
+  metaClass,
+  rowClass,
+  titleClass,
+} from '@/app/features/companionHistory/components/ClinicalListChrome';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import type {
   PatientProblem,
@@ -59,39 +72,6 @@ const SEVERITY_TONE: Record<ProblemSeverity, StatusTone> = {
 };
 
 const SEVERITY_OPTIONS: ProblemSeverity[] = ['MILD', 'MODERATE', 'SEVERE'];
-
-const cardClass =
-  'flex w-full flex-col rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03)]';
-const rowClass = 'flex items-start justify-between gap-3 px-4 py-3';
-const titleClass = 'text-[13px] font-bold text-[var(--ink)]';
-const metaClass = 'text-[11.5px] text-[var(--ink-faint)]';
-const fieldLabelClass = 'text-[11.5px] font-semibold text-[var(--ink-muted)]';
-const controlClass =
-  'w-full rounded-xl border border-[var(--hairline)] bg-[var(--screen)] px-3 py-2 text-[13px] text-[var(--ink)] outline-none focus:border-[var(--blue)]';
-
-const formatDate = (value: string | null): string | null => {
-  if (!value) return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-};
-
-const EmptyState = () => (
-  <p className="px-4 py-8 text-center text-[12.5px] text-[var(--ink-faint)]">
-    No problems recorded for this patient yet.
-  </p>
-);
-
-const LoadingRows = () => (
-  <ul className="divide-y divide-[var(--divider)]" aria-hidden="true">
-    {[0, 1, 2].map((i) => (
-      <li key={i} className={rowClass}>
-        <span className="h-3.5 w-44 rounded bg-[var(--inset)]" />
-        <span className="h-5 w-16 rounded-full bg-[var(--inset)]" />
-      </li>
-    ))}
-  </ul>
-);
 
 const ProblemRow = ({
   problem,
@@ -262,8 +242,9 @@ const ProblemList = ({
   );
 
   const body = (() => {
-    if (loading) return <LoadingRows />;
-    if (problems.length === 0) return <EmptyState />;
+    if (loading) return <ClinicalListLoadingRows />;
+    if (problems.length === 0)
+      return <ClinicalListEmpty message="No problems recorded for this patient yet." />;
     return (
       <ul className="divide-y divide-[var(--divider)]">
         {problems.map((problem) => (
@@ -281,41 +262,19 @@ const ProblemList = ({
 
   return (
     <section className={cardClass} aria-labelledby="problem-list-heading">
-      <header className="flex items-center gap-2 border-b border-[var(--divider)] px-4 py-3">
-        <span className="text-[var(--ink-muted)]" aria-hidden="true">
-          <IoMedkitOutline size={18} />
-        </span>
-        <h3 id="problem-list-heading" className="text-[13.5px] font-bold text-[var(--ink)]">
-          Problem list
-        </h3>
-        {!loading && activeCount > 0 ? (
-          <StatusPill
-            label={`${activeCount} active`}
-            tone="warning"
-            className="ml-2 tabular-nums"
-          />
-        ) : null}
-        {canEdit ? (
-          <button
-            type="button"
-            onClick={() => setShowForm((s) => !s)}
-            aria-expanded={showForm}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[var(--hairline)] px-3 py-1.5 text-[12px] font-semibold text-[var(--ink-soft)] transition-colors hover:bg-[var(--inset)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)]"
-          >
-            <IoAddOutline size={15} aria-hidden="true" />
-            {showForm ? 'Close' : 'Add problem'}
-          </button>
-        ) : null}
-      </header>
+      <ClinicalListHeader
+        icon={<IoMedkitOutline size={18} />}
+        headingId="problem-list-heading"
+        title="Problem list"
+        activeCount={activeCount}
+        loading={loading}
+        canEdit={canEdit}
+        showForm={showForm}
+        onToggle={() => setShowForm((s) => !s)}
+        addLabel="Add problem"
+      />
 
-      {error ? (
-        <div
-          role="alert"
-          className="mx-4 mt-3 rounded-xl border border-[var(--divider)] bg-[var(--inset)] px-4 py-3 text-[12.5px] font-semibold text-[var(--danger-text)]"
-        >
-          {error}
-        </div>
-      ) : null}
+      <ClinicalListError error={error} />
 
       {showForm && canEdit ? (
         <CreateProblemForm
