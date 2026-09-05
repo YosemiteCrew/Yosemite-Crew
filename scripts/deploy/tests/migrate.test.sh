@@ -319,6 +319,56 @@ else
   no "the real handler tolerates an unset SMOKE_PID" "it failed under set -u"
 fi
 
+# The handler has TWO jobs, and every check above exercises only one. Deleting
+# the kill outright left the whole suite green, which made "the smoke process is
+# reaped on any exit" a claim the comment makes and nothing tests. The stakes
+# are a deploy that fails for a reason nothing in its output names: an orphaned
+# smoke process holds :8099, so the NEXT deploy's boot cannot bind, /health
+# answers 000 and it correctly refuses to cut over - failing closed, and failing
+# opaque.
+#
+# `wait` rather than `kill -0`, because a killed child is a zombie until it is
+# reaped and `kill -0` reports a zombie as alive. The status distinguishes the
+# two outcomes: 143 is SIGTERM, 0 is "it ran to completion untouched".
+SMOKE_WAIT_STATUS="$(
+  MIGRATIONS_APPLIED=0 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+  INCOMING_MIGRATIONS="" \
+  bash -c '
+    set -u
+    . "'"$HERE"'/../lib/migrate.sh"
+    sleep 2 &
+    SMOKE_PID=$!
+    deploy_on_exit
+    wait "$SMOKE_PID" 2>/dev/null
+    echo "$?"
+  ' 2>/dev/null || echo aborted
+)"
+check "the real handler kills the smoke process" "143" "$SMOKE_WAIT_STATUS"
+
+# And the kill must not be able to swallow the notice. api-deploy.sh runs under
+# `set -e`, so an unguarded `kill` of a process that has already exited would
+# end the handler where it stands - before the notice, on the exit path the
+# notice exists for. `|| true` is what stops that, and nothing tested it.
+DEAD_PID_NOTICE="$(
+  MIGRATIONS_APPLIED=1 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+  INCOMING_MIGRATIONS="20260102000000_second" \
+  bash -c '
+    set -eu
+    . "'"$HERE"'/../lib/migrate.sh"
+    sleep 0 &
+    SMOKE_PID=$!
+    wait "$SMOKE_PID" 2>/dev/null || true
+    trap deploy_on_exit EXIT
+    false
+  ' 2>&1 >/dev/null || true
+)"
+case "$DEAD_PID_NOTICE" in
+  *"THE SCHEMA IS AHEAD OF THE RUNNING CODE"*)
+    ok "a smoke process that has already exited does not swallow the notice" ;;
+  *) no "a smoke process that has already exited does not swallow the notice" \
+       "stderr was: $DEAD_PID_NOTICE" ;;
+esac
+
 # ---------------------------------------------------------------------------
 # The regression itself.
 #
