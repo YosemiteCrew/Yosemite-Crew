@@ -207,12 +207,53 @@ echo "  /health -> $CODE"
 # HTML 404 on a bogus path proves the probe was not just hitting a catch-all.
 echo "  real route : $(curl -s --max-time 10 "http://127.0.0.1:$SMOKE_PORT/v1/pet-passport/mobile/companion/probe" | head -c 60)"
 echo "  bogus route: $(curl -s --max-time 10 "http://127.0.0.1:$SMOKE_PORT/v1/definitely-not-a-route" | head -c 30)"
-grep -iE 'ERR_REQUIRE_ESM|Cannot find module|FATAL ERROR' /tmp/api-smoke.log | head -5 || true
+# Every probe above is a GET, so nothing here parses a request body - and a
+# bundle whose body parser is broken answers all of them correctly. #2690 moved
+# `raw-body` across a major with two workspace patches to body-parser for the
+# CommonJS/ESM interop; if that ever stops applying the symptom is
+# `getBody is not a function` on every request CARRYING a body, which is a total
+# write outage that /health reports as 200.
+#
+# POSTed to the path that matches nothing, on purpose: `express.json()` is
+# mounted app-level (app.ts:161) ahead of registerRoutes (:178), so the body is
+# parsed before routing, before auth and before any handler. So this exercises
+# the parser while touching no route, no database and no credentials - and the
+# smoke boot runs against the real database with migrations already applied,
+# which is why "touches nothing" is the requirement.
+#
+# The content-type and the body are both load-bearing. `express.json()` decides
+# by content-type, so a bare `curl -X POST` short-circuits the parser and
+# returns the SAME 404 without ever calling raw-body - a probe that passes
+# whether or not the thing it tests works. Measured on express 4.21.2 with
+# body-parser 1.20.6:
+#
+#   no body, no content-type        -> 404   parser short-circuits
+#   content-type json, valid body   -> 404   read path exercised
+#   content-type json, invalid body -> 400
+#   broken interop, any of the above -> 500
+#
+# Compared for EQUALITY with 404 rather than inequality with 500: a malformed
+# body is a 400 and a hang is the 000 below, and `!= 500` would pass both.
+POST_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+  -X POST -H 'content-type: application/json' -d '{"smoke":true}' \
+  "http://127.0.0.1:$SMOKE_PORT/v1/definitely-not-a-route" || echo 000)"
+echo "  body parse -> $POST_CODE"
+# Reports, never gates - the `|| true` is what makes that true, and it is
+# deliberate: this is a second signal for whoever reads the log, and POST_CODE
+# above is the gate.
+grep -iE 'ERR_REQUIRE_ESM|Cannot find module|FATAL ERROR|getBody is not a function' /tmp/api-smoke.log | head -5 || true
 kill "$SMOKE_PID" 2>/dev/null || true
 SMOKE_PID=""
 sleep 2
 if [ "$CODE" != "200" ]; then
   echo "smoke boot failed - NOT cutting over. Rollback sha: $ROLLBACK_SHA" >&2
+  exit 1
+fi
+
+if [ "$POST_CODE" != "404" ]; then
+  echo "smoke boot could not parse a request body ($POST_CODE, expected 404)" >&2
+  echo "- every GET probe passes a bundle that 500s on every write." >&2
+  echo "NOT cutting over. Rollback sha: $ROLLBACK_SHA" >&2
   exit 1
 fi
 
