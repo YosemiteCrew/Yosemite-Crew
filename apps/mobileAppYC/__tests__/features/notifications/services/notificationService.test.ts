@@ -1,4 +1,5 @@
 import {
+  archiveMobileNotification,
   fetchMobileNotifications,
   markMobileNotificationSeen,
 } from '../../../../src/features/notifications/services/notificationService';
@@ -13,7 +14,7 @@ jest.mock('@/shared/services/apiClient', () => ({
     get: jest.fn(),
     post: jest.fn(),
   },
-  withAuthHeaders: jest.fn().mockImplementation((token) => ({
+  withAuthHeaders: jest.fn().mockImplementation(token => ({
     Authorization: `Bearer ${token}`,
   })),
 }));
@@ -64,7 +65,9 @@ describe('notificationService', () => {
 
       expect(apiClient.get).toHaveBeenCalledWith(
         '/v1/notification/mobile',
-        expect.objectContaining({headers: {Authorization: `Bearer ${mockToken}`}}),
+        expect.objectContaining({
+          headers: {Authorization: `Bearer ${mockToken}`},
+        }),
       );
 
       // Verify Sorting (Newest first) - "Appointment" is 02 Jan, "Billing" is 01 Jan
@@ -214,27 +217,42 @@ describe('notificationService', () => {
     });
 
     it('normalizes specific related types correctly', async () => {
-         const types = ['appointment', 'document', 'task', 'message', 'payment', 'unknown'];
+      const types = [
+        'appointment',
+        'document',
+        'task',
+        'message',
+        'payment',
+        'unknown',
+      ];
 
-         (apiClient.get as jest.Mock).mockResolvedValue({
-            data: types.map(t => ({id: t, relatedType: t, createdAt: new Date().toISOString()}))
-         });
+      (apiClient.get as jest.Mock).mockResolvedValue({
+        data: types.map(t => ({
+          id: t,
+          relatedType: t,
+          createdAt: new Date().toISOString(),
+        })),
+      });
 
-         const result = await fetchMobileNotifications();
+      const result = await fetchMobileNotifications();
 
-         expect(result.find(n => n.id === 'appointment')?.relatedType).toBe('appointment');
-         expect(result.find(n => n.id === 'document')?.relatedType).toBe('document');
-         expect(result.find(n => n.id === 'task')?.relatedType).toBe('task');
-         expect(result.find(n => n.id === 'message')?.relatedType).toBe('message');
-         expect(result.find(n => n.id === 'payment')?.relatedType).toBe('payment');
-         expect(result.find(n => n.id === 'unknown')?.relatedType).toBeUndefined();
+      expect(result.find(n => n.id === 'appointment')?.relatedType).toBe(
+        'appointment',
+      );
+      expect(result.find(n => n.id === 'document')?.relatedType).toBe(
+        'document',
+      );
+      expect(result.find(n => n.id === 'task')?.relatedType).toBe('task');
+      expect(result.find(n => n.id === 'message')?.relatedType).toBe('message');
+      expect(result.find(n => n.id === 'payment')?.relatedType).toBe('payment');
+      expect(result.find(n => n.id === 'unknown')?.relatedType).toBeUndefined();
     });
 
     // --- Branch Coverage: Payload Structures ---
 
     it('extracts list from "notifications" property', async () => {
       (apiClient.get as jest.Mock).mockResolvedValue({
-        data: { notifications: [{ id: '1' }] },
+        data: {notifications: [{id: '1'}]},
       });
       const result = await fetchMobileNotifications();
       expect(result).toHaveLength(1);
@@ -242,22 +260,22 @@ describe('notificationService', () => {
 
     it('extracts list from "items" property', async () => {
       (apiClient.get as jest.Mock).mockResolvedValue({
-        data: { items: [{ id: '1' }] },
+        data: {items: [{id: '1'}]},
       });
       const result = await fetchMobileNotifications();
       expect(result).toHaveLength(1);
     });
 
     it('extracts list from nested "data" property', async () => {
-        (apiClient.get as jest.Mock).mockResolvedValue({
-          data: { data: [{ id: '1' }] },
-        });
-        const result = await fetchMobileNotifications();
-        expect(result).toHaveLength(1);
+      (apiClient.get as jest.Mock).mockResolvedValue({
+        data: {data: [{id: '1'}]},
       });
+      const result = await fetchMobileNotifications();
+      expect(result).toHaveLength(1);
+    });
 
     it('returns empty array for invalid payload', async () => {
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: null });
+      (apiClient.get as jest.Mock).mockResolvedValue({data: null});
       const result = await fetchMobileNotifications();
       expect(result).toEqual([]);
     });
@@ -266,23 +284,26 @@ describe('notificationService', () => {
 
     it('handles missing auth token gracefully', async () => {
       (getFreshStoredTokens as jest.Mock).mockResolvedValue(null);
-      (apiClient.get as jest.Mock).mockResolvedValue({ data: [] });
+      (apiClient.get as jest.Mock).mockResolvedValue({data: []});
 
       await fetchMobileNotifications();
 
       // Should call without headers object (or undefined headers)
-      expect(apiClient.get).toHaveBeenCalledWith('/v1/notification/mobile', undefined);
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/v1/notification/mobile',
+        undefined,
+      );
     });
 
     // --- Date Parsing Edge Case ---
     it('handles invalid dates gracefully by falling back to current date', async () => {
-        (apiClient.get as jest.Mock).mockResolvedValue({
-            data: [{ id: '1', createdAt: 'invalid-date-string' }],
-          });
+      (apiClient.get as jest.Mock).mockResolvedValue({
+        data: [{id: '1', createdAt: 'invalid-date-string'}],
+      });
 
-        const result = await fetchMobileNotifications();
-        // Should parse to a valid ISO string (current time fallback)
-        expect(Date.parse(result[0].timestamp)).not.toBeNaN();
+      const result = await fetchMobileNotifications();
+      // Should parse to a valid ISO string (current time fallback)
+      expect(Date.parse(result[0].timestamp)).not.toBeNaN();
     });
   });
 
@@ -297,7 +318,9 @@ describe('notificationService', () => {
       expect(apiClient.post).toHaveBeenCalledWith(
         '/v1/notification/mobile/123/seen',
         undefined,
-        expect.objectContaining({headers: {Authorization: `Bearer ${mockToken}`}}),
+        expect.objectContaining({
+          headers: {Authorization: `Bearer ${mockToken}`},
+        }),
       );
     });
 
@@ -316,6 +339,86 @@ describe('notificationService', () => {
         undefined,
         undefined, // No headers passed
       );
+    });
+  });
+
+  // ===========================================================================
+  // 3. archiveMobileNotification
+  // ===========================================================================
+
+  describe('archiveMobileNotification', () => {
+    it('calls API to archive the notification', async () => {
+      await archiveMobileNotification('123');
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/v1/notification/mobile/123/archive',
+        undefined,
+        expect.objectContaining({
+          headers: {Authorization: `Bearer ${mockToken}`},
+        }),
+      );
+    });
+
+    it('returns early if notificationId is missing', async () => {
+      await archiveMobileNotification('');
+      expect(apiClient.post).not.toHaveBeenCalled();
+    });
+
+    it('handles missing auth token gracefully', async () => {
+      (getFreshStoredTokens as jest.Mock).mockResolvedValue(null);
+
+      await archiveMobileNotification('123');
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/v1/notification/mobile/123/archive',
+        undefined,
+        undefined,
+      );
+    });
+
+    it('propagates a rejected archive so the thunk can report it', async () => {
+      (apiClient.post as jest.Mock).mockRejectedValueOnce(
+        new Error('Notification not found.'),
+      );
+
+      await expect(archiveMobileNotification('123')).rejects.toThrow(
+        'Notification not found.',
+      );
+    });
+  });
+
+  // ===========================================================================
+  // 4. archivedAt round-trip - the bug this endpoint exists to fix
+  // ===========================================================================
+
+  describe('archived notifications survive a reload', () => {
+    it('reads an archived row as archived even though it is also seen', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue({
+        data: {
+          notifications: [
+            {
+              id: 'archived-1',
+              title: 'Archived',
+              isSeen: true,
+              archivedAt: '2026-09-05T10:00:00Z',
+              createdAt: '2026-09-05T09:00:00Z',
+            },
+            {
+              id: 'live-1',
+              title: 'Live',
+              isSeen: true,
+              archivedAt: null,
+              createdAt: '2026-09-05T09:30:00Z',
+            },
+          ],
+        },
+      });
+
+      const result = await fetchMobileNotifications();
+
+      expect(result.find(n => n.id === 'archived-1')?.status).toBe('archived');
+      // isSeen alone must still read as 'read', not 'archived'.
+      expect(result.find(n => n.id === 'live-1')?.status).toBe('read');
     });
   });
 });

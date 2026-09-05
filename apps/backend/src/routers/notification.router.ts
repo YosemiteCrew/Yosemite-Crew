@@ -18,4 +18,11 @@ notificationRouter.post(
   NotificationController.markAsSeen,
 );
 
+// Archive notification (removes it from the owner's list without deleting it)
+notificationRouter.post(
+  "/mobile/:notificationId/archive",
+  requireMobileAuth,
+  NotificationController.archive,
+);
+
 export default notificationRouter;

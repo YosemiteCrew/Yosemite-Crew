@@ -3703,15 +3703,21 @@ model DeviceToken {
 }
 
 model Notification {
-  id        String           @id @default(uuid())
-  userId    String
-  title     String
-  body      String
-  type      NotificationType
-  enabled   Boolean          @default(true)
-  isSeen    Boolean          @default(false)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id         String           @id @default(uuid())
+  userId     String
+  title      String
+  body       String
+  type       NotificationType
+  enabled    Boolean          @default(true)
+  isSeen     Boolean          @default(false)
+  /// Set when the owner archives the notification from the mobile list. Nullable
+  /// rather than a boolean so the row records *when* it left the list, and so
+  /// every notification that predates archiving reads as not archived without a
+  /// backfill. Archiving never deletes: the row stays for audit, and the client
+  /// filters it out of the visible list.
+  archivedAt DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 
   @@index([userId])
 }

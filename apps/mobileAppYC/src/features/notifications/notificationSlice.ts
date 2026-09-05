@@ -6,12 +6,8 @@ import type {
 } from './types';
 import {
   fetchNotificationsForCompanion,
-  createNotification,
   markNotificationAsRead,
-  markAllNotificationsAsRead,
-  deleteNotification,
   archiveNotification,
-  clearAllNotifications,
 } from './thunks';
 
 import {
@@ -103,24 +99,6 @@ export const notificationSlice = createSlice({
         );
       })
 
-      // Create notification
-      .addCase(createNotification.pending, state => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(createNotification.fulfilled, (state, action) => {
-        state.loading = false;
-        state.items.unshift(action.payload);
-        if (action.payload.status === 'unread') {
-          state.unreadCount += 1;
-        }
-        state.error = null;
-      })
-      .addCase(createNotification.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload ?? 'Failed to create notification';
-      })
-
       // Mark as read
       .addCase(markNotificationAsRead.pending, state => {
         state.error = null;
@@ -136,42 +114,6 @@ export const notificationSlice = createSlice({
       })
       .addCase(markNotificationAsRead.rejected, (state, action) => {
         state.error = action.payload ?? 'Failed to mark notification as read';
-      })
-
-      // Mark all as read
-      .addCase(markAllNotificationsAsRead.pending, state => {
-        state.error = null;
-      })
-      .addCase(markAllNotificationsAsRead.fulfilled, state => {
-        for (const notification of state.items) {
-          if (notification.status === 'unread') {
-            notification.status = 'read';
-          }
-        }
-        state.unreadCount = 0;
-      })
-      .addCase(markAllNotificationsAsRead.rejected, (state, action) => {
-        state.error = action.payload ?? 'Failed to mark notifications as read';
-      })
-
-      // Delete notification
-      .addCase(deleteNotification.pending, state => {
-        state.error = null;
-      })
-      .addCase(deleteNotification.fulfilled, (state, action) => {
-        const index = state.items.findIndex(
-          n => n.id === action.payload.notificationId,
-        );
-        if (index !== -1) {
-          const notification = state.items[index];
-          if (notification.status === 'unread') {
-            state.unreadCount = Math.max(0, state.unreadCount - 1);
-          }
-          state.items.splice(index, 1);
-        }
-      })
-      .addCase(deleteNotification.rejected, (state, action) => {
-        state.error = action.payload ?? 'Failed to delete notification';
       })
 
       // Archive notification
@@ -191,18 +133,6 @@ export const notificationSlice = createSlice({
       })
       .addCase(archiveNotification.rejected, (state, action) => {
         state.error = action.payload ?? 'Failed to archive notification';
-      })
-
-      // Clear all notifications
-      .addCase(clearAllNotifications.pending, state => {
-        state.error = null;
-      })
-      .addCase(clearAllNotifications.fulfilled, state => {
-        state.items = state.items.filter(n => n.status === 'archived');
-        state.unreadCount = 0;
-      })
-      .addCase(clearAllNotifications.rejected, (state, action) => {
-        state.error = action.payload ?? 'Failed to clear notifications';
       });
   },
 });
