@@ -291,7 +291,18 @@ const ACCESS_RULES = [
     test: (u) =>
       u.includes('FORCE ROW LEVEL SECURITY') && !u.includes('NO FORCE ROW LEVEL SECURITY'),
   },
-  { dimension: 'access', kind: 'revokes a privilege', test: (u) => /\bREVOKE\b/.test(u) },
+  {
+    dimension: 'access',
+    kind: 'revokes a privilege',
+    // Except inside ALTER DEFAULT PRIVILEGES, which is excluded below and was
+    // being flagged here anyway: that statement governs objects created later,
+    // so it cannot change what the deployed code reads today whichever verb it
+    // carries. The exclusion comment said so and the rule did not - and the
+    // test written for it used the GRANT form, which this rule was never going
+    // to match, so it agreed with the comment while the code disagreed.
+    // Raised by the Aikido review of #2731.
+    test: (u) => /\bREVOKE\b/.test(u) && !u.includes('ALTER DEFAULT PRIVILEGES'),
+  },
   {
     dimension: 'access',
     kind: 'changes an object owner',

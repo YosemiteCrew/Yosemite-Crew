@@ -375,6 +375,19 @@ test('ALTER DEFAULT PRIVILEGES is not a hazard - it cannot change what is read t
     kinds('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO app_readonly;'),
     []
   );
+  // The REVOKE form is the one that mattered: the GRANT form above agrees with
+  // the exclusion whether or not the exclusion exists, because no rule here
+  // matches GRANT. Only this input can tell the two apart.
+  assert.deepEqual(
+    kinds('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC;'),
+    []
+  );
+  assert.deepEqual(
+    kinds('ALTER DEFAULT PRIVILEGES FOR ROLE app REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;'),
+    []
+  );
+  // And a plain REVOKE is still a hazard - the exclusion is scoped, not a hole.
+  assert.deepEqual(kinds('REVOKE ALL ON "Appointment" FROM PUBLIC;'), ['revokes a privilege']);
 });
 
 test('access hazards are tagged as such, so the report can name the right thing', () => {
