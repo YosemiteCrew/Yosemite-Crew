@@ -37,7 +37,7 @@ export const NotificationController = {
     try {
       const ownerId = await resolveNotificationOwnerId(req, res);
       if (!ownerId) {
-        return res;
+        return;
       }
 
       const notifications =
@@ -59,7 +59,7 @@ export const NotificationController = {
 
       const ownerId = await resolveNotificationOwnerId(req, res);
       if (!ownerId) {
-        return res;
+        return;
       }
 
       const updated = await NotificationService.markNotificationAsSeen(
@@ -89,7 +89,7 @@ export const NotificationController = {
 
       const ownerId = await resolveNotificationOwnerId(req, res);
       if (!ownerId) {
-        return res;
+        return;
       }
 
       const outcome = await NotificationService.archiveNotificationForUser(
