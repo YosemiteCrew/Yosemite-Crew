@@ -506,6 +506,28 @@ test('the step that refuses a run which scanned nothing is not itself skippable'
     'the step refusing a run that scanned nothing is itself conditional, so the run it exists ' +
       'to catch skips it too and the job reports clean having read no surface'
   );
+
+  // The reader being unconditional and the writer being the step that actually
+  // scans are two halves of one property, and only the first half was asserted.
+  // Move the `touch` into the unconditional self-test step and every assertion
+  // above still holds - one writer, one reader, reader carries no `if:` - while a
+  // `workflow_dispatch` run records a scan it never ran and the refusal passes.
+  //
+  // Keyed on the scan command rather than on the step's `if:`, for the same reason
+  // the marker was preferred to the step name: the trigger expression is one
+  // rewording away, the scan invocation is the mechanism.
+  assert.match(
+    writes[0],
+    // Not `mjs scan` adjacently: reordering the subcommand after the flag is a
+    // legal, behaviour-preserving edit of the same command, and rejecting it
+    // would be a false red on a correct workflow - the failure mode that gets a
+    // check deleted rather than the one that lets a defect through. `\bscan\b`
+    // does not match the marker path `.../scanned`, which is the only other
+    // occurrence in any step.
+    /forbidden-terms\.mjs\b[\s\S]*?\bscan\b/u,
+    'the scanned marker is written by a step that does not run the scan, so it records that ' +
+      'a run reached that line rather than that a scan succeeded, and the refusal below passes'
+  );
 });
 
 // ---------------------------------------------------------------------------
