@@ -71,7 +71,14 @@ describe('phoneShellConfig', () => {
     });
   });
 
-  it('always offers Settings and the Developer portal links', () => {
-    expect(PHONE_MORE_LINKS.map((link) => link.href)).toEqual(['/settings', '/developers/home']);
+  it('always offers Guides, Settings and the Developer portal links', () => {
+    /* Guides leads: the phone header has no account menu, so this sheet is the
+       only durable way in. The dashboard card that used to be the only other
+       route hides itself for good once its close button is pressed. */
+    expect(PHONE_MORE_LINKS.map((link) => link.href)).toEqual([
+      '/guides',
+      '/settings',
+      '/developers/home',
+    ]);
   });
 });

@@ -11,12 +11,11 @@ import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 
 const GUIDES_PAGE_SKELETON = <PageSkeleton variant="list" />;
 import GuidePlayerModal from '@/app/ui/overlays/Modal/GuidePlayerModal';
-import Search from '@/app/ui/inputs/Search';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import FilteredEmptyState from '@/app/ui/layout/states/FilteredEmptyState';
 import { guidesData } from '@/app/features/guides/data/guidesData';
 import { GuideVideo } from '@/app/features/guides/types/guides';
-import FilterChip from '@/app/ui/filters/FilterChip';
+import GuideFilters from '@/app/features/guides/components/GuideFilters';
 import { runtimeSummary } from '@/app/features/guides/utils/runtimeSummary';
 
 const ALL_CATEGORY = 'All';
@@ -173,62 +172,16 @@ export const Guides = () => {
         <span className="text-[12.5px] text-[var(--ink-faint)]">Updated with each release</span>
       </div>
 
-      {/* Two rows, because they answer different questions: who are you, then
-          what are you trying to do. Personas lead, since a viewer picks their
-          own track once and then browses within it. */}
-      {personas.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
-            For
-          </span>
-          {personas.map((persona) => (
-            <FilterChip
-              key={persona}
-              label={persona}
-              active={persona === activePersona}
-              onClick={() => setActivePersona(persona)}
-            />
-          ))}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {categories.map((category) => {
-            const isActive = category === activeCategory;
-            return (
-              <button
-                type="button"
-                key={category}
-                onClick={() => setActiveCategory(category)}
-                className="rounded-full border px-[15px] py-[7px] text-[12.5px] transition-colors"
-                style={
-                  isActive
-                    ? {
-                        backgroundColor: 'var(--inset)',
-                        borderColor: 'var(--divider)',
-                        color: 'var(--ink)',
-                        fontWeight: 700,
-                      }
-                    : {
-                        borderColor: 'var(--hairline)',
-                        color: 'var(--ink-muted)',
-                        fontWeight: 600,
-                      }
-                }
-              >
-                {category}
-              </button>
-            );
-          })}
-        </div>
-        <Search
-          value={search}
-          setSearch={setSearch}
-          className="!w-full sm:!w-[240px]"
-          placeholder="Search guides"
-        />
-      </div>
+      <GuideFilters
+        personas={personas}
+        activePersona={activePersona}
+        setActivePersona={setActivePersona}
+        categories={categories}
+        activeCategory={activeCategory}
+        setActiveCategory={setActiveCategory}
+        search={search}
+        setSearch={setSearch}
+      />
 
       {filteredGuides.length > 0 ? (
         <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2 xl:grid-cols-3">

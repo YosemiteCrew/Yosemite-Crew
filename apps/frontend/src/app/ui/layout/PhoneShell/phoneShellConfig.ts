@@ -1,6 +1,7 @@
 import type { IconType } from 'react-icons';
 import { PERMISSIONS, type Permission } from '@/app/lib/permissions';
 import {
+  IoHelpCircleOutline,
   IoBook,
   IoBookOutline,
   IoBusinessOutline,
@@ -343,6 +344,13 @@ export type MoreLinkConfig = {
 
 /** Always-available links shown below the secondary areas in the More sheet. */
 export const PHONE_MORE_LINKS: MoreLinkConfig[] = [
+  /* Guides is here because the phone had no way to reach it at all. On desktop
+     it hangs off the account menu in UserHeader, but the phone shows
+     PhoneHeader instead, which has no menu - so the only route in was the
+     dashboard's VideosCard, and that card's close button writes
+     `yc_dashboard_videos_hidden` and never comes back. One dismissal and a
+     phone user lost the whole training library permanently. */
+  { key: 'guides', label: 'Guides', href: '/guides', icon: IoHelpCircleOutline },
   { key: 'settings', label: 'Settings', href: '/settings', icon: IoSettingsOutline },
   {
     key: 'developer-portal',
