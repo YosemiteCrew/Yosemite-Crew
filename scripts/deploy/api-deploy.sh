@@ -50,11 +50,17 @@ SMOKE_PORT="${4:-8099}"
 
 NODE_BIN="${NODE_BIN:-$HOME/.nvm/versions/node/v22.21.1/bin}"
 
+# Which startup controls stop a cutover. A LIST of names, never the aggregate
+# /health/controls status - see lib/controls.sh for why the aggregate is the
+# wrong gate. Overridable so an environment that genuinely runs without one of
+# these does not need a code change to deploy.
+DEPLOY_BLOCKING_CONTROLS="${DEPLOY_BLOCKING_CONTROLS:-authentication}"
+
 # lib/ has to travel WITH this script. Copying api-deploy.sh alone leaves this
 # looking for a helper that is not on the box, and bash exits before preflight
 # with a bare "No such file or directory" - so say what is actually wrong.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-for helper in git-sync migrate; do
+for helper in git-sync migrate controls; do
   if [ ! -r "$SCRIPT_DIR/lib/$helper.sh" ]; then
     echo "missing $SCRIPT_DIR/lib/$helper.sh" >&2
     echo "Copy the whole scripts/deploy directory to the host, not just this file." >&2
@@ -65,6 +71,8 @@ done
 . "$SCRIPT_DIR/lib/git-sync.sh"
 # shellcheck source=lib/migrate.sh
 . "$SCRIPT_DIR/lib/migrate.sh"
+# shellcheck source=lib/controls.sh
+. "$SCRIPT_DIR/lib/controls.sh"
 export PATH="$NODE_BIN:$PATH"
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 
@@ -244,6 +252,19 @@ POST_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
   -X POST -H 'content-type: application/json' -d '{"smoke":true}' \
   "http://127.0.0.1:$SMOKE_PORT/v1/definitely-not-a-route" || echo 000)"
 echo "  body parse -> $POST_CODE"
+# Which security controls actually applied in THIS environment, read from the
+# process that is about to serve traffic, while a rollback is still free.
+#
+# /health above is liveness and answers 200 for a process whose entire /auth
+# surface is 404 - by design, since #2750 deliberately left it alone. The body
+# is printed whatever it says; only a NAMED control reporting `failed` stops the
+# cutover, and lib/controls.sh holds the reasoning for every case that does not.
+# The 503 this returns when degraded is why there is no -f and no code check
+# here: the body is the signal, not the status.
+CONTROLS_BODY="$(curl -s --max-time 10 "http://127.0.0.1:$SMOKE_PORT/health/controls" || echo '')"
+echo "  controls -> ${CONTROLS_BODY:-<unreachable>}"
+# shellcheck disable=SC2086 # deliberately word-split: this is a list of names
+CONTROL_FAILURES="$(deploy_blocking_control_failures "$CONTROLS_BODY" $DEPLOY_BLOCKING_CONTROLS)"
 # Reports, never gates - the `|| true` is what makes that true, and it is
 # deliberate: this is a second signal for whoever reads the log, and POST_CODE
 # above is the gate.
@@ -259,6 +280,16 @@ fi
 if [ "$POST_CODE" != "404" ]; then
   echo "smoke boot could not parse a request body ($POST_CODE, expected 404)" >&2
   echo "- every GET probe passes a bundle that 500s on every write." >&2
+  echo "NOT cutting over. Rollback sha: $ROLLBACK_SHA" >&2
+  exit 1
+fi
+
+if [ -n "$CONTROL_FAILURES" ]; then
+  echo "smoke boot came up with a security control that FAILED to apply:" >&2
+  while IFS= read -r control_failure; do
+    echo "  $control_failure" >&2
+  done <<< "$CONTROL_FAILURES"
+  echo "- the process starts and /health answers 200 with the control absent." >&2
   echo "NOT cutting over. Rollback sha: $ROLLBACK_SHA" >&2
   exit 1
 fi
