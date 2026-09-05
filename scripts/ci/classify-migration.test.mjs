@@ -463,3 +463,36 @@ test('access rules inherit the comment and literal handling, unchanged', () => {
 test('SECURITY LABEL is not flagged', () => {
   assert.deepEqual(kinds(`SECURITY LABEL FOR selinux ON TABLE "Appointment" IS 'x';`), []);
 });
+
+// Three statements that mean what a rule above means and did not match it.
+// Raised by ankit-yc reviewing #2731, and each is one entry rather than a new
+// concept - which is the test of whether the dimension is real.
+
+test('REASSIGN OWNED BY is an owner change, in bulk', () => {
+  // OWNER TO applied to every object a role owns. On this database that is the
+  // one statement that takes all eleven row-level-security tables out of the
+  // API's sight at once, since every one rests on the owner bypass.
+  assert.deepEqual(kinds('REASSIGN OWNED BY app_role TO other_role;'), ['changes an object owner']);
+});
+
+test('CONNECTION LIMIT 0 locks a role out; a positive limit does not', () => {
+  assert.deepEqual(kinds('ALTER ROLE app_role CONNECTION LIMIT 0;'), [
+    'removes a role or its ability to connect',
+  ]);
+  // A cap is not a lockout, and -1 is the default meaning no limit at all.
+  assert.deepEqual(kinds('ALTER ROLE app_role CONNECTION LIMIT 10;'), []);
+  assert.deepEqual(kinds('ALTER ROLE app_role CONNECTION LIMIT -1;'), []);
+});
+
+test('moving an object to another schema is a hazard, and a shape one', () => {
+  // The object still exists and its grants are unchanged, so this is not an
+  // access change - but a deployed query naming it unqualified stops resolving.
+  const [hazard] = classifyMigrationSql('ALTER TABLE "X" SET SCHEMA hidden;');
+  assert.equal(hazard.kind, 'moves an object to another schema');
+  assert.equal(hazard.dimension, 'shape');
+  // IN SCHEMA is not SET SCHEMA.
+  assert.deepEqual(
+    kinds('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO r;'),
+    []
+  );
+});
