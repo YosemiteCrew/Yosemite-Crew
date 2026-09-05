@@ -110,6 +110,51 @@ async function reportUserCreated(input: {
   }
 }
 
+/**
+ * Two independent disable signals, deliberately both checked.
+ *
+ * `disabledAt` in SuperTokens user metadata is written by the SuperAdmin panel,
+ * which is not in this repository - so this codebase can neither confirm nor
+ * rule out that it is still set. `isSignInBlocked` asks the host about the
+ * state this repository does own (an organisation whose isActive was cleared
+ * through PATCH /businesses/:id). Reading only one of them would leave the
+ * other disable button doing nothing.
+ *
+ * Both answers are collapsed into WRONG_CREDENTIALS_ERROR by the callers: a
+ * disabled account must not be distinguishable from a wrong password, or the
+ * sign-in form becomes an oracle for which accounts exist and are suspended.
+ */
+async function isSignInDenied(input: {
+  appUserId: string;
+  email?: string;
+  loginMethod: LoginMethod;
+}): Promise<boolean> {
+  try {
+    const { metadata } = await UserMetadata.getUserMetadata(input.appUserId);
+    if (typeof metadata.disabledAt === 'number') {
+      return true;
+    }
+  } catch (err) {
+    // Metadata is advisory here; the host check below is the authoritative one.
+    console.error('[auth] disabled-account metadata lookup failed', err);
+  }
+
+  const hook = getAuthHooks().isSignInBlocked;
+  if (!hook) {
+    return false;
+  }
+  try {
+    return await hook(input);
+  } catch (err) {
+    // Fail OPEN, unlike the rest of today's fail-closed choices, and the
+    // asymmetry is deliberate: a database blip must not lock every user out of
+    // the product, and the account state it would have reported is still
+    // enforced on every authorised request afterwards.
+    console.error('[auth] isSignInBlocked hook failed', err);
+    return false;
+  }
+}
+
 function isMfaRequirementEnabled(): boolean {
   // Escape hatch for CI/e2e environments only; defaults to enforced.
   return process.env.AUTH_REQUIRE_MFA !== 'false';
@@ -316,10 +361,12 @@ export function getSuperTokensConfig(): TypeInput {
                 return result;
               }
 
-              const { metadata } = await UserMetadata.getUserMetadata(result.user.id);
-              return typeof metadata.disabledAt === 'number'
-                ? { status: 'WRONG_CREDENTIALS_ERROR' }
-                : result;
+              const denied = await isSignInDenied({
+                appUserId: result.user.id,
+                email: input.email,
+                loginMethod: 'emailpassword',
+              });
+              return denied ? { status: 'WRONG_CREDENTIALS_ERROR' } : result;
             },
           }),
         },
@@ -419,6 +466,20 @@ export function getSuperTokensConfig(): TypeInput {
                     loginMethod: 'otp-email',
                   });
                 }
+
+                // A correct code for a disabled account still must not produce
+                // a session. RESTART_FLOW_ERROR is the only refusal this recipe
+                // offers that carries no attempt counters, so it does not tell
+                // the caller whether the code itself was right.
+                if (
+                  await isSignInDenied({
+                    appUserId: result.user.id,
+                    email,
+                    loginMethod: 'otp-email',
+                  })
+                ) {
+                  return { status: 'RESTART_FLOW_ERROR' };
+                }
               }
               return result;
             },
@@ -438,13 +499,31 @@ export function getSuperTokensConfig(): TypeInput {
                     ctx[CTX_LOGIN_METHOD] = loginMethod;
                     ctx[CTX_EMAIL] = input.email;
                     const result = await original.signInUp(input);
-                    if (result.status === 'OK' && result.createdNewRecipeUser) {
-                      await reportUserCreated({
-                        appUserId: result.user.id,
-                        providerUserId: result.recipeUserId.getAsString(),
-                        email: input.email,
-                        loginMethod,
-                      });
+                    if (result.status === 'OK') {
+                      if (result.createdNewRecipeUser) {
+                        await reportUserCreated({
+                          appUserId: result.user.id,
+                          providerUserId: result.recipeUserId.getAsString(),
+                          email: input.email,
+                          loginMethod,
+                        });
+                      }
+
+                      // The provider vouched for the identity; the account is
+                      // still disabled. The reason string is deliberately
+                      // generic - it reaches the client.
+                      if (
+                        await isSignInDenied({
+                          appUserId: result.user.id,
+                          email: input.email,
+                          loginMethod,
+                        })
+                      ) {
+                        return {
+                          status: 'SIGN_IN_UP_NOT_ALLOWED',
+                          reason: 'Sign in is not available for this account.',
+                        };
+                      }
                     }
                     return result;
                   },

@@ -89,6 +89,21 @@ export type AuthHooks = {
     claims: Record<string, unknown>;
   }) => Promise<string | undefined>;
 
+  // Asked on every successful sign-in, before the session exists, so the host
+  // can refuse an account its own data says is disabled. The auth package
+  // cannot see Organization.isActive - that lives behind Prisma - so the
+  // decision has to come back through here.
+  //
+  // Returning true makes the sign-in fail as WRONG_CREDENTIALS_ERROR: a
+  // disabled account must not be able to tell itself apart from a wrong
+  // password. A throw is treated as "not blocked" and logged, because an
+  // unreachable database must not lock every user out of the product.
+  isSignInBlocked?: (input: {
+    appUserId: string;
+    email?: string;
+    loginMethod: LoginMethod;
+  }) => Promise<boolean>;
+
   // Fired after the provider creates a brand-new user (sign-up). The host
   // records the identity mapping (auth_identities) here.
   onUserCreated?: (input: {

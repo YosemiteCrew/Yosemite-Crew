@@ -4,6 +4,8 @@ const mockFindFirst: jest.Mock = jest.fn();
 const mockFindMany: jest.Mock = jest.fn();
 const mockUpsert: jest.Mock = jest.fn();
 const mockCreateUserIdMapping: jest.Mock = jest.fn();
+const mockUserOrgFindMany: jest.Mock = jest.fn();
+const mockOrganizationCount: jest.Mock = jest.fn();
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -11,6 +13,12 @@ jest.mock("src/config/prisma", () => ({
       findFirst: (...args: unknown[]) => mockFindFirst(...args),
       findMany: (...args: unknown[]) => mockFindMany(...args),
       upsert: (...args: unknown[]) => mockUpsert(...args),
+    },
+    userOrganization: {
+      findMany: (...args: unknown[]) => mockUserOrgFindMany(...args),
+    },
+    organization: {
+      count: (...args: unknown[]) => mockOrganizationCount(...args),
     },
   },
 }));
@@ -202,5 +210,96 @@ describe("authHooks.resolveAppUserId", () => {
     ).resolves.toBe("st-user-2");
 
     expect(mockCreateUserIdMapping).not.toHaveBeenCalled();
+  });
+});
+
+describe("authHooks.isSignInBlocked", () => {
+  const blocked = (appUserId: string) =>
+    authHooks.isSignInBlocked!({
+      appUserId,
+      email: "vet@clinic.test",
+      loginMethod: "emailpassword",
+    });
+
+  beforeEach(() => {
+    mockUserOrgFindMany.mockReset();
+    mockOrganizationCount.mockReset();
+  });
+
+  it("blocks when every organisation the user belongs to is inactive", async () => {
+    mockUserOrgFindMany.mockResolvedValue([
+      { organizationReference: "org-1" },
+    ] as never);
+    mockOrganizationCount.mockResolvedValue(0 as never);
+
+    await expect(blocked("staff-1")).resolves.toBe(true);
+    expect(mockOrganizationCount).toHaveBeenCalledWith({
+      where: { id: { in: ["org-1"] }, isActive: true },
+    });
+  });
+
+  it("allows a user who still belongs to one active organisation", async () => {
+    // Someone employed at a disabled practice and a live one still has a job.
+    // Per-organisation authorisation decides what they can reach once in.
+    mockUserOrgFindMany.mockResolvedValue([
+      { organizationReference: "org-disabled" },
+      { organizationReference: "Organization/org-live" },
+    ] as never);
+    mockOrganizationCount.mockResolvedValue(1 as never);
+
+    await expect(blocked("staff-2")).resolves.toBe(false);
+  });
+
+  it("does not block a user with no organisation membership", async () => {
+    // Pet parents have no userOrganization row. Reading an empty list as
+    // "belongs to nothing, therefore disabled" would lock every mobile user out.
+    mockUserOrgFindMany.mockResolvedValue([] as never);
+
+    await expect(blocked("pet-parent-1")).resolves.toBe(false);
+    expect(mockOrganizationCount).not.toHaveBeenCalled();
+  });
+
+  it("strips the FHIR Organization/ prefix before looking the row up", async () => {
+    // Mappings are stored bare or prefixed; querying the prefixed string finds
+    // nothing, which would count zero active orgs and block a live account.
+    mockUserOrgFindMany.mockResolvedValue([
+      { organizationReference: "Organization/org-9" },
+    ] as never);
+    mockOrganizationCount.mockResolvedValue(1 as never);
+
+    await expect(blocked("staff-3")).resolves.toBe(false);
+    expect(mockOrganizationCount).toHaveBeenCalledWith({
+      where: { id: { in: ["org-9"] }, isActive: true },
+    });
+  });
+
+  it("de-duplicates repeated organisation references", async () => {
+    // One person holds several roleCodes at one practice, so the membership
+    // query returns the same organisation more than once.
+    mockUserOrgFindMany.mockResolvedValue([
+      { organizationReference: "org-7" },
+      { organizationReference: "Organization/org-7" },
+    ] as never);
+    mockOrganizationCount.mockResolvedValue(1 as never);
+
+    await expect(blocked("staff-4")).resolves.toBe(false);
+    expect(mockOrganizationCount).toHaveBeenCalledWith({
+      where: { id: { in: ["org-7"] }, isActive: true },
+    });
+  });
+
+  it("reads only active memberships", async () => {
+    mockUserOrgFindMany.mockResolvedValue([] as never);
+    await blocked("staff-5");
+
+    expect(mockUserOrgFindMany).toHaveBeenCalledWith({
+      where: { practitionerReference: "staff-5", active: true },
+      select: { organizationReference: true },
+    });
+  });
+
+  it("does not query on a blank user id", async () => {
+    await expect(blocked("   ")).resolves.toBe(false);
+    expect(mockUserOrgFindMany).not.toHaveBeenCalled();
   });
 });

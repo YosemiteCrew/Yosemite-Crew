@@ -27,6 +27,59 @@ export const authHooks: AuthHooks = {
     return Promise.resolve(undefined);
   },
 
+  /**
+   * Refuse sign-in for a user whose every organisation has been disabled.
+   *
+   * The signal is `Organization.isActive`, which is what `PATCH /businesses/:id`
+   * (SuperAdminBusinessService.updateBusiness) actually writes. Before this,
+   * nothing in the sign-in path read it: `require-active-account.ts` checks
+   * `User.isActive`, a different flag written by the user soft-delete, and only
+   * on developer routes.
+   *
+   * Three deliberate choices:
+   *
+   * - No membership at all means NOT blocked. Pet parents have no
+   *   `userOrganization` row, and an empty list must not be read as "belongs to
+   *   nothing, therefore disabled" or every mobile user loses their account.
+   * - Blocked only when EVERY organisation is inactive. Someone who works at a
+   *   disabled practice and an active one still has a job; per-organisation
+   *   authorisation decides what they can reach once they are in.
+   * - `isVerified` is NOT consulted. Every business is unverified before review,
+   *   so blocking on it would lock out each new practice awaiting approval - a
+   *   pending business is not a disabled one, and the schema cannot tell a
+   *   rejected business from one nobody has looked at yet.
+   */
+  async isSignInBlocked({ appUserId }) {
+    const practitionerReference = appUserId.trim();
+    if (!practitionerReference) {
+      return false;
+    }
+
+    const memberships = await prisma.userOrganization.findMany({
+      where: { practitionerReference, active: true },
+      select: { organizationReference: true },
+    });
+    if (memberships.length === 0) {
+      return false;
+    }
+
+    // Mappings are stored either bare or as a FHIR `Organization/<id>`
+    // reference, exactly as `rbac.ts` and `OrganisationService.listForUser`
+    // match them.
+    const organisationIds = [
+      ...new Set(
+        memberships.map((row) =>
+          row.organizationReference.replace(/^Organization\//, ""),
+        ),
+      ),
+    ];
+
+    const activeCount = await prisma.organization.count({
+      where: { id: { in: organisationIds }, isActive: true },
+    });
+    return activeCount === 0;
+  },
+
   async onUserCreated({
     appUserId,
     providerUserId,
