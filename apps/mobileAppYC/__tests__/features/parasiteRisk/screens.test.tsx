@@ -265,6 +265,7 @@ describe('ParasiteRiskScreen', () => {
     renderScreen();
 
     expect(screen.getByText('parasiteRisk.search.prompt')).toBeTruthy();
+    expect(mockSearchSheetProps?.visible).toBe(true);
     expect(screen.queryByLabelText('parasiteRisk.follow')).toBeNull();
   });
 
@@ -555,6 +556,13 @@ describe('ParasiteDetailScreen', () => {
   it('names the location the reading came from', () => {
     renderDetail();
     expect(screen.getByText('parasiteRisk.detail.near:Brisbane')).toBeTruthy();
+  });
+
+  it('omits the location caption when no location is selected', () => {
+    setState({location: null});
+    renderDetail();
+
+    expect(screen.queryByText(/parasiteRisk.detail.near/)).toBeNull();
   });
 
   it('renders without a reading for a parasite that is not local', () => {

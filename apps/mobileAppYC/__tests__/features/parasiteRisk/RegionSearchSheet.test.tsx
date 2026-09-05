@@ -166,6 +166,48 @@ describe('RegionSearchSheet', () => {
     );
   });
 
+  it('uses the suggestion label when place details omit a city', async () => {
+    mockFetchPlaceDetails.mockResolvedValue({
+      latitude: 41.9,
+      longitude: 12.5,
+      countryCode: 'IT',
+    });
+    renderSheet();
+    await typeQuery('rome');
+
+    fireEvent.press(await screen.findByText('Brisbane'));
+
+    await waitFor(() =>
+      expect(onSelect).toHaveBeenCalledWith(
+        expect.objectContaining({label: 'Brisbane'}),
+      ),
+    );
+  });
+
+  it('ignores results from a superseded suggestion search', async () => {
+    let resolveFirst!: (value: unknown) => void;
+    mockFetchPlaceSuggestions
+      .mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce([{placeId: 'p2', primaryText: 'Second'}]);
+    renderSheet();
+
+    await typeQuery('first');
+    await typeQuery('second');
+    expect(await screen.findByText('Second')).toBeTruthy();
+
+    await act(async () => {
+      resolveFirst([{placeId: 'p1', primaryText: 'First'}]);
+    });
+
+    expect(screen.queryByText('First')).toBeNull();
+    expect(screen.getByText('Second')).toBeTruthy();
+  });
+
   it('surfaces a search failure', async () => {
     mockFetchPlaceSuggestions.mockRejectedValue(new Error('network'));
     renderSheet();

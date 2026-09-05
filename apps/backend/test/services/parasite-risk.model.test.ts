@@ -4,6 +4,7 @@ import {
   saturationVapourPressureKpa,
   tierForIndex,
   trapezoid,
+  trendFor,
   type DailyWeather,
 } from "../../src/services/parasite-risk.model";
 import {
@@ -321,6 +322,11 @@ describe("flea development model", () => {
 });
 
 describe("trend", () => {
+  it("treats exact five-point movements as trends", () => {
+    expect(trendFor(50, 55)).toBe("RISING");
+    expect(trendFor(50, 45)).toBe("FALLING");
+  });
+
   it("reports rising when the forecast lifts conditions into the questing window", () => {
     const result = computeCellReadings(
       "AU",

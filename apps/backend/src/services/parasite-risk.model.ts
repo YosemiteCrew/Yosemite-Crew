@@ -300,10 +300,10 @@ export function tierForIndex(index: number): RiskTier {
 /** Five points of index movement is the smallest change worth calling a trend. */
 const TREND_SENSITIVITY = 5;
 
-function trendFor(current: number, projected: number): RiskTrend {
+export function trendFor(current: number, projected: number): RiskTrend {
   const delta = projected - current;
-  if (delta > TREND_SENSITIVITY) return "RISING";
-  if (delta < -TREND_SENSITIVITY) return "FALLING";
+  if (delta >= TREND_SENSITIVITY) return "RISING";
+  if (delta <= -TREND_SENSITIVITY) return "FALLING";
   return "STEADY";
 }
 

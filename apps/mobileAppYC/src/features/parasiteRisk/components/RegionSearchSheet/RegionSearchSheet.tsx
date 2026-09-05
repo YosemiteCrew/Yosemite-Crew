@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useReducer, useRef} from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,27 @@ interface RegionSearchSheetProps {
 const SEARCH_DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 3;
 
+interface RegionSearchState {
+  query: string;
+  suggestions: PlaceSuggestion[];
+  searching: boolean;
+  resolving: boolean;
+  errorKey: string | null;
+}
+
+const INITIAL_SEARCH_STATE: RegionSearchState = {
+  query: '',
+  suggestions: [],
+  searching: false,
+  resolving: false,
+  errorKey: null,
+};
+
+const mergeSearchState = (
+  state: RegionSearchState,
+  update: Partial<RegionSearchState>,
+): RegionSearchState => ({...state, ...update});
+
 /**
  * Place search for the risk forecast.
  *
@@ -41,30 +62,18 @@ const MIN_QUERY_LENGTH = 3;
  * geocoder. Only the resolved coordinate is used, and the screen snaps it to a
  * grid cell before it reaches the API.
  */
-export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
-  visible,
-  onClose,
-  onSelect,
-  recentLocations,
-}) => {
+const RegionSearchSheetContent: React.FC<
+  Omit<RegionSearchSheetProps, 'visible'>
+> = ({onClose, onSelect, recentLocations}) => {
   const {theme} = useTheme();
   const {t} = useTranslation();
-  const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [resolving, setResolving] = useState(false);
+  const [{query, suggestions, searching, resolving, errorKey}, updateSearch] =
+    useReducer(mergeSearchState, INITIAL_SEARCH_STATE);
   const detailRequestId = useRef(0);
-  // Held as a translation key, not translated text, so the search effect does
-  // not have to depend on `t` and re-run on every render.
-  const [errorKey, setErrorKey] = useState<string | null>(null);
 
   const reset = useCallback(() => {
     detailRequestId.current += 1;
-    setQuery('');
-    setSuggestions([]);
-    setSearching(false);
-    setResolving(false);
-    setErrorKey(null);
+    updateSearch(INITIAL_SEARCH_STATE);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -73,38 +82,33 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
   }, [onClose, reset]);
 
   useEffect(() => {
-    if (!visible) reset();
-  }, [reset, visible]);
-
-  useEffect(() => {
     if (query.trim().length < MIN_QUERY_LENGTH) {
-      setSuggestions([]);
       // Shortening the query cancels the in-flight search, whose `finally` is
       // then skipped, so the spinner has to be cleared here too.
-      setSearching(false);
+      updateSearch({suggestions: [], searching: false});
       return;
     }
 
     let cancelled = false;
-    setSearching(true);
-    setErrorKey(null);
-    setSuggestions([]);
+    updateSearch({searching: true, errorKey: null, suggestions: []});
 
     const timer = setTimeout(() => {
       // Region-level types, not the wrapper's street-level default: this sheet
       // searches by suburb, town or postcode.
       fetchPlaceSuggestions({query, includedPrimaryTypes: REGION_PRIMARY_TYPES})
         .then(results => {
-          if (!cancelled) setSuggestions(results);
+          if (!cancelled) updateSearch({suggestions: results});
         })
         .catch(() => {
           if (!cancelled) {
-            setSuggestions([]);
-            setErrorKey('parasiteRisk.search.error');
+            updateSearch({
+              suggestions: [],
+              errorKey: 'parasiteRisk.search.error',
+            });
           }
         })
         .finally(() => {
-          if (!cancelled) setSearching(false);
+          if (!cancelled) updateSearch({searching: false});
         });
     }, SEARCH_DEBOUNCE_MS);
 
@@ -117,8 +121,7 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
   const handleSuggestion = useCallback(
     async (suggestion: PlaceSuggestion) => {
       const requestId = ++detailRequestId.current;
-      setResolving(true);
-      setErrorKey(null);
+      updateSearch({resolving: true, errorKey: null});
 
       try {
         const details = await fetchPlaceDetails(suggestion.placeId);
@@ -128,7 +131,7 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
           details?.latitude === undefined ||
           details?.longitude === undefined
         ) {
-          setErrorKey('parasiteRisk.search.unresolved');
+          updateSearch({errorKey: 'parasiteRisk.search.unresolved'});
           return;
         }
 
@@ -141,10 +144,12 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
         handleClose();
       } catch {
         if (requestId === detailRequestId.current) {
-          setErrorKey('parasiteRisk.search.error');
+          updateSearch({errorKey: 'parasiteRisk.search.error'});
         }
       } finally {
-        if (requestId === detailRequestId.current) setResolving(false);
+        if (requestId === detailRequestId.current) {
+          updateSearch({resolving: false});
+        }
       }
     },
     [handleClose, onSelect],
@@ -152,8 +157,7 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
 
   const handleUseCurrentLocation = useCallback(async () => {
     const requestId = ++detailRequestId.current;
-    setResolving(true);
-    setErrorKey(null);
+    updateSearch({resolving: true, errorKey: null});
 
     try {
       const coords = await LocationService.getCurrentPosition();
@@ -176,14 +180,16 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
         const denied =
           error instanceof Error &&
           /permission|denied|blocked/i.test(error.message);
-        setErrorKey(
-          denied
+        updateSearch({
+          errorKey: denied
             ? 'parasiteRisk.search.locationDenied'
             : 'parasiteRisk.search.locationUnavailable',
-        );
+        });
       }
     } finally {
-      if (requestId === detailRequestId.current) setResolving(false);
+      if (requestId === detailRequestId.current) {
+        updateSearch({resolving: false});
+      }
     }
   }, [handleClose, onSelect, t]);
 
@@ -217,7 +223,7 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
 
   return (
     <Modal
-      visible={visible}
+      visible
       animationType="slide"
       presentationStyle="pageSheet"
       onRequestClose={handleClose}>
@@ -247,7 +253,7 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
           <Ionicons name="search" size={18} color={theme.colors.placeholder} />
           <TextInput
             value={query}
-            onChangeText={setQuery}
+            onChangeText={value => updateSearch({query: value})}
             placeholder={t('parasiteRisk.search.placeholder')}
             placeholderTextColor={theme.colors.placeholder}
             style={[styles.input, {color: theme.colors.ink}]}
@@ -319,6 +325,11 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
     </Modal>
   );
 };
+
+export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
+  visible,
+  ...props
+}) => (visible ? <RegionSearchSheetContent {...props} /> : null);
 
 const styles = StyleSheet.create({
   container: {flex: 1, paddingHorizontal: 20},
