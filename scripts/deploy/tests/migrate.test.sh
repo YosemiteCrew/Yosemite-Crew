@@ -400,6 +400,188 @@ check "the reap cannot be swallowed by a notice that fails" \
   "REAPED NOTICE" "$(printf '%s' "$REAP_ORDER" | tr '\n' ' ' | sed 's/ $//')"
 
 # ---------------------------------------------------------------------------
+# The notice has to survive being killed, and survive its own destination.
+#
+# An untrapped fatal signal ends the shell without handing the EXIT trap a
+# non-zero status, so the notice was silent on exactly the two signals a
+# cancelled deploy arrives as. SIGINT was already covered - bash sets the status
+# to 130 itself - and SIGKILL never can be.
+#
+# Armed through the real deploy_arm_exit_traps rather than by re-typing its
+# three trap lines here, so removing a trap from the shipped function is what
+# turns these red. Grepping api-deploy.sh for the trap lines instead would tie a
+# stand-in to the original by a string match - the shape #2718 removed from the
+# handler, arriving one level up in the arming.
+#
+# Signalled with a plain `kill` of the script rather than of its process group,
+# because a group signal would reach this suite too. That is also the slower of
+# the two paths on purpose: a trapped signal is deferred until the running
+# foreground command finishes, so the `sleep 1` below is what the deferral costs
+# and the check would be worthless without something in flight to defer behind.
+# ---------------------------------------------------------------------------
+echo
+echo "deploy signal traps"
+
+signalled_notice() { # signalled_notice <signal> <expected-status>
+  local sig="$1" ready="$WORK/ready.$1" out="$WORK/out.$1" pid status
+  rm -f "$ready" "$out"
+  HAZARD_LOG="$WORK/hazard.$1.txt" \
+  MIGRATIONS_APPLIED=1 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+  INCOMING_MIGRATIONS="20260102000000_second" \
+  bash -c '
+    set -euo pipefail
+    . "'"$HERE"'/../lib/migrate.sh"
+    deploy_arm_exit_traps
+    echo ready > "'"$ready"'"
+    sleep 1
+  ' > /dev/null 2>"$out" &
+  pid=$!
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    [ -s "$ready" ] && break
+    sleep 0.2
+  done
+  kill "-$sig" "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null
+  status=$?
+  case "$(cat "$out")" in
+    *"THE SCHEMA IS AHEAD OF THE RUNNING CODE"*) echo "$status fired" ;;
+    *) echo "$status silent" ;;
+  esac
+}
+
+check "SIGTERM reaches the notice, with its status preserved" \
+  "143 fired" "$(signalled_notice TERM)"
+check "SIGHUP reaches the notice, with its status preserved" \
+  "129 fired" "$(signalled_notice HUP)"
+
+# ---------------------------------------------------------------------------
+# And the destination. stderr on the box is the ssh pipe, and the teardown of
+# that connection is what sends the SIGHUP - so the reader is gone in the case
+# the notice matters most, the write takes SIGPIPE, and the handler ends there.
+#
+# The fifo below is opened while a reader still exists, because opening one for
+# writing blocks until it has a reader; the reader is killed afterwards, which
+# is what makes the write fail. Then the ordinary destination test, so that a
+# green result here cannot mean "the file write never happens at all".
+# ---------------------------------------------------------------------------
+HAZ_PLAIN="$WORK/hazard-plain.txt"
+: > "$HAZ_PLAIN"
+HAZARD_LOG="$HAZ_PLAIN" \
+MIGRATIONS_APPLIED=1 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+INCOMING_MIGRATIONS="20260102000000_second" \
+bash -c '
+  set -u
+  . "'"$HERE"'/../lib/migrate.sh"
+  ( exit 1 )
+  deploy_on_exit
+' >/dev/null 2>&1 || true
+case "$(cat "$HAZ_PLAIN")" in
+  *"THE SCHEMA IS AHEAD OF THE RUNNING CODE"*)
+    ok "the notice is written to the durable destination as well as stderr" ;;
+  *) no "the notice is written to the durable destination as well as stderr" \
+       "the file holds: $(cat "$HAZ_PLAIN")" ;;
+esac
+
+HAZ_PIPE="$WORK/hazard-brokenpipe.txt"
+FIFO="$WORK/stderr.fifo"
+rm -f "$FIFO"; mkfifo "$FIFO"
+: > "$HAZ_PIPE"
+cat "$FIFO" > /dev/null &
+FIFO_READER=$!
+BROKEN_READY="$WORK/ready.pipe"
+rm -f "$BROKEN_READY"
+HAZARD_LOG="$HAZ_PIPE" \
+MIGRATIONS_APPLIED=1 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+INCOMING_MIGRATIONS="20260102000000_second" \
+bash -c '
+  set -euo pipefail
+  . "'"$HERE"'/../lib/migrate.sh"
+  deploy_arm_exit_traps
+  echo ready > "'"$BROKEN_READY"'"
+  sleep 1
+' >/dev/null 2>"$FIFO" &
+BROKEN_PID=$!
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  [ -s "$BROKEN_READY" ] && break
+  sleep 0.2
+done
+kill -9 "$FIFO_READER" 2>/dev/null || true
+wait "$FIFO_READER" 2>/dev/null || true
+kill -TERM "$BROKEN_PID" 2>/dev/null || true
+wait "$BROKEN_PID" 2>/dev/null || true
+
+case "$(cat "$HAZ_PIPE")" in
+  *"THE SCHEMA IS AHEAD OF THE RUNNING CODE"*)
+    ok "the notice survives an stderr whose reader has gone" ;;
+  *) no "the notice survives an stderr whose reader has gone" \
+       "the file holds: $(cat "$HAZ_PIPE")" ;;
+esac
+
+# A caller that arms the traps and names no destination still gets one. Unset
+# used to mean no durable write at all - not a safe fallback but the fix turned
+# off, silently, leaving the notice on the destination that is gone in the case
+# it exists for. api-deploy.sh names a $STAMP-keyed path so the file sits beside
+# the rollback sha; this is what happens when someone edits that line away.
+# Written to a file rather than passed to `bash -c`, the way the deploy-shape
+# fixture below is: the variables it reads must expand in the inner shell, and a
+# single-quoted `-c` argument holding them is what shellcheck reads as an
+# expression that will not expand.
+#
+# `env -u` rather than an assignment, because HAZARD_LOG has to be genuinely
+# absent here and not merely empty.
+cat > "$WORK/default-dest.sh" <<DEFAULTDEST
+#!/usr/bin/env bash
+set -euo pipefail
+. "$HERE/../lib/migrate.sh"
+deploy_arm_exit_traps
+echo "\$HAZARD_LOG"
+exit 1
+DEFAULTDEST
+chmod +x "$WORK/default-dest.sh"
+
+DEFAULT_DEST="$(
+  env -u HAZARD_LOG \
+  MIGRATIONS_APPLIED=1 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+  INCOMING_MIGRATIONS="20260102000000_second" \
+  "$WORK/default-dest.sh" 2>/dev/null || true
+)"
+if [ -n "$DEFAULT_DEST" ] && [ -s "$DEFAULT_DEST" ] \
+   && grep -q "THE SCHEMA IS AHEAD OF THE RUNNING CODE" "$DEFAULT_DEST"; then
+  ok "arming supplies a durable destination when the caller names none"
+  rm -f "$DEFAULT_DEST"
+else
+  no "arming supplies a durable destination when the caller names none" \
+     "destination was '$DEFAULT_DEST'"
+fi
+
+# The other half of `${HAZARD_LOG:-...}`, and the half that was lost. The
+# restructure that moved the traps into the library retired four source-level
+# checks correctly - runtime checks replaced them - and retired a fifth by
+# accident, because a diff cannot tell those two apart and I was reading the
+# count rather than the names. What went was the assertion that api-deploy.sh
+# names the destination before arming, and with it went any red for moving or
+# deleting that line.
+#
+# Behavioural rather than positional this time: the caller's value has to
+# survive the arming. If it does not, the notice still lands - the default
+# catches it - but it stops being keyed to the same $STAMP as
+# /tmp/api-rollback-$STAMP.txt and /tmp/api-dist-before-$STAMP.tgz, so an
+# operator correlating one deploy's artifacts loses the link and nothing fails.
+CALLER_DEST="$(
+  HAZARD_LOG="$WORK/caller-named.txt" \
+  MIGRATIONS_APPLIED=0 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+  INCOMING_MIGRATIONS="" \
+  bash -c '
+    set -euo pipefail
+    . "'"$HERE"'/../lib/migrate.sh"
+    deploy_arm_exit_traps
+    echo "$HAZARD_LOG"
+  ' 2>/dev/null || true
+)"
+check "arming does not override a destination the caller named" \
+  "$WORK/caller-named.txt" "$CALLER_DEST"
+
+# ---------------------------------------------------------------------------
 # The regression itself.
 #
 # api-deploy.sh runs under `set -euo pipefail`. `prisma migrate deploy` applies
@@ -465,18 +647,44 @@ DEPLOY_SH="$HERE/../api-deploy.sh"
 # `|| true` so a missing line reports as a failed check rather than aborting
 # the whole suite through `set -e` on the assignment below.
 line_of() { grep -n -m1 -F "$1" "$DEPLOY_SH" | cut -d: -f1 || true; }
+# Whole-line, because the first substring match for `deploy_arm_exit_traps` in
+# that file is the COMMENT above the call. Deleting the call outright left this
+# check green, found by mutating it: a check that matches prose rather than code
+# reports on the documentation of the thing it is meant to pin.
+line_of_exact() { grep -n -m1 -x "$1" "$DEPLOY_SH" | cut -d: -f1 || true; }
 
-TRAP_LINE="$(line_of 'trap deploy_on_exit EXIT')"
+TRAP_LINE="$(line_of_exact 'deploy_arm_exit_traps')"
 FLAG_LINE="$(line_of 'MIGRATIONS_APPLIED=1')"
 DEPLOY_LINE="$(line_of 'run prisma:deploy')"
 
 if [ -n "$TRAP_LINE" ] && [ -n "$FLAG_LINE" ] && [ -n "$DEPLOY_LINE" ] \
    && [ "$TRAP_LINE" -lt "$FLAG_LINE" ] && [ "$FLAG_LINE" -lt "$DEPLOY_LINE" ]; then
-  ok "api-deploy.sh arms the trap and raises the flag before applying migrations"
+  ok "api-deploy.sh arms the traps and raises the flag before applying migrations"
 else
-  no "api-deploy.sh arms the trap and raises the flag before applying migrations" \
+  no "api-deploy.sh arms the traps and raises the flag before applying migrations" \
      "trap=$TRAP_LINE flag=$FLAG_LINE deploy=$DEPLOY_LINE"
 fi
+
+# The $STAMP keying, which only a string match can carry: the behavioural check
+# above proves the caller's value survives the arming, and this proves
+# api-deploy.sh still names one. Whole-line, for the same reason line_of_exact
+# exists - the substring form matches the comment above the assignment.
+# The literal dollar is escaped in double quotes rather than written inside
+# single ones: `'$STAMP'` is an expansion that deliberately will not happen,
+# which is precisely what SC2016 warns about and cannot be spelled otherwise.
+STAMP_TOKEN="\$STAMP"
+HAZARD_LINE="$(line_of "HAZARD_LOG=\"/tmp/api-schema-hazard-${STAMP_TOKEN}.txt\"")"
+if [ -n "$HAZARD_LINE" ]; then
+  ok "api-deploy.sh keys the durable destination to the preflight \$STAMP"
+else
+  no "api-deploy.sh keys the durable destination to the preflight \$STAMP" \
+     "no assignment naming /tmp/api-schema-hazard-\$STAMP.txt"
+fi
+
+# The one thing left that a string match has to carry: that the script calls the
+# arming function at all. Everything the function DOES is exercised above
+# against the real function, so this pins the call site and nothing else - which
+# is the smallest seam available, since no test can run api-deploy.sh itself.
 
 if grep -q 'trap - EXIT' "$DEPLOY_SH"; then
   no "api-deploy.sh keeps one exit handler" "it disarms the EXIT trap somewhere"

@@ -49,6 +49,48 @@ deploy_incoming_migrations() {
     | sort
 }
 
+# deploy_arm_exit_traps
+#
+# Installs every trap the deploy needs, in one place, because the arming is as
+# easy to get wrong as the handler and was not covered by anything that runs.
+#
+# Lives here rather than in api-deploy.sh for the reason the handler does: a
+# test cannot run api-deploy.sh - it wants pm2, node, a database and a box - so
+# the arming could only ever be checked by grepping the real file for the trap
+# lines. That is a stand-in tied to the original by a grep, which is the exact
+# shape #2718 removed from the handler. With the arming in a function, the suite
+# arms the real one in a real bash process and signals it.
+#
+# TERM and HUP are trapped alongside EXIT, and the reason is not symmetry. An
+# untrapped fatal signal ends the shell without giving the EXIT trap a non-zero
+# status to see, so the notice was silent on exactly the two signals a cancelled
+# deploy arrives as: the runner kills the local ssh client, the connection
+# closes, and sshd sends SIGHUP to this process group. The exit status is
+# preserved as 143 and 129, so nothing downstream reads a different result.
+# SIGINT already worked - bash sets the status to 130 itself.
+#
+# SIGKILL stays out of reach. No trap catches it, so the ceiling is every signal
+# that can be trapped, not "the notice can no longer be lost".
+#
+# A trapped signal is also deferred until the running foreground command
+# finishes, where an untrapped one ends the shell where it stands. On a cancel
+# that costs nothing - the child is in the same process group and dies too - and
+# on a bare `kill` of this shell it means an in-flight `prisma migrate deploy`
+# runs to completion before the deploy stops, which is the safer of the two.
+deploy_arm_exit_traps() {
+  # A destination, always. Unset or empty meant no durable write at all, which
+  # is not a safe fallback - it is the fix turned off, silently, leaving the
+  # notice on the one destination that is gone in the case it exists for.
+  # `$$` rather than a fixed name so two deploys on one box cannot collide;
+  # api-deploy.sh overrides this with the $STAMP-keyed path that matches the
+  # rollback sha and the dist tarball it already writes.
+  HAZARD_LOG="${HAZARD_LOG:-/tmp/api-schema-hazard-$$.txt}"
+
+  trap 'exit 143' TERM
+  trap 'exit 129' HUP
+  trap deploy_on_exit EXIT
+}
+
 # deploy_on_exit
 #
 # The EXIT trap api-deploy.sh installs before it lets the schema move.
@@ -71,7 +113,9 @@ deploy_incoming_migrations() {
 # one.
 #
 # SMOKE_PID is the exception and IS defaulted: no smoke process is a normal
-# state for most of the script's life, not a caller mistake.
+# state for most of the script's life, not a caller mistake. HAZARD_LOG is
+# supplied by deploy_arm_exit_traps rather than demanded here - see
+# deploy_schema_hazard_notice for why neither of the obvious options works.
 deploy_on_exit() {
   local status=$?
 
@@ -119,12 +163,12 @@ deploy_stop_notice() {
   deploy_schema_hazard_notice "$rollback_sha" "$@"
 }
 
-# deploy_schema_hazard_notice <rollback-sha> <migration>...
+# deploy_schema_hazard_text <rollback-sha> <migration>...
 #
-# What to say when the deploy stops after the schema has moved. Written to
-# stderr beside the code rollback, because the code rollback on its own reads as
-# if the box has been restored, and it has not.
-deploy_schema_hazard_notice() {
+# The wording, on stdout, so the two destinations below write the same bytes.
+# Separated from the destinations because they have different failure modes:
+# the wording cannot fail, and writing it can.
+deploy_schema_hazard_text() {
   local rollback_sha="${1:?rollback sha required}"
   shift
 
@@ -143,5 +187,56 @@ deploy_schema_hazard_notice() {
     echo "forward and re-deploy, or write and apply a migration that reverses them."
     echo "Prisma has no down-migration; there is nothing to run that undoes this by"
     echo "itself."
-  } >&2
+  }
+}
+
+# deploy_schema_hazard_notice <rollback-sha> <migration>...
+#
+# What to say when the deploy stops after the schema has moved, and where.
+#
+# Two destinations, and the ORDER between them is load-bearing rather than
+# stylistic. stderr on the box is the ssh pipe, and the teardown of that
+# connection is what sends the SIGHUP this notice most needs to survive - so by
+# the time the handler runs, the reader may already be gone. Writing into a pipe
+# with no reader takes SIGPIPE and ends the handler where it stands, so anything
+# sequenced after the stderr write does not happen at all.
+#
+# Measured against the real handler, HUP to the process group, the only variable
+# being the order of the two writes:
+#
+#   reader gone,  file then stderr -> exit 141, 590 bytes on disk
+#   reader gone,  stderr then file -> exit 141,   0 bytes on disk
+#   reader alive, either order     -> exit 129, 590 bytes on disk
+#
+# The exit status is 141 in both failing cases, so nothing downstream can tell
+# the two apart. The order is the whole of it.
+#
+# HAZARD_LOG is neither demanded nor allowed to be missing, which is the third
+# option and the only one that is not a trap. Demanding it under `set -u` would
+# abort the handler on the path the notice exists for - destroying it to enforce
+# a rule about keeping it. Letting it be empty turns the durable write off
+# silently. So deploy_arm_exit_traps supplies one, and a caller that armed the
+# traps cannot reach this function without a destination.
+deploy_schema_hazard_notice() {
+  local rollback_sha="${1:?rollback sha required}"
+  shift
+
+  local text
+  text="$(deploy_schema_hazard_text "$rollback_sha" "$@")"
+
+  # What the suite proves about this write, and what it does not. It proves a
+  # durable write happens, that it happens before the stderr write, and that the
+  # caller's destination survives the arming. It does NOT prove the `|| true`
+  # earns its place, that appending rather than truncating matters, or that the
+  # `$$` in the default is load-bearing - mutating any of those three leaves the
+  # suite green. They are reasoned, not pinned, and a reader should not credit
+  # 41 green with covering them.
+  #
+  # `|| true` because a destination that cannot be written must not cost the
+  # other one. A full disk here would otherwise end the handler under `set -e`.
+  # `/dev/null` rather than an `if`, because a caller that armed the traps always
+  # has a destination and the branch would be one no mutation could redden.
+  printf '%s\n' "$text" >> "${HAZARD_LOG:-/dev/null}" 2>/dev/null || true
+
+  printf '%s\n' "$text" >&2
 }

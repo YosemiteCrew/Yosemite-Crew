@@ -81,6 +81,12 @@ echo "$ROLLBACK_SHA" > "/tmp/api-rollback-$STAMP.txt"
 tar czf "/tmp/api-dist-before-$STAMP.tgz" apps/backend/dist packages/*/dist 2>/dev/null || true
 cp apps/backend/.env "/tmp/api-env-before-$STAMP" 2>/dev/null || true
 echo "backups: /tmp/api-dist-before-$STAMP.tgz  /tmp/api-env-before-$STAMP"
+# Where the schema-hazard notice is written in addition to stderr. Built here,
+# with the other preflight artifacts, because stderr is the one destination that
+# is guaranteed to be gone in the case the notice matters most: it is the ssh
+# pipe, and the teardown of that connection is what kills this script. The
+# rollback sha the notice hands the operator is already written next door.
+HAZARD_LOG="/tmp/api-schema-hazard-$STAMP.txt"
 
 say "checkout $GIT_REF"
 # Fetch and checkout live in lib/git-sync.sh so their two failure modes - a stale
@@ -179,7 +185,11 @@ fi
 # Prisma fails having applied nothing, and over-reporting a schema hazard is the
 # safe direction. A deploy that carries no migrations cannot move the schema at
 # all, so it stays silent.
-trap deploy_on_exit EXIT
+#
+# The arming itself is deploy_arm_exit_traps in lib/migrate.sh - EXIT plus TERM
+# and HUP, with the reasoning next to it - so the suite can arm the real one and
+# signal it rather than grep this file for three trap lines.
+deploy_arm_exit_traps
 if [ -n "$INCOMING_MIGRATIONS" ]; then
   MIGRATIONS_APPLIED=1
 fi
