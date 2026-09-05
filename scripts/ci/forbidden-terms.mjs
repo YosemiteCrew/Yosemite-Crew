@@ -54,7 +54,11 @@ const CORPUS_ENV = 'FORBIDDEN_TERMS_CORPUS_B64';
 
 const ALLOWED_PROSE = path.join(import.meta.dirname, 'forbidden-terms-allowed-prose.txt');
 
-const SURFACES = new Set(['diff', 'names', 'messages', 'branch', 'title', 'body']);
+/**
+ * The surfaces `scan` reads, by fixed name. EXPORTED so the test can assert the
+ * shape of the entries against this object rather than against a copy of it.
+ */
+export const SURFACES = new Set(['diff', 'names', 'messages', 'branch', 'title', 'body']);
 
 /** Raised for anything that means "the guard could not run" - always exit 2. */
 class GuardError extends Error {}
