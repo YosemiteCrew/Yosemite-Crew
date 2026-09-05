@@ -8,7 +8,8 @@ import {PressableOpacity} from '@/shared/components/common/PressableOpacity/Pres
 import {useTheme, useAppSelector} from '@/hooks';
 import {fonts, typography} from '@/theme/typography';
 import type {HomeStackParamList} from '@/navigation/types';
-import {RiskDisclaimerNotice, RiskTierBadge} from '../../components';
+import {RiskDisclaimerNotice} from '../../components/RiskDisclaimerNotice/RiskDisclaimerNotice';
+import {RiskTierBadge} from '../../components/RiskTierBadge/RiskTierBadge';
 import {selectReadingForParasite, selectRiskLocation} from '../../selectors';
 import {
   parasiteNameKey,

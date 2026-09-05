@@ -32,13 +32,11 @@ import {
   selectHasHydratedCompanion,
   selectTasksByCompanion,
 } from '@/features/tasks/selectors';
-import {
-  LapsedCoverBanner,
-  ParasiteRiskCard,
-  RegionSearchSheet,
-  RiskDisclaimerNotice,
-  ThreatDial,
-} from '../../components';
+import {LapsedCoverBanner} from '../../components/LapsedCoverBanner/LapsedCoverBanner';
+import {ParasiteRiskCard} from '../../components/ParasiteRiskCard/ParasiteRiskCard';
+import {RegionSearchSheet} from '../../components/RegionSearchSheet/RegionSearchSheet';
+import {RiskDisclaimerNotice} from '../../components/RiskDisclaimerNotice/RiskDisclaimerNotice';
+import {ThreatDial} from '../../components/ThreatDial/ThreatDial';
 import {
   selectRecentRiskLocations,
   selectCurrentLocationSubscription,
@@ -172,7 +170,9 @@ export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
     state => state.coParent?.lastFetchedPermissions ?? null,
   );
 
-  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchVisible, setSearchVisible] = useState(
+    () => !location && !loading && !error,
+  );
 
   const companion = useMemo(
     () => companions.find(entry => entry.id === selectedCompanionId) ?? null,
@@ -261,12 +261,6 @@ export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
       .getParent<NavigationProp<TabParamList>>()
       ?.navigate('Appointments', {screen: 'BrowseBusinesses'});
   }, [guardFeature, navigation]);
-
-  // Open the search immediately when there is nothing to show yet: the screen
-  // is useless without a place, so do not make the user hunt for the control.
-  useEffect(() => {
-    if (!location && !loading && !error) setSearchVisible(true);
-  }, [error, location, loading]);
 
   useEffect(() => {
     dispatch(loadSubscriptions());
