@@ -117,6 +117,45 @@ jobs:
 
           echo "No existing migration was modified."
 
+      # Applying cleanly to an empty database is not the same as the code that
+      # is already deployed surviving the change.
+      #
+      # scripts/deploy/api-deploy.sh applies migrations and then boots and
+      # smoke-tests the new bundle before `pm2 restart` cuts over, so the OLD
+      # process serves traffic against the NEW schema for the length of that
+      # window - and if the smoke boot fails the script deliberately does not cut
+      # over, which leaves it there indefinitely. The rollback restores the code;
+      # nothing rolls back the schema.
+      #
+      # Additive migrations are unaffected, which is why this has not bitten yet.
+      # Raised by the Codex review on #2599, which renames three columns; that PR
+      # was safe because all three tables held zero rows, which is a fact about
+      # that PR and not about renames.
+      #
+      # This does not refuse the change - it refuses an UNDECLARED one. The
+      # declaration is the expand-contract reasoning written down next to the SQL
+      # it describes, where a reviewer sees it.
+      - name: Check destructive migrations say how the deployed code survives
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+
+          # Only migrations this branch ADDS. An edit to an existing one is
+          # already refused by the immutability check above, and re-classifying
+          # the whole history would fail every pull request on migrations that
+          # shipped long ago.
+          added=()
+          while IFS= read -r path; do
+            [ -n "$path" ] && added+=("$path")
+          done < <(git diff --no-renames --diff-filter=A --name-only "$BASE_SHA...HEAD" \
+                     -- packages/database/prisma/migrations \
+                   | grep -E '/migration\.sql$' || true)
+
+          node scripts/ci/classify-migration.mjs "${added[@]+"${added[@]}"}"
+
       # `migrate diff --from-migrations` replays the whole history into a
       # throwaway database, so it needs one that is not the target.
       - name: Create shadow database

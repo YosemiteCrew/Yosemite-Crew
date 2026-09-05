@@ -29,6 +29,17 @@
 #   port BEFORE pm2   an immediate port check races the boot. Boot the new bundle
 #                     somewhere harmless first; only cut over if it answers.
 #
+#   migrate AFTER     Migrations used to run at step 4 of 8, before the build. The
+#   the build         cutover is step 7, so the OLD process served traffic against
+#                     the NEW schema for the whole build AND smoke window - and a
+#                     failed build left it there for good, because a failure exits
+#                     without cutting over and nothing rolls a migration back.
+#                     The build needs the generated Prisma CLIENT, not the
+#                     database, so only `prisma generate` has to precede it. The
+#                     smoke boot genuinely does need the new schema, so that much
+#                     of the window is irreducible - what is left is reported
+#                     explicitly on every path that stops without cutting over.
+#
 # Usage: api-deploy.sh <repo-dir> <pm2-target> <git-ref> [smoke-port]
 set -euo pipefail
 
@@ -43,13 +54,17 @@ NODE_BIN="${NODE_BIN:-$HOME/.nvm/versions/node/v22.21.1/bin}"
 # looking for a helper that is not on the box, and bash exits before preflight
 # with a bare "No such file or directory" - so say what is actually wrong.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ ! -r "$SCRIPT_DIR/lib/git-sync.sh" ]; then
-  echo "missing $SCRIPT_DIR/lib/git-sync.sh" >&2
-  echo "Copy the whole scripts/deploy directory to the host, not just this file." >&2
-  exit 1
-fi
+for helper in git-sync migrate; do
+  if [ ! -r "$SCRIPT_DIR/lib/$helper.sh" ]; then
+    echo "missing $SCRIPT_DIR/lib/$helper.sh" >&2
+    echo "Copy the whole scripts/deploy directory to the host, not just this file." >&2
+    exit 1
+  fi
+done
 # shellcheck source=lib/git-sync.sh
 . "$SCRIPT_DIR/lib/git-sync.sh"
+# shellcheck source=lib/migrate.sh
+. "$SCRIPT_DIR/lib/migrate.sh"
 export PATH="$NODE_BIN:$PATH"
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 
@@ -78,12 +93,39 @@ say "checkout $GIT_REF"
 # meant to arrive first.
 deploy_git_sync "$REPO_DIR" "$GIT_REF" "${REQUIRE_PROMOTED_FROM:-}"
 
+# Before anything is installed, built or applied: name the migrations this
+# deploy would add on top of what the box is serving. That set is exactly what a
+# rollback to $ROLLBACK_SHA would leave applied, so it is what has to be said out
+# loud if the deploy stops after the schema has moved.
+INCOMING_MIGRATIONS="$(deploy_incoming_migrations "$ROLLBACK_SHA" HEAD)"
+MIGRATIONS_APPLIED=0
+
+if [ -n "$INCOMING_MIGRATIONS" ]; then
+  echo "this deploy adds $(printf '%s\n' "$INCOMING_MIGRATIONS" | grep -c '') migration(s):"
+  printf '%s\n' "$INCOMING_MIGRATIONS" | sed 's/^/  /'
+else
+  echo "this deploy adds no migrations - the schema does not move"
+fi
+
+# Said once, here, so every later exit can just point at it.
+stopped_without_cutover() {
+  if [ "$MIGRATIONS_APPLIED" = "1" ]; then
+    # Deliberate word splitting - one argument per migration. Prisma directory
+    # names are <timestamp>_<snake_case>, so there is nothing here to glob.
+    # shellcheck disable=SC2086
+    deploy_schema_hazard_notice "$ROLLBACK_SHA" $INCOMING_MIGRATIONS
+  fi
+}
+
 say "install"
 pnpm install --frozen-lockfile
 
-say "prisma client + migrations"
+# The client, not the database. `prisma generate` reads schema.prisma and writes
+# the typed client the build compiles against; it touches nothing live, so it is
+# safe to run before the build has been proved. `prisma migrate deploy` is the
+# irreversible half and waits until after it.
+say "prisma client"
 pnpm --filter @yosemite-crew/database run prisma:generate
-pnpm --filter @yosemite-crew/database run prisma:deploy
 
 say "build packages"
 BUILD_START="$(date '+%Y-%m-%d %H:%M:%S')"
@@ -113,6 +155,20 @@ for pkg in types fhirtypes fhir lib database auth; do
 done
 test -s apps/backend/dist/index.js || { echo "backend bundle missing" >&2; exit 1; }
 
+# The point of no return, and the last step before it that can still fail
+# harmlessly. Everything above this line is repeatable: a failed install, build
+# or freshness check leaves the box exactly as it was found, serving the old
+# bundle against the old schema. From here on it does not.
+#
+# The smoke boot below runs the new code, which needs the new schema, so this
+# cannot move any later.
+say "migrations"
+if [ -n "$INCOMING_MIGRATIONS" ]; then
+  echo "  applying, after which a rollback to $ROLLBACK_SHA no longer restores the box on its own"
+fi
+pnpm --filter @yosemite-crew/database run prisma:deploy
+MIGRATIONS_APPLIED=1
+
 say "smoke boot on :$SMOKE_PORT"
 cd apps/backend
 rm -f /tmp/api-smoke.log
@@ -132,6 +188,7 @@ trap - EXIT
 sleep 2
 if [ "$CODE" != "200" ]; then
   echo "smoke boot failed - NOT cutting over. Rollback sha: $ROLLBACK_SHA" >&2
+  stopped_without_cutover
   exit 1
 fi
 
@@ -144,7 +201,9 @@ sleep 30
 pm2 describe "$PM2_TARGET" | grep -iE 'status|node.js version' || true
 ss -ltn 2>/dev/null | grep -q ':8080' \
   && echo "  listening on 8080" \
-  || { echo "  NOTHING LISTENING on 8080 - roll back to $ROLLBACK_SHA" >&2; exit 1; }
+  || { echo "  NOTHING LISTENING on 8080 - roll back to $ROLLBACK_SHA" >&2
+       stopped_without_cutover
+       exit 1; }
 
 say "done"
 echo "deployed $(git -C "$REPO_DIR" rev-parse --short HEAD)  (rollback: $ROLLBACK_SHA)"
