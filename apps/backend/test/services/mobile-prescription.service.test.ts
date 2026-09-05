@@ -1,4 +1,8 @@
-import { MobilePrescriptionService } from "../../src/services/mobile-prescription.service";
+import {
+  DEFAULT_PRESCRIPTION_PAGE_SIZE,
+  MAX_PRESCRIPTION_PAGE_SIZE,
+  MobilePrescriptionService,
+} from "../../src/services/mobile-prescription.service";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -140,7 +144,9 @@ describe("listPrescriptionsForParent", () => {
     const result =
       await MobilePrescriptionService.listPrescriptionsForParent("parent-1");
 
-    expect(result).toEqual([]);
+    expect(result.prescriptions).toEqual([]);
+    expect(result.hasMore).toBe(false);
+    expect(result.nextCursor).toBeNull();
     expect(mockEncounters).not.toHaveBeenCalled();
     expect(mockPrescriptions).not.toHaveBeenCalled();
   });
@@ -174,8 +180,9 @@ describe("listPrescriptionsForParent", () => {
     mockEncounters.mockResolvedValue([{ id: "enc-1", patientId: "pat-1" }]);
     mockPrescriptions.mockResolvedValue([prescriptionRow()]);
 
-    const [result] =
-      await MobilePrescriptionService.listPrescriptionsForParent("parent-1");
+    const {
+      prescriptions: [result],
+    } = await MobilePrescriptionService.listPrescriptionsForParent("parent-1");
 
     expect(result).toMatchObject({
       id: "rx-1",
@@ -214,7 +221,7 @@ describe("listPrescriptionsForParent", () => {
     const result =
       await MobilePrescriptionService.listPrescriptionsForParent("parent-1");
 
-    expect(result).toEqual([]);
+    expect(result.prescriptions).toEqual([]);
   });
 
   it("drops a row whose encounter is not one of the permitted patients'", async () => {
@@ -235,6 +242,186 @@ describe("listPrescriptionsForParent", () => {
     const result =
       await MobilePrescriptionService.listPrescriptionsForParent("parent-1");
 
-    expect(result).toEqual([]);
+    expect(result.prescriptions).toEqual([]);
+  });
+});
+
+/*
+ * The endpoint is a page, and the point of these is that it says so. A bare
+ * `take` would pass every test above while silently dropping whatever did not
+ * fit, which is the defect this describe exists to make impossible.
+ */
+describe("listPrescriptionsForParent pagination", () => {
+  const onePatientWithOneEncounter = () => {
+    mockLinks.mockResolvedValue([activeLink("pat-1")]);
+    mockEncounters.mockResolvedValue([{ id: "enc-1", patientId: "pat-1" }]);
+  };
+
+  const rows = (count: number) =>
+    Array.from({ length: count }, (_, index) =>
+      prescriptionRow({ id: `rx-${index + 1}` }),
+    );
+
+  it("reads one row past the page so hasMore is measured, not guessed", async () => {
+    onePatientWithOneEncounter();
+    mockPrescriptions.mockResolvedValue([]);
+
+    await MobilePrescriptionService.listPrescriptionsForParent("parent-1");
+
+    expect(mockPrescriptions.mock.calls[0][0].take).toBe(
+      DEFAULT_PRESCRIPTION_PAGE_SIZE + 1,
+    );
+  });
+
+  it("orders by createdAt and then id, so a tied timestamp cannot make the page boundary ambiguous", async () => {
+    onePatientWithOneEncounter();
+    mockPrescriptions.mockResolvedValue([]);
+
+    await MobilePrescriptionService.listPrescriptionsForParent("parent-1");
+
+    expect(mockPrescriptions.mock.calls[0][0].orderBy).toEqual([
+      { createdAt: "desc" },
+      { id: "desc" },
+    ]);
+  });
+
+  it("truncates to the page and reports the truncation", async () => {
+    onePatientWithOneEncounter();
+    mockPrescriptions.mockResolvedValue(rows(4));
+
+    const result = await MobilePrescriptionService.listPrescriptionsForParent(
+      "parent-1",
+      { limit: "3" },
+    );
+
+    expect(result.prescriptions).toHaveLength(3);
+    expect(result.hasMore).toBe(true);
+    expect(result.nextCursor).toBe("rx-3");
+    expect(result.limit).toBe(3);
+  });
+
+  it("reports the end of the data when the extra row does not come back", async () => {
+    onePatientWithOneEncounter();
+    mockPrescriptions.mockResolvedValue(rows(3));
+
+    const result = await MobilePrescriptionService.listPrescriptionsForParent(
+      "parent-1",
+      { limit: "3" },
+    );
+
+    expect(result.prescriptions).toHaveLength(3);
+    expect(result.hasMore).toBe(false);
+    expect(result.nextCursor).toBeNull();
+  });
+
+  /*
+   * The cursor is taken from the last row the query returned for this page, not
+   * from the last row that survived mapping. Here the third row is unmappable,
+   * so the caller sees two prescriptions - and the cursor must still be `rx-3`,
+   * or the next page starts on the dropped row and drops it again forever.
+   */
+  it("takes the cursor from the queried row, not from the last mapped one", async () => {
+    onePatientWithOneEncounter();
+    mockPrescriptions.mockResolvedValue([
+      prescriptionRow({ id: "rx-1" }),
+      prescriptionRow({ id: "rx-2" }),
+      prescriptionRow({
+        id: "rx-3",
+        artifact: {
+          encounterId: null,
+          organisationId: "org-1",
+          status: "SIGNED",
+          summary: null,
+          signedAt: null,
+        },
+      }),
+      prescriptionRow({ id: "rx-4" }),
+    ]);
+
+    const result = await MobilePrescriptionService.listPrescriptionsForParent(
+      "parent-1",
+      { limit: "3" },
+    );
+
+    expect(result.prescriptions.map((p) => p.id)).toEqual(["rx-1", "rx-2"]);
+    expect(result.hasMore).toBe(true);
+    expect(result.nextCursor).toBe("rx-3");
+  });
+
+  it("steps past the cursor row rather than returning it twice", async () => {
+    onePatientWithOneEncounter();
+    mockPrescriptions.mockResolvedValue([]);
+
+    await MobilePrescriptionService.listPrescriptionsForParent("parent-1", {
+      cursor: "rx-7",
+    });
+
+    const args = mockPrescriptions.mock.calls[0][0];
+    expect(args.cursor).toEqual({ id: "rx-7" });
+    expect(args.skip).toBe(1);
+  });
+
+  it("sends no cursor and no skip on the first page", async () => {
+    onePatientWithOneEncounter();
+    mockPrescriptions.mockResolvedValue([]);
+
+    await MobilePrescriptionService.listPrescriptionsForParent("parent-1");
+
+    const args = mockPrescriptions.mock.calls[0][0];
+    expect(args).not.toHaveProperty("cursor");
+    expect(args).not.toHaveProperty("skip");
+  });
+
+  /*
+   * A cursor is a position, never an access grant. Handing this endpoint an id
+   * lifted from someone else's response moves the window and must not widen the
+   * scope: the `where` is rebuilt from the permitted encounters every page.
+   */
+  it("does not let a foreign cursor widen the scope", async () => {
+    onePatientWithOneEncounter();
+    mockPrescriptions.mockResolvedValue([]);
+
+    await MobilePrescriptionService.listPrescriptionsForParent("parent-1", {
+      cursor: "rx-belonging-to-someone-else",
+    });
+
+    const where = mockPrescriptions.mock.calls[0][0].where;
+    expect(where.artifact.encounterId).toEqual({ in: ["enc-1"] });
+    expect(where.artifact.status).toEqual({ in: ["COMPLETED", "SIGNED"] });
+  });
+
+  it.each([
+    ["above the ceiling", "1000", MAX_PRESCRIPTION_PAGE_SIZE],
+    ["not a number", "all", DEFAULT_PRESCRIPTION_PAGE_SIZE],
+    ["zero", "0", DEFAULT_PRESCRIPTION_PAGE_SIZE],
+    ["negative", "-5", DEFAULT_PRESCRIPTION_PAGE_SIZE],
+    ["absent", undefined, DEFAULT_PRESCRIPTION_PAGE_SIZE],
+  ])("bounds a limit that is %s", async (_label, requested, expected) => {
+    onePatientWithOneEncounter();
+    mockPrescriptions.mockResolvedValue([]);
+
+    const result = await MobilePrescriptionService.listPrescriptionsForParent(
+      "parent-1",
+      { limit: requested },
+    );
+
+    expect(result.limit).toBe(expected);
+    expect(mockPrescriptions.mock.calls[0][0].take).toBe(expected + 1);
+  });
+
+  it("reports the applied limit even on a page it never queried for", async () => {
+    mockLinks.mockResolvedValue([activeLink("pat-1", false)]);
+
+    const result = await MobilePrescriptionService.listPrescriptionsForParent(
+      "parent-1",
+      { limit: "5" },
+    );
+
+    expect(result).toEqual({
+      prescriptions: [],
+      nextCursor: null,
+      hasMore: false,
+      limit: 5,
+    });
   });
 });

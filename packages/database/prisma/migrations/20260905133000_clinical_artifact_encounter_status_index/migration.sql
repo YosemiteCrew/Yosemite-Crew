@@ -1,0 +1,25 @@
+-- Index the owner-facing prescription read (#2709).
+--
+-- Every other ClinicalArtifact index leads with "organisationId". The mobile
+-- caller has none - the whole point of the owner endpoint is that a pet owner's
+-- animals may have been seen at several practices - so its query filters on
+-- "encounterId" with no organisation and nothing above it applies. That is a
+-- sequential scan of every clinical artifact in the system, for every tenant,
+-- on a list a pet owner refreshes.
+--
+-- Leading column is "encounterId" because that is the selective one: the query
+-- restricts it to the encounters of one parent's animals. "status" is second so
+-- the OWNER_VISIBLE_ARTIFACT_STATUSES filter is served by the same index rather
+-- than by a recheck on the heap.
+--
+-- Purely additive: an index, no column, no constraint. The running process
+-- serves fine against this schema before the new code cuts over (see #2603).
+--
+-- NOT "CONCURRENTLY", deliberately. Prisma runs each migration file in one
+-- transaction and PostgreSQL refuses CREATE INDEX CONCURRENTLY inside one, so
+-- it is not available here without splitting the migration out of Prisma's
+-- control. The cost is that writes to ClinicalArtifact block while the index
+-- builds; the deploy already applies migrations before cutover, so that window
+-- is the migration step rather than the running service.
+CREATE INDEX IF NOT EXISTS "ClinicalArtifact_encounterId_status_idx"
+  ON "ClinicalArtifact" ("encounterId", "status");
