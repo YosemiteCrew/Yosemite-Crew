@@ -360,7 +360,7 @@ export const IdexxResultsService = {
       let hasUnmappedResult = false;
       for (const result of results as IdexxResult[]) {
         const unmapped = await processIdexxResult(client, result);
-        hasUnmappedResult = hasUnmappedResult || unmapped;
+        hasUnmappedResult ||= unmapped;
       }
 
       // Confirming tells IDEXX the batch was consumed and stops it being re-sent, so a batch
