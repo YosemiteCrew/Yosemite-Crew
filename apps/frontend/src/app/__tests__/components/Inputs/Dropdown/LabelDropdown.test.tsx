@@ -255,7 +255,7 @@ describe('LabelDropdown', () => {
   });
 
   it('renders inline options when portal is disabled', () => {
-    render(
+    const { container } = render(
       <LabelDropdown placeholder="Species" options={options} onSelect={jest.fn()} portal={false} />
     );
 
@@ -263,6 +263,20 @@ describe('LabelDropdown', () => {
 
     expect(screen.getByText('Canine')).toBeInTheDocument();
     expect(document.querySelector('[data-portal-dropdown]')).toBeInTheDocument();
+    // Scoped to the render container: portaled panels land on document.body, so
+    // this is what separates the inline branch from the portal branch.
+    expect(container.querySelector('[data-portal-dropdown]')).toBeInTheDocument();
+  });
+
+  it('portals the options panel out of the trigger container by default', () => {
+    const { container } = render(
+      <LabelDropdown placeholder="Species" options={options} onSelect={jest.fn()} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Species/i }));
+
+    expect(document.querySelector('[data-portal-dropdown]')).toBeInTheDocument();
+    expect(container.querySelector('[data-portal-dropdown]')).not.toBeInTheDocument();
   });
 
   it('closes and clears search when clicking outside', () => {

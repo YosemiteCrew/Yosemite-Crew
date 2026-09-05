@@ -1255,10 +1255,14 @@ const useAddAppointmentCentralModalView = ({
     });
   };
   const autoSelectKey = showModal ? (initialCompanionId ?? null) : null;
-  if (autoSelectKey !== autoSelectKeyRef.current) {
+  // This guard used to run in the render body, writing autoSelectKeyRef there. It is the same
+  // "apply once per key change" check, moved out of render; useLayoutEffect (not useEffect) keeps it
+  // before paint, so the patient field is never painted empty on a mount that already has a key.
+  useLayoutEffect(() => {
+    if (autoSelectKey === autoSelectKeyRef.current) return;
     autoSelectKeyRef.current = autoSelectKey;
     applyAutoSelectKey(autoSelectKey);
-  }
+  });
 
   const pendingCompanion = uiState.pendingAutoSelectCompanionId
     ? companions.find((c) => c.companion.id === uiState.pendingAutoSelectCompanionId)

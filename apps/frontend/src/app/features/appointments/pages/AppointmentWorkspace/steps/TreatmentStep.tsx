@@ -501,8 +501,9 @@ const usePrescriptionActions = ({
   // Auto-load the PRESCRIPTION template linked to the encounter's service/package once that
   // service/package context is known and the prescription section is still empty. Track attempts by
   // service/package key so an initial blank encounter cannot block the later linked-template load.
+  // Seeded lazily inside the effect below; it used to be seeded here with
+  // `autoResolvedRxKeysRef.current ??= new Set()`, a ref write during render.
   const autoResolvedRxKeysRef = React.useRef<Set<string> | null>(null);
-  autoResolvedRxKeysRef.current ??= new Set();
   const prescriptionCount = encounter.prescription.length;
   const encounterServicesForRx = encounter.services;
   const encounterModeForRx = encounter.mode;

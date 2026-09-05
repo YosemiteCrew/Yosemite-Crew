@@ -130,30 +130,31 @@ const Tasks = () => {
     [authUserId, myPrimaryId, teams]
   );
 
+  // Both handlers used to resolve a functional updater inside the setState
+  // callback and call setWeekStart from there, which made those callbacks
+  // impure. Resolve against the current render's value and queue both updates
+  // from the handler instead - these are click handlers, so the rendered value
+  // is the pending one.
   const handleActiveCalendarChange = useCallback(
     (next: SetStateAction<string>) => {
-      setActiveCalendar((prev) => {
-        const resolved = typeof next === 'function' ? next(prev) : next;
-        if (resolved === 'week') {
-          setWeekStart(startOfDay(currentDate));
-        }
-        return resolved;
-      });
+      const resolved = typeof next === 'function' ? next(activeCalendar) : next;
+      setActiveCalendar(resolved);
+      if (resolved === 'week') {
+        setWeekStart(startOfDay(currentDate));
+      }
     },
-    [currentDate]
+    [activeCalendar, currentDate]
   );
 
   const handleCurrentDateChange = useCallback(
     (next: SetStateAction<Date>) => {
-      setCurrentDate((prev) => {
-        const resolved = typeof next === 'function' ? next(prev) : next;
-        if (activeCalendar === 'week') {
-          setWeekStart(startOfDay(resolved));
-        }
-        return resolved;
-      });
+      const resolved = typeof next === 'function' ? next(currentDate) : next;
+      setCurrentDate(resolved);
+      if (activeCalendar === 'week') {
+        setWeekStart(startOfDay(resolved));
+      }
     },
-    [activeCalendar]
+    [activeCalendar, currentDate]
   );
 
   // Reconcile the active task against the latest task list during render

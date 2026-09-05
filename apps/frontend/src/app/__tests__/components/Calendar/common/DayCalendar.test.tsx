@@ -393,6 +393,64 @@ describe('DayCalendar (Appointments)', () => {
     expect(screen.getByRole('menuitem', { name: 'Open companion overview' })).toBeInTheDocument();
   });
 
+  it('dismisses the context menu when a marker drag starts', () => {
+    const onAppointmentDragStart = jest.fn();
+
+    render(
+      <DayCalendar
+        events={[timedEvent]}
+        date={baseDate}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
+        canDragAppointment={() => true}
+        onAppointmentDragStart={onAppointmentDragStart}
+      />
+    );
+
+    const marker = screen.getByRole('button', { name: /Rex/i });
+    fireEvent.contextMenu(marker);
+    expect(screen.getByRole('menu', { name: 'Appointment context actions' })).toBeInTheDocument();
+
+    fireEvent.dragStart(marker, {
+      dataTransfer: { effectAllowed: '', setData: jest.fn(), setDragImage: jest.fn() },
+    });
+
+    expect(
+      screen.queryByRole('menu', { name: 'Appointment context actions' })
+    ).not.toBeInTheDocument();
+    expect(onAppointmentDragStart).toHaveBeenCalledWith(expect.objectContaining({ id: 'timed' }));
+  });
+
+  it('dismisses the appointment popover when a marker drag starts', () => {
+    render(
+      <DayCalendar
+        events={[timedEvent]}
+        date={baseDate}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
+        canDragAppointment={() => true}
+      />
+    );
+
+    const marker = screen.getByRole('button', { name: /Rex/i });
+    fireEvent.click(marker);
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    fireEvent.dragStart(marker, {
+      dataTransfer: { effectAllowed: '', setData: jest.fn(), setDragImage: jest.fn() },
+    });
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(marker).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('dims the gaps between visible availability intervals once availability loads', () => {
     const getVisibleAvailabilityIntervals = jest.fn(() => [
       { startMinute: 60, endMinute: 120 },

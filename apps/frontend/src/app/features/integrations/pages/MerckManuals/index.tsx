@@ -735,8 +735,13 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
   const [readerBlocked, setReaderBlocked] = useState(false);
 
   const requestIdRef = useRef(0);
-  const resultCacheRef = useRef<Map<string, MerckEntry[]>>(null!);
-  resultCacheRef.current ??= new Map();
+  // Allocated once by useState's lazy initialiser. This was a `useRef(null!)` plus a
+  // `resultCacheRef.current ??= new Map()` write during render, which mutates a ref
+  // while React is rendering. Kept as a `{ current }` box so executeMerckSearch, which
+  // also mutates the map, keeps its existing signature.
+  const [resultCacheRef] = useState<{ current: Map<string, MerckEntry[]> }>(() => ({
+    current: new Map(),
+  }));
   const performSearchRef = useRef<((nextQuery?: string, fresh?: boolean) => Promise<void>) | null>(
     null
   );
@@ -770,7 +775,8 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
         setHasSearched,
       });
     },
-    [audience, language, primaryOrgId, query]
+    // resultCacheRef is a useState box and never re-created, so it never invalidates this.
+    [audience, language, primaryOrgId, query, resultCacheRef]
   );
 
   useEffect(() => {

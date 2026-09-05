@@ -114,8 +114,8 @@ const seed = ({
  * when a reader picks "Duplicate" on an existing row.
  *
  * Module-level so its identity is STABLE across renders. The hydration guard is
- * `prefill !== consumedPrefill`, an identity comparison, so a prefill rebuilt inline
- * in `args` would be a new object on every render and re-apply itself forever,
+ * `prefill !== consumedPrefillRef.current`, an identity comparison, so a prefill rebuilt
+ * inline in `args` would be a new object on every render and re-apply itself forever,
  * wiping anything the reader typed.
  */
 const PREFILL: Partial<Task> = {
@@ -218,9 +218,10 @@ const meta = {
           'pet-parent chips a pink dot, and picking one of the latter flips `audience` to ' +
           '`PARENT_TASK` and resolves a `companionId` behind the scenes. The pet-parent list is ' +
           'folded by parent, so an owner with three pets still gets one chip.\n\n' +
-          'The **prefill hydration runs during render**, not in an effect: `if (showModal && ' +
-          'prefill && prefill !== consumedPrefill)` sets five pieces of state and marks the ' +
-          'prefill consumed. That identity comparison is load-bearing - a caller passing a freshly ' +
+          'The **prefill hydration runs in a layout effect** - before paint, so the form never ' +
+          'shows an unprefilled frame: `if (!showModal || !prefill || prefill === ' +
+          'consumedPrefillRef.current) return` guards five pieces of state and marks the prefill ' +
+          'consumed. That identity comparison is load-bearing - a caller passing a freshly ' +
           'built object on each render would re-apply it forever and erase every keystroke. It ' +
           'also SCRUBS the source task: `_id`, `appointmentId`, `completedAt`, `completedBy`, ' +
           '`calendarEventId` and the series link are dropped and the status forced back to ' +
@@ -407,11 +408,12 @@ export const PrefillIsConsumedOnce: Story = {
     await userEvent.type(name, 'Wound check - day 3');
 
     /* Every keystroke calls `setFormData` and re-renders the dialog, so this asserts
-       the hydration guard rather than the input: `consumedPrefill` holds the same
-       object identity the args still carry, the `if` is false, and the typed value
-       stands. Without the guard - or with a value comparison in place of the identity
-       one - the prefill would reapply on the render after each character and the field
-       would snap back to "Twice-daily wound check". */
+       the hydration guard rather than the input: `prefill` is the same object the args
+       still carry, so the layout effect's deps never change and its
+       `consumedPrefillRef` still holds that identity - the early return fires and the
+       typed value stands. Without the guard - or with a value comparison in place of
+       the identity one - the prefill would reapply and the field would snap back to
+       "Twice-daily wound check". */
     await expect(name).toHaveValue('Wound check - day 3');
 
     // A second, unrelated field change re-renders again and still does not reset it.

@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import '@testing-library/jest-dom';
 import SigningOverlay from '@/app/ui/overlays/SigningOverlay';
 
@@ -50,5 +51,17 @@ describe('SigningOverlay', () => {
 
     expect(screen.getByText('Signing session could not be loaded safely.')).toBeInTheDocument();
     expect(screen.queryByTitle('Document signing')).not.toBeInTheDocument();
+  });
+
+  // The overlay portals into document.body, which does not exist on the server.
+  it('renders nothing during a server render even when the store is open', () => {
+    useSigningOverlayStoreMock.mockReturnValue({
+      open: true,
+      pending: false,
+      url: 'https://ds.yosemitecrew.com/sign/abc',
+      close: jest.fn(),
+    });
+
+    expect(renderToString(<SigningOverlay />)).toBe('');
   });
 });

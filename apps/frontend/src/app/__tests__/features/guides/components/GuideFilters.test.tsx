@@ -144,12 +144,7 @@ describe('GuideFilters on a phone', () => {
     renderFilters();
 
     fireEvent.click(screen.getByRole('button', { name: /^Topic/ }));
-    /* Two buttons in the sheet answer to "Close": the chrome's and the
-       backdrop, which BottomSheet also labels that way. Take the chrome one. */
-    const [chromeClose] = within(screen.getByRole('dialog')).getAllByRole('button', {
-      name: 'Close',
-    });
-    fireEvent.click(chromeClose);
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
 
     expect(screen.queryByRole('menuitemradio')).not.toBeInTheDocument();
     // Backing out is not a choice: the grid must not re-filter behind the sheet.

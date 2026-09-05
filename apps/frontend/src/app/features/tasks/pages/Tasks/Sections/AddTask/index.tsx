@@ -41,11 +41,14 @@ const AddTask = ({ showModal, setShowModal, prefill }: AddTaskProps) => {
     onSuccess: () => setShowModal(false),
   });
 
-  // Render-phase hydration: consume the prefill once per object when the
-  // modal is open (the parent clears it when the modal closes).
-  const [consumedPrefill, setConsumedPrefill] = React.useState<Partial<Task> | null>(null);
-  if (showModal && prefill && prefill !== consumedPrefill) {
-    setConsumedPrefill(prefill);
+  // Consume the prefill once per object while the modal is open (the parent
+  // clears it when the modal closes). This block used to run during render and
+  // call useTaskForm's setters there; it now runs in a layout effect, which
+  // commits before paint so the form never shows an unprefilled frame.
+  const consumedPrefillRef = React.useRef<Partial<Task> | null>(null);
+  React.useLayoutEffect(() => {
+    if (!showModal || !prefill || prefill === consumedPrefillRef.current) return;
+    consumedPrefillRef.current = prefill;
     const dueAtDate = prefill.dueAt ? new Date(prefill.dueAt) : new Date();
     setDue(dueAtDate);
     setDueTimeValue(getPreferredTimeValue(dueAtDate, '00:00'));
@@ -74,7 +77,7 @@ const AddTask = ({ showModal, setShowModal, prefill }: AddTaskProps) => {
           }
         : prev.recurrence,
     }));
-  }
+  }, [showModal, prefill, setDue, setDueTimeValue, setFormData]);
 
   const CompanionOptions = useMemo(() => {
     const byParent = new Map<string, { label: string; value: string }>();

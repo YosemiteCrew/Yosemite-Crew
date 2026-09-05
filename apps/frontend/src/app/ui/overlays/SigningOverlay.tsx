@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
 import { getSafeDocumensoIframeUrl } from '@/app/lib/urls';
+import { useHasMounted } from '@/app/hooks/useHasMounted';
 
 const SigningContent = ({
   safeUrl,
@@ -47,8 +48,11 @@ const SigningContent = ({
 const SigningOverlay = () => {
   const { open, pending, url, close } = useSigningOverlayStore();
   const safeUrl = getSafeDocumensoIframeUrl(url);
+  // The portal target is only available on the client; this used to read
+  // document.body unguarded, which is unavailable during the server render.
+  const isMounted = useHasMounted();
 
-  if (!open) return null;
+  if (!open || !isMounted) return null;
 
   return createPortal(
     <div

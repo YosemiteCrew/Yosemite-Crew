@@ -255,6 +255,48 @@ describe('GoogleSearchDropDown Component', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
+  it('does not fetch for a pre-filled value that is retyped unchanged, but does for a new one', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        suggestions: [{ placePrediction: { text: { text: 'Result' } } }],
+      }),
+    });
+
+    render(
+      <ControlledGoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        initialValue="Prefilled Clinic "
+        onChange={mockOnChange}
+      />
+    );
+
+    const input = screen.getByRole('textbox');
+    fireEvent.focus(input);
+    // lastQueriedRef is seeded with the trimmed mount value, so this query is already "queried".
+    fireEvent.change(input, { target: { value: 'Prefilled Clinic' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockFetch).not.toHaveBeenCalled();
+
+    fireEvent.change(input, { target: { value: 'Another Clinic' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
   it('handles autocomplete API failure gracefully', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,

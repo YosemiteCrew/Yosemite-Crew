@@ -29,6 +29,23 @@ export type PopoverManagerReturn = {
   ) => { top: number; left: number; width: number };
 };
 
+/**
+ * Bind the anchor's hover pair and hand back the disposer that removes exactly
+ * those two listeners, so a registration can never outlive its release.
+ */
+const attachAnchorHoverListeners = (
+  el: HTMLElement,
+  onEnter: () => void,
+  onLeave: () => void
+): (() => void) => {
+  el.addEventListener('mouseenter', onEnter);
+  el.addEventListener('mouseleave', onLeave);
+  return () => {
+    el.removeEventListener('mouseenter', onEnter);
+    el.removeEventListener('mouseleave', onLeave);
+  };
+};
+
 export const usePopoverManager = ({
   closeOnHoverLeave = true,
 }: PopoverManagerOptions = {}): PopoverManagerReturn => {
@@ -112,12 +129,7 @@ export const usePopoverManager = ({
         if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
         closeTimerRef.current = setTimeout(() => setActivePopoverKey(null), 120);
       };
-      el.addEventListener('mouseenter', onEnter);
-      el.addEventListener('mouseleave', onLeave);
-      return () => {
-        el.removeEventListener('mouseenter', onEnter);
-        el.removeEventListener('mouseleave', onLeave);
-      };
+      return attachAnchorHoverListeners(el, onEnter, onLeave);
     },
     [closeOnHoverLeave]
   );

@@ -330,6 +330,7 @@ const DayCalendarPopoverPortal = ({
   handleAcceptAppointment,
   onClose,
   registerAnchorEl,
+  container,
 }: {
   activeEvent: Appointment;
   invoicesByAppointmentId: React.ComponentProps<
@@ -344,6 +345,8 @@ const DayCalendarPopoverPortal = ({
   handleAcceptAppointment?: (appointment: Appointment) => void;
   onClose: () => void;
   registerAnchorEl: React.ComponentProps<typeof AppointmentPopover>['registerAnchorEl'];
+  /** Portal target, supplied by the caller so `document` is only read once mounted. */
+  container: Element;
 }) =>
   createPortal(
     <AppointmentPopover
@@ -359,7 +362,7 @@ const DayCalendarPopoverPortal = ({
       onClose={onClose}
       registerAnchorEl={registerAnchorEl}
     />,
-    document.body
+    container
   );
 
 /** Dimmed unavailable ranges, drag-availability highlights, and the drop ghost. */
@@ -573,15 +576,17 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
 
   const popoverStyle = getPopoverStyle(440, 490);
 
-  const [prevDraggedAppointmentId, setPrevDraggedAppointmentId] = useState(draggedAppointmentId);
-  if (prevDraggedAppointmentId !== draggedAppointmentId) {
-    setPrevDraggedAppointmentId(draggedAppointmentId);
-    if (draggedAppointmentId) {
-      setActivePopoverKey(null);
-      setDropPreviewMinute(null);
-      setContextMenu(null);
-    }
-  }
+  // Starting a drag dismisses the popover, drop preview, and context menu. This
+  // used to compare draggedAppointmentId against a previous-value state during
+  // render, which called setContextMenu (a setter owned by a custom hook) from
+  // the render phase. DayCalendar's markers are the only drag source that can
+  // set draggedAppointmentId, so the drag-start event is the honest place for it.
+  const handleAppointmentDragStart = (appointment: Appointment) => {
+    setActivePopoverKey(null);
+    setDropPreviewMinute(null);
+    setContextMenu(null);
+    onAppointmentDragStart?.(appointment);
+  };
 
   const availabilityIntervals = getDropAvailabilityIntervals?.(date) ?? [];
 
@@ -695,7 +700,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
                 onMarkerClick={handleMarkerClick}
                 onMarkerDoubleClick={handleMarkerDoubleClick}
                 onMarkerContextMenu={handleMarkerContextMenu}
-                onAppointmentDragStart={onAppointmentDragStart}
+                onAppointmentDragStart={handleAppointmentDragStart}
                 onAppointmentDragEnd={onAppointmentDragEnd}
                 onDropPreviewClear={() => setDropPreviewMinute(null)}
               />
@@ -717,6 +722,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
           handleAcceptAppointment={handleAcceptAppointment}
           onClose={() => setActivePopoverKey(null)}
           registerAnchorEl={registerAnchorEl}
+          container={document.body}
         />
       )}
       {isMounted &&

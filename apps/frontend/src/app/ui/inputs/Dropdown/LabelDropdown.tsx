@@ -1,4 +1,4 @@
-import React, { useCallback, useId, useState } from 'react';
+import React, { useCallback, useId, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { IoChevronDown } from 'react-icons/io5';
 import { IoIosWarning } from 'react-icons/io';
@@ -39,6 +39,12 @@ type DropdownProps = {
 };
 
 const TERMINOLOGY_LOCK_SELECTOR = "[data-terminology-lock='true']";
+
+// The portal host never changes, so the subscription is a no-op; the split
+// client/server snapshots are what keep `document` out of the render body.
+const subscribePortalTarget = () => () => {};
+const getPortalTarget = (): HTMLElement | null => document.body;
+const getServerPortalTarget = (): HTMLElement | null => null;
 
 const findDropdownOption = (options: DropdownOption[], defaultOption?: string) => {
   if (defaultOption === undefined) return null;
@@ -259,7 +265,16 @@ const LabelDropdown = ({
   } = useDropdown({ searchable });
 
   const filteredOptions = useFilteredOptions(options, searchQuery);
-  const shouldPortal = portal && typeof document !== 'undefined';
+  // The portal container used to be read as `document.body` during render, behind a
+  // `typeof document !== 'undefined'` guard folded into `shouldPortal`, which reads a
+  // browser global while the server renders and let the server and the first client
+  // render pick different branches. useSyncExternalStore gives the server an explicit
+  // null snapshot and the client the real body, without a post-paint state flip.
+  const portalHost = useSyncExternalStore(
+    subscribePortalTarget,
+    getPortalTarget,
+    getServerPortalTarget
+  );
   // Terminology locks are static wrapper attributes, so measuring once when the
   // trigger mounts is enough; the portal panel re-applies the marker itself.
   const [isTerminologyLocked, setIsTerminologyLocked] = useState(false);
@@ -307,7 +322,7 @@ const LabelDropdown = ({
       listboxId={listboxId}
       placeholder={placeholder}
       isTerminologyLocked={isTerminologyLocked}
-      shouldPortal={shouldPortal}
+      shouldPortal={portal}
       portalStyle={portalStyle}
       filteredOptions={filteredOptions}
       activeOptionId={activeOptionId}
@@ -358,10 +373,8 @@ const LabelDropdown = ({
             onChevronClick={toggleDropdown}
           />
         </button>
-        {open && shouldPortal && portalStyle && createPortal(panelNode, document.body)}
-        {open && !shouldPortal && (
-          <div className="absolute top-full left-0 mt-1 w-full">{panelNode}</div>
-        )}
+        {open && portal && portalStyle && portalHost && createPortal(panelNode, portalHost)}
+        {open && !portal && <div className="absolute top-full left-0 mt-1 w-full">{panelNode}</div>}
       </div>
       {error && (
         <div className="min-h-6 mt-1.5 flex items-center gap-1 text-caption-2 text-text-error">

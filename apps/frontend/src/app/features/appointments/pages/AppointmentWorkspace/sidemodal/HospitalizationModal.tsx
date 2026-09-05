@@ -65,25 +65,26 @@ type SyncedRoomDefaultsArgs = {
   defaultRoomId?: string;
   defaultUnitId?: string;
   defaultSupportId?: string;
-  roomId?: string;
   unitOptionsByRoomId?: Record<string, DropdownItem[]>;
-  setRoomId: React.Dispatch<React.SetStateAction<string | undefined>>;
-  setUnitId: React.Dispatch<React.SetStateAction<string | undefined>>;
-  setSupportStaffId: React.Dispatch<React.SetStateAction<string | undefined>>;
 };
 
 /**
- * Keep room, unit and support in step with data that loads after the modal opens.
+ * Owns the room / unit / support selections and keeps them in step with data
+ * that loads after the modal opens.
  *
- * Two reconciliations, both render-phase (React's documented
- * setState-during-render pattern), extracted so the component body stays a list
- * of state and handlers rather than state interleaved with reconciliation:
+ * The hook holds the state it reconciles: the reconciliations below are
+ * render-phase setState (React's documented adjust-state-during-render
+ * pattern), which is only legal on state the caller of this hook owns, so
+ * passing the setters in as arguments made them look like callbacks fired
+ * during someone else's render. Three adjustments, in this order:
  *
- * 1. Defaults that arrive late. Only the open transition adopted them, so a
+ * 1. The open transition. Reopening the modal drops whatever the last visit
+ *    left selected and starts again from the defaults.
+ * 2. Defaults that arrive late. Only the open transition adopted them, so a
  *    modal opened before the load finished kept empty selections and blocked
  *    the conversion on errors the user could not clear. A late default fills an
  *    EMPTY slot only - a value the user picked is theirs.
- * 2. The unit against the selected room's options. Keyed on the options as well
+ * 3. The unit against the selected room's options. Keyed on the options as well
  *    as the room, because the option map loads too: options arriving after the
  *    room was chosen used to leave a unit that room does not have selected.
  */
@@ -92,12 +93,22 @@ const useSyncedRoomDefaults = ({
   defaultRoomId,
   defaultUnitId,
   defaultSupportId,
-  roomId,
   unitOptionsByRoomId,
-  setRoomId,
-  setUnitId,
-  setSupportStaffId,
 }: SyncedRoomDefaultsArgs) => {
+  const [roomId, setRoomId] = useState<string | undefined>(defaultRoomId);
+  const [unitId, setUnitId] = useState<string | undefined>(defaultUnitId);
+  const [supportStaffId, setSupportStaffId] = useState<string | undefined>(defaultSupportId);
+
+  const [prevShowModal, setPrevShowModal] = useState(showModal);
+  if (showModal !== prevShowModal) {
+    setPrevShowModal(showModal);
+    if (showModal) {
+      setRoomId(defaultRoomId);
+      setUnitId(defaultUnitId);
+      setSupportStaffId(defaultSupportId);
+    }
+  }
+
   const [prevDefaults, setPrevDefaults] = useState({
     defaultRoomId,
     defaultUnitId,
@@ -110,9 +121,11 @@ const useSyncedRoomDefaults = ({
 
   if (showModal && defaultsChanged) {
     setPrevDefaults({ defaultRoomId, defaultUnitId, defaultSupportId });
-    if (defaultRoomId) setRoomId((current) => current ?? defaultRoomId);
-    if (defaultUnitId) setUnitId((current) => current ?? defaultUnitId);
-    if (defaultSupportId) setSupportStaffId((current) => current ?? defaultSupportId);
+    // No `if (defaultX)` guard: with no default, `current ?? undefined` returns
+    // `current`, so React bails out on the unchanged value.
+    setRoomId((current) => current ?? defaultRoomId);
+    setUnitId((current) => current ?? defaultUnitId);
+    setSupportStaffId((current) => current ?? defaultSupportId);
   }
 
   const optionsForRoom = roomId ? (unitOptionsByRoomId?.[roomId] ?? []) : [];
@@ -125,6 +138,8 @@ const useSyncedRoomDefaults = ({
       setUnitId((current) => resolveUnitForRoom(current, optionsForRoom));
     }
   }
+
+  return { roomId, setRoomId, unitId, setUnitId, supportStaffId, setSupportStaffId };
 };
 
 /** The unit to keep for a room: the current one if it is still offered, else the first. */
@@ -163,10 +178,15 @@ const HospitalizationModal = ({
     )}`;
   });
   const [dischargeDate, setDischargeDate] = useState<Date | null>(() => addDays(today, 2));
-  const [roomId, setRoomId] = useState<string | undefined>(defaultRoomId);
-  const [unitId, setUnitId] = useState<string | undefined>(defaultUnitId);
   const defaultSupportId = supportOptions.find((option) => option.label === supportName)?.value;
-  const [supportStaffId, setSupportStaffId] = useState<string | undefined>(defaultSupportId);
+  const { roomId, setRoomId, unitId, setUnitId, supportStaffId, setSupportStaffId } =
+    useSyncedRoomDefaults({
+      showModal,
+      defaultRoomId,
+      defaultUnitId,
+      defaultSupportId,
+      unitOptionsByRoomId,
+    });
   const [servicePackageIds, setServicePackageIds] = useState<string[]>([]);
   const [isConverting, setIsConverting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -201,29 +221,16 @@ const HospitalizationModal = ({
     return unitOptionsByRoomId?.[roomId] ?? unitOptions;
   }, [roomId, unitOptions, unitOptionsByRoomId]);
 
+  // Reopening the modal clears the previous visit's picks. Room/unit/support are
+  // reset by useSyncedRoomDefaults, which owns them.
   const [prevShowModal, setPrevShowModal] = useState(showModal);
   if (showModal !== prevShowModal) {
     setPrevShowModal(showModal);
     if (showModal) {
-      setRoomId(defaultRoomId);
-      setUnitId(defaultUnitId);
-      setSupportStaffId(defaultSupportId);
       setServicePackageIds([]);
       setHasSubmitted(false);
     }
   }
-
-  useSyncedRoomDefaults({
-    showModal,
-    defaultRoomId,
-    defaultUnitId,
-    defaultSupportId,
-    roomId,
-    unitOptionsByRoomId,
-    setRoomId,
-    setUnitId,
-    setSupportStaffId,
-  });
 
   const validationErrors = useMemo(() => {
     const errors: Record<string, string> = {};

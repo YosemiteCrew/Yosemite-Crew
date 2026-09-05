@@ -206,8 +206,10 @@ const GoogleSearchDropDown = ({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const suppressNextOpenRef = useRef(false);
   const shouldFetchRef = useRef(false);
-  const lastQueriedRef = useRef<string | null>(null);
-  lastQueriedRef.current ??= (value ?? '').trim();
+  // Seeded with the initial value so a pre-filled field does not re-query itself. This used to be a
+  // render-phase `lastQueriedRef.current ??= ...`; useRef's argument is only read on mount, which is
+  // the same one-shot seeding without mutating a ref during render.
+  const lastQueriedRef = useRef<string>((value ?? '').trim());
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const fetchDetails = true;
   const canShowPredictions = !readonly && (value ?? '').trim().length >= 2;

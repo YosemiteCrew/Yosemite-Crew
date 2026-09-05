@@ -1,4 +1,11 @@
-import React, { startTransition, useCallback, useLayoutEffect, useRef, useState } from 'react';
+import React, {
+  startTransition,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { getMonthYear } from '@/app/features/appointments/components/Calendar/helpers';
 import { getEmergencyPillStyle } from '@/app/features/appointments/components/appointmentBoardHelpers';
@@ -18,7 +25,6 @@ import { createPortal } from 'react-dom';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 import StatusPill, { type StatusPillTokens } from '@/app/ui/primitives/StatusPill/StatusPill';
-import { useHasMounted } from '@/app/hooks/useHasMounted';
 import { useCalendarNavigation } from '@/app/hooks/useCalendarNavigation';
 import { useCalendarWeekNavigation } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
 import { getStartOfWeek } from '@/app/features/appointments/components/Calendar/weekHelpers';
@@ -70,6 +76,15 @@ const CALENDAR_VIEW_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: 'team', label: 'Team' },
 ];
 
+// The status panel's portal host. `document.body` used to be read straight in
+// the JSX, gated on a useHasMounted() prop; reading it through
+// useSyncExternalStore keeps the server snapshot free of browser globals and
+// still commits the real host before paint, so the panel never flashes.
+// Module-level so the identities stay stable across renders.
+const subscribeToPortalHost = () => () => {};
+const getPortalHost = () => document.body;
+const getServerPortalHost = (): HTMLElement | null => null;
+
 /**
  * Fixed-position dropdown anchored to a trigger button: positions the panel
  * under the trigger's right edge, and closes on outside click or any scroll.
@@ -106,14 +121,17 @@ const StatusFilterDropdown = ({
   statusOptions,
   activeStatus,
   setActiveStatus,
-  isMounted,
 }: {
   statusOptions: StatusOption[];
   activeStatus?: string;
   setActiveStatus?: (v: string) => void;
-  isMounted: boolean;
 }) => {
   const { open, setOpen, style, triggerRef, panelRef } = useAnchoredDropdown(180);
+  const portalHost = useSyncExternalStore(
+    subscribeToPortalHost,
+    getPortalHost,
+    getServerPortalHost
+  );
   const selectedStatus = statusOptions.find((s) => s.key === activeStatus) ?? statusOptions[0];
   const isDefault = !selectedStatus || selectedStatus.key === 'all';
 
@@ -161,7 +179,7 @@ const StatusFilterDropdown = ({
         )}
       </button>
 
-      {isMounted &&
+      {portalHost &&
         open &&
         createPortal(
           <div
@@ -180,7 +198,7 @@ const StatusFilterDropdown = ({
               getTextColor={getDropdownStatusTextColor}
             />
           </div>,
-          document.body
+          portalHost
         )}
     </>
   );
@@ -394,7 +412,6 @@ const Header = ({
   statusOptions,
 }: Headerprops) => {
   const onWheelHorizontal = useWheelToHorizontalScroll();
-  const isMounted = useHasMounted();
 
   const handleFilterToggle = (filterKey: string) => {
     if (!setActiveFilter) return;
@@ -472,7 +489,6 @@ const Header = ({
               statusOptions={statusOptions}
               activeStatus={activeStatus}
               setActiveStatus={setActiveStatus}
-              isMounted={isMounted}
             />
           )}
 

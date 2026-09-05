@@ -193,6 +193,50 @@ describe('Github Component', () => {
     expect(banner).not.toBeInTheDocument();
   });
 
+  // The 10s abort timer used to be cleared only on the path where the fetch
+  // resolved, so a rejected request (or an unmount mid-request) left it pending.
+  const abortTimerIdsFrom = (spy: jest.SpyInstance) =>
+    spy.mock.calls.flatMap((call, i) => (call[1] === 10_000 ? [spy.mock.results[i].value] : []));
+
+  it('clears the fetch abort timer when the request rejects', async () => {
+    const setTimeoutSpy = jest.spyOn(globalThis, 'setTimeout');
+    const clearTimeoutSpy = jest.spyOn(globalThis, 'clearTimeout');
+    mockFetch.mockRejectedValue(new Error('Network error'));
+
+    render(<Github />);
+
+    await waitFor(() => {
+      expect(screen.getByText('—')).toBeInTheDocument();
+    });
+
+    const abortTimerIds = abortTimerIdsFrom(setTimeoutSpy);
+    expect(abortTimerIds).toHaveLength(1);
+    expect(clearTimeoutSpy).toHaveBeenCalledWith(abortTimerIds[0]);
+
+    setTimeoutSpy.mockRestore();
+    clearTimeoutSpy.mockRestore();
+  });
+
+  it('clears a still-pending fetch abort timer on unmount', () => {
+    const setTimeoutSpy = jest.spyOn(globalThis, 'setTimeout');
+    const clearTimeoutSpy = jest.spyOn(globalThis, 'clearTimeout');
+    // A fetch that never settles leaves the abort timer live, so only the
+    // effect cleanup can release it.
+    mockFetch.mockReturnValue(new Promise(() => {}));
+
+    const { unmount } = render(<Github />);
+
+    const abortTimerIds = abortTimerIdsFrom(setTimeoutSpy);
+    expect(abortTimerIds).toHaveLength(1);
+
+    clearTimeoutSpy.mockClear();
+    unmount();
+    expect(clearTimeoutSpy).toHaveBeenCalledWith(abortTimerIds[0]);
+
+    setTimeoutSpy.mockRestore();
+    clearTimeoutSpy.mockRestore();
+  });
+
   it('should clear interval on unmount', () => {
     const clearIntervalSpy = jest.spyOn(globalThis, 'clearInterval');
     mockFetch.mockResolvedValue({

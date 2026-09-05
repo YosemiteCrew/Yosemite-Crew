@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -87,11 +87,33 @@ const groupRoutes = (
     return visibleGroups;
   }, []);
 
+// localStorage is the source of truth for the collapse preference. It used to be
+// seeded into `useState(() => isSidebarCollapsedByDefault())`, which reads
+// localStorage and window.innerWidth while rendering, so the server rendered the
+// expanded sidebar and the first client render could disagree. Reading it through
+// useSyncExternalStore gives the server an explicit "expanded" snapshot - what the
+// helper returns with no window - and applies the real value during the commit,
+// before paint, so a tablet never flashes the 224px sidebar.
+const collapsePreferenceListeners = new Set<() => void>();
+
+const subscribeCollapsePreference = (onStoreChange: () => void) => {
+  collapsePreferenceListeners.add(onStoreChange);
+  return () => {
+    collapsePreferenceListeners.delete(onStoreChange);
+  };
+};
+
+const getServerCollapsePreference = () => false;
+
 const Sidebar = () => {
   useLoadSpecialitiesForPrimaryOrg();
   const pathname = usePathname();
   const router = useRouter();
-  const [prefersCollapsed, setPrefersCollapsed] = useState(() => isSidebarCollapsedByDefault());
+  const prefersCollapsed = useSyncExternalStore(
+    subscribeCollapsePreference,
+    isSidebarCollapsedByDefault,
+    getServerCollapsePreference
+  );
   // Tablet is always the icon rail, so it overrides a stored desktop preference
   // (which would otherwise render the 224px sidebar after a desktop -> tablet resize).
   const isTabletRail = useIsTabletRail();
@@ -125,11 +147,10 @@ const Sidebar = () => {
   };
 
   const handleToggleCollapse = () => {
-    setPrefersCollapsed((prev) => {
-      const next = !prev;
-      setSidebarCollapsedPreference(next);
-      return next;
-    });
+    // Write the store, then wake every subscriber so the snapshot is re-read. This
+    // used to persist from inside a setState updater, which must stay pure.
+    setSidebarCollapsedPreference(!prefersCollapsed);
+    collapsePreferenceListeners.forEach((listener) => listener());
   };
 
   // Skip the org-data loading gate on localhost with NEXT_PUBLIC_DISABLE_AUTH_GUARD so

@@ -91,13 +91,18 @@ const Github = () => {
 
   useEffect(() => {
     let cancelled = false;
+    // The 10s fetch-abort timer is tracked at effect scope and cleared in a
+    // `finally`. Previously `clearTimeout` sat on the resolved path only, so a
+    // fetch that rejected (offline, abort) - or an unmount mid-request - left
+    // the timer pending until it fired.
+    let abortTimer: ReturnType<typeof setTimeout> | undefined;
 
     async function loadStars() {
       setError(null);
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 10_000);
+      abortTimer = t;
       try {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 10_000);
-
         const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
           signal: ctrl.signal,
           headers: {
@@ -105,7 +110,6 @@ const Github = () => {
             Accept: 'application/vnd.github+json',
           },
         });
-        clearTimeout(t);
 
         if (!res.ok) {
           // If we’re rate-limited or offline, keep cached value if present
@@ -121,6 +125,8 @@ const Github = () => {
         if (!cancelled) starsStore.publish(count);
       } catch {
         if (!cancelled) setError('—');
+      } finally {
+        clearTimeout(t);
       }
     }
     // Defer the third-party GitHub API call off the critical load path. Firing it
@@ -149,6 +155,9 @@ const Github = () => {
       clearInterval(id);
       if (idleHandle !== undefined) idleWindow?.cancelIdleCallback?.(idleHandle);
       if (idleTimeout !== undefined) clearTimeout(idleTimeout);
+      // Cancels an abort timer still in flight at unmount; clearing an already
+      // cleared id is a no-op.
+      if (abortTimer !== undefined) clearTimeout(abortTimer);
     };
   }, [starsStore]);
 

@@ -114,6 +114,8 @@ const aggregateStarsByYear = (starsChart: StarsDataPoint[]): AggregatedStarsPoin
     .map(([, value]) => value);
 };
 
+const viewOptions: ViewType[] = ['Unique', 'Cumulative', 'Stars'];
+
 const getGranularityOptions = (view: ViewType): GranularityType[] =>
   view === 'Stars' ? ['Monthly', 'Yearly'] : ['Daily', 'Monthly'];
 
@@ -297,6 +299,18 @@ const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsP
     starsChart
   );
   const resolvedPeriodKey = getResolvedPeriodKey(availablePeriodKeys, selectedPeriodKey);
+
+  // The granularity normalisation used to live inside a setGranularity updater callback that also
+  // called setSelectedPeriodKey; updaters must stay pure, so it is computed here from `granularity`
+  // (this handler is the only writer of granularity in the event, so the closed-over value is current).
+  const handleViewChange = (nextView: ViewType) => {
+    setView(nextView);
+    const nextGranularity = getNextViewGranularity(nextView, granularity);
+    setGranularity(nextGranularity);
+    if (nextGranularity !== granularity) {
+      setSelectedPeriodKey(null);
+    }
+  };
   const shouldCompactTimeline =
     (view === 'Stars' && effectiveGranularity === 'Monthly') ||
     (view !== 'Stars' && effectiveGranularity === 'Daily');
@@ -354,54 +368,16 @@ const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsP
         </div>
 
         <div className="DataToggle">
-          <button
-            type="button"
-            className={`TogglePill ${view === 'Unique' ? 'Active' : ''}`}
-            onClick={() => {
-              setView('Unique');
-              setGranularity((current) => {
-                const nextGranularity = getNextViewGranularity('Unique', current);
-                if (nextGranularity !== current) {
-                  setSelectedPeriodKey(null);
-                }
-                return nextGranularity;
-              });
-            }}
-          >
-            Unique
-          </button>
-          <button
-            type="button"
-            className={`TogglePill ${view === 'Cumulative' ? 'Active' : ''}`}
-            onClick={() => {
-              setView('Cumulative');
-              setGranularity((current) => {
-                const nextGranularity = getNextViewGranularity('Cumulative', current);
-                if (nextGranularity !== current) {
-                  setSelectedPeriodKey(null);
-                }
-                return nextGranularity;
-              });
-            }}
-          >
-            Cumulative
-          </button>
-          <button
-            type="button"
-            className={`TogglePill ${view === 'Stars' ? 'Active' : ''}`}
-            onClick={() => {
-              setView('Stars');
-              setGranularity((current) => {
-                const nextGranularity = getNextViewGranularity('Stars', current);
-                if (nextGranularity !== current) {
-                  setSelectedPeriodKey(null);
-                }
-                return nextGranularity;
-              });
-            }}
-          >
-            Stars
-          </button>
+          {viewOptions.map((option) => (
+            <button
+              type="button"
+              key={option}
+              className={`TogglePill ${view === option ? 'Active' : ''}`}
+              onClick={() => handleViewChange(option)}
+            >
+              {option}
+            </button>
+          ))}
         </div>
       </div>
     </div>

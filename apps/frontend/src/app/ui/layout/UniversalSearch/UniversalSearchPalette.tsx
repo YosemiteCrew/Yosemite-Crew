@@ -1,6 +1,13 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -451,6 +458,12 @@ const DesktopPanel = ({
   </div>
 );
 
+// document.body never changes identity, so the store never notifies and the snapshot
+// stays referentially stable across renders.
+const subscribePortalTarget = () => () => {};
+const getPortalTarget = (): HTMLElement | null => document.body;
+const getServerPortalTarget = (): HTMLElement | null => null;
+
 const UniversalSearchPalette = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -710,7 +723,17 @@ const UniversalSearchPalette = () => {
     };
   }, [isOpen]);
 
-  if (!isOpen || globalThis.document === undefined) return null;
+  // The portal container used to be read as `document.body` during render, behind a
+  // `globalThis.document === undefined` guard, which reads a browser global while the
+  // server renders. useSyncExternalStore gives the server an explicit null snapshot and
+  // the client the real body, without a post-paint state flip.
+  const portalTarget = useSyncExternalStore(
+    subscribePortalTarget,
+    getPortalTarget,
+    getServerPortalTarget
+  );
+
+  if (!isOpen || portalTarget === null) return null;
 
   const inputRow = (
     <SearchInput
@@ -733,12 +756,12 @@ const UniversalSearchPalette = () => {
   );
 
   if (isPhone) {
-    return createPortal(<PhonePanel input={inputRow} results={results} />, document.body);
+    return createPortal(<PhonePanel input={inputRow} results={results} />, portalTarget);
   }
 
   return createPortal(
     <DesktopPanel input={inputRow} results={results} onClose={close} />,
-    document.body
+    portalTarget
   );
 };
 

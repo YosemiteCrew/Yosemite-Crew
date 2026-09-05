@@ -27,6 +27,39 @@ const loadAuthStoreModule = () => {
 };
 
 /**
+ * Subscribe to the lazily loaded auth store.
+ *
+ * Returns the unsubscribe straight away, before the chunk has resolved: calling
+ * it cancels the pending subscription instead. The store is only reachable
+ * after an await, so keeping the whole load-then-subscribe dance here lets the
+ * effect below hand its cleanup straight back to React.
+ */
+const subscribeToAuthStore = (onChange: (state: AuthStore) => void): (() => void) => {
+  let cancelled = false;
+  let unsubscribe: (() => void) | undefined;
+
+  loadAuthStoreModule()
+    .then(({ useAuthStore }) => {
+      if (cancelled) return;
+      const read = () => onChange(useAuthStore.getState());
+
+      read();
+      unsubscribe = useAuthStore.subscribe(read);
+    })
+    // A failed chunk fetch leaves the caller on its fallback, which is the
+    // signed-out affordance - degraded but correct. Swallowing it here is what
+    // keeps it from surfacing as an unhandled rejection; loadAuthStoreModule
+    // has already dropped the cached promise, so the next mount or `enabled`
+    // flip fetches again rather than replaying the failure.
+    .catch(() => {});
+
+  return () => {
+    cancelled = true;
+    unsubscribe?.();
+  };
+};
+
+/**
  * Subscribe to a slice of the auth store without importing it eagerly.
  *
  * Returns `initial` until the store chunk has loaded, then the selected slice,
@@ -66,32 +99,12 @@ export function useLazyAuthSlice<T>(
       return undefined;
     }
 
-    let active = true;
-    let unsubscribe: (() => void) | undefined;
-
-    loadAuthStoreModule()
-      .then(({ useAuthStore }) => {
-        if (!active) return;
-        const read = () =>
-          setValue((previous) => {
-            const next = selectRef.current(useAuthStore.getState());
-            return isEqualRef.current(previous, next) ? previous : next;
-          });
-
-        read();
-        unsubscribe = useAuthStore.subscribe(read);
+    return subscribeToAuthStore((state) =>
+      setValue((previous) => {
+        const next = selectRef.current(state);
+        return isEqualRef.current(previous, next) ? previous : next;
       })
-      // A failed chunk fetch leaves the caller on its fallback, which is the
-      // signed-out affordance - degraded but correct. Swallowing it here is what
-      // keeps it from surfacing as an unhandled rejection; loadAuthStoreModule
-      // has already dropped the cached promise, so the next mount or `enabled`
-      // flip fetches again rather than replaying the failure.
-      .catch(() => {});
-
-    return () => {
-      active = false;
-      unsubscribe?.();
-    };
+    );
   }, [enabled]);
 
   return value;

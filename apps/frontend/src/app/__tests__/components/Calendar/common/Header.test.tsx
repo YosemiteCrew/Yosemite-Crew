@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import Header from '@/app/features/appointments/components/Calendar/common/Header';
 
 // --- Mocks ---
@@ -335,6 +336,24 @@ describe('Header Component', () => {
 
     // selectedStatus falls back to statusOptions[0] ('all') → neutral trigger.
     expect(screen.getByRole('button', { name: /All statuses/i })).toBeInTheDocument();
+  });
+
+  it('renders on the server without reading document.body for the portal host', () => {
+    // The status panel portals into document.body. The host comes from
+    // useSyncExternalStore, whose server snapshot is null, so a server render
+    // must produce the trigger without touching a browser global.
+    const bodySpy = jest.spyOn(Document.prototype, 'body', 'get');
+
+    try {
+      const markup = renderToStaticMarkup(
+        <Header {...defaultProps} activeStatus="all" statusOptions={statusOptions} />
+      );
+
+      expect(markup).toContain('All statuses');
+      expect(bodySpy).not.toHaveBeenCalled();
+    } finally {
+      bodySpy.mockRestore();
+    }
   });
 
   it('keeps the selected status chevron inside the coloured pill', () => {

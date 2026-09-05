@@ -810,6 +810,39 @@ describe('TreatmentStep', () => {
     });
   });
 
+  // The attempted-context-key set lives in a ref that is seeded inside the auto-load
+  // effect. A re-render with a fresh `services` array re-runs that effect, so this
+  // pins the dedupe: an empty template must not be resolved twice for the same context.
+  it('does not re-resolve the linked prescription template on re-render', async () => {
+    (resolvePrescriptionTemplate as jest.Mock).mockResolvedValue([]);
+    const enc = { ...seedAndGet(), prescription: [] };
+    useAppointmentWorkspaceStore.setState((s) => ({
+      encountersById: { ...s.encountersById, [APPT]: enc },
+    }));
+    const { rerender } = render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    await waitFor(() => expect(resolvePrescriptionTemplate).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={{ ...enc, services: [...enc.services] }}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    await waitFor(() => expect(resolvePrescriptionTemplate).toHaveBeenCalledTimes(1));
+    expect(resolvePrescriptionTemplate).toHaveBeenCalledTimes(1);
+  });
+
   it('deletes a persisted unbilled prescription via the artifact DELETE endpoint', async () => {
     (deletePrescriptionArtifact as jest.Mock).mockClear();
     (deletePrescriptionArtifact as jest.Mock).mockResolvedValue(true);

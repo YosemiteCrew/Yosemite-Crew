@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import SegmentedPill, {
   SegmentedPillOption,
 } from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
@@ -51,9 +51,12 @@ const CompanionTerminologyPreference = () => {
     ? profile?.personalDetails?.pmsPreferences?.animalTerminology
     : fallbackAnimalTerminology;
   const [selection, setSelection] = useState<CompanionTerminologyOption>(profileTerminology);
-  const prevTerminologyRef = useRef(profileTerminology);
-  if (prevTerminologyRef.current !== profileTerminology) {
-    prevTerminologyRef.current = profileTerminology;
+  // Re-sync the pill when the saved profile preference changes underneath us.
+  // The previous value used to live in a ref mutated during render; React's
+  // documented form keeps it in state so render stays pure.
+  const [syncedTerminology, setSyncedTerminology] = useState(profileTerminology);
+  if (syncedTerminology !== profileTerminology) {
+    setSyncedTerminology(profileTerminology);
     setSelection(profileTerminology);
   }
 

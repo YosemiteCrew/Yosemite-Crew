@@ -50,12 +50,16 @@ export const useDropdown = (options: UseDropdownOptions = {}) => {
     setOpen(true);
   }, []);
 
+  // The close-clears-the-query step used to live inside the setOpen updater,
+  // which made that callback impure. Reuse the two dedicated helpers instead:
+  // closeDropdown already clears the query, openDropdown only opens.
   const toggleDropdown = useCallback(() => {
-    setOpen((prev) => {
-      if (prev) setSearchQuery('');
-      return !prev;
-    });
-  }, []);
+    if (open) {
+      closeDropdown();
+    } else {
+      openDropdown();
+    }
+  }, [open, closeDropdown, openDropdown]);
 
   return {
     open,

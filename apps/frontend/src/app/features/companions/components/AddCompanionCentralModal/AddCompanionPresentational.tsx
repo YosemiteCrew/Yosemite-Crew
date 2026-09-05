@@ -162,9 +162,12 @@ export const PhotoDropzone = ({
           const file = event.target.files?.[0];
           if (!file) return;
           const reader = new FileReader();
-          reader.addEventListener('load', () => {
+          // One-shot read on a reader created per change event: the single
+          // onload slot replaces an addEventListener('load', ...) that had no
+          // detach path, so nothing outlives this handler.
+          reader.onload = () => {
             if (typeof reader.result === 'string') onPhotoSelected(reader.result);
-          });
+          };
           reader.readAsDataURL(file);
         }}
       />

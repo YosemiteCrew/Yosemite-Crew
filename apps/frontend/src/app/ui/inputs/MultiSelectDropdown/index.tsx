@@ -211,7 +211,6 @@ const MultiSelectDropdown = ({
   const hasSelection = selectedOptions.length > 0;
 
   const filteredOptions = useFilteredOptions(list, searchQuery);
-  const shouldPortal = portal && typeof document !== 'undefined';
 
   const { portalStyle } = useDropdownPositioning({
     open,
@@ -248,7 +247,7 @@ const MultiSelectDropdown = ({
       valueSet={valueSet}
       searchQuery={searchQuery}
       activeOptionId={activeOptionId}
-      shouldPortal={shouldPortal}
+      shouldPortal={portal}
       portalStyle={portalStyle}
       onActiveIndexChange={setActiveIndex}
       onToggleOption={toggleOption}
@@ -307,8 +306,11 @@ const MultiSelectDropdown = ({
             />
           </span>
         </button>
-        {open && shouldPortal && portalStyle && createPortal(panel, document.body)}
-        {open && !shouldPortal && <div className="absolute top-full left-0 w-full">{panel}</div>}
+        {/* No `typeof document` guard: the panel only renders under `open`, which
+            starts false and is only set by a click, so the server and the first
+            client render both emit nothing here. */}
+        {open && portal && portalStyle && createPortal(panel, document.body)}
+        {open && !portal && <div className="absolute top-full left-0 w-full">{panel}</div>}
       </div>
       {error && (
         <div className="mt-1.5 flex items-center gap-1 text-caption-2 text-text-error">
