@@ -1,8 +1,14 @@
 const get = jest.fn();
+const logError = jest.fn();
 
 jest.mock("axios", () => ({
   __esModule: true,
   default: { create: jest.fn(() => ({ get })) },
+}));
+
+jest.mock("src/utils/logger", () => ({
+  __esModule: true,
+  default: { error: logError },
 }));
 
 import {
@@ -194,6 +200,7 @@ describe("fetchCellWeather", () => {
   it("raises a typed error when the provider fails", async () => {
     get.mockRejectedValue(new Error("network"));
     await expect(fetchCellWeather(0, 0)).rejects.toBeInstanceOf(OpenMeteoError);
+    expect(logError).toHaveBeenCalledWith("Open-Meteo request failed");
   });
 
   it("raises a typed error when the response has no daily series", async () => {

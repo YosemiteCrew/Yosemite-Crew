@@ -222,7 +222,7 @@ async function processSubscription(
       UPDATE "ParasiteRiskSubscription"
       SET "alertedTiers" = ${JSON.stringify(nextState)}::jsonb,
           "updatedAt" = NOW()
-      WHERE "id" = ${String(row.id)}
+      WHERE "id" = ${row.id}
     `;
   };
 
