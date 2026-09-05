@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, within } from 'storybook/test';
 
-import { DepositModal } from './InvoiceStep';
+import { DepositModal } from './invoicePresentation';
 
 const PAYMENT_LINK = 'https://checkout.stripe.com/c/pay/cs_test_deposit_9f2c41ab8d7e';
 

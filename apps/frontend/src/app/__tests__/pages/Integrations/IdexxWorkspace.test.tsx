@@ -5,9 +5,11 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 
 expect.extend(toHaveNoViolations);
 import ProtectedIdexxWorkspace, {
-  buildResultsColumns,
   ResultDetailBody,
   OrderDetailPanel,
+} from '@/app/features/integrations/pages/IdexxWorkspace';
+import { buildResultsColumns } from '@/app/features/integrations/pages/IdexxWorkspace/resultsColumns';
+import {
   getInitials,
   isResultComplete,
   formatCensusIvlsDevices,
@@ -22,7 +24,7 @@ import ProtectedIdexxWorkspace, {
   getOrderExternalStatusSuffix,
   normalizeModality,
   matchesResultQuery,
-} from '@/app/features/integrations/pages/IdexxWorkspace';
+} from '@/app/features/integrations/pages/IdexxWorkspace/idexxWorkspaceHelpers';
 
 const listIdexxResultsMock = jest.fn();
 const getIdexxCensusMock = jest.fn();

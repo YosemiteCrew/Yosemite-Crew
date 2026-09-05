@@ -5,7 +5,7 @@ import {
   closeGlassTooltip,
   openGlassTooltip,
 } from '@/app/ui/primitives/GlassTooltip/storyInteractions';
-import { PaymentActions } from './InvoiceStep';
+import { PaymentActions } from './invoicePresentation';
 
 /**
  * The exact copy `InvoiceStep` passes down while `readyForBilling` is false. Kept as a

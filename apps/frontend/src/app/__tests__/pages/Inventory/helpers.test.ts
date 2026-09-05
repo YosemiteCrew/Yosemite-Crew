@@ -8,7 +8,7 @@ import {
   getVisibilityLabel,
   mapDispenseRequestToRecord,
   toggleSetItem,
-} from '@/app/features/inventory/pages/Inventory';
+} from '@/app/features/inventory/pages/Inventory/inventoryPageHelpers';
 import { defaultFilters } from '@/app/features/inventory/pages/Inventory/utils';
 
 describe('Inventory page helpers', () => {

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, within } from 'storybook/test';
 import type { WorkspaceDocumentRow } from '@yosemite-crew/types';
 
-import { AllDocumentsTable } from './SummaryStep';
+import { AllDocumentsTable } from './AllDocumentsTable';
 
 /**
  * Stand-in for the rendered PDF. `getSafePdfPreviewUrl` accepts `blob:` when

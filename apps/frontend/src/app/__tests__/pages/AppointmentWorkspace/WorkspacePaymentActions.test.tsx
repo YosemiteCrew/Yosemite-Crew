@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { PaymentActions } from '@/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep';
+import { PaymentActions } from '@/app/features/appointments/pages/AppointmentWorkspace/steps/invoicePresentation';
 
 jest.mock('@/app/ui/primitives/GlassTooltip/GlassTooltip', () => ({
   __esModule: true,

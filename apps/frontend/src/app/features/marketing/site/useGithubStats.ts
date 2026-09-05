@@ -110,8 +110,8 @@ const readJson = async (request: Promise<Response>): Promise<unknown> => {
   }
 };
 
-const fetchGithubStats = async (): Promise<Partial<GithubStats>> => {
-  const json = (await readJson(fetch(GITHUB_STATS_ENDPOINT))) as Partial<GithubStats> | null;
+const readStatsPayload = async (request: Promise<Response>): Promise<Partial<GithubStats>> => {
+  const json = (await readJson(request)) as Partial<GithubStats> | null;
   if (!json) return {};
   // Only contribute keys that actually resolved, so a partial upstream failure
   // leaves the previously cached values in place rather than blanking them.
@@ -120,8 +120,8 @@ const fetchGithubStats = async (): Promise<Partial<GithubStats>> => {
   ) as Partial<GithubStats>;
 };
 
-const fetchDiscord = async (): Promise<Partial<GithubStats>> => {
-  const json = (await readJson(fetch(DISCORD_MEMBERS_ENDPOINT))) as {
+const readDiscordPayload = async (request: Promise<Response>): Promise<Partial<GithubStats>> => {
+  const json = (await readJson(request)) as {
     discordMembers?: string | null;
   } | null;
   if (typeof json?.discordMembers !== 'string') return {};
@@ -129,23 +129,16 @@ const fetchDiscord = async (): Promise<Partial<GithubStats>> => {
 };
 
 /**
- * Shared in-flight fetch. The stats hook is mounted by several components at once
- * (nav, footer, auth shell, stats sections), so without this every mount would
- * fire its own copy of all four requests and burn the unauthenticated GitHub quota.
- * Every instance that mounts while a fetch is running awaits this same promise.
- *
- * The loader returns ONLY the fields fetched in this pass (a fetcher that fails or
- * gets a non-OK response contributes nothing). That lets a live consumer publish
- * exactly this-pass data (a failed field stays as its loading placeholder, never a
- * stale cached value) while a cached consumer merges it over its last-known snapshot.
- * The session cache is refreshed by merging the fresh fields OVER the previous cache,
- * so a transient failure never wipes a good cached value.
+ * Publish a finished pass: the fresh fields are merged OVER the previous cache, so a
+ * transient failure never wipes a good cached value. A pass whose requests were
+ * aborted commits nothing - it carries no fields of its own, and writing it would
+ * stamp the cache fresh for the whole TTL on the strength of a cancelled request.
  */
-let inFlight: Promise<Partial<GithubStats>> | null = null;
-
-const runGithubStatsFetch = async (): Promise<Partial<GithubStats>> => {
-  const parts = await Promise.all([fetchGithubStats(), fetchDiscord()]);
-  const fresh: Partial<GithubStats> = Object.assign({}, ...parts);
+const commitStatsRefresh = (
+  fresh: Partial<GithubStats>,
+  signal: AbortSignal
+): Partial<GithubStats> => {
+  if (signal.aborted) return fresh;
   const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY) ?? {};
   setJsonStorageItem('session', STATS_CACHE_KEY, { ...EMPTY_STATS, ...cached, ...fresh });
   setStorageItem('session', STATS_TS_KEY, String(Date.now()));
@@ -153,12 +146,31 @@ const runGithubStatsFetch = async (): Promise<Partial<GithubStats>> => {
   return fresh;
 };
 
-const loadGithubStats = (): Promise<Partial<GithubStats>> => {
-  inFlight ??= runGithubStatsFetch().finally(() => {
-    inFlight = null;
-  });
-  return inFlight;
+/**
+ * Shared in-flight refresh. The stats hook is mounted by several components at once
+ * (nav, footer, auth shell, stats sections), so without this every mount would
+ * fire its own copy of all four requests and burn the unauthenticated GitHub quota.
+ * Every instance that mounts while a refresh is running joins this same one.
+ *
+ * `holders` counts the mounted instances that joined THIS refresh, and the last one
+ * to leave aborts its requests - so an unmount really cancels the network work
+ * rather than only ignoring the answer, while a still-mounted sibling keeps the
+ * shared refresh alive. The count is per refresh rather than one global counter
+ * because an instance that outlives the refresh it joined would otherwise abort a
+ * LATER refresh when it finally unmounts.
+ *
+ * A refresh resolves to ONLY the fields fetched in that pass (a fetcher that fails or
+ * gets a non-OK response contributes nothing). That lets a live consumer publish
+ * exactly this-pass data (a failed field stays as its loading placeholder, never a
+ * stale cached value) while cached consumers read the merged cache the commit emits.
+ */
+type StatsRefresh = {
+  stats: Promise<Partial<GithubStats>>;
+  controller: AbortController;
+  holders: number;
 };
+
+let inFlight: StatsRefresh | null = null;
 
 /** True when the session cache was refreshed within the TTL, so no network is needed. */
 const isStatsCacheFresh = (): boolean => {
@@ -202,21 +214,52 @@ export function useGithubStats(options?: LiveFetchOptions): GithubStats {
   const [liveStats, setLiveStats] = useState<GithubStats>(EMPTY_STATS);
 
   useEffect(() => {
-    let active = true;
     const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
     const needsDiscordRefresh = typeof cached?.discord !== 'string';
-    if (live || !isStatsCacheFresh() || needsDiscordRefresh) {
-      void (async () => {
-        const fresh = await loadGithubStats();
-        if (!active) return;
-        // Live: publish ONLY this-pass fields, so a failed fetcher stays as the
-        // loading placeholder rather than a stale cached value under the "no cache"
-        // copy. Cached consumers pick up the merged refresh via the cache emit.
-        if (live) setLiveStats({ ...EMPTY_STATS, ...fresh });
-      })();
+    if (!live && isStatsCacheFresh() && !needsDiscordRefresh) return;
+
+    // The controller for the refresh this instance takes part in: reused when it
+    // joins one already in flight, created here when it starts one. Only the last
+    // holder to unmount aborts it, so leaving really cancels the requests while a
+    // still-mounted sibling keeps the shared refresh alive.
+    const controller = inFlight?.controller ?? new AbortController();
+
+    let refresh = inFlight;
+    if (!refresh) {
+      const stats = Promise.all([
+        readStatsPayload(fetch(GITHUB_STATS_ENDPOINT, { signal: controller.signal })),
+        readDiscordPayload(fetch(DISCORD_MEMBERS_ENDPOINT, { signal: controller.signal })),
+      ])
+        .then(([statsPart, discordPart]) =>
+          commitStatsRefresh({ ...statsPart, ...discordPart }, controller.signal)
+        )
+        // Only this refresh clears the slot; a later one that has already claimed it
+        // (its own controller) must survive this one settling.
+        .finally(() => {
+          if (inFlight?.controller === controller) inFlight = null;
+        });
+      refresh = { stats, controller, holders: 0 };
+      inFlight = refresh;
     }
+
+    const joined = refresh;
+    joined.holders += 1;
+    let subscribed = true;
+
+    void joined.stats.then((fresh) => {
+      if (!subscribed) return;
+      // Live: publish ONLY this-pass fields, so a failed fetcher stays as the
+      // loading placeholder rather than a stale cached value under the "no cache"
+      // copy. Cached consumers pick up the merged refresh via the cache emit.
+      if (live) setLiveStats({ ...EMPTY_STATS, ...fresh });
+    });
+
     return () => {
-      active = false;
+      subscribed = false;
+      joined.holders -= 1;
+      if (joined.holders > 0) return;
+      controller.abort();
+      if (inFlight === joined) inFlight = null;
     };
   }, [live]);
 

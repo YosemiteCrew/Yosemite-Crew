@@ -16,30 +16,13 @@ import {
   getDiscountSettingsErrorMessage,
   updateOrganisationDiscountSettings,
 } from '@/app/features/finance/services/discountSettingsService';
+import {
+  MAX_DISCOUNT_PERCENT,
+  MIN_DISCOUNT_PERCENT,
+  parseCapInput,
+} from '@/app/features/finance/pages/Discounts/discountCapInput';
 
 const DISCOUNTS_PAGE_SKELETON = <PageSkeleton variant="settings" />;
-
-const MIN_DISCOUNT_PERCENT = 0;
-const MAX_DISCOUNT_PERCENT = 100;
-
-/** Parse the cap input. Empty means "no cap"; anything non-numeric or out of 0-100 is invalid. */
-export const parseCapInput = (
-  raw: string
-): { ok: true; value: number | null } | { ok: false; message: string } => {
-  const trimmed = raw.trim();
-  if (!trimmed) return { ok: true, value: null };
-  const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed)) {
-    return {
-      ok: false,
-      message: 'Enter a number between 0 and 100, or leave it empty for no cap.',
-    };
-  }
-  if (parsed < MIN_DISCOUNT_PERCENT || parsed > MAX_DISCOUNT_PERCENT) {
-    return { ok: false, message: 'The cap must be between 0 and 100 percent.' };
-  }
-  return { ok: true, value: parsed };
-};
 
 const capToInput = (percent: number | null): string => (percent == null ? '' : String(percent));
 

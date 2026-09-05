@@ -8,6 +8,15 @@ type PostAuthRedirectProps = {
   fallbackRole?: string | null;
 };
 
+/**
+ * Navigates during its own render, so the resolved destination leaves as a rendered
+ * node rather than as a side effect its parent performs on the way past.
+ */
+function RedirectTo({ route }: Readonly<{ route: string }>) {
+  redirect(route);
+  return null;
+}
+
 const PostAuthRedirect = ({ fallbackRole }: PostAuthRedirectProps) => {
   const [route, setRoute] = useState<string | null>(null);
 
@@ -26,7 +35,7 @@ const PostAuthRedirect = ({ fallbackRole }: PostAuthRedirectProps) => {
   }, [fallbackRole]);
 
   if (route) {
-    redirect(route);
+    return <RedirectTo route={route} />;
   }
 
   return null;

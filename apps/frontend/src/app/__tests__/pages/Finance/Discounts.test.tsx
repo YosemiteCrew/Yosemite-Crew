@@ -74,7 +74,8 @@ jest.mock('@/app/features/finance/services/discountSettingsService', () => ({
   },
 }));
 
-import ProtectedDiscounts, { parseCapInput } from '@/app/features/finance/pages/Discounts';
+import ProtectedDiscounts from '@/app/features/finance/pages/Discounts';
+import { parseCapInput } from '@/app/features/finance/pages/Discounts/discountCapInput';
 
 const capInput = () => screen.getByLabelText('Maximum overall discount percent');
 const saveButton = () => screen.getByRole('button', { name: /save discount cap/i });

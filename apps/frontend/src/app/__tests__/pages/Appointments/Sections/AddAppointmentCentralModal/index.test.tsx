@@ -1,7 +1,8 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import AddAppointmentCentralModal, {
+import AddAppointmentCentralModal from '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal';
+import {
   FieldError,
   PersonRow,
   TimeSlotMenuContent,
@@ -9,8 +10,8 @@ import AddAppointmentCentralModal, {
   TimeSlotDropdown,
   SlotBadge,
   DiscardConfirmationModal,
-  buildBookButtonLabel,
-} from '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal';
+} from '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal/appointmentFormParts';
+import { buildBookButtonLabel } from '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal/bookButtonLabel';
 import { useAppointmentForm } from '@/app/hooks/useAppointmentForm';
 import { useCompanionsParentsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/companionService';

@@ -5,6 +5,8 @@ import ProtectedInventory, {
   ActiveFilterBar,
   DispensaryFilterBar,
   InventoryFilterBar,
+} from '@/app/features/inventory/pages/Inventory';
+import {
   compareInventoryRows,
   filterAndSortInventory,
   filterDispensaryRecords,
@@ -15,7 +17,7 @@ import ProtectedInventory, {
   getVisibilityLabel,
   mapDispenseRequestToRecord,
   toggleSetItem,
-} from '@/app/features/inventory/pages/Inventory';
+} from '@/app/features/inventory/pages/Inventory/inventoryPageHelpers';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useInventoryModule } from '@/app/hooks/useInventory';
 import { listDispenseRequests } from '@/app/features/inventory/services/dispensaryService';

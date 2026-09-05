@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, within } from 'storybook/test';
 
 import type { PastInvoice } from '@/app/features/appointments/types/workspace';
-import { InvoicesSection } from './InvoiceStep';
+import { InvoicesSection } from './invoicePresentation';
 
 const SETTLED: PastInvoice = {
   id: 'inv-2026-0416',

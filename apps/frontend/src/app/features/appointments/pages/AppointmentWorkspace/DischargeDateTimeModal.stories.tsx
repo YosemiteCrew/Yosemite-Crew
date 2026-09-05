@@ -4,7 +4,7 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import type { WorkspaceFinalizationGate } from '@/app/features/appointments/types/workspace';
 
-import { DischargeDateTimeModal } from './index';
+import { DischargeDateTimeModal } from './DischargeDateTimeModal';
 
 type DischargeModalProps = ComponentProps<typeof DischargeDateTimeModal>;
 

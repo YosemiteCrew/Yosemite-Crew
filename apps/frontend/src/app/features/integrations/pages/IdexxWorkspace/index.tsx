@@ -7,11 +7,10 @@ import { createPortal } from 'react-dom';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
-import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
-import GenericTable, { Column } from '@/app/ui/tables/GenericTable/GenericTable';
+import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import '@/app/ui/tables/DataTable.css';
 import Back from '@/app/ui/primitives/Icons/Back';
 import Next from '@/app/ui/primitives/Icons/Next';
@@ -28,12 +27,31 @@ import {
   listIdexxOrders,
   listIdexxResults,
 } from '@/app/features/integrations/services/idexxService';
+import { CensusEntry, LabOrder, LabResult } from '@/app/features/integrations/services/types';
 import {
-  CensusEntry,
-  LabOrder,
-  LabResult,
-  LabResultTest,
-} from '@/app/features/integrations/services/types';
+  buildAppointmentIdByOrderId,
+  buildCensusDeviceByPatientId,
+  formatCensusIvlsDevices,
+  formatTitleCase,
+  getCensusCardStatus,
+  getInitials,
+  getMeterMeta,
+  getOrderExternalStatusSuffix,
+  getOrderPdfUrl,
+  getOrderUiUrl,
+  getResultOwnerName,
+  matchesResultQuery,
+  normalizeModality,
+  resultAwaitingReview,
+  type CensusTone,
+  type ModalityFilter,
+} from '@/app/features/integrations/pages/IdexxWorkspace/idexxWorkspaceHelpers';
+import {
+  PatientCell,
+  ResultActionCell,
+  StatusCell,
+} from '@/app/features/integrations/pages/IdexxWorkspace/resultCells';
+import { buildResultsColumns } from '@/app/features/integrations/pages/IdexxWorkspace/resultsColumns';
 import Modal from '@/app/ui/overlays/Modal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
@@ -42,7 +60,6 @@ import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import Close from '@/app/ui/primitives/Icons/Close';
 import LabResultValue from '@/app/ui/widgets/LabResultValue';
 import { formatDateTimeLocal } from '@/app/lib/date';
-import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
 import {
   IoAdd,
   IoCalendarClearOutline,
@@ -66,24 +83,15 @@ const MODALITY_FILTERS = [
   { label: 'In-House', value: 'INHOUSE' },
 ];
 
-type ModalityFilter = 'ALL' | 'REFLAB' | 'INHOUSE';
 const IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER =
   'IDEXX integration availability is currently limited to the USA, Canada, and the UK.';
 const IDEXX_HUB_INFO =
   'Yosemite Crew integrates with IDEXX Reference Laboratories and their point-of-care diagnostics for a seamless workflow.';
 
-type CensusTone = 'green' | 'blue' | 'amber';
 const CENSUS_TONE_COLOR: Record<CensusTone, string> = {
   green: 'var(--success)',
   blue: 'var(--blue)',
   amber: 'var(--color-warning-600)',
-};
-
-const formatTitleCase = (value?: string | null, fallback = 'Unknown') => {
-  const raw = String(value ?? '').trim();
-  if (!raw) return fallback;
-  const normalized = raw.toLowerCase().replaceAll(/[_-]+/g, ' ');
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 };
 
 // Census avatars are species-tinted in the design (each card carries a species
@@ -108,341 +116,6 @@ const getSpeciesAvatarStyle = (speciesCode?: string | null): React.CSSProperties
   if (key.includes('equine') || key.includes('horse')) return SPECIES_AVATAR_STYLE.horse;
   return DEFAULT_AVATAR_STYLE;
 };
-
-const getInitials = (value?: string | null): string => {
-  const parts = String(value ?? '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (parts.length === 0) return '?';
-  return parts
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('');
-};
-
-const isResultComplete = (status?: string | null): boolean => {
-  const key = String(status ?? '').toLowerCase();
-  return key.includes('complete') || key.includes('final') || key.includes('confirm');
-};
-
-// There is no acknowledgement state yet — LabResult carries none, the lab-result
-// API is read-only, and `labs:view:any` is the only labs permission. So "awaiting
-// review" is derived purely from completion: every completed result stays in the
-// queue. That over-reports rather than hiding a result, which is the safe side to
-// fail on until a real, attributable acknowledgement is added (#1867). Do NOT
-// fake it client-side: a localStorage or useState ack is per-browser and
-// unaudited, so a result one vet "acknowledged" silently leaves their queue
-// while a colleague still sees it.
-const resultAwaitingReview = (result: LabResult): boolean => isResultComplete(result.status);
-
-const getResultOwnerName = (result: LabResult): string =>
-  [result.clientFirstName, result.clientLastName]
-    .map((part) => String(part ?? '').trim())
-    .filter(Boolean)
-    .join(' ');
-
-const formatCensusIvlsDevices = (entry: CensusEntry) => {
-  const devices = entry.ivls ?? [];
-  if (devices.length === 0) return '-';
-  return devices
-    .map((device) => {
-      const serial = String(device.serialNumber ?? '').trim();
-      const displayName = String(device.displayName ?? '').trim();
-      if (displayName && serial) return `${displayName} (${serial})`;
-      return displayName || serial || '-';
-    })
-    .join(', ');
-};
-
-const getCensusDeviceSerial = (entry: CensusEntry): string => {
-  const first = (entry.ivls ?? [])[0];
-  return String(first?.serialNumber ?? '').trim();
-};
-
-const buildCensusDeviceByPatientId = (entries: CensusEntry[]): Record<string, string> =>
-  entries.reduce<Record<string, string>>((acc, entry) => {
-    const patientId = String(entry.patient?.patientId ?? '').trim();
-    const serial = getCensusDeviceSerial(entry);
-    if (patientId && serial) acc[patientId] = serial;
-    return acc;
-  }, {});
-
-const getCensusCardStatus = (
-  entry: CensusEntry,
-  results: LabResult[]
-): { label: string; tone: CensusTone; pulse: boolean } => {
-  const patientId = String(entry.patient?.patientId ?? '').trim();
-  const patientResults = results.filter(
-    (result) => String(result.patientId ?? '').trim() === patientId
-  );
-  const complete = patientResults.filter((result) => isResultComplete(result.status)).length;
-  const running = patientResults.length - complete;
-  // In-progress runs keep the patient "blue" even when some panels are already
-  // back; the card flips green only once every run has landed.
-  if (running > 0) {
-    const suffix = complete > 0 ? ` · ${complete} complete` : '';
-    return { label: `${running} running${suffix}`, tone: 'blue', pulse: false };
-  }
-  if (complete > 0) return { label: 'Results ready · awaiting review', tone: 'green', pulse: true };
-  return { label: 'Awaiting collection', tone: 'amber', pulse: false };
-};
-
-const getResultStatusTone = (status?: string | null): StatusTone => {
-  const key = String(status ?? '').toLowerCase();
-  if (key.includes('complete') || key.includes('final')) return 'success';
-  if (key.includes('error') || key.includes('fail') || key.includes('cancel')) return 'danger';
-  if (
-    key.includes('pending') ||
-    key.includes('running') ||
-    key.includes('partial') ||
-    key.includes('inprocess')
-  ) {
-    return 'progress';
-  }
-  return 'neutral';
-};
-
-const parseFloatSafe = (value?: string): number | null => {
-  if (!value) return null;
-  const cleaned = String(value)
-    .replaceAll(',', '.')
-    .replaceAll(/[^0-9.+-]/g, '');
-  const parsed = Number.parseFloat(cleaned);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-const parseReferenceRange = (range?: string): { min: number; max: number } | null => {
-  if (!range) return null;
-  const matches = range.match(/-?\d+(?:\.\d+)?/g);
-  if (!matches || matches.length < 2) return null;
-  const min = Number.parseFloat(matches[0]);
-  const max = Number.parseFloat(matches[1]);
-  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return null;
-  return { min, max };
-};
-
-const getMeterMeta = (test: LabResultTest) => {
-  const range = parseReferenceRange(test.referenceRange);
-  const value = parseFloatSafe(test.result);
-  if (!range || value == null) {
-    return { canRender: false, percent: 0, markerClass: 'bg-text-secondary' };
-  }
-  const rawPercent = ((value - range.min) / (range.max - range.min)) * 100;
-  const percent = Math.min(100, Math.max(0, rawPercent));
-  const markerClass =
-    test.outOfRange || rawPercent < 0 || rawPercent > 100
-      ? 'bg-[var(--danger)]'
-      : 'bg-text-primary';
-  return { canRender: true, percent, markerClass };
-};
-
-const getOrderUiUrl = (order: LabOrder | null): string => {
-  if (!order) return '';
-  const nestedUrl = String(
-    (order as unknown as { responsePayload?: { uiURL?: string } })?.responsePayload?.uiURL ?? ''
-  ).trim();
-  const raw = String(order.uiUrl ?? '').trim() || nestedUrl;
-  return getSafeIdexxIframeUrl(raw);
-};
-
-const getOrderPdfUrl = (order: LabOrder | null): string => {
-  if (!order) return '';
-  const nestedUrl = String(
-    (order as unknown as { responsePayload?: { pdfURL?: string } })?.responsePayload?.pdfURL ?? ''
-  ).trim();
-  const raw = String(order.pdfUrl ?? '').trim() || nestedUrl;
-  return getSafeIdexxIframeUrl(raw);
-};
-
-const buildAppointmentIdByOrderId = (orders: LabOrder[]): Record<string, string> =>
-  orders.reduce<Record<string, string>>((acc, order) => {
-    const orderId = String(order.idexxOrderId ?? '').trim();
-    const appointmentId = String(order.appointmentId ?? '').trim();
-    if (orderId && appointmentId) acc[orderId] = appointmentId;
-    return acc;
-  }, {});
-
-const PatientCell = ({ result }: { result: LabResult }) => {
-  const owner = getResultOwnerName(result);
-  return (
-    <div className="flex items-center gap-2.5">
-      <span
-        className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-caption-2 font-bold"
-        style={{ background: 'var(--avatar-blue-bg)', color: 'var(--blue-text)' }}
-        aria-hidden="true"
-      >
-        {getInitials(result.patientName)}
-      </span>
-      <span className="flex min-w-0 flex-col">
-        <span className="truncate text-body-4 text-text-primary">{result.patientName ?? '-'}</span>
-        <span className="truncate text-caption-1 text-text-secondary">
-          {owner || `ID ${result.patientId ?? '-'}`}
-        </span>
-      </span>
-    </div>
-  );
-};
-
-const StatusCell = ({ result }: { result: LabResult }) => (
-  <StatusPill
-    tone={getResultStatusTone(result.status)}
-    label={formatTitleCase(result.status, '-')}
-  />
-);
-
-type ResultActionCellProps = {
-  result: LabResult;
-  appointmentLabsHref: string;
-  openResultDetails: (result: LabResult) => Promise<void>;
-};
-
-const ResultActionCell = ({
-  result,
-  appointmentLabsHref,
-  openResultDetails,
-}: ResultActionCellProps) => {
-  const awaitingReview = resultAwaitingReview(result);
-  return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      {appointmentLabsHref ? (
-        <Link
-          href={appointmentLabsHref}
-          aria-label={`Open appointment labs for result ${result.resultId}`}
-          title="Open appointment labs"
-          className="rounded-full p-2 transition-colors hover:bg-card-hover"
-        >
-          <IoOpenOutline className="text-text-primary" size={16} />
-        </Link>
-      ) : null}
-      {awaitingReview ? (
-        <Primary
-          href="#"
-          text="Review"
-          onClick={() => openResultDetails(result).catch(() => undefined)}
-          className="px-4"
-        />
-      ) : (
-        <Secondary
-          href="#"
-          text="Details"
-          onClick={() => openResultDetails(result).catch(() => undefined)}
-          className="px-4"
-        />
-      )}
-    </div>
-  );
-};
-
-type ResultsColumnsOptions = {
-  censusDeviceByPatientId: Record<string, string>;
-  getAppointmentLabsHref: (result: LabResult) => string;
-  openResultDetails: (result: LabResult) => Promise<void>;
-  terminologyText: (text: string) => string;
-};
-
-export const buildResultsColumns = ({
-  censusDeviceByPatientId,
-  getAppointmentLabsHref,
-  openResultDetails,
-  terminologyText,
-}: ResultsColumnsOptions): Column<LabResult>[] => [
-  {
-    label: terminologyText('Patient'),
-    key: 'patientName',
-    width: '22%',
-    render: (result) => <PatientCell result={result} />,
-  },
-  {
-    label: 'Accession #',
-    key: 'accessionId',
-    width: '14%',
-    render: (result) => (
-      <span className="text-body-4 text-text-primary tabular-nums">
-        {result.accessionId ?? '-'}
-      </span>
-    ),
-  },
-  {
-    label: 'Order ID',
-    key: 'orderId',
-    width: '12%',
-    render: (result) => (
-      <span className="text-body-4 text-text-secondary tabular-nums">{result.orderId ?? '-'}</span>
-    ),
-  },
-  {
-    label: 'IVLS Device ID',
-    key: 'ivls',
-    width: '13%',
-    render: (result) => (
-      <span className="text-body-4 text-text-secondary tabular-nums">
-        {censusDeviceByPatientId[String(result.patientId ?? '').trim()] ?? '-'}
-      </span>
-    ),
-  },
-  {
-    label: 'Collection date',
-    key: 'updatedAt',
-    width: '13%',
-    render: (result) => (
-      <span className="text-body-4 text-text-secondary">
-        {formatDateTimeLocal(result.updatedAt, '-')}
-      </span>
-    ),
-  },
-  {
-    label: 'Status',
-    key: 'status',
-    width: '12%',
-    render: (result) => <StatusCell result={result} />,
-  },
-  {
-    label: '',
-    key: 'actions',
-    width: '14%',
-    render: (result) => (
-      <ResultActionCell
-        result={result}
-        appointmentLabsHref={getAppointmentLabsHref(result)}
-        openResultDetails={openResultDetails}
-      />
-    ),
-  },
-];
-
-const normalizeModality = (modality?: string | null): Exclude<ModalityFilter, 'ALL'> | null => {
-  const raw = String(modality ?? '')
-    .trim()
-    .toUpperCase();
-  if (!raw) return null;
-  if (raw === 'REFLAB' || raw === 'REFERENCE_LAB') return 'REFLAB';
-  if (raw === 'INHOUSE' || raw === 'IN_HOUSE') return 'INHOUSE';
-  return null;
-};
-
-const matchesResultQuery = (result: LabResult, q: string): boolean =>
-  String(result.resultId ?? '')
-    .toLowerCase()
-    .includes(q) ||
-  String(result.orderId ?? '')
-    .toLowerCase()
-    .includes(q) ||
-  String(result.accessionId ?? '')
-    .toLowerCase()
-    .includes(q) ||
-  String(result.patientName ?? '')
-    .toLowerCase()
-    .includes(q) ||
-  String(result.patientId ?? '')
-    .toLowerCase()
-    .includes(q) ||
-  String(result.requisitionId ?? '')
-    .toLowerCase()
-    .includes(q) ||
-  String(result.status ?? '')
-    .toLowerCase()
-    .includes(q);
 
 type MobileResultCardProps = {
   result: LabResult;
@@ -921,16 +594,6 @@ const CensusEntriesList = ({ entries, terminologyText }: CensusEntriesListProps)
       ))}
     </>
   );
-};
-
-const getOrderExternalStatusSuffix = (order: LabOrder): string => {
-  if (!order.externalStatus) return '';
-  const externalStatus = String(order.externalStatus).trim().toLowerCase();
-  const currentStatus = String(order.status ?? '')
-    .trim()
-    .toLowerCase();
-  if (!externalStatus || externalStatus === currentStatus) return '';
-  return ` (${formatTitleCase(order.externalStatus, '-')})`;
 };
 
 type OrderLookupCardProps = {
@@ -1872,22 +1535,8 @@ const ProtectedIdexxWorkspace = () => (
   </ProtectedRoute>
 );
 
-// Exported for unit testing of the pure helpers / presentational branches.
+// Exported for unit testing of the presentational branches.
 export {
-  getInitials,
-  isResultComplete,
-  formatCensusIvlsDevices,
-  getCensusDeviceSerial,
-  buildCensusDeviceByPatientId,
-  getCensusCardStatus,
-  getResultStatusTone,
-  getMeterMeta,
-  getOrderUiUrl,
-  getOrderPdfUrl,
-  buildAppointmentIdByOrderId,
-  getOrderExternalStatusSuffix,
-  normalizeModality,
-  matchesResultQuery,
   OrderDetailPanel,
   // Two whole-page branches that only the page itself can select: the
   // not-connected card returns instead of the workspace when the org

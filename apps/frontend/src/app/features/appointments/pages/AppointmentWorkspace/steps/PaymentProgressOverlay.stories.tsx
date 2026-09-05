@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, within } from 'storybook/test';
 
 import type { PaymentProgressState } from './invoiceStepHooks';
-import { PaymentProgressOverlay } from './InvoiceStep';
+import { PaymentProgressOverlay } from './invoicePresentation';
 
 const CHECKOUT_URL = 'https://checkout.stripe.com/c/pay/cs_test_progress_5b71d0e4ac93';
 

@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import type { Slot } from '@/app/features/appointments/types/appointments';
-import { AppointmentFormContent } from './index';
+import { AppointmentFormContent } from './appointmentFormParts';
 
 const TODAY = new Date('2026-03-12T00:00:00');
 

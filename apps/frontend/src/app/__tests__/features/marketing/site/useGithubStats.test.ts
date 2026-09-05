@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import {
   useGithubStats,
   useLatestRelease,
@@ -268,6 +268,62 @@ describe('useGithubStats hooks', () => {
     expect(result.current.repositoryClones).toBe('67,134');
     expect(result.current.contributors).toBe('58');
     expect(result.current.discord).toBe('3,210');
+  });
+
+  /**
+   * Both stats requests are driven by one shared AbortController, so the two signals
+   * `fetch` is handed are that controller's - which is what makes them the proof of
+   * who is still holding the shared refresh.
+   */
+  const pendingStatsFetch = () => {
+    const signals: AbortSignal[] = [];
+    const settle: Array<() => void> = [];
+    globalThis.fetch = jest.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.signal) signals.push(init.signal);
+      return new Promise<Response>((resolve) => {
+        settle.push(() => resolve(makeRes({ stars: '2.4k' })));
+      });
+    }) as unknown as FetchLike;
+    return { signals, settleAll: () => settle.forEach((resolve) => resolve()) };
+  };
+
+  it('aborts the shared stats requests when the last instance unmounts', async () => {
+    // The refresh is shared, so its abort is refcounted rather than per instance: the
+    // last holder to leave takes the requests with it instead of leaving them running
+    // to resolve into a cache nobody is reading.
+    const { signals, settleAll } = pendingStatsFetch();
+
+    const { unmount } = renderHook(() => useGithubStats());
+    await waitFor(() => expect(signals).toHaveLength(2));
+    expect(signals.map((signal) => signal.aborted)).toEqual([false, false]);
+
+    unmount();
+
+    expect(signals.map((signal) => signal.aborted)).toEqual([true, true]);
+
+    // An aborted pass commits nothing: writing it would stamp the session cache
+    // fresh for the whole TTL on the strength of a cancelled request.
+    await act(async () => settleAll());
+    expect(sessionStorage.getItem('yc_marketing_stats_v2')).toBeNull();
+    expect(sessionStorage.getItem('yc_marketing_stats_ts_v2')).toBeNull();
+  });
+
+  it('keeps the shared stats requests alive while another instance is still mounted', async () => {
+    // One instance going away must not cancel the refresh the others joined - that is
+    // the whole point of sharing it. Only the last one out aborts.
+    const { signals, settleAll } = pendingStatsFetch();
+
+    const first = renderHook(() => useGithubStats());
+    const second = renderHook(() => useGithubStats());
+    // The second instance joins the in-flight refresh instead of starting its own.
+    await waitFor(() => expect(signals).toHaveLength(2));
+
+    first.unmount();
+    expect(signals.map((signal) => signal.aborted)).toEqual([false, false]);
+
+    second.unmount();
+    expect(signals.map((signal) => signal.aborted)).toEqual([true, true]);
+    settleAll();
   });
 
   it('surfaces the clone count the stats route returns', async () => {

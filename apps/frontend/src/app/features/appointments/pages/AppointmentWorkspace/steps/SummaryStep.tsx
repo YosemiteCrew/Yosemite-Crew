@@ -1,46 +1,33 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
-import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import type {
   Appointment,
   TemplateLike,
   TemplateSchemaSnapshot,
   WorkspaceDocumentRow,
 } from '@yosemite-crew/types';
-import {
-  IoDocumentTextOutline,
-  IoDownloadOutline,
-  IoEyeOutline,
-  IoPencilOutline,
-  IoPrintOutline,
-  IoSaveOutline,
-  IoSearchOutline,
-} from 'react-icons/io5';
+import {} from 'react-icons/io5';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
-import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
-import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import Search from '@/app/ui/inputs/Search';
-import Datepicker from '@/app/ui/inputs/Datepicker';
-import RichTextEditor from '@/app/ui/primitives/RichTextEditor/RichTextEditor';
-import { Secondary } from '@/app/ui/primitives/Buttons';
-import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
-import AutosaveIndicator from '@/app/features/appointments/pages/AppointmentWorkspace/components/AutosaveIndicator';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import SigningOverlay from '@/app/ui/overlays/SigningOverlay';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
 import { getTemplateSchemaSnapshot } from '@/app/features/appointments/pages/AppointmentWorkspace/templateSchemaSnapshot';
 import { isRichTextEmpty, sanitizeRichText } from '@/app/lib/richText';
-import type {
-  AppointmentEncounter,
-  WorkspaceSaveState,
-} from '@/app/features/appointments/types/workspace';
-import { formatStampDate, formatStampTime } from '@/app/lib/appointmentWorkspace';
-import { usePermissions } from '@/app/hooks/usePermissions';
+import type { AppointmentEncounter } from '@/app/features/appointments/types/workspace';
 import {
-  getRenderedDocument,
-  saveDischargeSummaryArtifact,
-} from '@/app/features/appointments/services/workspaceClinicalService';
+  downloadDocumentUrl,
+  humanizeToken,
+} from '@/app/features/appointments/pages/AppointmentWorkspace/steps/summaryStepFormat';
+import { AllDocumentsTable } from '@/app/features/appointments/pages/AppointmentWorkspace/steps/AllDocumentsTable';
+import {
+  DischargeActionBar,
+  DischargeSummaryEditor,
+  DischargeTemplateBar,
+  SavedDischargeSummary,
+  type DischargeDocumentAction,
+} from '@/app/features/appointments/pages/AppointmentWorkspace/steps/dischargeSummarySections';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import { saveDischargeSummaryArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
 import {
   extractFollowUpInDays,
   listDischargeSummaryTemplates,
@@ -56,6 +43,14 @@ import {
   reconcileWorkspaceDocumentPacket,
   signWorkspaceDocumentPacket,
 } from '@/app/features/appointments/services/workspaceAggregateService';
+
+const getDischargeDocumentAction = (
+  showDocumentActions: boolean,
+  isPacketSigned: boolean
+): DischargeDocumentAction => {
+  if (!showDocumentActions) return 'none';
+  return isPacketSigned ? 'download' : 'sign';
+};
 
 type SummaryStepProps = {
   appointmentId: string;
@@ -78,12 +73,6 @@ const getBootstrapEncounterId = (bootstrap: unknown): string | undefined => {
   return typeof id === 'string' && id.trim() ? id : undefined;
 };
 
-const formatDateTime = (iso: string): string => {
-  const date = formatStampDate(iso);
-  const time = formatStampTime(iso);
-  return [date, time].filter(Boolean).join(', ');
-};
-
 const escapeHtml = (value: string): string =>
   value
     .replaceAll('&', '&amp;')
@@ -97,20 +86,6 @@ const DISCHARGE_META_FIELD_KEYS = new Set(['followUpInDays', 'followUpDate']);
 const normalizeTemplateLabel = (value: string): string => value.trim().toLowerCase();
 
 type TemplateField = TemplateSchemaSnapshot['sections'][number]['fields'][number];
-
-/** Humanise a backend enum token (e.g. "DISCHARGE_SUMMARY" → "Discharge summary",
- *  "NOT_REQUIRED" → "Not required") so raw enums never reach the table. */
-const humanizeToken = (value?: string | null): string => {
-  if (!value) return '-';
-  const words = value
-    .toLowerCase()
-    .split(/[_\s]+/)
-    .filter(Boolean);
-  if (words.length === 0) return '-';
-  return words
-    .map((word, index) => (index === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word))
-    .join(' ');
-};
 
 const htmlFromDefaultValue = (value: unknown): string => {
   if (typeof value === 'string') return value.trim();
@@ -183,159 +158,6 @@ const toFollowUpDate = (iso?: string): Date | null => {
   if (!iso) return null;
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? null : date;
-};
-
-/** The documents read-model types timestamps as `Date` in the contract but they
- *  arrive as JSON strings over the wire — normalise to ISO for formatting. */
-const toIsoString = (value: string | Date): string =>
-  typeof value === 'string' ? value : new Date(value).toISOString();
-
-export const DocumentSourcePill = ({ source }: { source: string }) => (
-  <span className="inline-flex rounded-2xl border border-neutral-300 bg-neutral-100 px-3 py-1 text-caption-1 text-text-primary">
-    {humanizeToken(source)}
-  </span>
-);
-
-const signingStatusTone = (signingStatus?: string | null): StatusTone => {
-  const key = String(signingStatus ?? '')
-    .trim()
-    .toUpperCase();
-  if (key === 'SIGNED' || key === 'PAID') return 'success';
-  if (key === 'ATTACHED') return 'info';
-  if (key === 'IN_PROGRESS') return 'progress';
-  return 'neutral';
-};
-
-const SigningStatusPill = ({ signingStatus }: { signingStatus?: string | null }) => {
-  return (
-    <StatusPill
-      tone={signingStatusTone(signingStatus)}
-      label={humanizeToken(signingStatus)}
-      className="w-fit"
-    />
-  );
-};
-
-const downloadDocumentUrl = (url: string) => {
-  const link = globalThis.document.createElement('a');
-  link.href = url;
-  link.download = '';
-  link.rel = 'noopener noreferrer';
-  globalThis.document.body.append(link);
-  link.click();
-  link.remove();
-};
-
-export const AllDocumentsTable = ({
-  documents,
-  organisationId,
-  canView,
-  error,
-}: {
-  documents: WorkspaceDocumentRow[];
-  organisationId?: string;
-  canView: boolean;
-  error?: string | null;
-}) => {
-  const [documentError, setDocumentError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ title: string; url: string } | null>(null);
-
-  const resolveDocumentUrl = async (document: WorkspaceDocumentRow) => {
-    if (document.pdfUrl) return document.pdfUrl;
-    if (!organisationId) throw new Error('Organisation missing for document lookup.');
-    const rendered = await getRenderedDocument(organisationId, document.documentId);
-    const pdfUrl = (rendered as { pdfUrl?: unknown }).pdfUrl;
-    if (typeof pdfUrl === 'string' && pdfUrl.trim()) return pdfUrl.trim();
-    throw new Error('Document PDF is not available yet.');
-  };
-
-  const handleDocumentAction = async (document: WorkspaceDocumentRow) => {
-    setDocumentError(null);
-    try {
-      const url = await resolveDocumentUrl(document);
-      setPreview({ title: document.title, url });
-    } catch (actionError) {
-      console.error('Unable to open workspace document:', actionError);
-      setDocumentError(
-        actionError instanceof Error ? actionError.message : 'Unable to open document.'
-      );
-    }
-  };
-
-  return (
-    <SectionContainer title="All Documents" className="flex flex-col gap-4">
-      {error && (
-        <p role="alert" className="rounded-2xl bg-danger-100 p-4 text-body-4 text-text-error">
-          {error}
-        </p>
-      )}
-      {!error && documents.length === 0 && (
-        <p className="rounded-2xl bg-neutral-100 p-4 text-body-4 text-text-secondary">
-          No documents recorded yet.
-        </p>
-      )}
-      {!error && documents.length > 0 && (
-        <div className="flex flex-col gap-3">
-          {/* Stacked cards, not a fixed multi-column grid: the section lives in a ~400px aside, so a
-              6-track row forces the status/signing pills to overflow their columns and overlap the
-              neighbouring cell. A card keeps the title on its own line (truncates with a tooltip),
-              lets the pills wrap, and pins the actions to the right at every width. */}
-          <ul className="flex flex-col gap-3">
-            {documents.map((document) => (
-              <li
-                key={document.documentId}
-                className="flex items-start gap-3 rounded-2xl border border-card-border p-4"
-              >
-                <div className="flex min-w-0 flex-1 flex-col gap-2">
-                  <span className="truncate font-medium text-text-primary" title={document.title}>
-                    {document.title}
-                  </span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <DocumentSourcePill source={document.sourceKind} />
-                    <span className="text-body-4 text-text-primary">
-                      {humanizeToken(document.status)}
-                    </span>
-                    <SigningStatusPill signingStatus={document.signingStatus} />
-                  </div>
-                  <span className="text-body-4 text-text-secondary">
-                    {formatDateTime(toIsoString(document.createdAt))}
-                  </span>
-                </div>
-                {canView && (
-                  <div className="flex shrink-0 justify-end gap-2">
-                    <CircleIconButton
-                      icon={<IoEyeOutline aria-hidden="true" />}
-                      label={`View ${document.title}`}
-                      variant="dark"
-                      onClick={() => void handleDocumentAction(document)}
-                    />
-                    <CircleIconButton
-                      icon={<IoDownloadOutline aria-hidden="true" />}
-                      label={`Download ${document.title}`}
-                      onClick={() => void handleDocumentAction(document)}
-                    />
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-          {documentError && (
-            <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-text-error">
-              {documentError}
-            </p>
-          )}
-        </div>
-      )}
-      <PdfPreviewOverlay
-        open={Boolean(preview)}
-        title={preview?.title ?? 'Document'}
-        pdfUrl={preview?.url ?? null}
-        downloadLabel={`Download ${preview?.title ?? 'document'}`}
-        onDownload={preview ? () => downloadDocumentUrl(preview.url) : undefined}
-        onClose={() => setPreview(null)}
-      />
-    </SectionContainer>
-  );
 };
 
 type PacketSignedArgs = {
@@ -641,300 +463,6 @@ const useStartPacketSigning = ({
     }
   };
 };
-
-/**
- * Which document action the packet is up to: none until the summary is saved,
- * then Sign while it is unsigned and Download Signed once it is. One variant
- * rather than two flags, because only three of their four combinations exist.
- */
-type DischargeDocumentAction = 'none' | 'sign' | 'download';
-
-const getDischargeDocumentAction = (
-  showDocumentActions: boolean,
-  isPacketSigned: boolean
-): DischargeDocumentAction => {
-  if (!showDocumentActions) return 'none';
-  return isPacketSigned ? 'download' : 'sign';
-};
-
-type DischargeSignActionProps = {
-  isSigning: boolean;
-  signDisabled: boolean;
-  signDisabledReason?: string;
-  onSign: () => void;
-};
-
-/** The Sign button, wrapped in its explaining tooltip only while it is blocked. */
-const DischargeSignAction = ({
-  isSigning,
-  signDisabled,
-  signDisabledReason,
-  onSign,
-}: DischargeSignActionProps) => {
-  const signButton = (
-    <Secondary
-      text={isSigning ? 'Signing…' : 'Sign'}
-      icon={<IoDocumentTextOutline aria-hidden="true" />}
-      onClick={onSign}
-      isDisabled={signDisabled}
-    />
-  );
-
-  if (!signDisabledReason) return signButton;
-
-  return (
-    <GlassTooltip content={signDisabledReason} side="top">
-      {signButton}
-    </GlassTooltip>
-  );
-};
-
-type DischargeActionBarProps = {
-  signError: string | null;
-  documentAction: DischargeDocumentAction;
-  dischargeSaved: boolean;
-  isPrinting: boolean;
-  isSaving: boolean;
-  isSigning: boolean;
-  signDisabled: boolean;
-  signDisabledReason?: string;
-  viewOnly?: boolean;
-  onPrint: () => void;
-  onSave: () => void;
-  onDownloadSigned: () => void;
-  onSign: () => void;
-};
-
-/**
- * The discharge step's action row: print, save, and sign or download the signed
- * packet.
- *
- * Its own component because which buttons appear is genuinely conditional -
- * document actions only once the summary is saved, sign only while the packet
- * is unsigned, and a tooltip variant when signing is blocked - and that belongs
- * next to the buttons rather than inflating the step that renders them.
- */
-const DischargeActionBar = ({
-  signError,
-  documentAction,
-  dischargeSaved,
-  isPrinting,
-  isSaving,
-  isSigning,
-  signDisabled,
-  signDisabledReason,
-  viewOnly,
-  onPrint,
-  onSave,
-  onDownloadSigned,
-  onSign,
-}: DischargeActionBarProps) => (
-  <div className="flex flex-col items-end gap-2">
-    {signError && (
-      <p role="alert" className="text-body-4 text-text-error">
-        {signError}
-      </p>
-    )}
-    <div className="flex flex-wrap items-center justify-end gap-3">
-      {documentAction !== 'none' && (
-        <Secondary
-          text={isPrinting ? 'Preparing…' : 'Print All'}
-          icon={<IoPrintOutline aria-hidden="true" />}
-          onClick={onPrint}
-          isDisabled={isPrinting}
-        />
-      )}
-      {!dischargeSaved && (
-        <Secondary
-          text="Save"
-          icon={<IoSaveOutline aria-hidden="true" />}
-          onClick={onSave}
-          isDisabled={viewOnly || isSaving}
-        />
-      )}
-      {documentAction === 'download' && (
-        <Secondary
-          text="Download Signed"
-          icon={<IoDownloadOutline aria-hidden="true" />}
-          onClick={onDownloadSigned}
-          isDisabled={isPrinting}
-        />
-      )}
-      {documentAction === 'sign' && (
-        <DischargeSignAction
-          isSigning={isSigning}
-          signDisabled={signDisabled}
-          signDisabledReason={signDisabledReason}
-          onSign={onSign}
-        />
-      )}
-    </div>
-  </div>
-);
-
-// Autosave state + discharge-template search. Owns the saved/hidden gate, the
-// dropdown's open condition, and the no-matches / error branches so the step's
-// own body carries none of them.
-const DischargeTemplateBar = ({
-  saveState,
-  searchRef,
-  dischargeSaved,
-  templateQuery,
-  setTemplateQuery,
-  templateError,
-  templateMatches,
-  onSelectTemplate,
-}: {
-  saveState?: WorkspaceSaveState;
-  searchRef: React.RefObject<HTMLDivElement | null>;
-  dischargeSaved: boolean;
-  templateQuery: string;
-  setTemplateQuery: React.Dispatch<React.SetStateAction<string>>;
-  templateError: string | null;
-  templateMatches: TemplateLike[];
-  onSelectTemplate: (template: TemplateLike) => void;
-}) => (
-  <div className="flex flex-wrap items-center justify-between gap-3">
-    <AutosaveIndicator status={saveState?.status ?? 'idle'} savedAt={saveState?.at} />
-    {/* Hidden once the summary is saved: the saved view is read-only,
-        and offering a control that cannot apply is worse than not
-        offering it. Reopening the summary brings it back. */}
-    <div
-      ref={searchRef}
-      className={`relative w-full sm:max-w-90 ${dischargeSaved ? 'hidden' : ''}`}
-    >
-      <Search
-        value={templateQuery}
-        setSearch={setTemplateQuery}
-        placeholder="Search discharge templates"
-        label="Search discharge templates"
-        className="w-full!"
-      />
-      <SearchResultsDropdown
-        anchorRef={searchRef}
-        open={Boolean(templateQuery.trim()) && !templateError}
-        onClose={() => setTemplateQuery('')}
-      >
-        {templateMatches.length > 0 ? (
-          <ul>
-            {templateMatches.map((template) => (
-              <WorkspaceSearchResultRow
-                key={template.id}
-                name={template.name}
-                leadingIcon={<IoSearchOutline aria-hidden="true" className="shrink-0" />}
-                onSelect={() => onSelectTemplate(template)}
-              />
-            ))}
-          </ul>
-        ) : (
-          <p className="px-4 py-3 text-body-4 text-text-secondary">
-            No discharge templates match this search.
-          </p>
-        )}
-      </SearchResultsDropdown>
-      {templateError && <p className="mt-2 text-caption-1 text-text-error">{templateError}</p>}
-    </div>
-  </div>
-);
-
-// Read-only render of a saved discharge summary: sanitized body, a locked
-// follow-up date, and the "saved by / at" stamp. The Edit pencil is offered
-// only while the encounter itself is still editable.
-const SavedDischargeSummary = ({
-  encounter,
-  followUpDate,
-  onReopen,
-}: {
-  encounter: AppointmentEncounter;
-  followUpDate: Date | null;
-  onReopen: () => void;
-}) => (
-  <div className="relative">
-    {/* Editable until the encounter is locked (window closed / completed /
-    discharged). Absolutely positioned so it overlays the top-right
-    without pushing the summary down a row. */}
-    {!encounter.viewOnly && (
-      <div className="absolute top-0 right-0 z-10">
-        <CircleIconButton
-          icon={<IoPencilOutline aria-hidden="true" />}
-          label="Edit discharge summary"
-          variant="dark"
-          onClick={onReopen}
-        />
-      </div>
-    )}
-    <div
-      className="text-body-4 leading-[150%] text-text-primary [&_li]:my-0 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 sm:pr-12"
-      dangerouslySetInnerHTML={{
-        __html: sanitizeRichText(encounter.dischargeSummary ?? '') || '-',
-      }}
-    />
-    <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-      {/* Same Datepicker container as edit mode, rendered non-interactive.
-      Dimmed to match the other read-only state below: without it the
-      field still reads as an editable input, so the date looks broken
-      rather than locked (the Edit pencil above reopens it). */}
-      <div
-        className="pointer-events-none w-full select-none opacity-60 sm:max-w-72"
-        aria-disabled="true"
-      >
-        <Datepicker
-          type="input"
-          currentDate={followUpDate}
-          setCurrentDate={() => undefined}
-          placeholder="Follow up date"
-        />
-      </div>
-      <div className="flex flex-col items-end leading-[120%]">
-        <span className="text-[12px] font-bold text-neutral-900">
-          Saved by {encounter.dischargeSavedByName}
-        </span>
-        <span className="text-[12px] font-medium text-blue-text">
-          {formatDateTime(encounter.dischargeSavedAt ?? '')}
-        </span>
-      </div>
-    </div>
-  </div>
-);
-
-// Editable discharge summary: rich-text body plus the follow-up date, both
-// dimmed and non-interactive while the encounter is read-only.
-const DischargeSummaryEditor = ({
-  value,
-  readOnly,
-  followUpDate,
-  onChange,
-  onFollowUpChange,
-}: {
-  value: string;
-  readOnly: boolean;
-  followUpDate: Date | null;
-  onChange: (html: string) => void;
-  onFollowUpChange: (next: Date | null) => void;
-}) => (
-  <>
-    <RichTextEditor
-      ariaLabel="Discharge summary"
-      value={value}
-      readOnly={readOnly}
-      onChange={onChange}
-      placeholder="Discharge instructions and follow-up care"
-    />
-    <div className="mt-3 flex justify-end">
-      <div
-        className={`w-full sm:max-w-72 ${readOnly ? 'pointer-events-none opacity-60' : ''}`}
-        aria-disabled={readOnly}
-      >
-        <Datepicker
-          type="input"
-          currentDate={followUpDate}
-          setCurrentDate={onFollowUpChange as React.Dispatch<React.SetStateAction<Date | null>>}
-          placeholder="Follow up date"
-        />
-      </div>
-    </div>
-  </>
-);
 
 const useSummaryStepContent = ({
   appointmentId,

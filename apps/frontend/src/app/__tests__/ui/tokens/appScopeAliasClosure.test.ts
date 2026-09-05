@@ -232,9 +232,9 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
         'span is --ink (15:1), not a faint token',
       'features/appointments/pages/Appointments/Sections/ViewAppointmentOverviewModal/index.tsx::60':
         'pointer-events-none saving wrapper around a dropdown, no faint text of its own',
-      'features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal/index.tsx::25':
+      'features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal/appointmentFormParts.tsx::25':
         'aria-hidden spinner geometry',
-      'features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal/index.tsx::75':
+      'features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal/appointmentFormParts.tsx::75':
         'aria-hidden spinner geometry',
       'features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper.tsx::50':
         'drag-handle icon glyph, no text',
@@ -245,8 +245,8 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
       'features/companions/pages/Companions/InClinicTodayBand.tsx::14':
         'decorative 72px background glyph behind the band',
       'features/appointments/components/Calendar/common/MenuActionsList.tsx::55': 'menu separator',
-      'features/appointments/pages/AppointmentWorkspace/steps/SummaryStep.tsx::60':
-        'disabled action while the summary saves',
+      'features/appointments/pages/AppointmentWorkspace/steps/dischargeSummarySections.tsx::60':
+        'read-only follow-up Datepicker: pointer-events-none and aria-disabled',
       // Inline-style form, each read individually.
       'ui/layout/PageSkeleton.tsx::80': 'skeleton row, no text',
       'ui/layout/PageSkeleton.tsx::60': 'skeleton row, no text',
