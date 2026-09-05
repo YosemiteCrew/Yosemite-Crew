@@ -135,9 +135,7 @@ export const ParasiteRiskController = {
         });
       }
 
-      const subscription = await upsertSubscription(parentId, {
-        ...parsed.data,
-      });
+      const subscription = await upsertSubscription(parentId, parsed.data);
 
       return res.status(201).json(subscription);
     } catch (error) {

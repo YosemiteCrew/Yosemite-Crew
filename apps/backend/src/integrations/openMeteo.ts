@@ -114,8 +114,8 @@ async function requestDailyBlock(
     );
 
     return response.data.daily ?? {};
-  } catch (error) {
-    logger.error("Open-Meteo request failed", { error });
+  } catch {
+    logger.error("Open-Meteo request failed");
     throw new OpenMeteoError("Weather provider is unavailable");
   }
 }

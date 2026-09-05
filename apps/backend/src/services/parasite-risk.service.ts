@@ -299,8 +299,8 @@ export async function deleteSubscription(
 ): Promise<void> {
   const deleted = await prisma.$executeRaw`
     DELETE FROM "ParasiteRiskSubscription"
-    WHERE "id" = ${String(subscriptionId)}
-      AND "parentId" = ${String(parentId)}
+    WHERE "id" = ${subscriptionId}
+      AND "parentId" = ${parentId}
   `;
 
   if (deleted === 0) {
