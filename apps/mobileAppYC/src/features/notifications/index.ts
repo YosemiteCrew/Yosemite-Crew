@@ -15,12 +15,8 @@ export {
 // Export thunks
 export {
   fetchNotificationsForCompanion,
-  createNotification,
   markNotificationAsRead,
-  markAllNotificationsAsRead,
-  deleteNotification,
   archiveNotification,
-  clearAllNotifications,
 } from './thunks';
 
 // Export selectors

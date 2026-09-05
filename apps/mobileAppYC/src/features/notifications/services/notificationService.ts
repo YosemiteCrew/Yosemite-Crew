@@ -34,6 +34,7 @@ type MobileNotificationRecord = {
   relatedType?: string;
   link?: string;
   deepLink?: string;
+  archivedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
   timestamp?: string;
@@ -57,20 +58,36 @@ const ALLOWED_CATEGORIES: NotificationCategory[] = [
   'payment',
 ];
 
-const ALLOWED_PRIORITIES: NotificationPriority[] = ['low', 'medium', 'high', 'urgent'];
+const ALLOWED_PRIORITIES: NotificationPriority[] = [
+  'low',
+  'medium',
+  'high',
+  'urgent',
+];
 
-const normalizeCategorySynonym = (raw?: string): NotificationCategory | null => {
+const normalizeCategorySynonym = (
+  raw?: string,
+): NotificationCategory | null => {
   if (!raw) {
     return null;
   }
 
   const value = raw.toLowerCase();
 
-  if (value === 'appointment' || value === 'appointments' || value === 'appts') {
+  if (
+    value === 'appointment' ||
+    value === 'appointments' ||
+    value === 'appts'
+  ) {
     return 'appointments';
   }
 
-  if (value === 'payment' || value === 'payments' || value === 'invoice' || value === 'billing') {
+  if (
+    value === 'payment' ||
+    value === 'payments' ||
+    value === 'invoice' ||
+    value === 'billing'
+  ) {
     return 'payment';
   }
 
@@ -115,9 +132,7 @@ const normalizePriority = (raw?: string): NotificationPriority => {
   return match ?? 'medium';
 };
 
-const normalizeRelatedType = (
-  raw?: string,
-): Notification['relatedType'] => {
+const normalizeRelatedType = (raw?: string): Notification['relatedType'] => {
   if (!raw) {
     return undefined;
   }
@@ -140,7 +155,16 @@ const normalizeRelatedType = (
   return undefined;
 };
 
-const deriveStatus = (record: MobileNotificationRecord): Notification['status'] => {
+const deriveStatus = (
+  record: MobileNotificationRecord,
+): Notification['status'] => {
+  // Checked before the status string: archived is what the API records as a
+  // timestamp, and an archived notification is also seen, so reading isSeen
+  // first would bring an archived row back into the visible list on reload.
+  if (record.archivedAt) {
+    return 'archived';
+  }
+
   const normalized = (record.status ?? record.state ?? '').toLowerCase();
   if (normalized === 'read' || normalized === 'seen') {
     return 'read';
@@ -226,7 +250,9 @@ const normalizeNotification = (
   };
 };
 
-const extractNotificationList = (payload: unknown): MobileNotificationRecord[] => {
+const extractNotificationList = (
+  payload: unknown,
+): MobileNotificationRecord[] => {
   if (!payload) {
     return [];
   }
@@ -273,6 +299,21 @@ export const markMobileNotificationSeen = async (
   const headers = await buildAuthHeaders();
   await apiClient.post(
     `${NOTIFICATIONS_ENDPOINT}/${notificationId}/seen`,
+    undefined,
+    headers ? {headers} : undefined,
+  );
+};
+
+export const archiveMobileNotification = async (
+  notificationId: string,
+): Promise<void> => {
+  if (!notificationId) {
+    return;
+  }
+
+  const headers = await buildAuthHeaders();
+  await apiClient.post(
+    `${NOTIFICATIONS_ENDPOINT}/${notificationId}/archive`,
     undefined,
     headers ? {headers} : undefined,
   );

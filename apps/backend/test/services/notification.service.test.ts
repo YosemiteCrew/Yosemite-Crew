@@ -35,6 +35,7 @@ jest.mock("src/config/prisma", () => ({
   prisma: {
     notification: {
       create: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       updateMany: jest.fn(),
     },
@@ -50,6 +51,12 @@ describe("NotificationService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (prisma.notification.create as jest.Mock).mockResolvedValue({
+      id: "notif-row-1",
+    });
+    (prisma.notification.updateMany as jest.Mock).mockResolvedValue({
+      count: 1,
+    });
   });
 
   describe("sendToDevice", () => {
@@ -204,17 +211,17 @@ describe("NotificationService", () => {
       expect(res).toEqual([]);
     });
 
-    it("stores notifications via prisma for each token", async () => {
+    it("stores one notification row per notification, not per device", async () => {
       (DeviceTokenService.getTokensForUser as jest.Mock).mockResolvedValueOnce([
         { deviceToken: "token-1" },
+        { deviceToken: "token-2" },
       ]);
       mockSend.mockResolvedValue("msg-id");
 
       const res = await NotificationService.sendToUser("user1", payload);
-      await new Promise(process.nextTick); // flush dangling create promise
 
-      expect(res).toHaveLength(1);
-      expect(res[0].token).toBe("token-1");
+      expect(res).toHaveLength(2);
+      expect(prisma.notification.create).toHaveBeenCalledTimes(1);
       expect(prisma.notification.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
@@ -225,7 +232,43 @@ describe("NotificationService", () => {
       );
     });
 
-    it("loops through tokens, skips invalid records, and logs DB errors asynchronously", async () => {
+    it("sends the stored row id to every device so the app can act on it", async () => {
+      (DeviceTokenService.getTokensForUser as jest.Mock).mockResolvedValueOnce([
+        { deviceToken: "token-1" },
+        { deviceToken: "token-2" },
+      ]);
+      mockSend.mockResolvedValue("msg-id");
+
+      await NotificationService.sendToUser("user1", payload, {
+        data: { deepLink: "/appointments/1" },
+      });
+
+      expect(mockSend).toHaveBeenCalledTimes(2);
+      for (const call of mockSend.mock.calls) {
+        expect(call[0].data).toEqual({
+          deepLink: "/appointments/1",
+          notificationId: "notif-row-1",
+        });
+      }
+    });
+
+    it("still delivers the push when the row cannot be written", async () => {
+      (DeviceTokenService.getTokensForUser as jest.Mock).mockResolvedValueOnce([
+        { deviceToken: "token-1" },
+      ]);
+      mockSend.mockResolvedValue("msg-id");
+      (prisma.notification.create as jest.Mock).mockRejectedValueOnce(
+        new Error("DB Insert Failed"),
+      );
+
+      const res = await NotificationService.sendToUser("user1", payload);
+
+      expect(res).toHaveLength(1);
+      expect(res[0].success).toBe(true);
+      expect(mockSend.mock.calls[0][0].data).toEqual({});
+    });
+
+    it("loops through tokens, skips invalid records, and logs DB errors", async () => {
       // Notice: we mock `deviceToken` here because the source code accesses `record.deviceToken`
       const mockTokens = [
         null, // Should hit `if (!record) continue;`
@@ -242,9 +285,6 @@ describe("NotificationService", () => {
       );
 
       const res = await NotificationService.sendToUser("user1", payload);
-
-      // We must wait a tick for the dangling .catch() on create to execute
-      await new Promise(process.nextTick);
 
       expect(res).toHaveLength(1);
       expect(res[0].token).toBe("token-1");
@@ -264,7 +304,6 @@ describe("NotificationService", () => {
       );
 
       await NotificationService.sendToUser("user1", payload);
-      await new Promise(process.nextTick); // flush dangling promises
 
       expect(logger.error).toHaveBeenCalledWith(
         expect.stringContaining("Unknown error"),
@@ -333,15 +372,101 @@ describe("NotificationService", () => {
   describe("markNotificationAsSeen", () => {
     it("throws if notificationId is missing", async () => {
       await expect(
-        NotificationService.markNotificationAsSeen(""),
+        NotificationService.markNotificationAsSeen("", "user1"),
       ).rejects.toThrow("notificationId is required");
     });
 
-    it("updates notification via prisma", async () => {
-      await NotificationService.markNotificationAsSeen("notif-1");
+    it("throws if userId is missing", async () => {
+      await expect(
+        NotificationService.markNotificationAsSeen("notif-1", ""),
+      ).rejects.toThrow("userId is required");
+    });
+
+    it("scopes the update to the owner, so another user's id matches nothing", async () => {
+      const count = await NotificationService.markNotificationAsSeen(
+        "notif-1",
+        "user1",
+      );
+
       expect(prisma.notification.updateMany).toHaveBeenCalledWith({
-        where: { id: "notif-1" },
+        where: { id: "notif-1", userId: "user1" },
         data: { isSeen: true },
+      });
+      expect(count).toBe(1);
+    });
+
+    it("reports zero when the notification is not this user's", async () => {
+      (prisma.notification.updateMany as jest.Mock).mockResolvedValueOnce({
+        count: 0,
+      });
+
+      const count = await NotificationService.markNotificationAsSeen(
+        "someone-elses",
+        "user1",
+      );
+
+      expect(count).toBe(0);
+    });
+  });
+
+  describe("archiveNotificationForUser", () => {
+    it("throws if notificationId is missing", async () => {
+      await expect(
+        NotificationService.archiveNotificationForUser("", "user1"),
+      ).rejects.toThrow("notificationId is required");
+    });
+
+    it("throws if userId is missing", async () => {
+      await expect(
+        NotificationService.archiveNotificationForUser("notif-1", ""),
+      ).rejects.toThrow("userId is required");
+    });
+
+    it("stamps archivedAt for the owner's un-archived notification", async () => {
+      const res = await NotificationService.archiveNotificationForUser(
+        "notif-1",
+        "user1",
+      );
+
+      expect(res).toBe("archived");
+      expect(prisma.notification.updateMany).toHaveBeenCalledWith({
+        where: { id: "notif-1", userId: "user1", archivedAt: null },
+        data: { archivedAt: expect.any(Date) },
+      });
+      expect(prisma.notification.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("treats a second archive as success and keeps the original timestamp", async () => {
+      (prisma.notification.updateMany as jest.Mock).mockResolvedValueOnce({
+        count: 0,
+      });
+      (prisma.notification.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "notif-1",
+      });
+
+      const res = await NotificationService.archiveNotificationForUser(
+        "notif-1",
+        "user1",
+      );
+
+      expect(res).toBe("already-archived");
+    });
+
+    it("reports not-found for an id that is not this user's", async () => {
+      (prisma.notification.updateMany as jest.Mock).mockResolvedValueOnce({
+        count: 0,
+      });
+      (prisma.notification.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+      const res = await NotificationService.archiveNotificationForUser(
+        "someone-elses",
+        "user1",
+      );
+
+      expect(res).toBe("not-found");
+      expect(prisma.notification.findFirst).toHaveBeenCalledWith({
+        where: { id: "someone-elses", userId: "user1" },
+        select: { id: true },
       });
     });
   });
