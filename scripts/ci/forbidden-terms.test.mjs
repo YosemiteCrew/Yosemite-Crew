@@ -290,12 +290,21 @@ test('a clean run says how many surfaces it read', () => {
 test('every surface is a bare filename', () => {
   // `runScan` builds each path as path.join(dir, surface), so an entry carrying
   // a separator or a `..` reads a file the collector never wrote. Cardinality
-  // pins WHICH surfaces are read; nothing above pins their SHAPE - an escaping
-  // entry is caught today only because path.join(tmpdir, '../../etc/passwd')
-  // happens not to exist under the fixture root, which is a fact about where
-  // the test writes its files rather than about this set. It is also the whole
-  // of the argument that the file-inclusion finding on that join is
-  // unreachable: the only variable in it is `dir`, and this is what says so.
+  // pins WHICH surfaces are read; nothing above pins their SHAPE. `../body` is
+  // caught several other ways because the file does not exist under the fixture
+  // root - which is a fact about where the test writes its files, not about this
+  // set. `./body` is the case that shows what this assertion is for: it resolves
+  // to the SAME file, every other test stays green, and only a statement about
+  // the shape of the entry sees it at all.
+  //
+  // HALF of the argument that the file-inclusion finding on that join is
+  // unreachable, and the half that is checked. The join has two operands. This
+  // pins the set: every entry is a bare name, so no entry can escape `dir`. It
+  // says NOTHING about the call site - a second caller-controlled operand added
+  // to the same `path.join` leaves this suite at 29/0. No assertion here can
+  // reach that: a dormant variable has no behaviour to observe, and a source
+  // regex over `path.join(dir, surface)` goes red on renaming the loop variable,
+  // which is a legal edit. That half is held by review and by nothing else.
   assert.notEqual(SURFACES.size, 0, 'no surfaces: this test is reading nothing');
   for (const surface of SURFACES) {
     assert.equal(path.basename(surface), surface, `'${surface}' is not a bare filename`);
