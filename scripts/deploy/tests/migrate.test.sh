@@ -233,6 +233,172 @@ case "$STOP_NOTICE" in
   *) no "passes every migration through to the notice" "$STOP_NOTICE" ;;
 esac
 
+echo
+echo "deploy_on_exit"
+
+# The handler api-deploy.sh actually arms, exercised directly.
+#
+# deploy_stop_notice takes three positional flags of the same type, and nothing
+# - not the shell, not shellcheck - catches a transposition. The suite could
+# not either, while the test hand-wrote its own copy of this handler and the
+# only thing tying the copy to the real one was a grep on line ordering.
+# Swapping the two flags in the real handler inverts the notice completely:
+# fires only after a verified cutover, silent exactly when the schema is ahead.
+#
+# So each flag is varied independently against the real function. It reads the
+# caller's state rather than taking arguments, because an EXIT trap has none.
+# Matches the NOTICE, not merely "something reached stderr". A `set -u` abort
+# inside the handler also writes to stderr, and reading that as "the notice
+# fired" would make three of the four checks below pass for the wrong reason -
+# and turn red for the wrong reason too, which is worse. `|| true` because a
+# probe that dies must report as a failed check rather than end the suite.
+on_exit_fired() { # on_exit_fired <status> <migrations-applied> <cutover-done>
+  local out
+  out="$(
+    MIGRATIONS_APPLIED="$2" \
+    CUTOVER_DONE="$3" \
+    ROLLBACK_SHA=abc1234 \
+    INCOMING_MIGRATIONS="20260102000000_second" \
+    bash -c '
+      set -u
+      . "'"$HERE"'/../lib/migrate.sh"
+      ( exit '"$1"' )
+      deploy_on_exit
+    ' 2>&1 >/dev/null || true
+  )"
+  case "$out" in
+    *"THE SCHEMA IS AHEAD OF THE RUNNING CODE"*) echo yes ;;
+    *) echo no ;;
+  esac
+}
+
+check "the real handler fires when migrations applied and no cutover" \
+  "yes" "$(on_exit_fired 1 1 0)"
+check "the real handler is silent after a verified cutover" \
+  "no" "$(on_exit_fired 1 1 1)"
+check "the real handler is silent when the schema never moved" \
+  "no" "$(on_exit_fired 1 0 0)"
+check "the real handler is silent on a clean exit" \
+  "no" "$(on_exit_fired 0 1 0)"
+
+# The two silent cases above are what make a transposition red: swapping
+# MIGRATIONS_APPLIED and CUTOVER_DONE turns "silent after a verified cutover"
+# into a notice and "fires when migrations applied" into silence.
+
+ON_EXIT_OUT="$(
+  MIGRATIONS_APPLIED=1 CUTOVER_DONE=0 ROLLBACK_SHA=deadbee \
+  INCOMING_MIGRATIONS="20260102000000_second 20260103000000_third" \
+  bash -c '
+    set -u
+    . "'"$HERE"'/../lib/migrate.sh"
+    ( exit 1 )
+    deploy_on_exit
+  ' 2>&1 >/dev/null || true
+)"
+case "$ON_EXIT_OUT" in
+  *deadbee*20260102000000_second*20260103000000_third*)
+    ok "the real handler passes the rollback sha and every migration through" ;;
+  *) no "the real handler passes the rollback sha and every migration through" \
+       "$ON_EXIT_OUT" ;;
+esac
+
+# SMOKE_PID is the one piece of state the handler defaults, because "no smoke
+# process" is a normal state for most of the script rather than a caller
+# mistake. Everything else is deliberately undefaulted so `set -u` refuses
+# rather than silently choosing the silent answer.
+if MIGRATIONS_APPLIED=1 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+   INCOMING_MIGRATIONS="20260102000000_second" \
+   bash -c '
+     set -u
+     . "'"$HERE"'/../lib/migrate.sh"
+     ( exit 1 )
+     deploy_on_exit
+   ' >/dev/null 2>&1; then
+  ok "the real handler tolerates an unset SMOKE_PID"
+else
+  no "the real handler tolerates an unset SMOKE_PID" "it failed under set -u"
+fi
+
+# The handler has TWO jobs, and every check above exercises only one. Deleting
+# the kill outright left the whole suite green, which made "the smoke process is
+# reaped on any exit" a claim the comment makes and nothing tests. The stakes
+# are a deploy that fails for a reason nothing in its output names: an orphaned
+# smoke process holds :8099, so the NEXT deploy's boot cannot bind, /health
+# answers 000 and it correctly refuses to cut over - failing closed, and failing
+# opaque.
+#
+# `wait` rather than `kill -0`, because a killed child is a zombie until it is
+# reaped and `kill -0` reports a zombie as alive. The status distinguishes the
+# two outcomes: 143 is SIGTERM, 0 is "it ran to completion untouched".
+SMOKE_WAIT_STATUS="$(
+  MIGRATIONS_APPLIED=0 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+  INCOMING_MIGRATIONS="" \
+  bash -c '
+    set -u
+    . "'"$HERE"'/../lib/migrate.sh"
+    sleep 2 &
+    SMOKE_PID=$!
+    deploy_on_exit
+    wait "$SMOKE_PID" 2>/dev/null
+    echo "$?"
+  ' 2>/dev/null || echo aborted
+)"
+check "the real handler kills the smoke process" "143" "$SMOKE_WAIT_STATUS"
+
+# And the kill must not be able to swallow the notice. api-deploy.sh runs under
+# `set -e`, so an unguarded `kill` of a process that has already exited would
+# end the handler where it stands - before the notice, on the exit path the
+# notice exists for. `|| true` is what stops that, and nothing tested it.
+DEAD_PID_NOTICE="$(
+  MIGRATIONS_APPLIED=1 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+  INCOMING_MIGRATIONS="20260102000000_second" \
+  bash -c '
+    set -eu
+    . "'"$HERE"'/../lib/migrate.sh"
+    sleep 0 &
+    SMOKE_PID=$!
+    wait "$SMOKE_PID" 2>/dev/null || true
+    trap deploy_on_exit EXIT
+    false
+  ' 2>&1 >/dev/null || true
+)"
+case "$DEAD_PID_NOTICE" in
+  *"THE SCHEMA IS AHEAD OF THE RUNNING CODE"*)
+    ok "a smoke process that has already exited does not swallow the notice" ;;
+  *) no "a smoke process that has already exited does not swallow the notice" \
+       "stderr was: $DEAD_PID_NOTICE" ;;
+esac
+
+# The reap runs BEFORE the notice, and that order is load-bearing rather than
+# stylistic. Moving the kill below the notice is green today - every branch of
+# deploy_stop_notice returns 0, so nothing after it is skipped. But under
+# `set -e` the day one of them returns non-zero, a handler in that order stops
+# at the notice and never reaps, and neither change on its own fails anything:
+# the reorder is green now, and the `return 1` would be green in a handler that
+# reaps first. This pins the order by supplying the half that does not exist
+# yet.
+#
+# It stubs both sides deliberately - `kill` so the ordering is observable
+# without a real child, deploy_stop_notice so it can fail - and runs the real
+# deploy_on_exit between them. So it testifies about the order of the two
+# statements and nothing else; that the kill actually kills is the check above,
+# which is why both are here.
+REAP_ORDER="$(
+  MIGRATIONS_APPLIED=1 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+  INCOMING_MIGRATIONS="20260102000000_second" \
+  bash -c '
+    set -eu
+    . "'"$HERE"'/../lib/migrate.sh"
+    kill() { echo REAPED; }
+    deploy_stop_notice() { echo NOTICE; return 1; }
+    SMOKE_PID=4242
+    trap deploy_on_exit EXIT
+    false
+  ' 2>/dev/null || true
+)"
+check "the reap cannot be swallowed by a notice that fails" \
+  "REAPED NOTICE" "$(printf '%s' "$REAP_ORDER" | tr '\n' ' ' | sed 's/ $//')"
+
 # ---------------------------------------------------------------------------
 # The regression itself.
 #
@@ -253,16 +419,12 @@ set -euo pipefail
 
 MIGRATIONS_APPLIED=0
 CUTOVER_DONE=0
+ROLLBACK_SHA=abc1234
 INCOMING_MIGRATIONS="20260102000000_second"
 
-on_exit() {
-  local status=\$?
-  # shellcheck disable=SC2086
-  deploy_stop_notice "\$status" "\$MIGRATIONS_APPLIED" "\$CUTOVER_DONE" \\
-    abc1234 \$INCOMING_MIGRATIONS
-}
-
-trap on_exit EXIT
+# The REAL handler, armed the way api-deploy.sh arms it. A hand-written copy
+# here is what let a transposition of its two flags stay green.
+trap deploy_on_exit EXIT
 MIGRATIONS_APPLIED=1
 # Stands in for prisma halting part-way: two applied, then a bare failure.
 echo "applied 20260101000000_first"
@@ -304,7 +466,7 @@ DEPLOY_SH="$HERE/../api-deploy.sh"
 # the whole suite through `set -e` on the assignment below.
 line_of() { grep -n -m1 -F "$1" "$DEPLOY_SH" | cut -d: -f1 || true; }
 
-TRAP_LINE="$(line_of 'trap on_exit EXIT')"
+TRAP_LINE="$(line_of 'trap deploy_on_exit EXIT')"
 FLAG_LINE="$(line_of 'MIGRATIONS_APPLIED=1')"
 DEPLOY_LINE="$(line_of 'run prisma:deploy')"
 

@@ -109,29 +109,19 @@ else
   echo "this deploy adds no migrations - the schema does not move"
 fi
 
-# Said on the way out, not from the branches that remembered to say it.
+# The handler itself is `deploy_on_exit` in lib/migrate.sh, so the test suite
+# can arm the real one instead of a hand-written copy of it. The state it reads
+# - MIGRATIONS_APPLIED, CUTOVER_DONE, ROLLBACK_SHA, INCOMING_MIGRATIONS - is set
+# above; SMOKE_PID is set and cleared around the boot below.
 #
-# This script runs under `set -e`, so a command that simply fails ends it where
-# it stands. Hanging the notice off the two branches that test a status meant
-# every other exit between the migration and the cutover was silent - including
-# the likeliest one of all, `prisma migrate deploy` halting part-way through and
-# leaving the earlier migrations applied. An EXIT trap cannot be walked past.
-#
-# It also owns the smoke process, so there is one handler rather than an
-# arm/disarm pair around the boot that a later edit could fall out of.
-on_exit() {
-  local status=$?
-
-  if [ -n "$SMOKE_PID" ]; then
-    kill "$SMOKE_PID" 2>/dev/null || true
-  fi
-
-  # Deliberate word splitting - one argument per migration. Prisma directory
-  # names are <timestamp>_<snake_case>, so there is nothing here to glob.
-  # shellcheck disable=SC2086
-  deploy_stop_notice "$status" "$MIGRATIONS_APPLIED" "$CUTOVER_DONE" \
-    "$ROLLBACK_SHA" $INCOMING_MIGRATIONS
-}
+# Why a trap at all: this script runs under `set -e`, so a command that simply
+# fails ends it where it stands. Hanging the notice off the two branches that
+# test a status meant every other exit between the migration and the cutover was
+# silent - including the likeliest one of all, `prisma migrate deploy` halting
+# part-way through and leaving the earlier migrations applied. An EXIT trap
+# cannot be walked past. It also owns the smoke process, so there is one handler
+# rather than an arm/disarm pair around the boot that a later edit could fall
+# out of.
 
 say "install"
 pnpm install --frozen-lockfile
@@ -189,7 +179,7 @@ fi
 # Prisma fails having applied nothing, and over-reporting a schema hazard is the
 # safe direction. A deploy that carries no migrations cannot move the schema at
 # all, so it stays silent.
-trap on_exit EXIT
+trap deploy_on_exit EXIT
 if [ -n "$INCOMING_MIGRATIONS" ]; then
   MIGRATIONS_APPLIED=1
 fi
