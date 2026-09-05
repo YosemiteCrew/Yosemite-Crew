@@ -70,18 +70,15 @@ const requireFlagId = (flagId: string): string => {
   return flagId;
 };
 
-const requestWithLog = async <T>(message: string, request: () => Promise<T>): Promise<T> => {
-  try {
-    return await request();
-  } catch (error) {
+const requestWithLog = <T>(message: string, request: () => Promise<T>): Promise<T> =>
+  request().catch((error: unknown) => {
     if (axios.isAxiosError(error)) {
       logger.error(message, error.response?.data?.message ?? error.message);
     } else {
       logger.error(message, error);
     }
     throw error;
-  }
-};
+  });
 
 export const fetchPatientFlags = async (
   filters: FetchPatientFlagsParams = {}
