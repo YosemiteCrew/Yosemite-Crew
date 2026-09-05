@@ -23,8 +23,6 @@
   .yc-phone-sheet-backdrop {
     position: absolute;
     inset: 0;
-    border: none;
-    padding: 0;
     background: var(--sh55);
     /* Frost the dimmed page behind the sheet. */
     -webkit-backdrop-filter: blur(6px);
