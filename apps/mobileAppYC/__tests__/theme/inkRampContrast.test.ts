@@ -16,6 +16,20 @@ const contrast = (a: string, b: string): number => {
   return (hi + 0.05) / (lo + 0.05);
 };
 
+const rgbaOverHex = (rgba: string, background: string): string => {
+  const [, red, green, blue, alpha] =
+    rgba.match(/rgba\((\d+), (\d+), (\d+), ([\d.]+)\)/) ?? [];
+  const bg = [1, 3, 5].map(i => parseInt(background.slice(i, i + 2), 16));
+  const foreground = [red, green, blue].map(Number);
+  return `#${foreground
+    .map((value, index) =>
+      Math.round(value * Number(alpha) + bg[index] * (1 - Number(alpha)))
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
+};
+
 describe('ink ramp contrast', () => {
   it('inkMuted carries body text in both themes', () => {
     expect(contrast(colors.inkMuted, colors.screen)).toBeGreaterThanOrEqual(
@@ -31,6 +45,17 @@ describe('ink ramp contrast', () => {
     expect(
       contrast(colorsDark.inkFaint, colorsDark.screen),
     ).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('parasite risk tier contrast', () => {
+  it.each([
+    [colors.riskModerate, colors.riskModerateSurface],
+    [colors.riskHigh, colors.riskHighSurface],
+  ])('keeps small tier labels readable', (foreground, surface) => {
+    expect(
+      contrast(foreground, rgbaOverHex(surface, colors.cardBackground)),
+    ).toBeGreaterThanOrEqual(4.5);
   });
 });
 

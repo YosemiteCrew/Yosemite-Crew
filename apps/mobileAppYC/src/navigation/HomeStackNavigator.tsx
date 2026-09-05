@@ -23,6 +23,10 @@ import {CoParentProfileScreen} from '@/features/coParent/screens/CoParentProfile
 import {AdverseEventStackNavigator} from './AdverseEventStackNavigator';
 import {NotificationsScreen} from '@/features/notifications';
 import {AssistantScreen} from '@/features/assistant/screens';
+import {
+  ParasiteDetailScreen,
+  ParasiteRiskScreen,
+} from '@/features/parasiteRisk';
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
@@ -147,6 +151,16 @@ export const HomeStackNavigator: React.FC = () => {
       <Stack.Screen
         name="Assistant"
         component={AssistantScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="ParasiteRisk"
+        component={ParasiteRiskScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="ParasiteDetail"
+        component={ParasiteDetailScreen}
         options={{headerShown: false}}
       />
     </Stack.Navigator>
