@@ -24,6 +24,7 @@ import {
   corpusLines,
   scanSurface,
   selfTest,
+  SURFACES,
 } from './forbidden-terms.mjs';
 
 const ROOT = path.join(import.meta.dirname, '..', '..');
@@ -284,6 +285,26 @@ test('a clean run says how many surfaces it read', () => {
   });
   assert.equal(result.code, 0);
   assert.match(result.stdout, /6 surfaces read/);
+});
+
+test('every surface is a bare filename', () => {
+  // `runScan` builds each path as path.join(dir, surface), so an entry carrying
+  // a separator or a `..` reads a file the collector never wrote. Cardinality
+  // pins WHICH surfaces are read; nothing above pins their SHAPE - an escaping
+  // entry is caught today only because path.join(tmpdir, '../../etc/passwd')
+  // happens not to exist under the fixture root, which is a fact about where
+  // the test writes its files rather than about this set. It is also the whole
+  // of the argument that the file-inclusion finding on that join is
+  // unreachable: the only variable in it is `dir`, and this is what says so.
+  assert.notEqual(SURFACES.size, 0, 'no surfaces: this test is reading nothing');
+  for (const surface of SURFACES) {
+    assert.equal(path.basename(surface), surface, `'${surface}' is not a bare filename`);
+    assert.equal(
+      surface === '.' || surface === '..',
+      false,
+      `'${surface}' resolves outside the surface directory`
+    );
+  }
 });
 
 test('a pattern that does not compile is reported without quoting the pattern', () => {
