@@ -496,3 +496,26 @@ test('moving an object to another schema is a hazard, and a shape one', () => {
     []
   );
 });
+
+// ALTER USER and DROP USER are exact aliases for ALTER ROLE and DROP ROLE in
+// PostgreSQL, not near synonyms, so matching one spelling matches half the
+// language. Raised by ankit-yc reviewing #2731.
+test('the role rule matches the USER spelling too', () => {
+  for (const spelling of ['ROLE', 'USER']) {
+    assert.deepEqual(kinds(`ALTER ${spelling} app_role NOLOGIN;`), [
+      'removes a role or its ability to connect',
+    ]);
+    assert.deepEqual(kinds(`ALTER ${spelling} app_role CONNECTION LIMIT 0;`), [
+      'removes a role or its ability to connect',
+    ]);
+    assert.deepEqual(kinds(`DROP ${spelling} app_role;`), [
+      'removes a role or its ability to connect',
+    ]);
+    // Still a cap rather than a lockout in either spelling.
+    assert.deepEqual(kinds(`ALTER ${spelling} app_role CONNECTION LIMIT 10;`), []);
+  }
+  // A padded zero is still zero; `\b` alone could not see it.
+  assert.deepEqual(kinds('ALTER USER app_role CONNECTION LIMIT 00;'), [
+    'removes a role or its ability to connect',
+  ]);
+});

@@ -321,9 +321,16 @@ const ACCESS_RULES = [
     // CONNECTION LIMIT 0 denies every new connection as completely as NOLOGIN
     // does. Anchored on the zero: a positive limit is a cap, and -1 is the
     // default meaning no limit at all.
+    //
+    // ROLE|USER because they are exact aliases in PostgreSQL rather than near
+    // synonyms - ALTER USER and DROP USER are the same statements - so matching
+    // one spelling is matching half the language. `0+` for the same reason a
+    // word boundary alone is not enough: CONNECTION LIMIT 00 is still zero.
+    // Both raised by ankit-yc on #2731.
     test: (u) =>
-      u.includes('DROP ROLE') ||
-      (u.includes('ALTER ROLE') && (u.includes('NOLOGIN') || /\bCONNECTION LIMIT 0\b/.test(u))),
+      /\bDROP (ROLE|USER)\b/.test(u) ||
+      (/\bALTER (ROLE|USER)\b/.test(u) &&
+        (u.includes('NOLOGIN') || /\bCONNECTION LIMIT 0+\b/.test(u))),
   },
 ];
 
