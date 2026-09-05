@@ -673,6 +673,28 @@ deploy_record_deployed_sha "$REC" "$M2"
 check "a later cutover replaces the record rather than appending" \
   "$M2" "$(deploy_deployed_sha "$REC" "$REPO")"
 
+# The write happens AFTER the cutover has succeeded, so failing the deploy over
+# it would lose a working deploy to a note about one. The three checks below are
+# the whole of that promise: it returns 0, it says so, and it does not damage
+# the record that is already there. Each was green before it existed - the
+# behaviour was right in the code and held by nothing.
+UNWRITABLE="$WORK/no-such-dir/deployed-sha.txt"
+RECORD_ERR="$WORK/record-stderr.txt"
+deploy_record_deployed_sha "$UNWRITABLE" "$M1" 2>"$RECORD_ERR"
+check "a record that cannot be written does not fail the deploy" "0" "$?"
+check "and says so on stderr" "1" \
+  "$(grep -c 'could not record the deployed sha' "$RECORD_ERR")"
+
+# The temporary file is the atomicity: a box killed mid-write keeps the previous
+# record rather than a truncated one. Making the .tmp path a directory is the
+# portable way to fail that write with the record itself intact.
+deploy_record_deployed_sha "$REC" "$M1"
+mkdir -p "$REC.tmp"
+deploy_record_deployed_sha "$REC" "$M2" 2>/dev/null
+check "a failed write leaves the previous record intact" \
+  "$M1" "$(deploy_deployed_sha "$REC" "$REPO")"
+rmdir "$REC.tmp"
+
 # ---------------------------------------------------------------------------
 # THE REGRESSION. This is #2714 and it is the reason the two functions exist.
 #

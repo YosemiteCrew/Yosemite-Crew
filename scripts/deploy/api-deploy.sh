@@ -77,7 +77,7 @@ node -v
 # The commit this box is SERVING, which is not the same question as "what is
 # HEAD". Read from the record written at the last verified cutover, before
 # deploy_git_sync moves the tree - see deploy_deployed_sha for why HEAD alone is
-# wrong on every retry, and why the stamped file two lines below is not the
+# wrong on every retry, and why the stamped file written just below is not the
 # record despite looking exactly like it.
 DEPLOYED_SHA_RECORD="/tmp/api-deployed-sha.txt"
 ROLLBACK_SHA="$(deploy_deployed_sha "$DEPLOYED_SHA_RECORD" "$REPO_DIR")"
