@@ -64,6 +64,12 @@ const requireOrgId = (): string => {
   return orgId;
 };
 
+/** Validates a flag id before it becomes a path segment, mirroring requireOrgId. */
+const requireFlagId = (flagId: string): string => {
+  if (!UUID_PATH_SEGMENT.test(flagId)) throw new Error('Flag ID must be a UUID');
+  return flagId;
+};
+
 const requestWithLog = async <T>(message: string, request: () => Promise<T>): Promise<T> => {
   try {
     return await request();
@@ -101,10 +107,10 @@ export const fetchPatientFlags = async (
 
 export const fetchPatientFlag = async (flagId: string): Promise<PatientFlag> => {
   const orgId = requireOrgId();
-  if (!UUID_PATH_SEGMENT.test(flagId)) throw new Error('Flag ID must be a UUID');
+  const safeFlagId = requireFlagId(flagId);
   return requestWithLog('Failed to load patient flag:', async () => {
     const response = await getData<PatientFlag>(
-      '/v1/pms/organisation/' + orgId + '/patient-flags/' + flagId
+      '/v1/pms/organisation/' + orgId + '/patient-flags/' + safeFlagId
     );
     return response.data;
   });
@@ -126,10 +132,10 @@ export const updatePatientFlag = async (
   input: UpdatePatientFlagInput
 ): Promise<PatientFlag> => {
   const orgId = requireOrgId();
-  if (!UUID_PATH_SEGMENT.test(flagId)) throw new Error('Flag ID must be a UUID');
+  const safeFlagId = requireFlagId(flagId);
   return requestWithLog('Failed to update patient flag:', async () => {
     const response = await patchData<PatientFlag, UpdatePatientFlagInput>(
-      '/v1/pms/organisation/' + orgId + '/patient-flags/' + flagId,
+      '/v1/pms/organisation/' + orgId + '/patient-flags/' + safeFlagId,
       input
     );
     return response.data;
@@ -138,10 +144,10 @@ export const updatePatientFlag = async (
 
 export const resolvePatientFlag = async (flagId: string): Promise<PatientFlag> => {
   const orgId = requireOrgId();
-  if (!UUID_PATH_SEGMENT.test(flagId)) throw new Error('Flag ID must be a UUID');
+  const safeFlagId = requireFlagId(flagId);
   return requestWithLog('Failed to resolve patient flag:', async () => {
     const response = await postData<PatientFlag>(
-      '/v1/pms/organisation/' + orgId + '/patient-flags/' + flagId + '/resolve',
+      '/v1/pms/organisation/' + orgId + '/patient-flags/' + safeFlagId + '/resolve',
       {}
     );
     return response.data;
