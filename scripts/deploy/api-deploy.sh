@@ -261,6 +261,11 @@ echo "  body parse -> $POST_CODE"
 # cutover, and lib/controls.sh holds the reasoning for every case that does not.
 # The 503 this returns when degraded is why there is no -f and no code check
 # here: the body is the signal, not the status.
+#
+# The assignment below is deliberately NOT tolerant. An unreadable body ships -
+# that decision is in lib/controls.sh - but a helper that cannot RUN stops the
+# deploy here, because set -e carries a command substitution's status and the
+# EXIT trap turns that into a stop notice with the rollback sha.
 CONTROLS_BODY="$(curl -s --max-time 10 "http://127.0.0.1:$SMOKE_PORT/health/controls" || echo '')"
 echo "  controls -> ${CONTROLS_BODY:-<unreachable>}"
 # shellcheck disable=SC2086 # deliberately word-split: this is a list of names
