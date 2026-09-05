@@ -1,4 +1,4 @@
-import Router from "express";
+import { Router } from "express";
 import { MobilePrescriptionController } from "../controllers/app/prescription.controller";
 import { requireMobileAuth } from "src/middlewares/auth";
 
