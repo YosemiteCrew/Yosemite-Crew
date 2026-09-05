@@ -265,8 +265,8 @@ export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
   // Open the search immediately when there is nothing to show yet: the screen
   // is useless without a place, so do not make the user hunt for the control.
   useEffect(() => {
-    if (!location && !loading) setSearchVisible(true);
-  }, [location, loading]);
+    if (!location && !loading && !error) setSearchVisible(true);
+  }, [error, location, loading]);
 
   useEffect(() => {
     dispatch(loadSubscriptions());

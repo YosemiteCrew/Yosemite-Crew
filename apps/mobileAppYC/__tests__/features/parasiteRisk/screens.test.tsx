@@ -306,6 +306,7 @@ describe('ParasiteRiskScreen', () => {
     renderScreen();
 
     expect(screen.getByText('parasiteRisk.errors.forecast')).toBeTruthy();
+    expect(mockSearchSheetProps?.visible).toBe(false);
   });
 
   it('surfaces an error while keeping the previous reading visible', () => {
