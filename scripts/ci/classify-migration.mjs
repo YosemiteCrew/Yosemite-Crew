@@ -257,8 +257,17 @@ const addColumnClauses = (upper) => upper.split('ADD COLUMN').slice(1);
  *                                    flagged.
  *   ALTER DEFAULT PRIVILEGES       - governs objects created later. It cannot
  *                                    change what the deployed code reads today.
+ *
+ * Those four are safe by PostgreSQL's own semantics. One more is excluded on a
+ * weaker footing and the difference is worth keeping visible:
+ *
  *   SECURITY LABEL                 - does nothing without a label provider, and
- *                                    none is configured on this database.
+ *                                    none is configured on this database. That
+ *                                    is a fact about this deployment with
+ *                                    nothing in this repository pinning it -
+ *                                    the same footing as the premise under the
+ *                                    ENABLE rule, not the same as the four
+ *                                    above. Raised by ankit-yc on #2731.
  *
  * These read the same normalised statement text as the rules above, so they
  * inherit that machinery exactly: a hazard word in a comment is not a hazard,
@@ -286,7 +295,12 @@ const ACCESS_RULES = [
   {
     dimension: 'access',
     kind: 'changes an object owner',
-    test: (u) => /\bOWNER TO\b/.test(u),
+    // REASSIGN OWNED BY is OWNER TO applied to every object a role owns, in one
+    // statement - and on this database that is the single statement that takes
+    // all eleven row-level-security tables out of the API's sight at once,
+    // because every one of them rests on the owner bypass. Its sibling in the
+    // same command family, DROP OWNED BY, is already below.
+    test: (u) => /\bOWNER TO\b/.test(u) || u.includes('REASSIGN OWNED BY'),
   },
   {
     dimension: 'access',
@@ -304,7 +318,12 @@ const ACCESS_RULES = [
   {
     dimension: 'access',
     kind: 'removes a role or its ability to connect',
-    test: (u) => u.includes('DROP ROLE') || (u.includes('ALTER ROLE') && u.includes('NOLOGIN')),
+    // CONNECTION LIMIT 0 denies every new connection as completely as NOLOGIN
+    // does. Anchored on the zero: a positive limit is a cap, and -1 is the
+    // default meaning no limit at all.
+    test: (u) =>
+      u.includes('DROP ROLE') ||
+      (u.includes('ALTER ROLE') && (u.includes('NOLOGIN') || /\bCONNECTION LIMIT 0\b/.test(u))),
   },
 ];
 
@@ -332,6 +351,13 @@ const RULES = [
   {
     kind: 'adds a required column with no default',
     test: (u) => addColumnClauses(u).some((c) => c.includes('NOT NULL') && !c.includes('DEFAULT')),
+  },
+  {
+    // Not an access change - the object still exists and the grants are
+    // unchanged - but a deployed query naming it unqualified stops resolving,
+    // which is the same break by a different route.
+    kind: 'moves an object to another schema',
+    test: (u) => u.includes('SET SCHEMA'),
   },
   ...ACCESS_RULES,
 ];
