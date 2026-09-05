@@ -1,12 +1,11 @@
 import type { ParasiteRiskReading } from "@yosemite-crew/types";
-import { Prisma } from "@prisma/client";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
     parasiteRiskSubscription: {
       findMany: jest.fn(),
-      update: jest.fn(),
     },
+    $executeRaw: jest.fn(),
     parent: {
       findMany: jest.fn(),
     },
@@ -146,7 +145,7 @@ describe("refreshFollowedCells", () => {
           where.id.in.map((id) => ({ id, linkedUserId: `user-${id}` })),
         ),
     );
-    (prisma.parasiteRiskSubscription.update as jest.Mock).mockResolvedValue({});
+    (prisma.$executeRaw as jest.Mock).mockResolvedValue(1);
     (NotificationService.sendToUser as jest.Mock).mockResolvedValue([
       { token: "device-1", success: true },
     ]);
@@ -213,21 +212,16 @@ describe("refreshFollowedCells", () => {
     (refreshCell as jest.Mock).mockResolvedValue({
       readings: [reading("paralysis_tick", "HIGH")],
     });
-    const missing = Object.assign(new Error("missing"), { code: "P2025" });
-    Object.setPrototypeOf(
-      missing,
-      Prisma.PrismaClientKnownRequestError.prototype,
-    );
-    (prisma.parasiteRiskSubscription.update as jest.Mock)
-      .mockRejectedValueOnce(missing)
-      .mockResolvedValueOnce({});
+    (prisma.$executeRaw as jest.Mock)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(1);
 
     await expect(refreshFollowedCells()).resolves.toEqual({
       cellsRefreshed: 1,
       cellsFailed: 0,
       alertsSent: 0,
     });
-    expect(prisma.parasiteRiskSubscription.update).toHaveBeenCalledTimes(2);
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(2);
   });
 
   it("does not mark tiers alerted when the push fails, so it retries next run", async () => {
@@ -246,7 +240,7 @@ describe("refreshFollowedCells", () => {
     expect(summary.alertsSent).toBe(0);
     // Recording the tier before a confirmed send would suppress this crossing
     // forever; the row must be left untouched so the next sweep tries again.
-    expect(prisma.parasiteRiskSubscription.update).not.toHaveBeenCalled();
+    expect(prisma.$executeRaw).not.toHaveBeenCalled();
   });
 
   it("records the alerted tier once the push succeeds", async () => {
@@ -260,12 +254,12 @@ describe("refreshFollowedCells", () => {
     const summary = await refreshFollowedCells();
 
     expect(summary.alertsSent).toBe(1);
-    expect(prisma.parasiteRiskSubscription.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "sub-1" },
-        data: { alertedTiers: { paralysis_tick: "HIGH" } },
-      }),
-    );
+    const [query, ...values] = (prisma.$executeRaw as jest.Mock).mock.calls[0];
+    expect(query.join("?")).toContain('UPDATE "ParasiteRiskSubscription"');
+    expect(values).toEqual([
+      JSON.stringify({ paralysis_tick: "HIGH" }),
+      "sub-1",
+    ]);
   });
 
   it("looks each parent up once, however many locations they follow", async () => {
@@ -394,7 +388,7 @@ describe("refreshFollowedCells", () => {
     const summary = await refreshFollowedCells();
 
     expect(summary.alertsSent).toBe(0);
-    expect(prisma.parasiteRiskSubscription.update).not.toHaveBeenCalled();
+    expect(prisma.$executeRaw).not.toHaveBeenCalled();
   });
 
   it("keeps sweeping when a push fails", async () => {
