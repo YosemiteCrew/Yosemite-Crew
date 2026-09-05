@@ -369,6 +369,36 @@ case "$DEAD_PID_NOTICE" in
        "stderr was: $DEAD_PID_NOTICE" ;;
 esac
 
+# The reap runs BEFORE the notice, and that order is load-bearing rather than
+# stylistic. Moving the kill below the notice is green today - every branch of
+# deploy_stop_notice returns 0, so nothing after it is skipped. But under
+# `set -e` the day one of them returns non-zero, a handler in that order stops
+# at the notice and never reaps, and neither change on its own fails anything:
+# the reorder is green now, and the `return 1` would be green in a handler that
+# reaps first. This pins the order by supplying the half that does not exist
+# yet.
+#
+# It stubs both sides deliberately - `kill` so the ordering is observable
+# without a real child, deploy_stop_notice so it can fail - and runs the real
+# deploy_on_exit between them. So it testifies about the order of the two
+# statements and nothing else; that the kill actually kills is the check above,
+# which is why both are here.
+REAP_ORDER="$(
+  MIGRATIONS_APPLIED=1 CUTOVER_DONE=0 ROLLBACK_SHA=abc1234 \
+  INCOMING_MIGRATIONS="20260102000000_second" \
+  bash -c '
+    set -eu
+    . "'"$HERE"'/../lib/migrate.sh"
+    kill() { echo REAPED; }
+    deploy_stop_notice() { echo NOTICE; return 1; }
+    SMOKE_PID=4242
+    trap deploy_on_exit EXIT
+    false
+  ' 2>/dev/null || true
+)"
+check "the reap cannot be swallowed by a notice that fails" \
+  "REAPED NOTICE" "$(printf '%s' "$REAP_ORDER" | tr '\n' ' ' | sed 's/ $//')"
+
 # ---------------------------------------------------------------------------
 # The regression itself.
 #
