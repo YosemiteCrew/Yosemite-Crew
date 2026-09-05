@@ -213,4 +213,97 @@ describe("IdexxResultsService", () => {
       }),
     );
   });
+
+  // Confirming the batch tells IDEXX it was consumed, so a batch whose LabOrder transition we
+  // skipped must stay unconfirmed - otherwise the transition is lost for good.
+  it("leaves a batch unconfirmed when a result status does not map", async () => {
+    mockGetLatestResults.mockResolvedValue({
+      batchId: "batch-1",
+      hasMoreResults: false,
+      results: [
+        {
+          resultId: "result-1",
+          orderId: "order-1",
+          status: "REQUIRES_REVIEW",
+          updatedDate: "2026-06-17T12:00:00.000Z",
+          patient: { patientId: "patient-1" },
+        },
+      ],
+    });
+
+    await IdexxResultsService.pollLatest(1, 1);
+
+    expect(mockedPrisma.labOrder.update).not.toHaveBeenCalled();
+    expect(mockConfirmLatestBatch).not.toHaveBeenCalled();
+    expect(mockedPrisma.labResultSyncState.upsert).not.toHaveBeenCalled();
+    expect(mockedLogger.warn).toHaveBeenCalledWith(
+      "IDEXX result status did not map to a LabOrder status",
+      expect.objectContaining({
+        resultId: "result-1",
+        orderId: "order-1",
+        status: "REQUIRES_REVIEW",
+      }),
+    );
+    expect(mockedLogger.error).toHaveBeenCalledWith(
+      "IDEXX batch left unconfirmed: a result status did not map to a LabOrder status",
+      { batchId: "batch-1" },
+    );
+  });
+
+  // The result row itself still lands, so an unmapped status is not a lost result - but the
+  // document and task are gated on COMPLETE, and a COMPLETE status always maps, so an unmapped
+  // row never produces either.
+  it("still persists a result whose status does not map", async () => {
+    mockGetLatestResults.mockResolvedValue({
+      batchId: "batch-1",
+      hasMoreResults: false,
+      results: [
+        {
+          resultId: "result-1",
+          orderId: "order-1",
+          status: "REQUIRES_REVIEW",
+          updatedDate: "2026-06-17T12:00:00.000Z",
+          patient: { patientId: "patient-1" },
+        },
+      ],
+    });
+
+    await IdexxResultsService.pollLatest(1, 1);
+
+    expect(mockedPrisma.labResult.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ organisationId: "org-1" }),
+      }),
+    );
+    expect(mockedTaskService.createCustom).not.toHaveBeenCalled();
+    expect(mockedDocumentService.create).not.toHaveBeenCalled();
+  });
+
+  it("holds back a mixed batch, applying the rows that do map", async () => {
+    mockGetLatestResults.mockResolvedValue({
+      batchId: "batch-1",
+      hasMoreResults: false,
+      results: [
+        {
+          resultId: "result-1",
+          orderId: "order-1",
+          status: "COMPLETE",
+          updatedDate: "2026-06-17T12:00:00.000Z",
+          patient: { patientId: "patient-1" },
+        },
+        {
+          resultId: "result-2",
+          orderId: "order-1",
+          status: "REQUIRES_REVIEW",
+          updatedDate: "2026-06-17T12:05:00.000Z",
+          patient: { patientId: "patient-1" },
+        },
+      ],
+    });
+
+    await IdexxResultsService.pollLatest(2, 1);
+
+    expect(mockedPrisma.labOrder.update).toHaveBeenCalledTimes(1);
+    expect(mockConfirmLatestBatch).not.toHaveBeenCalled();
+  });
 });
