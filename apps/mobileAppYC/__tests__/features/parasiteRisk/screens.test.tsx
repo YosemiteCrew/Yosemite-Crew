@@ -1,11 +1,16 @@
 import React from 'react';
-import {Alert, StyleSheet} from 'react-native';
-import {render, screen, fireEvent} from '@testing-library/react-native';
+import {Alert, RefreshControl, StyleSheet} from 'react-native';
+import {act, render, screen, fireEvent} from '@testing-library/react-native';
 import {typography} from '@/theme/typography';
 import {mockTheme} from '../../setup/mockTheme';
 
 let mockFakeState: Record<string, unknown> = {};
 const mockDispatch = jest.fn();
+let mockSearchSheetProps: {
+  visible: boolean;
+  onClose: () => void;
+  onSelect: (location: unknown) => void;
+} | null = null;
 
 // Dispatches are asserted by their argument, so the forecast thunk stands in as
 // a plain action creator rather than a real createAsyncThunk function.
@@ -54,7 +59,12 @@ jest.mock('react-native-vector-icons/Ionicons', () => 'Ionicons');
 // about the screen.
 jest.mock(
   '@/features/parasiteRisk/components/RegionSearchSheet/RegionSearchSheet',
-  () => ({RegionSearchSheet: () => null}),
+  () => ({
+    RegionSearchSheet: (props: typeof mockSearchSheetProps) => {
+      mockSearchSheetProps = props;
+      return null;
+    },
+  }),
 );
 
 jest.mock('@/features/companion', () => ({
@@ -171,6 +181,7 @@ const setState = (
 describe('ParasiteRiskScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSearchSheetProps = null;
     jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     setState();
   });
@@ -254,6 +265,36 @@ describe('ParasiteRiskScreen', () => {
     renderScreen();
 
     expect(screen.getByText('parasiteRisk.search.prompt')).toBeTruthy();
+    expect(screen.queryByLabelText('parasiteRisk.follow')).toBeNull();
+  });
+
+  it('disables the follow action while subscriptions are loading', () => {
+    setState({subscriptionsLoading: true});
+    renderScreen();
+
+    fireEvent.press(screen.getByLabelText('parasiteRisk.follow'));
+    expect(mockFollowLocation).not.toHaveBeenCalled();
+  });
+
+  it('opens, closes, and selects from the location search', () => {
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('parasiteRisk.search.title'));
+    expect(mockSearchSheetProps?.visible).toBe(true);
+
+    act(() => mockSearchSheetProps?.onClose());
+    expect(mockSearchSheetProps?.visible).toBe(false);
+
+    const next = {label: 'Sydney', lat: -33.875, lon: 151.125};
+    act(() => mockSearchSheetProps?.onSelect(next));
+    expect(mockLoadRiskForLocation).toHaveBeenCalledWith(next);
+  });
+
+  it('refreshes the current forecast', () => {
+    renderScreen();
+    act(() => screen.UNSAFE_getByType(RefreshControl).props.onRefresh());
+    expect(mockLoadRiskForLocation).toHaveBeenCalledWith(
+      baseParasiteRisk.location,
+    );
   });
 
   it('surfaces an error when there is no reading to fall back on', () => {

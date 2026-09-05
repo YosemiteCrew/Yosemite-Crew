@@ -63,7 +63,7 @@ const parasiteName = (alert: ParasiteRiskReading): string =>
 const joinWithAnd = (parts: readonly string[], separator: string): string =>
   parts.length === 1
     ? parts[0]
-    : `${parts.slice(0, -1).join(", ")}${separator}${parts[parts.length - 1]}`;
+    : `${parts.slice(0, -1).join(", ")}${separator}${parts.at(-1)}`;
 
 const buildAlertBody = (
   label: string,
