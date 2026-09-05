@@ -49,6 +49,89 @@ deploy_incoming_migrations() {
     | sort
 }
 
+# deploy_deployed_sha <record-file> [repo-dir]
+#
+# The commit this box is actually serving, for use as the rollback target and as
+# the `from` of deploy_incoming_migrations. Echoes a sha; never fails.
+#
+# WHY NOT `git rev-parse HEAD`, which is what this replaced. HEAD is the commit
+# the working tree is on, and after deploy_git_sync that is the commit being
+# DEPLOYED, not the one being served. On a first attempt the two coincide,
+# because HEAD is read before the checkout. On a RETRY after any failure at or
+# after the checkout - install, build, migration, smoke boot, cutover - the repo
+# is already on the target, so HEAD reads back the target and two things break
+# at once:
+#
+#   * deploy_incoming_migrations gets from == to and returns EMPTY, so
+#     MIGRATIONS_APPLIED stays 0 and the schema-hazard notice cannot fire while
+#     prisma is re-applying the still-pending migrations, and
+#   * every "roll back to $ROLLBACK_SHA" message names the sha being deployed,
+#     which is not a missing warning but a wrong instruction, printed at the
+#     moment someone is deciding what to do.
+#
+# WHY NOT /tmp/api-rollback-$STAMP.txt, which already exists and looks exactly
+# like this record. It is written in preflight, unconditionally, before anything
+# can fail - so a failed attempt writes one too, carrying the same stale sha.
+# Reading the newest of those rebuilds the defect inside its own fix, and does
+# it silently. The record has to be written on a VERIFIED CUTOVER and nowhere
+# else, which is what deploy_record_deployed_sha is for.
+#
+# Fixed filename rather than stamped, for the same reason: "the newest of the
+# stamped files" is a sort over a directory that also holds every failure.
+#
+# The recorded sha is re-verified against this repository before it is trusted.
+# A box restored from a backup, re-cloned, or carrying a record from a branch
+# that has since been force-pushed would otherwise hand an unresolvable sha to
+# deploy_incoming_migrations, which fails closed and takes the deploy with it.
+# An unusable record is treated as no record.
+deploy_deployed_sha() {
+  local record="${1:?record file required}"
+  local repo="${2:-.}"
+  local recorded=""
+
+  if [ -r "$record" ]; then
+    recorded="$(tr -d " \t\r\n" < "$record")"
+  fi
+
+  if [ -n "$recorded" ] \
+    && git -C "$repo" rev-parse --verify --quiet "$recorded^{commit}" >/dev/null 2>&1
+  then
+    git -C "$repo" rev-parse "$recorded^{commit}"
+    return 0
+  fi
+
+  # No usable record: a first-ever deploy on this box, or one written before
+  # this function existed. HEAD is correct here and ONLY here, because this is
+  # read before the checkout moves it.
+  git -C "$repo" rev-parse HEAD
+}
+
+# deploy_record_deployed_sha <record-file> <sha>
+#
+# Remember what this box is serving, called once the new code is verifiably the
+# thing answering - not before. Everything upstream of the cutover can still
+# fail, and a record written earlier would describe a deploy that never
+# happened, which is the failure this whole pair exists to end.
+#
+# Written to a temporary file and moved into place so a box killed mid-write
+# keeps the previous record rather than a truncated one. A record that cannot be
+# written is reported and does not fail the deploy: the cutover has already
+# succeeded by this point, and losing the deploy over a note about it would be
+# the tail wagging the dog. The cost is a stale record, which
+# deploy_deployed_sha already treats as no record.
+deploy_record_deployed_sha() {
+  local record="${1:?record file required}"
+  local sha="${2:?deployed sha required}"
+
+  if printf '%s\n' "$sha" > "$record.tmp" && mv -f "$record.tmp" "$record"; then
+    return 0
+  fi
+
+  echo "warning: could not record the deployed sha to $record" >&2
+  rm -f "$record.tmp" 2>/dev/null || true
+  return 0
+}
+
 # deploy_arm_exit_traps
 #
 # Installs every trap the deploy needs, in one place, because the arming is as

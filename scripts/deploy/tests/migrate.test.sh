@@ -637,6 +637,71 @@ else
   ok "the deploy still exits non-zero"
 fi
 
+echo
+echo "deploy_deployed_sha"
+
+# The commit the box is SERVING, which stops being HEAD the moment deploy_git_sync
+# runs. Every check below is against a real git history for the same reason the
+# rest of this file is: the failure is a property of what `git rev-parse` answers
+# after a checkout, not of our wrapper.
+REC="$WORK/deployed-sha.txt"
+rm -f "$REC"
+
+check "no record: falls back to HEAD, which is right only before the checkout" \
+  "$(git -C "$REPO" rev-parse HEAD)" \
+  "$(deploy_deployed_sha "$REC" "$REPO")"
+
+deploy_record_deployed_sha "$REC" "$M1"
+check "a recorded sha is used in preference to HEAD" \
+  "$M1" "$(deploy_deployed_sha "$REC" "$REPO")"
+
+# A box restored from a backup, re-cloned, or holding a record from a branch that
+# was force-pushed. The recorded sha resolves nowhere, and handing it to
+# deploy_incoming_migrations would fail closed and take the deploy with it.
+deploy_record_deployed_sha "$REC" "0000000000000000000000000000000000000000"
+check "a recorded sha this repo does not have is treated as no record" \
+  "$(git -C "$REPO" rev-parse HEAD)" \
+  "$(deploy_deployed_sha "$REC" "$REPO")"
+
+printf '   \n' > "$REC"
+check "a blank record is treated as no record" \
+  "$(git -C "$REPO" rev-parse HEAD)" \
+  "$(deploy_deployed_sha "$REC" "$REPO")"
+
+deploy_record_deployed_sha "$REC" "$M1"
+deploy_record_deployed_sha "$REC" "$M2"
+check "a later cutover replaces the record rather than appending" \
+  "$M2" "$(deploy_deployed_sha "$REC" "$REPO")"
+
+# ---------------------------------------------------------------------------
+# THE REGRESSION. This is #2714 and it is the reason the two functions exist.
+#
+# A deploy that fails at or after the checkout leaves the repo on the TARGET.
+# The retry then reads HEAD and gets the target, so `from` equals `to`:
+# deploy_incoming_migrations returns empty, MIGRATIONS_APPLIED never leaves 0,
+# and the schema-hazard notice cannot fire while prisma re-applies the still
+# pending migrations. The same stale value is printed as the rollback target at
+# four sites, naming the sha being deployed - a wrong instruction rather than a
+# missing warning.
+#
+# Reverting deploy_deployed_sha to `git rev-parse HEAD` turns both checks below
+# red, which is the "before" for this change.
+# ---------------------------------------------------------------------------
+rm -f "$REC"
+git_quiet -C "$REPO" checkout --quiet "$M1"          # the box is serving M1
+deploy_record_deployed_sha "$REC" "$M1"              # ... and a cutover said so
+git_quiet -C "$REPO" checkout --quiet "$M2"         # a failed attempt moved the tree
+
+RETRY_FROM="$(deploy_deployed_sha "$REC" "$REPO")"
+check "on a retry the rollback target is still the DEPLOYED sha, not HEAD" \
+  "$M1" "$RETRY_FROM"
+
+RETRY_SET="$(cd "$REPO" && deploy_incoming_migrations "$RETRY_FROM" HEAD | tr '\n' ' ')"
+check "on a retry the pending migrations are still seen" \
+  "20260102000000_second " "$RETRY_SET"
+
+git_quiet -C "$REPO" checkout --quiet "$M2"
+
 # ---------------------------------------------------------------------------
 # And the same invariant on the real file, since the behaviour above is only
 # the notice's if api-deploy.sh keeps this order: arm the trap, then raise the
@@ -741,6 +806,41 @@ if [ -n "$POST_GATE_LINE" ] && [ -n "$POST_PROBE_LINE" ] && [ -n "$CUTOVER_LINE"
 else
   no "the body-parse verdict is checked for equality, before the cutover" \
      "probe=$POST_PROBE_LINE gate=$POST_GATE_LINE cutover=$CUTOVER_LINE"
+fi
+
+# The record is only useful if it is READ before the checkout moves the tree and
+# WRITTEN only once the cutover is verified. Both are orderings in the real file
+# that no stand-in can exercise, and both are the whole of #2714: reading after
+# deploy_git_sync gets the target sha, and writing before CUTOVER_DONE=1 records
+# a deploy that did not happen.
+READ_LINE="$(line_of 'ROLLBACK_SHA="$(deploy_deployed_sha')"
+SYNC_LINE="$(line_of 'deploy_git_sync "$REPO_DIR"')"
+CUTOVER_LINE="$(line_of_exact 'CUTOVER_DONE=1')"
+WRITE_LINE="$(line_of 'deploy_record_deployed_sha "$DEPLOYED_SHA_RECORD"')"
+
+if [ -n "$READ_LINE" ] && [ -n "$SYNC_LINE" ] && [ "$READ_LINE" -lt "$SYNC_LINE" ]; then
+  ok "api-deploy.sh reads the deployed sha before the checkout moves the tree"
+else
+  no "api-deploy.sh reads the deployed sha before the checkout moves the tree" \
+     "read=$READ_LINE sync=$SYNC_LINE"
+fi
+
+if [ -n "$WRITE_LINE" ] && [ -n "$CUTOVER_LINE" ] && [ "$WRITE_LINE" -gt "$CUTOVER_LINE" ]; then
+  ok "api-deploy.sh records the deployed sha only after the cutover"
+else
+  no "api-deploy.sh records the deployed sha only after the cutover" \
+     "write=$WRITE_LINE cutover=$CUTOVER_LINE"
+fi
+
+# Fixed name, not $STAMP-keyed. "The newest of the stamped files" is the defect
+# rebuilt as a sort over a directory that also holds every failed attempt - the
+# preflight /tmp/api-rollback-$STAMP.txt is exactly that and is why it cannot be
+# the record.
+if grep -q 'DEPLOYED_SHA_RECORD="/tmp/api-deployed-sha.txt"' "$DEPLOY_SH"; then
+  ok "the deployed-sha record has a fixed name rather than a stamped one"
+else
+  no "the deployed-sha record has a fixed name rather than a stamped one" \
+     "no unstamped DEPLOYED_SHA_RECORD assignment in the file"
 fi
 
 if grep -q 'trap - EXIT' "$DEPLOY_SH"; then
