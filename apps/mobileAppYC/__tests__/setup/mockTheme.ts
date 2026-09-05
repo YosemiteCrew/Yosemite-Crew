@@ -593,6 +593,7 @@ export const createMockTheme = () => ({
     hairline: '#E5DCCF',
     controlBorder: '#977F62',
     hairlineHover: '#D6D1CD',
+    segmentSelectedBorder: '#837D76',
     divider: '#D6D1CD',
     ink: '#1D1C1B',
     inkBody: '#302F2E',
