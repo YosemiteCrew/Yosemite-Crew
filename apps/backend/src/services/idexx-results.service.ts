@@ -331,6 +331,22 @@ type UnapplicableResult = {
  * model comment), because collapsing two rows onto a key is exactly the silent
  * loss it exists to prevent.
  */
+/**
+ * NOT `async`, and not `await`ed. A `PrismaPromise` is lazy - the write does not
+ * run until `$transaction` runs it - so returning the unexecuted operation IS
+ * the atomicity, not a tidiness choice.
+ *
+ * Making this `async` fires every write eagerly, outside the transaction, and
+ * hands `$transaction` an array of already-running plain Promises. No test here
+ * can catch that: a mocked `create` is eager either way, so the array
+ * `$transaction` receives looks identical. What catches it is `tsc` - Prisma
+ * brands `PrismaPromise` with `[Symbol.toStringTag]`, so a plain Promise is a
+ * type error at the call site.
+ *
+ * Which means a cast on that call would remove the only gate holding this
+ * property, with every test still green. If you meet a type error there, it is
+ * telling you the writes stopped being atomic.
+ */
 const quarantineOperation = (
   batchId: string,
   result: IdexxResult,
