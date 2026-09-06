@@ -174,6 +174,69 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Nothing downstream of the build re-reads the signature, so without this a
+      # green job means only that signing did not throw.
+      #
+      # Step position does NOT contain a bad installer, and it must not be read
+      # that way: the upload step below is `if: always()` so it runs even when
+      # this fails, and on a tag the build step itself already passed
+      # `--publish always`, attaching the installers to the draft release before
+      # this step runs. What actually holds the line is job-level: `publish`
+      # needs verify + windows + macos and `release` needs windows + macos, so a
+      # failure here means the draft is never made public and no manual release
+      # is created. The artifact and the draft asset are deliberately still
+      # produced, because a rejected installer is the thing you need to inspect.
+      - name: Verify the Windows Authenticode signatures
+        working-directory: apps/desktop
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Read the expected publisher from the electron-builder config rather
+          # than repeating it, so the check cannot drift from what is signed.
+          $expected = (Get-Content package.json -Raw | ConvertFrom-Json).build.win.signtoolOptions.publisherName
+          if ([string]::IsNullOrWhiteSpace($expected)) {
+            throw 'build.win.signtoolOptions.publisherName is not set in package.json; cannot verify.'
+          }
+          $files = @(Get-ChildItem -Path dist -Filter *.exe -File -ErrorAction SilentlyContinue)
+          # An empty artifact set must fail. "Nothing to check" and "everything
+          # checked out" are not allowed to look the same from outside.
+          if ($files.Count -eq 0) { throw 'No .exe found in apps/desktop/dist; nothing was verified.' }
+          $failures = @()
+          foreach ($file in $files) {
+            $sig = Get-AuthenticodeSignature -FilePath $file.FullName
+            Write-Host "$($file.Name): status=$($sig.Status)"
+            if ($sig.Status -ne 'Valid') {
+              $failures += "$($file.Name): Authenticode status is $($sig.Status), expected Valid."
+              continue
+            }
+            # Read the CN through GetNameInfo rather than pattern-matching the
+            # Subject DN: the publisher name contains a non-ASCII character
+            # (U+00E4) and parentheses, so substring and regex forms over the DN
+            # are both a bet on encoding and quoting. This returns the CN value.
+            $cn = $sig.SignerCertificate.GetNameInfo(
+              [System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false)
+            # Exact, ordinal. A `-like "*$expected*"` here would accept any
+            # publisher whose name merely CONTAINS ours.
+            if ($cn -cne $expected) {
+              $failures += "$($file.Name): signed by CN '$cn' (len $($cn.Length)), expected '$expected' (len $($expected.Length))."
+            }
+            # `Status -eq 'Valid'` is true for a signature that was never
+            # timestamped, and an untimestamped Authenticode signature stops
+            # validating when the signing certificate expires. This chain
+            # configures an RFC3161 timestamp explicitly
+            # (scripts/windows-trusted-sign.js sets TimestampRfc3161), and
+            # verification runs minutes after signing, when a timestamped and an
+            # untimestamped signature are otherwise indistinguishable.
+            if (-not $sig.TimeStamperCertificate) {
+              $failures += "$($file.Name): no RFC3161 countersignature; this signature expires with the certificate."
+            }
+          }
+          if ($failures.Count -gt 0) {
+            foreach ($failure in $failures) { Write-Host "::error::$failure" }
+            exit 1
+          }
+          Write-Host "All $($files.Count) Windows artifacts carry a valid $expected signature."
+
       - name: Upload signed Windows artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -218,6 +281,42 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # scripts/notarize.js falls back to `codesign --sign -` when APPLE_ID,
+      # APPLE_APP_SPECIFIC_PASSWORD or APPLE_TEAM_ID is absent or rejected, and an
+      # ad-hoc signed bundle passes `codesign --verify --deep --strict` with exit
+      # 0 - measured, macOS 15. So the obvious check is blind to the one failure
+      # this build can actually produce, and the script asserts the Developer ID
+      # authority, the team identifier, Gatekeeper acceptance and the stapled
+      # ticket instead. See apps/desktop/scripts/verify-macos-signature.js.
+      #
+      # The .app is the target rather than the .dmg: @electron/notarize staples
+      # the ticket to the bundle (lib/index.js calls stapleApp after notarizing),
+      # and the disk image is built from the already-stapled app.
+      #
+      # As on the windows job, step position is not what contains a bad build -
+      # the upload below is `if: always()` and on a tag the build step has
+      # already run `--publish always`. The guarantee is job-level: `publish`
+      # needs verify + windows + macos, `release` needs windows + macos.
+      - name: Verify the macOS signature and notarization
+        working-directory: apps/desktop
+        run: |
+          set -euo pipefail
+          # Every bundle, not the first one found. `build.mac.target` is dmg+zip
+          # with no `arch` list today, so macos-14 yields exactly one - but if an
+          # arch list is ever added this would otherwise silently verify half the
+          # output and pass.
+          COUNT=$(find dist -maxdepth 2 -type d -name '*.app' | wc -l | tr -d ' ')
+          # An empty artifact set must fail. "Nothing to check" and "everything
+          # checked out" are not allowed to look the same from outside.
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::No .app bundle under apps/desktop/dist; nothing was verified."
+            exit 1
+          fi
+          echo "Verifying ${COUNT} app bundle(s)."
+          # -print0/-0 because the bundle name contains spaces.
+          find dist -maxdepth 2 -type d -name '*.app' -print0 \
+            | xargs -0 node scripts/verify-macos-signature.js
 
       - name: Upload signed macOS artifacts
         if: always()
