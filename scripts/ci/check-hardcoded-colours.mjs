@@ -174,15 +174,19 @@ export const stripComments = (source, { lineComments = true } = {}) => {
 export const findColours = (source, { css = false } = {}) => {
   const stripped = stripComments(source, { lineComments: !css });
   const findings = [];
-  stripped.split('\n').forEach((line, index) => {
-    for (const pattern of [HEX, FUNCTIONAL]) {
-      pattern.lastIndex = 0;
-      let m;
-      while ((m = pattern.exec(line)) !== null) {
-        findings.push({ line: index + 1, text: m[0] });
-      }
+  /* Matched over the WHOLE file rather than line by line. Prettier hard-wraps a
+     long declaration inside the parens - `rgba(29, 28, 27,\n  0.05)` - and a
+     line-oriented scan sees an opening with no closing paren on either line and
+     reports neither. It is the failure mode where the gate keeps returning a
+     clean, plausible number while the corpus it was pointed at grew. */
+  for (const pattern of [HEX, FUNCTIONAL]) {
+    pattern.lastIndex = 0;
+    let m;
+    while ((m = pattern.exec(stripped)) !== null) {
+      const line = stripped.slice(0, m.index).split('\n').length;
+      findings.push({ line, text: m[0].replace(/\s+/g, ' ') });
     }
-  });
+  }
   return findings.sort((a, b) => a.line - b.line);
 };
 
@@ -342,6 +346,17 @@ export const SELFTEST_CASES = [
     1,
     'css: a url is not a comment',
     { css: true },
+  ],
+  [
+    'a {\n  box-shadow:\n    0 1px 2px rgba(29, 28, 27,\n    0.05);\n}',
+    1,
+    'css: a functional colour hard-wrapped by prettier is still one finding',
+    { css: true },
+  ],
+  [
+    'const s = {\n  boxShadow: `0 8px 22px rgba(29, 28,\n    27, 0.05)`,\n};',
+    1,
+    'ts: a functional colour wrapped inside a template literal is one finding',
   ],
   [
     'a { /* #ff0000 rejected */ color: var(--blue); }',
