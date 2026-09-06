@@ -40,7 +40,7 @@ const YourOrganizations = () => {
   if (orgs.length === 0) return null;
 
   return (
-    <section className="flex flex-col gap-3 rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5! py-[18px]! shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+    <section className="flex flex-col gap-3 yc-card-surface px-5! py-[18px]!">
       <div className="flex items-center justify-between gap-3">
         <h3 className="min-w-0 text-[14.5px] font-bold text-[var(--ink)]">Your organizations</h3>
         <Link href="/create-org" className="yc-settings-card-action">

@@ -55,8 +55,7 @@ const cardClass =
   'rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03)]';
 // The wide chart / detail cards sit on the ambient two-layer lift; the KPI
 // mini-cards keep the single tight layer.
-const largeCardClass =
-  'rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
+const largeCardClass = 'yc-card-surface yc-card-surface--tile';
 const kpiCardClass = `${cardClass} flex flex-col gap-[3px] px-4 py-3.5`;
 const kpiLabelClass = 'text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]';
 const kpiValueClass = 'text-[22px] font-bold tracking-[-0.02em] tabular-nums text-[var(--ink)]';

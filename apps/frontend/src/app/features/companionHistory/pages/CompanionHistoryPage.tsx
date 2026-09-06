@@ -242,7 +242,7 @@ const CompanionProfilePanel = ({
   return (
     <section
       aria-label="Companion profile"
-      className="flex min-h-36 flex-col gap-4 rounded-[18px] border border-card-border bg-neutral-0 px-5 py-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
+      className="flex min-h-36 flex-col gap-4 yc-card-surface px-5 py-[18px] md:flex-row md:items-start"
     >
       <AvatarImage
         alt={record.companion.name}
@@ -318,7 +318,7 @@ const ParentProfilePanel = ({
   return (
     <section
       aria-label="Parent profile"
-      className="flex min-h-36 flex-col gap-4 rounded-[18px] border border-card-border bg-neutral-0 px-5 py-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
+      className="flex min-h-36 flex-col gap-4 yc-card-surface px-5 py-[18px] md:flex-row md:items-start"
     >
       <div className="flex w-16 shrink-0 items-start">
         <AvatarImage

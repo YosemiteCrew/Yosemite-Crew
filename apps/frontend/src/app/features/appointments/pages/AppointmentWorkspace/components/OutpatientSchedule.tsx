@@ -174,7 +174,7 @@ const OutpatientSchedule = ({
 
   return (
     <SectionContainer title="Task schedule" className="flex flex-col gap-4">
-      <div className="overflow-hidden rounded-[14px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <div className="overflow-hidden yc-card-surface yc-card-surface--inset">
         <div className="flex items-center justify-between border-b border-card-border px-4 py-2.5">
           <span className="text-body-4 font-bold text-text-primary">
             Scheduled outpatient tasks · {schedule.total}
