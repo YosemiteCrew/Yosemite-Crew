@@ -3,6 +3,8 @@ import React, { useMemo } from 'react';
 import InsuranceClaimsHeader from '@/app/features/finance/pages/InsuranceClaims/Sections/InsuranceClaimsHeader';
 import InsuranceClaimsStates from '@/app/features/finance/pages/InsuranceClaims/Sections/InsuranceClaimsStates';
 import InsuranceClaimList from '@/app/features/finance/pages/InsuranceClaims/Sections/InsuranceClaimList';
+import PhoneInsuranceClaimList from '@/app/features/finance/pages/InsuranceClaims/Sections/PhoneInsuranceClaimList';
+import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 import InsuranceClaimDetail, {
   type ClaimAction,
 } from '@/app/features/finance/pages/InsuranceClaims/Sections/InsuranceClaimDetail';
@@ -59,37 +61,44 @@ type InsuranceClaimsResultsProps = Pick<
   | 'actionError'
 > & { activeClaim: InsuranceClaim | null };
 
-const InsuranceClaimsResults = (props: InsuranceClaimsResultsProps) => (
-  <>
-    <InsuranceClaimsStates
-      loading={props.loading}
-      error={props.error}
-      onReload={props.onReload}
-      isEmpty={props.claims.length === 0}
-      emptyMessage={props.emptyMessage}
-    />
-    {!props.loading && !props.error && props.claims.length > 0 && (
-      <div className="flex flex-col gap-6">
-        <InsuranceClaimList
-          claims={props.claims}
-          activeClaimId={props.activeClaimId}
-          onSelect={props.onSelect}
-        />
-        {props.activeClaim && (
-          <InsuranceClaimDetail
-            claim={props.activeClaim}
-            companionName={props.companionName(props.activeClaim.patientId)}
-            pendingAction={props.pendingAction}
-            onSubmit={props.onSubmitClaim}
-            onCancel={props.onCancelClaim}
-            onUpdateStatus={props.onUpdateStatus}
-            error={props.actionError}
+const InsuranceClaimsResults = (props: InsuranceClaimsResultsProps) => {
+  /* The two lists take identical props, so the breakpoint chooses the component
+     and nothing else. Written as a swap rather than two JSX branches: branching
+     duplicates every prop, and a prop added to one arm and not the other is a
+     difference no type catches. */
+  const ClaimList = useIsPhone() ? PhoneInsuranceClaimList : InsuranceClaimList;
+  return (
+    <>
+      <InsuranceClaimsStates
+        loading={props.loading}
+        error={props.error}
+        onReload={props.onReload}
+        isEmpty={props.claims.length === 0}
+        emptyMessage={props.emptyMessage}
+      />
+      {!props.loading && !props.error && props.claims.length > 0 && (
+        <div className="flex flex-col gap-6">
+          <ClaimList
+            claims={props.claims}
+            activeClaimId={props.activeClaimId}
+            onSelect={props.onSelect}
           />
-        )}
-      </div>
-    )}
-  </>
-);
+          {props.activeClaim && (
+            <InsuranceClaimDetail
+              claim={props.activeClaim}
+              companionName={props.companionName(props.activeClaim.patientId)}
+              pendingAction={props.pendingAction}
+              onSubmit={props.onSubmitClaim}
+              onCancel={props.onCancelClaim}
+              onUpdateStatus={props.onUpdateStatus}
+              error={props.actionError}
+            />
+          )}
+        </div>
+      )}
+    </>
+  );
+};
 
 /**
  * The Insurance claims screen: the same header anatomy as Finance and Estimates,

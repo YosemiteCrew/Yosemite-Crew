@@ -3,6 +3,17 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
+/* The results section picks its list by breakpoint. Default false so every case
+   below keeps exercising the desktop table; the phone branch flips it. Both
+   export shapes are mocked because the module is imported by default here and
+   by name elsewhere. */
+let mockIsPhone = false;
+jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
+  __esModule: true,
+  default: () => mockIsPhone,
+  useIsPhone: () => mockIsPhone,
+}));
+
 // Renders children so the gated action row is exercised; the permission logic
 // itself is covered by PermissionGate's own tests.
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
@@ -373,5 +384,46 @@ describe('InsuranceClaims create form', () => {
       'The submitted amount must be above zero.'
     );
     expect(onCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('InsuranceClaims on a phone', () => {
+  beforeEach(() => {
+    mockIsPhone = true;
+  });
+  afterEach(() => {
+    mockIsPhone = false;
+  });
+
+  it('renders the card list instead of the seven-column table', () => {
+    setup();
+
+    // The card carries the table row action's accessible name, so that alone
+    // cannot tell the two apart - the table's own roles can.
+    expect(
+      screen.getByRole('button', { name: 'Open the claim for Bought By Many' })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument();
+
+    /* Status was the column that began 103px off-screen in the table; on the
+       card it leads the row. Scoped to the card rather than the document: the
+       status pill renders the label in a nested span, so a bare getByText
+       matches twice and cannot say WHICH card carries it. */
+    const partiallyApproved = screen
+      .getAllByRole('button', { name: /^Open the claim for / })
+      .find((card) => card.textContent?.includes('Partially approved'));
+    expect(partiallyApproved).toBeDefined();
+    expect(
+      within(partiallyApproved as HTMLElement).getAllByText('Partially approved').length
+    ).toBeGreaterThan(0);
+  });
+
+  it('still renders the table when the viewport is not a phone', () => {
+    mockIsPhone = false;
+    setup();
+
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument();
   });
 });
