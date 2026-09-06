@@ -5,9 +5,10 @@ import type { Invoice } from '@yosemite-crew/types';
 import InvoicePaymentLedger from './InvoicePaymentLedger';
 
 /**
- * `formatMoney` runs at `maximumFractionDigits: 0`, so the total is a whole
- * number on purpose - a 113.60 total would print as "$114" and make the
- * assertion read as though the arithmetic were wrong.
+ * The block renders through `formatMoneyPrecise`, which pins no fraction digits
+ * and lets `Intl` use each currency's minor unit - so USD prints two decimals
+ * and this total renders as "$114.00", not "$114". The fixture stays a whole
+ * number so the rendered string is unambiguous rather than rounded.
  */
 const invoice = (overrides: Partial<Invoice> = {}): Invoice => ({
   id: 'a1b2c3d4e5f60718293a4b5c',
@@ -37,7 +38,7 @@ const legacyMethod = (value: string) => value as Invoice['paymentCollectionMetho
 
 const LONG_PAYER = 'Alexandra Constance Fotheringay-Whitmore';
 
-/** The bordered card: `region.children` is `[heading, card, receipt-sent?]`. */
+/** The bordered card: `region.children` is `[heading, card]`. */
 const cardOf = (region: HTMLElement): HTMLElement => region.children[1] as HTMLElement;
 
 const meta = {
@@ -97,10 +98,11 @@ export const PaidInApp: Story = {
     const region = within(canvasElement).getByRole('region', { name: 'Payments' });
     const card = cardOf(region);
 
-    // Heading, card, receipt-sent banner. The banner only exists here.
-    await expect(region.children).toHaveLength(3);
+    // Heading and card. There is no third child: the "Receipt sent to ..." line
+    // was removed deliberately, because nothing in the product emails a receipt.
+    await expect(region.children).toHaveLength(2);
     await expect(within(card).getByText('Paid in the pet-parent app')).toBeInTheDocument();
-    await expect(within(card).getByText('$114')).toBeInTheDocument();
+    await expect(within(card).getByText('$114.00')).toBeInTheDocument();
 
     /* The channel glyph carries the meaning only in the eyes of a sighted
        reader; the title beside it is what a screen reader gets. If the svg ever
@@ -136,12 +138,6 @@ export const PaidInApp: Story = {
     await expect(receipt.getBoundingClientRect().right).toBeLessThanOrEqual(
       card.getBoundingClientRect().right
     );
-
-    // The confirmation trims the address before printing it, so a padded value
-    // out of the record does not render as "Receipt sent to  sky@... ".
-    await expect(
-      within(region).getByText('Receipt sent to sky.doe@example.com')
-    ).toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -177,11 +173,13 @@ export const PaidAtClinic: Story = {
     // No Stripe receipt for a desk payment, so the link is absent, not disabled.
     await expect(card.querySelectorAll('a')).toHaveLength(0);
     // Still closes with the amount - only the receipt went.
-    await expect(within(card).getByText('$114')).toBeInTheDocument();
+    await expect(within(card).getByText('$114.00')).toBeInTheDocument();
 
-    /* Two children, not three: with no payer email there is no confirmation
-       banner. Claiming a receipt was sent when no address was recorded is the
-       one failure here that a practice would repeat back to a client. */
+    /* Two children, as everywhere else now. This story used to be the contrast
+       - no payer email, so no confirmation banner - but the banner is gone for
+       every case, so what it pins is that nothing reintroduces a claim that a
+       receipt was sent. That is the one failure here a practice would repeat
+       back to a client. */
     await expect(region.children).toHaveLength(2);
     await expect(region.textContent).not.toContain('Receipt sent to');
   },
@@ -251,7 +249,7 @@ export const UntrustedReceiptUrl: Story = {
 
     // REFUNDED is settled, so the ledger is here - the URL is the only casualty.
     await expect(within(card).getByText('Paid in the pet-parent app')).toBeInTheDocument();
-    await expect(within(card).getByText('$114')).toBeInTheDocument();
+    await expect(within(card).getByText('$114.00')).toBeInTheDocument();
 
     /* No link at all, and the rejected host reaches no attribute either. Asserted
        against the markup rather than against the visible text, because the danger
