@@ -153,6 +153,23 @@ on:
     branches:
       - dev
       - main
+
+  # For exercising this guard's own machinery - preconditions, arming, the
+  # self-test - against a branch. IT CANNOT SWEEP HISTORY, and that is the
+  # thing someone will reach for it to do.
+  #
+  # `Fetch the pull request head as data`, `Collect the surfaces` and `Scan
+  # every surface` are each `if: github.event_name == 'pull_request'`. A
+  # dispatched run therefore arms, self-tests, scans NOTHING, and then fails on
+  # `Refuse to report clean without having scanned`, which carries no `if:` by
+  # design. That is correct - it fails closed - but it reads as the dispatch
+  # being broken rather than as the request being out of scope.
+  #
+  # The surfaces are a pull request's title, body, head ref and merge-base diff.
+  # There is no path from here to an issue, a comment, or a pull request that
+  # already closed. Auditing what is ALREADY in the repository is a separate
+  # job someone runs once against the API with the same pattern; this workflow
+  # only ever sees a pull request as it happens.
   workflow_dispatch:
 
 concurrency:
