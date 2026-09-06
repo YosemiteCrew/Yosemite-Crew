@@ -1,5 +1,8 @@
 import { OrganizationType, Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
+import { organisationReferenceMatches } from "src/services/shared/organisation-membership";
+
+const LEADING_PRACTITIONER_PREFIX = /^Practitioner\//;
 
 export type SuperAdminBusinessSummary = {
   id: string;
@@ -12,6 +15,20 @@ export type SuperAdminBusinessSummary = {
   taxId?: string;
   phoneNo?: string;
   website?: string;
+};
+
+/**
+ * One active membership row. Uniqueness on `userOrganization` is
+ * `(practitionerReference, organizationReference, roleCode)`, so a person
+ * holding two roles in an organisation is two rows here and two in
+ * `memberCount` - the list and the count stay in agreement, and a consumer
+ * keying by `userId` alone would collide.
+ */
+export type SuperAdminBusinessMember = {
+  userId: string;
+  roleCode: string;
+  roleDisplay?: string;
+  since: string;
 };
 
 export type SuperAdminBusinessDetail = SuperAdminBusinessSummary & {
@@ -195,21 +212,135 @@ const mapDetail = (
   };
 };
 
-const loadMemberCounts = async (organizationIds: string[]) => {
-  if (organizationIds.length === 0) {
+/**
+ * The distinct active memberships of one organisation.
+ *
+ * Everything member-shaped on this surface goes through here, so the roster and
+ * the number printed beside it are the same list measured two ways rather than
+ * two queries that have to be kept in agreement.
+ *
+ * Both stored columns are raw FHIR references, which forces the de-duplication.
+ * `@@unique([practitionerReference, organizationReference, roleCode])` is over
+ * the strings as written, so `<id>` and `Organization/<id>` are different keys:
+ * the same person, organisation and role can exist as two rows and satisfy the
+ * constraint. Matching one spelling saw one of them and under-counted; matching
+ * all four sees both and would over-count. `Members 2` for one person is as
+ * wrong as `Members 0` for forty-seven, and neither errors.
+ */
+/**
+ * Which membership rows belong to one organisation, and what makes two of them
+ * the same membership.
+ *
+ * Both reference columns are persisted verbatim from the inbound FHIR resource,
+ * so each holds a bare id or a `<Type>/<id>` reference - see
+ * `practitionerReferenceFilter` in `shared/staff-identity.ts`, where querying
+ * only the bare form is what let a deletion remove no organisation roles and
+ * report success. `@@unique` is over those strings as written, so one person,
+ * organisation and role can exist as several rows and satisfy the constraint:
+ * matching one spelling under-counts, matching all four over-counts, and
+ * neither errors.
+ *
+ * The roster and the number beside it therefore share this `where` and this
+ * identity, and differ only in how many columns they fetch. Two ROLES in one
+ * organisation stay two memberships; what collapses is one membership reached
+ * under several spellings. The key separator is a NUL because it cannot occur
+ * in either field, so no value can forge a collision with a different pair.
+ */
+const membershipWhere = (id: string, fhirId?: string | null) => ({
+  active: true,
+  OR: organisationReferenceMatches(id, fhirId),
+});
+
+const membershipIdentity = (membership: {
+  practitionerReference: string;
+  roleCode: string;
+}): string | null => {
+  const userId = membership.practitionerReference
+    .trim()
+    .replace(LEADING_PRACTITIONER_PREFIX, "");
+  return userId ? `${userId}\u0000${membership.roleCode}` : null;
+};
+
+const loadMembers = async (
+  id: string,
+  fhirId?: string | null,
+): Promise<SuperAdminBusinessMember[]> => {
+  const memberships = await prisma.userOrganization.findMany({
+    where: membershipWhere(id, fhirId),
+    orderBy: { createdAt: "asc" },
+    select: {
+      practitionerReference: true,
+      roleCode: true,
+      roleDisplay: true,
+      createdAt: true,
+    },
+  });
+
+  const seen = new Set<string>();
+  const members: SuperAdminBusinessMember[] = [];
+
+  for (const membership of memberships) {
+    const identity = membershipIdentity(membership);
+    if (!identity || seen.has(identity)) {
+      continue;
+    }
+    seen.add(identity);
+
+    members.push({
+      userId: identity.split("\u0000")[0],
+      roleCode: membership.roleCode,
+      ...(membership.roleDisplay
+        ? { roleDisplay: membership.roleDisplay }
+        : {}),
+      since: toIsoString(membership.createdAt),
+    });
+  }
+
+  return members;
+};
+
+/**
+ * The same count without building the roster.
+ *
+ * A summary endpoint needs a number, and the organisations list asks once per
+ * organisation, so this fetches the two columns the identity is made of rather
+ * than every row in full. It cannot drift from the list: the rows it considers
+ * and the rule for which of them are the same membership are the two functions
+ * above, shared. A database-side `DISTINCT` is not available for it - the
+ * identity comes from an anchored prefix strip that SQL does not reproduce, so
+ * counting distinct values in the database would count spellings again, which
+ * is the over-count this exists to remove.
+ */
+const countMembers = async (
+  id: string,
+  fhirId?: string | null,
+): Promise<number> => {
+  const memberships = await prisma.userOrganization.findMany({
+    where: membershipWhere(id, fhirId),
+    select: { practitionerReference: true, roleCode: true },
+  });
+
+  const identities = new Set(
+    memberships
+      .map(membershipIdentity)
+      .filter((identity): identity is string => identity !== null),
+  );
+
+  return identities.size;
+};
+
+const loadMemberCounts = async (
+  organizations: ReadonlyArray<{ id: string; fhirId?: string | null }>,
+) => {
+  if (organizations.length === 0) {
     return new Map<string, number>();
   }
 
   const counts: Array<readonly [string, number]> = await Promise.all(
-    organizationIds.map(
-      async (organizationId): Promise<readonly [string, number]> => [
-        organizationId,
-        await prisma.userOrganization.count({
-          where: {
-            active: true,
-            organizationReference: organizationId,
-          },
-        }),
+    organizations.map(
+      async (organization): Promise<readonly [string, number]> => [
+        organization.id,
+        await countMembers(organization.id, organization.fhirId),
       ],
     ),
   );
@@ -228,9 +359,7 @@ export const SuperAdminBusinessService = {
     const organizations = await prisma.organization.findMany({
       orderBy: { createdAt: "desc" },
     });
-    const memberCounts = await loadMemberCounts(
-      organizations.map((organization) => organization.id),
-    );
+    const memberCounts = await loadMemberCounts(organizations);
 
     return organizations.map((organization) =>
       mapSummary(organization, memberCounts.get(organization.id) ?? 0),
@@ -244,15 +373,33 @@ export const SuperAdminBusinessService = {
       return null;
     }
 
-    const memberCount =
-      (await prisma.userOrganization.count({
-        where: {
-          organizationReference: organization.id,
-          active: true,
-        },
-      })) ?? 0;
+    const memberCount = await countMembers(
+      organization.id,
+      organization.fhirId,
+    );
 
     return mapDetail(organization, memberCount);
+  },
+
+  /**
+   * The active memberships of one organisation.
+   *
+   * `memberCount` is the only thing the panel has ever known about who belongs
+   * to a clinic, and a bare number is not something an operator can act on: to
+   * answer "nobody here can log in" they have to reach the individual accounts.
+   * Resolved through the same predicate as the count, so the list and the
+   * number beside it cannot disagree.
+   */
+  async listBusinessMembers(
+    id: unknown,
+  ): Promise<SuperAdminBusinessMember[] | null> {
+    const businessId = normalizeBusinessId(id);
+    const organization = await findOrganizationById(businessId);
+    if (!organization) {
+      return null;
+    }
+
+    return loadMembers(organization.id, organization.fhirId);
   },
 
   async updateBusiness(
@@ -292,12 +439,7 @@ export const SuperAdminBusinessService = {
       include: { address: true },
     });
 
-    const memberCount = await prisma.userOrganization.count({
-      where: {
-        organizationReference: updated.id,
-        active: true,
-      },
-    });
+    const memberCount = await countMembers(updated.id, updated.fhirId);
 
     return mapDetail(updated, memberCount);
   },
