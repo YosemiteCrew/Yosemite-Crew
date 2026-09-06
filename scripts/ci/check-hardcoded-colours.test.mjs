@@ -342,3 +342,22 @@ test('the shipped baseline records the commit it describes', () => {
     'a baseline with no generated_at cannot be checked for staleness at all'
   );
 });
+
+test('the staleness note may live under the failure arm only while a LOSS also fails', () => {
+  // A correctness dependency between two parts of this file with nothing else
+  // connecting them, so it is asserted rather than left as a comment.
+  //
+  // A stale baseline moves counts in BOTH directions: the tree carries literals
+  // the baseline's commit removed, AND lacks literals it added. The note is
+  // printed only when the run fails, which reaches every stale tree only
+  // because a decrease fails as loudly as an increase. Turn this gate into a
+  // ceiling that ignores decreases and a stale baseline becomes a silent false
+  // pass - the note would then have to print on success too.
+  //
+  // If this test goes red, the placement of baselineFreshness() is wrong, not
+  // this assertion.
+  const staleGain = compare({ 'package.json': 1 }, { 'package.json': 0 });
+  const staleLoss = compare({ 'package.json': 0 }, { 'package.json': 1 });
+  assert.equal(staleGain.increased.length, 1, 'the gain direction must fail');
+  assert.equal(staleLoss.decreased.length, 1, 'the LOSS direction must fail too');
+});
