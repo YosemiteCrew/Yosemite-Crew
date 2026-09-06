@@ -578,7 +578,6 @@ input[type='radio']:focus-visible {
   --pureblack: var(--color-black-pure);
   --black-grey: var(--color-grey-bg);
   --black-grey-Text: var(--color-grey-text);
-  --blue-text: var(--color-blue-text);
   --light-blue: var(--color-primary-100);
   --white-text: #ffffff;
   /* Its counterpart. Some surfaces are a FIXED colour in both themes -
@@ -818,12 +817,6 @@ input[type='radio']:focus-visible {
 }
 
 html[data-theme='dark'] {
-  --page: #201c18;
-  --band: #2a2216;
-  --inset: #302820;
-  --screen: #2f271e;
-  --screen-2: #221d17;
-  --hairline: #40362b;
   /* The warm-bone `--color-*` tokens are declared as light literals in @theme
      (Tailwind needs a parseable value there at build time) and so never flip on
      their own. Mirror them onto the semantic tokens here — otherwise anything
@@ -837,58 +830,14 @@ html[data-theme='dark'] {
   --color-ink: var(--ink);
   --color-ink-body: var(--ink-body);
   --color-cyan-text: var(--cyan-text);
-  --divider: #3a3128;
-  --hairline-hover: #4a4033;
-  --nav-active: #8fb6f5;
-  --nav-active-bg: rgba(143, 182, 245, 0.13);
-  --ink: #f4efe6;
-  --ink-body: #e6ddd0;
-  --ink-muted: #a89e90;
-  --ink-soft: #cabfb0;
-  --ink-faint: #9d9285;
-  /* #8b8173 passed only on --spot: it was 3.78:1 on --inset (the marketing
-     footer), 3.84 on --screen and 4.10 on --band. #998f82 clears 4.5 on every
-     dark surface (4.56-5.78) and is the value the app scope already used, so
-     the two agree now instead of the app being the only readable one. */
-  --ink-faint2: #998f82;
-  --ink-6b: #a1968a;
-  --cta: #f2ece1;
-  --cta-hover: #fbf8f1;
-  --cta-text: #201c18;
   --dl-btn: #f7f3ec;
   --dl-btn-text: #201c18;
   --dl-btn-sub: #6b6155;
   --dl-btn-hover: #ffffff;
-  --blue: #257bed;
-  /* The window is narrow: white needs the fill dark, the espresso page needs it
-     light. #2f74d9 is the value that clears both - 4.54:1 white, 3.19-3.72:1
-     against every dark surface. */
-  --blue-strong: #2f74d9;
-  /* Inverted here: see the light declaration. A dark fill on a dark surface has
-     no visible boundary (#a6271d is 2.05:1 on --screen), so dark mode uses the
-     light tone as the fill and a near-black as its label. 6.5-7.5 against every
-     dark surface, 7.5 for the label on top. */
-  --danger-strong: #f2938a;
-  --danger-strong-ink: var(--ink-fixed);
-  --success-strong: #2bbd86;
-  --success-strong-ink: var(--ink-fixed);
-  --blue-text: var(--color-blue-text);
-  --blue-soft: rgba(143, 182, 245, 0.16);
-  --pink: #ff90d4;
-  --cyan: #5ce1e6;
-  --cyan-text: #5ce1e6;
-  --success: #2bbd86;
-  --success-text: #2bbd86;
   --warn: #f5a83c;
   --spot: #17140f;
   --spot-ink: #f4efe6;
   --code-str: #8acbb4;
-  --avatar-violet-bg: rgba(167, 139, 250, 0.2);
-  --avatar-violet-ink: #cbb2f4;
-  --avatar-green-bg: rgba(74, 205, 155, 0.17);
-  --avatar-green-ink: #74d0a2;
-  --avatar-amber-bg: rgba(233, 170, 120, 0.17);
-  --avatar-amber-ink: #ecb488;
   --nav-hover: rgba(255, 255, 255, 0.06);
   --glass-btn: linear-gradient(180deg, rgba(54, 46, 37, 0.82), rgba(34, 29, 23, 0.72));
   --glass-btn-border: rgba(255, 255, 255, 0.1);
@@ -896,62 +845,22 @@ html[data-theme='dark'] {
     0 2px 4px rgba(0, 0, 0, 0.28), 0 12px 28px rgba(0, 0, 0, 0.44),
     inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 -12px 22px rgba(0, 0, 0, 0.14);
   --glass-95: rgba(30, 26, 21, 0.9);
-  --glass-93: rgba(34, 29, 23, 0.92);
   --glass-92: rgba(34, 29, 23, 0.86);
-  --hairline-soft: rgba(255, 255, 255, 0.09);
   --hero-halo1: rgba(18, 15, 11, 0.92);
   --hero-halo2: rgba(18, 15, 11, 0.82);
   --nav-glass: rgba(28, 24, 20, 0.82);
   --nav-border: rgba(255, 255, 255, 0.08);
   --nav-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 34px rgba(0, 0, 0, 0.4);
-  --glass-inset-hi: rgba(255, 255, 255, 0.06);
-  --sh03: rgba(0, 0, 0, 0.14);
-  --sh05: rgba(0, 0, 0, 0.2);
-  --sh06: rgba(0, 0, 0, 0.24);
-  --sh08: rgba(0, 0, 0, 0.3);
-  --sh09: rgba(0, 0, 0, 0.32);
-  --sh10: rgba(0, 0, 0, 0.34);
-  --sh12: rgba(0, 0, 0, 0.36);
-  --sh14: rgba(0, 0, 0, 0.4);
-  --sh16: rgba(0, 0, 0, 0.44);
-  --sh18: rgba(0, 0, 0, 0.48);
-  --sh20: rgba(0, 0, 0, 0.52);
-  --sh22: rgba(0, 0, 0, 0.55);
-  --sh28: rgba(0, 0, 0, 0.62);
-  --sh55: rgba(0, 0, 0, 0.8);
-  --glow-b07: rgba(37, 123, 237, 0.13);
   --glow-b08: rgba(37, 123, 237, 0.14);
   --glow-b09: rgba(37, 123, 237, 0.16);
-  --glow-b10: rgba(37, 123, 237, 0.18);
-  --glow-b12: rgba(37, 123, 237, 0.22);
   --glow-b13: rgba(37, 123, 237, 0.23);
-  --glow-b14: rgba(37, 123, 237, 0.25);
   --glow-b20: rgba(37, 123, 237, 0.34);
-  --glow-b26: rgba(37, 123, 237, 0.42);
   --glow-c09: rgba(92, 225, 230, 0.16);
-  --glow-c10: rgba(92, 225, 230, 0.18);
-  --glow-c14: rgba(92, 225, 230, 0.25);
   --glow-p07: rgba(244, 121, 190, 0.13);
   --glow-p08: rgba(244, 121, 190, 0.14);
-  --glow-p10: rgba(244, 121, 190, 0.18);
-  --glow-p12: rgba(244, 121, 190, 0.22);
   --glow-k10: rgba(255, 144, 212, 0.18);
-  --surface-soft: #2a2216;
-  --pill-raised: #383026;
-  --field-bg: #241f18;
-  /* PIMS design-system Badge — DS ships light-only; tint-on-dark equivalents */
-  --status-requested-bg: rgba(255, 255, 255, 0.07);
-  --status-requested-text: #b9b0a4;
-  --status-requested-border: rgba(255, 255, 255, 0.28);
-  --status-upcoming-bg: rgba(37, 123, 237, 0.18);
-  --status-upcoming-text: #9cc4f8;
-  --status-upcoming-border: rgba(103, 160, 239, 0.6);
-  --status-checked-in-bg: rgba(99, 102, 241, 0.18);
-  --status-checked-in-text: #bcbef9;
-  --status-checked-in-border: rgba(129, 132, 245, 0.6);
-  --status-in-progress-bg: rgba(139, 92, 246, 0.18);
-  --status-in-progress-text: #cdb8fa;
-  --status-in-progress-border: rgba(154, 113, 247, 0.6);
+  /* PIMS design-system status colours - DS ships light-only; tint-on-dark
+     equivalents. The Badge set itself is declared further down this rule. */
   --color-status-success-text: #74d0a2;
   --color-status-success-bg: rgba(74, 205, 155, 0.16);
 
@@ -959,8 +868,12 @@ html[data-theme='dark'] {
      Warm-bone token set, folded in from what used to be a second
      html[data-theme="dark"] block further down this file. The two blocks were
      kept apart while the surfaces landed on separate branches; they are one
-     rule now. Declarations below still come last, so where a token appears in
-     both halves this value is the effective one -- do not reorder.
+     rule now, and every token in it is declared exactly once.
+
+     Until #2822 the merge left 80 tokens declared twice. Every pair held the
+     same value, so nothing rendered wrong - but at equal specificity the later
+     declaration wins, which made an edit to the first copy silently inert.
+     `customPropertyShadowing.test.ts` fails if a second declaration comes back.
      --------------------------------------------------------------------- */
   --page: #201c18;
   --band: #2a2216;
