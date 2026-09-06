@@ -52,6 +52,9 @@ const mockListBusinesses = jest.fn((_, res) =>
 );
 const mockGetBusiness = jest.fn();
 const mockUpdateBusiness = jest.fn();
+const mockListMembers = jest.fn((_, res) =>
+  res.status(200).json({ members: [{ userId: "user-1", roleCode: "doctor" }] }),
+);
 const mockListQuarantine = jest.fn((_, res) =>
   res.status(200).json({ total: 0, returned: 0, results: [] }),
 );
@@ -79,6 +82,7 @@ jest.mock("src/controllers/web/super-admin-business.controller", () => ({
     listBusinesses: mockListBusinesses,
     getBusiness: mockGetBusiness,
     updateBusiness: mockUpdateBusiness,
+    listMembers: mockListMembers,
   },
 }));
 
@@ -325,5 +329,47 @@ describe("super-admin router", () => {
 
     expect(response.statusCode).toBe(200);
     expect(mockResolveQuarantine).toHaveBeenCalledTimes(1);
+  });
+  // The members list names the individual accounts behind a clinic, so it is
+  // guarded in its own right rather than by inheriting the router's other tests.
+  it("rejects a non-superadmin listing an organisation's members", async () => {
+    const response = await request(
+      createApp(
+        {
+          appUserId: "user-1",
+          providerUserId: "st-user-1",
+          authProfile: "pims_web",
+          roles: ["member"],
+        },
+        true,
+        [],
+      ),
+      "/v1/super-admin/businesses/org-1/members",
+    );
+
+    expect(response.statusCode).toBe(403);
+    expect(mockListMembers).not.toHaveBeenCalled();
+  });
+
+  it("serves an organisation's members to a superadmin", async () => {
+    const response = await request(
+      createApp(
+        {
+          appUserId: "user-1",
+          providerUserId: "st-user-1",
+          authProfile: "pims_web",
+          roles: ["superadmin"],
+        },
+        true,
+        [],
+      ),
+      "/v1/super-admin/businesses/org-1/members",
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body)).toEqual({
+      members: [{ userId: "user-1", roleCode: "doctor" }],
+    });
+    expect(mockListMembers).toHaveBeenCalledTimes(1);
   });
 });

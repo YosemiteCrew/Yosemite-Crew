@@ -1,5 +1,6 @@
 import { OrganizationType, Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
+import { organisationReferenceMatches } from "src/services/shared/organisation-membership";
 
 export type SuperAdminBusinessSummary = {
   id: string;
@@ -12,6 +13,13 @@ export type SuperAdminBusinessSummary = {
   taxId?: string;
   phoneNo?: string;
   website?: string;
+};
+
+export type SuperAdminBusinessMember = {
+  userId: string;
+  roleCode: string;
+  roleDisplay?: string;
+  since: string;
 };
 
 export type SuperAdminBusinessDetail = SuperAdminBusinessSummary & {
@@ -195,21 +203,26 @@ const mapDetail = (
   };
 };
 
-const loadMemberCounts = async (organizationIds: string[]) => {
-  if (organizationIds.length === 0) {
+const countMembers = async (
+  id: string,
+  fhirId?: string | null,
+): Promise<number> =>
+  prisma.userOrganization.count({
+    where: { active: true, OR: organisationReferenceMatches(id, fhirId) },
+  });
+
+const loadMemberCounts = async (
+  organizations: ReadonlyArray<{ id: string; fhirId?: string | null }>,
+) => {
+  if (organizations.length === 0) {
     return new Map<string, number>();
   }
 
   const counts: Array<readonly [string, number]> = await Promise.all(
-    organizationIds.map(
-      async (organizationId): Promise<readonly [string, number]> => [
-        organizationId,
-        await prisma.userOrganization.count({
-          where: {
-            active: true,
-            organizationReference: organizationId,
-          },
-        }),
+    organizations.map(
+      async (organization): Promise<readonly [string, number]> => [
+        organization.id,
+        await countMembers(organization.id, organization.fhirId),
       ],
     ),
   );
@@ -228,9 +241,7 @@ export const SuperAdminBusinessService = {
     const organizations = await prisma.organization.findMany({
       orderBy: { createdAt: "desc" },
     });
-    const memberCounts = await loadMemberCounts(
-      organizations.map((organization) => organization.id),
-    );
+    const memberCounts = await loadMemberCounts(organizations);
 
     return organizations.map((organization) =>
       mapSummary(organization, memberCounts.get(organization.id) ?? 0),
@@ -244,15 +255,54 @@ export const SuperAdminBusinessService = {
       return null;
     }
 
-    const memberCount =
-      (await prisma.userOrganization.count({
-        where: {
-          organizationReference: organization.id,
-          active: true,
-        },
-      })) ?? 0;
+    const memberCount = await countMembers(
+      organization.id,
+      organization.fhirId,
+    );
 
     return mapDetail(organization, memberCount);
+  },
+
+  /**
+   * The active memberships of one organisation.
+   *
+   * `memberCount` is the only thing the panel has ever known about who belongs
+   * to a clinic, and a bare number is not something an operator can act on: to
+   * answer "nobody here can log in" they have to reach the individual accounts.
+   * Resolved through the same predicate as the count, so the list and the
+   * number beside it cannot disagree.
+   */
+  async listBusinessMembers(
+    id: unknown,
+  ): Promise<SuperAdminBusinessMember[] | null> {
+    const businessId = normalizeBusinessId(id);
+    const organization = await findOrganizationById(businessId);
+    if (!organization) {
+      return null;
+    }
+
+    const memberships = await prisma.userOrganization.findMany({
+      where: {
+        active: true,
+        OR: organisationReferenceMatches(organization.id, organization.fhirId),
+      },
+      orderBy: { createdAt: "asc" },
+      select: {
+        practitionerReference: true,
+        roleCode: true,
+        roleDisplay: true,
+        createdAt: true,
+      },
+    });
+
+    return memberships.map((membership) => ({
+      userId: membership.practitionerReference,
+      roleCode: membership.roleCode,
+      ...(membership.roleDisplay
+        ? { roleDisplay: membership.roleDisplay }
+        : {}),
+      since: toIsoString(membership.createdAt),
+    }));
   },
 
   async updateBusiness(
@@ -292,12 +342,7 @@ export const SuperAdminBusinessService = {
       include: { address: true },
     });
 
-    const memberCount = await prisma.userOrganization.count({
-      where: {
-        organizationReference: updated.id,
-        active: true,
-      },
-    });
+    const memberCount = await countMembers(updated.id, updated.fhirId);
 
     return mapDetail(updated, memberCount);
   },

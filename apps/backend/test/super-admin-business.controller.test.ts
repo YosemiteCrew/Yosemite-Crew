@@ -124,4 +124,123 @@ describe("SuperAdminBusinessController", () => {
       code: "INVALID_BUSINESS_UPDATE",
     });
   });
+  it("returns the members payload", async () => {
+    jest
+      .spyOn(SuperAdminBusinessService, "listBusinessMembers")
+      .mockResolvedValue([
+        {
+          userId: "user-1",
+          roleCode: "doctor",
+          since: "2026-07-01T09:00:00.000Z",
+        },
+      ]);
+    const res = createResponse();
+
+    await SuperAdminBusinessController.listMembers(
+      { params: { id: "org-1" } } as never,
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      members: [
+        {
+          userId: "user-1",
+          roleCode: "doctor",
+          since: "2026-07-01T09:00:00.000Z",
+        },
+      ],
+    });
+  });
+
+  it("rejects malformed ids on members", async () => {
+    const listMembers = jest.spyOn(
+      SuperAdminBusinessService,
+      "listBusinessMembers",
+    );
+    const res = createResponse();
+
+    await SuperAdminBusinessController.listMembers(
+      { params: { id: "bad id" } } as never,
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(listMembers).not.toHaveBeenCalled();
+  });
+
+  it("separates an unknown business from one with no members", async () => {
+    // null is 404; an empty roster is a 200 with an empty array. Collapsing the
+    // two would show "this clinic has nobody in it" for a mistyped id.
+    jest
+      .spyOn(SuperAdminBusinessService, "listBusinessMembers")
+      .mockResolvedValue(null);
+    const notFound = createResponse();
+
+    await SuperAdminBusinessController.listMembers(
+      { params: { id: "org-1" } } as never,
+      notFound,
+    );
+
+    expect(notFound.status).toHaveBeenCalledWith(404);
+    expect(notFound.json).toHaveBeenCalledWith({
+      error: "Business not found",
+      code: "BUSINESS_NOT_FOUND",
+    });
+
+    jest
+      .spyOn(SuperAdminBusinessService, "listBusinessMembers")
+      .mockResolvedValue([]);
+    const empty = createResponse();
+
+    await SuperAdminBusinessController.listMembers(
+      { params: { id: "org-1" } } as never,
+      empty,
+    );
+
+    expect(empty.status).toHaveBeenCalledWith(200);
+    expect(empty.json).toHaveBeenCalledWith({ members: [] });
+  });
+
+  it("maps a service error on members to its stable payload", async () => {
+    jest
+      .spyOn(SuperAdminBusinessService, "listBusinessMembers")
+      .mockRejectedValue(
+        new SuperAdminBusinessServiceError(
+          "Invalid business id.",
+          400,
+          "INVALID_BUSINESS_ID",
+        ),
+      );
+    const res = createResponse();
+
+    await SuperAdminBusinessController.listMembers(
+      { params: { id: "org-1" } } as never,
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid business id.",
+      code: "INVALID_BUSINESS_ID",
+    });
+  });
+
+  it("does not leak an unexpected failure as an empty roster", async () => {
+    jest
+      .spyOn(SuperAdminBusinessService, "listBusinessMembers")
+      .mockRejectedValue(new Error("connection refused"));
+    const res = createResponse();
+
+    await SuperAdminBusinessController.listMembers(
+      { params: { id: "org-1" } } as never,
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to list business members.",
+      code: "SUPER_ADMIN_BUSINESS_MEMBERS_FAILED",
+    });
+  });
 });
