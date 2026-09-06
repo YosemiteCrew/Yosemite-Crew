@@ -605,22 +605,36 @@ done
 #   { echo "::error::…" ; } >&2    ENCLOSING - and this is the house style:
 #                                  deploy-api.yml:106-121 wraps all three of its
 #                                  preflight annotations in exactly this shape.
+#   ( echo "::error::…" ) >&2      ENCLOSING, subshell. Same construct, different
+#                                  bracket; raised in review after the first
+#                                  enclosure check tracked braces only.
+#   exec >&2                       redirects the whole shell and takes out all
+#                                  THREE annotations at once, from a line that
+#                                  names none of them.
+#
+# All four measured on this machine with a plain echo as the control:
+#   plain echo   stdout=[::error::X]  stderr=[]
+#   the four     stdout=[]            stderr=[::error::X]
 #
 # So the form most likely to be written here is the one a line-local grep cannot
 # see, and someone writing it would be following the convention this file's own
 # comment names. Raised in review.
 #
-# The enclosure check tracks ONE level of brace group, which is all this region
-# has and all the house style uses. A group nested inside another group would
-# not be seen; that is a limit of a source guard, not a case anyone writes here.
-# It deliberately fires only on a group that CONTAINS an annotation, so a future
-# brace group wrapping ordinary human lines is not a false positive.
+# The enclosure check tracks ONE level of group, brace or subshell. It fires only
+# on a group that CONTAINS an annotation - a group wrapping ordinary human lines
+# is not a false positive, which is why it is a containment test rather than a
+# match on the closing line.
+#
+# The boundary, stated rather than left to be found: an opening bracket that is
+# not alone on its line never opens the tracker, and a group nested inside
+# another group is not seen. A guard that reads lines cannot follow a shell's
+# file descriptors, and that is where this technique ends.
 CUTOVER_STDERR_INLINE="$(grep -cE '(::error::.*>&[12]|>&[12].*::error::)' \
   <<< "$CUTOVER_REGION" || true)"
 
 CUTOVER_STDERR_ENCLOSED="$(awk '
-  /^[[:space:]]*\{[[:space:]]*$/ { inside = 1; buf = ""; next }
-  inside && /^[[:space:]]*\}[[:space:]]*>&[12]/ {
+  /^[[:space:]]*[({][[:space:]]*$/ { inside = 1; buf = ""; next }
+  inside && /^[[:space:]]*[)}][[:space:]]*>&[12]/ {
     if (buf ~ /::error::/) { bad++ }
     inside = 0; buf = ""; next
   }
@@ -633,6 +647,24 @@ check "no annotation is redirected to stderr on its own line" \
 
 check "no annotation is redirected to stderr by an enclosing group" \
   "0 enclosed" "$CUTOVER_STDERR_ENCLOSED enclosed"
+
+# The one evasion worth a line of its own rather than a paragraph of boundary:
+# `exec >&2` redirects the whole shell, so it takes out all three annotations
+# from a line that names none of them - and every other guard here stays green,
+# because each one asks about a SITE and this is not a site.
+#
+# Scanned over the WHOLE script rather than the cutover region, and that is the
+# point rather than caution. The first version read the region and the mutation
+# came back green: a shell redirect applies from wherever it appears onward, so
+# `exec >&2` a few lines ABOVE the region - which is where anyone would put it -
+# disables all three annotations while sitting outside the text being searched.
+# Driven both ways: inside the region 1 red, above it 0 red under the regional
+# version. There is no `exec` anywhere in api-deploy.sh or lib/ today, so a
+# whole-file check has nothing to false-positive on.
+DEPLOY_EXEC_REDIRECT="$(grep -cE '^[[:space:]]*exec[[:space:]]+>&?[12&]' \
+  <<< "$DEPLOY_CODE" || true)"
+check "the deploy script does not redirect the whole shell" \
+  "0 shell redirects" "$DEPLOY_EXEC_REDIRECT shell redirects"
 
 # The parity guard, and it is not subsumed by the three above: a FOURTH stop
 # added later without an annotation reddens only this one. That is the case
