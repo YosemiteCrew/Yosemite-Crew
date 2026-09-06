@@ -277,5 +277,9 @@ describe("every declared control is recorded before the port answers", () => {
     expect(recordedAtListen.sort()).toEqual(
       expect.arrayContaining([...EXPECTED_CONTROLS]),
     );
+    // Equality on this path too, not only the configured one. The kill switch
+    // is the configuration most likely to grow a branch of its own, and an
+    // undeclared control recorded only there would otherwise be uncovered.
+    expect(recordedAtListen.sort()).toEqual(getExpectedControls().sort());
   });
 });
