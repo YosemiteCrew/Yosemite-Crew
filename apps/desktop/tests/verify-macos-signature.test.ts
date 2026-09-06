@@ -137,6 +137,75 @@ describe('signature predicates', () => {
     expect(hasDeveloperIdAuthority(installer)).toBe(false);
   });
 
+  // The substring class: output that CONTAINS the accepted text without being
+  // the accepted thing. A check that searched the raw output rather than reading
+  // the Authority field would pass all three of these.
+  it('does not accept "Developer ID Application" appearing outside an Authority line', () => {
+    const { parseCodesignInfo, hasDeveloperIdAuthority } = loadModule();
+    const decoy = parseCodesignInfo(
+      [
+        'Executable=/Applications/Developer ID Application.app/Contents/MacOS/App',
+        'Identifier=Developer ID Application',
+        'CodeDirectory v=20500 size=306 flags=0x10002(adhoc,runtime) hashes=3+3 location=embedded',
+        'TeamIdentifier=not set',
+      ].join('\n')
+    );
+
+    expect(decoy.authorities).toEqual([]);
+    expect(hasDeveloperIdAuthority(decoy)).toBe(false);
+  });
+
+  // Kills the `startsWith` -> `includes` weakening: an authority that CONTAINS
+  // the accepted prefix without being it must not be accepted.
+  it('requires the authority to start with the prefix, not merely contain it', () => {
+    const { parseCodesignInfo, hasDeveloperIdAuthority } = loadModule();
+
+    for (const authority of [
+      'Authority=Not a Developer ID Application: Example Org (ABCDE12345)',
+      'Authority=Untrusted Developer ID Application clone',
+      'Authority=X-Developer ID Application: Example Org (ABCDE12345)',
+    ]) {
+      expect(hasDeveloperIdAuthority(parseCodesignInfo(authority))).toBe(false);
+    }
+  });
+
+  // Kills the `Authority=` -> `Authority` weakening in the parser: only the
+  // Authority field contributes, not any line that happens to say the word.
+  it('collects authorities only from Authority= lines', () => {
+    const { parseCodesignInfo } = loadModule();
+    const info = parseCodesignInfo(
+      [
+        'Executable=/Applications/Certificate Authority Tool.app/Contents/MacOS/Tool',
+        'Identifier=com.example.Authority',
+        'Authority=Developer ID Application: Example Org (ABCDE12345)',
+        'Sealed Resources Authority=decoy',
+      ].join('\n')
+    );
+
+    expect(info.authorities).toEqual(['Developer ID Application: Example Org (ABCDE12345)']);
+  });
+
+  it('does not read "adhoc" from anywhere but the CodeDirectory flags', () => {
+    const { parseCodesignInfo, isAdHoc } = loadModule();
+    const decoy = parseCodesignInfo(
+      [
+        'Executable=/Applications/adhoc/Contents/MacOS/App',
+        'CodeDirectory v=20500 size=308094 flags=0x10000(runtime) hashes=9617+7 location=embedded',
+        'Authority=Developer ID Application: Example Org (ABCDE12345)',
+        'TeamIdentifier=ABCDE12345',
+      ].join('\n')
+    );
+
+    expect(isAdHoc(decoy)).toBe(false);
+  });
+
+  it('does not accept a team identifier that merely contains "not set"', () => {
+    const { parseCodesignInfo, hasTeamIdentifier } = loadModule();
+
+    expect(hasTeamIdentifier(parseCodesignInfo('TeamIdentifier=not settled'))).toBe(true);
+    expect(hasTeamIdentifier(parseCodesignInfo('TeamIdentifier=not set'))).toBe(false);
+  });
+
   it('is safe on a null info object', () => {
     const { isAdHoc, hasDeveloperIdAuthority, hasTeamIdentifier } = loadModule();
 
