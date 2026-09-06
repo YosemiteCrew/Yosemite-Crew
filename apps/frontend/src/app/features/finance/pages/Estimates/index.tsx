@@ -36,6 +36,11 @@ import {
 import EstimateList, {
   type EstimateCompanion,
 } from '@/app/features/finance/pages/Estimates/Sections/EstimateList';
+import PhoneEstimateList from '@/app/features/finance/pages/Estimates/Sections/PhoneEstimateList';
+// Default import, matching the sibling `Finance/index.tsx`: the finance page
+// tests mock this module's default export, and a named import here would read
+// as `undefined` under that mock.
+import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 import EstimateDetail, {
   type EstimateAction,
 } from '@/app/features/finance/pages/Estimates/Sections/EstimateDetail';
@@ -105,6 +110,7 @@ const runAction = (
 
 const EstimatesContent = () => {
   const { notify } = useNotify();
+  const isPhone = useIsPhone();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const currency = useCurrencyForPrimaryOrg();
 
@@ -161,6 +167,21 @@ const EstimatesContent = () => {
 
   // The row needs the photo and species too, so the avatar disc is tinted and
   // the fallback image matches the animal rather than defaulting to 'other'.
+  /* The two lists take identical props, so the breakpoint chooses the component
+     and nothing else. Written as a component swap rather than two JSX branches:
+     branching in the JSX duplicated every prop, and a prop added to one branch
+     and not the other is a difference no type would catch. */
+  const EstimatesList = isPhone ? PhoneEstimateList : EstimateList;
+
+  // One selection handler for both breakpoints. The two lists take identical
+  // props, so the branch chooses the component and nothing else - duplicating
+  // the handler per branch means a change to selection behaviour has to be made
+  // twice and can be made in only one.
+  const openEstimate = useCallback((estimate: Estimate) => {
+    setActiveEstimateId(estimate.id);
+    setActionError(null);
+  }, []);
+
   const companionFor = useCallback(
     (patientId: string): EstimateCompanion => {
       const stored = companionsById[patientId];
@@ -356,13 +377,10 @@ const EstimatesContent = () => {
 
       {!loading && !error && visibleEstimates.length > 0 && (
         <div className="flex flex-col gap-6">
-          <EstimateList
+          <EstimatesList
             estimates={visibleEstimates}
             activeEstimateId={activeEstimateId}
-            onSelect={(estimate) => {
-              setActiveEstimateId(estimate.id);
-              setActionError(null);
-            }}
+            onSelect={openEstimate}
             companion={companionFor}
           />
           {activeEstimate && (
