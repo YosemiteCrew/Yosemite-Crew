@@ -91,6 +91,14 @@ const githubFetch = (url: string) =>
 const SUMMARY_MAX_AGE_MS = 72 * 60 * 60 * 1000;
 
 /**
+ * How far ahead of this server a report may be stamped and still count as fresh.
+ * The stamp is written by a GitHub runner and read here, and the two clocks are
+ * not synchronised, so a report generated seconds ago can carry a timestamp a
+ * little in the future. Small enough that it cannot rescue a stale report.
+ */
+const SUMMARY_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
+/**
  * `generated_at_utc` is written as `2026-08-24 23:06 UTC`, which is NOT ISO 8601 -
  * so `Date.parse` accepting it is a V8 choice, not a language guarantee. Parsing it
  * explicitly avoids depending on that, and every rejected form counts as STALE.
@@ -98,9 +106,13 @@ const SUMMARY_MAX_AGE_MS = 72 * 60 * 60 * 1000;
  * Failing closed is the whole point. If an unreadable stamp produced NaN and were
  * compared numerically, `NaN < threshold` is false, the count would be published as
  * fresh forever, and the check would certify a frozen number as live - which is the
- * exact defect it exists to catch. The bounds are in the pattern rather than left to
- * `Date.UTC` because that function rolls a month of `13` forward into the next year,
- * turning a malformed stamp into a future date that reads as fresh.
+ * exact defect it exists to catch.
+ *
+ * The month, hour and minute bounds are here rather than left to `Date.UTC`, which
+ * rolls a month of `13` forward into the next year. The pattern cannot bound the DAY,
+ * though - 31 is legal in some months and not others - so `summaryGeneratedAt` reads
+ * the components back afterwards. Both roads lead to a date later than the one
+ * written, which is the direction that reads as fresh, so neither is left open.
  */
 const SUMMARY_STAMP =
   /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])[ T]([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?\s*(?:UTC|Z)$/;
@@ -111,20 +123,43 @@ const summaryGeneratedAt = (summary: unknown): number | null => {
   if (typeof stamp !== 'string') return null;
   const parts = SUMMARY_STAMP.exec(stamp.trim());
   if (!parts) return null;
-  return Date.UTC(
-    Number(parts[1]),
-    Number(parts[2]) - 1,
-    Number(parts[3]),
+  const year = Number(parts[1]);
+  const month = Number(parts[2]);
+  const day = Number(parts[3]);
+  const at = Date.UTC(
+    year,
+    month - 1,
+    day,
     Number(parts[4]),
     Number(parts[5]),
     parts[6] ? Number(parts[6]) : 0
   );
+  // The pattern bounds the day to 1-31 for every month, which it cannot do per
+  // month, so `2026-04-31` and `2026-02-30` still reach `Date.UTC` - and it
+  // rolls them FORWARD, towards fresh. Read the components back and reject
+  // anything that moved, which is the only check that knows how long a month is.
+  const roundTrip = new Date(at);
+  if (
+    roundTrip.getUTCFullYear() !== year ||
+    roundTrip.getUTCMonth() !== month - 1 ||
+    roundTrip.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return at;
 };
 
 /** True only for a report that stamps itself and is inside the freshness window. */
 const isSummaryFresh = (summary: unknown, now: number): boolean => {
   const generatedAt = summaryGeneratedAt(summary);
-  return generatedAt !== null && now - generatedAt < SUMMARY_MAX_AGE_MS;
+  if (generatedAt === null) return false;
+  const age = now - generatedAt;
+  // Two-sided, and the lower bound is the load-bearing half. A stamp dated in
+  // the future makes `age` negative, so a one-sided `age < MAX_AGE` calls it
+  // fresh - permanently, and for any value the report carries. That is reachable
+  // without malformed input at all: a year typo in the generator, or this
+  // server's clock running behind the runner that wrote the stamp.
+  return age >= -SUMMARY_CLOCK_SKEW_MS && age < SUMMARY_MAX_AGE_MS;
 };
 
 const readRepositoryClonesTotal = (summary: unknown): number | null => {
