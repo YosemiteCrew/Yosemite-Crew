@@ -424,9 +424,9 @@ export const SubcategoriesExpanded: Story = {
 export const WithSelections: Story = {
   name: 'With chips and counts (light)',
   args: SELECTED_ARGS,
-  /* Pinned rather than inherited. The contrast assertion below is only capable of
-     failing in light, so leaving the theme to the toolbar default makes it silently
-     vacuous the day that default changes. */
+  /* Pinned rather than inherited. The same helper runs here and in the dark story,
+     so both readings are explicit instead of resting on whatever the toolbar
+     happens to default to. */
   globals: { theme: 'light' },
   play: async () => {
     const dialog = openDialog();
