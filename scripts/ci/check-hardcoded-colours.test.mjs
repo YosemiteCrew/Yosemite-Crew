@@ -21,9 +21,11 @@ test('the scanner finds each shape of colour literal', () => {
 });
 
 test('an eight-digit hex is one finding and not two', () => {
-  // #rrggbbaa also matches #rrggbb as a prefix; the alternation has to prefer
-  // the longest form or the same literal is counted twice and the baseline
-  // drifts against a file nobody edited.
+  // #rrggbbaa contains #rrggbb as a prefix. What keeps it one finding is the
+  // trailing lookahead rather than the order of the alternation: a six-digit
+  // match followed by another hex character is rejected and the engine
+  // backtracks to the eight-digit branch. Reordering the alternation therefore
+  // changes nothing, which is worth stating because it looks like it would.
   assert.deepEqual(
     findColours('const a = "#1657c9ff";').map((f) => f.text),
     ['#1657c9ff']
@@ -41,12 +43,17 @@ test('a literal inside a comment is not a finding', () => {
   );
 });
 
-test('a URL does not blank the rest of its line', () => {
+test('a URL does not blank the rest of its line, in any quote style', () => {
   // `//` inside a string is not a comment. Getting this wrong lowers the count
-  // silently, which is the failure that looks most like success.
-  const source = 'const u = "https://example.com/docs"; const c = "#ff0000";';
-  assert.equal(findColours(source).length, 1);
-  assert.match(stripComments(source), /https:\/\/example\.com/);
+  // silently, which is the failure that looks most like success. All three
+  // quote styles are here because covering only one leaves two branches of the
+  // state machine unmeasured - a scanner that stopped tracking single quotes
+  // passed this test when it named only the double-quoted case.
+  for (const quote of ['"', "'", '`']) {
+    const source = `const u = ${quote}https://example.com/docs${quote}; const c = "#ff0000";`;
+    assert.equal(findColours(source).length, 1, `broke on ${quote}`);
+    assert.match(stripComments(source), /https:\/\/example\.com/);
+  }
 });
 
 test('CSS has no line comments, so an unquoted url() survives', () => {
