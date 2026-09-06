@@ -439,6 +439,18 @@ export const OverviewNarrow: Story = {
     await expect(panel.getByText('General practice')).toBeInTheDocument();
     await expect(panel.getByRole('button', { name: 'Room: Consult 2' })).toBeInTheDocument();
     await expect(panel.getByRole('button', { name: 'Start appointment' })).toBeEnabled();
+
+    /* "it does not truncate" was the claim above, and none of those assertions
+       could check it: `getByText` matches the DOM text node, which is complete
+       even when the paint is clipped. Chief complaint WAS truncating here,
+       losing 62px with no `title` to recover it on a surface that has no hover.
+       Measured instead - a clipped cell has more scrollWidth than clientWidth. */
+    const values = panel.getAllByTestId('overview-row-value');
+    await expect(values.length).toBeGreaterThan(0);
+    const clipped = values
+      .filter((cell) => cell.scrollWidth > cell.clientWidth + 1)
+      .map((cell) => `${cell.textContent?.trim()} (+${cell.scrollWidth - cell.clientWidth}px)`);
+    await expect(clipped).toEqual([]);
   },
   parameters: {
     docs: {
