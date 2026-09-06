@@ -155,6 +155,28 @@ test('a disjunction is rejected whichever side the accepted guard is on', () => 
   );
 });
 
+test('operator precedence: a guard on the right of an && inside a disjunction is rejected', () => {
+  // `&&` binds tighter than `||`, so this is `inputs.force || (inputs.x && push)`
+  // and runs on a dispatch whenever inputs.force is set. Splitting on `&&` yields
+  // an operand that is EXACTLY an accepted guard, so without the `||` early
+  // return in isTagOnly this is ACCEPTED - measured, not argued. This test is the
+  // only thing standing between that line and a reader who deletes it as
+  // redundant against the plain-disjunction case, which it genuinely is.
+  assert.equal(isTagOnly("inputs.force || inputs.x && github.event_name == 'push'"), false);
+  // Order-dependent: with the guard on the left of the `&&` the naive split
+  // happens to reject it anyway. Pinned so a future change to the splitter
+  // cannot open one spelling while the other keeps passing.
+  assert.equal(isTagOnly("inputs.force || github.event_name == 'push' && inputs.x"), false);
+});
+
+test('a conjunction containing a parenthesised disjunction is refused, conservatively', () => {
+  // `push && (x || y)` is genuinely restricted by the `&&`, so rejecting it is
+  // stricter than necessary. Recorded as the deliberate cost of the `||` rule
+  // rather than left as an undocumented surprise: it fails closed, and the fix
+  // if it ever bites is to spell the condition without an inner disjunction.
+  assert.equal(isTagOnly("github.event_name == 'push' && (inputs.x || inputs.y)"), false);
+});
+
 test('a conjunction is accepted, so tightening the guard later does not red the build', () => {
   assert.equal(
     isTagOnly("github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')"),

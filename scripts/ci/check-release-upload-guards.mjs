@@ -93,13 +93,33 @@ export function classifyStep(step) {
  * anyone will make to this file. It contains an accepted guard and submits on a
  * plain dispatch anyway, because a disjunction can only widen: `A || B` runs
  * whenever B alone is true, so no guard to the left of a `||` restricts
- * anything. Any `||` is therefore rejected outright.
+ * anything.
  *
  * `&&` is the opposite and is accepted, so tightening the shipped guard to
  * `github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')` does not
- * red the build. Every other spelling fails closed - a red build and a human
- * reading this comment is the outcome we want from an expression we cannot
- * classify.
+ * red the build.
+ *
+ * THE `||` REJECTION IS WHAT MAKES THE `&&` SPLIT BELOW SOUND, and that is not
+ * the same claim as the paragraph above it. Splitting on `&&` ignores operator
+ * precedence: `&&` binds tighter than `||`, so
+ *
+ *   inputs.force || inputs.x && github.event_name == 'push'
+ *
+ * means `inputs.force || (inputs.x && push)` - it runs on a dispatch whenever
+ * `inputs.force` is set - yet splitting it on `&&` yields an operand that is
+ * EXACTLY an accepted guard. Without the early return this is accepted, measured.
+ * Note it is order-dependent: move the guard to the left of the `&&` and the
+ * naive split happens to reject it, so the hole opens on one spelling and not
+ * the other. Both are pinned in the tests.
+ *
+ * A plain `A || B` is rejected either way, because the whole string becomes one
+ * operand and no operand equals a guard. So the early return looks redundant
+ * against the case this comment opens with, and is load-bearing against a case
+ * that comment never mentions. Do not delete it on the strength of the first
+ * paragraph.
+ *
+ * Every other spelling fails closed - a red build and a human reading this
+ * comment is the outcome we want from an expression we cannot classify.
  */
 export function isTagOnly(condition) {
   if (typeof condition !== 'string') return false;
