@@ -593,14 +593,46 @@ done
 
 # Stream, not just presence. GitHub documents workflow commands as reaching the
 # runner over stdout and never mentions stderr, so an annotation redirected to
-# stderr may be a plain log line - which would be the quietest possible failure
-# for a change whose entire purpose is to be more visible. Raised in review,
-# along with the finding that the stderr precedents in deploy-api.yml have never
-# fired, so they are an unexercised convention rather than evidence.
-CUTOVER_ANNOTATIONS_ON_STDERR="$(grep -c '::error::.*>&2' <<< "$CUTOVER_REGION" || true)"
-check "the annotations go to stdout, where workflow commands are read" \
-  "0 redirected to stderr" \
-  "$CUTOVER_ANNOTATIONS_ON_STDERR redirected to stderr"
+# stderr may be a plain log line - the quietest possible failure for a change
+# whose entire purpose is to be more visible.
+#
+# Redirection is NOT line-local, and the first version of this guard was. Three
+# spellings put the same annotation on stderr and only one is on the same line
+# as it:
+#
+#   echo "::error::…" >&2          line-local, trailing
+#   >&2 echo "::error::…"          line-local, leading
+#   { echo "::error::…" ; } >&2    ENCLOSING - and this is the house style:
+#                                  deploy-api.yml:106-121 wraps all three of its
+#                                  preflight annotations in exactly this shape.
+#
+# So the form most likely to be written here is the one a line-local grep cannot
+# see, and someone writing it would be following the convention this file's own
+# comment names. Raised in review.
+#
+# The enclosure check tracks ONE level of brace group, which is all this region
+# has and all the house style uses. A group nested inside another group would
+# not be seen; that is a limit of a source guard, not a case anyone writes here.
+# It deliberately fires only on a group that CONTAINS an annotation, so a future
+# brace group wrapping ordinary human lines is not a false positive.
+CUTOVER_STDERR_INLINE="$(grep -cE '(::error::.*>&[12]|>&[12].*::error::)' \
+  <<< "$CUTOVER_REGION" || true)"
+
+CUTOVER_STDERR_ENCLOSED="$(awk '
+  /^[[:space:]]*\{[[:space:]]*$/ { inside = 1; buf = ""; next }
+  inside && /^[[:space:]]*\}[[:space:]]*>&[12]/ {
+    if (buf ~ /::error::/) { bad++ }
+    inside = 0; buf = ""; next
+  }
+  inside { buf = buf $0 "\n"; next }
+  END { print bad + 0 }
+' <<< "$CUTOVER_REGION")"
+
+check "no annotation is redirected to stderr on its own line" \
+  "0 inline" "$CUTOVER_STDERR_INLINE inline"
+
+check "no annotation is redirected to stderr by an enclosing group" \
+  "0 enclosed" "$CUTOVER_STDERR_ENCLOSED enclosed"
 
 # The parity guard, and it is not subsumed by the three above: a FOURTH stop
 # added later without an annotation reddens only this one. That is the case

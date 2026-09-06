@@ -322,7 +322,7 @@ if [ -n "$CONTROL_FAILURES" ]; then
   done <<< "$CONTROL_FAILURES"
   echo "- the process starts and /health answers 200 with the control absent." >&2
   echo "NOT cutting over. Rollback sha: $ROLLBACK_SHA" >&2
-  echo "::error::Security control did not apply: $(printf '%s' "$CONTROL_FAILURES" | tr '\n' ';' | sed 's/;/; /g; s/; $//'). NOT cutting over. Rollback sha: $ROLLBACK_SHA"
+  echo "::error::Security control did not apply: $(printf '%s' "$CONTROL_FAILURES" | awk 'NR > 1 { printf "; " } { printf "%s", $0 }'). NOT cutting over. Rollback sha: $ROLLBACK_SHA"
   exit 1
 fi
 
