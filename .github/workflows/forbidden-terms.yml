@@ -304,7 +304,9 @@ jobs:
       # through an earlier pull request sits in the BASE of every later `dev`
       # comparison and is never looked at again - but a `main` pull request's
       # merge base is the previous promotion, so the whole of `dev` since then
-      # is in scope. That is why this workflow is required on BOTH branches.
+      # is in scope. That is why this workflow RUNS on BOTH branches - which is
+      # this file's `on:` block, not a ruleset. It is required on neither; the
+      # header above says which contexts each ruleset actually requires.
       - name: Collect the surfaces
         if: ${{ github.event_name == 'pull_request' }}
         env:
