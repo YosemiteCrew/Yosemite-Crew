@@ -40,7 +40,15 @@ const DEFAULT_VIEWPORT = 'laptop';
 const config: TestRunnerConfig = {
   async preVisit(page, context) {
     const storyContext = await getStoryContext(page, context);
-    const requested = (storyContext.globals?.viewport as { value?: string } | undefined)?.value;
+    /* `storyGlobals`, not `globals`. Storybook 10's story context carries a
+       story's own `globals` annotation under `storyGlobals`; `globals` is not a
+       key on it at all, so this read was `undefined` for EVERY story and every
+       one of them fell through to `laptop`. That is the exact failure this hook
+       was written to prevent, and it was silent because the job is
+       `continue-on-error`. */
+    const storyGlobals = (storyContext as unknown as Record<string, unknown>).storyGlobals as
+      Record<string, { value?: string } | undefined> | undefined;
+    const requested = (storyGlobals?.viewport ?? storyContext.globals?.viewport)?.value;
     const key = requested ?? DEFAULT_VIEWPORT;
     const size = VIEWPORT_SIZES[key];
 
