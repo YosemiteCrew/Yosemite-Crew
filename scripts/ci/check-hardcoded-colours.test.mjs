@@ -139,10 +139,22 @@ test('the walk reaches the frontend and returns a non-empty corpus', () => {
 test('the scan excludes the token source and the test files', () => {
   const { findings } = scan();
   assert.ok(!findings.some((f) => f.file.endsWith('app/globals.css')));
-  // Grouped explicitly. `$` binds to the last alternative only, so the bare
-  // form reads as though the whole pattern were end-anchored when only the
-  // second half is. The grouping states the intent rather than changing it.
-  assert.ok(!findings.some((f) => /(?:__tests__)|(?:\.test\.tsx?$)/.test(f.file)));
+  // Two checks, not one alternation. `$` binds to the last alternative only, so
+  // `/__tests__|\.test\.tsx?$/` reads as end-anchored throughout when half of it
+  // is not; grouping that to say so is then flagged as redundant grouping, and
+  // both readings are right about the pattern. Splitting it removes the
+  // question rather than answering it, and it states the predicate the scanner
+  // actually uses: a separator-bounded directory OR a test-file suffix.
+  const inTestDirectory = (file) => file.split('/').includes('__tests__');
+  const isTestFile = (file) => file.endsWith('.test.ts') || file.endsWith('.test.tsx');
+  assert.ok(!findings.some((f) => inTestDirectory(f.file) || isTestFile(f.file)));
+
+  // The predicate above must be able to say yes, or the assertion is a matcher
+  // that cannot match and the empty result means nothing.
+  assert.ok(inTestDirectory('apps/frontend/src/app/__tests__/a.ts'));
+  assert.ok(isTestFile('a/b.test.tsx'));
+  assert.ok(!inTestDirectory('apps/frontend/src/app/my__tests__notadir/a.ts'));
+  assert.ok(!isTestFile('a/b.tsx'));
 });
 
 /* ---------------------------------------------------------------------------
