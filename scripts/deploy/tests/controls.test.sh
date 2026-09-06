@@ -527,6 +527,88 @@ else
      "$SWALLOWED"
 fi
 
+# ---------------------------------------------------------------------------
+# Every cutover stop must annotate, not just the controls one.
+#
+# All six workflow_dispatch failures this workflow has ever had failed on the
+# step "Deploy over SSH", and so does every stop in this region - the script
+# runs inside that step. Step name, job name and red X are identical to a
+# routine deploy failure, so without a run-summary annotation the reason is
+# only inside an expanded log. The preflight key checks in deploy-api.yml
+# already annotate; these three were the exception, and the asymmetry was the
+# finding rather than any one stop.
+# ---------------------------------------------------------------------------
+# Anchored with index() on -v values rather than a single-quoted regex: the
+# needle contains a literal dollar, and spelling that inside single quotes is an
+# SC2016 on a line where the dollar is deliberate.
+CUTOVER_REGION="$(awk \
+  -v start="if [ \"\$CODE\" != \"200\" ]" \
+  -v stop='say "cutover"' \
+  'index($0, start) == 1 { f = 1 } f { print } f && index($0, stop) == 1 { exit }' \
+  <<< "$DEPLOY_CODE")"
+
+# Vacuity canary. Everything below is counted out of this region, and an awk
+# range that matched nothing produces zero stops and zero annotations - which
+# is parity, and would report a completely unguarded file as guarded.
+check "the cutover region was actually extracted" \
+  "found" \
+  "$(printf '%s' "$CUTOVER_REGION" | grep -q 'say "cutover"' && echo found || echo empty)"
+
+CUTOVER_STOPS=0
+CUTOVER_ANNOTATED=0
+cutover_block=""
+while IFS= read -r cutover_line; do
+  cutover_block="$cutover_block$cutover_line
+"
+  if [ "$cutover_line" = "fi" ]; then
+    case "$cutover_block" in
+      *"exit 1"*)
+        CUTOVER_STOPS=$((CUTOVER_STOPS + 1))
+        case "$cutover_block" in
+          *'::error::'*) CUTOVER_ANNOTATED=$((CUTOVER_ANNOTATED + 1)) ;;
+        esac
+        ;;
+    esac
+    cutover_block=""
+  fi
+done <<< "$CUTOVER_REGION"
+
+# Named individually as well as counted, because a count says how many and not
+# which - and the controls stop is the one this branch of work added, so it is
+# the one most likely to be the only one done.
+for cutover_guard in \
+  'CODE" != "200:the smoke-boot status stop' \
+  'POST_CODE" != "404:the request-body stop' \
+  "n \"\$CONTROL_FAILURES:the startup-controls stop"; do
+  cutover_needle="${cutover_guard%%:*}"
+  cutover_name="${cutover_guard#*:}"
+  if awk -v n="$cutover_needle" 'index($0, n) {f=1} f {print} f && /^fi$/ {exit}' \
+      <<< "$CUTOVER_REGION" | grep -q '::error::'; then
+    ok "$cutover_name emits a run-summary annotation"
+  else
+    no "$cutover_name emits a run-summary annotation" \
+       "no ::error:: between that condition and its fi"
+  fi
+done
+
+# Stream, not just presence. GitHub documents workflow commands as reaching the
+# runner over stdout and never mentions stderr, so an annotation redirected to
+# stderr may be a plain log line - which would be the quietest possible failure
+# for a change whose entire purpose is to be more visible. Raised in review,
+# along with the finding that the stderr precedents in deploy-api.yml have never
+# fired, so they are an unexercised convention rather than evidence.
+CUTOVER_ANNOTATIONS_ON_STDERR="$(grep -c '::error::.*>&2' <<< "$CUTOVER_REGION" || true)"
+check "the annotations go to stdout, where workflow commands are read" \
+  "0 redirected to stderr" \
+  "$CUTOVER_ANNOTATIONS_ON_STDERR redirected to stderr"
+
+# The parity guard, and it is not subsumed by the three above: a FOURTH stop
+# added later without an annotation reddens only this one. That is the case
+# this exists for - the three named rows describe today.
+check "every cutover stop that exits emits a run-summary annotation" \
+  "$CUTOVER_STOPS stops, $CUTOVER_STOPS annotated" \
+  "$CUTOVER_STOPS stops, $CUTOVER_ANNOTATED annotated"
+
 PROBE_LINE="$(grep -nE "$PROBE_RE" <<< "$DEPLOY_CODE" | head -1 | cut -d: -f1 || true)"
 KILL_LINE="$(grep -nE 'kill .*SMOKE_PID' <<< "$DEPLOY_CODE" | head -1 | cut -d: -f1 || true)"
 if [ -n "$PROBE_LINE" ] && [ -n "$KILL_LINE" ] && [ "$PROBE_LINE" -lt "$KILL_LINE" ]; then

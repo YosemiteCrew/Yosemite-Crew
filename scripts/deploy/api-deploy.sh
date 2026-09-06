@@ -269,6 +269,31 @@ echo "  body parse -> $POST_CODE"
 CONTROLS_BODY="$(curl -s --max-time 10 "http://127.0.0.1:$SMOKE_PORT/health/controls" || echo '')"
 echo "  controls -> ${CONTROLS_BODY:-<unreachable>}"
 CONTROL_FAILURES="$(deploy_blocking_control_failures "$CONTROLS_BODY" "$DEPLOY_BLOCKING_CONTROLS")"
+# Every cutover stop below emits a GitHub Actions error annotation as well as
+# the human lines. Not decoration: all six workflow_dispatch failures this
+# workflow has ever had failed on the step "Deploy over SSH", and so does every
+# stop below, because this script runs inside that step. Step name, job name and
+# red X are therefore identical to a routine deploy failure, and the natural
+# response to a familiar failure is to re-run it rather than read it. An
+# annotation is what puts the reason on the run summary instead of only inside
+# an expanded log.
+#
+# STDOUT, and the human lines stay on stderr. GitHub documents workflow commands
+# as reaching the runner over stdout and does not mention stderr. The three
+# preflight key checks in deploy-api.yml are the nearest precedent in this file
+# and they write to stderr - but raised in review: not one of them has ever
+# fired, so that is an unexercised convention rather than evidence. The rest of
+# the repo (promotion-guard.yml, _migration.yaml, the release workflows) uses
+# stdout, which is also what the docs say.
+#
+# Emitted unconditionally rather than gated on $GITHUB_ACTIONS. That variable is
+# NOT forwarded across the ssh in deploy-api.yml - only REQUIRE_PROMOTED_FROM is
+# - so gating on it would switch the annotation off permanently and silently,
+# which is the failure mode this whole file exists to avoid. Run by hand, the
+# line is one extra line of log next to the message it duplicates.
+#
+# On stdout, not stderr, and single-line: annotation data may not contain a raw
+# newline, which is why the control list is joined below rather than looped.
 # Reports, never gates - the `|| true` is what makes that true, and it is
 # deliberate: this is a second signal for whoever reads the log, and POST_CODE
 # above is the gate.
@@ -278,6 +303,7 @@ SMOKE_PID=""
 sleep 2
 if [ "$CODE" != "200" ]; then
   echo "smoke boot failed - NOT cutting over. Rollback sha: $ROLLBACK_SHA" >&2
+  echo "::error::Smoke boot did not answer 200 (got $CODE). NOT cutting over. Rollback sha: $ROLLBACK_SHA"
   exit 1
 fi
 
@@ -285,6 +311,7 @@ if [ "$POST_CODE" != "404" ]; then
   echo "smoke boot could not parse a request body ($POST_CODE, expected 404)" >&2
   echo "- every GET probe passes a bundle that 500s on every write." >&2
   echo "NOT cutting over. Rollback sha: $ROLLBACK_SHA" >&2
+  echo "::error::Smoke boot could not parse a request body ($POST_CODE, expected 404) - every GET probe passes a bundle that 500s on every write. NOT cutting over. Rollback sha: $ROLLBACK_SHA"
   exit 1
 fi
 
@@ -295,6 +322,7 @@ if [ -n "$CONTROL_FAILURES" ]; then
   done <<< "$CONTROL_FAILURES"
   echo "- the process starts and /health answers 200 with the control absent." >&2
   echo "NOT cutting over. Rollback sha: $ROLLBACK_SHA" >&2
+  echo "::error::Security control did not apply: $(printf '%s' "$CONTROL_FAILURES" | tr '\n' ';' | sed 's/;/; /g; s/; $//'). NOT cutting over. Rollback sha: $ROLLBACK_SHA"
   exit 1
 fi
 
