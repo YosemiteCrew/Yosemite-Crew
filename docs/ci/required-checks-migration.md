@@ -43,15 +43,16 @@ the merge. Read off the rulesets, not off this file:
 
 The `required status checks` column is the `required_status_checks` rule's
 context list and nothing else. **Rulesets carry other rule types that gate
-merges too** - `code_quality`, `code_scanning`, `copilot_code_review`,
-`pull_request` - and none of those appear in that column. Do not read an empty
-cell as an ungated branch.
+merges too** - and none of them appear in that column. The `other gating rules`
+column lists every non-`required_status_checks` rule on each ruleset, so it can
+be read down as well as across. Do not take an empty first cell for an ungated
+branch.
 
-| ruleset    | name                                              | required status checks                 | other gating rules                                                        |
-| ---------- | ------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------- |
-| `3468092`  | dev                                               | `CI Required`, `Supply Chain Required` | `code_quality` (severity `errors`), `copilot_code_review`, `pull_request` |
-| `3440858`  | Main                                              | `Only dev may merge into main`         | `code_scanning` (CodeQL), `copilot_code_review`, `pull_request`           |
-| `21048611` | Protect main and dev from deletion and force-push | none                                   | `deletion`, `non_fast_forward` only                                       |
+| ruleset    | name                                              | required status checks                 | other gating rules                                                                                        |
+| ---------- | ------------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `3468092`  | dev                                               | `CI Required`, `Supply Chain Required` | `deletion`, `non_fast_forward`, `copilot_code_review`, `code_quality` (severity `errors`), `pull_request` |
+| `3440858`  | Main                                              | `Only dev may merge into main`         | `deletion`, `non_fast_forward`, `copilot_code_review`, `code_scanning` (CodeQL), `pull_request`           |
+| `21048611` | Protect main and dev from deletion and force-push | none                                   | `deletion`, `non_fast_forward`                                                                            |
 
 **There are three rulesets, not two.** And `Only dev may merge into main` is a
 status check _context_ whose text reads exactly like a rule description, so any
