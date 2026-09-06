@@ -360,6 +360,12 @@ describe('github-stats route handler', () => {
       ['a day outside 1-31', { generated_at_utc: '2026-08-32 00:00 UTC' }],
       ['an hour outside 0-23', { generated_at_utc: '2026-08-24 24:00 UTC' }],
       ['a stamp with no zone', { generated_at_utc: '2026-08-24 23:06' }],
+      // Every case above is a PATTERN rejection, so none of them reaches the
+      // freshness comparison. These do: each parses to a real instant and is
+      // refused by the window itself.
+      ['a stamp one day in the future', { generated_at_utc: '2026-08-26 00:00 UTC' }],
+      ['a stamp four months in the future', { generated_at_utc: '2027-01-01 00:00 UTC' }],
+      ['a stamp that would be fresh forever', { generated_at_utc: '9999-12-31 00:00 UTC' }],
     ])('fails closed on %s', async (_label, stamp) => {
       globalThis.fetch = summaryOnly({ ...stamp, clones: { total: 67134 } });
 
@@ -387,6 +393,28 @@ describe('github-stats route handler', () => {
       expect((await call()).body.repositoryClones).toBe('9');
     });
 
+    // The stamp is written by a GitHub runner and read by this server; the two
+    // clocks are not synchronised, so a report generated seconds ago can carry a
+    // timestamp slightly ahead. That must not blank a good number - but the
+    // allowance is minutes, not enough to rescue anything actually stale.
+    it('publishes a report stamped a little ahead of this server', async () => {
+      globalThis.fetch = summaryOnly({
+        generated_at_utc: '2026-08-25 00:02 UTC',
+        clones: { total: 11 },
+      });
+
+      expect((await call()).body.repositoryClones).toBe('11');
+    });
+
+    it('drops a report stamped beyond the skew allowance', async () => {
+      globalThis.fetch = summaryOnly({
+        generated_at_utc: '2026-08-25 00:06 UTC',
+        clones: { total: 11 },
+      });
+
+      expect((await call()).body.repositoryClones).toBeNull();
+    });
+
     it('drops a report just outside the 72 hour window', async () => {
       globalThis.fetch = summaryOnly({
         generated_at_utc: '2026-08-21 23:59 UTC',
@@ -394,6 +422,44 @@ describe('github-stats route handler', () => {
       });
 
       expect((await call()).body.repositoryClones).toBeNull();
+    });
+
+    // An impossible day rolls FORWARD through Date.UTC, and against the clock
+    // above every such roll lands in the past and is refused by the window - so
+    // those cases prove nothing about the round-trip. These set the clock so the
+    // rolled date would be comfortably FRESH, which leaves the component
+    // round-trip as the only thing that can reject them. Each pair carries a
+    // valid neighbouring date as its control: if the control did not publish,
+    // the rejection would be the window talking, not the round-trip.
+    describe.each([
+      [
+        'a 31st in a 30-day month',
+        '2026-05-01T12:00:00Z',
+        '2026-04-31 00:00 UTC',
+        '2026-04-30 00:00 UTC',
+      ],
+      [
+        'a 29th of February in a non-leap year',
+        '2026-03-01T12:00:00Z',
+        '2026-02-29 00:00 UTC',
+        '2026-02-28 00:00 UTC',
+      ],
+    ])('%s', (_label, clock, impossible, control) => {
+      beforeEach(() => {
+        jest.useFakeTimers().setSystemTime(new Date(clock));
+      });
+
+      it('publishes the valid neighbouring date, so the window is not what rejects', async () => {
+        globalThis.fetch = summaryOnly({ generated_at_utc: control, clones: { total: 7 } });
+
+        expect((await call()).body.repositoryClones).toBe('7');
+      });
+
+      it('drops the impossible date even though the rolled value would be fresh', async () => {
+        globalThis.fetch = summaryOnly({ generated_at_utc: impossible, clones: { total: 7 } });
+
+        expect((await call()).body.repositoryClones).toBeNull();
+      });
     });
 
     it('leaves the other metrics alone when the report is stale', async () => {
