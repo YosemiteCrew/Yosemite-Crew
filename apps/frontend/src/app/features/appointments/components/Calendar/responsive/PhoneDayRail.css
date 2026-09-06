@@ -159,6 +159,9 @@
   white-space: nowrap;
 }
 
+/* --blue-strong rather than --blue: --blue is #257bed in both themes and white
+   on it is 4.09:1, under AA for this 10.5px/700 label. --blue-strong is
+   theme-aware and clears it on both sides (6.48:1 light, 4.54:1 dark). */
 .yc-day-rail__block-action {
   position: relative;
   z-index: 1;
@@ -169,21 +172,25 @@
   padding: 0 12px;
   border: 0;
   border-radius: 9999px;
-  background: var(--blue);
+  background: var(--blue-strong);
   color: #ffffff;
   font-size: 10.5px;
   font-weight: 700;
   cursor: pointer;
 }
 
-/* ------------------------------------------------------------ now marker */
+/* ------------------------------------------------------------ now marker
+   The pill and the line are one marker and share a fill. The pill carries a
+   9.5px/700 time, which is 4.09:1 on --blue and fails AA, so both move to
+   --blue-strong together - darkening only the pill would split one object
+   across two blues. */
 
 .yc-day-rail__now-line {
   position: absolute;
   left: 52px;
   right: 0;
   height: 2px;
-  background: var(--blue);
+  background: var(--blue-strong);
 }
 
 .yc-day-rail__now-pill {
@@ -192,7 +199,7 @@
   transform: translateY(-9px);
   padding: 2px 7px;
   border-radius: 9999px;
-  background: var(--blue);
+  background: var(--blue-strong);
   color: #ffffff;
   font-size: 9.5px;
   font-weight: 700;
