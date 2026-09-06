@@ -31,13 +31,22 @@ const relativeLuminance = ({ r, g, b }: Rgb): number => {
   return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
 };
 
-/** `src` painted over `dst`, resolving `src`'s alpha. */
-const composite = (src: Rgb, dst: Rgb): Rgb => ({
-  r: src.r * src.a + dst.r * (1 - src.a),
-  g: src.g * src.a + dst.g * (1 - src.a),
-  b: src.b * src.a + dst.b * (1 - src.a),
-  a: 1,
-});
+/**
+ * `src` painted over `dst`, source-over.
+ *
+ * The resulting alpha is `as + ab(1 - as)`, NOT 1. Hardcoding it to 1 makes the
+ * `a >= 0.999` guard in `effectiveBackground` true after a single blend, which
+ * ends the ancestor walk at the second translucent layer and reports it as the
+ * backdrop - so two stacked translucent backgrounds resolve against the wrong
+ * colour. Colour channels are un-premultiplied by `ao` for the same reason: with
+ * a translucent `dst`, weighting by `(1 - as)` alone over-counts the backdrop.
+ */
+export const compositeOver = (src: Rgb, dst: Rgb): Rgb => {
+  const a = src.a + dst.a * (1 - src.a);
+  if (a === 0) return { r: 0, g: 0, b: 0, a: 0 };
+  const channel = (s: number, d: number) => (s * src.a + d * dst.a * (1 - src.a)) / a;
+  return { r: channel(src.r, dst.r), g: channel(src.g, dst.g), b: channel(src.b, dst.b), a };
+};
 
 const WHITE: Rgb = { r: 255, g: 255, b: 255, a: 1 };
 
@@ -51,12 +60,12 @@ const effectiveBackground = (el: Element): Rgb => {
   while (node) {
     const colour = parseColor(globalThis.getComputedStyle(node).backgroundColor);
     if (colour && colour.a > 0) {
-      accumulated = accumulated ? composite(accumulated, colour) : colour;
+      accumulated = accumulated ? compositeOver(accumulated, colour) : colour;
       if (accumulated.a >= 0.999) return accumulated;
     }
     node = node.parentElement;
   }
-  return accumulated ? composite(accumulated, WHITE) : WHITE;
+  return accumulated ? compositeOver(accumulated, WHITE) : WHITE;
 };
 
 export type ContrastReading = {
@@ -79,7 +88,7 @@ export const measureContrast = (el: Element): ContrastReading => {
   const style = globalThis.getComputedStyle(el);
   const background = effectiveBackground(el);
   const rawForeground = parseColor(style.color) ?? { ...WHITE };
-  const foreground = rawForeground.a < 1 ? composite(rawForeground, background) : rawForeground;
+  const foreground = rawForeground.a < 1 ? compositeOver(rawForeground, background) : rawForeground;
 
   const lighter = Math.max(relativeLuminance(foreground), relativeLuminance(background));
   const darker = Math.min(relativeLuminance(foreground), relativeLuminance(background));
