@@ -219,8 +219,17 @@ export const SortPanelClosesOnOutsideClick: Story = {
 export const WithSelectedFilters: Story = {
   name: 'Filter trigger with a count badge',
   args: { selectedFilterChips: CHIPS },
+  /* Pinned, and the failure mode it prevents is a PASS rather than a vacuity.
+     Unpinned, this story inherits `preview.ts`'s default; if that default ever
+     flips to dark it measures the dark composite, reads 12.64, clears 4.5 and
+     reports green - while the light composite goes unmeasured and nothing
+     fails. The dark story below asserts its theme before measuring, so pinning
+     only one of the two leaves them protected by different mechanisms and only
+     one of those is a mechanism. */
+  globals: { theme: 'light' },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
+    await expect(document.documentElement.dataset.theme).toBe('light');
     const filter = canvas.getByRole('button', { name: /^Filter 3$/ });
     // The chevron is replaced by the badge rather than sitting beside it.
     await expect(filter.querySelectorAll('svg')).toHaveLength(1);
