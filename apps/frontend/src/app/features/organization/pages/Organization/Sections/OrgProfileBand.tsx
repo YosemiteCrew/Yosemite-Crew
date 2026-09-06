@@ -69,7 +69,7 @@ const OrgProfileBand = ({ org, canEdit, onEdit }: OrgProfileBandProps) => {
   const secondaryMeta = buildSecondaryMeta(org);
 
   return (
-    <div className="flex flex-col gap-[14px] rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-[22px]! py-5! shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] sm:flex-row sm:items-center sm:gap-[18px]">
+    <div className="flex flex-col gap-[14px] yc-card-surface px-[22px]! py-5! sm:flex-row sm:items-center sm:gap-[18px]">
       <OrgAvatar org={org} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="flex flex-wrap items-center gap-[10px]">

@@ -146,7 +146,7 @@ describe('SharedEntityCard', () => {
   it('renders the tokenized hairline card chrome when mine is true', () => {
     const { container } = render(<SharedEntityCard entity={makeEntity()} mine />);
     const card = container.firstChild as HTMLElement;
-    expect(card.className).toContain('border-[var(--hairline)]');
+    expect(card.className).toContain('yc-card-surface');
     // The legacy cool-slate accent border is gone (dark-mode safe).
     expect(container.querySelector('.border-primary-300')).not.toBeInTheDocument();
   });
@@ -154,8 +154,8 @@ describe('SharedEntityCard', () => {
   it('renders the same card chrome whether or not the message is mine', () => {
     const { container: a } = render(<SharedEntityCard entity={makeEntity()} mine />);
     const { container: b } = render(<SharedEntityCard entity={makeEntity()} mine={false} />);
-    expect((a.firstChild as HTMLElement).className).toContain('border-[var(--hairline)]');
-    expect((b.firstChild as HTMLElement).className).toContain('border-[var(--hairline)]');
+    expect((a.firstChild as HTMLElement).className).toContain('yc-card-surface');
+    expect((b.firstChild as HTMLElement).className).toContain('yc-card-surface');
   });
 
   it('renders an icon glyph for the entity', () => {

@@ -154,7 +154,7 @@ const GenericTable = <T extends object>({
       ref={containerRef}
       className={`flex min-h-0 w-full flex-col gap-3 overflow-hidden ${needsFill ? 'h-full' : 'h-auto'} ${showPagination ? 'pb-2' : ''}`}
     >
-      <div className={`TableShell min-h-0 ${needsFill ? 'flex-1' : ''}`}>
+      <div className={`yc-card-surface TableShell min-h-0 ${needsFill ? 'flex-1' : ''}`}>
         <div
           ref={bodyScrollRef}
           className={`TableBodyScroll min-h-0 overflow-y-auto scrollbar-custom ${needsFill ? 'h-full' : 'h-auto'}`}

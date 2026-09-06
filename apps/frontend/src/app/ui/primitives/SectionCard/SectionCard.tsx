@@ -80,9 +80,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
     // ground and shadow this rendered as a bare frame, which is why four
     // consumers had each grown their OWN inner card to compensate - stacking two
     // visible borders. The surface belongs to the primitive, once.
-    <div
-      className={`flex flex-col gap-3 rounded-[18px] border border-card-border bg-[var(--screen)] px-6 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] ${paddingYClass}`}
-    >
+    <div className={`flex flex-col gap-3 yc-card-surface px-6 ${paddingYClass}`}>
       <div className="flex items-center gap-x-4 gap-y-2">
         <h2 className="min-w-0 flex-1 text-heading-3 text-text-primary">{title}</h2>
         <div className="flex shrink-0 items-center gap-3 flex-wrap">
