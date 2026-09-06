@@ -156,7 +156,7 @@ const RoomTable = ({
           .TableBodyScroll: `.TableShell` sets `overflow: hidden` unlayered, which
           beats a layered `overflow-x-auto` utility on the same element and would
           clip the trailing columns with no way to reach them. */}
-      <div className="table-list TableShell">
+      <div className="table-list yc-card-surface TableShell">
         {filteredList.length === 0 ? (
           <NoDataMessage {...emptyStateCopy('rooms')} />
         ) : (

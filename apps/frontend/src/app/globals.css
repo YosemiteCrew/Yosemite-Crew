@@ -1871,6 +1871,59 @@ html[data-theme='dark'] [data-yc-app] ::selection {
     0 10px 30px var(--sh08);
 }
 
+/* ------------------------------------------------------------------ *
+ * The warm-bone card surface — the one recipe for an in-flow card.
+ *
+ * `--screen` ground, hairline border and the two-stop depth shadow. This
+ * existed once as `.TableShell` (ui/tables/GenericTable/Generictable.css) and
+ * was hand-retyped as Tailwind utilities in 39 more files and as CSS in 12,
+ * which is why the same card is 18px in one place and 16px in another and why
+ * no gate could ever catch a new copy: a class can be grepped, a four-utility
+ * string spread across a `className` cannot.
+ *
+ * Unlayered on purpose, exactly like `.yc-glass-overlay` above, so it beats
+ * Tailwind's layered bg/border/shadow utilities on the same element. That is
+ * what lets `.TableShell` drop the `!important` it used to carry on all four
+ * properties without changing which declaration wins.
+ *
+ * RADIUS IS A LADDER, not a single value, and the modifiers below preserve the
+ * three sizes the app already ships rather than flattening them by fiat:
+ *   (default) 18px  page sections, tables, page-level containers
+ *   --tile     16px  entity tiles laid out in a grid
+ *   --inset    14px  a card nested inside a panel that already has a frame
+ * The design system owns which tier a surface belongs to; this file owns the
+ * fact that there are three of them and that changing one changes every call
+ * site. Pair with `.yc-card-elevated` only for the raised stat-tile treatment,
+ * which is a different shadow and not a second surface.
+ * ------------------------------------------------------------------ */
+.yc-card-surface {
+  background: var(--screen);
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05);
+}
+
+.yc-card-surface--tile {
+  border-radius: 16px;
+}
+
+.yc-card-surface--inset {
+  border-radius: 14px;
+}
+
+/* The resting elevation, for a card that drops to it in one of its own states.
+   The speciality accordion is the only surface in the app that does this: open
+   it carries the full two-stop depth, collapsed it keeps the contact shadow
+   alone. Written as a modifier rather than left as a hand-rolled `shadow-[...]`
+   because an unlayered `.yc-card-surface` beats a layered Tailwind shadow
+   utility on the same element - the override has to live at the same level as
+   the thing it overrides, or it silently does nothing. */
+.yc-card-surface--flat {
+  box-shadow: 0 1px 2px var(--sh03);
+}
+
 /* App runtime toasts (react-toastify).
    One recipe for every toast `useNotify` raises: a 360px warm --screen card
    with a hairline and a level-3 float, 16px popover radius, Satoshi, and no

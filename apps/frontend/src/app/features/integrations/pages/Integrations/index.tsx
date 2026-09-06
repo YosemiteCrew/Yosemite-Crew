@@ -943,14 +943,12 @@ const IntegrationFilterTabs = ({
   </fieldset>
 );
 
-// Compact integration card — design: 16px/18px padding, 18px radius, a 10px
-// column gap and a 42px inline icon leading the title row.
-const INTEGRATION_CARD_CLASS =
-  'rounded-[18px] border px-[18px] py-4 w-full flex flex-col gap-2.5 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
-const INTEGRATION_CARD_STYLE: React.CSSProperties = {
-  background: 'var(--screen)',
-  borderColor: 'var(--hairline)',
-};
+// Compact integration card — design: 16px/18px padding, a 10px column gap and a
+// 42px inline icon leading the title row. The frame is `.yc-card-surface`; this
+// card used to write the same recipe half as utilities and half as an inline
+// style object, which is why the shared class could not be applied to it by the
+// obvious edit.
+const INTEGRATION_CARD_CLASS = 'yc-card-surface px-[18px] py-4 w-full flex flex-col gap-2.5';
 const INTEGRATION_CARD_HEADER_CLASS = 'flex items-center gap-3';
 const INTEGRATION_CARD_TITLE_CLASS =
   'min-w-0 flex-1 truncate text-[14.5px] font-bold tracking-[-0.01em]';
@@ -993,7 +991,7 @@ const IdexxIntegrationCard = ({
   if (!s.showIdexxCard) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className={INTEGRATION_CARD_HEADER_CLASS}>
         <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.idexx}>
           IDX
@@ -1066,7 +1064,7 @@ const MerckIntegrationCard = ({
   if (!s.showMerckCard) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className={INTEGRATION_CARD_HEADER_CLASS}>
         <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.merck}>
           <IoBookOutline size={19} aria-hidden="true" />
@@ -1122,7 +1120,7 @@ const RadIntegrationCard = ({
   if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className={INTEGRATION_CARD_HEADER_CLASS}>
         <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.radAnalyzer}>
           RA
@@ -1159,7 +1157,7 @@ const VetnioIntegrationCard = ({
   if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className={INTEGRATION_CARD_HEADER_CLASS}>
         <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.vetnio}>
           VN
@@ -1197,7 +1195,7 @@ const QuickBooksIntegrationCard = ({
   if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className={INTEGRATION_CARD_HEADER_CLASS}>
         <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.quickBooks}>
           QB
@@ -1235,7 +1233,7 @@ const LaikaIntegrationCard = ({
   if (!shouldShowComingSoonCards(activeFilter)) return null;
 
   return (
-    <div className={INTEGRATION_CARD_CLASS} style={INTEGRATION_CARD_STYLE}>
+    <div className={INTEGRATION_CARD_CLASS}>
       <div className={INTEGRATION_CARD_HEADER_CLASS}>
         <span className={INTEGRATION_ICON_CLASS} style={INTEGRATION_ICON_STYLES.laika}>
           LK
