@@ -5,6 +5,12 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 import type { InventoryFiltersState } from '@/app/features/inventory/pages/Inventory/types';
 import { defaultFilters } from '@/app/features/inventory/pages/Inventory/utils';
 import InventoryFilterModal, { type FilterChip } from './InventoryFilterModal';
+/* Shared rather than copied: two contrast helpers drift apart on the one thing
+   they both exist to measure. Relocating it to `@/app/lib` is a separate change. */
+import {
+  describeContrast,
+  measureContrast,
+} from '@/app/features/appointments/components/Calendar/responsive/contrastProbe';
 
 const LOCATIONS = ['Main store', 'Pharmacy fridge', 'Surgery trolley'];
 const CATEGORIES = ['Medicine', 'Vaccine', 'Consumable'];
@@ -206,6 +212,49 @@ const findOpenDialog = async () => {
   return openDialog();
 };
 
+/** Every chip the seeded selection produces, in render order: status, then the two
+    categories, then the subcategory, then the location. */
+const CHIP_LABELS = ['low stock', 'Medicine', 'Vaccine', 'Antibiotic', 'Main store'];
+
+/**
+ * Every chip label must be readable on the chip's own composited fill.
+ *
+ * Measured on composited pixels rather than asserted on class names: a class name
+ * is still there when the colour under it is wrong, so only the pixels can fail.
+ *
+ * Called from a light-pinned and a dark-pinned story because the chip's colours
+ * flip per theme, and a single-theme reading of a theme-flipping pair covers half
+ * of it - with which half decided by the toolbar default rather than by the story.
+ */
+const expectChipLabelsReadable = async (dialog: HTMLElement) => {
+  const panel = within(dialog);
+  // The row has to be the length we think it is before a reading off it means
+  // anything: a loop over zero chips passes without measuring a single pixel, and a
+  // loop over three of five reports a clean row while two go unmeasured.
+  await expect(panel.getAllByRole('button', { name: /^Remove / })).toHaveLength(CHIP_LABELS.length);
+  for (const label of CHIP_LABELS) {
+    const chip = panel.getByRole('button', { name: `Remove ${label}` }).parentElement;
+    await expect(chip).not.toBeNull();
+    const reading = measureContrast(chip as Element);
+    await expect(
+      reading.ratio,
+      describeContrast(`filter chip "${label}"`, reading)
+    ).toBeGreaterThanOrEqual(reading.required);
+  }
+};
+
+/** Seeds the one state that renders the chip row; shared by the two theme stories. */
+const SELECTED_ARGS = {
+  openSections: ['stock-status', 'category'],
+  expandedCategories: ['Medicine'],
+  initialFilters: {
+    status: 'LOW_STOCK' as const,
+    categories: ['Medicine', 'Vaccine'],
+    subCategories: ['Antibiotic'],
+    locations: ['Main store'],
+  },
+};
+
 const meta = {
   title: 'Inventory/InventoryFilterModal',
   component: InventoryFilterHarness,
@@ -373,19 +422,15 @@ export const SubcategoriesExpanded: Story = {
 };
 
 export const WithSelections: Story = {
-  name: 'With chips and counts',
-  args: {
-    openSections: ['stock-status', 'category'],
-    expandedCategories: ['Medicine'],
-    initialFilters: {
-      status: 'LOW_STOCK',
-      categories: ['Medicine', 'Vaccine'],
-      subCategories: ['Antibiotic'],
-      locations: ['Main store'],
-    },
-  },
+  name: 'With chips and counts (light)',
+  args: SELECTED_ARGS,
+  /* Pinned rather than inherited. The same helper runs here and in the dark story,
+     so both readings are explicit instead of resting on whatever the toolbar
+     happens to default to. */
+  globals: { theme: 'light' },
   play: async () => {
-    const panel = within(openDialog());
+    const dialog = openDialog();
+    const panel = within(dialog);
     // The chip row and the "Clear all" pill exist only while something is selected.
     await expect(panel.getByRole('button', { name: 'Clear all' })).toBeInTheDocument();
     await expect(panel.getByRole('button', { name: 'Remove low stock' })).toBeInTheDocument();
@@ -398,6 +443,8 @@ export const WithSelections: Story = {
     // The nested subcategory is both checked and expanded.
     await expect(panel.getByRole('checkbox', { name: 'Antibiotic' })).toBeChecked();
     await expect(panel.getByRole('checkbox', { name: 'Medicine' })).toBeChecked();
+
+    await expectChipLabelsReadable(dialog);
     await expect(panel.getByRole('radio', { name: 'low stock' })).toBeChecked();
   },
   parameters: {
@@ -409,6 +456,30 @@ export const WithSelections: Story = {
           'rendered - the badge is a `size-5` circle inside the header row, so its presence changes ' +
           'that row rather than overlaying it. Note the collapsed Location section still counts 1 ' +
           'even with nothing on screen to explain it: that badge is the only trace of the filter.',
+      },
+    },
+  },
+};
+
+export const WithSelectionsDark: Story = {
+  name: 'With chips and counts (dark)',
+  args: SELECTED_ARGS,
+  globals: { theme: 'dark' },
+  play: async () => {
+    const dialog = openDialog();
+    // Chips only, and the count guard lives in the helper. The light story above owns
+    // the structural assertions; repeating them here would be a second copy to drift.
+    await expectChipLabelsReadable(dialog);
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The same seeded selection in espresso dark, and it is a real control rather than a ' +
+          'decorative twin: restoring `bg-badge-blue-bg text-badge-blue-text` fails this story at ' +
+          'the same 3.61:1 as the light one, because that pair has no dark variant. The pair the ' +
+          'fix uses does flip - `--inset`/`--ink` measures 13.24:1 in light and 12.64:1 here - so ' +
+          'this is the story that would catch the chip surface being re-tinted in dark alone.',
       },
     },
   },
