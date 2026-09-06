@@ -35,31 +35,47 @@ Verified draft-day: rulesets `3440858` (Main) and `3468092` (dev) had **zero**
 required status checks, so nothing removed above was ever a required check and
 none of it blocked merges.
 
-**Re-measured 2026-09-06 and step 1 below is DONE.** `dev` now requires
-`CI Required` and `Supply Chain Required`. `Main` requires exactly one context,
-literally named `Only dev may merge into main` - it is a status check, not a
-rule description, and it prints identically to one in any listing of contexts.
-`CI Required` is not among Main's required checks. Leaving
-the paragraph above in the present tense outlived the change it described, and
-a reader using it to judge whether a missing `CI Required` row matters would
-have drawn the opposite conclusion - on `dev` an absent row blocks the merge.
+**Re-measured 2026-09-06. Step 1 is DONE and its instructions are removed
+below.** Leaving the paragraph above in the present tense outlived the change it
+described, and a reader using it to judge whether a missing `CI Required` row
+matters would have drawn the opposite conclusion - on `dev` an absent row blocks
+the merge. Read off the rulesets, not off this file:
 
-Two steps remain, both needing a green `merge_group` run first:
+| ruleset    | name                                              | required status checks                 |
+| ---------- | ------------------------------------------------- | -------------------------------------- |
+| `3468092`  | dev                                               | `CI Required`, `Supply Chain Required` |
+| `3440858`  | Main                                              | `Only dev may merge into main`         |
+| `21048611` | Protect main and dev from deletion and force-push | none                                   |
 
-1. **Make `CI Required` required.** Re-GET both rulesets, confirm nobody added a
-   required context referencing an old job name, then append the rule:
+**There are three rulesets, not two.** And `Only dev may merge into main` is a
+status check _context_ whose text reads exactly like a rule description, so any
+listing that prints contexts in a column gives a reader no way to tell which it
+is. `CI Required` is not among Main's required checks; `code_quality` is
+required on none of the three.
 
-   ```
-   gh api repos/YosemiteCrew/Yosemite-Crew/rulesets/<id> > r.json
-   jq '.rules += [{"type":"required_status_checks","parameters":{"strict_required_status_checks_policy":false,"do_not_enforce_on_create":false,"required_status_checks":[{"context":"CI Required"}]}}]' r.json > r.new.json
-   gh api -X PUT repos/YosemiteCrew/Yosemite-Crew/rulesets/<id> --input r.new.json
-   ```
+~~1. Make `CI Required` required.~~ **Done.** The instructions that stood here
+appended a `required_status_checks` rule to a ruleset - re-GET, `jq '.rules +=
+[...]'`, `PUT`. Running them now would append a _second_ such rule to a ruleset
+that already has one. That is why they are deleted rather than struck: this
+section is imperative, and a stale imperative is worse than a stale description
+because a reader can execute it. The precondition it assumed is exactly what
+this document now records as false.
 
-2. **Enable the merge queue on `dev`,** only once step 1 is green. Check whether
+The one instruction worth keeping from it, because it is the check that would
+have caught this: **re-GET the rulesets and confirm nobody has added a required
+context referencing an old job name** before changing any of them.
+
+One step remains, and its gate is now satisfied - it was blocked on step 1 and
+is not any more:
+
+1. **Enable the merge queue on `dev`.** No ruleset carries a `merge_queue` rule
+   today. Check whether
    a `code_quality` status posts on a `merge_group` ref. It is not expected to -
    SonarCloud decorates pull requests, not merge groups. If it does not, remove
    `code_quality` from dev's required set before enabling the queue, keeping it
-   as PR decoration. The Sonar signal for queued changes is the PR run's sonar
+   as PR decoration. (Measured 2026-09-06: `code_quality` is not in dev's
+   required set, so that removal may already be moot - re-check rather than
+   assume either way.) The Sonar signal for queued changes is the PR run's sonar
    stage (which runs `-Dsonar.qualitygate.wait=true`, so a red gate reds the
    PR's `CI Required` before the PR can enter the queue): the `merge_group` run
    itself SKIPS sonar deliberately, because the SonarCloud plan only analyzes
