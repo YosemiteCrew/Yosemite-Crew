@@ -154,22 +154,16 @@ on:
       - dev
       - main
 
-  # For exercising this guard's own machinery - preconditions, arming, the
-  # self-test - against a branch. IT CANNOT SWEEP HISTORY, and that is the
-  # thing someone will reach for it to do.
+  # IT CANNOT SWEEP HISTORY, and that is what someone will reach for it to do.
+  # The surfaces are one pull request's title, body, head ref and merge-base
+  # diff - there is no path from here to an issue, a comment, or a pull request
+  # that already closed. Auditing what is ALREADY in the repository is a
+  # separate job, run once against the API with the same pattern.
   #
-  # `Fetch the pull request head as data`, `Collect the surfaces` and `Scan
-  # every surface` are each `if: github.event_name == 'pull_request'`. A
-  # dispatched run therefore arms, self-tests, scans NOTHING, and then fails on
-  # `Refuse to report clean without having scanned`, which carries no `if:` by
-  # design. That is correct - it fails closed - but it reads as the dispatch
-  # being broken rather than as the request being out of scope.
-  #
-  # The surfaces are a pull request's title, body, head ref and merge-base diff.
-  # There is no path from here to an issue, a comment, or a pull request that
-  # already closed. Auditing what is ALREADY in the repository is a separate
-  # job someone runs once against the API with the same pattern; this workflow
-  # only ever sees a pull request as it happens.
+  # What a dispatched run does instead, and why it ends red on purpose, is at
+  # `Refuse to report clean without having scanned`. Not repeated here: two
+  # copies of that would have to be kept in step, and this file has spent the
+  # day deleting exactly that.
   workflow_dispatch:
 
 concurrency:
