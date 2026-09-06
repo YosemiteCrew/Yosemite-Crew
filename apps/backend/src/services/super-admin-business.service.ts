@@ -227,12 +227,46 @@ const mapDetail = (
  * all four sees both and would over-count. `Members 2` for one person is as
  * wrong as `Members 0` for forty-seven, and neither errors.
  */
+/**
+ * Which membership rows belong to one organisation, and what makes two of them
+ * the same membership.
+ *
+ * Both reference columns are persisted verbatim from the inbound FHIR resource,
+ * so each holds a bare id or a `<Type>/<id>` reference - see
+ * `practitionerReferenceFilter` in `shared/staff-identity.ts`, where querying
+ * only the bare form is what let a deletion remove no organisation roles and
+ * report success. `@@unique` is over those strings as written, so one person,
+ * organisation and role can exist as several rows and satisfy the constraint:
+ * matching one spelling under-counts, matching all four over-counts, and
+ * neither errors.
+ *
+ * The roster and the number beside it therefore share this `where` and this
+ * identity, and differ only in how many columns they fetch. Two ROLES in one
+ * organisation stay two memberships; what collapses is one membership reached
+ * under several spellings. The key separator is a NUL because it cannot occur
+ * in either field, so no value can forge a collision with a different pair.
+ */
+const membershipWhere = (id: string, fhirId?: string | null) => ({
+  active: true,
+  OR: organisationReferenceMatches(id, fhirId),
+});
+
+const membershipIdentity = (membership: {
+  practitionerReference: string;
+  roleCode: string;
+}): string | null => {
+  const userId = membership.practitionerReference
+    .trim()
+    .replace(LEADING_PRACTITIONER_PREFIX, "");
+  return userId ? `${userId}\u0000${membership.roleCode}` : null;
+};
+
 const loadMembers = async (
   id: string,
   fhirId?: string | null,
 ): Promise<SuperAdminBusinessMember[]> => {
   const memberships = await prisma.userOrganization.findMany({
-    where: { active: true, OR: organisationReferenceMatches(id, fhirId) },
+    where: membershipWhere(id, fhirId),
     orderBy: { createdAt: "asc" },
     select: {
       practitionerReference: true,
@@ -246,28 +280,14 @@ const loadMembers = async (
   const members: SuperAdminBusinessMember[] = [];
 
   for (const membership of memberships) {
-    // practitionerReference is stored verbatim too, so it holds a bare id or a
-    // FHIR Practitioner/<id> - see practitionerReferenceFilter in
-    // shared/staff-identity.ts, where querying only the bare form is what let a
-    // deletion remove no organisation roles and report success. Normalised here
-    // so a caller does not have to know FHIR exists to build a link.
-    const userId = membership.practitionerReference
-      .trim()
-      .replace(LEADING_PRACTITIONER_PREFIX, "");
-    if (!userId) {
+    const identity = membershipIdentity(membership);
+    if (!identity || seen.has(identity)) {
       continue;
     }
-
-    // One person may hold two ROLES here and that is two memberships, kept.
-    // What is collapsed is the same role reached under two spellings.
-    const key = `${userId}\u0000${membership.roleCode}`;
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
+    seen.add(identity);
 
     members.push({
-      userId,
+      userId: identity.split("\u0000")[0],
       roleCode: membership.roleCode,
       ...(membership.roleDisplay
         ? { roleDisplay: membership.roleDisplay }
@@ -279,10 +299,35 @@ const loadMembers = async (
   return members;
 };
 
+/**
+ * The same count without building the roster.
+ *
+ * A summary endpoint needs a number, and the organisations list asks once per
+ * organisation, so this fetches the two columns the identity is made of rather
+ * than every row in full. It cannot drift from the list: the rows it considers
+ * and the rule for which of them are the same membership are the two functions
+ * above, shared. A database-side `DISTINCT` is not available for it - the
+ * identity comes from an anchored prefix strip that SQL does not reproduce, so
+ * counting distinct values in the database would count spellings again, which
+ * is the over-count this exists to remove.
+ */
 const countMembers = async (
   id: string,
   fhirId?: string | null,
-): Promise<number> => (await loadMembers(id, fhirId)).length;
+): Promise<number> => {
+  const memberships = await prisma.userOrganization.findMany({
+    where: membershipWhere(id, fhirId),
+    select: { practitionerReference: true, roleCode: true },
+  });
+
+  const identities = new Set(
+    memberships
+      .map(membershipIdentity)
+      .filter((identity): identity is string => identity !== null),
+  );
+
+  return identities.size;
+};
 
 const loadMemberCounts = async (
   organizations: ReadonlyArray<{ id: string; fhirId?: string | null }>,
