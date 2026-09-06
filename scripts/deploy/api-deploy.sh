@@ -268,8 +268,7 @@ echo "  body parse -> $POST_CODE"
 # EXIT trap turns that into a stop notice with the rollback sha.
 CONTROLS_BODY="$(curl -s --max-time 10 "http://127.0.0.1:$SMOKE_PORT/health/controls" || echo '')"
 echo "  controls -> ${CONTROLS_BODY:-<unreachable>}"
-# shellcheck disable=SC2086 # deliberately word-split: this is a list of names
-CONTROL_FAILURES="$(deploy_blocking_control_failures "$CONTROLS_BODY" $DEPLOY_BLOCKING_CONTROLS)"
+CONTROL_FAILURES="$(deploy_blocking_control_failures "$CONTROLS_BODY" "$DEPLOY_BLOCKING_CONTROLS")"
 # Reports, never gates - the `|| true` is what makes that true, and it is
 # deliberate: this is a second signal for whoever reads the log, and POST_CODE
 # above is the gate.

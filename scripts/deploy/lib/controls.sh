@@ -18,7 +18,16 @@
 #
 # Hence: NAMED controls, and a rule stated as a positive rather than a negative.
 
-# deploy_blocking_control_failures <controls-json> [name ...]
+# deploy_blocking_control_failures <controls-json> <blocking-names>
+#
+# <blocking-names> is ONE argument: a whitespace-separated list. It used to be
+# variadic, which forced the caller to leave its list unquoted for word
+# splitting - and an unquoted expansion is also a pathname expansion, so a name
+# containing a glob character would have expanded against the deploy host's
+# working directory before this function ever saw it. Nothing sets such a name,
+# and no test here can distinguish it because the expansion happens at the call
+# site rather than in here. Taking one quoted argument removes the exposure by
+# construction instead: node does the splitting, on whitespace, below.
 #
 # Echoes one line per named control that positively reports `failed`. Echoes
 # nothing - and so ships - in every other case:
@@ -57,15 +66,15 @@
 # the smoke port two lines earlier.
 deploy_blocking_control_failures() {
   local json="${1-}"
-  shift || true
+  local names="${2-}"
 
   # Both short-circuits only avoid a pointless subprocess: node reaches the same
   # answer for an unparseable body and for an empty name list. Neither carries
   # any part of the decision above, and removing them changes no test.
   [ -n "$json" ] || return 0
-  [ "$#" -gt 0 ] || return 0
+  [ -n "$names" ] || return 0
 
-  DEPLOY_REQUIRED_CONTROLS="$*" node -e '
+  DEPLOY_REQUIRED_CONTROLS="$names" node -e '
     let raw = "";
     process.stdin.setEncoding("utf8");
     process.stdin.on("data", (chunk) => { raw += chunk; });
