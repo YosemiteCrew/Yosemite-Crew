@@ -234,11 +234,11 @@ export const CheckYourEmail: Story = {
         story:
           'The panel after a successful send. Green badge, "Check your email", and the address in ' +
           'bold inside a sentence that never confirms the account exists.\n\n' +
-          'One token to watch here: the badge is `var(--success-soft, #e7f4ec)` on ' +
-          '`var(--success, #2f9e63)`, and **`--success-soft` is not defined anywhere in ' +
-          '`globals.css`**. The fallback hex is therefore what always paints, in both themes - ' +
-          'switch the toolbar to dark and the badge stays the light mint while everything around ' +
-          'it goes espresso. `--success` does resolve, so only the fill is stranded.',
+          'The badge used to read `var(--success-soft, ...)` on `var(--success, ...)`, and ' +
+          '`--success-soft` is declared nowhere - so the fallback literal always painted while ' +
+          'the ink beside it flipped, giving 3.65:1 in light and 2.13:1 in dark. It now draws ' +
+          '`--color-success-100` on `--color-success-700`, which have dark values and measure ' +
+          '4.29 and 6.68. Switch the toolbar to dark: the badge follows the page.',
       },
     },
   },
