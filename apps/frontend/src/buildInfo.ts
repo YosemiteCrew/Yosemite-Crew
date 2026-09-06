@@ -26,8 +26,23 @@
  * function that can be tested without a repository.
  */
 
-/** Where the sha came from, so a wrong answer is traceable to its source. */
-export type BuildShaSource = 'AWS_COMMIT_ID' | 'git' | 'unavailable';
+/**
+ * Where the sha came from, so a wrong answer is traceable to its source.
+ *
+ * `git-amplify-rejected` is `git` plus one fact: `AWS_COMMIT_ID` was set to
+ * something that is not an object name and was discarded. Collapsing that into
+ * `git` would be correct behaviour and a lossy instrument - the sha would be
+ * right, and the deployed artifact could no longer say whether Amplify hands
+ * this app a sha, the literal `HEAD`, or nothing at all. No app in the account
+ * consumes the variable on the webhook path today, so nothing already deployed
+ * can be asked; the first `/api/health` after this ships is the only place that
+ * question becomes a reading rather than an inference.
+ *
+ * One corner stays lossy on purpose: if git cannot answer either, the result is
+ * `unavailable` and the rejection is not reported. That build has a louder
+ * problem than the provenance of a variable.
+ */
+export type BuildShaSource = 'AWS_COMMIT_ID' | 'git' | 'git-amplify-rejected' | 'unavailable';
 
 export interface BuildSha {
   sha: string | null;
@@ -45,6 +60,14 @@ const SHA_PATTERN = /^[0-9a-f]{40}$/;
  * and falling back is deliberate: on any branch wired the other way it is
  * authoritative, and where it is missing the clone still has the answer.
  *
+ * It is shape-checked before it is preferred, and that is not defensiveness.
+ * The same job metadata records `commitId: "HEAD"` on a webhook build, so the
+ * literal string `HEAD` is the value this deploy path is likeliest to supply -
+ * and accepting it would report a populated-looking `buildSha` that identifies
+ * nothing, while the returning branch shadows the git read that holds the real
+ * answer. Anything that is not an object name falls through rather than wins,
+ * and the fall-through is *reported* rather than silent: see `BuildShaSource`.
+ *
  * `readGitSha` is injected so this is testable without a repository, and so a
  * build container without a readable `.git` produces `unavailable` rather than
  * throwing during `next build`.
@@ -53,19 +76,24 @@ export function resolveBuildSha(
   env: { AWS_COMMIT_ID?: string },
   readGitSha: () => string | null
 ): BuildSha {
-  const fromAmplify = normalise(env.AWS_COMMIT_ID);
+  const fromAmplify = shaOrNull(env.AWS_COMMIT_ID);
   if (fromAmplify) return { sha: fromAmplify, source: 'AWS_COMMIT_ID' };
+
+  // Reaching here, the variable is absent, blank, or malformed - and only the
+  // last of those is worth reporting, because it is evidence about what this
+  // deploy path actually supplies.
+  const rejected = (env.AWS_COMMIT_ID ?? '').trim() !== '';
 
   let fromGit: string | null = null;
   try {
-    fromGit = normalise(readGitSha());
+    fromGit = shaOrNull(readGitSha());
   } catch {
     // A build that cannot read git still has to produce a site. Reporting
     // `unavailable` is the honest outcome and it is visible on the health
     // route, where a missing sha is a finding rather than a silent blank.
     fromGit = null;
   }
-  if (fromGit) return { sha: fromGit, source: 'git' };
+  if (fromGit) return { sha: fromGit, source: rejected ? 'git-amplify-rejected' : 'git' };
 
   return { sha: null, source: 'unavailable' };
 }
@@ -170,13 +198,17 @@ function findPackedRef(contents: string | null, ref: string): string | null {
 }
 
 /**
- * An empty or whitespace-only value is treated as absent rather than passed on.
- * `??` does not fall back on `''`, so an empty string would render as a blank
- * field that looks like a populated one - the same wrong state wearing a
- * different costume.
+ * A candidate is accepted only if it is an object name, so every source is held
+ * to the shape `readHeadSha` already enforces on the files it reads.
+ *
+ * Trimming alone is not enough and the two rejected shapes fail differently.
+ * An empty or whitespace-only value would render as a blank field that looks
+ * populated, because `??` does not fall back on `''`. A non-empty non-sha -
+ * `HEAD`, a branch name, an abbreviated sha - is worse: the field looks
+ * answered, and it is wrong in the direction nobody re-checks.
  */
-function normalise(value: string | null | undefined): string | null {
+function shaOrNull(value: string | null | undefined): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
-  return trimmed === '' ? null : trimmed;
+  return SHA_PATTERN.test(trimmed) ? trimmed : null;
 }

@@ -51,6 +51,71 @@ describe('resolveBuildSha', () => {
     });
   });
 
+  it.each([
+    ['HEAD', 'what a webhook build records instead of a sha, so the likeliest wrong value'],
+    ['dev', 'a branch name'],
+    ['9662b9d', 'an abbreviated sha'],
+    [`${SHA}x`, 'a sha with a trailing character, which only the $ anchor rejects'],
+    [`x${SHA}`, 'a sha with a leading character, which only the ^ anchor rejects'],
+  ])('falls through to git on a non-empty malformed AWS_COMMIT_ID: %s (%s)', (value) => {
+    // The mutation this exists for is the previous behaviour: accept any
+    // non-empty string. Every other AWS_COMMIT_ID case here is a well-formed
+    // sha or blank, so none of them can tell the two apart - the field would
+    // render populated with a value that identifies no commit, and because
+    // the preferred branch returns, the git read holding the right answer
+    // never runs.
+    expect(resolveBuildSha({ AWS_COMMIT_ID: value }, () => OTHER)).toEqual({
+      sha: OTHER,
+      source: 'git-amplify-rejected',
+    });
+  });
+
+  it('separates a rejected AWS_COMMIT_ID from an absent one', () => {
+    // Both produce the git sha, so `sha` cannot tell them apart and only
+    // `source` can. This is the assertion that keeps the deployed artifact able
+    // to answer what Amplify supplies on the webhook path - a question nothing
+    // already running can be asked, because no app in the account consumes the
+    // variable there. Reporting both as `git` is correct and unfalsifiable.
+    const rejected = resolveBuildSha({ AWS_COMMIT_ID: 'HEAD' }, () => OTHER);
+    const absent = resolveBuildSha({}, () => OTHER);
+
+    expect(rejected.sha).toBe(absent.sha);
+    expect(rejected.source).not.toBe(absent.source);
+    expect([rejected.source, absent.source]).toEqual(['git-amplify-rejected', 'git']);
+  });
+
+  it.each([
+    ['', 'empty'],
+    ['   ', 'whitespace-only'],
+  ])('does not report a %s AWS_COMMIT_ID as rejected (%s)', (value) => {
+    // Blank is indistinguishable from unset in a build environment, so calling
+    // it a rejection would report evidence that is not there - the failure mode
+    // the fourth state exists to avoid, pointed the other way.
+    expect(resolveBuildSha({ AWS_COMMIT_ID: value }, () => OTHER).source).toBe('git');
+  });
+
+  it('reports unavailable when AWS_COMMIT_ID is malformed and git has nothing either', () => {
+    // Falling through must not mean falling back to the malformed value: with
+    // no second source the honest answer is that this build cannot identify
+    // itself, not `HEAD`. The rejection is not reported in this corner and that
+    // is deliberate - documented on `BuildShaSource`, asserted here so the
+    // omission is a decision rather than something nobody looked at.
+    expect(resolveBuildSha({ AWS_COMMIT_ID: 'HEAD' }, () => null)).toEqual({
+      sha: null,
+      source: 'unavailable',
+    });
+  });
+
+  it('rejects a malformed value from git too, rather than trusting the caller', () => {
+    // `readHeadSha` shape-checks what it reads, but it is injected here, so the
+    // guarantee has to hold at this boundary rather than be inherited from one
+    // particular implementation of it.
+    expect(resolveBuildSha({}, () => 'refs/heads/dev')).toEqual({
+      sha: null,
+      source: 'unavailable',
+    });
+  });
+
   it('trims the trailing newline that git rev-parse always emits', () => {
     // Without this the sha reaches the health route with a newline in it, which
     // survives JSON encoding and breaks an equality check against a real sha.

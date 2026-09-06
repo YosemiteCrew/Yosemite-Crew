@@ -69,12 +69,15 @@ const build = resolveBuildSha({ AWS_COMMIT_ID: process.env.AWS_COMMIT_ID }, () =
 );
 
 const nextConfig: NextConfig = {
-  // Only set when a sha was actually resolved. An empty string here would be
-  // inlined and render as a populated-looking blank field on /api/health, which
-  // is the failure this route exists to make visible.
-  env: build.sha
-    ? { BUILD_SHA: build.sha, BUILD_SHA_SOURCE: build.source }
-    : { BUILD_SHA_SOURCE: build.source },
+  // Both keys are always inlined, including when there is no sha. Omitting
+  // BUILD_SHA leaves `process.env.BUILD_SHA` a *runtime* lookup in the route
+  // while BUILD_SHA_SOURCE is a build-time constant, so a BUILD_SHA set on the
+  // Amplify branch would be answered next to `source: "unavailable"` - two
+  // fields from two mechanisms, free to disagree, and an environment value
+  // reaching `buildSha` without the shape check every other source gets.
+  // Empty is the "no sha" value; the route normalises it back to null so it
+  // cannot render as a populated-looking blank.
+  env: { BUILD_SHA: build.sha ?? '', BUILD_SHA_SOURCE: build.source },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'd2il6osz49gpup.cloudfront.net' },
