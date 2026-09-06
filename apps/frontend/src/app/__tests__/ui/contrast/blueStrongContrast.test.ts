@@ -60,9 +60,15 @@ describe('the reader behind these assertions', () => {
     expect(dark).not.toBe(light);
   });
 
-  it('resolves the ink through to an opaque literal', () => {
-    expect(resolveColour(INK, false)).toBe(resolveColour(INK, true));
-    expect(resolveColour(INK, true)).toMatch(/^#/);
+  it('resolves the ink to an opaque literal in both themes', () => {
+    /* A translucent ink would be composited against the fill before the ratio
+       is taken, so the number below would still be correct - but it would no
+       longer be the measurement this file claims to make, which is white on
+       the fill. Opacity is the precondition, not the cross-theme sameness:
+       a dark override for the ink is a legitimate change and the assertion
+       below would measure it correctly. */
+    expect(resolveColour(INK, false)).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(resolveColour(INK, true)).toMatch(/^#[0-9a-f]{6}$/i);
   });
 });
 
