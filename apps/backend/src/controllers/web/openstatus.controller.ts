@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import crypto from "node:crypto";
 import logger from "src/utils/logger";
+import { toSafeErrorLog } from "src/utils/safe-error-log";
 import {
   OpenStatusService,
   openStatusMonitorEventSchema,
@@ -55,7 +56,9 @@ export const OpenStatusWebhookController = {
       await OpenStatusService.handleMonitorEvent(parsed.data);
       return res.status(200).json({ received: true });
     } catch (err) {
-      logger.error("OpenStatus webhook error", err);
+      logger.error("OpenStatus webhook error", {
+        error: toSafeErrorLog(err),
+      });
       return res.status(500).json({
         error: err instanceof Error ? err.message : "Unknown error",
       });
