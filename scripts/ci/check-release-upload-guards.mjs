@@ -50,6 +50,15 @@ export const RELEASE_WORKFLOWS = [
 export const SUBMISSIONS = [
   { store: 'Google Play', uses: 'r0adkll/upload-google-play' },
   { store: 'App Store Connect', run: 'altool --upload-app' },
+  // Desktop does not reach a store, it reaches the public. `gh release edit
+  // --draft=false` is the step that takes a draft release public, and a public
+  // release is what electron-updater's clients poll.
+  { store: 'a public GitHub Release', run: '--draft=false' },
+  // action-gh-release publishes unless the release is explicitly a draft. The
+  // dispatch-only `release` job sets `draft: true`, which is why it is not a
+  // finding today - but flipping that one word publishes from a branch, and
+  // that is the edit this entry exists to catch.
+  { store: 'a GitHub Release', uses: 'softprops/action-gh-release', exemptWhenDraft: true },
 ];
 
 /** Conditions that restrict a step to a release tag. Either one is enough. */
@@ -63,7 +72,9 @@ export function classifyStep(step) {
   if (!step || typeof step !== 'object') return null;
   const uses = typeof step.uses === 'string' ? step.uses : '';
   const run = typeof step.run === 'string' ? step.run : '';
+  const isDraft = Boolean(step.with && step.with.draft === true);
   for (const submission of SUBMISSIONS) {
+    if (submission.exemptWhenDraft && isDraft) continue;
     if (submission.uses && uses.split('@')[0] === submission.uses) return submission;
     if (submission.run && run.includes(submission.run)) return submission;
   }
@@ -82,13 +93,33 @@ export function classifyStep(step) {
  * anyone will make to this file. It contains an accepted guard and submits on a
  * plain dispatch anyway, because a disjunction can only widen: `A || B` runs
  * whenever B alone is true, so no guard to the left of a `||` restricts
- * anything. Any `||` is therefore rejected outright.
+ * anything.
  *
  * `&&` is the opposite and is accepted, so tightening the shipped guard to
  * `github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')` does not
- * red the build. Every other spelling fails closed - a red build and a human
- * reading this comment is the outcome we want from an expression we cannot
- * classify.
+ * red the build.
+ *
+ * THE `||` REJECTION IS WHAT MAKES THE `&&` SPLIT BELOW SOUND, and that is not
+ * the same claim as the paragraph above it. Splitting on `&&` ignores operator
+ * precedence: `&&` binds tighter than `||`, so
+ *
+ *   inputs.force || inputs.x && github.event_name == 'push'
+ *
+ * means `inputs.force || (inputs.x && push)` - it runs on a dispatch whenever
+ * `inputs.force` is set - yet splitting it on `&&` yields an operand that is
+ * EXACTLY an accepted guard. Without the early return this is accepted, measured.
+ * Note it is order-dependent: move the guard to the left of the `&&` and the
+ * naive split happens to reject it, so the hole opens on one spelling and not
+ * the other. Both are pinned in the tests.
+ *
+ * A plain `A || B` is rejected either way, because the whole string becomes one
+ * operand and no operand equals a guard. So the early return looks redundant
+ * against the case this comment opens with, and is load-bearing against a case
+ * that comment never mentions. Do not delete it on the strength of the first
+ * paragraph.
+ *
+ * Every other spelling fails closed - a red build and a human reading this
+ * comment is the outcome we want from an expression we cannot classify.
  */
 export function isTagOnly(condition) {
   if (typeof condition !== 'string') return false;
@@ -107,7 +138,12 @@ export function findUnguardedSubmissions(source, file) {
     for (const step of job?.steps ?? []) {
       const submission = classifyStep(step);
       if (!submission) continue;
-      if (isTagOnly(step.if)) continue;
+      // A step runs only when its job runs AND its own condition passes, so a
+      // tag-only condition at EITHER level restricts it. Desktop guards at the
+      // job (`publish` carries the condition, its step does not) and mobile at
+      // the step, and reading only one level misses one of them: reading only
+      // steps waves through a desktop `publish` job whose guard was deleted.
+      if (isTagOnly(step.if) || isTagOnly(job?.if)) continue;
       findings.push({
         file,
         job: jobId,
@@ -148,11 +184,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   if (findings.length > 0) {
     console.error(
-      `\n${findings.length} store submission(s) reachable from a workflow_dispatch. ` +
+      `\n${findings.length} outward-facing publish step(s) reachable from a workflow_dispatch. ` +
         `Gate each on ${TAG_ONLY_GUARDS.join(' or ')}. ` +
         `A condition containing '||' is never accepted: a disjunction can only widen.`
     );
     process.exit(1);
   }
-  console.log(`No unguarded store submissions in ${RELEASE_WORKFLOWS.length} release workflows.`);
+  console.log(`No unguarded publish steps in ${RELEASE_WORKFLOWS.length} release workflows.`);
 }
