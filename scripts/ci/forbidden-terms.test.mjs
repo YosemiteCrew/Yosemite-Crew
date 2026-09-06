@@ -865,6 +865,18 @@ test('scan refuses a pattern outside PATTERN_SHAPE, without needing selftest fir
   // an in-shape pattern.
   const dir = surfaceDir({ title: 'a harmless title' });
 
+  // Two out-of-shape hazards, not one. `.*` matches every line, so a scan that
+  // ran it would report every surface as a finding; `(a+)+b` backtracks
+  // exponentially and hangs the scanner on a crafted surface instead. The shape
+  // check refuses both, and asserting only one leaves the other resting on a
+  // predicate nothing here exercises.
+  const everything = run(['scan', '--dir', dir], {
+    FORBIDDEN_TERMS_PATTERN_B64: b64('.*'),
+  });
+  assert.equal(everything.code, 2, 'a match-everything pattern must not reach the scan');
+  assert.match(everything.stderr, /plain alternation of literal words/);
+  assert.doesNotMatch(everything.stdout, /BLOCKED/);
+
   const refused = run(['scan', '--dir', dir], {
     FORBIDDEN_TERMS_PATTERN_B64: b64('(a+)+b'),
   });
@@ -881,7 +893,7 @@ test('scan refuses a pattern outside PATTERN_SHAPE, without needing selftest fir
 });
 
 test('a surface that is a SYMLINK exits 2 rather than being followed', () => {
-  // `readFileSync` follows links, so without the `lstat` check this run reads
+  // `readFileSync` follows links, so without `O_NOFOLLOW` on the open this run
   // the link's target, finds nothing in it, and exits 0 with
   // "clean - 6 surfaces read". The target here is deliberately clean and the
   // real surface deliberately is not: a guard that reports clean about a file
