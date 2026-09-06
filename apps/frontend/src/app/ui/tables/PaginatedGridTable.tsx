@@ -124,7 +124,7 @@ const PaginatedGridTable = <T,>({
             renders the sticky header on its own layer and its square top edge
             pokes out past the rounded corners on scroll repaint (same fix as
             .TableShell in Generictable.css). */}
-        <div className="isolate flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+        <div className="isolate flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden yc-card-surface">
           <div className="min-h-0 flex-1 overflow-auto">
             <div style={{ minWidth: `${minWidthPx}px` }}>
               <div

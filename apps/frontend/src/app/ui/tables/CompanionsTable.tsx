@@ -503,7 +503,7 @@ const CompanionsTable = ({
   return (
     <div className="table-wrapper companions-scroll-x h-full min-h-0 overflow-hidden">
       <div className="companions-table-list flex h-full min-h-0 flex-1 overflow-hidden">
-        <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+        <div className="flex h-full min-h-0 w-full flex-col overflow-hidden yc-card-surface">
           {viewMode === 'grid' ? (
             <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden p-4">
               {pageItems.length === 0 ? (

@@ -770,7 +770,7 @@ export const PaymentActions = ({
   return (
     <section
       aria-label="Payment method"
-      className="flex flex-col gap-3 rounded-[14px] border border-card-border bg-neutral-0 p-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
+      className="flex flex-col gap-3 yc-card-surface yc-card-surface--inset p-4"
     >
       <span
         className="text-[14px] font-bold leading-[130%] tracking-[-0.01em]"

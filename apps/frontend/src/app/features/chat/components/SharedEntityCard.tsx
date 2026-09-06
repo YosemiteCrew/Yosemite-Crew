@@ -90,7 +90,7 @@ export function SharedEntityCard({
   const showValueRow = Boolean(amount || deepLink);
 
   return (
-    <div className="w-64 max-w-full overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] xl:w-[340px]">
+    <div className="w-64 max-w-full overflow-hidden yc-card-surface yc-card-surface--tile xl:w-[340px]">
       <div
         className={
           showValueRow

@@ -24,7 +24,7 @@ const withSession = (status: AuthStatus, role: string | null) => {
 
 /** Stand-in for whatever developer-portal page the guard is wrapped around. */
 const DeveloperPanel = () => (
-  <div className="rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5 py-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+  <div className="yc-card-surface px-5 py-4">
     <p className="text-[15px] font-semibold text-[var(--ink-body)]">API keys</p>
     <p className="mt-1 text-[13px] text-[var(--ink-muted)]">
       Two live keys, one sandbox key. Visible because the session carries the developer role.

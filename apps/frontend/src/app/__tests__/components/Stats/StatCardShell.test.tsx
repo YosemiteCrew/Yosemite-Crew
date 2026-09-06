@@ -110,7 +110,7 @@ describe('StatCardShell', () => {
     );
 
     const surface = container.querySelector('.min-h-89') as HTMLElement;
-    expect(surface).toHaveClass('gap-3.5', 'overflow-hidden', 'rounded-[18px]');
+    expect(surface).toHaveClass('gap-3.5', 'overflow-hidden', 'yc-card-surface');
     expect(surface).not.toHaveClass('min-h-75');
     expect(surface).not.toHaveClass('gap-2.5');
   });
@@ -122,12 +122,12 @@ describe('StatCardShell', () => {
       </StatCardShell>
     );
 
-    expect(container.querySelector('.min-h-75')).toHaveClass(
-      'bg-[var(--screen)]',
-      'border',
-      'border-[var(--hairline)]',
-      'rounded-[18px]',
-      'min-h-75'
-    );
+    /* The frame is `.yc-card-surface` in globals.css - one declaration of the
+       --screen ground, hairline border, 18px radius and two-stop shadow that
+       this file used to spell out as four utilities, and that 39 other files
+       spelled out identically. Asserting the class is what makes a silent
+       divergence impossible; asserting the utilities only proved this one
+       component still agreed with itself. */
+    expect(container.querySelector('.min-h-75')).toHaveClass('yc-card-surface', 'min-h-75');
   });
 });

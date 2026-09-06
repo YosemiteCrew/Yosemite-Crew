@@ -430,13 +430,7 @@ const SpecialityAccordionRevamp = ({
   };
 
   return (
-    <div
-      className={`flex flex-col w-full rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] ${
-        open
-          ? 'shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]'
-          : 'shadow-[0_1px_2px_var(--sh03)]'
-      }`}
-    >
+    <div className={`flex flex-col w-full yc-card-surface ${open ? '' : 'yc-card-surface--flat'}`}>
       <SpecialityAccordionHeader
         speciality={speciality}
         activeTab={activeTab}
