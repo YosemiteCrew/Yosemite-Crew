@@ -2,6 +2,8 @@ import { OrganizationType, Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { organisationReferenceMatches } from "src/services/shared/organisation-membership";
 
+const LEADING_PRACTITIONER_PREFIX = /^Practitioner\//;
+
 export type SuperAdminBusinessSummary = {
   id: string;
   name: string;
@@ -15,6 +17,13 @@ export type SuperAdminBusinessSummary = {
   website?: string;
 };
 
+/**
+ * One active membership row. Uniqueness on `userOrganization` is
+ * `(practitionerReference, organizationReference, roleCode)`, so a person
+ * holding two roles in an organisation is two rows here and two in
+ * `memberCount` - the list and the count stay in agreement, and a consumer
+ * keying by `userId` alone would collide.
+ */
 export type SuperAdminBusinessMember = {
   userId: string;
   roleCode: string;
@@ -203,13 +212,77 @@ const mapDetail = (
   };
 };
 
+/**
+ * The distinct active memberships of one organisation.
+ *
+ * Everything member-shaped on this surface goes through here, so the roster and
+ * the number printed beside it are the same list measured two ways rather than
+ * two queries that have to be kept in agreement.
+ *
+ * Both stored columns are raw FHIR references, which forces the de-duplication.
+ * `@@unique([practitionerReference, organizationReference, roleCode])` is over
+ * the strings as written, so `<id>` and `Organization/<id>` are different keys:
+ * the same person, organisation and role can exist as two rows and satisfy the
+ * constraint. Matching one spelling saw one of them and under-counted; matching
+ * all four sees both and would over-count. `Members 2` for one person is as
+ * wrong as `Members 0` for forty-seven, and neither errors.
+ */
+const loadMembers = async (
+  id: string,
+  fhirId?: string | null,
+): Promise<SuperAdminBusinessMember[]> => {
+  const memberships = await prisma.userOrganization.findMany({
+    where: { active: true, OR: organisationReferenceMatches(id, fhirId) },
+    orderBy: { createdAt: "asc" },
+    select: {
+      practitionerReference: true,
+      roleCode: true,
+      roleDisplay: true,
+      createdAt: true,
+    },
+  });
+
+  const seen = new Set<string>();
+  const members: SuperAdminBusinessMember[] = [];
+
+  for (const membership of memberships) {
+    // practitionerReference is stored verbatim too, so it holds a bare id or a
+    // FHIR Practitioner/<id> - see practitionerReferenceFilter in
+    // shared/staff-identity.ts, where querying only the bare form is what let a
+    // deletion remove no organisation roles and report success. Normalised here
+    // so a caller does not have to know FHIR exists to build a link.
+    const userId = membership.practitionerReference
+      .trim()
+      .replace(LEADING_PRACTITIONER_PREFIX, "");
+    if (!userId) {
+      continue;
+    }
+
+    // One person may hold two ROLES here and that is two memberships, kept.
+    // What is collapsed is the same role reached under two spellings.
+    const key = `${userId}\u0000${membership.roleCode}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+
+    members.push({
+      userId,
+      roleCode: membership.roleCode,
+      ...(membership.roleDisplay
+        ? { roleDisplay: membership.roleDisplay }
+        : {}),
+      since: toIsoString(membership.createdAt),
+    });
+  }
+
+  return members;
+};
+
 const countMembers = async (
   id: string,
   fhirId?: string | null,
-): Promise<number> =>
-  prisma.userOrganization.count({
-    where: { active: true, OR: organisationReferenceMatches(id, fhirId) },
-  });
+): Promise<number> => (await loadMembers(id, fhirId)).length;
 
 const loadMemberCounts = async (
   organizations: ReadonlyArray<{ id: string; fhirId?: string | null }>,
@@ -281,28 +354,7 @@ export const SuperAdminBusinessService = {
       return null;
     }
 
-    const memberships = await prisma.userOrganization.findMany({
-      where: {
-        active: true,
-        OR: organisationReferenceMatches(organization.id, organization.fhirId),
-      },
-      orderBy: { createdAt: "asc" },
-      select: {
-        practitionerReference: true,
-        roleCode: true,
-        roleDisplay: true,
-        createdAt: true,
-      },
-    });
-
-    return memberships.map((membership) => ({
-      userId: membership.practitionerReference,
-      roleCode: membership.roleCode,
-      ...(membership.roleDisplay
-        ? { roleDisplay: membership.roleDisplay }
-        : {}),
-      since: toIsoString(membership.createdAt),
-    }));
+    return loadMembers(organization.id, organization.fhirId);
   },
 
   async updateBusiness(

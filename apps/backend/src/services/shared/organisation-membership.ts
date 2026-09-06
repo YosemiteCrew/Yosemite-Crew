@@ -16,6 +16,14 @@ const LEADING_ORGANISATION_PREFIX = /^Organization\//;
  * A query that matches one spelling silently answers a narrower question than
  * it looks like it is asking, and returns zero rather than an error when the
  * data uses the other one.
+ *
+ * Pass EVERY id you hold for the organisation, not just the one you were
+ * called with. A single argument resolves two spellings where four are
+ * reachable, so two callers holding different ids resolve different-sized sets
+ * for the same organisation - which is the disagreement this helper exists to
+ * remove, one level down. `filterUserIdsInOrganisation` below is the current
+ * example: its callers carry only the organisation id, so it passes one and
+ * that is a limit of the call site rather than the intended pattern.
  */
 export const organisationReferenceMatches = (
   ...organisationIds: ReadonlyArray<string | null | undefined>
