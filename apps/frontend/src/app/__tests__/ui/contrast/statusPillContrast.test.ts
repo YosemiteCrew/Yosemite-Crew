@@ -188,13 +188,16 @@ describe('the token pair these replaced', () => {
     /* If someone "fixes" --color-badge-blue-* itself, the switches above could
        be reverted harmlessly and this test would stop meaning anything. Pin the
        reason the change was needed. */
-    const el = mount(
-      resolveToken('var(--color-badge-blue-text)', false),
-      resolveToken('var(--color-badge-blue-bg)', false),
-      resolveToken('var(--screen)', false),
-      '10px',
-      '700'
-    );
+    const ink = resolveToken('var(--color-badge-blue-text)', false);
+    const fill = resolveToken('var(--color-badge-blue-bg)', false);
+    /* This is the only assertion here that a broken token reader would SURVIVE:
+       two empty strings measure as a low ratio and read as "still failing".
+       Naming the literals makes it fail loudly instead - the shared guard in
+       `resolveToken` is the other half, and removing it is what made this the
+       one test in the file that stayed green with the reader disabled. */
+    expect([ink, fill]).toEqual(['#eaf3ff', '#007cf5']);
+
+    const el = mount(ink, fill, resolveToken('var(--screen)', false), '10px', '700');
     const reading = measureContrast(el);
     expect(reading.ratio).toBeLessThan(4.5);
   });
