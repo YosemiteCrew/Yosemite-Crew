@@ -73,6 +73,26 @@ body() { # body <status> <control-json>...
   printf '{"status":"%s","controls":[%s]}' "$status" "$joined"
 }
 
+# The same body with the declaration #2759 added: what this bundle registers
+# before it answers on its port. Kept as a SEPARATE builder rather than an
+# optional argument to body(), so that every existing fixture above stays a
+# body with no `expected` key at all - which is the older-bundle case, and the
+# one both API hosts actually return today.
+body_declaring() { # body_declaring <status> <expected-names> <control-json>...
+  local status="$1" expected="$2"
+  shift 2
+  local joined="" part
+  for part in "$@"; do
+    [ -z "$joined" ] && joined="$part" || joined="$joined,$part"
+  done
+  local declared="" name
+  for name in $expected; do
+    [ -z "$declared" ] && declared="\"$name\"" || declared="$declared,\"$name\""
+  done
+  printf '{"status":"%s","controls":[%s],"expected":[%s]}' \
+    "$status" "$joined" "$declared"
+}
+
 control() { # control <name> <state> [detail]
   local name="$1" state="$2" detail="${3-}"
   if [ -n "$detail" ]; then
@@ -183,6 +203,69 @@ ships "ships on JSON without a controls array" \
 ships "ships when no control is named as blocking" \
   \
       "$(body degraded "$(control authentication failed 'auth env incomplete')")"
+
+# ---------------------------------------------------------------------------
+# `expected` (#2761): absence alone still ships, but absence CONTRADICTED by the
+# bundle's own declaration blocks.
+#
+# The three ship rows below are not padding around the block row - they are what
+# stops this from being "block whenever the name is missing and the key is
+# present", which passes the block row and every row above it. Each removes one
+# of the three ways a name can be missing for a reason that is not a fault.
+# ---------------------------------------------------------------------------
+check "blocks when the bundle declared the control and never reported it" \
+  "authentication: declared but never reported" \
+  "$(deploy_blocking_control_failures \
+      "$(body_declaring ok "authentication stream-upload-policy" \
+          "$(control stream-upload-policy applied)")" \
+      authentication)"
+
+# The rollback case, now stated positively: this bundle publishes its list and
+# the control is not on it, so it never claimed to record one. Distinguishing
+# this from the row above is the whole point of reading the key, and a gate that
+# ignored membership would block here and refuse the deploy.
+ships "ships when \`expected\` omits the named control, so it was never claimed" \
+  "$(body_declaring ok "stream-upload-policy" \
+      "$(control stream-upload-policy applied)")" \
+  authentication
+
+# A declaration of the wrong shape is a body we cannot read, and an unreadable
+# body ships. Without this row, `parsed.expected` being truthy would be enough,
+# and a string is truthy and has .includes.
+ships "ships when \`expected\` is present but not an array" \
+  '{"status":"ok","controls":[],"expected":"authentication"}' \
+  authentication
+
+# Declared, reported, fine. The block row above must not be reachable by the
+# declaration alone.
+ships "ships when the control is declared and did report" \
+  "$(body_declaring ok "authentication" "$(control authentication applied)")" \
+  authentication
+
+# Both kinds of failure in one body, so the two emit paths are separated: one
+# control reported `failed`, the other declared and missing. A gate wired to
+# only one of them passes one of the block rows above on its own.
+check "reports a declared-and-missing control alongside one that reported failed" \
+  "authentication: failed (auth env incomplete)
+stream-upload-policy: declared but never reported" \
+  "$(deploy_blocking_control_failures \
+      "$(body_declaring degraded "authentication stream-upload-policy" \
+          "$(control authentication failed 'auth env incomplete')")" \
+      "authentication stream-upload-policy")"
+
+# The bytes both API hosts returned on 2026-09-06, pasted rather than built -
+# a pre-#2755 bundle, which is also what a rollback to any ref before it
+# produces, so it must keep shipping.
+#
+# Stated honestly: no mutation of lib/controls.sh reddens this row without also
+# reddening the body()-built absent row above it, and I could not construct one.
+# It is subsumed. What it is here for is the fixture BUILDER: every other case
+# in this file asserts against body() output, and a builder that drifted from
+# the endpoint would take the whole suite with it. This row is the only input
+# here that the endpoint actually produced.
+ships "ships on the response shape a pre-#2755 bundle actually returns" \
+  '{"status":"ok","controls":[{"name":"stream-upload-policy","state":"applied","at":"2026-09-04T22:21:40.663Z"}]}' \
+  authentication
 
 # ---------------------------------------------------------------------------
 # The row the table above does not decide: an unreadable BODY ships, but an
