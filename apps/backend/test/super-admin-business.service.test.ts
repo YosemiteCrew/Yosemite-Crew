@@ -495,6 +495,43 @@ describe("SuperAdminBusinessService", () => {
       expect(business?.memberCount).toBe(1);
     });
 
+    it("counts and lists the same set, on data that distinguishes them", async () => {
+      // The invariant the whole shape exists for. The fixture has to contain a
+      // duplicate, or a count that ignored de-duplication would still match.
+      mockOrganizationFindFirst.mockResolvedValue(organization);
+      mockUserOrganizationFindMany.mockResolvedValue(
+        ["user-1", "Practitioner/user-1", "user-2"].map(
+          (practitionerReference) => ({
+            practitionerReference,
+            roleCode: "doctor",
+            roleDisplay: null,
+            createdAt: new Date("2026-07-01T09:00:00.000Z"),
+          }),
+        ),
+      );
+
+      const members =
+        await SuperAdminBusinessService.listBusinessMembers("org-123");
+      const business = await SuperAdminBusinessService.getBusiness("org-123");
+
+      expect(business?.memberCount).toBe(members?.length);
+      expect(business?.memberCount).toBe(2);
+    });
+
+    it("fetches only the identity columns when it just needs the number", async () => {
+      // The half of the scanner finding that was real: the organisations list
+      // asks once per organisation, so the count must not read whole rows.
+      mockOrganizationFindFirst.mockResolvedValue(organization);
+      mockUserOrganizationFindMany.mockResolvedValue([]);
+
+      await SuperAdminBusinessService.getBusiness("org-123");
+
+      expect(mockUserOrganizationFindMany.mock.calls[0][0].select).toEqual({
+        practitionerReference: true,
+        roleCode: true,
+      });
+    });
+
     it("returns null for an unknown business rather than an empty roster", async () => {
       // An empty array would render as a clinic with no staff, which is the
       // same screen an operator would read as the cause of the outage.
