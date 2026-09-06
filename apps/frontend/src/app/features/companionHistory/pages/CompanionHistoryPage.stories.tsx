@@ -10,7 +10,10 @@ import type {
 } from '@yosemite-crew/types';
 
 import api from '@/app/services/axios';
-import { expectShellReservesConsentInset } from '@/app/features/appointments/pages/AppointmentWorkspace/phone/consentInsetAssertion';
+import {
+  describeInsetProbe,
+  measureConsentInsetResponse,
+} from '@/app/features/appointments/pages/AppointmentWorkspace/phone/consentInsetAssertion';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { formatDisplayDate } from '@/app/lib/date';
 import type { ApiDayAvailability } from '@/app/features/appointments/components/Availability/utils';
@@ -1252,7 +1255,13 @@ export const Phone: Story = {
     await expect(shell).not.toBeNull();
 
     // The same calc as PhoneWorkspaceShell, and previously the untested copy of it.
-    await expectShellReservesConsentInset(shell as HTMLElement);
+    const root = document.documentElement;
+    const setInset = (value: string | null) =>
+      value === null
+        ? root.style.removeProperty('--yc-consent-inset')
+        : root.style.setProperty('--yc-consent-inset', value);
+    const probe = measureConsentInsetResponse(shell as HTMLElement, window.innerHeight, setInset);
+    await expect(probe.ok, describeInsetProbe(probe)).toBe(true);
   },
   parameters: {
     chromatic: { viewports: [375] },

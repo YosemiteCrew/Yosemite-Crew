@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, within } from 'storybook/test';
 import type { Appointment } from '@yosemite-crew/types';
-import { expectShellReservesConsentInset } from './consentInsetAssertion';
+import { describeInsetProbe, measureConsentInsetResponse } from './consentInsetAssertion';
 
 import PhoneWorkspaceShell from './PhoneWorkspaceShell';
 import {
@@ -261,6 +261,12 @@ export const FitsThePhone: Story = {
        PhoneCompanionRecord, which carries the identical calc. */
     const shell = canvasElement.querySelector('[data-testid="phone-workspace-shell"]');
     await expect(shell).not.toBeNull();
-    await expectShellReservesConsentInset(shell as HTMLElement);
+    const root = document.documentElement;
+    const setInset = (value: string | null) =>
+      value === null
+        ? root.style.removeProperty('--yc-consent-inset')
+        : root.style.setProperty('--yc-consent-inset', value);
+    const probe = measureConsentInsetResponse(shell as HTMLElement, window.innerHeight, setInset);
+    await expect(probe.ok, describeInsetProbe(probe)).toBe(true);
   },
 };
