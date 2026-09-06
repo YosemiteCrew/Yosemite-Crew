@@ -14,10 +14,10 @@
     "prisma"
   ],
   "scripts": {
-    "build": "prisma generate --schema prisma/schema.prisma && tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist",
     "test": "node --test dist/tenant.test.js",
-    "type-check": "prisma generate --schema prisma/schema.prisma && tsc --noEmit",
+    "type-check": "tsc --noEmit",
     "prisma": "prisma",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema prisma/schema.prisma",
