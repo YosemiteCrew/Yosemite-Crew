@@ -12,6 +12,40 @@ jobs:
     permissions:
       contents: write
     steps:
+      # The action retries an authorization failure fifteen times at sixty-second
+      # intervals and then runs into `timeout-minutes`, and GitHub reports a
+      # timed-out job as `cancelled`. Twelve consecutive runs failed that way in
+      # August and September 2026 and every one of them read like somebody had
+      # pressed stop, so the frozen clone count on the marketing site was found by
+      # eye rather than by CI.
+      #
+      # A 403 here is permanent - the token authenticates and is refused - so
+      # retrying it cannot help. Check once, fail immediately, and put the required
+      # permission in the message so the fix does not need an investigation.
+      - name: Check the traffic API is readable before scanning
+        env:
+          GHRS_TOKEN: ${{ secrets.GHRS_GITHUB_API_TOKEN }}
+        run: |
+          set -u
+          # -o /dev/null keeps the response body out of a public log; only the
+          # status code is read. On a transport error curl exits non-zero, and the
+          # `|| status=000` overwrites whatever it printed - so a DNS or TLS failure
+          # lands on a value that is not 200 and fails, rather than passing as a
+          # response nobody checked.
+          status=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $GHRS_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/traffic/clones") || status="000"
+
+          if [ "$status" = "200" ]; then
+            echo "Traffic API readable (HTTP 200)."
+            exit 0
+          fi
+
+          echo "::error title=repo-stats cannot read the traffic API::GHRS_GITHUB_API_TOKEN got HTTP ${status} from /traffic/clones. The traffic endpoints need Administration (read) on this repository - a fine-grained token also needs Contents (read and write) for the data branch, and a classic token needs the repo scope plus push access. A 401 means the token is invalid or expired; a 403 means it authenticates but is not permitted."
+          exit 1
+
       - name: Generate repo stats report
         uses: jgehrcke/github-repo-stats@306db38ad131cab2aa5f2cd3062bf6f8aa78c1aa # v1.4.2
         with:

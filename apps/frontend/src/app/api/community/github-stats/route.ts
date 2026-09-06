@@ -70,6 +70,63 @@ const githubFetch = (url: string) =>
     cache: 'no-store',
   });
 
+/**
+ * The stats branch is refreshed by the daily `repo-stats` workflow, and when that
+ * workflow stops running `summary.json` does not start failing - it keeps being
+ * served with a 200 and a valid integer. That makes the clone count the one metric
+ * on this route that can fail without looking like a failure: stars, contributors
+ * and releases all go null and render as a placeholder, while a frozen clone total
+ * renders exactly like a live one. In August 2026 the workflow's token lost the
+ * traffic-API permission and the number sat unchanged for thirteen days, cached at
+ * the CDN as healthy the whole time.
+ *
+ * The report already stamps itself, so the check needs no credential, no extra
+ * request and no new workflow. Past the threshold the count is dropped to null,
+ * which is the same degraded state a failed lookup already produces and which the
+ * marketing surfaces already render as a loading placeholder.
+ *
+ * Three days rather than one: the workflow runs daily, so this tolerates two missed
+ * runs before calling the number stale.
+ */
+const SUMMARY_MAX_AGE_MS = 72 * 60 * 60 * 1000;
+
+/**
+ * `generated_at_utc` is written as `2026-08-24 23:06 UTC`, which is NOT ISO 8601 -
+ * so `Date.parse` accepting it is a V8 choice, not a language guarantee. Parsing it
+ * explicitly avoids depending on that, and every rejected form counts as STALE.
+ *
+ * Failing closed is the whole point. If an unreadable stamp produced NaN and were
+ * compared numerically, `NaN < threshold` is false, the count would be published as
+ * fresh forever, and the check would certify a frozen number as live - which is the
+ * exact defect it exists to catch. The bounds are in the pattern rather than left to
+ * `Date.UTC` because that function rolls a month of `13` forward into the next year,
+ * turning a malformed stamp into a future date that reads as fresh.
+ */
+const SUMMARY_STAMP =
+  /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])[ T]([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?\s*(?:UTC|Z)$/;
+
+const summaryGeneratedAt = (summary: unknown): number | null => {
+  if (!summary || typeof summary !== 'object') return null;
+  const stamp = (summary as { generated_at_utc?: unknown }).generated_at_utc;
+  if (typeof stamp !== 'string') return null;
+  const parts = SUMMARY_STAMP.exec(stamp.trim());
+  if (!parts) return null;
+  return Date.UTC(
+    Number(parts[1]),
+    Number(parts[2]) - 1,
+    Number(parts[3]),
+    Number(parts[4]),
+    Number(parts[5]),
+    parts[6] ? Number(parts[6]) : 0
+  );
+};
+
+/** True only for a report that stamps itself and is inside the freshness window. */
+const isSummaryFresh = (summary: unknown, now: number): boolean => {
+  const generatedAt = summaryGeneratedAt(summary);
+  return generatedAt !== null && now - generatedAt < SUMMARY_MAX_AGE_MS;
+};
+
 const readRepositoryClonesTotal = (summary: unknown): number | null => {
   if (!summary || typeof summary !== 'object') return null;
   const data = summary as {
@@ -102,11 +159,15 @@ const fetchStars = async (): Promise<Pick<GithubStatsResponse, 'stars' | 'starsF
   }
 };
 
-const fetchRepositoryClones = async (): Promise<string | null> => {
+const fetchRepositoryClones = async (now: number): Promise<string | null> => {
   try {
     const res = await githubFetch(REPO_STATS_SUMMARY);
     if (!res.ok) return null;
-    const total = readRepositoryClonesTotal(await res.json());
+    const summary = await res.json();
+    // A stale report is dropped rather than published: the surfaces that render
+    // this advertise a live number, and a wrong live number is worse than none.
+    if (!isSummaryFresh(summary, now)) return null;
+    const total = readRepositoryClonesTotal(summary);
     return total === null ? null : total.toLocaleString('en-US');
   } catch {
     return null;
@@ -134,9 +195,12 @@ export async function GET(request: Request): Promise<NextResponse> {
   const rejected = rejectUnexpectedParams(request, {});
   if (rejected) return rejected;
 
+  // One instant for the whole response, so the freshness verdict cannot straddle
+  // the threshold mid-request.
+  const now = Date.now();
   const [starCounts, repositoryClones, contributors] = await Promise.all([
     fetchStars(),
-    fetchRepositoryClones(),
+    fetchRepositoryClones(now),
     fetchContributors(),
   ]);
 
