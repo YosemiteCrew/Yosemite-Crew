@@ -527,6 +527,152 @@ else
      "$SWALLOWED"
 fi
 
+# ---------------------------------------------------------------------------
+# Every cutover stop must annotate, not just the controls one.
+#
+# All six workflow_dispatch failures this workflow has ever had failed on the
+# step "Deploy over SSH", and so does every stop in this region - the script
+# runs inside that step. Step name, job name and red X are identical to a
+# routine deploy failure, so without a run-summary annotation the reason is
+# only inside an expanded log. The preflight key checks in deploy-api.yml
+# already annotate; these three were the exception, and the asymmetry was the
+# finding rather than any one stop.
+# ---------------------------------------------------------------------------
+# Anchored with index() on -v values rather than a single-quoted regex: the
+# needle contains a literal dollar, and spelling that inside single quotes is an
+# SC2016 on a line where the dollar is deliberate.
+CUTOVER_REGION="$(awk \
+  -v start="if [ \"\$CODE\" != \"200\" ]" \
+  -v stop='say "cutover"' \
+  'index($0, start) == 1 { f = 1 } f { print } f && index($0, stop) == 1 { exit }' \
+  <<< "$DEPLOY_CODE")"
+
+# Vacuity canary. Everything below is counted out of this region, and an awk
+# range that matched nothing produces zero stops and zero annotations - which
+# is parity, and would report a completely unguarded file as guarded.
+check "the cutover region was actually extracted" \
+  "found" \
+  "$(printf '%s' "$CUTOVER_REGION" | grep -q 'say "cutover"' && echo found || echo empty)"
+
+CUTOVER_STOPS=0
+CUTOVER_ANNOTATED=0
+cutover_block=""
+while IFS= read -r cutover_line; do
+  cutover_block="$cutover_block$cutover_line
+"
+  if [ "$cutover_line" = "fi" ]; then
+    case "$cutover_block" in
+      *"exit 1"*)
+        CUTOVER_STOPS=$((CUTOVER_STOPS + 1))
+        case "$cutover_block" in
+          *'::error::'*) CUTOVER_ANNOTATED=$((CUTOVER_ANNOTATED + 1)) ;;
+        esac
+        ;;
+    esac
+    cutover_block=""
+  fi
+done <<< "$CUTOVER_REGION"
+
+# Named individually as well as counted, because a count says how many and not
+# which - and the controls stop is the one this branch of work added, so it is
+# the one most likely to be the only one done.
+for cutover_guard in \
+  'CODE" != "200:the smoke-boot status stop' \
+  'POST_CODE" != "404:the request-body stop' \
+  "n \"\$CONTROL_FAILURES:the startup-controls stop"; do
+  cutover_needle="${cutover_guard%%:*}"
+  cutover_name="${cutover_guard#*:}"
+  if awk -v n="$cutover_needle" 'index($0, n) {f=1} f {print} f && /^fi$/ {exit}' \
+      <<< "$CUTOVER_REGION" | grep -q '::error::'; then
+    ok "$cutover_name emits a run-summary annotation"
+  else
+    no "$cutover_name emits a run-summary annotation" \
+       "no ::error:: between that condition and its fi"
+  fi
+done
+
+# Stream, not just presence. GitHub documents workflow commands as reaching the
+# runner over stdout and never mentions stderr, so an annotation redirected to
+# stderr may be a plain log line - the quietest possible failure for a change
+# whose entire purpose is to be more visible.
+#
+# Redirection is NOT line-local, and the first version of this guard was. Three
+# spellings put the same annotation on stderr and only one is on the same line
+# as it:
+#
+#   echo "::error::…" >&2          line-local, trailing
+#   >&2 echo "::error::…"          line-local, leading
+#   { echo "::error::…" ; } >&2    ENCLOSING - and this is the house style:
+#                                  deploy-api.yml:106-121 wraps all three of its
+#                                  preflight annotations in exactly this shape.
+#   ( echo "::error::…" ) >&2      ENCLOSING, subshell. Same construct, different
+#                                  bracket; raised in review after the first
+#                                  enclosure check tracked braces only.
+#   exec >&2                       redirects the whole shell and takes out all
+#                                  THREE annotations at once, from a line that
+#                                  names none of them.
+#
+# All four measured on this machine with a plain echo as the control:
+#   plain echo   stdout=[::error::X]  stderr=[]
+#   the four     stdout=[]            stderr=[::error::X]
+#
+# So the form most likely to be written here is the one a line-local grep cannot
+# see, and someone writing it would be following the convention this file's own
+# comment names. Raised in review.
+#
+# The enclosure check tracks ONE level of group, brace or subshell. It fires only
+# on a group that CONTAINS an annotation - a group wrapping ordinary human lines
+# is not a false positive, which is why it is a containment test rather than a
+# match on the closing line.
+#
+# The boundary, stated rather than left to be found: an opening bracket that is
+# not alone on its line never opens the tracker, and a group nested inside
+# another group is not seen. A guard that reads lines cannot follow a shell's
+# file descriptors, and that is where this technique ends.
+CUTOVER_STDERR_INLINE="$(grep -cE '(::error::.*>&[12]|>&[12].*::error::)' \
+  <<< "$CUTOVER_REGION" || true)"
+
+CUTOVER_STDERR_ENCLOSED="$(awk '
+  /^[[:space:]]*[({][[:space:]]*$/ { inside = 1; buf = ""; next }
+  inside && /^[[:space:]]*[)}][[:space:]]*>&[12]/ {
+    if (buf ~ /::error::/) { bad++ }
+    inside = 0; buf = ""; next
+  }
+  inside { buf = buf $0 "\n"; next }
+  END { print bad + 0 }
+' <<< "$CUTOVER_REGION")"
+
+check "no annotation is redirected to stderr on its own line" \
+  "0 inline" "$CUTOVER_STDERR_INLINE inline"
+
+check "no annotation is redirected to stderr by an enclosing group" \
+  "0 enclosed" "$CUTOVER_STDERR_ENCLOSED enclosed"
+
+# The one evasion worth a line of its own rather than a paragraph of boundary:
+# `exec >&2` redirects the whole shell, so it takes out all three annotations
+# from a line that names none of them - and every other guard here stays green,
+# because each one asks about a SITE and this is not a site.
+#
+# Scanned over the WHOLE script rather than the cutover region, and that is the
+# point rather than caution. The first version read the region and the mutation
+# came back green: a shell redirect applies from wherever it appears onward, so
+# `exec >&2` a few lines ABOVE the region - which is where anyone would put it -
+# disables all three annotations while sitting outside the text being searched.
+# Driven both ways: inside the region 1 red, above it 0 red under the regional
+# version. There is no `exec` anywhere in api-deploy.sh or lib/ today, so a
+# whole-file check has nothing to false-positive on.
+DEPLOY_EXEC_REDIRECT="$(grep -cE '^[[:space:]]*exec[[:space:]]+>&?[12&]' \
+  <<< "$DEPLOY_CODE" || true)"
+check "the deploy script does not redirect the whole shell" \
+  "0 shell redirects" "$DEPLOY_EXEC_REDIRECT shell redirects"
+
+# The parity guard, and it is not subsumed by the three above: a FOURTH stop
+# added later without an annotation reddens only this one. That is the case
+# this exists for - the three named rows describe today.
+check "every cutover stop that exits emits a run-summary annotation" \
+  "$CUTOVER_STOPS stops, $CUTOVER_STOPS annotated" \
+  "$CUTOVER_STOPS stops, $CUTOVER_ANNOTATED annotated"
+
 PROBE_LINE="$(grep -nE "$PROBE_RE" <<< "$DEPLOY_CODE" | head -1 | cut -d: -f1 || true)"
 KILL_LINE="$(grep -nE 'kill .*SMOKE_PID' <<< "$DEPLOY_CODE" | head -1 | cut -d: -f1 || true)"
 if [ -n "$PROBE_LINE" ] && [ -n "$KILL_LINE" ] && [ "$PROBE_LINE" -lt "$KILL_LINE" ]; then
