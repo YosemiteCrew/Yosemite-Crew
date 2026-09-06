@@ -83,7 +83,10 @@ const config: TestRunnerConfig = {
       );
     }
 
-    const requested = storyGlobals?.viewport?.value;
+    /* `storyGlobals.` and not `storyGlobals?.` - the guard above has already
+       thrown if it is undefined, so an optional chain here would quietly say the
+       guard might not hold. */
+    const requested = storyGlobals.viewport?.value;
     const key = requested ?? DEFAULT_VIEWPORT;
     const size = VIEWPORT_SIZES[key];
 
