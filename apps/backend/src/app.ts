@@ -3,6 +3,7 @@ import rateLimit from "express-rate-limit";
 import fileUpload from "express-fileupload";
 import {
   getControlReports,
+  getExpectedControls,
   hasFailedControl,
   recordControl,
 } from "./config/startup-controls";
@@ -241,6 +242,11 @@ export function createApp() {
     return res.status(degraded ? 503 : 200).json({
       status: degraded ? "degraded" : "ok",
       controls: getControlReports(),
+      // What this bundle registers, always sent. A reader comparing the two
+      // lists can tell a control that is missing from one that never existed
+      // in this version - the absence of this key is the version marker, so it
+      // must not depend on anything.
+      expected: getExpectedControls(),
     });
   });
 
