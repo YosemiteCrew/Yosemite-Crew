@@ -384,7 +384,10 @@ const PhoneCompanionRecord = ({
   const clientNote = clientAlerts[0]?.label;
 
   return (
-    <div className="flex h-[calc(100dvh-54px-72px-env(safe-area-inset-bottom,0px))] min-h-[480px] flex-col bg-(--screen)">
+    <div
+      data-testid="phone-companion-record"
+      className="flex h-[calc(100dvh-54px-max(72px+env(safe-area-inset-bottom,0px),var(--yc-consent-inset,0px)))] min-h-[480px] flex-col bg-(--screen)"
+    >
       <PhoneRecordHeader title={title} onBack={onBack} onEdit={canEdit ? onEdit : undefined} />
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-[18px] py-4">
         {companion ? (
