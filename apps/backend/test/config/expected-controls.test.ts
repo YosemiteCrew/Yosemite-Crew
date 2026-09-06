@@ -260,6 +260,12 @@ describe("every declared control is recorded before the port answers", () => {
     expect(recordedAtListen.sort()).toEqual(
       expect.arrayContaining([...EXPECTED_CONTROLS]),
     );
+    // Equality, not containment, and measured on the REAL boot rather than on
+    // the two calls this file drives by hand. The manifest-honesty tests above
+    // can only see controls recorded by createApp and configureStreamUploadPolicy,
+    // so a third control registered anywhere else in the bootstrap would pass
+    // every one of them. This is the assertion that sees it.
+    expect(recordedAtListen.sort()).toEqual(getExpectedControls().sort());
   });
 
   it("records them before listen even when every control is in a non-applied state", async () => {
