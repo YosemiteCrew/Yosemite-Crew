@@ -7,9 +7,14 @@ name: CI
 #
 # This is the primary CI. It replaced the standalone ci-affected, frontend-a11y
 # and dev-docs-build workflows (all deleted) and slimmed frontend-quality to a
-# reusable bundle/Lighthouse stage called from here. It is not yet a required
-# status check; docs/ci/required-checks-migration.md covers making it required
-# and enabling the merge queue.
+# reusable bundle/Lighthouse stage called from here.
+#
+# Whether its aggregate check is REQUIRED is not stated here. It was, as "not
+# yet a required status check", and the same commit that corrected the identical
+# claim on the `ci-required` job below left this one standing - so the file said
+# pending at the top and done in the middle, and the top is what a reader meets
+# first. The job comment owns that fact and dates it; the remaining migration
+# steps are in docs/ci/required-checks-migration.md.
 
 on:
   pull_request: {}
