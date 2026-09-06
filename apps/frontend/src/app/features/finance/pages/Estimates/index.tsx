@@ -36,6 +36,11 @@ import {
 import EstimateList, {
   type EstimateCompanion,
 } from '@/app/features/finance/pages/Estimates/Sections/EstimateList';
+import PhoneEstimateList from '@/app/features/finance/pages/Estimates/Sections/PhoneEstimateList';
+// Default import, matching the sibling `Finance/index.tsx`: the finance page
+// tests mock this module's default export, and a named import here would read
+// as `undefined` under that mock.
+import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 import EstimateDetail, {
   type EstimateAction,
 } from '@/app/features/finance/pages/Estimates/Sections/EstimateDetail';
@@ -105,6 +110,7 @@ const runAction = (
 
 const EstimatesContent = () => {
   const { notify } = useNotify();
+  const isPhone = useIsPhone();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const currency = useCurrencyForPrimaryOrg();
 
@@ -356,15 +362,27 @@ const EstimatesContent = () => {
 
       {!loading && !error && visibleEstimates.length > 0 && (
         <div className="flex flex-col gap-6">
-          <EstimateList
-            estimates={visibleEstimates}
-            activeEstimateId={activeEstimateId}
-            onSelect={(estimate) => {
-              setActiveEstimateId(estimate.id);
-              setActionError(null);
-            }}
-            companion={companionFor}
-          />
+          {isPhone ? (
+            <PhoneEstimateList
+              estimates={visibleEstimates}
+              activeEstimateId={activeEstimateId}
+              onSelect={(estimate) => {
+                setActiveEstimateId(estimate.id);
+                setActionError(null);
+              }}
+              companion={companionFor}
+            />
+          ) : (
+            <EstimateList
+              estimates={visibleEstimates}
+              activeEstimateId={activeEstimateId}
+              onSelect={(estimate) => {
+                setActiveEstimateId(estimate.id);
+                setActionError(null);
+              }}
+              companion={companionFor}
+            />
+          )}
           {activeEstimate && (
             <EstimateDetail
               estimate={activeEstimate}
