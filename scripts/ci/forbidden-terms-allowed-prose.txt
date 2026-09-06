@@ -1,0 +1,62 @@
+# Must-pass corpus for the forbidden-terms gate.
+#
+# Every line below is REAL PROSE ALREADY IN THIS REPOSITORY, copied verbatim.
+# None of it names an external product, and the gate must stay silent on all of
+# it.
+#
+# Why this file is checked in while the must-block half is not: the must-block
+# half IS the term list, and committing it to a public repository publishes
+# exactly what the pattern exists to withhold. That half lives with the pattern
+# in a repository secret. This half is the reviewable one, and it is not the
+# consolation half - broadening a pattern under deadline pressure is what makes
+# it fire on ordinary prose, and this is the file that catches that, in the
+# open, where a reviewer can see what "our own documentation" actually says.
+#
+# Drawn from real sentences rather than invented near-misses on purpose:
+# invented ones drift towards what the author imagines the pattern does. A test
+# asserts every line here appears verbatim in a tracked file, so an approximation
+# is caught rather than trusted.
+#
+# A line matched here is a FALSE POSITIVE in the pattern, not a bug in the
+# prose. Fix the pattern.
+
+# README.md
+<h1 align="center">Open-Source Operating System for Animal Health</h1>
+and the open platform that grows around it.
+Most veterinary software asks a clinic to bend around the vendor: rigid subscriptions, closed data, and a roadmap someone else owns. Yosemite Crew inverts that. The clinical record is yours, the schema is open, the integration surface speaks [FHIR R4](https://hl7.org/fhir/R4/), and the entire platform is yours to fork, extend, or run yourself.
+**Customization & integration.** Open source means no rigid subscription lock-in, and a system you can shape to how your practice actually works.
+- Before opening a pull request, run the same gates CI will run.
+Open source is a promise about how the code is kept, not only about who can read it. Every change entering `dev` passes the same gates.
+The YOSEMITE CREW name, logo, and branding are **not** covered by the open source license. Commercial use of the branding requires a separate commercial license. See [License.txt](./License.txt) for the full terms.
+
+# CONTRIBUTING.md
+If you find a bug, please open an issue with clear reproduction steps, expected behavior, and actual behavior.
+If you already have a fix, you can open a PR and link the issue.
+If you want to propose a feature, open an issue first so maintainers and contributors can align on scope before implementation.
+Before opening a PR, run:
+Open PRs against the `dev` branch unless maintainers request otherwise.
+- If you accidentally commit a secret, rotate it immediately and open a security report per [SECURITY.md](./SECURITY.md).
+- Open a GitHub issue for bugs/features.
+
+# CODE_OF_CONDUCT.md
+The focus of both contributors and maintainers is on acting and interacting in ways that promote an open, welcoming, friendly, diverse, inclusive, and healthy community.
+
+# apps/backend/README.md
+This is the backend API server for Yosemite Crew (YC), the open-source veterinary practice management (PIMS) platform. It is an Express.js + TypeScript service that exposes the FHIR (Fast Healthcare Interoperability Resources) endpoints consumed by the web frontend and mobile app. For agent and contributor conventions (architecture layers, validation, logging, background jobs), see [`AGENTS.md`](./AGENTS.md) and [`SKILLS.md`](./SKILLS.md).
+`LOCAL_DEVELOPMENT=true` switches on local-only behaviour: it opens CORS to `localhost:3000` (`src/app.ts`) and mounts the local-only MFA debug endpoint `POST /v1/auth/mfa/totp/debug/create-device`, which creates a TOTP device without the full enrolment flow. Both are keyed on this flag rather than on `NODE_ENV`, so a deployed tier running `NODE_ENV=development` never gets them. Set it only for a local run.
+
+# apps/desktop/README.md
+The native desktop app for the open-source veterinary Practice Information Management System.<br />
+> Part of the [Yosemite Crew](https://github.com/YosemiteCrew/Yosemite-Crew) monorepo - the open-source operating system for animal health. This package is the **desktop client** for clinic staff. Looking for the web platform, mobile app, or backend? See the [root README](https://github.com/YosemiteCrew/Yosemite-Crew#readme).
+It's the same PIMS your team knows, plus the things only a native app can do: it **keeps working when the Wi-Fi doesn't**, opens charts and appointments in **real tabs**, fires **native notifications** for lab results and messages, prints labels and records, and stays **signed in across launches**. Records sync back automatically when you're back online.
+<sub><b>The full PIMS in native tabs</b> - every workflow opens in its own tab; split two side by side.</sub>
+
+# .claude/skills/frontend-sonar/SKILL.md
+The SonarCloud frontend project is the source of truth for open issues and security hotspots.
+- Add `open` attribute — without it the browser hides the element.
+
+# .claude/skills/mobile-patterns/SKILL.md
+Never mix Redux and local `useState` for the same piece of data. Local state is for ephemeral UI state (modal open, input focus). Shared/persisted state goes in Redux.
+
+# .claude/skills/agent-loop/SKILL.md
+- Check open PRs targeting `dev` for overlap with the files you plan to touch (for
