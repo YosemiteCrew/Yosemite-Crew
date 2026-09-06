@@ -9,6 +9,9 @@
     },
     "type-check": {
       "dependsOn": ["^build", "prisma:generate"]
+    },
+    "test": {
+      "dependsOn": ["^build", "build"]
     }
   }
 }
