@@ -104,8 +104,10 @@ describe('Dropdown Component', () => {
       />
     );
 
-    expect(screen.getByText('Field is required')).toBeInTheDocument();
-    expect(screen.getByTestId('icon-error')).toBeInTheDocument();
+    const trigger = screen.getByRole('button', { name: 'Select Item' });
+    const error = screen.getByRole('alert');
+    expect(error).toHaveTextContent('Field is required');
+    expect(trigger).toHaveAttribute('aria-describedby', error.id);
   });
 
   it('renders disabled state correctly', () => {

@@ -1,22 +1,43 @@
-import type { InputHTMLAttributes } from "react";
-import clsx from "clsx";
+import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import clsx from 'clsx';
+import { getFieldControlClassName } from '@/app/ui/fieldControlStyles';
 
 export type InputProps = {
   error?: boolean;
-} & InputHTMLAttributes<HTMLInputElement>;
+  placeholder: string;
+} & Omit<InputHTMLAttributes<HTMLInputElement>, 'placeholder'>;
 
-const Input = ({ className, error, ...props }: InputProps) => {
-  return (
-    <input
+export type TextareaProps = {
+  error?: boolean;
+  placeholder: string;
+} & Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'placeholder'>;
+
+const Input = forwardRef<HTMLInputElement, InputProps>(({ className, error, ...props }, ref) => (
+  <input
+    ref={ref}
+    className={clsx(getFieldControlClassName(error), 'h-10 px-3', className)}
+    aria-invalid={error || undefined}
+    {...props}
+  />
+));
+
+Input.displayName = 'Input';
+
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, error, ...props }, ref) => (
+    <textarea
+      ref={ref}
       className={clsx(
-        "w-full min-h-12 rounded-2xl bg-transparent px-6 py-2.5 text-body-4 text-text-primary outline-none border",
-        error ? "border-input-border-error" : "border-input-border-default",
-        "focus:border-input-border-active",
+        getFieldControlClassName(error),
+        'min-h-22 resize-y px-3 py-3 leading-relaxed',
         className
       )}
+      aria-invalid={error || undefined}
       {...props}
     />
-  );
-};
+  )
+);
+
+Textarea.displayName = 'Textarea';
 
 export default Input;

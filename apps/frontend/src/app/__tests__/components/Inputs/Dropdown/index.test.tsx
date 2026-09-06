@@ -8,10 +8,6 @@ jest.mock('react-icons/io5', () => ({
   IoChevronDown: () => <span data-testid="caret" />,
 }));
 
-jest.mock('react-icons/io', () => ({
-  IoIosWarning: () => <span data-testid="warning" />,
-}));
-
 /** The active option is the only one carrying the exact `bg-card-hover` class token. */
 // The active row carries the design's warm --nav-active-bg wash; every other row
 // is transparent, so this identifies exactly one option.
@@ -100,8 +96,10 @@ describe('Dropdown (index)', () => {
   it('shows error message', () => {
     render(<Dropdown placeholder="View" options={options} onSelect={jest.fn()} error="Required" />);
 
-    expect(screen.getByText('Required')).toBeInTheDocument();
-    expect(screen.getByTestId('warning')).toBeInTheDocument();
+    const trigger = screen.getByRole('button', { name: /View/i });
+    const error = screen.getByRole('alert');
+    expect(error).toHaveTextContent('Required');
+    expect(trigger).toHaveAttribute('aria-describedby', error.id);
   });
 
   it('keeps the placeholder when the default option matches nothing', () => {

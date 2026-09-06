@@ -17,8 +17,8 @@ const meta = {
       description: {
         component:
           'Calendar date field built on react-datepicker. `type="input"` renders a labelled ' +
-          '46px field (13px radius, 1.5px hairline border, --field-bg fill); `type="icon"` renders ' +
-          'a square 46px trigger. Popper opens a themed calendar.',
+          '40px canonical field; `type="icon"` renders a square 40px trigger. Empty inputs show ' +
+          'their placeholder. Popper opens a themed calendar.',
       },
     },
   },
