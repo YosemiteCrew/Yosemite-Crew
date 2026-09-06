@@ -45,7 +45,7 @@
 // text and reports the file and line of the ADDED line, which is why it is a
 // surface of its own rather than another blob of text.
 
-import { readFileSync } from 'node:fs';
+import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -97,6 +97,24 @@ function decodeRequired(name) {
  * `scanSurface`'s filter invisible - a guard that checks half its input and says
  * nothing about the half it skipped.
  */
+/**
+ * The pattern, compiled case-insensitively because the terms are words.
+ *
+ * `'i'` AND NOT `'iu'`, and the absence is load-bearing rather than an
+ * oversight. The `u` flag changes case folding on the HAYSTACK, so
+ * `PATTERN_SHAPE` cannot see it - it constrains the pattern, and this is the one
+ * axis that is not about the pattern at all. Under `iu`, `k` matches U+212A
+ * KELVIN SIGN; under `i` it does not, and neither does the machine-local hook's
+ * POSIX `grep -inE`. So the missing `u` is what makes "one value used twice"
+ * true rather than "two implementations that agree on ASCII".
+ *
+ * Driven with the haystack asserted by its bytes: `61e284aa62`, `/k/i` false,
+ * `/k/iu` true, `/usr/bin/grep -inE k` no match, and both controls (`aKb`
+ * matching everywhere, `azb` nowhere). Raised in review. `PATTERN_SHAPE` two
+ * dozen lines below carries `/u` legitimately - it has no haystack of untrusted
+ * text - so harmonising the two reads like tidying up, which is why there is a
+ * behavioural case pinning this one.
+ */
 export function compilePattern(source) {
   try {
     return new RegExp(source, 'i');
@@ -105,6 +123,59 @@ export function compilePattern(source) {
     // it out - report that it did not compile and nothing about what it was.
     throw new GuardError(`The pattern does not compile as a regular expression: ${error.name}.`);
   }
+}
+
+/**
+ * The only pattern shape this guard accepts: a `|` alternation of literal words
+ * over `[A-Za-z0-9 -]`.
+ *
+ * Two separate jobs, one predicate, and it is not a coincidence that the same
+ * character set answers both.
+ *
+ * FIRST, the two implementations agree ON CONSTRUCTS. This pattern is consumed
+ * twice - here through `new RegExp(source, 'i')`, and by the machine-local hook
+ * through `grep -inE`, which is POSIX ERE. `\b`, `\d`, a quantifier or a class
+ * can mean different things in the two dialects, and then the value is a
+ * TRANSLATION between them rather than one value used twice. Inside this
+ * alphabet there is no construct they can disagree about.
+ *
+ * BE PRECISE ABOUT WHAT THAT DOES NOT COVER, because the narrower statement is
+ * the true one and the wider one was written here first. Removing construct
+ * disagreement does not make the two implementations identical: they can still
+ * differ on the SAME in-shape value, because case folding is a property of the
+ * engine and the locale rather than of the pattern. Measured - `s` against
+ * U+017F LATIN SMALL LETTER LONG S is no match for `new RegExp(s,'i')` and for
+ * BSD grep in every locale (this is what our machines have, bytes `61c5bf62`
+ * verified by `od`, with `aSb`/`azb` controls on both sides), and a MATCH for
+ * GNU grep 3.8 under `LC_ALL=C.UTF-8`. Reported by another machine; not
+ * reproducible here, where there is no GNU grep.
+ *
+ * So the agreement rests partly on which `grep` is on `PATH`, and
+ * `PATTERN_SHAPE` cannot reach that. It is not pinned by a test because a CI
+ * test would assert GNU grep's behaviour, which is not the implementation the
+ * claim is about. The direction is harmless: grep matching MORE means a local
+ * hook false-positives, never that something CI would block gets through.
+ *
+ * SECOND, `alternativesIn` below is exact. Counting by splitting on `|` is
+ * right for a plain alternation and wrong the moment a group, an escaped pipe
+ * or a class containing one appears.
+ *
+ * It fails CLOSED: a pattern outside this shape is a red self-test with an
+ * explanation, never a silently weaker check. If a future pattern genuinely
+ * needs a metacharacter, this predicate and `alternativesIn` are what has to
+ * change, deliberately and together.
+ */
+export const PATTERN_SHAPE = /^[A-Za-z0-9 -]+(\|[A-Za-z0-9 -]+)*$/u;
+
+/**
+ * How many alternatives a pattern claims.
+ *
+ * Sound ONLY for a source satisfying {@link PATTERN_SHAPE}, which is why the
+ * caller checks that first and skips this when it fails - a count taken from an
+ * unconstrained pattern is a plausible number rather than an answer.
+ */
+export function alternativesIn(source) {
+  return source.split('|').length;
 }
 
 /** Non-comment, non-blank lines. Shared by both corpora. */
@@ -233,6 +304,67 @@ export function selfTest({ pattern, blockCorpus, passCorpus, minCorpus }) {
     );
   }
 
+  // The pattern's own shape, and then what the shape makes countable.
+  //
+  // This closes the direction the corpus check cannot see. The known-positives
+  // pass below walks the CORPUS, so it answers "the pattern catches everything
+  // the corpus knows about" and is blind to the converse: an alternative added
+  // to the pattern with no corresponding entry is never exercised by anything,
+  // and a typo in it protects nothing while looking exactly like a term that is
+  // guarded.
+  //
+  // The message never quotes the pattern - the failed-compile path one screen up
+  // exists for the same reason - so it names the constraint and the counts.
+  if (!PATTERN_SHAPE.test(pattern.source)) {
+    problems.push(
+      'the pattern is not a plain alternation of literal words over [A-Za-z0-9 -]. ' +
+        'That shape is what lets this guard use one value in two regular-expression ' +
+        'dialects and count its alternatives; outside it, neither is sound. Rewrite the ' +
+        'pattern, or change PATTERN_SHAPE and alternativesIn together and deliberately'
+    );
+  } else {
+    // Every alternative must be exercised by SOME corpus entry, reported by
+    // index. This is the check that answers the question; the count below is a
+    // weaker proxy for it.
+    //
+    // A count is green on a corpus that piles up on one alternative - three
+    // spellings of one term and none of another satisfies `3 >= 3` while two
+    // alternatives are checked by nothing, which is precisely the state a typo
+    // in a new alternative produces. Raised in review, driven, and it is the
+    // per-pattern-versus-per-part distinction one level down: one hit satisfies
+    // the whole and hides the parts.
+    //
+    // `compilePattern` rather than a second `new RegExp(...)`, so the flags can
+    // never drift from the ones the real pattern is built with - and it is safe
+    // here only because the shape holds: outside it `acme\` throws and `acme+`
+    // compiles into something else.
+    const alternatives = pattern.source.split('|');
+    const unexercised = alternatives
+      .map((alternative, index) =>
+        blockCorpus.some((entry) => compilePattern(alternative).test(entry)) ? null : index + 1
+      )
+      .filter((index) => index !== null);
+    if (unexercised.length > 0) {
+      problems.push(
+        `the must-block corpus exercises no entry for the pattern's alternative(s) at ` +
+          `position(s) ${unexercised.join(', ')}: nothing checks that they match anything`
+      );
+    }
+
+    // The weaker proxy, kept deliberately rather than as a second detector. It
+    // enforces one corpus entry per alternative, which is what makes the
+    // by-index messages above legible to whoever maintains the corpus - and it
+    // catches a corpus authored with fewer entries than terms before anyone has
+    // to read an index at all.
+    const claimed = alternativesIn(pattern.source);
+    if (blockCorpus.length < claimed) {
+      problems.push(
+        `the pattern claims ${claimed} alternatives and the must-block corpus has ` +
+          `${blockCorpus.length} entries, so at least one alternative is checked by nothing`
+      );
+    }
+  }
+
   // Known positives: every one must be caught. Reported by INDEX, never by value.
   const missed = blockCorpus
     .map((entry, index) => (pattern.test(entry) ? null : index + 1))
@@ -320,16 +452,44 @@ function runScan(argv) {
   }
   const pattern = compilePattern(decodeRequired(PATTERN_ENV));
 
+  // RESOLVE ONCE, THEN CHANGE INTO IT, so the six reads below take the SURFACES
+  // constants themselves and nothing built from `--dir`. The docstring above
+  // says the coverage is a property of this file rather than of the caller, and
+  // until now that was true of the LOOP while the read still took a path joined
+  // from the caller's argument. Both are constants now.
+  //
+  // A missing directory is reported as a missing DIRECTORY. It used to surface
+  // as `Cannot read the 'diff' surface` - the first thing the loop happened to
+  // touch - which is the same defect the workflow's Preconditions step was
+  // rewritten to remove: a guard that cannot run should say what it needs.
+  let root;
+  try {
+    root = realpathSync(dir);
+  } catch {
+    throw new GuardError(`Cannot read the surface directory ${dir}.`);
+  }
+  process.chdir(root);
+
   const findings = [];
   for (const surface of SURFACES) {
-    const file = path.join(dir, surface);
     let text;
     try {
-      text = readFileSync(file, 'utf8');
-    } catch {
+      // `lstat` and not `stat`: `readFileSync` FOLLOWS a symlink, so a surface
+      // that is a link is read as though it were the surface, and the guard
+      // reports on a file nobody collected. The collector writes six plain
+      // files, but the read site is what decides that rather than the step that
+      // wrote them - the same reason the checkout is pinned to the base.
+      if (!lstatSync(surface).isFile()) {
+        throw new GuardError(
+          `The '${surface}' surface is not a regular file. A surface must be a plain file in ${root}.`
+        );
+      }
+      text = readFileSync(surface, 'utf8');
+    } catch (error) {
+      if (error instanceof GuardError) throw error;
       // A surface that cannot be read is an error. Treating it as empty is how
       // a guard reports "clean" about something it never looked at.
-      throw new GuardError(`Cannot read the '${surface}' surface from ${file}.`);
+      throw new GuardError(`Cannot read the '${surface}' surface from ${root}.`);
     }
     findings.push(...scanSurface(pattern, surface, text));
   }
@@ -380,6 +540,52 @@ function main(argv) {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename)) {
-  process.exit(main(process.argv.slice(2)));
+// Compared by REAL path, both sides. Node resolves the ESM main entry to its
+// realpath while `process.argv[1]` keeps the path as it was typed, so invoked
+// through a symlink the two disagree, `main` never runs, and the process exits
+// 0 having done nothing. Measured on node v22.23.2: direct invocation runs and
+// the same file reached through a link is silent with status 0.
+//
+// That is the one exit code the workflow's `scanned` receipt cannot interpret -
+// a clean exit is not a scan - so the receipt no longer keys on it either. Both
+// halves are needed: this one stops the no-op, and the receipt stops the NEXT
+// way a no-op exits 0.
+//
+// BOTH sides, and any symlinked COMPONENT counts - the script does not have to
+// be the link. `path.resolve` is purely lexical and never touches the
+// filesystem, so a real script reached through a linked parent directory fails
+// the comparison exactly as a linked script does, with nothing linked inside
+// the repository and nothing in the diff. There is a live instance of that on
+// every machine here: `$TMPDIR` sits behind `/var -> /private/var`.
+//
+// Falls back to the lexical pair rather than throwing. A realpath that fails
+// means the entry has gone missing under us, which is not a reason to make
+// importing this module for its pure helpers fail at load.
+//
+// Written inline rather than as a `realOrLexical(candidate)` helper on purpose,
+// and measured rather than assumed: the helper form scores an
+// AIK_ts_generic_path_traversal on its `path.resolve(candidate)`, because that
+// rule counts parameter hops into a path operation rather than where the value
+// came from. Same reason the surface loop above reads constants after a chdir.
+//
+// Both or neither. Assigning the two separately would leave one real and one
+// lexical if the first call threw, which is the mismatch this whole comparison
+// exists to avoid.
+const entryPoint = process.argv[1];
+if (entryPoint) {
+  let entryId = path.resolve(entryPoint);
+  let selfId = path.resolve(import.meta.filename);
+  try {
+    const entryResolved = realpathSync(entryPoint);
+    const selfResolved = realpathSync(import.meta.filename);
+    entryId = entryResolved;
+    selfId = selfResolved;
+  } catch {
+    // Keep the lexical pair. Wrong through a symlink, which is the behaviour
+    // this block replaced, but a comparison that cannot run is not a reason to
+    // fail at import.
+  }
+  if (entryId === selfId) {
+    process.exit(main(process.argv.slice(2)));
+  }
 }
