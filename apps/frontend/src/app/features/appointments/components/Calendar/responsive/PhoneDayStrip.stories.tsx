@@ -214,3 +214,44 @@ export const NothingBookedAllWeek: Story = {
     await expect(within(canvasElement).getAllByRole('button')).toHaveLength(7);
   },
 };
+
+/* The contrast assertion in `Default` runs in ONE theme, and it is not the one
+   that matters. `preview.ts` `initialGlobals` pins only `viewport`, so the theme
+   decorator falls to its `'light'` default and every play function in this file
+   measures the light ramp.
+
+   The selected cell is `--blue-strong`, which is theme-aware: #1657c9 light
+   (6.48:1) and #2f74d9 dark (4.54:1). **Dark is the side with 0.045 of headroom
+   over AA**, and it was the side nothing exercised - the justification for
+   pinning it with a test was written into the PR that shipped it, and the test
+   only covered the comfortable half.
+
+   A story global beats a URL/toolbar override, so pinning it here is not
+   advisory. */
+export const DarkSelectedCell: Story = {
+  name: 'Dark: the selected cell still clears AA',
+  globals: { viewport: { value: 'mobile', isRotated: false }, theme: 'dark' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const strip = canvas.getByRole('group', { name: 'Select a day' });
+    const selected = within(strip)
+      .getAllByRole('button')
+      .find((cell) => cell.getAttribute('aria-pressed') === 'true');
+    await expect(selected).toBeDefined();
+
+    // The theme really is dark - otherwise this is the light assertion twice.
+    await expect(document.documentElement.dataset.theme).toBe('dark');
+
+    for (const [label, node] of [
+      ['weekday', (selected as HTMLElement).querySelector('.yc-day-strip__weekday')],
+      ['date', (selected as HTMLElement).querySelector('.yc-day-strip__date')],
+    ] as const) {
+      await expect(node).not.toBeNull();
+      const reading = measureContrast(node as Element);
+      await expect(
+        reading.ratio,
+        describeContrast(`dark selected day ${label}`, reading)
+      ).toBeGreaterThanOrEqual(reading.required);
+    }
+  },
+};
