@@ -9,8 +9,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Base text input. Use `FormInput` for floating-label inputs in forms. ' +
-          'This primitive is for composing custom inputs or quick standalone fields.',
+          'Canonical 40px text control. Compose it with `Field` for labels, help, errors, ' +
+          'required, and disabled states.',
       },
     },
   },

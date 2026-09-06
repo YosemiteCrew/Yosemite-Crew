@@ -3,6 +3,9 @@ import ReactDatePicker from 'react-datepicker';
 import { IoIosWarning } from 'react-icons/io';
 import { IoCalendarOutline } from 'react-icons/io5';
 
+import Field from '@/app/ui/Field';
+import { getFieldControlClassName } from '@/app/ui/fieldControlStyles';
+
 const INPUT_DATE_FORMAT = 'MMM d, yyyy';
 
 type DatepickerProps = {
@@ -51,7 +54,7 @@ const DateInputButton = ({
         ref={ref}
         type="button"
         onClick={onClick}
-        className={`flex h-[44px] w-[44px] items-center justify-center rounded-[12px]! border-[1.5px]! bg-[var(--field-bg)] transition-all duration-300 ease-in-out focus:shadow-[0_0_0_3px_var(--glow-b10)] ${className ?? ''}`}
+        className={`flex h-10 w-10 items-center justify-center ${getFieldControlClassName()} ${className ?? ''}`}
         aria-label="Toggle calendar"
         aria-describedby={errorId}
       >
@@ -65,17 +68,17 @@ const DateInputButton = ({
       ref={ref}
       type="button"
       onClick={onClick}
-      className={`relative flex h-[44px] w-full items-center justify-between rounded-[12px]! border-[1.5px] bg-[var(--field-bg)] px-[14px] text-left text-[14px] text-[var(--ink-body)] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)] ${className ?? ''}`}
+      id={inputId}
+      className={`relative flex h-10 items-center justify-between px-3 text-left ${getFieldControlClassName(Boolean(errorId))} ${className ?? ''}`}
       aria-label={
         value
           ? `${accessibleLabel}: ${value}, toggle calendar`
           : `${accessibleLabel}, toggle calendar`
       }
       aria-haspopup="dialog"
-      aria-controls={inputId}
       aria-describedby={errorId}
     >
-      <span className="truncate">{value || ''}</span>
+      <span className={`truncate ${value ? '' : 'text-[var(--ink-faint)]'}`}>{value || label}</span>
       <IoCalendarOutline
         size={15}
         color="var(--ink-faint)"
@@ -143,38 +146,51 @@ const Datepicker = ({
         inputId={inputId}
         label={placeholder}
         errorId={errorId}
-        className={`${error ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!'} focus:border-[var(--blue)]! ${className ?? ''}`}
+        className={className}
       />
     ),
-    [className, error, errorId, inputId, isInput, placeholder]
+    [className, errorId, inputId, isInput, placeholder]
   );
+
+  const picker = (
+    <ReactDatePicker
+      selected={selectedDate}
+      onChange={handleDateChange}
+      minDate={minDate}
+      maxDate={maxDate}
+      showMonthDropdown
+      showYearDropdown
+      dropdownMode="select"
+      dateFormat={INPUT_DATE_FORMAT}
+      fixedHeight
+      shouldCloseOnSelect
+      popperPlacement={isInput ? 'bottom-start' : 'bottom-end'}
+      showPopperArrow={false}
+      calendarClassName="yc-datepicker-calendar"
+      popperClassName="yc-datepicker-popper"
+      portalId={portal ? 'yc-datepicker-portal' : undefined}
+      wrapperClassName={isInput ? 'w-full' : ''}
+      customInput={customInput}
+    />
+  );
+
+  if (isInput) {
+    return (
+      <Field
+        htmlFor={inputId}
+        label={placeholder}
+        error={error}
+        messageId={errorId}
+        className={containerClassName}
+      >
+        {picker}
+      </Field>
+    );
+  }
 
   return (
     <div className={`relative ${containerClassName ?? ''}`}>
-      {isInput && (
-        <span className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]">
-          {placeholder}
-        </span>
-      )}
-      <ReactDatePicker
-        selected={selectedDate}
-        onChange={handleDateChange}
-        minDate={minDate}
-        maxDate={maxDate}
-        showMonthDropdown
-        showYearDropdown
-        dropdownMode="select"
-        dateFormat={INPUT_DATE_FORMAT}
-        fixedHeight
-        shouldCloseOnSelect
-        popperPlacement={isInput ? 'bottom-start' : 'bottom-end'}
-        showPopperArrow={false}
-        calendarClassName="yc-datepicker-calendar"
-        popperClassName="yc-datepicker-popper"
-        portalId={portal ? 'yc-datepicker-portal' : undefined}
-        wrapperClassName={isInput ? 'w-full' : ''}
-        customInput={customInput}
-      />
+      {picker}
 
       {error && (
         <div

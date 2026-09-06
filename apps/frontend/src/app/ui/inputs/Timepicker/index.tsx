@@ -1,7 +1,9 @@
 import React, { useId, useMemo } from 'react';
 import ReactDatePicker from 'react-datepicker';
-import { IoIosWarning } from 'react-icons/io';
 import { IoTimeOutline } from 'react-icons/io5';
+
+import Field from '@/app/ui/Field';
+import { getFieldControlClassName } from '@/app/ui/fieldControlStyles';
 
 type TimepickerProps = {
   value: string;
@@ -17,6 +19,7 @@ type TimeInputButtonProps = {
   value?: string;
   onClick?: () => void;
   label: string;
+  inputId: string;
   error?: string;
   errorId?: string;
   className?: string;
@@ -27,6 +30,7 @@ const TimeInputButton = ({
   value,
   onClick,
   label,
+  inputId,
   error,
   errorId,
   className,
@@ -37,15 +41,14 @@ const TimeInputButton = ({
       ref={ref}
       type="button"
       onClick={onClick}
-      className={`relative flex h-[44px] w-full items-center justify-between rounded-[12px]! border-[1.5px] bg-[var(--field-bg)] px-[14px] text-left text-[14px] text-[var(--ink-body)] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)] ${
-        error ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!'
-      } focus:border-[var(--blue)]! ${className ?? ''}`}
+      id={inputId}
+      className={`relative flex h-10 items-center justify-between px-3 text-left ${getFieldControlClassName(Boolean(error))} ${className ?? ''}`}
       aria-label={value ? `${label}: ${value}` : label}
       aria-haspopup="dialog"
       aria-describedby={error && errorId ? errorId : undefined}
     >
-      <span className="truncate" aria-hidden="true">
-        {value || ''}
+      <span className={`truncate ${value ? '' : 'text-[var(--ink-faint)]'}`} aria-hidden="true">
+        {value || label}
       </span>
       <IoTimeOutline
         size={16}
@@ -84,25 +87,24 @@ const Timepicker = ({
   minuteInterval = 5,
 }: TimepickerProps) => {
   const selectedTime = useMemo(() => toDateFromTimeString(value), [value]);
-  const errorId = useId();
+  const inputId = useId();
+  const errorId = error ? `${inputId}-error` : undefined;
   const customInput = useMemo(
     () => (
       <TimeInputButton
         value={value}
         label={label}
+        inputId={inputId}
         error={error}
-        errorId={error ? errorId : undefined}
+        errorId={errorId}
         className={className}
       />
     ),
-    [value, label, error, errorId, className]
+    [value, label, inputId, error, errorId, className]
   );
 
   return (
-    <div className="w-full">
-      <span className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]">
-        {label}
-      </span>
+    <Field htmlFor={inputId} label={label} error={error} messageId={errorId}>
       <ReactDatePicker
         selected={selectedTime}
         onChange={(nextValue) => {
@@ -123,18 +125,7 @@ const Timepicker = ({
         customInput={customInput}
         id={name}
       />
-
-      {error && (
-        <div
-          id={errorId}
-          role="alert"
-          className="mt-1.5 flex items-center gap-1 text-caption-2 text-text-error"
-        >
-          <IoIosWarning className="text-text-error" size={14} aria-hidden="true" />
-          <span>{error}</span>
-        </div>
-      )}
-    </div>
+    </Field>
   );
 };
 

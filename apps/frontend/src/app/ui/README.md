@@ -4,7 +4,7 @@ Reusable UI primitives and shared components live here.
 
 Examples:
 
-- Button, Input, Card, Badge
+- Button, Field, Input, Card, Badge
 - Typography and layout helpers (Text, Stack)
 
 Available now:
@@ -14,7 +14,8 @@ Available now:
 - Stack (flex layout helper)
 - Card (surface wrapper)
 - Badge (status/label chip)
-- Input (base input with token-based borders)
+- Field (bound label plus shared hint/error slot)
+- Input and Textarea (40px field controls with required placeholders)
 - Inputs (Datepicker, Dropdowns, Search, FileInput, etc.)
 - Filters (Forms, Inventory, general filters)
 - Cards (Appointment, Inventory, Forms, etc.)
