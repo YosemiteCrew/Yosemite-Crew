@@ -186,3 +186,7 @@ const LaunchGrowTab = () => {
 };
 
 export default LaunchGrowTab;
+
+// PROOF COMMIT - to be reverted. A hardcoded colour planted so the CI gate can
+// be watched failing on a real pull request rather than only on a laptop.
+export const PLANTED_FOR_CI_PROOF = '#ff00ff';
