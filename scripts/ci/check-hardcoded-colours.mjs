@@ -532,7 +532,18 @@ const main = () => {
        merely behind is not itself an error, and turning it into one would red
        every open PR the moment the baseline moves. What it must not do is stay
        quiet, because "your tree has more than the baseline says" is the same
-       sentence for a new literal and for one the baseline's commit removed. */
+       sentence for a new literal and for one the baseline's commit removed.
+
+       LOAD-BEARING DEPENDENCY, and it is not local to this branch: living under
+       the failure arm is sufficient ONLY because the ratchet fails in BOTH
+       directions. A stale baseline shifts counts either way - the branch is
+       missing literals the baseline's commit added as well as carrying ones it
+       removed - and today a decrease fails just as loudly as an increase, so
+       every stale tree reaches this line. Make the gate a ceiling that ignores
+       decreases and a stale baseline becomes a SILENT FALSE PASS, at which
+       point this note has to print on success too. `compare` reporting the loss
+       direction is what holds it up; the test named for this dependency reds if
+       that stops being true. */
     const freshness = baselineFreshness(generatedAt);
     if (freshness.state === 'stale') {
       console.error(
