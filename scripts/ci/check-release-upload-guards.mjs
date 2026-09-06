@@ -4,8 +4,8 @@
  *
  * `mobile-release.yml` runs on `push: tags: mobile-v*` and on `workflow_dispatch`.
  * The jobs are deliberately reachable both ways so the Android and iOS signing
- * chains can be exercised without cutting a release — but until #2817 the two
- * submitting steps carried no condition at all, so a plain dispatch shipped a
+ * chains can be exercised without cutting a release — but the two submitting
+ * steps once carried no condition at all, so a plain dispatch shipped a
  * build to the Play internal track (`status: completed`) and to TestFlight. There
  * was no dispatch shape that built without uploading: `platform` offers only
  * `both`, `android` and `ios`.
