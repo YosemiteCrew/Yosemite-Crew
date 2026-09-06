@@ -5,6 +5,15 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 import type { InventoryFiltersState } from '@/app/features/inventory/pages/Inventory/types';
 import { defaultFilters } from '@/app/features/inventory/pages/Inventory/utils';
 import InventoryFilterModal, { type FilterChip } from './InventoryFilterModal';
+/* Cross-feature import, and deliberately so rather than a second copy: this is
+   the probe merged with #2785, and a duplicated contrast helper is how the two
+   drift apart on the thing they both exist to measure. It belongs in
+   `@/app/lib`; moving it means touching a file another desk merged an hour ago,
+   so that is a separate change and not mine to make unasked. */
+import {
+  describeContrast,
+  measureContrast,
+} from '@/app/features/appointments/components/Calendar/responsive/contrastProbe';
 
 const LOCATIONS = ['Main store', 'Pharmacy fridge', 'Surgery trolley'];
 const CATEGORIES = ['Medicine', 'Vaccine', 'Consumable'];
@@ -206,6 +215,56 @@ const findOpenDialog = async () => {
   return openDialog();
 };
 
+/** Every chip the seeded selection produces, in render order: status, then the two
+    categories, then the subcategory, then the location. */
+const CHIP_LABELS = ['low stock', 'Medicine', 'Vaccine', 'Antibiotic', 'Main store'];
+
+/**
+ * Every chip label must be readable on the chip's own composited fill.
+ *
+ * The chip shipped as `bg-badge-blue-bg text-badge-blue-text` - #eaf3ff on
+ * #007cf5 - which measures 3.61:1 at 14px/500 where 4.5:1 is required. Measured
+ * on composited pixels rather than asserted on class names: the class was
+ * present and correct-looking, and only the pixels can fail.
+ *
+ * Run from BOTH a light-pinned and a dark-pinned story. The badge-blue pair has
+ * no dark variant, so this particular defect fails identically in both - but the
+ * fix moves the chip onto `--inset`/`--ink`, which DO flip per theme (13.24:1
+ * light, 12.64:1 dark), and a single-theme reading of a theme-flipping pair only
+ * ever covers half of it. Which half would depend on the toolbar default rather
+ * than on anything the story says, which is why both stories pin `theme`.
+ */
+const expectChipLabelsReadable = async (dialog: HTMLElement) => {
+  const panel = within(dialog);
+  // The row has to be the length we think it is before a reading off it means
+  // anything: a loop over zero chips passes without measuring a single pixel, and a
+  // loop over three of five reports a clean row while two go unmeasured.
+  await expect(panel.getAllByRole('button', { name: /^Remove / })).toHaveLength(
+    CHIP_LABELS.length
+  );
+  for (const label of CHIP_LABELS) {
+    const chip = panel.getByRole('button', { name: `Remove ${label}` }).parentElement;
+    await expect(chip).not.toBeNull();
+    const reading = measureContrast(chip as Element);
+    await expect(
+      reading.ratio,
+      describeContrast(`filter chip "${label}"`, reading)
+    ).toBeGreaterThanOrEqual(reading.required);
+  }
+};
+
+/** Seeds the one state that renders the chip row; shared by the two theme stories. */
+const SELECTED_ARGS = {
+  openSections: ['stock-status', 'category'],
+  expandedCategories: ['Medicine'],
+  initialFilters: {
+    status: 'LOW_STOCK' as const,
+    categories: ['Medicine', 'Vaccine'],
+    subCategories: ['Antibiotic'],
+    locations: ['Main store'],
+  },
+};
+
 const meta = {
   title: 'Inventory/InventoryFilterModal',
   component: InventoryFilterHarness,
@@ -373,19 +432,15 @@ export const SubcategoriesExpanded: Story = {
 };
 
 export const WithSelections: Story = {
-  name: 'With chips and counts',
-  args: {
-    openSections: ['stock-status', 'category'],
-    expandedCategories: ['Medicine'],
-    initialFilters: {
-      status: 'LOW_STOCK',
-      categories: ['Medicine', 'Vaccine'],
-      subCategories: ['Antibiotic'],
-      locations: ['Main store'],
-    },
-  },
+  name: 'With chips and counts (light)',
+  args: SELECTED_ARGS,
+  /* Pinned rather than inherited. The contrast assertion below is only capable of
+     failing in light, so leaving the theme to the toolbar default makes it silently
+     vacuous the day that default changes. */
+  globals: { theme: 'light' },
   play: async () => {
-    const panel = within(openDialog());
+    const dialog = openDialog();
+    const panel = within(dialog);
     // The chip row and the "Clear all" pill exist only while something is selected.
     await expect(panel.getByRole('button', { name: 'Clear all' })).toBeInTheDocument();
     await expect(panel.getByRole('button', { name: 'Remove low stock' })).toBeInTheDocument();
@@ -398,6 +453,8 @@ export const WithSelections: Story = {
     // The nested subcategory is both checked and expanded.
     await expect(panel.getByRole('checkbox', { name: 'Antibiotic' })).toBeChecked();
     await expect(panel.getByRole('checkbox', { name: 'Medicine' })).toBeChecked();
+
+    await expectChipLabelsReadable(dialog);
     await expect(panel.getByRole('radio', { name: 'low stock' })).toBeChecked();
   },
   parameters: {
@@ -409,6 +466,30 @@ export const WithSelections: Story = {
           'rendered - the badge is a `size-5` circle inside the header row, so its presence changes ' +
           'that row rather than overlaying it. Note the collapsed Location section still counts 1 ' +
           'even with nothing on screen to explain it: that badge is the only trace of the filter.',
+      },
+    },
+  },
+};
+
+export const WithSelectionsDark: Story = {
+  name: 'With chips and counts (dark)',
+  args: SELECTED_ARGS,
+  globals: { theme: 'dark' },
+  play: async () => {
+    const dialog = openDialog();
+    // Chips only, and the count guard lives in the helper. The light story above owns
+    // the structural assertions; repeating them here would be a second copy to drift.
+    await expectChipLabelsReadable(dialog);
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The same seeded selection in espresso dark, and it is a real control rather than a ' +
+          'decorative twin: restoring `bg-badge-blue-bg text-badge-blue-text` fails this story at ' +
+          'the same 3.61:1 as the light one, because that pair has no dark variant. The pair the ' +
+          'fix uses does flip - `--inset`/`--ink` measures 13.24:1 in light and 12.64:1 here - so ' +
+          'this is the story that would catch the chip surface being re-tinted in dark alone.',
       },
     },
   },

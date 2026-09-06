@@ -118,14 +118,31 @@ const SelectedFilterChips = ({ selectedFilterChips }: SelectedFilterChipsProps) 
       {selectedFilterChips.map((chip) => (
         <span
           key={chip.id}
-          className="inline-flex items-center gap-1.5 rounded-full bg-[var(--inset)] text-[var(--ink)] py-1 pl-3 pr-2 text-caption-1 capitalize text-badge-blue-text"
+          /* Off the badge-blue palette, because that pair cannot be made to
+             pass AA. This chip shipped as `bg-badge-blue-bg text-badge-blue-text`
+             - #eaf3ff on #007cf5 - which measures 3.61:1 in BOTH themes at
+             14px/500, where 4.5:1 is required. The pair has no dark variant, so
+             the failure is theme-independent, and re-inking it does not save it:
+             on a #007cf5 fill the best any ink can reach is 5.20:1 (pure black),
+             and white is 4.04:1 - which globals.css:1693 already recorded for
+             the neighbouring shade. So the fill has to change, and a removable
+             applied-filter chip is not a status badge; `--inset`/`--ink` is the
+             quiet surface pair and measures 13.24:1 light, 12.64:1 dark.
+             (The design system also has `--chip-selected-bg`/`--chip-selected-ink`
+             = `--ink`/`--screen`, a solid inverted pill. That is the TOGGLE chip
+             in ui/filters/FilterChip; using it here would turn a row of five
+             removable chips into five solid dark pills, which is a visual-weight
+             change rather than a contrast fix. One line if a reviewer wants it.) */
+          className="inline-flex items-center gap-1.5 rounded-full bg-[var(--inset)] py-1 pl-3 pr-2 text-caption-1 capitalize text-[var(--ink)]"
         >
           {chip.label}
           <button
             type="button"
             aria-label={`Remove ${chip.label}`}
             onClick={chip.onRemove}
-            className="inline-flex size-4 items-center justify-center rounded-full hover:bg-badge-blue-text/15 transition-colors"
+            /* Hover tint follows the chip's own ink, since the badge-blue
+               tint it used no longer appears anywhere on this chip. */
+            className="inline-flex size-4 items-center justify-center rounded-full hover:bg-[var(--ink)]/10 transition-colors"
           >
             <FiX size={12} aria-hidden="true" />
           </button>
