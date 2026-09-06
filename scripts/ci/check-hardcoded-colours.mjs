@@ -48,6 +48,7 @@ import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from '
 import { join, dirname, relative, resolve, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
+import { spawnSync } from 'node:child_process';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -284,6 +285,50 @@ export const compare = (counts, baseline, justified = {}) => {
 };
 
 /**
+ * Where the baseline was generated, and whether this tree can contain it.
+ *
+ * WHY THIS EXISTS. The baseline is a per-file count of a specific tree. Point it
+ * at a tree that PREDATES it and every literal the baseline's commit removed
+ * reads as a literal this branch just added - real file, real line, real colour,
+ * and a completely invented finding. It happened within minutes of the gate
+ * landing on dev: a reviewer paired dev's new baseline with a branch cut before
+ * it and got `ShareEntityModal.tsx: 0 -> 1  rgba(29,28,27,0.44)`, which is a
+ * literal the baseline's own commit DELETED. One keystroke from telling another
+ * desk their PR introduced new colours.
+ *
+ * The gate cannot tell those apart from the counts alone - both are "the tree
+ * has more than the baseline says". So it stops inferring and prints the state.
+ *
+ * Three outcomes, and the third is the one that must not be silent: `current`,
+ * `stale` (the baseline's commit is not in this history), and `unknown` (git
+ * would not answer). An unknown that quietly behaved like `current` would be a
+ * fifth thing draining to fine.
+ */
+const git = (...args) => {
+  const run = spawnSync('git', args, { cwd: repoRoot, encoding: 'utf8' });
+  if (run.error || run.status === null) return { ok: false, out: '' };
+  return { ok: run.status === 0, status: run.status, out: (run.stdout || '').trim() };
+};
+
+/* `run` is injectable so the three states can be tested without depending on
+   the shape of this repository's history - a test that needs a real
+   non-ancestor commit would pass or fail on which commits the CI clone happens
+   to have fetched, which is the test grading the checkout rather than the code. */
+export const baselineFreshness = (generatedAt, run = git) => {
+  if (!generatedAt) return { state: 'unknown', why: 'the baseline records no commit' };
+  const known = run('cat-file', '-e', `${generatedAt}^{commit}`);
+  if (!known.ok) {
+    return { state: 'unknown', why: `commit ${generatedAt.slice(0, 9)} is not in this clone` };
+  }
+  const head = run('rev-parse', 'HEAD');
+  if (!head.ok) return { state: 'unknown', why: 'git could not resolve HEAD' };
+  const contains = run('merge-base', '--is-ancestor', generatedAt, 'HEAD');
+  if (contains.ok) return { state: 'current', at: generatedAt };
+  if (contains.status === 1) return { state: 'stale', at: generatedAt, head: head.out };
+  return { state: 'unknown', why: 'git merge-base could not answer' };
+};
+
+/**
  * `{ files, justified }`.
  *
  * `files` is debt: literals that should become tokens, counted per file so the
@@ -315,7 +360,7 @@ const readBaseline = () => {
       throw new GateError(`justified entry for ${file} has no positive "n"`);
     }
   }
-  return { files: parsed.files ?? {}, justified };
+  return { files: parsed.files ?? {}, justified, generatedAt: parsed.generated_at ?? null };
 };
 
 /**
@@ -336,9 +381,23 @@ const writeBaseline = (counts, scanned, justified = {}) => {
       .map(([file, entry]) => [file, { n: counts[file] ?? 0, why: entry.why }])
   );
   const total = Object.values(files).reduce((n, c) => n + c, 0);
+  const head = git('rev-parse', 'HEAD');
   writeFileSync(
     BASELINE_PATH,
-    `${JSON.stringify({ generated_by: 'scripts/ci/check-hardcoded-colours.mjs --update', total, justified: carried, files }, null, 2)}\n`
+    `${JSON.stringify(
+      {
+        generated_by: 'scripts/ci/check-hardcoded-colours.mjs --update',
+        // The commit this count describes. Read back on every failing run so a
+        // branch that predates it is told so instead of being handed the
+        // baseline's own deletions as its additions.
+        generated_at: head.ok ? head.out : null,
+        total,
+        justified: carried,
+        files,
+      },
+      null,
+      2
+    )}\n`
   );
   return { total, fileCount: Object.keys(files).length, scanned };
 };
@@ -425,7 +484,7 @@ const main = () => {
     for (const f of findings) console.log(`${f.file}:${f.line}  ${f.text}`);
   }
 
-  const { files: baseline, justified } = readBaseline();
+  const { files: baseline, justified, generatedAt } = readBaseline();
 
   if (args.includes('--update')) {
     const { total, fileCount } = writeBaseline(counts, scanned, justified);
@@ -468,7 +527,30 @@ const main = () => {
       console.error(`  ${file}: ${was} -> ${now}\n      reason on record: ${why}`);
     }
   }
-  if (increased.length || decreased.length || vanished.length || drifted.length) return 1;
+  if (increased.length || decreased.length || vanished.length || drifted.length) {
+    /* Printed only on a failure, and only ever as context: a branch that is
+       merely behind is not itself an error, and turning it into one would red
+       every open PR the moment the baseline moves. What it must not do is stay
+       quiet, because "your tree has more than the baseline says" is the same
+       sentence for a new literal and for one the baseline's commit removed. */
+    const freshness = baselineFreshness(generatedAt);
+    if (freshness.state === 'stale') {
+      console.error(
+        `\nREAD THIS BEFORE ACTING ON THE ABOVE. The baseline describes commit ` +
+          `${freshness.at.slice(0, 9)}, which is NOT in this tree's history.\n` +
+          'Literals that commit REMOVED will appear above as literals this branch ADDED - ' +
+          'real file, real line, real colour, wrong conclusion.\n' +
+          'Merge origin/dev into this branch and re-run before believing any of it.'
+      );
+    } else if (freshness.state === 'unknown') {
+      console.error(
+        `\nCould not check whether the baseline is current: ${freshness.why}. ` +
+          'If this branch predates the baseline, the findings above may be its deletions ' +
+          'rather than your additions.'
+      );
+    }
+    return 1;
+  }
 
   const debt = Object.entries(counts)
     .filter(([file]) => !(file in justified))

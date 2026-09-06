@@ -1,5 +1,6 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
+  "generated_at": "1007378eabe50dcafd4723705184761db209eff8",
   "total": 575,
   "justified": {
     "apps/frontend/src/app/features/appointments/components/Availability/Availability.tsx": {
