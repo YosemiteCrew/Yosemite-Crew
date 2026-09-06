@@ -1958,6 +1958,17 @@ html[data-theme='dark'] [data-yc-app] ::selection {
     0 10px 30px var(--sh08);
 }
 
+/* Canonical in-flow surface for cards, sections, and table shells. Keep the
+   recipe in one utility so shared surfaces cannot drift between components. */
+.yc-surface {
+  background: var(--screen);
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05);
+}
+
 /* App runtime toasts (react-toastify).
    One recipe for every toast `useNotify` raises: a 360px warm --screen card
    with a hairline and a level-3 float, 16px popover radius, Satoshi, and no
