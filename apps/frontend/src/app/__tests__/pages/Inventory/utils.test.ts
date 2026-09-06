@@ -227,12 +227,14 @@ describe('Inventory Utils', () => {
       });
       // default
       expect(getStatusBadgeStyle('Unknown')).toEqual({
-        color: 'var(--color-badge-blue-text)',
-        backgroundColor: 'var(--color-badge-blue-bg)',
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
       });
       expect(getStatusBadgeStyle()).toEqual({
-        color: 'var(--color-badge-blue-text)',
-        backgroundColor: 'var(--color-badge-blue-bg)',
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
       });
     });
   });

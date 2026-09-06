@@ -206,13 +206,6 @@ export const getStatusBadgeStyle = (statusLabel?: string) => {
         backgroundColor: 'var(--color-pill-danger-bg)',
         borderColor: 'var(--color-pill-danger-border)',
       };
-    case 'out of stock':
-    case 'hidden':
-      return {
-        color: 'var(--color-pill-neutral-text)',
-        backgroundColor: 'var(--color-pill-neutral-bg)',
-        borderColor: 'var(--color-pill-neutral-border)',
-      };
     case 'healthy':
     case 'active':
     case 'in stock':
@@ -221,10 +214,20 @@ export const getStatusBadgeStyle = (statusLabel?: string) => {
         backgroundColor: 'var(--color-pill-success-bg)',
         borderColor: 'var(--color-pill-success-border)',
       };
+    case 'out of stock':
+    case 'hidden':
     default:
+      /* The neutral pill, not the brand badge. `--color-badge-blue-text` on
+         `--color-badge-blue-bg` measures 3.61:1, and this renders through
+         `StatusPill` at 10px/700 - well under the 18.66px-bold large-text
+         threshold, so the bar is 4.5:1 and no ink rescues a fill identical in
+         both themes. `--color-pill-neutral-*` already carries the
+         "unclassified" meaning, which is why the two explicitly unstocked
+         states share this branch rather than duplicating it. */
       return {
-        color: 'var(--color-badge-blue-text)',
-        backgroundColor: 'var(--color-badge-blue-bg)',
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
       };
   }
 };
