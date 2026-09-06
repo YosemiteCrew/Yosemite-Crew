@@ -72,6 +72,7 @@ jest.mock("../src/config/auth-hooks", () => ({
 
 import { createApp } from "../src/app";
 import {
+  EXPECTED_CONTROLS,
   getControlReports,
   hasFailedControl,
   resetControlsForTest,
@@ -463,12 +464,16 @@ describe("createApp reports the authentication control", () => {
     const body = JSON.parse(controls.body) as {
       status: string;
       controls: Array<{ name: string; state: string; detail?: string }>;
+      expected: string[];
     };
 
     // Liveness is unchanged on purpose: the process is up, the control is not.
     expect(liveness.statusCode).toBe(200);
     expect(controls.statusCode).toBe(503);
     expect(body.status).toBe("degraded");
+    // Sent on the degraded response too: a reader comparing the two lists needs
+    // it most exactly when something is wrong.
+    expect(body.expected).toEqual([...EXPECTED_CONTROLS]);
     expect(body.controls).toContainEqual(
       expect.objectContaining({
         name: "authentication",
@@ -487,6 +492,7 @@ describe("createApp reports the authentication control", () => {
     const body = JSON.parse(controls.body) as {
       status: string;
       controls: Array<{ name: string; state: string }>;
+      expected: string[];
     };
 
     expect(controls.statusCode).toBe(200);
@@ -494,5 +500,21 @@ describe("createApp reports the authentication control", () => {
     expect(body.controls).toContainEqual(
       expect.objectContaining({ name: "authentication", state: "applied" }),
     );
+    expect(body.expected).toEqual([...EXPECTED_CONTROLS]);
+  });
+
+  // #2758: the deploy gate ships when a named control is absent, because a
+  // rollback deploys a bundle that never recorded it. This key is what lets the
+  // gate tell that apart from a bundle that should have recorded it and did
+  // not - so its ABSENCE is the version marker, and it must not be conditional
+  // on state, on configuration, or on anything else.
+  it("declares the controls it registers on every boot, including an auth-less one", async () => {
+    const app = createApp();
+
+    const controls = await request(app, { path: "/health/controls" });
+    const body = JSON.parse(controls.body) as { expected: string[] };
+
+    expect(body.expected).toEqual([...EXPECTED_CONTROLS]);
+    expect(body.expected).toContain("authentication");
   });
 });
