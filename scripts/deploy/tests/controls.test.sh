@@ -85,8 +85,20 @@ body_declaring() { # body_declaring <status> <expected-names> <control-json>...
   for part in "$@"; do
     [ -z "$joined" ] && joined="$part" || joined="$joined,$part"
   done
+  # read -ra, not `for name in $expected`. An unquoted expansion is also a
+  # pathname expansion, so a glob-shaped name would expand against whatever
+  # directory the suite happens to run from - and this is the builder every
+  # other fixture in this file asserts against. A builder whose output depends
+  # on the cwd is how each machine covers something different while every
+  # self-test passes. Same hazard #2757 deleted an SC2086 disable to remove
+  # from the call site; raised in review on #2763.
+  #
+  # The +"${...}" guard is for `set -u` on bash 3.2, where expanding an empty
+  # array is an unbound-variable error rather than nothing.
   local declared="" name
-  for name in $expected; do
+  local names_array=()
+  read -ra names_array <<< "$expected"
+  for name in ${names_array[@]+"${names_array[@]}"}; do
     [ -z "$declared" ] && declared="\"$name\"" || declared="$declared,\"$name\""
   done
   printf '{"status":"%s","controls":[%s],"expected":[%s]}' \
@@ -266,6 +278,67 @@ stream-upload-policy: declared but never reported" \
 ships "ships on the response shape a pre-#2755 bundle actually returns" \
   '{"status":"ok","controls":[{"name":"stream-upload-policy","state":"applied","at":"2026-09-04T22:21:40.663Z"}]}' \
   authentication
+
+# ---------------------------------------------------------------------------
+# A declaration can only contradict a list that was actually READ.
+#
+# Raised in review: the `controls` fallback and the `expected` fallback are
+# sibling ternaries with opposite policies, and reading absence turned the first
+# one from an inert defence into something that decides a block. Without these
+# rows, a body whose `controls` is a string stops a deploy while the line four
+# below it says a body whose `expected` is a string ships - the same malformed
+# body, opposite answers, and nothing in the suite noticing.
+#
+# The three shapes are separate cases because they reach the check differently:
+# a missing key, a wrong type, and null.
+# ---------------------------------------------------------------------------
+ships "ships when the declaration is good but there is no controls key" \
+  '{"status":"ok","expected":["authentication"]}' \
+  authentication
+
+ships "ships when the declaration is good but controls is not an array" \
+  '{"status":"ok","controls":"nope","expected":["authentication"]}' \
+  authentication
+
+ships "ships when the declaration is good but controls is null" \
+  '{"status":"ok","controls":null,"expected":["authentication"]}' \
+  authentication
+
+# The row that keeps the three above from being a blanket "any odd controls
+# ships". An EMPTY array is not an unreadable one: it is a list we read, saying
+# nothing was recorded, from a bundle that said it would record this. That is
+# the contradiction, and it is the only difference between this row and the
+# three above.
+check "blocks when a readable but empty controls list contradicts the declaration" \
+  "authentication: declared but never reported" \
+  "$(deploy_blocking_control_failures \
+      '{"status":"ok","controls":[],"expected":["authentication"]}' \
+      authentication)"
+
+# ---------------------------------------------------------------------------
+# The fixture BUILDER, not the gate. body_declaring splits its name list, and an
+# unquoted split is also a pathname expansion - so a glob-shaped name would
+# expand against whatever directory the suite runs from, and every fixture in
+# this file comes out of that builder.
+#
+# The seeded directory is load-bearing and is asserted before it is used: with
+# an EMPTY cwd an unquoted expansion also leaves `*` alone, so this test would
+# pass on the broken builder and prove nothing.
+# ---------------------------------------------------------------------------
+GLOB_SEED="$(mktemp -d)"
+: > "$GLOB_SEED/authentication"
+check "the glob fixture directory has something to expand against" \
+  "seeded" \
+  "$([ -f "$GLOB_SEED/authentication" ] && echo seeded || echo empty)"
+
+check "the fixture builder treats a glob-shaped name as a literal name" \
+  '{"status":"ok","controls":[],"expected":["*"]}' \
+  "$(cd "$GLOB_SEED" && body_declaring ok '*')"
+
+rm -rf "$GLOB_SEED"
+check "the glob fixture directory was removed, by name" \
+  "gone" \
+  "$([ -e "$GLOB_SEED" ] && echo "still there: $GLOB_SEED" || echo gone)"
 
 # ---------------------------------------------------------------------------
 # The row the table above does not decide: an unreadable BODY ships, but an
