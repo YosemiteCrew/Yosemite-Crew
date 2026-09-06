@@ -35,6 +35,19 @@ describe('the duplicate detector itself', () => {
     expect(parseRules(css).flatMap(duplicatesWithin)).toEqual([]);
   });
 
+  it('reports a duplicate whose value the formatter wrapped', () => {
+    /* The reader needed the `;` on the line that names the property, so a
+       wrapped declaration was invisible to it - and a duplicate of one was
+       invisible too, while this scan reported a confident zero. Two of
+       `globals.css`'s own declarations are wrapped. */
+    const css =
+      ':root {\n  --a:\n    0 2px 4px rgba(0, 0, 0, 0.28),\n    0 12px 28px rgba(0, 0, 0, 0.44);\n  --b: 1px;\n  --a: 2px;\n}\n';
+    const found = parseRules(css).flatMap(duplicatesWithin);
+    expect(found).toHaveLength(1);
+    expect(found[0].prop).toBe('--a');
+    expect(found[0].declarations.map((d) => d.line)).toEqual([2, 6]);
+  });
+
   it('does not read a token named inside a comment as a declaration', () => {
     const css = ':root {\n  /* --a: 1px; is what this used to be */\n  --a: 2px;\n}\n';
     expect(parseRules(css).flatMap(duplicatesWithin)).toEqual([]);
