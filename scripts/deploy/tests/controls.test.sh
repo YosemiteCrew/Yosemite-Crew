@@ -49,6 +49,9 @@ check() { # check <name> <expected> <actual>
 ships() {
   local name="$1" json="$2"
   shift 2
+  # Declaration only, on purpose, and on its own line: merging it into the
+  # assignment below makes `local` the command whose status is reported, and
+  # `local` always succeeds. Guarded at the bottom of this file.
   local out rc=0
   out="$(deploy_blocking_control_failures "$json" "$*")" || rc=$?
   if [ "$rc" -eq 0 ] && [ -z "$out" ]; then
@@ -197,9 +200,23 @@ stream-upload-policy: failed (updateAppSettings rejected)" \
 # A name is a name. Nothing sets one containing a glob character, but the old
 # variadic signature forced the caller to leave its list unquoted, and this is
 # the reading of that list that a pathname expansion would have destroyed.
-ships "treats a glob-shaped name as a literal name" \
-  "$(body degraded "$(control authentication failed 'auth env incomplete')")" \
-  '*'
+#
+# The row is only a guard because of the cwd it runs in. `*` in an empty
+# directory expands to itself, so a glob-expanding implementation would pass
+# this row anywhere the expansion happens to match nothing - green for the
+# hazard it is named after. Seeding a directory holding one file named after
+# the failed control in the fixture is what makes the two implementations
+# disagree: expanded, the name matches and the helper blocks; literal, there is
+# no control called `*` and it ships. Raised in review, where the same mutation
+# was red from the repo root and green from a directory without that file.
+GLOB_CWD="$(mktemp -d)"
+trap 'rm -rf "$GLOB_CWD"' EXIT
+: > "$GLOB_CWD/authentication"
+GLOB_BODY="$(body degraded "$(control authentication failed 'auth env incomplete')")"
+GLOB_BACK="$PWD"
+cd "$GLOB_CWD"
+ships "treats a glob-shaped name as a literal name" "$GLOB_BODY" '*'
+cd "$GLOB_BACK"
 
 # /health is the liveness gate and it runs first. A body this function cannot
 # read is not a second chance to decide the process is dead.
@@ -441,6 +458,73 @@ if grep -qE 'deploy_blocking_control_failures "[^"]*CONTROLS_BODY" "[^"]*DEPLOY_
 else
   no "the blocking-control list is passed as one quoted argument" \
      "an unquoted list is also a pathname expansion; see lib/controls.sh"
+fi
+
+# The guard above is about api-deploy.sh. This one is about THIS file, and it
+# exists because ships() only distinguishes a crash from a ship while its
+# declaration and its assignment stay on separate lines. A declaration that
+# also assigns reports the status of `local`, which succeeds whatever the
+# substitution did, so tidying those two lines into one restores every ship row
+# to green with the crash still there. It is the same shape as the `|| true`
+# guarded at the call site above: a wrapper that always succeeds, hiding the
+# status of the thing it wraps.
+#
+# The first version of this guard pinned one spelling and two others were green
+# with the crash in the tree - raised in review. Measured on bash 3.2.57 and
+# bash 5.3.15, a function returning 7, with a succeeding command as the positive
+# control on every row:
+#
+#   local out="$(crash)"          rc=0   swallowed    both shells
+#   local out=$(crash)            rc=0   swallowed    both shells
+#   local rc=0 out="$(crash)"     rc=0   swallowed    both shells
+#   local out=`crash`             rc=0   swallowed    both shells
+#   local out="`crash`"           rc=0   swallowed    both shells
+#   local z=1; local out="$(...)" rc=0   swallowed    both shells
+#   local out; out="$(crash)"     rc=7   CARRIES      both shells
+#   local out  <newline>  out=... rc=7   CARRIES      both shells
+#
+# The enumeration is closed rather than collected: command substitution has two
+# syntaxes, `$(...)` and backticks, each bare or double-quoted, which is four -
+# and each of those can be the first command on the line or follow a `;`. Single
+# quotes substitute nothing, so there is no status to swallow.
+#
+# So the rule is the KEYWORD plus an assignment from a substitution on the same
+# command, not one spelling of it. `[^;#]` is what keeps the two carrying forms
+# out: a `;` ends the declaration and starts a new command, which is the fix
+# itself, and a `#` is a trailing comment - the costume that has beaten the
+# guards in this file three times, and the one this pattern must not fire on.
+# Refusing to cross a `;` is not the same as failing to see past one: the
+# keyword is looked for at the start of the line OR after a `;`, and `out` is
+# not a keyword, so the fix stays silent while `; local out="$(...)"` does not.
+# The `;` alternative carries `^[^#]*` rather than being bare, because a `;`
+# INSIDE a trailing comment is not a command start - `local a=1  # x; local
+# out="$(y)"` matched under the bare form, which is the costume again, found by
+# running the false-positive set a second time after widening rather than only
+# the new positives. Verified on BSD grep 2.6.0, GNU grep 3.11 and busybox: the
+# same 11 of 20 cases match on all three.
+#
+# Two command starts remain uncovered and are left so deliberately.
+# `if true; then local out="$(...)"; fi` and `true && local out="$(...)"` both
+# swallow on both shells and both evade. Neither is a tidy-up of a two-line
+# declaration - they are new control flow - and adding `&&`, `||`, `then` and
+# `do` as anchors re-admits comment text at each of them, which is the trade
+# that has gone wrong twice in this guard already.
+#
+# Stated cost: this bans declare-and-assign for the whole file, not just for
+# ships(), so a future `local tmp="$(mktemp -d)"` or `local tmp=$(mktemp -d)`
+# whose status nobody cares about is a false positive. The message names the
+# line. Worth it here because the form is indistinguishable from the correct one
+# by reading, and the whole point of the ships rows is a status.
+#
+# Comments blanked for the same reason DEPLOY_CODE blanks them: otherwise the
+# paragraph you are reading would redden its own guard.
+TEST_CODE="$(sed -E 's/^[[:space:]]*#.*$//' "${BASH_SOURCE[0]}")"
+SWALLOWED="$(grep -nE '(^[[:space:]]*|^[^#]*;[[:space:]]*)(local|declare|readonly|export)[[:space:]][^;#]*="?(\$\(|`)' <<< "$TEST_CODE" || true)"
+if [ -z "$SWALLOWED" ]; then
+  ok "no declaration in this file swallows the status of a command substitution"
+else
+  no "no declaration in this file swallows the status of a command substitution" \
+     "$SWALLOWED"
 fi
 
 PROBE_LINE="$(grep -nE "$PROBE_RE" <<< "$DEPLOY_CODE" | head -1 | cut -d: -f1 || true)"
