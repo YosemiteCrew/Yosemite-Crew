@@ -205,7 +205,7 @@ export const FieldError = ({ message }: { message?: string }) => {
   return (
     <div className="mt-1 flex items-center gap-1 px-4 text-caption-2 text-text-error" role="alert">
       <IoIosWarning className="shrink-0 text-text-error" size={13} aria-hidden="true" />
-      <span style={{ ...text14M, color: 'var(--color-text-error, #d32f2f)' }}>{message}</span>
+      <span style={{ ...text14M, color: 'var(--color-text-error)' }}>{message}</span>
     </div>
   );
 };
@@ -984,7 +984,7 @@ export const AppointmentFormContent = ({
     {formState.submitted && formDataErrors.booking && (
       <div className="mt-4 flex items-center gap-2 rounded-2xl border border-input-border-error px-4 py-3">
         <IoIosWarning className="shrink-0 text-text-error" size={16} aria-hidden="true" />
-        <span style={{ ...text14M, color: 'var(--color-text-error, #d32f2f)' }}>
+        <span style={{ ...text14M, color: 'var(--color-text-error)' }}>
           {formDataErrors.booking}
         </span>
       </div>

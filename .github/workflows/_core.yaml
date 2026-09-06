@@ -81,6 +81,16 @@ jobs:
       - name: Test the CI and security scripts
         run: pnpm run test:scripts
 
+      # Here rather than in the frontend matrix job on purpose: the matrix only
+      # runs for workspaces the diff touched, and a colour literal arrives in
+      # exactly the change that looks too small to be a frontend change. This
+      # job runs on every event, so the baseline is held on every event.
+      #
+      # Exit 2 means the gate could not run - an empty walk, a failed selftest -
+      # and is a failure here for the same reason exit 1 is.
+      - name: Check for new hardcoded colours
+        run: node scripts/ci/check-hardcoded-colours.mjs
+
       - name: Resolve workspace inventory
         run: pnpm ls -r --depth -1 --json > workspaces.json
 
