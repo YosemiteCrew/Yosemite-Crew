@@ -473,6 +473,13 @@ input[type='radio']:focus-visible {
   --color-upload-success: #10b981;
   --color-upload-text: var(--ink-body);
 
+  /* These two are declared together and MUST NOT be used together at body sizes:
+     #eaf3ff on #007cf5 is 3.61:1, and neither has a dark override so it fails
+     identically in both themes. No ink in this palette clears 4.5 on that fill -
+     white is 4.04 and --ink is 4.21 - so the fill has to change, not the ink.
+     `0e5e9de36` and #2799 moved the badges that paired them to --inset/--ink.
+     The fill alone remains in use for chart series and filter definitions, where
+     nothing is written on top of it. */
   --color-badge-blue-bg: var(--color-primary-500);
   --color-badge-blue-text: #eaf3ff;
   --color-pill-neutral-bg: var(--status-requested-bg);

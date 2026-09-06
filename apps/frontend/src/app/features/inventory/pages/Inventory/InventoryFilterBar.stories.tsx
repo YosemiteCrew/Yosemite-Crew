@@ -3,6 +3,13 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import { InventoryFilterBar } from './index';
+/* Cross-feature import rather than a second copy, matching #2796: a duplicated
+   contrast helper is how two of them drift apart on the thing they both exist to
+   measure. It belongs in `@/app/lib`; moving it is a separate change. */
+import {
+  describeContrast,
+  measureContrast,
+} from '@/app/features/appointments/components/Calendar/responsive/contrastProbe';
 import { defaultFilters } from './utils';
 import type { InventoryFiltersState } from './types';
 
@@ -219,6 +226,21 @@ export const WithSelectedFilters: Story = {
     await expect(filter.querySelectorAll('svg')).toHaveLength(1);
     await expect(filter).toHaveTextContent('3');
 
+    /* The count has to be readable on its own fill. This badge used the
+       `badge-blue` pair, whose ink and fill measure 3.61:1 together at 14px/500 -
+       under AA in BOTH themes, since neither token has a dark override. Measured
+       on composited pixels rather than asserted from a class list, so a future
+       token change is caught rather than a future rename. */
+    const badge = [...filter.querySelectorAll('span')].find(
+      (node) => node.textContent?.trim() === '3'
+    );
+    await expect(badge).toBeDefined();
+    const reading = measureContrast(badge as Element);
+    await expect(
+      reading.ratio,
+      describeContrast('filter count badge', reading)
+    ).toBeGreaterThanOrEqual(reading.required);
+
     await userEvent.click(filter);
     await expect(args.setFilterOpen).toHaveBeenCalledWith(true);
   },
@@ -229,6 +251,43 @@ export const WithSelectedFilters: Story = {
           "Three filters applied. The badge takes the chevron's place, so the trigger keeps its " +
           'width and the row does not reflow when a filter is added - which is the only reason to ' +
           'swap rather than append.',
+      },
+    },
+  },
+};
+
+/* The badge is asserted in BOTH themes deliberately. `--inset`/`--ink` are
+   theme-aware, so a light-only assertion measures one of the two composites and
+   goes vacuous the day the toolbar default changes - the gap #2803 had to close
+   in a follow-up. The pair this replaces failed identically in both themes
+   because neither of its tokens has a dark override, so the light story alone
+   would still have caught the original defect; that is luck, not coverage. */
+export const WithSelectedFiltersDark: Story = {
+  name: 'Filter trigger with a count badge (dark)',
+  args: { selectedFilterChips: CHIPS },
+  globals: { theme: 'dark' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // Otherwise this is the light assertion run twice under a dark name.
+    await expect(document.documentElement.dataset.theme).toBe('dark');
+
+    const filter = canvas.getByRole('button', { name: /^Filter 3$/ });
+    const badge = [...filter.querySelectorAll('span')].find(
+      (node) => node.textContent?.trim() === '3'
+    );
+    await expect(badge).toBeDefined();
+    const reading = measureContrast(badge as Element);
+    await expect(
+      reading.ratio,
+      describeContrast('filter count badge, dark', reading)
+    ).toBeGreaterThanOrEqual(reading.required);
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The same badge on the dark composite. `--inset` and `--ink` both flip per theme, so ' +
+          'this measures a different pair of colours rather than repeating the light story.',
       },
     },
   },
