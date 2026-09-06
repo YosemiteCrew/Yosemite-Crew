@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { Request, Response } from "express";
 import { OpenStatusWebhookController } from "../../../src/controllers/web/openstatus.controller";
 import { OpenStatusService } from "../../../src/services/openstatus.service";
+import logger from "../../../src/utils/logger";
 
 jest.mock("../../../src/services/openstatus.service", () => {
   const actual = jest.requireActual(
@@ -19,6 +20,7 @@ jest.mock("../../../src/utils/logger", () => ({
 }));
 
 const mockedService = jest.mocked(OpenStatusService);
+const mockedLogger = jest.mocked(logger);
 
 const SECRET = "top-secret";
 
@@ -138,13 +140,44 @@ describe("OpenStatusWebhookController", () => {
   });
 
   it("returns 500 when the service throws", async () => {
-    mockedService.handleMonitorEvent.mockRejectedValueOnce(new Error("boom"));
+    const sensitiveMarker = "do-not-log-this-header-value";
+    const serviceError = Object.assign(new Error("boom"), {
+      isAxiosError: true,
+      code: "ERR_BAD_RESPONSE",
+      response: { status: 503 },
+      config: {
+        method: "post",
+        baseURL: "https://status.example.com/v1",
+        url: "/status_report?marker=also-not-logged",
+        timeout: 10_000,
+        headers: { "x-openstatus-key": sensitiveMarker },
+      },
+    });
+    mockedService.handleMonitorEvent.mockRejectedValueOnce(serviceError);
     req = buildReq(validPayload);
 
     await OpenStatusWebhookController.handle(req as Request, res);
 
     expect(statusMock).toHaveBeenCalledWith(500);
     expect(jsonMock).toHaveBeenCalledWith({ error: "boom" });
+    expect(mockedLogger.error).toHaveBeenCalledWith(
+      "OpenStatus webhook error",
+      {
+        error: {
+          kind: "axios",
+          message: "boom",
+          code: "ERR_BAD_RESPONSE",
+          status: 503,
+          method: "post",
+          baseURL: "https://status.example.com/v1",
+          url: "/status_report",
+          timeoutMs: 10_000,
+        },
+      },
+    );
+    expect(JSON.stringify(mockedLogger.error.mock.calls)).not.toContain(
+      sensitiveMarker,
+    );
   });
 
   it("returns 500 with a generic message when a non-Error is thrown", async () => {
