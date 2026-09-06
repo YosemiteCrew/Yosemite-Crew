@@ -90,6 +90,28 @@ describe("raw-body limit containment", () => {
   // cannot be reached accidentally through body-parser configuration.
   const UNPARSEABLE = ["ten mb", "", "not-a-size", "mb"];
 
+  // The direct-call half of the same contract, and the only case here that can
+  // tell the two majors apart. Every other assertion in this file passes on
+  // raw-body 2.5.3 as well: the configuration-time refusals below go through
+  // body-parser, which resolves the overridden 4.x, so nothing would notice the
+  // backend's own devDependency slipping back below the floor.
+  //
+  // On 2.5.3 `bytes.parse` returns null for an unparseable value and both size
+  // checks are skipped, so this call resolves with the whole payload instead of
+  // throwing. That is AIKIDO-2026-274460.
+  it.each(UNPARSEABLE)(
+    "raw-body itself refuses the unparseable limit %p rather than buffering unbounded",
+    (limit) => {
+      // Thrown synchronously during argument validation, before a byte is read,
+      // rather than surfacing as a rejected promise after buffering.
+      expect(() =>
+        getRawBody(Readable.from([Buffer.alloc(1024, 0x61)]), {
+          limit: limit as unknown as number,
+        }),
+      ).toThrow(TypeError);
+    },
+  );
+
   it.each(UNPARSEABLE)(
     "express.json refuses the unparseable limit %p at configuration time",
     (limit) => {
