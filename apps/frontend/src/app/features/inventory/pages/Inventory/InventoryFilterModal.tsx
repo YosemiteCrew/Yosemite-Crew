@@ -118,14 +118,20 @@ const SelectedFilterChips = ({ selectedFilterChips }: SelectedFilterChipsProps) 
       {selectedFilterChips.map((chip) => (
         <span
           key={chip.id}
-          className="inline-flex items-center gap-1.5 rounded-full bg-[var(--inset)] text-[var(--ink)] py-1 pl-3 pr-2 text-caption-1 capitalize text-badge-blue-text"
+          /* Not badge-blue: `text-badge-blue-text` on `bg-badge-blue-bg` is
+             #eaf3ff on #007cf5, which is 3.61:1 at this size where AA needs 4.5,
+             and no ink the palette uses clears it on that fill (white is 4.04).
+             So the fill changes rather than the ink, onto the surface pair the
+             other inventory badges already use. */
+          className="inline-flex items-center gap-1.5 rounded-full bg-[var(--inset)] py-1 pl-3 pr-2 text-caption-1 capitalize text-[var(--ink)]"
         >
           {chip.label}
           <button
             type="button"
             aria-label={`Remove ${chip.label}`}
             onClick={chip.onRemove}
-            className="inline-flex size-4 items-center justify-center rounded-full hover:bg-badge-blue-text/15 transition-colors"
+            /* Hover tint follows the chip's ink, not the removed badge token. */
+            className="inline-flex size-4 items-center justify-center rounded-full hover:bg-[var(--ink)]/10 transition-colors"
           >
             <FiX size={12} aria-hidden="true" />
           </button>
