@@ -337,10 +337,22 @@ fi
 # out: a `;` ends the declaration and starts a new command, which is the fix
 # itself, and a `#` is a trailing comment - the costume that has beaten the
 # guards in this file three times, and the one this pattern must not fire on.
-# `(^|;)` is why refusing to cross a `;` does not also mean failing to see past
-# one: the keyword is looked for at the start of the line OR after a `;`, and
-# `out` is not a keyword, so the fix stays silent while `; local out="$(...)"`
-# does not. Verified on BSD grep 2.6.0, GNU grep 3.11 and busybox.
+# Refusing to cross a `;` is not the same as failing to see past one: the
+# keyword is looked for at the start of the line OR after a `;`, and `out` is
+# not a keyword, so the fix stays silent while `; local out="$(...)"` does not.
+# The `;` alternative carries `^[^#]*` rather than being bare, because a `;`
+# INSIDE a trailing comment is not a command start - `local a=1  # x; local
+# out="$(y)"` matched under the bare form, which is the costume again, found by
+# running the false-positive set a second time after widening rather than only
+# the new positives. Verified on BSD grep 2.6.0, GNU grep 3.11 and busybox: the
+# same 11 of 20 cases match on all three.
+#
+# Two command starts remain uncovered and are left so deliberately.
+# `if true; then local out="$(...)"; fi` and `true && local out="$(...)"` both
+# swallow on both shells and both evade. Neither is a tidy-up of a two-line
+# declaration - they are new control flow - and adding `&&`, `||`, `then` and
+# `do` as anchors re-admits comment text at each of them, which is the trade
+# that has gone wrong twice in this guard already.
 #
 # Stated cost: this bans declare-and-assign for the whole file, not just for
 # ships(), so a future `local tmp="$(mktemp -d)"` or `local tmp=$(mktemp -d)`
@@ -351,7 +363,7 @@ fi
 # Comments blanked for the same reason DEPLOY_CODE blanks them: otherwise the
 # paragraph you are reading would redden its own guard.
 TEST_CODE="$(sed -E 's/^[[:space:]]*#.*$//' "${BASH_SOURCE[0]}")"
-SWALLOWED="$(grep -nE '(^|;)[[:space:]]*(local|declare|readonly|export)[[:space:]][^;#]*="?(\$\(|`)' <<< "$TEST_CODE" || true)"
+SWALLOWED="$(grep -nE '(^[[:space:]]*|^[^#]*;[[:space:]]*)(local|declare|readonly|export)[[:space:]][^;#]*="?(\$\(|`)' <<< "$TEST_CODE" || true)"
 if [ -z "$SWALLOWED" ]; then
   ok "no declaration in this file swallows the status of a command substitution"
 else
