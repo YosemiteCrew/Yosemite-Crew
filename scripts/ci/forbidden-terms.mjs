@@ -452,6 +452,27 @@ function runScan(argv) {
   }
   const pattern = compilePattern(decodeRequired(PATTERN_ENV));
 
+  // THE SHAPE IS ENFORCED HERE TOO, AND NOT ONLY IN `selftest`.
+  //
+  // `PATTERN_SHAPE` is what keeps this regular expression free of the nested
+  // quantifiers and ambiguous groups that backtrack exponentially, and every
+  // string it is about to run against - the diff, the branch name, the title,
+  // the body - comes from the pull request. In the workflow the self-test runs
+  // first, so a pathological pattern is already red before this line is
+  // reached; but that is an ORDER OF STEPS in another file, which is the same
+  // kind of guarantee this commit exists to stop relying on. A caller that runs
+  // `scan` without `selftest` gets the check anyway.
+  //
+  // Deliberate divergence from the sibling repository, whose copy has this
+  // predicate only in `selfTest`. It belongs in both; the sibling should take
+  // it rather than this one give it back.
+  if (!PATTERN_SHAPE.test(pattern.source)) {
+    throw new GuardError(
+      'the pattern is not a plain alternation of literal words over [A-Za-z0-9 -], ' +
+        'and this scan will not run an unconstrained expression over pull-request text'
+    );
+  }
+
   // RESOLVE ONCE, THEN CHANGE INTO IT, so the six reads below take the SURFACES
   // constants themselves and nothing built from `--dir`. The docstring above
   // says the coverage is a property of this file rather than of the caller, and
