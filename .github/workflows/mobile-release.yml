@@ -185,7 +185,18 @@ jobs:
           echo "Building version code ${VERSION_CODE}"
           ./gradlew bundleRelease --no-daemon "-PversionCodeOverride=${VERSION_CODE}"
 
-      - name: Upload to Play internal track
+      # Only a `mobile-v*` tag push publishes. A workflow_dispatch builds and
+      # signs, then stops here, so the Android signing chain can be exercised
+      # without a Play submission and without burning a version code (Play
+      # rejects a repeat, and the run number that produced it is not reusable).
+      # This mirrors desktop-release.yml, where the same separation is spelled
+      # `--publish ${{ github.event_name == 'push' && 'always' || 'never' }}`.
+      # The guard reads `push` rather than the ref because the only push trigger
+      # this workflow has is `tags: mobile-v*`; adding a branch trigger above
+      # would make it fire on a branch, so add `startsWith(github.ref,
+      # 'refs/tags/')` here if that trigger ever changes.
+      - name: Upload to Play internal track (tag pushes only)
+        if: github.event_name == 'push'
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
@@ -543,7 +554,12 @@ jobs:
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: ruby scripts/ci/asc-key-check.rb
 
-      - name: Upload to TestFlight
+      # Same separation as Android above. The steps before this one still run on
+      # a dispatch on purpose: importing the certificate, exporting a signed IPA
+      # and checking the App Store Connect key all exercise the iOS credentials
+      # without submitting anything. Only the upload is a submission.
+      - name: Upload to TestFlight (tag pushes only)
+        if: github.event_name == 'push'
         env:
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
