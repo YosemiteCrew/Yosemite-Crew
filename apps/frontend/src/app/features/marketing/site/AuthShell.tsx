@@ -182,7 +182,19 @@ export function AuthShell({ brand, topRight, children }: Readonly<AuthShellProps
     <div
       data-authgrid="true"
       data-yc-theme
-      style={{ display: 'grid', gridTemplateColumns: '1.06fr 1fr', minHeight: '100svh' }}
+      /* `--yc-consent-inset` is the strip the phone consent card denies (0 when
+         it is absent or on desktop). Reserving it as padding inside a
+         border-box `100svh` means the form centres in what is left, and if the
+         form no longer fits the shell grows past the viewport and the page
+         scrolls - either way the submit button stays reachable. Without it the
+         card lands on the centred form and 0% of the button is tappable. */
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1.06fr 1fr',
+        minHeight: '100svh',
+        boxSizing: 'border-box',
+        paddingBottom: 'var(--yc-consent-inset, 0px)',
+      }}
     >
       <div data-brandpanel="true" style={BRAND_PANEL_STYLE}>
         <div
