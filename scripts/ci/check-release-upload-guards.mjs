@@ -54,6 +54,24 @@ export const SUBMISSIONS = [
   // --draft=false` is the step that takes a draft release public, and a public
   // release is what electron-updater's clients poll.
   { store: 'a public GitHub Release', run: '--draft=false' },
+  // `gh release create` opens a release, and the only shipped one is guarded at
+  // the step (`verify`'s `Open a draft release for the build jobs` carries
+  // `if: github.event_name == 'push'`), so there is NO draft exemption here and
+  // nothing reads the command text for flags. Two consequences, both deliberate:
+  //
+  //   * Deleting `--draft` while KEEPING the tag guard is not a finding. That is
+  //     a real defect - the tag path would open a published, asset-less release,
+  //     which the comment above the `publish` job explains is visible to beta
+  //     updaters immediately - but it is a different property. This check asks
+  //     whether something outward-facing is reachable from a dispatch, not
+  //     whether the release it opens starts as a draft. That wants its own check.
+  //
+  //   * A DRAFTED `gh release create` on a deliberately dispatch-only path IS a
+  //     false positive here, and the finding will read `no condition`. Measured:
+  //     respelling the `release` job's step with the CLI reds it. The repair in
+  //     that case is an exemption like the one below, NOT a tag guard on a job
+  //     that is dispatch-only by design. Do not follow the message off a cliff.
+  { store: 'a GitHub Release', run: 'gh release create' },
   // action-gh-release publishes unless the release is explicitly a draft. The
   // dispatch-only `release` job sets `draft: true`, which is why it is not a
   // finding today - but flipping that one word publishes from a branch, and
