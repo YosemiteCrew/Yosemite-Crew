@@ -23,7 +23,8 @@
     "security:scan": "./scripts/security/supply-chain.sh scan",
     "security:licenses": "./scripts/security/supply-chain.sh licenses",
     "security:all": "./scripts/security/supply-chain.sh all",
-    "check:tls": "node scripts/ci/check-tls-expiry.mjs"
+    "check:tls": "node scripts/ci/check-tls-expiry.mjs",
+    "ui:freeze-scorecard": "node scripts/ci/ui-freeze-scorecard.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
