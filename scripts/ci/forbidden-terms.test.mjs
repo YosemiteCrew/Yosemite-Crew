@@ -845,6 +845,33 @@ test('a directory that does not exist exits 2 and names the DIRECTORY', () => {
   assert.doesNotMatch(result.stderr, /Cannot read the '\w+' surface/u);
 });
 
+test('scan refuses a pattern outside PATTERN_SHAPE, without needing selftest first', () => {
+  // The shape is what keeps this expression free of the nested quantifiers that
+  // backtrack exponentially over pull-request text. In the workflow `selftest`
+  // runs first and would already be red - but that is an ORDER OF STEPS in
+  // another file, and a property held by step order is held by nothing this
+  // file can assert. So `scan` refuses on its own.
+  //
+  // The surfaces are clean and would scan to exit 0, so a green here would mean
+  // the unconstrained pattern RAN. The control below is the same directory with
+  // an in-shape pattern.
+  const dir = surfaceDir({ title: 'a harmless title' });
+
+  const refused = run(['scan', '--dir', dir], {
+    FORBIDDEN_TERMS_PATTERN_B64: b64('(a+)+b'),
+  });
+  assert.equal(refused.code, 2, 'a catastrophic pattern must not reach the scan');
+  assert.match(refused.stderr, /plain alternation of literal words/);
+  // Never the pattern itself, for the same reason the failed-compile path
+  // reports only the error name.
+  assert.doesNotMatch(refused.stderr, /\(a\+\)\+b/u);
+
+  const control = run(['scan', '--dir', dir], {
+    FORBIDDEN_TERMS_PATTERN_B64: b64(SYNTHETIC),
+  });
+  assert.equal(control.code, 0, 'control: the same directory scans clean in shape');
+});
+
 test('a surface that is a SYMLINK exits 2 rather than being followed', () => {
   // `readFileSync` follows links, so without the `lstat` check this run reads
   // the link's target, finds nothing in it, and exits 0 with
