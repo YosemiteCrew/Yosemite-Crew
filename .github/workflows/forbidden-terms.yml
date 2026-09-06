@@ -306,7 +306,13 @@ jobs:
       # comparison and is never looked at again - but a `main` pull request's
       # merge base is the previous promotion, so the whole of `dev` since then
       # is in scope. That is why this workflow RUNS on BOTH branches - which is
-      # this file's `on:` block, not a ruleset. It is required on neither.
+      # this file's `on:` block, not a ruleset.
+      #
+      # Whether it is REQUIRED is not asserted here. It was required on neither
+      # ruleset when this was written, 2026-09-06 - but the identical sentence
+      # in the sibling repository went false that afternoon without anyone
+      # touching the file, because a ruleset changed. Nothing here can notice
+      # that. Read the rulesets.
       - name: Collect the surfaces
         if: ${{ github.event_name == 'pull_request' }}
         env:
