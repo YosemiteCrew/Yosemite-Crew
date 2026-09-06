@@ -8,6 +8,13 @@ dist
 dist-ssr
 *.local
 .env
+# Any derivative of a real env file, because `cp .env .env.bak` before an edit is the
+# ordinary way somebody preserves a working config - and `.bak`, `.backup`, `.old` and
+# `.save` matched none of the rules that used to be here. Two such files were found
+# untracked and unignored in a working tree; `git add -A` would have staged both.
+.env.*
+# Sample files are the exception and stay visible, including ones added later.
+!.env.example
 .env.local
 .env.*.local
 .cache
