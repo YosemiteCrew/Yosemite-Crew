@@ -306,23 +306,42 @@ fi
 
 # The guard above is about api-deploy.sh. This one is about THIS file, and it
 # exists because ships() only distinguishes a crash from a ship while its
-# declaration and its assignment stay on separate lines. `local out="$(...)"`
-# reports the status of `local`, which succeeds whatever the substitution did,
-# so tidying those two lines into one restores every ship row to green with the
-# crash still there - measured in review on bash 3.2 and bash 5, both swallow
-# it. It is the same shape as the `|| true` guarded at the call site above: a
-# wrapper that always succeeds, hiding the status of the thing it wraps.
+# declaration and its assignment stay on separate lines. A declaration that
+# also assigns reports the status of `local`, which succeeds whatever the
+# substitution did, so tidying those two lines into one restores every ship row
+# to green with the crash still there. It is the same shape as the `|| true`
+# guarded at the call site above: a wrapper that always succeeds, hiding the
+# status of the thing it wraps.
 #
-# Stated cost: this bans the declare-and-assign form for the whole file, not
-# just for ships(), so a future `local tmp="$(mktemp -d)"` whose status nobody
-# cares about is a false positive. The message names the line. Worth it here
-# because the form is indistinguishable from the correct one by reading, and
-# the whole point of the ships rows is a status.
+# The first version of this guard pinned one spelling and two others were green
+# with the crash in the tree - raised in review. Measured on bash 3.2.57 and
+# bash 5.3.15, a function returning 7, with a succeeding command as the positive
+# control on every row:
+#
+#   local out="$(crash)"        rc=0   swallowed      both shells
+#   local out=$(crash)          rc=0   swallowed      both shells
+#   local rc=0 out="$(crash)"   rc=0   swallowed      both shells
+#   local out=`crash`           rc=0   swallowed      both shells
+#   local out; out="$(crash)"   rc=7   CARRIES        both shells
+#   local out                   rc=7   CARRIES        both shells
+#   out="$(crash)"
+#
+# So the rule is the KEYWORD plus an assignment from a substitution on the same
+# command, not one spelling of it. `[^;#]` is what keeps the two carrying forms
+# out: a `;` ends the declaration and starts a new command, which is the fix
+# itself, and a `#` is a trailing comment - the costume that has beaten the
+# guards in this file three times, and the one this pattern must not fire on.
+#
+# Stated cost: this bans declare-and-assign for the whole file, not just for
+# ships(), so a future `local tmp="$(mktemp -d)"` or `local tmp=$(mktemp -d)`
+# whose status nobody cares about is a false positive. The message names the
+# line. Worth it here because the form is indistinguishable from the correct one
+# by reading, and the whole point of the ships rows is a status.
 #
 # Comments blanked for the same reason DEPLOY_CODE blanks them: otherwise the
 # paragraph you are reading would redden its own guard.
 TEST_CODE="$(sed -E 's/^[[:space:]]*#.*$//' "${BASH_SOURCE[0]}")"
-SWALLOWED="$(grep -nE '^[[:space:]]*local [A-Za-z_][A-Za-z0-9_]*="\$\(' <<< "$TEST_CODE" || true)"
+SWALLOWED="$(grep -nE '^[[:space:]]*(local|declare|readonly|export)[[:space:]][^;#]*=("?\$\(|`)' <<< "$TEST_CODE" || true)"
 if [ -z "$SWALLOWED" ]; then
   ok "no declaration in this file swallows the status of a command substitution"
 else
