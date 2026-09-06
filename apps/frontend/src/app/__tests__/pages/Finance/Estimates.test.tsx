@@ -4,6 +4,17 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import type { Estimate, EstimateStatus } from '@/app/features/finance/types/estimate';
 
+/* The page picks its list by breakpoint. Default false so every existing case
+   below keeps exercising the desktop table; the phone branch flips it. Both
+   export shapes are mocked because the module is imported by default here and
+   by name elsewhere. */
+let mockIsPhone = false;
+jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
+  __esModule: true,
+  default: () => mockIsPhone,
+  useIsPhone: () => mockIsPhone,
+}));
+
 jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   __esModule: true,
   default: ({ children }: any) => <div>{children}</div>,
@@ -646,5 +657,46 @@ describe('Finance > Estimates status filters', () => {
         status: 'DRAFT',
       })
     );
+  });
+});
+
+describe('Finance > Estimates on a phone', () => {
+  beforeEach(() => {
+    mockIsPhone = true;
+  });
+  afterEach(() => {
+    mockIsPhone = false;
+  });
+
+  it('renders the card list instead of the six-column table', async () => {
+    mockEstimateService.listEstimates.mockResolvedValue([
+      buildEstimate({ id: 'e1', patientId: 'c1', total: 110 }),
+    ]);
+
+    render(<ProtectedEstimates />);
+
+    // The card carries the table row action's accessible name, so this alone
+    // cannot tell the two apart - the table's `columnheader`s can.
+    expect(
+      await screen.findByRole('button', { name: 'Open the estimate for Bruno' })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Total' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+
+    // Total was the column that began off-screen in the table; on the card it
+    // is rendered inline.
+    expect(screen.getByText('$110.00')).toBeInTheDocument();
+  });
+
+  it('still renders the table when the viewport is not a phone', async () => {
+    mockIsPhone = false;
+    mockEstimateService.listEstimates.mockResolvedValue([
+      buildEstimate({ id: 'e1', patientId: 'c1', total: 110 }),
+    ]);
+
+    render(<ProtectedEstimates />);
+
+    expect(await screen.findByRole('table')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Total' })).toBeInTheDocument();
   });
 });
