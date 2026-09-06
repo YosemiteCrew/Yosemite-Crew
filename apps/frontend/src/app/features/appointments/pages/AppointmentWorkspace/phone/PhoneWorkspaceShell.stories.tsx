@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, within } from 'storybook/test';
 import type { Appointment } from '@yosemite-crew/types';
+import { describeInsetProbe, measureConsentInsetResponse } from './consentInsetAssertion';
 
 import PhoneWorkspaceShell from './PhoneWorkspaceShell';
 import {
@@ -247,5 +248,25 @@ export const FitsThePhone: Story = {
 
     // And it never scrolls sideways at phone width.
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
+
+    /* The shell subtracts the phone furniture from the viewport. There are THREE
+       fixed things on a phone, not two: the header, the tab bar, and the consent
+       card, which publishes the strip it denies as `--yc-consent-inset`. The
+       height used to be a literal `72px + env(...)` sum, so it kept its full
+       height while the card sat over the bottom of it.
+
+       `max` rather than a sum, because the card docks ABOVE the tab bar and the
+       strip it publishes already contains the bar's 72px - adding them
+       double-counts. So with no card the height must not move. Shared with
+       PhoneCompanionRecord, which carries the identical calc. */
+    const shell = canvasElement.querySelector('[data-testid="phone-workspace-shell"]');
+    await expect(shell).not.toBeNull();
+    const root = document.documentElement;
+    const setInset = (value: string | null) =>
+      value === null
+        ? root.style.removeProperty('--yc-consent-inset')
+        : root.style.setProperty('--yc-consent-inset', value);
+    const probe = measureConsentInsetResponse(shell as HTMLElement, window.innerHeight, setInset);
+    await expect(probe.ok, describeInsetProbe(probe)).toBe(true);
   },
 };
