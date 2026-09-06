@@ -4,6 +4,7 @@ import { expect, fn, userEvent, within } from 'storybook/test';
 import type { Appointment } from '@yosemite-crew/types';
 
 import PhoneDayStrip from './PhoneDayStrip';
+import { describeContrast, measureContrast } from './contrastProbe';
 
 const ORG_ID = 'org-storybook';
 const NAMES = ['Poppy', 'Milo', 'Nala', 'Rufus', 'Juno', 'Otto', 'Sasha', 'Bruno'];
@@ -118,6 +119,25 @@ export const Default: Story = {
     await expect(new Set(tops).size).toBe(1);
     const widths = cells.map((c) => Math.round(c.getBoundingClientRect().width));
     await expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(1);
+
+    /* The selected cell is a fixed tint, so its ink cannot be checked by eye in
+       one theme and assumed in the other - it is identical in both. Both labels
+       shipped under AA (2.98:1 weekday, 4.09:1 date) because the fill was
+       `--blue`, which is #257bed in light AND dark, under literal white.
+       Measured on the composited pixels: a class-name assertion here would stay
+       green through exactly that regression. */
+    const selected = pressed[0];
+    for (const [label, node] of [
+      ['weekday', selected.querySelector('.yc-day-strip__weekday')],
+      ['date', selected.querySelector('.yc-day-strip__date')],
+    ] as const) {
+      await expect(node).not.toBeNull();
+      const reading = measureContrast(node as Element);
+      await expect(
+        reading.ratio,
+        describeContrast(`selected day ${label}`, reading)
+      ).toBeGreaterThanOrEqual(reading.required);
+    }
   },
 };
 
