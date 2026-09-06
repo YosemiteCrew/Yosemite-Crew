@@ -12,6 +12,9 @@ router.use(requireAnyAuth, requireSuperAdmin);
 router.get("/businesses", SuperAdminBusinessController.listBusinesses);
 router.get("/businesses/:id", SuperAdminBusinessController.getBusiness);
 router.patch("/businesses/:id", SuperAdminBusinessController.updateBusiness);
+// memberCount alone cannot answer "who is in this clinic", which is where
+// every account-level diagnosis has to start.
+router.get("/businesses/:id/members", SuperAdminBusinessController.listMembers);
 
 // Lab ingestion holds a result it cannot apply rather than halting the poll for
 // every organisation; this is where those rows become visible to someone.

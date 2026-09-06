@@ -2,6 +2,7 @@ const mockOrganizationFindMany = jest.fn();
 const mockOrganizationFindFirst = jest.fn();
 const mockOrganizationUpdate = jest.fn();
 const mockUserOrganizationCount = jest.fn();
+const mockUserOrganizationFindMany = jest.fn();
 
 const mockPrisma = {
   organization: {
@@ -11,6 +12,7 @@ const mockPrisma = {
   },
   userOrganization: {
     count: mockUserOrganizationCount,
+    findMany: mockUserOrganizationFindMany,
   },
 };
 
@@ -61,9 +63,36 @@ describe("SuperAdminBusinessService", () => {
         createdAt: new Date("2026-07-21T12:00:00.000Z"),
       },
     ]);
-    mockUserOrganizationCount.mockImplementation(
-      async ({ where }: { where: { organizationReference: string } }) =>
-        where.organizationReference === "org-new" ? 3 : 0,
+    // The count is now the length of the de-duplicated roster rather than a
+    // separate query, so the fixture is rows.
+    mockUserOrganizationFindMany.mockImplementation(
+      async ({
+        where,
+      }: {
+        where: { OR: Array<{ organizationReference: string }> };
+      }) =>
+        where.OR.some((match) => match.organizationReference === "org-new")
+          ? [
+              {
+                practitionerReference: "user-1",
+                roleCode: "doctor",
+                roleDisplay: null,
+                createdAt: new Date("2026-07-01T09:00:00.000Z"),
+              },
+              {
+                practitionerReference: "Practitioner/user-1",
+                roleCode: "doctor",
+                roleDisplay: null,
+                createdAt: new Date("2026-07-01T09:00:00.000Z"),
+              },
+              {
+                practitionerReference: "user-2",
+                roleCode: "doctor",
+                roleDisplay: null,
+                createdAt: new Date("2026-07-01T09:00:00.000Z"),
+              },
+            ]
+          : [],
     );
 
     await expect(SuperAdminBusinessService.listBusinesses()).resolves.toEqual([
@@ -73,7 +102,7 @@ describe("SuperAdminBusinessService", () => {
         type: "HOSPITAL",
         isVerified: true,
         isActive: true,
-        memberCount: 3,
+        memberCount: 2,
         createdAt: "2026-07-22T12:00:00.000Z",
         taxId: "TAX-2",
         phoneNo: "+1 222 222 2222",
@@ -95,12 +124,27 @@ describe("SuperAdminBusinessService", () => {
     expect(mockOrganizationFindMany).toHaveBeenCalledWith({
       orderBy: { createdAt: "desc" },
     });
-    expect(mockUserOrganizationCount).toHaveBeenNthCalledWith(1, {
-      where: { active: true, organizationReference: "org-new" },
-    });
-    expect(mockUserOrganizationCount).toHaveBeenNthCalledWith(2, {
-      where: { active: true, organizationReference: "org-old" },
-    });
+    // Every spelling, for every organisation in the list: the count is what an
+    // operator reads as "who is in this clinic", and a list view that matched
+    // narrowly than the detail view would disagree with itself.
+    expect(mockUserOrganizationFindMany.mock.calls[0][0].where).toEqual(
+      expect.objectContaining({
+        active: true,
+        OR: [
+          { organizationReference: "org-new" },
+          { organizationReference: "Organization/org-new" },
+        ],
+      }),
+    );
+    expect(mockUserOrganizationFindMany.mock.calls[1][0].where).toEqual(
+      expect.objectContaining({
+        active: true,
+        OR: [
+          { organizationReference: "org-old" },
+          { organizationReference: "Organization/org-old" },
+        ],
+      }),
+    );
   });
 
   it("returns a business detail by id or fhirId", async () => {
@@ -131,7 +175,14 @@ describe("SuperAdminBusinessService", () => {
         postalCode: "78701",
       },
     });
-    mockUserOrganizationCount.mockResolvedValue(12);
+    mockUserOrganizationFindMany.mockResolvedValue(
+      Array.from({ length: 12 }, (_unused, index) => ({
+        practitionerReference: `user-${index}`,
+        roleCode: "doctor",
+        roleDisplay: null,
+        createdAt: new Date("2026-07-01T09:00:00.000Z"),
+      })),
+    );
 
     await expect(
       SuperAdminBusinessService.getBusiness("org_123"),
@@ -168,9 +219,15 @@ describe("SuperAdminBusinessService", () => {
       where: { OR: [{ id: "org_123" }, { fhirId: "org_123" }] },
       include: { address: true },
     });
-    expect(mockUserOrganizationCount).toHaveBeenCalledWith({
-      where: { organizationReference: "org-123", active: true },
-    });
+    expect(mockUserOrganizationFindMany.mock.calls[0][0].where).toEqual(
+      expect.objectContaining({
+        active: true,
+        OR: [
+          { organizationReference: "org-123" },
+          { organizationReference: "Organization/org-123" },
+        ],
+      }),
+    );
   });
 
   it("throws on invalid business ids and empty updates", async () => {
@@ -222,7 +279,14 @@ describe("SuperAdminBusinessService", () => {
       updatedAt: new Date("2026-07-22T11:15:00.000Z"),
       address: null,
     });
-    mockUserOrganizationCount.mockResolvedValue(12);
+    mockUserOrganizationFindMany.mockResolvedValue(
+      Array.from({ length: 12 }, (_unused, index) => ({
+        practitionerReference: `user-${index}`,
+        roleCode: "doctor",
+        roleDisplay: null,
+        createdAt: new Date("2026-07-01T09:00:00.000Z"),
+      })),
+    );
 
     await expect(
       SuperAdminBusinessService.updateBusiness("org-123", { isActive: false }),
@@ -238,6 +302,245 @@ describe("SuperAdminBusinessService", () => {
       where: { id: "org-123" },
       data: { isActive: false },
       include: { address: true },
+    });
+  });
+  describe("member resolution", () => {
+    const organization = {
+      id: "org-123",
+      fhirId: "fhir-123",
+      name: "Clinic",
+      type: "HOSPITAL",
+      isVerified: true,
+      isActive: true,
+      taxId: "TAX-1",
+      phoneNo: "+1 111 111 1111",
+      website: null,
+      dunsNumber: null,
+      imageUrl: null,
+      healthAndSafetyCertNo: null,
+      animalWelfareComplianceCertNo: null,
+      fireAndEmergencyCertNo: null,
+      googlePlacesId: null,
+      averageRating: 0,
+      ratingCount: 0,
+      createdAt: new Date("2026-07-22T10:20:30.000Z"),
+      updatedAt: new Date("2026-07-22T11:15:00.000Z"),
+      address: null,
+    };
+
+    const referencesOf = (where: {
+      OR: Array<{ organizationReference: string }>;
+    }) => where.OR.map((match) => match.organizationReference).sort();
+
+    it("counts members by every spelling the reference column can hold", async () => {
+      // organizationReference is persisted verbatim from the inbound FHIR
+      // resource, so an exact match on organization.id renders Members 0 for a
+      // clinic whose memberships were created with a conformant reference.
+      mockOrganizationFindFirst.mockResolvedValue(organization);
+      mockUserOrganizationFindMany.mockResolvedValue([
+        {
+          practitionerReference: "user-1",
+          roleCode: "doctor",
+          roleDisplay: null,
+          createdAt: new Date("2026-07-01T09:00:00.000Z"),
+        },
+      ]);
+
+      await SuperAdminBusinessService.getBusiness("org-123");
+
+      expect(
+        referencesOf(mockUserOrganizationFindMany.mock.calls[0][0].where),
+      ).toEqual([
+        "Organization/fhir-123",
+        "Organization/org-123",
+        "fhir-123",
+        "org-123",
+      ]);
+    });
+
+    it("lists members with the same predicate as the count, so the two cannot disagree", async () => {
+      mockOrganizationFindFirst.mockResolvedValue(organization);
+      mockUserOrganizationFindMany.mockResolvedValue([
+        {
+          practitionerReference: "Practitioner/user-1",
+          roleCode: "doctor",
+          roleDisplay: "Veterinarian",
+          createdAt: new Date("2026-07-01T09:00:00.000Z"),
+        },
+        {
+          practitionerReference: "user-2",
+          roleCode: "nurse",
+          roleDisplay: null,
+          createdAt: new Date("2026-07-02T09:00:00.000Z"),
+        },
+      ]);
+
+      const members =
+        await SuperAdminBusinessService.listBusinessMembers("org-123");
+
+      expect(members).toEqual([
+        {
+          userId: "user-1",
+          roleCode: "doctor",
+          roleDisplay: "Veterinarian",
+          since: "2026-07-01T09:00:00.000Z",
+        },
+        {
+          userId: "user-2",
+          roleCode: "nurse",
+          since: "2026-07-02T09:00:00.000Z",
+        },
+      ]);
+
+      const where = mockUserOrganizationFindMany.mock.calls[0][0].where;
+      expect(referencesOf(where)).toEqual([
+        "Organization/fhir-123",
+        "Organization/org-123",
+        "fhir-123",
+        "org-123",
+      ]);
+      expect(where.active).toBe(true);
+    });
+
+    it("strips a FHIR practitioner reference so the id is the one user pages are keyed on", async () => {
+      // practitionerReference is stored verbatim, exactly like the organisation
+      // column. Handing "Practitioner/<id>" out unchanged sends a caller to
+      // /users/Practitioner%2F<id>, so the journey would break at the last step
+      // for the same reason it broke at the first.
+      mockOrganizationFindFirst.mockResolvedValue(organization);
+      mockUserOrganizationFindMany.mockResolvedValue([
+        {
+          practitionerReference: "Practitioner/user-9",
+          roleCode: "doctor",
+          roleDisplay: null,
+          createdAt: new Date("2026-07-01T09:00:00.000Z"),
+        },
+        {
+          practitionerReference: "user-8",
+          roleCode: "nurse",
+          roleDisplay: null,
+          createdAt: new Date("2026-07-01T09:00:00.000Z"),
+        },
+      ]);
+
+      const members =
+        await SuperAdminBusinessService.listBusinessMembers("org-123");
+
+      expect(members?.map((member) => member.userId)).toEqual([
+        "user-9",
+        "user-8",
+      ]);
+    });
+
+    it("keeps both rows when one person holds two roles, since the count counts both", async () => {
+      // Uniqueness is (practitioner, organisation, role), so this is two rows
+      // in the table and two in memberCount. Collapsing them here would make
+      // the list disagree with the number beside it.
+      mockOrganizationFindFirst.mockResolvedValue(organization);
+      mockUserOrganizationFindMany.mockResolvedValue([
+        {
+          practitionerReference: "user-1",
+          roleCode: "doctor",
+          roleDisplay: "Veterinarian",
+          createdAt: new Date("2026-07-01T09:00:00.000Z"),
+        },
+        {
+          practitionerReference: "user-1",
+          roleCode: "admin",
+          roleDisplay: "Practice admin",
+          createdAt: new Date("2026-07-03T09:00:00.000Z"),
+        },
+      ]);
+
+      const members =
+        await SuperAdminBusinessService.listBusinessMembers("org-123");
+
+      expect(members).toHaveLength(2);
+      expect(members?.map((member) => member.roleCode)).toEqual([
+        "doctor",
+        "admin",
+      ]);
+    });
+
+    it("counts one person once when the same membership exists under four spellings", async () => {
+      // @@unique is over the strings as written, so the same practitioner,
+      // organisation and role can be four rows - 2 practitioner spellings x 2
+      // organisation spellings - and every one satisfies the constraint.
+      // Matching one spelling saw one and under-counted; matching all four
+      // sees all four, and Members 4 for one person is the mirror of Members 0
+      // for forty-seven.
+      mockOrganizationFindFirst.mockResolvedValue(organization);
+      mockUserOrganizationFindMany.mockResolvedValue(
+        ["user-1", "Practitioner/user-1", "user-1", "Practitioner/user-1"].map(
+          (practitionerReference) => ({
+            practitionerReference,
+            roleCode: "doctor",
+            roleDisplay: null,
+            createdAt: new Date("2026-07-01T09:00:00.000Z"),
+          }),
+        ),
+      );
+
+      const members =
+        await SuperAdminBusinessService.listBusinessMembers("org-123");
+      expect(members).toEqual([
+        {
+          userId: "user-1",
+          roleCode: "doctor",
+          since: "2026-07-01T09:00:00.000Z",
+        },
+      ]);
+
+      const business = await SuperAdminBusinessService.getBusiness("org-123");
+      expect(business?.memberCount).toBe(1);
+    });
+
+    it("counts and lists the same set, on data that distinguishes them", async () => {
+      // The invariant the whole shape exists for. The fixture has to contain a
+      // duplicate, or a count that ignored de-duplication would still match.
+      mockOrganizationFindFirst.mockResolvedValue(organization);
+      mockUserOrganizationFindMany.mockResolvedValue(
+        ["user-1", "Practitioner/user-1", "user-2"].map(
+          (practitionerReference) => ({
+            practitionerReference,
+            roleCode: "doctor",
+            roleDisplay: null,
+            createdAt: new Date("2026-07-01T09:00:00.000Z"),
+          }),
+        ),
+      );
+
+      const members =
+        await SuperAdminBusinessService.listBusinessMembers("org-123");
+      const business = await SuperAdminBusinessService.getBusiness("org-123");
+
+      expect(business?.memberCount).toBe(members?.length);
+      expect(business?.memberCount).toBe(2);
+    });
+
+    it("fetches only the identity columns when it just needs the number", async () => {
+      // The half of the scanner finding that was real: the organisations list
+      // asks once per organisation, so the count must not read whole rows.
+      mockOrganizationFindFirst.mockResolvedValue(organization);
+      mockUserOrganizationFindMany.mockResolvedValue([]);
+
+      await SuperAdminBusinessService.getBusiness("org-123");
+
+      expect(mockUserOrganizationFindMany.mock.calls[0][0].select).toEqual({
+        practitionerReference: true,
+        roleCode: true,
+      });
+    });
+
+    it("returns null for an unknown business rather than an empty roster", async () => {
+      // An empty array would render as a clinic with no staff, which is the
+      // same screen an operator would read as the cause of the outage.
+      mockOrganizationFindFirst.mockResolvedValue(null);
+
+      await expect(
+        SuperAdminBusinessService.listBusinessMembers("missing"),
+      ).resolves.toBeNull();
+      expect(mockUserOrganizationFindMany).not.toHaveBeenCalled();
     });
   });
 });
