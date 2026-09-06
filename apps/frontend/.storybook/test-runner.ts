@@ -46,9 +46,47 @@ const config: TestRunnerConfig = {
        one of them fell through to `laptop`. That is the exact failure this hook
        was written to prevent, and it was silent because the job is
        `continue-on-error`. */
-    const storyGlobals = (storyContext as unknown as Record<string, unknown>).storyGlobals as
+    /* The cast is load-bearing, not tidy-up-able. `getStoryContext` is DECLARED
+       as returning `StoryContextForEnhancers`, and `storyGlobals` lives on
+       `PreparedStory`, not on that type - runtime has the key, the declared type
+       does not. Removing the cast produces a type error, and the obvious "fix"
+       for that error is to read `globals` again, which is the bug. */
+    const raw = storyContext as unknown as Record<string, unknown>;
+    const storyGlobals = raw.storyGlobals as
       Record<string, { value?: string } | undefined> | undefined;
-    const requested = (storyGlobals?.viewport ?? storyContext.globals?.viewport)?.value;
+
+    /* Fail on a context shape we do not recognise, instead of silently
+       defaulting. `requested ?? DEFAULT_VIEWPORT` cannot tell "this story asked
+       for nothing" from "this story asked and I could not read it" - both become
+       `laptop`. That is the defect CLASS; the `globals` -> `storyGlobals` rename
+       was only the instance, and the next rename would degrade every phone story
+       to 1280px again just as quietly.
+
+       `storyGlobals` is present on every story context (an empty object when the
+       story pins nothing), so its absence cannot happen today and can only mean
+       the shape moved. Loud, the same way the unknown-viewport branch below
+       already is.
+
+       Deliberately NO `?? storyContext.globals` fallback. `globals` is not a key
+       on this context at all - measured, `hasGlobals=false typeof undefined` on
+       every story - so a fallback to it is dead today AND is the one term that
+       can defeat this guard tomorrow: if a rename moved `storyGlobals` while
+       `globals` came back, the guard would stay silent and the viewport read
+       would resolve through the exact path that caused the original bug. A
+       compatibility branch nobody exercises is not insurance, it is the hole. */
+    if (storyGlobals === undefined) {
+      throw new Error(
+        `test-runner: story "${context.id}" has no \`storyGlobals\` on its context, so a pinned ` +
+          `viewport cannot be read and every story would silently render at ${DEFAULT_VIEWPORT}. ` +
+          "Storybook's story-context shape has changed - update preVisit in " +
+          '.storybook/test-runner.ts to read the new key.'
+      );
+    }
+
+    /* `storyGlobals.` and not `storyGlobals?.` - the guard above has already
+       thrown if it is undefined, so an optional chain here would quietly say the
+       guard might not hold. */
+    const requested = storyGlobals.viewport?.value;
     const key = requested ?? DEFAULT_VIEWPORT;
     const size = VIEWPORT_SIZES[key];
 
