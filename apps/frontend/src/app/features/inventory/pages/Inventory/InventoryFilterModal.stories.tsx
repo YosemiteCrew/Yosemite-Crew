@@ -5,11 +5,8 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 import type { InventoryFiltersState } from '@/app/features/inventory/pages/Inventory/types';
 import { defaultFilters } from '@/app/features/inventory/pages/Inventory/utils';
 import InventoryFilterModal, { type FilterChip } from './InventoryFilterModal';
-/* Cross-feature import, and deliberately so rather than a second copy: this is
-   the probe merged with #2785, and a duplicated contrast helper is how the two
-   drift apart on the thing they both exist to measure. It belongs in
-   `@/app/lib`; moving it means touching a file another desk merged an hour ago,
-   so that is a separate change and not mine to make unasked. */
+/* Shared rather than copied: two contrast helpers drift apart on the one thing
+   they both exist to measure. Relocating it to `@/app/lib` is a separate change. */
 import {
   describeContrast,
   measureContrast,
@@ -222,26 +219,19 @@ const CHIP_LABELS = ['low stock', 'Medicine', 'Vaccine', 'Antibiotic', 'Main sto
 /**
  * Every chip label must be readable on the chip's own composited fill.
  *
- * The chip shipped as `bg-badge-blue-bg text-badge-blue-text` - #eaf3ff on
- * #007cf5 - which measures 3.61:1 at 14px/500 where 4.5:1 is required. Measured
- * on composited pixels rather than asserted on class names: the class was
- * present and correct-looking, and only the pixels can fail.
+ * Measured on composited pixels rather than asserted on class names: a class name
+ * is still there when the colour under it is wrong, so only the pixels can fail.
  *
- * Run from BOTH a light-pinned and a dark-pinned story. The badge-blue pair has
- * no dark variant, so this particular defect fails identically in both - but the
- * fix moves the chip onto `--inset`/`--ink`, which DO flip per theme (13.24:1
- * light, 12.64:1 dark), and a single-theme reading of a theme-flipping pair only
- * ever covers half of it. Which half would depend on the toolbar default rather
- * than on anything the story says, which is why both stories pin `theme`.
+ * Called from a light-pinned and a dark-pinned story because the chip's colours
+ * flip per theme, and a single-theme reading of a theme-flipping pair covers half
+ * of it - with which half decided by the toolbar default rather than by the story.
  */
 const expectChipLabelsReadable = async (dialog: HTMLElement) => {
   const panel = within(dialog);
   // The row has to be the length we think it is before a reading off it means
   // anything: a loop over zero chips passes without measuring a single pixel, and a
   // loop over three of five reports a clean row while two go unmeasured.
-  await expect(panel.getAllByRole('button', { name: /^Remove / })).toHaveLength(
-    CHIP_LABELS.length
-  );
+  await expect(panel.getAllByRole('button', { name: /^Remove / })).toHaveLength(CHIP_LABELS.length);
   for (const label of CHIP_LABELS) {
     const chip = panel.getByRole('button', { name: `Remove ${label}` }).parentElement;
     await expect(chip).not.toBeNull();

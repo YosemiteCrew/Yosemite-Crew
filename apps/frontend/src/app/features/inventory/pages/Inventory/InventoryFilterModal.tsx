@@ -118,21 +118,11 @@ const SelectedFilterChips = ({ selectedFilterChips }: SelectedFilterChipsProps) 
       {selectedFilterChips.map((chip) => (
         <span
           key={chip.id}
-          /* Off the badge-blue palette, because that pair cannot be made to
-             pass AA. This chip shipped as `bg-badge-blue-bg text-badge-blue-text`
-             - #eaf3ff on #007cf5 - which measures 3.61:1 in BOTH themes at
-             14px/500, where 4.5:1 is required. The pair has no dark variant, so
-             the failure is theme-independent, and re-inking it does not save it:
-             on a #007cf5 fill the best any ink can reach is 5.20:1 (pure black),
-             and white is 4.04:1 - which globals.css:1693 already recorded for
-             the neighbouring shade. So the fill has to change, and a removable
-             applied-filter chip is not a status badge; `--inset`/`--ink` is the
-             quiet surface pair and measures 13.24:1 light, 12.64:1 dark.
-             (The design system also has `--chip-selected-bg`/`--chip-selected-ink`
-             = `--ink`/`--screen`, a solid inverted pill. That is the TOGGLE chip
-             in ui/filters/FilterChip; using it here would turn a row of five
-             removable chips into five solid dark pills, which is a visual-weight
-             change rather than a contrast fix. One line if a reviewer wants it.) */
+          /* Not badge-blue: `text-badge-blue-text` on `bg-badge-blue-bg` is
+             #eaf3ff on #007cf5, which is 3.61:1 at this size where AA needs 4.5,
+             and no ink the palette uses clears it on that fill (white is 4.04).
+             So the fill changes rather than the ink, onto the surface pair the
+             other inventory badges already use. */
           className="inline-flex items-center gap-1.5 rounded-full bg-[var(--inset)] py-1 pl-3 pr-2 text-caption-1 capitalize text-[var(--ink)]"
         >
           {chip.label}
@@ -140,8 +130,7 @@ const SelectedFilterChips = ({ selectedFilterChips }: SelectedFilterChipsProps) 
             type="button"
             aria-label={`Remove ${chip.label}`}
             onClick={chip.onRemove}
-            /* Hover tint follows the chip's own ink, since the badge-blue
-               tint it used no longer appears anywhere on this chip. */
+            /* Hover tint follows the chip's ink, not the removed badge token. */
             className="inline-flex size-4 items-center justify-center rounded-full hover:bg-[var(--ink)]/10 transition-colors"
           >
             <FiX size={12} aria-hidden="true" />
