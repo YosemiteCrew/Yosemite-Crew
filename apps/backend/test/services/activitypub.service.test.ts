@@ -1441,7 +1441,15 @@ describe("setDirectoryListing", () => {
     );
   });
 
-  it("falls back to the default authority base when the env var is unset", async () => {
+  // This test used to expect `https://api.yosemitecrew.com`, which pinned the
+  // defect rather than the behaviour: the directory reader carried the API's own
+  // host as its default long after `ap-license.service` had been corrected away
+  // from it, and that host serves neither `/api/directory` nor
+  // `/api/ap/signing-key.json` (both 404 while `/health` answers 200). So with
+  // the variable unset, licence verification and the directory pointed at two
+  // different hosts and the directory fetched a 404 - and this assertion said
+  // that was correct.
+  it("falls back to the SuperAdmin authority when the env var is unset", async () => {
     delete process.env.AP_LICENSE_AUTHORITY_URL;
     prisma.organization.findUnique.mockResolvedValue({
       isVerified: true,
@@ -1454,7 +1462,27 @@ describe("setDirectoryListing", () => {
     await svc.setDirectoryListing("org-1", true);
 
     expect(mockFetch().mock.calls[0][0]).toBe(
-      "https://api.yosemitecrew.com/api/directory/listing",
+      "https://admin.yosemitecrew.com/api/directory/listing",
+    );
+  });
+
+  it("uses the same base the licence endpoints use, with the var unset", async () => {
+    // The regression this file could not catch on its own: two readers agreeing
+    // is the property, and each one asserted in isolation is what let them drift.
+    delete process.env.AP_LICENSE_AUTHORITY_URL;
+    prisma.organization.findUnique.mockResolvedValue({
+      isVerified: true,
+      name: "Example Vets",
+    });
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPActor.update.mockResolvedValue({});
+    mockFetch().mockResolvedValue({ ok: true });
+
+    await svc.setDirectoryListing("org-1", true);
+
+    const { apAuthorityBase } = await import("src/services/ap-authority");
+    expect(mockFetch().mock.calls[0][0]).toBe(
+      `${apAuthorityBase()}/api/directory/listing`,
     );
   });
 });
