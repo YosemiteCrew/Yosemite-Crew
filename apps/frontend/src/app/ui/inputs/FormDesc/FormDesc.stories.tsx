@@ -10,9 +10,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Multi-line textarea with a static top label, matching the design field system ' +
-          '(46px-scale fields: 13px radius, 1.5px hairline border, --field-bg fill, 13.5px text). ' +
-          'Supports error display with a warning icon.',
+          'Multi-line control composed from the canonical Field and Textarea primitives. ' +
+          'Uses a static label and one shared help/error slot.',
       },
     },
   },
@@ -50,7 +49,7 @@ export const WithError: Story = {
   args: { value: '', error: 'Please describe the concern.' },
   parameters: {
     docs: {
-      description: { story: 'Error message shown below the textarea with a warning icon.' },
+      description: { story: 'Error message replaces helper text below the textarea.' },
     },
   },
 };

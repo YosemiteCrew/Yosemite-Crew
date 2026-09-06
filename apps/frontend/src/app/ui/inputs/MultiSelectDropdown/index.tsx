@@ -1,9 +1,10 @@
 import React, { useCallback, useId, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { IoIosWarning } from 'react-icons/io';
 import { Option } from '@/app/features/companions/types/companion';
 import { IoCheckmarkOutline, IoChevronDown } from 'react-icons/io5';
 import { useDropdown, useFilteredOptions } from '@/app/hooks/useDropdown';
+import Field from '@/app/ui/Field';
+import { getFieldControlClassName } from '@/app/ui/fieldControlStyles';
 import { useListboxKeyboardNav } from '@/app/ui/inputs/Dropdown/useDropdownKeyboardNav';
 import { useDropdownPositioning } from '@/app/ui/inputs/Dropdown/useDropdownPositioning';
 
@@ -16,6 +17,7 @@ type DropdownProps = {
   searchable?: boolean;
   icon?: React.ReactNode;
   portal?: boolean;
+  disabled?: boolean;
 };
 
 type MultiSelectPanelProps = {
@@ -91,22 +93,11 @@ const MultiSelectPanel = ({
 );
 
 const getTriggerClassName = (open: boolean, hasSelection: boolean, error?: string): string => {
-  const base =
-    // Metrics match LabelDropdown exactly. The two sit next to each other in the
-    // New appointment modal as "Lead" and "Support", and were 13px/px-[13px]/pr-9
-    // against 14px/px-[14px]/pr-11 - close enough to look like the same control,
-    // far enough that the label baselines and chevrons did not line up.
-    // LabelDropdown is the standard here: 43 usages against this one's 13.
-    'relative w-full flex h-[44px] items-center px-[13px] pr-9 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[13px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
-  let borderState: string;
+  const base = `relative flex h-10 min-w-30 cursor-pointer items-center px-3 pr-9 ${getFieldControlClassName(Boolean(!hasSelection && error))}`;
   if (open) {
-    borderState = 'border-[var(--blue)]! border-b-0! rounded-t-[12px]! z-20';
-  } else if (!hasSelection && error) {
-    borderState = 'border-[var(--danger)]! rounded-[12px]!';
-  } else {
-    borderState = 'border-[var(--hairline)]! rounded-[12px]!';
+    return `${base} z-20 rounded-b-none! border-[var(--blue)]! border-b-0!`;
   }
-  return `${base} ${borderState}`;
+  return base;
 };
 
 type TriggerContentProps = {
@@ -182,9 +173,12 @@ const MultiSelectDropdown = ({
   searchable = true,
   icon,
   portal = true,
+  disabled = false,
 }: DropdownProps) => {
   const searchId = useId();
   const listboxId = useId();
+  const controlId = useId();
+  const errorId = error ? `${controlId}-message` : undefined;
   const {
     open,
     searchQuery,
@@ -256,22 +250,32 @@ const MultiSelectDropdown = ({
   );
 
   return (
-    <div className="flex flex-col">
-      <span className="mb-1.5 flex items-center gap-1 truncate text-[12.5px] font-semibold text-[var(--ink-soft)]">
-        {icon}
-        {placeholder}
-      </span>
+    <Field
+      htmlFor={controlId}
+      label={
+        <span className="flex items-center gap-1 truncate">
+          {icon}
+          {placeholder}
+        </span>
+      }
+      error={error}
+      messageId={errorId}
+      disabled={disabled}
+    >
       <div className="relative w-full" ref={dropdownRef}>
         <button
+          id={controlId}
           type="button"
+          disabled={disabled}
           aria-label={hasSelection ? `${placeholder}: ${selectedLabel}` : placeholder}
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-controls={open ? listboxId : undefined}
+          aria-describedby={errorId}
           className={getTriggerClassName(open, hasSelection, error)}
           onKeyDown={handleKeyDown}
           onClick={() => {
-            if (!open) {
+            if (!disabled && !open) {
               openDropdown();
             }
           }}
@@ -310,13 +314,7 @@ const MultiSelectDropdown = ({
         {open && shouldPortal && portalStyle && createPortal(panel, document.body)}
         {open && !shouldPortal && <div className="absolute top-full left-0 w-full">{panel}</div>}
       </div>
-      {error && (
-        <div className="mt-1.5 flex items-center gap-1 text-caption-2 text-text-error">
-          <IoIosWarning className="text-text-error" size={14} />
-          <span>{error}</span>
-        </div>
-      )}
-    </div>
+    </Field>
   );
 };
 

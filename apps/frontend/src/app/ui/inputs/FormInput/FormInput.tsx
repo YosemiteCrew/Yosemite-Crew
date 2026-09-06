@@ -1,5 +1,7 @@
 import React, { useId } from 'react';
-import { IoIosWarning } from 'react-icons/io';
+
+import Field from '@/app/ui/Field';
+import Input from '@/app/ui/Input';
 
 type FormInputProps = {
   intype: string;
@@ -7,6 +9,10 @@ type FormInputProps = {
   value: string;
   inlabel: string;
   readonly?: boolean;
+  disabled?: boolean;
+  hint?: string;
+  placeholder?: string;
+  required?: boolean;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBlur?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
@@ -26,12 +32,16 @@ const FormInput = ({
   onFocus,
   onClick,
   readonly,
+  disabled,
+  hint,
+  placeholder,
+  required = true,
   error,
   className,
   tabIndex,
 }: Readonly<FormInputProps>) => {
   const uid = useId();
-  const errorId = error ? `${uid}-error` : undefined;
+  const messageId = error || hint ? `${uid}-message` : undefined;
 
   const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
     onClick?.(e);
@@ -41,51 +51,34 @@ const FormInput = ({
   };
 
   return (
-    <div className="w-full">
-      <label
-        htmlFor={uid}
-        className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]"
-      >
-        {inlabel}
-      </label>
-      <input
+    <Field
+      htmlFor={uid}
+      label={inlabel}
+      hint={hint}
+      error={error}
+      messageId={messageId}
+      disabled={disabled}
+    >
+      <Input
         type={intype}
         name={inname}
         id={uid}
         value={value ?? ''}
+        placeholder={placeholder ?? inlabel}
         onChange={onChange}
         autoComplete="off"
         readOnly={readonly}
-        required
+        required={required}
+        disabled={disabled}
         tabIndex={tabIndex}
-        aria-invalid={Boolean(error)}
-        aria-describedby={errorId}
-        aria-label={inlabel}
+        error={Boolean(error)}
+        aria-describedby={messageId}
         onFocus={onFocus}
         onBlur={onBlur}
         onClick={handleInputClick}
-        className={`
-          h-[44px] w-full rounded-[12px] border-[1.5px] bg-[var(--field-bg)]
-          px-[14px] text-[14px] text-[var(--ink-body)] outline-none transition-colors
-          placeholder:text-[var(--ink-faint)]
-          disabled:cursor-not-allowed disabled:opacity-60
-          ${error ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!'}
-          focus:border-[var(--blue)]! focus:shadow-[0_0_0_3px_var(--glow-b10)]
-          ${className ?? ''}
-        `}
+        className={className}
       />
-
-      {error && (
-        <div
-          id={errorId}
-          role="alert"
-          className="mt-1.5 flex items-center gap-1 text-caption-2 text-text-error"
-        >
-          <IoIosWarning className="text-text-error" size={14} aria-hidden="true" />
-          <span>{error}</span>
-        </div>
-      )}
-    </div>
+    </Field>
   );
 };
 
