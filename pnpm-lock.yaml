@@ -398,8 +398,8 @@ importers:
         specifier: ^5.22.0
         version: 5.22.0
       raw-body:
-        specifier: 2.5.3
-        version: 2.5.3
+        specifier: 4.0.0
+        version: 4.0.0
       ts-jest:
         specifier: ^29.4.12
         version: 29.4.12(@babel/core@7.29.6)(esbuild@0.28.2)(jest@30.4.2)(typescript@5.9.3)
@@ -21042,16 +21042,6 @@ packages:
     resolution: {integrity: sha512-hek2mFQpPuI4E1BBKrSto+BU3e3x4xuarsbiwr3+lf7p44juvFMV0XFWQAP3xUyqXA4RrXLIoaSUGbSt056ZMw==}
     engines: {node: '>= 0.6'}
     dev: false
-
-  /raw-body@2.5.3:
-    resolution: {integrity: sha512-s4VSOf6yN0rvbRZGxs8Om5CWj6seneMwK3oDb4lWDH0UPhWcxwOWw5+qk24bxq87szX1ydrwylIOp2uG1ojUpA==}
-    engines: {node: '>= 0.8'}
-    dependencies:
-      bytes: 3.1.2
-      http-errors: 2.0.1
-      iconv-lite: 0.4.24
-      unpipe: 1.0.0
-    dev: true
 
   /raw-body@4.0.0:
     resolution: {integrity: sha512-TMHtwexrgOt9VJ2E5JF9RO8mRXGNgC5wXvKkc5AVSJUt1L5gxvjg7eiCQl96EqUEpCWrnNEkCnbAplYtyuq1IA==}
