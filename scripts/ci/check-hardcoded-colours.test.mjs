@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import {
   BASELINE_PATH,
   SELFTEST_CASES,
+  baselineFreshness,
   compare,
   findColours,
   scan,
@@ -254,4 +255,109 @@ test('every reason in the shipped baseline is long enough to be a reason', () =>
     assert.ok(entry.why.trim().length >= 20, `${file}: "${entry.why}" is not a reason`);
     assert.ok(Number.isInteger(entry.n) && entry.n > 0, `${file}: n must be a positive integer`);
   }
+});
+
+/* ---------------------------------------------------------------------------
+   Baseline provenance.
+
+   The baseline is a per-file count OF A SPECIFIC TREE. Point it at a tree that
+   predates it and every literal that commit removed reads as a literal this
+   branch just added. It is not a hypothetical: within minutes of the gate
+   landing on dev, a reviewer paired dev's baseline with a branch cut before it
+   and got `ShareEntityModal.tsx: 0 -> 1  rgba(29,28,27,0.44)` - a literal the
+   baseline's own commit DELETED - and was one keystroke from telling another
+   desk their PR introduced new colours.
+
+   The counts cannot distinguish the two cases. So the gate stops inferring and
+   prints the state, and `unknown` is a first-class answer rather than a quiet
+   pass-through.
+   --------------------------------------------------------------------------- */
+
+/** A git runner whose answers are stated, so the state under test is the code. */
+const fakeGit =
+  (answers) =>
+  (...args) =>
+    answers[args.join(' ')] ?? { ok: false, status: 128, out: '' };
+
+const KNOWN = 'a'.repeat(40);
+
+test('a baseline with no recorded commit is unknown, not assumed current', () => {
+  assert.equal(baselineFreshness(null, fakeGit({})).state, 'unknown');
+  assert.equal(baselineFreshness(undefined, fakeGit({})).state, 'unknown');
+});
+
+test('a commit this clone does not have is unknown, and says so', () => {
+  const got = baselineFreshness(KNOWN, fakeGit({}));
+  assert.equal(got.state, 'unknown');
+  assert.match(got.why, /not in this clone/);
+});
+
+test('the baseline commit being an ancestor of HEAD is current', () => {
+  const got = baselineFreshness(
+    KNOWN,
+    fakeGit({
+      [`cat-file -e ${KNOWN}^{commit}`]: { ok: true, status: 0, out: '' },
+      'rev-parse HEAD': { ok: true, status: 0, out: 'b'.repeat(40) },
+      [`merge-base --is-ancestor ${KNOWN} HEAD`]: { ok: true, status: 0, out: '' },
+    })
+  );
+  assert.equal(got.state, 'current');
+});
+
+test('a baseline commit NOT in this history is stale - the case that invents findings', () => {
+  const got = baselineFreshness(
+    KNOWN,
+    fakeGit({
+      [`cat-file -e ${KNOWN}^{commit}`]: { ok: true, status: 0, out: '' },
+      'rev-parse HEAD': { ok: true, status: 0, out: 'b'.repeat(40) },
+      // rc=1 is git's "no", distinct from rc=128 "could not answer".
+      [`merge-base --is-ancestor ${KNOWN} HEAD`]: { ok: false, status: 1, out: '' },
+    })
+  );
+  assert.equal(got.state, 'stale');
+  assert.equal(got.at, KNOWN);
+});
+
+test('merge-base failing for any OTHER reason is unknown, not stale', () => {
+  // The load-bearing distinction. Collapsing rc>1 into "stale" would print a
+  // confident "your branch is behind" every time git itself could not answer,
+  // and collapsing it into "current" would restore the silence this exists to
+  // remove. Only rc=1 is an answer.
+  const got = baselineFreshness(
+    KNOWN,
+    fakeGit({
+      [`cat-file -e ${KNOWN}^{commit}`]: { ok: true, status: 0, out: '' },
+      'rev-parse HEAD': { ok: true, status: 0, out: 'b'.repeat(40) },
+      [`merge-base --is-ancestor ${KNOWN} HEAD`]: { ok: false, status: 128, out: '' },
+    })
+  );
+  assert.equal(got.state, 'unknown');
+});
+
+test('the shipped baseline records the commit it describes', () => {
+  const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'));
+  assert.match(
+    baseline.generated_at ?? '',
+    /^[0-9a-f]{40}$/,
+    'a baseline with no generated_at cannot be checked for staleness at all'
+  );
+});
+
+test('the staleness note may live under the failure arm only while a LOSS also fails', () => {
+  // A correctness dependency between two parts of this file with nothing else
+  // connecting them, so it is asserted rather than left as a comment.
+  //
+  // A stale baseline moves counts in BOTH directions: the tree carries literals
+  // the baseline's commit removed, AND lacks literals it added. The note is
+  // printed only when the run fails, which reaches every stale tree only
+  // because a decrease fails as loudly as an increase. Turn this gate into a
+  // ceiling that ignores decreases and a stale baseline becomes a silent false
+  // pass - the note would then have to print on success too.
+  //
+  // If this test goes red, the placement of baselineFreshness() is wrong, not
+  // this assertion.
+  const staleGain = compare({ 'package.json': 1 }, { 'package.json': 0 });
+  const staleLoss = compare({ 'package.json': 0 }, { 'package.json': 1 });
+  assert.equal(staleGain.increased.length, 1, 'the gain direction must fail');
+  assert.equal(staleLoss.decreased.length, 1, 'the LOSS direction must fail too');
 });

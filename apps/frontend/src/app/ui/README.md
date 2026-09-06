@@ -63,6 +63,21 @@ Those live in the baseline's `justified` map, each with a written `why`. The
 list is not an exemption:
 
 - an entry with no usable reason fails the gate with exit 2, not a pass
-- a justified file is pinned in **both** directions, so a *new* literal cannot
+- a justified file is pinned in **both** directions, so a _new_ literal cannot
   hide behind a reason written for a different one
 - `--update` never moves a file into `justified`; a reason is written by a person
+
+### If the gate reports colours you did not write, read the last line first
+
+The baseline is a per-file count of a specific commit, recorded as `generated_at`.
+Run it on a branch cut before that commit and every literal the baseline's commit
+_removed_ appears as a literal your branch _added_ — real file, real line, real
+colour, wrong conclusion. On any failure the gate now says which case it is:
+
+```
+READ THIS BEFORE ACTING ON THE ABOVE. The baseline describes commit 1007378ea,
+which is NOT in this tree's history.
+```
+
+Merge `origin/dev` and re-run before believing the findings. If git cannot answer,
+it says that too rather than assuming the baseline is current.
