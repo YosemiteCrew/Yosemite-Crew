@@ -96,7 +96,7 @@
 
 .DevApiKeys-input:focus {
   border-color: var(--blue);
-  box-shadow: 0 0 0 3px var(--glow-b10, rgba(37, 123, 237, 0.1));
+  box-shadow: 0 0 0 3px var(--glow-b10);
 }
 
 .DevApiKeys-formActions {

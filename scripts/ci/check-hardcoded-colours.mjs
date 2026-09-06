@@ -84,7 +84,10 @@ const EXCLUDED = [
 const MIN_FILES = 200;
 
 const HEX = /#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-fA-F\w])/g;
-const FUNCTIONAL = /\b(?:rgba?|hsla?)\(\s*[\d.]/g;
+// Anchored on a DIGIT as the first argument so `rgb(var(--x) / 0.5)` - a token
+// use, not a literal - is not a finding, and carried to the closing paren so
+// the failure message shows the whole colour rather than `rgba(0`.
+const FUNCTIONAL = /\b(?:rgba?|hsla?)\(\s*[\d.][^)]*\)/g;
 
 class GateError extends Error {}
 
@@ -225,35 +228,92 @@ export const scan = (roots = SCAN_ROOTS) => {
  * that gained literals is a change to fix, a file that lost them is a baseline
  * to retighten, and a baselined file that no longer exists is a stale entry.
  */
-export const compare = (counts, baseline) => {
+export const compare = (counts, baseline, justified = {}) => {
   const increased = [];
   const decreased = [];
   const vanished = [];
+  const drifted = [];
   for (const [file, n] of Object.entries(counts)) {
+    if (file in justified) continue;
     const allowed = baseline[file] ?? 0;
     if (n > allowed) increased.push({ file, was: allowed, now: n });
   }
   for (const [file, allowed] of Object.entries(baseline)) {
+    if (file in justified) continue;
     const n = counts[file] ?? 0;
     if (!existsSync(join(repoRoot, file))) vanished.push({ file, was: allowed });
     else if (n < allowed) decreased.push({ file, was: allowed, now: n });
   }
-  return { increased, decreased, vanished };
+  /* A justified file is pinned in BOTH directions. A ceiling would let a new
+     literal hide behind a reason written for a different one, which is the one
+     way an allowlist silently becomes an exemption. */
+  for (const [file, entry] of Object.entries(justified)) {
+    if (!existsSync(join(repoRoot, file))) {
+      vanished.push({ file, was: entry.n });
+      continue;
+    }
+    const n = counts[file] ?? 0;
+    if (n !== entry.n) drifted.push({ file, was: entry.n, now: n, why: entry.why });
+  }
+  return { increased, decreased, vanished, drifted };
 };
 
+/**
+ * `{ files, justified }`.
+ *
+ * `files` is debt: literals that should become tokens, counted per file so the
+ * gate can fail on an increase. `justified` is the other kind, and it is the
+ * reason this gate can honestly aim at zero. Some literals are correct and
+ * removing them is the regression: a third party's brand colour handed to an
+ * iframe that cannot read our custom properties, a `<style>` string injected
+ * into a print window that has none of our CSS, a knob that must NOT flip with
+ * the theme because the surface behind it does not.
+ *
+ * An entry without a `why` is rejected rather than skipped. An allowlist whose
+ * entries carry no reason is indistinguishable from the drift this gate exists
+ * to stop, and it is the shape every such list decays into.
+ */
 const readBaseline = () => {
   if (!existsSync(BASELINE_PATH)) {
     throw new GateError(`no baseline at ${relative(repoRoot, BASELINE_PATH)}`);
   }
-  return JSON.parse(readFileSync(BASELINE_PATH, 'utf8')).files;
+  const parsed = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'));
+  const justified = parsed.justified ?? {};
+  for (const [file, entry] of Object.entries(justified)) {
+    if (!entry || typeof entry.why !== 'string' || entry.why.trim().length < 20) {
+      throw new GateError(
+        `justified entry for ${file} has no usable "why". An allowlist entry ` +
+          'without a reason is the drift this gate exists to stop.'
+      );
+    }
+    if (!Number.isInteger(entry.n) || entry.n < 1) {
+      throw new GateError(`justified entry for ${file} has no positive "n"`);
+    }
+  }
+  return { files: parsed.files ?? {}, justified };
 };
 
-const writeBaseline = (counts, scanned) => {
-  const files = Object.fromEntries(Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)));
+/**
+ * `--update` rewrites the debt and CARRIES the justifications through unchanged,
+ * with their counts re-read from disk. It can never move a file INTO `justified`
+ * - a reason is written by a person, and a generated one would be a sentence
+ * nobody chose.
+ */
+const writeBaseline = (counts, scanned, justified = {}) => {
+  const files = Object.fromEntries(
+    Object.entries(counts)
+      .filter(([file]) => !(file in justified))
+      .sort(([a], [b]) => a.localeCompare(b))
+  );
+  const carried = Object.fromEntries(
+    Object.entries(justified)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([file, entry]) => [file, { n: counts[file] ?? 0, why: entry.why }])
+  );
   const total = Object.values(files).reduce((n, c) => n + c, 0);
   writeFileSync(
     BASELINE_PATH,
-    `${JSON.stringify({ generated_by: 'scripts/ci/check-hardcoded-colours.mjs --update', total, files }, null, 2)}\n`
+    `${JSON.stringify({ generated_by: 'scripts/ci/check-hardcoded-colours.mjs --update', total, justified: carried, files }, null, 2)}\n`
   );
   return { total, fileCount: Object.keys(files).length, scanned };
 };
@@ -329,8 +389,10 @@ const main = () => {
     for (const f of findings) console.log(`${f.file}:${f.line}  ${f.text}`);
   }
 
+  const { files: baseline, justified } = readBaseline();
+
   if (args.includes('--update')) {
-    const { total, fileCount } = writeBaseline(counts, scanned);
+    const { total, fileCount } = writeBaseline(counts, scanned, justified);
     console.log(
       `baseline written: ${total} colour literals across ${fileCount} files ` +
         `(${scanned} files scanned)`
@@ -338,8 +400,7 @@ const main = () => {
     return 0;
   }
 
-  const baseline = readBaseline();
-  const { increased, decreased, vanished } = compare(counts, baseline);
+  const { increased, decreased, vanished, drifted } = compare(counts, baseline, justified);
 
   if (increased.length) {
     console.error('New hardcoded colours. Use a token from globals.css instead:\n');
@@ -361,11 +422,26 @@ const main = () => {
     console.error('\nBaselined files that no longer exist. Run --update:\n');
     for (const { file, was } of vanished) console.error(`  ${file} (was ${was})`);
   }
-  if (increased.length || decreased.length || vanished.length) return 1;
+  if (drifted.length) {
+    console.error(
+      '\nA file with a justified literal changed count. The reason on record was\n' +
+        'written for the literals that were there; re-read it and either fix the\n' +
+        'new one or widen the reason deliberately:\n'
+    );
+    for (const { file, was, now, why } of drifted) {
+      console.error(`  ${file}: ${was} -> ${now}\n      reason on record: ${why}`);
+    }
+  }
+  if (increased.length || decreased.length || vanished.length || drifted.length) return 1;
 
-  const total = Object.values(counts).reduce((n, c) => n + c, 0);
+  const debt = Object.entries(counts)
+    .filter(([file]) => !(file in justified))
+    .reduce((n, [, c]) => n + c, 0);
+  const kept = Object.values(justified).reduce((n, e) => n + e.n, 0);
   console.log(
-    `no new hardcoded colours: ${total} known literals across ${Object.keys(counts).length} files, ` +
+    `no new hardcoded colours: ${debt} to migrate across ` +
+      `${Object.keys(counts).length - Object.keys(justified).length} files, ` +
+      `${kept} justified across ${Object.keys(justified).length} files, ` +
       `${scanned} files scanned`
   );
   return 0;

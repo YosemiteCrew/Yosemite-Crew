@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 
 import {
+  BASELINE_PATH,
   SELFTEST_CASES,
   compare,
   findColours,
@@ -135,4 +138,93 @@ test('the scan excludes the token source and the test files', () => {
   const { findings } = scan();
   assert.ok(!findings.some((f) => f.file.endsWith('app/globals.css')));
   assert.ok(!findings.some((f) => /__tests__|\.test\.tsx?$/.test(f.file)));
+});
+
+/* ---------------------------------------------------------------------------
+   The justified list.
+
+   These tests exist because an allowlist is the part of a gate that decays. The
+   failure is never "someone wrote a bad reason"; it is that the list quietly
+   becomes a ceiling, and a literal nobody chose slips in underneath a sentence
+   written about a different one.
+   --------------------------------------------------------------------------- */
+
+test('a justified file is exempt from the debt arms', () => {
+  const justified = { 'a.tsx': { n: 2, why: 'x'.repeat(30) } };
+  const { increased, decreased } = compare({ 'a.tsx': 2 }, { 'a.tsx': 1 }, justified);
+  assert.deepEqual([increased, decreased], [[], []]);
+});
+
+test('a justified file is pinned in BOTH directions, not capped', () => {
+  // The load-bearing half is the increase. A ceiling would accept 2 -> 1 AND
+  // 1 -> 2, and the second is a new literal hiding behind an old reason.
+  //
+  // The path has to be one that EXISTS. Written against 'a.tsx' all three arms
+  // pass vacuously: compare checks existence first and files a missing
+  // justified path as `vanished`, so the drift branch under test is never
+  // reached and `drifted` is empty for the right-looking reason.
+  const real = 'package.json';
+  const justified = { [real]: { n: 1, why: 'x'.repeat(30) } };
+
+  const gained = compare({ [real]: 2 }, {}, justified);
+  assert.deepEqual(
+    gained.drifted.map(({ file, was, now }) => ({ file, was, now })),
+    [{ file: real, was: 1, now: 2 }]
+  );
+
+  const lost = compare({ [real]: 0 }, {}, justified);
+  assert.deepEqual(
+    lost.drifted.map(({ file, was, now }) => ({ file, was, now })),
+    [{ file: real, was: 1, now: 0 }]
+  );
+
+  const held = compare({ [real]: 1 }, {}, justified);
+  assert.deepEqual(held.drifted, []);
+});
+
+test('a justified path that no longer exists is reported, not silently held', () => {
+  const { vanished, drifted } = compare({}, {}, { 'no/such/file.tsx': { n: 1, why: 'x'.repeat(30) } });
+  assert.deepEqual(vanished, [{ file: 'no/such/file.tsx', was: 1 }]);
+  assert.deepEqual(drifted, []);
+});
+
+test('the drift report carries the reason on record, not just the numbers', () => {
+  // The reader of a failing gate has to decide whether the new literal belongs
+  // under the old reason. They cannot do that from "1 -> 2".
+  const why = 'Stripe Connect renders in its own iframe and cannot read our custom properties.';
+  const { drifted } = compare({ 'package.json': 2 }, {}, { 'package.json': { n: 1, why } });
+  assert.equal(drifted[0].why, why);
+});
+
+test('every justified entry in the shipped baseline names a file that exists', () => {
+  // A reason attached to a deleted path is an exemption with no subject, and it
+  // reads as a considered decision for as long as nobody opens the file.
+  const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'));
+  const justified = Object.keys(baseline.justified ?? {});
+  assert.ok(justified.length > 0, 'the fixture for this test is the baseline itself');
+  for (const file of justified) {
+    assert.ok(existsSync(join(dirname(BASELINE_PATH), '../..', file)), `missing: ${file}`);
+  }
+});
+
+test('a justified path is not also carried as debt', () => {
+  // Counted twice, the total is wrong in the direction that looks like progress.
+  const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'));
+  for (const file of Object.keys(baseline.justified ?? {})) {
+    assert.ok(!(file in baseline.files), `${file} is in both justified and files`);
+  }
+});
+
+test('the shipped baseline totals agree with its own rows', () => {
+  const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'));
+  const summed = Object.values(baseline.files).reduce((n, c) => n + c, 0);
+  assert.equal(baseline.total, summed);
+});
+
+test('every reason in the shipped baseline is long enough to be a reason', () => {
+  const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'));
+  for (const [file, entry] of Object.entries(baseline.justified ?? {})) {
+    assert.ok(entry.why.trim().length >= 20, `${file}: "${entry.why}" is not a reason`);
+    assert.ok(Number.isInteger(entry.n) && entry.n > 0, `${file}: n must be a positive integer`);
+  }
 });

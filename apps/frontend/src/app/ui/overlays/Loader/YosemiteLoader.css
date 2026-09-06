@@ -4,14 +4,14 @@
   justify-content: center;
   gap: 10px;
   font-family: var(--font-satoshi);
-  color: var(--color-text-primary, #302f2e);
+  color: var(--color-text-primary);
 }
 
 .yosemite-loader__spinner {
   display: inline-block;
   box-sizing: border-box;
-  border: 2px solid var(--hairline, #e5dccf);
-  border-top-color: var(--blue, #257bed);
+  border: 2px solid var(--hairline);
+  border-top-color: var(--blue);
   border-radius: 9999px;
   animation: yosemite-loader-spin 0.7s linear infinite;
 }
