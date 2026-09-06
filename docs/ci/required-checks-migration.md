@@ -41,17 +41,22 @@ described, and a reader using it to judge whether a missing `CI Required` row
 matters would have drawn the opposite conclusion - on `dev` an absent row blocks
 the merge. Read off the rulesets, not off this file:
 
-| ruleset    | name                                              | required status checks                 |
-| ---------- | ------------------------------------------------- | -------------------------------------- |
-| `3468092`  | dev                                               | `CI Required`, `Supply Chain Required` |
-| `3440858`  | Main                                              | `Only dev may merge into main`         |
-| `21048611` | Protect main and dev from deletion and force-push | none                                   |
+The `required status checks` column is the `required_status_checks` rule's
+context list and nothing else. **Rulesets carry other rule types that gate
+merges too** - `code_quality`, `code_scanning`, `copilot_code_review`,
+`pull_request` - and none of those appear in that column. Do not read an empty
+cell as an ungated branch.
+
+| ruleset    | name                                              | required status checks                 | other gating rules                                                        |
+| ---------- | ------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------- |
+| `3468092`  | dev                                               | `CI Required`, `Supply Chain Required` | `code_quality` (severity `errors`), `copilot_code_review`, `pull_request` |
+| `3440858`  | Main                                              | `Only dev may merge into main`         | `code_scanning` (CodeQL), `copilot_code_review`, `pull_request`           |
+| `21048611` | Protect main and dev from deletion and force-push | none                                   | `deletion`, `non_fast_forward` only                                       |
 
 **There are three rulesets, not two.** And `Only dev may merge into main` is a
 status check _context_ whose text reads exactly like a rule description, so any
 listing that prints contexts in a column gives a reader no way to tell which it
-is. `CI Required` is not among Main's required checks; `code_quality` is
-required on none of the three.
+is. `CI Required` is not among Main's required checks.
 
 ~~1. Make `CI Required` required.~~ **Done.** The instructions that stood here
 appended a `required_status_checks` rule to a ruleset - re-GET, `jq '.rules +=
@@ -73,9 +78,11 @@ is not any more:
    a `code_quality` status posts on a `merge_group` ref. It is not expected to -
    SonarCloud decorates pull requests, not merge groups. If it does not, remove
    `code_quality` from dev's required set before enabling the queue, keeping it
-   as PR decoration. (Measured 2026-09-06: `code_quality` is not in dev's
-   required set, so that removal may already be moot - re-check rather than
-   assume either way.) The Sonar signal for queued changes is the PR run's sonar
+   as PR decoration. (Measured 2026-09-06: dev's ruleset carries `code_quality`
+   with `severity: errors`. It is a rule TYPE, not a status-check context, so it
+   does not appear in the required-contexts column above - an earlier draft of
+   this paragraph read that column, found nothing, and reported the removal as
+   moot. It is not: the rule is present and enforced, and this step applies.) The Sonar signal for queued changes is the PR run's sonar
    stage (which runs `-Dsonar.qualitygate.wait=true`, so a red gate reds the
    PR's `CI Required` before the PR can enter the queue): the `merge_group` run
    itself SKIPS sonar deliberately, because the SonarCloud plan only analyzes
