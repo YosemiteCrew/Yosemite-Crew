@@ -73,10 +73,15 @@ export const MERCK_COPYRIGHT_NOTICE =
   'Copyright \u00a9 2021 Merck & Co., Inc., known as MSD outside of the US, Kenilworth, New Jersey, USA. All rights reserved.';
 
 const MERCK_SUBTOPIC_STYLES = {
+  /* The accent pill, not the brand badge. `--color-badge-blue-text` on
+     `--color-badge-blue-bg` measures 3.61:1, and these render at 10.5px/600
+     and 11px/600 - far below the 18.66px-bold large-text threshold, so the bar
+     is 4.5:1. `--color-pill-accent-*` keeps Full Summary distinct from the
+     four category pills below and is a triple like all of them. */
   fullSummary: {
-    backgroundColor: 'var(--color-badge-blue-bg)',
-    color: 'var(--color-badge-blue-text)',
-    borderColor: 'var(--color-badge-blue-bg)',
+    backgroundColor: 'var(--color-pill-accent-bg)',
+    color: 'var(--color-pill-accent-text)',
+    borderColor: 'var(--color-pill-accent-border)',
   },
   etiology: {
     backgroundColor: 'var(--color-pill-neutral-bg)',
