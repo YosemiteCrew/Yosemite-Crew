@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, within } from 'storybook/test';
 import type { Appointment } from '@yosemite-crew/types';
+import { expectShellReservesConsentInset } from './consentInsetAssertion';
 
 import PhoneWorkspaceShell from './PhoneWorkspaceShell';
 import {
@@ -256,22 +257,10 @@ export const FitsThePhone: Story = {
 
        `max` rather than a sum, because the card docks ABOVE the tab bar and the
        strip it publishes already contains the bar's 72px - adding them
-       double-counts. So with no card the height must not move. */
-    const shell = canvasElement.querySelector('[class*="100dvh"]') as HTMLElement;
+       double-counts. So with no card the height must not move. Shared with
+       PhoneCompanionRecord, which carries the identical calc. */
+    const shell = canvasElement.querySelector('[data-testid="phone-workspace-shell"]');
     await expect(shell).not.toBeNull();
-    const withoutCard = shell.getBoundingClientRect().height;
-
-    const root = document.documentElement;
-    try {
-      root.style.setProperty('--yc-consent-inset', '252px');
-      const withCard = shell.getBoundingClientRect().height;
-      await expect(withCard).toBeLessThan(withoutCard);
-      await expect(Math.round(withoutCard - withCard)).toBe(252 - 72);
-
-      root.style.setProperty('--yc-consent-inset', '0px');
-      await expect(Math.round(shell.getBoundingClientRect().height)).toBe(Math.round(withoutCard));
-    } finally {
-      root.style.removeProperty('--yc-consent-inset');
-    }
+    await expectShellReservesConsentInset(shell as HTMLElement);
   },
 };
