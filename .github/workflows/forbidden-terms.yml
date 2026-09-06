@@ -1,0 +1,400 @@
+name: Forbidden Terms
+
+# Both repositories are public. Prior art may be studied freely; the source may
+# never be NAMED - in code, comments, tests, fixtures, docs, commit messages,
+# branch names, or pull-request text.
+#
+# scripts/ci/forbidden-terms.mjs is the implementation and carries the reasoning
+# for every decision here; scripts/ci/forbidden-terms.test.mjs pins the
+# machinery with a synthetic pattern and runs first, because a guard whose own
+# tests are broken has no business reporting on a pull request.
+#
+# ---------------------------------------------------------------------------
+# WHY pull_request, AND WHAT A FORK GETS
+# ---------------------------------------------------------------------------
+#
+# The pattern IS the term list, so it cannot be committed to a public
+# repository; it has to be a secret. GitHub withholds secrets from
+# `pull_request` runs triggered by a FORK, so on a fork this job has no pattern
+# and the self-test below exits 2 - a guard that could not run, which this file
+# treats as red. That is the honest report for it: an outside contribution
+# needs a maintainer, and it is never silently green.
+#
+# This USED to be `pull_request_target`, which runs in the base repository's
+# context and does carry secrets on a fork. It was safe only by a convention
+# written in this comment - check out the base, read the head as data, run
+# nothing from the head - and CodeQL was right that a convention is not a
+# mechanism: `actions/untrusted-checkout/high`, this file, the head fetch.
+# One future step running anything head-provided would hand a fork the secret,
+# and nothing but review stood between us and that step.
+#
+# Be accurate about what changed, because it is narrower than the rule's
+# wording: the head is never checked out and never runs, so `later potential
+# execution` is the heuristic's assumption rather than a fact about this file.
+# Nothing here was leaking. THE PROPERTY WAS HELD BY PROSE AND IS NOW HELD BY
+# THE TRIGGER - that is the whole before-and-after, and it is worth having.
+#
+# THE SIBLING REPOSITORY MADE THIS TRADE FIRST AND REFUSED TO LET IT TRAVEL,
+# so it is made again here, on this repository's own count. Its header says
+# red-on-fork is free there because it has never had a fork pull request, and
+# says in the same breath that the answer there is not evidence about this one.
+#
+# Counted here, 2026-09-06, over all 1,601 pull requests this repository has
+# ever had:
+#
+#   596 came from a fork and 536 of those merged - a third of the merged work,
+#       across 22 named external authors
+#   the monthly curve is 54, 15, 32, 11, 17, 36, 28, 4 for 2026-01..08, and the
+#       most recent fork pull request is #2219, 2026-08-16, three weeks ago
+#
+# So the cost is real historically and near zero now, and the two halves point
+# opposite ways. What settles it is a third fact rather than a bigger number:
+# `No named external product` IS NOT A REQUIRED STATUS CHECK on either branch -
+# `dev` requires `CI Required` and `Supply Chain Required`, `main` requires
+# `Only dev may merge into main`. A fork therefore gets a visible red that
+# reports honestly and blocks nothing, and a maintainer who wants it green
+# pushes the branch to this repository and opens the pull request from there.
+#
+# THAT IS ALSO WHAT MAKES THIS PARAGRAPH EXPIRE. The moment this context is
+# added to either ruleset, red-on-fork stops being advisory and starts being a
+# merge block on a third of this repository's merged history, and the trade has
+# to be made a third time. Do not add the context without reading this.
+#
+# ---------------------------------------------------------------------------
+# TWO THINGS NOT TO DO WHEN THE FORK RED BECOMES ANNOYING
+# ---------------------------------------------------------------------------
+#
+# 1. DO NOT MAKE THE JOB `skip` WHEN THE SECRET IS ABSENT. A skipped job
+#    SATISFIES a required status check - only a context that never reports
+#    blocks - so that convenience turns this guard into one that passes hardest
+#    in exactly the case where it did not run. It will look like tidying up.
+#    Red is the correct report for a guard that could not run.
+#
+# 2. DO NOT COLLECT THE SURFACES FROM THE PULL REQUEST FILES API in order to
+#    keep a privileged trigger and drop the untrusted ref. Measured on the
+#    SIBLING repository's largest pull request, its #230 - the count belongs to
+#    that repository and has not been re-measured here, because the mechanism is
+#    the API's and not this repository's: 506 changed files, fully paginated, and
+#    NINE come back with no `patch` field at all. A scanner reading those is
+#    handed nothing for nine files and writes its `scanned` receipt having
+#    looked at neither surface - the exact state the last step exists to
+#    refuse, arriving through the data source instead of through the filter.
+#    Whether that API represents a symlink type change the way `--diff-filter=T`
+#    does is untested, not fine.
+#
+# WHAT IS KEPT FROM THE OLD DESIGN, because it is worth keeping on its own:
+#
+#   * the checkout is pinned to the BASE commit, so the guard, its tests and
+#     the must-pass corpus are the reviewed versions rather than whatever the
+#     pull request says they are. A pull request still cannot edit the thing
+#     that checks it. Under this trigger that pin is LOAD-BEARING rather than
+#     redundant: the default here is the MERGE ref, which carries the head's
+#     copy of the guard.
+#   * the head is fetched as DATA through refs/pull/<n>/head and never merged,
+#     built, installed or executed.
+#
+# ---------------------------------------------------------------------------
+# THE ONE EXECUTION SINK THAT IS NOT A STEP, AND ITS PRECONDITION
+# ---------------------------------------------------------------------------
+#
+# A `git diff` is itself an execution sink if an external diff or `textconv`
+# driver is attached to a path, and this job's whole body is `git diff` and
+# `git log`. It needs BOTH of these, and a fork can write neither:
+#
+#   * a `diff=`/`textconv` attribute on some path in `.gitattributes`, AND
+#   * a `diff.<driver>.command` in git CONFIG
+#
+# A fork cannot reach either, and the reason is worth stating rather than
+# assuming: git resolves attributes from the WORKING TREE, not from the commits
+# being diffed. A `.gitattributes` that exists only in the pull request's head
+# commit is `unspecified` for this diff and its driver never runs - measured,
+# both directions, with the positive control asserted. And git never reads
+# config out of a repository tree at all, so the second lock has no key in a
+# commit under any circumstances.
+#
+# So this is a precondition on the BASE, not a property of the trigger:
+# adding a `diff=`/`textconv` attribute to this repository's own
+# `.gitattributes` and configuring the driver turns these `git diff` lines into
+# an execution sink WITHOUT ANYONE TOUCHING THIS FILE. Checked on this
+# repository rather than carried over from the sibling, whose tree is not this
+# one: the single tracked `.gitattributes` carries `* text=auto eol=lf` and
+# twelve `binary` lines for image, font and PDF extensions, there is no `diff=`
+# or `textconv` attribute anywhere in a tracked file, and no tracked config
+# defines a driver. `binary` is the opposite of the hazard - it expands to
+# `-diff` and turns those paths into "Binary files differ", which the `names`
+# surface still sees. This survives the move off `pull_request_target` because
+# it was never about the trigger.
+#
+# ---------------------------------------------------------------------------
+# MASKING
+# ---------------------------------------------------------------------------
+#
+# GitHub masks the LITERAL secret value and nothing derived from it, so the
+# decoded pattern is unmasked unless we mask it ourselves. Both forms are
+# masked below, and `set -x` must never appear in this job. Masking is a
+# backstop and not the design: the guard reports a surface, a file and a line,
+# and never the match.
+#
+# ---------------------------------------------------------------------------
+# ROTATION
+# ---------------------------------------------------------------------------
+#
+# If the term list changes, BOTH secrets change together and every open pull
+# request's result for this check goes stale - re-run it rather than trusting a
+# green from before the rotation.
+
+on:
+  pull_request:
+    # `edited` is load-bearing. The event payload carries the title and body AT
+    # TRIGGER TIME, so without it the highest-visibility surface we have is
+    # checked once and then left editable.
+    types: [opened, edited, synchronize, reopened]
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: forbidden-terms-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  forbidden-terms:
+    name: No named external product
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # read refs; this job writes nothing back
+
+    steps:
+      # The BASE repository, so the guard, its tests and the must-pass corpus
+      # are the reviewed versions rather than whatever the pull request says
+      # they are. A pull request cannot edit the thing that checks it.
+      - name: Checkout base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The BASE commit, explicitly. `pull_request` checks out the MERGE ref
+          # by default, which contains the head's version of this guard and of
+          # its tests - so the default would let a pull request supply the code
+          # that checks it. `workflow_dispatch` carries no pull request and falls
+          # back to the ref it was dispatched on.
+          ref: ${{ github.event.pull_request.base.sha || github.ref }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      # EVERY precondition, reported together, before anything that can die on
+      # one of them. The steps below fail fast and in order, so the FIRST thing
+      # missing is the only thing anyone learns - and on the pull request that
+      # introduces this guard that first thing is the guard's own test file,
+      # absent from the base by design. Six runs died there, and the message
+      # written to tell a maintainer the secrets are missing was never printed
+      # by any of them. A guard that cannot run should say what it needs, not
+      # the first thing it happened to touch. Raised in review.
+      #
+      # `set -u` and NOT `-e`: an early exit here is the defect this step
+      # exists to remove.
+      - name: Preconditions
+        env:
+          FORBIDDEN_TERMS_PATTERN_B64: ${{ secrets.FORBIDDEN_TERMS_PATTERN_B64 }}
+          FORBIDDEN_TERMS_CORPUS_B64: ${{ secrets.FORBIDDEN_TERMS_CORPUS_B64 }}
+          # The script cannot tell an empty secret from a fork; this job can.
+          IS_FORK: ${{ github.event.pull_request.head.repo.fork }}
+        run: |
+          set -uo pipefail
+          missing=0
+
+          for f in scripts/ci/forbidden-terms.mjs scripts/ci/forbidden-terms.test.mjs \
+                   scripts/ci/forbidden-terms-allowed-prose.txt; do
+            if [ ! -f "$f" ]; then
+              echo "forbidden-terms: '$f' is not on the base branch." >&2
+              missing=1
+            fi
+          done
+          if [ "${missing}" = "1" ]; then
+            echo "This job checks out the BASE deliberately, so a pull request cannot edit" >&2
+            echo "the thing that checks it. Expected on the pull request that INTRODUCES the" >&2
+            echo "guard, and on the first port to another repository: merge it, or dispatch" >&2
+            echo "this workflow from a branch that already has it." >&2
+          fi
+
+          if [ -z "${FORBIDDEN_TERMS_PATTERN_B64:-}" ] || [ -z "${FORBIDDEN_TERMS_CORPUS_B64:-}" ]; then
+            missing=1
+            echo "forbidden-terms: no pattern and/or corpus available to this run." >&2
+            if [ "${IS_FORK:-}" = "true" ]; then
+              echo "CAUSE: this pull request comes from a fork, and GitHub withholds secrets" >&2
+              echo "from a fork's pull_request run. Nothing you change on your branch will" >&2
+              echo "turn this green - a maintainer has to review the named-product rule by" >&2
+              echo "hand before merging. Do not go looking for a word: the other red this job" >&2
+              echo "produces names the surface, the file and the line." >&2
+            else
+              echo "CAUSE: this is not a fork, so the secret is missing from the repository" >&2
+              echo "itself. A maintainer has to create both FORBIDDEN_TERMS_* repository" >&2
+              echo "secrets; until then this gate has never run, on any pull request. Do not" >&2
+              echo "work around it by making this job skip - see the header." >&2
+            fi
+          fi
+
+          if [ "${missing}" = "1" ]; then
+            echo "forbidden-terms: exit 2 - a guard that could not run, which is red and not clean." >&2
+            exit 2
+          fi
+          echo 'forbidden-terms: preconditions met.'
+
+      # The runner's system Node. The guard is dependency-free by design, so
+      # there is nothing to install - which is also the security constraint.
+      - name: Test the guard itself
+        run: node --test scripts/ci/forbidden-terms.test.mjs
+
+      - name: Arm the pattern
+        env:
+          PATTERN_B64: ${{ secrets.FORBIDDEN_TERMS_PATTERN_B64 }}
+          CORPUS_B64: ${{ secrets.FORBIDDEN_TERMS_CORPUS_B64 }}
+        run: |
+          set -euo pipefail
+          # Mask the encoded forms too: base64 of a word list is as good a
+          # starting point for someone curious as the plaintext, and it costs
+          # nothing.
+          echo "::add-mask::${PATTERN_B64}"
+          echo "::add-mask::${CORPUS_B64}"
+          PATTERN=$(printf '%s' "${PATTERN_B64}" | base64 -d 2>/dev/null || true)
+          CORPUS=$(printf '%s' "${CORPUS_B64}" | base64 -d 2>/dev/null || true)
+          # Mask the decoded values BEFORE they are used for anything at all.
+          [ -n "${PATTERN}" ] && echo "::add-mask::${PATTERN}"
+          [ -n "${CORPUS}" ] && while IFS= read -r entry; do
+            [ -n "${entry}" ] && echo "::add-mask::${entry}"
+          done <<< "${CORPUS}"
+          echo 'armed'
+
+      # The job asserts ITSELF before it asserts anything about the pull
+      # request: the pattern compiles, it catches every known positive, it stays
+      # silent on this repository's own prose, and the corpus is not truncated.
+      # An empty or rotated secret is red here rather than quietly green there.
+      #
+      # MIN_CORPUS is in the clear on purpose. A number is not a term list, and
+      # it turns "the secret lost half its entries" from silent into red. Six
+      # because the pattern carries six alternatives; raise it with the corpus,
+      # never lower it to make a run pass.
+      - name: Self-test
+        env:
+          FORBIDDEN_TERMS_PATTERN_B64: ${{ secrets.FORBIDDEN_TERMS_PATTERN_B64 }}
+          FORBIDDEN_TERMS_CORPUS_B64: ${{ secrets.FORBIDDEN_TERMS_CORPUS_B64 }}
+        run: |
+          set -euo pipefail
+          node scripts/ci/forbidden-terms.mjs selftest --min-corpus 6
+
+      # refs/pull/<n>/head exists in the BASE repository for every pull request,
+      # forks included, so the head arrives without adding the fork as a remote
+      # and without any of its code running.
+      - name: Fetch the pull request head as data
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --quiet origin "+refs/heads/${BASE_REF}:refs/remotes/origin/gate-base"
+          git fetch --no-tags --quiet origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/origin/gate-head"
+
+      # Three dots: the diff from the MERGE BASE, which is what this pull
+      # request adds rather than how it differs from a base that has moved on.
+      #
+      # It is also what answers the promotion case. A term that reached `dev`
+      # through an earlier pull request sits in the BASE of every later `dev`
+      # comparison and is never looked at again - but a `main` pull request's
+      # merge base is the previous promotion, so the whole of `dev` since then
+      # is in scope. That is why this workflow is required on BOTH branches.
+      - name: Collect the surfaces
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/surfaces"
+          MERGE_BASE=$(git merge-base refs/remotes/origin/gate-base refs/remotes/origin/gate-head)
+          # ACMRT, and the T is load-bearing. A commit that replaces a regular
+          # file with a SYMLINK is a type change: without T the path is not new
+          # so it never reaches `names`, its content never reaches `diff`, and
+          # the scanner is handed nothing to be silent about - so the run is
+          # green and writes its `scanned` receipt having looked at neither
+          # surface. That is the exact state the last step exists to refuse,
+          # arriving through the filter rather than through a skipped step. The
+          # symlink TARGET is the term, and with T it is an added line.
+          git diff --unified=0 --diff-filter=ACMRT "${MERGE_BASE}" refs/remotes/origin/gate-head \
+            > "${RUNNER_TEMP}/surfaces/diff"
+          git diff --name-only --diff-filter=ACMRT "${MERGE_BASE}" refs/remotes/origin/gate-head \
+            > "${RUNNER_TEMP}/surfaces/names"
+          git log --format=%B "${MERGE_BASE}..refs/remotes/origin/gate-head" \
+            > "${RUNNER_TEMP}/surfaces/messages"
+          # Through env and never interpolated into the script: the title and
+          # body are attacker-controlled text, and this file is the one place in
+          # the repository where that text meets a shell.
+          printf '%s\n' "${PR_HEAD_REF}" > "${RUNNER_TEMP}/surfaces/branch"
+          printf '%s\n' "${PR_TITLE}" > "${RUNNER_TEMP}/surfaces/title"
+          printf '%s\n' "${PR_BODY}" > "${RUNNER_TEMP}/surfaces/body"
+
+      # Exit 1 is a finding, exit 2 is a guard that could not run. Both are red,
+      # and neither is reported as clean.
+      - name: Scan every surface
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          FORBIDDEN_TERMS_PATTERN_B64: ${{ secrets.FORBIDDEN_TERMS_PATTERN_B64 }}
+        run: |
+          set -euo pipefail
+          # A directory rather than a list of surfaces, so this step cannot
+          # short-pass the guard. Every surface the script knows about is read,
+          # and one the step above failed to write is exit 2 rather than a
+          # surface quietly missing from the run.
+          #
+          # THE RECEIPT KEYS ON WHAT THE SCRIPT SAID, NOT ON HOW IT EXITED. The
+          # marker used to be written on any clean exit, and a clean exit is not
+          # a scan: a `node` invocation that never reaches `main` exits 0 having
+          # read nothing, `set -e` cannot tell that from a real run, and the
+          # refusal below then finds the marker and passes. That was reachable -
+          # measured on node v22.23.2, the entry-point guard compared
+          # `argv[1]` to the module path and the two disagree through a symlink,
+          # so the same file behind a link ran nothing and exited 0. The guard is
+          # fixed; this line is the half that does not depend on having thought
+          # of the particular way it happens.
+          #
+          # `surfaces read` is the sentence the script prints only after all six
+          # surfaces have been read. No pipeline, so `$?` stays the script's and
+          # a finding (exit 1) or a guard that could not run (exit 2) still fails
+          # the step through `set -e` before this line is reached.
+          scan_output=$(node scripts/ci/forbidden-terms.mjs scan --dir "${RUNNER_TEMP}/surfaces")
+          printf '%s\n' "${scan_output}"
+          case "${scan_output}" in
+            *'surfaces read'*)
+              # Evidence that the scan happened, read by the last step.
+              touch "${RUNNER_TEMP}/scanned"
+              ;;
+            *)
+              echo "forbidden-terms: the scan exited 0 without reporting that it read the" >&2
+              echo "surfaces, so nothing here can say what it looked at. Exit 2 - a guard" >&2
+              echo "that could not run, which is red and not clean." >&2
+              exit 2
+              ;;
+          esac
+
+      # No `if:`, deliberately. Every step above is conditional on the trigger,
+      # so a `workflow_dispatch` run - or any future edit that skips them -
+      # checks out, arms, self-tests and then SUCCEEDS having read no surface at
+      # all. This job's own rule is that exit 1 is a finding, exit 2 is a guard
+      # that could not run, and both are red: a run that scanned nothing is the
+      # second of those and must not be reported as the first.
+      #
+      # So a manual dispatch is a smoke test of the secrets and ends red on
+      # purpose, with the self-test's result above it, which is the honest
+      # report for it.
+      - name: Refuse to report clean without having scanned
+        run: |
+          set -euo pipefail
+          if [ ! -f "${RUNNER_TEMP}/scanned" ]; then
+            echo "forbidden-terms: no surface was scanned in this run." >&2
+            echo "A green check here would mean 'nothing found' when it means 'nothing looked at'." >&2
+            exit 1
+          fi
+          echo 'forbidden-terms: surfaces scanned.'
