@@ -45,7 +45,7 @@
 // text and reports the file and line of the ADDED line, which is why it is a
 // surface of its own rather than another blob of text.
 
-import { lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { closeSync, constants, fstatSync, openSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -494,23 +494,48 @@ function runScan(argv) {
   const findings = [];
   for (const surface of SURFACES) {
     let text;
+    let fd;
     try {
-      // `lstat` and not `stat`: `readFileSync` FOLLOWS a symlink, so a surface
-      // that is a link is read as though it were the surface, and the guard
-      // reports on a file nobody collected. The collector writes six plain
-      // files, but the read site is what decides that rather than the step that
-      // wrote them - the same reason the checkout is pinned to the base.
-      if (!lstatSync(surface).isFile()) {
+      // ONE handle, opened once, checked and read through the same descriptor.
+      //
+      // This used to be `lstatSync(surface).isFile()` followed by
+      // `readFileSync(surface)`, which is two resolutions of one name: the
+      // check answers about whatever the path meant then, the read about
+      // whatever it means now, and a surface swapped for a symlink in between
+      // is read as its target while the guard believes it checked a plain file.
+      // `js/file-system-race`, and the window is real rather than theoretical -
+      // the surfaces live in a directory this process chdir'd into.
+      //
+      // `O_NOFOLLOW` is also STRICTER than the lstat it replaces: the kernel
+      // refuses the open rather than this code refusing the result, so there is
+      // no window at all. ELOOP is that refusal and keeps the message the lstat
+      // check gave, because it means the same thing to whoever reads it.
+      try {
+        fd = openSync(surface, constants.O_RDONLY | constants.O_NOFOLLOW);
+      } catch (error) {
+        if (error?.code === 'ELOOP') {
+          throw new GuardError(
+            `The '${surface}' surface is not a regular file. A surface must be a plain file in ${root}.`
+          );
+        }
+        throw error;
+      }
+      // Still needed after the open: `O_NOFOLLOW` rules out a symlink and
+      // nothing else. A directory, a fifo or a device opens fine and would be
+      // read as a surface.
+      if (!fstatSync(fd).isFile()) {
         throw new GuardError(
           `The '${surface}' surface is not a regular file. A surface must be a plain file in ${root}.`
         );
       }
-      text = readFileSync(surface, 'utf8');
+      text = readFileSync(fd, 'utf8');
     } catch (error) {
       if (error instanceof GuardError) throw error;
       // A surface that cannot be read is an error. Treating it as empty is how
       // a guard reports "clean" about something it never looked at.
       throw new GuardError(`Cannot read the '${surface}' surface from ${root}.`);
+    } finally {
+      if (fd !== undefined) closeSync(fd);
     }
     findings.push(...scanSurface(pattern, surface, text));
   }
