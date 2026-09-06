@@ -380,7 +380,16 @@ export const InventoryFilterBar = ({
             <IoOptionsOutline size={16} aria-hidden="true" />
             <span>Filter</span>
             {selectedFilterChips.length > 0 ? (
-              <span className="rounded-full bg-badge-blue-bg px-2 text-caption-1 text-badge-blue-text">
+              /* `--inset`/`--ink`, not the badge-blue pair. `--color-badge-blue-text`
+                 (#eaf3ff) on `--color-badge-blue-bg` (#007cf5) measures 3.61:1 at
+                 this size - text-caption-1 is 14px/500, so AA wants 4.5 and there is
+                 no large-text escape. Neither token has a dark override, so it fails
+                 identically in both themes. Moving only the fill does not fix it
+                 either: this ink on `--blue-strong` is 5.79 light but 4.06 dark.
+                 `0e5e9de36` already moved three inventory badges to this pair for
+                 the same reason; 13.24 light, 12.64 dark, and both tokens are
+                 theme-aware. See #2799. */
+              <span className="rounded-full bg-[var(--inset)] px-2 text-caption-1 text-[var(--ink)]">
                 {selectedFilterChips.length}
               </span>
             ) : (
