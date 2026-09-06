@@ -50,6 +50,15 @@ export const RELEASE_WORKFLOWS = [
 export const SUBMISSIONS = [
   { store: 'Google Play', uses: 'r0adkll/upload-google-play' },
   { store: 'App Store Connect', run: 'altool --upload-app' },
+  // Desktop does not reach a store, it reaches the public. `gh release edit
+  // --draft=false` is the step that takes a draft release public, and a public
+  // release is what electron-updater's clients poll.
+  { store: 'a public GitHub Release', run: '--draft=false' },
+  // action-gh-release publishes unless the release is explicitly a draft. The
+  // dispatch-only `release` job sets `draft: true`, which is why it is not a
+  // finding today - but flipping that one word publishes from a branch, and
+  // that is the edit this entry exists to catch.
+  { store: 'a GitHub Release', uses: 'softprops/action-gh-release', exemptWhenDraft: true },
 ];
 
 /** Conditions that restrict a step to a release tag. Either one is enough. */
@@ -63,7 +72,9 @@ export function classifyStep(step) {
   if (!step || typeof step !== 'object') return null;
   const uses = typeof step.uses === 'string' ? step.uses : '';
   const run = typeof step.run === 'string' ? step.run : '';
+  const isDraft = Boolean(step.with && step.with.draft === true);
   for (const submission of SUBMISSIONS) {
+    if (submission.exemptWhenDraft && isDraft) continue;
     if (submission.uses && uses.split('@')[0] === submission.uses) return submission;
     if (submission.run && run.includes(submission.run)) return submission;
   }
@@ -107,7 +118,12 @@ export function findUnguardedSubmissions(source, file) {
     for (const step of job?.steps ?? []) {
       const submission = classifyStep(step);
       if (!submission) continue;
-      if (isTagOnly(step.if)) continue;
+      // A step runs only when its job runs AND its own condition passes, so a
+      // tag-only condition at EITHER level restricts it. Desktop guards at the
+      // job (`publish` carries the condition, its step does not) and mobile at
+      // the step, and reading only one level misses one of them: reading only
+      // steps waves through a desktop `publish` job whose guard was deleted.
+      if (isTagOnly(step.if) || isTagOnly(job?.if)) continue;
       findings.push({
         file,
         job: jobId,
@@ -148,11 +164,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   if (findings.length > 0) {
     console.error(
-      `\n${findings.length} store submission(s) reachable from a workflow_dispatch. ` +
+      `\n${findings.length} outward-facing publish step(s) reachable from a workflow_dispatch. ` +
         `Gate each on ${TAG_ONLY_GUARDS.join(' or ')}. ` +
         `A condition containing '||' is never accepted: a disjunction can only widen.`
     );
     process.exit(1);
   }
-  console.log(`No unguarded store submissions in ${RELEASE_WORKFLOWS.length} release workflows.`);
+  console.log(`No unguarded publish steps in ${RELEASE_WORKFLOWS.length} release workflows.`);
 }
