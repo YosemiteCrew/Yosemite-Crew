@@ -69,6 +69,13 @@ describe("legacy Cognito verifier - the three guards, separately", () => {
     expect(jwksClientFactory.mock.calls[0]?.[0]?.jwksUri).toBe(ALLOWED_JWKS);
   });
 
+  // Mutating `getClient(issuer.jwksUri)` inside verifyAgainstIssuer does NOT
+  // redden this - that line is unreachable for a token whose issuer is not
+  // configured, because `if (!match) return null` returns first. The obvious
+  // mutation is the unreachable one, and it comes back green, which reads as
+  // "this test enforces nothing". The mutation this case is written against is
+  // giving the allowlist a fallback so an unmatched `iss` becomes an issuer:
+  //   issuers.find(...) ?? { issuer: iss, jwksUri: `${iss}/.well-known/jwks.json` }
   it("never fetches keys from an issuer that is not configured", async () => {
     const session = await verifyLegacyBearerToken(signRs256(ATTACKER_ISS), env);
 
