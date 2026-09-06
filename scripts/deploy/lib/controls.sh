@@ -49,16 +49,21 @@
 #                               a missing key: what the deploy asks to block on
 #                               is not what this bundle knows how to report.
 #
-#   named control ABSENT,       BLOCK. The bundle said it would record this
-#   `expected` NAMES it         control before it answered on its port, and then
-#                               did not. That is a positive report of failure
+#   named control ABSENT from   BLOCK. The bundle said it would record this
+#   a READABLE controls list,   control before it answered on its port, and then
+#   `expected` NAMES it         #                               did not. That is a positive report of failure
 #                               reconstructed from two facts instead of one, and
 #                               it is why startup-controls.ts reports `expected`
 #                               alongside the reports (#2759, #2761). It used to
 #                               be indistinguishable from the two rows above.
-#   endpoint unreachable        ship. /health is already the liveness gate and
-#   or not JSON                 it runs first; a second liveness check that
-#                               guesses at a body is not one.
+#   endpoint unreachable,       ship. /health is already the liveness gate and
+#   not JSON, or JSON whose     it runs first; a second liveness check that
+#   `controls` is not an array  guesses at a body is not one. The last of those
+#                               matters because of the BLOCK row below: a
+#                               declaration can only contradict a list that was
+#                               actually read, so an unreadable `controls` makes
+#                               `expected` inert rather than damning. A readable
+#                               EMPTY list is not this case - see that row.
 #   unnamed control `failed`    ship. See the Stream reasoning above.
 #
 #   node itself cannot run      STOP THE DEPLOY, and this is the one row that is
@@ -105,8 +110,21 @@ deploy_blocking_control_failures() {
         return;
       }
 
-      const reports =
-        parsed && Array.isArray(parsed.controls) ? parsed.controls : [];
+      // Whether the list of what WAS recorded can be read at all. This used to
+      // be an inert defensive fallback - nothing distinguished an unreadable
+      // list from an empty one, because only a report positively saying
+      // failed could block and neither shape has one. Reading absence made it
+      // load-bearing, and in the wrong direction: a body with a good
+      // declaration and a controls key that is a string or missing would have
+      // blocked, which is a body we cannot read stopping the deploy. Raised in
+      // review on #2763.
+      //
+      // An EMPTY array is a different answer and still blocks: that is a list
+      // we read, saying nothing was recorded, against a bundle that said it
+      // would. Readable-and-empty is a contradiction; unreadable is not an
+      // answer at all.
+      const readable = Boolean(parsed) && Array.isArray(parsed.controls);
+      const reports = readable ? parsed.controls : [];
 
       // What this bundle says it registers before answering on its port. A
       // body without the key predates the declaration, and a key of the wrong
@@ -126,7 +144,7 @@ deploy_blocking_control_failures() {
       // string also has .includes, and "authentication".includes("authentication")
       // is true, so a malformed key would block every deploy.
       const declared =
-        parsed && Array.isArray(parsed.expected) ? parsed.expected : null;
+        readable && Array.isArray(parsed.expected) ? parsed.expected : null;
 
       for (const name of required) {
         const report = reports.find(
