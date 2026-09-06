@@ -38,6 +38,26 @@ check() { # check <name> <expected> <actual>
   if [ "$2" = "$3" ]; then ok "$1"; else no "$1" "expected '$2', got '$3'"; fi
 }
 
+# ships <name> <controls-json> [required-name...]
+#
+# "Ships" is TWO facts and empty output is only one of them. A helper that
+# crashes also writes nothing to stdout, and a crash is the opposite of a ship:
+# api-deploy.sh runs under set -e, so a non-zero status here stops the deploy.
+# Asserting emptiness alone let four of these pass in a world where three of
+# them stop the cutover - raised in review, and the exact distinction the
+# node-missing probe below was already making in the other direction.
+ships() {
+  local name="$1" json="$2"
+  shift 2
+  local out rc=0
+  out="$(deploy_blocking_control_failures "$json" "$*")" || rc=$?
+  if [ "$rc" -eq 0 ] && [ -z "$out" ]; then
+    ok "$name"
+  else
+    no "$name" "expected an empty result and exit 0, got rc=$rc out='$out'"
+  fi
+}
+
 # A body in the shape /health/controls actually returns. Built rather than
 # pasted so a test cannot quietly assert against a body the endpoint never
 # produces: name/state/detail and the `at` stamp are all present, and `status`
@@ -92,34 +112,30 @@ check "names the control without a detail when the report carries none" \
 # Auth deliberately switched off is a deployment fact. Blocking on it would
 # make the kill switch unusable, which is the same error as ignoring the
 # endpoint entirely, pointing the other way.
-check "ships when the named control was deliberately skipped" \
-  "" \
-  "$(deploy_blocking_control_failures \
+ships "ships when the named control was deliberately skipped" \
+  \
       "$(body ok "$(control authentication skipped 'disabled by configuration')")" \
-      authentication)"
+      authentication
 
-check "ships when the named control applied" \
-  "" \
-  "$(deploy_blocking_control_failures \
+ships "ships when the named control applied" \
+  \
       "$(body ok "$(control authentication applied)")" \
-      authentication)"
+      authentication
 
 # A rollback deploys a bundle from before the control existed. Blocking on an
 # absent report would refuse the one deploy that most needs to work, so absence
 # ships - and this is the gate's deliberate blind spot, not an accident.
-check "ships when the named control is absent, so a rollback is not refused" \
-  "" \
-  "$(deploy_blocking_control_failures \
+ships "ships when the named control is absent, so a rollback is not refused" \
+  \
       "$(body ok "$(control stream-upload-policy applied)")" \
-      authentication)"
+      authentication
 
 # The whole reason this is a named list and not the aggregate: `status` is
 # already "degraded" in this body, and it must not stop the deploy.
-check "ships when an unnamed control failed, even though the aggregate is degraded" \
-  "" \
-  "$(deploy_blocking_control_failures \
+ships "ships when an unnamed control failed, even though the aggregate is degraded" \
+  \
       "$(body degraded "$(control stream-upload-policy failed 'updateAppSettings rejected')")" \
-      authentication)"
+      authentication
 
 # Both failed: one blocks, one does not, in a single body. The pair is what
 # separates "reads the named control" from "reads the first control".
@@ -133,11 +149,9 @@ check "blocks on the named control only, when both named and unnamed failed" \
 
 # A prefix match would block on this and be wrong. Exercised with a name that
 # CONTAINS the required one, because a substring test passes every case above.
-check "matches a control name exactly rather than by prefix" \
-  "" \
-  "$(deploy_blocking_control_failures \
-      "$(body degraded "$(control authentication-provider failed 'rejected')")" \
-      authentication)"
+ships "matches a control name exactly rather than by prefix" \
+  "$(body degraded "$(control authentication-provider failed 'rejected')")" \
+  authentication
 
 check "reports every named control that failed, not just the first" \
   "authentication: failed (auth env incomplete)
@@ -146,26 +160,29 @@ stream-upload-policy: failed (updateAppSettings rejected)" \
       "$(body degraded \
           "$(control authentication failed 'auth env incomplete')" \
           "$(control stream-upload-policy failed 'updateAppSettings rejected')")" \
-      authentication stream-upload-policy)"
+      "authentication stream-upload-policy")"
+
+# A name is a name. Nothing sets one containing a glob character, but the old
+# variadic signature forced the caller to leave its list unquoted, and this is
+# the reading of that list that a pathname expansion would have destroyed.
+ships "treats a glob-shaped name as a literal name" \
+  "$(body degraded "$(control authentication failed 'auth env incomplete')")" \
+  '*'
 
 # /health is the liveness gate and it runs first. A body this function cannot
 # read is not a second chance to decide the process is dead.
-check "ships on a body that is not JSON" \
-  "" \
-  "$(deploy_blocking_control_failures '<html>502 Bad Gateway</html>' authentication)"
+ships "ships on a body that is not JSON" \
+  '<html>502 Bad Gateway</html>' authentication
 
-check "ships on an empty body" \
-  "" \
-  "$(deploy_blocking_control_failures '' authentication)"
+ships "ships on an empty body" \
+  '' authentication
 
-check "ships on JSON without a controls array" \
-  "" \
-  "$(deploy_blocking_control_failures '{"status":"ok"}' authentication)"
+ships "ships on JSON without a controls array" \
+  '{"status":"ok"}' authentication
 
-check "ships when no control is named as blocking" \
-  "" \
-  "$(deploy_blocking_control_failures \
-      "$(body degraded "$(control authentication failed 'auth env incomplete')")")"
+ships "ships when no control is named as blocking" \
+  \
+      "$(body degraded "$(control authentication failed 'auth env incomplete')")"
 
 # ---------------------------------------------------------------------------
 # The row the table above does not decide: an unreadable BODY ships, but an
@@ -213,7 +230,13 @@ echo "api-deploy.sh wiring"
 # Matched on the curl itself, not on the string /health/controls: the reasoning
 # above the probe names that path twice, so a bare string search stays green
 # with the probe deleted. It did, the first time this was written.
-PROBE_RE='curl .*SMOKE_PORT/health/controls'
+# Anchored to the shape of the STATEMENT, not to a substring anywhere on the
+# line. Blanking full-line comments left one costume uncovered: a trailing
+# comment on a code line - `CONTROLS_BODY=""  # was: curl … /health/controls` -
+# satisfied both this guard and the ordering one, because PROBE_LINE resolved to
+# the comment and the comment is still above the kill. Third instance of the
+# same bug; this closes it without parsing quoting.
+PROBE_RE='^[[:space:]]*CONTROLS_BODY="\$\(curl .*SMOKE_PORT/health/controls'
 if grep -qE "$PROBE_RE" <<< "$DEPLOY_CODE"; then
   ok "api-deploy.sh curls /health/controls"
 else
@@ -254,6 +277,14 @@ if [ -n "$ASSIGN_LINE" ] && ! printf '%s' "$ASSIGN_LINE" | grep -q '||'; then
 else
   no "the helper's exit status is not swallowed at the call site" \
      "assignment line: ${ASSIGN_LINE:-<not found>}"
+fi
+
+if grep -qE 'deploy_blocking_control_failures "[^"]*CONTROLS_BODY" "[^"]*DEPLOY_BLOCKING_CONTROLS"' \
+  <<< "$DEPLOY_CODE"; then
+  ok "the blocking-control list is passed as one quoted argument"
+else
+  no "the blocking-control list is passed as one quoted argument" \
+     "an unquoted list is also a pathname expansion; see lib/controls.sh"
 fi
 
 PROBE_LINE="$(grep -nE "$PROBE_RE" <<< "$DEPLOY_CODE" | head -1 | cut -d: -f1 || true)"
