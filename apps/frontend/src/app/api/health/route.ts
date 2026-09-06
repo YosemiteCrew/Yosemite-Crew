@@ -28,7 +28,10 @@ export function GET() {
   // Read through `process.env` rather than destructuring at module scope: Next
   // inlines these at build time, and a module-scope read would be evaluated
   // once during prerender even with `force-dynamic` set on the route.
-  const sha = process.env.BUILD_SHA ?? null;
+  // `|| null`, not `?? null`: `next.config.ts` inlines BUILD_SHA as an empty
+  // string when the build could not identify itself, and a blank string here
+  // would serialise as a populated-looking empty field.
+  const sha = process.env.BUILD_SHA?.trim() || null;
   const source = process.env.BUILD_SHA_SOURCE ?? 'unavailable';
 
   return NextResponse.json(

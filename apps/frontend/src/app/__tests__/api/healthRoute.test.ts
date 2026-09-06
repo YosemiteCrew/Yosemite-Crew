@@ -48,6 +48,24 @@ describe('GET /api/health', () => {
     expect(res.body.buildShaSource).toBe('unavailable');
   });
 
+  it.each([
+    ['', 'empty'],
+    ['   ', 'whitespace-only'],
+  ])('reports a %s BUILD_SHA as null (%s)', (value) => {
+    // `next.config.ts` inlines BUILD_SHA unconditionally - empty when the build
+    // could not identify itself - so that BUILD_SHA and BUILD_SHA_SOURCE are
+    // both build-time constants rather than one constant and one runtime
+    // lookup. That makes the blank value reachable here, and `?? null` would
+    // pass it straight through as a populated-looking empty field.
+    process.env.BUILD_SHA = value;
+    process.env.BUILD_SHA_SOURCE = 'unavailable';
+
+    const res = GET() as unknown as MockedResponse;
+
+    expect(res.body).toHaveProperty('buildSha', null);
+    expect(res.body.buildShaSource).toBe('unavailable');
+  });
+
   it('defaults the source to unavailable rather than undefined', () => {
     delete process.env.BUILD_SHA;
     delete process.env.BUILD_SHA_SOURCE;
