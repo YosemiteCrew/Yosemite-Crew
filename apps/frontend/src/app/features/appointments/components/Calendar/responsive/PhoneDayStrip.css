@@ -25,9 +25,17 @@
   cursor: pointer;
 }
 
-/* Frame: selected cell fills --blue and lifts on 0 6px 16px var(--glow-b26). */
+/* Frame: selected cell fills --blue and lifts on 0 6px 16px var(--glow-b26).
+   The fill is --blue-strong, not --blue, for the same reason the quiet cell
+   below does not use the frame's 45% opacity: --blue is #257bed in BOTH themes,
+   and white on it is 4.09:1 - under AA for every label this cell carries, none
+   of which is WCAG-large (14px/700 needs 18.66px to qualify). --blue-strong is
+   theme-aware and clears AA on both sides: #1657c9 light (6.48:1), #2f74d9 dark
+   (4.54:1). That also makes this file's opening claim - colours are token-only,
+   so light and dark come for free - true, which it was not while the ink was a
+   literal on a fill that never changes. */
 .yc-day-strip__cell--selected {
-  background: var(--blue);
+  background: var(--blue-strong);
   box-shadow: 0 6px 16px var(--glow-b26);
 }
 
@@ -51,9 +59,14 @@
   color: var(--ink-faint);
 }
 
-/* Frame: the selected cell's weekday is white at 75%. */
+/* Frame: the selected cell's weekday is white at 75%.
+   Opaque instead. At 9px the 75% alpha was 2.98:1 on the old fill and is still
+   under 4.5 on --blue-strong (4.37:1 light), so no alpha below 1.0 works here -
+   exactly the finding recorded for the quiet cell above. The weekday still
+   reads as secondary to the date through size and letter-spacing, which is
+   where that hierarchy belongs when the alternative is failing AA. */
 .yc-day-strip__cell--selected .yc-day-strip__weekday {
-  color: rgba(255, 255, 255, 0.75);
+  color: #ffffff;
 }
 
 /* Frame: font-size 14px; font-weight 700; color var(--ink). */
