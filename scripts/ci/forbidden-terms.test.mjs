@@ -12,7 +12,15 @@
 
 import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
-import { lstatSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -892,6 +900,26 @@ test('a surface that is a SYMLINK exits 2 rather than being followed', () => {
   // Not 0 AND not 1: following the link is exit 0 here, so asserting "not
   // clean" alone would also pass on a run that found the term through some
   // other path. This pins that the LINK was refused.
+  assert.doesNotMatch(result.stdout, /clean/);
+});
+
+test('a surface that is a DIRECTORY exits 2 rather than being read', () => {
+  // `O_NOFOLLOW` refuses a symlink and nothing else. A directory opens without
+  // error on both Linux and macOS, so the `fstat` after the open is what stops
+  // it - and without that check the failure mode differs per platform rather
+  // than being refused outright, which is the least useful kind of guard.
+  //
+  // The rest of the directory is deliberately a clean, complete set of
+  // surfaces, so a run that skipped this one instead of failing would report
+  // "clean - 6 surfaces read" and look like a pass.
+  const dir = surfaceDir({});
+  rmSync(path.join(dir, 'body'));
+  mkdirSync(path.join(dir, 'body'));
+
+  const result = run(['scan', '--dir', dir], { FORBIDDEN_TERMS_PATTERN_B64: b64(SYNTHETIC) });
+
+  assert.equal(result.code, 2);
+  assert.match(result.stderr, /The 'body' surface is not a regular file/);
   assert.doesNotMatch(result.stdout, /clean/);
 });
 
