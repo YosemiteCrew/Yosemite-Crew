@@ -2,8 +2,9 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import countries from '@/app/lib/data/countryList';
 import { Organisation } from '@yosemite-crew/types';
 import { UserProfile } from '@/app/features/users/types/profile';
-import { IoIosWarning } from 'react-icons/io';
 import { logger } from '@/app/lib/logger';
+import Field from '@/app/ui/Field';
+import Input from '@/app/ui/Input';
 
 type GoogleSearchDropDownProps = {
   intype: string;
@@ -200,6 +201,7 @@ const GoogleSearchDropDown = ({
   onAddressSelect,
 }: Readonly<GoogleSearchDropDownProps>) => {
   const uid = useId();
+  const errorId = error ? `${uid}-message` : undefined;
   const isFocusedRef = useRef(false);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -367,24 +369,20 @@ const GoogleSearchDropDown = ({
   };
 
   return (
-    <div className="w-full relative" ref={dropdownRef}>
-      <label
-        htmlFor={uid}
-        className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]"
-      >
-        {inlabel}
-      </label>
-      <div className={`relative`}>
-        <input
+    <Field htmlFor={uid} label={inlabel} error={error} messageId={errorId}>
+      <div className="relative w-full" ref={dropdownRef}>
+        <Input
           type={intype}
           name={inname}
           id={uid}
-          aria-label={inlabel}
           value={value ?? ''}
+          placeholder={inlabel}
           onChange={handleInputChange}
           autoComplete="off"
           readOnly={readonly}
           required
+          error={Boolean(error)}
+          aria-describedby={errorId}
           onFocus={() => {
             if (suppressNextOpenRef.current) return;
             onFocus();
@@ -395,62 +393,45 @@ const GoogleSearchDropDown = ({
             isFocusedRef.current = false;
             setOpen(false);
           }}
-          className={`
-            h-[44px] w-full border-[1.5px] bg-[var(--field-bg)] px-[14px]
-            text-[14px] text-[var(--ink-body)] outline-none transition-colors
-            placeholder:text-[var(--ink-faint)]
-            disabled:cursor-not-allowed disabled:opacity-60
-            focus:border-[var(--blue)]! focus:shadow-[0_0_0_3px_var(--glow-b10)]
-            ${(() => {
-              if (isDropdownOpen) return 'border-[var(--blue)]! rounded-t-[12px]!';
-              if (error) return 'border-[var(--danger)]! rounded-[12px]!';
-              return 'border-[var(--hairline)]! rounded-[12px]!';
-            })()}
-          `}
+          className={isDropdownOpen ? 'rounded-b-none! border-[var(--blue)]!' : undefined}
         />
-      </div>
-      {isDropdownOpen && (
-        <div
-          className="border-[var(--blue)] max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-[12px] border-l border-r border-b bg-neutral-0 flex flex-col items-center w-full px-[12px] py-[10px]"
-          onPointerDown={(e) => e.preventDefault()}
-        >
-          {predictions?.map((pred, index: number) => (
-            <button
-              className="flex w-full flex-col items-start gap-1 rounded-2xl! px-[1.25rem] py-2 text-left hover:bg-card-hover"
-              key={pred.placeId ?? `${pred.kind}-${pred.description}-${index}`}
-              type="button"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                selectPrediction(pred);
-                inputRef.current?.focus();
-              }}
-              onPointerDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                selectPrediction(pred);
-                inputRef.current?.focus();
-              }}
-            >
-              <span className="w-full text-left text-[13px] font-medium text-text-primary">
-                {getPredictionPrimaryText(pred)}
-              </span>
-              {getPredictionSecondaryText(pred) ? (
-                <span className="w-full text-left text-[12px] font-medium text-text-secondary">
-                  {getPredictionSecondaryText(pred)}
+        {isDropdownOpen && (
+          <div
+            className="border-[var(--blue)] max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-[12px] border-l border-r border-b bg-neutral-0 flex flex-col items-center w-full px-[12px] py-[10px]"
+            onPointerDown={(e) => e.preventDefault()}
+          >
+            {predictions?.map((pred, index: number) => (
+              <button
+                className="flex w-full flex-col items-start gap-1 rounded-2xl! px-[1.25rem] py-2 text-left hover:bg-card-hover"
+                key={pred.placeId ?? `${pred.kind}-${pred.description}-${index}`}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  selectPrediction(pred);
+                  inputRef.current?.focus();
+                }}
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  selectPrediction(pred);
+                  inputRef.current?.focus();
+                }}
+              >
+                <span className="w-full text-left text-[13px] font-medium text-text-primary">
+                  {getPredictionPrimaryText(pred)}
                 </span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-      )}
-      {error && (
-        <div className="mt-1.5 flex items-center gap-1 text-caption-2 text-text-error">
-          <IoIosWarning className="text-text-error" size={14} />
-          <span>{error}</span>
-        </div>
-      )}
-    </div>
+                {getPredictionSecondaryText(pred) ? (
+                  <span className="w-full text-left text-[12px] font-medium text-text-secondary">
+                    {getPredictionSecondaryText(pred)}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </Field>
   );
 };
 

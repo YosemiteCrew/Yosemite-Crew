@@ -7,30 +7,34 @@
  * and chevrons did not line up, which is what a user notices as "two different
  * dropdown designs".
  *
- * This asserts the trigger metrics rather than a screenshot, so the drift fails
- * a unit run instead of waiting for someone to spot it in the product.
+ * Both controls now consume the shared field recipe. This test keeps their
+ * remaining layout tokens aligned around that primitive.
  */
 import fs from 'fs';
 import path from 'path';
 
-const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), 'utf8');
+const LABEL_SOURCE = fs.readFileSync(
+  path.join(process.cwd(), 'src/app/ui/inputs/Dropdown/LabelDropdown.tsx'),
+  'utf8'
+);
+const MULTI_SOURCE = fs.readFileSync(
+  path.join(process.cwd(), 'src/app/ui/inputs/MultiSelectDropdown/index.tsx'),
+  'utf8'
+);
 
-const LABEL = 'src/app/ui/inputs/Dropdown/LabelDropdown.tsx';
-const MULTI = 'src/app/ui/inputs/MultiSelectDropdown/index.tsx';
-
-/** The metric tokens that decide whether two triggers look like one control. */
-const METRICS = [/h-\[(\d+)px\]/, /px-\[(\d+)px\]/, /pr-(\d+)\b/, /text-\[(\d+)px\]/];
+const METRICS = [/\bh-(\d+)\b/, /\bpx-(\d+)\b/, /\bpr-(\d+)\b/];
 
 const triggerMetrics = (src: string) => {
-  // The trigger is the class string carrying the shared height token.
-  const line = src.split('\n').find((l) => l.includes('h-[44px]') && l.includes('px-['));
+  const line = src.split('\n').find((candidate) => candidate.includes('const base ='));
   if (!line) throw new Error('trigger class string not found');
   return METRICS.map((re) => (line.match(re) || [])[1]);
 };
 
 describe('dropdown metric parity', () => {
-  it('LabelDropdown and MultiSelectDropdown share trigger height, padding and font size', () => {
-    expect(triggerMetrics(read(MULTI))).toEqual(triggerMetrics(read(LABEL)));
+  it('LabelDropdown and MultiSelectDropdown share the field recipe and trigger spacing', () => {
+    expect(LABEL_SOURCE).toContain('getFieldControlClassName');
+    expect(MULTI_SOURCE).toContain('getFieldControlClassName');
+    expect(triggerMetrics(MULTI_SOURCE)).toEqual(triggerMetrics(LABEL_SOURCE));
   });
 
   it('both render the typed search text at the same size', () => {
@@ -44,6 +48,6 @@ describe('dropdown metric parity', () => {
       if (!line) throw new Error('search input class string not found');
       return (line.match(/text-\[(\d+)px\]/) || [])[1];
     };
-    expect(searchTextSize(read(MULTI))).toBe(searchTextSize(read(LABEL)));
+    expect(searchTextSize(MULTI_SOURCE)).toBe(searchTextSize(LABEL_SOURCE));
   });
 });

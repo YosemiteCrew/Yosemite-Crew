@@ -8,10 +8,6 @@ jest.mock('react-icons/fa6', () => ({
   FaCaretDown: () => <span data-testid="icon-caret" />,
 }));
 
-jest.mock('react-icons/io', () => ({
-  IoIosWarning: () => <span data-testid="icon-warning" />,
-}));
-
 expect.extend(toHaveNoViolations);
 
 describe('LabelDropdown', () => {
@@ -48,8 +44,10 @@ describe('LabelDropdown', () => {
     );
 
     expect(screen.getByRole('button', { name: /Species/i })).toBeInTheDocument();
-    expect(screen.getByText('Required')).toBeInTheDocument();
-    expect(screen.getByTestId('icon-warning')).toBeInTheDocument();
+    const trigger = screen.getByRole('button', { name: /Species/i });
+    const error = screen.getByRole('alert');
+    expect(error).toHaveTextContent('Required');
+    expect(trigger).toHaveAttribute('aria-describedby', error.id);
   });
 
   it('opens and selects an option', () => {
