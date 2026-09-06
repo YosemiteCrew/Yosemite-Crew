@@ -131,6 +131,50 @@ test('classifyStep and isTagOnly answer on their own', () => {
   assert.equal(isTagOnly(undefined), false);
 });
 
+// The job that contains the upload step is gated like this, 78 lines above it. A
+// substring implementation of isTagOnly accepts it, and it submits on a plain
+// dispatch - `A || B` runs whenever B alone is true. Copying this condition down
+// onto the step is the most natural edit anyone will make to the file, so it is
+// the mutant the suite has to catch.
+const JOB_CONDITION = "github.event_name == 'push' || inputs.platform == 'android'";
+
+test('the job condition copied onto the upload step is NOT accepted as a guard', () => {
+  const source = workflow(PLAY_GUARDED.replace("github.event_name == 'push'", JOB_CONDITION));
+  const findings = findUnguardedSubmissions(source, 'fixture.yml');
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].store, 'Google Play');
+  assert.equal(findings[0].condition, JOB_CONDITION);
+});
+
+test('a disjunction is rejected whichever side the accepted guard is on', () => {
+  assert.equal(isTagOnly(JOB_CONDITION), false);
+  assert.equal(isTagOnly("always() || github.event_name == 'push'"), false);
+  assert.equal(
+    isTagOnly("startsWith(github.ref, 'refs/tags/') || inputs.platform == 'ios'"),
+    false
+  );
+});
+
+test('a conjunction is accepted, so tightening the guard later does not red the build', () => {
+  assert.equal(
+    isTagOnly("github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')"),
+    true
+  );
+  assert.equal(isTagOnly("github.event_name == 'push' && inputs.platform == 'android'"), true);
+});
+
+test('an expression that cannot be classified fails closed', () => {
+  // Not an exhaustive list - the point is that anything unrecognised is a finding
+  // rather than a pass, so a red build puts a human in front of it.
+  assert.equal(isTagOnly("github.event_name=='push'"), false);
+  assert.equal(isTagOnly("${{ github.event_name == 'push' }}"), false);
+  assert.equal(isTagOnly(''), false);
+});
+
+test('a workflow path that escapes the repository is refused', () => {
+  assert.throws(() => checkRepo(process.cwd(), ['../../../etc/hosts']), /escapes the repository/);
+});
+
 function findingsStores(source) {
   return findUnguardedSubmissions(source, 'fixture.yml').map((f) => f.store);
 }

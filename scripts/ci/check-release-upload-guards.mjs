@@ -33,6 +33,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { parse } from 'yaml';
+import { resolveWithin } from './safe-path.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -69,10 +70,30 @@ export function classifyStep(step) {
   return null;
 }
 
-/** True when `condition` restricts the step to a release tag. */
+/**
+ * True when `condition` restricts the step to a release tag.
+ *
+ * A substring test is not enough and the counter-example is 78 lines above the
+ * step it would wave through. The `android` job is gated on
+ *
+ *   github.event_name == 'push' || inputs.platform == 'both' || inputs.platform == 'android'
+ *
+ * and copying that condition down onto the upload step is the most natural edit
+ * anyone will make to this file. It contains an accepted guard and submits on a
+ * plain dispatch anyway, because a disjunction can only widen: `A || B` runs
+ * whenever B alone is true, so no guard to the left of a `||` restricts
+ * anything. Any `||` is therefore rejected outright.
+ *
+ * `&&` is the opposite and is accepted, so tightening the shipped guard to
+ * `github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')` does not
+ * red the build. Every other spelling fails closed - a red build and a human
+ * reading this comment is the outcome we want from an expression we cannot
+ * classify.
+ */
 export function isTagOnly(condition) {
   if (typeof condition !== 'string') return false;
-  return TAG_ONLY_GUARDS.some((guard) => condition.includes(guard));
+  if (condition.includes('||')) return false;
+  return condition.split('&&').some((operand) => TAG_ONLY_GUARDS.includes(operand.trim()));
 }
 
 /**
@@ -99,11 +120,21 @@ export function findUnguardedSubmissions(source, file) {
   return findings;
 }
 
-/** Runs the check over the real workflow files. */
+/**
+ * Runs the check over the real workflow files.
+ *
+ * `files` is a module constant and nothing reaches this script from a request,
+ * so the containment assertion is not load-bearing today. It is here because a
+ * path built from a parameter is worth pinning inside the tree it claims to
+ * describe before someone passes one in, and `resolveWithin` is what the other
+ * scripts in this directory use for it.
+ */
 export function checkRepo(root = REPO_ROOT, files = RELEASE_WORKFLOWS) {
-  return files.flatMap((file) =>
-    findUnguardedSubmissions(readFileSync(path.join(root, file), 'utf8'), file)
-  );
+  return files.flatMap((file) => {
+    const resolved = resolveWithin(root, file);
+    if (resolved === null) throw new Error(`Workflow path escapes the repository: ${file}`);
+    return findUnguardedSubmissions(readFileSync(resolved, 'utf8'), file);
+  });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -118,7 +149,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (findings.length > 0) {
     console.error(
       `\n${findings.length} store submission(s) reachable from a workflow_dispatch. ` +
-        `Gate each on one of: ${TAG_ONLY_GUARDS.join(' | ')}`
+        `Gate each on ${TAG_ONLY_GUARDS.join(' or ')}. ` +
+        `A condition containing '||' is never accepted: a disjunction can only widen.`
     );
     process.exit(1);
   }
