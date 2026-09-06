@@ -153,6 +153,17 @@ on:
     branches:
       - dev
       - main
+
+  # IT CANNOT SWEEP HISTORY, and that is what someone will reach for it to do.
+  # The surfaces are one pull request's title, body, head ref and merge-base
+  # diff - there is no path from here to an issue, a comment, or a pull request
+  # that already closed. Auditing what is ALREADY in the repository is a
+  # separate job, run once against the API with the same pattern.
+  #
+  # What a dispatched run does instead, and why it ends red on purpose, is at
+  # `Refuse to report clean without having scanned`. Not repeated here: two
+  # copies of that would have to be kept in step, and this file has spent the
+  # day deleting exactly that.
   workflow_dispatch:
 
 concurrency:
