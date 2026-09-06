@@ -95,7 +95,10 @@ const PhoneWorkspaceShell = ({
     // Bleed the workspace route's px-4/py-5 wrapper so the shell runs edge-to-edge,
     // and size it to the space the phone shell leaves between its fixed 54px header
     // and the 72px bottom tab bar (see PhoneShell.css) so the body scrolls internally.
-    <div className="-mx-4 -my-5 flex h-[calc(100dvh-54px-max(72px+env(safe-area-inset-bottom,0px),var(--yc-consent-inset,0px)))] min-h-[480px] flex-col bg-(--screen)">
+    <div
+      data-testid="phone-workspace-shell"
+      className="-mx-4 -my-5 flex h-[calc(100dvh-54px-max(72px+env(safe-area-inset-bottom,0px),var(--yc-consent-inset,0px)))] min-h-[480px] flex-col bg-(--screen)"
+    >
       <PhonePatientBar
         appointment={appointment}
         companionName={companionName}

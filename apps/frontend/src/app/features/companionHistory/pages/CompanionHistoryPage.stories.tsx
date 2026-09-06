@@ -10,6 +10,7 @@ import type {
 } from '@yosemite-crew/types';
 
 import api from '@/app/services/axios';
+import { expectShellReservesConsentInset } from '@/app/features/appointments/pages/AppointmentWorkspace/phone/consentInsetAssertion';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { formatDisplayDate } from '@/app/lib/date';
 import type { ApiDayAvailability } from '@/app/features/appointments/components/Availability/utils';
@@ -1242,6 +1243,17 @@ export const Phone: Story = {
   // Storybook 10 and is inert, and this branch is a `useIsPhone` media query
   // rather than a CSS breakpoint - at any wider width the desktop body renders.
   globals: { viewport: { value: 'mobile', isRotated: false } },
+  play: async ({ canvasElement }) => {
+    /* The discriminator the old note was right to worry about: if the runner
+       kept desktop width, `useIsPhone` is false and this element does not exist,
+       so the assertion below fails loudly rather than passing against the
+       desktop tree. */
+    const shell = canvasElement.querySelector('[data-testid="phone-companion-record"]');
+    await expect(shell).not.toBeNull();
+
+    // The same calc as PhoneWorkspaceShell, and previously the untested copy of it.
+    await expectShellReservesConsentInset(shell as HTMLElement);
+  },
   parameters: {
     chromatic: { viewports: [375] },
     docs: {
@@ -1252,10 +1264,11 @@ export const Phone: Story = {
           'parent card, a collapsible details drawer and a sticky Book appointment bar. The parent ' +
           'panel has no phone equivalent at all, so the client alerts survive only as the subtitle ' +
           'on the parent contact card, and there is no way to add or remove one from a phone.\n\n' +
-          'Deliberately without a play function: `useIsPhone` reads a real `matchMedia`, so it ' +
-          'needs the manager to resize the preview iframe. A headless run that loads `iframe.html` ' +
-          'directly keeps the desktop width and would assert the desktop panels while claiming to ' +
-          'check the phone record.',
+          'It now HAS a play function. That was previously impossible for the stated reason - ' +
+          '`useIsPhone` reads a real `matchMedia`, and a headless run that loads `iframe.html` ' +
+          "directly kept the desktop width - but the test runner resolves a story's pinned " +
+          'viewport again as of the `storyGlobals` fix, so this really does render at 375 and the ' +
+          'play function asserts the phone record rather than the desktop panels.',
       },
     },
   },
