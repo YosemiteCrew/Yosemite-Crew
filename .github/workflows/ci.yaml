@@ -7,9 +7,14 @@ name: CI
 #
 # This is the primary CI. It replaced the standalone ci-affected, frontend-a11y
 # and dev-docs-build workflows (all deleted) and slimmed frontend-quality to a
-# reusable bundle/Lighthouse stage called from here. It is not yet a required
-# status check; docs/ci/required-checks-migration.md covers making it required
-# and enabling the merge queue.
+# reusable bundle/Lighthouse stage called from here.
+#
+# Whether its aggregate check is REQUIRED is not stated here. It was, as "not
+# yet a required status check", and the same commit that corrected the identical
+# claim on the `ci-required` job below left this one standing - so the file said
+# pending at the top and done in the middle, and the top is what a reader meets
+# first. The job comment owns that fact and dates it; the remaining migration
+# steps are in docs/ci/required-checks-migration.md.
 
 on:
   pull_request: {}
@@ -130,9 +135,18 @@ jobs:
 
   ci-required:
     name: CI Required
-    # Not yet a required status check on either ruleset. It is published now so
-    # its behaviour can be observed before it is made required; the runbook in
-    # docs/ci/required-checks-migration.md covers that switchover.
+    # REQUIRED on the `dev` ruleset since 2026-09-06, alongside
+    # `Supply Chain Required`. NOT required on `Main`, whose only required
+    # status check is the context literally named "Only dev may merge into
+    # main" - a check context worded as a sentence, which reads like a rule
+    # description in any listing that prints contexts in a column.
+    #
+    # That asymmetry decides how to read an ABSENT row: on a pull request into
+    # `dev` a missing `CI Required` blocks the merge and means this job has not
+    # reported yet, not that nothing enforces it. The wording here said "not yet
+    # required on either ruleset" for some time after the switchover, which
+    # points a reader at the opposite action. Runbook:
+    # docs/ci/required-checks-migration.md.
     if: always()
     needs: [core, test, migration, sonar, frontend-quality, mobile-version]
     runs-on: ubuntu-latest

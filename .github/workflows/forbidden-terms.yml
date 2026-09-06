@@ -49,10 +49,11 @@ name: Forbidden Terms
 #
 # So the cost is real historically and near zero now, and the two halves point
 # opposite ways. What settles it is a third fact rather than a bigger number:
-# `No named external product` IS NOT A REQUIRED STATUS CHECK on either branch -
-# `dev` requires `CI Required` and `Supply Chain Required`, `main` requires
-# `Only dev may merge into main`. A fork therefore gets a visible red that
-# reports honestly and blocks nothing, and a maintainer who wants it green
+# `No named external product` IS NOT A REQUIRED STATUS CHECK on either branch.
+# Which contexts each ruleset does require is deliberately not listed here: it
+# drifts, this file cannot notice when it does, and the argument only needs the
+# negative. A fork therefore gets a visible red that reports honestly and
+# blocks nothing, and a maintainer who wants it green
 # pushes the branch to this repository and opens the pull request from there.
 #
 # THAT IS ALSO WHAT MAKES THIS PARAGRAPH EXPIRE. The moment this context is
@@ -304,7 +305,8 @@ jobs:
       # through an earlier pull request sits in the BASE of every later `dev`
       # comparison and is never looked at again - but a `main` pull request's
       # merge base is the previous promotion, so the whole of `dev` since then
-      # is in scope. That is why this workflow is required on BOTH branches.
+      # is in scope. That is why this workflow RUNS on BOTH branches - which is
+      # this file's `on:` block, not a ruleset. It is required on neither.
       - name: Collect the surfaces
         if: ${{ github.event_name == 'pull_request' }}
         env:
