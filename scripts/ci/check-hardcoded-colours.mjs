@@ -45,7 +45,7 @@
  * treats 2 as clean has removed the gate.
  */
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { join, dirname, relative, sep } from 'node:path';
+import { join, dirname, relative, resolve, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 
@@ -83,7 +83,12 @@ const EXCLUDED = [
  */
 const MIN_FILES = 200;
 
-const HEX = /#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-fA-F\w])/g;
+/* The boundary is `\w`, not `[0-9a-fA-F\w]`: `\w` already contains the hex
+   digits, so the longer form is the same automaton written twice and reads as
+   if it constrained something extra. What keeps `#1657c9ff` ONE finding rather
+   than two is the order of the alternation plus this boundary, not the range
+   inside it - the eight-digit selftest case is what holds that. */
+const HEX = /#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?!\w)/g;
 // Anchored on a DIGIT as the first argument so `rgb(var(--x) / 0.5)` - a token
 // use, not a literal - is not a finding, and carried to the closing paren so
 // the failure message shows the whole colour rather than `rgba(0`.
@@ -190,12 +195,22 @@ export const findColours = (source, { css = false } = {}) => {
   return findings.sort((a, b) => a.line - b.line);
 };
 
-const walk = (dir, acc = []) => {
+/**
+ * `maxDepth` guards against unbounded stack growth, and is not a scan limit:
+ * the deepest path under `apps/frontend/src` is nowhere near it. A tree that
+ * DID reach the cap would be silently under-scanned, which is the one failure
+ * this gate cannot see in its own output, so it throws rather than returning
+ * the partial list as though it were the whole corpus.
+ */
+const walk = (dir, acc = [], depth = 0, maxDepth = 100) => {
+  if (depth >= maxDepth) {
+    throw new GateError(`walk exceeded ${maxDepth} levels at ${relative(repoRoot, dir)}`);
+  }
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) {
       if (entry === 'node_modules') continue;
-      walk(full, acc);
+      walk(full, acc, depth + 1, maxDepth);
       continue;
     }
     if (!EXTENSIONS.some((ext) => full.endsWith(ext))) continue;
@@ -209,7 +224,13 @@ const walk = (dir, acc = []) => {
 export const scan = (roots = SCAN_ROOTS) => {
   const files = [];
   for (const root of roots) {
-    const abs = join(repoRoot, root);
+    /* Resolved, then checked to still be INSIDE the repository, so a root
+       carrying `..` cannot walk the gate out of the tree it is meant to hold. */
+    const abs = resolve(repoRoot, root);
+    const contained = relative(resolve(repoRoot), abs);
+    if (contained.startsWith('..') || isAbsolute(contained)) {
+      throw new GateError(`scan root escapes the repository: ${root}`);
+    }
     if (!existsSync(abs)) throw new GateError(`scan root does not exist: ${root}`);
     walk(abs, files);
   }

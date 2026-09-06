@@ -55,7 +55,9 @@ test('a URL does not blank the rest of its line, in any quote style', () => {
   for (const quote of ['"', "'", '`']) {
     const source = `const u = ${quote}https://example.com/docs${quote}; const c = "#ff0000";`;
     assert.equal(findColours(source).length, 1, `broke on ${quote}`);
-    assert.match(stripComments(source), /https:\/\/example\.com/);
+    // A substring check, not a regex: an unanchored pattern over a URL matches
+    // anywhere, and the claim here is only that the host survived the strip.
+    assert.ok(stripComments(source).includes('https://example.com'), `broke on ${quote}`);
   }
 });
 
@@ -90,7 +92,7 @@ test('the selftest fails when the scanner stops seeing comments', () => {
   // A selftest that cannot fail is a decoration. This drives the case table
   // through a deliberately broken scanner and requires it to notice.
   const blind = (source) =>
-    (source.match(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})(?![0-9a-fA-F\w])/g) ?? []).length;
+    (source.match(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})(?!\w)/g) ?? []).length;
   const missed = SELFTEST_CASES.filter(([source, expected]) => blind(source) !== expected);
   assert.ok(missed.length > 0, 'a comment-blind scanner must fail at least one case');
 });
@@ -137,7 +139,10 @@ test('the walk reaches the frontend and returns a non-empty corpus', () => {
 test('the scan excludes the token source and the test files', () => {
   const { findings } = scan();
   assert.ok(!findings.some((f) => f.file.endsWith('app/globals.css')));
-  assert.ok(!findings.some((f) => /__tests__|\.test\.tsx?$/.test(f.file)));
+  // Grouped explicitly. `$` binds to the last alternative only, so the bare
+  // form reads as though the whole pattern were end-anchored when only the
+  // second half is. The grouping states the intent rather than changing it.
+  assert.ok(!findings.some((f) => /(?:__tests__)|(?:\.test\.tsx?$)/.test(f.file)));
 });
 
 /* ---------------------------------------------------------------------------
@@ -183,7 +188,11 @@ test('a justified file is pinned in BOTH directions, not capped', () => {
 });
 
 test('a justified path that no longer exists is reported, not silently held', () => {
-  const { vanished, drifted } = compare({}, {}, { 'no/such/file.tsx': { n: 1, why: 'x'.repeat(30) } });
+  const { vanished, drifted } = compare(
+    {},
+    {},
+    { 'no/such/file.tsx': { n: 1, why: 'x'.repeat(30) } }
+  );
   assert.deepEqual(vanished, [{ file: 'no/such/file.tsx', was: 1 }]);
   assert.deepEqual(drifted, []);
 });

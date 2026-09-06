@@ -88,8 +88,41 @@ jobs:
       #
       # Exit 2 means the gate could not run - an empty walk, a failed selftest -
       # and is a failure here for the same reason exit 1 is.
+      #
+      # The failure is annotated and summarised rather than split into its own
+      # job. A reader sees `core / Detect affected workspaces` fail and learns
+      # nothing about the cause, so the two things that DO carry a name are
+      # written explicitly: a titled `::error` annotation, which surfaces at the
+      # top of the run and on the pull request, and the step summary. Giving the
+      # gate its own job would put the name in the check itself, but the job
+      # would then have to be added to `CI Required`'s `needs` in ci.yaml - and a
+      # required-check aggregate that silently stops covering this gate is worse
+      # than a check whose name is imprecise.
       - name: Check for new hardcoded colours
-        run: node scripts/ci/check-hardcoded-colours.mjs
+        run: |
+          set +e
+          output="$(node scripts/ci/check-hardcoded-colours.mjs 2>&1)"
+          status=$?
+          echo "$output"
+          if [ "$status" -eq 0 ]; then
+            exit 0
+          fi
+          if [ "$status" -eq 2 ]; then
+            title="Colour gate could not run"
+          else
+            title="New hardcoded colour"
+          fi
+          {
+            echo "### $title"
+            echo
+            echo '```'
+            echo "$output"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # One line, so the annotation is readable where GitHub renders it.
+          first="$(printf '%s' "$output" | tr '\n' ' ' | cut -c1-400)"
+          echo "::error title=$title::$first"
+          exit "$status"
 
       - name: Resolve workspace inventory
         run: pnpm ls -r --depth -1 --json > workspaces.json
