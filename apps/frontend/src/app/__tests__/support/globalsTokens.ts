@@ -18,7 +18,7 @@ export type Declaration = { line: number; prop: string; value: string };
 
 export type Rule = {
   selector: string;
-  /** 1-based line of the `{` that opens the rule. */
+  /** 1-based line the rule starts on - where its selector begins, not its `{`. */
   open: number;
   /** 1-based line of the `}` that closes it. */
   close: number;
@@ -27,34 +27,76 @@ export type Rule = {
 };
 
 const DECLARATION = /^\s*(--[\w-]+)\s*:\s*([^;]+);/;
+const DECLARATION_START = /^\s*--[\w-]+\s*:/;
 const VAR_CHAIN = /^var\(\s*(--[\w-]+)\s*(?:,\s*([^)]*))?\)$/;
+
+/**
+ * Comment text replaced with spaces, newlines kept so every line number still
+ * refers to the real file.
+ *
+ * A comment can span lines, and a token name or a brace inside one reads as
+ * code to anything that strips comments a line at a time.
+ */
+const blankComments = (css: string) =>
+  css.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '));
+
+/**
+ * A declaration whose value the formatter wrapped, put back onto one line.
+ *
+ * `DECLARATION` needs the `;` on the line that names the property, and prettier
+ * does not leave it there for a value past the print width - `globals.css` has
+ * two such declarations today. Reading only the naming line made them invisible,
+ * so a duplicate of either was invisible too and the shadowing scan reported a
+ * zero about the file's single-line declarations rather than about the file.
+ */
+const joinToTerminator = (lines: string[], i: number): string => {
+  if (!DECLARATION_START.test(lines[i])) return lines[i];
+  let joined = lines[i];
+  for (let j = i + 1; j < lines.length && !/[;{}]/.test(joined); j += 1) {
+    joined += ` ${lines[j].trim()}`;
+  }
+  return joined;
+};
 
 /**
  * Top-level rules and the custom properties declared directly inside them.
  *
- * Line comments are stripped before parsing so a token named inside prose is
- * not read as a declaration, and brace depth is tracked so a declaration
- * nested one level further down does not attach to the enclosing rule.
+ * Comments are blanked before parsing so a token named inside prose is not read
+ * as a declaration, and brace depth is tracked so a declaration nested one level
+ * further down does not attach to the enclosing rule.
  */
 export const parseRules = (css: string): Rule[] => {
   const rules: Rule[] = [];
-  const lines = css.split('\n');
+  const lines = blankComments(css).split('\n');
   let depth = 0;
   let buffer = '';
+  /** 1-based line the current selector started on, so a wrapped one reports its
+      first line rather than the line that happens to carry the `{`. */
+  let selectorStart = 0;
   let current: Rule | null = null;
 
   for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i].replace(/\/\*.*?\*\//g, '');
-    const decl = DECLARATION.exec(line);
+    const line = lines[i];
+    const decl = DECLARATION.exec(joinToTerminator(lines, i));
     if (depth === 1 && decl && current) {
-      current.declarations.push({ line: i + 1, prop: decl[1], value: decl[2].trim() });
+      current.declarations.push({
+        line: i + 1,
+        prop: decl[1],
+        value: decl[2].replace(/\s+/g, ' ').trim(),
+      });
     }
     for (const ch of line) {
       if (ch === '{') {
         if (depth === 0)
-          current = { selector: buffer.trim(), open: i + 1, close: -1, declarations: [] };
+          current = {
+            selector: buffer.trim().replace(/\s+/g, ' '),
+            open: selectorStart || i + 1,
+            close: -1,
+            declarations: [],
+          };
         depth += 1;
         buffer = '';
+        selectorStart = 0;
       } else if (ch === '}') {
         depth -= 1;
         if (depth === 0 && current) {
@@ -63,11 +105,20 @@ export const parseRules = (css: string): Rule[] => {
           current = null;
         }
         buffer = '';
+        selectorStart = 0;
+      } else if (ch === ';' && depth === 0) {
+        /* A statement at-rule (`@import 'tailwindcss';`) ends here; it is not
+           the beginning of the next rule's selector. */
+        buffer = '';
+        selectorStart = 0;
       } else {
+        if (depth === 0 && !selectorStart && ch.trim()) selectorStart = i + 1;
         buffer += ch;
       }
     }
-    if (depth === 0) buffer = '';
+    /* A selector list may be wrapped across lines, so the buffer survives the
+       line end rather than being reset by it. */
+    if (depth === 0) buffer += ' ';
   }
   return rules;
 };
