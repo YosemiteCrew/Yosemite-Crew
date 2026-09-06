@@ -89,10 +89,22 @@ const getParentPhotoUrl = (
     appointmentParent?.image
   );
 
+/* The value WRAPS rather than truncating. `truncate` clips with an ellipsis and
+   no `title`, so on a phone - which has no hover - the tail of any long value is
+   simply unreachable. At 390px exactly one row overflows, and it is
+   "Chief complaint": the one free-text clinical field on this sheet, losing 62px
+   of "Limping on the left hind leg since Sunday." in both themes. A tooltip
+   would not fix that on the surface where it matters; more lines will.
+   `items-start` so the label sits against the first line of a value that now
+   runs to several, and a gap so a long label and a wrapped value cannot meet in
+   the middle. */
 const OverviewRow = ({ label, value }: OverviewRowProps) => (
-  <div className="flex items-center justify-between py-2 border-b border-card-border last:border-0">
+  <div className="flex items-start justify-between gap-3 py-2 border-b border-card-border last:border-0">
     <span className="font-satoshi text-sm font-medium text-text-secondary">{label}</span>
-    <span className="font-satoshi text-sm text-text-primary text-right max-w-[60%] truncate">
+    <span
+      data-testid="overview-row-value"
+      className="font-satoshi text-sm text-text-primary text-right max-w-[60%] break-words"
+    >
       {value || '-'}
     </span>
   </div>
