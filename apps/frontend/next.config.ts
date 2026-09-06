@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { NextConfig } from 'next';
+import { readHeadSha, resolveBuildSha } from './src/buildInfo';
 import { securityHeaders } from './src/securityHeaders';
 
 // Static HTML under /public (e.g. /static/openapi/viewer.html) is skipped by the
@@ -42,7 +45,39 @@ const REVALIDATING_CACHE_CONTROL = 'public, max-age=86400, stale-while-revalidat
 
 const cacheControl = (value: string) => [{ key: 'Cache-Control', value }];
 
+// Captured here because `next build` is the only step that runs inside the
+// Amplify build container's clone, and the build spec that would otherwise do
+// it lives in the Amplify console rather than this repository. Read from the
+// files rather than by running `git`, so the build spawns nothing and does not
+// depend on what `PATH` resolves to inside the container.
+const REPO_GIT_DIR = join(__dirname, '..', '..', '.git');
+
+const readFileOrNull = (path: string): string | null => {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    return null;
+  }
+};
+
+// Passed explicitly rather than handing over the whole environment: this
+// repository's `ProcessEnv` declares its known keys and `AWS_COMMIT_ID` is
+// Amplify's, not ours. Naming it here is also the only place a reader can see
+// which variable this consumes.
+const build = resolveBuildSha({ AWS_COMMIT_ID: process.env.AWS_COMMIT_ID }, () =>
+  readHeadSha(REPO_GIT_DIR, readFileOrNull)
+);
+
 const nextConfig: NextConfig = {
+  // Both keys are always inlined, including when there is no sha. Omitting
+  // BUILD_SHA leaves `process.env.BUILD_SHA` a *runtime* lookup in the route
+  // while BUILD_SHA_SOURCE is a build-time constant, so a BUILD_SHA set on the
+  // Amplify branch would be answered next to `source: "unavailable"` - two
+  // fields from two mechanisms, free to disagree, and an environment value
+  // reaching `buildSha` without the shape check every other source gets.
+  // Empty is the "no sha" value; the route normalises it back to null so it
+  // cannot render as a populated-looking blank.
+  env: { BUILD_SHA: build.sha ?? '', BUILD_SHA_SOURCE: build.source },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'd2il6osz49gpup.cloudfront.net' },
