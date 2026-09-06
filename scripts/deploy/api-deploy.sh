@@ -289,7 +289,7 @@ if [ "$POST_CODE" != "404" ]; then
 fi
 
 if [ -n "$CONTROL_FAILURES" ]; then
-  echo "smoke boot came up with a security control that FAILED to apply:" >&2
+  echo "smoke boot came up with a security control that did not apply:" >&2
   while IFS= read -r control_failure; do
     echo "  $control_failure" >&2
   done <<< "$CONTROL_FAILURES"

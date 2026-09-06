@@ -36,11 +36,26 @@
 #   named control `skipped`     ship. Auth switched off is a deployment fact,
 #                               not a fault; treating it as one is the same
 #                               mistake as ignoring the endpoint, mirrored.
-#   named control ABSENT        ship. A ROLLBACK deploys an older bundle that
-#                               never records the control, so blocking on
+#   named control ABSENT,       ship. A ROLLBACK deploys an older bundle that
+#   body has no `expected`      never records the control, so blocking on
 #                               absence would refuse the deploy most needed to
-#                               work. This is the deliberate weak spot: a bundle
-#                               that silently stops recording is not caught here.
+#                               work. Absence alone is not evidence of a fault,
+#                               and the absence of `expected` is what marks the
+#                               bundle as older than the declaration itself.
+#
+#   named control ABSENT,       ship. This bundle declares what it records and
+#   `expected` omits it         does not claim this one. Same reasoning as the
+#                               row above, arrived at positively rather than by
+#                               a missing key: what the deploy asks to block on
+#                               is not what this bundle knows how to report.
+#
+#   named control ABSENT,       BLOCK. The bundle said it would record this
+#   `expected` NAMES it         control before it answered on its port, and then
+#                               did not. That is a positive report of failure
+#                               reconstructed from two facts instead of one, and
+#                               it is why startup-controls.ts reports `expected`
+#                               alongside the reports (#2759, #2761). It used to
+#                               be indistinguishable from the two rows above.
 #   endpoint unreachable        ship. /health is already the liveness gate and
 #   or not JSON                 it runs first; a second liveness check that
 #                               guesses at a body is not one.
@@ -93,11 +108,43 @@ deploy_blocking_control_failures() {
       const reports =
         parsed && Array.isArray(parsed.controls) ? parsed.controls : [];
 
+      // What this bundle says it registers before answering on its port. A
+      // body without the key predates the declaration, and a key of the wrong
+      // shape is a body we cannot read - both ship, for the same reason an
+      // unparseable body does. Only a well-formed list can turn an absent
+      // report into a failure.
+      //
+      // The rule below is MEMBERSHIP, not presence, and that is deliberate:
+      // the question asked of each name is "did this bundle claim it", never
+      // "does this bundle have the key". Presence and an empty list therefore
+      // decide identically, and an empty-array default in place of the null
+      // below changes no answer - measured, not assumed. A presence-based
+      // rule would be broken
+      // by exactly that substitution, which is why it is not one.
+      //
+      // Array.isArray rather than truthiness is load-bearing and separate: a
+      // string also has .includes, and "authentication".includes("authentication")
+      // is true, so a malformed key would block every deploy.
+      const declared =
+        parsed && Array.isArray(parsed.expected) ? parsed.expected : null;
+
       for (const name of required) {
         const report = reports.find(
           (candidate) => candidate && candidate.name === name,
         );
-        if (!report || report.state !== "failed") continue;
+        if (!report) {
+          // Absence decides nothing by itself. It becomes a failure only when
+          // the declaration published by this same bundle contradicts it.
+          //
+          // No apostrophe and no backtick anywhere in this script: it is the
+          // argument to node -e inside a SINGLE-quoted bash string, so either
+          // one ends the quoting and the rest of the file becomes shell.
+          if (declared && declared.includes(name)) {
+            process.stdout.write(name + ": declared but never reported\n");
+          }
+          continue;
+        }
+        if (report.state !== "failed") continue;
         const detail =
           typeof report.detail === "string" && report.detail
             ? " (" + report.detail + ")"
