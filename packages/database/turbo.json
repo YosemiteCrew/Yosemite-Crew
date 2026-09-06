@@ -1,0 +1,14 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "prisma:generate": {
+      "cache": false
+    },
+    "build": {
+      "dependsOn": ["^build", "prisma:generate"]
+    },
+    "type-check": {
+      "dependsOn": ["^build", "prisma:generate"]
+    }
+  }
+}
