@@ -227,58 +227,6 @@ const mapDetail = (
  * all four sees both and would over-count. `Members 2` for one person is as
  * wrong as `Members 0` for forty-seven, and neither errors.
  */
-/**
- * The user id a caller can address, out of the reference as stored.
- *
- * `practitionerReference` is persisted verbatim like the organisation column,
- * so it holds a bare id or a FHIR `Practitioner/<id>` - see
- * `practitionerReferenceFilter` in `shared/staff-identity.ts`, where querying
- * only the bare form is what let a deletion remove no organisation roles and
- * report success. Normalised here so a consumer of this endpoint does not have
- * to know FHIR exists to build a link.
- */
-const memberUserId = (practitionerReference: string): string =>
-  practitionerReference.trim().replace(LEADING_PRACTITIONER_PREFIX, "");
-
-/**
- * The identity of a membership for de-duplication.
- *
- * Two ROLES in one organisation are two memberships and both are kept; what
- * collapses is one membership reached under several spellings. The separator is
- * a NUL because it cannot occur in either field, so no value can forge a
- * collision with a different pair.
- */
-const membershipKey = (userId: string, roleCode: string): string =>
-  `${userId}\u0000${roleCode}`;
-
-const toMember = (membership: {
-  practitionerReference: string;
-  roleCode: string;
-  roleDisplay: string | null;
-  createdAt: Date;
-}): SuperAdminBusinessMember => ({
-  userId: memberUserId(membership.practitionerReference),
-  roleCode: membership.roleCode,
-  ...(membership.roleDisplay ? { roleDisplay: membership.roleDisplay } : {}),
-  since: toIsoString(membership.createdAt),
-});
-
-/**
- * The distinct active memberships of one organisation.
- *
- * Everything member-shaped on this surface goes through here, so the roster and
- * the number printed beside it are the same list measured two ways rather than
- * two queries that have to be kept in agreement.
- *
- * Both stored columns are raw FHIR references, which forces the
- * de-duplication. `@@unique([practitionerReference, organizationReference,
- * roleCode])` is over the strings as written, so `<id>` and `Organization/<id>`
- * are different keys: the same person, organisation and role can exist as
- * several rows and satisfy the constraint. Matching one spelling saw one of
- * them and under-counted; matching all four sees all of them and would
- * over-count. `Members 4` for one person is as wrong as `Members 0` for
- * forty-seven, and neither errors.
- */
 const loadMembers = async (
   id: string,
   fhirId?: string | null,
@@ -295,18 +243,40 @@ const loadMembers = async (
   });
 
   const seen = new Set<string>();
+  const members: SuperAdminBusinessMember[] = [];
 
-  return memberships.map(toMember).filter((member) => {
-    if (!member.userId) {
-      return false;
+  for (const membership of memberships) {
+    // practitionerReference is stored verbatim too, so it holds a bare id or a
+    // FHIR Practitioner/<id> - see practitionerReferenceFilter in
+    // shared/staff-identity.ts, where querying only the bare form is what let a
+    // deletion remove no organisation roles and report success. Normalised here
+    // so a caller does not have to know FHIR exists to build a link.
+    const userId = membership.practitionerReference
+      .trim()
+      .replace(LEADING_PRACTITIONER_PREFIX, "");
+    if (!userId) {
+      continue;
     }
-    const key = membershipKey(member.userId, member.roleCode);
+
+    // One person may hold two ROLES here and that is two memberships, kept.
+    // What is collapsed is the same role reached under two spellings.
+    const key = `${userId}\u0000${membership.roleCode}`;
     if (seen.has(key)) {
-      return false;
+      continue;
     }
     seen.add(key);
-    return true;
-  });
+
+    members.push({
+      userId,
+      roleCode: membership.roleCode,
+      ...(membership.roleDisplay
+        ? { roleDisplay: membership.roleDisplay }
+        : {}),
+      since: toIsoString(membership.createdAt),
+    });
+  }
+
+  return members;
 };
 
 const countMembers = async (
