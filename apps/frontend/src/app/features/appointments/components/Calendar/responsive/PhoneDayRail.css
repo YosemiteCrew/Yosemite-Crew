@@ -161,7 +161,7 @@
 
 /* --blue-strong rather than --blue: --blue is #257bed in both themes and white
    on it is 4.09:1, under AA for this 10.5px/700 label. --blue-strong is
-   theme-aware and clears it on both sides (6.48:1 light, 4.62:1 dark). */
+   theme-aware and clears it on both sides (6.48:1 light, 4.54:1 dark). */
 .yc-day-rail__block-action {
   position: relative;
   z-index: 1;
