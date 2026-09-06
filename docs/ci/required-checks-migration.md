@@ -17,7 +17,7 @@ directly:
 - `_sonar` - scan only, reading the coverage `_test` produced. No install, no
   Prisma, no jest. Kill switch: set the `DISABLE_SONAR` repo variable to `true`.
 - `frontend-quality` - bundle budgets and Lighthouse, consuming `next-build`.
-- `CI Required` - one aggregate check. **Not yet a required status check.**
+- `CI Required` - one aggregate check. **Required on `dev` since 2026-09-06.**
 
 ## What was removed, and where it went
 
@@ -31,10 +31,18 @@ directly:
 
 ## Outstanding (post-merge, require repo-admin and a human)
 
-Verified draft-day: rulesets `3440858` (Main) and `3468092` (dev) have **zero**
-required status checks. Main gates on CodeQL `code_scanning` + PR review +
-copilot; dev on Sonar `code_quality` + PR review + copilot. So nothing that was
-removed above was ever a required check, and none of this blocked merges.
+Verified draft-day: rulesets `3440858` (Main) and `3468092` (dev) had **zero**
+required status checks, so nothing removed above was ever a required check and
+none of it blocked merges.
+
+**Re-measured 2026-09-06 and step 1 below is DONE.** `dev` now requires
+`CI Required` and `Supply Chain Required`. `Main` requires exactly one context,
+literally named `Only dev may merge into main` - it is a status check, not a
+rule description, and it prints identically to one in any listing of contexts.
+`CI Required` is not among Main's required checks. Leaving
+the paragraph above in the present tense outlived the change it described, and
+a reader using it to judge whether a missing `CI Required` row matters would
+have drawn the opposite conclusion - on `dev` an absent row blocks the merge.
 
 Two steps remain, both needing a green `merge_group` run first:
 

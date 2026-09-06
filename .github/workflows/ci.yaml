@@ -130,9 +130,18 @@ jobs:
 
   ci-required:
     name: CI Required
-    # Not yet a required status check on either ruleset. It is published now so
-    # its behaviour can be observed before it is made required; the runbook in
-    # docs/ci/required-checks-migration.md covers that switchover.
+    # REQUIRED on the `dev` ruleset since 2026-09-06, alongside
+    # `Supply Chain Required`. NOT required on `Main`, whose only required
+    # status check is the context literally named "Only dev may merge into
+    # main" - a check context worded as a sentence, which reads like a rule
+    # description in any listing that prints contexts in a column.
+    #
+    # That asymmetry decides how to read an ABSENT row: on a pull request into
+    # `dev` a missing `CI Required` blocks the merge and means this job has not
+    # reported yet, not that nothing enforces it. The wording here said "not yet
+    # required on either ruleset" for some time after the switchover, which
+    # points a reader at the opposite action. Runbook:
+    # docs/ci/required-checks-migration.md.
     if: always()
     needs: [core, test, migration, sonar, frontend-quality, mobile-version]
     runs-on: ubuntu-latest
