@@ -1,8 +1,9 @@
 'use client';
-import React, { useSyncExternalStore } from 'react';
+import React, { useEffect, useRef, useSyncExternalStore } from 'react';
 import Image from 'next/image';
 
 import { getStorageItem, setStorageItem } from '@/app/lib/browserStorage';
+import { PHONE_MEDIA_QUERY } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import { COOKIE_CONSENT_KEY } from '@/app/lib/posthog';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
@@ -18,6 +19,18 @@ const subscribeToConsent = (onChange: () => void): (() => void) => {
   globalThis.window?.addEventListener('storage', onChange);
   return () => globalThis.window?.removeEventListener('storage', onChange);
 };
+
+/**
+ * The strip of viewport the card denies, published so a shell that cannot
+ * scroll can reserve it.
+ *
+ * Measured rather than derived from the class list: the card's height depends
+ * on how the copy wraps, which depends on the viewport (252px at 390px wide,
+ * 276px at 360px). Everything from the card's top edge to the bottom of the
+ * viewport is denied, not just the card itself - below it sits the tab-bar
+ * reserve, which is not somewhere content can go either.
+ */
+const CONSENT_INSET_PROPERTY = '--yc-consent-inset';
 
 const getConsentSnapshot = () => getStorageItem('local', COOKIE_CONSENT_KEY);
 const getServerConsentSnapshot = () => null;
@@ -37,6 +50,36 @@ const Cookies = () => {
     getServerConsentSnapshot
   );
   const showCookiePopup = !consent;
+  const cardRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const clear = () => root.style.removeProperty(CONSENT_INSET_PROPERTY);
+    const card = cardRef.current;
+    if (!card) return clear;
+
+    const publish = () => {
+      // Re-read the breakpoint on every publish rather than once at mount:
+      // desktop places the card clear of page content and has nothing to
+      // reserve, and a rotation crosses that boundary without remounting.
+      if (!globalThis.matchMedia?.(PHONE_MEDIA_QUERY).matches) {
+        clear();
+        return;
+      }
+      const denied = globalThis.innerHeight - card.getBoundingClientRect().top;
+      root.style.setProperty(CONSENT_INSET_PROPERTY, `${Math.max(0, Math.ceil(denied))}px`);
+    };
+
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(card);
+    globalThis.addEventListener('resize', publish);
+    return () => {
+      observer.disconnect();
+      globalThis.removeEventListener('resize', publish);
+      clear();
+    };
+  }, [showCookiePopup]);
 
   if (!showCookiePopup) return null;
 
@@ -47,6 +90,7 @@ const Cookies = () => {
        as part of the page - only fits once there is room for both, so it comes
        back at `md`. */
     <aside
+      ref={cardRef}
       aria-label="Cookie consent"
       className="fixed inset-x-4 bottom-[calc(84px+env(safe-area-inset-bottom,0px))] z-9999 md:inset-x-auto md:left-20 md:bottom-32.5"
     >
