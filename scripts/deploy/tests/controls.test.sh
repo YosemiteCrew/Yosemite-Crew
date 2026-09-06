@@ -16,6 +16,18 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 DEPLOY_SH="$HERE/../api-deploy.sh"
 
+# api-deploy.sh with full-line comments BLANKED, line numbering preserved.
+#
+# Every guard below reads this rather than the file. The first version of the
+# probe guard grepped the file and stayed green with the probe deleted, because
+# the reasoning written above the probe names the same path twice - a check that
+# could not see the thing it was named after, reporting on prose in the same
+# file. Blanking rather than deleting keeps the line numbers, which the ordering
+# guard needs. Trailing comments on code lines are left alone: stripping those
+# means parsing quoting, and the failure that actually happened was a full-line
+# one.
+DEPLOY_CODE="$(sed -E 's/^[[:space:]]*#.*$//' "$DEPLOY_SH")"
+
 PASS=0
 FAIL=0
 
@@ -202,28 +214,27 @@ echo "api-deploy.sh wiring"
 # above the probe names that path twice, so a bare string search stays green
 # with the probe deleted. It did, the first time this was written.
 PROBE_RE='curl .*SMOKE_PORT/health/controls'
-if grep -qE "$PROBE_RE" "$DEPLOY_SH"; then
+if grep -qE "$PROBE_RE" <<< "$DEPLOY_CODE"; then
   ok "api-deploy.sh curls /health/controls"
 else
   no "api-deploy.sh curls /health/controls" "no curl of that path in the file"
 fi
 
-if grep -q 'DEPLOY_BLOCKING_CONTROLS:-authentication' "$DEPLOY_SH"; then
+if grep -q 'DEPLOY_BLOCKING_CONTROLS:-authentication' <<< "$DEPLOY_CODE"; then
   ok "authentication is a blocking control by default"
 else
   no "authentication is a blocking control by default" \
      "no DEPLOY_BLOCKING_CONTROLS default naming it"
 fi
 
-if grep -q 'deploy_blocking_control_failures' "$DEPLOY_SH"; then
+if grep -q 'deploy_blocking_control_failures' <<< "$DEPLOY_CODE"; then
   ok "api-deploy.sh asks which named controls block the cutover"
 else
   no "api-deploy.sh asks which named controls block the cutover" \
      "the helper is never called"
 fi
 
-if grep -qE 'CONTROL_FAILURES.*exit 1|exit 1.*CONTROL_FAILURES' "$DEPLOY_SH" \
-  || awk '/if \[ -n "\$CONTROL_FAILURES" \]/,/^fi$/' "$DEPLOY_SH" | grep -q 'exit 1'; then
+if awk '/if \[ -n "\$CONTROL_FAILURES" \]/,/^fi$/' <<< "$DEPLOY_CODE" | grep -q 'exit 1'; then
   ok "a blocking control failure stops the cutover"
 else
   no "a blocking control failure stops the cutover" \
@@ -237,7 +248,7 @@ fi
 # missing result rather than a failure.
 # `|| true` on the assignment would turn the stop above into a ship, which is
 # the one regression that cannot be seen by running the function.
-ASSIGN_LINE="$(grep -nE 'CONTROL_FAILURES=.*deploy_blocking_control_failures' "$DEPLOY_SH" || true)"
+ASSIGN_LINE="$(grep -nE 'CONTROL_FAILURES=.*deploy_blocking_control_failures' <<< "$DEPLOY_CODE" || true)"
 if [ -n "$ASSIGN_LINE" ] && ! printf '%s' "$ASSIGN_LINE" | grep -q '||'; then
   ok "the helper's exit status is not swallowed at the call site"
 else
@@ -245,8 +256,8 @@ else
      "assignment line: ${ASSIGN_LINE:-<not found>}"
 fi
 
-PROBE_LINE="$(grep -nE "$PROBE_RE" "$DEPLOY_SH" | head -1 | cut -d: -f1 || true)"
-KILL_LINE="$(grep -nE 'kill .*SMOKE_PID' "$DEPLOY_SH" | head -1 | cut -d: -f1 || true)"
+PROBE_LINE="$(grep -nE "$PROBE_RE" <<< "$DEPLOY_CODE" | head -1 | cut -d: -f1 || true)"
+KILL_LINE="$(grep -nE 'kill .*SMOKE_PID' <<< "$DEPLOY_CODE" | head -1 | cut -d: -f1 || true)"
 if [ -n "$PROBE_LINE" ] && [ -n "$KILL_LINE" ] && [ "$PROBE_LINE" -lt "$KILL_LINE" ]; then
   ok "the controls probe runs before the smoke process is killed"
 else
