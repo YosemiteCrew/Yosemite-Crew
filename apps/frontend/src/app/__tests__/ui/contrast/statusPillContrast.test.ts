@@ -1,10 +1,8 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { getMerckSubtopicPillStyle } from '@/app/features/integrations/constants/merck';
 import { getStatusBadgeStyle } from '@/app/features/inventory/pages/Inventory/utils';
 import { measureContrast } from '@/app/features/appointments/components/Calendar/responsive/contrastProbe';
 import { getOrganizationStatusStyle } from '@/app/ui/tables/tableUtils';
+import { resolve, resolveColour } from '@/app/__tests__/support/globalsTokens';
 
 /**
  * These three switches paint with inline `style`, so their colours are invisible
@@ -16,79 +14,15 @@ import { getOrganizationStatusStyle } from '@/app/ui/tables/tableUtils';
  * Asserting the token NAMES would pass forever, so this resolves them out of
  * `globals.css` and measures. A regression in either the switch or the token
  * values fails it.
- */
-
-const CSS = readFileSync(join(process.cwd(), 'src/app/globals.css'), 'utf8');
-
-/**
- * Custom properties per theme.
  *
- * `@theme` is Tailwind 4's base layer and is theme-independent - the pill
- * tokens live there and alias `--status-*`, which is what actually flips. So
- * the base map must include it or every pill token resolves to nothing, and a
- * missing value would otherwise compare "" against "" and read as a pass.
- * `globals.css` also has more than one dark block, meant to merge with the
- * later winning, so this accumulates in file order rather than stopping first.
+ * The reader moved to `__tests__/support/globalsTokens` when #2822 added a
+ * second guard that needed it. It is the same parse: `@theme` and `:root` into
+ * the light map, every dark rule accumulating in file order so the later one
+ * wins, and `resolveColour` failing loudly rather than handing the probe an
+ * empty string it would read as black on white.
  */
-const collect = (): { light: Map<string, string>; dark: Map<string, string> } => {
-  const light = new Map<string, string>();
-  const dark = new Map<string, string>();
-  let depth = 0;
-  let selector = '';
-  let buffer = '';
 
-  for (const raw of CSS.split('\n')) {
-    const line = raw.replace(/\/\*.*?\*\//g, '');
-    const decl = /^\s*(--[\w-]+)\s*:\s*([^;]+);/.exec(line);
-    if (depth === 1 && decl) {
-      const isDark = /data-theme\s*=\s*['"]?dark/.test(selector);
-      const isBase =
-        selector.split(',').some((part) => part.trim() === ':root') ||
-        selector.trim().startsWith('@theme');
-      if (isDark) dark.set(decl[1], decl[2].trim());
-      else if (isBase) light.set(decl[1], decl[2].trim());
-    }
-    for (const ch of line) {
-      if (ch === '{') {
-        if (depth === 0) selector = buffer.trim();
-        depth += 1;
-        buffer = '';
-      } else if (ch === '}') {
-        depth -= 1;
-        buffer = '';
-      } else {
-        buffer += ch;
-      }
-    }
-    if (depth === 0) buffer = '';
-  }
-  return { light, dark };
-};
-
-const TOKENS = collect();
-
-const LIGHT = TOKENS.light;
-const DARK = TOKENS.dark;
-
-/** Resolves a `var(--a, fallback)` chain down to a literal colour. */
-const resolve = (value: string, dark: boolean): string => {
-  let current = value;
-  for (let i = 0; i < 12; i += 1) {
-    const m = /^var\(\s*(--[\w-]+)\s*(?:,\s*([^)]*))?\)$/.exec(current.trim());
-    if (!m) return current.trim();
-    const next = (dark ? DARK.get(m[1]) : undefined) ?? LIGHT.get(m[1]) ?? m[2];
-    if (next === undefined) return current.trim();
-    current = next;
-  }
-  return current.trim();
-};
-
-const resolveToken = (token: string, dark: boolean): string => {
-  const literal = resolve(token, dark);
-  // A silent miss would compare "" against "" and read as a perfect pass.
-  expect(literal).toMatch(/^(#|rgb)/);
-  return literal;
-};
+const resolveToken = resolveColour;
 
 const mount = (color: string, background: string, surface: string, px: string, weight: string) => {
   const outer = document.createElement('div');
