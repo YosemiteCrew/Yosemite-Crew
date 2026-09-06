@@ -318,19 +318,29 @@ fi
 # bash 5.3.15, a function returning 7, with a succeeding command as the positive
 # control on every row:
 #
-#   local out="$(crash)"        rc=0   swallowed      both shells
-#   local out=$(crash)          rc=0   swallowed      both shells
-#   local rc=0 out="$(crash)"   rc=0   swallowed      both shells
-#   local out=`crash`           rc=0   swallowed      both shells
-#   local out; out="$(crash)"   rc=7   CARRIES        both shells
-#   local out                   rc=7   CARRIES        both shells
-#   out="$(crash)"
+#   local out="$(crash)"          rc=0   swallowed    both shells
+#   local out=$(crash)            rc=0   swallowed    both shells
+#   local rc=0 out="$(crash)"     rc=0   swallowed    both shells
+#   local out=`crash`             rc=0   swallowed    both shells
+#   local out="`crash`"           rc=0   swallowed    both shells
+#   local z=1; local out="$(...)" rc=0   swallowed    both shells
+#   local out; out="$(crash)"     rc=7   CARRIES      both shells
+#   local out  <newline>  out=... rc=7   CARRIES      both shells
+#
+# The enumeration is closed rather than collected: command substitution has two
+# syntaxes, `$(...)` and backticks, each bare or double-quoted, which is four -
+# and each of those can be the first command on the line or follow a `;`. Single
+# quotes substitute nothing, so there is no status to swallow.
 #
 # So the rule is the KEYWORD plus an assignment from a substitution on the same
 # command, not one spelling of it. `[^;#]` is what keeps the two carrying forms
 # out: a `;` ends the declaration and starts a new command, which is the fix
 # itself, and a `#` is a trailing comment - the costume that has beaten the
 # guards in this file three times, and the one this pattern must not fire on.
+# `(^|;)` is why refusing to cross a `;` does not also mean failing to see past
+# one: the keyword is looked for at the start of the line OR after a `;`, and
+# `out` is not a keyword, so the fix stays silent while `; local out="$(...)"`
+# does not. Verified on BSD grep 2.6.0, GNU grep 3.11 and busybox.
 #
 # Stated cost: this bans declare-and-assign for the whole file, not just for
 # ships(), so a future `local tmp="$(mktemp -d)"` or `local tmp=$(mktemp -d)`
@@ -341,7 +351,7 @@ fi
 # Comments blanked for the same reason DEPLOY_CODE blanks them: otherwise the
 # paragraph you are reading would redden its own guard.
 TEST_CODE="$(sed -E 's/^[[:space:]]*#.*$//' "${BASH_SOURCE[0]}")"
-SWALLOWED="$(grep -nE '^[[:space:]]*(local|declare|readonly|export)[[:space:]][^;#]*=("?\$\(|`)' <<< "$TEST_CODE" || true)"
+SWALLOWED="$(grep -nE '(^|;)[[:space:]]*(local|declare|readonly|export)[[:space:]][^;#]*="?(\$\(|`)' <<< "$TEST_CODE" || true)"
 if [ -z "$SWALLOWED" ]; then
   ok "no declaration in this file swallows the status of a command substitution"
 else
