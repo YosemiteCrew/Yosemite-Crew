@@ -55,9 +55,15 @@ test('a URL does not blank the rest of its line, in any quote style', () => {
   for (const quote of ['"', "'", '`']) {
     const source = `const u = ${quote}https://example.com/docs${quote}; const c = "#ff0000";`;
     assert.equal(findColours(source).length, 1, `broke on ${quote}`);
-    // A substring check, not a regex: an unanchored pattern over a URL matches
-    // anywhere, and the claim here is only that the host survived the strip.
-    assert.ok(stripComments(source).includes('https://example.com'), `broke on ${quote}`);
+    // Whole-string equality, and neither a regex nor a substring test. This
+    // source contains no comment, so a correct strip is a no-op on every byte -
+    // a stronger claim than "the host is still in there somewhere", and one
+    // that says nothing about URLs, so it cannot be read as sanitising one.
+    // The two weaker forms were each flagged, in opposite directions: the regex
+    // for being unanchored over a URL, the substring for incomplete URL
+    // sanitisation. Both findings were pointing at the same thing - the
+    // assertion was matching a URL when its subject was the strip.
+    assert.equal(stripComments(source), source, `broke on ${quote}`);
   }
 });
 
