@@ -147,7 +147,7 @@ const fieldGroup: CSSProperties = { display: 'flex', flexDirection: 'column', ga
 const groupBlock: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 16 };
 
 const errorLine: CSSProperties = {
-  color: 'var(--color-danger-600, #d53225)',
+  color: 'var(--color-danger-600)',
   fontSize: 14,
   marginTop: 4,
   letterSpacing: '-0.01em',
