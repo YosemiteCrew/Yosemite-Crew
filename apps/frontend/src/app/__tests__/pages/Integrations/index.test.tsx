@@ -1112,6 +1112,7 @@ describe('IntegrationsPage — filters and empty states', () => {
     expect(screen.getByText('Laika')).toBeInTheDocument();
     expect(screen.queryByText('IDEXX VetConnect PLUS')).not.toBeInTheDocument();
     expect(screen.queryByText('MSD Veterinary Manual')).not.toBeInTheDocument();
+    expect(screen.queryByText('Notify me')).not.toBeInTheDocument();
     expect(screen.queryByText('No available integrations right now.')).not.toBeInTheDocument();
     expect(screen.queryByText('No connected integrations yet.')).not.toBeInTheDocument();
     await flush();

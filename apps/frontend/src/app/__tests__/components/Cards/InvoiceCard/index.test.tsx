@@ -57,6 +57,7 @@ describe('InvoiceCard Component', () => {
     // Companion + parent
     expect(screen.getByText('Buddy')).toBeInTheDocument();
     expect(screen.getByText('Jamie')).toBeInTheDocument();
+    expect(screen.getByLabelText('Invoice reference #INV-1001')).toHaveTextContent('#INV-1001');
 
     // Service
     expect(screen.getByText('Grooming')).toBeInTheDocument();
@@ -86,8 +87,17 @@ describe('InvoiceCard Component', () => {
 
     render(<InvoiceCard invoice={emptyInvoice} handleViewInvoice={mockHandleView} />);
 
+    expect(screen.getByLabelText('Invoice reference #INV-1001')).toHaveTextContent('#INV-1001');
     const dashes = screen.getAllByText('-');
     expect(dashes.length).toBeGreaterThan(0);
+  });
+
+  it('labels a missing invoice reference as unavailable', () => {
+    const referenceLessInvoice = { ...mockInvoice, id: undefined } as any;
+
+    render(<InvoiceCard invoice={referenceLessInvoice} handleViewInvoice={mockHandleView} />);
+
+    expect(screen.getByLabelText('Invoice reference unavailable')).toHaveTextContent('-');
   });
 
   it('falls back to zero when the invoice carries no tax total', () => {

@@ -16,6 +16,24 @@ describe('GenericTable', () => {
     jest.restoreAllMocks();
   });
 
+  it('lets an enclosing section own the card surface', () => {
+    const { container, rerender } = render(
+      <GenericTable
+        itemNoun="specialities"
+        data={[]}
+        columns={[{ key: 'name', label: 'Name' }]}
+        embedded
+      />
+    );
+
+    expect(container.querySelector('.TableShell')).not.toHaveClass('yc-card-surface');
+
+    rerender(
+      <GenericTable itemNoun="specialities" data={[]} columns={[{ key: 'name', label: 'Name' }]} />
+    );
+    expect(container.querySelector('.TableShell')).toHaveClass('yc-card-surface');
+  });
+
   it('lets a surface override the derived empty state', () => {
     /* Two dashboard widgets have an `xl:hidden` card branch whose copy is more
        useful than "No <noun> yet" - the availability one tells the reader to set

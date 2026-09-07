@@ -8,7 +8,11 @@ import { toTitle } from '@/app/lib/validators';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { formatMoneyPrecise, recordCurrency } from '@/app/lib/money';
-import { getCompanionNameFromAppointments, getParentNameFromAppointments } from '@/app/lib/invoice';
+import {
+  getCompanionNameFromAppointments,
+  getInvoiceNumberLabel,
+  getParentNameFromAppointments,
+} from '@/app/lib/invoice';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 
 type InvoiceCardProps = {
@@ -21,6 +25,7 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
   const orgCurrency = useCurrencyForPrimaryOrg();
   // Resolved once: every figure on this card belongs to the same invoice.
   const money = recordCurrency(invoice, orgCurrency);
+  const invoiceNumberLabel = getInvoiceNumberLabel(invoice);
 
   const companionName = useMemo(
     () => getCompanionNameFromAppointments(appointments, invoice.appointmentId),
@@ -34,8 +39,14 @@ const InvoiceCard = ({ invoice, handleViewInvoice }: InvoiceCardProps) => {
 
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] yc-card-surface yc-card-surface--tile p-3 flex flex-col justify-between gap-2 cursor-pointer">
-      <div className="flex gap-1">
+      <div className="flex items-start justify-between gap-2">
         <div className="text-body-3-emphasis text-text-primary">{companionName}</div>
+        <div
+          className="shrink-0 text-caption-1 font-semibold tabular-nums text-text-secondary"
+          aria-label={`Invoice reference ${invoiceNumberLabel || 'unavailable'}`}
+        >
+          {invoiceNumberLabel || '-'}
+        </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Parent:</div>

@@ -4,6 +4,7 @@ import { useNotify } from '@/app/hooks/useNotify';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { Textarea } from '@/app/ui/Input';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
+import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
 import type {
   APActorSettings,
   APFollower,
@@ -69,15 +70,6 @@ const getListRenderState = (loading: boolean, isEmpty: boolean): ListRenderState
   if (isEmpty) return 'empty';
   return 'ready';
 };
-
-const SectionCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="border border-card-border rounded-2xl">
-    <div className="px-6 py-3 border-b border-b-card-border">
-      <div className="text-body-3 text-text-primary">{title}</div>
-    </div>
-    <div className="px-6 py-5 flex flex-col gap-4">{children}</div>
-  </div>
-);
 
 const StateBadge = ({ state }: { state: string }) => (
   <StatusPill
@@ -836,7 +828,7 @@ const FederationSection = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-[14px]">
       <ActorInfoCard actor={actor} />
       <LicenseTokenCard status={actor.licenseTokenStatus} onUpdated={loadActor} />
       <DirectoryListingCard
@@ -844,7 +836,7 @@ const FederationSection = () => {
         directoryListed={actor.directoryListed}
         onUpdated={loadActor}
       />
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-[14px] xl:grid-cols-2">
         <FollowersCard />
         <FollowingCard />
       </div>

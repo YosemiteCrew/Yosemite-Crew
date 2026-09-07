@@ -52,7 +52,7 @@ jest.mock('@/app/features/appointments/components/Waitlist/Waitlist', () => ({
         {String(Boolean(onOffer && onBook && onCancel && onAdd))}
       </span>
       {onOffer ? <button onClick={() => onOffer('w-1')}>offer</button> : null}
-      {onBook ? <button onClick={() => onBook('w-1')}>book</button> : null}
+      {onBook ? <button onClick={() => onBook(entries[0])}>book</button> : null}
       {onCancel ? <button onClick={() => onCancel('w-1')}>cancel</button> : null}
       {onAdd ? <button onClick={() => onAdd({ patientId: 'p-1' })}>add</button> : null}
     </div>

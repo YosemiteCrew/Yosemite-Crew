@@ -51,7 +51,7 @@ const ROUTE_ICONS: Record<string, IconType> = {
   Finance: IoWalletOutline,
   Companions: IoPaw,
   Inventory: IoCubeOutline,
-  'Controlled drugs': IoFlaskOutline,
+  'Controlled drug register': IoFlaskOutline,
   Integrations: IoGitNetworkOutline,
   Network: IoGlobeOutline,
   Templates: IoBookOutline,
@@ -66,7 +66,7 @@ const APP_ROUTE_GROUPS = [
   { label: 'Overview', routeNames: ['Dashboard'] },
   { label: 'Schedule & Work', routeNames: ['Appointments', 'Tasks', 'Chat'] },
   { label: 'Clients & Records', routeNames: ['Companions', 'Templates'] },
-  { label: 'Business', routeNames: ['Finance', 'Inventory', 'Controlled drugs'] },
+  { label: 'Business', routeNames: ['Finance', 'Inventory', 'Controlled drug register'] },
   { label: 'Administration', routeNames: ['Organization', 'Integrations', 'Network'] },
 ] as const;
 

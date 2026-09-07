@@ -1173,6 +1173,7 @@ describe('AddAppointmentCentralModal', () => {
     const setActiveFilter = jest.fn();
     const setActiveStatus = jest.fn();
     const onPrefillConsumed = jest.fn();
+    const onAppointmentCreated = jest.fn().mockResolvedValue(undefined);
 
     render(
       <AddAppointmentCentralModal
@@ -1181,6 +1182,7 @@ describe('AddAppointmentCentralModal', () => {
         setActiveFilter={setActiveFilter}
         setActiveStatus={setActiveStatus}
         onPrefillConsumed={onPrefillConsumed}
+        onAppointmentCreated={onAppointmentCreated}
       />
     );
 
@@ -1193,6 +1195,7 @@ describe('AddAppointmentCentralModal', () => {
     expect(setActiveFilter).toHaveBeenCalledWith('all');
     expect(setActiveStatus).toHaveBeenCalledWith('all');
     expect(onPrefillConsumed).toHaveBeenCalled();
+    expect(onAppointmentCreated).toHaveBeenCalled();
   });
 
   // ── Discard flow: onPrefillConsumed + functional setShowModal ──────────────

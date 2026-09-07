@@ -325,7 +325,16 @@ jest.mock('@/app/ui/tables/InventoryTurnoverTable', () => ({
 // jest.setup's strict guard. This suite does not exercise it.
 jest.mock('@/app/features/inventory/components/InventoryAlerts/InventoryAlertsPanel', () => ({
   __esModule: true,
-  default: () => <div data-testid="inventory-alerts-panel" />,
+  default: ({ onViewLowStock, onViewExpiring }: any) => (
+    <div data-testid="inventory-alerts-panel">
+      <button type="button" onClick={onViewLowStock}>
+        View low-stock catalog
+      </button>
+      <button type="button" onClick={onViewExpiring}>
+        View expiring catalog
+      </button>
+    </div>
+  ),
 }));
 
 jest.mock('@/app/features/inventory/components/AddInventory', () => ({
@@ -1191,6 +1200,15 @@ describe('Inventory Page', () => {
     render(<ProtectedInventory />);
 
     expect(screen.queryByRole('button', { name: 'Dispensary' })).not.toBeInTheDocument();
+  });
+
+  it('filters the catalog from an inventory alert summary action', () => {
+    render(<ProtectedInventory />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'View low-stock catalog' }));
+
+    expect(screen.queryByTestId('item-1')).not.toBeInTheDocument();
+    expect(screen.getByTestId('item-2')).toBeInTheDocument();
   });
 
   // --- Section 2: Filtering Logic ---
@@ -2102,7 +2120,7 @@ describe('Inventory Page', () => {
     });
   });
 
-  it('silently swallows errors when dispensePrescription fails', async () => {
+  it('shows an error when dispensing fails', async () => {
     (listDispenseRequests as jest.Mock).mockResolvedValue([baseDispenseRequest()]);
     (dispensePrescription as jest.Mock).mockRejectedValueOnce(new Error('Dispense failed'));
     await openDispensaryView();
@@ -2110,9 +2128,8 @@ describe('Inventory Page', () => {
     fireEvent.click(screen.getByTestId('dispense-dr-1'));
 
     await waitFor(() => {
-      expect(dispensePrescription).toHaveBeenCalled();
+      expect(screen.getByText('Unable to dispense prescription.')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('dispensary-table')).toBeInTheDocument();
   });
 
   it('does not render dispense actions when prescription edit permission is missing', async () => {

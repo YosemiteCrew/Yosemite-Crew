@@ -19,6 +19,20 @@ describe('routePermissions', () => {
     ).toBe(true);
   });
 
+  it('requires the explicit controlled-drug register read grant', () => {
+    expect(
+      canAccessPathByPermissions('/controlled-substances', [PERMISSIONS.APPOINTMENTS_VIEW_ANY])
+    ).toBe(false);
+    expect(
+      canAccessPathByPermissions('/controlled-substances', [PERMISSIONS.PRESCRIPTION_VIEW_ANY])
+    ).toBe(false);
+    expect(
+      canAccessPathByPermissions('/controlled-substances', [
+        PERMISSIONS.CONTROLLED_DRUG_REGISTER_READ,
+      ])
+    ).toBe(true);
+  });
+
   it('requires both labs and integrations view for the IDEXX workspace route', () => {
     expect(canAccessPathByPermissions('/appointments/idexx-workspace', [])).toBe(false);
     expect(

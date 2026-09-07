@@ -12,6 +12,8 @@ type InventoryAlertsPanelProps = {
   organisationId?: string;
   /** Expiry look-ahead window; also drives the empty-state copy. Default 30. */
   expiringWindowDays?: number;
+  onViewLowStock?: () => void;
+  onViewExpiring?: () => void;
 };
 
 /**
@@ -22,6 +24,8 @@ type InventoryAlertsPanelProps = {
 const InventoryAlertsPanel = ({
   organisationId,
   expiringWindowDays = 30,
+  onViewLowStock,
+  onViewExpiring,
 }: InventoryAlertsPanelProps) => {
   const [lowStock, setLowStock] = useState<LowStockAlertItem[]>([]);
   const [expiring, setExpiring] = useState<ExpiringAlertBatch[]>([]);
@@ -77,6 +81,8 @@ const InventoryAlertsPanel = ({
       loading={loading}
       error={error}
       expiringWindowDays={expiringWindowDays}
+      onViewLowStock={onViewLowStock}
+      onViewExpiring={onViewExpiring}
     />
   );
 };

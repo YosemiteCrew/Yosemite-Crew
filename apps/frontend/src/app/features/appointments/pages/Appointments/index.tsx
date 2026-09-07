@@ -46,9 +46,8 @@ const ChangeRoom = React.lazy(
 const WaitlistPanel = React.lazy(
   () => import('@/app/features/appointments/components/Waitlist/WaitlistPanel')
 );
-const CheckInBoardPanel = React.lazy(
-  () => import('@/app/features/appointments/components/CheckInBoard/CheckInBoardPanel')
-);
+import type { WaitlistEntryView } from '@/app/features/appointments/components/Waitlist/Waitlist';
+import { bookWaitlistEntry } from '@/app/features/appointments/services/waitlistService';
 import { useSearchStore } from '@/app/stores/searchStore';
 import Filters from '@/app/ui/filters/Filters';
 import {
@@ -76,6 +75,7 @@ import {
 } from '@/app/features/settings/utils/pmsPreferences';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
+import { getMinutesSinceStartOfDayInPreferredTimeZone } from '@/app/lib/timezone';
 
 const AppointmentsSkeleton = () => <PageSkeleton variant="planner" />;
 const APPOINTMENTS_SKELETON = <AppointmentsSkeleton />;
@@ -332,7 +332,6 @@ const useAppointmentsView = () => {
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
   const [showWaitlist, setShowWaitlist] = useState(false);
-  const [showCheckIn, setShowCheckIn] = useState(false);
   const [addAppointmentPrefill, setAddAppointmentPrefill] =
     useState<AppointmentDraftPrefill | null>(null);
   const [viewPopup, setViewPopup] = useState(false);
@@ -355,6 +354,7 @@ const useAppointmentsView = () => {
   }, [canEditAny, canEditOwn, activeAppointment, currentUserLeadId]);
 
   const profile = usePrimaryOrgProfile();
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const primaryOrgType = useOrgStore((s) =>
     s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
   );
@@ -375,6 +375,8 @@ const useAppointmentsView = () => {
     });
   };
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [waitlistBooking, setWaitlistBooking] = useState<WaitlistEntryView | null>(null);
+  const [waitlistRefreshKey, setWaitlistRefreshKey] = useState(0);
   const [weekStart, setWeekStart] = useState(() => startOfDay(currentDate));
   const { plannerSectionRef } = usePlannerAutoLock({
     activeView,
@@ -482,8 +484,28 @@ const useAppointmentsView = () => {
   });
 
   const openAddAppointment = () => {
+    setWaitlistBooking(null);
     setAddAppointmentPrefill(null);
     setAddPopup(true);
+  };
+
+  const openWaitlistAppointment = (entry: WaitlistEntryView) => {
+    const requestedDate = entry.earliestDate ? new Date(entry.earliestDate) : new Date();
+    const date = Number.isNaN(requestedDate.getTime()) ? new Date() : requestedDate;
+    setWaitlistBooking(entry);
+    setAddAppointmentPrefill({
+      date,
+      minuteOfDay: getMinutesSinceStartOfDayInPreferredTimeZone(date),
+      leadId: entry.preferredLeadId ?? undefined,
+    });
+    setAddPopup(true);
+  };
+
+  const completeWaitlistBooking = async () => {
+    if (!waitlistBooking || !primaryOrgId) return;
+    await bookWaitlistEntry(primaryOrgId, waitlistBooking.id);
+    setWaitlistBooking(null);
+    setWaitlistRefreshKey((key) => key + 1);
   };
 
   // The phone shell's FAB has no reference to this page's create flow; opt in so
@@ -619,33 +641,10 @@ const useAppointmentsView = () => {
             {showWaitlist && (
               <div id="appointments-waitlist-panel" className="mt-3">
                 <React.Suspense fallback={<PlannerViewSkeleton />}>
-                  <WaitlistPanel />
-                </React.Suspense>
-              </div>
-            )}
-          </section>
-          <section aria-labelledby="appointments-checkin-heading" className="mb-3">
-            <button
-              type="button"
-              onClick={() => setShowCheckIn((open) => !open)}
-              aria-expanded={showCheckIn}
-              aria-controls="appointments-checkin-panel"
-              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] px-4 py-2.5 text-left shadow-[0_1px_2px_var(--sh03)] transition-colors hover:bg-[var(--inset)]"
-            >
-              <span
-                id="appointments-checkin-heading"
-                className="text-[13.5px] font-bold text-[var(--ink)]"
-              >
-                Check-in board
-              </span>
-              <span className="text-[12px] font-semibold text-[var(--ink-muted)]">
-                {showCheckIn ? 'Hide' : 'Show'}
-              </span>
-            </button>
-            {showCheckIn && (
-              <div id="appointments-checkin-panel" className="mt-3">
-                <React.Suspense fallback={<PlannerViewSkeleton />}>
-                  <CheckInBoardPanel />
+                  <WaitlistPanel
+                    key={waitlistRefreshKey}
+                    onBookAppointment={openWaitlistAppointment}
+                  />
                 </React.Suspense>
               </div>
             )}
@@ -676,6 +675,8 @@ const useAppointmentsView = () => {
               setActiveFilter={setActiveFilter}
               setActiveStatus={setActiveStatus}
               prefill={addAppointmentPrefill}
+              initialCompanionId={waitlistBooking?.patientId}
+              onAppointmentCreated={completeWaitlistBooking}
               onPrefillConsumed={() => setAddAppointmentPrefill(null)}
             />
             {activeAppointment && (

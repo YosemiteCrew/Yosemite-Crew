@@ -1133,18 +1133,6 @@ const RadIntegrationCard = ({
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         Imaging and analyzer connectivity for diagnostic workflows in Yosemite Crew.
       </div>
-      <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <span
-          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
-          style={{
-            background: 'transparent',
-            color: 'var(--ink-body)',
-            border: '1px solid var(--divider)',
-          }}
-        >
-          Notify me
-        </span>
-      </div>
     </div>
   );
 };
@@ -1170,18 +1158,6 @@ const VetnioIntegrationCard = ({
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         AI-powered documentation for veterinary practices &mdash; instantly generate clinical notes,
         discharge summaries, and client communications from consultations.
-      </div>
-      <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <span
-          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
-          style={{
-            background: 'transparent',
-            color: 'var(--ink-body)',
-            border: '1px solid var(--divider)',
-          }}
-        >
-          Notify me
-        </span>
       </div>
     </div>
   );
@@ -1209,18 +1185,6 @@ const QuickBooksIntegrationCard = ({
         Accounting sync for invoices, payments, customers, and financial workflows through
         QuickBooks Online.
       </div>
-      <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <span
-          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
-          style={{
-            background: 'transparent',
-            color: 'var(--ink-body)',
-            border: '1px solid var(--divider)',
-          }}
-        >
-          Notify me
-        </span>
-      </div>
     </div>
   );
 };
@@ -1247,18 +1211,6 @@ const LaikaIntegrationCard = ({
         AI-powered diagnostic support for veterinary clinicians &mdash; interpret lab results,
         reason through differentials, and get evidence-based guidance trained exclusively on
         veterinary medical data.
-      </div>
-      <div className={INTEGRATION_CARD_ACTIONS_CLASS}>
-        <span
-          className="inline-flex min-h-10 items-center justify-center rounded-full! px-4 text-[13.5px] font-semibold whitespace-nowrap select-none"
-          style={{
-            background: 'transparent',
-            color: 'var(--ink-body)',
-            border: '1px solid var(--divider)',
-          }}
-        >
-          Notify me
-        </span>
       </div>
     </div>
   );

@@ -1077,6 +1077,10 @@ const useInventoryContent = () => {
     setViewInventory(true);
   }, []);
 
+  const showAlertedInventory = useCallback((status: 'LOW_STOCK' | 'EXPIRING_SOON') => {
+    setFilters((previous) => ({ ...previous, status }));
+  }, []);
+
   const toggleCategoryFilter = useCallback(
     (category: string) => {
       setFilters((prev) => {
@@ -1208,14 +1212,15 @@ const useInventoryContent = () => {
   const handleDispense = useCallback(
     async (record: DispensaryRecord) => {
       if (!primaryOrgId) return;
+      setActionError(null);
       try {
         await dispensePrescription(primaryOrgId, record.prescriptionId);
         fetchDispensaryRecords();
       } catch {
-        // silently fail
+        setActionError('Unable to dispense prescription.');
       }
     },
-    [fetchDispensaryRecords, primaryOrgId]
+    [fetchDispensaryRecords, primaryOrgId, setActionError]
   );
 
   return (
@@ -1300,7 +1305,11 @@ const useInventoryContent = () => {
 
             {activeView === 'inventory' && (
               <section aria-label="Inventory alerts" className="w-full shrink-0">
-                <InventoryAlertsPanel organisationId={primaryOrgId ?? undefined} />
+                <InventoryAlertsPanel
+                  organisationId={primaryOrgId ?? undefined}
+                  onViewLowStock={() => showAlertedInventory('LOW_STOCK')}
+                  onViewExpiring={() => showAlertedInventory('EXPIRING_SOON')}
+                />
               </section>
             )}
 

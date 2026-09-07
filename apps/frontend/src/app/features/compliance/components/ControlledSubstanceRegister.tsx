@@ -29,7 +29,7 @@ type ControlledSubstanceRegisterProps = {
   error: string | null;
   dateRange: ControlledSubstanceDateRange;
   onDateRangeChange: (range: ControlledSubstanceDateRange) => void;
-  /** Whether the viewer may append entries (prescription:edit permission). */
+  /** Whether the viewer may append entries to the register. */
   canRecord: boolean;
   creating: boolean;
   createError: string | null;
@@ -112,6 +112,64 @@ const StrengthUnitCell = ({ entry }: { entry: ControlledSubstanceLog }) => (
     )}
     {DRUG_UNIT_LABEL[entry.unit]}
   </span>
+);
+
+const RegisterPhoneCards = ({ entries }: { entries: ControlledSubstanceLog[] }) => (
+  <div className="flex flex-col gap-3 md:hidden">
+    {entries.map((entry) => (
+      <article
+        key={entry.id}
+        className="rounded-2xl border border-card-border bg-card-bg p-4 shadow-[0_1px_2px_var(--sh03)]"
+        aria-label={`Controlled substance entry for ${entry.drug}`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate font-semibold text-text-primary" title={entry.drug}>
+              {entry.drug}
+            </div>
+            <div className="mt-1 text-caption-1 text-text-secondary">
+              {formatDateTimeLocal(entry.loggedAt)} · <StrengthUnitCell entry={entry} />
+            </div>
+          </div>
+          <StatusPill
+            label={DEA_SCHEDULE_LABEL[entry.deaSchedule]}
+            tone={DEA_SCHEDULE_TONE[entry.deaSchedule]}
+          />
+        </div>
+        <dl className="mt-3 grid grid-cols-3 gap-x-3 gap-y-2 text-caption-1">
+          <div>
+            <dt className="text-text-tertiary">Drawn</dt>
+            <dd className="tabular-nums text-text-primary">{formatAmount(entry.amountDrawn)}</dd>
+          </div>
+          <div>
+            <dt className="text-text-tertiary">Administered</dt>
+            <dd className="tabular-nums text-text-primary">
+              {formatAmount(entry.amountAdministered)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-text-tertiary">Wasted</dt>
+            <dd>
+              <WastedCell entry={entry} />
+            </dd>
+          </div>
+        </dl>
+        <div className="mt-3 border-t border-card-border pt-3 text-caption-1">
+          <div className="flex justify-between gap-3">
+            <span className="text-text-tertiary">Balance</span>
+            <BalanceCell entry={entry} />
+          </div>
+          <div className="mt-2 flex justify-between gap-3">
+            <span className="text-text-tertiary">By</span>
+            <span className="text-right text-text-secondary">
+              {entry.administeredBy?.trim() || '—'}
+            </span>
+          </div>
+          {entry.notes?.trim() ? <p className="mt-2 text-text-secondary">{entry.notes}</p> : null}
+        </div>
+      </article>
+    ))}
+  </div>
 );
 
 const buildColumns = (): Column<ControlledSubstanceLog>[] => [
@@ -233,9 +291,9 @@ const ControlledSubstanceRegister = ({
     <div className="relative flex h-full min-h-0 w-full flex-col gap-4 yc-page-content">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <h1 className="text-heading-4 text-text-primary">Controlled substances register</h1>
+          <h1 className="text-heading-4 text-text-primary">Controlled drug register</h1>
           <p className="max-w-2xl text-body-4 text-text-secondary">
-            A running DEA compliance log of every controlled-drug draw, administration and waste.
+            An auditable log of every controlled-drug draw, administration and waste.
           </p>
         </div>
         {canRecord && (
@@ -354,13 +412,18 @@ const RegisterBody = ({
     );
   }
   return (
-    <GenericTable
-      data={entries}
-      columns={columns}
-      caption="Controlled substance register for this organisation"
-      itemNoun="entries"
-      pagination
-    />
+    <>
+      <RegisterPhoneCards entries={entries} />
+      <div className="hidden md:block">
+        <GenericTable
+          data={entries}
+          columns={columns}
+          caption="Controlled substance register for this organisation"
+          itemNoun="entries"
+          pagination
+        />
+      </div>
+    </>
   );
 };
 
@@ -484,7 +547,7 @@ const AddEntryForm = ({ creating, createError, onSubmit, onCancel }: AddEntryFor
           />
         </Field>
 
-        <Field id="cs-schedule" label="DEA schedule">
+        <Field id="cs-schedule" label="Control schedule">
           <select
             id="cs-schedule"
             value={deaSchedule}

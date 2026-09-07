@@ -55,6 +55,41 @@ describe('FilterChip', () => {
     expect(chip()).toHaveClass('bg-[var(--danger-bg)]', 'text-[var(--danger-text)]!');
   });
 
+  it('uses domain tokens only while active without losing the shared focus treatment', () => {
+    const { rerender } = render(
+      <FilterChip
+        label="Awaiting payment"
+        active
+        tokens={{
+          bg: 'var(--status-upcoming-bg)',
+          text: 'var(--status-upcoming-text)',
+          border: 'var(--status-upcoming-border)',
+        }}
+        onClick={jest.fn()}
+      />
+    );
+
+    const chip = () => screen.getByRole('button', { name: 'Awaiting payment' });
+    expect(chip()).toHaveClass('h-8', 'text-[12.5px]', 'focus-visible:ring-2');
+    expect(chip()).toHaveStyle({
+      backgroundColor: 'var(--status-upcoming-bg)',
+      color: 'var(--status-upcoming-text)',
+      borderColor: 'var(--status-upcoming-border)',
+      fontWeight: '700',
+    });
+
+    rerender(
+      <FilterChip
+        label="Awaiting payment"
+        active={false}
+        tokens={{ bg: 'var(--status-upcoming-bg)' }}
+        onClick={jest.fn()}
+      />
+    );
+    expect(chip()).not.toHaveStyle({ backgroundColor: 'var(--status-upcoming-bg)' });
+    expect(chip()).toHaveClass('text-[var(--ink-muted)]');
+  });
+
   it('does not fire onClick while disabled', () => {
     const onClick = jest.fn();
     render(<FilterChip label="Archived" active={false} disabled onClick={onClick} />);

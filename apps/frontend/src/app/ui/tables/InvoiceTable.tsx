@@ -50,7 +50,7 @@ const renderInvoiceNumber = (item: Invoice) => (
   // The identity cell never breaks mid-word (table recipe): "#53F6F0925E" used to
   // wrap to two lines inside its 96px column and read as two invoices.
   <div
-    className="appointment-profile-title tabular-nums cell-strong whitespace-nowrap"
+    className="appointment-profile-title tabular-nums cell-strong cell-truncate"
     title={getInvoiceNumberLabel(item) || undefined}
   >
     {getInvoiceNumberLabel(item) || '-'}
@@ -104,7 +104,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     renderActions,
   } = useInvoiceRowRenderers({ setActiveInvoice, setViewInvoice });
 
-  /* Desktop (>= 1280): the design's ledger — Subtotal, Tax and Total each get a
+  /* Wide desktop (>= 1536): the design's ledger — Subtotal, Tax and Total each get a
      column. Discount is deliberately NOT one of them: it only appears in the
      invoice detail Summary, where the line-level breakdown lives. */
   const columns: Column<Invoice>[] = [
@@ -130,14 +130,14 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     { label: 'Actions', key: 'actions', width: ACTIONS_COLUMN_WIDTH, render: renderActions },
   ];
 
-  /* Tablet (768–1279): 6 columns — the ones you need to chase money.
+  /* Tablet/laptop (768–1535): 6 columns — the ones you need to chase money.
      Invoice (the reference you quote), Parent / patient (who owes, fluid so it
      absorbs the slack), Total (the amount at stake), Status (paid or not — the
      point of the page), Payment (how it settles, which decides your next move),
      Actions. Services + Appointment fold into the identity sub-line; Subtotal /
      Discount / Tax fold under Total. */
   const tabletColumns: Column<Invoice>[] = [
-    { label: 'Invoice', key: 'invoice-number', width: '104px', render: renderInvoiceNumber },
+    { label: 'Invoice', key: 'invoice-number', width: '144px', render: renderInvoiceNumber },
     {
       label: 'Parent / patient',
       key: 'appointment-id',
@@ -160,7 +160,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
           classes: DataTable.css hides `.table-list` at <=1280 and forces
           `.card-list` on, which would skip the design's tablet table entirely.
           Visibility here is pure Tailwind so the three bands can't disagree. */}
-      <div className="hidden xl:flex h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
+      <div className="hidden 2xl:flex h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
         <GenericTable
           itemNoun="invoices"
           data={filteredList}
@@ -172,7 +172,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
           caption="Invoices with appointment details, totals, statuses, payment methods, and actions"
         />
       </div>
-      <div className="hidden md:flex xl:hidden h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
+      <div className="hidden md:flex 2xl:hidden h-full min-h-0 flex-1 overflow-y-auto pr-1 pb-2">
         <GenericTable
           itemNoun="invoices"
           data={filteredList}
@@ -180,7 +180,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
           bordered={false}
           pagination
           pageSize={10}
-          tableClassName="invoice-compact-fixed table-fixed min-w-[540px]"
+          tableClassName="invoice-compact-fixed table-fixed min-w-[580px]"
           caption="Invoices with parent and patient, totals, statuses, payment methods, and actions"
         />
       </div>

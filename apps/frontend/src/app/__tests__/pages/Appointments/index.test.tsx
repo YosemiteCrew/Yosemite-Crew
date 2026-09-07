@@ -62,6 +62,11 @@ const boardSpy = jest.fn();
 const addAppointmentSpy = jest.fn();
 const appointmentInfoSpy = jest.fn();
 const overviewModalSpy = jest.fn();
+const bookWaitlistEntryMock = jest.fn().mockResolvedValue(undefined);
+
+jest.mock('@/app/features/appointments/services/waitlistService', () => ({
+  bookWaitlistEntry: (...args: unknown[]) => bookWaitlistEntryMock(...args),
+}));
 
 jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   __esModule: true,
@@ -164,6 +169,23 @@ jest.mock('@/app/features/appointments/components/AppointmentBoard', () => (prop
   boardSpy(props);
   return <div data-testid="appointment-board" />;
 });
+
+jest.mock('@/app/features/appointments/components/Waitlist/WaitlistPanel', () => (props: any) => (
+  <button
+    type="button"
+    data-testid="waitlist-book"
+    onClick={() =>
+      props.onBookAppointment({
+        id: 'wait-1',
+        patientId: 'c1',
+        preferredLeadId: 'vet-1',
+        earliestDate: '2026-09-08T09:30:00.000Z',
+      })
+    }
+  >
+    Book waiting patient
+  </button>
+));
 
 jest.mock('@/app/ui/tables/Appointments', () => (props: any) => {
   tableSpy(props);
@@ -291,6 +313,27 @@ describe('Appointments page', () => {
         appointments: [expect.objectContaining({ id: 'a1' })],
       })
     );
+  });
+
+  it('keeps the appointment board as the only visible check-in lifecycle and opens waitlist booking prefilled', async () => {
+    await renderAppointments();
+
+    expect(screen.queryByText('Check-in board')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Waitlist/ }));
+    fireEvent.click(await screen.findByTestId('waitlist-book'));
+
+    expect(addAppointmentSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        showModal: true,
+        initialCompanionId: 'c1',
+        prefill: expect.objectContaining({ leadId: 'vet-1', minuteOfDay: 690 }),
+      })
+    );
+
+    await act(async () => {
+      await addAppointmentSpy.mock.calls.at(-1)?.[0].onAppointmentCreated();
+    });
+    expect(bookWaitlistEntryMock).toHaveBeenCalledWith('org-1', 'wait-1');
   });
 
   it('opens add appointment modal from the list filters row', async () => {

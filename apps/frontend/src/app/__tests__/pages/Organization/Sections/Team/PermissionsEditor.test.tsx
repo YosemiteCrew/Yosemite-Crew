@@ -132,6 +132,29 @@ describe('PermissionsEditor component', () => {
     expect(saved.revokedPermissions).not.toContain(PERMISSIONS.ANALYTICS_VIEW_ANY);
   });
 
+  it('assigns register read, record and correct as explicit extras', async () => {
+    render(
+      <PermissionsEditor
+        role="RECEPTIONIST"
+        value={ROLE_PERMISSIONS.RECEPTIONIST}
+        onSave={mockOnSave}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText('Controlled drug register edit permission'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockOnSave).toHaveBeenCalled());
+    expect(mockOnSave).toHaveBeenCalledWith({
+      extraPerissions: expect.arrayContaining([
+        PERMISSIONS.CONTROLLED_DRUG_REGISTER_READ,
+        PERMISSIONS.CONTROLLED_DRUG_REGISTER_RECORD,
+        PERMISSIONS.CONTROLLED_DRUG_REGISTER_CORRECT,
+      ]),
+      revokedPermissions: [],
+    });
+  });
+
   it('locks Teams and Organization for an owner and never revokes them', async () => {
     // An owner must keep the permissions that gate the screens they would use
     // to reverse a change; the checkboxes are disabled and the save can't drop them.
