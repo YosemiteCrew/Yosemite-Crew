@@ -20,6 +20,7 @@ jest.mock('@/app/lib/logger', () => ({
 }));
 
 const ORG_ID = '11111111-1111-4111-8111-111111111111';
+const OBJECT_ID_ORG_ID = '6970ca8262012cc3e1c93099';
 const FLAG_ID = '22222222-2222-4222-8222-222222222222';
 let mockOrgId: string | null = ORG_ID;
 
@@ -47,6 +48,17 @@ describe('patientFlagService', () => {
       { id: FLAG_ID },
     ]);
     expect(getMock).toHaveBeenCalledWith(BASE, { patientId: 'patient-1', isActive: true });
+  });
+
+  it('accepts an ObjectId-backed organisation', async () => {
+    mockOrgId = OBJECT_ID_ORG_ID;
+    getMock.mockResolvedValue({ data: [] });
+
+    await expect(fetchPatientFlags()).resolves.toEqual([]);
+    expect(getMock).toHaveBeenCalledWith(
+      `/v1/pms/organisation/${OBJECT_ID_ORG_ID}/patient-flags`,
+      {}
+    );
   });
 
   it('passes every optional list filter, including false', async () => {
@@ -109,10 +121,10 @@ describe('patientFlagService', () => {
 
   it('rejects reserved characters in route ids before making a request', async () => {
     mockOrgId = 'org/1';
-    await expect(fetchPatientFlags()).rejects.toThrow('Organisation ID must be a UUID');
+    await expect(fetchPatientFlags()).rejects.toThrow('Organisation ID must be a UUID or ObjectId');
     await expect(
       createPatientFlag({ patientId: 'p', flagType: 'OTHER', title: 'Note' })
-    ).rejects.toThrow('Organisation ID must be a UUID');
+    ).rejects.toThrow('Organisation ID must be a UUID or ObjectId');
 
     mockOrgId = ORG_ID;
     await expect(fetchPatientFlag('f 1')).rejects.toThrow('Flag ID must be a UUID');

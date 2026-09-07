@@ -14,13 +14,27 @@ jest.mock('@/app/features/inventory/services/inventoryAlertsService', () => ({
 // Presentational double: surfaces the container's props for assertions.
 jest.mock('@/app/features/inventory/components/InventoryAlerts/InventoryAlerts', () => ({
   __esModule: true,
-  default: ({ lowStock, expiring, loading, error, expiringWindowDays }: any) => (
+  default: ({
+    lowStock,
+    expiring,
+    loading,
+    error,
+    expiringWindowDays,
+    onViewLowStock,
+    onViewExpiring,
+  }: any) => (
     <div>
       <span data-testid="loading">{String(loading)}</span>
       <span data-testid="error">{error ?? ''}</span>
       <span data-testid="window">{expiringWindowDays}</span>
       <span data-testid="low">{lowStock.length}</span>
       <span data-testid="exp">{expiring.length}</span>
+      <button type="button" onClick={onViewLowStock}>
+        view-low
+      </button>
+      <button type="button" onClick={onViewExpiring}>
+        view-expiring
+      </button>
     </div>
   ),
 }));
@@ -45,6 +59,23 @@ describe('InventoryAlertsPanel', () => {
     render(<InventoryAlertsPanel organisationId="org-1" expiringWindowDays={7} />);
     await waitFor(() => expect(fetchExpiringAlerts).toHaveBeenCalledWith('org-1', 7));
     expect(screen.getByTestId('window')).toHaveTextContent('7');
+  });
+
+  it('forwards catalog filter actions', async () => {
+    const onViewLowStock = jest.fn();
+    const onViewExpiring = jest.fn();
+    render(
+      <InventoryAlertsPanel
+        organisationId="org-1"
+        onViewLowStock={onViewLowStock}
+        onViewExpiring={onViewExpiring}
+      />
+    );
+    await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('false'));
+    screen.getByRole('button', { name: 'view-low' }).click();
+    screen.getByRole('button', { name: 'view-expiring' }).click();
+    expect(onViewLowStock).toHaveBeenCalledTimes(1);
+    expect(onViewExpiring).toHaveBeenCalledTimes(1);
   });
 
   it('does not fetch without an org id', async () => {

@@ -24,9 +24,7 @@ const ControlledSubstancesContent = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const { notify } = useNotify();
   const { can } = usePermissions();
-  const canRecord = can({
-    anyOf: [PERMISSIONS.PRESCRIPTION_EDIT_ANY, PERMISSIONS.PRESCRIPTION_EDIT_OWN],
-  });
+  const canRecord = can({ anyOf: [PERMISSIONS.CONTROLLED_DRUG_REGISTER_RECORD] });
 
   const [dateRange, setDateRange] = useState<ControlledSubstanceDateRange>({});
   const { logs, loading, error, reload } = useControlledSubstanceLogs(
@@ -74,8 +72,8 @@ const ControlledSubstancesContent = () => {
 
 const ControlledSubstances = () => (
   <PermissionGate
-    anyOf={[PERMISSIONS.PRESCRIPTION_VIEW_ANY, PERMISSIONS.PRESCRIPTION_VIEW_OWN]}
-    deniedResource="Controlled drugs"
+    anyOf={[PERMISSIONS.CONTROLLED_DRUG_REGISTER_READ]}
+    deniedResource="the controlled drug register"
   >
     <ControlledSubstancesContent />
   </PermissionGate>

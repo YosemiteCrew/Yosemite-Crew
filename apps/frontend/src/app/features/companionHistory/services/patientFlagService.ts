@@ -5,6 +5,7 @@ import { useOrgStore } from '@/app/stores/orgStore';
 
 const UUID_PATH_SEGMENT =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const OBJECT_ID_PATH_SEGMENT = /^[0-9a-f]{24}$/i;
 
 export type PatientFlagType =
   | 'AGGRESSION'
@@ -60,7 +61,9 @@ export type FetchPatientFlagsParams = {
 const requireOrgId = (): string => {
   const orgId = useOrgStore.getState().primaryOrgId;
   if (!orgId) throw new Error('No active organisation selected.');
-  if (!UUID_PATH_SEGMENT.test(orgId)) throw new Error('Organisation ID must be a UUID');
+  if (!UUID_PATH_SEGMENT.test(orgId) && !OBJECT_ID_PATH_SEGMENT.test(orgId)) {
+    throw new Error('Organisation ID must be a UUID or ObjectId');
+  }
   return orgId;
 };
 

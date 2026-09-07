@@ -5,10 +5,17 @@ import { Secondary } from '@/app/ui/primitives/Buttons';
 
 type SpecialitiesCardProps = {
   speciality: SpecialityWeb;
-  handleViewSpeciality: any;
+  handleViewSpeciality: (speciality: SpecialityWeb) => void;
+  serviceLabel?: string;
+  headLabel?: string;
 };
 
-const SpecialitiesCard = ({ speciality, handleViewSpeciality }: SpecialitiesCardProps) => {
+const SpecialitiesCard = ({
+  speciality,
+  handleViewSpeciality,
+  serviceLabel,
+  headLabel,
+}: SpecialitiesCardProps) => {
   return (
     <div className="w-full h-full yc-card-surface yc-card-surface--tile p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-1">
@@ -17,16 +24,20 @@ const SpecialitiesCard = ({ speciality, handleViewSpeciality }: SpecialitiesCard
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Services:</div>
         <div className="text-caption-1 text-text-primary">
-          {getServiceNames(speciality.services)}
+          {serviceLabel ?? (getServiceNames(speciality.services) || '0')}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Assigned team members:</div>
-        <div className="text-caption-1 text-text-primary">{speciality.teamMemberIds?.length}</div>
+        <div className="text-caption-1 text-text-primary">
+          {speciality.teamMemberIds?.length ?? 0}
+        </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Head:</div>
-        <div className="text-caption-1 text-text-primary">{speciality.headName}</div>
+        <div className="text-caption-1 text-text-primary">
+          {headLabel ?? speciality.headName ?? '—'}
+        </div>
       </div>
       <div className="flex gap-3 w-full">
         <Secondary

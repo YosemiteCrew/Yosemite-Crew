@@ -28,6 +28,7 @@ type PermissionRow = {
    * would silently drop the other with no way to get it back.
    */
   additiveView?: boolean;
+  additiveEdit?: boolean;
 };
 
 const PERMISSION_ROWS: PermissionRow[] = [
@@ -70,6 +71,21 @@ const PERMISSION_ROWS: PermissionRow[] = [
     edit: [PERMISSIONS.INVENTORY_EDIT_ANY],
     viewEnablePriority: [PERMISSIONS.INVENTORY_VIEW_ANY],
     editEnablePriority: [PERMISSIONS.INVENTORY_EDIT_ANY],
+  },
+  {
+    key: 'controlled-drug-register',
+    label: 'Controlled drug register',
+    view: [PERMISSIONS.CONTROLLED_DRUG_REGISTER_READ],
+    edit: [
+      PERMISSIONS.CONTROLLED_DRUG_REGISTER_RECORD,
+      PERMISSIONS.CONTROLLED_DRUG_REGISTER_CORRECT,
+    ],
+    viewEnablePriority: [PERMISSIONS.CONTROLLED_DRUG_REGISTER_READ],
+    editEnablePriority: [
+      PERMISSIONS.CONTROLLED_DRUG_REGISTER_RECORD,
+      PERMISSIONS.CONTROLLED_DRUG_REGISTER_CORRECT,
+    ],
+    additiveEdit: true,
   },
   {
     key: 'forms',
@@ -272,7 +288,11 @@ function applyToggle(
 
   // Check => remove conflicts in that group, then add back what applies.
   const priority = isView ? row.viewEnablePriority : row.editEnablePriority;
-  const toAdd = pickEnablePermissions(roleDefaults, priority, isView && row.additiveView === true);
+  const addEveryEditPermission = !isView && row.additiveEdit === true;
+  const additive = isView && row.additiveView === true;
+  const toAdd = addEveryEditPermission
+    ? (priority ?? [])
+    : pickEnablePermissions(roleDefaults, priority, additive);
   if (!toAdd.length) return prev;
 
   const next = uniq([...removeAll(prev, candidates), ...toAdd]);

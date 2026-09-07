@@ -212,6 +212,7 @@ const meta = {
     setActiveStatus: fn(),
     metrics: METRICS,
     currency: 'USD',
+    metricsCurrency: 'USD',
     onViewInvoice: fn(),
   },
   // Pinned as a GLOBAL on the meta, so every story renders at phone width.

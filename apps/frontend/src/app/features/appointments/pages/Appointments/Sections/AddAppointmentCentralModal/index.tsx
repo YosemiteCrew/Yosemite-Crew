@@ -91,6 +91,7 @@ type AddAppointmentCentralModalProps = {
   onPrefillConsumed?: () => void;
   /** Pre-selects a companion by ID when the modal opens (e.g. from the companions table). */
   initialCompanionId?: string | null;
+  onAppointmentCreated?: () => void | Promise<void>;
 };
 
 type ModalUiState = {
@@ -1086,6 +1087,7 @@ const useAddAppointmentCentralModalView = ({
   prefill,
   onPrefillConsumed,
   initialCompanionId,
+  onAppointmentCreated,
 }: AddAppointmentCentralModalProps) => {
   const terminologyText = useCompanionTerminologyText();
   const companions = useCompanionsParentsForPrimaryOrg();
@@ -1096,7 +1098,8 @@ const useAddAppointmentCentralModalView = ({
   const calendarSlotFlowActive = false;
 
   const appointmentForm = useAppointmentForm({
-    onSuccess: () => {
+    onSuccess: async () => {
+      await onAppointmentCreated?.();
       setShowModal(false);
       setActiveFilter('all');
       setActiveStatus('all');

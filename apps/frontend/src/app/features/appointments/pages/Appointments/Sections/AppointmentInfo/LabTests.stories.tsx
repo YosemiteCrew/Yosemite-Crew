@@ -831,7 +831,7 @@ export const Phone: Story = {
      story mean the same thing in both. */
   decorators: [
     (Story) => (
-      <div className="w-[375px]">
+      <div className="w-full max-w-[375px]">
         <Story />
       </div>
     ),

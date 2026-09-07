@@ -17,6 +17,8 @@ export type FilterChipProps = {
   dotLabel?: string;
   /** 'danger' keeps the chip danger-toned in both states, for the emergencies filter. */
   tone?: 'neutral' | 'danger';
+  /** Active-state colours for domain status filters; geometry and focus stay canonical. */
+  tokens?: { bg?: string; text?: string; border?: string };
   disabled?: boolean;
   className?: string;
   'aria-label'?: string;
@@ -52,6 +54,7 @@ const FilterChip = ({
   dotColor,
   dotLabel,
   tone = 'neutral',
+  tokens,
   disabled,
   className,
   'aria-label': ariaLabel,
@@ -64,10 +67,20 @@ const FilterChip = ({
     onClick={onClick}
     className={clsx(
       'inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full! border px-[13px] text-[12.5px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)]',
-      TONE_CLASSNAMES[tone][active ? 'active' : 'rest'],
+      TONE_CLASSNAMES[tone][active && !tokens ? 'active' : 'rest'],
       disabled && 'cursor-not-allowed opacity-60',
       className
     )}
+    style={
+      active && tokens
+        ? {
+            backgroundColor: tokens.bg,
+            borderColor: tokens.border ?? tokens.bg ?? 'var(--hairline)',
+            color: tokens.text ?? 'var(--ink)',
+            fontWeight: 700,
+          }
+        : undefined
+    }
   >
     {dotColor ? (
       <span

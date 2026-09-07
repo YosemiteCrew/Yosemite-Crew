@@ -83,26 +83,26 @@ describe('ControlledSubstanceRegister', () => {
   it('renders entries with the DEA-schedule pill and exact amounts', () => {
     renderRegister({ entries: [withWitness, missingWitness, sparse] });
 
-    expect(screen.getByText('Fentanyl citrate')).toBeInTheDocument();
+    expect(screen.getAllByText('Fentanyl citrate')).toHaveLength(2);
     // DEA schedule pill (mapped from the raw enum, never the bare "II").
-    expect(screen.getByText('Schedule II')).toBeInTheDocument();
-    expect(screen.getByText('Schedule III')).toBeInTheDocument();
-    expect(screen.getByText('Schedule V')).toBeInTheDocument();
+    expect(screen.getAllByText('Schedule II')).toHaveLength(2);
+    expect(screen.getAllByText('Schedule III')).toHaveLength(2);
+    expect(screen.getAllByText('Schedule V')).toHaveLength(2);
     // Exact amount preserved to the decimal.
-    expect(screen.getByText('0.5')).toBeInTheDocument();
+    expect(screen.getAllByText('0.5').length).toBeGreaterThanOrEqual(2);
     // Sparse row: no strength/balance/administered-by renders as em dashes,
     // and the balance-before -> balance-after arrow shows for a row that has them.
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('→').length).toBe(2);
+    expect(screen.getAllByText('→').length).toBe(4);
   });
 
   it('emphasises waste and shows the witness, flagging a missing one', () => {
     renderRegister({ entries: [withWitness, missingWitness] });
 
     // Waste with a witness recorded shows the witness name.
-    expect(screen.getByText(/Witness:\s*Dr\. Alvarez/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Witness:\s*Dr\. Alvarez/)).toHaveLength(2);
     // Waste with no witness is flagged as a compliance gap.
-    expect(screen.getByText('Witness missing')).toBeInTheDocument();
+    expect(screen.getAllByText('Witness missing')).toHaveLength(2);
   });
 
   it('renders the empty state when there are no entries', () => {
@@ -133,8 +133,20 @@ describe('ControlledSubstanceRegister', () => {
 
     await user.type(screen.getByLabelText('Drug'), 'fentanyl');
 
-    expect(screen.getByText('Fentanyl citrate')).toBeInTheDocument();
+    expect(screen.getAllByText('Fentanyl citrate')).toHaveLength(2);
     expect(screen.queryByText('Ketamine')).not.toBeInTheDocument();
+  });
+
+  it('renders all audit-critical quantities in a mobile entry card', () => {
+    renderRegister({ entries: [missingWitness] });
+
+    const card = screen.getByLabelText('Controlled substance entry for Ketamine');
+    expect(within(card).getByText('Drawn')).toBeInTheDocument();
+    expect(within(card).getByText('Administered')).toBeInTheDocument();
+    expect(within(card).getByText('Wasted')).toBeInTheDocument();
+    expect(within(card).getByText('Balance')).toBeInTheDocument();
+    expect(within(card).getByText('Dr. Reyes')).toBeInTheDocument();
+    expect(within(card).getByText('Witness missing')).toBeInTheDocument();
   });
 
   it('opens the add form and submits a fully populated entry', async () => {
@@ -146,7 +158,7 @@ describe('ControlledSubstanceRegister', () => {
     const form = screen.getByRole('form', { name: 'Add controlled substance entry' });
 
     await user.type(within(form).getByLabelText('Drug name'), 'Midazolam');
-    await user.selectOptions(within(form).getByLabelText('DEA schedule'), 'IV');
+    await user.selectOptions(within(form).getByLabelText('Control schedule'), 'IV');
     await user.selectOptions(within(form).getByLabelText('Unit'), 'ML');
     await user.type(within(form).getByLabelText('Strength (optional)'), '5');
     await user.type(within(form).getByLabelText('Lot number (optional)'), 'LOT-9');
