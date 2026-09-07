@@ -147,7 +147,7 @@ const ConsentRow = ({
 }: {
   consent: PatientConsent;
   canEdit: boolean;
-  onRevoke?: ConsentListProps['onRevoke'];
+  onRevoke: ConsentListProps['onRevoke'];
   revoking: boolean;
   revokeDisabled: boolean;
 }) => {
@@ -368,7 +368,7 @@ const ConsentListBody = ({
   error: string | null;
   consents: PatientConsent[];
   canEdit: boolean;
-  onRevoke?: ConsentListProps['onRevoke'];
+  onRevoke: ConsentListProps['onRevoke'];
   revokingId: string | null;
 }) => {
   if (loading) return <ClinicalListLoadingRows />;
