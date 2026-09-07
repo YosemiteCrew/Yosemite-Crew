@@ -17,6 +17,7 @@ import {
   titleClass,
 } from '@/app/features/companionHistory/components/ClinicalListChrome';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { Textarea } from '@/app/ui/Input';
 import type {
   AllergySeverity,
   AllergyStatus,
@@ -272,7 +273,7 @@ const CreateAllergyForm = ({
         <label className={fieldLabelClass} htmlFor="allergy-notes">
           Notes
         </label>
-        <textarea
+        <Textarea
           id="allergy-notes"
           className={clsx(controlClass, 'min-h-16 resize-y')}
           value={values.notes}

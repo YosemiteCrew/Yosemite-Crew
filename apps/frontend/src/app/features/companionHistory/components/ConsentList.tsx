@@ -17,6 +17,7 @@ import {
   titleClass,
 } from '@/app/features/companionHistory/components/ClinicalListChrome';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { Textarea } from '@/app/ui/Input';
 import type {
   ConsentStatus,
   ConsentType,
@@ -116,7 +117,7 @@ const RevokeConsentForm = ({
         <label className={fieldLabelClass} htmlFor={reasonId}>
           Reason for revoking
         </label>
-        <textarea
+        <Textarea
           id={reasonId}
           className={clsx(controlClass, 'min-h-14 resize-y')}
           value={reason}
@@ -338,7 +339,7 @@ const GrantConsentForm = ({
         <label className={fieldLabelClass} htmlFor="consent-notes">
           Notes
         </label>
-        <textarea
+        <Textarea
           id="consent-notes"
           className={clsx(controlClass, 'min-h-16 resize-y')}
           value={values.notes}
