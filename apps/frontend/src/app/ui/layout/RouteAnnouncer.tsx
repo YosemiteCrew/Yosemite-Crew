@@ -8,7 +8,11 @@ const getAnnouncementText = () => {
   return title ? `${title} loaded` : 'Page updated';
 };
 
-const subscribeToRouteAnnouncement = () => () => undefined;
+const subscribeToRouteAnnouncement = (onStoreChange: () => void) => {
+  const observer = new MutationObserver(onStoreChange);
+  observer.observe(document.head, { childList: true, subtree: true, characterData: true });
+  return () => observer.disconnect();
+};
 
 const getServerAnnouncementSnapshot = () => '';
 
