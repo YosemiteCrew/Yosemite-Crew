@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, act } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
@@ -28,6 +29,12 @@ describe('RouteAnnouncer', () => {
     expect(screen.getByText('Pricing loaded')).toBeInTheDocument();
   });
 
+  it('renders an empty live region on the server', () => {
+    expect(renderToString(<RouteAnnouncer />)).toBe(
+      '<div class="sr-only" aria-live="polite" aria-atomic="true"></div>'
+    );
+  });
+
   it('announces "Page updated" when document title is empty', () => {
     document.title = '';
     render(<RouteAnnouncer />);
@@ -35,17 +42,26 @@ describe('RouteAnnouncer', () => {
     expect(screen.getByText('Page updated')).toBeInTheDocument();
   });
 
-  it('re-announces on pathname change', () => {
-    const { rerender } = render(<RouteAnnouncer />);
+  it('announces the new title when metadata updates after client navigation', async () => {
+    const { rerender, unmount } = render(<RouteAnnouncer />);
     expect(screen.getByText('Pricing loaded')).toBeInTheDocument();
 
     act(() => {
-      document.title = 'Dashboard';
       mockUsePathname.mockReturnValue('/appointments');
     });
-
     rerender(<RouteAnnouncer />);
-    expect(screen.getByText('Dashboard loaded')).toBeInTheDocument();
+
+    act(() => {
+      document.title = 'Dashboard';
+    });
+
+    expect(await screen.findByText('Dashboard loaded')).toBeInTheDocument();
+
+    unmount();
+    act(() => {
+      document.title = 'Appointments';
+    });
+    expect(screen.queryByText('Appointments loaded')).not.toBeInTheDocument();
   });
 
   it('live region is aria-live="polite" and aria-atomic="true"', () => {
