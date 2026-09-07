@@ -10,6 +10,7 @@ import {
 import { CompanionSelect } from '@/app/features/appointments/components/CompanionSelect';
 import { IoPulseOutline, IoAddOutline } from 'react-icons/io5';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
+import { Textarea } from '@/app/ui/Input';
 import type {
   PatientCheckIn,
   CheckInStatus,
@@ -413,7 +414,7 @@ const CheckInNotesFields = ({ form }: { form: AddCheckInFormState }) => (
     </label>
     <label className="flex flex-col gap-1" htmlFor="checkin-notes">
       <span className={fieldLabelClass}>Notes</span>
-      <textarea
+      <Textarea
         id="checkin-notes"
         className={clsx(inputClass, 'min-h-16 resize-y')}
         value={form.notes}
