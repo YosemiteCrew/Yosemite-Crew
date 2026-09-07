@@ -49,7 +49,7 @@
     "express": "4.21.2",
     "express-fileupload": "1.5.2",
     "express-mongo-sanitize": "^2.2.0",
-    "express-rate-limit": "^8.6.2",
+    "express-rate-limit": "^8.7.0",
     "firebase-admin": "^13.6.0",
     "google-auth-library": "^10.9.1",
     "helmet": "^8.3.0",
@@ -102,7 +102,7 @@
     "raw-body": "4.0.0",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.68.0"
   }
