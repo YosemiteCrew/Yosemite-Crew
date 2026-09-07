@@ -10,6 +10,7 @@ import {
   IoShareOutline,
 } from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { Textarea } from '@/app/ui/Input';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import TotalBillContainer from '@/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer';
 import PackageBreakdownTooltip from '@/app/features/appointments/pages/AppointmentWorkspace/components/PackageBreakdownTooltip';
@@ -286,12 +287,62 @@ const openDocumentUrl = (url: string): void => {
 const formatCents = (cents: number, currency: string = DEFAULT_CURRENCY): string =>
   formatMoney(cents / 100, currency);
 
-const escapeHtml = (value: string): string =>
-  value.replace(
-    /[&<>"']/g,
-    (char) =>
-      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] ?? char
+const createInvoiceCell = (
+  document: Document,
+  tagName: 'td' | 'th',
+  text: string,
+  alignRight = false
+) => {
+  const cell = document.createElement(tagName);
+  cell.textContent = text;
+  if (alignRight) cell.style.textAlign = 'right';
+  return cell;
+};
+
+const buildPrintableInvoice = (document: Document, invoice: PastInvoice, currency: string) => {
+  document.title = `Invoice ${invoice.id}`;
+
+  const style = document.createElement('style');
+  style.textContent =
+    'body{font-family:Arial,Helvetica,sans-serif;padding:32px;color:#1a1a1a}' +
+    'h1{font-size:18px}table{width:100%;border-collapse:collapse;margin-top:16px}' +
+    'td,th{padding:8px 0;border-bottom:1px solid #e5e5e5;font-size:13px}' +
+    'tfoot td{font-weight:bold;border-bottom:none}';
+  document.head.replaceChildren(style);
+
+  const heading = document.createElement('h1');
+  heading.textContent = `Invoice ${invoice.id}`;
+  const date = document.createElement('div');
+  date.textContent = `Date: ${formatDateTimeLocal(invoice.createdAt)}`;
+  const table = document.createElement('table');
+  const header = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  headerRow.append(
+    createInvoiceCell(document, 'th', 'Item'),
+    createInvoiceCell(document, 'th', 'Amount', true)
   );
+  header.append(headerRow);
+
+  const body = document.createElement('tbody');
+  for (const item of invoice.items) {
+    const row = document.createElement('tr');
+    row.append(
+      createInvoiceCell(document, 'td', item.name),
+      createInvoiceCell(document, 'td', formatCents(item.amountCents, currency), true)
+    );
+    body.append(row);
+  }
+
+  const footer = document.createElement('tfoot');
+  const footerRow = document.createElement('tr');
+  footerRow.append(
+    createInvoiceCell(document, 'td', 'Total'),
+    createInvoiceCell(document, 'td', formatCents(invoice.totalCents, currency), true)
+  );
+  footer.append(footerRow);
+  table.append(header, body, footer);
+  document.body.replaceChildren(heading, date, table);
+};
 
 // Render an invoice as a standalone printable document and open the browser print
 // dialog (print-to-PDF). There is no backend invoice-PDF endpoint, so this is the
@@ -302,33 +353,7 @@ const printInvoice = (invoice: PastInvoice, currency: string): boolean => {
   // Popup blocked (or otherwise unavailable) — report failure so the caller can
   // surface it instead of the download silently doing nothing.
   if (!printWindow) return false;
-  const rows = invoice.items
-    .map(
-      (item) =>
-        `<tr><td>${escapeHtml(item.name)}</td><td style="text-align:right">${escapeHtml(
-          formatCents(item.amountCents, currency)
-        )}</td></tr>`
-    )
-    .join('');
-  // document.write is deprecated; populate the popup's head/body directly instead.
-  printWindow.document.head.innerHTML =
-    `<title>Invoice ${escapeHtml(invoice.id)}</title>` +
-    `<style>body{font-family:Arial,Helvetica,sans-serif;padding:32px;color:#1a1a1a}` +
-    `h1{font-size:18px}table{width:100%;border-collapse:collapse;margin-top:16px}` +
-    `td,th{padding:8px 0;border-bottom:1px solid #e5e5e5;font-size:13px}` +
-    `tfoot td{font-weight:bold;border-bottom:none}</style>`;
-  printWindow.document.body.innerHTML =
-    `<h1>Invoice ${escapeHtml(invoice.id)}</h1>` +
-    // The printed date has to read the same as the invoice row it was printed
-    // from. This was `new Date(...).toLocaleString()` - the device locale and
-    // zone, numeric and with seconds ("9/3/2026, 10:05:00 PM", or "03/09/2026"
-    // day-first on an en-GB machine) - against "Sep 3, 2026, 10:05 PM" on screen.
-    `<div>Date: ${escapeHtml(formatDateTimeLocal(invoice.createdAt))}</div>` +
-    `<table><thead><tr><th style="text-align:left">Item</th><th style="text-align:right">Amount</th></tr></thead>` +
-    `<tbody>${rows}</tbody>` +
-    `<tfoot><tr><td>Total</td><td style="text-align:right">${escapeHtml(
-      formatCents(invoice.totalCents, currency)
-    )}</td></tr></tfoot></table>`;
+  buildPrintableInvoice(printWindow.document, invoice, currency);
   printWindow.focus();
   printWindow.print();
   return true;
@@ -902,7 +927,7 @@ export const DepositModal = ({
         </label>
         <label className="flex flex-col gap-1 text-body-4 text-text-primary">
           <span>Notes</span>
-          <textarea
+          <Textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             className="min-h-20 rounded-2xl border border-input-border-default px-4 py-3 focus-visible:border-input-border-active focus-visible:outline-none"

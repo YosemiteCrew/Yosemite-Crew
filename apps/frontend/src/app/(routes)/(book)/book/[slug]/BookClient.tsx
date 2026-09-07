@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Card from '@/app/ui/Card';
+import { Textarea } from '@/app/ui/Input';
 import {
   PublicBookingRequestError,
   getPublicPractice,
@@ -103,6 +104,23 @@ const PracticeHeader = ({ practice }: { practice: PublicPractice }) => (
 
 type SlotsResult = { key: string; windows: PublicSlot[]; error: string | null };
 
+type SlotButtonProps = {
+  selected: boolean;
+  startTime: string;
+  onSelect: (startTime: string) => void;
+};
+
+const SlotButton = ({ selected, startTime, onSelect }: SlotButtonProps) => (
+  <button
+    type="button"
+    aria-pressed={selected}
+    onClick={() => onSelect(startTime)}
+    className={PILL}
+  >
+    {startTime}
+  </button>
+);
+
 /**
  * The time picker and its four states.
  *
@@ -186,15 +204,12 @@ const SlotPicker = ({
             // The button's entire text is the bare startTime. No end time, no
             // duration, no aria-label: getByRole('button', { name: '09:00' })
             // is an exact match in both the tests and the story.
-            <button
+            <SlotButton
               key={slot.startTime}
-              type="button"
-              aria-pressed={selectedTime === slot.startTime}
-              onClick={() => onSelect(slot.startTime)}
-              className={PILL}
-            >
-              {slot.startTime}
-            </button>
+              startTime={slot.startTime}
+              selected={selectedTime === slot.startTime}
+              onSelect={onSelect}
+            />
           ))}
         </div>
       </fieldset>
@@ -738,7 +753,7 @@ const DetailsFieldset = ({
         <label htmlFor="book-concern" className={FIELD_LABEL}>
           What is the visit for? (optional)
         </label>
-        <textarea
+        <Textarea
           id="book-concern"
           className={FIELD}
           rows={4}

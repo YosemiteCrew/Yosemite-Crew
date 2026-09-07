@@ -10,6 +10,7 @@ import {
 import { CompanionSelect } from '@/app/features/appointments/components/CompanionSelect';
 import { IoListOutline, IoAddOutline } from 'react-icons/io5';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
+import { Textarea } from '@/app/ui/Input';
 import type {
   WaitlistEntry,
   WaitlistStatus,
@@ -278,7 +279,7 @@ const AddWaitlistForm = ({
 
       <label className="flex flex-col gap-1">
         <span className={fieldLabelClass}>Reason / notes</span>
-        <textarea
+        <Textarea
           className={clsx(inputClass, 'min-h-16 resize-y')}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}

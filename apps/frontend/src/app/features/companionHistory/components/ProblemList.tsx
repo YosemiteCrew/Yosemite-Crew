@@ -17,6 +17,7 @@ import {
   titleClass,
 } from '@/app/features/companionHistory/components/ClinicalListChrome';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { Textarea } from '@/app/ui/Input';
 import type {
   PatientProblem,
   ProblemSeverity,
@@ -171,7 +172,7 @@ const CreateProblemForm = ({
       </label>
       <label className="flex flex-col gap-1">
         <span className={fieldLabelClass}>Description</span>
-        <textarea
+        <Textarea
           className={clsx(controlClass, 'min-h-16 resize-y')}
           value={values.notes}
           onChange={(e) => setValues((v) => ({ ...v, notes: e.target.value }))}

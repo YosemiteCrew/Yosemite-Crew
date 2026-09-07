@@ -9,8 +9,7 @@ export type InputProps = {
 
 export type TextareaProps = {
   error?: boolean;
-  placeholder: string;
-} & Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'placeholder'>;
+} & TextareaHTMLAttributes<HTMLTextAreaElement>;
 
 const Input = forwardRef<HTMLInputElement, InputProps>(({ className, error, ...props }, ref) => (
   <input
