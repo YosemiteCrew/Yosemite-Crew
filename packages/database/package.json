@@ -25,7 +25,7 @@
     "prisma:studio": "prisma studio --schema prisma/schema.prisma"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0"
+    "@prisma/client": "^6.19.3"
   },
   "devDependencies": {
     "@types/node": "^26.3.0",

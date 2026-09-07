@@ -29,7 +29,7 @@
     "@aws-sdk/client-s3": "^3.1118.0",
     "@aws-sdk/client-ses": "^3.1118.0",
     "@documenso/sdk-typescript": "^0.9.0",
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^6.19.3",
     "@yosemite-crew/auth": "workspace:^",
     "@yosemite-crew/database": "workspace:^",
     "@yosemite-crew/lib": "workspace:^",
