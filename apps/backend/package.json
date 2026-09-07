@@ -93,7 +93,7 @@
     "esbuild": "^0.28.2",
     "eslint": "^9.27.0",
     "eslint-plugin-sonarjs": "^4.2.0",
-    "jest": "^30.4.2",
+    "jest": "^30.5.0",
     "jose": "^6.2.10",
     "nodemon": "^3.1.14",
     "pdf-lib": "^1.17.1",
