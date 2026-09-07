@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import Input from '@/app/ui/Input';
+import Input, { Textarea } from '@/app/ui/Input';
 
 describe('Input', () => {
   test('forwards native input attributes and changes', () => {
@@ -30,5 +30,17 @@ describe('Input', () => {
     expect(input).toHaveAttribute('aria-invalid', 'true');
     expect(input).toBeDisabled();
     expect(input).toHaveClass('border-[var(--danger)]');
+  });
+
+  test('renders a multiline control without requiring placeholder copy', () => {
+    const handleChange = jest.fn();
+    render(<Textarea aria-label="Notes" onChange={handleChange} />);
+
+    const textarea = screen.getByRole('textbox', { name: 'Notes' });
+    fireEvent.change(textarea, { target: { value: 'Follow-up needed' } });
+
+    expect(handleChange).toHaveBeenCalled();
+    expect(textarea).not.toHaveAttribute('placeholder');
+    expect(textarea).toHaveClass('min-h-22', 'rounded-xl', 'bg-[var(--field-bg)]');
   });
 });

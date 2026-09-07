@@ -6,6 +6,7 @@ import clsx from 'clsx';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import GenericTable, { type Column } from '@/app/ui/tables/GenericTable/GenericTable';
+import { Textarea } from '@/app/ui/Input';
 import { formatDateTimeLocal } from '@/app/lib/date';
 import {
   DEA_SCHEDULES,
@@ -611,7 +612,7 @@ const AddEntryForm = ({ creating, createError, onSubmit, onCancel }: AddEntryFor
           Notes (optional)
         </label>
         <span className={fieldClass}>
-          <textarea
+          <Textarea
             id="cs-notes"
             rows={2}
             value={notes}

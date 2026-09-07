@@ -5,6 +5,7 @@ import { formatMoneyPrecise } from '@/app/lib/money';
 import { formatDisplayDate } from '@/app/lib/date';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
+import { Textarea } from '@/app/ui/Input';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import {
   fieldClass,
@@ -198,7 +199,7 @@ const StatusChangeForm = ({
             Rejection reason (optional)
           </label>
           <span className={fieldClass}>
-            <textarea
+            <Textarea
               id="claim-rejection-reason"
               rows={2}
               value={reason}

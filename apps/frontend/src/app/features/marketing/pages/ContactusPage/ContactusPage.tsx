@@ -22,6 +22,7 @@ import {
 } from '@/app/features/marketing/site';
 import { postData } from '@/app/services/axios';
 import { makeOptions } from '@/app/lib/options';
+import { Textarea } from '@/app/ui/Input';
 
 const NEWSREADER = 'var(--font-newsreader)';
 const EASE = 'cubic-bezier(0.16,1,0.3,1)';
@@ -446,7 +447,7 @@ function TextAreaField({
         {label}
         {required ? requiredMark : null}
       </label>
-      <textarea
+      <Textarea
         id={fieldId}
         className="yc-field"
         style={style}
