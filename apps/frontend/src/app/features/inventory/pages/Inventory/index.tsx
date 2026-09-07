@@ -120,7 +120,8 @@ export const filterAndSortInventory = (
   inventory: InventoryItem[],
   filters: InventoryFiltersState,
   debouncedSearch: string,
-  sortMode: SortMode
+  sortMode: SortMode,
+  alertedItemIds: readonly string[] | null = null
 ): InventoryItem[] => {
   const normalizedSearch = debouncedSearch.trim().toLowerCase();
   const visibilityFilter = (filters.visibility ?? 'ALL').toUpperCase();
@@ -135,6 +136,7 @@ export const filterAndSortInventory = (
   const selectedLocationSet = new Set(selectedLocations);
   const selectedAbcClassSet = new Set(selectedAbcClasses);
   const selectedSupplierSet = new Set(selectedSuppliers);
+  const alertedItemIdSet = alertedItemIds === null ? null : new Set(alertedItemIds);
   const nextFiltered = inventory.filter((item) => {
     const statusKey = (item.status || item.basicInfo.status || '').toUpperCase();
     // Use the same effective (explicit-or-derived) key as the header counts and the
@@ -153,6 +155,7 @@ export const filterAndSortInventory = (
       selectedAbcClasses.length === 0 || selectedAbcClassSet.has(item.stock?.abcClass ?? '');
     const supplierMatch =
       selectedSuppliers.length === 0 || selectedSupplierSet.has(getSupplierName(item));
+    const alertMatch = alertedItemIdSet === null || alertedItemIdSet.has(item.id ?? '');
     const visibilityMatch = visibilityFilter === 'ALL' || statusKey === visibilityFilter;
     const stockHealthMatch = stockHealthFilter === 'ALL' || stockHealthKey === stockHealthFilter;
     const searchMatch =
@@ -168,6 +171,7 @@ export const filterAndSortInventory = (
       locationMatch &&
       abcClassMatch &&
       supplierMatch &&
+      alertMatch &&
       visibilityMatch &&
       stockHealthMatch &&
       searchMatch
@@ -604,7 +608,6 @@ type InventoryTableContentProps = {
   activeView: InventoryView;
   turnover: InventoryTurnoverItem[];
   inventory: InventoryItem[];
-  setActiveView: React.Dispatch<React.SetStateAction<InventoryView>>;
   turnoverFilters: InventoryTurnoverFilterState;
   setTurnoverFilters: React.Dispatch<React.SetStateAction<InventoryTurnoverFilterState>>;
   turnoverCategoryOptions: string[];
@@ -625,7 +628,6 @@ export const InventoryTableContent = ({
   activeView,
   turnover,
   inventory,
-  setActiveView,
   turnoverFilters,
   setTurnoverFilters,
   turnoverCategoryOptions,
@@ -652,7 +654,6 @@ export const InventoryTableContent = ({
         <TurnoverAnalytics
           turnover={turnover}
           inventory={inventory}
-          setActiveView={setActiveView}
           onReorder={onRestock}
           onViewHistory={onViewHistory}
         />
@@ -774,6 +775,7 @@ const useInventoryContent = () => {
   });
 
   const [filters, setFilters] = useState<InventoryFiltersState>(defaultFilters);
+  const [alertedItemIds, setAlertedItemIds] = useState<string[] | null>(null);
   const [dispensaryRecords, setDispensaryRecords] = useState<DispensaryRecord[]>([]);
 
   // Pure fetch (null = leave current state alone) so the refresh effect can apply
@@ -934,8 +936,8 @@ const useInventoryContent = () => {
   });
 
   const filteredInventory = useMemo(
-    () => filterAndSortInventory(inventory, filters, debouncedSearch, sortMode),
-    [inventory, filters, debouncedSearch, sortMode]
+    () => filterAndSortInventory(inventory, filters, debouncedSearch, sortMode, alertedItemIds),
+    [inventory, filters, debouncedSearch, sortMode, alertedItemIds]
   );
 
   useOnValueChange(filteredInventory, () => {
@@ -1077,8 +1079,17 @@ const useInventoryContent = () => {
     setViewInventory(true);
   }, []);
 
-  const showAlertedInventory = useCallback((status: 'LOW_STOCK' | 'EXPIRING_SOON') => {
-    setFilters((previous) => ({ ...previous, status }));
+  const showAlertedInventory = useCallback((itemIds: string[]) => {
+    setAlertedItemIds(Array.from(new Set(itemIds.filter(Boolean))));
+    setFilters({
+      ...defaultFilters,
+      visibility: 'ALL',
+      categories: [],
+      subCategories: [],
+      locations: [],
+      abcClasses: [],
+      suppliers: [],
+    });
   }, []);
 
   const toggleCategoryFilter = useCallback(
@@ -1307,8 +1318,10 @@ const useInventoryContent = () => {
               <section aria-label="Inventory alerts" className="w-full shrink-0">
                 <InventoryAlertsPanel
                   organisationId={primaryOrgId ?? undefined}
-                  onViewLowStock={() => showAlertedInventory('LOW_STOCK')}
-                  onViewExpiring={() => showAlertedInventory('EXPIRING_SOON')}
+                  onViewLowStock={(items) => showAlertedInventory(items.map((item) => item.id))}
+                  onViewExpiring={(batches) =>
+                    showAlertedInventory(batches.map((batch) => batch.itemId))
+                  }
                 />
               </section>
             )}
@@ -1322,7 +1335,6 @@ const useInventoryContent = () => {
                 activeView={activeView}
                 turnover={turnover}
                 inventory={inventory}
-                setActiveView={setActiveView}
                 turnoverFilters={turnoverFilters}
                 setTurnoverFilters={setTurnoverFilters}
                 turnoverCategoryOptions={turnoverCategoryOptions}

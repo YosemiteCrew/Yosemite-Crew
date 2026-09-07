@@ -71,6 +71,7 @@ describe('FilterChip', () => {
 
     const chip = () => screen.getByRole('button', { name: 'Awaiting payment' });
     expect(chip()).toHaveClass('h-8', 'text-[12.5px]', 'focus-visible:ring-2');
+    expect(chip()).not.toHaveClass('border-[var(--hairline)]!');
     expect(chip()).toHaveStyle({
       backgroundColor: 'var(--status-upcoming-bg)',
       color: 'var(--status-upcoming-text)',

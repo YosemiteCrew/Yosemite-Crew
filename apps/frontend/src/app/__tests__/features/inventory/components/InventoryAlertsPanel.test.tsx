@@ -29,10 +29,10 @@ jest.mock('@/app/features/inventory/components/InventoryAlerts/InventoryAlerts',
       <span data-testid="window">{expiringWindowDays}</span>
       <span data-testid="low">{lowStock.length}</span>
       <span data-testid="exp">{expiring.length}</span>
-      <button type="button" onClick={onViewLowStock}>
+      <button type="button" onClick={() => onViewLowStock(lowStock)}>
         view-low
       </button>
-      <button type="button" onClick={onViewExpiring}>
+      <button type="button" onClick={() => onViewExpiring(expiring)}>
         view-expiring
       </button>
     </div>
@@ -74,8 +74,8 @@ describe('InventoryAlertsPanel', () => {
     await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('false'));
     screen.getByRole('button', { name: 'view-low' }).click();
     screen.getByRole('button', { name: 'view-expiring' }).click();
-    expect(onViewLowStock).toHaveBeenCalledTimes(1);
-    expect(onViewExpiring).toHaveBeenCalledTimes(1);
+    expect(onViewLowStock).toHaveBeenCalledWith([{ id: 'i-1' }]);
+    expect(onViewExpiring).toHaveBeenCalledWith([{ id: 'b-1' }, { id: 'b-2' }]);
   });
 
   it('does not fetch without an org id', async () => {
