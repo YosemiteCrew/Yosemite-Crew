@@ -45,7 +45,7 @@
     "electron": "^43.4.1",
     "electron-builder": "^26.0.12",
     "globals": "^17.10.0",
-    "jest": "^30.4.2",
+    "jest": "^30.5.0",
     "ts-jest": "^29.4.12",
     "typescript": "^6.0.3"
   },
