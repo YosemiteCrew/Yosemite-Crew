@@ -16,8 +16,8 @@ export type InventoryAlertsProps = {
   error?: string | null;
   /** Window used for the "Nothing expiring in the next N days" empty copy. Default 30. */
   expiringWindowDays?: number;
-  onViewLowStock?: () => void;
-  onViewExpiring?: () => void;
+  onViewLowStock?: (items: LowStockAlertItem[]) => void;
+  onViewExpiring?: (batches: ExpiringAlertBatch[]) => void;
 };
 
 const DAY_MS = 86_400_000;
@@ -202,7 +202,7 @@ const InventoryAlerts = ({
           icon={<IoAlertCircleOutline size={18} />}
           title="Low stock"
           count={loading ? 0 : lowStock.length}
-          onView={onViewLowStock}
+          onView={onViewLowStock ? () => onViewLowStock(lowStock) : undefined}
         >
           {lowStockBody}
         </AlertCard>
@@ -210,7 +210,7 @@ const InventoryAlerts = ({
           icon={<IoTimeOutline size={18} />}
           title="Expiring soon"
           count={loading ? 0 : expiring.length}
-          onView={onViewExpiring}
+          onView={onViewExpiring ? () => onViewExpiring(expiring) : undefined}
         >
           {expiringBody}
         </AlertCard>

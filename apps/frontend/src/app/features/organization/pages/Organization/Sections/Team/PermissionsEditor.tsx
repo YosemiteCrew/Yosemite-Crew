@@ -219,7 +219,7 @@ function pickAdditiveEnablePermissions(
   if (!enablePriority?.length) return [];
   const defaultsSet = new Set(roleDefaults);
   const fromDefaults = enablePriority.filter((p) => defaultsSet.has(p));
-  return fromDefaults.length ? fromDefaults : enablePriority.slice(0, 1);
+  return fromDefaults.length ? fromDefaults : enablePriority;
 }
 
 function pickEnablePermission(
@@ -288,11 +288,8 @@ function applyToggle(
 
   // Check => remove conflicts in that group, then add back what applies.
   const priority = isView ? row.viewEnablePriority : row.editEnablePriority;
-  const addEveryEditPermission = !isView && row.additiveEdit === true;
-  const additive = isView && row.additiveView === true;
-  const toAdd = addEveryEditPermission
-    ? (priority ?? [])
-    : pickEnablePermissions(roleDefaults, priority, additive);
+  const additive = isView ? row.additiveView === true : row.additiveEdit === true;
+  const toAdd = pickEnablePermissions(roleDefaults, priority, additive);
   if (!toAdd.length) return prev;
 
   const next = uniq([...removeAll(prev, candidates), ...toAdd]);

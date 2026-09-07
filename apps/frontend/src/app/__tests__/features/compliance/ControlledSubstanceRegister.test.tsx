@@ -149,6 +149,26 @@ describe('ControlledSubstanceRegister', () => {
     expect(within(card).getByText('Witness missing')).toBeInTheDocument();
   });
 
+  it('paginates phone cards instead of mounting the complete register', async () => {
+    const user = userEvent.setup();
+    const entries = Array.from({ length: 11 }, (_, index) =>
+      makeEntry({ id: `log-${index + 1}`, drug: `Drug ${index + 1}` })
+    );
+    renderRegister({ entries });
+
+    expect(screen.getByLabelText('Controlled substance entry for Drug 1')).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Controlled substance entry for Drug 11')
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getAllByRole('button', { name: 'Next' })[0]);
+
+    expect(
+      screen.queryByLabelText('Controlled substance entry for Drug 1')
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Controlled substance entry for Drug 11')).toBeInTheDocument();
+  });
+
   it('opens the add form and submits a fully populated entry', async () => {
     const user = userEvent.setup();
     const onCreate = jest.fn();

@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 
 import ProtectedAppointments from '@/app/features/appointments/pages/Appointments';
 import { PHONE_PRIMARY_ACTION_EVENT } from '@/app/ui/layout/PhoneShell/phoneShellConfig';
+import { getDateKeyInPreferredTimeZone, setPreferredTimeZone } from '@/app/lib/timezone';
 
 jest.mock('next/dynamic', () => ({
   __esModule: true,
@@ -63,9 +64,20 @@ const addAppointmentSpy = jest.fn();
 const appointmentInfoSpy = jest.fn();
 const overviewModalSpy = jest.fn();
 const bookWaitlistEntryMock = jest.fn().mockResolvedValue(undefined);
+const notifyMock = jest.fn();
+let waitlistEntry = {
+  id: 'wait-1',
+  patientId: 'c1',
+  preferredLeadId: 'vet-1',
+  earliestDate: '2026-09-08T09:30:00.000Z',
+};
 
 jest.mock('@/app/features/appointments/services/waitlistService', () => ({
   bookWaitlistEntry: (...args: unknown[]) => bookWaitlistEntryMock(...args),
+}));
+
+jest.mock('@/app/hooks/useNotify', () => ({
+  useNotify: () => ({ notify: notifyMock }),
 }));
 
 jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
@@ -174,14 +186,7 @@ jest.mock('@/app/features/appointments/components/Waitlist/WaitlistPanel', () =>
   <button
     type="button"
     data-testid="waitlist-book"
-    onClick={() =>
-      props.onBookAppointment({
-        id: 'wait-1',
-        patientId: 'c1',
-        preferredLeadId: 'vet-1',
-        earliestDate: '2026-09-08T09:30:00.000Z',
-      })
-    }
+    onClick={() => props.onBookAppointment(waitlistEntry)}
   >
     Book waiting patient
   </button>
@@ -244,6 +249,14 @@ describe('Appointments page', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    window.localStorage.clear();
+    setPreferredTimeZone('UTC');
+    waitlistEntry = {
+      id: 'wait-1',
+      patientId: 'c1',
+      preferredLeadId: 'vet-1',
+      earliestDate: '2026-09-08T09:30:00.000Z',
+    };
     useAppointmentStoreMock.mockImplementation((selector: any) =>
       selector({ status: 'succeeded' })
     );
@@ -315,10 +328,12 @@ describe('Appointments page', () => {
     );
   });
 
-  it('keeps the appointment board as the only visible check-in lifecycle and opens waitlist booking prefilled', async () => {
+  it('keeps front-desk arrival workflow separate from the appointment board and opens waitlist booking prefilled', async () => {
     await renderAppointments();
 
-    expect(screen.queryByText('Check-in board')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('check-in-board-panel')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Front desk/ }));
+    expect(await screen.findByTestId('check-in-board-panel')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Waitlist/ }));
     fireEvent.click(await screen.findByTestId('waitlist-book'));
 
@@ -326,14 +341,112 @@ describe('Appointments page', () => {
       expect.objectContaining({
         showModal: true,
         initialCompanionId: 'c1',
-        prefill: expect.objectContaining({ leadId: 'vet-1', minuteOfDay: 690 }),
+        prefill: expect.objectContaining({ leadId: 'vet-1' }),
       })
     );
 
     await act(async () => {
-      await addAppointmentSpy.mock.calls.at(-1)?.[0].onAppointmentCreated();
+      await addAppointmentSpy.mock.calls
+        .at(-1)?.[0]
+        .onAppointmentCreated({ patient: { id: 'c1' } });
     });
     expect(bookWaitlistEntryMock).toHaveBeenCalledWith('org-1', 'wait-1');
+  });
+
+  it('clamps an elapsed waitlist earliest date to today before opening the appointment form', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-09-09T12:00:00.000Z'));
+    waitlistEntry = { ...waitlistEntry, earliestDate: '2026-09-08T09:30:00.000Z' };
+
+    await renderAppointments();
+    fireEvent.click(screen.getByRole('button', { name: /Waitlist/ }));
+    fireEvent.click(await screen.findByTestId('waitlist-book'));
+
+    const prefill = addAppointmentSpy.mock.calls.at(-1)?.[0].prefill;
+    expect(getDateKeyInPreferredTimeZone(prefill.date)).toBe('2026-09-09');
+
+    jest.useRealTimers();
+  });
+
+  it('uses the waitlist calendar day in the clinic timezone, not its UTC instant', async () => {
+    setPreferredTimeZone('America/Los_Angeles');
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-09-07T19:00:00.000Z'));
+    waitlistEntry = { ...waitlistEntry, earliestDate: '2026-09-08T00:00:00.000Z' };
+
+    await renderAppointments();
+    fireEvent.click(screen.getByRole('button', { name: /Waitlist/ }));
+    fireEvent.click(await screen.findByTestId('waitlist-book'));
+
+    const prefill = addAppointmentSpy.mock.calls.at(-1)?.[0].prefill;
+    expect(getDateKeyInPreferredTimeZone(prefill.date)).toBe('2026-09-08');
+
+    jest.useRealTimers();
+  });
+
+  it('keeps a created appointment successful when waitlist reconciliation fails', async () => {
+    bookWaitlistEntryMock.mockRejectedValueOnce(new Error('stale waitlist entry'));
+    await renderAppointments();
+
+    fireEvent.click(screen.getByRole('button', { name: /Waitlist/ }));
+    fireEvent.click(await screen.findByTestId('waitlist-book'));
+
+    await expect(
+      act(async () => {
+        await addAppointmentSpy.mock.calls
+          .at(-1)?.[0]
+          .onAppointmentCreated({ patient: { id: 'c1' } });
+      })
+    ).resolves.toBeUndefined();
+    expect(notifyMock).toHaveBeenCalledWith('warning', {
+      title: 'Appointment booked',
+      text: 'The waitlist could not be updated. Refresh it before booking this patient again.',
+    });
+  });
+
+  it('does not mark a waitlist entry booked when the appointment uses another patient', async () => {
+    await renderAppointments();
+
+    fireEvent.click(screen.getByRole('button', { name: /Waitlist/ }));
+    fireEvent.click(await screen.findByTestId('waitlist-book'));
+    await act(async () => {
+      await addAppointmentSpy.mock.calls
+        .at(-1)?.[0]
+        .onAppointmentCreated({ patient: { id: 'c2' } });
+    });
+
+    expect(bookWaitlistEntryMock).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith('warning', {
+      title: 'Waitlist not updated',
+      text: 'The appointment was created for a different patient. Review the waitlist before booking this patient again.',
+    });
+  });
+
+  it('does not retain a dismissed waitlist booking for a later calendar-slot appointment', async () => {
+    await renderAppointments();
+
+    fireEvent.click(screen.getByRole('button', { name: /Waitlist/ }));
+    fireEvent.click(await screen.findByTestId('waitlist-book'));
+    act(() => {
+      addAppointmentSpy.mock.calls.at(-1)?.[0].setShowModal(false);
+    });
+
+    act(() => {
+      calendarSpy.mock.calls.at(-1)?.[0].onCreateFromCalendarSlot({
+        date: new Date('2026-09-10T09:00:00.000Z'),
+        minuteOfDay: 540,
+      });
+    });
+
+    expect(addAppointmentSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ initialCompanionId: undefined })
+    );
+    await act(async () => {
+      await addAppointmentSpy.mock.calls
+        .at(-1)?.[0]
+        .onAppointmentCreated({ patient: { id: 'c1' } });
+    });
+    expect(bookWaitlistEntryMock).not.toHaveBeenCalled();
   });
 
   it('opens add appointment modal from the list filters row', async () => {

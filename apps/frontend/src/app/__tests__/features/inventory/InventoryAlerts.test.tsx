@@ -100,6 +100,6 @@ describe('InventoryAlerts', () => {
     expect(within(lowStockGroup).getAllByRole('listitem')).toHaveLength(3);
     expect(within(lowStockGroup).queryByText('Item four')).not.toBeInTheDocument();
     fireEvent.click(within(lowStockGroup).getByRole('button', { name: 'View all 4 in catalog' }));
-    expect(onViewLowStock).toHaveBeenCalledTimes(1);
+    expect(onViewLowStock).toHaveBeenCalledWith(fourLowStock);
   });
 });

@@ -12,8 +12,8 @@ type InventoryAlertsPanelProps = {
   organisationId?: string;
   /** Expiry look-ahead window; also drives the empty-state copy. Default 30. */
   expiringWindowDays?: number;
-  onViewLowStock?: () => void;
-  onViewExpiring?: () => void;
+  onViewLowStock?: (items: LowStockAlertItem[]) => void;
+  onViewExpiring?: (batches: ExpiringAlertBatch[]) => void;
 };
 
 /**

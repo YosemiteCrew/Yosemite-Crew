@@ -1187,15 +1187,16 @@ describe('AddAppointmentCentralModal', () => {
     );
 
     const opts = (useAppointmentForm as jest.Mock).mock.calls.at(-1)![0];
+    const createdAppointment = { patient: { id: 'c1' } };
     await act(async () => {
-      opts.onSuccess();
+      await opts.onSuccess(createdAppointment);
     });
 
     expect(setShowModal).toHaveBeenCalledWith(false);
     expect(setActiveFilter).toHaveBeenCalledWith('all');
     expect(setActiveStatus).toHaveBeenCalledWith('all');
     expect(onPrefillConsumed).toHaveBeenCalled();
-    expect(onAppointmentCreated).toHaveBeenCalled();
+    expect(onAppointmentCreated).toHaveBeenCalledWith(createdAppointment);
   });
 
   // ── Discard flow: onPrefillConsumed + functional setShowModal ──────────────

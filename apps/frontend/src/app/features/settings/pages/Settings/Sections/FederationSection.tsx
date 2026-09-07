@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNotify } from '@/app/hooks/useNotify';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { Textarea } from '@/app/ui/Input';
+import { useConfirm } from '@/app/ui/overlays/Modal/ConfirmModal';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
 import type {
@@ -719,11 +720,21 @@ const SendReferralCard = () => {
 
 const EmergencyCard = () => {
   const { notify } = useNotify();
+  const { confirm, confirmDialog } = useConfirm();
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleAnnounce = async () => {
     if (!content.trim()) return;
+    if (
+      !(await confirm({
+        title: 'Broadcast emergency?',
+        body: 'This sends this emergency notice to every approved federation follower.',
+        confirmLabel: 'Broadcast emergency',
+        tone: 'danger',
+      }))
+    )
+      return;
     setSubmitting(true);
     try {
       await announceEmergency(content.trim(), 'EMERGENCY');
@@ -740,28 +751,31 @@ const EmergencyCard = () => {
   };
 
   return (
-    <SectionCard title="Emergency broadcast">
-      <div className={TEXT_MUTED}>
-        Announces an emergency to all approved followers across the federation network.
-      </div>
-      <Textarea
-        className="w-full text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-        rows={3}
-        placeholder="Describe the emergency or critical notice..."
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-      />
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={handleAnnounce}
-          disabled={submitting || !content.trim()}
-          className="px-4 py-2 rounded-xl text-body-4 font-medium bg-danger-600 text-white hover:bg-danger-700 disabled:opacity-40 transition-colors"
-        >
-          {submitting ? 'Sending...' : 'Broadcast emergency'}
-        </button>
-      </div>
-    </SectionCard>
+    <>
+      {confirmDialog}
+      <SectionCard title="Emergency broadcast">
+        <div className={TEXT_MUTED}>
+          Announces an emergency to all approved followers across the federation network.
+        </div>
+        <Textarea
+          className="w-full text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+          rows={3}
+          placeholder="Describe the emergency or critical notice..."
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+        />
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={handleAnnounce}
+            disabled={submitting || !content.trim()}
+            className="px-4 py-2 rounded-xl text-body-4 font-medium bg-danger-600 text-white hover:bg-danger-700 disabled:opacity-40 transition-colors"
+          >
+            {submitting ? 'Sending...' : 'Broadcast emergency'}
+          </button>
+        </div>
+      </SectionCard>
+    </>
   );
 };
 
