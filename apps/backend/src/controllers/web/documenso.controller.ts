@@ -17,7 +17,7 @@ import { Prisma } from "@prisma/client";
 interface DocumensoWebhookBody {
   event?: string;
   payload?: {
-    id?: string | number;
+    id?: string | number | null;
   };
 }
 
@@ -42,11 +42,23 @@ function verifySignature(
   return crypto.timingSafeEqual(expectedBuf, providedBuf);
 }
 
-function parseWebhookBody(rawBody: Buffer) {
-  return JSON.parse(rawBody.toString("utf8")) as DocumensoWebhookBody;
+function isDocumensoWebhookBody(body: unknown): body is DocumensoWebhookBody {
+  return typeof body === "object" && body !== null && !Array.isArray(body);
 }
 
-function parseWebhookEvent(body: DocumensoWebhookBody) {
+function parseWebhookBody(rawBody: Buffer): DocumensoWebhookBody | null {
+  try {
+    const body = JSON.parse(rawBody.toString("utf8")) as unknown;
+    return isDocumensoWebhookBody(body) ? body : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseWebhookEvent(body: DocumensoWebhookBody | null) {
+  if (!body) {
+    return null;
+  }
   const eventType = body.event;
   const documentId = body.payload?.id;
 
