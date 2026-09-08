@@ -8,6 +8,8 @@ on:
       - 'package.json'
       - 'pnpm-workspace.yaml'
       - '.github/workflows/frontend-e2e.yml'
+  push:
+    branches: [dev, main]
   workflow_dispatch:
 
 permissions:
@@ -269,3 +271,26 @@ jobs:
       # Only restore uploads here if the spec stops handling a real secret (for
       # example a provider-mocked sign-in). The public smoke job keeps its
       # artifacts: it handles no credentials.
+
+  # Mirrors `Desktop E2E Required`. The authenticated suite deliberately cannot run on a
+  # pull_request - see the preflight comment - so what a PR can be gated on is the public
+  # smoke + a11y leg. Without this aggregate that leg reports but blocks nothing, which is
+  # how "E2E exists" and "E2E gates" came apart.
+  frontend-e2e-required:
+    name: Frontend E2E Required
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [build, playwright-public]
+    steps:
+      - name: Fail on any failed, cancelled or skipped leg
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          echo "$RESULTS"
+          if echo "$RESULTS" | grep -qE '"result": *"(failure|cancelled|skipped)"'; then
+            echo "Frontend E2E Required: a leg failed, was cancelled, or did not run"
+            exit 1
+          fi
+          echo "Frontend E2E Required: public smoke + a11y passed"
