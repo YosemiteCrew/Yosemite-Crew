@@ -84,7 +84,7 @@ const meta = {
           'component had.\n\n' +
           'The phone variant is not a smaller copy of the desktop one. It drops the pulsing green ' +
           'dot and the "In room" / "Over booked slot" words entirely and shows the bare elapsed ' +
-          'time at 10px with `px-[9px] py-[5px]`. Since #2790 it rides at the right end of the ' +
+          'time at 10px with `px-[9px] py-[5px]`. Since issue 2790 it rides at the right end of ' +
           'signalment line rather than beside the name, which is what let the name and the ' +
           'status pill stop competing for one 197px row. It also strips a leading `00:` so an ' +
           'under-an-hour visit reads ' +
@@ -215,7 +215,7 @@ export const NotStarted: Story = {
           'No start timestamp at all, which is what an appointment that has not been checked in ' +
           'still looks like. The words rather than digits make this the widest of the three ' +
           'states, which is what it used to cost the name - the timer shared the name row ' +
-          'until #2790 moved it down to the signalment line.',
+          'until issue 2790 moved it down to the signalment line.',
       },
     },
   },
@@ -328,7 +328,7 @@ export const NameKeepsItsRoom: Story = {
     docs: {
       description: {
         story:
-          'The regression guard for #2790. "Poppy Hartmann" needs 114px and the `IN PROGRESS` ' +
+          'The regression guard for issue 2790. "Poppy Hartmann" needs 114px and the `IN PROGRESS` ' +
           'pill takes 111px; while the timer sat beside them the pair had 197px to share, and ' +
           'the name - the only one of the two carrying `truncate` - absorbed the whole 34px ' +
           'shortfall. Nothing here asserts a pixel count, so a type-ramp or copy change moves ' +
