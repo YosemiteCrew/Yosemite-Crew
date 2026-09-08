@@ -272,7 +272,15 @@ export const WithAllergy: Story = {
        changing `args.allergy` killed the lookup and the three assertions that are
        NOT about the allergy text - the ellipsis, the ink difference and the weight -
        stopped running rather than failing. The tail is bound by a prefix instead,
-       which survives a change to the allergy itself. */
+       which survives a change to the allergy itself.
+
+       If you mutate `args.allergy` to check that this still holds, the mutation
+       must NOT be a superstring of the shipped value. `toContain` below is
+       satisfied by one, so `Penicillinxx` - the string in the margin table two
+       stories down, which is the one to hand - leaves this story green whether
+       the assertions ran or never ran at all. `Amoxicillin` fails on the
+       comparison instead of the lookup, which is the answer the mutation was
+       asked for. */
     const signalment = canvas.getByTestId('patient-signalment');
     const allergy = within(signalment).getByText(/^Allergy: /);
 
