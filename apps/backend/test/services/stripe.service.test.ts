@@ -1394,9 +1394,11 @@ describe("StripeService", () => {
         },
       } as any);
 
-      expect(mStripe.charges.retrieve).toHaveBeenCalledWith("ch_connect", {
-        stripeAccount: "acct_connect_1",
-      });
+      expect(mStripe.charges.retrieve).toHaveBeenCalledWith(
+        "ch_connect",
+        undefined,
+        { stripeAccount: "acct_connect_1" },
+      );
       expect(
         FinancePaymentService.handleInvoicePaymentIntentSucceeded,
       ).toHaveBeenCalledWith(
@@ -2825,7 +2827,7 @@ describe("StripeService", () => {
         "acct_conn",
       );
 
-      expect(mStripe.charges.retrieve).toHaveBeenCalledWith("ch_1", {
+      expect(mStripe.charges.retrieve).toHaveBeenCalledWith("ch_1", undefined, {
         stripeAccount: "acct_conn",
       });
     });
@@ -2869,7 +2871,7 @@ describe("StripeService", () => {
         "acct_conn",
       );
 
-      expect(mStripe.charges.retrieve).toHaveBeenCalledWith("ch_1", {
+      expect(mStripe.charges.retrieve).toHaveBeenCalledWith("ch_1", undefined, {
         stripeAccount: "acct_conn",
       });
       expect(
@@ -2915,7 +2917,7 @@ describe("StripeService", () => {
         "acct_conn",
       );
 
-      expect(mStripe.charges.retrieve).toHaveBeenCalledWith("ch_1", {
+      expect(mStripe.charges.retrieve).toHaveBeenCalledWith("ch_1", undefined, {
         stripeAccount: "acct_conn",
       });
       expect(prisma.invoice.create).toHaveBeenCalledWith(
