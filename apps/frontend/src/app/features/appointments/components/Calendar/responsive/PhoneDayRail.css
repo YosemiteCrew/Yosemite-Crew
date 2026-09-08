@@ -173,7 +173,7 @@
   border: 0;
   border-radius: 9999px;
   background: var(--blue-strong);
-  color: #ffffff;
+  color: var(--white-text);
   font-size: 10.5px;
   font-weight: 700;
   cursor: pointer;
@@ -200,7 +200,7 @@
   padding: 2px 7px;
   border-radius: 9999px;
   background: var(--blue-strong);
-  color: #ffffff;
+  color: var(--white-text);
   font-size: 9.5px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
