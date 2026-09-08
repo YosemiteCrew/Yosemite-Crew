@@ -8,9 +8,13 @@
 // "transparent card" defect and three hand-rolled status pills were all this
 // one pattern.
 //
-// Reads the primitive directory names from disk once at rule creation, so a
-// new primitive is covered automatically - nobody has to remember to add its
-// name to a list here.
+// Indexes the ACTUAL exported value names under ui/primitives/ (default
+// exports, named const/function/class exports, and `export { x as Y }`
+// re-exports), not directory basenames. A directory's basename is frequently
+// not a name anything exports - e.g. PanelStates/ exports PanelEmptyState and
+// PanelLoadingRows, never a component called PanelStates - so basename
+// matching both missed the real shadow risk and flagged unrelated
+// declarations that happened to share a folder's name.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,17 +22,67 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PRIMITIVES_DIR = path.join(HERE, '../src/app/ui/primitives');
 
-const primitiveNames = (() => {
+const SOURCE_FILE = /\.(ts|tsx)$/;
+const SKIP_FILE = /\.(stories|test|spec)\.[tj]sx?$/;
+
+const DEFAULT_EXPORT = /^export\s+default\s+([A-Z][A-Za-z0-9_$]*)\s*;/gm;
+const NAMED_VALUE_EXPORT = /^export\s+(?:const|function|class)\s+([A-Z][A-Za-z0-9_$]*)/gm;
+// `export { default as Primary } from '...'` / `export { Foo, Bar as Baz }` -
+// deliberately excludes `export type { ... }`, which has "type" between
+// "export" and "{" and so never matches this pattern.
+const NAMED_LIST_EXPORT = /^export\s*\{([^}]+)\}\s*(?:from\s+['"][^'"]+['"])?\s*;?\s*$/gm;
+
+const namesFromExportList = (list) =>
+  list
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const asMatch = entry.match(/\bas\s+([A-Za-z0-9_$]+)\s*$/);
+      return asMatch ? asMatch[1] : entry.split(/\s+/)[0];
+    })
+    .filter((name) => /^[A-Z]/.test(name));
+
+const collectSourceFiles = (dir) => {
+  let entries;
   try {
-    return new Set(
-      fs.readdirSync(PRIMITIVES_DIR, { withFileTypes: true })
-        .filter((e) => e.isDirectory())
-        .map((e) => e.name)
-    );
+    entries = fs.readdirSync(dir, { withFileTypes: true });
   } catch {
-    return new Set();
+    return [];
   }
-})();
+  return entries.flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return collectSourceFiles(full);
+    if (SOURCE_FILE.test(entry.name) && !SKIP_FILE.test(entry.name)) return [full];
+    return [];
+  });
+};
+
+// name -> path of the primitive file it's actually exported from, relative
+// to ui/primitives/, for the report message.
+const buildPrimitiveIndex = () => {
+  const index = new Map();
+  for (const file of collectSourceFiles(PRIMITIVES_DIR)) {
+    let text;
+    try {
+      text = fs.readFileSync(file, 'utf8');
+    } catch {
+      continue;
+    }
+    const relPath = path.relative(PRIMITIVES_DIR, file);
+    const add = (name) => {
+      if (!index.has(name)) index.set(name, relPath);
+    };
+    for (const m of text.matchAll(DEFAULT_EXPORT)) add(m[1]);
+    for (const m of text.matchAll(NAMED_VALUE_EXPORT)) add(m[1]);
+    for (const m of text.matchAll(NAMED_LIST_EXPORT)) {
+      namesFromExportList(m[1]).forEach(add);
+    }
+  }
+  return index;
+};
+
+const primitiveIndex = buildPrimitiveIndex();
 
 const rule = {
   meta: {
@@ -40,14 +94,14 @@ const rule = {
     schema: [],
     messages: {
       shadowed:
-        "'{{name}}' shadows the shared primitive at ui/primitives/{{name}}. " +
+        "'{{name}}' shadows the shared primitive exported from ui/primitives/{{path}}. " +
         'Import the primitive (aliased if you need a differently-named local ' +
         'wrapper) instead of redeclaring it - a local copy silently diverges ' +
         'from the design system and stops receiving its fixes.',
     },
   },
   create(context) {
-    if (primitiveNames.size === 0) return {};
+    if (primitiveIndex.size === 0) return {};
     const filename = context.filename ?? context.getFilename();
     // Only feature code is in scope. The primitives themselves, of course,
     // declare their own name; stories and tests may deliberately construct a
@@ -57,8 +111,14 @@ const rule = {
     if (filename.includes(`__tests__${path.sep}`)) return {};
 
     const checkId = (idNode) => {
-      if (idNode?.type === 'Identifier' && primitiveNames.has(idNode.name)) {
-        context.report({ node: idNode, messageId: 'shadowed', data: { name: idNode.name } });
+      const primitivePath =
+        idNode?.type === 'Identifier' ? primitiveIndex.get(idNode.name) : undefined;
+      if (primitivePath) {
+        context.report({
+          node: idNode,
+          messageId: 'shadowed',
+          data: { name: idNode.name, path: primitivePath },
+        });
       }
     };
 
@@ -75,4 +135,5 @@ const rule = {
   },
 };
 
-export default { rules: { 'no-shadowed-primitive': rule } };
+const noShadowedPrimitivePlugin = { rules: { 'no-shadowed-primitive': rule } };
+export default noShadowedPrimitivePlugin;
