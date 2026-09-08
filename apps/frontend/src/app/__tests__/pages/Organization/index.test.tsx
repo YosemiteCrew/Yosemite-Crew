@@ -168,6 +168,12 @@ describe('Organization page', () => {
     expect(screen.getByTestId('document-e-signing')).toBeInTheDocument();
     expect(screen.getByTestId('delete-org')).toBeInTheDocument();
     expect(teamMock).toHaveBeenCalledWith(expect.objectContaining({ isVerified: true }));
+    expect(screen.getByTestId('team').parentElement).toBe(
+      screen.getByTestId('specialities').parentElement
+    );
+    expect(screen.getByTestId('rooms').parentElement).not.toBe(
+      screen.getByTestId('specialities').parentElement
+    );
   });
 
   it('hides gated sections for unverified org', () => {
