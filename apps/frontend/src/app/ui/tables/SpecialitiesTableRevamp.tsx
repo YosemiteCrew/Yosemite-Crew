@@ -140,9 +140,11 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
   ];
 
   return (
-    <div className="w-full">
-      {/* Table on wide screens; the table scrolls horizontally if space is tight */}
-      <div className="hidden lg:block w-full overflow-x-auto">
+    <div className="@container w-full">
+      {/* The organization overview places this section in its wider content
+          column. Use that available width, rather than the browser width, so a
+          wide viewport never forces the six-column table into a narrow card. */}
+      <div className="hidden w-full overflow-x-auto @4xl:block">
         <GenericTable
           itemNoun="specialities"
           data={filteredList}
@@ -153,8 +155,7 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
           embedded
         />
       </div>
-      {/* Responsive card grid below lg: 1 col on mobile, 2 on sm, 3 on md */}
-      <div className="grid lg:hidden grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 @sm:grid-cols-2 @4xl:hidden">
         {filteredList.length === 0 ? (
           <NoDataMessage {...emptyStateCopy('specialities')} />
         ) : (
