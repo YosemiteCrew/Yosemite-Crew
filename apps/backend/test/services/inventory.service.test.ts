@@ -127,7 +127,7 @@ describe("Inventory service", () => {
       category: "Consumables",
       businessType: "HOSPITAL",
       initialOnHand: 2,
-      allocated: 6,
+      allocated: 3,
       initialAllocated: 2,
       stockUnitType: "bottle",
       unitOfMeasure: "mg",
@@ -302,6 +302,7 @@ describe("Inventory service", () => {
       category: "Consumables",
       businessType: "HOSPITAL",
       itemType: "NON_MEDICAL",
+      onHand: 7,
       allocated: 2,
     });
     (prisma.inventoryItem.update as jest.Mock).mockResolvedValueOnce({
@@ -954,6 +955,58 @@ describe("Inventory service", () => {
         organisationId: "org-1",
       }),
     ).rejects.toThrow("Not enough unallocated stock");
+  });
+
+  // Regression for a live dev bug: an item showed On Hand 7 / Available -8
+  // because `allocated` is a plain writable field on create and edit with no
+  // check against on-hand stock, unlike the allocateStock/releaseAllocatedStock
+  // pair above. Available (onHand - allocated) must never go negative.
+  it("rejects creating an item whose allocated stock exceeds on-hand stock", async () => {
+    await expect(
+      InventoryService.createItem({
+        organisationId: "org-1",
+        name: "Itraconazole 100 mg",
+        category: "Medicine",
+        businessType: "HOSPITAL",
+        initialOnHand: 7,
+        allocated: 15,
+      }),
+    ).rejects.toThrow("allocated cannot exceed on-hand stock");
+    expect(prisma.inventoryItem.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects creating an item whose batch quantities can't cover the requested allocation", async () => {
+    await expect(
+      InventoryService.createItem({
+        organisationId: "org-1",
+        name: "Itraconazole 100 mg",
+        category: "Medicine",
+        businessType: "HOSPITAL",
+        allocated: 15,
+        batches: [{ quantity: 7 }],
+      }),
+    ).rejects.toThrow("allocated cannot exceed on-hand stock");
+  });
+
+  it("rejects updating an item's allocated stock above its current on-hand stock", async () => {
+    (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "item-1",
+      organisationId: "org-1",
+      category: "Medicine",
+      businessType: "HOSPITAL",
+      itemType: "MEDICAL",
+      genericName: "Itraconazole",
+      strength: "100 mg",
+      dosageForm: "Capsule",
+      routeOfAdministration: "Oral",
+      onHand: 7,
+      allocated: 0,
+    });
+
+    await expect(
+      InventoryService.updateItem("item-1", { allocated: 15 }, "org-1"),
+    ).rejects.toThrow("allocated cannot exceed on-hand stock");
+    expect(prisma.inventoryItem.update).not.toHaveBeenCalled();
   });
 
   it("rejects invalid vendor and meta-field inputs", async () => {
