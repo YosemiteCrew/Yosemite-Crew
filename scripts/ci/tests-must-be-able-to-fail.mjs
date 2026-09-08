@@ -151,7 +151,7 @@ export const verdict = ({
   // Distinct from "the tests failed against the base". Nothing ran, so nothing
   // was proved - and `false` here would be read as proof, which is the exact
   // false green this gate exists to remove. It was written that way first.
-  if (nothingRunnable) {
+  if (nothingRunnable === 'e2e-only') {
     return {
       ok: false,
       reason:
@@ -159,6 +159,17 @@ export const verdict = ({
         'It therefore cannot tell whether they verify this source change.\n' +
         'Add a unit test for the changed behaviour, or label the PR no-behaviour-change\n' +
         'if the source change genuinely alters nothing observable.',
+    };
+  }
+  if (nothingRunnable === 'all-tests-deleted') {
+    return {
+      ok: false,
+      reason:
+        'Every changed test file is one the branch DELETED, so none of them exist to run -\n' +
+        '`jest` against a path that is gone reports zero tests, which is not evidence either\n' +
+        'way. This is expected for a component removed alongside its own test; verify there\n' +
+        'is truly no other reference (a clean `tsc` build is real evidence of that) and label\n' +
+        'the PR no-behaviour-change, or add a test if any of the deleted source still runs.',
     };
   }
   if (testsPassedAgainstBase === false) {
@@ -263,11 +274,27 @@ const main = () => {
     if (modified.length || deleted.length) git('checkout', base, '--', ...modified, ...deleted);
     for (const file of added) rmSync(file, { force: true });
 
-    const byWorkspace = groupTestsByWorkspace(tests);
+    // A test file the branch DELETES does not exist at HEAD either - there is
+    // no content left to run it. Asking jest to run it anyway does not error;
+    // `--passWithNoTests` makes a path matching nothing exit 0, which this
+    // gate would otherwise misread as "the test survived its own revert",
+    // when nothing actually ran. Excluded here, the same way a deleted
+    // SOURCE file is excluded from the restore-from-HEAD step above.
+    const runnableTests = tests.filter(existsAtHead);
+    if (runnableTests.length < tests.length) {
+      console.log(
+        `${tests.length - runnableTests.length} changed test file(s) were deleted by this branch - excluded, nothing to run`
+      );
+    }
+
+    const byWorkspace = groupTestsByWorkspace(runnableTests);
     try {
-      if (byWorkspace.size === 0) {
+      if (runnableTests.length === 0) {
+        console.log('every changed test file was deleted by this branch; nothing left to run');
+        nothingRunnable = 'all-tests-deleted';
+      } else if (byWorkspace.size === 0) {
         console.log('no runnable unit tests changed (e2e only, or outside a known workspace)');
-        nothingRunnable = true;
+        nothingRunnable = 'e2e-only';
       } else {
         testsPassedAgainstBase = runChangedTests(byWorkspace);
       }
