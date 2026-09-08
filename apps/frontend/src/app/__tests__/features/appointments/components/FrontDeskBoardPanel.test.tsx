@@ -10,6 +10,11 @@ const completeCheckIn = jest.fn();
 const cancelCheckIn = jest.fn();
 const markCheckInNoShow = jest.fn();
 const assignCheckInRoom = jest.fn();
+const isAuthRedirectError = jest.fn();
+
+jest.mock('@/app/services/axios', () => ({
+  isAuthRedirectError: (error: unknown) => isAuthRedirectError(error),
+}));
 
 jest.mock('@/app/features/appointments/services/patientCheckInService', () => ({
   __esModule: true,
@@ -230,6 +235,15 @@ describe('FrontDeskBoardPanel', () => {
     await waitFor(() =>
       expect(screen.getByTestId('error')).toHaveTextContent('Unable to load the check-in board')
     );
+  });
+
+  it('does not replace an auth redirect with a load error', async () => {
+    isAuthRedirectError.mockReturnValueOnce(true);
+    fetchCheckIns.mockReset().mockRejectedValue(new Error('redirecting'));
+    render(<FrontDeskBoardPanel />);
+
+    await waitFor(() => expect(fetchCheckIns).toHaveBeenCalled());
+    expect(screen.getByTestId('error')).toBeEmptyDOMElement();
   });
 
   it('renders nothing to load without a primary org', async () => {
