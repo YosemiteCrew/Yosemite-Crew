@@ -1,23 +1,23 @@
 'use client';
 import React from 'react';
-import CheckInBoard, {
-  type CheckInBoardProps,
-} from '@/app/features/appointments/components/CheckInBoard/CheckInBoard';
-import { useCheckInBoard } from '@/app/features/appointments/components/CheckInBoard/useCheckInBoard';
+import FrontDeskBoard, {
+  type FrontDeskBoardProps,
+} from '@/app/features/appointments/components/FrontDeskBoard/FrontDeskBoard';
+import { useFrontDeskBoard } from '@/app/features/appointments/components/FrontDeskBoard/useFrontDeskBoard';
 
 /** Just the edit-gated handler props the board hides when they are absent. */
 type CheckInEditHandlers = Pick<
-  CheckInBoardProps,
+  FrontDeskBoardProps,
   'onSeen' | 'onComplete' | 'onCancel' | 'onNoShow' | 'onAssignRoom' | 'onAdd'
 >;
 
 /**
- * Data container for {@link CheckInBoard}. All state lives in
- * {@link useCheckInBoard}; this projects it onto the presentational board and
+ * Data container for {@link FrontDeskBoard}. All state lives in
+ * {@link useFrontDeskBoard}; this projects it onto the presentational board and
  * withholds the edit actions (the board hides them) when the user lacks
  * appointment edit permission. The show-all toggle stays available to everyone.
  */
-const CheckInBoardPanel = () => {
+const FrontDeskBoardPanel = () => {
   const {
     canEdit,
     entriesView,
@@ -34,7 +34,7 @@ const CheckInBoardPanel = () => {
     noShow,
     assignRoom,
     add,
-  } = useCheckInBoard();
+  } = useFrontDeskBoard();
 
   const editHandlers: CheckInEditHandlers = canEdit
     ? {
@@ -48,7 +48,7 @@ const CheckInBoardPanel = () => {
     : {};
 
   return (
-    <CheckInBoard
+    <FrontDeskBoard
       entries={entriesView}
       companions={companionOptions}
       rooms={roomOptions}
@@ -62,4 +62,4 @@ const CheckInBoardPanel = () => {
   );
 };
 
-export default CheckInBoardPanel;
+export default FrontDeskBoardPanel;
