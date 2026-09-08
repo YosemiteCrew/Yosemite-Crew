@@ -50,7 +50,7 @@
     "i18next": "^26.4.0",
     "js-sha256": "^0.11.1",
     "posthog-react-native": "^4.65.0",
-    "react": "19.1.4",
+    "react": "19.2.8",
     "react-hook-form": "^7.86.0",
     "react-i18next": "^17.0.12",
     "react-native": "0.81.6",
@@ -122,7 +122,7 @@
     "prettier": "3.9.6",
     "react-test-renderer": "19.1.4",
     "redux-mock-store": "^1.5.5",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.3"
   },
   "engines": {
