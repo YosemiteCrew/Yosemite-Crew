@@ -11,14 +11,35 @@ jest.mock("src/config/prisma", () => ({
 jest.mock("../../src/services/audit-trail.service", () => ({
   AuditTrailService: { recordSafely: jest.fn() },
 }));
+jest.mock("../../src/services/appointment.prisma.service", () => {
+  class AppointmentPrismaServiceError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode: number,
+    ) {
+      super(message);
+      this.name = "AppointmentPrismaServiceError";
+    }
+  }
+  return {
+    AppointmentPrismaService: { checkInAppointment: jest.fn() },
+    AppointmentPrismaServiceError,
+  };
+});
 
 import { prisma } from "src/config/prisma";
 import {
   PatientCheckInService,
   PatientCheckInError,
 } from "../../src/services/patient-check-in.service";
+import {
+  AppointmentPrismaService,
+  AppointmentPrismaServiceError,
+} from "../../src/services/appointment.prisma.service";
 
 const mockedPrisma = prisma as jest.Mocked<typeof prisma>;
+const mockedCheckInAppointment =
+  AppointmentPrismaService.checkInAppointment as jest.Mock;
 
 const arrivedAt = new Date("2026-06-30T09:00:00Z");
 const baseCheckIn = {
@@ -76,6 +97,73 @@ describe("PatientCheckInService", () => {
       const callData = (mockedPrisma.patientCheckIn.create as jest.Mock).mock
         .calls[0][0].data;
       expect(callData.triagePriority).toBe("NON_URGENT");
+    });
+
+    it("checks the linked appointment in so the Board reflects the arrival", async () => {
+      (mockedPrisma.patientCheckIn.create as jest.Mock).mockResolvedValue({
+        ...baseCheckIn,
+        appointmentId: "appt-1",
+      });
+      mockedCheckInAppointment.mockResolvedValue(undefined);
+      await PatientCheckInService.create({
+        organisationId: "org-1",
+        patientId: "patient-1",
+        clientId: "client-1",
+        appointmentId: "appt-1",
+        arrivedAt,
+      });
+      expect(mockedCheckInAppointment).toHaveBeenCalledWith("appt-1", "org-1");
+    });
+
+    it("does not touch the appointment when the check-in is not linked to one", async () => {
+      (mockedPrisma.patientCheckIn.create as jest.Mock).mockResolvedValue(
+        baseCheckIn,
+      );
+      await PatientCheckInService.create({
+        organisationId: "org-1",
+        patientId: "patient-1",
+        clientId: "client-1",
+        arrivedAt,
+      });
+      expect(mockedCheckInAppointment).not.toHaveBeenCalled();
+    });
+
+    it("still creates the check-in when the appointment cannot be transitioned (e.g. already CHECKED_IN)", async () => {
+      (mockedPrisma.patientCheckIn.create as jest.Mock).mockResolvedValue({
+        ...baseCheckIn,
+        appointmentId: "appt-1",
+      });
+      mockedCheckInAppointment.mockRejectedValue(
+        new AppointmentPrismaServiceError(
+          "Appointment cannot transition from COMPLETED to CHECKED_IN in checkInAppointment.",
+          409,
+        ),
+      );
+      const result = await PatientCheckInService.create({
+        organisationId: "org-1",
+        patientId: "patient-1",
+        clientId: "client-1",
+        appointmentId: "appt-1",
+        arrivedAt,
+      });
+      expect(result.status).toBe("WAITING");
+    });
+
+    it("still throws an unexpected non-appointment error rather than swallowing it", async () => {
+      (mockedPrisma.patientCheckIn.create as jest.Mock).mockResolvedValue({
+        ...baseCheckIn,
+        appointmentId: "appt-1",
+      });
+      mockedCheckInAppointment.mockRejectedValue(new Error("db down"));
+      await expect(
+        PatientCheckInService.create({
+          organisationId: "org-1",
+          patientId: "patient-1",
+          clientId: "client-1",
+          appointmentId: "appt-1",
+          arrivedAt,
+        }),
+      ).rejects.toThrow("db down");
     });
   });
 
