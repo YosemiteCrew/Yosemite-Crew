@@ -278,6 +278,15 @@ const FlagList = ({
 
   const body = (() => {
     if (loading) return <LoadingRows />;
+    if (error)
+      return (
+        <div
+          role="alert"
+          className="mx-4 mt-3 rounded-xl border border-[var(--divider)] bg-[var(--inset)] px-4 py-3 text-[12.5px] font-semibold text-[var(--danger-text)]"
+        >
+          {error}
+        </div>
+      );
     if (flags.length === 0) return <EmptyState />;
     return (
       <ul className="divide-y divide-[var(--divider)]">
@@ -322,15 +331,6 @@ const FlagList = ({
           </button>
         ) : null}
       </header>
-
-      {error ? (
-        <div
-          role="alert"
-          className="mx-4 mt-3 rounded-xl border border-[var(--divider)] bg-[var(--inset)] px-4 py-3 text-[12.5px] font-semibold text-[var(--danger-text)]"
-        >
-          {error}
-        </div>
-      ) : null}
 
       {showForm && canEdit ? (
         <CreateFlagForm
