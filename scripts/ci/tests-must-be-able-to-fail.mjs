@@ -96,6 +96,37 @@ export const classify = (files) => ({
 });
 
 /**
+ * Splits changed source files by where they exist, so the checkout dance
+ * around them can be run in the right direction for each:
+ *
+ * - `added`    exists at HEAD only (the branch created it) - reverting it
+ *   means removing it, and restoring it means checking it out from HEAD.
+ * - `deleted`  exists at base only (the branch removed it) - reverting it
+ *   means checking it out from base, and restoring it means removing it
+ *   again. The mirror image of `added`, and just as real: a PR that deletes
+ *   a file is exactly as checkable as one that adds or edits one.
+ * - `modified` exists at both - checkout works in both directions.
+ *
+ * A pure function of two existence checks, not of git itself, so the
+ * decision is testable without a real repository.
+ */
+export const categorizeSourceFiles = (source, existsAtBase, existsAtHead) => {
+  const added = [];
+  const deleted = [];
+  const modified = [];
+  for (const file of source) {
+    const atBase = existsAtBase(file);
+    const atHead = existsAtHead(file);
+    if (atBase && atHead) modified.push(file);
+    else if (atHead) added.push(file);
+    else if (atBase) deleted.push(file);
+    // Present at neither is unreachable: `source` came from a diff against
+    // one of these two refs, so every entry exists at at least one of them.
+  }
+  return { added, deleted, modified };
+};
+
+/**
  * The whole judgement, as a pure function, so it is tested directly rather than
  * inferred from a CI run.
  */
@@ -164,9 +195,13 @@ const runChangedTests = (byWorkspace) => {
   for (const [ws, paths] of byWorkspace) {
     console.log(`running ${paths.length} changed test file(s) in ${ws} against the base`);
     try {
-      execFileSync('pnpm', ['--filter', ws, 'exec', 'jest', '--ci', '--passWithNoTests', ...paths], {
-        stdio: 'inherit',
-      });
+      execFileSync(
+        'pnpm',
+        ['--filter', ws, 'exec', 'jest', '--ci', '--passWithNoTests', ...paths],
+        {
+          stdio: 'inherit',
+        }
+      );
     } catch {
       allPassed = false;
     }
@@ -207,21 +242,25 @@ const main = () => {
   let nothingRunnable = false;
 
   if (source.length > 0 && tests.length > 0) {
-    // A file the branch ADDS does not exist at the base, and `git checkout base --`
-    // fails outright on it - which crashed this gate on the first real pull
-    // request that added one. Reverting such a file means removing it.
-    const existsAtBase = (file) => {
+    // A file the branch ADDS does not exist at the base, and one it DELETES
+    // does not exist at HEAD - `git checkout <ref> -- <path>` fails outright
+    // when <path> is not in <ref>'s tree, in either direction. Both crashed
+    // this gate the first time a real pull request did them.
+    const existsAt = (ref, file) => {
       try {
-        execFileSync('git', ['cat-file', '-e', `${base}:${file}`], { stdio: 'ignore' });
+        execFileSync('git', ['cat-file', '-e', `${ref}:${file}`], { stdio: 'ignore' });
         return true;
       } catch {
         return false;
       }
     };
-    const modified = source.filter(existsAtBase);
-    const added = source.filter((f) => !existsAtBase(f));
+    const existsAtBase = (file) => existsAt(base, file);
+    const existsAtHead = (file) => existsAt('HEAD', file);
+    const { added, deleted, modified } = categorizeSourceFiles(source, existsAtBase, existsAtHead);
 
-    if (modified.length) git('checkout', base, '--', ...modified);
+    // Revert: added files vanish, deleted files come back, modified files
+    // take the base version.
+    if (modified.length || deleted.length) git('checkout', base, '--', ...modified, ...deleted);
     for (const file of added) rmSync(file, { force: true });
 
     const byWorkspace = groupTestsByWorkspace(tests);
@@ -233,9 +272,15 @@ const main = () => {
         testsPassedAgainstBase = runChangedTests(byWorkspace);
       }
     } finally {
-      // Always put the branch back, including when the run threw. `checkout HEAD`
-      // restores a deleted file too, so added and modified are handled alike.
-      git('checkout', 'HEAD', '--', ...source);
+      // Always put the branch back, including when the run threw. Mirror the
+      // revert: added and modified files exist at HEAD and check out cleanly;
+      // deleted files do not exist at HEAD, so removing them again is the
+      // only way to restore that state - `checkout HEAD --` on a path HEAD's
+      // tree does not have just errors, which is the bug this fixes.
+      const restorable = [...added, ...modified];
+      if (restorable.length) git('checkout', 'HEAD', '--', ...restorable);
+      for (const file of deleted) rmSync(file, { force: true });
+      if (deleted.length) git('rm', '--cached', '-q', '--ignore-unmatch', '--', ...deleted);
     }
   }
 
