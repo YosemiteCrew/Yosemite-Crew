@@ -43,7 +43,14 @@ const namesFromExportList = (list) =>
     })
     .filter((name) => /^[A-Z]/.test(name));
 
-const collectSourceFiles = (dir) => {
+// Bounds two things Aikido flagged on the recursive walk below: unbounded
+// recursion depth on a pathological directory tree, and `entry.name` (though
+// it only ever comes from readdirSync's own listing, never external input)
+// resolving outside `dir` - entries are rejected unless they stay under it.
+const MAX_DEPTH = 12;
+
+const collectSourceFiles = (dir, depth = 0) => {
+  if (depth > MAX_DEPTH) return [];
   let entries;
   try {
     entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -51,8 +58,11 @@ const collectSourceFiles = (dir) => {
     return [];
   }
   return entries.flatMap((entry) => {
+    if (entry.isSymbolicLink()) return [];
     const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) return collectSourceFiles(full);
+    const relative = path.relative(dir, full);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) return [];
+    if (entry.isDirectory()) return collectSourceFiles(full, depth + 1);
     if (SOURCE_FILE.test(entry.name) && !SKIP_FILE.test(entry.name)) return [full];
     return [];
   });
