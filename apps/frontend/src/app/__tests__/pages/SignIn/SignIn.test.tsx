@@ -7,6 +7,7 @@ import { useAuthStore } from '@/app/stores/authStore';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
+import { DEFAULT_SIGN_IN_ERROR } from '@/app/features/auth/lib/signInErrorMessage';
 
 // --- Mocks ---
 
@@ -519,7 +520,7 @@ describe('SignIn Page', () => {
     });
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Sign in failed' })
+      expect.objectContaining({ message: DEFAULT_SIGN_IN_ERROR })
     );
   });
 
