@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { contradictoryPanels, documentOverflows, headingNames, visibleTexts } from './route-sweep.spec';
+import {
+  contradictoryPanels,
+  documentOverflows,
+  forwardLookingRows,
+  headingNames,
+  inventoryCounts,
+  visibleTexts,
+} from './route-sweep.spec';
 
 /**
  * The extractors run inside the browser, so the pure checkers passing proves
@@ -61,4 +68,41 @@ test('detects horizontal document overflow, and its absence', async ({ page }) =
 
   await page.setContent(`<div style="width:100%">narrow</div>`);
   expect(await documentOverflows(page)).toBe(false);
+});
+
+test('does not collect text hidden by an ANCESTOR', async ({ page }) => {
+  // display does not inherit, so checking only the immediate parent's computed
+  // style treats a responsive branch under `hidden` as visible, and its contents
+  // fail the sweep at a viewport that never renders them.
+  await page.setContent(`
+    <div style="display:none"><div><span>HIDDEN_BY_ANCESTOR</span></div></div>
+    <div><span>VISIBLE_TEXT</span></div>
+  `);
+  const texts = await visibleTexts(page);
+  expect(texts.join(' ')).toContain('VISIBLE_TEXT');
+  expect(texts.join(' ')).not.toContain('HIDDEN_BY_ANCESTOR');
+});
+
+test('reconciles the Inventory header against its Low stock panel', async ({ page }) => {
+  // The production screen: header says 0, the panel beneath says 21.
+  await page.setContent(`
+    <p>0 items below reorder point &bull; 15 expired batches</p>
+    <div><h3>Low stock</h3><span>21</span></div>
+  `);
+  expect(await inventoryCounts(page)).toEqual({ headerLowStock: 0, panelLowStock: 21 });
+});
+
+test('finds past-dated rows under a forward-looking heading', async ({ page }) => {
+  await page.setContent(`
+    <div>
+      <div><h3>Expiring soon</h3><span>51</span></div>
+      <ul><li>dsdsd
+222 DAYS AGO</li><li>fresh batch
+in 30 days</li></ul>
+    </div>
+  `);
+  const rows = await forwardLookingRows(page);
+  expect(rows).toHaveLength(1);
+  expect(rows[0].daysFromNow).toBe(-222);
+  expect(rows[0].section).toBe('Expiring soon');
 });

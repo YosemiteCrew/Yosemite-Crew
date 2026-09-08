@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  countMismatchViolations,
   duplicateHeadingViolations,
   formatViolations,
   isReportableConsoleError,
@@ -9,12 +10,15 @@ import {
   throttleDelayMs,
   rawEnumViolations,
   rawIdViolations,
+  regressionsAgainstBaseline,
+  staleForwardLookingViolations,
   type Violation,
 } from './support/pageInvariants';
 import {
   APP_ROUTE_PATTERN,
   LOGIN_PATH,
   getRequiredEnv,
+  skipUnlessAuthSurfaceDeployed,
   submitSignIn,
   waitForRouteAwayFrom,
 } from './support/auth';
@@ -48,7 +52,6 @@ const ROUTES = [
   '/tasks',
   '/chat',
   '/companions',
-  '/companions/history',
   '/inventory',
   '/controlled-substances',
   '/finance',
@@ -59,6 +62,9 @@ const ROUTES = [
   '/organization/specialities',
   '/settings',
   '/integrations',
+  '/integrations/merck-manuals',
+  '/organizations',
+  '/appointments/idexx-workspace',
   '/forms',
   '/network',
   '/guides',
@@ -84,8 +90,16 @@ export const visibleTexts = (page: Page) =>
       const parent = node.parentElement;
       const text = node.textContent?.trim() ?? '';
       if (text && parent && !['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(parent.tagName)) {
+        // offsetParent is null for anything inside a display:none ancestor, and
+        // getClientRects covers the position:fixed case offsetParent misses.
+        // Checking the immediate parent's computed style is not enough: display
+        // does not inherit, so a `hidden xl:hidden` responsive branch reports as
+        // visible and its contents fail the sweep at a viewport that never
+        // renders them.
+        const rendered =
+          parent.offsetParent !== null || parent.getClientRects().length > 0;
         const style = globalThis.getComputedStyle(parent);
-        if (style.display !== 'none' && style.visibility !== 'hidden') out.push(text);
+        if (rendered && style.visibility !== 'hidden') out.push(text);
       }
       node = walker.nextNode();
     }
@@ -119,6 +133,62 @@ export const contradictoryPanels = (page: Page) =>
       const hasEmptyState = lines.some((l) => EMPTY.test(l));
       if (hasError && hasEmptyState) {
         out.push({ name: lines[0]?.slice(0, 60) ?? 'unnamed section', hasError, hasEmptyState });
+      }
+    }
+    return out;
+  });
+
+/**
+ * The Inventory page states the same two quantities twice: a header summary and
+ * the alert panels beneath it. They disagreed in production - "0 items below
+ * reorder point" above a panel headed "Low stock 21" - because the header counted
+ * only LOW_STOCK client-side while the panel used the server's
+ * `onHand <= reorderLevel`, which includes zero.
+ *
+ * Reconciling them needs page knowledge, so it is scoped to this route rather
+ * than dressed up as generic. A generic version was written first and called
+ * nowhere, which is worse than not having it.
+ */
+export const inventoryCounts = (page: Page) =>
+  page.evaluate(() => {
+    const bodyText = document.body.innerText ?? '';
+    const readSummary = (re: RegExp) => {
+      const m = re.exec(bodyText);
+      return m ? Number(m[1]) : undefined;
+    };
+    const panelCount = (title: string) => {
+      for (const el of document.querySelectorAll('h2, h3, h4')) {
+        if ((el.textContent ?? '').trim().toLowerCase() !== title) continue;
+        const header = el.closest('div');
+        const digits = /(\d+)/.exec(header?.textContent?.replace(el.textContent ?? '', '') ?? '');
+        if (digits) return Number(digits[1]);
+      }
+      return undefined;
+    };
+    return {
+      headerLowStock: readSummary(/(\d+)\s+items? below reorder point/i),
+      panelLowStock: panelCount('low stock'),
+    };
+  });
+
+/**
+ * Rows under a heading that promises the future, with how far off each date is.
+ * "Expiring soon" listed batches 222 days expired, because the alerts endpoint
+ * bounds its window above and not below.
+ */
+export const forwardLookingRows = (page: Page) =>
+  page.evaluate(() => {
+    const out: { section: string; label: string; daysFromNow: number }[] = [];
+    for (const el of document.querySelectorAll('h2, h3, h4')) {
+      const section = (el.textContent ?? '').trim();
+      if (!/soon|upcoming|next\b/i.test(section)) continue;
+      const card = el.closest('div')?.parentElement;
+      for (const row of card?.querySelectorAll('li') ?? []) {
+        const text = (row as HTMLElement).innerText ?? '';
+        // The UI renders relative days, which is the same thing the rule needs.
+        const ago = /(\d+)\s+days?\s+ago/i.exec(text);
+        const label = text.split('\n')[0]?.trim() ?? '';
+        if (ago) out.push({ section, label, daysFromNow: -Number(ago[1]) });
       }
     }
     return out;
@@ -173,6 +243,11 @@ test('every operational route holds its page invariants', async ({ page }) => {
     };
   };
 
+  // Same probe the other authenticated specs run: a pre-cutover environment
+  // skips, a 5xx auth surface fails loudly, and a failed probe is not silently
+  // read as "not deployed".
+  await skipUnlessAuthSurfaceDeployed();
+
   await page.goto(LOGIN_PATH, { waitUntil: 'domcontentloaded' });
   await submitSignIn(page, email, password);
   await waitForRouteAwayFrom(page, LOGIN_PATH);
@@ -192,13 +267,28 @@ test('every operational route holds its page invariants', async ({ page }) => {
       });
     }
     const stopWatching = watchRoute(route);
-    await page.goto(route, { waitUntil: 'domcontentloaded' });
+    const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
 
-    // A route that bounced to sign-in was not swept, and reporting zero
-    // violations for it would be a false pass.
+    // The main document's own status, kept separate from the background-probe
+    // listener that deliberately ignores 404s. A deleted or mistyped route can
+    // return 404 while leaving the pathname unchanged, and the not-found page
+    // satisfies every text invariant - passing the sweep while the route is
+    // broken.
+    const status = response?.status();
+    if (status !== undefined && status >= 400) {
+      found[route] = [`${route}  [not-reachable]  the page itself returned ${status}`];
+      stopWatching();
+      continue;
+    }
+
+    // A route the account cannot reach is not swept, and reporting zero
+    // violations for it would be a false pass. This covers more than sign-in:
+    // when the account lacks a permission, OrgGuard redirects to the first
+    // accessible app route, and the sweep would otherwise analyse that fallback
+    // page under the requested route's name.
     const landed = new URL(page.url()).pathname;
-    if (/signin|login/.test(landed)) {
+    if (landed !== route) {
       found[route] = [`${route}  [not-reachable]  redirected to ${landed}`];
       stopWatching();
       continue;
@@ -211,7 +301,28 @@ test('every operational route holds its page invariants', async ({ page }) => {
       documentOverflows(page),
     ]);
 
+    // Route-specific invariants, run only where the pairing exists.
+    const targeted: Violation[] = [];
+    if (route === '/inventory') {
+      const counts = await inventoryCounts(page);
+      if (counts.headerLowStock !== undefined && counts.panelLowStock !== undefined) {
+        targeted.push(
+          ...countMismatchViolations([
+            {
+              label: 'items below reorder point',
+              sources: [
+                { where: 'page header', value: counts.headerLowStock },
+                { where: 'Low stock panel', value: counts.panelLowStock },
+              ],
+            },
+          ])
+        );
+      }
+      targeted.push(...staleForwardLookingViolations(await forwardLookingRows(page)));
+    }
+
     const violations: Violation[] = [
+      ...targeted,
       ...rawEnumViolations(texts),
       ...rawIdViolations(texts),
       ...placeholderValueViolations(texts),
@@ -241,7 +352,7 @@ test('every operational route holds its page invariants', async ({ page }) => {
   // Fail only on what the baseline does not already record. Existing debt is
   // visible in the file and shrinks by deletion; anything new fails today.
   const regressions = Object.entries(found).flatMap(([route, lines]) =>
-    lines.filter((l) => !(baseline[route] ?? []).includes(l))
+    regressionsAgainstBaseline(lines, baseline[route] ?? [])
   );
 
   expect(regressions, `New page-invariant violations:\n${regressions.join('\n')}`).toEqual([]);
