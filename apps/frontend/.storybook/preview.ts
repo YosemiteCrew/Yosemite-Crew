@@ -112,7 +112,7 @@ const preview: Preview = {
           'h1',
           {
             id: 'storybook-story-title',
-            className: 'sr-only',
+            className: 'sr-only overflow-hidden',
           },
           `${context.title} - ${context.name}`
         ),

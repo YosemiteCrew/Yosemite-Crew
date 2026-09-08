@@ -3,9 +3,7 @@ import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import {
   IoBulbOutline,
-  IoCalendarClearOutline,
   IoCartOutline,
-  IoChevronDownOutline,
   IoCubeOutline,
   IoTrendingDownOutline,
   IoTrendingUpOutline,
@@ -35,21 +33,12 @@ import {
   selectDefaultProduct,
 } from '@/app/features/inventory/components/TurnoverAnalytics/metrics';
 
-type InventoryView = 'inventory' | 'turnover' | 'analytics';
-
 type TurnoverAnalyticsProps = {
   turnover: InventoryTurnoverItem[];
   inventory: InventoryItem[];
-  setActiveView: (view: InventoryView) => void;
   onReorder: (item: InventoryItem) => void;
   onViewHistory: (item: InventoryItem) => void;
 };
-
-const SEGMENTS: { key: InventoryView; label: string }[] = [
-  { key: 'inventory', label: 'Stock' },
-  { key: 'turnover', label: 'Orders' },
-  { key: 'analytics', label: 'Turnover' },
-];
 
 const cardClass =
   'rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03)]';
@@ -87,47 +76,6 @@ const MiniKpi = ({ label, value, danger }: { label: string; value: string; dange
       {value}
     </span>
   </span>
-);
-
-const SubNav = ({ setActiveView }: { setActiveView: (view: InventoryView) => void }) => (
-  <div className="flex flex-wrap items-center justify-between gap-3">
-    <div className="flex flex-wrap items-center gap-3">
-      <span className="text-[13px] text-[var(--ink-faint)]">
-        Inventory / <span className="font-bold text-[var(--ink)]">Turnover</span>
-      </span>
-      <div
-        className={`flex items-center gap-1 rounded-full p-1 ${insetBoxClass}`}
-        role="tablist"
-        aria-label="Inventory view"
-      >
-        {SEGMENTS.map((segment) => {
-          const active = segment.key === 'analytics';
-          return (
-            <button
-              key={segment.key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setActiveView(segment.key)}
-              className={clsx(
-                'rounded-full px-[13px] py-[5px] text-[12px] transition-colors',
-                active
-                  ? 'bg-[var(--screen)] font-bold text-[var(--ink)] shadow-[0_1px_3px_var(--sh08)]'
-                  : 'font-semibold text-[var(--ink-muted)]'
-              )}
-            >
-              {segment.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-    <span className="flex items-center gap-1.5 rounded-full border border-[var(--hairline)] px-3.5 py-[7px] text-[12px] font-semibold text-[var(--ink-muted)]">
-      <IoCalendarClearOutline size={12} aria-hidden="true" />
-      2026 · year to date
-      <IoChevronDownOutline size={12} aria-hidden="true" />
-    </span>
-  </div>
 );
 
 type KpiCardsProps = {
@@ -435,7 +383,6 @@ const ProductPhoneCard = ({ panel, reorderLabel, onReorder }: ProductPanelProps)
 const TurnoverAnalytics = ({
   turnover,
   inventory,
-  setActiveView,
   onReorder,
   onViewHistory,
 }: TurnoverAnalyticsProps) => {
@@ -511,8 +458,6 @@ const TurnoverAnalytics = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <SubNav setActiveView={setActiveView} />
-
       <KpiCards
         annualTurnover={annualTurnover}
         annualDelta={annualDelta}

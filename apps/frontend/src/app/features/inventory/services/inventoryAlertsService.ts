@@ -1,6 +1,9 @@
 import axios from 'axios';
 import { getData } from '@/app/services/axios';
 
+/** The catalogue and the expiring-alert preview must classify the same window. */
+export const EXPIRING_ALERT_WINDOW_DAYS = 30;
+
 /**
  * The low-stock endpoint returns raw `InventoryItem` rows the backend has already
  * filtered to `(onHand ?? 0) <= reorderLevel` (reorderLevel truthy). These are the
@@ -54,7 +57,7 @@ export const fetchLowStockAlerts = async (organisationId: string): Promise<LowSt
 
 export const fetchExpiringAlerts = async (
   organisationId: string,
-  days = 30
+  days = EXPIRING_ALERT_WINDOW_DAYS
 ): Promise<ExpiringAlertBatch[]> => {
   try {
     const res = await getData<ExpiringAlertBatch[]>(

@@ -11,29 +11,10 @@ import { useFilterDropdownDismiss } from '@/app/ui/filters/useFilterDropdownDism
 const getDropdownStatusTextColor = (status: StatusOption): string =>
   status.dropdownText ?? status.text ?? 'var(--color-text-primary)';
 
-// Design status-pill recipe (list toolbar): same pill geometry as the filter chips (FilterChip).
-// Active carries the status' own bg/border/text at weight 700 ("all" falls back to
-// the neutral --inset/--divider/--ink recipe); the rest stay --hairline/--ink-muted.
-// Tokens are applied inline so they keep following the live theme.
-const getStatusPillStyle = (status: StatusOption, isActive: boolean): React.CSSProperties => {
-  if (!isActive) {
-    return { borderColor: 'var(--hairline)', color: 'var(--ink-muted)', fontWeight: 600 };
-  }
-  if (status.key.toLowerCase() === 'all') {
-    return {
-      backgroundColor: 'var(--chip-selected-bg)',
-      borderColor: 'var(--chip-selected-border)',
-      color: 'var(--chip-selected-ink)',
-      fontWeight: 700,
-    };
-  }
-  return {
-    backgroundColor: status.bg,
-    borderColor: status.border ?? status.bg ?? 'var(--hairline)',
-    color: status.text ?? 'var(--ink)',
-    fontWeight: 700,
-  };
-};
+const getStatusTokens = (status: StatusOption) =>
+  status.key.toLowerCase() === 'all'
+    ? undefined
+    : { bg: status.bg, text: status.text, border: status.border };
 
 type FiltersProps = {
   filterOptions?: FilterOption[];
@@ -137,16 +118,13 @@ const Filters = ({
               {statusOptions?.map((status) => {
                 const isActive = status.key === selectedStatus?.key;
                 return (
-                  <button
+                  <FilterChip
                     key={status.key}
-                    type="button"
-                    aria-pressed={isActive}
+                    label={status.name}
+                    active={isActive}
                     onClick={() => setActiveStatus?.(status.key)}
-                    className="inline-flex h-8 shrink-0 items-center justify-center rounded-full! border px-[13px] text-[12.5px] transition-colors"
-                    style={getStatusPillStyle(status, isActive)}
-                  >
-                    {status.name}
-                  </button>
+                    tokens={getStatusTokens(status)}
+                  />
                 );
               })}
             </>

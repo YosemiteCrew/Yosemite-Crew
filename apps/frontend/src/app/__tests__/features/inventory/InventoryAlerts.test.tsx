@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import InventoryAlerts from '@/app/features/inventory/components/InventoryAlerts/InventoryAlerts';
 import type {
@@ -82,5 +82,24 @@ describe('InventoryAlerts', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Unable to load inventory alerts right now.'
     );
+  });
+
+  it('keeps each alert preview bounded and opens the full catalog filter', () => {
+    const onViewLowStock = jest.fn();
+    const fourLowStock = [
+      ...lowStock,
+      { id: 'i3', name: 'Item three', onHand: 1, reorderLevel: 4 },
+      { id: 'i4', name: 'Item four', onHand: 1, reorderLevel: 4 },
+    ];
+
+    render(
+      <InventoryAlerts lowStock={fourLowStock} expiring={[]} onViewLowStock={onViewLowStock} />
+    );
+
+    const lowStockGroup = screen.getByRole('region', { name: 'Low stock' });
+    expect(within(lowStockGroup).getAllByRole('listitem')).toHaveLength(3);
+    expect(within(lowStockGroup).queryByText('Item four')).not.toBeInTheDocument();
+    fireEvent.click(within(lowStockGroup).getByRole('button', { name: 'View all 4 in catalog' }));
+    expect(onViewLowStock).toHaveBeenCalledWith(fourLowStock);
   });
 });

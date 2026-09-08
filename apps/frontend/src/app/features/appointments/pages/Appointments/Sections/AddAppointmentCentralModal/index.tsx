@@ -40,7 +40,7 @@ import { IoAdd, IoArrowForward, IoChevronDown, IoPaw, IoPerson } from 'react-ico
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { primaryButtonGlowHandlers } from '@/app/ui/primitives/buttonGlowHandlers';
 import clsx from 'clsx';
-import type { AppointmentKind } from '@yosemite-crew/types';
+import type { Appointment, AppointmentKind } from '@yosemite-crew/types';
 
 // ─── Design tokens (spec-exact) ────────────────────────────────────────────────
 const FONT = 'var(--font-satoshi), sans-serif';
@@ -91,6 +91,7 @@ type AddAppointmentCentralModalProps = {
   onPrefillConsumed?: () => void;
   /** Pre-selects a companion by ID when the modal opens (e.g. from the companions table). */
   initialCompanionId?: string | null;
+  onAppointmentCreated?: (createdAppointment?: Appointment) => void | Promise<void>;
 };
 
 type ModalUiState = {
@@ -1086,6 +1087,7 @@ const useAddAppointmentCentralModalView = ({
   prefill,
   onPrefillConsumed,
   initialCompanionId,
+  onAppointmentCreated,
 }: AddAppointmentCentralModalProps) => {
   const terminologyText = useCompanionTerminologyText();
   const companions = useCompanionsParentsForPrimaryOrg();
@@ -1096,7 +1098,8 @@ const useAddAppointmentCentralModalView = ({
   const calendarSlotFlowActive = false;
 
   const appointmentForm = useAppointmentForm({
-    onSuccess: () => {
+    onSuccess: async (createdAppointment) => {
+      await onAppointmentCreated?.(createdAppointment);
       setShowModal(false);
       setActiveFilter('all');
       setActiveStatus('all');

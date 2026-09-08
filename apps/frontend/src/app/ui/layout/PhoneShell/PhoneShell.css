@@ -9,7 +9,7 @@
     display: none !important;
   }
 
-  /* Make room for the fixed header and tab bar so content is never covered.
+  /* Make room for the fixed header, FAB and tab bar so content is never covered.
      There is a THIRD fixed element on a phone and this sum did not know about
      it: until a choice is stored, the consent card sits above the tab bar and
      denies its own height as well. It publishes that strip as
@@ -24,7 +24,7 @@
   [data-yc-app] #main-content {
     padding-top: 54px;
     padding-bottom: max(
-      calc(72px + env(safe-area-inset-bottom, 0px)),
+      calc(124px + env(safe-area-inset-bottom, 0px)),
       var(--yc-consent-inset, 0px)
     );
   }

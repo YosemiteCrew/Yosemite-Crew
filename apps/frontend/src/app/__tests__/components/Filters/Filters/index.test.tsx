@@ -368,20 +368,21 @@ describe('Filters', () => {
 
       const inactive = screen.getByRole('button', { name: 'Cancelled' });
       expect(inactive).toHaveAttribute('aria-pressed', 'false');
-      expect(inactive).toHaveStyle({
-        borderColor: 'var(--hairline)',
-        color: 'var(--ink-muted)',
-      });
+      expect(inactive).toHaveClass(
+        'border-[var(--hairline)]!',
+        'text-[var(--ink-muted)]',
+        'focus-visible:ring-2'
+      );
     });
 
     it('gives the active "all" pill the neutral treatment rather than a status tint', () => {
       renderListToolbar('all');
 
-      expect(screen.getByRole('button', { name: 'All statuses' })).toHaveStyle({
-        backgroundColor: 'var(--chip-selected-bg)',
-        borderColor: 'var(--chip-selected-border)',
-        color: 'var(--chip-selected-ink)',
-      });
+      expect(screen.getByRole('button', { name: 'All statuses' })).toHaveClass(
+        'bg-[var(--chip-selected-bg)]',
+        'border-[var(--chip-selected-border)]!',
+        'text-[var(--chip-selected-ink)]!'
+      );
     });
 
     it('falls back to the border colour when an active status omits one', () => {

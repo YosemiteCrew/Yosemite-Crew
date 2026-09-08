@@ -95,7 +95,7 @@ export const Populated: Story = {
     await expect(canvas.getByText('Booked')).toBeInTheDocument();
     // A WAITING row offers all three actions; a BOOKED row is terminal.
     await expect(canvas.getAllByRole('button', { name: 'Offer' }).length).toBe(2);
-    await expect(canvas.getAllByRole('button', { name: 'Book' }).length).toBe(3);
+    await expect(canvas.getAllByRole('button', { name: 'Book appointment' }).length).toBe(3);
   },
 };
 

@@ -15,6 +15,8 @@ export interface AccordionProps {
   /** Controlled open state. When provided the component is controlled. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Optional accessible name for the expand/collapse control. */
+  toggleAriaLabel?: string;
   /**
    * Override the title text class. Defaults to the panel section title
    * (14px / 700 / --ink), the same weight every drawer section uses.
@@ -42,6 +44,7 @@ const Accordion: React.FC<AccordionProps> = ({
   rightElement,
   open: controlledOpen,
   onOpenChange,
+  toggleAriaLabel,
   titleClassName = 'text-[14px] font-bold tracking-[-0.01em]',
 }) => {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
@@ -86,7 +89,7 @@ const Accordion: React.FC<AccordionProps> = ({
           className="flex min-h-8 flex-1 items-center gap-2.5 text-left"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
-          aria-label={title}
+          aria-label={toggleAriaLabel ?? title}
         >
           <IoIosArrowDown
             size={16}
