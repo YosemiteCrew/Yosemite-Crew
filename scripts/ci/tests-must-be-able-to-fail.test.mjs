@@ -128,10 +128,25 @@ test('nothing runnable is NOT read as proof', () => {
     source: ['a.ts'],
     tests: ['apps/frontend/e2e/x.spec.ts'],
     testsPassedAgainstBase: null,
-    nothingRunnable: true,
+    nothingRunnable: 'e2e-only',
   });
   assert.equal(r.ok, false);
   assert.match(r.reason, /does not run/);
+});
+
+test('every changed test deleted is NOT read as proof either', () => {
+  // PR #2889 deleted 3 dead components and their only tests. Asking jest to
+  // run a path it deleted doesn't error - `--passWithNoTests` exits 0 with
+  // zero tests executed, which this gate would otherwise misread as "the
+  // tests survived their own revert" (a real pass), when nothing ran at all.
+  const r = verdict({
+    source: ['a.ts'],
+    tests: ['a.test.ts'],
+    testsPassedAgainstBase: null,
+    nothingRunnable: 'all-tests-deleted',
+  });
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /DELETED/);
 });
 
 test('a genuine failure against the base is still a pass', () => {
@@ -150,7 +165,7 @@ test('the refactor label still excuses an unrunnable change', () => {
   const r = verdict({
     source: ['a.ts'],
     tests: ['apps/frontend/e2e/x.spec.ts'],
-    nothingRunnable: true,
+    nothingRunnable: 'e2e-only',
     allowUnchangedBehaviour: true,
   });
   assert.equal(r.ok, false, 'the label excuses a PASSING base run, not an unverifiable one');
