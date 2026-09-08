@@ -171,8 +171,9 @@ const meta = {
           'returned. The Head column resolves an id against the team store rather than printing ' +
           '`headName`, so a speciality whose head has left the practice renders an em dash ' +
           'instead of a stale name.\n\n' +
-          'Below `lg` the whole table is swapped for a card grid - both are always in the DOM ' +
-          'and a media query hides one - which is why every query here is a role query: the ' +
+          'Below 896px of available width the whole table is swapped for a card grid - both are ' +
+          'always in the DOM ' +
+          'and a container query hides one - which is why every query here is a role query: the ' +
           'hidden half is out of the accessibility tree but very much still in the text.',
       },
     },
@@ -180,9 +181,9 @@ const meta = {
   tags: ['autodocs'],
   /**
    * Pinned rather than left on the project default. Every query in this file is
-   * a role query against the `hidden lg:block` table, and the `lg:hidden` card
+   * a role query against the `hidden @4xl:block` table, and the `@4xl:hidden` card
    * grid renders the same names, the same counts and the same eye button. Above
-   * 1024px the card grid is `display:none` and out of the accessibility tree, so
+   * 896px the card grid is `display:none` and out of the accessibility tree, so
    * the role queries resolve to exactly one node each; below it they resolve to
    * the OTHER half, `getAllByRole('columnheader')` returns nothing and every
    * story here fails. That threshold currently holds only because
@@ -241,6 +242,34 @@ export const Table: Story = {
           'The resting table. The speciality name is a link to the full catalog route carrying ' +
           '`?open=<id>`, while the eye button opens the drawer in place - two different ' +
           'destinations from one row, which is only obvious with both drawn.',
+      },
+    },
+  },
+};
+
+export const OverviewColumn: Story = {
+  name: 'Organization overview column',
+  tags: ['layout-regression'],
+  decorators: [
+    (Story) => (
+      <div className="w-[700px] max-w-full">
+        <Story />
+      </div>
+    ),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.queryByRole('columnheader')).not.toBeInTheDocument();
+    await expect(canvas.getAllByRole('button', { name: 'View details' })).toHaveLength(2);
+    await expect(canvas.getByRole('button', { name: 'Manage' })).toBeInTheDocument();
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The section at the width it receives in the Organization overview. Its own container ' +
+          'selects the compact card layout even when the browser viewport is wide.',
       },
     },
   },
