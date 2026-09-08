@@ -15,12 +15,19 @@ export type Violation = { rule: string; detail: string };
 
 /** Text a component was supposed to humanise and did not: PARENT_TASK, OUT_OF_STOCK. */
 export const rawEnumViolations = (texts: readonly string[]): Violation[] =>
-  texts
-    // Underscore required. Bare capitals are ordinary product vocabulary here -
-    // DHPP, FHIR, DEA - and flagging them would make the rule noise, which is
-    // how a rule gets switched off.
-    .filter((t) => /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/.test(t.trim()))
-    .map((t) => ({ rule: 'raw-enum', detail: t.trim() }));
+  texts.flatMap((t) =>
+    // Searched WITHIN the node, not anchored to it. The defect this rule exists
+    // for renders as "MEDICATION • PARENT_TASK" in a single text node, and an
+    // anchored match returned nothing for exactly that string.
+    //
+    // Underscore still required. Bare capitals are ordinary product vocabulary
+    // here - DHPP, FHIR, DEA - and flagging them would make the rule noise,
+    // which is how a rule gets switched off.
+    [...t.matchAll(/\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/g)].map((m) => ({
+      rule: 'raw-enum',
+      detail: m[0],
+    }))
+  );
 
 /** Database identifiers rendered to a vet: 6971e5d25934bff94ee07942. */
 export const rawIdViolations = (texts: readonly string[]): Violation[] =>
@@ -148,4 +155,28 @@ export const throttleDelayMs = ({
   if (remaining === undefined || remaining > lowWater) return 0;
   if (resetAtMs === undefined) return 0;
   return Math.max(0, resetAtMs - now);
+};
+
+/**
+ * Violations not already accounted for by the baseline, comparing MULTIPLICITY
+ * rather than membership.
+ *
+ * `includes` treats the baseline as a set: with one raw id already recorded, a
+ * regression rendering the same id in a second component matched the single
+ * baseline entry and reported nothing. Each baseline line now excuses exactly
+ * one occurrence.
+ */
+export const regressionsAgainstBaseline = (
+  found: readonly string[],
+  baseline: readonly string[],
+): string[] => {
+  const budget = new Map<string, number>();
+  for (const line of baseline) budget.set(line, (budget.get(line) ?? 0) + 1);
+  const out: string[] = [];
+  for (const line of found) {
+    const left = budget.get(line) ?? 0;
+    if (left > 0) budget.set(line, left - 1);
+    else out.push(line);
+  }
+  return out;
 };

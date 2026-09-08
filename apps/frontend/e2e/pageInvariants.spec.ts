@@ -7,6 +7,7 @@ import {
   placeholderValueViolations,
   rawEnumViolations,
   rawIdViolations,
+  regressionsAgainstBaseline,
   staleForwardLookingViolations,
   throttleDelayMs,
 } from './support/pageInvariants';
@@ -22,6 +23,18 @@ test.describe('raw enums', () => {
   test('catches the value seen on the patient history', () => {
     expect(rawEnumViolations(['PARENT_TASK'])).toHaveLength(1);
     expect(rawEnumViolations(['OUT_OF_STOCK', 'LOW_STOCK'])).toHaveLength(2);
+  });
+
+  test('catches an enum embedded in a longer node, which is how it renders', () => {
+    // The literal string from the patient history. An anchored match returned
+    // nothing for exactly this, so the rule missed the defect it exists for.
+    const found = rawEnumViolations(['MEDICATION • PARENT_TASK']);
+    expect(found).toHaveLength(1);
+    expect(found[0].detail).toBe('PARENT_TASK');
+  });
+
+  test('reports every enum in a node, not just the first', () => {
+    expect(rawEnumViolations(['OUT_OF_STOCK and LOW_STOCK'])).toHaveLength(2);
   });
 
   test('does not fire on this product vocabulary', () => {
@@ -189,5 +202,25 @@ test.describe('rate-limit throttling', () => {
   test('respects the low-water mark it is given', () => {
     expect(throttleDelayMs({ remaining: 50, resetAtMs: NOW + 1_000, now: NOW, lowWater: 10 })).toBe(0);
     expect(throttleDelayMs({ remaining: 50, resetAtMs: NOW + 1_000, now: NOW, lowWater: 100 })).toBe(1_000);
+  });
+});
+
+test.describe('baseline comparison', () => {
+  test('excuses exactly one occurrence per baseline line', () => {
+    // One raw id already recorded; a regression renders the same id in a second
+    // component. Set membership reported nothing for this.
+    const found = ['/inventory  [raw-id]  abc', '/inventory  [raw-id]  abc'];
+    expect(regressionsAgainstBaseline(found, ['/inventory  [raw-id]  abc'])).toEqual([
+      '/inventory  [raw-id]  abc',
+    ]);
+  });
+
+  test('reports nothing when the baseline covers every occurrence', () => {
+    const found = ['x', 'x'];
+    expect(regressionsAgainstBaseline(found, ['x', 'x'])).toEqual([]);
+  });
+
+  test('reports everything when there is no baseline', () => {
+    expect(regressionsAgainstBaseline(['a', 'b'], [])).toEqual(['a', 'b']);
   });
 });
