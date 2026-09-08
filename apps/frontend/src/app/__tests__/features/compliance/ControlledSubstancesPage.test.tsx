@@ -57,6 +57,7 @@ jest.mock('@/app/features/compliance/components/ControlledSubstanceRegister', ()
     canRecord: boolean;
     creating: boolean;
     createError: string | null;
+    dateRange: { fromDate?: string; toDate?: string };
     onCreate: (input: typeof SAMPLE_INPUT) => void;
     entries: Array<{ id: string }>;
   }) => (
@@ -64,6 +65,8 @@ jest.mock('@/app/features/compliance/components/ControlledSubstanceRegister', ()
       <span data-testid="entry-count">{props.entries.length}</span>
       <span data-testid="can-record">{String(props.canRecord)}</span>
       <span data-testid="create-error">{props.createError ?? ''}</span>
+      <span data-testid="from-date">{props.dateRange.fromDate}</span>
+      <span data-testid="to-date">{props.dateRange.toDate}</span>
       <button type="button" onClick={() => props.onCreate(SAMPLE_INPUT)}>
         fire-create
       </button>
@@ -92,12 +95,24 @@ beforeEach(() => {
   });
 });
 
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 describe('ProtectedControlledSubstances', () => {
-  it('wires the register with the primary org logs and record permission', () => {
+  it('loads the most recent 30 days by default', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-08T10:30:00.000Z'));
+
     render(<ProtectedControlledSubstances />);
+
     expect(screen.getByTestId('entry-count')).toHaveTextContent('1');
     expect(screen.getByTestId('can-record')).toHaveTextContent('true');
-    expect(mockUseLogs).toHaveBeenCalledWith('org-1', {});
+    expect(screen.getByTestId('from-date')).toHaveTextContent('2026-08-10T00:00:00.000Z');
+    expect(screen.getByTestId('to-date')).toHaveTextContent('2026-09-08T23:59:59.999Z');
+    expect(mockUseLogs).toHaveBeenCalledWith('org-1', {
+      fromDate: '2026-08-10T00:00:00.000Z',
+      toDate: '2026-09-08T23:59:59.999Z',
+    });
     expect(can).toHaveBeenCalledWith({ anyOf: [PERMISSIONS.CONTROLLED_DRUG_REGISTER_RECORD] });
   });
 
