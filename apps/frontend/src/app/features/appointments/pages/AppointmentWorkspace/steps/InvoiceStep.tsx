@@ -10,8 +10,7 @@ import {
   IoShareOutline,
 } from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
-import SharedStatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
-import type { StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
+import SharedStatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import { Textarea } from '@/app/ui/Input';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import TotalBillContainer from '@/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer';
