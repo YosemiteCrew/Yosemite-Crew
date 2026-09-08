@@ -19,6 +19,18 @@ import {
 import type { CreateControlledSubstanceLogInput } from '@/app/features/compliance/types/controlledSubstance';
 
 const PAGE_SKELETON = <PageSkeleton variant="list" />;
+const DEFAULT_RANGE_DAYS = 30;
+
+const createDefaultDateRange = (): ControlledSubstanceDateRange => {
+  const toDate = new Date();
+  toDate.setUTCHours(23, 59, 59, 999);
+
+  const fromDate = new Date(toDate);
+  fromDate.setUTCDate(fromDate.getUTCDate() - (DEFAULT_RANGE_DAYS - 1));
+  fromDate.setUTCHours(0, 0, 0, 0);
+
+  return { fromDate: fromDate.toISOString(), toDate: toDate.toISOString() };
+};
 
 const ControlledSubstancesContent = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
@@ -26,7 +38,7 @@ const ControlledSubstancesContent = () => {
   const { can } = usePermissions();
   const canRecord = can({ anyOf: [PERMISSIONS.CONTROLLED_DRUG_REGISTER_RECORD] });
 
-  const [dateRange, setDateRange] = useState<ControlledSubstanceDateRange>({});
+  const [dateRange, setDateRange] = useState<ControlledSubstanceDateRange>(createDefaultDateRange);
   const { logs, loading, error, reload } = useControlledSubstanceLogs(
     primaryOrgId ?? undefined,
     dateRange
