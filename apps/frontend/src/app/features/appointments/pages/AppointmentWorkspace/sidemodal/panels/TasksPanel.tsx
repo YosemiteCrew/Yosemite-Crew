@@ -8,8 +8,7 @@ import {
   IoPencilOutline,
 } from 'react-icons/io5';
 import TabToggle from '@/app/ui/primitives/TabToggle/TabToggle';
-import SharedStatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
-import type { StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
+import SharedStatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
