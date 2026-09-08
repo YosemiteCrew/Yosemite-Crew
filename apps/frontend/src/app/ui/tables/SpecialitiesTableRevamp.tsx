@@ -29,6 +29,20 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
   const allPackages = useRevampCatalogStore(useShallow((s) => s.packages));
   const teams = useTeamForPrimaryOrg();
 
+  const getServiceCount = (item: SpecialityWeb) => {
+    const id = getRevampId(item);
+    const catalogCount = id
+      ? allServices.filter((service) => service.specialityId === id && service.status === 'ACTIVE')
+          .length
+      : 0;
+    return catalogCount > 0
+      ? catalogCount
+      : (item.activeServiceCount ?? item.services?.length ?? 0);
+  };
+
+  const getHeadName = (item: SpecialityWeb) =>
+    item.headName ?? teams?.find((team) => team.practionerId === item.headUserId)?.name;
+
   const columns: Column<SpecialityWeb>[] = [
     {
       label: 'Speciality',
@@ -55,13 +69,7 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
       key: 'Services',
       width: '100px',
       render: (item: SpecialityWeb) => {
-        const id = getRevampId(item);
-        const revampCount = id
-          ? allServices.filter((s) => s.specialityId === id && s.status === 'ACTIVE').length
-          : 0;
-        const count =
-          revampCount > 0 ? revampCount : (item.activeServiceCount ?? item.services?.length ?? 0);
-        return <ProfileTitle>{count}</ProfileTitle>;
+        return <ProfileTitle>{getServiceCount(item)}</ProfileTitle>;
       },
     },
     {
@@ -83,7 +91,7 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
       width: '28%',
       render: (item: SpecialityWeb) => {
         const headTeam = teams?.find((t) => t.practionerId === item.headUserId);
-        const headName = item.headName ?? headTeam?.name;
+        const headName = getHeadName(item);
         if (!headName) return <ProfileTitle>{'—'}</ProfileTitle>;
         const picUrl = headTeam?.image ?? item.headProfilePicUrl;
         return (
@@ -142,6 +150,7 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
           bordered={false}
           pagination
           pageSize={5}
+          embedded
         />
       </div>
       {/* Responsive card grid below lg: 1 col on mobile, 2 on sm, 3 on md */}
@@ -153,6 +162,8 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
             <SpecialitiesCard
               key={(item._id ?? item.name ?? '') + i}
               speciality={item}
+              serviceLabel={String(getServiceCount(item))}
+              headLabel={getHeadName(item) ?? '—'}
               handleViewSpeciality={() => onManageTeam(item)}
             />
           ))

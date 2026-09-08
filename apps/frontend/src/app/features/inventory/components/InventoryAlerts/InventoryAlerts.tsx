@@ -16,6 +16,8 @@ export type InventoryAlertsProps = {
   error?: string | null;
   /** Window used for the "Nothing expiring in the next N days" empty copy. Default 30. */
   expiringWindowDays?: number;
+  onViewLowStock?: (items: LowStockAlertItem[]) => void;
+  onViewExpiring?: (batches: ExpiringAlertBatch[]) => void;
 };
 
 const DAY_MS = 86_400_000;
@@ -50,9 +52,10 @@ type AlertCardProps = {
   title: string;
   count: number;
   children: React.ReactNode;
+  onView?: () => void;
 };
 
-const AlertCard = ({ icon, title, count, children }: AlertCardProps) => {
+const AlertCard = ({ icon, title, count, children, onView }: AlertCardProps) => {
   const headingId = `inventory-alerts-${title.toLowerCase().replace(/\s+/g, '-')}`;
   return (
     <section className={cardClass} aria-labelledby={headingId}>
@@ -68,9 +71,20 @@ const AlertCard = ({ icon, title, count, children }: AlertCardProps) => {
         )}
       </header>
       {children}
+      {count > 0 && onView && (
+        <button
+          type="button"
+          onClick={onView}
+          className="border-t border-[var(--divider)] px-4 py-2.5 text-left text-[12px] font-semibold text-[var(--blue-text)] transition-colors hover:bg-[var(--inset)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--blue)]"
+        >
+          View all {count} in catalog
+        </button>
+      )}
     </section>
   );
 };
+
+const PREVIEW_LIMIT = 3;
 
 const LowStockRow = ({ item }: { item: LowStockAlertItem }) => {
   const out = (item.onHand ?? 0) <= 0;
@@ -137,6 +151,8 @@ const InventoryAlerts = ({
   loading = false,
   error = null,
   expiringWindowDays = 30,
+  onViewLowStock,
+  onViewExpiring,
 }: InventoryAlertsProps) => {
   // `now` is captured once per render so every row in a pass agrees on "today".
   // Fresh each render so relative day labels never go stale; one value per
@@ -148,7 +164,7 @@ const InventoryAlerts = ({
     if (lowStock.length === 0) return <PanelEmptyState message="No low-stock items" />;
     return (
       <ul className="divide-y divide-[var(--divider)]">
-        {lowStock.map((item) => (
+        {lowStock.slice(0, PREVIEW_LIMIT).map((item) => (
           <LowStockRow key={item.id} item={item} />
         ))}
       </ul>
@@ -164,7 +180,7 @@ const InventoryAlerts = ({
     }
     return (
       <ul className="divide-y divide-[var(--divider)]">
-        {expiring.map((batch) => (
+        {expiring.slice(0, PREVIEW_LIMIT).map((batch) => (
           <ExpiringRow key={batch.id} batch={batch} now={now} />
         ))}
       </ul>
@@ -186,6 +202,7 @@ const InventoryAlerts = ({
           icon={<IoAlertCircleOutline size={18} />}
           title="Low stock"
           count={loading ? 0 : lowStock.length}
+          onView={onViewLowStock ? () => onViewLowStock(lowStock) : undefined}
         >
           {lowStockBody}
         </AlertCard>
@@ -193,6 +210,7 @@ const InventoryAlerts = ({
           icon={<IoTimeOutline size={18} />}
           title="Expiring soon"
           count={loading ? 0 : expiring.length}
+          onView={onViewExpiring ? () => onViewExpiring(expiring) : undefined}
         >
           {expiringBody}
         </AlertCard>

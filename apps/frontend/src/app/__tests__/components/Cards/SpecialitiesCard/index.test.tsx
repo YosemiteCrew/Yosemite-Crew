@@ -74,16 +74,26 @@ describe('SpecialitiesCard Component', () => {
     expect(screen.getByText('0')).toBeInTheDocument();
   });
 
-  it('handles missing team members (undefined) gracefully', () => {
+  it('shows zero when team members are missing', () => {
     const noTeamSpec = { ...mockSpeciality, teamMemberIds: undefined } as any;
 
     render(<SpecialitiesCard speciality={noTeamSpec} handleViewSpeciality={mockHandleView} />);
 
-    // Accessing length on undefined via ?. returns undefined.
-    // React renders nothing for undefined.
-    // We verify the label exists, but no number is rendered.
     expect(screen.getByText('Assigned team members:')).toBeInTheDocument();
-    // Ensure "3" or "0" is NOT found nearby
-    expect(screen.queryByText('0')).not.toBeInTheDocument();
+    expect(screen.getByText('0')).toBeInTheDocument();
+  });
+
+  it('uses resolved mobile labels when provided', () => {
+    render(
+      <SpecialitiesCard
+        speciality={{ ...mockSpeciality, services: [], headName: undefined }}
+        serviceLabel="3"
+        headLabel="Dr. Team"
+        handleViewSpeciality={mockHandleView}
+      />
+    );
+
+    expect(screen.getByText('Services:').parentElement).toHaveTextContent('Services:3');
+    expect(screen.getByText('Dr. Team')).toBeInTheDocument();
   });
 });

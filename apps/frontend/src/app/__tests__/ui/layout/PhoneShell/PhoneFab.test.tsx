@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import PhoneFab from '@/app/ui/layout/PhoneShell/PhoneFab';
@@ -30,5 +32,16 @@ describe('PhoneFab', () => {
     render(<PhoneFab action={action} onAction={onAction} />);
     fireEvent.click(screen.getByRole('button', { name: 'New appointment' }));
     expect(onAction).toHaveBeenCalledWith(action);
+  });
+
+  it('reserves the FAB and tab-bar dock below phone content', () => {
+    const css = readFileSync(
+      join(__dirname, '../../../../ui/layout/PhoneShell/PhoneShell.css'),
+      'utf8'
+    );
+
+    expect(css).toMatch(
+      /padding-bottom:\s*max\(\s*calc\(124px \+ env\(safe-area-inset-bottom, 0px\)\)/
+    );
   });
 });

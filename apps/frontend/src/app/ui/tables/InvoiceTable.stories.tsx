@@ -100,8 +100,8 @@ const meta = {
       description: {
         component:
           'The finance list, which is three separate renderings of one array rather than one ' +
-          'responsive table: a ten-column ledger above 1280, a six-column tablet table between 768 ' +
-          'and 1279 (Services and Appointment fold into the identity sub-line, Subtotal/Discount/Tax fold ' +
+          'responsive table: a ten-column ledger above 1536, a six-column tablet/laptop table between 768 ' +
+          'and 1535 (Services and Appointment fold into the identity sub-line, Subtotal/Discount/Tax fold ' +
           'under Total), and a card band below 768. All three are always in the DOM; Tailwind ' +
           'hides two of them.\n\n' +
           'That is why the phone band’s empty state had never been drawn. It is its own branch - ' +

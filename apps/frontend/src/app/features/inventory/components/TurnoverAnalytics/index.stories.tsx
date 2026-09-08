@@ -205,7 +205,6 @@ const meta = {
   args: {
     turnover: TURNOVER,
     inventory: INVENTORY,
-    setActiveView: fn(),
     onReorder: fn(),
     onViewHistory: fn(),
   },

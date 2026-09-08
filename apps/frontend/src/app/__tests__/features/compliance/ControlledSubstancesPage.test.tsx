@@ -11,6 +11,7 @@ import {
 import { useOrgStore } from '@/app/stores/orgStore';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { useNotify } from '@/app/hooks/useNotify';
+import { PERMISSIONS } from '@/app/lib/permissions';
 
 jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   __esModule: true,
@@ -97,6 +98,7 @@ describe('ProtectedControlledSubstances', () => {
     expect(screen.getByTestId('entry-count')).toHaveTextContent('1');
     expect(screen.getByTestId('can-record')).toHaveTextContent('true');
     expect(mockUseLogs).toHaveBeenCalledWith('org-1', {});
+    expect(can).toHaveBeenCalledWith({ anyOf: [PERMISSIONS.CONTROLLED_DRUG_REGISTER_RECORD] });
   });
 
   it('logs an entry, notifies success and reloads', async () => {

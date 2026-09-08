@@ -40,7 +40,7 @@ export type WaitlistProps = {
   /** Id of the entry whose action is in flight, so its buttons disable. */
   busyEntryId?: string | null;
   onOffer?: (id: string) => void;
-  onBook?: (id: string) => void;
+  onBook?: (entry: WaitlistEntryView) => void;
   onCancel?: (id: string) => void;
   /** Resolves true when the entry was added, so the form can reset and close. */
   onAdd?: (payload: AddToWaitlistPayload) => Promise<boolean>;
@@ -75,7 +75,7 @@ const ACTIONS_BY_STATUS: Record<WaitlistStatus, WaitlistAction[]> = {
 
 const ACTION_LABEL: Record<WaitlistAction, string> = {
   offer: 'Offer',
-  book: 'Book',
+  book: 'Book appointment',
   cancel: 'Cancel',
 };
 
@@ -136,10 +136,14 @@ const WaitlistRow = ({
   position: number | null;
   busy: boolean;
   onOffer?: (id: string) => void;
-  onBook?: (id: string) => void;
+  onBook?: (entry: WaitlistEntryView) => void;
   onCancel?: (id: string) => void;
 }) => {
-  const handlers = { offer: onOffer, book: onBook, cancel: onCancel };
+  const handlers = {
+    offer: onOffer,
+    book: onBook ? () => onBook(entry) : undefined,
+    cancel: onCancel,
+  };
   const serviceReason = [entry.appointmentType, entry.notes].filter(Boolean).join(' · ');
   const added = absoluteDate(entry.createdAt);
   const actions = ACTIONS_BY_STATUS[entry.status].filter((action) => handlers[action]);

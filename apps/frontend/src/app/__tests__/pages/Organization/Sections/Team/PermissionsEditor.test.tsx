@@ -132,6 +132,50 @@ describe('PermissionsEditor component', () => {
     expect(saved.revokedPermissions).not.toContain(PERMISSIONS.ANALYTICS_VIEW_ANY);
   });
 
+  it('assigns register read, record and correct as explicit extras', async () => {
+    render(
+      <PermissionsEditor
+        role="RECEPTIONIST"
+        value={ROLE_PERMISSIONS.RECEPTIONIST}
+        onSave={mockOnSave}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText('Controlled drug register edit permission'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockOnSave).toHaveBeenCalled());
+    expect(mockOnSave).toHaveBeenCalledWith({
+      extraPerissions: expect.arrayContaining([
+        PERMISSIONS.CONTROLLED_DRUG_REGISTER_READ,
+        PERMISSIONS.CONTROLLED_DRUG_REGISTER_RECORD,
+        PERMISSIONS.CONTROLLED_DRUG_REGISTER_CORRECT,
+      ]),
+      revokedPermissions: [],
+    });
+  });
+
+  it('restores only a veterinarian’s baseline register permission', async () => {
+    render(
+      <PermissionsEditor
+        role="VETERINARIAN"
+        value={ROLE_PERMISSIONS.VETERINARIAN}
+        onSave={mockOnSave}
+      />
+    );
+
+    const registerEdit = screen.getByLabelText('Controlled drug register edit permission');
+    fireEvent.click(registerEdit);
+    fireEvent.click(registerEdit);
+    fireEvent.click(screen.getByLabelText('Inventory edit permission'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockOnSave).toHaveBeenCalled());
+    const saved = mockOnSave.mock.calls.at(-1)?.[0];
+    expect(saved.extraPerissions).not.toContain(PERMISSIONS.CONTROLLED_DRUG_REGISTER_CORRECT);
+    expect(saved.revokedPermissions).not.toContain(PERMISSIONS.CONTROLLED_DRUG_REGISTER_RECORD);
+  });
+
   it('locks Teams and Organization for an owner and never revokes them', async () => {
     // An owner must keep the permissions that gate the screens they would use
     // to reverse a change; the checkboxes are disabled and the save can't drop them.

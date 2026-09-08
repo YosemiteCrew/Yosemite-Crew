@@ -1110,7 +1110,13 @@ const InhouseLabForm = ({ s }: { s: UseLabTestsReturn }) => (
 );
 
 const LabOrderForm = ({ s }: { s: UseLabTestsReturn }) => (
-  <Accordion title="Create lab order" defaultOpen showEditIcon={false} isEditing>
+  <Accordion
+    title="Create lab order"
+    toggleAriaLabel="Toggle Create lab order section"
+    defaultOpen
+    showEditIcon={false}
+    isEditing
+  >
     <div className="flex flex-col gap-3 py-2">
       <LabelDropdown
         placeholder="Modality"

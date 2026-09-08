@@ -56,6 +56,7 @@ const capturedColumnWidths = () => {
       actions: widthOf(columnsFor(true), 'actions'),
     },
     tablet: {
+      invoice: widthOf(columnsFor(false), 'invoice-number'),
       status: widthOf(columnsFor(false), 'status'),
       parent: widthOf(columnsFor(false), 'appointment-id'),
       actions: widthOf(columnsFor(false), 'actions'),
@@ -76,11 +77,15 @@ jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => ({
       <div data-testid={`${prefix}generic-table`}>
         {data.map((item: any, idx: number) => (
           <div key={item.id + idx} data-testid={`${prefix}row`}>
-            {columns.map((col: any) => (
-              <div key={col.key} data-testid={`${prefix}cell-${col.key}`}>
-                {col.render ? col.render(item) : item[col.key]}
-              </div>
-            ))}
+            {columns.map((col: any) => {
+              const { render: cellRenderer, key } = col;
+              const content = cellRenderer ? cellRenderer(item) : item[key];
+              return (
+                <div key={key} data-testid={`${prefix}cell-${key}`}>
+                  {content}
+                </div>
+              );
+            })}
           </div>
         ))}
       </div>
@@ -166,7 +171,7 @@ describe('InvoiceTable', () => {
     fireEvent.click(desktop.getByRole('button', { name: 'Open finance details for Buddy' }));
 
     expect(desktop.getByText('Sam / Buddy')).toBeInTheDocument();
-    expect(desktop.getByText('#inv-1')).toBeInTheDocument();
+    expect(desktop.getByText('#inv-1')).toHaveClass('cell-truncate');
     expect(desktop.getByTestId('companion-avatar').parentElement?.tagName).toBe('DIV');
     // Design's date cell is one muted line — the time rides the identity
     // sub-line, so it is not repeated here.
@@ -338,7 +343,15 @@ describe('InvoiceTable', () => {
     expect(formatDateLabel).not.toHaveBeenCalledWith(dated.createdAt);
   });
 
-  describe('tablet column set (768-1279)', () => {
+  describe('tablet/laptop column set (768-1535)', () => {
+    it('keeps the full ledger off laptop widths where the persistent sidebar leaves it too narrow', () => {
+      const { container } = render(<InvoiceTable filteredList={[invoice]} />);
+
+      const bands = [...container.querySelectorAll('div')];
+      expect(bands.some((band) => band.classList.contains('2xl:flex'))).toBe(true);
+      expect(bands.some((band) => band.classList.contains('2xl:hidden'))).toBe(true);
+    });
+
     it('prunes to six columns and folds the dropped meta into the sub-lines', () => {
       useAppointmentsForPrimaryOrgMock.mockReturnValue([
         {
@@ -395,6 +408,14 @@ describe('InvoiceTable', () => {
       const widths = capturedColumnWidths();
       expect(Number.parseInt(widths.desktop.status, 10)).toBeGreaterThanOrEqual(176);
       expect(Number.parseInt(widths.tablet.status, 10)).toBeGreaterThanOrEqual(176);
+    });
+
+    it('keeps compact invoice references wide enough to show their full identifier', () => {
+      render(<InvoiceTable filteredList={[invoice]} />);
+
+      expect(Number.parseInt(capturedColumnWidths().tablet.invoice, 10)).toBeGreaterThanOrEqual(
+        140
+      );
     });
 
     it('gives Actions a column wide enough for its own header', () => {

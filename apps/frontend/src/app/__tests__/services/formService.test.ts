@@ -122,6 +122,7 @@ describe('formService', () => {
 
       expect(mockSetLoading).toHaveBeenCalledWith(true);
       expect(axiosService.getData).toHaveBeenCalledWith('/fhir/v1/form/admin/org-123/forms');
+      expect(mockSetLastFetched).toHaveBeenCalledWith('org-123', expect.any(String));
       expect(formUtils.mapQuestionnaireToUI).toHaveBeenCalledTimes(2);
       expect(mockSetForms).toHaveBeenCalledWith(
         expect.arrayContaining([expect.objectContaining({ mapped: true })]),
@@ -129,7 +130,6 @@ describe('formService', () => {
       );
       expect(result).toHaveLength(2);
       expect(mockSetLoading).toHaveBeenCalledWith(false);
-      expect(mockSetLastFetched).toHaveBeenCalledWith('org-123', expect.any(String));
     });
 
     it('merges legacy form rows with template-backed rows', async () => {
@@ -184,6 +184,7 @@ describe('formService', () => {
       await expect(loadForms()).rejects.toEqual(error);
       expect(mockSetError).toHaveBeenCalledWith('API Error');
       expect(mockSetLoading).toHaveBeenCalledWith(false);
+      expect(mockSetLastFetched).not.toHaveBeenCalled();
     });
 
     it('handles generic errors correctly', async () => {

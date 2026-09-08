@@ -48,8 +48,12 @@ import {
 // ─── UI mocks ─────────────────────────────────────────────────────────────────
 
 const mockNotify = jest.fn();
+const mockConfirm = jest.fn();
 jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: () => ({ notify: mockNotify }),
+}));
+jest.mock('@/app/ui/overlays/Modal/ConfirmModal', () => ({
+  useConfirm: () => ({ confirm: mockConfirm, confirmDialog: null }),
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
@@ -130,6 +134,7 @@ function setupMocks() {
 beforeEach(() => {
   jest.resetAllMocks();
   mockNotify.mockClear();
+  mockConfirm.mockResolvedValue(true);
   setupMocks();
 });
 
@@ -472,8 +477,12 @@ describe('FederationSection', () => {
       expect(screen.getByRole('button', { name: 'Broadcast emergency' })).toBeDisabled();
     });
 
-    it('calls announceEmergency when broadcast button clicked', async () => {
+    it('requires confirmation before broadcasting an emergency', async () => {
       (announceEmergency as jest.Mock).mockResolvedValueOnce(undefined);
+      let resolveConfirmation!: (approved: boolean) => void;
+      mockConfirm.mockImplementationOnce(
+        () => new Promise<boolean>((resolve) => (resolveConfirmation = resolve))
+      );
       render(<FederationSection />);
       await waitFor(() => screen.getByText('Emergency broadcast'));
 
@@ -485,6 +494,10 @@ describe('FederationSection', () => {
       });
 
       fireEvent.click(screen.getByRole('button', { name: 'Broadcast emergency' }));
+
+      await waitFor(() => expect(mockConfirm).toHaveBeenCalled());
+      expect(announceEmergency).not.toHaveBeenCalled();
+      await act(async () => resolveConfirmation(true));
 
       await waitFor(() =>
         expect(announceEmergency).toHaveBeenCalledWith('All staff alert', 'EMERGENCY')

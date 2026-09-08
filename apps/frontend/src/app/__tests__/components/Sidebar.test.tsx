@@ -68,6 +68,7 @@ const ALL_PERMISSIONS = [
   'billing:view:any',
   'companions:view:any',
   'inventory:view:any',
+  'controlled-drug-register:read',
   'integrations:view:any',
   'forms:view:any',
 ];

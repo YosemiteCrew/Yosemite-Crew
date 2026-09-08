@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 
 import type {
   ExpiringAlertBatch,
@@ -45,6 +45,15 @@ const LOW_STOCK: LowStockAlertItem[] = [
     category: 'Consumable',
     sku: 'SKU-0098',
   },
+  {
+    id: 'item-4',
+    name: 'Surgical gloves, medium',
+    onHand: 4,
+    reorderLevel: 20,
+    unitOfMeasure: 'box',
+    category: 'Consumable',
+    sku: 'SKU-0102',
+  },
 ];
 
 const EXPIRING: ExpiringAlertBatch[] = [
@@ -82,20 +91,22 @@ const meta = {
     docs: {
       description: {
         component:
-          'Two grouped alert lists for the inventory page — **Low stock** and **Expiring soon**. ' +
+          'Two bounded alert summaries for the inventory page — **Low stock** and **Expiring soon**. ' +
           'Presentational only: it renders the arrays the container passes and never fetches. ' +
           'A zero-on-hand item reads as danger ("Out of stock"); an already-expired batch reads ' +
           'as danger with a relative + absolute date. Each group has its own empty state.',
       },
     },
   },
-  tags: ['autodocs'],
+  tags: ['autodocs', 'inventory-alerts'],
   args: {
     lowStock: LOW_STOCK,
     expiring: EXPIRING,
     loading: false,
     error: null,
     expiringWindowDays: 30,
+    onViewLowStock: fn(),
+    onViewExpiring: fn(),
   },
   decorators: [
     (Story) => (
@@ -111,17 +122,23 @@ type Story = StoryObj<typeof meta>;
 
 export const Populated: Story = {
   name: 'Populated',
-  play: async ({ canvasElement }) => {
+  play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     // Both group headings render.
     await expect(canvas.getByText('Low stock')).toBeInTheDocument();
     await expect(canvas.getByText('Expiring soon')).toBeInTheDocument();
     // Low-stock rows, including the zero-on-hand danger case.
-    await expect(canvas.getByText('Meloxicam 15 mg/mL')).toBeInTheDocument();
+    await expect(canvas.getAllByText('Meloxicam 15 mg/mL').length).toBeGreaterThan(0);
     await expect(canvas.getByText('Out of stock')).toBeInTheDocument();
     await expect(canvas.getAllByText('Low').length).toBeGreaterThan(0);
     // The batch with no item relation falls back to its batch number as the title.
     await expect(canvas.getByText('B-2026-07')).toBeInTheDocument();
+    await expect(canvas.queryByText('Surgical gloves, medium')).not.toBeInTheDocument();
+    const lowStockRegion = canvas.getByRole('region', { name: 'Low stock' });
+    await userEvent.click(
+      within(lowStockRegion).getByRole('button', { name: 'View all 4 in catalog' })
+    );
+    await expect(args.onViewLowStock).toHaveBeenCalledTimes(1);
   },
   parameters: {
     docs: {

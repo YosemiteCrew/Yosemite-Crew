@@ -62,6 +62,25 @@ export const DangerToneActive: Story = {
   args: { ...DangerTone.args, active: true },
 };
 
+export const DomainStatusActive: Story = {
+  name: 'Domain status, active',
+  args: {
+    label: 'Awaiting payment',
+    active: true,
+    tokens: {
+      bg: 'var(--status-upcoming-bg)',
+      text: 'var(--status-upcoming-text)',
+      border: 'var(--status-upcoming-border)',
+    },
+  },
+};
+
+export const DomainStatusActiveDark: Story = {
+  ...DomainStatusActive,
+  name: 'Domain status, active (dark)',
+  globals: { theme: 'dark' },
+};
+
 const Row = () => {
   const options = [
     { key: 'all', label: 'All', count: 322 },

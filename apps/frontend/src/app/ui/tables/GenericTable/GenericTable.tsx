@@ -46,6 +46,8 @@ interface GenericTableProps<T extends object> {
   emptySubtitle?: string;
   /** Extra classes for one body row — used for row-level states (e.g. emergency). */
   rowClassName?: (item: T, index: number) => string;
+  /** Let an enclosing SectionCard own the surface so the table is not double-framed. */
+  embedded?: boolean;
 }
 
 // Bottom padding applied by .TableBodyScroll — must match Generictable.css
@@ -72,6 +74,7 @@ const GenericTable = <T extends object>({
   emptyTitle,
   emptySubtitle,
   rowClassName,
+  embedded = false,
 }: Readonly<GenericTableProps<T>>) => {
   const [currentPage, setCurrentPage] = useState(1);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -154,7 +157,9 @@ const GenericTable = <T extends object>({
       ref={containerRef}
       className={`flex min-h-0 w-full flex-col gap-3 overflow-hidden ${needsFill ? 'h-full' : 'h-auto'} ${showPagination ? 'pb-2' : ''}`}
     >
-      <div className={`yc-card-surface TableShell min-h-0 ${needsFill ? 'flex-1' : ''}`}>
+      <div
+        className={`${embedded ? '' : 'yc-card-surface'} TableShell min-h-0 ${needsFill ? 'flex-1' : ''}`}
+      >
         <div
           ref={bodyScrollRef}
           className={`TableBodyScroll min-h-0 overflow-y-auto scrollbar-custom ${needsFill ? 'h-full' : 'h-auto'}`}

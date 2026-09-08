@@ -9,6 +9,7 @@ import {
   updateInventoryBatch,
   updateInventoryItem,
 } from '@/app/features/inventory/services/inventoryService';
+import { EXPIRING_ALERT_WINDOW_DAYS } from '@/app/features/inventory/services/inventoryAlertsService';
 import {
   BatchValues,
   InventoryApiItem,
@@ -96,7 +97,11 @@ export const useInventoryModule = (businessType: BusinessType) => {
       inFlightLoads[organisationId] = (async () => {
         try {
           const [items, turnoverItems] = await Promise.all([
-            fetchInventoryItems(organisationId),
+            // Keep the catalogue's EXPIRING_SOON state in step with the alert panel's
+            // 30-day preview so its “View all” handoff cannot hide 8–30 day batches.
+            fetchInventoryItems(organisationId, {
+              expiringWithinDays: EXPIRING_ALERT_WINDOW_DAYS,
+            }),
             fetchInventoryTurnover(organisationId),
           ]);
           const mapped = items.map((item) =>

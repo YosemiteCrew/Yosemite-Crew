@@ -62,7 +62,7 @@ describe('Waitlist', () => {
 
     // WAITING -> Offer, Book, Cancel. OFFERED -> Book, Cancel (no Offer).
     expect(screen.getAllByRole('button', { name: 'Offer' })).toHaveLength(1);
-    expect(screen.getAllByRole('button', { name: 'Book' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Book appointment' })).toHaveLength(2);
     expect(screen.getAllByRole('button', { name: 'Cancel' })).toHaveLength(2);
   });
 
@@ -70,7 +70,7 @@ describe('Waitlist', () => {
     render(<Waitlist entries={[entry('1', 'BOOKED')]} {...handlers()} />);
 
     expect(screen.queryByRole('button', { name: 'Offer' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Book' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Book appointment' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
   });
 
@@ -82,6 +82,17 @@ describe('Waitlist', () => {
     await user.click(screen.getByRole('button', { name: 'Offer' }));
 
     expect(props.onOffer).toHaveBeenCalledWith('42');
+  });
+
+  it('passes the full entry to the appointment booking handoff', async () => {
+    const user = userEvent.setup();
+    const props = handlers();
+    const waitingEntry = entry('42', 'WAITING');
+    render(<Waitlist entries={[waitingEntry]} {...props} />);
+
+    await user.click(screen.getByRole('button', { name: 'Book appointment' }));
+
+    expect(props.onBook).toHaveBeenCalledWith(waitingEntry);
   });
 
   it('opens the add form and submits a payload', async () => {
