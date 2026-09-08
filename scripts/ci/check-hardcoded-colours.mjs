@@ -89,7 +89,40 @@ const MIN_FILES = 200;
    if it constrained something extra. What keeps `#1657c9ff` ONE finding rather
    than two is the order of the alternation plus this boundary, not the range
    inside it - the eight-digit selftest case is what holds that. */
-const HEX = /#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?!\w)/g;
+/* The four-digit branch refuses an ALL-DECIMAL token, because this repository's
+   issue numbers are four decimal digits and every four-digit match in the
+   baseline was a cross-reference rather than a colour - `#2298`, `#2297`,
+   `#1973`. Measured at 5580e9c35, by hex-token length:
+
+     bucket   total   all-decimal   has a-f
+          3      10             0        10
+          4      10            10         0
+          6     381            23       358
+          8       1             0         1
+
+   The narrowing is a fact about the FOUR-digit bucket, not a principle. Bucket
+   6 holds 23 all-decimal tokens that are genuine colours, so the same rule one
+   bucket over would suppress 23 real findings. Do not generalise it.
+
+   The cost runs the other way and is deliberate: `#1234` IS a legal `#RGBA`
+   colour and this branch now refuses it. Accepted because bucket 4 is 10/10
+   references and 0/10 colours today - so there is no current finding to lose -
+   and that ratio is the thing to re-measure. Note that NOTHING WILL ANNOUNCE
+   IT: a blind spot in a detector has no detector, so the day an all-decimal
+   RGBA lands, this gate is the component that will not say so. The re-measure
+   is periodic or it does not happen. The selftest pins the blind spot, so
+   restoring detection has to update a case rather than change behaviour
+   quietly.
+
+   The trade also changed KIND, not just size: a four-digit reference used to
+   be a loud false positive somebody triaged, and an all-decimal RGBA is now a
+   silent false negative. Accepted because the silent class is empty today;
+   recorded because that is the uncomfortable direction for a gate.
+
+   Five or more digits need nothing here: the trailing boundary already binds
+   to the whole alternation, so `#12345` was silent before this change too. */
+const HEX =
+  /#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|(?![0-9]{4}(?!\w))[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?!\w)/g;
 // Anchored on a DIGIT as the first argument so `rgb(var(--x) / 0.5)` - a token
 // use, not a literal - is not a finding, and carried to the closing paren so
 // the failure message shows the whole colour rather than `rgba(0`.
@@ -418,6 +451,11 @@ export const SELFTEST_CASES = [
   ['// #ff0000 was rejected', 0, 'hex inside a line comment'],
   ['const u = "https://example.com/a#ff0000";', 1, 'hex-looking URL fragment is still a literal'],
   ['const u = "https://example.com/docs"; // see #2822', 0, 'issue reference is not a colour'],
+  // The case above is stripped as a COMMENT, so it passes without the pattern
+  // being involved. These three exercise the pattern itself.
+  ['const s = "PR #2298 removed that override";', 0, 'four-digit issue reference in a string'],
+  ['const a = { color: "#e6dd" };', 1, 'four-digit hex carrying a letter is still a colour'],
+  ['const a = { color: "#1234" };', 0, 'DELIBERATE: all-decimal #RGBA is the accepted blind spot'],
   ['const c = "var(--blue-strong)";', 0, 'a token is the whole point'],
   ['const c = "var(--blue, #257bed)";', 1, 'a literal fallback pins a stale colour'],
   ['const u = "https://x.test"; const c = "#abc";', 1, 'a URL does not blank the rest of the line'],
