@@ -212,7 +212,7 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
             {device.deviceSerialNumber}
           </div>
         </div>
-        <StatusPill label={statusLabel} tokens={dt} showDot={statusKey === 'active'} />
+        <IntegrationStatusPill label={statusLabel} tokens={dt} showDot={statusKey === 'active'} />
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2 text-caption-1">
         <div className="text-text-secondary">Last cloud poll</div>
@@ -235,7 +235,7 @@ const NEUTRAL_FALLBACK_TOKENS: StatusTokens = {
   border: 'var(--color-card-border)',
 };
 
-const StatusPill = ({
+const IntegrationStatusPill = ({
   status,
   label,
   tokens: tokensOverride,
@@ -334,7 +334,7 @@ const RecentOrdersList = ({ orders }: { orders: LabOrder[] }) => {
             <span className="min-w-0 truncate font-semibold text-text-primary">
               {formatOrderLabel(order)}
             </span>
-            <StatusPill label={formatOrderStatusLabel(order.status)} tokens={tokens} />
+            <IntegrationStatusPill label={formatOrderStatusLabel(order.status)} tokens={tokens} />
           </div>
         );
       })}
@@ -824,7 +824,7 @@ export const IdexxSettingsModal = ({
               <div className="grid grid-cols-2 gap-2 text-caption-1">
                 <div className="text-text-secondary">Credentials status</div>
                 <div className="text-right">
-                  <StatusPill
+                  <IntegrationStatusPill
                     label={credentialsStatusLabel}
                     tokens={credentialsStatusTokens[credentialsStatusKey]}
                   />
@@ -839,7 +839,7 @@ export const IdexxSettingsModal = ({
             <div className="flex flex-col gap-3 py-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-body-4 text-text-primary">Current status</div>
-                <StatusPill status={idexxIntegration?.status} />
+                <IntegrationStatusPill status={idexxIntegration?.status} />
               </div>
               <div className="flex items-center justify-between gap-2">
                 <div className="text-caption-1 text-text-secondary">Connected since</div>
@@ -999,7 +999,7 @@ const IdexxIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           IDEXX VetConnect PLUS
         </div>
-        <StatusPill
+        <IntegrationStatusPill
           status={s.idexxIntegration?.status}
           label={s.idexxEnabled ? 'Connected' : undefined}
         />
@@ -1072,7 +1072,7 @@ const MerckIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           MSD Veterinary Manual
         </div>
-        <StatusPill status={s.merckIntegration?.status} />
+        <IntegrationStatusPill status={s.merckIntegration?.status} />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         Search the veterinary manual from the workspace side rail without leaving the visit. Free
@@ -1128,7 +1128,7 @@ const RadIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           RadAnalyzer
         </div>
-        <StatusPill status="coming-soon" label="Coming soon" />
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         Imaging and analyzer connectivity for diagnostic workflows in Yosemite Crew.
@@ -1153,7 +1153,7 @@ const VetnioIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           Vetnio
         </div>
-        <StatusPill status="coming-soon" label="Coming soon" />
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         AI-powered documentation for veterinary practices &mdash; instantly generate clinical notes,
@@ -1179,7 +1179,7 @@ const QuickBooksIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           QuickBooks
         </div>
-        <StatusPill status="coming-soon" label="Coming soon" />
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         Accounting sync for invoices, payments, customers, and financial workflows through
@@ -1205,7 +1205,7 @@ const LaikaIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           Laika
         </div>
-        <StatusPill status="coming-soon" label="Coming soon" />
+        <IntegrationStatusPill status="coming-soon" label="Coming soon" />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         AI-powered diagnostic support for veterinary clinicians &mdash; interpret lab results,

@@ -5,6 +5,7 @@
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
 import nextTypescript from 'eslint-config-next/typescript';
 import sonarjs from 'eslint-plugin-sonarjs';
+import noShadowedPrimitive from './eslint-rules/no-shadowed-primitive.mjs';
 
 const eslintConfig = [
   {
@@ -99,6 +100,16 @@ const eslintConfig = [
       'sonarjs/cognitive-complexity': 'off',
       'sonarjs/regex-complexity': 'off',
       'sonarjs/no-unused-vars': 'off',
+    },
+  },
+  {
+    // Freeze audit finding: a features/ file redeclaring a shared primitive's
+    // name (StatusPill, SectionCard, ...) silently diverges from the design
+    // system instead of importing it. See eslint-rules/no-shadowed-primitive.mjs.
+    files: ['src/app/features/**/*.{ts,tsx}'],
+    plugins: { local: noShadowedPrimitive },
+    rules: {
+      'local/no-shadowed-primitive': 'error',
     },
   },
   {
