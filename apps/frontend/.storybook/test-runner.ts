@@ -1,6 +1,29 @@
 import type { TestRunnerConfig } from '@storybook/test-runner';
 import { getStoryContext } from '@storybook/test-runner';
 
+type StorybookJestGlobals = typeof globalThis & {
+  context: Parameters<NonNullable<typeof globalThis.__sbSetupPage>>[1];
+  jestPlaywright: { resetPage: () => Promise<void> };
+  page: Parameters<NonNullable<typeof globalThis.__sbSetupPage>>[0];
+};
+
+async function restoreStorybookPage(
+  page: Parameters<NonNullable<TestRunnerConfig['preVisit']>>[0]
+) {
+  const hasContext = await page
+    .evaluate(() => typeof (globalThis as { __getContext?: unknown }).__getContext === 'function')
+    .catch(() => false);
+  if (hasContext) return page;
+
+  const globals = globalThis as StorybookJestGlobals;
+  const replacement = await globals.context.newPage();
+  await globals.__sbSetupPage(replacement, globals.context);
+  const previous = globals.page;
+  globals.page = replacement;
+  await previous?.close();
+  return replacement;
+}
+
 /**
  * The viewport sizes declared in preview.ts, restated here as numbers.
  *
@@ -39,7 +62,8 @@ const DEFAULT_VIEWPORT = 'laptop';
  */
 const config: TestRunnerConfig = {
   async preVisit(page, context) {
-    const storyContext = await getStoryContext(page, context);
+    const activePage = await restoreStorybookPage(page);
+    const storyContext = await getStoryContext(activePage, context);
     /* `storyGlobals`, not `globals`. Storybook 10's story context carries a
        story's own `globals` annotation under `storyGlobals`; `globals` is not a
        key on it at all, so this read was `undefined` for EVERY story and every
@@ -99,7 +123,7 @@ const config: TestRunnerConfig = {
       );
     }
 
-    await page.setViewportSize(size);
+    await activePage.setViewportSize(size);
   },
 };
 
