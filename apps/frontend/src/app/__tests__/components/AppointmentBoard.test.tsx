@@ -738,7 +738,15 @@ describe('AppointmentBoard', () => {
       />
     );
 
-    expect(screen.getByLabelText('Emergency appointment')).toBeInTheDocument();
+    // The board card renders the shared EmergencyBadge (icon + "Emergency" text, no
+    // aria-label of its own — see EmergencyBadge.tsx), not a bespoke labelled pill.
+    // "Emergency" text alone doesn't distinguish it from the old hand-rolled span,
+    // which rendered the same word - pin the two things that actually changed:
+    // the old aria-label is gone, and EmergencyBadge's size-override classes for
+    // this card's density are present.
+    expect(screen.getByText('Emergency')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Emergency appointment')).not.toBeInTheDocument();
+    expect(screen.getByText('Emergency').className).toContain('h-[15px]!');
     expect(screen.getByLabelText('Draggable appointment Buddy').className).toContain(
       'border-l-[var(--danger)]'
     );
