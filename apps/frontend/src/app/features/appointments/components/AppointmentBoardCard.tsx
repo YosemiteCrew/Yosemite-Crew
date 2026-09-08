@@ -19,7 +19,6 @@ import {
   IoEyeOutline,
   IoLocationOutline,
   IoTimeOutline,
-  IoWarning,
 } from 'react-icons/io5';
 import { RiHistoryLine } from 'react-icons/ri';
 import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
@@ -36,6 +35,7 @@ import {
 } from '@/app/lib/appointments';
 import { canEnterAppointmentWorkspace } from '@/app/lib/appointmentWorkspace';
 import AppointmentPaymentBadge from '@/app/features/appointments/components/AppointmentPaymentBadge';
+import EmergencyBadge from '@/app/features/appointments/components/EmergencyBadge';
 import {
   getBoardOrgType,
   isMutedBoardStatus,
@@ -180,13 +180,12 @@ const BoardCardHeader = ({
       </div>
     </div>
     {isEmergency && (
-      <span
-        className="shrink-0 inline-flex items-center gap-[3px] rounded-full border border-[var(--danger-border)] bg-[var(--danger-bg)] px-[7px] py-[2px] text-[8.5px] font-bold uppercase leading-none text-[var(--danger-text)]"
-        aria-label="Emergency appointment"
-      >
-        <IoWarning size={8} aria-hidden="true" />
-        Emergency
-      </span>
+      // EmergencyBadge's default 22px/12px size is fixed by design for the workspace
+      // header and popover (see EmergencyBadge.stories.tsx). The board card's row is
+      // built around an 8.5px/13px type scale, so every size property is overridden
+      // (`!important`, since EmergencyBadge sets them via inline `style`) to match
+      // this card's density while keeping the shared icon, copy and colour tokens.
+      <EmergencyBadge className="h-[15px]! shrink-0 gap-[3px]! rounded-full! px-[7px]! py-0! text-[8.5px]! font-bold! uppercase leading-none! [&>svg]:h-2! [&>svg]:w-2!" />
     )}
   </div>
 );
