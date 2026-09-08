@@ -137,6 +137,29 @@ const eslintConfig = [
       '@next/next/no-img-element': 'off',
     },
   },
+  {
+    /* Criterion 10 ratchet: the canonical Textarea owns the field contract
+       (label, help, error, required, disabled, 40px control). #2832 took the
+       raw-element count from 19 production files to 1; this keeps it there. */
+    files: ['**/*.tsx'],
+    ignores: ['**/__tests__/**', '**/*.test.tsx', '**/*.stories.tsx'],
+    rules: {
+      'react/forbid-elements': [
+        'error',
+        {
+          forbid: [
+            { element: 'textarea', message: 'Use Textarea from ui/primitives; it owns the shared field contract.' },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // ui/Input.tsx is the primitive implementation and the one place the raw
+    // element may appear. Any other exemption needs a reason on this line.
+    files: ['**/ui/Input.tsx'],
+    rules: { 'react/forbid-elements': 'off' },
+  },
 ];
 
 export default eslintConfig;
