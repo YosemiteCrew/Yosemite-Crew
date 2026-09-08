@@ -122,6 +122,13 @@ describe('FlagList', () => {
     expect(screen.queryByText('No active flags for this patient.')).not.toBeInTheDocument();
   });
 
+  it('withholds the active count while the error hides the retained records', () => {
+    render(<FlagList flags={FLAGS} error="Could not load patient flags." />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not load patient flags.');
+    expect(screen.queryByText('Use a muzzle')).not.toBeInTheDocument();
+    expect(screen.queryByText('2 active')).not.toBeInTheDocument();
+  });
+
   it('hides edit controls when the member cannot edit', () => {
     render(<FlagList flags={FLAGS} canEdit={false} />);
 

@@ -344,6 +344,7 @@ const AllergyList = ({
         title="Allergies"
         activeCount={activeCount}
         loading={loading}
+        error={error}
         canEdit={canEdit}
         showForm={showForm}
         onToggle={() => setShowForm((s) => !s)}

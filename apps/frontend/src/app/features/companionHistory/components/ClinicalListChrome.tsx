@@ -66,9 +66,11 @@ export type ClinicalListHeaderProps = {
   /** Must match the section's `aria-labelledby`. */
   headingId: string;
   title: string;
-  /** Count of active records; the pill is withheld while loading or at zero. */
+  /** Count of active records; the pill is withheld while loading, on error, or at zero. */
   activeCount: number;
   loading: boolean;
+  /** When set, the body shows only the error and the count pill is withheld. */
+  error?: string | null;
   canEdit: boolean;
   showForm: boolean;
   onToggle: () => void;
@@ -82,6 +84,7 @@ export const ClinicalListHeader = ({
   title,
   activeCount,
   loading,
+  error,
   canEdit,
   showForm,
   onToggle,
@@ -94,7 +97,7 @@ export const ClinicalListHeader = ({
     <h3 id={headingId} className="text-[13.5px] font-bold text-[var(--ink)]">
       {title}
     </h3>
-    {!loading && activeCount > 0 ? (
+    {!loading && !error && activeCount > 0 ? (
       <StatusPill label={`${activeCount} active`} tone="warning" className="ml-2 tabular-nums" />
     ) : null}
     {canEdit ? (
