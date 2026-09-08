@@ -25,7 +25,13 @@ const PRIMITIVES_DIR = path.join(HERE, '../src/app/ui/primitives');
 const SOURCE_FILE = /\.(ts|tsx)$/;
 const SKIP_FILE = /\.(stories|test|spec)\.[tj]sx?$/;
 
+// `export default Foo;` - a bare reference to a name declared earlier in the file.
 const DEFAULT_EXPORT = /^export\s+default\s+([A-Z][A-Za-z0-9_$]*)\s*;/gm;
+// `export default function Foo(...)` / `export default class Foo ...` - the
+// declaration and the export happen in one statement, so there's no bare
+// `export default Foo;` line for DEFAULT_EXPORT to match.
+const DEFAULT_INLINE_DECLARATION_EXPORT =
+  /^export\s+default\s+(?:function\s*\*?|class)\s+([A-Z][A-Za-z0-9_$]*)/gm;
 const NAMED_VALUE_EXPORT = /^export\s+(?:const|function|class)\s+([A-Z][A-Za-z0-9_$]*)/gm;
 // `export { default as Primary } from '...'` / `export { Foo, Bar as Baz }` -
 // deliberately excludes `export type { ... }`, which has "type" between
@@ -84,6 +90,7 @@ const buildPrimitiveIndex = () => {
       if (!index.has(name)) index.set(name, relPath);
     };
     for (const m of text.matchAll(DEFAULT_EXPORT)) add(m[1]);
+    for (const m of text.matchAll(DEFAULT_INLINE_DECLARATION_EXPORT)) add(m[1]);
     for (const m of text.matchAll(NAMED_VALUE_EXPORT)) add(m[1]);
     for (const m of text.matchAll(NAMED_LIST_EXPORT)) {
       namesFromExportList(m[1]).forEach(add);

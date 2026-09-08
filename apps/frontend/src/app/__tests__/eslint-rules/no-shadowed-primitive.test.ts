@@ -162,6 +162,24 @@ describe('no-shadowed-primitive', () => {
   });
 });
 
+const lintTsxWithPlugin = (plugin: unknown, code: string, filename: string) =>
+  new Linter().verify(
+    code,
+    [
+      {
+        files: ['**/*.tsx'],
+        languageOptions: {
+          ecmaVersion: 2022,
+          sourceType: 'module',
+          parserOptions: { ecmaFeatures: { jsx: true } },
+        },
+        plugins: { local: plugin },
+        rules: { 'local/no-shadowed-primitive': 'error' },
+      },
+    ] as never,
+    filename
+  );
+
 describe('no-shadowed-primitive - primitive index resilience', () => {
   afterEach(() => {
     jest.dontMock('node:fs');
@@ -181,23 +199,10 @@ describe('no-shadowed-primitive - primitive index resilience', () => {
     await jest.isolateModulesAsync(async () => {
       freshModule = await import('../../../../eslint-rules/no-shadowed-primitive.mjs');
     });
-    const freshPlugin = freshModule!.default;
 
-    const freshLinter = new Linter();
-    const messages = freshLinter.verify(
+    const messages = lintTsxWithPlugin(
+      freshModule!.default,
       'const StatusPill = () => null;\nexport default StatusPill;\n',
-      [
-        {
-          files: ['**/*.tsx'],
-          languageOptions: {
-            ecmaVersion: 2022,
-            sourceType: 'module',
-            parserOptions: { ecmaFeatures: { jsx: true } },
-          },
-          plugins: { local: freshPlugin },
-          rules: { 'local/no-shadowed-primitive': 'error' },
-        },
-      ] as never,
       'src/app/features/widgets/Bad.tsx'
     );
 
@@ -205,5 +210,44 @@ describe('no-shadowed-primitive - primitive index resilience', () => {
     // silently allow the OPPOSITE - reporting spurious findings from an
     // empty/garbage index. The safe failure mode is "no findings at all".
     expect(messages).toHaveLength(0);
+  });
+
+  it('indexes `export default function Foo()` and `export default class Bar`, not just `export default Name;`', async () => {
+    jest.resetModules();
+    const actualFs = jest.requireActual('node:fs');
+    // Real directory listing, but StatusPill.tsx's content is swapped for a
+    // fixture using the inline declaration forms - the two this rule's
+    // DEFAULT_EXPORT regex could not see before this fix.
+    jest.doMock('node:fs', () => ({
+      ...actualFs,
+      readFileSync: (filePath: string, ...rest: unknown[]) => {
+        if (typeof filePath === 'string' && filePath.endsWith('StatusPill.tsx')) {
+          return (
+            'export default function InlineFuncPrimitive() { return null; }\n' +
+            'export default class InlineClassPrimitive {}\n'
+          );
+        }
+        return actualFs.readFileSync(filePath, ...rest);
+      },
+    }));
+
+    let freshModule: { default: typeof ruleModule };
+    await jest.isolateModulesAsync(async () => {
+      freshModule = await import('../../../../eslint-rules/no-shadowed-primitive.mjs');
+    });
+
+    const funcMessages = lintTsxWithPlugin(
+      freshModule!.default,
+      'const InlineFuncPrimitive = () => null;\nexport default InlineFuncPrimitive;\n',
+      'src/app/features/widgets/Bad5.tsx'
+    );
+    expect(funcMessages).toHaveLength(1);
+
+    const classMessages = lintTsxWithPlugin(
+      freshModule!.default,
+      'const InlineClassPrimitive = () => null;\nexport default InlineClassPrimitive;\n',
+      'src/app/features/widgets/Bad6.tsx'
+    );
+    expect(classMessages).toHaveLength(1);
   });
 });
