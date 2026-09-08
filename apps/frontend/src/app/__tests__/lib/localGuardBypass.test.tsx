@@ -154,4 +154,21 @@ describe('the render-time form', () => {
     // answer. The plain function reads window.location and diverges.
     expect(offenders.map((f) => relative(root, f))).toEqual([]);
   });
+
+  it('keeps the public bypass flag behind the shared helper', () => {
+    const root = join(__dirname, '..', '..');
+    const walkSource = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) return entry.name === '__tests__' ? [] : walkSource(full);
+        return entry.isFile() && /\.tsx?$/.test(full) && !full.endsWith('.stories.tsx')
+          ? [full]
+          : [];
+      });
+    const readers = walkSource(root).filter((file) =>
+      /process\.env\.NEXT_PUBLIC_DISABLE_AUTH_GUARD/.test(readFileSync(file, 'utf8'))
+    );
+
+    expect(readers.map((file) => relative(root, file))).toEqual(['lib/localGuardBypass.ts']);
+  });
 });
