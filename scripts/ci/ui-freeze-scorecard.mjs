@@ -119,7 +119,7 @@ export const scorecard = (git, ref) =>
   adoption.map(([name, marker, raw, fixture]) => {
     oracleFiles(git, ref, name, marker);
     const usingFiles = matchingFiles(git, ref, `(from|import)[[:space:]][^[:space:]]*${marker}`);
-    return [name, measure(name, raw, fixture, new Set(usingFiles), matchingFiles(git, ref, raw))];
+    return [name, measure(name, raw, fixture, usingFiles, matchingFiles(git, ref, raw))];
   });
 
 /* Units travel with the number. Two separate errors in this file's review were a
