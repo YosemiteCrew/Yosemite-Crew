@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   classify,
+  groupTestsByWorkspace,
+  workspaceOf,
   isCheckableSource,
   isTestFile,
   verdict,
@@ -84,4 +86,32 @@ test('the label does NOT excuse shipping source with no test', () => {
     allowUnchangedBehaviour: true,
   });
   assert.equal(r.ok, false, 'the label must not become a way to skip writing tests');
+});
+
+test('routes a changed test to the workspace that can run it', () => {
+  // The first version ran `pnpm --filter frontend` unconditionally, so a PR
+  // whose only test change was in apps/backend ran nothing and reported a pass
+  // it had not earned.
+  assert.equal(workspaceOf('apps/backend/test/rate-limit-config.test.ts'), 'backend');
+  assert.equal(workspaceOf('apps/frontend/src/app/__tests__/x.test.ts'), 'frontend');
+  assert.equal(workspaceOf('scripts/ci/foo.test.mjs'), undefined);
+  assert.equal(workspaceOf('apps/mobileAppYC/__tests__/x.test.ts'), undefined);
+});
+
+test('groups tests per workspace and drops what this gate cannot run', () => {
+  const grouped = groupTestsByWorkspace([
+    'apps/backend/test/a.test.ts',
+    'apps/frontend/src/app/__tests__/b.test.ts',
+    'apps/frontend/src/app/__tests__/c.test.ts',
+    'apps/frontend/e2e/d.spec.ts',
+    'scripts/ci/e.test.mjs',
+  ]);
+  assert.deepEqual([...grouped.keys()].sort(), ['backend', 'frontend']);
+  assert.equal(grouped.get('frontend').length, 2, 'e2e specs must not be run by this gate');
+  assert.equal(grouped.get('backend').length, 1);
+});
+
+test('a PR with only e2e test changes is not treated as proven', () => {
+  const grouped = groupTestsByWorkspace(['apps/frontend/e2e/route-sweep.spec.ts']);
+  assert.equal(grouped.size, 0, 'nothing runnable means no evidence, not a pass');
 });
