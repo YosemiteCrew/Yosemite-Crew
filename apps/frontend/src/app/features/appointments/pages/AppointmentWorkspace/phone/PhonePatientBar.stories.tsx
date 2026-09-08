@@ -323,16 +323,23 @@ export const NameKeepsItsRoom: Story = {
 
      Four strings, one identical scrollWidth pair, four different margins.
 
-     So the fixture sits 6.4px - two characters - from the edge. Deliberate for a
-     guard, but it means lengthening this allergy string turns the story red for a
-     copy change rather than a layout regression. Lengthen the NAME instead. */
+     So the fixture sits 6.4px - two characters - from the edge, which is close
+     enough that the margin is worth guarding rather than assuming.
+
+     `signalment` is bound by `data-testid` and deliberately NOT by its own text.
+     It was previously bound with `getByText('Allergy: Penicillin').parentElement`,
+     which made the string its own selector: lengthening the allergy killed the
+     lookup one statement before any width was read, so the clip assertion below
+     reported `Unable to find an element` and could never fire on a content
+     change. Bound by the testid, `Penicillinxx` fails on `expected 188 <= 184` -
+     the measurement rather than the lookup. */
   args: { allergy: 'Penicillin' },
   render: (args) => <TimerBar {...args} startedMinutesAgo={20} bookedEndMinutesAgo={-10} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const name = canvas.getByText('Poppy Hartmann');
     const pill = canvas.getByRole('button', { name: /in progress/i });
-    const signalment = canvas.getByText('Allergy: Penicillin').parentElement as HTMLElement;
+    const signalment = canvas.getByTestId('patient-signalment');
 
     /* The control, and the reason this story is not a tautology. `truncate` makes
        a clipped element report scrollWidth > clientWidth, so the assertions below
