@@ -110,3 +110,13 @@ export const staleForwardLookingViolations = (
 
 export const formatViolations = (route: string, violations: readonly Violation[]): string =>
   violations.map((v) => `${route}  [${v.rule}]  ${v.detail}`).join('\n');
+
+/**
+ * Whether a console error says something about the product.
+ *
+ * A sweep that walks nineteen routes in a row makes the API shed load, and the
+ * first run of this spec reported its own 429s and the 503s behind them as
+ * findings. Reporting a rule's own side effects is how a rule gets ignored.
+ */
+export const isReportableConsoleError = (text: string): boolean =>
+  !/\b429\b|Too Many Requests/i.test(text);
