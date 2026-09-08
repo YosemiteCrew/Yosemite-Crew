@@ -456,7 +456,7 @@ function HeroTerminalCard() {
             marginLeft: '8px',
             fontFamily: 'ui-monospace, Menlo, monospace',
             fontSize: '12px',
-            color: '#8f8984',
+            color: 'var(--ink-faint)',
           }}
         >
           zsh
@@ -477,7 +477,7 @@ function HeroTerminalCard() {
         <span style={{ color: '#54b492' }}>$</span> pnpm install{' '}
         <span style={{ color: '#5c5956' }}>&amp;&amp;</span> pnpm dev
         {'\n'}
-        <span style={{ color: '#8f8984' }}>→ PIMS live on :3000</span>
+        <span style={{ color: 'var(--ink-faint)' }}>→ PIMS live on :3000</span>
         {'\n'}
         <span style={{ color: '#54b492' }}>$</span>
         {' open localhost:3000/dev-docs'}
@@ -669,7 +669,7 @@ function MachineUser() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#8f8984',
+              color: 'var(--ink-faint)',
             }}
           >
             The user is changing
@@ -696,7 +696,7 @@ function MachineUser() {
                 fontStyle: 'italic',
                 fontWeight: 500,
                 letterSpacing: '-0.01em',
-                color: '#5ce1e6',
+                color: 'var(--cyan)',
               }}
             >
               We built a warm face for the human and a clean, exposed spine for the machine.
@@ -828,7 +828,7 @@ function FhirBundleCard() {
             style={{
               fontFamily: 'ui-monospace, Menlo, monospace',
               fontSize: '12.5px',
-              color: '#8f8984',
+              color: 'var(--ink-faint)',
             }}
           >
             bundle.json
@@ -863,38 +863,38 @@ function FhirBundleCard() {
             overflowX: 'auto',
           }}
         >
-          <span style={{ color: '#8f8984' }}>{'{'}</span>
+          <span style={{ color: 'var(--ink-faint)' }}>{'{'}</span>
           {'\n  '}
-          <span style={{ color: '#5ce1e6' }}>&quot;resourceType&quot;</span>:{' '}
+          <span style={{ color: 'var(--cyan)' }}>&quot;resourceType&quot;</span>:{' '}
           <span style={{ color: '#8acbb4' }}>&quot;Bundle&quot;</span>,{'\n  '}
-          <span style={{ color: '#5ce1e6' }}>&quot;type&quot;</span>:{' '}
+          <span style={{ color: 'var(--cyan)' }}>&quot;type&quot;</span>:{' '}
           <span style={{ color: '#8acbb4' }}>&quot;searchset&quot;</span>,{'\n  '}
-          <span style={{ color: '#5ce1e6' }}>&quot;total&quot;</span>:{' '}
-          <span style={{ color: '#f9ad6c' }}>3</span>,{'\n  '}
-          <span style={{ color: '#5ce1e6' }}>&quot;entry&quot;</span>:{' '}
-          <span style={{ color: '#8f8984' }}>[</span>
+          <span style={{ color: 'var(--cyan)' }}>&quot;total&quot;</span>:{' '}
+          <span style={{ color: 'var(--color-warning-400)' }}>3</span>,{'\n  '}
+          <span style={{ color: 'var(--cyan)' }}>&quot;entry&quot;</span>:{' '}
+          <span style={{ color: 'var(--ink-faint)' }}>[</span>
           {'\n    '}
-          <span style={{ color: '#8f8984' }}>{'{'}</span>{' '}
-          <span style={{ color: '#5ce1e6' }}>&quot;code&quot;</span>:{' '}
+          <span style={{ color: 'var(--ink-faint)' }}>{'{'}</span>{' '}
+          <span style={{ color: 'var(--cyan)' }}>&quot;code&quot;</span>:{' '}
           <span style={{ color: '#8acbb4' }}>&quot;rabies-vax&quot;</span>,{'\n      '}
-          <span style={{ color: '#5ce1e6' }}>&quot;validYears&quot;</span>:{' '}
-          <span style={{ color: '#f9ad6c' }}>3</span>,{'\n      '}
-          <span style={{ color: '#5ce1e6' }}>&quot;authority&quot;</span>:{' '}
+          <span style={{ color: 'var(--cyan)' }}>&quot;validYears&quot;</span>:{' '}
+          <span style={{ color: 'var(--color-warning-400)' }}>3</span>,{'\n      '}
+          <span style={{ color: 'var(--cyan)' }}>&quot;authority&quot;</span>:{' '}
           <span style={{ color: '#8acbb4' }}>&quot;EU&quot;</span>{' '}
-          <span style={{ color: '#8f8984' }}>{'},'}</span>
+          <span style={{ color: 'var(--ink-faint)' }}>{'},'}</span>
           {'\n    '}
-          <span style={{ color: '#8f8984' }}>{'{'}</span>{' '}
-          <span style={{ color: '#5ce1e6' }}>&quot;code&quot;</span>:{' '}
+          <span style={{ color: 'var(--ink-faint)' }}>{'{'}</span>{' '}
+          <span style={{ color: 'var(--cyan)' }}>&quot;code&quot;</span>:{' '}
           <span style={{ color: '#8acbb4' }}>&quot;rabies-vax&quot;</span>,{'\n      '}
-          <span style={{ color: '#5ce1e6' }}>&quot;validYears&quot;</span>:{' '}
-          <span style={{ color: '#f9ad6c' }}>1</span>,{'\n      '}
-          <span style={{ color: '#5ce1e6' }}>&quot;authority&quot;</span>:{' '}
+          <span style={{ color: 'var(--cyan)' }}>&quot;validYears&quot;</span>:{' '}
+          <span style={{ color: 'var(--color-warning-400)' }}>1</span>,{'\n      '}
+          <span style={{ color: 'var(--cyan)' }}>&quot;authority&quot;</span>:{' '}
           <span style={{ color: '#8acbb4' }}>&quot;US&quot;</span>{' '}
-          <span style={{ color: '#8f8984' }}>{'}'}</span>
+          <span style={{ color: 'var(--ink-faint)' }}>{'}'}</span>
           {'\n  '}
-          <span style={{ color: '#8f8984' }}>]</span>
+          <span style={{ color: 'var(--ink-faint)' }}>]</span>
           {'\n'}
-          <span style={{ color: '#8f8984' }}>{'}'}</span>
+          <span style={{ color: 'var(--ink-faint)' }}>{'}'}</span>
         </pre>
       </div>
     </Reveal>
@@ -1380,7 +1380,9 @@ function EconomicsBars() {
           >
             App stores &amp; SaaS platforms
           </span>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#8f8984' }}>70&ndash;85%</span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink-faint)' }}>
+            70&ndash;85%
+          </span>
         </div>
         <div
           style={{
@@ -1576,7 +1578,7 @@ function Economics() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#8f8984',
+              color: 'var(--ink-faint)',
             }}
           >
             The economics
