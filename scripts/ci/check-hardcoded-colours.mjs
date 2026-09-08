@@ -107,9 +107,17 @@ const MIN_FILES = 200;
    The cost runs the other way and is deliberate: `#1234` IS a legal `#RGBA`
    colour and this branch now refuses it. Accepted because bucket 4 is 10/10
    references and 0/10 colours today - so there is no current finding to lose -
-   and that ratio is the thing to re-measure if an all-decimal RGBA literal
-   ever lands. The selftest pins the blind spot, so restoring detection has to
-   update a case rather than change behaviour quietly.
+   and that ratio is the thing to re-measure. Note that NOTHING WILL ANNOUNCE
+   IT: a blind spot in a detector has no detector, so the day an all-decimal
+   RGBA lands, this gate is the component that will not say so. The re-measure
+   is periodic or it does not happen. The selftest pins the blind spot, so
+   restoring detection has to update a case rather than change behaviour
+   quietly.
+
+   The trade also changed KIND, not just size: a four-digit reference used to
+   be a loud false positive somebody triaged, and an all-decimal RGBA is now a
+   silent false negative. Accepted because the silent class is empty today;
+   recorded because that is the uncomfortable direction for a gate.
 
    Five or more digits need nothing here: the trailing boundary already binds
    to the whole alternation, so `#12345` was silent before this change too. */
