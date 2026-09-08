@@ -7,6 +7,8 @@ import { useOrgStore } from '@/app/stores/orgStore';
 import StatusPill, { type StatusPillTokens } from '@/app/ui/primitives/StatusPill/StatusPill';
 import '@/app/features/settings/styles/Settings.css';
 
+import { PreferenceGroup } from './PreferenceGroup';
+
 const PRIMARY_PILL_TOKENS: StatusPillTokens = {
   bg: 'var(--status-completed-bg)',
   text: 'var(--status-completed-text)',
@@ -40,14 +42,16 @@ const YourOrganizations = () => {
   if (orgs.length === 0) return null;
 
   return (
-    <section className="flex flex-col gap-3 yc-card-surface px-5! py-[18px]!">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="min-w-0 text-[14.5px] font-bold text-[var(--ink)]">Your organizations</h3>
+    <PreferenceGroup
+      title="Your organizations"
+      className="gap-3!"
+      action={
         <Link href="/create-org" className="yc-settings-card-action">
           <IoAdd size={13} aria-hidden="true" />
           New organization
         </Link>
-      </div>
+      }
+    >
       {orgs.map(({ org, membership }, index) => {
         const orgId = String(org._id ?? org.name);
         const isPrimary = primaryOrgId != null && orgId === primaryOrgId;
@@ -85,7 +89,7 @@ const YourOrganizations = () => {
           </div>
         );
       })}
-    </section>
+    </PreferenceGroup>
   );
 };
 

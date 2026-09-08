@@ -109,6 +109,18 @@ describe('Settings Personal identity card', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  /**
+   * Pins the shared PreferenceGroup primitive rather than a hand-rolled
+   * `.yc-card-surface` div with its own plain `<div>` title - the card used to
+   * declare its own 14.5px title independently of Settings' other cards, which
+   * is what let it and SecuritySection drift to two different sizes. A plain
+   * `<div>` title (not a heading) would fail this.
+   */
+  it('renders the "Personal" title through the shared PreferenceGroup primitive', () => {
+    render(<Personal />);
+    expect(screen.getByRole('heading', { name: 'Personal', level: 3 })).toBeInTheDocument();
+  });
+
   it('renders the name, meta line, initials avatar and availability summary', () => {
     render(<Personal />);
 
