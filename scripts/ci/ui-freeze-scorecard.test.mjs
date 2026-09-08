@@ -14,6 +14,7 @@ import {
   adoption,
   corpusSize,
   gitIn,
+  matchesRaw,
   matchingFiles,
   measure,
   oracleFiles,
@@ -45,14 +46,41 @@ test('the same call on a marker that IS there returns files', () => {
   assert.ok(files.every((file) => file.startsWith(`${CORPUS}ui/primitives/Buttons/`)));
 });
 
-test('every shipped family pattern still matches its own fixture', () => {
+// Was `new RegExp(raw).test(fixture)`, which is not the dialect that selects any
+// file. Under ERE the shipped SegmentedPill pattern was a different pattern.
+test('every shipped family pattern still matches its own fixture, in ERE', () => {
   for (const [name, , raw, fixture] of adoption)
-    assert.ok(new RegExp(raw).test(fixture), `${name}: fixture no longer matches`);
+    assert.ok(matchesRaw(raw, fixture), `${name}: fixture no longer matches under ERE`);
+});
+
+test('the two dialects disagree, and the shipped patterns are written in ERE', () => {
+  const jsOnly = 'role=[\\x27"]group[\\x27"]';
+  const ere = adoption.find(([name]) => name === 'SegmentedPill')[2];
+  // Control: the two spellings are not the same string, and JS reads both the
+  // same way - which is exactly why a JS-dialect guard could not tell them apart.
+  assert.notEqual(jsOnly, ere);
+  for (const pattern of [jsOnly, ere])
+    assert.equal(new RegExp(pattern).test("<div role='group'>"), true, pattern);
+  // ERE is where they part: the backslash inside a bracket expression is literal.
+  assert.equal(matchesRaw(jsOnly, "<div role='group'>"), false);
+  assert.equal(matchesRaw(ere, "<div role='group'>"), true);
+  assert.equal(matchesRaw(jsOnly, '<div role=xgroup2>'), true);
+  assert.equal(matchesRaw(ere, '<div role=xgroup2>'), false);
+});
+
+test('a fixture the selecting dialect cannot match is rejected as stale', () => {
+  // The JS-dialect guard passed this pair. measure now runs the same engine the
+  // corpus scan does, so it does not.
+  assert.throws(
+    () =>
+      measure('SegmentedPill', 'role=[\\x27"]group[\\x27"]', "<div role='group'>", [], ['a.tsx']),
+    /bypass pattern is stale/
+  );
 });
 
 test('a stale fixture is rejected', () => {
   assert.throws(
-    () => measure('SegmentedPill', 'role=[\\x27"]group[\\x27"]', '<div role="tab">', [], ['a.tsx']),
+    () => measure('SegmentedPill', 'role=[\'"]group[\'"]', '<div role="tab">', [], ['a.tsx']),
     /bypass pattern is stale/
   );
 });
@@ -100,18 +128,38 @@ test('anchored patterns ignore a generic type argument', () => {
     assert.equal(overlays.test(generic), false, generic);
 });
 
-test('matchingFiles drops primitives, stories and tests from the corpus', () => {
+test('matchingFiles drops primitives, stories, tests and non-.tsx modules', () => {
   const files = matchingFiles(
     stubGit([
       `HEAD:${CORPUS}pages/Appointments.tsx`,
       `HEAD:${CORPUS}ui/primitives/Buttons/Button.tsx`,
       `HEAD:${CORPUS}ui/overlays/Modal.stories.tsx`,
       `HEAD:${CORPUS}__tests__/pages/Appointments.test.tsx`,
+      // The numerator leak: barrel re-exports render nothing, import the
+      // primitive, and were counted as components that had adopted it.
+      `HEAD:${CORPUS}ui/index.ts`,
+      `HEAD:${CORPUS}ui/overlays/index.ts`,
+      `HEAD:${CORPUS}constants/status.ts`,
     ]),
     ref,
     'anything'
   );
   assert.deepEqual(files, [`HEAD:${CORPUS}pages/Appointments.tsx`]);
+});
+
+test('the numerator and the corpus line are the same population on the real repo', () => {
+  // corpusSize has always filtered .tsx; matchingFiles did not, so the report
+  // annotated a .tsx corpus beside a numerator that was not one. Asserted here
+  // against the tree rather than a stub, because the stub above is where the
+  // filter is spelled and this is where it has to hold.
+  const offenders = [];
+  for (const [, marker] of adoption)
+    for (const file of matchingFiles(git, ref, `(from|import)[[:space:]][^[:space:]]*${marker}`))
+      if (!file.endsWith('.tsx')) offenders.push(`${marker}: ${file}`);
+  assert.deepEqual(offenders, []);
+  // Control: this loop reaches files at all, so an empty offender list is a
+  // verdict rather than an empty scan.
+  assert.ok(matchingFiles(git, ref, `(from|import)[[:space:]][^[:space:]]*ui/overlays`).length > 0);
 });
 
 test('matchingFiles reports no match as empty, and lets a real git failure through', () => {

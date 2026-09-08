@@ -28,12 +28,7 @@ export const tagName = (...words) => `(^|[^A-Za-z0-9_])<[A-Za-z0-9]*(${words.joi
 
 export const adoption = [
   ['Buttons', 'ui/primitives/Buttons', '<button', '<button type="button">'],
-  [
-    'SegmentedPill',
-    'ui/primitives/SegmentedPill',
-    'role=[\\x27"]group[\\x27"]',
-    '<div role="group">',
-  ],
+  ['SegmentedPill', 'ui/primitives/SegmentedPill', 'role=[\'"]group[\'"]', '<div role="group">'],
   [
     'PanelStates',
     'ui/primitives/PanelStates',
@@ -49,7 +44,15 @@ export const adoption = [
   ],
 ];
 
+/* One population, used by both the numerator and the corpus line. The `.tsx`
+ * test is the half that was missing: corpusSize applied it and matchingFiles
+ * did not, so 11 .ts files - ui/index.ts, ui/overlays/index.ts and other barrel
+ * re-exports that render nothing - counted as components that had adopted the
+ * primitive. The raw-usage patterns are JSX and match no .ts file at all, so the
+ * leak was one-directional: every contaminant landed in `using` and could only
+ * push the percentage up (StatusPill read 75/104 72% and is 69/98 70%). */
 const inCorpus = (file, exclude) =>
+  file.endsWith('.tsx') &&
   (!exclude || !file.includes('/ui/primitives/')) &&
   !file.includes('.stories.') &&
   !file.includes('__tests__');
@@ -78,9 +81,25 @@ export const oracleFiles = (git, ref, name, marker) => {
   return files;
 };
 
-export const measure = (name, raw, fixture, usingFiles, rawFiles) => {
-  if (!fixture || !new RegExp(raw).test(fixture))
-    throw new Error(`${name}: bypass pattern is stale`);
+/* The staleness check has to run in the dialect that selects the files. It ran
+ * in JavaScript's, and the two disagree: `[\x27"]` is `['"]` to `new RegExp`
+ * and the literal set {\ x 2 7 "} to POSIX ERE, so the shipped SegmentedPill
+ * pattern missed every role='group' and matched role=xgroup2 while its fixture
+ * - double-quoted, the one value the dialects agree on - kept the guard green.
+ * This is grep's ERE rather than git grep's own engine; it is the same POSIX
+ * family, which is what the divergence above turns on. */
+export const matchesRaw = (pattern, text) => {
+  try {
+    execFileSync('grep', ['-E', '-e', pattern], { input: `${text}\n`, encoding: 'utf8' });
+    return true;
+  } catch (error) {
+    if (error.status === 1) return false;
+    throw error;
+  }
+};
+
+export const measure = (name, raw, fixture, usingFiles, rawFiles, matches = matchesRaw) => {
+  if (!fixture || !matches(raw, fixture)) throw new Error(`${name}: bypass pattern is stale`);
   const using = new Set(usingFiles);
   const bypassing = rawFiles.filter((file) => !using.has(file)).length;
   if (rawFiles.length > 0 && bypassing === 0)
@@ -94,7 +113,7 @@ export const corpusSize = (git, ref) =>
   git('ls-tree', '-r', '--name-only', ref, '--', CORPUS)
     .trim()
     .split('\n')
-    .filter((file) => file.endsWith('.tsx') && inCorpus(file, true)).length;
+    .filter((file) => inCorpus(file, true)).length;
 
 export const scorecard = (git, ref) =>
   adoption.map(([name, marker, raw, fixture]) => {
