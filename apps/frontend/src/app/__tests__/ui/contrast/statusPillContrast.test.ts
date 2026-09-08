@@ -122,11 +122,17 @@ describe.each(['light', 'dark'] as const)('inline status pill contrast (%s)', (t
  * The same defect one step earlier: colours that are not painted today but are
  * one deleted `key === 'ALL'` guard away from it.
  *
- * `StatusOptionButtons`' non-ALL branch renders `option.bg` under `option.text`.
- * The All row used to carry the badge-blue pair there and was kept off screen
- * only because each of its four consumers substituted something else at the
- * point of use (#2814). These two arms assert the data is safe to render, not
- * that the consumers happen not to render it.
+ * The site that pairs an option's fill under its ink is the trigger chip -
+ * `getStockHealthButtonStyle` and `getTurnoverStatusButtonStyle`, whose non-ALL
+ * branch returns `{ backgroundColor: option.bg, color: option.text }`. Their
+ * `key === 'ALL'` branch is the guard; delete it and the All option is rendered
+ * the ordinary way. (`StatusOptionButtons` is not that site and never was: its
+ * option type is `{ key, name, border? }`, so it cannot read `bg` at all.)
+ *
+ * The All row used to carry the badge-blue pair in that data and was kept off
+ * screen only because each of its four consumers substituted something else at
+ * the point of use (#2814). These two arms assert the data is safe to render,
+ * not that the consumers happen not to render it.
  */
 describe('the neutral All filter option', () => {
   it.each(['light', 'dark'] as const)('has no fill to write on (%s)', (theme) => {
