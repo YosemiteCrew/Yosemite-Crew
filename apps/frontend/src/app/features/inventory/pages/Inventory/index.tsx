@@ -27,6 +27,7 @@ import {
 import {
   defaultFilters,
   effectiveStockHealthKey,
+  isBelowReorderPoint,
 } from '@/app/features/inventory/pages/Inventory/utils';
 import { InventorySectionKey } from '@/app/features/inventory/components/AddInventory/InventoryConfig';
 import { BusinessType } from '@/app/features/organization/types/org';
@@ -1206,9 +1207,7 @@ const useInventoryContent = () => {
     );
   }, [inventory, filters.visibility]);
   const lowStockCount = useMemo(
-    () =>
-      visibilityScopedInventory.filter((item) => effectiveStockHealthKey(item) === 'LOW_STOCK')
-        .length,
+    () => visibilityScopedInventory.filter(isBelowReorderPoint).length,
     [visibilityScopedInventory]
   );
   const expiredCount = useMemo(
