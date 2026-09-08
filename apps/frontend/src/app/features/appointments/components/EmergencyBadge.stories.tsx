@@ -95,7 +95,7 @@ const meta = {
           'appointment workspace header. Both call it bare - no props - so everything it ' +
           'guarantees, it guarantees from its own style object.\n\n' +
           'Its colour set is the part that regresses silently. `--color-danger-100` is a flat ' +
-          '`#fdebea` in light but a translucent `rgba(234, 55, 41, 0.18)` in dark, so the ink ' +
+          'light tint in light but a translucent danger tint in dark, so the ink ' +
           'lands on that red composited over `--page` rather than on the declared tint. Nothing ' +
           'about a broken pairing is visible from the source, and a computed-style check that ' +
           'skips the compositing step reports a passing number for a colour nobody sees. The ' +
