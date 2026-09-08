@@ -36,6 +36,22 @@ describe('Rooms section', () => {
     usePermissionsMock.mockReturnValue({ can: jest.fn(() => true) });
   });
 
+  /**
+   * Pins the shared SectionCard primitive rather than the old hand-rolled
+   * `.yc-card-surface` section with its own `text-[15.5px]` title - that
+   * hand-rolled size was one type ramp below the `text-heading-3` (20px/500)
+   * SectionCard already gives Specialities, Documents and Online booking on
+   * the same page, which is what made Rooms' title visibly smaller/bolder
+   * than its siblings when scrolling the Organization page.
+   */
+  it('renders the "Rooms" title through the shared SectionCard primitive', () => {
+    render(<Rooms />);
+
+    const heading = screen.getByRole('heading', { name: /Rooms/ });
+    expect(heading.className).toContain('text-heading-3');
+    expect(heading.className).not.toContain('text-[15.5px]');
+  });
+
   it('renders the rooms list, count, type suffix and add trigger when permitted', () => {
     render(<Rooms />);
 
