@@ -47,8 +47,8 @@ const summariseClaims = (claims: InsuranceClaim[]) =>
 
 /**
  * The Insurance claims header: the same anatomy as Finance and Estimates - a
- * title with a live count, an info affordance, a metrics sub-line, then the
- * status filter and page actions on the right of that row.
+ * title with a live count, an info affordance, a metrics sub-line, then page
+ * actions and the status filter stacked on the right of that row.
  */
 const InsuranceClaimsHeader = ({
   claims,
@@ -89,7 +89,18 @@ const InsuranceClaimsHeader = ({
           )} paid back`}
         </p>
       </div>
-      <div className="flex items-center gap-2 flex-wrap justify-end">
+      <div className="flex flex-col items-end gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <Secondary href="/finance" text="Invoices" ariaLabel="Back to invoices" />
+          <PermissionGate allOf={[PERMISSIONS.BILLING_EDIT_ANY]}>
+            <Primary
+              text="New insurance claim"
+              isDisabled={companions.length === 0}
+              onClick={onCreate}
+              ariaLabel="Create a new insurance claim"
+            />
+          </PermissionGate>
+        </div>
         <InvoiceStatusFilterPills
           options={InsuranceClaimStatusFilters}
           activeStatus={activeStatus}
@@ -97,15 +108,6 @@ const InsuranceClaimsHeader = ({
           ariaLabel="Filter claims by status"
           className="flex-wrap justify-end"
         />
-        <Secondary href="/finance" text="Invoices" ariaLabel="Back to invoices" />
-        <PermissionGate allOf={[PERMISSIONS.BILLING_EDIT_ANY]}>
-          <Primary
-            text="New insurance claim"
-            isDisabled={companions.length === 0}
-            onClick={onCreate}
-            ariaLabel="Create a new insurance claim"
-          />
-        </PermissionGate>
       </div>
     </div>
   );
