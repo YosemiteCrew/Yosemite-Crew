@@ -8,6 +8,7 @@ import {
   IoPencilOutline,
 } from 'react-icons/io5';
 import TabToggle from '@/app/ui/primitives/TabToggle/TabToggle';
+import SharedStatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
@@ -58,12 +59,6 @@ const TABS = [
   { key: 'PARENT', label: 'Parent task' },
 ];
 
-const STATUS_CLASSES: Record<ScheduleTaskStatus, string> = {
-  COMPLETED: 'border-pill-success-border bg-pill-success-bg text-pill-success-text',
-  UPCOMING: 'border-pill-info-border bg-pill-info-bg text-pill-info-text',
-  CANCELLED: 'border-pill-warning-border bg-pill-warning-bg text-pill-warning-text',
-  PENDING: 'border-pill-neutral-border bg-pill-neutral-bg text-pill-neutral-text',
-};
 
 const STATUS_OPTIONS: { label: string; value: ScheduleTaskStatus }[] = [
   { label: 'Upcoming', value: 'UPCOMING' },
@@ -127,16 +122,23 @@ const scheduleTaskFromTask = (task: Task): ScheduleTask => ({
   sourceRefId: task.templateId || task.libraryTaskId,
 });
 
-const StatusPill = ({ status }: { status: ScheduleTaskStatus }) => {
+/**
+ * ScheduleTaskStatus -> the shared pill's tone. STATUS_CLASSES referenced the
+ * same --color-pill-* tokens by hand as Tailwind utility classes, so this
+ * mapping changes nothing about colour - only geometry, by routing through
+ * the one shared StatusPill instead of a locally reimplemented span.
+ */
+const STATUS_TONE: Record<ScheduleTaskStatus, StatusTone> = {
+  COMPLETED: 'success',
+  UPCOMING: 'info',
+  CANCELLED: 'warning',
+  PENDING: 'neutral',
+};
+
+const TaskStatusPill = ({ status }: { status: ScheduleTaskStatus }) => {
   /* v8 ignore next -- status is always one of the four STATUS_OPTIONS, so the ?. miss and ?? fallback are unreachable */
   const label = STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status;
-  return (
-    <span
-      className={`inline-flex rounded-2xl border px-3 py-1 text-caption-1 ${STATUS_CLASSES[status]}`}
-    >
-      {label}
-    </span>
-  );
+  return <SharedStatusPill label={label} tone={STATUS_TONE[status]} />;
 };
 
 /** One "Task details" row inside the expandable breakdown. */
@@ -214,7 +216,7 @@ const TaskRow = ({
       </div>
       <div className="flex items-center gap-2">
         {actionsDisabled ? (
-          <StatusPill status={task.status} />
+          <TaskStatusPill status={task.status} />
         ) : (
           <button
             type="button"
@@ -225,7 +227,7 @@ const TaskRow = ({
               onStatus(next);
             }}
           >
-            <StatusPill status={task.status} />
+            <TaskStatusPill status={task.status} />
           </button>
         )}
       </div>
