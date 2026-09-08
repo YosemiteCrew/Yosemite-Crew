@@ -84,8 +84,10 @@ const meta = {
           'component had.\n\n' +
           'The phone variant is not a smaller copy of the desktop one. It drops the pulsing green ' +
           'dot and the "In room" / "Over booked slot" words entirely and shows the bare elapsed ' +
-          'time at 10px with `px-[9px] py-[5px]`, because the bar has roughly 70px to spare next ' +
-          'to a truncating name. It also strips a leading `00:` so an under-an-hour visit reads ' +
+          'time at 10px with `px-[9px] py-[5px]`. Since #2790 it rides at the right end of the ' +
+          'signalment line rather than beside the name, which is what let the name and the ' +
+          'status pill stop competing for one 197px row. It also strips a leading `00:` so an ' +
+          'under-an-hour visit reads ' +
           '`MM:SS` rather than `00:MM:SS`.\n\n' +
           'The over-booked pill is the one worth reviewing: `warning-100` fill, `warning-300` ' +
           'border, `warning-900` label. The 900 step is deliberate - the 700 step measured 2.77:1 ' +
@@ -211,8 +213,9 @@ export const NotStarted: Story = {
       description: {
         story:
           'No start timestamp at all, which is what an appointment that has not been checked in ' +
-          'still looks like. The words rather than digits are why this state is the widest of the ' +
-          'three, so it is the one that squeezes the name beside it.',
+          'still looks like. The words rather than digits make this the widest of the three ' +
+          'states, which is what it used to cost the name - the timer shared the name row ' +
+          'until #2790 moved it down to the signalment line.',
       },
     },
   },
@@ -285,6 +288,52 @@ export const WithAllergy: Story = {
           '`--danger-text` at 700. The whole line is one `truncate` paragraph at 10.5px, so on a ' +
           'long signalment the allergy is what disappears - which is worth seeing before deciding ' +
           'it belongs there.',
+      },
+    },
+  },
+};
+
+/** The width the name+pill row had while the timer still shared it (#2790). */
+const PRE_FIX_NAME_ROW_WIDTH = 197;
+
+export const NameKeepsItsRoom: Story = {
+  name: 'Long name beside a wide pill',
+  render: (args) => <TimerBar {...args} startedMinutesAgo={20} bookedEndMinutesAgo={-10} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const name = canvas.getByText('Poppy Hartmann');
+    const pill = canvas.getByRole('button', { name: /in progress/i });
+    const signalment = canvas.getByText('Beagle · 9 yr · 12.4 kg');
+
+    /* The control, and the reason this story is not a tautology. `truncate` makes
+       a clipped element report scrollWidth > clientWidth, so the assertions below
+       pass for free on any name short enough to fit. This one first proves the
+       fixture still over-subscribes the row the bug lived in - a shorter name, or
+       a pill whose label got shorter, silently turns the rest into a test of
+       nothing. */
+    await expect(name.scrollWidth + pill.getBoundingClientRect().width).toBeGreaterThan(
+      PRE_FIX_NAME_ROW_WIDTH
+    );
+
+    // Neither line pays for it. Checked before the structural assertion below, so
+    // that reverting the layout is caught by the measurement rather than only by
+    // the arrangement that happens to produce it today.
+    await expect(name.scrollWidth).toBeLessThanOrEqual(name.clientWidth);
+    await expect(signalment.scrollWidth).toBeLessThanOrEqual(signalment.clientWidth);
+
+    // The structural fact the fix rests on: the timer is on the signalment line.
+    await expect(signalment.parentElement).toContainElement(timerPill(canvasElement));
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The regression guard for #2790. "Poppy Hartmann" needs 114px and the `IN PROGRESS` ' +
+          'pill takes 111px; while the timer sat beside them the pair had 197px to share, and ' +
+          'the name - the only one of the two carrying `truncate` - absorbed the whole 34px ' +
+          'shortfall. Nothing here asserts a pixel count, so a type-ramp or copy change moves ' +
+          'the numbers without failing the story; what it asserts is that the name and the ' +
+          'signalment both survive whatever the numbers become.',
       },
     },
   },
