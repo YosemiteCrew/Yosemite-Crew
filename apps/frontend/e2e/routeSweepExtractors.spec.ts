@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   contradictoryPanels,
   documentOverflows,
+  firstCompanionHistoryHref,
   forwardLookingRows,
   headingNames,
   inventoryCounts,
@@ -105,4 +106,18 @@ in 30 days</li></ul>
   expect(rows).toHaveLength(1);
   expect(rows[0].daysFromNow).toBe(-222);
   expect(rows[0].section).toBe('Expiring soon');
+});
+
+test('finds a companion history link with an id, and ignores one without', async ({ page }) => {
+  await page.setContent(`
+    <a href="/companions/history">History (no id, renders a stub)</a>
+    <a href="/companions/history?companionId=abc123&source=companions">Max</a>
+  `);
+  expect(await firstCompanionHistoryHref(page)).toContain('companionId=abc123');
+});
+
+test('returns null when the org has no companions', async ({ page }) => {
+  // Must be recorded as unswept rather than passing silently.
+  await page.setContent(`<p>No companions yet.</p>`);
+  expect(await firstCompanionHistoryHref(page)).toBeNull();
 });
