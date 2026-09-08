@@ -99,21 +99,29 @@ export const getAppointmentStatusTone = (status?: string | null): StatusTone => 
 
 /**
  * Builds a StatusLabel whose colour tokens all derive from one CSS variable
- * prefix (`--<prefix>-bg` / `--<prefix>-text` / `--<prefix>-border`). Entries
- * whose border token comes from elsewhere pass it as `borderOverride`.
+ * prefix (`--<prefix>-bg` / `--<prefix>-text` / `--<prefix>-border`).
+ *
+ * There is deliberately no per-token override. The one entry that used it - the
+ * "All" filter option - borrowed a prefix whose `bg`/`text` it never meant to
+ * use and replaced the odd one out at each point of use, which is how a 3.61:1
+ * pair stayed in the data with nothing rendering it (#2814). An entry that
+ * needs different colours gets its own prefix.
  */
-export const statusLabel = (
-  name: string,
-  key: string,
-  cssPrefix: string,
-  borderOverride?: string
-): StatusLabel => ({
+export const statusLabel = (name: string, key: string, cssPrefix: string): StatusLabel => ({
   name,
   key,
   bg: `var(--${cssPrefix}-bg)`,
   text: `var(--${cssPrefix}-text)`,
-  border: borderOverride ?? `var(--${cssPrefix}-border)`,
+  border: `var(--${cssPrefix}-border)`,
 });
+
+/**
+ * The neutral "All" row shared by the status-filter dropdown panels.
+ *
+ * One construction site rather than three copies of the same literal, so the
+ * contrast guard measures the object the panels actually render.
+ */
+export const AllFilterOption: StatusLabel = statusLabel('All', 'ALL', 'color-pill-all');
 
 export const AppointmentLabels: StatusLabel[] = [
   statusLabel('Requested', 'requested', 'status-requested'),

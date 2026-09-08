@@ -478,10 +478,21 @@ input[type='radio']:focus-visible {
      identically in both themes. No ink in this palette clears 4.5 on that fill -
      white is 4.04 and --ink is 4.21 - so the fill has to change, not the ink.
      `0e5e9de36` and #2799 moved the badges that paired them to --inset/--ink.
-     The fill alone remains in use for chart series and filter definitions, where
-     nothing is written on top of it. */
+     #2814 took the last non-painting user - the "All" filter option - to
+     --color-pill-all-*, so the fill's only remaining use is the chart series in
+     CommunityStats, where nothing is written on top of it. */
   --color-badge-blue-bg: var(--color-primary-500);
   --color-badge-blue-text: #eaf3ff;
+  /* The neutral "All" row in the status-filter dropdowns. It borrowed
+     badge-blue's prefix and stayed legible only because each consumer replaced
+     `text` at the point of use; one deleted `key === 'ALL'` guard away from
+     painting 3.61:1 (#2814). `bg` is `transparent` because the option is never
+     filled - the row is a dot and a label on the panel - so there is no pairing
+     left to fail. The dot keeps --color-primary-500, which is what the border
+     override used to supply. */
+  --color-pill-all-bg: transparent;
+  --color-pill-all-text: var(--color-text-primary);
+  --color-pill-all-border: var(--color-primary-500);
   --color-pill-neutral-bg: var(--status-requested-bg);
   --color-pill-neutral-text: var(--status-requested-text);
   --color-pill-neutral-border: var(--status-requested-border);
