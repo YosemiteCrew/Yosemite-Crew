@@ -275,10 +275,10 @@ const EstimatesContent = () => {
     <div className="flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
       {/*
         Deliberately the same header as Finance: title with a live count, an
-        info affordance, a metrics sub-line, then the status filter and the
-        page actions on the right of that same row. Estimates is reached from
-        Finance and reads as the same surface, so a second layout here made the
-        two pages look unrelated.
+        info affordance, a metrics sub-line, then page actions and the status
+        filter stacked on the right of that same row. Estimates is reached
+        from Finance and reads as the same surface, so a second layout here
+        made the two pages look unrelated.
       */}
       <div className="flex items-center justify-between w-full flex-wrap gap-2">
         <div className="flex flex-col gap-0.5">
@@ -307,7 +307,21 @@ const EstimatesContent = () => {
             )} approved`}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <Secondary href="/finance" text="Invoices" ariaLabel="Back to invoices" />
+            <PermissionGate allOf={[PERMISSIONS.BILLING_EDIT_ANY]}>
+              <Primary
+                text="New estimate"
+                isDisabled={companions.length === 0}
+                onClick={() => {
+                  setCreateError(null);
+                  setCreateOpen(true);
+                }}
+                ariaLabel="Create a new estimate"
+              />
+            </PermissionGate>
+          </div>
           {/*
             Seven non-shrinking pills exceed a phone's width, so the group wraps
             here rather than pushing the page into a sideways scroll.
@@ -322,18 +336,6 @@ const EstimatesContent = () => {
             ariaLabel="Filter estimates by status"
             className="flex-wrap justify-end"
           />
-          <Secondary href="/finance" text="Invoices" ariaLabel="Back to invoices" />
-          <PermissionGate allOf={[PERMISSIONS.BILLING_EDIT_ANY]}>
-            <Primary
-              text="New estimate"
-              isDisabled={companions.length === 0}
-              onClick={() => {
-                setCreateError(null);
-                setCreateOpen(true);
-              }}
-              ariaLabel="Create a new estimate"
-            />
-          </PermissionGate>
         </div>
       </div>
 

@@ -570,6 +570,21 @@ describe('Finance > Estimates page', () => {
       '/finance'
     );
   });
+
+  it('stacks page actions above the status filter, not beside it', async () => {
+    mockEstimateService.listEstimates.mockResolvedValue([]);
+
+    render(<ProtectedEstimates />);
+
+    const backLink = await screen.findByRole('link', { name: 'Back to invoices' });
+    const statusFilter = screen.getByRole('group', { name: 'Filter estimates by status' });
+
+    // Document order, not just presence: the nav row must come before the
+    // filter row, otherwise they render as one mixed row again.
+    expect(
+      backLink.compareDocumentPosition(statusFilter) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
 });
 
 describe('Finance > Estimates status filters', () => {
