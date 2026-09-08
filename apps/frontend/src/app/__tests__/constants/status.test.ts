@@ -1,4 +1,5 @@
 import {
+  AllFilterOption,
   AppointmentLabels,
   TaskLabels,
   getAppointmentStatusTone,
@@ -17,13 +18,18 @@ describe('statusLabel', () => {
     });
   });
 
-  it('honours a border override', () => {
-    expect(statusLabel('All', 'ALL', 'color-badge-blue', 'var(--color-primary-500)')).toEqual({
+  /* This slot used to assert `statusLabel('All', 'ALL', 'color-badge-blue',
+     'var(--color-primary-500)')`, which put the 3.61:1 badge-blue pair in the
+     expected value. A reader checking whether that pairing was intended found a
+     green test saying yes (#2814). The option now has its own prefix, and no
+     entry mixes tokens from two of them. */
+  it('gives the neutral All option its own prefix, with no borrowed tokens', () => {
+    expect(AllFilterOption).toEqual({
       name: 'All',
       key: 'ALL',
-      bg: 'var(--color-badge-blue-bg)',
-      text: 'var(--color-badge-blue-text)',
-      border: 'var(--color-primary-500)',
+      bg: 'var(--color-pill-all-bg)',
+      text: 'var(--color-pill-all-text)',
+      border: 'var(--color-pill-all-border)',
     });
   });
 });

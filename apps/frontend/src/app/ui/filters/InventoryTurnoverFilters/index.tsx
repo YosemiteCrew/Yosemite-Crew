@@ -3,13 +3,13 @@ import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from '
 import { createPortal } from 'react-dom';
 import { IoCaretDown } from 'react-icons/io5';
 import clsx from 'clsx';
-import { statusLabel, type StatusLabel } from '@/app/constants/status';
+import { AllFilterOption, statusLabel, type StatusLabel } from '@/app/constants/status';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import StatusOptionButtons from '@/app/ui/filters/StatusOptionButtons';
 import { useFilterDropdownDismiss } from '@/app/ui/filters/useFilterDropdownDismiss';
 
 const STATUS_OPTIONS: StatusLabel[] = [
-  statusLabel('All', 'ALL', 'color-badge-blue', 'var(--color-primary-500)'),
+  AllFilterOption,
   statusLabel('Excellent', 'EXCELLENT', 'color-pill-success'),
   statusLabel('Healthy', 'HEALTHY', 'color-pill-success'),
   statusLabel('Moderate', 'MODERATE', 'color-pill-progress'),
@@ -19,8 +19,9 @@ const STATUS_OPTIONS: StatusLabel[] = [
 
 const DEFAULT_CATEGORIES: string[] = [];
 
-const getTurnoverDropdownTextColor = (option: StatusLabel): string =>
-  option.key === 'ALL' ? 'var(--color-text-primary)' : option.text;
+/* Every option now carries ink it is safe to render, ALL included, so this is
+   the identity the shared component needs rather than a guard (#2814). */
+const getTurnoverDropdownTextColor = (option: StatusLabel): string => option.text;
 
 const getTurnoverStatusButtonStyle = (option: StatusLabel): React.CSSProperties => {
   if (option.key === 'ALL') {
