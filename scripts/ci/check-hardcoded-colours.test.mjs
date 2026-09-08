@@ -104,6 +104,39 @@ test('the selftest fails when the scanner stops seeing comments', () => {
   assert.ok(missed.length > 0, 'a comment-blind scanner must fail at least one case');
 });
 
+test('a four-digit issue reference is not a colour, and a four-digit colour still is', () => {
+  // This repository's issue numbers are four decimal digits, so `#2298` is
+  // valid hex and matched as a colour before the narrowing. The rule keys on
+  // the absence of a hex letter, which is a fact about the four-digit bucket
+  // here rather than a general one - six-digit all-decimal tokens in this tree
+  // are colours, so the same reasoning must not be carried over to them.
+  assert.deepEqual(findColours('const s = "PR #2298 removed the override";'), []);
+  assert.deepEqual(
+    findColours('const a = { color: "#e6dd" };').map((f) => f.text),
+    ['#e6dd']
+  );
+  // The accepted cost, pinned so that restoring detection has to update this
+  // case rather than change behaviour quietly.
+  assert.deepEqual(findColours('const a = { color: "#1234" };'), []);
+});
+
+test('the case table notices when the four-digit narrowing is reverted', () => {
+  // The pre-narrowing pattern, driven through the case table the way the
+  // comment-blind arm above is. Asserting the LABEL rather than a count,
+  // because this scanner ignores comments too and would otherwise satisfy the
+  // assertion with cases that have nothing to do with four-digit tokens.
+  const wide = (source) =>
+    (source.match(/#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?!\w)/g) ?? [])
+      .length;
+  const missed = SELFTEST_CASES.filter(([source, expected]) => wide(source) !== expected).map(
+    ([, , label]) => label
+  );
+  assert.ok(
+    missed.includes('four-digit issue reference in a string'),
+    'the pre-narrowing pattern must fail the four-digit reference case'
+  );
+});
+
 test('compare reports an increase against the baseline', () => {
   const { increased, decreased } = compare({ 'package.json': 3 }, { 'package.json': 1 });
   assert.deepEqual(increased, [{ file: 'package.json', was: 1, now: 3 }]);
