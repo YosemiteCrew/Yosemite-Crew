@@ -15,7 +15,7 @@
   "devDependencies": {
     "@types/express": "^5.0.2",
     "@types/multer": "^2.2.0",
-    "@types/node": "^26.3.0",
+    "@types/node": "^26.4.0",
     "express": "4.21.2",
     "multer": "2.3.0",
     "typescript": "5.9.3"
