@@ -79,6 +79,23 @@ const BASELINE_PATH = path.join(__dirname, 'route-sweep-baseline.json');
  */
 const MAX_THROTTLE_WAIT_MS = 16 * 60 * 1000;
 
+/**
+ * The patient overview is addressed as /companions/history?companionId=<id> and
+ * renders "Companion id is missing." without one, so a fixed entry in ROUTES
+ * would visit a stub. It carries three of the defects that motivated this sweep
+ * - a raw enum in the history list, a database id shown as "Patient ID", and an
+ * error message stacked on an empty state - so it is worth resolving an id for
+ * rather than dropping.
+ */
+export const firstCompanionHistoryHref = (page: Page) =>
+  page.evaluate(() => {
+    for (const a of document.querySelectorAll('a[href*="/companions/history"]')) {
+      const href = a.getAttribute('href') ?? '';
+      if (/companionId=/.test(href)) return href;
+    }
+    return null;
+  });
+
 const readBaseline = (): Record<string, string[]> => {
   try {
     return JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8')) as Record<string, string[]>;
@@ -263,7 +280,21 @@ test('every operational route holds its page invariants', async ({ page }) => {
   const baseline = readBaseline();
   const found: Record<string, string[]> = {};
 
-  for (const [index, route] of ROUTES.entries()) {
+  // Resolved from the running app rather than hardcoded. An org with no
+  // companions yields nothing, which is recorded as unswept rather than passing
+  // silently.
+  let derived: string[] = [];
+  await page.goto('/companions', { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+  const historyHref = await firstCompanionHistoryHref(page);
+  if (historyHref) derived = [historyHref];
+  else {
+    found['/companions/history'] = [
+      '/companions/history  [not-reachable]  no companion link found on /companions, so the patient overview was not swept',
+    ];
+  }
+
+  for (const [index, route] of [...ROUTES, ...derived].entries()) {
     // Hold off only when the API says the budget is nearly spent, and then for
     // exactly as long as it says. A blind sleep between routes is slower than
     // needed while there is headroom and too short once there is not.
@@ -321,7 +352,8 @@ test('every operational route holds its page invariants', async ({ page }) => {
     // accessible app route, and the sweep would otherwise analyse that fallback
     // page under the requested route's name.
     const landed = new URL(page.url()).pathname;
-    if (landed !== route) {
+    const expected = new URL(route, 'https://example.invalid').pathname;
+    if (landed !== expected) {
       found[route] = [`${route}  [not-reachable]  redirected to ${landed}`];
       stopWatching();
       continue;
