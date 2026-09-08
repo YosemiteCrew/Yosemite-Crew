@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
-import admin from "firebase-admin";
+import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { getMessaging, type Message } from "firebase-admin/messaging";
 import { NotificationType } from "@prisma/client";
 import logger from "src/utils/logger";
 import { NotificationPayload } from "src/utils/notificationTemplates";
@@ -8,7 +9,9 @@ import { prisma } from "src/config/prisma";
 
 // firebase-admin is used here ONLY for FCM push delivery (device messaging),
 // not for authentication. Initialized lazily so environments without push
-// credentials (CI, local API-only work) never require them.
+// credentials (CI, local API-only work) never require them. Imported through
+// the modular subpath entry points because firebase-admin v14 removes the
+// default-export namespace a `import admin from "firebase-admin"` relies on.
 const getFirebaseCredentialsPath = () => {
   const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
   if (!credentialsPath || !existsSync(credentialsPath)) {
@@ -20,9 +23,9 @@ const getFirebaseCredentialsPath = () => {
 
 const credentialsPath = getFirebaseCredentialsPath();
 
-if (!admin.apps?.length && credentialsPath) {
-  admin.initializeApp({
-    credential: admin.credential.cert(credentialsPath),
+if (!getApps().length && credentialsPath) {
+  initializeApp({
+    credential: cert(credentialsPath),
   });
 }
 
@@ -75,8 +78,8 @@ const buildFcmMessage = (
   token: string,
   payload: NotificationPayload,
   options?: SendOptions,
-): admin.messaging.Message => {
-  const msg: admin.messaging.Message = {
+): Message => {
+  const msg: Message = {
     token,
     notification: {
       title: payload.title,
@@ -135,7 +138,7 @@ export const NotificationService = {
     const message = buildFcmMessage(token, payload, options);
 
     try {
-      const response = await admin.messaging().send(message, options?.dryRun);
+      const response = await getMessaging().send(message, options?.dryRun);
       logger.info(
         `Notification sent to token ${tokenPrefix(token)}…: ${response}`,
       );
