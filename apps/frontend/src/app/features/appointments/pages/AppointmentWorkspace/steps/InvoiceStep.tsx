@@ -10,6 +10,8 @@ import {
   IoShareOutline,
 } from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import SharedStatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import type { StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import { Textarea } from '@/app/ui/Input';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import TotalBillContainer from '@/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer';
@@ -88,11 +90,6 @@ const STATUS_LABELS: Record<InvoiceStatus, string> = {
   PARTIAL: 'Partial',
 };
 
-const STATUS_CLASSES: Record<InvoiceStatus, string> = {
-  PAID_FULL: 'border-pill-success-border bg-pill-success-bg text-pill-success-text',
-  UNPAID: 'border-pill-warning-border bg-pill-warning-bg text-pill-warning-text',
-  PARTIAL: 'border-pill-info-border bg-pill-info-bg text-pill-info-text',
-};
 
 const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   ONLINE: 'Paid Online',
@@ -394,12 +391,18 @@ const getDepositModalActionLabel = (saving: boolean, method: PaymentMethod): str
   return method === 'ONLINE' ? 'Generate link' : 'Collect deposit';
 };
 
-export const StatusPill = ({ status }: { status: InvoiceStatus }) => (
-  <span
-    className={`inline-flex rounded-2xl border px-3 py-1 text-caption-1 ${STATUS_CLASSES[status]}`}
-  >
-    {STATUS_LABELS[status]}
-  </span>
+/**
+ * InvoiceStatus -> the shared pill's tone. STATUS_CLASSES referenced the same
+ * --color-pill-* tokens by hand, so this changes only geometry.
+ */
+const INVOICE_STATUS_TONE: Record<InvoiceStatus, StatusTone> = {
+  PAID_FULL: 'success',
+  UNPAID: 'warning',
+  PARTIAL: 'info',
+};
+
+export const InvoiceStatusPill = ({ status }: { status: InvoiceStatus }) => (
+  <SharedStatusPill label={STATUS_LABELS[status]} tone={INVOICE_STATUS_TONE[status]} />
 );
 
 const getPaymentProgressDescription = (status: PaymentProgressState['status']): string => {
@@ -642,7 +645,7 @@ export const InvoiceRow = ({
           {formatCents(invoice.outstandingCents, currency)}
         </span>
         <div className="flex">
-          <StatusPill status={invoice.status} />
+          <InvoiceStatusPill status={invoice.status} />
         </div>
         <div className="flex justify-end gap-2">
           <CircleIconButton

@@ -48,7 +48,7 @@ const dayMarker = (iso: string): { weekday: string; day: string } => {
   return { weekday: WEEKDAYS[date.getDay()], day: String(date.getDate()) };
 };
 
-const StatusPill = ({ status }: { status: OutpatientVisitStatus }) => (
+const VisitStatusPill = ({ status }: { status: OutpatientVisitStatus }) => (
   <SharedStatusPill
     tone={getAppointmentStatusTone(STATUS_STYLE_KEY[status])}
     label={STATUS_LABEL[status]}
@@ -102,7 +102,7 @@ const VisitRow = ({ visit, isNext = false }: { visit: OutpatientVisit; isNext?: 
         </span>
         <span className="block truncate text-caption-1 text-text-tertiary">{subline}</span>
       </span>
-      <StatusPill status={visit.status} />
+      <VisitStatusPill status={visit.status} />
       <IoEllipsisHorizontal size={15} aria-hidden="true" className="shrink-0 text-text-tertiary" />
     </li>
   );
