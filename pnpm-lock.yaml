@@ -220,8 +220,8 @@ importers:
         specifier: 5.1.1
         version: 5.1.1
       body-parser:
-        specifier: 1.20.6
-        version: 1.20.6(patch_hash=p2t6jd4nmjjqvfbrjflsm4awd4)
+        specifier: 2.3.0
+        version: 2.3.0(patch_hash=volxp7tpztz57zfuiqqjphe3my)
       bullmq:
         specifier: ^6.3.0
         version: 6.3.4(ioredis@6.0.0)
@@ -372,7 +372,7 @@ importers:
         version: link:../../packages/types
       chromium-bidi:
         specifier: ^17.0.2
-        version: 17.0.2(devtools-protocol@0.0.1692173)
+        version: 17.0.2(devtools-protocol@0.0.1693794)
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
@@ -12427,13 +12427,13 @@ packages:
     transitivePeerDependencies:
       - supports-color
 
-  /chromium-bidi@17.0.2(devtools-protocol@0.0.1692173):
+  /chromium-bidi@17.0.2(devtools-protocol@0.0.1693794):
     resolution: {integrity: sha512-5v9GQFhTktFvotn/OFNJBmKLKRAb6n9r0bVCwf7sHgWc3/JryK0bj1nn93L3pHFrfgcsu6Be6EWsDi+1XHTGDg==}
     engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0'}
     peerDependencies:
       devtools-protocol: '*'
     dependencies:
-      devtools-protocol: 0.0.1692173
+      devtools-protocol: 0.0.1693794
       mitt: 3.0.1
       zod: 4.5.4
     dev: true
@@ -13470,8 +13470,8 @@ packages:
     dependencies:
       dequal: 2.0.3
 
-  /devtools-protocol@0.0.1692173:
-    resolution: {integrity: sha512-Bdn2rAjjjPz5v5e0Hn9SKju6DDfEt3xWqA0OT65vIr39VCLvpoEy8BRx+2g085ZuPKcJO8gcZgzvUi7Pya93yg==}
+  /devtools-protocol@0.0.1693794:
+    resolution: {integrity: sha512-DNKetxxc6finacohsKecb/1oD3z/PJYqlOnk8cG2pp6t9O3ET4Oz+W3SxBJkG/RFFBGRKfwdY0HEC6b7OdC2Nw==}
     dev: true
 
   /dfa@1.2.0:
