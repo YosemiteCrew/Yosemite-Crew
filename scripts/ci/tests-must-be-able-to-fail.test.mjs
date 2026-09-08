@@ -115,3 +115,39 @@ test('a PR with only e2e test changes is not treated as proven', () => {
   const grouped = groupTestsByWorkspace(['apps/frontend/e2e/route-sweep.spec.ts']);
   assert.equal(grouped.size, 0, 'nothing runnable means no evidence, not a pass');
 });
+
+test('nothing runnable is NOT read as proof', () => {
+  // This was the bug: `false` meant "the tests failed against the base", which
+  // verdict reads as success. A PR whose only test change was an e2e spec
+  // therefore PASSED the gate having proved nothing at all.
+  const r = verdict({
+    source: ['a.ts'],
+    tests: ['apps/frontend/e2e/x.spec.ts'],
+    testsPassedAgainstBase: null,
+    nothingRunnable: true,
+  });
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /does not run/);
+});
+
+test('a genuine failure against the base is still a pass', () => {
+  // The distinction that matters: tests ran and failed (proof) versus tests
+  // never ran (no proof).
+  const r = verdict({
+    source: ['a.ts'],
+    tests: ['apps/frontend/x.test.ts'],
+    testsPassedAgainstBase: false,
+    nothingRunnable: false,
+  });
+  assert.equal(r.ok, true);
+});
+
+test('the refactor label still excuses an unrunnable change', () => {
+  const r = verdict({
+    source: ['a.ts'],
+    tests: ['apps/frontend/e2e/x.spec.ts'],
+    nothingRunnable: true,
+    allowUnchangedBehaviour: true,
+  });
+  assert.equal(r.ok, false, 'the label excuses a PASSING base run, not an unverifiable one');
+});

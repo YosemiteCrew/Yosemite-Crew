@@ -83,7 +83,9 @@ export const groupTestsByWorkspace = (tests) => {
     if (/(^|\/)e2e\//.test(t)) continue; // this gate does not drive browsers
     const ws = workspaceOf(t);
     if (!ws) continue;
-    out.set(ws, [...(out.get(ws) ?? []), t]);
+    const paths = out.get(ws);
+    if (paths) paths.push(t);
+    else out.set(ws, [t]);
   }
   return out;
 };
@@ -101,6 +103,7 @@ export const verdict = ({
   source,
   tests,
   testsPassedAgainstBase,
+  nothingRunnable = false,
   allowUnchangedBehaviour = false,
 }) => {
   if (source.length === 0) {
@@ -112,6 +115,19 @@ export const verdict = ({
       reason:
         `This pull request changes ${source.length} source file(s) and no test.\n` +
         'A change nothing can fail on is a change nothing verified.',
+    };
+  }
+  // Distinct from "the tests failed against the base". Nothing ran, so nothing
+  // was proved - and `false` here would be read as proof, which is the exact
+  // false green this gate exists to remove. It was written that way first.
+  if (nothingRunnable) {
+    return {
+      ok: false,
+      reason:
+        'The changed tests are all end-to-end specs, which this gate does not run.\n' +
+        'It therefore cannot tell whether they verify this source change.\n' +
+        'Add a unit test for the changed behaviour, or label the PR no-behaviour-change\n' +
+        'if the source change genuinely alters nothing observable.',
     };
   }
   if (testsPassedAgainstBase === false) {
@@ -136,6 +152,27 @@ export const verdict = ({
 };
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
+
+/**
+ * Runs each workspace's changed tests against the reverted source.
+ *
+ * Every workspace must pass for the branch to be judged "the tests survive their
+ * own revert". One failing workspace proves the tests depend on the change.
+ */
+const runChangedTests = (byWorkspace) => {
+  let allPassed = true;
+  for (const [ws, paths] of byWorkspace) {
+    console.log(`running ${paths.length} changed test file(s) in ${ws} against the base`);
+    try {
+      execFileSync('pnpm', ['--filter', ws, 'exec', 'jest', '--ci', '--passWithNoTests', ...paths], {
+        stdio: 'inherit',
+      });
+    } catch {
+      allPassed = false;
+    }
+  }
+  return allPassed;
+};
 
 const main = () => {
   const args = process.argv.slice(2);
@@ -167,6 +204,7 @@ const main = () => {
   console.log(`test files changed:   ${tests.length}`);
 
   let testsPassedAgainstBase = null;
+  let nothingRunnable = false;
 
   if (source.length > 0 && tests.length > 0) {
     // A file the branch ADDS does not exist at the base, and `git checkout base --`
@@ -190,25 +228,9 @@ const main = () => {
     try {
       if (byWorkspace.size === 0) {
         console.log('no runnable unit tests changed (e2e only, or outside a known workspace)');
-        testsPassedAgainstBase = false; // absence of evidence is not a pass
+        nothingRunnable = true;
       } else {
-        // Every workspace must pass for the branch to be judged as "tests
-        // survive their own revert". One failing workspace proves the tests
-        // depend on the change.
-        let allPassed = true;
-        for (const [ws, paths] of byWorkspace) {
-          console.log(`running ${paths.length} changed test file(s) in ${ws} against the base`);
-          try {
-            execFileSync(
-              'pnpm',
-              ['--filter', ws, 'exec', 'jest', '--ci', '--passWithNoTests', ...paths],
-              { stdio: 'inherit' }
-            );
-          } catch {
-            allPassed = false;
-          }
-        }
-        testsPassedAgainstBase = allPassed;
+        testsPassedAgainstBase = runChangedTests(byWorkspace);
       }
     } finally {
       // Always put the branch back, including when the run threw. `checkout HEAD`
@@ -217,7 +239,13 @@ const main = () => {
     }
   }
 
-  const result = verdict({ source, tests, testsPassedAgainstBase, allowUnchangedBehaviour });
+  const result = verdict({
+    source,
+    tests,
+    testsPassedAgainstBase,
+    nothingRunnable,
+    allowUnchangedBehaviour,
+  });
   console.log(`\n${result.ok ? 'PASS' : 'FAIL'}: ${result.reason}`);
   process.exit(result.ok ? 0 : 1);
 };
