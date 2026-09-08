@@ -1234,6 +1234,23 @@ describe('Inventory Page', () => {
     expect(screen.getByTestId('item-2')).toBeInTheDocument();
   });
 
+  it('clears an alert handoff when the catalog search changes', async () => {
+    render(<ProtectedInventory />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'View low-stock catalog' }));
+    expect(screen.queryByTestId('item-1')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Search inventory'), { target: { value: 'Item A' } });
+
+    act(() => {
+      jest.advanceTimersByTime(300);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('item-1')).toBeInTheDocument();
+    });
+  });
+
   it('keeps 30-day expiring alerts in the catalog handoff', () => {
     mockExpiringAlertItemIds = ['expiring-in-30-days'];
     (useInventoryModule as jest.Mock).mockReturnValue({

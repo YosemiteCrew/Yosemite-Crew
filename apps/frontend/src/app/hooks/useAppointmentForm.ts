@@ -17,6 +17,7 @@ import {
 import { buildUtcDateFromDateAndTime, getDurationMinutes } from '@/app/lib/date';
 import {
   buildDateInPreferredTimeZone,
+  getDateKeyInPreferredTimeZone,
   isOnPreferredTimeZoneCalendarDay,
   utcClockTimeToPreferredTimeZoneClock,
 } from '@/app/lib/timezone';
@@ -1226,9 +1227,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
             ? "You've reached your free appointment limit. Please upgrade to book more."
             : "We couldn't verify your booking limit right now. Please try again.";
       }
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      if (selectedDate < todayStart) {
+      if (getDateKeyInPreferredTimeZone(selectedDate) < getDateKeyInPreferredTimeZone(new Date())) {
         errors.slot = 'Appointments cannot be booked for past dates.';
       }
       if (requireCompanion && !formData.companion.id) {
