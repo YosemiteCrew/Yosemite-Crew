@@ -298,12 +298,33 @@ const PRE_FIX_NAME_ROW_WIDTH = 197;
 
 export const NameKeepsItsRoom: Story = {
   name: 'Long name beside a wide pill',
+  /* The allergy is set here rather than inherited, because the guard's second
+     assertion is about the signalment and the meta args have no allergy tail.
+     Without it this story measured `Beagle · 9 yr · 12.4 kg` - 23 characters in
+     a 199px box, 55px of headroom - while asserting that the line the component
+     documents as the first thing lost is safe. `WithAllergy` does not cover it
+     either: it asserts the tail is in `textContent` and that the paragraph CAN
+     ellipsize, neither of which is a measurement.
+
+     Two things about the margin, because the obvious way to read it is wrong.
+     The test runner renders `mobile` at 375px (`.storybook/test-runner.ts`),
+     not the 390px the issue was investigated at, so the guard runs on 15px less
+     than the numbers in #2790. And `scrollWidth` reports the BOX, not the text,
+     whenever the text fits - at 375px this paragraph reads 184/184 for a tail of
+     `Penicilli`, `Penicillin` and `Penicillinx` alike, so the headroom cannot be
+     read off it. Swept a character at a time instead: `Penicillinxx` is the
+     first that clips, by 4px. The shipped fixture is about one character from
+     the edge at the width CI uses. That is deliberate for a guard, but it means
+     lengthening this allergy string turns the story red for a copy change rather
+     than a layout regression - lengthen the NAME instead if that is what you
+     want to test. */
+  args: { allergy: 'Penicillin' },
   render: (args) => <TimerBar {...args} startedMinutesAgo={20} bookedEndMinutesAgo={-10} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const name = canvas.getByText('Poppy Hartmann');
     const pill = canvas.getByRole('button', { name: /in progress/i });
-    const signalment = canvas.getByText('Beagle · 9 yr · 12.4 kg');
+    const signalment = canvas.getByText('Allergy: Penicillin').parentElement as HTMLElement;
 
     /* The control, and the reason this story is not a tautology. `truncate` makes
        a clipped element report scrollWidth > clientWidth, so the assertions below
@@ -333,7 +354,11 @@ export const NameKeepsItsRoom: Story = {
           'the name - the only one of the two carrying `truncate` - absorbed the whole 34px ' +
           'shortfall. Nothing here asserts a pixel count, so a type-ramp or copy change moves ' +
           'the numbers without failing the story; what it asserts is that the name and the ' +
-          'signalment both survive whatever the numbers become.',
+          'signalment both survive whatever the numbers become. It runs with the allergy tail ' +
+          'present because that is the longest signalment the component ships, and the ' +
+          'candidate this fix was chosen over cost that tail 98px. Its limit: 21.4px of ' +
+          'headroom is inherited, not established here, so an allergy longer than the fixture ' +
+          'still clips and this story will not see it.',
       },
     },
   },
