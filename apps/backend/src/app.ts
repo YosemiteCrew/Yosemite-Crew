@@ -1,5 +1,9 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
+import {
+  resolveRateLimitMax,
+  resolveRateLimitWindowMs,
+} from "src/utils/rate-limit-config";
 import fileUpload from "express-fileupload";
 import {
   getControlReports,
@@ -97,9 +101,13 @@ export function createApp() {
   app.use(helmet());
   app.disable("x-powered-by");
 
+  // Ceiling defaults to what production runs today; an environment that needs
+  // headroom sets RATE_LIMIT_MAX. Deliberately NOT an account allowlist - see
+  // utils/rate-limit-config for why that was rejected. The /auth limiter above
+  // is untouched: it guards the brute-force surface and stays at 100.
   const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 500,
+    windowMs: resolveRateLimitWindowMs(process.env.RATE_LIMIT_WINDOW_MS),
+    max: resolveRateLimitMax(process.env.RATE_LIMIT_MAX),
     standardHeaders: true,
     legacyHeaders: false,
   });
