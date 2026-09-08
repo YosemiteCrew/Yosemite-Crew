@@ -2413,7 +2413,7 @@ export const InventoryAlertService = {
     return prisma.inventoryBatch.findMany({
       where: {
         organisationId: safeOrganisationId,
-        expiryDate: { lte: threshold },
+        expiryDate: { gte: now.toDate(), lte: threshold },
       },
       orderBy: { expiryDate: "asc" },
     });
