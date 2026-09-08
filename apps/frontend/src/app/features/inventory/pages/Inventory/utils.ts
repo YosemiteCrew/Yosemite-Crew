@@ -796,6 +796,23 @@ export const getDerivedStockHealth = (
 // The stock-health key used for header counts AND the status filter, so the two
 // always agree: the explicit stockHealth when the item carries one, otherwise the
 // derived state (batch expiry / reorder levels) the table already labels rows with.
+/**
+ * Whether an item is at or below its reorder point.
+ *
+ * OUT_OF_STOCK and LOW_STOCK are separate stock-health keys, and
+ * `stockHealth` returns OUT_OF_STOCK first, so an item at zero on hand is never
+ * LOW_STOCK. Counting only LOW_STOCK therefore reported ZERO items below
+ * reorder point directly above an alerts panel headed "Low stock 21", because
+ * that panel uses the server rule `onHand <= reorderLevel`, which includes zero.
+ *
+ * An item at zero is below its reorder point by definition. This is the single
+ * predicate both counts must agree on.
+ */
+export const isBelowReorderPoint = (item: Parameters<typeof effectiveStockHealthKey>[0]): boolean => {
+  const key = effectiveStockHealthKey(item);
+  return key === 'LOW_STOCK' || key === 'OUT_OF_STOCK';
+};
+
 export const effectiveStockHealthKey = (item: InventoryItem): string => {
   const explicit = (item.stockHealth || '').toString().toUpperCase().replaceAll(' ', '_');
   if (explicit) return explicit;
