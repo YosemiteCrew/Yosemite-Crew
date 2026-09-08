@@ -1,7 +1,7 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "94c7f2507a739900eede2ce9facda86c9d655dee",
-  "total": 556,
+  "generated_at": "e414d85ccca8479deccdacaa6b96e8cbc50c87c9",
+  "total": 546,
   "justified": {
     "apps/frontend/src/app/features/appointments/components/Availability/Availability.tsx": {
       "n": 1,
@@ -42,7 +42,6 @@
     "apps/frontend/src/app/features/appointments/components/Calendar/common/ZoomInMarker.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/components/Calendar/common/ZoomOutMarker.stories.tsx": 2,
     "apps/frontend/src/app/features/appointments/components/Calendar/Task/WeekCalendar.stories.tsx": 2,
-    "apps/frontend/src/app/features/appointments/components/EmergencyBadge.stories.tsx": 2,
     "apps/frontend/src/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/BilledBadge.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton.stories.tsx": 1,
@@ -53,7 +52,7 @@
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/StaffField.stories.tsx": 2,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/TitleAddIcon.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer.stories.tsx": 4,
-    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/DischargeDateTimeModal.stories.tsx": 9,
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/DischargeDateTimeModal.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/steps/AllDocumentsTable.stories.tsx": 6,
     "apps/frontend/src/app/features/auth/pages/SignIn/SignIn.stories.tsx": 1,
     "apps/frontend/src/app/features/auth/pages/SignIn/SignIn.tsx": 3,
