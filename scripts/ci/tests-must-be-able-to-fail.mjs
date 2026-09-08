@@ -38,7 +38,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { realpathSync } from 'node:fs';
+import { realpathSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 /** A test file, by this repository's own conventions. */
@@ -61,6 +61,31 @@ export const isCheckableSource = (file) => {
   if (/\.(stories|d)\.[mc]?[jt]sx?$/.test(file)) return false;
   if (/(^|\/)(dist|build|generated|__generated__)\//.test(file)) return false;
   return /\.[mc]?[jt]sx?$/.test(file);
+};
+
+/**
+ * The workspace a changed test belongs to.
+ *
+ * The first version ran `pnpm --filter frontend` unconditionally, so a PR whose
+ * only test change was in apps/backend ran nothing and the gate reported a pass
+ * it had not earned.
+ */
+export const workspaceOf = (file) => {
+  const match = /^apps\/([^/]+)\//.exec(file);
+  if (!match) return undefined;
+  return { frontend: 'frontend', backend: 'backend' }[match[1]];
+};
+
+/** Groups test paths by the workspace whose runner can execute them. */
+export const groupTestsByWorkspace = (tests) => {
+  const out = new Map();
+  for (const t of tests) {
+    if (/(^|\/)e2e\//.test(t)) continue; // this gate does not drive browsers
+    const ws = workspaceOf(t);
+    if (!ws) continue;
+    out.set(ws, [...(out.get(ws) ?? []), t]);
+  }
+  return out;
 };
 
 export const classify = (files) => ({
@@ -144,28 +169,50 @@ const main = () => {
   let testsPassedAgainstBase = null;
 
   if (source.length > 0 && tests.length > 0) {
-    // Restore ONLY the source files to their base content. The branch's test
-    // changes stay exactly as written - that is the whole experiment.
-    git('checkout', base, '--', ...source);
+    // A file the branch ADDS does not exist at the base, and `git checkout base --`
+    // fails outright on it - which crashed this gate on the first real pull
+    // request that added one. Reverting such a file means removing it.
+    const existsAtBase = (file) => {
+      try {
+        execFileSync('git', ['cat-file', '-e', `${base}:${file}`], { stdio: 'ignore' });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const modified = source.filter(existsAtBase);
+    const added = source.filter((f) => !existsAtBase(f));
+
+    if (modified.length) git('checkout', base, '--', ...modified);
+    for (const file of added) rmSync(file, { force: true });
+
+    const byWorkspace = groupTestsByWorkspace(tests);
     try {
-      const patterns = tests.filter((t) => !/(^|\/)e2e\//.test(t));
-      if (patterns.length === 0) {
-        console.log('only e2e specs changed; this gate does not run them');
-        testsPassedAgainstBase = false; // not evidence of a passing test
+      if (byWorkspace.size === 0) {
+        console.log('no runnable unit tests changed (e2e only, or outside a known workspace)');
+        testsPassedAgainstBase = false; // absence of evidence is not a pass
       } else {
-        try {
-          execFileSync(
-            'pnpm',
-            ['--filter', 'frontend', 'run', 'test', '--', '--testPathPatterns', patterns.join('|')],
-            { stdio: 'inherit' }
-          );
-          testsPassedAgainstBase = true;
-        } catch {
-          testsPassedAgainstBase = false;
+        // Every workspace must pass for the branch to be judged as "tests
+        // survive their own revert". One failing workspace proves the tests
+        // depend on the change.
+        let allPassed = true;
+        for (const [ws, paths] of byWorkspace) {
+          console.log(`running ${paths.length} changed test file(s) in ${ws} against the base`);
+          try {
+            execFileSync(
+              'pnpm',
+              ['--filter', ws, 'exec', 'jest', '--ci', '--passWithNoTests', ...paths],
+              { stdio: 'inherit' }
+            );
+          } catch {
+            allPassed = false;
+          }
         }
+        testsPassedAgainstBase = allPassed;
       }
     } finally {
-      // Always put the branch back, including when the run threw.
+      // Always put the branch back, including when the run threw. `checkout HEAD`
+      // restores a deleted file too, so added and modified are handled alike.
       git('checkout', 'HEAD', '--', ...source);
     }
   }
