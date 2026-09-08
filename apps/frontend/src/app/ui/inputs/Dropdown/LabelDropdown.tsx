@@ -1,8 +1,9 @@
 import React, { useCallback, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IoChevronDown } from 'react-icons/io5';
-import { IoIosWarning } from 'react-icons/io';
 import { useDropdown, useFilteredOptions, DropdownOption } from '@/app/hooks/useDropdown';
+import Field from '@/app/ui/Field';
+import { getFieldControlClassName } from '@/app/ui/fieldControlStyles';
 import { useListboxKeyboardNav } from './useDropdownKeyboardNav';
 import { useDropdownPositioning } from './useDropdownPositioning';
 import { deriveEmptyLabel } from '@/app/ui/inputs/Dropdown/emptyLabel';
@@ -48,14 +49,10 @@ const findDropdownOption = (options: DropdownOption[], defaultOption?: string) =
   );
 };
 
-// Design select trigger: 46px tall, 0 13px padding (right side widened for the
-// chevron), 13px radius, 1.5px --hairline, warm --field-bg, 13px value text.
 const triggerClassName = (open: boolean, hasErrorState: boolean): string => {
-  const base =
-    'relative w-full flex h-[44px] items-center px-[13px] pr-9 min-w-30 rounded-[12px]! border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[13px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
+  const base = `relative flex h-10 min-w-30 cursor-pointer items-center px-3 pr-9 ${getFieldControlClassName(hasErrorState)}`;
   if (open) return `${base} border-[var(--blue)]! shadow-[0_0_0_3px_var(--glow-b10)] z-20`;
-  const border = hasErrorState ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!';
-  return `${base} ${border}`;
+  return base;
 };
 
 // Design menu row: 7px 11px padding, 8px radius, 12.5px / 600, --ink-body,
@@ -234,6 +231,8 @@ const LabelDropdown = ({
     findDropdownOption(options, defaultOption)
   );
   const listboxId = useId();
+  const controlId = useId();
+  const errorId = error ? `${controlId}-message` : undefined;
   const controlledSelected = findDropdownOption(options, defaultOption);
   // `internalSelected` is the single source of truth so a user click always moves
   // the label (selectOption sets it), even when a controlled parent never echoes
@@ -319,15 +318,23 @@ const LabelDropdown = ({
   );
 
   return (
-    <div className="flex flex-col w-full">
-      {!hideLabel && (
-        <span className="mb-1.5 flex items-center gap-1 truncate text-[12px] font-semibold text-[var(--ink-soft)]">
-          {icon}
-          {placeholder}
-        </span>
-      )}
+    <Field
+      htmlFor={controlId}
+      label={
+        hideLabel ? undefined : (
+          <span className="flex items-center gap-1 truncate">
+            {icon}
+            {placeholder}
+          </span>
+        )
+      }
+      error={error}
+      messageId={errorId}
+      disabled={disabled}
+    >
       <div className="w-full relative" ref={attachDropdownRef}>
         <button
+          id={controlId}
           type="button"
           disabled={disabled}
           className={triggerClassName(open, Boolean(error || hasError))}
@@ -341,6 +348,7 @@ const LabelDropdown = ({
           aria-expanded={open}
           aria-controls={open ? listboxId : undefined}
           aria-haspopup="listbox"
+          aria-describedby={errorId}
           onKeyDown={disabled ? undefined : handleKeyDown}
         >
           <DropdownTriggerContent
@@ -363,13 +371,7 @@ const LabelDropdown = ({
           <div className="absolute top-full left-0 mt-1 w-full">{panelNode}</div>
         )}
       </div>
-      {error && (
-        <div className="min-h-6 mt-1.5 flex items-center gap-1 text-caption-2 text-text-error">
-          <IoIosWarning className="text-text-error" size={14} />
-          <span>{error}</span>
-        </div>
-      )}
-    </div>
+    </Field>
   );
 };
 

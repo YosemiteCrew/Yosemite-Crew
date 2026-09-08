@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { Secondary } from '@/app/ui/primitives/Buttons';
+import { Textarea } from '@/app/ui/Input';
 import { formatMoneyPrecise } from '@/app/lib/money';
 import EstimateLineRow from '@/app/features/finance/pages/Estimates/Sections/EstimateLineRow';
 import {
@@ -130,7 +131,7 @@ export const EstimateNotesField = ({
       Notes (optional)
     </label>
     <span className={fieldClass}>
-      <textarea
+      <Textarea
         id="estimate-notes"
         value={notes}
         rows={2}

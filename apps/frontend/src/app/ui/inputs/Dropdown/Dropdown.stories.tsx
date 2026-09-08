@@ -19,7 +19,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'Floating-label select dropdown. Supports plain string options, `{label, value}` objects, ' +
+          'Labelled 40px select field. Supports plain string options, `{label, value}` objects, ' +
           'country lists, and breed lists. Optional search filter.',
       },
     },
@@ -54,7 +54,7 @@ export const Default: Story = {};
 export const WithValue: Story = {
   args: { value: 'cardiology' },
   parameters: {
-    docs: { description: { story: 'Selected value displayed with floating label active.' } },
+    docs: { description: { story: 'Selected value displayed below the static field label.' } },
   },
 };
 

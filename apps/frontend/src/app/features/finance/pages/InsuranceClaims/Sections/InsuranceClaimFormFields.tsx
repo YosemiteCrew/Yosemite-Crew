@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { currencySymbol } from '@/app/lib/money';
+import { Textarea } from '@/app/ui/Input';
 import {
   fieldClass,
   inputClass,
@@ -133,7 +134,7 @@ const InsuranceClaimFormFields = ({
         Notes (optional)
       </label>
       <span className={fieldClass}>
-        <textarea
+        <Textarea
           id="claim-notes"
           rows={2}
           value={draft.notes}

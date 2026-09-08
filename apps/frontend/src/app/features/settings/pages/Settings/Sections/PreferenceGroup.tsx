@@ -62,7 +62,7 @@ export const PreferenceGroup = ({
 
   return (
     <section
-      className={`flex flex-col gap-[14px] rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5! py-[18px]! shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] ${
+      className={`flex flex-col gap-[14px] yc-card-surface px-5! py-[18px]! ${
         className ?? ''
       }`.trim()}
     >

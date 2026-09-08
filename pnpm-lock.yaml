@@ -648,9 +648,6 @@ importers:
       '@types/react-dom':
         specifier: 19.2.3
         version: 19.2.3(@types/react@19.2.18)
-      '@yosemite-crew/design-tokens':
-        specifier: workspace:^
-        version: link:../../packages/design-tokens
       '@yosemite-crew/fhir':
         specifier: workspace:^
         version: link:../../packages/fhir
@@ -1076,12 +1073,6 @@ importers:
         version: 5.22.0
       typescript:
         specifier: 5.9.3
-        version: 5.9.3
-
-  packages/design-tokens:
-    devDependencies:
-      typescript:
-        specifier: ^5
         version: 5.9.3
 
   packages/fhir:

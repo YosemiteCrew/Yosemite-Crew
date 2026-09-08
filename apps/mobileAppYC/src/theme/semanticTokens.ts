@@ -10,11 +10,13 @@
  * configured to resolve it. Nothing here is derived from that package or
  * checked against it, so the two drift silently.
  *
- * The naming is a deliberate approximation of that package's vocabulary, not a
- * match: the shared contract nests three levels (`status.success.surface`)
- * while React Native needs flat string keys, so this file flattens to
- * `status.successSurface`. Twelve contract keys have no entry here and six
- * entries here have no contract counterpart.
+ * The naming is a deliberate approximation of the former web token package's
+ * vocabulary, not a match: the shared contract nested three levels
+ * (`status.success.surface`) while React Native needs flat string keys, so this
+ * file flattens to `status.successSurface`. The package was removed because it
+ * had no runtime consumers; this mapping remains an independent mobile
+ * vocabulary. Twelve former contract keys have no entry here and six entries
+ * here have no counterpart.
  *
  * Rules:
  * - Do NOT use raw hex values here. All values come from `colors.ts`.
@@ -29,7 +31,7 @@ import {colors, colorsDark} from './colors';
 
 /**
  * Semantic color mapping for the **light** (default) theme - warm bone.
- * Key names approximate design-tokens/src/color.ts; see the note above.
+ * Key names approximate the former design-tokens color vocabulary; see the note above.
  */
 export const semanticColorsLight = {
   // --- Text ---

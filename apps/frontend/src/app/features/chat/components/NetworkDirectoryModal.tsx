@@ -89,7 +89,7 @@ export function NetworkDirectoryModal({
   return (
     <dialog
       open
-      className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-start justify-center border-0 bg-[var(--scrim,rgba(29,28,27,0.44))] p-4 pt-24"
+      className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-start justify-center border-0 bg-[var(--sh55)] p-4 pt-24"
       aria-label="Message a colleague at another clinic"
     >
       <button
