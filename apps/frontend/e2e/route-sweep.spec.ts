@@ -72,6 +72,13 @@ const ROUTES = [
 
 const BASELINE_PATH = path.join(__dirname, 'route-sweep-baseline.json');
 
+/**
+ * The longest the sweep will wait for the rate-limit window. Slightly over the
+ * limiter's own 15-minute window: anything beyond that is a malformed header,
+ * not a wait.
+ */
+const MAX_THROTTLE_WAIT_MS = 16 * 60 * 1000;
+
 const readBaseline = (): Record<string, string[]> => {
   try {
     return JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8')) as Record<string, string[]>;
@@ -262,13 +269,39 @@ test('every operational route holds its page invariants', async ({ page }) => {
     // needed while there is headroom and too short once there is not.
     const delay = throttleDelayMs({ ...budget, now: Date.now() });
     if (index > 0 && delay > 0) {
+      // Wait the FULL reported reset. Capping this at 60s resumed navigation
+      // inside a window that had not reset - the limiter's window is 15 minutes -
+      // and because 429 console errors are suppressed, the remaining routes were
+      // then evaluated against rate-limited error and empty states and passed.
+      // A delay longer than the window itself means the header is wrong, and
+      // that is a failure rather than something to sleep through.
+      expect(
+        delay,
+        `The API reports ${Math.round(delay / 1000)}s until the rate-limit window resets, ` +
+          'which is longer than the window itself. Refusing to continue: the remaining routes ' +
+          'would be swept against throttled responses and would pass while proving nothing.'
+      ).toBeLessThanOrEqual(MAX_THROTTLE_WAIT_MS);
       await new Promise((resolve) => {
-        setTimeout(resolve, Math.min(delay, 60_000));
+        setTimeout(resolve, delay);
       });
     }
     const stopWatching = watchRoute(route);
     const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+    // A route whose primary request hangs produces no HTTP response and not
+    // necessarily a console error. Swallowing this timeout let the sweep read a
+    // page still showing its loading skeleton, find no violations, and report an
+    // unusable route as healthy.
+    const settled = await page
+      .waitForLoadState('networkidle', { timeout: 30_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!settled) {
+      found[route] = [
+        `${route}  [never-settled]  still loading after 30s; the page was not swept`,
+      ];
+      stopWatching();
+      continue;
+    }
 
     // The main document's own status, kept separate from the background-probe
     // listener that deliberately ignores 404s. A deleted or mistyped route can
