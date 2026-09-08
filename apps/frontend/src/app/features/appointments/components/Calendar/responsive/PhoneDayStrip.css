@@ -66,7 +66,7 @@
    reads as secondary to the date through size and letter-spacing, which is
    where that hierarchy belongs when the alternative is failing AA. */
 .yc-day-strip__cell--selected .yc-day-strip__weekday {
-  color: #ffffff;
+  color: var(--white-text);
 }
 
 /* Frame: font-size 14px; font-weight 700; color var(--ink). */
@@ -83,7 +83,7 @@
 }
 
 .yc-day-strip__cell--selected .yc-day-strip__date {
-  color: #ffffff;
+  color: var(--white-text);
 }
 
 /* Frame: dot row gap 2px; each dot 3.5px, fully round. */
@@ -102,5 +102,5 @@
 
 /* Frame: on the filled cell the dots invert to white. */
 .yc-day-strip__cell--selected .yc-day-strip__dot {
-  background: #ffffff;
+  background: var(--white-text);
 }
