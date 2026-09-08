@@ -196,7 +196,14 @@ jobs:
       - name: Run public smoke and accessibility flows
         env:
           E2E_WEB_SERVER_COMMAND: pnpm exec next start -p 3001 -H 127.0.0.1
-        run: pnpm --filter frontend exec playwright test e2e/smoke.spec.ts e2e/a11y.spec.ts
+        # pageInvariants and routeSweepExtractors need no session, so they run
+        # here and therefore on every pull request - the rules and the DOM
+        # extraction are gated pre-merge even though the sweep that uses them
+        # can only run where credentials exist.
+        run: >-
+          pnpm --filter frontend exec playwright test
+          e2e/smoke.spec.ts e2e/a11y.spec.ts
+          e2e/pageInvariants.spec.ts e2e/routeSweepExtractors.spec.ts
 
       - name: Upload Playwright HTML report
         if: always()
@@ -287,7 +294,8 @@ jobs:
           pnpm --filter frontend exec playwright test \
             e2e/auth-flow.spec.ts \
             e2e/developer-portal.spec.ts \
-            e2e/public-booking-setup.spec.ts
+            e2e/public-booking-setup.spec.ts \
+            e2e/route-sweep.spec.ts
 
       # This job's artifacts are deliberately NOT uploaded.
       #
