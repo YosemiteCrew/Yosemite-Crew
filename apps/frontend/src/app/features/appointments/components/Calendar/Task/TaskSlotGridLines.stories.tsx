@@ -123,8 +123,8 @@ const meta = {
           'closing rule on the last visible hour only.\n\n' +
           "This file's own comment records why it needs drawing. It was a private copy of " +
           '`common/SlotGridLines` still on the pre-redesign cool ramp: ' +
-          '`--color-calendar-line-soft`, #e9edf3, a cool grey on the warm bone ground and #302820 ' +
-          'in dark - 1.01:1 on the slot surface. The rules were in the DOM at the correct pixels ' +
+          '`--color-calendar-line-soft`, a cool grey that reached only 1.01:1 against the slot ' +
+          'surface in dark mode. The rules were in the DOM at the correct pixels ' +
           'and were simply not visible, which is a defect no structural test can hold. The play ' +
           'functions here measure the colour off the rendered element and composite it over the ' +
           'ground rather than checking a class name.\n\n' +
