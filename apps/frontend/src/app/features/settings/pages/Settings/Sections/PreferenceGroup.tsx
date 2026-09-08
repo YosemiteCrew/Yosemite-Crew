@@ -41,6 +41,8 @@ type PreferenceGroupProps = {
    * for exactly that role.
    */
   readOnly?: boolean;
+  /** An action rendered in the title row, next to the scope chip (e.g. a "New organization" link). */
+  action?: React.ReactNode;
 };
 
 /**
@@ -57,6 +59,7 @@ export const PreferenceGroup = ({
   className,
   scope,
   readOnly = false,
+  action,
 }: PreferenceGroupProps) => {
   const copy = scope ? SCOPE_COPY[scope] : null;
 
@@ -68,8 +71,13 @@ export const PreferenceGroup = ({
     >
       <div className="flex flex-col gap-[3px]">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-[14.5px] font-bold text-[var(--ink)]">{title}</h3>
-          {copy && <ScopeChip scope={scope!} label={copy.label} />}
+          <h3 className="min-w-0 text-[14.5px] font-bold text-[var(--ink)]">{title}</h3>
+          {(copy || action) && (
+            <div className="flex flex-none items-center gap-2">
+              {copy && <ScopeChip scope={scope!} label={copy.label} />}
+              {action}
+            </div>
+          )}
         </div>
         {copy && (
           <p className="m-0! text-[11.5px] text-[var(--ink-faint)]">

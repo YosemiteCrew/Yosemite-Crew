@@ -8,6 +8,7 @@ import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { usePrimaryAvailability } from '@/app/hooks/useAvailabiities';
 
+import { PreferenceGroup } from './PreferenceGroup';
 import { summarizeAvailability } from './personal.utils';
 import '@/app/features/settings/styles/Settings.css';
 
@@ -62,8 +63,7 @@ const Personal = ({ onEditProfile, onEditHours }: PersonalProps) => {
   );
 
   return (
-    <div className="yc-card-surface px-5! py-[18px]! flex flex-col gap-[14px]">
-      <div className="text-[14.5px] font-bold text-[var(--ink)]">Personal</div>
+    <PreferenceGroup title="Personal">
       <div className="flex items-center gap-[14px]">
         {isHttpsAvatar(avatarUrl) ? (
           <AvatarImage
@@ -108,7 +108,7 @@ const Personal = ({ onEditProfile, onEditHours }: PersonalProps) => {
           Edit hours
         </button>
       </div>
-    </div>
+    </PreferenceGroup>
   );
 };
 
