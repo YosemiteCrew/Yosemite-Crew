@@ -8,6 +8,7 @@ import {
   rawEnumViolations,
   rawIdViolations,
   staleForwardLookingViolations,
+  throttleDelayMs,
 } from './support/pageInvariants';
 
 /**
@@ -155,5 +156,38 @@ test.describe('console noise', () => {
     expect(
       isReportableConsoleError('Failed to load resource: the server responded with a status of 500')
     ).toBe(true);
+  });
+});
+
+test.describe('rate-limit throttling', () => {
+  const NOW = 1_700_000_000_000;
+
+  test('does not wait while the API reports headroom', () => {
+    expect(throttleDelayMs({ remaining: 400, resetAtMs: NOW + 60_000, now: NOW })).toBe(0);
+  });
+
+  test('does not wait before any response has been seen', () => {
+    // The first navigation has no headers yet; blocking on that would add a
+    // delay to every run for no reason.
+    expect(throttleDelayMs({ now: NOW })).toBe(0);
+  });
+
+  test('waits exactly until the window resets when the budget is nearly spent', () => {
+    expect(throttleDelayMs({ remaining: 5, resetAtMs: NOW + 42_000, now: NOW })).toBe(42_000);
+  });
+
+  test('never returns a negative wait once the reset has passed', () => {
+    expect(throttleDelayMs({ remaining: 0, resetAtMs: NOW - 10_000, now: NOW })).toBe(0);
+  });
+
+  test('does not guess a wait when the budget is low but no reset was reported', () => {
+    // Waiting on a duration nobody told us costs time on every route for no
+    // reason. Without a reset the only honest answer is not to wait.
+    expect(throttleDelayMs({ remaining: 1, now: NOW })).toBe(0);
+  });
+
+  test('respects the low-water mark it is given', () => {
+    expect(throttleDelayMs({ remaining: 50, resetAtMs: NOW + 1_000, now: NOW, lowWater: 10 })).toBe(0);
+    expect(throttleDelayMs({ remaining: 50, resetAtMs: NOW + 1_000, now: NOW, lowWater: 100 })).toBe(1_000);
   });
 });
