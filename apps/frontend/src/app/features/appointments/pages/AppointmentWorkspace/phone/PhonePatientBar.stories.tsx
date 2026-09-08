@@ -267,8 +267,14 @@ export const WithAllergy: Story = {
   render: (args) => <TimerBar {...args} startedMinutesAgo={20} bookedEndMinutesAgo={-10} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const allergy = canvas.getByText('Allergy: Penicillin');
-    const signalment = allergy.parentElement as HTMLElement;
+    /* Neither binding may be the string this story asserts about. `WithAllergy`
+       previously took the paragraph from `getByText('Allergy: Penicillin')`, so
+       changing `args.allergy` killed the lookup and the three assertions that are
+       NOT about the allergy text - the ellipsis, the ink difference and the weight -
+       stopped running rather than failing. The tail is bound by a prefix instead,
+       which survives a change to the allergy itself. */
+    const signalment = canvas.getByTestId('patient-signalment');
+    const allergy = within(signalment).getByText(/^Allergy: /);
 
     /* The tail is a span inside the same truncating paragraph as the signalment, so
        it is the FIRST thing lost when the name is long - and the only thing marking
