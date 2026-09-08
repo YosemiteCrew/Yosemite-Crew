@@ -103,10 +103,13 @@ const eslintConfig = [
     },
   },
   {
-    // Freeze audit finding: a features/ file redeclaring a shared primitive's
-    // name (StatusPill, SectionCard, ...) silently diverges from the design
-    // system instead of importing it. See eslint-rules/no-shadowed-primitive.mjs.
-    files: ['src/app/features/**/*.{ts,tsx}'],
+    // Freeze audit finding: a features/ or ui/ file redeclaring a shared
+    // primitive's name (StatusPill, SectionCard, ...) silently diverges from
+    // the design system instead of importing it. ui/primitives/ itself is
+    // excluded inside the rule, not by narrowing this glob, so the check
+    // stays a single source of truth for scope.
+    // See eslint-rules/no-shadowed-primitive.mjs.
+    files: ['src/app/features/**/*.{ts,tsx}', 'src/app/ui/**/*.{ts,tsx}'],
     plugins: { local: noShadowedPrimitive },
     rules: {
       'local/no-shadowed-primitive': 'error',
@@ -159,7 +162,10 @@ const eslintConfig = [
         'error',
         {
           forbid: [
-            { element: 'textarea', message: 'Use Textarea from ui/primitives; it owns the shared field contract.' },
+            {
+              element: 'textarea',
+              message: 'Use Textarea from ui/primitives; it owns the shared field contract.',
+            },
           ],
         },
       ],

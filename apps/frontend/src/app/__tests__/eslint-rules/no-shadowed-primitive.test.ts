@@ -56,6 +56,34 @@ describe('no-shadowed-primitive', () => {
     expect(messages).toHaveLength(1);
   });
 
+  it('also flags a shadowed class declaration - class components still exist', () => {
+    const messages = lintTsx(
+      'class SectionCard extends React.Component { render() { return null; } }\n',
+      'src/app/features/widgets/Bad2b.tsx'
+    );
+    expect(messages).toHaveLength(1);
+    expect(messages[0].message).toContain('SectionCard');
+  });
+
+  it('applies outside features/ too - ui/tables/InventoryTable.tsx had this exact bug', () => {
+    const messages = lintTsx(
+      'const StatusPill = () => null;\nexport default StatusPill;\n',
+      'src/app/ui/tables/InventoryTable.tsx'
+    );
+    expect(messages).toHaveLength(1);
+  });
+
+  it("still does not fire inside ui/primitives/ itself, even for another primitive's name", () => {
+    // A primitive file may legitimately reference a sibling primitive's name
+    // (e.g. composing SectionCard inside StatusPill's own directory); only
+    // features/ and the rest of ui/ are shadow-risk territory.
+    const messages = lintTsx(
+      'const SectionCard = () => null;\nexport default SectionCard;\n',
+      'src/app/ui/primitives/StatusPill/StatusPill.tsx'
+    );
+    expect(messages).toHaveLength(0);
+  });
+
   it('does not fire on an unrelated component name', () => {
     const messages = lintTsx(
       'const WidgetSummary = () => null;\nexport default WidgetSummary;\n',
@@ -140,7 +168,7 @@ describe('no-shadowed-primitive - primitive index resilience', () => {
     jest.resetModules();
   });
 
-  it('never reports (fails safe) if ui/primitives cannot be read', () => {
+  it('never reports (fails safe) if ui/primitives cannot be read', async () => {
     jest.resetModules();
     jest.doMock('node:fs', () => ({
       ...jest.requireActual('node:fs'),
@@ -149,12 +177,11 @@ describe('no-shadowed-primitive - primitive index resilience', () => {
       },
     }));
 
-    let freshModule: { default?: typeof ruleModule } & typeof ruleModule;
-    jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- re-require a mocked node:fs synchronously inside isolateModules
-      freshModule = require('../../../../eslint-rules/no-shadowed-primitive.mjs');
+    let freshModule: { default: typeof ruleModule };
+    await jest.isolateModulesAsync(async () => {
+      freshModule = await import('../../../../eslint-rules/no-shadowed-primitive.mjs');
     });
-    const freshPlugin = freshModule!.default ?? freshModule!;
+    const freshPlugin = freshModule!.default;
 
     const freshLinter = new Linter();
     const messages = freshLinter.verify(
