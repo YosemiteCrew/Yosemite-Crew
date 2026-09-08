@@ -33,6 +33,7 @@ import {
   AuthSubmitButton,
   AuthAltNote,
 } from '@/app/features/auth/pages/authForm';
+import { signInErrorMessage } from '@/app/features/auth/lib/signInErrorMessage';
 
 type SignInProps = {
   redirectPath?: string;
@@ -240,7 +241,7 @@ const SignInForm = ({
         await handleCodeResendonError();
       } else {
         showErrorTost({
-          message: error.message || `Sign in failed`,
+          message: signInErrorMessage(error),
           errortext: 'Error',
           iconElement: (
             <Icon
