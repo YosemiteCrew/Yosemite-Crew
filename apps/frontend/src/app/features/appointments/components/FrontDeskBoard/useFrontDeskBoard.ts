@@ -24,12 +24,12 @@ import type {
   CheckInCompanionOption,
   CheckInRoomOption,
   PatientCheckInView,
-} from '@/app/features/appointments/components/CheckInBoard/CheckInBoard';
+} from '@/app/features/appointments/components/FrontDeskBoard/FrontDeskBoard';
 
 const ownerNameOf = (firstName?: string | null, lastName?: string | null): string =>
   [firstName, lastName].filter(Boolean).join(' ').trim();
 
-export interface CheckInBoardState {
+export interface FrontDeskBoardState {
   canEdit: boolean;
   entriesView: PatientCheckInView[];
   companionOptions: CheckInCompanionOption[];
@@ -144,7 +144,7 @@ const useCheckInActions = (
  * board defaults to active check-ins (WAITING + IN_CONSULTATION); `showAll`
  * reveals the terminal statuses too.
  */
-export const useCheckInBoard = (): CheckInBoardState => {
+export const useFrontDeskBoard = (): FrontDeskBoardState => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const permissions = usePermissions();
   const canEdit =

@@ -5,7 +5,7 @@ import type {
   CheckInStatus,
   TriagePriority,
 } from '@/app/features/appointments/services/patientCheckInService';
-import CheckInBoard, { type PatientCheckInView } from './CheckInBoard';
+import FrontDeskBoard, { type PatientCheckInView } from './FrontDeskBoard';
 
 const ORG_ID = 'org-storybook';
 
@@ -70,8 +70,8 @@ const ROOMS = [
 ];
 
 const meta = {
-  title: 'Appointments/CheckInBoard',
-  component: CheckInBoard,
+  title: 'Appointments/FrontDeskBoard',
+  component: FrontDeskBoard,
   parameters: {
     layout: 'padded',
     docs: {
@@ -100,7 +100,7 @@ const meta = {
     onAssignRoom: fn(),
     onAdd: fn(async () => true),
   },
-} satisfies Meta<typeof CheckInBoard>;
+} satisfies Meta<typeof FrontDeskBoard>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
