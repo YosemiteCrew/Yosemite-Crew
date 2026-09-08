@@ -6,13 +6,17 @@ import { prisma } from "src/config/prisma";
 
 // 1. Mock External Dependencies
 const mockSend = jest.fn();
-jest.mock("firebase-admin", () => ({
+jest.mock("firebase-admin/messaging", () => ({
   __esModule: true,
-  default: {
-    messaging: jest.fn(() => ({
-      send: mockSend,
-    })),
-  },
+  getMessaging: jest.fn(() => ({
+    send: mockSend,
+  })),
+}));
+jest.mock("firebase-admin/app", () => ({
+  __esModule: true,
+  getApps: jest.fn(() => []),
+  initializeApp: jest.fn(),
+  cert: jest.fn(),
 }));
 
 jest.mock("../../src/utils/logger", () => ({
