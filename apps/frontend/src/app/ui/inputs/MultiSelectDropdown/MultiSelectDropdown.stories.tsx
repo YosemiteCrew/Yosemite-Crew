@@ -68,7 +68,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'The multi-select used across the appointment and inventory forms: a 44px trigger that ' +
+          'The multi-select used across the appointment and inventory forms: a 40px trigger that ' +
           'joins every chosen label into one comma-separated line, and a panel of toggle rows.\n\n' +
           'The panel is `createPortal`ed to `document.body` and only mounts once `open` **and** a ' +
           'measured `portalStyle` both exist, so it was unreachable from every static story - the ' +

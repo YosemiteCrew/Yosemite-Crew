@@ -258,6 +258,77 @@ ${draft === null ? '' : `          draft: ${draft}\n`}          tag_name: manual
   assert.equal(count(null), 1, 'no draft key publishes');
 });
 
+// `verify` is the one job in desktop-release.yml with no `environment:` and no
+// job-level condition, so it runs on a branch dispatch today. Its release-opening
+// step is safe because of TWO things - a step-level tag guard and `--draft` - and
+// before this entry the checker pinned neither.
+const CREATE_STEP = `      - name: Open a draft release for the build jobs
+        run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --generate-notes --draft`;
+
+const verifyJob = (stepIf) => `
+name: fixture
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch: {}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+${stepIf === null ? CREATE_STEP : CREATE_STEP.replace('\n        run: |', `\n        if: ${stepIf}\n        run: |`)}
+`;
+
+test('the shipped verify shape is covered by its step-level tag guard', () => {
+  assert.deepEqual(
+    findUnguardedSubmissions(verifyJob("github.event_name == 'push'"), 'fixture.yml'),
+    []
+  );
+});
+
+test('deleting the tag guard on the release-opening step is caught', () => {
+  // The reachable one: `verify` has no environment, so this publishes from a
+  // branch dispatch. Silent before this entry existed.
+  const findings = findUnguardedSubmissions(verifyJob(null), 'fixture.yml');
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].store, 'a GitHub Release');
+  assert.equal(findings[0].job, 'verify');
+});
+
+test('--draft is NOT read, so removing it alone is deliberately not a finding', () => {
+  // Recorded so the omission is a decision rather than a gap someone finds later.
+  // Nothing here parses the command text: no regex, no comment stripping, no
+  // quoting hazard. The cost is that this real defect belongs to another check.
+  const undrafted = verifyJob("github.event_name == 'push'").replace(' --draft', '');
+  assert.ok(!undrafted.includes('--draft'), 'the fixture must actually drop the flag');
+  assert.deepEqual(findUnguardedSubmissions(undrafted, 'fixture.yml'), []);
+});
+
+test('a drafted create on a dispatch-only path is a false positive, and is refused anyway', () => {
+  // The cost of having no exemption, measured rather than left to be discovered:
+  // respelling the dispatch-only `release` job's step with the CLI reds correct
+  // code. Fails closed. The repair is an exemption, NOT a tag guard on a job that
+  // is dispatch-only by design - the finding message will not say that, so the
+  // header does.
+  const source = `
+name: fixture
+on:
+  workflow_dispatch: {}
+jobs:
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - name: Create draft GitHub Release
+        run: |
+          gh release create "$TAG" --generate-notes --draft
+`;
+  const findings = findUnguardedSubmissions(source, 'fixture.yml');
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].condition, null);
+});
+
 function findingsStores(source) {
   return findUnguardedSubmissions(source, 'fixture.yml').map((f) => f.store);
 }

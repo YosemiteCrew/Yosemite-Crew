@@ -1,6 +1,6 @@
 # UI Component Inventory & Taxonomy
 
-**Last updated:** 2026-07-15
+**Last updated:** 2026-09-06
 **Maintainer:** Frontend platform workstream
 
 This document maps every component under `src/app/ui/` to a taxonomy category,
@@ -15,18 +15,18 @@ Missing stories by area: cards `7`, inputs `4`, layout `14`, overlays `7`, primi
 
 ## Taxonomy categories
 
-| Category                    | Description                                                                       |
-| --------------------------- | --------------------------------------------------------------------------------- |
-| **Tokens**                  | Design variables, not components. CSS custom properties and Tailwind theme        |
-| **Primitives**              | Lowest-level building blocks: Button, Text, Stack, Badge, Input, icons, Accordion |
-| **Inputs**                  | Form control components: Datepicker, Dropdown, Search, FileInput, etc.            |
-| **Overlays**                | Modal, Toast, Loader - components that render above page content                  |
-| **Layout / Navigation**     | Page shells, headers, sidebars, routing guards                                    |
-| **Cards**                   | Card-shaped display units                                                         |
-| **Tables**                  | Data table components                                                             |
-| **Widgets**                 | Higher-level domain composites that are shared across features                    |
-| **Feature-only composites** | Components that live under `features/` and are not meant to be reused             |
-| **Legacy / Deprecated**     | Components pending replacement or removal                                         |
+| Category                    | Description                                                                   |
+| --------------------------- | ----------------------------------------------------------------------------- |
+| **Tokens**                  | Design variables, not components. CSS custom properties and Tailwind theme    |
+| **Primitives**              | Lowest-level building blocks: Button, Text, Stack, Badge, Field, Input, icons |
+| **Inputs**                  | Form control components: Datepicker, Dropdown, Search, FileInput, etc.        |
+| **Overlays**                | Modal, Toast, Loader - components that render above page content              |
+| **Layout / Navigation**     | Page shells, headers, sidebars, routing guards                                |
+| **Cards**                   | Card-shaped display units                                                     |
+| **Tables**                  | Data table components                                                         |
+| **Widgets**                 | Higher-level domain composites that are shared across features                |
+| **Feature-only composites** | Components that live under `features/` and are not meant to be reused         |
+| **Legacy / Deprecated**     | Components pending replacement or removal                                     |
 
 ---
 
@@ -46,26 +46,27 @@ token alignment · stable API · tests · story coverage · accessibility (a11y)
 
 ## Primitives
 
-| Component            | File                                               | Status          | Notes                                                   |
-| -------------------- | -------------------------------------------------- | --------------- | ------------------------------------------------------- |
-| Button               | `Button.tsx`                                       | ✅ Approved     | Semantic button/link split fixed. Stories added.        |
-| Text                 | `Text.tsx`                                         | ✅ Approved     | 14 typography variants via `variant` prop               |
-| Stack                | `Stack.tsx`                                        | ✅ Approved     | Flex layout helper                                      |
-| Badge                | `Badge.tsx`                                        | ✅ Approved     | Status chip / label                                     |
-| Input                | `Input.tsx`                                        | ✅ Approved     | Base input with token borders and error state           |
-| Card                 | `Card.tsx`                                         | ✅ Approved     | 3 variants: default / bordered / subtle                 |
-| Accordion            | `primitives/Accordion/Accordion.tsx`               | ✅ Approved     | Semantic buttons for expand/edit/delete. Stories added. |
-| EditableAccordion    | `primitives/Accordion/EditableAccordion.tsx`       | 🔄 In migration | Wraps Accordion - audit once Accordion is stable        |
-| SectionCard          | `primitives/SectionCard/SectionCard.tsx`           | ✅ Current      | Flat titled section for the organisation page           |
-| SmallAccordionButton | `primitives/Accordion/SmallAccordionButton.tsx`    | ⚠️ Legacy       | Potentially redundant                                   |
-| Primary (button)     | `primitives/Buttons/Primary.tsx`                   | ✅ Approved     | Internal - use Button wrapper                           |
-| Secondary (button)   | `primitives/Buttons/Secondary.tsx`                 | ✅ Approved     | Internal - use Button wrapper                           |
-| Delete (button)      | `primitives/Buttons/Delete.tsx`                    | ✅ Approved     | Internal - use Button wrapper                           |
-| BoardScopeToggle     | `primitives/BoardScopeToggle/BoardScopeToggle.tsx` | 🔄 In migration | Story added. Review API and ownership scope.            |
-| Close icon           | `primitives/Icons/Close.tsx`                       | ✅ Approved     |                                                         |
-| Back icon            | `primitives/Icons/Back.tsx`                        | ✅ Approved     |                                                         |
-| Next icon            | `primitives/Icons/Next.tsx`                        | ✅ Approved     |                                                         |
-| GlassTooltip         | `primitives/GlassTooltip/`                         | 🔄 In migration | Story added. Audit API and a11y                         |
+| Component            | File                                               | Status          | Notes                                                      |
+| -------------------- | -------------------------------------------------- | --------------- | ---------------------------------------------------------- |
+| Button               | `Button.tsx`                                       | ✅ Approved     | Semantic button/link split fixed. Stories added.           |
+| Text                 | `Text.tsx`                                         | ✅ Approved     | 14 typography variants via `variant` prop                  |
+| Stack                | `Stack.tsx`                                        | ✅ Approved     | Flex layout helper                                         |
+| Badge                | `Badge.tsx`                                        | ✅ Approved     | Status chip / label                                        |
+| Field                | `Field.tsx`                                        | ✅ Approved     | Bound label with one shared hint/error slot                |
+| Input                | `Input.tsx`                                        | ✅ Approved     | 40px input and textarea controls with required placeholder |
+| Card                 | `Card.tsx`                                         | ✅ Approved     | 3 variants: default / bordered / subtle                    |
+| Accordion            | `primitives/Accordion/Accordion.tsx`               | ✅ Approved     | Semantic buttons for expand/edit/delete. Stories added.    |
+| EditableAccordion    | `primitives/Accordion/EditableAccordion.tsx`       | 🔄 In migration | Wraps Accordion - audit once Accordion is stable           |
+| SectionCard          | `primitives/SectionCard/SectionCard.tsx`           | ✅ Current      | Flat titled section for the organisation page              |
+| SmallAccordionButton | `primitives/Accordion/SmallAccordionButton.tsx`    | ⚠️ Legacy       | Potentially redundant                                      |
+| Primary (button)     | `primitives/Buttons/Primary.tsx`                   | ✅ Approved     | Internal - use Button wrapper                              |
+| Secondary (button)   | `primitives/Buttons/Secondary.tsx`                 | ✅ Approved     | Internal - use Button wrapper                              |
+| Delete (button)      | `primitives/Buttons/Delete.tsx`                    | ✅ Approved     | Internal - use Button wrapper                              |
+| BoardScopeToggle     | `primitives/BoardScopeToggle/BoardScopeToggle.tsx` | 🔄 In migration | Story added. Review API and ownership scope.               |
+| Close icon           | `primitives/Icons/Close.tsx`                       | ✅ Approved     |                                                            |
+| Back icon            | `primitives/Icons/Back.tsx`                        | ✅ Approved     |                                                            |
+| Next icon            | `primitives/Icons/Next.tsx`                        | ✅ Approved     |                                                            |
+| GlassTooltip         | `primitives/GlassTooltip/`                         | 🔄 In migration | Story added. Audit API and a11y                            |
 
 ---
 
@@ -75,12 +76,14 @@ token alignment · stable API · tests · story coverage · accessibility (a11y)
 | -------------------- | ------------------------------------------------------ | --------------- | ------------------------------------------------------ |
 | Search               | `inputs/Search/index.tsx`                              | 🔄 In migration | Story added                                            |
 | Datepicker           | `inputs/Datepicker/index.tsx`                          | 🔄 In migration | Needs story + a11y audit                               |
-| Dropdown             | `inputs/Dropdown/Dropdown.tsx`                         | 🔄 In migration | Story added                                            |
-| LabelDropdown        | `inputs/Dropdown/LabelDropdown.tsx`                    | 🔄 In migration | Story added                                            |
-| MultiSelectDropdown  | `inputs/MultiSelectDropdown/index.tsx`                 | 🔄 In migration | Story added                                            |
-| SearchDropdown       | `inputs/SearchDropdown/index.tsx`                      | 🔄 In migration | Needs story                                            |
+| Dropdown             | `inputs/Dropdown/Dropdown.tsx`                         | 🔄 In migration | Uses Field; listbox consolidation remains              |
+| LabelDropdown        | `inputs/Dropdown/LabelDropdown.tsx`                    | 🔄 In migration | Uses Field; listbox consolidation remains              |
+| MultiSelectDropdown  | `inputs/MultiSelectDropdown/index.tsx`                 | 🔄 In migration | Uses Field; listbox consolidation remains              |
+| SearchDropdown       | `inputs/SearchDropdown/index.tsx`                      | 🔄 In migration | Uses Field; listbox consolidation remains              |
 | FileInput            | `inputs/FileInput/FileInput.tsx`                       | 🔄 In migration | Story added. react-bootstrap removed — re-audit status |
-| FormDesc             | `inputs/FormDesc/FormDesc.tsx`                         | 🔄 In migration | Audit                                                  |
+| FormInput            | `inputs/FormInput/FormInput.tsx`                       | ✅ Approved     | Compatibility wrapper over Field and Input             |
+| FormInputPass        | `inputs/FormInputPass/FormInputPass.tsx`               | ✅ Approved     | Password wrapper over Field and Input                  |
+| FormDesc             | `inputs/FormDesc/FormDesc.tsx`                         | ✅ Approved     | Compatibility wrapper over Field and Textarea          |
 | Slotpicker           | `inputs/Slotpicker/index.tsx`                          | 🔄 In migration | Needs story                                            |
 | ServiceSearch        | `inputs/ServiceSearch/ServiceSearch.tsx`               | ⚠️ Legacy       | Domain-specific - evaluate promotion vs feature-only   |
 | SpecialitySearch     | `inputs/SpecialitySearch/SpecialitySearch.tsx`         | ⚠️ Legacy       | Domain-specific                                        |

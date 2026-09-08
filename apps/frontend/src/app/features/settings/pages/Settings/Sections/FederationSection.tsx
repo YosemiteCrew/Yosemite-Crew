@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNotify } from '@/app/hooks/useNotify';
 import { Primary } from '@/app/ui/primitives/Buttons';
+import { Textarea } from '@/app/ui/Input';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import type {
   APActorSettings,
@@ -674,7 +675,7 @@ const ReferralFormFields = ({
       <label htmlFor="referral-clinical-context" className={FIELD_LABEL_CLS}>
         Clinical context
       </label>
-      <textarea
+      <Textarea
         id="referral-clinical-context"
         className={`${REFERRAL_INPUT_CLS} resize-none`}
         rows={3}
@@ -751,7 +752,7 @@ const EmergencyCard = () => {
       <div className={TEXT_MUTED}>
         Announces an emergency to all approved followers across the federation network.
       </div>
-      <textarea
+      <Textarea
         className="w-full text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
         rows={3}
         placeholder="Describe the emergency or critical notice..."

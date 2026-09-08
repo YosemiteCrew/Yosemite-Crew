@@ -1,29 +1,13 @@
-.select-wrapper {
-  display: flex;
-  flex-direction: column;
-}
-/* Design: label above field is 12px / 600 / --ink-soft with a 6px gap. */
-.select-top-label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 120%;
-  font-family: var(--satoshi-font);
-  color: var(--ink-soft);
-}
 .select-container {
   width: 100%;
   position: relative;
 }
-/* Design select trigger: 46px tall, 0 13px padding, 13px radius,
-   1.5px --hairline, warm --field-bg. Identical to the text-field spec. */
 .select-input-container {
   width: 100%;
-  height: 46px;
-  padding: 0 13px;
-  border-radius: 13px;
-  border: 1.5px solid var(--hairline) !important;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--hairline);
   background-color: var(--field-bg);
   outline: none;
   display: flex;
@@ -35,7 +19,6 @@
     border-color 0.15s,
     box-shadow 0.15s;
 }
-/* Design value text: 13px / 400 / --ink-body. */
 .select-input-selected {
   min-width: 0;
   flex: 1;
@@ -43,7 +26,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--ink-body);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 120%;
   font-family: var(--satoshi-font);
@@ -53,11 +36,11 @@
   color: var(--ink-faint);
 }
 .select-container.select-open .select-input-container {
-  border-color: var(--blue) !important;
+  border-color: var(--blue);
   box-shadow: 0 0 0 3px var(--glow-b10);
 }
 .select-input-container.select-error {
-  border-color: var(--color-input-border-error) !important;
+  border-color: var(--danger);
 }
 .select-input-container:focus-visible {
   outline: none;
@@ -152,18 +135,4 @@
 }
 .select-input-dropdown-search input::placeholder {
   color: var(--ink-faint);
-}
-
-.Errors {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 500;
-  font-size: 12px;
-  line-height: 120%;
-  font-family: var(--satoshi-font);
-  /* --danger-text, not --delete: --delete is the button FILL, and as 12px
-     error text it read 4.00 on the form background. */
-  color: var(--danger-text);
-  margin-top: 6px;
 }

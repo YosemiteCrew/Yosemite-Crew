@@ -28,7 +28,7 @@ const meta = {
         component:
           'Address field backed by Google Places autocomplete: the user types a clinic or address, ' +
           'picks a prediction, and the component fills the surrounding form (name, phone, website and ' +
-          'the split address) from the place details. The field is the standard 44px form input — ' +
+          'the split address) from the place details. The field is the standard 40px form input — ' +
           '`--field-bg` fill, 1.5px `--hairline` border, 12px radius — and squares its bottom corners ' +
           'while the prediction list is open. Predictions are fetched from the live Places API after ' +
           'two characters, so in Storybook (no API key) typing leaves the list closed; the stories ' +

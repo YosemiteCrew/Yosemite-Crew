@@ -232,7 +232,7 @@ const PhoneMonthOverview = ({
         />
       </div>
 
-      <div className="rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] px-2.5 pb-2.5 pt-3 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <div className="yc-card-surface yc-card-surface--tile px-2.5 pb-2.5 pt-3">
         <div className="mb-1.5 grid grid-cols-7">
           {WEEKDAY_LABELS.map((label) => (
             <span

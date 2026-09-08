@@ -49,7 +49,7 @@ const Payment = () => {
       allOf={[PERMISSIONS.SUBSCRIPTION_VIEW_ANY]}
       fallback={<Fallback resource="billing and subscription" />}
     >
-      <div className="flex items-center gap-3 rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5! py-[15px]! shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <div className="flex items-center gap-3 yc-card-surface px-5! py-[15px]!">
         <span className="flex size-9 flex-none items-center justify-center rounded-[11px] bg-[var(--blue-soft)] text-[var(--blue-text)]">
           <IoCardOutline size={16} aria-hidden="true" />
         </span>

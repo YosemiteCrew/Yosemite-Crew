@@ -376,7 +376,7 @@ const ProfileCard = ({
   };
 
   return (
-    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+    <div className="yc-card-surface">
       <div className="px-5! pt-4! pb-3! border-b border-[var(--hairline)] flex items-center justify-between gap-3">
         <div className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">{title}</div>
         {isActuallyEditable && !isEditing && (

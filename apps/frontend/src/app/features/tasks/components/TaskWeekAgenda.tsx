@@ -164,7 +164,7 @@ const TaskWeekAgenda = ({
   const weekStartKey = weekStart.getTime();
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[18px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden yc-card-surface">
       <div className="grid grid-cols-7 border-b border-card-border bg-[var(--screen-2)]">
         {days.map((day, index) => {
           const isToday = isOnPreferredTimeZoneCalendarDay(today, day);

@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
 import { createPortal } from 'react-dom';
 import { IoChevronDown } from 'react-icons/io5';
 import classNames from 'classnames';
-import { Icon } from '@/app/ui/icons/Icon';
+
+import Field from '@/app/ui/Field';
 
 import countries from '@/app/lib/data/countryList';
 import DropdownPanel from './DropdownPanel';
@@ -49,6 +50,7 @@ const Dropdown = ({
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
+  const controlId = useId();
   const errorId = useId();
   const searchInputId = useId();
 
@@ -172,10 +174,16 @@ const Dropdown = ({
   );
 
   return (
-    <div className="select-wrapper">
-      <span className="select-top-label">{placeholder}</span>
+    <Field
+      htmlFor={controlId}
+      label={placeholder}
+      error={error}
+      messageId={error ? errorId : undefined}
+      disabled={disabled}
+    >
       <div className={classNames('select-container', { 'select-open': open })} ref={dropdownRef}>
         <button
+          id={controlId}
           type="button"
           className={classNames(
             'select-input-container',
@@ -212,14 +220,7 @@ const Dropdown = ({
         {open && !disabled && shouldPortal && portalStyle && createPortal(panel, document.body)}
         {open && !disabled && !shouldPortal && panel}
       </div>
-
-      {error && (
-        <div id={errorId} role="alert" className="Errors">
-          <Icon icon="mdi:error" width="16" height="16" aria-hidden="true" />
-          {error}
-        </div>
-      )}
-    </div>
+    </Field>
   );
 };
 

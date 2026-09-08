@@ -34,9 +34,7 @@ const StatCardShell = ({
       selected={selected ?? options[0]}
       onSelect={onSelect}
     />
-    <div
-      className={`flex w-full flex-col rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5 py-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] ${cardClassName}`}
-    >
+    <div className={`flex w-full flex-col yc-card-surface px-5 py-4 ${cardClassName}`}>
       {isEmpty ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 text-[var(--ink-faint)]">
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">

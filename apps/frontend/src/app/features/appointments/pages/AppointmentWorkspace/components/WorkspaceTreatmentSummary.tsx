@@ -37,10 +37,7 @@ const WorkspaceTreatmentSummary = ({
 
   return (
     <div className="flex w-full flex-col gap-3">
-      <section
-        aria-label="Treatment summary"
-        className="rounded-[14px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
-      >
+      <section aria-label="Treatment summary" className="yc-card-surface yc-card-surface--inset">
         <div className="flex items-center justify-between border-b border-card-border px-4 py-3">
           <span className="text-body-4 text-text-secondary">Treatment items</span>
           <span className="text-body-4-emphasis tabular-nums text-text-primary">

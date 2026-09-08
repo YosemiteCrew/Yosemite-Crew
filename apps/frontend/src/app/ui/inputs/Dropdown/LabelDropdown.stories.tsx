@@ -17,7 +17,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'Floating-label dropdown backed by `{label, value}` options. Used for status pickers ' +
+          'Labelled 40px dropdown backed by `{label, value}` options. Used for status pickers ' +
           'and other typed selects. Supports optional inline search.',
       },
     },

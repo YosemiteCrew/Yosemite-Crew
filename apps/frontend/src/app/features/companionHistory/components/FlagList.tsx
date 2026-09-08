@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { IoAddOutline, IoCheckmarkOutline, IoFlagOutline } from 'react-icons/io5';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { Textarea } from '@/app/ui/Input';
 import type {
   FlagSeverity,
   PatientFlag,
@@ -240,7 +241,7 @@ const CreateFlagForm = ({ creating, onCreate, onCancel }: CreateFlagFormProps) =
         <label className={fieldLabelClass} htmlFor="patient-flag-description">
           Description
         </label>
-        <textarea
+        <Textarea
           id="patient-flag-description"
           className={clsx(controlClass, 'min-h-16 resize-y')}
           value={values.description}

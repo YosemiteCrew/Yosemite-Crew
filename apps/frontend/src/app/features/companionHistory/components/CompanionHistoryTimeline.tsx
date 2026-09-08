@@ -1954,7 +1954,7 @@ const useCompanionHistoryTimelineView = ({
           className={
             isPhoneVariant
               ? 'flex flex-col gap-3'
-              : 'flex flex-col gap-3 overflow-hidden rounded-[18px] border border-hairline bg-[var(--screen)] px-[22px] py-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]'
+              : 'flex flex-col gap-3 overflow-hidden yc-card-surface px-[22px] py-[18px]'
           }
         >
           <div className="flex flex-wrap items-center justify-between gap-3">

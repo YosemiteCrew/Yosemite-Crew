@@ -1,6 +1,8 @@
 import React, { useId, useState } from 'react';
-import { IoIosWarning } from 'react-icons/io';
 import { IoEye, IoEyeOff } from 'react-icons/io5';
+
+import Field from '@/app/ui/Field';
+import Input from '@/app/ui/Input';
 
 type FormInputPassProps = {
   intype: string;
@@ -9,6 +11,10 @@ type FormInputPassProps = {
   inlabel: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   autoComplete?: string;
+  disabled?: boolean;
+  hint?: string;
+  placeholder?: string;
+  required?: boolean;
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
 };
@@ -20,12 +26,16 @@ const FormInputPass = ({
   value,
   onChange,
   autoComplete,
+  disabled,
+  hint,
+  placeholder,
+  required = true,
   onBlur,
   onFocus,
   error,
 }: FormInputPassProps & { error?: string }) => {
   const uid = useId();
-  const errorId = error ? `${uid}-error` : undefined;
+  const messageId = error || hint ? `${uid}-message` : undefined;
   const [showPassword, setShowPassword] = useState(false);
 
   const togglePasswordVisibility = () => {
@@ -33,35 +43,30 @@ const FormInputPass = ({
   };
 
   return (
-    <div className="w-full">
-      <label
-        htmlFor={uid}
-        className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]"
-      >
-        {inlabel}
-      </label>
+    <Field
+      htmlFor={uid}
+      label={inlabel}
+      hint={hint}
+      error={error}
+      messageId={messageId}
+      disabled={disabled}
+    >
       <div className="relative">
-        <input
+        <Input
           type={showPassword ? 'text' : intype}
           name={inname}
           id={uid}
           value={value ?? ''}
+          placeholder={placeholder ?? inlabel}
           autoComplete={autoComplete}
           onChange={onChange}
           onBlur={onBlur}
           onFocus={onFocus}
-          required
-          aria-invalid={Boolean(error)}
-          aria-describedby={errorId}
-          aria-label={inlabel}
-          className={`
-            h-[44px] w-full rounded-[12px] border-[1.5px] bg-[var(--field-bg)]
-            pl-[14px] pr-11 text-[14px] text-[var(--ink-body)] outline-none transition-colors
-            placeholder:text-[var(--ink-faint)]
-            disabled:cursor-not-allowed disabled:opacity-60
-            ${error ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!'}
-            focus:border-[var(--blue)]! focus:shadow-[0_0_0_3px_var(--glow-b10)]
-          `}
+          required={required}
+          disabled={disabled}
+          error={Boolean(error)}
+          aria-describedby={messageId}
+          className="pr-11"
         />
         <button
           type="button"
@@ -73,19 +78,7 @@ const FormInputPass = ({
           {showPassword ? <IoEyeOff size={18} /> : <IoEye size={18} />}
         </button>
       </div>
-
-      {/* Show error as bottom red text only for input validation */}
-      {error && (
-        <div
-          id={errorId}
-          role="alert"
-          className="mt-1.5 flex items-center gap-1 text-caption-2 text-text-error"
-        >
-          <IoIosWarning className="text-text-error" size={14} aria-hidden="true" />
-          <span>{error}</span>
-        </div>
-      )}
-    </div>
+    </Field>
   );
 };
 

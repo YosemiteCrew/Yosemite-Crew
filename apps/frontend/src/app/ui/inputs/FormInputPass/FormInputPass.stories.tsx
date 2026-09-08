@@ -10,7 +10,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'Password input with show/hide toggle. Same floating-label style as `FormInput`. ' +
+          'Password input with show/hide toggle and the shared static field label. ' +
           'Toggle button carries correct aria-label for accessibility.',
       },
     },

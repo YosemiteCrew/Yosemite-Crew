@@ -129,7 +129,7 @@ const Team = ({ isVerified = false }: { isVerified?: boolean }) => {
       allOf={[PERMISSIONS.TEAMS_VIEW_ANY]}
       fallback={<Fallback resource="the team roster" />}
     >
-      <section className="flex flex-col overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <section className="flex flex-col overflow-hidden yc-card-surface">
         <div className="flex items-center justify-between gap-3 px-5! pt-4! pb-3!">
           {/* Section heading: `text-heading-3` (20px/500), the same ramp SectionCard
               gives Specialities, Documents, Online booking and Booking requests

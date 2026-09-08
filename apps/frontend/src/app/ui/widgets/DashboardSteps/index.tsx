@@ -112,7 +112,7 @@ const DashboardSteps = () => {
             <div
               key={step.title}
               className={clsx(
-                'flex flex-col items-start justify-between gap-3 px-5 py-[18px] rounded-[18px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]'
+                'flex flex-col items-start justify-between gap-3 px-5 py-[18px] yc-card-surface'
               )}
             >
               <div className="flex w-full flex-col items-start gap-2">

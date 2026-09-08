@@ -79,6 +79,21 @@ describe('Datepicker (index)', () => {
     expect(screen.getByRole('button', { name: 'Date, toggle calendar' })).toBeInTheDocument();
   });
 
+  it('shows the placeholder inside an empty input trigger', () => {
+    render(
+      <Datepicker
+        currentDate={null}
+        setCurrentDate={jest.fn()}
+        placeholder="Visit date"
+        type="input"
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Visit date, toggle calendar' })).toHaveTextContent(
+      'Visit date'
+    );
+  });
+
   it('stays memoised across re-renders with equal props', () => {
     const { rerender } = render(
       <Datepicker

@@ -1,10 +1,12 @@
+/* The table's BEHAVIOUR only. Its warm-bone frame — ground, hairline, 18px
+   radius and the two-stop shadow — is `.yc-card-surface` in globals.css, applied
+   beside this class at every call site. It used to be declared here as well —
+   the file that owned the recipe counting as one of the fifty-one copies of it.
+
+   The four surface properties carried `!important` so they would beat Tailwind's
+   layered utilities on the same element; `.yc-card-surface` is unlayered and wins
+   the same contest without it, the way `.yc-glass-overlay` already does. */
 .TableShell {
-  background: var(--screen) !important;
-  border: 1px solid var(--hairline) !important;
-  border-radius: 18px !important;
-  box-shadow:
-    0 1px 2px var(--sh03),
-    0 8px 22px var(--sh05) !important;
   overflow: hidden;
   min-height: 0;
   /* Own a compositing context so the 16px rounded overflow:hidden clip is

@@ -8,6 +8,7 @@ import {
   IoTrendingUpOutline,
 } from 'react-icons/io5';
 import Search from '@/app/ui/inputs/Search';
+import { Textarea } from '@/app/ui/Input';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
@@ -714,7 +715,7 @@ const VitalsForm = ({
       </div>
       <label className="flex flex-col gap-1">
         <span className="text-[12px] font-medium text-neutral-700">Notes (optional)</span>
-        <textarea
+        <Textarea
           value={notes}
           onChange={(e) => dispatchFormState({ type: 'SET_NOTES', value: e.target.value })}
           aria-label="Vitals notes"

@@ -1,5 +1,8 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { IoIosSearch, IoIosWarning } from 'react-icons/io';
+import { IoIosSearch } from 'react-icons/io';
+
+import Field from '@/app/ui/Field';
+import { getFieldControlClassName } from '@/app/ui/fieldControlStyles';
 
 type OptionProps = {
   value: string;
@@ -46,6 +49,7 @@ const SearchDropdown = ({
   const listboxId = useId();
   const errorId = useId();
   const accessibleLabel = label ?? placeholder;
+  const visibleError = !open && !hasSelected ? error : undefined;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -152,83 +156,76 @@ const SearchDropdown = ({
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <label htmlFor={inputId} className="sr-only">
-        {accessibleLabel}
-      </label>
-      <div
-        className={`h-[40px] border-[1.5px] bg-[var(--field-bg)] px-[13px] flex items-center gap-[9px] w-full focus-within:border-[var(--blue)]! ${canSearch ? 'border-[var(--blue)]! border-b-0! rounded-t-[12px]!' : 'border-[var(--hairline)]! rounded-[12px]!'}`}
-      >
-        <IoIosSearch size={15} color="var(--ink-faint)" className="shrink-0" aria-hidden="true" />
-        <input
-          id={inputId}
-          type="text"
-          aria-label={accessibleLabel}
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={handleInputKeyDown}
-          aria-invalid={!!error}
-          aria-describedby={error ? errorId : undefined}
-          aria-controls={canSearch ? listboxId : undefined}
-          aria-activedescendant={activeOptionId}
-          className="border-0 text-[13px] text-[var(--ink-body)] w-full placeholder:text-[var(--ink-faint)] focus-visible:outline-none"
-          placeholder={placeholder}
-          autoComplete="off"
-        />
+    <Field
+      htmlFor={inputId}
+      label={label}
+      error={visibleError}
+      messageId={visibleError ? errorId : undefined}
+    >
+      <div className="relative" ref={dropdownRef}>
+        <div
+          className={`flex h-10 items-center gap-2 px-3 focus-within:border-[var(--blue)]! ${getFieldControlClassName(Boolean(error))} ${canSearch ? 'rounded-b-none! border-[var(--blue)]! border-b-0!' : ''}`}
+        >
+          <IoIosSearch size={15} color="var(--ink-faint)" className="shrink-0" aria-hidden="true" />
+          <input
+            id={inputId}
+            type="text"
+            aria-label={accessibleLabel}
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={handleInputKeyDown}
+            aria-invalid={Boolean(error)}
+            aria-describedby={visibleError ? errorId : undefined}
+            aria-controls={canSearch ? listboxId : undefined}
+            aria-activedescendant={activeOptionId}
+            className="w-full border-0 bg-transparent text-sm text-[var(--ink-body)] placeholder:text-[var(--ink-faint)] focus-visible:outline-none"
+            placeholder={placeholder}
+            autoComplete="off"
+          />
+        </div>
+
+        {canSearch && (
+          <div
+            id={listboxId}
+            aria-label={accessibleLabel}
+            className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-[12px] border-l border-r border-b border-t bg-neutral-0 flex flex-col items-center w-full px-3 py-2.5"
+            onScroll={handleScroll}
+          >
+            {filtered.map((option) => (
+              <button
+                type="button"
+                key={option.value}
+                id={`${listboxId}-option-${option.value}`}
+                onMouseEnter={() => setActiveIndex(filtered.indexOf(option))}
+                onClick={() => onSelectOption(option.value)}
+                className={
+                  optionClassName ??
+                  `px-5 py-2 text-[13px] hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full text-start ${
+                    activeOptionId === `${listboxId}-option-${option.value}`
+                      ? 'bg-card-hover text-text-primary!'
+                      : ''
+                  }`
+                }
+              >
+                {renderOption ? renderOption(option) : option.label}
+              </button>
+            ))}
+            {isLoadingMore ? (
+              <output
+                aria-live="polite"
+                className="text-caption-1 py-2 text-text-secondary w-full text-center"
+              >
+                Loading more results…
+              </output>
+            ) : null}
+          </div>
+        )}
       </div>
-
-      {canSearch && (
-        <div
-          id={listboxId}
-          aria-label={accessibleLabel}
-          className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-[12px] border-l border-r border-b border-t bg-neutral-0 flex flex-col items-center w-full px-3 py-2.5"
-          onScroll={handleScroll}
-        >
-          {filtered.map((option) => (
-            <button
-              type="button"
-              key={option.value}
-              id={`${listboxId}-option-${option.value}`}
-              onMouseEnter={() => setActiveIndex(filtered.indexOf(option))}
-              onClick={() => onSelectOption(option.value)}
-              className={
-                optionClassName ??
-                `px-5 py-2 text-[13px] hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full text-start ${
-                  activeOptionId === `${listboxId}-option-${option.value}`
-                    ? 'bg-card-hover text-text-primary!'
-                    : ''
-                }`
-              }
-            >
-              {renderOption ? renderOption(option) : option.label}
-            </button>
-          ))}
-          {isLoadingMore ? (
-            <output
-              aria-live="polite"
-              className="text-caption-1 py-2 text-text-secondary w-full text-center"
-            >
-              Loading more results…
-            </output>
-          ) : null}
-        </div>
-      )}
-
-      {!open && error && !hasSelected && (
-        <div
-          id={errorId}
-          role="alert"
-          className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error"
-        >
-          <IoIosWarning className="text-text-error" size={14} aria-hidden="true" />
-          <span>{error}</span>
-        </div>
-      )}
-    </div>
+    </Field>
   );
 };
 

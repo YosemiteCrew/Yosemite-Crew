@@ -42,7 +42,7 @@ const Harness = () => {
         className="w-fit rounded-full border border-[var(--hairline)] px-3 py-1 text-[12.5px] font-semibold"
         style={{
           background: isLoading ? 'var(--cta)' : 'var(--screen)',
-          color: isLoading ? 'var(--on-cta, #fff)' : 'var(--ink-muted)',
+          color: isLoading ? 'var(--cta-text)' : 'var(--ink-muted)',
         }}
       >
         {isLoading ? 'Route loader active' : 'Route loader idle'}

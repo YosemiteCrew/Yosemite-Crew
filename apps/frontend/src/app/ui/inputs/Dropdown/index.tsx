@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { IoChevronDown } from 'react-icons/io5';
-import { IoIosWarning } from 'react-icons/io';
+import Field from '@/app/ui/Field';
+import { getFieldControlClassName } from '@/app/ui/fieldControlStyles';
 import { useListboxKeyboardNav } from './useDropdownKeyboardNav';
 
 type Option = {
@@ -21,6 +22,8 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
   const [selected, setSelected] = useState<Option | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
+  const controlId = useId();
+  const messageId = `${controlId}-message`;
 
   const [prevDefaultDeps, setPrevDefaultDeps] = useState<{
     defaultOption?: string;
@@ -72,68 +75,59 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
   });
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        type="button"
-        className={`w-full flex items-center justify-between gap-2 h-[44px] px-[13px] min-w-[120px] rounded-[12px]! bg-[var(--field-bg)] border-[1.5px] text-[13px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)] ${
-          error ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!'
-        } ${open ? 'border-[var(--blue)]! shadow-[0_0_0_3px_var(--glow-b10)]' : ''}`}
-        onClick={() => setOpen((e) => !e)}
-        onKeyDown={handleKeyDown}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-controls={open ? listboxId : undefined}
-      >
-        {selected ? (
-          <div className="text-[var(--ink-body)] text-[13px] truncate max-w-[200px]">
-            {selected.label}
-          </div>
-        ) : (
-          <div className="text-[var(--ink-faint)] text-[13px] truncate max-w-[200px]">
-            {placeholder}
+    <Field error={error} htmlFor={controlId} messageId={messageId}>
+      <div className="relative" ref={dropdownRef}>
+        <button
+          id={controlId}
+          type="button"
+          className={`${getFieldControlClassName(Boolean(error))} flex w-full min-w-[120px] items-center justify-between gap-2 ${
+            open ? 'border-[var(--blue)]! shadow-[0_0_0_3px_var(--glow-b10)]' : ''
+          }`}
+          onClick={() => setOpen((isOpen) => !isOpen)}
+          onKeyDown={handleKeyDown}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls={open ? listboxId : undefined}
+          aria-describedby={error ? messageId : undefined}
+        >
+          <span
+            className={`max-w-[200px] truncate ${
+              selected ? 'text-[var(--ink-body)]' : 'text-[var(--ink-faint)]'
+            }`}
+          >
+            {selected?.label ?? placeholder}
+          </span>
+          <IoChevronDown
+            size={13}
+            color="var(--ink-muted)"
+            className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+          />
+        </button>
+        {open && (
+          <div
+            id={listboxId}
+            className="max-h-[200px] overflow-y-auto scrollbar-hidden z-200 absolute top-[calc(100%_+_4px)] left-0 rounded-[13px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_24px_60px_var(--sh28)] flex flex-col items-stretch gap-px w-full p-1.5"
+          >
+            {options.map((option, index) => (
+              <button
+                type="button"
+                key={option.key + index}
+                id={`${listboxId}-option-${option.key}`}
+                className={`px-[11px] py-[7px] text-[12.5px] font-semibold rounded-[8px]! w-full text-left transition-colors hover:bg-[var(--nav-active-bg)] hover:text-[var(--nav-active)]! ${
+                  activeOptionId === `${listboxId}-option-${option.key}`
+                    ? 'bg-[var(--nav-active-bg)] text-[var(--nav-active)]!'
+                    : 'text-[var(--ink-body)]!'
+                }`}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => selectOption(option)}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
         )}
-        <IoChevronDown
-          size={13}
-          color="var(--ink-faint)"
-          className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
-      {open && (
-        <div
-          id={listboxId}
-          className="max-h-[200px] overflow-y-auto scrollbar-hidden z-200 absolute top-[calc(100%_+_4px)] left-0 rounded-[13px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_24px_60px_var(--sh28)] flex flex-col items-stretch gap-px w-full p-1.5"
-        >
-          {options.map((option, i) => (
-            <button
-              type="button"
-              key={option.key + i}
-              id={`${listboxId}-option-${option.key}`}
-              className={`px-[11px] py-[7px] text-[12.5px] font-semibold rounded-[8px]! w-full text-left transition-colors hover:bg-[var(--nav-active-bg)] hover:text-[var(--nav-active)]! ${
-                activeOptionId === `${listboxId}-option-${option.key}`
-                  ? 'bg-[var(--nav-active-bg)] text-[var(--nav-active)]!'
-                  : 'text-[var(--ink-body)]!'
-              }`}
-              onMouseEnter={() => setActiveIndex(i)}
-              onClick={() => selectOption(option)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      )}
-      {error && (
-        <div
-          className={`
-            mt-1.5 flex items-center gap-1 px-4
-            text-caption-2 text-text-error
-            `}
-        >
-          <IoIosWarning className="text-text-error" size={14} />
-          <span>{error}</span>
-        </div>
-      )}
-    </div>
+      </div>
+    </Field>
   );
 };
 

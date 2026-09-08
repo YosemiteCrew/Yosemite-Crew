@@ -3,10 +3,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 
-jest.mock('react-icons/io', () => ({
-  IoIosWarning: () => <span>warning</span>,
-}));
-
 jest.mock('react-icons/fa6', () => ({
   FaCaretDown: () => <span>caret</span>,
 }));

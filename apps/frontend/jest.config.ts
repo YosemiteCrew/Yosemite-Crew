@@ -341,6 +341,9 @@ const ESM_PACKAGES = [
   'direction',
   'bcp-47-match',
   'css-selector-parser',
+  // postcss reaches for nanoid at load; the reader-agreement guard parses
+  // globals.css with it. ESM-only, no CJS build.
+  'nanoid',
   '@ungap/.*',
   'entities',
   'highlight\\.js',
