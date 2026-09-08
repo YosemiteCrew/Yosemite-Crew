@@ -203,25 +203,38 @@ const Finance = () => {
                   )} outstanding`}
                 </p>
               </div>
-              <div className="flex items-center gap-2 flex-wrap justify-end">
+              {/*
+                Two rows, not one: the status filter is a different control
+                (a mutually-exclusive toggle over the visible rows) than the
+                page-level navigation and the Stripe indicator next to it, and
+                stacking them keeps a filter chip from sitting shoulder to
+                shoulder with a full-height nav button and a status pill.
+              */}
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <Secondary
+                    href="/finance/estimates"
+                    text="Estimates"
+                    ariaLabel="View estimates"
+                  />
+                  <Secondary
+                    href="/finance/discounts"
+                    text="Discounts"
+                    ariaLabel="Manage discounts"
+                  />
+                  <Secondary
+                    href="/finance/insurance-claims"
+                    text="Insurance"
+                    ariaLabel="View insurance claims"
+                  />
+                  <StripeStatusPill />
+                </div>
                 <InvoiceStatusFilterPills
                   options={InvoiceStatusFilters}
                   activeStatus={activeStatus}
                   setActiveStatus={setActiveStatus}
                   className="flex-wrap justify-end"
                 />
-                <Secondary href="/finance/estimates" text="Estimates" ariaLabel="View estimates" />
-                <Secondary
-                  href="/finance/discounts"
-                  text="Discounts"
-                  ariaLabel="Manage discounts"
-                />
-                <Secondary
-                  href="/finance/insurance-claims"
-                  text="Insurance"
-                  ariaLabel="View insurance claims"
-                />
-                <StripeStatusPill />
               </div>
             </div>
             <div ref={plannerSectionRef} className={plannerSectionClassName}>
