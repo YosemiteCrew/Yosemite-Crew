@@ -267,8 +267,22 @@ export const WithAllergy: Story = {
   render: (args) => <TimerBar {...args} startedMinutesAgo={20} bookedEndMinutesAgo={-10} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const allergy = canvas.getByText('Allergy: Penicillin');
-    const signalment = allergy.parentElement as HTMLElement;
+    /* Neither binding may be the string this story asserts about. `WithAllergy`
+       previously took the paragraph from `getByText('Allergy: Penicillin')`, so
+       changing `args.allergy` killed the lookup and the three assertions that are
+       NOT about the allergy text - the ellipsis, the ink difference and the weight -
+       stopped running rather than failing. The tail is bound by a prefix instead,
+       which survives a change to the allergy itself.
+
+       If you mutate `args.allergy` to check that this still holds, the mutation
+       must NOT be a superstring of the shipped value. `toContain` below is
+       satisfied by one, so `Penicillinxx` - the string in the margin table two
+       stories down, which is the one to hand - leaves this story green whether
+       the assertions ran or never ran at all. `Amoxicillin` fails on the
+       comparison instead of the lookup, which is the answer the mutation was
+       asked for. */
+    const signalment = canvas.getByTestId('patient-signalment');
+    const allergy = within(signalment).getByText(/^Allergy: /);
 
     /* The tail is a span inside the same truncating paragraph as the signalment, so
        it is the FIRST thing lost when the name is long - and the only thing marking
@@ -323,16 +337,23 @@ export const NameKeepsItsRoom: Story = {
 
      Four strings, one identical scrollWidth pair, four different margins.
 
-     So the fixture sits 6.4px - two characters - from the edge. Deliberate for a
-     guard, but it means lengthening this allergy string turns the story red for a
-     copy change rather than a layout regression. Lengthen the NAME instead. */
+     So the fixture sits 6.4px - two characters - from the edge, which is close
+     enough that the margin is worth guarding rather than assuming.
+
+     `signalment` is bound by `data-testid` and deliberately NOT by its own text.
+     It was previously bound with `getByText('Allergy: Penicillin').parentElement`,
+     which made the string its own selector: lengthening the allergy killed the
+     lookup one statement before any width was read, so the clip assertion below
+     reported `Unable to find an element` and could never fire on a content
+     change. Bound by the testid, `Penicillinxx` fails on `expected 188 <= 184` -
+     the measurement rather than the lookup. */
   args: { allergy: 'Penicillin' },
   render: (args) => <TimerBar {...args} startedMinutesAgo={20} bookedEndMinutesAgo={-10} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const name = canvas.getByText('Poppy Hartmann');
     const pill = canvas.getByRole('button', { name: /in progress/i });
-    const signalment = canvas.getByText('Allergy: Penicillin').parentElement as HTMLElement;
+    const signalment = canvas.getByTestId('patient-signalment');
 
     /* The control, and the reason this story is not a tautology. `truncate` makes
        a clipped element report scrollWidth > clientWidth, so the assertions below

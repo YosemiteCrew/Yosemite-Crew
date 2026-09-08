@@ -99,7 +99,10 @@ const PhonePatientBar = ({
             widens the row to hold both, and the signalment keeps its full width
             because the timer takes the space the column gains. */}
         <div className="flex items-center gap-2">
-          <p className="min-w-0 flex-1 truncate text-[10.5px] leading-tight text-(--ink-faint)">
+          <p
+            data-testid="patient-signalment"
+            className="min-w-0 flex-1 truncate text-[10.5px] leading-tight text-(--ink-faint)"
+          >
             {signalment}
             {allergyText && (
               <>
