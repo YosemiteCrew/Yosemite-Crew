@@ -7,9 +7,10 @@ import {
   isCheckableSource,
   isTestFile,
   verdict,
+  categorizeSourceFiles,
 } from './tests-must-be-able-to-fail.mjs';
 
-test('recognises this repository\'s test conventions', () => {
+test("recognises this repository's test conventions", () => {
   for (const f of [
     'apps/frontend/src/app/__tests__/pages/Inventory/index.test.tsx',
     'apps/frontend/e2e/route-sweep.spec.ts',
@@ -17,7 +18,10 @@ test('recognises this repository\'s test conventions', () => {
   ]) {
     assert.equal(isTestFile(f), true, f);
   }
-  assert.equal(isTestFile('apps/frontend/src/app/features/inventory/pages/Inventory/index.tsx'), false);
+  assert.equal(
+    isTestFile('apps/frontend/src/app/features/inventory/pages/Inventory/index.tsx'),
+    false
+  );
 });
 
 test('an e2e helper is a test file even without a .spec suffix', () => {
@@ -150,4 +154,35 @@ test('the refactor label still excuses an unrunnable change', () => {
     allowUnchangedBehaviour: true,
   });
   assert.equal(r.ok, false, 'the label excuses a PASSING base run, not an unverifiable one');
+});
+
+test('categorizeSourceFiles: a file the branch deletes is its own category, not silently dropped or mistaken for modified', () => {
+  // PR #2889 deleted 3 dead components. `existsAtBase` alone put them in
+  // "modified" (true, they exist at base) and the restore step later ran
+  // `git checkout HEAD -- <path>` on a path HEAD's tree does not have -
+  // `error: pathspec '...' did not match any file(s) known to git`, crashing
+  // the gate on a PR with nothing wrong with it.
+  const atBase = new Set(['deleted.ts', 'modified.ts']);
+  const atHead = new Set(['added.ts', 'modified.ts']);
+  const { added, deleted, modified } = categorizeSourceFiles(
+    ['added.ts', 'deleted.ts', 'modified.ts'],
+    (f) => atBase.has(f),
+    (f) => atHead.has(f)
+  );
+  assert.deepEqual(added, ['added.ts']);
+  assert.deepEqual(deleted, ['deleted.ts']);
+  assert.deepEqual(modified, ['modified.ts']);
+});
+
+test('categorizeSourceFiles: every file lands in exactly one category', () => {
+  const files = ['a.ts', 'b.ts', 'c.ts', 'd.ts'];
+  const atBase = new Set(['b.ts', 'c.ts']); // a=head-only, b=both, c=base-only, d=head-only
+  const atHead = new Set(['a.ts', 'b.ts', 'd.ts']);
+  const result = categorizeSourceFiles(
+    files,
+    (f) => atBase.has(f),
+    (f) => atHead.has(f)
+  );
+  const seen = [...result.added, ...result.deleted, ...result.modified].sort();
+  assert.deepEqual(seen, [...files].sort());
 });
