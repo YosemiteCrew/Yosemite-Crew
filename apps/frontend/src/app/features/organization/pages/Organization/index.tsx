@@ -105,7 +105,10 @@ export const Organization = () => {
       <Profile primaryOrg={primaryorg} />
       {primaryorg.isVerified ? (
         <div className="grid gap-[14px] xl:grid-cols-[1.5fr_1fr] xl:items-stretch">
-          <Team isVerified={primaryorg.isVerified} />
+          <div className="flex min-h-0 flex-col gap-[14px]">
+            <Team isVerified={primaryorg.isVerified} />
+            <Specialities />
+          </div>
           <div className="flex min-h-0 flex-col gap-[14px]">
             <Rooms />
             <Payment />
@@ -113,9 +116,11 @@ export const Organization = () => {
           </div>
         </div>
       ) : (
-        <DeleteOrg />
+        <>
+          <Specialities />
+          <DeleteOrg />
+        </>
       )}
-      <Specialities />
       {primaryorg.isVerified && (
         <>
           <LinkedMedicalDevices />
