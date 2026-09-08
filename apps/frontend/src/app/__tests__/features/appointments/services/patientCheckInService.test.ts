@@ -24,6 +24,11 @@ const ORG = '11111111-1111-4111-8111-111111111111';
 const CHECK_IN = '22222222-2222-4222-8222-222222222222';
 const BASE = `/v1/pms/organisation/${ORG}/check-in`;
 
+// Organisations created before the app's move to UUIDs still carry their
+// original 24-hex Mongo ObjectId, same as every other org-scoped endpoint.
+const LEGACY_ORG = '6970ca8262012cc3e1c93099';
+const LEGACY_BASE = `/v1/pms/organisation/${LEGACY_ORG}/check-in`;
+
 const checkIn: PatientCheckIn = {
   id: CHECK_IN,
   organisationId: ORG,
@@ -73,6 +78,19 @@ describe('patientCheckInService', () => {
 
     it.each(UNSAFE_IDS)('rejects an unsafe organisation id (%s)', async (organisationId) => {
       await expect(fetchCheckIns(organisationId)).rejects.toThrow('Invalid organisation ID');
+      expect(getDataMock).not.toHaveBeenCalled();
+    });
+
+    it('accepts a legacy ObjectId organisation id', async () => {
+      getDataMock.mockResolvedValue({ data: [checkIn] });
+      await expect(fetchCheckIns(LEGACY_ORG)).resolves.toEqual([checkIn]);
+      expect(getDataMock).toHaveBeenCalledWith(LEGACY_BASE, {});
+    });
+
+    it('rejects a 24-char string that is not valid hex', async () => {
+      await expect(fetchCheckIns('zzzzzzzzzzzzzzzzzzzzzzzz')).rejects.toThrow(
+        'Invalid organisation ID'
+      );
       expect(getDataMock).not.toHaveBeenCalled();
     });
 
@@ -168,6 +186,12 @@ describe('patientCheckInService', () => {
         'Invalid organisation ID'
       );
       expect(postDataMock).not.toHaveBeenCalled();
+    });
+
+    it('accepts a legacy ObjectId organisation id', async () => {
+      postDataMock.mockResolvedValue({ data: { ...checkIn, status: 'IN_CONSULTATION' } });
+      await markCheckInSeen(LEGACY_ORG, CHECK_IN);
+      expect(postDataMock).toHaveBeenCalledWith(`${LEGACY_BASE}/${CHECK_IN}/seen`);
     });
 
     it.each(UNSAFE_IDS)('rejects an unsafe check-in id (%s)', async (checkInId) => {
