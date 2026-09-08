@@ -75,7 +75,7 @@ const meta = {
           'family of components has already shipped a bug. `getMenuItemClassName` picks between ' +
           '`bg-[var(--hairline)]` when active and `bg-transparent` when not, on a row whose ink is ' +
           '`text-text-primary` - both themed. The sibling submenus previously filled the same rows ' +
-          'with literal `bg-white/50`, which put a light ink on a near-#a1a1a0 row at about 2.1:1 in ' +
+          'with literal `bg-white/50`, which put a light ink on a pale grey row at about 2.1:1 in ' +
           'dark mode and survived precisely as long as no story rendered the hovered state. The ' +
           'stories below therefore compare the computed `background-color` of the active row against ' +
           'a plain sibling instead of only reading `aria-expanded`: a dropped or transparent fill ' +

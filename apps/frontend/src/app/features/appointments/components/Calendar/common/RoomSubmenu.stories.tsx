@@ -32,7 +32,7 @@ const meta = {
           'Two contrast defects lived here and both are only visible with the theme switched, ' +
           'which is why this story exists. The hovered and currently-assigned rows were filled ' +
           'with **literal white** (`bg-white/50` and `bg-white/58`) while the label used ' +
-          '`text-text-primary`, a themed ink - in dark that put a light ink on a near-#a1a1a0 row ' +
+          '`text-text-primary`, a themed ink - in dark that put a light ink on a pale grey row ' +
           'at roughly 2.1:1. They now use the themed hairline tints, so fill and ink move ' +
           'together. Separately the "Current" badge was `opacity-60` on 8px text; the row is an ' +
           'enabled button except while a save is in flight, so the dim was not a disabled state - ' +
