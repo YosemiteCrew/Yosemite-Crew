@@ -45,7 +45,7 @@
   "name": "yosemitecrew",
   "pnpm": {
     "overrides": {
-      "protobufjs": "7.6.5",
+      "protobufjs": "8.8.0",
       "@protobufjs/utf8": "1.1.1",
       "qs": "6.16.0",
       "serialize-javascript": "7.0.5",
@@ -114,7 +114,7 @@
       "@opentelemetry/resources@2.2.0": "2.8.0",
       "@opentelemetry/sdk-metrics@2.2.0": "2.8.0",
       "@opentelemetry/sdk-trace-base@2.2.0": "2.8.0",
-      "protobufjs@7.5.5": "7.6.5",
+      "protobufjs@7.5.5": "8.8.0",
       "qs@6.14.2": "6.16.0",
       "shell-quote@1.8.3": "1.9.0",
       "tmp@0.2.5": "0.2.7",
