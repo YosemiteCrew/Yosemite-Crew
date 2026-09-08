@@ -778,6 +778,10 @@ const useInventoryContent = () => {
   const [alertedItemIds, setAlertedItemIds] = useState<string[] | null>(null);
   const [dispensaryRecords, setDispensaryRecords] = useState<DispensaryRecord[]>([]);
 
+  useOnValueChange(primaryOrgId, () => {
+    setAlertedItemIds(null);
+  });
+
   // Pure fetch (null = leave current state alone) so the refresh effect can apply
   // the result in a subscription-style callback.
   const resolveDispensaryRecords = useCallback(async (): Promise<DispensaryRecord[] | null> => {
@@ -1092,9 +1096,17 @@ const useInventoryContent = () => {
     });
   }, []);
 
+  const updateFilters = useCallback<React.Dispatch<React.SetStateAction<InventoryFiltersState>>>(
+    (next) => {
+      setAlertedItemIds(null);
+      setFilters(next);
+    },
+    []
+  );
+
   const toggleCategoryFilter = useCallback(
     (category: string) => {
-      setFilters((prev) => {
+      updateFilters((prev) => {
         const categories = toggleArrayValue(prev.categories ?? [], category);
         const categorySubcategories = categorySubcategoryOptions[category] ?? [];
         const selectedCategories = new Set(categories);
@@ -1110,17 +1122,17 @@ const useInventoryContent = () => {
         };
       });
     },
-    [categorySubcategoryOptions]
+    [categorySubcategoryOptions, updateFilters]
   );
 
   const toggleListFilter = useCallback(
     (key: 'subCategories' | 'locations' | 'abcClasses' | 'suppliers', value: string) => {
-      setFilters((prev) => ({
+      updateFilters((prev) => ({
         ...prev,
         [key]: toggleArrayValue(prev[key] ?? [], value),
       }));
     },
-    []
+    [updateFilters]
   );
 
   const selectedFilterChips = useMemo(() => {
@@ -1129,7 +1141,7 @@ const useInventoryContent = () => {
       chips.push({
         id: `status-${filters.status}`,
         label: filters.status.replaceAll('_', ' ').toLowerCase(),
-        onRemove: () => setFilters((prev) => ({ ...prev, status: 'ALL' })),
+        onRemove: () => updateFilters((prev) => ({ ...prev, status: 'ALL' })),
       });
     }
     (filters.categories ?? []).forEach((category) =>
@@ -1172,11 +1184,11 @@ const useInventoryContent = () => {
       chips.push({
         id: `categorySingle-${filters.category}`,
         label: filters.category,
-        onRemove: () => setFilters((prev) => ({ ...prev, category: 'all' })),
+        onRemove: () => updateFilters((prev) => ({ ...prev, category: 'all' })),
       });
     }
     return chips;
-  }, [filters, toggleCategoryFilter, toggleListFilter]);
+  }, [filters, toggleCategoryFilter, toggleListFilter, updateFilters]);
 
   const pageTitle = getInventoryPageTitle(activeView);
   const filteredDispensaryRecords = useMemo(
@@ -1286,7 +1298,7 @@ const useInventoryContent = () => {
             <InventoryPhoneCatalog
               filteredInventory={filteredInventory}
               filters={filters}
-              setFilters={setFilters}
+              setFilters={updateFilters}
               categoryOptions={categoryOptions}
               toggleCategoryFilter={toggleCategoryFilter}
               lowStockCount={lowStockCount}
@@ -1305,7 +1317,7 @@ const useInventoryContent = () => {
                 selectedFilterChips={selectedFilterChips}
                 sortMode={sortMode}
                 setFilterOpen={setFilterOpen}
-                setFilters={setFilters}
+                setFilters={updateFilters}
                 setSortMode={setSortMode}
                 dispensarySearch={dispensarySearch}
                 dispensaryStatusFilter={dispensaryStatusFilter}
@@ -1375,7 +1387,7 @@ const useInventoryContent = () => {
           filterOpen={filterOpen}
           selectedFilterChips={selectedFilterChips}
           setFilterOpen={setFilterOpen}
-          setFilters={setFilters}
+          setFilters={updateFilters}
           filterOpenSections={filterOpenSections}
           toggleFilterSection={toggleFilterSection}
           filters={filters}
