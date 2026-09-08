@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   contradictoryStateViolations,
+  isReportableConsoleError,
   countMismatchViolations,
   duplicateHeadingViolations,
   placeholderValueViolations,
@@ -137,5 +138,22 @@ test.describe('past dates in forward-looking sections', () => {
     expect(
       staleForwardLookingViolations([{ section: 'Expiring soon', label: 'y', daysFromNow: 14 }])
     ).toHaveLength(0);
+  });
+});
+
+test.describe('console noise', () => {
+  test('ignores rate limiting the sweep caused itself', () => {
+    expect(
+      isReportableConsoleError(
+        'Failed to load resource: the server responded with a status of 429 (Too Many Requests)'
+      )
+    ).toBe(false);
+  });
+
+  test('still reports a genuine application error', () => {
+    expect(isReportableConsoleError("TypeError: Cannot read properties of undefined")).toBe(true);
+    expect(
+      isReportableConsoleError('Failed to load resource: the server responded with a status of 500')
+    ).toBe(true);
   });
 });

@@ -4,6 +4,7 @@ import path from 'node:path';
 import {
   duplicateHeadingViolations,
   formatViolations,
+  isReportableConsoleError,
   placeholderValueViolations,
   rawEnumViolations,
   rawIdViolations,
@@ -134,17 +135,33 @@ test('every operational route holds its page invariants', async ({ page }) => {
   const password = getRequiredEnv('YC_E2E_PASSWORD');
   if (!email || !password) return;
 
-  const consoleErrors: string[] = [];
-  const failedRequests: string[] = [];
-  let currentRoute = '';
-  page.on('console', (m) => {
-    if (m.type() === 'error') consoleErrors.push(`${currentRoute}  ${m.text().slice(0, 200)}`);
-  });
-  page.on('response', (r) => {
-    // 5xx only. A 401/403/404 on a background probe is frequently intentional,
-    // and a rule that fires on those trains people to ignore it.
-    if (r.status() >= 500) failedRequests.push(`${currentRoute}  ${r.status()} ${r.url().slice(0, 120)}`);
-  });
+  /**
+   * Listeners are attached per route rather than once, because a response still
+   * in flight when the next navigation starts would otherwise be blamed on
+   * whichever route happened to be current when it landed. The first run of this
+   * spec attributed every late 5xx to /guides, the last route in the list.
+   */
+  const watchRoute = (route: string) => {
+    const noise: string[] = [];
+    const onConsole = (m: import('@playwright/test').ConsoleMessage) => {
+      if (m.type() !== 'error') return;
+      const text = m.text();
+      if (!isReportableConsoleError(text)) return;
+      noise.push(`${route}  [console]  ${text.slice(0, 180)}`);
+    };
+    const onResponse = (r: import('@playwright/test').Response) => {
+      // 5xx only. A 401/403/404 on a background probe is frequently intentional,
+      // and a rule that fires on those trains people to ignore it.
+      if (r.status() >= 500) noise.push(`${route}  [http]  ${r.status()} ${r.url().slice(0, 120)}`);
+    };
+    page.on('console', onConsole);
+    page.on('response', onResponse);
+    return () => {
+      page.off('console', onConsole);
+      page.off('response', onResponse);
+      return noise;
+    };
+  };
 
   await page.goto(LOGIN_PATH, { waitUntil: 'domcontentloaded' });
   await submitSignIn(page, email, password);
@@ -154,8 +171,11 @@ test('every operational route holds its page invariants', async ({ page }) => {
   const baseline = readBaseline();
   const found: Record<string, string[]> = {};
 
-  for (const route of ROUTES) {
-    currentRoute = route;
+  for (const [index, route] of ROUTES.entries()) {
+    // Pace the walk. Without this the sweep rate-limits itself and then reports
+    // its own 429s and the 503s behind them as findings.
+    if (index > 0) await page.waitForTimeout(1_500);
+    const stopWatching = watchRoute(route);
     await page.goto(route, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
 
@@ -164,6 +184,7 @@ test('every operational route holds its page invariants', async ({ page }) => {
     const landed = new URL(page.url()).pathname;
     if (/signin|login/.test(landed)) {
       found[route] = [`${route}  [not-reachable]  redirected to ${landed}`];
+      stopWatching();
       continue;
     }
 
@@ -186,13 +207,13 @@ test('every operational route holds its page invariants', async ({ page }) => {
       ...(overflow ? [{ rule: 'document-overflow', detail: 'the page scrolls horizontally' }] : []),
     ];
 
-    const lines = formatViolations(route, violations).split('\n').filter(Boolean);
+    const lines = [
+      ...formatViolations(route, violations).split('\n').filter(Boolean),
+      // Deduplicated: one failing endpoint retried by a hook produces the same
+      // line twenty times, which buries every other finding.
+      ...new Set(stopWatching()),
+    ];
     if (lines.length) found[route] = lines;
-  }
-
-  for (const line of [...consoleErrors, ...failedRequests]) {
-    const route = line.split('  ')[0];
-    (found[route] ??= []).push(`${route}  [console-or-5xx]  ${line.slice(route.length).trim()}`);
   }
 
   if (process.env.UPDATE_ROUTE_SWEEP_BASELINE) {
