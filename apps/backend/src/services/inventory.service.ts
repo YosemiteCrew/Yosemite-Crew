@@ -864,6 +864,18 @@ const ensureNonNegativeNumbers = (
   }
 };
 
+// `allocated` is client-writable (create + edit forms) with no other write path
+// checking it against on-hand stock, so a raw save can put an item above 100%
+// reserved. Available stock (onHand - allocated) must never go negative.
+const ensureAllocatedWithinOnHand = (onHand: number, allocated: number) => {
+  if (allocated > onHand) {
+    throw new InventoryServiceError(
+      "allocated cannot exceed on-hand stock",
+      400,
+    );
+  }
+};
+
 const ensureCreateBatchExpiryRules = (input: CreateInventoryItemInput) => {
   if (!input.expiryTrackingRequired) return;
   if ((input.batches?.length ?? 0) === 0) {
@@ -949,6 +961,12 @@ const validateCreateInventoryItemInput = async (
 
   ensureCreateBatchExpiryRules(input);
   await ensureCreateSkuUnique(organisationId, input.sku);
+
+  const effectiveOnHand = input.batches?.length
+    ? input.batches.reduce((sum, batch) => sum + (batch.quantity ?? 0), 0)
+    : (input.initialOnHand ?? 0);
+  const effectiveAllocated = input.allocated ?? input.initialAllocated ?? 0;
+  ensureAllocatedWithinOnHand(effectiveOnHand, effectiveAllocated);
 
   return {
     organisationId,
@@ -1547,6 +1565,10 @@ export const InventoryService = {
       ],
       ["allocated", input.allocated],
     ]);
+    ensureAllocatedWithinOnHand(
+      existing.onHand ?? 0,
+      input.allocated ?? existing.allocated ?? 0,
+    );
 
     const nextSku = await resolveUniqueSkuForUpdate(
       itemId,
