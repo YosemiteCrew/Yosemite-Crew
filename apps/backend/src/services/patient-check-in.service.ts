@@ -1,5 +1,9 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
+import {
+  AppointmentPrismaService,
+  AppointmentPrismaServiceError,
+} from "./appointment.prisma.service";
 import type { Prisma } from "@prisma/client";
 
 export class PatientCheckInError extends Error {
@@ -65,6 +69,38 @@ const assertCheckIn = async (id: string, organisationId: string) => {
   return record;
 };
 
+/**
+ * The front desk's arrival and the schedule's own CHECKED_IN status are two
+ * independent state machines (PatientCheckIn.status vs Appointment.status)
+ * that happened to grow the same vocabulary without ever being wired
+ * together: checking a patient in here never touched the linked appointment,
+ * so the Board kept showing "Upcoming" for a patient the front desk already
+ * had as arrived. This is the one write that closes that gap - reusing
+ * `checkInAppointment` (not a raw status write) so the encounter it creates
+ * on arrival still gets created.
+ *
+ * Deliberately best-effort: an appointment already CHECKED_IN or further
+ * along (IN_PROGRESS, COMPLETED, ...) throws on the transition, and a
+ * walk-in's appointmentId can point at a REQUESTED or CANCELLED appointment
+ * that was never confirmed - none of those should block the front desk from
+ * recording that someone physically arrived.
+ */
+const syncAppointmentOnArrival = async (
+  appointmentId: string | undefined,
+  organisationId: string,
+): Promise<void> => {
+  if (!appointmentId) return;
+  try {
+    await AppointmentPrismaService.checkInAppointment(
+      appointmentId,
+      organisationId,
+    );
+  } catch (err) {
+    if (err instanceof AppointmentPrismaServiceError) return;
+    throw err;
+  }
+};
+
 export const PatientCheckInService = {
   async create(params: CreateCheckInParams) {
     const record = await prisma.patientCheckIn.create({
@@ -83,6 +119,8 @@ export const PatientCheckInService = {
       },
       select: checkInSelect,
     });
+
+    await syncAppointmentOnArrival(params.appointmentId, params.organisationId);
 
     await AuditTrailService.recordSafely({
       organisationId: params.organisationId,
