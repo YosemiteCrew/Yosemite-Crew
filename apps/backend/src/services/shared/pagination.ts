@@ -89,7 +89,7 @@ export type KeysetCursor = {
 };
 
 const KEYSET_SEPARATOR = "|";
-const KEYSET_MILLIS = /^\d{1,15}$/;
+const KEYSET_MILLIS = /^-?\d{1,15}$/;
 
 /**
  * A cursor that carries the whole sort key, for `(createdAt, id)` lists.
