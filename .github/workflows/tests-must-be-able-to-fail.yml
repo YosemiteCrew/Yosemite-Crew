@@ -1,0 +1,56 @@
+name: Tests Must Be Able To Fail
+
+# Every pull request, with no paths filter. Once this is required on the branch
+# ruleset, a filter here would mean GitHub never creates the context for a PR
+# outside it, leaving that PR waiting on a check that will never appear.
+on:
+  pull_request: {}
+  workflow_dispatch: {}
+
+concurrency:
+  group: tests-can-fail-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    name: Tests Must Be Able To Fail
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The gate diffs the branch against its base and checks out base
+          # versions of individual files, so the full history is required.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove the gate can fail before trusting it to pass
+        run: node scripts/ci/tests-must-be-able-to-fail.mjs selftest
+
+      - name: Unit-test the gate itself
+        run: node --test scripts/ci/tests-must-be-able-to-fail.test.mjs
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v4.2.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Keep the branch's tests, revert its source, and run them
+        env:
+          # Claimed per pull request rather than configured in the repo, so it
+          # appears in the review and expires with the branch.
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          ALLOW=""
+          if echo "$LABELS" | grep -q '"no-behaviour-change"'; then
+            echo "::notice::no-behaviour-change label present: a passing base run will be allowed"
+            ALLOW="--allow-unchanged-behaviour"
+          fi
+          node scripts/ci/tests-must-be-able-to-fail.mjs --base "${BASE_SHA}" $ALLOW
