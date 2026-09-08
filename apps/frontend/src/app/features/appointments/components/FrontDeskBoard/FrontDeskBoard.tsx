@@ -42,7 +42,7 @@ export type PatientCheckInView = PatientCheckIn & {
   roomName?: string;
 };
 
-export type CheckInBoardProps = {
+export type FrontDeskBoardProps = {
   entries: PatientCheckInView[];
   companions?: CheckInCompanionOption[];
   rooms?: CheckInRoomOption[];
@@ -489,8 +489,8 @@ const BoardHeader = ({
     <span className="text-[var(--ink-muted)]" aria-hidden="true">
       <IoPulseOutline size={18} />
     </span>
-    <h3 id="checkin-board-heading" className="text-[13.5px] font-bold text-[var(--ink)]">
-      Check-in board
+    <h3 id="front-desk-board-heading" className="text-[13.5px] font-bold text-[var(--ink)]">
+      Arrivals
     </h3>
     {!loading && count > 0 && (
       <StatusPill label={String(count)} tone="neutral" className="ml-auto tabular-nums" />
@@ -527,10 +527,10 @@ const BoardHeader = ({
  * caller supplies, sorted by triage priority then arrival so the most urgent
  * waiting patient is first, each row carrying a triage pill, a status pill, the
  * live wait time and the transition buttons the status permits. It never
- * fetches; the container ({@link CheckInBoardPanel}) owns loading, error, data
+ * fetches; the container ({@link FrontDeskBoardPanel}) owns loading, error, data
  * and the handlers, and gates edit actions by withholding the handler props.
  */
-const CheckInBoard = ({
+const FrontDeskBoard = ({
   entries,
   companions = [],
   rooms = [],
@@ -545,7 +545,7 @@ const CheckInBoard = ({
   onNoShow,
   onAssignRoom,
   onAdd,
-}: CheckInBoardProps) => {
+}: FrontDeskBoardProps) => {
   const [addOpen, setAddOpen] = useState(false);
   const handlers: Record<CheckInAction, ((id: string) => void) | undefined> = {
     seen: onSeen,
@@ -589,7 +589,7 @@ const CheckInBoard = ({
   })();
 
   return (
-    <section className={clsx(cardClass, 'w-full')} aria-labelledby="checkin-board-heading">
+    <section className={clsx(cardClass, 'w-full')} aria-labelledby="front-desk-board-heading">
       <BoardHeader
         count={sorted.length}
         loading={loading}
@@ -617,4 +617,4 @@ const CheckInBoard = ({
   );
 };
 
-export default CheckInBoard;
+export default FrontDeskBoard;

@@ -3,9 +3,9 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
-import CheckInBoard, {
+import FrontDeskBoard, {
   type PatientCheckInView,
-} from '@/app/features/appointments/components/CheckInBoard/CheckInBoard';
+} from '@/app/features/appointments/components/FrontDeskBoard/FrontDeskBoard';
 import type {
   CheckInStatus,
   TriagePriority,
@@ -49,10 +49,10 @@ const handlers = () => ({
   onToggleShowAll: jest.fn(),
 });
 
-describe('CheckInBoard', () => {
+describe('FrontDeskBoard', () => {
   it('renders each row with a triage pill, status pill and patient + owner', () => {
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[row('1', 'WAITING', 'STANDARD'), row('2', 'IN_CONSULTATION', 'URGENT')]}
         {...handlers()}
       />
@@ -68,7 +68,7 @@ describe('CheckInBoard', () => {
 
   it('sorts rows by triage priority then arrival, most urgent first', () => {
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[
           row('std', 'WAITING', 'STANDARD', {
             companionName: 'Standard Pet',
@@ -92,7 +92,7 @@ describe('CheckInBoard', () => {
 
   it('breaks a triage tie by earliest arrival', () => {
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[
           row('late', 'WAITING', 'STANDARD', {
             companionName: 'Late Pet',
@@ -113,7 +113,7 @@ describe('CheckInBoard', () => {
 
   it('shows the actions each status permits and hides the rest', () => {
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[row('1', 'WAITING', 'STANDARD'), row('2', 'IN_CONSULTATION', 'STANDARD')]}
         {...handlers()}
       />
@@ -130,7 +130,7 @@ describe('CheckInBoard', () => {
     // `showAll` so the completed row actually renders - without it the board
     // filters terminal statuses out and the assertions below would pass for the
     // wrong reason.
-    render(<CheckInBoard entries={[row('1', 'COMPLETED', 'STANDARD')]} showAll {...handlers()} />);
+    render(<FrontDeskBoard entries={[row('1', 'COMPLETED', 'STANDARD')]} showAll {...handlers()} />);
 
     expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Start consult' })).not.toBeInTheDocument();
@@ -140,12 +140,12 @@ describe('CheckInBoard', () => {
 
   it('hides terminal statuses unless showing all', () => {
     const entries = [row('1', 'WAITING', 'STANDARD'), row('2', 'COMPLETED', 'STANDARD')];
-    const { rerender } = render(<CheckInBoard entries={entries} {...handlers()} />);
+    const { rerender } = render(<FrontDeskBoard entries={entries} {...handlers()} />);
 
     expect(screen.getByText('Waiting')).toBeInTheDocument();
     expect(screen.queryByText('Completed')).not.toBeInTheDocument();
 
-    rerender(<CheckInBoard entries={entries} showAll {...handlers()} />);
+    rerender(<FrontDeskBoard entries={entries} showAll {...handlers()} />);
     expect(screen.getByText('Waiting')).toBeInTheDocument();
     expect(screen.getByText('Completed')).toBeInTheDocument();
   });
@@ -153,7 +153,7 @@ describe('CheckInBoard', () => {
   it('invokes the seen handler with the entry id', async () => {
     const user = userEvent.setup();
     const props = handlers();
-    render(<CheckInBoard entries={[row('42', 'WAITING', 'STANDARD')]} {...props} />);
+    render(<FrontDeskBoard entries={[row('42', 'WAITING', 'STANDARD')]} {...props} />);
 
     await user.click(screen.getByRole('button', { name: 'Start consult' }));
 
@@ -164,7 +164,7 @@ describe('CheckInBoard', () => {
     const user = userEvent.setup();
     const props = handlers();
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[row('7', 'WAITING', 'STANDARD')]}
         rooms={[
           { id: 'room-1', name: 'Exam 1' },
@@ -179,14 +179,14 @@ describe('CheckInBoard', () => {
   });
 
   it('does not render the room control when no rooms are available', () => {
-    render(<CheckInBoard entries={[row('1', 'WAITING', 'STANDARD')]} {...handlers()} />);
+    render(<FrontDeskBoard entries={[row('1', 'WAITING', 'STANDARD')]} {...handlers()} />);
 
     expect(screen.queryByLabelText('Assign room')).not.toBeInTheDocument();
   });
 
   it('shows the assigned room name and triage note in the row detail', () => {
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[
           row('1', 'IN_CONSULTATION', 'URGENT', {
             roomName: 'Exam 3',
@@ -204,7 +204,7 @@ describe('CheckInBoard', () => {
     const user = userEvent.setup();
     const props = handlers();
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[row('1', 'WAITING', 'STANDARD')]}
         companions={[{ id: 'patient-9', name: 'Bruno', ownerName: 'Sarah', clientId: 'client-9' }]}
         {...props}
@@ -234,7 +234,7 @@ describe('CheckInBoard', () => {
     const user = userEvent.setup();
     const props = handlers();
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[]}
         companions={[{ id: 'patient-9', name: 'Bruno', clientId: 'client-9' }]}
         {...props}
@@ -264,7 +264,7 @@ describe('CheckInBoard', () => {
     const user = userEvent.setup();
     const props = handlers();
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[row('7', 'WAITING', 'STANDARD', { assignedRoomId: 'room-1' })]}
         rooms={[{ id: 'room-1', name: 'Exam 1' }]}
         {...props}
@@ -277,7 +277,7 @@ describe('CheckInBoard', () => {
 
   it('falls back to a generic patient label when the name is unresolved', () => {
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[
           row('1', 'WAITING', 'STANDARD', { companionName: undefined, ownerName: undefined }),
         ]}
@@ -292,7 +292,7 @@ describe('CheckInBoard', () => {
     const user = userEvent.setup();
     const props = handlers();
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[]}
         companions={[{ id: 'patient-9', name: 'Bruno', ownerName: 'Sarah' }]}
         {...props}
@@ -310,7 +310,7 @@ describe('CheckInBoard', () => {
   it('warns when submitting the add form without choosing a patient', async () => {
     const user = userEvent.setup();
     const props = handlers();
-    render(<CheckInBoard entries={[]} companions={[]} {...props} />);
+    render(<FrontDeskBoard entries={[]} companions={[]} {...props} />);
 
     await user.click(screen.getByRole('button', { name: /Check in patient/ }));
     await user.click(screen.getByRole('button', { name: 'Check in patient' }));
@@ -324,7 +324,7 @@ describe('CheckInBoard', () => {
     const props = handlers();
     props.onAdd.mockResolvedValue(false);
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[]}
         companions={[{ id: 'patient-9', name: 'Bruno', clientId: 'client-9' }]}
         {...props}
@@ -344,7 +344,7 @@ describe('CheckInBoard', () => {
   it('closes the add form on the cancel button', async () => {
     const user = userEvent.setup();
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[]}
         companions={[{ id: 'patient-9', name: 'Bruno', clientId: 'client-9' }]}
         {...handlers()}
@@ -360,29 +360,29 @@ describe('CheckInBoard', () => {
   it('toggles the show-all view via the header control', async () => {
     const user = userEvent.setup();
     const props = handlers();
-    render(<CheckInBoard entries={[row('1', 'WAITING', 'STANDARD')]} showAll={false} {...props} />);
+    render(<FrontDeskBoard entries={[row('1', 'WAITING', 'STANDARD')]} showAll={false} {...props} />);
 
     await user.click(screen.getByRole('button', { name: 'Show all' }));
     expect(props.onToggleShowAll).toHaveBeenCalledWith(true);
   });
 
   it('shows the active-only empty state by default and the all empty state when showing all', () => {
-    const { rerender } = render(<CheckInBoard entries={[]} {...handlers()} />);
+    const { rerender } = render(<FrontDeskBoard entries={[]} {...handlers()} />);
     expect(screen.getByText('No patients are checked in')).toBeInTheDocument();
 
-    rerender(<CheckInBoard entries={[]} showAll {...handlers()} />);
+    rerender(<FrontDeskBoard entries={[]} showAll {...handlers()} />);
     expect(screen.getByText('No check-ins yet')).toBeInTheDocument();
   });
 
   it('shows a loading skeleton instead of rows or the empty state', () => {
-    render(<CheckInBoard entries={[]} loading {...handlers()} />);
+    render(<FrontDeskBoard entries={[]} loading {...handlers()} />);
 
     expect(screen.queryByText('No patients are checked in')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Start consult' })).not.toBeInTheDocument();
   });
 
   it('renders read-only when no action or add handlers are supplied', () => {
-    render(<CheckInBoard entries={[row('1', 'WAITING', 'STANDARD')]} />);
+    render(<FrontDeskBoard entries={[row('1', 'WAITING', 'STANDARD')]} />);
 
     expect(screen.queryByRole('button', { name: 'Start consult' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Check in patient/ })).not.toBeInTheDocument();
@@ -392,7 +392,7 @@ describe('CheckInBoard', () => {
   it('computes a live wait time from arrival when waitMinutes is null', () => {
     const arrived = new Date(Date.now() - 90 * 60000).toISOString();
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[row('1', 'WAITING', 'STANDARD', { waitMinutes: null, arrivedAt: arrived })]}
         {...handlers()}
       />
@@ -404,7 +404,7 @@ describe('CheckInBoard', () => {
 
   it('renders a whole-hour wait without trailing minutes', () => {
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[row('1', 'WAITING', 'STANDARD', { waitMinutes: 120 })]}
         {...handlers()}
       />
@@ -415,7 +415,7 @@ describe('CheckInBoard', () => {
 
   it('omits the wait time when the arrival timestamp is unparseable', () => {
     render(
-      <CheckInBoard
+      <FrontDeskBoard
         entries={[row('1', 'WAITING', 'STANDARD', { waitMinutes: null, arrivedAt: 'nonsense' })]}
         {...handlers()}
       />
@@ -426,7 +426,7 @@ describe('CheckInBoard', () => {
 
   it('shows the error banner when an error is passed', () => {
     render(
-      <CheckInBoard entries={[row('1', 'WAITING', 'STANDARD')]} error="Boom" {...handlers()} />
+      <FrontDeskBoard entries={[row('1', 'WAITING', 'STANDARD')]} error="Boom" {...handlers()} />
     );
 
     expect(within(screen.getByRole('alert')).getByText('Boom')).toBeInTheDocument();

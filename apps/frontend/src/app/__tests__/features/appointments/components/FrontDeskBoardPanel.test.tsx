@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import CheckInBoardPanel from '@/app/features/appointments/components/CheckInBoard/CheckInBoardPanel';
+import FrontDeskBoardPanel from '@/app/features/appointments/components/FrontDeskBoard/FrontDeskBoardPanel';
 
 const fetchCheckIns = jest.fn();
 const createCheckIn = jest.fn();
@@ -55,7 +55,7 @@ jest.mock('@/app/hooks/useRooms', () => ({
 }));
 
 // Presentational double: exposes the container's wiring as buttons + text.
-jest.mock('@/app/features/appointments/components/CheckInBoard/CheckInBoard', () => ({
+jest.mock('@/app/features/appointments/components/FrontDeskBoard/FrontDeskBoard', () => ({
   __esModule: true,
   default: ({
     entries,
@@ -116,7 +116,7 @@ const completedEntry = {
   assignedRoomId: null,
 };
 
-describe('CheckInBoardPanel', () => {
+describe('FrontDeskBoardPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     primaryOrgId = 'org-1';
@@ -133,7 +133,7 @@ describe('CheckInBoardPanel', () => {
   });
 
   it('loads active check-ins and resolves companion, owner and room names', async () => {
-    render(<CheckInBoardPanel />);
+    render(<FrontDeskBoardPanel />);
     await waitFor(() => expect(fetchCheckIns).toHaveBeenCalledWith('org-1'));
     // Only the active (WAITING) entry is visible by default; the resolved names attach.
     expect(await screen.findByTestId('entry')).toHaveTextContent('Buddy/Sam Owner/WAITING/Exam 1');
@@ -144,7 +144,7 @@ describe('CheckInBoardPanel', () => {
   });
 
   it('reveals terminal statuses when show-all is toggled on', async () => {
-    render(<CheckInBoardPanel />);
+    render(<FrontDeskBoardPanel />);
     await screen.findByText('show all');
     fireEvent.click(screen.getByText('show all'));
     await waitFor(() => expect(screen.getAllByTestId('entry')).toHaveLength(2));
@@ -153,14 +153,14 @@ describe('CheckInBoardPanel', () => {
 
   it('withholds edit actions without permission but keeps the show-all toggle', async () => {
     canEdit = false;
-    render(<CheckInBoardPanel />);
+    render(<FrontDeskBoardPanel />);
     await waitFor(() => expect(fetchCheckIns).toHaveBeenCalled());
     expect(screen.getByTestId('has-actions')).toHaveTextContent('false');
     expect(screen.getByText('show all')).toBeInTheDocument();
   });
 
   it('runs the seen transition then refetches', async () => {
-    render(<CheckInBoardPanel />);
+    render(<FrontDeskBoardPanel />);
     await screen.findByText('seen');
     fireEvent.click(screen.getByText('seen'));
     await waitFor(() => expect(markCheckInSeen).toHaveBeenCalledWith('org-1', 'ci-1'));
@@ -168,7 +168,7 @@ describe('CheckInBoardPanel', () => {
   });
 
   it('completes an in-consultation check-in then refetches', async () => {
-    render(<CheckInBoardPanel />);
+    render(<FrontDeskBoardPanel />);
     await screen.findByText('complete');
     fireEvent.click(screen.getByText('complete'));
     await waitFor(() => expect(completeCheckIn).toHaveBeenCalledWith('org-1', 'ci-1'));
@@ -176,7 +176,7 @@ describe('CheckInBoardPanel', () => {
   });
 
   it('marks a no-show then refetches', async () => {
-    render(<CheckInBoardPanel />);
+    render(<FrontDeskBoardPanel />);
     await screen.findByText('no-show');
     fireEvent.click(screen.getByText('no-show'));
     await waitFor(() => expect(markCheckInNoShow).toHaveBeenCalledWith('org-1', 'ci-1'));
@@ -184,7 +184,7 @@ describe('CheckInBoardPanel', () => {
   });
 
   it('assigns a room then refetches', async () => {
-    render(<CheckInBoardPanel />);
+    render(<FrontDeskBoardPanel />);
     await screen.findByText('assign');
     fireEvent.click(screen.getByText('assign'));
     await waitFor(() => expect(assignCheckInRoom).toHaveBeenCalledWith('org-1', 'ci-1', 'room-1'));
@@ -193,7 +193,7 @@ describe('CheckInBoardPanel', () => {
 
   it('surfaces an error when an action fails', async () => {
     cancelCheckIn.mockRejectedValueOnce(new Error('x'));
-    render(<CheckInBoardPanel />);
+    render(<FrontDeskBoardPanel />);
     await screen.findByText('cancel');
     fireEvent.click(screen.getByText('cancel'));
     await waitFor(() =>
@@ -202,7 +202,7 @@ describe('CheckInBoardPanel', () => {
   });
 
   it('creates a check-in and refetches', async () => {
-    render(<CheckInBoardPanel />);
+    render(<FrontDeskBoardPanel />);
     await screen.findByText('add');
     fireEvent.click(screen.getByText('add'));
     await waitFor(() =>
@@ -217,7 +217,7 @@ describe('CheckInBoardPanel', () => {
 
   it('does not refetch when creating a check-in fails', async () => {
     createCheckIn.mockRejectedValueOnce(new Error('x'));
-    render(<CheckInBoardPanel />);
+    render(<FrontDeskBoardPanel />);
     await screen.findByText('add');
     fireEvent.click(screen.getByText('add'));
     await waitFor(() => expect(createCheckIn).toHaveBeenCalled());
@@ -226,7 +226,7 @@ describe('CheckInBoardPanel', () => {
 
   it('shows a load error when the fetch throws', async () => {
     fetchCheckIns.mockReset().mockRejectedValue(new Error('down'));
-    render(<CheckInBoardPanel />);
+    render(<FrontDeskBoardPanel />);
     await waitFor(() =>
       expect(screen.getByTestId('error')).toHaveTextContent('Unable to load the check-in board')
     );
@@ -234,14 +234,14 @@ describe('CheckInBoardPanel', () => {
 
   it('renders nothing to load without a primary org', async () => {
     primaryOrgId = null;
-    render(<CheckInBoardPanel />);
+    render(<FrontDeskBoardPanel />);
     await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('false'));
     expect(fetchCheckIns).not.toHaveBeenCalled();
   });
 
   it('does not fire a transition or a create when there is no primary org', async () => {
     primaryOrgId = null;
-    render(<CheckInBoardPanel />);
+    render(<FrontDeskBoardPanel />);
     await screen.findByText('seen');
     fireEvent.click(screen.getByText('seen'));
     fireEvent.click(screen.getByText('add'));
@@ -258,7 +258,7 @@ describe('CheckInBoardPanel', () => {
         parent: { id: '', firstName: '', lastName: '' },
       },
     ];
-    render(<CheckInBoardPanel />);
+    render(<FrontDeskBoardPanel />);
     await waitFor(() => expect(fetchCheckIns).toHaveBeenCalled());
     // The resolved entry keeps its patient name but no owner name to attach.
     expect(await screen.findByTestId('entry')).toHaveTextContent('Buddy/none/WAITING/Exam 1');

@@ -46,8 +46,8 @@ const ChangeRoom = React.lazy(
 const WaitlistPanel = React.lazy(
   () => import('@/app/features/appointments/components/Waitlist/WaitlistPanel')
 );
-const CheckInBoardPanel = React.lazy(
-  () => import('@/app/features/appointments/components/CheckInBoard/CheckInBoardPanel')
+const FrontDeskBoardPanel = React.lazy(
+  () => import('@/app/features/appointments/components/FrontDeskBoard/FrontDeskBoardPanel')
 );
 import type { WaitlistEntryView } from '@/app/features/appointments/components/Waitlist/Waitlist';
 import { bookWaitlistEntry } from '@/app/features/appointments/services/waitlistService';
@@ -737,7 +737,7 @@ const useAppointmentsView = () => {
             {showFrontDesk && (
               <div id="appointments-front-desk-panel" className="mt-3">
                 <React.Suspense fallback={<PlannerViewSkeleton />}>
-                  <CheckInBoardPanel />
+                  <FrontDeskBoardPanel />
                 </React.Suspense>
               </div>
             )}
