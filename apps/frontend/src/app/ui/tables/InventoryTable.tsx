@@ -84,7 +84,7 @@ const getInventoryImageSrc = (item: InventoryItem) => {
   return src.startsWith(ORG_IMAGE_URL_PREFIX) ? src : '';
 };
 
-const StatusPill = ({ label }: { label: string }) => (
+const InventoryStatusPill = ({ label }: { label: string }) => (
   <SharedStatusPill label={label} style={getInventoryStatusStyle(label)} />
 );
 
@@ -153,7 +153,7 @@ const InventoryRow = ({
         {item.basicInfo.subCategory ? ` / ${item.basicInfo.subCategory}` : ''}
       </div>
       <div>
-        <StatusPill label={statusLabel} />
+        <InventoryStatusPill label={statusLabel} />
       </div>
       <div className="font-bold">{(item.stock.abcClass || '').replace('Class ', '') || '—'}</div>
       <div
