@@ -113,10 +113,18 @@ const rule = {
   create(context) {
     if (primitiveIndex.size === 0) return {};
     const filename = context.filename ?? context.getFilename();
-    // Only feature code is in scope. The primitives themselves, of course,
-    // declare their own name; stories and tests may deliberately construct a
-    // conflicting fixture.
-    if (!filename.includes(`${path.sep}features${path.sep}`)) return {};
+    // In scope: features/ (the freeze audit's original finding) and the rest
+    // of ui/ (InventoryTable.tsx, under ui/tables/, had this exact bug too -
+    // a local StatusPill wrapper around SharedStatusPill). Out of scope: the
+    // primitives themselves declare their own name; ui/primitives/ is excluded
+    // outright rather than just skipped-on-collision, so a primitive's own
+    // internal helpers are never second-guessed by this rule. Stories and
+    // tests may deliberately construct a conflicting fixture.
+    const inFeatures = filename.includes(`${path.sep}features${path.sep}`);
+    const inUiOutsidePrimitives =
+      filename.includes(`${path.sep}ui${path.sep}`) &&
+      !filename.includes(`${path.sep}ui${path.sep}primitives${path.sep}`);
+    if (!inFeatures && !inUiOutsidePrimitives) return {};
     if (/\.(stories|test|spec)\.[tj]sx?$/.test(filename)) return {};
     if (filename.includes(`__tests__${path.sep}`)) return {};
 
@@ -139,6 +147,12 @@ const rule = {
       },
       // function StatusPill(...) {...}
       FunctionDeclaration(node) {
+        checkId(node.id);
+      },
+      // class StatusPill extends React.Component {...} - the primitive index
+      // already recognizes exported classes, so this closes the matching gap
+      // on the report side; a class component can shadow just as easily.
+      ClassDeclaration(node) {
         checkId(node.id);
       },
     };
