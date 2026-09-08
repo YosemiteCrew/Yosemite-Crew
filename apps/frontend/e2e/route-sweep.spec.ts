@@ -6,6 +6,7 @@ import {
   formatViolations,
   isReportableConsoleError,
   placeholderValueViolations,
+  throttleDelayMs,
   rawEnumViolations,
   rawIdViolations,
   type Violation,
@@ -141,6 +142,15 @@ test('every operational route holds its page invariants', async ({ page }) => {
    * whichever route happened to be current when it landed. The first run of this
    * spec attributed every late 5xx to /guides, the last route in the list.
    */
+  /** Latest rate-limit budget the API reported, updated on every response. */
+  const budget: { remaining?: number; resetAtMs?: number } = {};
+  page.on('response', (r) => {
+    const remaining = Number(r.headers()['ratelimit-remaining']);
+    const resetSeconds = Number(r.headers()['ratelimit-reset']);
+    if (Number.isFinite(remaining)) budget.remaining = remaining;
+    if (Number.isFinite(resetSeconds)) budget.resetAtMs = Date.now() + resetSeconds * 1000;
+  });
+
   const watchRoute = (route: string) => {
     const noise: string[] = [];
     const onConsole = (m: import('@playwright/test').ConsoleMessage) => {
@@ -172,9 +182,15 @@ test('every operational route holds its page invariants', async ({ page }) => {
   const found: Record<string, string[]> = {};
 
   for (const [index, route] of ROUTES.entries()) {
-    // Pace the walk. Without this the sweep rate-limits itself and then reports
-    // its own 429s and the 503s behind them as findings.
-    if (index > 0) await page.waitForTimeout(1_500);
+    // Hold off only when the API says the budget is nearly spent, and then for
+    // exactly as long as it says. A blind sleep between routes is slower than
+    // needed while there is headroom and too short once there is not.
+    const delay = throttleDelayMs({ ...budget, now: Date.now() });
+    if (index > 0 && delay > 0) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, Math.min(delay, 60_000));
+      });
+    }
     const stopWatching = watchRoute(route);
     await page.goto(route, { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});

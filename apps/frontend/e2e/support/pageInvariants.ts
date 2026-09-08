@@ -87,10 +87,10 @@ export const countMismatchViolations = (
 ): Violation[] =>
   counts
     .filter((c) => new Set(c.sources.map((s) => s.value)).size > 1)
-    .map((c) => ({
-      rule: 'count-mismatch',
-      detail: `${c.label}: ${c.sources.map((s) => `${s.where}=${s.value}`).join(' vs ')}`,
-    }));
+    .map((c) => {
+      const sources = c.sources.map((s) => `${s.where}=${s.value}`).join(' vs ');
+      return { rule: 'count-mismatch', detail: `${c.label}: ${sources}` };
+    });
 
 /**
  * A date in the past under a heading that promises the future.
@@ -120,3 +120,32 @@ export const formatViolations = (route: string, violations: readonly Violation[]
  */
 export const isReportableConsoleError = (text: string): boolean =>
   !/\b429\b|Too Many Requests/i.test(text);
+
+/**
+ * How long to hold off before the next request, decided from the API's own
+ * rate-limit headers rather than from a fixed sleep.
+ *
+ * The limiter sets `standardHeaders: true`, so every response carries
+ * RateLimit-Remaining and RateLimit-Reset. A sweep that walks nineteen routes
+ * exhausts the window and then reports its own 429s as findings, so it has to
+ * throttle - but throttling on a timer is both slower than necessary in the
+ * normal case and not slow enough in the bad one. Reading the budget means no
+ * wait at all while there is headroom, and a wait of exactly the right length
+ * when there is not.
+ */
+export const throttleDelayMs = ({
+  remaining,
+  resetAtMs,
+  now,
+  lowWater = 40,
+}: {
+  remaining?: number;
+  resetAtMs?: number;
+  now: number;
+  lowWater?: number;
+}): number => {
+  // No headers yet, or plenty of budget: do not wait.
+  if (remaining === undefined || remaining > lowWater) return 0;
+  if (resetAtMs === undefined) return 0;
+  return Math.max(0, resetAtMs - now);
+};
