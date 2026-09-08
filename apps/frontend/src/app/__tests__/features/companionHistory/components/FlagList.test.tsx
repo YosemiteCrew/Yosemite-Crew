@@ -119,6 +119,7 @@ describe('FlagList', () => {
 
     rerender(<FlagList flags={[]} error="Could not load patient flags." />);
     expect(screen.getByRole('alert')).toHaveTextContent('Could not load patient flags.');
+    expect(screen.queryByText('No active flags for this patient.')).not.toBeInTheDocument();
   });
 
   it('hides edit controls when the member cannot edit', () => {

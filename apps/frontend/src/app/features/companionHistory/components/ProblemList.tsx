@@ -244,6 +244,7 @@ const ProblemList = ({
 
   const body = (() => {
     if (loading) return <ClinicalListLoadingRows />;
+    if (error) return <ClinicalListError error={error} />;
     if (problems.length === 0)
       return <ClinicalListEmpty message="No problems recorded for this patient yet." />;
     return (
@@ -274,8 +275,6 @@ const ProblemList = ({
         onToggle={() => setShowForm((s) => !s)}
         addLabel="Add problem"
       />
-
-      <ClinicalListError error={error} />
 
       {showForm && canEdit ? (
         <CreateProblemForm

@@ -355,7 +355,7 @@ const GrantConsentForm = ({
   );
 };
 
-/** The list body: loading skeleton, error's null slot, empty state, or the rows. */
+/** The list body: loading skeleton, error, empty state, or the rows. */
 const ConsentListBody = ({
   loading,
   error,
@@ -372,7 +372,7 @@ const ConsentListBody = ({
   revokingId: string | null;
 }) => {
   if (loading) return <ClinicalListLoadingRows />;
-  if (error) return null;
+  if (error) return <ClinicalListError error={error} />;
   if (consents.length === 0)
     return <ClinicalListEmpty message="No consents recorded for this patient yet." />;
   return (
@@ -425,8 +425,6 @@ const ConsentList = ({
         onToggle={() => setShowForm((s) => !s)}
         addLabel="Record consent"
       />
-
-      <ClinicalListError error={error} />
 
       {showForm && canEdit ? (
         <GrantConsentForm

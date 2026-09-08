@@ -20,6 +20,7 @@ import { useLoadRoomsForPrimaryOrg, useRoomsForPrimaryOrg } from '@/app/hooks/us
 import { useOrgStore } from '@/app/stores/orgStore';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
+import { isAuthRedirectError } from '@/app/services/axios';
 import type {
   CheckInCompanionOption,
   CheckInRoomOption,
@@ -74,8 +75,8 @@ const useCheckInData = (organisationId: string | null): CheckInData => {
       try {
         const data = await fetchCheckIns(organisationId);
         if (active) setCheckIns(data);
-      } catch {
-        if (active) {
+      } catch (error) {
+        if (active && !isAuthRedirectError(error)) {
           setCheckIns([]);
           setError('Unable to load the check-in board right now.');
         }
