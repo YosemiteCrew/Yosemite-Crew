@@ -140,6 +140,7 @@ describe('ProblemList', () => {
       <ProblemList problems={[]} error="Could not load the problem list. Please try again." />
     );
     expect(screen.getByRole('alert')).toHaveTextContent('Could not load the problem list');
+    expect(screen.queryByText(/No problems recorded/)).not.toBeInTheDocument();
   });
 
   it('hides the add and resolve controls when the member cannot edit', () => {

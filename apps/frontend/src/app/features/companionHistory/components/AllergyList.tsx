@@ -317,7 +317,7 @@ const AllergyList = ({
 
   const body = (() => {
     if (loading) return <ClinicalListLoadingRows />;
-    if (error) return null;
+    if (error) return <ClinicalListError error={error} />;
     if (allergies.length === 0)
       return <ClinicalListEmpty message="No allergies recorded for this patient yet." />;
     return (
@@ -349,8 +349,6 @@ const AllergyList = ({
         onToggle={() => setShowForm((s) => !s)}
         addLabel="Add allergy"
       />
-
-      <ClinicalListError error={error} />
 
       {showForm && canEdit ? (
         <CreateAllergyForm
