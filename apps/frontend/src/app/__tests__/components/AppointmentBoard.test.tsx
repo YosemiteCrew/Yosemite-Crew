@@ -738,7 +738,9 @@ describe('AppointmentBoard', () => {
       />
     );
 
-    expect(screen.getByLabelText('Emergency appointment')).toBeInTheDocument();
+    // The board card renders the shared EmergencyBadge (icon + "Emergency" text, no
+    // aria-label of its own — see EmergencyBadge.tsx), not a bespoke labelled pill.
+    expect(screen.getByText('Emergency')).toBeInTheDocument();
     expect(screen.getByLabelText('Draggable appointment Buddy').className).toContain(
       'border-l-[var(--danger)]'
     );
