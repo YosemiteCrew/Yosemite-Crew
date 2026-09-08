@@ -68,8 +68,8 @@ export interface CheckInListFilter {
 
 /**
  * Path ids are interpolated straight into the request URL, so they are validated
- * against the canonical UUID shape and the matched value — not the raw input —
- * is what flows into the URL. A non-UUID id throws before any request is made,
+ * against a known id shape and the matched value — not the raw input — is what
+ * flows into the URL. An unrecognised id throws before any request is made,
  * which is the SSRF sanitiser the scanner recognises (`encodeURIComponent` does
  * not satisfy it, because the tainted value would still reach the URL).
  */
@@ -79,6 +79,23 @@ const assertUuid = (value: string, label: string): string => {
       value
     )?.[0];
   if (!safeValue) throw new Error(`Invalid ${label} ID`);
+  return safeValue;
+};
+
+/**
+ * Organisations predate this app's move to UUIDs, so `organisationId` still
+ * arrives as a legacy 24-hex Mongo ObjectId for every org created before the
+ * migration - `assertUuid` alone rejected all of them and took the whole
+ * check-in board down before a request ever left the browser. Mirrors the
+ * UUID-or-ObjectId check `patientFlagService`/`patientAllergyService` already
+ * use for the same field.
+ */
+const assertOrganisationId = (value: string): string => {
+  const safeValue =
+    /^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|[0-9a-fA-F]{24})$/.exec(
+      value
+    )?.[0];
+  if (!safeValue) throw new Error('Invalid organisation ID');
   return safeValue;
 };
 
@@ -94,7 +111,7 @@ export const fetchCheckIns = async (
   organisationId: string,
   filter: CheckInListFilter = {}
 ): Promise<PatientCheckIn[]> => {
-  const safeOrganisationId = assertUuid(organisationId, 'organisation');
+  const safeOrganisationId = assertOrganisationId(organisationId);
   const params: Record<string, string> = {};
   if (filter.patientId) params.patientId = filter.patientId;
   if (filter.status) params.status = filter.status;
@@ -118,7 +135,7 @@ export const fetchCheckIn = async (
   organisationId: string,
   checkInId: string
 ): Promise<PatientCheckIn> => {
-  const safeOrganisationId = assertUuid(organisationId, 'organisation');
+  const safeOrganisationId = assertOrganisationId(organisationId);
   const safeCheckInId = assertUuid(checkInId, 'check-in');
   try {
     const res = await getData<PatientCheckIn>(
@@ -135,7 +152,7 @@ export const createCheckIn = async (
   organisationId: string,
   payload: CreateCheckInPayload
 ): Promise<PatientCheckIn> => {
-  const safeOrganisationId = assertUuid(organisationId, 'organisation');
+  const safeOrganisationId = assertOrganisationId(organisationId);
   try {
     const res = await postData<PatientCheckIn, CreateCheckInPayload>(
       `/v1/pms/organisation/${safeOrganisationId}/check-in`,
@@ -155,7 +172,7 @@ const transition = async (
   checkInId: string,
   action: CheckInTransition
 ): Promise<PatientCheckIn> => {
-  const safeOrganisationId = assertUuid(organisationId, 'organisation');
+  const safeOrganisationId = assertOrganisationId(organisationId);
   const safeCheckInId = assertUuid(checkInId, 'check-in');
   try {
     const res = await postData<PatientCheckIn>(
@@ -185,7 +202,7 @@ export const assignCheckInRoom = async (
   checkInId: string,
   roomId: string
 ): Promise<PatientCheckIn> => {
-  const safeOrganisationId = assertUuid(organisationId, 'organisation');
+  const safeOrganisationId = assertOrganisationId(organisationId);
   const safeCheckInId = assertUuid(checkInId, 'check-in');
   try {
     const res = await postData<PatientCheckIn, { roomId: string }>(
