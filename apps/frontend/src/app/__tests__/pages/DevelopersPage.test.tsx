@@ -139,11 +139,12 @@ describe('DevelopersPage', () => {
     expect(heroKey.style.color).toBe('var(--cyan-text)');
 
     // The bundle.json block keys sit on an always-dark code card, so they keep the
-    // literal cyan fill in both themes.
+    // same cyan fill in both themes - now the --cyan token, which resolves to the
+    // same #5ce1e6 in both the light and dark globals.css blocks.
     const bundleKeys = within(document.body).getAllByText('"authority"');
     expect(bundleKeys.length).toBeGreaterThanOrEqual(2);
     bundleKeys.forEach((key) => {
-      expect(key.style.color).toBe('rgb(92, 225, 230)');
+      expect(key.style.color).toBe('var(--cyan)');
     });
   });
 });
