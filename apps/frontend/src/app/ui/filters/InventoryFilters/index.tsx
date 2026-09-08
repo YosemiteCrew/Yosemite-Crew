@@ -4,13 +4,13 @@ import { createPortal } from 'react-dom';
 import { IoCaretDown } from 'react-icons/io5';
 import clsx from 'clsx';
 import { InventoryFiltersState } from '@/app/features/inventory/pages/Inventory/types';
-import { statusLabel, type StatusLabel } from '@/app/constants/status';
+import { AllFilterOption, statusLabel, type StatusLabel } from '@/app/constants/status';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import StatusOptionButtons from '@/app/ui/filters/StatusOptionButtons';
 import { useFilterDropdownDismiss } from '@/app/ui/filters/useFilterDropdownDismiss';
 
 const StockHealthOptions: StatusLabel[] = [
-  statusLabel('All', 'ALL', 'color-badge-blue', 'var(--color-primary-500)'),
+  AllFilterOption,
   statusLabel('Healthy', 'HEALTHY', 'color-pill-success'),
   statusLabel('Low stock', 'LOW_STOCK', 'color-pill-progress'),
   statusLabel('Expiring soon', 'EXPIRING_SOON', 'color-pill-info'),
@@ -29,8 +29,9 @@ const getVisibilityLabel = (key: 'ALL' | 'ACTIVE' | 'HIDDEN'): string => {
   return 'Hidden';
 };
 
-const getStockHealthDropdownTextColor = (option: StatusLabel): string =>
-  option.key === 'ALL' ? 'var(--color-text-primary)' : option.text;
+/* Every option now carries ink it is safe to render, ALL included, so this is
+   the identity the shared component needs rather than a guard (#2814). */
+const getStockHealthDropdownTextColor = (option: StatusLabel): string => option.text;
 
 const getStockHealthButtonStyle = (option: StatusLabel): React.CSSProperties => {
   if (option.key === 'ALL') {

@@ -2,6 +2,7 @@ import { getMerckSubtopicPillStyle } from '@/app/features/integrations/constants
 import { getStatusBadgeStyle } from '@/app/features/inventory/pages/Inventory/utils';
 import { measureContrast } from '@/app/features/appointments/components/Calendar/responsive/contrastProbe';
 import { getOrganizationStatusStyle } from '@/app/ui/tables/tableUtils';
+import { AllFilterOption } from '@/app/constants/status';
 import { resolve, resolveColour } from '@/app/__tests__/support/globalsTokens';
 
 /**
@@ -114,6 +115,49 @@ describe.each(['light', 'dark'] as const)('inline status pill contrast (%s)', (t
     // None of these is large text, so the bar must be the strict one.
     expect(reading.required).toBe(4.5);
     expect(reading.ratio).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+/**
+ * The same defect one step earlier: colours that are not painted today but are
+ * one deleted `key === 'ALL'` guard away from it.
+ *
+ * The site that pairs an option's fill under its ink is the trigger chip -
+ * `getStockHealthButtonStyle` and `getTurnoverStatusButtonStyle`, whose non-ALL
+ * branch returns `{ backgroundColor: option.bg, color: option.text }`. Their
+ * `key === 'ALL'` branch is the guard; delete it and the All option is rendered
+ * the ordinary way. (`StatusOptionButtons` is not that site and never was: its
+ * option type is `{ key, name, border? }`, so it cannot read `bg` at all.)
+ *
+ * The All row used to carry the badge-blue pair in that data and was kept off
+ * screen only because each of its four consumers substituted something else at
+ * the point of use (#2814). These two arms assert the data is safe to render,
+ * not that the consumers happen not to render it.
+ */
+describe('the neutral All filter option', () => {
+  it.each(['light', 'dark'] as const)('has no fill to write on (%s)', (theme) => {
+    /* Not `expect(...).not.toBe('#007cf5')`: any prefix whose `-bg` is a colour
+       reintroduces the pairing, so the assertion is the absence of a fill.
+       Pointing `AllFilterOption` at any filled prefix fails here. */
+    expect(resolve(AllFilterOption.bg, theme === 'dark')).toBe('transparent');
+  });
+
+  it.each(['light', 'dark'] as const)('reads on the panel it sits on (%s)', (theme) => {
+    const dark = theme === 'dark';
+    const el = mount(
+      resolveToken(AllFilterOption.text, dark),
+      resolveToken(`var(${dark ? SURFACE.dark : SURFACE.light})`, dark),
+      resolveToken(`var(${dark ? SURFACE.dark : SURFACE.light})`, dark),
+      '13px',
+      '400'
+    );
+    const reading = measureContrast(el);
+    expect(reading.required).toBe(4.5);
+    expect(reading.ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
   });
 });
 
