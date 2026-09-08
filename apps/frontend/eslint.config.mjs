@@ -142,7 +142,7 @@ const eslintConfig = [
        (label, help, error, required, disabled, 40px control). #2832 took the
        raw-element count from 19 production files to 1; this keeps it there. */
     files: ['**/*.tsx'],
-    ignores: ['**/__tests__/**', '**/*.test.tsx', '**/*.stories.tsx'],
+    ignores: ['**/__tests__/**', '**/*.test.tsx'],
     rules: {
       'react/forbid-elements': [
         'error',
@@ -155,9 +155,11 @@ const eslintConfig = [
     },
   },
   {
-    // ui/Input.tsx is the primitive implementation and the one place the raw
-    // element may appear. Any other exemption needs a reason on this line.
-    files: ['**/ui/Input.tsx'],
+    // The primitive implementation, and the one place the raw element may
+    // appear. Pinned to the exact path so a future file whose name happens to
+    // end ui/Input.tsx does not inherit the exemption. Any other exemption
+    // needs its own entry with a reason on this line.
+    files: ['src/app/ui/Input.tsx'],
     rules: { 'react/forbid-elements': 'off' },
   },
 ];
