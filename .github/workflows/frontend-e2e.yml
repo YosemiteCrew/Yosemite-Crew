@@ -1,13 +1,17 @@
 name: Frontend E2E
 
+# Triggered on EVERY pull request, with the path decision made inside the jobs
+# rather than here. A path filter at this level looks equivalent and is not: once
+# `Frontend E2E Required` is marked required on the branch ruleset, a backend- or
+# docs-only PR skips the whole workflow, the required context is never created,
+# and the PR waits for it forever. `if: always()` cannot rescue a workflow that
+# was never triggered. Filtering inside means the aggregate always reports, and
+# reports success when frontend testing was legitimately unnecessary. Same shape
+# as desktop-e2e.yml, for the same reason.
 on:
-  pull_request:
-    paths:
-      - 'apps/frontend/**'
-      - 'pnpm-lock.yaml'
-      - 'package.json'
-      - 'pnpm-workspace.yaml'
-      - '.github/workflows/frontend-e2e.yml'
+  pull_request: {}
+  push:
+    branches: [dev, main]
   workflow_dispatch:
 
 permissions:
@@ -22,6 +26,41 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect frontend changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Decide whether the frontend suite needs to run
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Anything other than a pull request runs the suite. A push to dev or
+          # main, or a manual dispatch, is never the case this filter exists to
+          # skip, and failing open costs a run rather than hiding a regression.
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          CHANGED=$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}" \
+            -- 'apps/frontend/**' 'pnpm-lock.yaml' 'package.json' \
+               'pnpm-workspace.yaml' '.github/workflows/frontend-e2e.yml' | wc -l)
+          if [ "$CHANGED" -gt 0 ]; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # `secrets` is not available in a job-level `if:` — gate on a preflight output instead.
   #
   # This job resolves YC_E2E_* into a runner, so it must never run on a
@@ -52,6 +91,8 @@ jobs:
   # doing an identical cold Next.js build inside each one.
   build:
     name: Build frontend (shared)
+    needs: [changes]
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -108,7 +149,8 @@ jobs:
 
   playwright-public:
     name: Playwright public smoke + a11y
-    needs: build
+    needs: [changes, build]
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -269,3 +311,34 @@ jobs:
       # Only restore uploads here if the spec stops handling a real secret (for
       # example a provider-mocked sign-in). The public smoke job keeps its
       # artifacts: it handles no credentials.
+
+  # Mirrors `Desktop E2E Required`. The authenticated suite deliberately cannot run on a
+  # pull_request - see the preflight comment - so what a PR can be gated on is the public
+  # smoke + a11y leg. Without this aggregate that leg reports but blocks nothing, which is
+  # how "E2E exists" and "E2E gates" came apart.
+  frontend-e2e-required:
+    name: Frontend E2E Required
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [changes, build, playwright-public]
+    steps:
+      - name: Fail on any failed, cancelled or skipped leg
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          NEEDED: ${{ needs.changes.outputs.frontend }}
+        run: |
+          set -euo pipefail
+          echo "$RESULTS"
+          # A skipped leg is only acceptable when the filter said the frontend was
+          # untouched. Skipped for any other reason is a stage that silently did
+          # not run, which is what this aggregate exists to catch.
+          if [ "$NEEDED" != "true" ]; then
+            echo "Frontend E2E Required: no frontend changes in this pull request, nothing to run"
+            exit 0
+          fi
+          if echo "$RESULTS" | grep -qE '"result": *"(failure|cancelled|skipped)"'; then
+            echo "Frontend E2E Required: a leg failed, was cancelled, or did not run"
+            exit 1
+          fi
+          echo "Frontend E2E Required: public smoke + a11y passed"
