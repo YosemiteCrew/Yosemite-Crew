@@ -15,6 +15,7 @@ import Fallback from '@/app/ui/overlays/Fallback';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { humanize } from '@/app/features/organization/pages/Organization/Sections/orgDisplay';
+import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
 
 type ManagedRoom = OrganisationRoom & {
   availability?: {
@@ -126,12 +127,13 @@ const Rooms = () => {
 
   return (
     <PermissionGate allOf={[PERMISSIONS.ROOM_VIEW_ANY]} fallback={<Fallback resource="rooms" />}>
-      <section className="overflow-hidden yc-card-surface">
-        <div className="flex items-center justify-between gap-3 px-5! pt-4! pb-3!">
-          <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[var(--ink)]">
-            Rooms <span className="font-medium text-[var(--ink-faint)]">({rooms.length})</span>
-          </h2>
-          {canEditRoom && (
+      <SectionCard
+        title={`Rooms (${rooms.length})`}
+        actions={
+          canEditRoom && (
+            // Design keeps this a plain text link, not the filled `--cta` pill
+            // SectionCard's own buttonTitle prop renders - that treatment is
+            // reserved for Team, the section that spends money on a seat.
             <button
               type="button"
               onClick={() => setAddPopup(true)}
@@ -139,8 +141,9 @@ const Rooms = () => {
             >
               + Add room
             </button>
-          )}
-        </div>
+          )
+        }
+      >
         {rooms.length === 0 ? (
           <div className="border-t border-[var(--hairline)] px-5! py-[18px]! text-[12.5px] text-[var(--ink-faint)]">
             No rooms added yet.
@@ -152,7 +155,7 @@ const Rooms = () => {
             ))}
           </ul>
         )}
-      </section>
+      </SectionCard>
       <AddRoom showModal={addPopup} setShowModal={setAddPopup} />
       {activeRoom && (
         <RoomInfo
