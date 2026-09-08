@@ -3208,6 +3208,16 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       expect(days).toBeLessThan(7.5);
     });
 
+    it("starts the expiry window now so expired batches stay out", async () => {
+      const before = Date.now();
+      InventoryAlertService.getExpiringItems("org-1", 30);
+
+      const expiryRange = mockOf(prisma.inventoryBatch.findMany).mock
+        .calls[0][0].where.expiryDate as { gte: Date; lte: Date };
+      expect(expiryRange.gte.getTime()).toBeGreaterThanOrEqual(before);
+      expect(expiryRange.gte.getTime()).toBeLessThanOrEqual(Date.now());
+    });
+
     it("honours an explicit day count", async () => {
       InventoryAlertService.getExpiringItems("org-1", 30);
 
