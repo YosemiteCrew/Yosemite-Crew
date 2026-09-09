@@ -95,7 +95,7 @@ export const trustCenterData = {
       'US federal law on the validity of e-signatures.',
       'create-outline',
       '#e6f2ff',
-      '#257bed'
+      'var(--blue)'
     ),
     iconCert(
       'UETA',
@@ -127,7 +127,7 @@ export const trustCenterData = {
       'US protection for patient health information.',
       'medkit-outline',
       '#e6f2ff',
-      '#257bed'
+      'var(--blue)'
     ),
   ] satisfies readonly Certification[],
 
