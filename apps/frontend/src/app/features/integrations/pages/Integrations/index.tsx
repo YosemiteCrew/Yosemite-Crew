@@ -44,10 +44,10 @@ import {
   IoSettingsOutline,
   IoTrashOutline,
 } from 'react-icons/io5';
-import clsx from 'clsx';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import SharedStatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { useConfirm } from '@/app/ui/overlays/Modal/ConfirmModal';
+import FilterChip from '@/app/ui/filters/FilterChip';
 
 type StatusTokens = { bg: string; text: string; border: string };
 
@@ -919,28 +919,20 @@ const IntegrationFilterTabs = ({
   activeFilter: IntegrationsPageState['activeFilter'];
   setActiveFilter: IntegrationsPageState['setActiveFilter'];
 }) => (
-  <fieldset className="flex items-center gap-2 flex-wrap">
-    <legend className="sr-only">Filter integrations</legend>
-    {integrationFilters.map((tab) => {
-      const isActive = activeFilter === tab.key;
-      return (
-        <button
-          key={tab.key}
-          type="button"
-          onClick={() => setActiveFilter(tab.key)}
-          aria-pressed={isActive}
-          className={clsx(
-            'rounded-full! border px-[13px] py-1.5 text-[12px] whitespace-nowrap transition-colors',
-            isActive
-              ? 'bg-[var(--chip-selected-bg)] border-[var(--chip-selected-border)] text-[var(--chip-selected-ink)] font-bold'
-              : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:border-[var(--divider)]'
-          )}
-        >
-          {tab.label}
-        </button>
-      );
-    })}
-  </fieldset>
+  <div /* NOSONAR: styled flex pill group; native <fieldset> defaults (block layout, border, required legend) break the pill design */
+    role="group"
+    aria-label="Filter integrations"
+    className="flex items-center gap-2 flex-wrap"
+  >
+    {integrationFilters.map((tab) => (
+      <FilterChip
+        key={tab.key}
+        label={tab.label}
+        active={activeFilter === tab.key}
+        onClick={() => setActiveFilter(tab.key)}
+      />
+    ))}
+  </div>
 );
 
 // Compact integration card — design: 16px/18px padding, a 10px column gap and a
