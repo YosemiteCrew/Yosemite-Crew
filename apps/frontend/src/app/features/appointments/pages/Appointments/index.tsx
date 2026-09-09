@@ -548,7 +548,7 @@ const useAppointmentsView = () => {
   const completeWaitlistBooking = async (createdAppointment?: Appointment) => {
     if (!waitlistBooking || !primaryOrgId) return;
     const createdPatientId = createdAppointment?.patient?.id ?? createdAppointment?.companion?.id;
-    if (createdPatientId !== waitlistBooking.patientId) {
+    if (!createdAppointment?.id || createdPatientId !== waitlistBooking.patientId) {
       notify('warning', {
         title: 'Waitlist not updated',
         text: 'The appointment was created for a different patient. Review the waitlist before booking this patient again.',
@@ -557,7 +557,7 @@ const useAppointmentsView = () => {
       return;
     }
     try {
-      await bookWaitlistEntry(primaryOrgId, waitlistBooking.id);
+      await bookWaitlistEntry(primaryOrgId, waitlistBooking.id, createdAppointment.id);
       setWaitlistRefreshKey((key) => key + 1);
     } catch {
       notify('warning', {
