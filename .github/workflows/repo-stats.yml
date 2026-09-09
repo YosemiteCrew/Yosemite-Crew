@@ -114,7 +114,19 @@ jobs:
             text = "\n".join(parser.chunks)
 
           def extract_cumulative(label: str) -> int | None:
-            match = re.search(rf"{label}\s*Cumulative:\s*([0-9,]+)", text, re.IGNORECASE)
+            # The markdown report keeps each section's `<div id="chart_..."
+            # class="full-width-chart"></div>` placeholder as literal text
+            # between the heading and "Cumulative: N" - `\s*` cannot cross
+            # that non-whitespace tag, so this always returned None for every
+            # field. `.*?` (DOTALL) matches the same zero-width gap in the
+            # HTML-parsed path (that div contributes no text, so the heading
+            # and "Cumulative:" already sit adjacent there) and additionally
+            # spans the markdown path's div tag, binding to the nearest
+            # following "Cumulative:" - the section's own, since each section
+            # has exactly one.
+            match = re.search(
+              rf"{label}.*?Cumulative:\s*([0-9,]+)", text, re.IGNORECASE | re.DOTALL
+            )
             if not match:
               return None
             return int(match.group(1).replace(",", ""))
