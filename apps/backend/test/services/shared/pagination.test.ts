@@ -116,6 +116,13 @@ describe("keyset cursors", () => {
     ).toEqual({ createdAt: CREATED_AT, id: ID });
   });
 
+  it("round-trips a timestamp before the Unix epoch", () => {
+    const createdAt = new Date("1969-12-31T23:59:59.999Z");
+    expect(
+      parseKeysetCursor(encodeKeysetCursor({ createdAt, id: ID })),
+    ).toEqual({ createdAt, id: ID });
+  });
+
   /*
    * `createdAt` is TIMESTAMP(3) on every model paged this way, so the
    * millisecond is the whole precision of the column. A cursor that dropped it
