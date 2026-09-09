@@ -1,7 +1,7 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "70255365bb223572212101cf02c8e9775fef00b8",
-  "total": 461,
+  "generated_at": "e6614570707e0c9cb624b6884fbfb69f2a067e9b",
+  "total": 460,
   "justified": {
     "apps/frontend/src/app/features/appointments/components/Availability/Availability.tsx": {
       "n": 1,
@@ -114,7 +114,6 @@
     "apps/frontend/src/app/features/petPassport/components/attestation/RecordAttestationModal.stories.tsx": 9,
     "apps/frontend/src/app/features/petPassport/components/WalletPassPreview.stories.tsx": 3,
     "apps/frontend/src/app/features/settings/pages/Settings/Sections/YourOrganizations.stories.tsx": 1,
-    "apps/frontend/src/app/features/tasks/components/TaskAssigneeChips.stories.tsx": 1,
     "apps/frontend/src/app/features/tasks/components/TaskFilterBar.stories.tsx": 1,
     "apps/frontend/src/app/features/tasks/components/TaskFormBody.stories.tsx": 1,
     "apps/frontend/src/app/features/tasks/components/TaskWeekAgenda.stories.tsx": 1,
