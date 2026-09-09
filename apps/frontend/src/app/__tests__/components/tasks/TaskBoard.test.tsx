@@ -618,7 +618,7 @@ describe('TaskBoard', () => {
     expect(screen.getByText('Task One')).toBeInTheDocument();
     expect(screen.getByText('Task Two')).toBeInTheDocument();
 
-    /* The real BoardScopeToggle, not a stub. The stub that used to stand here
+    /* The real SegmentedPill, not a stub. The stub that used to stand here
        rendered its own "all-tasks"/"my-tasks" buttons and dropped `allLabel` and
        `mineLabel` entirely, so it could not see that the board named the wide
        scope "All tasks" while the list view of the same page named it "Team".
