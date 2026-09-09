@@ -160,6 +160,25 @@ class BatchedIO {
   }
 }
 
+/**
+ * Captures the options every observer was constructed with, without acting on
+ * them - used to pin the rootMargin extension itself rather than simulate the
+ * geometry it guards against (the other mocks above never model geometry at
+ * all; they fire whatever they're told to).
+ */
+class OptionsCapturingIO {
+  static readonly optionsByCall: (IntersectionObserverInit | undefined)[] = [];
+  constructor(_cb: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+    OptionsCapturingIO.optionsByCall.push(options);
+  }
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [] as IntersectionObserverEntry[];
+  }
+}
+
 describe('motion primitives', () => {
   const OriginalIO = globalThis.IntersectionObserver;
   const OriginalMM = (globalThis as unknown as { matchMedia: unknown }).matchMedia;
@@ -375,6 +394,29 @@ describe('motion primitives', () => {
       expect(screen.getAllByText('128').at(-1)).toBeInTheDocument();
     } finally {
       (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver = io;
+    }
+  });
+
+  it('CountUp extends its observer root upward like Reveal, so a jump past it still fires', () => {
+    // A jump straight past an element (End key, scrollbar drag, or navigating in
+    // already scrolled) moves it from below the viewport to above it without ever
+    // crossing a threshold, so no callback is delivered at all. Without the same
+    // rootMargin extension Reveal uses, CountUp's `inView` would stay false
+    // forever and the number would freeze at its initial placeholder even after
+    // the real value arrives - `display` is only ever written by the effect
+    // gated on `inView`.
+    OptionsCapturingIO.optionsByCall.length = 0;
+    (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver =
+      OptionsCapturingIO;
+    render(<CountUp value="67,134" />);
+    render(
+      <Reveal>
+        <span>reveal probe</span>
+      </Reveal>
+    );
+    expect(OptionsCapturingIO.optionsByCall).toHaveLength(2);
+    for (const options of OptionsCapturingIO.optionsByCall) {
+      expect(options?.rootMargin).toBe('100000px 0px 0px 0px');
     }
   });
 

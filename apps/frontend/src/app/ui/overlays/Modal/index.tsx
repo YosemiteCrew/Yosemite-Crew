@@ -163,10 +163,10 @@ const Modal = ({
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
       ignoreOutsideClick={isIgnoredOutsideTarget}
-      overlayClassName={`fixed backdrop-blur-[2px] inset-0 z-[1100] transition-opacity duration-300 ease-in-out ${fadeClass(
+      overlayClassName={`fixed backdrop-blur-[6px] inset-0 z-[1100] transition-opacity duration-300 ease-in-out ${fadeClass(
         showModal
       )}`}
-      overlayStyle={{ backgroundColor: 'var(--color-overlay-backdrop)' }}
+      overlayStyle={{ backgroundColor: 'var(--sh55)' }}
       containerClassName={`fixed top-0 right-0 bottom-0 m-3 p-3 h-[calc(100%-2rem)] w-[calc(100%-2rem)] ${DRAWER_WIDTHS[drawerSize]}
         bg-neutral-0 border border-card-border rounded-2xl z-[1200]
         shadow-[0_8px_20px_var(--sh10),0_36px_90px_var(--sh12)]
