@@ -152,6 +152,7 @@ const meta = {
     items,
     catalogItems: CATALOG,
     templateItems: TEMPLATES,
+    currency: 'USD',
     readOnly: false,
     onAddItem: fn(),
     onApplyTemplate: fn(),
