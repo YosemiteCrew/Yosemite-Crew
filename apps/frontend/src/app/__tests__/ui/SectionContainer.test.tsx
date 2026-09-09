@@ -101,4 +101,19 @@ describe('SectionContainer', () => {
     );
     expect(screen.getByText('SLOT')).toBeInTheDocument();
   });
+
+  it('lets a wide titleSlot wrap onto its own line instead of squeezing the title', () => {
+    const { container } = render(
+      <SectionContainer title="Dental care package" titleSlot={<span>SLOT</span>}>
+        child
+      </SectionContainer>
+    );
+    // The title row must be able to wrap - without it, a `shrink-0` slot (badge
+    // pills, etc.) never gives width back to the `truncate`d title, so a narrow
+    // container (a side drawer) squeezes a short, legible title down to a couple
+    // of visible characters. See SpecialityInfo's "Services & Packages" ->
+    // PackagesTab card for the real report.
+    const headerRow = container.querySelector('.mb-4');
+    expect(headerRow).toHaveClass('flex-wrap');
+  });
 });

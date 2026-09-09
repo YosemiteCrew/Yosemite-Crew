@@ -64,8 +64,12 @@ const SectionContainer = ({
     >
       {/* Static header row: title (with optional leading icon) on the left, the
           optional slot right-aligned. `truncate` keeps a long title on one line
-          while the slot stays pinned right. */}
-      <div className="mb-4 flex items-center justify-between gap-3">
+          while the slot stays pinned right - but `shrink-0` on the slot means it
+          never gives width back, so a slot with real content (e.g. two badge
+          pills) squeezed the title to a couple of characters in a narrow
+          container. `flex-wrap` lets the slot drop to its own line instead of
+          fighting the title for space; each still gets `min-w-0`/`shrink-0`. */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
         <span
           className={`flex min-w-0 items-center gap-2 leading-snug ${titleTypography}`}
           style={titleStyle}
