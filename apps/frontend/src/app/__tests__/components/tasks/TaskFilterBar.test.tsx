@@ -182,7 +182,7 @@ describe('TaskFilterBar', () => {
 
     /* Pins the ORDER, wide scope first. This bar drew its own segmented control
        with "My tasks" first while the board view of the same page rendered
-       BoardScopeToggle with it second, so the option changed sides when you
+       SegmentedPill with it second, so the option changed sides when you
        switched tabs. Both views render the shared primitive now, which is what
        fixes the order in one place. */
     expect(scope.getAllByRole('button').map((button) => button.textContent)).toEqual([
@@ -227,7 +227,7 @@ describe('TaskFilterBar', () => {
     expectNoScope({ scopeOptions: TASK_SCOPE_OPTIONS, activeScope: 'mine' });
 
     /* A single option is not a scope control either. The bar renders the shared
-       two-state BoardScopeToggle, so it needs the narrowed option AND something
+       two-state SegmentedPill, so it needs the narrowed option AND something
        to widen back to; it used to map whatever list it was handed, which would
        have drawn a one-segment "toggle" with nothing to toggle to. */
     expectNoScope({
