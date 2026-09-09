@@ -130,28 +130,53 @@ describe("DocumensoWebhookController", () => {
     expect(jsonMock).toHaveBeenCalledWith({ message: "Invalid payload" });
   });
 
-  it("rejects payloads that carry an event but no document id", async () => {
-    req = {
-      ...req,
-      body: Buffer.from(
-        JSON.stringify({
-          event: "DOCUMENT_COMPLETED",
-          payload: {},
-        }),
-      ),
-    };
+  it.each(["not-json", "null", "[]", '"text"'])(
+    "returns 400 for invalid JSON body %s without logging the caller payload",
+    async (body) => {
+      req = {
+        ...req,
+        body: Buffer.from(body),
+      };
 
-    const mockedPrisma = prisma as any;
+      await DocumensoWebhookController.handle(req as Request, res as Response);
 
-    await DocumensoWebhookController.handle(req as Request, res as Response);
+      expect(mockedLogger.error).toHaveBeenCalledWith(
+        "[DocumensoWebhook] Invalid payload",
+      );
+      expect(mockedLogger.error).not.toHaveBeenCalledWith(
+        expect.any(String),
+        expect.anything(),
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Invalid payload" });
+    },
+  );
 
-    expect(mockedPrisma.formSubmission.findFirst).not.toHaveBeenCalled();
-    expect(mockedLogger.error).toHaveBeenCalledWith(
-      "[DocumensoWebhook] Invalid payload",
-    );
-    expect(statusMock).toHaveBeenCalledWith(400);
-    expect(jsonMock).toHaveBeenCalledWith({ message: "Invalid payload" });
-  });
+  it.each([{}, { id: null }])(
+    "rejects payloads that carry an event but no usable document id: %j",
+    async (payload) => {
+      req = {
+        ...req,
+        body: Buffer.from(
+          JSON.stringify({
+            event: "DOCUMENT_COMPLETED",
+            payload,
+          }),
+        ),
+      };
+
+      const mockedPrisma = prisma as any;
+
+      await DocumensoWebhookController.handle(req as Request, res as Response);
+
+      expect(mockedPrisma.formSubmission.findFirst).not.toHaveBeenCalled();
+      expect(mockedLogger.error).toHaveBeenCalledWith(
+        "[DocumensoWebhook] Invalid payload",
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Invalid payload" });
+    },
+  );
 
   /**
    * A passport attestation is only honoured from a cryptographically verified
