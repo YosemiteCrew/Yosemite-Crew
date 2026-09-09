@@ -13,6 +13,16 @@ import {
   runClinicalControllerSuite,
 } from "./clinical-suite";
 
+/**
+ * A 24-hex Mongo ObjectId, still live for patients migrated before the
+ * Postgres UUID cutover. patientId must accept it the same way every sibling
+ * clinical controller's patient/encounter filters do (see patient-allergy's
+ * LEGACY_PATIENT_ID) - a strict z.uuid() here 400s the request before the
+ * service lookup runs, which is exactly what shipped the "Could not load the
+ * consent list" banner for these patients.
+ */
+const LEGACY_PATIENT_ID = "507f1f77bcf86cd799439011";
+
 jest.mock("src/services/patient-consent.service", () => {
   const actual = jest.requireActual(
     "src/services/patient-consent.service",
@@ -55,6 +65,14 @@ runClinicalControllerSuite({
       invalidPayload: { consentType: "VERBAL" },
     },
     {
+      handler: "list",
+      params: { organisationId: ORG_ID },
+      query: { patientId: LEGACY_PATIENT_ID },
+      serviceMethod: "list",
+      expectArgs: [{ organisationId: ORG_ID, patientId: LEGACY_PATIENT_ID }],
+      fallback: "Failed to list consents",
+    },
+    {
       handler: "grant",
       params: { organisationId: ORG_ID },
       // `consentedBy` is the CONSENT_GRANTED audit actor, so it may only come
@@ -87,10 +105,13 @@ runClinicalControllerSuite({
       ],
       status: 201,
       fallback: "Failed to grant consent",
+      // documentId is validated with the same lenient bound as patientId (a
+      // Documenso/legacy reference is not a UUID either), so what makes a
+      // payload invalid now is exceeding the length bound, not the format.
       invalidPayload: {
         patientId: PATIENT_ID,
         consentType: "SURGICAL",
-        documentId: "not-a-uuid",
+        documentId: "x".repeat(65),
       },
     },
     {

@@ -135,7 +135,7 @@ const BrandMark = ({ size }: { size: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
     <path
       d="M12 21s-7.5-4.6-10-9.2C.6 9 1.5 5.5 4.6 4.6 6.7 4 8.8 4.9 10 6.6c.4.5.7 1 .9 1.4.2-.4.5-.9.9-1.4C13.2 4.9 15.3 4 17.4 4.6c3.1.9 4 4.4 2.6 7.2C19.5 16.4 12 21 12 21z"
-      fill="#257bed"
+      fill="var(--blue)"
     />
   </svg>
 );

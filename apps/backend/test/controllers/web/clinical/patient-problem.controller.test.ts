@@ -12,6 +12,16 @@ import {
   runClinicalControllerSuite,
 } from "./clinical-suite";
 
+/**
+ * A 24-hex Mongo ObjectId, still live for patients migrated before the
+ * Postgres UUID cutover. patientId must accept it the same way every sibling
+ * clinical controller's patient/encounter filters do (see patient-allergy's
+ * LEGACY_PATIENT_ID) - a strict z.uuid() here 400s the request before the
+ * service lookup runs, which is exactly what shipped the "Could not load the
+ * problem list" banner for these patients.
+ */
+const LEGACY_PATIENT_ID = "507f1f77bcf86cd799439011";
+
 jest.mock("src/services/patient-problem.service", () => {
   const actual = jest.requireActual(
     "src/services/patient-problem.service",
@@ -44,6 +54,14 @@ runClinicalControllerSuite({
       ],
       fallback: "Failed to list problems",
       invalidPayload: { status: "CHRONIC" },
+    },
+    {
+      handler: "list",
+      params: { organisationId: ORG_ID },
+      query: { patientId: LEGACY_PATIENT_ID },
+      serviceMethod: "list",
+      expectArgs: [{ organisationId: ORG_ID, patientId: LEGACY_PATIENT_ID }],
+      fallback: "Failed to list problems",
     },
     {
       handler: "create",

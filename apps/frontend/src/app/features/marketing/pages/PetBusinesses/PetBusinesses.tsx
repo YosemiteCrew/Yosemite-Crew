@@ -1055,7 +1055,7 @@ function NotebookSection() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#8f8984',
+              color: 'var(--ink-faint)',
             }}
           >
             The real incumbent

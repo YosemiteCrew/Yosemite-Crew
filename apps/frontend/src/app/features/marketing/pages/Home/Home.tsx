@@ -935,7 +935,7 @@ function Manifesto() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#8f8984',
+              color: 'var(--ink-faint)',
             }}
           >
             Why we build
@@ -962,7 +962,7 @@ function Manifesto() {
             style={{ marginTop: 48, display: 'flex', alignItems: 'center', gap: 16 }}
           >
             <span style={{ height: 1, width: 56, background: '#454341' }} aria-hidden="true" />
-            <span style={{ fontSize: 15, letterSpacing: '-0.01em', color: '#8f8984' }}>
+            <span style={{ fontSize: 15, letterSpacing: '-0.01em', color: 'var(--ink-faint)' }}>
               Offline-first · Desktop, web and mobile · Your data stays yours
             </span>
           </Reveal>
@@ -1541,7 +1541,7 @@ function DevApiHeader() {
         style={{
           fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
           fontSize: 12,
-          color: '#8f8984',
+          color: 'var(--ink-faint)',
         }}
       >
         GET /fhir/Patient/bella
@@ -1566,49 +1566,49 @@ function DevApiResponse() {
         overflowX: 'auto',
       }}
     >
-      <span style={{ color: '#8f8984' }}>{'{'}</span>
+      <span style={{ color: 'var(--ink-faint)' }}>{'{'}</span>
       {'\n  '}
       <span style={{ color: '#82afec' }}>&quot;resourceType&quot;</span>
-      <span style={{ color: '#8f8984' }}>:</span>{' '}
+      <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
       <span style={{ color: '#8acbb4' }}>&quot;Patient&quot;</span>
-      <span style={{ color: '#8f8984' }}>,</span>
+      <span style={{ color: 'var(--ink-faint)' }}>,</span>
       {'\n  '}
       <span style={{ color: '#82afec' }}>&quot;id&quot;</span>
-      <span style={{ color: '#8f8984' }}>:</span>{' '}
+      <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
       <span style={{ color: '#8acbb4' }}>&quot;bella-2014&quot;</span>
-      <span style={{ color: '#8f8984' }}>,</span>
+      <span style={{ color: 'var(--ink-faint)' }}>,</span>
       {'\n  '}
       <span style={{ color: '#82afec' }}>&quot;extension&quot;</span>
-      <span style={{ color: '#8f8984' }}>: [{'{'}</span>
+      <span style={{ color: 'var(--ink-faint)' }}>: [{'{'}</span>
       {'\n    '}
       <span style={{ color: '#82afec' }}>&quot;url&quot;</span>
-      <span style={{ color: '#8f8984' }}>:</span>{' '}
+      <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
       <span style={{ color: '#8acbb4' }}>&quot;.../animal-species&quot;</span>
-      <span style={{ color: '#8f8984' }}>,</span>
+      <span style={{ color: 'var(--ink-faint)' }}>,</span>
       {'\n    '}
       <span style={{ color: '#82afec' }}>&quot;valueCode&quot;</span>
-      <span style={{ color: '#8f8984' }}>:</span>{' '}
+      <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
       <span style={{ color: '#8acbb4' }}>&quot;canine&quot;</span>
       {'\n  '}
-      <span style={{ color: '#8f8984' }}>{'}],'}</span>
+      <span style={{ color: 'var(--ink-faint)' }}>{'}],'}</span>
       {'\n  '}
       <span style={{ color: '#82afec' }}>&quot;name&quot;</span>
-      <span style={{ color: '#8f8984' }}>: [{'{'}</span>{' '}
+      <span style={{ color: 'var(--ink-faint)' }}>: [{'{'}</span>{' '}
       <span style={{ color: '#82afec' }}>&quot;text&quot;</span>
-      <span style={{ color: '#8f8984' }}>:</span>{' '}
+      <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
       <span style={{ color: '#8acbb4' }}>&quot;Bella&quot;</span>{' '}
-      <span style={{ color: '#8f8984' }}>{'}],'}</span>
+      <span style={{ color: 'var(--ink-faint)' }}>{'}],'}</span>
       {'\n  '}
       <span style={{ color: '#82afec' }}>&quot;managingOrganization&quot;</span>
-      <span style={{ color: '#8f8984' }}>: {'{'}</span>
+      <span style={{ color: 'var(--ink-faint)' }}>: {'{'}</span>
       {'\n    '}
       <span style={{ color: '#82afec' }}>&quot;display&quot;</span>
-      <span style={{ color: '#8f8984' }}>:</span>{' '}
+      <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
       <span style={{ color: '#8acbb4' }}>&quot;Alpenblick Clinic&quot;</span>
       {'\n  '}
-      <span style={{ color: '#8f8984' }}>{'}'}</span>
+      <span style={{ color: 'var(--ink-faint)' }}>{'}'}</span>
       {'\n'}
-      <span style={{ color: '#8f8984' }}>{'}'}</span>
+      <span style={{ color: 'var(--ink-faint)' }}>{'}'}</span>
     </pre>
   );
 }
@@ -1640,7 +1640,7 @@ function DevPluginCard() {
         >
           AI Scribe · your plugin here
         </span>
-        <span style={{ fontSize: 12, color: '#8f8984' }}>
+        <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>
           Publish to the marketplace in an afternoon
         </span>
       </div>
