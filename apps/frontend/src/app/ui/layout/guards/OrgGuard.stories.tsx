@@ -171,7 +171,11 @@ class OfflineXhr {
 }
 
 type Seed = {
-  /** false leaves the org store at its untouched default: no org, status 'idle'. */
+  /**
+   * false leaves the org data empty (no org, no membership) - status still
+   * defaults to 'loaded', an org fetch that came back empty, not a fetch
+   * that never ran. Pass `orgStatus` explicitly for 'idle'/'loading'/'error'.
+   */
   withOrg?: boolean;
   membership?: UserOrganization;
   orgStatus?: 'idle' | 'loading' | 'loaded' | 'error';
