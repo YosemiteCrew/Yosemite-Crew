@@ -316,10 +316,11 @@ export const EditAsCreator: Story = {
     docs: {
       description: {
         story:
-          'The full creator tree, and the only place the Owner pill exists: a soft-blue 9.5px ' +
-          'uppercase chip on a hairline border, deliberately not the solid brand badge. The owner ' +
-          'row has no Remove link at all rather than a disabled one, so a group can never be left ' +
-          'without its creator.',
+          'The full creator tree, and the only place the Owner pill exists: a StatusPill on a ' +
+          'soft-blue token set (a hairline border, deliberately not the solid brand badge), so it ' +
+          'shares the app-wide pill geometry instead of hand-rolling its own. The owner row has no ' +
+          'Remove link at all rather than a disabled one, so a group can never be left without its ' +
+          'creator.',
       },
     },
   },
