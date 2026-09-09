@@ -44,6 +44,14 @@ describe('AuthBrandContent', () => {
     render(<AuthBrandContent eyebrow="e" title="t" subtitle="s" points={[]} />);
     expect(screen.getByText('Star on GitHub')).toBeInTheDocument();
   });
+
+  it('colors the title and GitHub pill from --spot-ink, not hardcoded hex', () => {
+    render(<AuthBrandContent eyebrow="e" title="See the whole animal." subtitle="s" points={[]} />);
+    expect(screen.getByText('See the whole animal.')).toHaveStyle({ color: 'var(--spot-ink)' });
+    expect(screen.getByRole('link', { name: /Star on GitHub/i })).toHaveStyle({
+      color: 'var(--spot-ink)',
+    });
+  });
 });
 
 describe('AuthShell', () => {
@@ -64,5 +72,16 @@ describe('AuthShell', () => {
     const main = screen.getByRole('main');
     expect(main).toHaveAttribute('id', 'main-content');
     expect(screen.getByRole('form', { name: 'signup-form' })).toBeInTheDocument();
+  });
+
+  it('colors the brand panel ink from --spot-ink, not hardcoded hex', () => {
+    const { container } = render(
+      <AuthShell brand={<div />} topRight={<span />}>
+        <form aria-label="signup-form" />
+      </AuthShell>
+    );
+    expect(container.querySelector('[data-brandpanel="true"]')).toHaveStyle({
+      color: 'var(--spot-ink)',
+    });
   });
 });
