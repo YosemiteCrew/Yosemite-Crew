@@ -12,11 +12,12 @@ const RAVI = 'practitioner-ravi';
 const PRIYA = 'practitioner-priya';
 
 /**
- * A real asset on an allow-listed CDN host, so the photo branch renders through
- * next/image the way it does in the product instead of falling back to markup a
- * blocked host would produce.
+ * A same-origin fixture served by Storybook itself, not the production CDN -
+ * #2853. `user.image` reaches `AvatarImage` with no sanitiser in between (see
+ * `UserLabels.tsx`), so a local path renders through next/image exactly as a
+ * real photo would, without the request leaving the browser.
  */
-const CDN_PHOTO = 'https://d2il6osz49gpup.cloudfront.net/avatar/business1.png';
+const CDN_PHOTO = '/images/storybook-fixtures/avatar-photo.png';
 
 const teamMember = (practionerId: string, name: string, extras: Partial<Team> = {}): Team => ({
   _id: `team-${practionerId}`,

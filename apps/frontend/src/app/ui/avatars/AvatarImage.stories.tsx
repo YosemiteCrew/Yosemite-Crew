@@ -4,8 +4,13 @@ import { expect, within } from 'storybook/test';
 import AvatarImage from './AvatarImage';
 import CompanionAvatar from './CompanionAvatar';
 
-/** Served from our own CDN, the same host every real companion photo lives on. */
-const CDN_PHOTO = 'https://d2il6osz49gpup.cloudfront.net/avatar/dog.png';
+/**
+ * A same-origin fixture served by Storybook itself, not the production CDN -
+ * #2853. `AvatarImage` renders `src` verbatim (sanitisation is the caller's
+ * job, per the component doc above), so a local path exercises the identical
+ * "photo resolves" branch without the request leaving the browser.
+ */
+const CDN_PHOTO = '/images/storybook-fixtures/avatar-photo.png';
 /**
  * `.invalid` is reserved (RFC 2606) and never resolves, so the request fails at
  * DNS without touching the network - the offline guard does not cover `<img>`
@@ -60,7 +65,7 @@ export const PhotoLoads: Story = {
     // the wrong box and the row reflows once the file lands.
     await expect(img).toHaveAttribute('width', '46');
     await expect(img).toHaveAttribute('height', '46');
-    await expect(decodeURIComponent(img.getAttribute('src') ?? '')).toContain('avatar/dog.png');
+    await expect(decodeURIComponent(img.getAttribute('src') ?? '')).toContain('avatar-photo.png');
     // Asserting the monogram is ABSENT is the half that matters: a wrapper that
     // always showed initials would still look fine in this story.
     await expect(canvas.queryByText('B')).toBeNull();
