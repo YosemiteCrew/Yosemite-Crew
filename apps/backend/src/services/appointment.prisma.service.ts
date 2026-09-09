@@ -1882,12 +1882,12 @@ export const AppointmentPrismaService = {
     });
     assertExists(current as AppointmentRow | null, "Appointment not found");
 
-    const updated = await prisma.appointment.update({
+    // No caller uses the return value - this only exists to persist the
+    // room, so it skips the DTO conversion's extra payment-state queries.
+    await prisma.appointment.update({
       where: { id: appointmentId },
       data: { room: toJsonValue(room), updatedAt: new Date() },
     });
-
-    return toResponse(updated);
   },
 
   async admitAppointmentToInpatient(
