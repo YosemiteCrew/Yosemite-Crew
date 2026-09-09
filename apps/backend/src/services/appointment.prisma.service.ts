@@ -1862,6 +1862,34 @@ export const AppointmentPrismaService = {
     return toResponse(updated);
   },
 
+  async updateAppointmentRoom(
+    appointmentId: string,
+    organisationId: string,
+    room: { id: string; name: string },
+  ) {
+    if (!appointmentId) {
+      throw new AppointmentPrismaServiceError("appointmentId is required", 400);
+    }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
+
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
+    });
+    assertExists(current as AppointmentRow | null, "Appointment not found");
+
+    const updated = await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { room: toJsonValue(room), updatedAt: new Date() },
+    });
+
+    return toResponse(updated);
+  },
+
   async admitAppointmentToInpatient(
     appointmentId: string,
     organisationId: string,
