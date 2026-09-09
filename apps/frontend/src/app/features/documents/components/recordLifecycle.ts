@@ -21,10 +21,13 @@ export type RecordLifecycleFilter =
  *                    clinical artifact), i.e. generated.
  *  4. uploader ids — a human (pet parent or clinic staff) put the file there.
  *
- * Only arm 4 resolves from data that ships today; arms 1–3 depend on fields the
- * endpoint does not populate yet, so their tabs stay hidden until it does (see
- * `getAvailableLifecycleTabs`). There is deliberately no "requested" derivation:
- * nothing in the current payload distinguishes a record awaiting its file.
+ * Arms 2–4 resolve from data `listForPms` ships today: it merges in the
+ * patient's `RenderedDocument` rows (Documenso e-signing), which carry a real
+ * `signedAt` and a non-'DOCUMENT' `sourceKind`. Arm 1 still depends on a
+ * `lifecycle` field no endpoint populates yet, so its tab stays hidden until it
+ * does (see `getAvailableLifecycleTabs`) — there is deliberately no "requested"
+ * derivation: nothing in the current payload distinguishes a record awaiting
+ * its file.
  *
  * Explicitly NOT used as signals, because each would fabricate a state:
  *  - `syncedFromPms` means "created through the PMS by a staff user" (the
@@ -33,9 +36,10 @@ export type RecordLifecycleFilter =
  *  - `attachments.length === 0` is not "awaiting a file": the create endpoint
  *    rejects a document with no attachments, and the only rows that legitimately
  *    carry an empty array are rendered (generated) documents.
- *  - the DTO's `signingStatus` is, on this endpoint, `pmsVisible ? 'SIGNED' :
- *    'NOT_STARTED'` over a list already filtered to `pmsVisible: true`, so it is
- *    the constant 'SIGNED' and carries no signing information.
+ *  - the DTO's `signingStatus` is 'SIGNED' for every plain uploaded document too
+ *    (`pmsVisible ? 'SIGNED' : 'NOT_STARTED'` over a list already filtered to
+ *    `pmsVisible: true`), so it cannot tell a signed record from an uploaded
+ *    one apart — `signedAt` is the honest, upload-vs-signed-specific signal.
  */
 export const deriveRecordLifecycle = (record: CompanionRecord): RecordLifecycle | undefined => {
   if (record.lifecycle) return record.lifecycle;
