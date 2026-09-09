@@ -196,7 +196,7 @@ const ECONOMICS_HEADLINE_STYLE: React.CSSProperties = {
   fontWeight: 500,
   lineHeight: 1.06,
   letterSpacing: '-0.05em',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
   textWrap: 'balance',
 };
 
@@ -262,7 +262,7 @@ const CLOSING_PORTAL_LINK_STYLE: React.CSSProperties = {
   alignItems: 'center',
   gap: '10px',
   background: 'transparent',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
   fontSize: '17px',
   fontWeight: 500,
   letterSpacing: '-0.02em',
@@ -683,7 +683,7 @@ function MachineUser() {
               fontWeight: 500,
               lineHeight: 1.34,
               letterSpacing: '-0.035em',
-              color: '#eae2d5',
+              color: 'var(--spot-ink)',
               textWrap: 'pretty',
             }}
           >
@@ -1266,7 +1266,7 @@ function EconColumn({ index, icon, title, desc, delay }: Readonly<EconColumnProp
           fontSize: '18px',
           fontWeight: 700,
           letterSpacing: '-0.025em',
-          color: '#eae2d5',
+          color: 'var(--spot-ink)',
         }}
       >
         {title}
@@ -1324,7 +1324,7 @@ function EconomicsKeepPanel() {
           fontSize: '20px',
           fontWeight: 600,
           letterSpacing: '-0.03em',
-          color: '#eae2d5',
+          color: 'var(--spot-ink)',
         }}
       >
         What you charge is what you keep.
@@ -1418,7 +1418,7 @@ function EconomicsBars() {
               fontSize: '14.5px',
               fontWeight: 600,
               letterSpacing: '-0.01em',
-              color: '#eae2d5',
+              color: 'var(--spot-ink)',
             }}
           >
             Yosemite Crew marketplace
@@ -1784,7 +1784,7 @@ function ClosingCta() {
               fontWeight: 500,
               lineHeight: 1.06,
               letterSpacing: '-0.055em',
-              color: '#eae2d5',
+              color: 'var(--spot-ink)',
               textWrap: 'balance',
             }}
           >

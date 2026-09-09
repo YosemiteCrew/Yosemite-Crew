@@ -172,7 +172,7 @@ const CTA_GHOST_STYLE: CSSProperties = {
   alignItems: 'center',
   gap: '10px',
   background: 'transparent',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
   fontSize: '17px',
   fontWeight: 500,
   letterSpacing: '-0.02em',
@@ -335,7 +335,7 @@ function Origin() {
               fontWeight: 500,
               lineHeight: 1.42,
               letterSpacing: '-0.03em',
-              color: '#eae2d5',
+              color: 'var(--spot-ink)',
               textWrap: 'pretty',
             }}
           >
@@ -364,7 +364,7 @@ function Origin() {
                 fontStyle: 'italic',
                 fontWeight: 500,
                 letterSpacing: '-0.01em',
-                color: '#eae2d5',
+                color: 'var(--spot-ink)',
               }}
             >
               He died because the clinic couldn&apos;t see him.
@@ -1143,7 +1143,7 @@ function ClosingCta() {
                 fontWeight: 500,
                 lineHeight: 1.06,
                 letterSpacing: '-0.055em',
-                color: '#eae2d5',
+                color: 'var(--spot-ink)',
                 textWrap: 'balance',
               }}
             >
