@@ -78,7 +78,7 @@ const ARTICLES: Record<string, Article> = {
     version: 'v1',
     title: 'Authentication',
     summary:
-      'Requests are authorised with the signed-in session, and organisation-scoped routes read the practice from an x-org-id header. Two limits worth knowing before you start. API keys created in this portal are not yet accepted anywhere: the key-authentication middleware exists but is mounted on no route. And a developer-only account has no practice membership and no role in the permission model, so organisation-scoped routes answer 400 or 403 for it. Today the API is reachable with a session belonging to a practice member; a developer account can browse this reference but cannot yet call the org-scoped surfaces it describes.',
+      'Requests are authorised with the signed-in session, and organisation-scoped routes read the practice from an x-org-id header. An API key created in this portal is also accepted, on its own dedicated surface: every route under /v1/developer requires a valid key, and the appointment routes additionally require the appointments:read scope. A key created before that scope check shipped carries no scopes and is refused by those routes - create a fresh one. A developer-only account still has no practice membership and no role in the permission model, so the session-authenticated, organisation-scoped routes described elsewhere in this reference answer 400 or 403 for it; /v1/developer is the surface a developer account can actually call.',
   },
   appointments: {
     category: 'APIs',

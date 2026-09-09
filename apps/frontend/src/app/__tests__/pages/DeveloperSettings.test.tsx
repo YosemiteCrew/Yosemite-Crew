@@ -151,12 +151,12 @@ describe('DeveloperSettings', () => {
     );
   });
 
-  it('saves notification preferences', () => {
+  it('tells the user notification preferences are not wired up yet', () => {
     render(<DeveloperSettings />);
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(notifyMock).toHaveBeenCalledWith(
-      'success',
-      expect.objectContaining({ title: 'Notification preferences saved' })
+      'warning',
+      expect.objectContaining({ title: 'Notification preferences coming soon' })
     );
   });
 });

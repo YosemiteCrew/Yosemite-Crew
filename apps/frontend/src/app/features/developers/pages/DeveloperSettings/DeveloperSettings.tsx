@@ -87,9 +87,9 @@ const DeveloperSettings = () => {
   };
 
   const handleSave = () => {
-    notify('success', {
-      title: 'Notification preferences saved',
-      text: 'Your webhook notification settings were updated.',
+    notify('warning', {
+      title: 'Notification preferences coming soon',
+      text: 'These toggles are not wired to anything yet. Nothing was saved.',
     });
   };
 
@@ -206,7 +206,7 @@ const DeveloperSettings = () => {
                   <IoKeyOutline size={15} aria-hidden="true" />
                 </span>
                 <span className="dev-secret-text">
-                  Signing secret rotated 14 days ago.{' '}
+                  No webhook signing secret exists yet.{' '}
                   {confirmRotate ? (
                     <>
                       <button type="button" className="dev-secret-action" onClick={handleRotate}>
