@@ -4650,4 +4650,73 @@ describe("AppointmentPrismaService", () => {
       );
     });
   });
+
+  describe("updateAppointmentRoom", () => {
+    it("requires an appointmentId", async () => {
+      await expect(
+        AppointmentPrismaService.updateAppointmentRoom("", "org_1", {
+          id: "room_1",
+          name: "Room 1",
+        }),
+      ).rejects.toMatchObject({
+        message: "appointmentId is required",
+        statusCode: 400,
+      });
+    });
+
+    it("requires an organisationId", async () => {
+      await expect(
+        AppointmentPrismaService.updateAppointmentRoom("appt_1", "", {
+          id: "room_1",
+          name: "Room 1",
+        }),
+      ).rejects.toMatchObject({
+        message: "organisationId is required",
+        statusCode: 400,
+      });
+    });
+
+    it("throws 404 when the appointment is not found in this organisation", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
+
+      await expect(
+        AppointmentPrismaService.updateAppointmentRoom("appt_1", "org_1", {
+          id: "room_1",
+          name: "Room 1",
+        }),
+      ).rejects.toMatchObject({
+        message: "Appointment not found",
+        statusCode: 404,
+      });
+
+      expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+        where: { id: "appt_1", organisationId: "org_1" },
+      });
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+    });
+
+    it("updates the appointment's room and returns the refreshed response", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(makeRow());
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({ room: { id: "room_2", name: "Room 2" } }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      const result = await AppointmentPrismaService.updateAppointmentRoom(
+        "appt_1",
+        "org_1",
+        { id: "room_2", name: "Room 2" },
+      );
+
+      expect(mockedPrisma.appointment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "appt_1" },
+          data: expect.objectContaining({
+            room: { id: "room_2", name: "Room 2" },
+          }),
+        }),
+      );
+      expect((result as any).room).toEqual({ id: "room_2", name: "Room 2" });
+    });
+  });
 });
