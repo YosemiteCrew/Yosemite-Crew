@@ -41,13 +41,11 @@ describe('TaskAssigneeSelect', () => {
     openDropdown();
 
     const listbox = screen.getByRole('listbox');
-    const staffGroup = within(listbox).getByText('Staff').closest('[role="group"]') as HTMLElement;
+    const staffGroup = within(listbox).getByText('Staff').closest('fieldset') as HTMLElement;
     expect(within(staffGroup).getByText('Dr Brunner')).toBeInTheDocument();
     expect(within(staffGroup).getByText('Elif Kaya')).toBeInTheDocument();
 
-    const parentGroup = within(listbox)
-      .getByText('Pet parents')
-      .closest('[role="group"]') as HTMLElement;
+    const parentGroup = within(listbox).getByText('Pet parents').closest('fieldset') as HTMLElement;
     expect(within(parentGroup).getByText('Amelia')).toBeInTheDocument();
     // A hundred staff still search instead of piling up as unscrollable pills.
     expect(within(listbox).getAllByRole('option')).toHaveLength(3);
