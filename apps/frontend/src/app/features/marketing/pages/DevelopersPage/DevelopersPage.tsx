@@ -1439,7 +1439,7 @@ function EconomicsBars() {
             style={{
               height: '100%',
               width: '100%',
-              background: 'linear-gradient(90deg, #257bed 0%, #257bed 100%)',
+              background: 'linear-gradient(90deg, var(--blue) 0%, var(--blue) 100%)',
               position: 'relative',
             }}
           >
