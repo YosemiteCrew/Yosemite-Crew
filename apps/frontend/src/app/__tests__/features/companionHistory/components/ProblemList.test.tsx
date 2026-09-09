@@ -143,6 +143,15 @@ describe('ProblemList', () => {
     expect(screen.queryByText(/No problems recorded/)).not.toBeInTheDocument();
   });
 
+  it('withholds the active count while the error hides the retained records', () => {
+    render(
+      <ProblemList problems={PROBLEMS} error="Could not load the problem list. Please try again." />
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not load the problem list');
+    expect(screen.queryByText('Chronic kidney disease')).not.toBeInTheDocument();
+    expect(screen.queryByText('2 active')).not.toBeInTheDocument();
+  });
+
   it('hides the add and resolve controls when the member cannot edit', () => {
     render(<ProblemList problems={PROBLEMS} canEdit={false} />);
     expect(screen.queryByRole('button', { name: /Add problem/ })).not.toBeInTheDocument();

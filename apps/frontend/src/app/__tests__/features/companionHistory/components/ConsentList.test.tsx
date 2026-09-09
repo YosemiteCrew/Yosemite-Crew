@@ -206,6 +206,14 @@ describe('ConsentList', () => {
     expect(screen.queryByText(/No consents recorded/)).not.toBeInTheDocument();
   });
 
+  it('withholds the active count while the error hides the retained records', () => {
+    render(
+      <ConsentList consents={CONSENTS} error="Could not load the consent list. Please try again." />
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not load the consent list');
+    expect(screen.queryByText('2 active')).not.toBeInTheDocument();
+  });
+
   it('disables every revoke trigger while a revoke is in flight', () => {
     render(<ConsentList consents={CONSENTS} canEdit revokingId="c-1" />);
     expect(screen.getByRole('button', { name: 'Revoke Surgical consent' })).toBeDisabled();

@@ -420,6 +420,7 @@ const ConsentList = ({
         title="Consents"
         activeCount={activeCount}
         loading={loading}
+        error={error}
         canEdit={canEdit}
         showForm={showForm}
         onToggle={() => setShowForm((s) => !s)}

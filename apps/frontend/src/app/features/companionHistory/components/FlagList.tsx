@@ -312,7 +312,7 @@ const FlagList = ({
         <h3 id="patient-flag-list-heading" className="text-[13.5px] font-bold text-[var(--ink)]">
           Patient flags
         </h3>
-        {!loading && activeCount > 0 ? (
+        {!loading && !error && activeCount > 0 ? (
           <StatusPill
             label={`${activeCount} active`}
             tone="warning"

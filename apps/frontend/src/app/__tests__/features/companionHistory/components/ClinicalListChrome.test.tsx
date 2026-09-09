@@ -64,10 +64,12 @@ describe('ClinicalListHeader', () => {
     expect(screen.getByTestId('icon')).toBeInTheDocument();
   });
 
-  it('withholds the active pill while loading or at zero', () => {
+  it('withholds the active pill while loading, on error, or at zero', () => {
     const { rerender } = render(<ClinicalListHeader {...headerProps} activeCount={0} />);
     expect(screen.queryByText(/active/)).not.toBeInTheDocument();
     rerender(<ClinicalListHeader {...headerProps} activeCount={3} loading />);
+    expect(screen.queryByText(/active/)).not.toBeInTheDocument();
+    rerender(<ClinicalListHeader {...headerProps} activeCount={3} error="Could not load." />);
     expect(screen.queryByText(/active/)).not.toBeInTheDocument();
   });
 
