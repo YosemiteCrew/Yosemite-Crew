@@ -81,13 +81,13 @@ export const DropdownOpen: Story = {
     const results = within(await canvas.findByLabelText(RESULTS));
     // "General Consult" is prepended for every consult-flagged speciality, then
     // the five dentistry services in catalogue order.
-    await expect(results.getAllByRole('button')).toHaveLength(6);
-    await expect(results.getByRole('button', { name: 'General Consult' })).toBeInTheDocument();
+    await expect(results.getAllByRole('option')).toHaveLength(6);
+    await expect(results.getByRole('option', { name: 'General Consult' })).toBeInTheDocument();
     await expect(
-      results.getByRole('button', { name: 'Dental Cleaning & Scaling' })
+      results.getByRole('option', { name: 'Dental Cleaning & Scaling' })
     ).toBeInTheDocument();
     await expect(
-      results.getByRole('button', { name: 'Bad Breath Evaluation' })
+      results.getByRole('option', { name: 'Bad Breath Evaluation' })
     ).toBeInTheDocument();
   },
   parameters: {
@@ -107,7 +107,7 @@ export const PickFromCatalogue: Story = {
     const canvas = within(canvasElement);
     const field = canvas.getByRole('textbox', { name: FIELD });
     await userEvent.click(field);
-    await userEvent.click(canvas.getByRole('button', { name: 'Oral X-Rays' }));
+    await userEvent.click(canvas.getByRole('option', { name: 'Oral X-Rays' }));
 
     await expect(args.onSelectService).toHaveBeenCalledWith('Oral X-Rays');
     await expect(args.onAddService).not.toHaveBeenCalled();
@@ -134,9 +134,9 @@ export const CreateCustom: Story = {
     await userEvent.type(field, '  feline dental radiographs ');
 
     const results = within(await canvas.findByLabelText(RESULTS));
-    await expect(results.getAllByRole('button')).toHaveLength(1);
+    await expect(results.getAllByRole('option')).toHaveLength(1);
     await userEvent.click(
-      results.getByRole('button', { name: 'Add service “feline dental radiographs”' })
+      results.getByRole('option', { name: 'Add service “feline dental radiographs”' })
     );
 
     // Trimmed, not capitalised: the wrapper's builder decides the stored casing.
@@ -168,15 +168,15 @@ export const ExistingFilteredOut: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
     const results = within(await canvas.findByLabelText(RESULTS));
-    await expect(results.getAllByRole('button')).toHaveLength(4);
+    await expect(results.getAllByRole('option')).toHaveLength(4);
     await expect(
-      results.queryByRole('button', { name: 'Dental Cleaning & Scaling' })
+      results.queryByRole('option', { name: 'Dental Cleaning & Scaling' })
     ).not.toBeInTheDocument();
     await expect(
-      results.queryByRole('button', { name: 'Tooth Extraction' })
+      results.queryByRole('option', { name: 'Tooth Extraction' })
     ).not.toBeInTheDocument();
     await expect(
-      results.getByRole('button', { name: 'Gum Disease Treatment' })
+      results.getByRole('option', { name: 'Gum Disease Treatment' })
     ).toBeInTheDocument();
   },
   parameters: {
@@ -201,8 +201,8 @@ export const OffCatalogueSpeciality: Story = {
     const results = within(await canvas.findByLabelText(RESULTS));
     // No suggestions exist, so focus lands straight on the create row - which
     // quotes an empty name until something is typed.
-    await expect(results.getAllByRole('button')).toHaveLength(1);
-    await expect(results.getByRole('button', { name: 'Add service “”' })).toBeInTheDocument();
+    await expect(results.getAllByRole('option')).toHaveLength(1);
+    await expect(results.getByRole('option', { name: 'Add service “”' })).toBeInTheDocument();
   },
   parameters: {
     docs: {
