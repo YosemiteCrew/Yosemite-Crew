@@ -270,7 +270,11 @@ describe('PhoneMyDayRail', () => {
       expect(screen.getByTestId('icon-bed')).toBeInTheDocument();
       expect(screen.getByText('Poppy · Surolan 5 drops L ear')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Sign' })).toBeInTheDocument();
-      expect(screen.getByText('Signed')).toBeInTheDocument();
+      const signedBadge = screen.getByText('Signed');
+      expect(signedBadge).toBeInTheDocument();
+      // Pins the shared StatusPill success tone (not a hand-rolled --status-completed-* badge).
+      expect(signedBadge).toHaveClass('yc-status-pill');
+      expect(signedBadge).toHaveStyle({ backgroundColor: 'var(--color-pill-success-bg)' });
     });
 
     it('reports opening the ward and signing an item', async () => {
