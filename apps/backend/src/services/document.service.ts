@@ -238,6 +238,7 @@ export interface DocumentDto {
   templateId?: string | null;
   templateVersion?: number | null;
   signingStatus?: string;
+  signedAt?: string | null;
   pdfUrl?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -278,6 +279,7 @@ type RenderedDocumentRow = {
   status: string;
   pdfUrl: string | null;
   signing: unknown;
+  signedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   templateInstance: {
@@ -314,6 +316,7 @@ const mapDocumentToDto = (doc: PrismaDocumentRow): DocumentDto => ({
   templateId: null,
   templateVersion: null,
   signingStatus: doc.pmsVisible ? "SIGNED" : "NOT_STARTED",
+  signedAt: null,
   pdfUrl: null,
   createdAt: doc.createdAt.toISOString(),
   updatedAt: doc.updatedAt.toISOString(),
@@ -365,6 +368,7 @@ const mapRenderedDocumentToDto = (
     document.signing,
     document.status,
   ),
+  signedAt: document.signedAt ? document.signedAt.toISOString() : null,
   pdfUrl: document.pdfUrl,
   createdAt: document.createdAt.toISOString(),
   updatedAt: document.updatedAt.toISOString(),
@@ -389,22 +393,26 @@ const loadAppointmentForDocumentLookup = async (appointmentId: string) => {
   };
 };
 
-const loadRenderedAppointmentDocuments = async (params: {
-  appointmentId: string;
+const loadRenderedDocumentsForAppointments = async (params: {
+  appointmentIds: string[];
   organisationId: string;
 }) => {
+  if (params.appointmentIds.length === 0) {
+    return [];
+  }
+
   const renderedDocuments = (await prisma.renderedDocument.findMany({
     where: {
       organisationId: params.organisationId,
       OR: [
         {
           templateInstance: {
-            is: { appointmentId: params.appointmentId },
+            is: { appointmentId: { in: params.appointmentIds } },
           },
         },
         {
           clinicalArtifact: {
-            is: { appointmentId: params.appointmentId },
+            is: { appointmentId: { in: params.appointmentIds } },
           },
         },
       ],
@@ -427,6 +435,24 @@ const loadRenderedAppointmentDocuments = async (params: {
   })) as unknown as RenderedDocumentRow[];
 
   return renderedDocuments.map(mapRenderedDocumentToDto);
+};
+
+// Appointment.patient is a JSON blob (no relational FK), so every other
+// patient-scoped appointment lookup in the codebase matches it the same way
+// - see appointmentService.getAppointmentsForCompanion.
+const loadAppointmentIdsForPatient = async (params: {
+  patientId: string;
+  organisationId: string;
+}): Promise<string[]> => {
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      organisationId: params.organisationId,
+      patient: { path: ["id"], equals: params.patientId },
+    },
+    select: { id: true },
+  });
+
+  return appointments.map((appointment) => appointment.id);
 };
 
 const createDocumentRecord = async (
@@ -719,23 +745,48 @@ export const DocumentService = {
     const patientId = normalizeStringId(params.patientId, "patientId");
     await assertPmsCanAccessCompanion(params.organisationId, patientId);
 
-    const docs = (await prisma.document.findMany({
-      where: {
-        patientId,
-        pmsVisible: true,
-        category: params.category ? params.category.toUpperCase() : undefined,
-        subcategory: params.subcategory
-          ? params.subcategory.toUpperCase()
-          : undefined,
-        appointmentId: params.appointmentId
-          ? normalizeStringId(params.appointmentId, "appointmentId")
-          : undefined,
-      },
-      orderBy: [{ issueDate: "desc" }, { createdAt: "desc" }],
-      include: { attachments: true },
-    })) as unknown as PrismaDocumentRow[];
+    const appointmentId = params.appointmentId
+      ? normalizeStringId(params.appointmentId, "appointmentId")
+      : undefined;
 
-    return docs.map(mapDocumentToDto);
+    const [docs, renderedDocs] = await Promise.all([
+      prisma.document.findMany({
+        where: {
+          patientId,
+          pmsVisible: true,
+          category: params.category ? params.category.toUpperCase() : undefined,
+          subcategory: params.subcategory
+            ? params.subcategory.toUpperCase()
+            : undefined,
+          appointmentId,
+        },
+        orderBy: [{ issueDate: "desc" }, { createdAt: "desc" }],
+        include: { attachments: true },
+      }) as unknown as Promise<PrismaDocumentRow[]>,
+      (async () => {
+        // Signed/generated documents (Documenso e-signing) live on
+        // RenderedDocument, reached only via the appointment/encounter it was
+        // rendered for - there is no direct patientId column to filter by, so
+        // every one of the patient's own appointments has to be resolved first.
+        const patientAppointmentIds = await loadAppointmentIdsForPatient({
+          patientId,
+          organisationId: params.organisationId,
+        });
+        const scopedAppointmentIds = appointmentId
+          ? patientAppointmentIds.filter((id) => id === appointmentId)
+          : patientAppointmentIds;
+        return loadRenderedDocumentsForAppointments({
+          appointmentIds: scopedAppointmentIds,
+          organisationId: params.organisationId,
+        });
+      })(),
+    ]);
+
+    return [...docs.map(mapDocumentToDto), ...renderedDocs].sort(
+      (left, right) =>
+        new Date(right.updatedAt).getTime() -
+        new Date(left.updatedAt).getTime(),
+    );
   },
 
   async getByIdForParent(
@@ -815,8 +866,8 @@ export const DocumentService = {
         orderBy: { createdAt: "desc" },
         include: { attachments: true },
       }),
-      loadRenderedAppointmentDocuments({
-        appointmentId,
+      loadRenderedDocumentsForAppointments({
+        appointmentIds: [appointmentId],
         organisationId: appointmentLookup.organisationId,
       }),
     ]);
@@ -865,8 +916,8 @@ export const DocumentService = {
         orderBy: { createdAt: "desc" },
         include: { attachments: true },
       }),
-      loadRenderedAppointmentDocuments({
-        appointmentId,
+      loadRenderedDocumentsForAppointments({
+        appointmentIds: [appointmentId],
         organisationId: params.organisationId,
       }),
     ]);

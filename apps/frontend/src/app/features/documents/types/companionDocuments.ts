@@ -127,25 +127,19 @@ export type CompanionRecord = {
    */
   lifecycle?: RecordLifecycle;
   /**
-   * When the record was signed. Optional because no signing signal exists for
-   * documents today: form submissions carry `signing.status`, plain documents
-   * do not.
-   *
-   * BACKEND: add `signedAt` to `DocumentDto`. The DTO's existing `signingStatus`
-   * cannot be used — `mapDocumentToDto` derives it as
-   * `pmsVisible ? 'SIGNED' : 'NOT_STARTED'` and `listForPms` only returns
-   * `pmsVisible: true` rows, so it is the constant 'SIGNED'.
+   * When the record was signed (Documenso e-signing). Only rendered documents
+   * (`sourceKind !== 'DOCUMENT'`) ever carry a value — a plain uploaded file has
+   * no signing event, so `mapDocumentToDto` always sends `null` for it. Still
+   * optional because older payloads (and any endpoint that has not adopted the
+   * `RenderedDocument` merge) omit the field entirely rather than send `null`.
    */
   signedAt?: string | null;
   /**
    * What produced the record: 'DOCUMENT' for an uploaded file, or a rendered
    * document's kind (e.g. 'TEMPLATE_INSTANCE', 'CLINICAL_ARTIFACT') for one the
-   * system generated. Already part of the backend's `DocumentDto`; optional
-   * here because `listForPms` returns only plain documents, so it is always
-   * 'DOCUMENT' today.
-   *
-   * BACKEND: merge rendered documents into `DocumentService.listForPms`, the
-   * way `listForAppointmentParent` already does.
+   * system generated. `listForPms` merges in the patient's `RenderedDocument`
+   * rows the same way `listForAppointmentParent` already did, so this is no
+   * longer always 'DOCUMENT'.
    */
   sourceKind?: string;
   createdAt?: string;
