@@ -147,6 +147,9 @@ const meta = {
     },
   },
   tags: ['autodocs'],
+  argTypes: {
+    visitType: { control: 'radio', options: ['Outpatient', 'Inpatient'] },
+  },
   args: {
     patientLabel: 'Patient',
     patientQuery: '',
