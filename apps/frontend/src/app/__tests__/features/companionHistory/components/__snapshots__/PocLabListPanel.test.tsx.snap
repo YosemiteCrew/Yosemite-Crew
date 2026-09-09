@@ -1,0 +1,180 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`PocLabListPanel loads the patient list and expands a result detail 1`] = `
+<div>
+  <section
+    aria-labelledby="poc-lab-heading"
+    class="flex w-full flex-col rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03)]"
+  >
+    <header
+      class="flex items-center gap-2 border-b border-[var(--divider)] px-4 py-3"
+    >
+      <span
+        aria-hidden="true"
+        class="text-[var(--ink-muted)]"
+      >
+        <svg
+          fill="currentColor"
+          height="17"
+          stroke="currentColor"
+          stroke-width="0"
+          viewBox="0 0 512 512"
+          width="17"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M176 48h160M118 304h276M208 48v93.48a64.1 64.1 0 0 1-9.88 34.18L73.21 373.49C48.4 412.78 76.63 464 123.08 464h265.84c46.45 0 74.68-51.22 49.87-90.51L313.87 175.66a64.1 64.1 0 0 1-9.87-34.18V48"
+            fill="none"
+            stroke-linecap="round"
+            stroke-miterlimit="10"
+            stroke-width="32"
+          />
+        </svg>
+      </span>
+      <h3
+        class="text-[13.5px] font-bold text-[var(--ink)]"
+        id="poc-lab-heading"
+      >
+        In-house lab results
+      </h3>
+      <span
+        class="yc-status-pill inline-flex w-fit max-w-full shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full! border! px-2.5 py-[3px] text-[10px] leading-[normal] font-bold uppercase tracking-[0.08em] ml-2 tabular-nums"
+        style="background-color: var(--color-pill-neutral-bg); color: var(--color-pill-neutral-text); border-color: var(--color-pill-neutral-border); border-style: solid;"
+        title="1 recorded"
+      >
+        1 recorded
+      </span>
+    </header>
+    <ul>
+      <li
+        class="border-t border-[var(--divider)] first:border-t-0"
+      >
+        <button
+          aria-expanded="true"
+          class="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--inset)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--blue)]"
+          type="button"
+        >
+          <span
+            class="min-w-0"
+          >
+            <span
+              class="text-[13px] font-bold text-[var(--ink)] block"
+            >
+              Complete blood count
+            </span>
+            <span
+              class="text-[11.5px] text-[var(--ink-faint)] mt-0.5 block"
+            >
+              Jun 30, 2026 · Whole blood · ProCyte One
+            </span>
+          </span>
+          <span
+            class="flex shrink-0 items-center gap-1.5"
+          >
+            <span
+              class="yc-status-pill inline-flex w-fit max-w-full shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full! border! px-2.5 py-[3px] text-[10px] leading-[normal] font-bold uppercase tracking-[0.08em] "
+              style="background-color: var(--color-pill-warning-bg); color: var(--color-pill-warning-text); border-color: var(--color-pill-warning-border); border-style: solid;"
+              title="Abnormal"
+            >
+              Abnormal
+            </span>
+            <span
+              class="yc-status-pill inline-flex w-fit max-w-full shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full! border! px-2.5 py-[3px] text-[10px] leading-[normal] font-bold uppercase tracking-[0.08em] "
+              style="background-color: var(--color-pill-info-bg); color: var(--color-pill-info-text); border-color: var(--color-pill-info-border); border-style: solid;"
+              title="Follow-up"
+            >
+              Follow-up
+            </span>
+            <svg
+              aria-hidden="true"
+              fill="currentColor"
+              height="16"
+              stroke="currentColor"
+              stroke-width="0"
+              viewBox="0 0 512 512"
+              width="16"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m112 328 144-144 144 144"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="48"
+              />
+            </svg>
+          </span>
+        </button>
+        <div
+          class="border-t border-[var(--divider)] bg-[var(--inset)] px-4 py-3"
+        >
+          <ul
+            aria-label="Complete blood count parameters"
+          >
+            <li
+              class="grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-t border-[var(--divider)] py-2 first:border-t-0"
+            >
+              <span
+                class="min-w-0"
+              >
+                <span
+                  class="text-[13px] font-bold text-[var(--ink)] block"
+                >
+                  Haematocrit
+                </span>
+                <span
+                  class="text-[11.5px] text-[var(--ink-faint)]"
+                >
+                  Reference 37–55
+                </span>
+              </span>
+              <span
+                class="flex items-center gap-2 text-[13px] font-semibold text-[var(--ink)]"
+              >
+                <span>
+                  28 %
+                </span>
+                <span
+                  class="yc-status-pill inline-flex w-fit max-w-full shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full! border! px-2.5 py-[3px] text-[10px] leading-[normal] font-bold uppercase tracking-[0.08em] "
+                  style="background-color: var(--color-pill-warning-bg); color: var(--color-pill-warning-text); border-color: var(--color-pill-warning-border); border-style: solid;"
+                  title="L"
+                >
+                  L
+                </span>
+              </span>
+            </li>
+          </ul>
+          <div
+            class="mt-3 border-t border-[var(--divider)] pt-3"
+          >
+            <span
+              class="text-[13px] font-bold text-[var(--ink)]"
+            >
+              Interpretation
+            </span>
+            <p
+              class="text-[11.5px] text-[var(--ink-faint)] mt-1 text-[var(--ink-muted)]"
+            >
+              Mild non-regenerative anaemia
+            </p>
+          </div>
+          <div
+            class="mt-3"
+          >
+            <span
+              class="text-[13px] font-bold text-[var(--ink)]"
+            >
+              Notes
+            </span>
+            <p
+              class="text-[11.5px] text-[var(--ink-faint)] mt-1 text-[var(--ink-muted)]"
+            >
+              Repeat in one week
+            </p>
+          </div>
+        </div>
+      </li>
+    </ul>
+  </section>
+</div>
+`;
