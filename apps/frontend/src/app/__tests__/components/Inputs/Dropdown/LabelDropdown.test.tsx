@@ -363,6 +363,28 @@ describe('LabelDropdown', () => {
     expect(screen.getByText('Consultation')).toBeInTheDocument();
   });
 
+  it('exposes listbox/option ARIA roles with aria-selected on the panel', () => {
+    render(
+      <LabelDropdown
+        placeholder="Species"
+        options={options}
+        defaultOption="cat"
+        onSelect={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Species/i }));
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    const options_ = screen.getAllByRole('option');
+    expect(options_).toHaveLength(2);
+
+    const canine = screen.getByRole('option', { name: 'Canine' });
+    const feline = screen.getByRole('option', { name: 'Feline' });
+    expect(canine).toHaveAttribute('aria-selected', 'false');
+    expect(feline).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('has no axe accessibility violations', async () => {
     const { container } = render(
       <LabelDropdown placeholder="Species" options={options} onSelect={jest.fn()} />

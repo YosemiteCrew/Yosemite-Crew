@@ -899,7 +899,7 @@ describe('TreatmentStep', () => {
     // Qty is a plain input; Frequency is the shared (room/unit-style) LabelDropdown.
     fireEvent.change(screen.getAllByLabelText('Qty')[0], { target: { value: '20' } });
     fireEvent.click(screen.getAllByRole('button', { name: /^Frequency/ })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Every 12 hours' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Every 12 hours' }));
     expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription[0].qty).toBe(
       '20'
     );
@@ -1402,7 +1402,7 @@ describe('TreatmentStep', () => {
 
     // Reassigning persists via updateTask.
     fireEvent.click(screen.getAllByRole('button', { name: /assigned to/i })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Dr. Tim Apple' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Dr. Tim Apple' }));
     await waitFor(() => expect(updateTask).toHaveBeenCalled());
   });
 
