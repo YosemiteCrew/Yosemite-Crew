@@ -382,6 +382,17 @@ describe('Integrations settings', () => {
     expect(connectedTab).toHaveAttribute('aria-pressed', 'false');
   });
 
+  // Pins the tabs to the shared FilterChip primitive (h-8, text-[12.5px]) rather than a
+  // hand-rolled pill (the old markup was h-unset/py-1.5/text-[12px]) — a design-system audit
+  // flagged the duplicate geometry.
+  it('filter tabs render through the shared FilterChip primitive', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: /^Integrations/ });
+    const allTab = screen.getByRole('button', { name: 'All' });
+    expect(allTab).toHaveClass('h-8');
+    expect(allTab).toHaveClass('text-[12.5px]');
+  });
+
   it('shows "No connected integrations yet." when connected filter is active with no connections', async () => {
     const disabledIntegration = {
       _id: 'int-1',
