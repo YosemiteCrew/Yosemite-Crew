@@ -2,6 +2,11 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Cookies from '@/app/ui/widgets/Cookies/Cookies';
+import { reportConsentDecision } from '@/app/lib/consentReporter';
+
+jest.mock('@/app/lib/consentReporter', () => ({
+  reportConsentDecision: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
   Primary: ({ text, onClick }: { text: string; onClick: () => void }) => (
@@ -73,6 +78,7 @@ describe('Cookies Component', () => {
 
     expect(setItemSpy).toHaveBeenCalledWith('cookieConsentGiven', 'true');
     expect(localStorage.getItem('cookieConsentGiven')).toBe('true');
+    expect(reportConsentDecision).toHaveBeenCalledWith(true);
 
     setItemSpy.mockRestore();
   });
@@ -96,6 +102,7 @@ describe('Cookies Component', () => {
 
     expect(setItemSpy).toHaveBeenCalledWith('cookieConsentGiven', 'false');
     expect(localStorage.getItem('cookieConsentGiven')).toBe('false');
+    expect(reportConsentDecision).toHaveBeenCalledWith(false);
 
     setItemSpy.mockRestore();
   });
@@ -142,13 +149,11 @@ describe('Cookies Component', () => {
         configurable: true,
         value: innerHeight,
       });
-      return jest
-        .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
-        .mockReturnValue({
-          top: cardTop,
-          bottom: cardTop + cardHeight,
-          height: cardHeight,
-        } as DOMRect);
+      return jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+        top: cardTop,
+        bottom: cardTop + cardHeight,
+        height: cardHeight,
+      } as DOMRect);
     };
 
     const inset = () => document.documentElement.style.getPropertyValue('--yc-consent-inset');
