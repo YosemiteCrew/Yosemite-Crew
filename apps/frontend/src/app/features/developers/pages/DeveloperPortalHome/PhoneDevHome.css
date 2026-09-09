@@ -42,7 +42,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  box-shadow: 0 12px 34px rgba(29, 28, 27, 0.2);
+  box-shadow: 0 12px 34px var(--sh20);
 }
 
 .dev-ph-status-head {
@@ -136,8 +136,8 @@
   border: 1px solid var(--color-card-border);
   border-radius: 14px;
   box-shadow:
-    0 1px 2px rgba(29, 28, 27, 0.03),
-    0 6px 16px rgba(29, 28, 27, 0.05);
+    0 1px 2px var(--sh03),
+    0 6px 16px var(--sh05);
   text-decoration: none;
 }
 
@@ -173,8 +173,8 @@
   border: 1px solid var(--color-card-border);
   border-radius: 16px;
   box-shadow:
-    0 1px 2px rgba(29, 28, 27, 0.03),
-    0 6px 16px rgba(29, 28, 27, 0.05);
+    0 1px 2px var(--sh03),
+    0 6px 16px var(--sh05);
 }
 
 .dev-ph-review-head {
@@ -244,8 +244,8 @@
   border-radius: 16px;
   overflow: hidden;
   box-shadow:
-    0 1px 2px rgba(29, 28, 27, 0.03),
-    0 6px 16px rgba(29, 28, 27, 0.05);
+    0 1px 2px var(--sh03),
+    0 6px 16px var(--sh05);
   list-style: none;
   margin: 0;
   padding: 0;

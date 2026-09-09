@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
@@ -87,5 +89,20 @@ describe('PhoneDevHome', () => {
     const { container } = renderPhone();
     const results = await axe(container);
     expect(results).toHaveNoViolations();
+  });
+
+  test('shadows use the --shNN tokens, not hardcoded rgba literals', () => {
+    // jsdom does not apply plain (non-module) CSS imports, so this reads the
+    // stylesheet source directly rather than asserting on computed styles.
+    const css = readFileSync(
+      join(process.cwd(), 'src/app/features/developers/pages/DeveloperPortalHome/PhoneDevHome.css'),
+      'utf8'
+    );
+    expect(css).not.toMatch(/rgba\(29,\s*28,\s*27,\s*0\.2\)/);
+    expect(css).not.toMatch(/rgba\(29,\s*28,\s*27,\s*0\.03\)/);
+    expect(css).not.toMatch(/rgba\(29,\s*28,\s*27,\s*0\.05\)/);
+    expect(css).toContain('var(--sh20)');
+    expect((css.match(/var\(--sh03\)/g) ?? []).length).toBe(3);
+    expect((css.match(/var\(--sh05\)/g) ?? []).length).toBe(3);
   });
 });

@@ -84,7 +84,7 @@ describe('trustCenterData', () => {
         description: 'EU electronic identification, Level 1.',
         icon: 'finger-print-outline',
         iconBg: '#e6f4ef',
-        iconColor: '#006642',
+        iconColor: 'var(--color-success-800)',
       },
       {
         name: 'ZertES',
@@ -92,7 +92,7 @@ describe('trustCenterData', () => {
         description: 'Swiss federal law on electronic signatures.',
         icon: 'ribbon-outline',
         iconBg: '#fef3e9',
-        iconColor: '#af5e19',
+        iconColor: 'var(--color-warning-800)',
       },
       {
         name: 'HIPAA',

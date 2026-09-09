@@ -15,7 +15,7 @@ const BRAND_TITLE_STYLE: CSSProperties = {
   fontWeight: 400,
   lineHeight: 1.04,
   letterSpacing: '-0.03em',
-  color: '#f4efe6',
+  color: 'var(--spot-ink)',
   animation: 'ycUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.16s both',
 };
 
@@ -42,7 +42,7 @@ const GITHUB_STAR_PILL_STYLE: CSSProperties = {
   borderRadius: 9999,
   border: '1px solid rgba(234,226,213,0.18)',
   background: 'rgba(234,226,213,0.05)',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
   fontSize: 14,
   letterSpacing: '-0.01em',
   animation: 'ycUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.42s both',
@@ -56,7 +56,7 @@ const BRAND_PANEL_STYLE: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'space-between',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
 };
 
 const BACK_TO_HOME_PILL_STYLE: CSSProperties = {
