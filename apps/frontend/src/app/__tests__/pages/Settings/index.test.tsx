@@ -283,6 +283,19 @@ describe('Settings page', () => {
     expect(screen.getByText('Hours Modal closed')).toBeInTheDocument();
   });
 
+  it('flows the Personal band as multi-column instead of a shared-row grid, so a short card does not leave a dangling gap', () => {
+    render(<Settings />);
+
+    // A shared-row grid sizes both columns of a row to the taller cell, which
+    // left a gap under a short card (This browser) instead of the next card
+    // flowing up to fill it. Multi-column flow closes that gap.
+    const personalWrapper = screen.getByText('Personal Card').closest('.break-inside-avoid');
+    expect(personalWrapper).not.toBeNull();
+    const columnsContainer = personalWrapper?.parentElement;
+    expect(columnsContainer).toHaveClass('columns-1', 'xl:columns-2');
+    expect(columnsContainer).not.toHaveClass('grid');
+  });
+
   it('opens the profile and hours modals from the Personal card affordances', () => {
     render(<Settings />);
 
