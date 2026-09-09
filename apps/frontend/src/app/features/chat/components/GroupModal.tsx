@@ -17,6 +17,7 @@ import Modal from '@/app/ui/overlays/Modal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { ChatAvatar } from './ChatAvatar';
 
 export type OrgUserOption = {
@@ -225,11 +226,17 @@ export const GroupModal: FC<GroupModalProps> = ({
                       </div>
                       <div className="flex items-center gap-2">
                         {/* Design (group chat modal): the owner marker is a soft-blue
-                            pill, not the solid brand badge. */}
+                            pill, not the solid brand badge - colour only, geometry comes
+                            from StatusPill's `tokens` override. */}
                         {mode === 'edit' && m.id === ownerId && (
-                          <span className="inline-flex items-center rounded-full border border-[var(--hairline)] bg-[var(--blue-soft)] px-2.5 py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[var(--blue-text)]">
-                            Owner
-                          </span>
+                          <StatusPill
+                            label="Owner"
+                            tokens={{
+                              bg: 'var(--blue-soft)',
+                              text: 'var(--blue-text)',
+                              border: 'var(--hairline)',
+                            }}
+                          />
                         )}
                         {/* Design: an inline "Remove" text link, not a trash icon. */}
                         {isCreator && m.id !== ownerId && (
