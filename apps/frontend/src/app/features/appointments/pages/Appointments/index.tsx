@@ -551,7 +551,9 @@ const useAppointmentsView = () => {
     if (!createdAppointment?.id || createdPatientId !== waitlistBooking.patientId) {
       notify('warning', {
         title: 'Waitlist not updated',
-        text: 'The appointment was created for a different patient. Review the waitlist before booking this patient again.',
+        text: !createdAppointment?.id
+          ? 'The appointment could not be confirmed. Review the waitlist before booking this patient again.'
+          : 'The appointment was created for a different patient. Review the waitlist before booking this patient again.',
       });
       setWaitlistBooking(null);
       return;
