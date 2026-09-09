@@ -56,6 +56,11 @@ describe('TrustCenter', () => {
     expect(screen.getAllByText('PLANNED').length).toBeGreaterThan(0);
   });
 
+  it('colors status pills from design tokens, not hardcoded hex', () => {
+    expect(screen.getAllByText('COMPLIANT')[0]).toHaveStyle({ color: 'var(--color-success-800)' });
+    expect(screen.getAllByText('PLANNED')[0]).toHaveStyle({ color: 'var(--color-warning-800)' });
+  });
+
   it('renders the security control pillars and their checklist items', () => {
     expect(screen.getByText('Organizational security')).toBeInTheDocument();
     expect(screen.getByText('Data privacy and operations')).toBeInTheDocument();

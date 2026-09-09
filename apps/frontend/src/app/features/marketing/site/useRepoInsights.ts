@@ -70,7 +70,7 @@ const LANG_COLORS: Record<string, string> = {
   Dockerfile: '#6b6763',
   Python: '#4a7fb0',
 };
-const LANG_FALLBACK = ['#8f8984', '#a9a39e', '#b8b2ac'];
+const LANG_FALLBACK = ['var(--ink-faint)', 'var(--ink-faint2)', '#b8b2ac'];
 
 const langColor = (name: string, index: number): string =>
   LANG_COLORS[name] ?? LANG_FALLBACK[index % LANG_FALLBACK.length];

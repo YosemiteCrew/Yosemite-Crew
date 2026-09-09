@@ -111,7 +111,7 @@ export const trustCenterData = {
       'EU electronic identification, Level 1.',
       'finger-print-outline',
       '#e6f4ef',
-      '#006642'
+      'var(--color-success-800)'
     ),
     iconCert(
       'ZertES',
@@ -119,7 +119,7 @@ export const trustCenterData = {
       'Swiss federal law on electronic signatures.',
       'ribbon-outline',
       '#fef3e9',
-      '#af5e19'
+      'var(--color-warning-800)'
     ),
     iconCert(
       'HIPAA',

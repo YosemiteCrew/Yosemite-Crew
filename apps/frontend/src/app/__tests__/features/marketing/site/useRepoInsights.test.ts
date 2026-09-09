@@ -185,8 +185,8 @@ describe('useRepoInsights', () => {
 
     await waitFor(() => expect(result.current.languages?.length).toBe(7));
     expect(result.current.languages?.some((l) => l.name === 'Other')).toBe(true);
-    expect(result.current.languages?.find((l) => l.name === 'Rust')?.color).toMatch(
-      /^#[0-9a-f]{6}$/i
+    expect(result.current.languages?.find((l) => l.name === 'Rust')?.color).toBe(
+      'var(--ink-faint2)'
     );
 
     await waitFor(() => expect(result.current.commits?.length).toBe(5));
