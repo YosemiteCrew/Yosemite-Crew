@@ -6,6 +6,9 @@ jest.mock("src/config/prisma", () => ({
       findMany: jest.fn(),
       update: jest.fn(),
     },
+    organisationRoom: {
+      findFirst: jest.fn(),
+    },
   },
 }));
 jest.mock("../../src/services/audit-trail.service", () => ({
@@ -22,7 +25,10 @@ jest.mock("../../src/services/appointment.prisma.service", () => {
     }
   }
   return {
-    AppointmentPrismaService: { checkInAppointment: jest.fn() },
+    AppointmentPrismaService: {
+      checkInAppointment: jest.fn(),
+      updateAppointmentRoom: jest.fn(),
+    },
     AppointmentPrismaServiceError,
   };
 });
@@ -40,6 +46,8 @@ import {
 const mockedPrisma = prisma as jest.Mocked<typeof prisma>;
 const mockedCheckInAppointment =
   AppointmentPrismaService.checkInAppointment as jest.Mock;
+const mockedUpdateAppointmentRoom =
+  AppointmentPrismaService.updateAppointmentRoom as jest.Mock;
 
 const arrivedAt = new Date("2026-06-30T09:00:00Z");
 const baseCheckIn = {
@@ -329,6 +337,118 @@ describe("PatientCheckInService", () => {
         "room-3",
       );
       expect(result.assignedRoomId).toBe("room-3");
+    });
+
+    it("does not touch the appointment when the check-in is not linked to one", async () => {
+      (mockedPrisma.patientCheckIn.findFirst as jest.Mock).mockResolvedValue(
+        baseCheckIn,
+      );
+      (mockedPrisma.patientCheckIn.update as jest.Mock).mockResolvedValue({
+        ...baseCheckIn,
+        assignedRoomId: "room-3",
+      });
+      await PatientCheckInService.assignRoom("checkin-1", "org-1", "room-3");
+      expect(mockedPrisma.organisationRoom.findFirst).not.toHaveBeenCalled();
+      expect(mockedUpdateAppointmentRoom).not.toHaveBeenCalled();
+    });
+
+    it("syncs the linked appointment's room so the Board reflects the move", async () => {
+      (mockedPrisma.patientCheckIn.findFirst as jest.Mock).mockResolvedValue({
+        ...baseCheckIn,
+        appointmentId: "appt-1",
+      });
+      (mockedPrisma.patientCheckIn.update as jest.Mock).mockResolvedValue({
+        ...baseCheckIn,
+        appointmentId: "appt-1",
+        assignedRoomId: "room-3",
+      });
+      (mockedPrisma.organisationRoom.findFirst as jest.Mock).mockResolvedValue({
+        id: "room-3",
+        name: "Room 3",
+      });
+      mockedUpdateAppointmentRoom.mockResolvedValue(undefined);
+
+      await PatientCheckInService.assignRoom("checkin-1", "org-1", "room-3");
+
+      expect(mockedPrisma.organisationRoom.findFirst).toHaveBeenCalledWith({
+        where: { id: "room-3", organisationId: "org-1" },
+        select: { id: true, name: true },
+      });
+      expect(mockedUpdateAppointmentRoom).toHaveBeenCalledWith(
+        "appt-1",
+        "org-1",
+        { id: "room-3", name: "Room 3" },
+      );
+    });
+
+    it("skips the sync when the room cannot be found in this organisation", async () => {
+      (mockedPrisma.patientCheckIn.findFirst as jest.Mock).mockResolvedValue({
+        ...baseCheckIn,
+        appointmentId: "appt-1",
+      });
+      (mockedPrisma.patientCheckIn.update as jest.Mock).mockResolvedValue({
+        ...baseCheckIn,
+        appointmentId: "appt-1",
+        assignedRoomId: "room-3",
+      });
+      (mockedPrisma.organisationRoom.findFirst as jest.Mock).mockResolvedValue(
+        null,
+      );
+
+      await PatientCheckInService.assignRoom("checkin-1", "org-1", "room-3");
+
+      expect(mockedUpdateAppointmentRoom).not.toHaveBeenCalled();
+    });
+
+    it("still assigns the room when the appointment cannot be updated (e.g. cancelled)", async () => {
+      (mockedPrisma.patientCheckIn.findFirst as jest.Mock).mockResolvedValue({
+        ...baseCheckIn,
+        appointmentId: "appt-1",
+      });
+      const updated = {
+        ...baseCheckIn,
+        appointmentId: "appt-1",
+        assignedRoomId: "room-3",
+      };
+      (mockedPrisma.patientCheckIn.update as jest.Mock).mockResolvedValue(
+        updated,
+      );
+      (mockedPrisma.organisationRoom.findFirst as jest.Mock).mockResolvedValue({
+        id: "room-3",
+        name: "Room 3",
+      });
+      mockedUpdateAppointmentRoom.mockRejectedValue(
+        new AppointmentPrismaServiceError("Appointment not found", 404),
+      );
+
+      const result = await PatientCheckInService.assignRoom(
+        "checkin-1",
+        "org-1",
+        "room-3",
+      );
+
+      expect(result.assignedRoomId).toBe("room-3");
+    });
+
+    it("still throws an unexpected non-appointment error rather than swallowing it", async () => {
+      (mockedPrisma.patientCheckIn.findFirst as jest.Mock).mockResolvedValue({
+        ...baseCheckIn,
+        appointmentId: "appt-1",
+      });
+      (mockedPrisma.patientCheckIn.update as jest.Mock).mockResolvedValue({
+        ...baseCheckIn,
+        appointmentId: "appt-1",
+        assignedRoomId: "room-3",
+      });
+      (mockedPrisma.organisationRoom.findFirst as jest.Mock).mockResolvedValue({
+        id: "room-3",
+        name: "Room 3",
+      });
+      mockedUpdateAppointmentRoom.mockRejectedValue(new Error("db down"));
+
+      await expect(
+        PatientCheckInService.assignRoom("checkin-1", "org-1", "room-3"),
+      ).rejects.toThrow("db down");
     });
   });
 });
