@@ -154,14 +154,11 @@ token alignment · stable API · tests · story coverage · accessibility (a11y)
 | ---------------------- | -------------------------------------- | --------------- | ---------------------------------- |
 | GenericTable           | `tables/GenericTable/GenericTable.tsx` | 🔄 In migration | Base table primitive. Story added  |
 | AvailabilityTable      | `tables/AvailabilityTable.tsx`         | ⚠️ Legacy       | Domain-specific                    |
-| DocumentsTable         | `tables/DocumentsTable.tsx`            | ⚠️ Legacy       | Domain-specific                    |
 | InventoryTable         | `tables/InventoryTable.tsx`            | ⚠️ Legacy       | Domain-specific                    |
 | InventoryTurnoverTable | `tables/InventoryTurnoverTable.tsx`    | ⚠️ Legacy       | Domain-specific                    |
 | InvoiceTable           | `tables/InvoiceTable.tsx`              | ⚠️ Legacy       | Domain-specific                    |
 | OrganizationList       | `tables/OrganizationList.tsx`          | ⚠️ Legacy       | Domain-specific                    |
 | OrgInvites             | `tables/OrgInvites.tsx`                | ⚠️ Legacy       | Domain-specific                    |
-| RoomTable              | `tables/RoomTable.tsx`                 | ⚠️ Legacy       | Domain-specific                    |
-| SpecialitiesTable      | `tables/SpecialitiesTable.tsx`         | ⚠️ Legacy       | Domain-specific                    |
 | common                 | `tables/common.tsx`                    | 🔄 In migration | Shared table cell helpers - review |
 
 ---
