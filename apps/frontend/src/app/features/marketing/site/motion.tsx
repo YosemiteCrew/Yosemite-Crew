@@ -411,7 +411,17 @@ export function CountUp({ value, className, style }: Readonly<CountUpProps>) {
           }
         });
       },
-      { threshold: 0.35 }
+      {
+        threshold: 0.35,
+        // Same fix as Reveal's observer: without extending the root upward, a
+        // jump straight past this element (the End key, a scrollbar drag, or
+        // navigating in already scrolled) never crosses the threshold, so no
+        // callback ever fires, inView stays false forever, and the count-up
+        // freezes at its initial value even after the real number arrives -
+        // `display` is only ever written by the effect below, which is gated
+        // on inView.
+        rootMargin: '100000px 0px 0px 0px',
+      }
     );
     io.observe(node);
     return () => io.disconnect();
