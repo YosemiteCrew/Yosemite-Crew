@@ -4,6 +4,11 @@ import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { notifyPatientOwner } from "src/services/shared/owner-notification";
+import {
+  AppointmentPrismaService,
+  AppointmentPrismaServiceError,
+} from "./appointment.prisma.service";
+import { fromAppointmentRequestDTO } from "@yosemite-crew/types";
 
 export class WaitlistError extends Error {
   constructor(
@@ -47,6 +52,7 @@ const entrySelect = {
   status: true,
   offeredAt: true,
   bookedAt: true,
+  appointmentId: true,
   expiresAt: true,
   createdAt: true,
   updatedAt: true,
@@ -172,7 +178,31 @@ export const WaitlistService = {
     return updated;
   },
 
-  async book(id: string, organisationId: string, bookedBy?: string) {
+  /**
+   * Closes a waitlist entry out against the Appointment staff actually booked
+   * it into.
+   *
+   * Before this, `book()` only flipped the entry's own status - no Appointment
+   * was ever linked, so nothing connected the two rows. A waitlist entry has
+   * no time slot by design (only an earliest/latest date range), so this does
+   * not create one: the PIMS "Book" action opens the ordinary New Appointment
+   * form (pre-filled from this entry's patient and date range) and lets staff
+   * pick the slot through the normal create flow, then calls this with the
+   * appointment that flow just created. Re-creating the appointment here
+   * instead would either duplicate it or fight that already-working form.
+   *
+   * `appointmentId` is resolved through `AppointmentPrismaService.getById`
+   * scoped to `organisationId`, so a caller cannot link an entry to another
+   * tenant's appointment - the lookup itself 404s across the boundary. The
+   * patient match below additionally guards against linking the right
+   * tenant's appointment but the wrong patient's.
+   */
+  async book(
+    id: string,
+    organisationId: string,
+    appointmentId: string,
+    bookedBy?: string,
+  ) {
     const entry = await assertEntry(id, organisationId);
     if (entry.status !== "OFFERED" && entry.status !== "WAITING") {
       throw new WaitlistError(
@@ -181,9 +211,28 @@ export const WaitlistService = {
       );
     }
 
+    let appointment;
+    try {
+      appointment = await AppointmentPrismaService.getById(appointmentId, {
+        organisationId,
+      });
+    } catch (err) {
+      if (err instanceof AppointmentPrismaServiceError) {
+        throw new WaitlistError(err.message, err.statusCode);
+      }
+      throw err;
+    }
+
+    if (fromAppointmentRequestDTO(appointment).patient.id !== entry.patientId) {
+      throw new WaitlistError(
+        "The appointment does not belong to this waitlist entry's patient.",
+        400,
+      );
+    }
+
     const updated = await prisma.waitlistEntry.update({
       where: { id },
-      data: { status: "BOOKED", bookedAt: new Date() },
+      data: { status: "BOOKED", bookedAt: new Date(), appointmentId },
       select: entrySelect,
     });
 
@@ -195,7 +244,7 @@ export const WaitlistService = {
       actorId: bookedBy ?? null,
       entityType: "APPOINTMENT",
       entityId: id,
-      metadata: {},
+      metadata: { appointmentId },
     });
 
     return updated;

@@ -2,7 +2,6 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   addToWaitlist,
-  bookWaitlistEntry,
   cancelWaitlistEntry,
   fetchWaitlist,
   offerWaitlistEntry,
@@ -32,7 +31,6 @@ export interface WaitlistState {
   error: string | null;
   busyEntryId: string | null;
   offer: (id: string) => Promise<void>;
-  book: (id: string) => Promise<void>;
   cancel: (id: string) => Promise<void>;
   add: (payload: AddToWaitlistPayload) => Promise<boolean>;
 }
@@ -118,7 +116,6 @@ const useWaitlistActions = (
   return {
     busyEntryId,
     offer: (id: string) => runAction(id, offerWaitlistEntry),
-    book: (id: string) => runAction(id, bookWaitlistEntry),
     cancel: (id: string) => runAction(id, cancelWaitlistEntry),
     add,
   };
@@ -127,8 +124,11 @@ const useWaitlistActions = (
 /**
  * All of the waitlist container's state: it loads the primary org's waitlist,
  * resolves each entry's companion + owner names from the companions store (the
- * entry itself carries only `patientId`), and exposes the offer/book/cancel/add
- * actions. Kept out of the component so the container is a thin projection.
+ * entry itself carries only `patientId`), and exposes the offer/cancel/add
+ * actions. "Book" has no action of its own here: it opens the ordinary New
+ * Appointment form (see WaitlistPanel's `onBookAppointment`), since a
+ * waitlist entry has no slot to book directly. Kept out of the component so
+ * the container is a thin projection.
  */
 export const useWaitlist = (): WaitlistState => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
