@@ -434,6 +434,7 @@ const AddCheckInForm = (props: AddCheckInFormProps) => {
       className="flex flex-col gap-3 border-b border-[var(--divider)] px-4 py-3"
     >
       <CompanionSelect
+        id="checkin-companion"
         label="Patient"
         placeholder="Select a patient"
         emptyLabel="No patients available"

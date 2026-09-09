@@ -57,14 +57,13 @@ const VideoPlayerModal = ({
             <source src={activeVideo.videoUrl} type="video/mp4" />
             {/* Same real captions file as GuidePlayerModal, and the same reason:
                 the data: URL this used to carry was refused by our own CSP on
-                every play. No `default`: see GuidePlayerModal - that attribute
-                auto-enables the track for every viewer, burning the caption in
-                as a visible subtitle instead of leaving it an opt-in via CC. */}
+                every play. */}
             <track
               kind="captions"
               src="/captions/no-narration.en.vtt"
               srcLang="en"
               label="English"
+              default
             />
           </video>
         ) : (

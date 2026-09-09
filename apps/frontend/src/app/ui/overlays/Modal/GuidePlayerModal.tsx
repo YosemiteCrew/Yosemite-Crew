@@ -125,13 +125,14 @@ const GuidePlayerModal = ({
               which reads as a broken feature rather than as "this film has no
               speech". So the track carries what a captioner would actually
               write for speech-free media: it names the non-speech audio, says
-              there is no narration, and stops.
-
-              No `default`: that attribute forces the browser to auto-enable
-              the track for every viewer, so this note was burning in as a
-              visible subtitle over every play instead of being an opt-in a
-              deaf viewer reaches for via the player's own CC control. */}
-          <track kind="captions" src="/captions/no-narration.en.vtt" srcLang="en" label="English" />
+              there is no narration, and stops. */}
+          <track
+            kind="captions"
+            src="/captions/no-narration.en.vtt"
+            srcLang="en"
+            label="English"
+            default
+          />
           Your browser cannot play this video.
         </video>
       </div>
