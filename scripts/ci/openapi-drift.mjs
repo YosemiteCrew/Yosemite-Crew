@@ -2,9 +2,9 @@
 /**
  * Fails when apps/frontend/public/static/openapi/openapi.yaml has drifted from the routers.
  *
- * The published spec calls itself "generated from backend routers", but there is
- * no generator in the repo - it was produced once and committed, so it cannot
- * track what it claims to describe. The visible symptom was that 276 operations
+ * The published spec is hand-written and committed, not generated - there is no
+ * generator in the repo, so nothing keeps it in sync automatically. The visible
+ * symptom was that 276 operations
  * declared `x-org-id` zero times, while `withOrgPermissions()` answers 400 when
  * no organisation can be extracted and the header is the only source on many
  * routes. A client generated from the spec sent requests that could not succeed

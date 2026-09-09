@@ -28,7 +28,7 @@ Small improvements can go directly as PRs, but major feature work should start w
 - `apps/frontend` - web app
 - `apps/desktop` - Electron PIMS desktop shell
 - `apps/mobileAppYC` - React Native mobile app
-- `packages/auth`, `packages/database`, `packages/design-tokens`, `packages/fhir`, `packages/fhirtypes`, `packages/lib`, `packages/types` - shared packages
+- `packages/auth`, `packages/database`, `packages/fhir`, `packages/fhirtypes`, `packages/lib`, `packages/mcp-server`, `packages/types` - shared packages
 
 ## Development Setup
 
