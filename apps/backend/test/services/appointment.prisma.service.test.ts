@@ -3621,6 +3621,161 @@ describe("AppointmentPrismaService", () => {
     });
   });
 
+  describe("completeAppointment", () => {
+    it("requires an appointmentId", async () => {
+      await expect(
+        AppointmentPrismaService.completeAppointment("", "org_1"),
+      ).rejects.toMatchObject({
+        message: "appointmentId is required",
+        statusCode: 400,
+      });
+    });
+
+    it("requires an organisationId", async () => {
+      await expect(
+        AppointmentPrismaService.completeAppointment("appt_1", ""),
+      ).rejects.toMatchObject({
+        message: "organisationId is required",
+        statusCode: 400,
+      });
+    });
+
+    it("throws 404 when the appointment does not exist", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
+
+      await expect(
+        AppointmentPrismaService.completeAppointment("appt_1", "org_1"),
+      ).rejects.toMatchObject({
+        message: "Appointment not found",
+        statusCode: 404,
+      });
+    });
+
+    it("completes an IN_PROGRESS appointment directly", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ status: "IN_PROGRESS" }),
+      );
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({ status: "COMPLETED" }),
+      );
+
+      const result = await AppointmentPrismaService.completeAppointment(
+        "appt_1",
+        "org_1",
+      );
+
+      expect(mockedPrisma.appointment.update).toHaveBeenCalledTimes(1);
+      expect(result.status).toBe("COMPLETED");
+    });
+
+    it("bridges a CHECKED_IN appointment through IN_PROGRESS on its way to COMPLETED", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ status: "CHECKED_IN" }),
+      );
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({ status: "COMPLETED" }),
+      );
+
+      const result = await AppointmentPrismaService.completeAppointment(
+        "appt_1",
+        "org_1",
+      );
+
+      expect(mockedPrisma.appointment.update).toHaveBeenCalledTimes(2);
+      expect(mockedPrisma.appointment.update.mock.calls[0][0].data.status).toBe(
+        "IN_PROGRESS",
+      );
+      expect(mockedPrisma.appointment.update.mock.calls[1][0].data.status).toBe(
+        "COMPLETED",
+      );
+      expect(result.status).toBe("COMPLETED");
+    });
+
+    it("rejects completing an appointment that was never checked in", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ status: "UPCOMING" }),
+      );
+
+      await expect(
+        AppointmentPrismaService.completeAppointment("appt_1", "org_1"),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+    });
+
+    it("marks the appointment ready for billing after completing", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ status: "IN_PROGRESS", organisationId: "org_1" }),
+      );
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({ status: "COMPLETED" }),
+      );
+
+      await AppointmentPrismaService.completeAppointment("appt_1", "org_1");
+
+      expect(
+        mockedInvoiceService.markAppointmentReadyForBilling,
+      ).toHaveBeenCalledWith("appt_1", { organisationId: "org_1" });
+    });
+  });
+
+  describe("markAppointmentNoShow", () => {
+    it("requires an appointmentId", async () => {
+      await expect(
+        AppointmentPrismaService.markAppointmentNoShow("", "org_1"),
+      ).rejects.toMatchObject({
+        message: "appointmentId is required",
+        statusCode: 400,
+      });
+    });
+
+    it("requires an organisationId", async () => {
+      await expect(
+        AppointmentPrismaService.markAppointmentNoShow("appt_1", ""),
+      ).rejects.toMatchObject({
+        message: "organisationId is required",
+        statusCode: 400,
+      });
+    });
+
+    it("throws 404 when the appointment does not exist", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
+
+      await expect(
+        AppointmentPrismaService.markAppointmentNoShow("appt_1", "org_1"),
+      ).rejects.toMatchObject({
+        message: "Appointment not found",
+        statusCode: 404,
+      });
+    });
+
+    it("marks an UPCOMING appointment as NO_SHOW", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ status: "UPCOMING" }),
+      );
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({ status: "NO_SHOW" }),
+      );
+
+      const result = await AppointmentPrismaService.markAppointmentNoShow(
+        "appt_1",
+        "org_1",
+      );
+
+      expect(result.status).toBe("NO_SHOW");
+    });
+
+    it("rejects marking no-show an appointment already CHECKED_IN", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ status: "CHECKED_IN" }),
+      );
+
+      await expect(
+        AppointmentPrismaService.markAppointmentNoShow("appt_1", "org_1"),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe("getById guard clauses and payment states", () => {
     it("requires an appointmentId", async () => {
       await expect(
