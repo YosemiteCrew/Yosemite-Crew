@@ -400,11 +400,14 @@ const Header = ({
     >
       <div className="flex shrink-0 items-center gap-2.5">
         <GlassTooltip content="Select date" side="bottom">
+          {/* rounded-full! overrides Datepicker's default field shape (rounded-xl) so
+              this icon button matches its pill-shaped neighbors below (date nav, Today) */}
           <div className="relative z-150">
             <Datepicker
               currentDate={currentDate}
               setCurrentDate={setCurrentDate}
               placeholder="Select Date"
+              className="rounded-full!"
             />
           </div>
         </GlassTooltip>
