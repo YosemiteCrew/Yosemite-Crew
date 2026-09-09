@@ -4,7 +4,7 @@ import React from 'react';
 import { IoAdd } from 'react-icons/io5';
 import { FilterOption, StatusOption } from '@/app/features/companions/pages/Companions/types';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
+import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 
 /**
  * Task filter row rebuilt to the design: fully-rounded audience pills (All /
@@ -34,7 +34,7 @@ const PARENT_AUDIENCE_KEY = 'parent_task';
 
 /**
  * The scope option that narrows to the signed-in member. The other option, whatever
- * it is called, is the un-narrowed one - `BoardScopeToggle` is a two-state control,
+ * it is called, is the un-narrowed one - the scope switch is a two-state control,
  * so the pair is "mine" and "not mine".
  */
 const MINE_SCOPE_KEY = 'mine';
@@ -56,6 +56,13 @@ const TaskFilterBar = ({
   const statusPills = statusOptions.filter((option) => option.key.toLowerCase() !== 'all');
   const mineScope = scopeOptions?.find((option) => option.key === MINE_SCOPE_KEY);
   const allScope = scopeOptions?.find((option) => option.key !== MINE_SCOPE_KEY);
+  const scopePillOptions =
+    mineScope && allScope
+      ? [
+          { value: allScope.key, label: allScope.name },
+          { value: mineScope.key, label: mineScope.name },
+        ]
+      : [];
 
   const toggleFilter = (key: string) => setActiveFilter(activeFilter === key ? 'all' : key);
   const toggleStatus = (key: string) => setActiveStatus(activeStatus === key ? 'all' : key);
@@ -68,22 +75,17 @@ const TaskFilterBar = ({
             {/* Was a hand-rolled segmented control: an unfilled `p-0.5` track with
                 `h-6 px-3` segments, a solid --chip-selected-bg active state, and
                 "My tasks" FIRST. The board view of the same page rendered the same
-                concept through BoardScopeToggle - a --band track, raised `px-4
+                concept through a --band track with raised `px-4
                 py-[7px]` segments, "My tasks" SECOND - so switching tabs swapped
                 the control's shape and moved the option to the opposite side.
                 Both views render the shared primitive now. */}
-            <div /* NOSONAR: styled inline-flex segmented control; native <fieldset> defaults (block layout, border, required legend) break the pill design */
-              role="group"
-              aria-label="Task scope"
-              className="inline-flex shrink-0"
-            >
-              <BoardScopeToggle
-                showMineOnly={activeScope === mineScope.key}
-                onChange={(nextShowMineOnly) =>
-                  setActiveScope(nextShowMineOnly ? mineScope.key : allScope.key)
-                }
-                allLabel={allScope.name}
-                mineLabel={mineScope.name}
+            <div className="shrink-0">
+              <SegmentedPill
+                options={scopePillOptions}
+                value={activeScope === mineScope.key ? mineScope.key : allScope.key}
+                onChange={setActiveScope}
+                ariaLabel="Task scope"
+                size="toolbar"
               />
             </div>
             <span aria-hidden="true" className="mx-1 h-[18px] w-px shrink-0 bg-[var(--hairline)]" />

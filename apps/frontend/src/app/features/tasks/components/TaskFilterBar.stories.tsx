@@ -133,7 +133,7 @@ export const WithScope: Story = {
     await expect(scoped).toHaveLength(2);
 
     /* The wide scope sits FIRST and "My tasks" second, because the control is the
-       shared BoardScopeToggle the board view renders. The list used to draw its
+       shared SegmentedPill the board view renders. The list used to draw its
        own segmented control with the order reversed, so the same option changed
        sides when you switched tabs. */
     await expect(scoped[0]).toHaveTextContent('Team');

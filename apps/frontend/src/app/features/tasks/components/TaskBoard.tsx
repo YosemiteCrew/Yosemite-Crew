@@ -6,7 +6,7 @@ import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
 import { attachBoardColumnDnDListeners } from '@/app/ui/board/boardShared';
-import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
+import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { StoredCompanion } from '@/app/features/companions/pages/Companions/types';
@@ -346,14 +346,19 @@ type BoardToolbarProps = {
  * names, so reordering it fails there rather than quietly swapping the segments.
  */
 const [MINE_SCOPE, ALL_SCOPE] = TASK_SCOPE_OPTIONS;
+const BOARD_SCOPE_OPTIONS = [ALL_SCOPE, MINE_SCOPE].map(({ key, name }) => ({
+  value: key,
+  label: name,
+}));
 
 const BoardToolbar = ({ showMineOnly, setShowMineOnly }: BoardToolbarProps) => (
   <div className="flex flex-wrap items-center justify-end gap-2">
-    <BoardScopeToggle
-      showMineOnly={showMineOnly}
-      onChange={setShowMineOnly}
-      allLabel={ALL_SCOPE.name}
-      mineLabel={MINE_SCOPE.name}
+    <SegmentedPill
+      options={BOARD_SCOPE_OPTIONS}
+      value={showMineOnly ? MINE_SCOPE.key : ALL_SCOPE.key}
+      onChange={(scope) => setShowMineOnly(scope === MINE_SCOPE.key)}
+      ariaLabel="Task scope"
+      size="toolbar"
     />
   </div>
 );
