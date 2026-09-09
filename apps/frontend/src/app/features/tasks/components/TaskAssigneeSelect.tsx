@@ -123,12 +123,13 @@ const AssigneeGroupSection = ({
   onSelect,
 }: AssigneeGroupSectionProps) => {
   if (options.length === 0) return null;
-  const headingId = `${listboxId}-group-${group}`;
   return (
-    <div role="group" aria-labelledby={headingId}>
-      <div id={headingId} className={groupHeadingClassName}>
-        {title}
-      </div>
+    // A <fieldset> maps to role=group in HTML-AAM (Sonar S6819), and its
+    // <legend> supplies the accessible name without any ARIA plumbing - see
+    // Slotpicker for the same pattern. Tailwind preflight already zeroes its
+    // default margin/padding/border.
+    <fieldset>
+      <legend className={groupHeadingClassName}>{title}</legend>
       {options.map((option) => {
         const entry: AssigneeEntry = { group, option, key: `${group}-${option.value}` };
         const optionId = `${listboxId}-option-${entry.key}`;
@@ -144,7 +145,7 @@ const AssigneeGroupSection = ({
           />
         );
       })}
-    </div>
+    </fieldset>
   );
 };
 
@@ -226,7 +227,7 @@ const OptionRow = ({
   onHover,
   onSelect,
 }: OptionRowProps) => (
-  <button
+  <button /* NOSONAR: WAI-ARIA combobox/listbox pattern (same as LabelDropdown, the shared dropdown every other control in this app uses) - no native <option> supports the avatar/dot rendering, search-filter combobox, or portalled popup this needs */
     key={entry.key}
     id={optionId}
     type="button"
@@ -405,7 +406,7 @@ const TaskAssigneeSelect = ({
   const shouldPortal = typeof document !== 'undefined';
 
   const panelNode = (
-    <div
+    <div /* NOSONAR: WAI-ARIA combobox/listbox pattern (same as LabelDropdown, the shared dropdown every other control in this app uses) - a native <select>/<datalist> cannot render grouped headers, avatar/dot rows, or a portalled floating panel */
       id={listboxId}
       role="listbox"
       aria-label="Assign to"
