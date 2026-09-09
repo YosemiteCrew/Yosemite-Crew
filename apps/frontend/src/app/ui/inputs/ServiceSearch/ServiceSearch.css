@@ -57,7 +57,8 @@
   cursor: pointer;
   transition: all 0.3s ease-in-out;
 }
-.service-search-speciality:hover {
+.service-search-speciality:hover,
+.service-search-speciality[aria-selected='true'] {
   background-color: var(--color-card-hover);
 }
 .service-search-add:focus-visible {
@@ -80,6 +81,9 @@
   font-weight: 400;
   line-height: 120%;
   letter-spacing: -0.2px;
+}
+.service-search-add[aria-selected='true'] {
+  background-color: var(--color-card-hover);
 }
 .service-search-speciality-title {
   color: var(--ink-body);
