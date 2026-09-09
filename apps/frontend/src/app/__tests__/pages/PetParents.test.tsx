@@ -55,6 +55,21 @@ describe('PetParents page', () => {
     expect(screen.getByText('Sent to the new clinic')).toBeInTheDocument();
   });
 
+  test('colors the green avatar chips from --avatar-green-ink, not hardcoded hex', () => {
+    render(<PetParents />);
+
+    // Companion list avatar (Fjord) and reminder row icon share --avatar-green-bg
+    // already; the ink must resolve through the paired token, not a literal.
+    expect(screen.getByText('Fjord').previousElementSibling).toHaveStyle({
+      color: 'var(--avatar-green-ink)',
+    });
+    expect(screen.getByText('Fjord, vaccine due in 9 days').previousElementSibling).toHaveStyle({
+      color: 'var(--avatar-green-ink)',
+    });
+    const floatCard = screen.getByText('Sent to the new clinic').closest('[data-hero-float]');
+    expect(floatCard?.firstElementChild).toHaveStyle({ color: 'var(--avatar-green-ink)' });
+  });
+
   test('renders the dark ownership story with the pink punchline', () => {
     render(<PetParents />);
 

@@ -110,7 +110,7 @@ const HERO_FLOAT_AVATAR_GREEN_STYLE: CSSProperties = {
   height: 30,
   borderRadius: 10,
   background: 'var(--avatar-green-bg)',
-  color: '#006642',
+  color: 'var(--avatar-green-ink)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -230,7 +230,7 @@ const COMPANIONS: readonly Companion[] = [
     name: 'Fjord',
     border: '1px solid var(--hairline)',
     avatarBg: 'var(--avatar-green-bg)',
-    avatarColor: '#006642',
+    avatarColor: 'var(--avatar-green-ink)',
     nameWeight: 500,
     nameColor: 'var(--ink-muted)',
   },
@@ -281,7 +281,7 @@ const REMINDERS: readonly Reminder[] = [
   {
     icon: IoShieldCheckmarkOutline,
     iconBg: 'var(--avatar-green-bg)',
-    iconColor: '#006642',
+    iconColor: 'var(--avatar-green-ink)',
     text: 'Fjord, vaccine due in 9 days',
   },
 ];
