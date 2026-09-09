@@ -170,6 +170,7 @@ const Dropdown = ({
       filteredList={filteredList}
       setActiveIndex={setActiveIndex}
       selectOption={selectOption}
+      value={value}
     />
   );
 
