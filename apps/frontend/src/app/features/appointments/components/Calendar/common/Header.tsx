@@ -1,7 +1,6 @@
 import React, { startTransition, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { getMonthYear } from '@/app/features/appointments/components/Calendar/helpers';
-import { getEmergencyPillStyle } from '@/app/features/appointments/components/appointmentBoardHelpers';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import Datepicker from '@/app/ui/inputs/Datepicker';
 import {
@@ -23,6 +22,7 @@ import { useCalendarNavigation } from '@/app/hooks/useCalendarNavigation';
 import { useCalendarWeekNavigation } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
 import { getStartOfWeek } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import StatusOptionButtons from '@/app/ui/filters/StatusOptionButtons';
+import FilterChip from '@/app/ui/filters/FilterChip';
 import { useFilterDropdownDismiss } from '@/app/ui/filters/useFilterDropdownDismiss';
 
 type FilterOption = { key: string; name: string; dotColor?: string };
@@ -43,25 +43,15 @@ const getStatusPillTokens = (status: StatusOption): StatusPillTokens => ({
   border: status.border ?? status.bg ?? 'var(--color-pill-neutral-border)',
 });
 
-// Scope pills follow the planner's filter-row recipe: inactive is a bare
-// --hairline outline with --ink-muted 600 type; the selected pill takes the
-// shared --chip-selected-* ink fill and steps the label to 700.
-const getFilterClassName = (filterKey: string, activeFilter: string): string => {
-  if (filterKey !== activeFilter)
-    return 'font-semibold text-[var(--ink-muted)] hover:bg-card-hover!';
-  // The active emergency pill draws its fill/label from getEmergencyPillStyle's
-  // inline style (--danger-strong with its paired ink); return no colour class so
-  // an `!important` text colour can't override it (the old `text-danger-500!`
-  // failed WCAG AA in dark mode).
-  if (filterKey === 'emergencies') return 'font-bold';
-  return 'bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]';
-};
-
-const getFilterBorderColor = (filterKey: string, activeFilter: string): string => {
-  if (filterKey !== activeFilter) return 'var(--hairline)';
-  /* v8 ignore next -- unreachable: only called for non-emergency pills (emergency pills use getEmergencyPillStyle) */
-  if (filterKey === 'emergencies') return 'var(--color-danger-500)';
-  return 'var(--chip-selected-border)';
+// Scope pills are FilterChip (design: Filters card) — the emergencies chip
+// keeps FilterChip's danger tone for its rest state, but overrides the active
+// fill via `tokens` with the WCAG-AA-safe --danger-strong pairing rather than
+// FilterChip's translucent --danger-bg tone: the old --danger-bg tint +
+// `text-danger-500!` label failed contrast in dark mode (#1885).
+const EMERGENCY_ACTIVE_TOKENS = {
+  bg: 'var(--danger-strong)',
+  border: 'var(--danger-strong)',
+  text: 'var(--danger-strong-ink)',
 };
 
 const CALENDAR_VIEW_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
@@ -202,51 +192,37 @@ const FilterPills = ({
       {filterOptions.map((filter) => {
         const isEmergencyFilter = filter.key === 'emergencies';
         const isActiveFilter = filter.key === activeFilter;
-        const pillStyle = isEmergencyFilter
-          ? getEmergencyPillStyle(isActiveFilter)
-          : {
-              borderWidth: '1px',
-              borderStyle: 'solid',
-              borderColor: getFilterBorderColor(filter.key, activeFilter ?? ''),
-            };
-
-        return (
-          <button
-            key={filter.key}
-            type="button"
+        const chip = (
+          <FilterChip
+            active={isActiveFilter}
             onClick={() => onToggle(filter.key)}
-            className={clsx(
-              'relative flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap px-[13px] py-1.5 rounded-full! text-[12px] transition-colors',
-              getFilterClassName(filter.key, activeFilter ?? '')
-            )}
-            style={pillStyle}
-          >
-            {isEmergencyFilter && (
+            label={filter.name}
+            tone={isEmergencyFilter ? 'danger' : 'neutral'}
+            dotColor={isEmergencyFilter ? 'var(--danger)' : filter.dotColor}
+            tokens={isEmergencyFilter ? EMERGENCY_ACTIVE_TOKENS : undefined}
+            // `tokens` on an active chip drops FilterChip's own tone class (it
+            // carries the fill/border/ink instead), so restore the weight step
+            // that class would have set.
+            className={isEmergencyFilter && isActiveFilter ? 'font-bold' : undefined}
+          />
+        );
+
+        if (!isEmergencyFilter) return <React.Fragment key={filter.key}>{chip}</React.Fragment>;
+
+        // Presence badge lives outside the chip: FilterChip owns the pill
+        // itself, not an overlay slot, so the "emergencies exist" corner dot
+        // wraps it instead of reaching inside.
+        return (
+          <div key={filter.key} className="relative inline-flex shrink-0">
+            {chip}
+            {hasEmergency && (
               <span
                 aria-hidden="true"
-                className="size-1.5 shrink-0 rounded-full"
-                style={{ backgroundColor: 'var(--danger)' }}
+                className="pointer-events-none absolute -top-0.5 -right-0.5 size-2.5 rounded-full"
+                style={{ backgroundColor: 'var(--danger)', outline: '2px solid var(--screen)' }}
               />
             )}
-            {!isEmergencyFilter && filter.dotColor && (
-              <span
-                aria-hidden="true"
-                className="size-1.5 shrink-0 rounded-full"
-                style={{ backgroundColor: filter.dotColor }}
-              />
-            )}
-            <span>{filter.name}</span>
-            {isEmergencyFilter && hasEmergency && (
-              <span
-                aria-hidden="true"
-                className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full"
-                style={{
-                  backgroundColor: 'var(--danger)',
-                  outline: '2px solid var(--screen)',
-                }}
-              />
-            )}
-          </button>
+          </div>
         );
       })}
     </>
