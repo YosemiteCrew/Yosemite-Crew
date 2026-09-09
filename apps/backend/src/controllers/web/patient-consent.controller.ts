@@ -21,7 +21,7 @@ const ConsentTypeEnum = z.enum([
 const ConsentStatusEnum = z.enum(["ACTIVE", "REVOKED", "EXPIRED"]);
 
 const GrantBodySchema = z.object({
-  patientId: z.uuid(),
+  patientId: uuid(),
   consentType: ConsentTypeEnum,
   procedureDesc: z.string().max(2000).optional(),
   // `consentedBy` is deliberately NOT accepted from the body: the service uses
@@ -31,7 +31,7 @@ const GrantBodySchema = z.object({
   consentedAt: z.iso.datetime().optional(),
   expiresAt: z.iso.datetime().optional(),
   witnessedBy: z.string().max(200).optional(),
-  documentId: z.uuid().optional(),
+  documentId: uuid().optional(),
   notes: z.string().max(2000).optional(),
 });
 
@@ -40,7 +40,7 @@ const RevokeBodySchema = z.object({
 });
 
 const ListQuerySchema = z.object({
-  patientId: z.uuid().optional(),
+  patientId: uuid().optional(),
   status: ConsentStatusEnum.optional(),
   consentType: ConsentTypeEnum.optional(),
 });
