@@ -253,15 +253,26 @@ const StripeOnboarding = () => {
       {connectInstance && (
         <div className="w-full rounded-[20px] border border-[var(--hairline)] bg-[var(--screen)] px-6 py-6 shadow-[0_2px_6px_var(--sh05),0_20px_55px_var(--sh10)]">
           <ConnectComponentsProvider connectInstance={connectInstance}>
+            {/* These three Stripe embeds report independent, unrelated pieces of
+                account state (e.g. charges can be disabled pending a bank/identity
+                requirement while tax registrations are already complete), so both
+                "still needs setup" and "already done" content can legitimately be
+                on screen at once. Each gets its own heading and a hairline divider
+                so they read as three separate steps rather than one contradictory
+                block - see the "weird view" report where they were unlabeled and
+                unseparated. */}
             <div className="flex flex-col gap-5" aria-label="Stripe onboarding steps">
-              <ConnectAccountOnboarding onExit={handleExit} onStepChange={handleStepChange} />
               <div className="flex flex-col gap-3">
+                <h2 className="text-center text-heading-2 text-text-primary">Account setup</h2>
+                <ConnectAccountOnboarding onExit={handleExit} onStepChange={handleStepChange} />
+              </div>
+              <div className="flex flex-col gap-3 border-t border-[var(--hairline)] pt-5">
                 <h2 className="text-center text-heading-2 text-text-primary">
                   Tax business details
                 </h2>
                 <ConnectTaxSettings />
               </div>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 border-t border-[var(--hairline)] pt-5">
                 <h2 className="text-center text-heading-2 text-text-primary">Tax registrations</h2>
                 <ConnectTaxRegistrations />
               </div>
