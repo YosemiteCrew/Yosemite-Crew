@@ -34,6 +34,7 @@ import chatRouter from "./chat.router";
 import notificationRouter from "./notification.router";
 import mobilePrescriptionRouter from "./mobile-prescription.router";
 import contactRouter from "./contact-us.router";
+import consentRouter from "./consent.router";
 import accountWithdrawalRouter from "./account-withdrawal.router";
 import { OrganizationDocumentController } from "src/controllers/web/organisation-document.controller";
 import organisationDocumentRouter from "./organisation-document.router";
@@ -185,6 +186,7 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/notification`, notificationRouter);
   app.use(`/v1/prescription`, mobilePrescriptionRouter);
   app.use(`/v1/contact-us`, contactRouter);
+  app.use(`/v1/consent`, consentRouter);
   app.use(`/v1/account-withdrawal`, accountWithdrawalRouter);
   app.get(
     `/v1/legal-document/:type`,
