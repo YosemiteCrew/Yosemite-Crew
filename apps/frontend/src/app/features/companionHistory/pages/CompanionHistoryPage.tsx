@@ -58,6 +58,7 @@ import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import AllergyListPanel from '@/app/features/companionHistory/components/AllergyListPanel';
 import ConsentListPanel from '@/app/features/companionHistory/components/ConsentListPanel';
+import DocumentsListPanel from '@/app/features/companionHistory/components/DocumentsListPanel';
 import FlagListPanel from '@/app/features/companionHistory/components/FlagListPanel';
 import PocLabListPanel from '@/app/features/companionHistory/components/PocLabListPanel';
 import { isCompanionRevampEnabled } from '@/app/lib/featureFlags';
@@ -708,6 +709,11 @@ const CompanionHistoryDesktopBody = ({
     {hasCompanionId ? (
       <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]}>
         <ConsentListPanel companionId={companionId} />
+      </PermissionGate>
+    ) : null}
+    {hasCompanionId ? (
+      <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]}>
+        <DocumentsListPanel companionId={companionId} />
       </PermissionGate>
     ) : null}
     {hasCompanionId ? (
