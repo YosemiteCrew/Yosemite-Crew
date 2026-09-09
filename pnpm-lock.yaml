@@ -81,6 +81,7 @@ overrides:
   ws@7: 7.5.12
   ws@8: 8.21.1
   multer: 2.3.0
+  playwright-core: 1.62.1
   aws-cdk-lib: 2.265.0
   '@babel/core@7.29.0': 7.29.6
   next: 15.5.24
@@ -575,7 +576,7 @@ importers:
     devDependencies:
       '@axe-core/playwright':
         specifier: ^4.13.0
-        version: 4.13.0(playwright-core@1.63.0)
+        version: 4.13.0(playwright-core@1.62.1)
       '@iconify/react':
         specifier: ^6.0.0
         version: 6.0.2(react@19.2.4)
@@ -1654,13 +1655,13 @@ packages:
     engines: {node: '>=18.0.0'}
     dev: false
 
-  /@axe-core/playwright@4.13.0(playwright-core@1.63.0):
+  /@axe-core/playwright@4.13.0(playwright-core@1.62.1):
     resolution: {integrity: sha512-6YLx+kxXu5GJceG4ozFg+33a2EMTdjYwWGloJ3sb9Kta5pp+ZNS53uxGVog5JetIY8s++P5UrtX+cri+u0VAVg==}
     peerDependencies:
-      playwright-core: '>= 1.0.0'
+      playwright-core: 1.62.1
     dependencies:
       axe-core: 4.13.0
-      playwright-core: 1.63.0
+      playwright-core: 1.62.1
     dev: true
 
   /@azu/format-text@1.0.2:
@@ -25349,12 +25350,6 @@ packages:
     resolution: {integrity: sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==}
     engines: {node: '>=20'}
     hasBin: true
-
-  /playwright-core@1.63.0:
-    resolution: {integrity: sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg==}
-    engines: {node: '>=20'}
-    hasBin: true
-    dev: true
 
   /playwright@1.62.1:
     resolution: {integrity: sha512-0M+L3LAD8/nm554LOla9Ayx0j0tmFZ0FBcoQ7F1VuVHpM/XpiC8RcDzBQB8W5+hA8L22THxELzeF+2WcUzvcLg==}
