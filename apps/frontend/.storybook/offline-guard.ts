@@ -94,26 +94,9 @@
  *
  * NOT COVERED, on purpose: `WebSocket`, `navigator.sendBeacon`, and subresource
  * loads (`<img src>`, `<script src>`), none of which go through `fetch`/XHR.
- * Widening the guard to the whole network layer would start intercepting
- * things Storybook itself depends on.
- *
- * This one WAS wrong, not merely untested - #2853. Ten `<img>` references
- * across 8 story files pointed at the production CDN, and two of them
- * (`AvatarImage`, `UserLabels`) are fixed: their photo prop reaches
- * `next/image` with no sanitiser in between, so a same-origin fixture path
- * works. The other six (`AppointmentAvatar`, `PopoverHeader`,
- * `CompanionContextCard`, `StaffField`, `CompanionInfo`, `InClinicTodayBand`,
- * `WalletPassPreview`, `Personal`) route the photo through
- * `getSafeImageUrl`/`isHttpsAvatar` first, which requires a literal
- * `https://` prefix and falls back to `MEDIA_SOURCES.avatars.*` when it is
- * missing - and that fallback is the SAME production CDN, not a local one.
- * Measured: swapping the story's fixture to a local path there still fires a
- * real `cloudfront.net` request, just for the fallback image instead of the
- * intended one. The `<img src>` attribute IS the fetch target, so no
- * DOM-property override on this primitive can point the request somewhere
- * else while leaving an `https://` value in place for the sanitiser to
- * accept - fixing those six needs a network-layer intercept (a Service
- * Worker), not the technique this file uses for `fetch`/XHR.
+ * No story in the suite has been observed to need them, and widening the guard
+ * to the whole network layer would start intercepting things Storybook itself
+ * depends on.
  */
 
 /**
