@@ -58,6 +58,7 @@ import {
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import TableHead from '@/app/ui/tables/TableHead';
+import FilterChip from '@/app/ui/filters/FilterChip';
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
 const MODALITY_FILTERS = [
@@ -1092,18 +1093,6 @@ type ModalityPillsProps = {
   onToggleAwaitingReview: () => void;
 };
 
-const MODALITY_PILL_ACTIVE_STYLE: React.CSSProperties = {
-  background: 'var(--inset)',
-  borderColor: 'var(--divider)',
-  color: 'var(--ink)',
-  fontWeight: 700,
-};
-const MODALITY_PILL_IDLE_STYLE: React.CSSProperties = {
-  borderColor: 'var(--hairline)',
-  color: 'var(--ink-muted)',
-  fontWeight: 600,
-};
-
 const ModalityPills = ({
   modalityFilter,
   awaitingReviewOnly,
@@ -1113,38 +1102,27 @@ const ModalityPills = ({
   return (
     // Phone: a single horizontally scrollable row. Tablet / desktop: wraps.
     <div className="scrollbar-x-float flex items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
-      {MODALITY_FILTERS.map((filter) => {
-        const active = modalityFilter === filter.value;
-        return (
-          <button
-            key={filter.value}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onSelectModality(filter.value as ModalityFilter)}
-            className="inline-flex shrink-0 items-center rounded-full border px-[13px] py-1.5 text-caption-1 whitespace-nowrap transition-colors"
-            style={active ? MODALITY_PILL_ACTIVE_STYLE : MODALITY_PILL_IDLE_STYLE}
-          >
-            {filter.label}
-          </button>
-        );
-      })}
+      {MODALITY_FILTERS.map((filter) => (
+        <FilterChip
+          key={filter.value}
+          label={filter.label}
+          active={modalityFilter === filter.value}
+          onClick={() => onSelectModality(filter.value as ModalityFilter)}
+        />
+      ))}
       <span
         className="mx-1 hidden h-4 w-px md:block"
         style={{ background: 'var(--hairline)' }}
         aria-hidden="true"
       />
-      <button
-        type="button"
-        aria-pressed={awaitingReviewOnly}
+      <FilterChip
+        label="Awaiting review"
+        active={awaitingReviewOnly}
         onClick={onToggleAwaitingReview}
-        className="inline-flex shrink-0 items-center rounded-full border px-[13px] py-1.5 text-caption-1 whitespace-nowrap transition-colors"
-        style={awaitingReviewOnly ? MODALITY_PILL_ACTIVE_STYLE : MODALITY_PILL_IDLE_STYLE}
-      >
-        Awaiting review
-      </button>
+      />
       <span
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-[13px] py-1.5 text-caption-1 whitespace-nowrap md:ml-auto"
-        style={MODALITY_PILL_IDLE_STYLE}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-[13px] py-1.5 text-[12.5px] whitespace-nowrap md:ml-auto"
+        style={{ borderColor: 'var(--hairline)', color: 'var(--ink-muted)', fontWeight: 600 }}
       >
         <IoCalendarClearOutline size={12} aria-hidden="true" />
         Last 7 days
