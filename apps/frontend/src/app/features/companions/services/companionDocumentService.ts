@@ -23,14 +23,20 @@ export const createCompanionDocument = async (document: CompanionRecord, compani
   }
 };
 
-export const loadCompanionDocument = async (companionId: string): Promise<CompanionRecord[]> => {
+/**
+ * A companion-documents GET can come back as a bare array or wrapped under
+ * `data`/`documents`, depending on the endpoint - normalizes any of those
+ * to a plain array, defaulting to empty rather than throwing on a shape
+ * this hasn't seen.
+ */
+const fetchCompanionRecords = async (
+  url: string,
+  errorMessage: string
+): Promise<CompanionRecord[]> => {
   try {
-    if (!companionId) {
-      throw new Error('Companion ID missing');
-    }
     const res = await getData<
       CompanionRecord[] | { data?: CompanionRecord[]; documents?: CompanionRecord[] }
-    >('/v1/document/pms/' + companionId, { _t: Date.now() });
+    >(url, { _t: Date.now() });
     const payload = res.data;
     if (Array.isArray(payload)) {
       return payload;
@@ -43,9 +49,16 @@ export const loadCompanionDocument = async (companionId: string): Promise<Compan
     }
     return [];
   } catch (err) {
-    console.error('Failed to create service:', err);
+    console.error(errorMessage, err);
     throw err;
   }
+};
+
+export const loadCompanionDocument = async (companionId: string): Promise<CompanionRecord[]> => {
+  if (!companionId) {
+    throw new Error('Companion ID missing');
+  }
+  return fetchCompanionRecords('/v1/document/pms/' + companionId, 'Failed to create service:');
 };
 
 /**
@@ -56,28 +69,13 @@ export const loadCompanionDocument = async (companionId: string): Promise<Compan
 export const loadConsentDocumentsForCompanion = async (
   companionId: string
 ): Promise<CompanionRecord[]> => {
-  try {
-    if (!companionId) {
-      throw new Error('Companion ID missing');
-    }
-    const res = await getData<
-      CompanionRecord[] | { data?: CompanionRecord[]; documents?: CompanionRecord[] }
-    >('/v1/document/pms/' + companionId + '/consent', { _t: Date.now() });
-    const payload = res.data;
-    if (Array.isArray(payload)) {
-      return payload;
-    }
-    if (Array.isArray(payload?.data)) {
-      return payload.data;
-    }
-    if (Array.isArray(payload?.documents)) {
-      return payload.documents;
-    }
-    return [];
-  } catch (err) {
-    console.error('Failed to load consent documents:', err);
-    throw err;
+  if (!companionId) {
+    throw new Error('Companion ID missing');
   }
+  return fetchCompanionRecords(
+    '/v1/document/pms/' + companionId + '/consent',
+    'Failed to load consent documents:'
+  );
 };
 
 export const loadDocumentDetails = async (documentId: string): Promise<CompanionRecord> => {
