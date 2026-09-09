@@ -576,7 +576,7 @@ describe('AppointmentWorkspace container', () => {
 
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /room: ward a/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Ward B' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Ward B' }));
     // Selecting a room auto-selects that room's first unit, so the Unit dropdown
     // now reflects "B" (unit-b) rather than the placeholder.
     expect(screen.getByRole('button', { name: 'Unit: B' })).toBeInTheDocument();
@@ -736,7 +736,7 @@ describe('AppointmentWorkspace container', () => {
 
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /room/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Exam Room 2' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Exam Room 2' }));
 
     await waitFor(() => {
       expect(updateAppointment).toHaveBeenCalledWith(
@@ -774,7 +774,7 @@ describe('AppointmentWorkspace container', () => {
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /hospitalize patient/i }));
     fireEvent.click(screen.getAllByRole('button', { name: /room/i }).at(-1)!);
-    fireEvent.click(screen.getByRole('button', { name: 'Ward A' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Ward A' }));
     fireEvent.click(screen.getByRole('button', { name: /convert to inpatient/i }));
 
     await waitFor(() => {
@@ -830,7 +830,7 @@ describe('AppointmentWorkspace container', () => {
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /hospitalize patient/i }));
     fireEvent.click(screen.getAllByRole('button', { name: /room/i }).at(-1)!);
-    fireEvent.click(screen.getByRole('button', { name: 'Ward B' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Ward B' }));
 
     expect(screen.getByRole('button', { name: 'Unit: B' })).toBeInTheDocument();
 
@@ -899,18 +899,18 @@ describe('AppointmentWorkspace container', () => {
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /hospitalize patient/i }));
     fireEvent.click(screen.getAllByRole('button', { name: /room/i }).at(-1)!);
-    fireEvent.click(screen.getByRole('button', { name: 'Ward A' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Ward A' }));
     fireEvent.click(screen.getByRole('button', { name: 'Additional Service / Package' }));
 
     expect(
-      screen.getByRole('button', { name: /Hospitalization monitoring Service/i })
+      screen.getByRole('option', { name: /Hospitalization monitoring Service/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /Inpatient care package Package/i })
+      screen.getByRole('option', { name: /Inpatient care package Package/i })
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Hospitalization monitoring Service/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Inpatient care package Package/i }));
+    fireEvent.click(screen.getByRole('option', { name: /Hospitalization monitoring Service/i }));
+    fireEvent.click(screen.getByRole('option', { name: /Inpatient care package Package/i }));
 
     expect(
       screen.getByRole('button', { name: /Hospitalization monitoring, Inpatient care package/i })
@@ -988,7 +988,7 @@ describe('AppointmentWorkspace container', () => {
     expect(screen.getByRole('button', { name: 'Unit: A' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Unit: A' }));
-    fireEvent.click(screen.getByRole('button', { name: 'B' }));
+    fireEvent.click(screen.getByRole('option', { name: 'B' }));
 
     await waitFor(() => {
       expect(assignEncounterUnit).toHaveBeenCalledWith(
@@ -1169,7 +1169,7 @@ describe('AppointmentWorkspace container', () => {
 
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Unit: A' }));
-    fireEvent.click(screen.getByRole('button', { name: 'B' }));
+    fireEvent.click(screen.getByRole('option', { name: 'B' }));
 
     await waitFor(() => {
       expect(assignEncounterUnit).toHaveBeenCalledWith(
@@ -1218,7 +1218,7 @@ describe('AppointmentWorkspace container', () => {
 
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Unit: A' }));
-    fireEvent.click(screen.getByRole('button', { name: 'B' }));
+    fireEvent.click(screen.getByRole('option', { name: 'B' }));
 
     await waitFor(() => {
       expect(admitAppointment).toHaveBeenCalledWith(
@@ -1673,7 +1673,7 @@ describe('AppointmentWorkspace container', () => {
 
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Unit: A' }));
-    fireEvent.click(screen.getByRole('button', { name: 'B' }));
+    fireEvent.click(screen.getByRole('option', { name: 'B' }));
 
     await waitFor(() =>
       expect(mockNotify).toHaveBeenCalledWith(
@@ -1697,7 +1697,7 @@ describe('AppointmentWorkspace container', () => {
 
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Unit: A' }));
-    fireEvent.click(screen.getByRole('button', { name: 'B' }));
+    fireEvent.click(screen.getByRole('option', { name: 'B' }));
 
     await waitFor(() =>
       expect(admitAppointment).toHaveBeenCalledWith(
@@ -1739,7 +1739,7 @@ describe('AppointmentWorkspace container', () => {
 
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /room/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Exam Room 2' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Exam Room 2' }));
 
     await waitFor(() =>
       expect(consoleError).toHaveBeenCalledWith(
@@ -1760,7 +1760,7 @@ describe('AppointmentWorkspace container', () => {
 
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Unit: A' }));
-    fireEvent.click(screen.getByRole('button', { name: 'B' }));
+    fireEvent.click(screen.getByRole('option', { name: 'B' }));
 
     await waitFor(() =>
       expect(mockNotify).toHaveBeenCalledWith(
@@ -2087,7 +2087,7 @@ describe('AppointmentWorkspace container', () => {
 
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Unit: A' }));
-    fireEvent.click(screen.getByRole('button', { name: 'B' }));
+    fireEvent.click(screen.getByRole('option', { name: 'B' }));
 
     // The missing-admission recovery routes into handleAdmit, which refuses because
     // the un-checked-in appointment can't be admitted yet.
@@ -3145,7 +3145,7 @@ describe('AppointmentWorkspace container', () => {
 
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Unit: A' }));
-    fireEvent.click(screen.getByRole('button', { name: 'B' }));
+    fireEvent.click(screen.getByRole('option', { name: 'B' }));
 
     await waitFor(() =>
       expect(mockNotify).toHaveBeenCalledWith('error', {
@@ -3172,7 +3172,7 @@ describe('AppointmentWorkspace container', () => {
 
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Unit: unit-x' }));
-    fireEvent.click(screen.getByRole('button', { name: 'unit-x' }));
+    fireEvent.click(screen.getByRole('option', { name: 'unit-x' }));
 
     await waitFor(() =>
       expect(admitAppointment).toHaveBeenCalledWith(
@@ -3208,7 +3208,7 @@ describe('AppointmentWorkspace container', () => {
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     const reselectUnit = async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Unit: unit-x' }));
-      fireEvent.click(screen.getByRole('button', { name: 'unit-x' }));
+      fireEvent.click(screen.getByRole('option', { name: 'unit-x' }));
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
@@ -3250,7 +3250,7 @@ describe('AppointmentWorkspace container', () => {
 
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /room: ward a/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Ward B' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Ward B' }));
 
     await waitFor(() =>
       expect(mockNotify).toHaveBeenCalledWith(
@@ -3287,7 +3287,7 @@ describe('AppointmentWorkspace container', () => {
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /hospitalize patient/i }));
     fireEvent.click(screen.getAllByRole('button', { name: /room/i }).at(-1)!);
-    fireEvent.click(screen.getByRole('button', { name: 'Ward A' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Ward A' }));
   };
 
   it('omits the expected stay when the tentative discharge date is cleared', async () => {
@@ -3329,7 +3329,7 @@ describe('AppointmentWorkspace container', () => {
     await openHospitalizationAndPickRoom(makeAppointment(new Date()));
 
     fireEvent.click(screen.getByRole('button', { name: /assigned support/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Nina' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Nina' }));
     fireEvent.click(screen.getByRole('button', { name: /convert to inpatient/i }));
 
     await waitFor(() =>
@@ -3400,8 +3400,8 @@ describe('AppointmentWorkspace container', () => {
     } as Appointment);
 
     fireEvent.click(screen.getByRole('button', { name: 'Additional Service / Package' }));
-    fireEvent.click(screen.getByRole('button', { name: /Hospitalization monitoring Service/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Inpatient care package Package/i }));
+    fireEvent.click(screen.getByRole('option', { name: /Hospitalization monitoring Service/i }));
+    fireEvent.click(screen.getByRole('option', { name: /Inpatient care package Package/i }));
     fireEvent.click(screen.getByRole('button', { name: /convert to inpatient/i }));
 
     await waitFor(() =>
@@ -3497,7 +3497,7 @@ describe('AppointmentWorkspace container', () => {
 
     expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Unit: unit-x' }));
-    fireEvent.click(screen.getByRole('button', { name: 'unit-x' }));
+    fireEvent.click(screen.getByRole('option', { name: 'unit-x' }));
 
     await waitFor(() =>
       expect(admitAppointment).toHaveBeenCalledWith(

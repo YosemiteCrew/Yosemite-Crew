@@ -530,6 +530,28 @@ describe('Dropdown Component', () => {
     expect(container).toHaveClass('custom-class-test');
   });
 
+  it('exposes listbox/option ARIA roles with aria-selected on the panel', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value="Option B"
+        onChange={mockOnChange}
+        options={['Option A', 'Option B']}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    const options = screen.getAllByRole('option');
+    expect(options).toHaveLength(2);
+
+    const optionA = screen.getByRole('option', { name: 'Option A' });
+    const optionB = screen.getByRole('option', { name: 'Option B' });
+    expect(optionA).toHaveAttribute('aria-selected', 'false');
+    expect(optionB).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('has no axe accessibility violations', async () => {
     const { container } = render(
       <Dropdown

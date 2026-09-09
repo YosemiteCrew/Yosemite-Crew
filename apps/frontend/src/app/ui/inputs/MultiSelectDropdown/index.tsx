@@ -45,6 +45,7 @@ const MultiSelectPanel = ({
 }: MultiSelectPanelProps) => (
   <div
     id={listboxId}
+    role="listbox"
     data-portal-dropdown
     className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-[12px] border border-t bg-[var(--screen)] shadow-[0_16px_34px_var(--sh12)] flex flex-col items-stretch w-full px-3 py-2.5"
     style={shouldPortal && portalStyle ? portalStyle : undefined}
@@ -56,7 +57,8 @@ const MultiSelectPanel = ({
           <button
             type="button"
             id={`${listboxId}-option-${option.value}`}
-            aria-pressed={isSelected}
+            role="option"
+            aria-selected={isSelected}
             className={`flex items-center justify-between gap-2 px-5 py-2 text-left text-[13px] hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full ${
               activeOptionId === `${listboxId}-option-${option.value}`
                 ? 'bg-card-hover text-text-primary!'
