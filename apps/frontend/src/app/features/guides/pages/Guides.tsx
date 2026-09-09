@@ -194,33 +194,14 @@ export const Guides = () => {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          {categories.map((category) => {
-            const isActive = category === activeCategory;
-            return (
-              <button
-                type="button"
-                key={category}
-                onClick={() => setActiveCategory(category)}
-                className="rounded-full border px-[15px] py-[7px] text-[12.5px] transition-colors"
-                style={
-                  isActive
-                    ? {
-                        backgroundColor: 'var(--inset)',
-                        borderColor: 'var(--divider)',
-                        color: 'var(--ink)',
-                        fontWeight: 700,
-                      }
-                    : {
-                        borderColor: 'var(--hairline)',
-                        color: 'var(--ink-muted)',
-                        fontWeight: 600,
-                      }
-                }
-              >
-                {category}
-              </button>
-            );
-          })}
+          {categories.map((category) => (
+            <FilterChip
+              key={category}
+              label={category}
+              active={category === activeCategory}
+              onClick={() => setActiveCategory(category)}
+            />
+          ))}
         </div>
         <Search
           value={search}
