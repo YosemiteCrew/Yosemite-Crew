@@ -22,7 +22,14 @@ Manages adverse event reports (for example, a suspected reaction to a medication
 
 ### GET /organisation/:organisationId
 
+- Auth: `requireWebAuth`, `withOrgPermissions()`
 - Params: `organisationId`
+- Controller: `AdverseEventController.listForOrg`
+
+### GET /:id
+
+- Auth: `requireWebAuth`
+- Params: `id`
 - Controller: `AdverseEventController.getById`
 
 ### PATCH /:id/status
