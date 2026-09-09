@@ -4695,18 +4695,16 @@ describe("AppointmentPrismaService", () => {
       expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
     });
 
-    it("updates the appointment's room and returns the refreshed response", async () => {
+    it("updates the appointment's room", async () => {
       mockedPrisma.appointment.findFirst.mockResolvedValue(makeRow());
       mockedPrisma.appointment.update.mockResolvedValue(
         makeRow({ room: { id: "room_2", name: "Room 2" } }),
       );
-      mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
-      const result = await AppointmentPrismaService.updateAppointmentRoom(
-        "appt_1",
-        "org_1",
-        { id: "room_2", name: "Room 2" },
-      );
+      await AppointmentPrismaService.updateAppointmentRoom("appt_1", "org_1", {
+        id: "room_2",
+        name: "Room 2",
+      });
 
       expect(mockedPrisma.appointment.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -4716,7 +4714,9 @@ describe("AppointmentPrismaService", () => {
           }),
         }),
       );
-      expect((result as any).room).toEqual({ id: "room_2", name: "Room 2" });
+      // The DTO conversion (toResponse) queries payment state, which this
+      // discarded-return method has no caller that needs - it must not run.
+      expect(mockedPrisma.invoice.findMany).not.toHaveBeenCalled();
     });
   });
 });
