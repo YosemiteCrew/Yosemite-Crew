@@ -184,8 +184,8 @@ A pnpm + Turborepo workspace. Apps ship; packages are the shared spine underneat
 | `@yosemite-crew/types`         | Shared domain and form types across web, mobile, and API.                                                                             |
 | `@yosemite-crew/fhir`          | FHIR R4 helpers.                                                                                                                      |
 | `@yosemite-crew/fhirtypes`     | FHIR R4 resource type definitions.                                                                                                    |
-| `@yosemite-crew/design-tokens` | Semantic token definitions. No app imports it yet; the live web palette is the `@theme` block in `apps/frontend/src/app/globals.css`. |
 | `@yosemite-crew/lib`           | Cross-workspace utilities.                                                                                                            |
+| `@yosemite-crew/mcp-server`    | MCP server mounting the developer data plane.                                                                                         |
 
 <br>
 
