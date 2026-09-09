@@ -163,7 +163,11 @@
       "adm-zip": "0.6.0",
       "http-proxy-middleware": "2.0.10",
       "stream-chat": "9.52.0",
-      "zod": "4.5.4"
+      "zod": "4.5.4",
+      "toml": "4.1.2",
+      "stream-json": "3.5.0",
+      "@humanfs/node": "0.16.8",
+      "decode-uri-component": "0.5.0"
     },
     "patchedDependencies": {
       "react-native@0.81.6": "patches/react-native@0.81.6.patch",
