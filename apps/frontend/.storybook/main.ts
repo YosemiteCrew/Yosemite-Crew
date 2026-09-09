@@ -63,6 +63,18 @@ const config: StorybookConfigWithFavicon = {
       { find: /^@\/ui\//, replacement: `${path.join(src, 'app/ui')}/` },
       { find: /^@\/lib\//, replacement: `${path.join(src, 'app/lib')}/` },
       { find: /^@\/constants\//, replacement: `${path.join(src, 'app/constants')}/` },
+      /**
+       * Must precede the bare `@/` catch-all below, or every import of the
+       * real module (this file's own re-export included - see
+       * `mocks/mediaSources.ts`, which imports it by relative path for
+       * exactly this reason) would resolve back to the real module instead.
+       * See `mocks/mediaSources.ts` for why the avatar pool needs a
+       * Storybook-only override - #2853.
+       */
+      {
+        find: /^@\/app\/constants\/mediaSources$/,
+        replacement: path.join(here, 'mocks/mediaSources.ts'),
+      },
       { find: /^@\//, replacement: `${src}/` },
     ];
 
