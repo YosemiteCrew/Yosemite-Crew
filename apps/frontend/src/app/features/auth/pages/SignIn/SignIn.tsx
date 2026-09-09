@@ -268,7 +268,9 @@ const SignInForm = ({
         isDeveloper ? (
           <>
             Pick up where you{' '}
-            <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#5ce1e6' }}>left off.</em>
+            <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--cyan)' }}>
+              left off.
+            </em>
           </>
         ) : (
           <>

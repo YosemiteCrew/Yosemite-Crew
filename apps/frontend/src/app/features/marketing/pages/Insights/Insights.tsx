@@ -164,7 +164,7 @@ function Heartbeat({ weeks }: Readonly<{ weeks: number[] | null }>) {
               minWidth: 2,
               height: `${height}%`,
               borderRadius: '2px 2px 1px 1px',
-              background: 'linear-gradient(180deg,#5ce1e6,#257bed)',
+              background: 'linear-gradient(180deg,var(--cyan),var(--blue))',
               transformOrigin: 'bottom',
               animation: isLast ? 'ycBeat 1.8s ease-in-out infinite' : undefined,
             }}
@@ -336,7 +336,7 @@ function ConsoleLastCommit({ lastCommit }: Readonly<{ lastCommit: RepoCommit | u
   return (
     <div style={CONSOLE_COMMIT_BOX_STYLE}>
       <IoGitCommitOutline
-        style={{ fontSize: 16, color: '#5ce1e6', flex: 'none' }}
+        style={{ fontSize: 16, color: 'var(--cyan)', flex: 'none' }}
         aria-hidden="true"
       />
       <span
@@ -708,7 +708,7 @@ function Manifesto() {
                 fontStyle: 'italic',
                 fontWeight: 500,
                 letterSpacing: '-0.01em',
-                color: '#5ce1e6',
+                color: 'var(--cyan)',
               }}
             >
               If you build in the open, it should not stop at the code.
@@ -840,7 +840,7 @@ function LatestReleaseCard() {
           }}
         >
           <span style={RELEASE_LABEL_STYLE}>
-            <IoPricetagOutline style={{ fontSize: 15, color: '#5ce1e6' }} aria-hidden="true" />
+            <IoPricetagOutline style={{ fontSize: 15, color: 'var(--cyan)' }} aria-hidden="true" />
             Latest release
           </span>
           <IoArrowForwardOutline style={{ fontSize: 16, color: '#8a8074' }} aria-hidden="true" />

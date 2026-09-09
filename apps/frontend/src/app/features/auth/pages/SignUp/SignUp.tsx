@@ -179,7 +179,9 @@ const SignUpBrand = ({ effectiveDeveloper }: { effectiveDeveloper: boolean }) =>
       effectiveDeveloper ? (
         <>
           Build it in{' '}
-          <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#5ce1e6' }}>an afternoon.</em>
+          <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--cyan)' }}>
+            an afternoon.
+          </em>
         </>
       ) : (
         <>
