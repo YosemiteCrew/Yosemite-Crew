@@ -48,6 +48,38 @@ export const loadCompanionDocument = async (companionId: string): Promise<Compan
   }
 };
 
+/**
+ * Just the signed/generated consent documents from the e-signing portal
+ * (Documenso), for the companion-history Consent section - not every
+ * document {@link loadCompanionDocument} returns.
+ */
+export const loadConsentDocumentsForCompanion = async (
+  companionId: string
+): Promise<CompanionRecord[]> => {
+  try {
+    if (!companionId) {
+      throw new Error('Companion ID missing');
+    }
+    const res = await getData<
+      CompanionRecord[] | { data?: CompanionRecord[]; documents?: CompanionRecord[] }
+    >('/v1/document/pms/' + companionId + '/consent', { _t: Date.now() });
+    const payload = res.data;
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+    if (Array.isArray(payload?.data)) {
+      return payload.data;
+    }
+    if (Array.isArray(payload?.documents)) {
+      return payload.documents;
+    }
+    return [];
+  } catch (err) {
+    console.error('Failed to load consent documents:', err);
+    throw err;
+  }
+};
+
 export const loadDocumentDetails = async (documentId: string): Promise<CompanionRecord> => {
   try {
     if (!documentId) {

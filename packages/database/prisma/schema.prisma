@@ -1938,6 +1938,7 @@ enum TemplateKind {
   TASK_TEMPLATE
   CARE_PATHWAY
   INVOICE
+  CONSENT
 }
 
 enum RenderedDocumentStatus {

@@ -376,8 +376,6 @@ const toStorageTemplateKind = (kind: TemplateContractKind | TemplateKind) => {
       return "TASK_TEMPLATE" as TemplateKind;
     case "INPATIENT_SCHEDULE":
       return "CARE_PATHWAY" as TemplateKind;
-    case "CONSENT":
-      return "FORM" as TemplateKind;
     default:
       return kind;
   }
@@ -543,10 +541,34 @@ const resolveTemplateModeFromContext = async (
   return admission ? "INPATIENT" : "OUTPATIENT";
 };
 
+/**
+ * Templates can be requested by one kind or several (a CONSENT lookup has to
+ * match both CONSENT and the legacy FORM-tagged templates authored before
+ * CONSENT existed as a storage value - see normalizeResolverKind). Collapses
+ * that either shape to what Prisma's `kind` field actually accepts.
+ */
+const toKindFilter = (
+  kind:
+    | TemplateKind
+    | TemplateContractKind
+    | ReadonlyArray<TemplateKind | TemplateContractKind>
+    | undefined,
+): Prisma.TemplateWhereInput["kind"] => {
+  if (!kind) return undefined;
+  const storageKinds = (Array.isArray(kind) ? kind : [kind]).map(
+    toStorageTemplateKind,
+  );
+  return storageKinds.length > 1 ? { in: storageKinds } : storageKinds[0];
+};
+
 const normalizeResolverKind = (kind: TemplateContractKind): TemplateKind[] => {
   switch (kind) {
     case "CONSENT":
-      return ["FORM"];
+      // Additive, not a replacement: templates authored before CONSENT
+      // existed as a value are still stored as FORM, and nothing can
+      // retroactively relabel them, so appointment-time resolution has to
+      // keep finding those alongside newly-authored CONSENT templates.
+      return ["CONSENT", "FORM"];
     case "TASK_ASSIGNMENT":
       return ["TASK_TEMPLATE"];
     case "INPATIENT_SCHEDULE":
@@ -1185,7 +1207,10 @@ export const TemplateService = {
   async listForOrganisation(
     organisationId: string,
     filters?: {
-      kind?: TemplateKind | TemplateContractKind;
+      kind?:
+        | TemplateKind
+        | TemplateContractKind
+        | ReadonlyArray<TemplateKind | TemplateContractKind>;
       status?: TemplateStatus;
       scope?: TemplateScope;
       search?: string;
@@ -1195,7 +1220,7 @@ export const TemplateService = {
       where: {
         organisationId: ensureId(organisationId, "organisationId"),
         ownership: "ORG_TEMPLATE",
-        kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
+        kind: toKindFilter(filters?.kind),
         status: filters?.status,
         scope: filters?.scope,
         ...buildTemplateSearchFilter(filters?.search),
@@ -1216,24 +1241,32 @@ export const TemplateService = {
    * explicit `kind` filter can only narrow further, never widen.
    */
   async listLibrary(filters?: {
-    kind?: TemplateKind | TemplateContractKind;
+    kind?:
+      | TemplateKind
+      | TemplateContractKind
+      | ReadonlyArray<TemplateKind | TemplateContractKind>;
     status?: TemplateStatus;
     scope?: TemplateScope;
     search?: string;
     allowedKinds?: readonly TemplateKind[];
   }) {
-    const requestedKind = filters?.kind
-      ? toStorageTemplateKind(filters.kind)
+    const requestedKinds = filters?.kind
+      ? (Array.isArray(filters.kind) ? filters.kind : [filters.kind]).map(
+          toStorageTemplateKind,
+        )
       : undefined;
     const allowedKinds = filters?.allowedKinds;
 
     let kindFilter: Prisma.TemplateWhereInput["kind"];
-    if (requestedKind && allowedKinds) {
-      kindFilter = allowedKinds.includes(requestedKind)
-        ? requestedKind
-        : { in: [] };
-    } else if (requestedKind) {
-      kindFilter = requestedKind;
+    if (requestedKinds && allowedKinds) {
+      const permitted = requestedKinds.filter((kind) =>
+        allowedKinds.includes(kind),
+      );
+      kindFilter =
+        permitted.length > 1 ? { in: permitted } : (permitted[0] ?? { in: [] });
+    } else if (requestedKinds) {
+      kindFilter =
+        requestedKinds.length > 1 ? { in: requestedKinds } : requestedKinds[0];
     } else if (allowedKinds) {
       kindFilter = { in: [...allowedKinds] };
     }
@@ -1257,7 +1290,10 @@ export const TemplateService = {
     organisationId: string,
     ownerUserId: string,
     filters?: {
-      kind?: TemplateKind | TemplateContractKind;
+      kind?:
+        | TemplateKind
+        | TemplateContractKind
+        | ReadonlyArray<TemplateKind | TemplateContractKind>;
       status?: TemplateStatus;
       scope?: TemplateScope;
       search?: string;
@@ -1268,7 +1304,7 @@ export const TemplateService = {
         organisationId: ensureId(organisationId, "organisationId"),
         ownerUserId: ensureId(ownerUserId, "ownerUserId"),
         ownership: "USER_TEMPLATE",
-        kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
+        kind: toKindFilter(filters?.kind),
         status: filters?.status,
         scope: filters?.scope,
         ...buildTemplateSearchFilter(filters?.search),
@@ -1304,7 +1340,11 @@ export const TemplateService = {
     };
     const prismaKinds = normalizeResolverKind(parsed.kind);
     const filters = {
-      kind: prismaKinds[0],
+      // Every prismaKinds entry, not just the first - a CONSENT lookup must
+      // still find templates authored before CONSENT existed as a value and
+      // so remain stored as FORM (see normalizeResolverKind). Stays a scalar
+      // for every other kind, which only ever normalizes to one entry.
+      kind: prismaKinds.length > 1 ? prismaKinds : prismaKinds[0],
       status: TemplateStatus.PUBLISHED,
       scope: undefined as TemplateScope | undefined,
     };
