@@ -1050,6 +1050,53 @@ const ensureEncounterOnCheckIn = async (args: {
   return { encounterId: createdEncounter.id, caseId };
 };
 
+/**
+ * The front desk's arrival list and an appointment's own CHECKED_IN status
+ * are two independent state machines that share vocabulary without being
+ * wired together in this direction: `checkInAppointment` runs whenever an
+ * appointment is marked CHECKED_IN, which happens both when the front desk
+ * actually checks someone in (a PatientCheckIn row already exists by then)
+ * AND when staff move it there directly from the Board's "Change status"
+ * modal, which never creates one at all - so the Board shows the patient as
+ * checked in while the front desk's arrival list shows nobody.
+ *
+ * Best-effort and outside the status-change transaction on purpose: this is
+ * a visibility aid for the front desk, not a precondition for the status
+ * change itself, so a failure here must never roll back or block staff from
+ * marking someone checked in.
+ */
+const ensureFrontDeskArrival = async (
+  appointmentId: string,
+  organisationId: string,
+  row: AppointmentRow,
+): Promise<void> => {
+  try {
+    const existing = await prisma.patientCheckIn.findFirst({
+      where: { appointmentId },
+      select: { id: true },
+    });
+    if (existing) return;
+
+    const patientId = getPatientId(row.patient);
+    const clientId = getParentIdFromPatient(row.patient);
+    if (!patientId || !clientId) return;
+
+    const now = new Date();
+    await prisma.patientCheckIn.create({
+      data: {
+        organisationId,
+        patientId,
+        clientId,
+        appointmentId,
+        arrivedAt: now,
+        waitStartedAt: now,
+      },
+    });
+  } catch {
+    // Never let the arrival record block or fail the status change it rode in on.
+  }
+};
+
 const assertLeadAvailability = async (args: {
   tx: TransactionClient;
   organisationId: string;
@@ -1858,6 +1905,8 @@ export const AppointmentPrismaService = {
         },
       });
     });
+
+    await ensureFrontDeskArrival(appointmentId, organisationId, row);
 
     return toResponse(updated);
   },
