@@ -112,6 +112,10 @@ jest.mock("../../src/config/prisma", () => ({
       findFirst: jest.fn(),
       create: jest.fn(),
     },
+    patientCheckIn: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
   },
 }));
 
@@ -2374,6 +2378,85 @@ describe("AppointmentPrismaService", () => {
         message: "caseId could not be resolved for check-in.",
         statusCode: 400,
       });
+    });
+  });
+
+  describe("checkInAppointment front-desk arrival sync", () => {
+    beforeEach(() => {
+      // encounterId already set so ensureEncounterOnCheckIn short-circuits -
+      // these tests are about the arrival-record sync, not case/encounter
+      // resolution (covered separately above).
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ status: "UPCOMING", encounterId: "enc_1" }),
+      );
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({ status: "CHECKED_IN", encounterId: "enc_1" }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+    });
+
+    it("creates a PatientCheckIn row when none exists yet for this appointment", async () => {
+      mockedPrisma.patientCheckIn.findFirst.mockResolvedValue(null);
+      mockedPrisma.patientCheckIn.create.mockResolvedValue({
+        id: "ci_1",
+      } as any);
+
+      await AppointmentPrismaService.checkInAppointment("appt_1", "org_1");
+
+      expect(mockedPrisma.patientCheckIn.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { appointmentId: "appt_1" } }),
+      );
+      expect(mockedPrisma.patientCheckIn.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            organisationId: "org_1",
+            patientId: "comp_1",
+            clientId: "parent_1",
+            appointmentId: "appt_1",
+            arrivedAt: expect.any(Date),
+            waitStartedAt: expect.any(Date),
+          }),
+        }),
+      );
+    });
+
+    it("does not create a second PatientCheckIn row when one already exists for this appointment", async () => {
+      mockedPrisma.patientCheckIn.findFirst.mockResolvedValue({
+        id: "ci_existing",
+      } as any);
+
+      await AppointmentPrismaService.checkInAppointment("appt_1", "org_1");
+
+      expect(mockedPrisma.patientCheckIn.create).not.toHaveBeenCalled();
+    });
+
+    it("still checks the appointment in when the arrival-record write fails", async () => {
+      mockedPrisma.patientCheckIn.findFirst.mockResolvedValue(null);
+      mockedPrisma.patientCheckIn.create.mockRejectedValue(
+        new Error("db down"),
+      );
+
+      const result = await AppointmentPrismaService.checkInAppointment(
+        "appt_1",
+        "org_1",
+      );
+
+      expect(result.status).toBe("CHECKED_IN");
+    });
+
+    it("skips creating an arrival record when the appointment's patient/parent ids cannot be resolved", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({
+          status: "UPCOMING",
+          encounterId: "enc_1",
+          patient: { id: "comp_1" } as any,
+        }),
+      );
+      mockedPrisma.patientCheckIn.findFirst.mockResolvedValue(null);
+
+      await AppointmentPrismaService.checkInAppointment("appt_1", "org_1");
+
+      expect(mockedPrisma.patientCheckIn.create).not.toHaveBeenCalled();
     });
   });
 
