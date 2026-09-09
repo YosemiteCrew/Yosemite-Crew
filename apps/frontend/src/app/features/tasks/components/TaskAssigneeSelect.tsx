@@ -251,19 +251,25 @@ const OptionRow = ({
   </button>
 );
 
-const TaskAssigneeSelect = ({
+/**
+ * Owns every piece of state and behaviour the control has: search filtering
+ * across both lists, which entry is currently picked, keyboard navigation,
+ * and portal positioning. Separated from TaskAssigneeSelect itself so that
+ * component stays focused on composing the JSX from what this returns,
+ * rather than mixing the two concerns in one function.
+ */
+const useAssigneeDropdown = ({
   teamOptions,
   parentOptions,
   audience,
   assignedTo,
   onSelectTeam,
   onSelectParent,
-  error,
-}: TaskAssigneeSelectProps) => {
-  const hasOptions = teamOptions.length > 0 || parentOptions.length > 0;
+}: Pick<
+  TaskAssigneeSelectProps,
+  'teamOptions' | 'parentOptions' | 'audience' | 'assignedTo' | 'onSelectTeam' | 'onSelectParent'
+>) => {
   const listboxId = useId();
-  const controlId = useId();
-  const errorId = error ? `${controlId}-message` : undefined;
 
   const {
     open,
@@ -331,10 +337,72 @@ const TaskAssigneeSelect = ({
     onOuterScrollDismiss: closeDropdown,
     topOffset: 4,
   });
-  const shouldPortal = typeof document !== 'undefined';
 
-  const emptyMessage = query ? 'No matches found' : 'No assignees available yet.';
-  const nothingToShow = filteredEntries.length === 0;
+  return {
+    listboxId,
+    open,
+    searchQuery,
+    setSearchQuery,
+    inputRef,
+    openDropdown,
+    toggleDropdown,
+    filteredTeam,
+    filteredParents,
+    filteredEntries,
+    selectedEntry,
+    selectEntry,
+    activeOptionId,
+    setActiveIndex,
+    handleKeyDown,
+    attachDropdownRef,
+    portalStyle,
+    nothingToShow: filteredEntries.length === 0,
+    emptyMessage: query ? 'No matches found' : 'No assignees available yet.',
+  };
+};
+
+const TaskAssigneeSelect = ({
+  teamOptions,
+  parentOptions,
+  audience,
+  assignedTo,
+  onSelectTeam,
+  onSelectParent,
+  error,
+}: TaskAssigneeSelectProps) => {
+  const hasOptions = teamOptions.length > 0 || parentOptions.length > 0;
+  const controlId = useId();
+  const errorId = error ? `${controlId}-message` : undefined;
+
+  const {
+    listboxId,
+    open,
+    searchQuery,
+    setSearchQuery,
+    inputRef,
+    openDropdown,
+    toggleDropdown,
+    filteredTeam,
+    filteredParents,
+    filteredEntries,
+    selectedEntry,
+    selectEntry,
+    activeOptionId,
+    setActiveIndex,
+    handleKeyDown,
+    attachDropdownRef,
+    portalStyle,
+    nothingToShow,
+    emptyMessage,
+  } = useAssigneeDropdown({
+    teamOptions,
+    parentOptions,
+    audience,
+    assignedTo,
+    onSelectTeam,
+    onSelectParent,
+  });
+  const shouldPortal = typeof document !== 'undefined';
 
   const panelNode = (
     <div
