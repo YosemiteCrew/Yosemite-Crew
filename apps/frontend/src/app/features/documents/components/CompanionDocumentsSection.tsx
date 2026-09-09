@@ -20,6 +20,7 @@ import CompanionDocumentUploadForm, {
   DocumentUploadFormErrors,
 } from '@/app/features/documents/components/CompanionDocumentUploadForm';
 import CompanionRecordRow from '@/app/features/documents/components/CompanionRecordRow';
+import FilterChip from '@/app/ui/filters/FilterChip';
 import CompanionRecordsEmptyState from '@/app/features/documents/components/CompanionRecordsEmptyState';
 import {
   RecordFilter,
@@ -58,27 +59,6 @@ const FILTER_TABS: { value: RecordFilter; label: string }[] = [
   { value: 'UPLOADED', label: 'Uploaded' },
   { value: 'SYNCED', label: 'Synced' },
 ];
-
-type FilterPillProps = {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-};
-
-const FilterPill = ({ active, onClick, children }: FilterPillProps) => (
-  <button
-    type="button"
-    onClick={onClick}
-    aria-pressed={active}
-    className={`rounded-full border px-3 py-1.5 text-[12px] ${
-      active
-        ? 'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]'
-        : 'border-[var(--hairline)] font-semibold text-[var(--ink-muted)]'
-    }`}
-  >
-    {children}
-  </button>
-);
 
 type CompanionDocumentsSectionProps = {
   companionId: string;
@@ -258,22 +238,20 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 {FILTER_TABS.map((tab) => (
-                  <FilterPill
+                  <FilterChip
                     key={tab.value}
+                    label={tab.value === 'ALL' ? `${tab.label} · ${records.length}` : tab.label}
                     active={effectiveFilter === tab.value}
                     onClick={() => setFilter(tab.value)}
-                  >
-                    {tab.value === 'ALL' ? `${tab.label} · ${records.length}` : tab.label}
-                  </FilterPill>
+                  />
                 ))}
                 {lifecycleTabs.map((lifecycle) => (
-                  <FilterPill
+                  <FilterChip
                     key={lifecycle}
+                    label={RECORD_LIFECYCLE_LABELS[lifecycle]}
                     active={effectiveFilter === RECORD_LIFECYCLE_FILTERS[lifecycle]}
                     onClick={() => setFilter(RECORD_LIFECYCLE_FILTERS[lifecycle])}
-                  >
-                    {RECORD_LIFECYCLE_LABELS[lifecycle]}
-                  </FilterPill>
+                  />
                 ))}
               </div>
               <div className="flex items-center gap-2">
