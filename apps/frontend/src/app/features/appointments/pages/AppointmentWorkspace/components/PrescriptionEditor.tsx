@@ -122,7 +122,7 @@ const FulfillmentDropdown = ({
         onChange={(e) => onChange(e.target.value as PrescriptionFulfillment)}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
-        className="flex appearance-none items-center gap-1 rounded-2xl border border-neutral-500 bg-neutral-0 py-1.5 pr-10 pl-4 text-[14px] leading-[120%] font-medium text-neutral-900 disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex appearance-none items-center gap-1 rounded-[13px] border border-[var(--hairline)] bg-[var(--field-bg)] py-1.5 pr-10 pl-4 text-[14px] leading-[120%] font-medium text-[var(--ink-body)] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {FULFILLMENT_OPTIONS.map((option) => (
           <option key={option} value={option}>
