@@ -238,7 +238,7 @@ export const Default: AllergyListPanelStory = {
   name: 'Allergies loaded',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByRole('heading', { level: 3, name: 'Allergies' })).toBeVisible();
+    await expect(canvas.findByRole('heading', { level: 3, name: 'Allergies' })).toBeVisible();
     await expect(canvas.getByText('Penicillin')).toBeVisible();
     await expect(canvas.getByText('Life-threatening')).toBeVisible();
     await expect(canvas.getByText('Chicken protein')).toBeVisible();
@@ -250,7 +250,7 @@ export const Default: AllergyListPanelStory = {
     const allergenInput = await canvas.findByLabelText('Allergen');
     await userEvent.type(allergenInput, 'Latex');
     await userEvent.click(canvas.getByRole('button', { name: 'Save allergy' }));
-    await expect(await canvas.findByText('Latex')).toBeVisible();
+    await expect(canvas.findByText('Latex')).toBeVisible();
     await expect(canvas.queryByRole('button', { name: 'Save allergy' })).not.toBeInTheDocument();
 
     // Real resolve flow: submits through the hook, into the mocked POST.
@@ -308,7 +308,7 @@ export const ReadOnly: AllergyListPanelStory = {
   }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByText('Penicillin')).toBeVisible();
+    await expect(canvas.findByText('Penicillin')).toBeVisible();
     await expect(canvas.queryByRole('button', { name: 'Add allergy' })).not.toBeInTheDocument();
     await expect(
       canvas.queryByRole('button', { name: 'Resolve Chicken protein' })

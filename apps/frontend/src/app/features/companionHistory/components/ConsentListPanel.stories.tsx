@@ -260,7 +260,7 @@ export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(await canvas.findByRole('heading', { name: 'Consents' })).toBeVisible();
+    await expect(canvas.findByRole('heading', { name: 'Consents' })).toBeVisible();
     await expect(
       await canvas.findByText('Cranial cruciate ligament repair (left stifle)')
     ).toBeVisible();
@@ -281,7 +281,7 @@ export const Default: Story = {
       'li'
     ) as HTMLElement;
     await expect(newRow).not.toBeNull();
-    await expect(await canvas.findByText('3 active')).toBeVisible();
+    await expect(canvas.findByText('3 active')).toBeVisible();
     await expect(canvas.queryByRole('button', { name: 'Save consent' })).not.toBeInTheDocument();
 
     // Revoke: scoped to the new row, so the identically labelled "Revoke
@@ -300,7 +300,7 @@ export const Default: Story = {
     await expect(
       rowCanvas.queryByRole('button', { name: 'Revoke Surgical consent' })
     ).not.toBeInTheDocument();
-    await expect(await canvas.findByText('2 active')).toBeVisible();
+    await expect(canvas.findByText('2 active')).toBeVisible();
   },
 };
 

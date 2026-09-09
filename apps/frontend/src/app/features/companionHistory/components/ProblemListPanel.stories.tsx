@@ -251,7 +251,7 @@ export const Default: ProblemListPanelStory = {
     const titleInput = await canvas.findByLabelText('Problem title');
     await userEvent.type(titleInput, 'Seasonal allergies');
     await userEvent.click(canvas.getByRole('button', { name: 'Save problem' }));
-    await expect(await canvas.findByText('Seasonal allergies')).toBeVisible();
+    await expect(canvas.findByText('Seasonal allergies')).toBeVisible();
     await expect(canvas.queryByRole('button', { name: 'Save problem' })).not.toBeInTheDocument();
 
     // Real resolve flow: submits through the panel, into the mocked POST.
@@ -313,7 +313,7 @@ export const ReadOnly: ProblemListPanelStory = {
   }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByText('Chronic kidney disease')).toBeVisible();
+    await expect(canvas.findByText('Chronic kidney disease')).toBeVisible();
     await expect(canvas.queryByRole('button', { name: 'Add problem' })).not.toBeInTheDocument();
     await expect(
       canvas.queryByRole('button', { name: 'Resolve Otitis externa (left ear)' })
