@@ -150,7 +150,7 @@ PODS:
   - libwebp/sharpyuv (1.5.0)
   - libwebp/webp (1.5.0):
     - libwebp/sharpyuv
-  - LiquidGlass (0.8.0):
+  - LiquidGlass (0.8.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -2321,7 +2321,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-pdf (7.0.4):
+  - react-native-pdf (7.0.5):
     - boost
     - DoubleConversion
     - fast_float
@@ -2349,7 +2349,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-safe-area-context (5.8.1):
+  - react-native-safe-area-context (5.9.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -2367,8 +2367,8 @@ PODS:
     - React-graphics
     - React-ImageManager
     - React-jsi
-    - react-native-safe-area-context/common (= 5.8.1)
-    - react-native-safe-area-context/fabric (= 5.8.1)
+    - react-native-safe-area-context/common (= 5.9.1)
+    - react-native-safe-area-context/fabric (= 5.9.1)
     - React-NativeModulesApple
     - React-RCTFabric
     - React-renderercss
@@ -2379,7 +2379,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-safe-area-context/common (5.8.1):
+  - react-native-safe-area-context/common (5.9.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -2407,7 +2407,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-safe-area-context/fabric (5.8.1):
+  - react-native-safe-area-context/fabric (5.9.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -3030,7 +3030,7 @@ PODS:
   - RecaptchaInterop (101.0.0)
   - RNAppleAuthentication (2.5.1):
     - React-Core
-  - RNBootSplash (6.3.12):
+  - RNBootSplash (7.3.2):
     - boost
     - DoubleConversion
     - fast_float
@@ -3809,7 +3809,7 @@ PODS:
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
   - SocketRocket (0.7.1)
-  - stream-chat-react-native (8.13.19):
+  - stream-chat-react-native (8.14.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -4422,7 +4422,7 @@ SPEC CHECKSUMS:
   libavif: 84bbb62fb232c3018d6f1bab79beea87e35de7b7
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
-  LiquidGlass: fb9205c25c3926f5b2e379650e0ffc70d310445a
+  LiquidGlass: a550e4e959d15eec5194c96f77c7aab8ef0bf799
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   NitroModules: ab089a25876d6510138cc21fbf2e36e872f7d607
   NitroSound: 30de1f5bacf99badd64d781f336813362ef0b920
@@ -4472,8 +4472,8 @@ SPEC CHECKSUMS:
   react-native-image-picker: 0314366753615115fa55c3cc937ac44cb7e75702
   react-native-maps: 452eb21d3a1b5ab56772dc1f1dee04c594d4db15
   react-native-netinfo: a0be8c77f8420a60ddf07eb87be1a36f02a1bd65
-  react-native-pdf: 2886351f9ea698a820f53056afdabd6fa0ab726d
-  react-native-safe-area-context: 61f913dfb64ceb843bec60e54872a563b2d30972
+  react-native-pdf: 292d5d7cd7d79d95540e94f8e4c08cfce6c9eb18
+  react-native-safe-area-context: 6cf08f4151132f9cf2adb948dc6c4ac387f8d30f
   react-native-video: f8e9788554c53a1852166cd119d6e7c324b16dfe
   React-NativeModulesApple: 183f9bd5b20a51a8b016e90be78ed6c1538da4a7
   React-oscompat: d5e3366fbd6c7150e17c1bda85eab583a6fa9fce
@@ -4507,7 +4507,7 @@ SPEC CHECKSUMS:
   ReactCommon: 8fafefb37d562f9e4bbbc9081ca4501f178a97ec
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
   RNAppleAuthentication: a89c9804592b38ed4ab11f0aee68d05ba12ad432
-  RNBootSplash: a50a2908e25aa4a3e5e2eb429bcf5ed54cbcb9e2
+  RNBootSplash: 83bc1fef5ff2e9fd3ed0f20a472dd87d8a9ef898
   RNCalendarEvents: f90f73666b6bcbb3cc8a491ffbb5e48c0db3de37
   RNCAsyncStorage: 29f0230e1a25f36c20b05f65e2eb8958d6526e82
   RNCClipboard: 4b58c780f63676367640f23c8e114e9bd0cf86ac
@@ -4536,7 +4536,7 @@ SPEC CHECKSUMS:
   SDWebImageSVGCoder: 15a300a97ec1c8ac958f009c02220ac0402e936c
   SDWebImageWebPCoder: 0e06e365080397465cc73a7a9b472d8a3bd0f377
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
-  stream-chat-react-native: 4eecd591b990b12ab7a9e2aa3ccb376797035c86
+  stream-chat-react-native: 87628b782339fe06e41e18f03be7d6e09a22aa80
   Stripe: 604acd978f3ec2921098f477ccaa229e12690373
   stripe-react-native: 9fc51ba203ef5d66c89efb3df4ab8aeadaec4e56
   StripeApplePay: 9dabe2d3d897419a7a7663dc3338ff4bc51b9f54
