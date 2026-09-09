@@ -112,10 +112,7 @@ describe('Waitlist', () => {
     await user.click(screen.getByRole('button', { name: /Add to waitlist/ }));
     expect(screen.getByText('Companion')).toBeInTheDocument();
 
-    // CompanionSelect is a searchable LabelDropdown, not a native <select>: open
-    // it, then pick the rendered option row rather than selectOptions.
-    await user.click(screen.getByLabelText('Companion'));
-    await user.click(screen.getByRole('option', { name: 'Bruno — Sarah' }));
+    await user.selectOptions(screen.getByRole('combobox'), 'patient-1');
     await user.type(screen.getByPlaceholderText('e.g. Dental, Vaccination'), 'Dental');
     // The submit button is the one inside the open form (type=submit).
     await user.click(screen.getByRole('button', { name: 'Add to waitlist' }));
