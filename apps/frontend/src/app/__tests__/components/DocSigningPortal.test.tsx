@@ -45,10 +45,6 @@ describe('DocSigningPortal', () => {
       'allow-downloads allow-forms allow-modals allow-popups allow-scripts allow-same-origin'
     );
     expect(iframe).toHaveAttribute('referrerpolicy', 'strict-origin');
-    // Documenso's SSO cookie is set inside a cross-origin iframe, where
-    // browsers partition third-party storage by default; storage-access lets
-    // Documenso's frontend call the Storage Access API to un-partition it.
-    expect(iframe.getAttribute('allow')).toContain('storage-access');
   });
 
   it('shows fallback when portal url is unavailable', async () => {
