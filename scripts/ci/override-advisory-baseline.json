@@ -20,5 +20,12 @@
     "    \"uncovered\": [\"7.0.3\", \"8.0.0\"], \"advisory\": \"GHSA-...\",",
     "    \"reason\": \"why this is accepted\" }"
   ],
-  "accepted": []
+  "accepted": [
+    {
+      "package": "adm-zip",
+      "pinned": "0.6.0",
+      "advisory": "GHSA-vwc7-r8mq-g2x9",
+      "reason": "No patched version exists (advisory itself reports 'no patched version published' as of 2026-09-09) - 0.6.0 is the latest release. Nothing to raise the pin to; revisit when upstream ships a fix."
+    }
+  ]
 }
