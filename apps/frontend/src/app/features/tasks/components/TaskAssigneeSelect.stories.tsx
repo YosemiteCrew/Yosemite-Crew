@@ -25,8 +25,9 @@ const PARENT_OPTIONS: Option[] = [
  * The listbox (options, group headers, the empty/no-matches message) is
  * portalled to `document.body`, same as every other dropdown panel in this
  * app - see SearchResultsDropdown.stories.tsx for the precedent. A query
- * scoped to `canvasElement` cannot find it; only the trigger button (and its
- * search input, once open) stays a real DOM descendant of the story canvas.
+ * scoped to `canvasElement` cannot find it; only the trigger stays a real DOM
+ * descendant of the story canvas - the closed `<button>` when the panel is
+ * shut, or the search `<input>` that replaces it once open.
  */
 const findListbox = async (canvasElement: HTMLElement) => {
   const listbox = await within(document.body).findByRole('listbox');
@@ -216,8 +217,11 @@ export const HundredStaff: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Assign to' }));
     // One trigger, one scrollable portalled panel - never 102 pills inline in
-    // the page flow at once, unlike the chip row this replaced.
-    await expect(canvas.getAllByRole('button')).toHaveLength(1);
+    // the page flow at once, unlike the chip row this replaced. Opening swaps
+    // the closed <button> for the search <input> (they cannot nest - see
+    // TriggerSearch), so the canvas now holds zero buttons and one combobox.
+    await expect(canvas.queryAllByRole('button')).toHaveLength(0);
+    await expect(canvas.getAllByRole('combobox')).toHaveLength(1);
     const listbox = await findListbox(canvasElement);
     await userEvent.type(canvas.getByLabelText('Search staff or pet parents'), 'Staff Member 47');
     await waitFor(() => {

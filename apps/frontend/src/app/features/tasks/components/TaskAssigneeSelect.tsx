@@ -149,73 +149,79 @@ const AssigneeGroupSection = ({
   );
 };
 
-type TriggerContentProps = {
-  open: boolean;
+const ChevronToggle = ({ open, onChevronClick }: { open: boolean; onChevronClick: () => void }) => (
+  <span className="absolute right-[13px] top-1/2 -translate-y-1/2 flex items-center justify-center">
+    <IoChevronDown
+      size={13}
+      aria-hidden="true"
+      style={{
+        flexShrink: 0,
+        color: 'var(--ink-faint)',
+        transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+        transition: 'transform 150ms ease',
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onChevronClick();
+      }}
+    />
+  </span>
+);
+
+type TriggerSearchProps = {
   selectedEntry: AssigneeEntry | null;
   listboxId: string;
   searchQuery: string;
   activeOptionId?: string;
+  errorId?: string;
   inputRef: React.RefObject<HTMLInputElement | null>;
   onSearchChange: (value: string) => void;
   onSearchKeyDown: (event: React.KeyboardEvent) => void;
   onChevronClick: () => void;
 };
 
-const TriggerContent = ({
-  open,
+/**
+ * The open-state trigger: a real `<input>`, not a button. It owns the
+ * combobox/listbox ARIA attributes and takes focus (see useDropdown's
+ * open-effect) so a screen reader announces one interactive control, not a
+ * button with a textbox nested inside it - <button> cannot contain <input>
+ * per the HTML interactive-content-model, and the closed <button> below is a
+ * sibling state, not a wrapper, for the same reason.
+ */
+const TriggerSearch = ({
   selectedEntry,
   listboxId,
   searchQuery,
   activeOptionId,
+  errorId,
   inputRef,
   onSearchChange,
   onSearchKeyDown,
   onChevronClick,
-}: TriggerContentProps) => (
+}: TriggerSearchProps) => (
   <>
-    {open ? (
-      <input
-        ref={inputRef}
-        id={`${listboxId}-search`}
-        name={`${listboxId}-search`}
-        type="text"
-        value={searchQuery}
-        onChange={(e) => onSearchChange(e.target.value)}
-        placeholder={selectedEntry ? selectedEntry.option.label : 'Search staff or pet parents'}
-        aria-label="Search staff or pet parents"
-        aria-controls={listboxId}
-        aria-activedescendant={activeOptionId}
-        onKeyDown={(event) => {
-          event.stopPropagation();
-          onSearchKeyDown(event);
-        }}
-        className="w-full min-w-0 bg-transparent text-left text-[13px] text-[var(--ink-body)] focus-visible:outline-none placeholder:text-[var(--ink-faint)]"
-      />
-    ) : (
-      <span
-        className={`min-w-0 flex-1 truncate text-left text-[13px] ${
-          selectedEntry ? 'text-[var(--ink-body)]' : 'text-[var(--ink-faint)]'
-        }`}
-      >
-        {selectedEntry ? selectedEntry.option.label : 'Select staff or pet parent'}
-      </span>
-    )}
-    <span className="absolute right-[13px] top-1/2 -translate-y-1/2 flex items-center justify-center">
-      <IoChevronDown
-        size={13}
-        aria-hidden="true"
-        style={{
-          flexShrink: 0,
-          color: 'var(--ink-faint)',
-          transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-          transition: 'transform 150ms ease',
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          onChevronClick();
-        }}
-      />
-    </span>
+    <input
+      ref={inputRef}
+      id={`${listboxId}-search`}
+      name={`${listboxId}-search`}
+      type="text"
+      role="combobox"
+      value={searchQuery}
+      onChange={(e) => onSearchChange(e.target.value)}
+      placeholder={selectedEntry ? selectedEntry.option.label : 'Search staff or pet parents'}
+      aria-label="Search staff or pet parents"
+      aria-expanded="true"
+      aria-haspopup="listbox"
+      aria-controls={listboxId}
+      aria-activedescendant={activeOptionId}
+      aria-describedby={errorId}
+      onKeyDown={(event) => {
+        event.stopPropagation();
+        onSearchKeyDown(event);
+      }}
+      className="w-full min-w-0 bg-transparent text-left text-[13px] text-[var(--ink-body)] focus-visible:outline-none placeholder:text-[var(--ink-faint)]"
+    />
+    <ChevronToggle open onChevronClick={onChevronClick} />
   </>
 );
 
@@ -451,32 +457,42 @@ const TaskAssigneeSelect = ({
       <span className="text-[12.5px] font-semibold text-[var(--ink-soft)]">Assign to</span>
       {hasOptions ? (
         <div className="w-full relative" ref={attachDropdownRef}>
-          <button
-            id={controlId}
-            type="button"
-            className={triggerClassName(open, Boolean(error))}
-            onClick={() => {
-              if (!open) openDropdown();
-            }}
-            aria-label={triggerLabel}
-            aria-expanded={open}
-            aria-controls={open ? listboxId : undefined}
-            aria-haspopup="listbox"
-            aria-describedby={errorId}
-            onKeyDown={handleKeyDown}
-          >
-            <TriggerContent
-              open={open}
-              selectedEntry={selectedEntry}
-              listboxId={listboxId}
-              searchQuery={searchQuery}
-              activeOptionId={activeOptionId}
-              inputRef={inputRef}
-              onSearchChange={setSearchQuery}
-              onSearchKeyDown={handleKeyDown}
-              onChevronClick={toggleDropdown}
-            />
-          </button>
+          {open ? (
+            <div id={controlId} className={triggerClassName(open, Boolean(error))}>
+              <TriggerSearch
+                selectedEntry={selectedEntry}
+                listboxId={listboxId}
+                searchQuery={searchQuery}
+                activeOptionId={activeOptionId}
+                errorId={errorId}
+                inputRef={inputRef}
+                onSearchChange={setSearchQuery}
+                onSearchKeyDown={handleKeyDown}
+                onChevronClick={toggleDropdown}
+              />
+            </div>
+          ) : (
+            <button
+              id={controlId}
+              type="button"
+              className={triggerClassName(open, Boolean(error))}
+              onClick={openDropdown}
+              aria-label={triggerLabel}
+              aria-expanded={false}
+              aria-haspopup="listbox"
+              aria-describedby={errorId}
+              onKeyDown={handleKeyDown}
+            >
+              <span
+                className={`min-w-0 flex-1 truncate text-left text-[13px] ${
+                  selectedEntry ? 'text-[var(--ink-body)]' : 'text-[var(--ink-faint)]'
+                }`}
+              >
+                {selectedEntry ? selectedEntry.option.label : 'Select staff or pet parent'}
+              </span>
+              <ChevronToggle open={false} onChevronClick={toggleDropdown} />
+            </button>
+          )}
           {open && shouldPortal && portalStyle && createPortal(panelNode, document.body)}
           {open && !shouldPortal && (
             <div className="absolute top-full left-0 mt-1 w-full">{panelNode}</div>
