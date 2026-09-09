@@ -383,9 +383,7 @@ export const TemplatesLoaded: Story = {
   name: 'Three templates',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      await canvas.findByRole('heading', { level: 1, name: /^Templates/ })
-    ).toBeVisible();
+    await expect(canvas.findByRole('heading', { level: 1, name: /^Templates/ })).toBeVisible();
     const table = desktopTable(canvasElement);
     await expect(table.getByText('Anaesthesia consent')).toBeVisible();
     await expect(table.getByText('SOAP note')).toBeVisible();
@@ -402,9 +400,7 @@ export const NoTemplates: Story = {
   beforeEach: prepare({ forms: [] }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      await canvas.findByRole('heading', { level: 1, name: /^Templates/ })
-    ).toBeVisible();
+    await expect(canvas.findByRole('heading', { level: 1, name: /^Templates/ })).toBeVisible();
     const table = desktopTable(canvasElement);
     await expect(table.getByText('No templates yet')).toBeVisible();
     await expect(
@@ -418,9 +414,7 @@ export const LoadingTemplates: Story = {
   beforeEach: prepare({ formsLoading: true }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      await canvas.findByRole('heading', { level: 1, name: /^Templates/ })
-    ).toBeVisible();
+    await expect(canvas.findByRole('heading', { level: 1, name: /^Templates/ })).toBeVisible();
     const table = desktopTable(canvasElement);
     await expect(table.getByText('Loading forms…')).toBeVisible();
     await expect(canvas.queryByText('Anaesthesia consent')).not.toBeInTheDocument();
@@ -450,7 +444,7 @@ export const ReadOnly: Story = {
     const canvas = within(canvasElement);
     await canvas.findByRole('heading', { level: 1, name: /^Templates/ });
     const table = desktopTable(canvasElement);
-    await expect(await table.findByText('Anaesthesia consent')).toBeVisible();
+    await expect(table.findByText('Anaesthesia consent')).toBeVisible();
     // The list is still there to read; the action is absent rather than disabled.
     await expect(canvas.queryByRole('button', { name: 'Add' })).not.toBeInTheDocument();
   },
@@ -463,7 +457,7 @@ export const Phone: Story = {
     const canvas = within(canvasElement);
     await canvas.findByRole('heading', { level: 1, name: /^Templates/ });
     const cards = phoneCards(canvasElement);
-    await expect(await cards.findByText('Anaesthesia consent')).toBeVisible();
+    await expect(cards.findByText('Anaesthesia consent')).toBeVisible();
     await expect(canvas.getByPlaceholderText('Search templates')).toBeVisible();
     await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
   },
