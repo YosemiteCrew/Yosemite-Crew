@@ -654,6 +654,23 @@ describe('IDEXX Hub page', () => {
     });
   });
 
+  it('renders modality and awaiting-review pills as shared FilterChips', async () => {
+    render(<ProtectedIdexxWorkspace />);
+    await findHeading();
+
+    // Shared FilterChip geometry/typography (12.5px), not a local 14px pill.
+    const allModalities = screen.getByRole('button', { name: 'All modalities' });
+    expect(allModalities).toHaveClass('h-8', 'text-[12.5px]');
+    expect(allModalities.className).not.toMatch(/text-caption-1/);
+    // ALL is selected by default, so it carries FilterChip's shared
+    // active-state token class rather than the old local inline style.
+    expect(allModalities).toHaveClass('bg-[var(--chip-selected-bg)]');
+
+    const awaitingReview = screen.getByRole('button', { name: 'Awaiting review' });
+    expect(awaitingReview).toHaveClass('h-8', 'text-[12.5px]');
+    expect(awaitingReview.className).not.toMatch(/text-caption-1/);
+  });
+
   it('filters results by the header search query', async () => {
     mockSearchQuery = 'buddy';
     listIdexxResultsMock.mockResolvedValue([
