@@ -1,23 +1,179 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "e6614570707e0c9cb624b6884fbfb69f2a067e9b",
-  "total": 460,
+  "generated_at": "94ea9eb5ebccc82ae8e743cd10e03a0c572266cb",
+  "total": 410,
   "justified": {
     "apps/frontend/src/app/features/appointments/components/Availability/Availability.tsx": {
       "n": 1,
       "why": "The toggle knob is deliberately fixed white in both themes, and the reason is recorded at the call site: --screen flips, so in espresso the off knob was #2f271e on a #3a3128 track, a contrast of 1.15, and vanished. Tokenising this re-introduces that bug."
     },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/AllDayEventsRow.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/CalendarTeamNamesRow.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/CalendarWeekDayCell.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/MenuActionsList.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/TimedEventMarker.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/UserLabels.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/ZoomInMarker.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/ZoomOutMarker.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/Task/WeekCalendar.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/BilledBadge.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/OutpatientSchedule.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/ReadyToggle.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/StaffField.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep.tsx": {
       "n": 2,
       "why": "A <style> string written into a print popup's document.head. That window loads none of this app's CSS, so every custom property is undefined there and var(--ink) would paint the browser default rather than the invoice's ink."
+    },
+    "apps/frontend/src/app/features/auth/pages/SignIn/SignIn.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/chat/components/ChannelHeaderBar.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/chat/components/ChatComposer.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/chat/components/ChatSidebarHeader.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/companionHistory/components/HistoryEmptyState.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/companions/pages/Companions/InClinicTodayBand.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/companions/pages/Companions/SpeciesTabs.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/finance/pages/Finance/Sections/InvoiceInfo.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/finance/pages/Finance/Sections/InvoiceSummaryPanel.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/finance/pages/Finance/Sections/PhoneInvoiceList.stories.tsx": {
+      "n": 3,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/forms/pages/Forms/Sections/FormInfo.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/integrations/pages/Integrations/IdexxSettingsModal.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/integrations/pages/MerckManuals/MerckReaderPortal.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/legal/pages/DmcaCopyrightPolicy.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/legal/pages/LegalContent.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/marketing/site/MarketingShell.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
     },
     "apps/frontend/src/app/features/onboarding/pages/StripeOnboarding/index.tsx": {
       "n": 1,
       "why": "Stripe's own brand purple, handed to loadConnectAndInitialize's appearance.variables. Stripe Connect renders in its own iframe and cannot read this document's custom properties, so a var() here resolves to nothing and the embed falls back to Stripe's default."
     },
+    "apps/frontend/src/app/features/organization/pages/Organization/Sections/Rooms/roomSectionPrimitives.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
     "apps/frontend/src/app/features/petPassport/components/WalletPassPreview.tsx": {
       "n": 8,
       "why": "Reproduces the wallet-pass service's fixed pass colours (background #EFE8DC, foreground #1D1C1B, label #6B6763, per the comment at the top of the file). Apple Wallet and Google Wallet render the real pass outside this app and do not follow its theme, so a preview that flipped in dark mode would show the user a pass that does not exist."
+    },
+    "apps/frontend/src/app/features/settings/pages/Settings/Sections/YourOrganizations.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/tasks/components/TaskFilterBar.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/tasks/components/TaskFormBody.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/tasks/components/TaskWeekAgenda.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/ui/overlays/Modal/ConfirmModal.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/ui/primitives/RichTextEditor/FloatingToolbar.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
     },
     "apps/frontend/src/app/ui/theme/themeCore.ts": {
       "n": 2,
@@ -30,43 +186,21 @@
     "apps/frontend/src/app/(routes)/(public)/payment-status/PaymentStatusContent.stories.tsx": 1,
     "apps/frontend/src/app/(routes)/(public)/payment-status/PaymentStatusContent.tsx": 11,
     "apps/frontend/src/app/features/appointments/components/AppointmentCentralModal/AppointmentAvatar.stories.tsx": 1,
-    "apps/frontend/src/app/features/appointments/components/Calendar/common/AllDayEventsRow.stories.tsx": 1,
-    "apps/frontend/src/app/features/appointments/components/Calendar/common/CalendarTeamNamesRow.stories.tsx": 1,
-    "apps/frontend/src/app/features/appointments/components/Calendar/common/CalendarWeekDayCell.stories.tsx": 1,
-    "apps/frontend/src/app/features/appointments/components/Calendar/common/MenuActionsList.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/components/Calendar/common/NowIndicator.stories.tsx": 4,
     "apps/frontend/src/app/features/appointments/components/Calendar/common/SlotGridLines.stories.tsx": 2,
     "apps/frontend/src/app/features/appointments/components/Calendar/common/StaffInput.stories.tsx": 2,
-    "apps/frontend/src/app/features/appointments/components/Calendar/common/TimedEventMarker.stories.tsx": 2,
-    "apps/frontend/src/app/features/appointments/components/Calendar/common/UserLabels.stories.tsx": 1,
-    "apps/frontend/src/app/features/appointments/components/Calendar/common/ZoomInMarker.stories.tsx": 1,
-    "apps/frontend/src/app/features/appointments/components/Calendar/common/ZoomOutMarker.stories.tsx": 2,
-    "apps/frontend/src/app/features/appointments/components/Calendar/Task/WeekCalendar.stories.tsx": 2,
-    "apps/frontend/src/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions.stories.tsx": 1,
-    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/BilledBadge.stories.tsx": 1,
-    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton.stories.tsx": 1,
-    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/OutpatientSchedule.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/PaymentLinkStatus.css": 3,
-    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/ReadyToggle.stories.tsx": 2,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/RxBadge.stories.tsx": 1,
-    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/StaffField.stories.tsx": 2,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/TitleAddIcon.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer.stories.tsx": 4,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/DischargeDateTimeModal.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/steps/AllDocumentsTable.stories.tsx": 6,
-    "apps/frontend/src/app/features/auth/pages/SignIn/SignIn.stories.tsx": 1,
     "apps/frontend/src/app/features/auth/pages/SignIn/SignIn.tsx": 2,
     "apps/frontend/src/app/features/auth/pages/SignUp/SignUp.tsx": 2,
-    "apps/frontend/src/app/features/chat/components/ChannelHeaderBar.stories.tsx": 1,
-    "apps/frontend/src/app/features/chat/components/ChatComposer.stories.tsx": 1,
     "apps/frontend/src/app/features/chat/components/ChatContainer.css": 5,
     "apps/frontend/src/app/features/chat/components/ChatContainer.stories.tsx": 2,
-    "apps/frontend/src/app/features/chat/components/ChatSidebarHeader.stories.tsx": 1,
     "apps/frontend/src/app/features/companionHistory/components/AuditTimeline.stories.tsx": 4,
-    "apps/frontend/src/app/features/companionHistory/components/HistoryEmptyState.stories.tsx": 1,
-    "apps/frontend/src/app/features/companions/pages/Companions/InClinicTodayBand.stories.tsx": 1,
     "apps/frontend/src/app/features/companions/pages/Companions/InClinicTodayBand.tsx": 2,
-    "apps/frontend/src/app/features/companions/pages/Companions/SpeciesTabs.stories.tsx": 1,
     "apps/frontend/src/app/features/developers/pages/DeveloperApiKeys/DeveloperApiKeys.css": 4,
     "apps/frontend/src/app/features/developers/pages/DeveloperDocs/DeveloperDocs.css": 4,
     "apps/frontend/src/app/features/developers/pages/DeveloperPlugins/DeveloperPlugins.css": 7,
@@ -75,17 +209,8 @@
     "apps/frontend/src/app/features/developers/pages/DeveloperPortalHome/PhoneDevHome.css": 5,
     "apps/frontend/src/app/features/developers/pages/DeveloperSettings/DeveloperSettings.css": 6,
     "apps/frontend/src/app/features/developers/pages/DeveloperWebsiteBuilder/DeveloperWebsiteBuilder.css": 6,
-    "apps/frontend/src/app/features/finance/pages/Finance/Sections/InvoiceInfo.stories.tsx": 1,
-    "apps/frontend/src/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills.stories.tsx": 2,
-    "apps/frontend/src/app/features/finance/pages/Finance/Sections/InvoiceSummaryPanel.stories.tsx": 1,
-    "apps/frontend/src/app/features/finance/pages/Finance/Sections/PhoneInvoiceList.stories.tsx": 3,
-    "apps/frontend/src/app/features/forms/pages/Forms/Sections/FormInfo.stories.tsx": 1,
     "apps/frontend/src/app/features/guides/pages/Guides.tsx": 5,
-    "apps/frontend/src/app/features/integrations/pages/Integrations/IdexxSettingsModal.stories.tsx": 1,
     "apps/frontend/src/app/features/integrations/pages/Integrations/integrations.css": 3,
-    "apps/frontend/src/app/features/integrations/pages/MerckManuals/MerckReaderPortal.stories.tsx": 1,
-    "apps/frontend/src/app/features/legal/pages/DmcaCopyrightPolicy.stories.tsx": 1,
-    "apps/frontend/src/app/features/legal/pages/LegalContent.stories.tsx": 1,
     "apps/frontend/src/app/features/legal/pages/TrustCenter.stories.tsx": 5,
     "apps/frontend/src/app/features/legal/pages/TrustCenter.tsx": 4,
     "apps/frontend/src/app/features/legal/pages/trustCenterData.ts": 6,
@@ -103,28 +228,20 @@
     "apps/frontend/src/app/features/marketing/site/AuthShell.stories.tsx": 2,
     "apps/frontend/src/app/features/marketing/site/AuthShell.tsx": 17,
     "apps/frontend/src/app/features/marketing/site/marketing.css": 7,
-    "apps/frontend/src/app/features/marketing/site/MarketingShell.stories.tsx": 2,
     "apps/frontend/src/app/features/marketing/site/motion.stories.tsx": 2,
     "apps/frontend/src/app/features/marketing/site/motion.tsx": 7,
     "apps/frontend/src/app/features/marketing/site/SiteFooter.stories.tsx": 2,
     "apps/frontend/src/app/features/marketing/site/SiteFooter.tsx": 9,
     "apps/frontend/src/app/features/marketing/site/useRepoInsights.ts": 14,
-    "apps/frontend/src/app/features/organization/pages/Organization/Sections/Rooms/roomSectionPrimitives.stories.tsx": 2,
     "apps/frontend/src/app/features/petPassport/components/attestation/AttestationDocumentPanel.stories.tsx": 10,
     "apps/frontend/src/app/features/petPassport/components/attestation/RecordAttestationModal.stories.tsx": 9,
     "apps/frontend/src/app/features/petPassport/components/WalletPassPreview.stories.tsx": 3,
-    "apps/frontend/src/app/features/settings/pages/Settings/Sections/YourOrganizations.stories.tsx": 1,
-    "apps/frontend/src/app/features/tasks/components/TaskFilterBar.stories.tsx": 1,
-    "apps/frontend/src/app/features/tasks/components/TaskFormBody.stories.tsx": 1,
-    "apps/frontend/src/app/features/tasks/components/TaskWeekAgenda.stories.tsx": 1,
     "apps/frontend/src/app/ui/layout/Notifications/Notifications.css": 1,
     "apps/frontend/src/app/ui/layout/PhoneShell/PhoneShell.css": 4,
-    "apps/frontend/src/app/ui/overlays/Modal/ConfirmModal.stories.tsx": 1,
     "apps/frontend/src/app/ui/overlays/Modal/GuidePlayerModal.stories.tsx": 2,
     "apps/frontend/src/app/ui/overlays/Modal/VideoPlayerModal.stories.tsx": 3,
     "apps/frontend/src/app/ui/overlays/PdfPreviewOverlay.stories.tsx": 6,
     "apps/frontend/src/app/ui/overlays/Toast/Toast.css": 2,
-    "apps/frontend/src/app/ui/primitives/RichTextEditor/FloatingToolbar.stories.tsx": 2,
     "apps/frontend/src/app/ui/widgets/DynamicChart/ChartCanvas.stories.tsx": 4,
     "apps/frontend/src/app/ui/widgets/Faq/Faq.css": 2,
     "apps/frontend/src/app/ui/widgets/LaunchGrowTab/LaunchGrowTab.css": 3,
