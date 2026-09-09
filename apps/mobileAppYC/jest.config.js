@@ -24,7 +24,7 @@ module.exports = {
   // `nanoid` is ESM-only from v5; @react-navigation and @gorhom/portal import it,
   // so without transforming it Jest parses its `export` and fails the suite.
   transformIgnorePatterns: [
-    'node_modules/(?!(\\.pnpm/[^/]+/node_modules/)?(react|react-dom|react-native|react-native-blob-util|@react-native|@react-native-community|@react-native-documents|react-clone-referenced-element|@react-navigation|react-native-gesture-handler|react-native-reanimated|react-native-worklets|react-native-safe-area-context|react-native-screens|react-native-vector-icons|@react-native-async-storage|@react-native-firebase|react-redux|redux|@reduxjs|immer|@callstack/liquid-glass|uuid|stream-chat-react-native|react-native-markdown-package|react-native-url-polyfill|mime|nanoid)/)',
+    'node_modules/(?!(\\.pnpm/[^/]+/node_modules/)?(react|react-dom|react-native|react-native-blob-util|@react-native|@react-native-community|@react-native-documents|react-clone-referenced-element|@react-navigation|react-native-gesture-handler|react-native-reanimated|react-native-worklets|react-native-safe-area-context|react-native-screens|react-native-vector-icons|@react-native-async-storage|@react-native-firebase|react-redux|redux|@reduxjs|immer|@callstack/liquid-glass|uuid|stream-chat-react-native|react-native-markdown-package|react-native-url-polyfill|mime|nanoid|decode-uri-component)/)',
   ],
   moduleFileExtensions: [
     'ios.js',
