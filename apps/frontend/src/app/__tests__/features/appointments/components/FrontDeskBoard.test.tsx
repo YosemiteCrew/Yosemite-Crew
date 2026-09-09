@@ -130,7 +130,9 @@ describe('FrontDeskBoard', () => {
     // `showAll` so the completed row actually renders - without it the board
     // filters terminal statuses out and the assertions below would pass for the
     // wrong reason.
-    render(<FrontDeskBoard entries={[row('1', 'COMPLETED', 'STANDARD')]} showAll {...handlers()} />);
+    render(
+      <FrontDeskBoard entries={[row('1', 'COMPLETED', 'STANDARD')]} showAll {...handlers()} />
+    );
 
     expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Start consult' })).not.toBeInTheDocument();
@@ -216,7 +218,8 @@ describe('FrontDeskBoard', () => {
     await user.click(screen.getByRole('button', { name: /Check in patient/ }));
     expect(screen.getByText('Patient')).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText('Patient'), 'patient-9');
+    await user.click(screen.getByLabelText('Patient'));
+    await user.click(screen.getByRole('option', { name: 'Bruno — Sarah' }));
     await user.selectOptions(screen.getByLabelText('Triage priority'), 'IMMEDIATE');
     await user.click(screen.getByRole('button', { name: 'Check in patient' }));
 
@@ -242,7 +245,8 @@ describe('FrontDeskBoard', () => {
     );
 
     await user.click(screen.getByRole('button', { name: /Check in patient/ }));
-    await user.selectOptions(screen.getByLabelText('Patient'), 'patient-9');
+    await user.click(screen.getByLabelText('Patient'));
+    await user.click(screen.getByRole('option', { name: 'Bruno' }));
     await user.clear(screen.getByLabelText('Arrived at'));
     await user.type(screen.getByLabelText('Arrived at'), '2026-09-05T07:15');
     await user.type(screen.getByLabelText('Triage note'), 'Vomiting since morning');
@@ -300,7 +304,8 @@ describe('FrontDeskBoard', () => {
     );
 
     await user.click(screen.getByRole('button', { name: /Check in patient/ }));
-    await user.selectOptions(screen.getByLabelText('Patient'), 'patient-9');
+    await user.click(screen.getByLabelText('Patient'));
+    await user.click(screen.getByRole('option', { name: 'Bruno — Sarah' }));
     await user.click(screen.getByRole('button', { name: 'Check in patient' }));
 
     expect(props.onAdd).not.toHaveBeenCalled();
@@ -332,7 +337,8 @@ describe('FrontDeskBoard', () => {
     );
 
     await user.click(screen.getByRole('button', { name: /Check in patient/ }));
-    await user.selectOptions(screen.getByLabelText('Patient'), 'patient-9');
+    await user.click(screen.getByLabelText('Patient'));
+    await user.click(screen.getByRole('option', { name: 'Bruno' }));
     await user.click(screen.getByRole('button', { name: 'Check in patient' }));
 
     expect(props.onAdd).toHaveBeenCalled();
@@ -360,7 +366,9 @@ describe('FrontDeskBoard', () => {
   it('toggles the show-all view via the header control', async () => {
     const user = userEvent.setup();
     const props = handlers();
-    render(<FrontDeskBoard entries={[row('1', 'WAITING', 'STANDARD')]} showAll={false} {...props} />);
+    render(
+      <FrontDeskBoard entries={[row('1', 'WAITING', 'STANDARD')]} showAll={false} {...props} />
+    );
 
     await user.click(screen.getByRole('button', { name: 'Show all' }));
     expect(props.onToggleShowAll).toHaveBeenCalledWith(true);

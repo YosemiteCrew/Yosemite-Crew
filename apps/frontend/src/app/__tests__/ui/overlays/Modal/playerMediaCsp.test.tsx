@@ -163,6 +163,11 @@ describe('the video players and media-src', () => {
     expect(track).toHaveAttribute('kind', 'captions');
     // Root-relative, so it is served by us and permitted by 'self'.
     expect(track?.getAttribute('src')).toMatch(/^\/captions\/.+\.vtt$/);
+    // Not `default`: that attribute auto-enables the track for every viewer,
+    // burning the "no narration" note in as a visible subtitle on every play
+    // instead of leaving it an opt-in a deaf viewer reaches for via the
+    // player's own CC control.
+    expect(track).not.toHaveAttribute('default');
   });
 
   it('ships a captions file that is real WebVTT and is not empty', () => {

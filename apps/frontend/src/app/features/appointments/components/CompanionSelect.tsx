@@ -1,5 +1,7 @@
-import React from 'react';
-import { panelFieldLabelClass, panelInputClass } from '@/app/ui/primitives/PanelStates/PanelStates';
+import React, { useMemo } from 'react';
+import { panelFieldLabelClass } from '@/app/ui/primitives/PanelStates/PanelStates';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
+import type { DropdownOption } from '@/app/hooks/useDropdown';
 
 export type CompanionSelectOption = {
   id: string;
@@ -7,14 +9,27 @@ export type CompanionSelectOption = {
   ownerName?: string;
 };
 
+const toDropdownOption = (companion: CompanionSelectOption): DropdownOption => ({
+  value: companion.id,
+  label: companion.ownerName ? `${companion.name} — ${companion.ownerName}` : companion.name,
+});
+
 /**
  * The companion picker shared by the appointment panels that put a patient on a
  * list (the waitlist and the check-in board). Each panel names the same control
  * differently - "Companion" on the waitlist, "Patient" at the front desk - so
  * the wording is passed in while the markup stays one definition.
+ *
+ * This was a native `<select>`. Its closed state took the app's field styling,
+ * but the open option list is browser chrome - no CSS reaches an `<option>`'s
+ * font, radius, or hover colour in any engine - so it rendered as a plain OS
+ * list dropped over the app the moment a clinic opened it, on a form that can
+ * carry a hundred-plus patients with no way to filter them. `LabelDropdown` is
+ * the searchable combobox every other picker in this app already uses (see
+ * TaskAssigneeSelect): a real, styled option list, and typing narrows it
+ * instead of scrolling it.
  */
 export const CompanionSelect = ({
-  id,
   label,
   placeholder,
   emptyLabel,
@@ -22,8 +37,6 @@ export const CompanionSelect = ({
   onChange,
   companions,
 }: {
-  /** Omitted by panels whose label already wraps the control. */
-  id?: string;
   label: string;
   placeholder: string;
   /** Shown in place of the placeholder when there is nothing to pick. */
@@ -31,22 +44,22 @@ export const CompanionSelect = ({
   value: string;
   onChange: (value: string) => void;
   companions: CompanionSelectOption[];
-}) => (
-  <label className="flex flex-col gap-1" htmlFor={id}>
-    <span className={panelFieldLabelClass}>{label}</span>
-    <select
-      id={id}
-      className={panelInputClass}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={companions.length === 0}
-    >
-      <option value="">{companions.length === 0 ? emptyLabel : placeholder}</option>
-      {companions.map((companion) => (
-        <option key={companion.id} value={companion.id}>
-          {companion.ownerName ? `${companion.name} — ${companion.ownerName}` : companion.name}
-        </option>
-      ))}
-    </select>
-  </label>
-);
+}) => {
+  const options = useMemo(() => companions.map(toDropdownOption), [companions]);
+  const hasCompanions = companions.length > 0;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className={panelFieldLabelClass}>{label}</span>
+      <LabelDropdown
+        placeholder={label}
+        hideLabel
+        options={options}
+        defaultOption={value || undefined}
+        onSelect={(option) => onChange(option.value)}
+        emptyLabel={hasCompanions ? placeholder : emptyLabel}
+        disabled={!hasCompanions}
+      />
+    </div>
+  );
+};
