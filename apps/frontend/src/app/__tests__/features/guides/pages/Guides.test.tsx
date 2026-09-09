@@ -167,6 +167,23 @@ describe('Guides page', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('renders category tabs as the shared FilterChip, not a hand-rolled pill', () => {
+    /* A hand-rolled button carries no aria-pressed at all, so
+       toHaveAttribute('aria-pressed', ...) fails outright on it - this pins the
+       category row to FilterChip rather than merely re-checking the filtering
+       behaviour above, which a hand-rolled lookalike would also pass. */
+    render(<ProtectedGuides />);
+    const allChip = screen.getByRole('button', { name: 'All' });
+    const visitChip = screen.getByRole('button', { name: 'The visit' });
+    expect(allChip).toHaveAttribute('aria-pressed', 'true');
+    expect(visitChip).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(visitChip);
+
+    expect(visitChip).toHaveAttribute('aria-pressed', 'true');
+    expect(allChip).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('narrows the shelf to one role, and keeps what everyone needs', () => {
     render(<ProtectedGuides />);
 
