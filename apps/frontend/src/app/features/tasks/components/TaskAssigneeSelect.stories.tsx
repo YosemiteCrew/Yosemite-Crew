@@ -21,6 +21,19 @@ const PARENT_OPTIONS: Option[] = [
   { label: 'Sky Doe', value: SKY },
 ];
 
+/**
+ * The listbox (options, group headers, the empty/no-matches message) is
+ * portalled to `document.body`, same as every other dropdown panel in this
+ * app - see SearchResultsDropdown.stories.tsx for the precedent. A query
+ * scoped to `canvasElement` cannot find it; only the trigger button (and its
+ * search input, once open) stays a real DOM descendant of the story canvas.
+ */
+const findListbox = async (canvasElement: HTMLElement) => {
+  const listbox = await within(document.body).findByRole('listbox');
+  await expect(canvasElement.contains(listbox)).toBe(false);
+  return listbox;
+};
+
 /** A hospital-sized staff list, to prove the point the chip row could not make. */
 const HUNDRED_STAFF: Option[] = Array.from({ length: 100 }, (_, i) => ({
   label: `Staff Member ${i + 1}`,
@@ -80,7 +93,7 @@ export const Unselected: Story = {
     await expect(trigger).toHaveTextContent('Select staff or pet parent');
 
     await userEvent.click(trigger);
-    const listbox = canvas.getByRole('listbox');
+    const listbox = await findListbox(canvasElement);
     // Both group headers, five rows total, nothing pre-selected.
     await expect(within(listbox).getByText('Staff')).toBeInTheDocument();
     await expect(within(listbox).getByText('Pet parents')).toBeInTheDocument();
@@ -100,9 +113,10 @@ export const TeamMemberSelected: Story = {
     await expect(trigger).toHaveTextContent('Dr. Ravi Patel');
 
     await userEvent.click(trigger);
-    const selected = canvas.getByRole('option', { name: 'Dr. Ravi Patel' });
+    const listbox = await findListbox(canvasElement);
+    const selected = within(listbox).getByRole('option', { name: 'Dr. Ravi Patel' });
     await expect(selected).toHaveAttribute('aria-selected', 'true');
-    await expect(canvas.getByRole('option', { name: 'Dr. Elena Marsh' })).toHaveAttribute(
+    await expect(within(listbox).getByRole('option', { name: 'Dr. Elena Marsh' })).toHaveAttribute(
       'aria-selected',
       'false'
     );
@@ -127,15 +141,15 @@ export const Searching: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Assign to' }));
+    const listbox = await findListbox(canvasElement);
     await userEvent.type(canvas.getByLabelText('Search staff or pet parents'), 'ra');
 
-    const listbox = canvas.getByRole('listbox');
     // "Ravi" and "Marta" both match; "Elena", "Tom" and "Sky" fall out of both groups.
-    await waitFor(async () => {
-      await expect(within(listbox).getByText('Dr. Ravi Patel')).toBeInTheDocument();
-      await expect(within(listbox).getByText('Marta Alvarez')).toBeInTheDocument();
-      await expect(within(listbox).queryByText('Dr. Elena Marsh')).not.toBeInTheDocument();
-      await expect(within(listbox).queryByText('Sky Doe')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(within(listbox).getByText('Dr. Ravi Patel')).toBeInTheDocument();
+      expect(within(listbox).getByText('Marta Alvarez')).toBeInTheDocument();
+      expect(within(listbox).queryByText('Dr. Elena Marsh')).not.toBeInTheDocument();
+      expect(within(listbox).queryByText('Sky Doe')).not.toBeInTheDocument();
     });
   },
 };
@@ -145,9 +159,10 @@ export const NoMatches: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Assign to' }));
+    const listbox = await findListbox(canvasElement);
     await userEvent.type(canvas.getByLabelText('Search staff or pet parents'), 'zzz');
-    await waitFor(async () => {
-      await expect(canvas.getByText('No matches found')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(within(listbox).getByText('No matches found')).toBeInTheDocument();
     });
   },
 };
@@ -157,14 +172,15 @@ export const Choosing: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Assign to' }));
-    await userEvent.click(canvas.getByText('Tom Reyes'));
+    const listbox = await findListbox(canvasElement);
+    await userEvent.click(within(listbox).getByText('Tom Reyes'));
 
     await expect(args.onSelectTeam).toHaveBeenCalledWith({ label: 'Tom Reyes', value: TOM });
     await expect(args.onSelectParent).not.toHaveBeenCalled();
     // The control is fully controlled - args are frozen, so the panel closed
     // but the trigger still reads the unchanged prop, exactly like a caller
     // that forgot to echo the selection back into form state.
-    await expect(canvas.queryByRole('listbox')).not.toBeInTheDocument();
+    await expect(within(document.body).queryByRole('listbox')).not.toBeInTheDocument();
   },
 };
 
@@ -199,13 +215,14 @@ export const HundredStaff: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Assign to' }));
-    // One trigger, one scrollable panel - never 102 pills on screen at once.
+    // One trigger, one scrollable portalled panel - never 102 pills inline in
+    // the page flow at once, unlike the chip row this replaced.
     await expect(canvas.getAllByRole('button')).toHaveLength(1);
+    const listbox = await findListbox(canvasElement);
     await userEvent.type(canvas.getByLabelText('Search staff or pet parents'), 'Staff Member 47');
-    const listbox = canvas.getByRole('listbox');
-    await waitFor(async () => {
-      await expect(within(listbox).getAllByRole('option')).toHaveLength(1);
-      await expect(within(listbox).getByText('Staff Member 47')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(within(listbox).getAllByRole('option')).toHaveLength(1);
+      expect(within(listbox).getByText('Staff Member 47')).toBeInTheDocument();
     });
   },
   parameters: {
