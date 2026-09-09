@@ -1250,11 +1250,14 @@ export const TemplateService = {
     search?: string;
     allowedKinds?: readonly TemplateKind[];
   }) {
-    const requestedKinds = filters?.kind
-      ? (Array.isArray(filters.kind) ? filters.kind : [filters.kind]).map(
-          toStorageTemplateKind,
-        )
-      : undefined;
+    let requestedKindsInput:
+      ReadonlyArray<TemplateKind | TemplateContractKind> | undefined;
+    if (filters?.kind) {
+      requestedKindsInput = Array.isArray(filters.kind)
+        ? filters.kind
+        : [filters.kind];
+    }
+    const requestedKinds = requestedKindsInput?.map(toStorageTemplateKind);
     const allowedKinds = filters?.allowedKinds;
 
     let kindFilter: Prisma.TemplateWhereInput["kind"];
