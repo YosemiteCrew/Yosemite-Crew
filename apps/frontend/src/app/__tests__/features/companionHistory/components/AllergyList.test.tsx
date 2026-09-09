@@ -152,6 +152,18 @@ describe('AllergyList', () => {
     expect(screen.queryByText(/No allergies recorded/)).not.toBeInTheDocument();
   });
 
+  it('withholds the active count while the error hides the retained records', () => {
+    render(
+      <AllergyList
+        allergies={ALLERGIES}
+        error="Could not load the allergy list. Please try again."
+      />
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not load the allergy list');
+    expect(screen.queryByText('Penicillin')).not.toBeInTheDocument();
+    expect(screen.queryByText('2 active')).not.toBeInTheDocument();
+  });
+
   it('shows full reaction text and disables every resolve action during a mutation', () => {
     render(<AllergyList allergies={ALLERGIES} canEdit resolvingId="a-1" />);
     expect(screen.getByText(/Reaction: Anaphylaxis/)).not.toHaveClass('line-clamp-2');

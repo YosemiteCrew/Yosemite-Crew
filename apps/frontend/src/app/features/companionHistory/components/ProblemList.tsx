@@ -270,6 +270,7 @@ const ProblemList = ({
         title="Problem list"
         activeCount={activeCount}
         loading={loading}
+        error={error}
         canEdit={canEdit}
         showForm={showForm}
         onToggle={() => setShowForm((s) => !s)}
