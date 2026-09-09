@@ -167,7 +167,6 @@ token alignment · stable API · tests · story coverage · accessibility (a11y)
 
 | Component              | File                                                   | Status          | Notes                                               |
 | ---------------------- | ------------------------------------------------------ | --------------- | --------------------------------------------------- |
-| DynamicSelect          | `widgets/DynamicSelect/DynamicSelect.tsx`              | 🔄 In migration | react-bootstrap removed — re-audit status           |
 | UploadImage            | `widgets/UploadImage/UploadImage.tsx`                  | 🔄 In migration | react-bootstrap removed — re-audit status           |
 | Faq                    | `widgets/Faq/Faq.tsx`                                  | 🔄 In migration | Uses Accordion - should migrate to shared Accordion |
 | LaunchGrowTab          | `widgets/LaunchGrowTab/LaunchGrowTab.tsx`              | 🔄 In migration | Grotesk CSS cleaned                                 |
