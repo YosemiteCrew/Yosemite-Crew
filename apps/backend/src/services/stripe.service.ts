@@ -55,7 +55,7 @@ const getStripeClient = () => {
   const apiKey = process.env.STRIPE_SECRET_KEY;
   if (!apiKey) throw new Error("STRIPE_SECRET_KEY is not configured");
 
-  stripeClient = new Stripe(apiKey, { apiVersion: "2026-01-28.clover" });
+  stripeClient = new Stripe(apiKey, { apiVersion: "2026-07-29.dahlia" });
   return stripeClient;
 };
 
@@ -92,7 +92,7 @@ const retrieveBookingCharge = async (
     return pi.latest_charge ?? null;
   }
 
-  return getStripeClient().charges.retrieve(pi.latest_charge, {
+  return getStripeClient().charges.retrieve(pi.latest_charge, undefined, {
     ...(connectedAccountId ? { stripeAccount: connectedAccountId } : {}),
   });
 };
@@ -917,7 +917,7 @@ export const StripeService = {
     const chargeId =
       typeof pi.latest_charge === "string" ? pi.latest_charge : null;
     const charge = chargeId
-      ? await getStripeClient().charges.retrieve(chargeId, {
+      ? await getStripeClient().charges.retrieve(chargeId, undefined, {
           ...(connectedAccountId ? { stripeAccount: connectedAccountId } : {}),
         })
       : null;

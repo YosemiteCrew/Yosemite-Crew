@@ -1025,7 +1025,7 @@ const getStripeClient = (): StripeCheckoutSessionClient => {
   }
 
   stripeClient = new Stripe(apiKey, {
-    apiVersion: "2026-01-28.clover",
+    apiVersion: "2026-07-29.dahlia",
   }) as unknown as StripeCheckoutSessionClient;
 
   return stripeClient;
