@@ -3,6 +3,7 @@
 import React from 'react';
 import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import clsx from 'clsx';
 import { IoBedOutline, IoCheckboxOutline, IoCheckmark } from 'react-icons/io5';
 import { getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
@@ -314,9 +315,7 @@ const RoundRow = ({
             Sign
           </button>
         ) : (
-          <span className="rounded-full border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-2.5 py-1 text-[9.5px] font-bold text-[var(--status-completed-text)]">
-            Signed
-          </span>
+          <StatusPill label="Signed" tone="success" />
         )}
       </div>
     ))}
