@@ -11,7 +11,7 @@ Auto-loaded by OpenAI Codex, Claude Code, and compatible AI agents. This is the 
 | `apps/backend/AGENTS.md`     | Backend: Express, validation, services                                       |
 | `apps/desktop/AGENTS.md`     | Desktop: Electron shell, CSP, Sonar                                          |
 | `apps/mobileAppYC/AGENTS.md` | Mobile: React Native, Redux, navigation                                      |
-| `packages/AGENTS.md`         | Shared packages (auth, database, design-tokens, fhir, fhirtypes, lib, types) |
+| `packages/AGENTS.md`         | Shared packages (auth, database, fhir, fhirtypes, lib, mcp-server, types)    |
 
 The same rules are also structured as skills: `.agents/skills/` (Codex and compatible agents), mirrored at `.claude/skills/` (Claude Code).
 
@@ -22,9 +22,8 @@ The same rules are also structured as skills: `.agents/skills/` (Codex and compa
 ## Repository
 
 - Tooling: `pnpm` workspaces + `turbo`. Package manager: `pnpm@8.15.6` — never use `npm` or `yarn`.
-- Workspaces: `apps/frontend`, `apps/backend`, `apps/desktop`, `apps/mobileAppYC`, `packages/auth`, `packages/database`, `packages/design-tokens`, `packages/fhir`, `packages/fhirtypes`, `packages/lib`, `packages/types`.
+- Workspaces: `apps/frontend`, `apps/backend`, `apps/desktop`, `apps/mobileAppYC`, `packages/auth`, `packages/database`, `packages/fhir`, `packages/fhirtypes`, `packages/lib`, `packages/mcp-server`, `packages/types`.
 - Architecture baseline (scale, domain model, platform directions): `.agents/skills/monorepo-ops/project-baseline.md`.
-- `packages/design-tokens` is dead code: never built (no `dist/`), zero runtime consumers, and its palette is stale. The live design tokens are `apps/frontend/src/app/globals.css`. Do not treat it as a source of truth or wire it into anything without explicit instruction.
 
 ---
 

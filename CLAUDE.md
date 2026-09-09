@@ -34,10 +34,10 @@ apps/
 packages/
   auth/          — Shared auth helpers
   database/      — Prisma schema, migrations, and database client
-  design-tokens/ — DEAD: never built, nothing imports it (live palette: apps/frontend/src/app/globals.css)
   fhir/          — FHIR R4 generated types and compatibility helpers
   fhirtypes/     — FHIR type definitions
   lib/           — Shared errors, types, and reusable utilities
+  mcp-server/    — MCP server mounting the developer data plane
   types/         — Shared TypeScript types
 ```
 
