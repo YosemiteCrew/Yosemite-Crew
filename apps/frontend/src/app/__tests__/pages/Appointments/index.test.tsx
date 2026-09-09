@@ -348,9 +348,9 @@ describe('Appointments page', () => {
     await act(async () => {
       await addAppointmentSpy.mock.calls
         .at(-1)?.[0]
-        .onAppointmentCreated({ patient: { id: 'c1' } });
+        .onAppointmentCreated({ id: 'appt-created-1', patient: { id: 'c1' } });
     });
-    expect(bookWaitlistEntryMock).toHaveBeenCalledWith('org-1', 'wait-1');
+    expect(bookWaitlistEntryMock).toHaveBeenCalledWith('org-1', 'wait-1', 'appt-created-1');
   });
 
   it('clamps an elapsed waitlist earliest date to today before opening the appointment form', async () => {
@@ -395,7 +395,7 @@ describe('Appointments page', () => {
       act(async () => {
         await addAppointmentSpy.mock.calls
           .at(-1)?.[0]
-          .onAppointmentCreated({ patient: { id: 'c1' } });
+          .onAppointmentCreated({ id: 'appt-created-1', patient: { id: 'c1' } });
       })
     ).resolves.toBeUndefined();
     expect(notifyMock).toHaveBeenCalledWith('warning', {
@@ -412,7 +412,25 @@ describe('Appointments page', () => {
     await act(async () => {
       await addAppointmentSpy.mock.calls
         .at(-1)?.[0]
-        .onAppointmentCreated({ patient: { id: 'c2' } });
+        .onAppointmentCreated({ id: 'appt-created-2', patient: { id: 'c2' } });
+    });
+
+    expect(bookWaitlistEntryMock).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith('warning', {
+      title: 'Waitlist not updated',
+      text: 'The appointment was created for a different patient. Review the waitlist before booking this patient again.',
+    });
+  });
+
+  it('does not mark a waitlist entry booked when the created appointment has no id', async () => {
+    await renderAppointments();
+
+    fireEvent.click(screen.getByRole('button', { name: /Waitlist/ }));
+    fireEvent.click(await screen.findByTestId('waitlist-book'));
+    await act(async () => {
+      await addAppointmentSpy.mock.calls
+        .at(-1)?.[0]
+        .onAppointmentCreated({ patient: { id: 'c1' } });
     });
 
     expect(bookWaitlistEntryMock).not.toHaveBeenCalled();

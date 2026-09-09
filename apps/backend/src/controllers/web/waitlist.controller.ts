@@ -32,6 +32,13 @@ const ListQuerySchema = z.object({
 
 const EntryParamsSchema = orgParams.extend({ entryId: uuid() });
 
+/**
+ * `book()` links to an appointment staff already created through the
+ * ordinary New Appointment form (pre-filled from this entry) - it does not
+ * take a slot itself.
+ */
+const BookBodySchema = z.object({ appointmentId: uuid() });
+
 const { handler } = createClinicalHandlers(WaitlistError);
 
 export const WaitlistController = {
@@ -80,9 +87,15 @@ export const WaitlistController = {
 
   book: handler({
     params: EntryParamsSchema,
+    body: BookBodySchema,
     fallback: "Failed to book waitlist entry",
-    run: ({ params, userId }) =>
-      WaitlistService.book(params.entryId, params.organisationId, userId),
+    run: ({ params, input, userId }) =>
+      WaitlistService.book(
+        params.entryId,
+        params.organisationId,
+        input.appointmentId,
+        userId,
+      ),
   }),
 
   cancel: handler({

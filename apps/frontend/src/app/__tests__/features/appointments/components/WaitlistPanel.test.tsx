@@ -73,7 +73,7 @@ describe('WaitlistPanel', () => {
   });
 
   it('loads the waitlist and resolves companion + owner names', async () => {
-    render(<WaitlistPanel />);
+    render(<WaitlistPanel onBookAppointment={jest.fn()} />);
     await waitFor(() => expect(fetchWaitlist).toHaveBeenCalledWith('org-1'));
     expect(await screen.findByTestId('entry')).toHaveTextContent('Buddy/Sam Owner/WAITING');
     expect(screen.getByTestId('has-actions')).toHaveTextContent('true');
@@ -81,30 +81,37 @@ describe('WaitlistPanel', () => {
 
   it('withholds edit actions without permission', async () => {
     canEdit = false;
-    render(<WaitlistPanel />);
+    render(<WaitlistPanel onBookAppointment={jest.fn()} />);
     await waitFor(() => expect(fetchWaitlist).toHaveBeenCalled());
     expect(screen.getByTestId('has-actions')).toHaveTextContent('false');
   });
 
-  it('runs an action then refetches', async () => {
+  it('hides the Book action when no onBookAppointment handler is given', async () => {
     render(<WaitlistPanel />);
+    await screen.findByTestId('entry');
+    expect(screen.queryByText('book')).not.toBeInTheDocument();
+  });
+
+  it('runs an action then refetches', async () => {
+    render(<WaitlistPanel onBookAppointment={jest.fn()} />);
     await screen.findByText('offer');
     fireEvent.click(screen.getByText('offer'));
     await waitFor(() => expect(offerWaitlistEntry).toHaveBeenCalledWith('org-1', 'w-1'));
     expect(fetchWaitlist).toHaveBeenCalledTimes(2);
   });
 
-  it('books an offered entry then refetches', async () => {
-    render(<WaitlistPanel />);
+  it('hands the entry to onBookAppointment instead of booking directly', async () => {
+    const onBookAppointment = jest.fn();
+    render(<WaitlistPanel onBookAppointment={onBookAppointment} />);
     await screen.findByText('book');
     fireEvent.click(screen.getByText('book'));
-    await waitFor(() => expect(bookWaitlistEntry).toHaveBeenCalledWith('org-1', 'w-1'));
-    expect(fetchWaitlist).toHaveBeenCalledTimes(2);
+    expect(onBookAppointment).toHaveBeenCalledWith(expect.objectContaining(entry));
+    expect(bookWaitlistEntry).not.toHaveBeenCalled();
   });
 
   it('surfaces an error when an action fails', async () => {
     cancelWaitlistEntry.mockRejectedValueOnce(new Error('x'));
-    render(<WaitlistPanel />);
+    render(<WaitlistPanel onBookAppointment={jest.fn()} />);
     await screen.findByText('cancel');
     fireEvent.click(screen.getByText('cancel'));
     await waitFor(() =>
@@ -113,7 +120,7 @@ describe('WaitlistPanel', () => {
   });
 
   it('adds an entry and refetches', async () => {
-    render(<WaitlistPanel />);
+    render(<WaitlistPanel onBookAppointment={jest.fn()} />);
     await screen.findByText('add');
     fireEvent.click(screen.getByText('add'));
     await waitFor(() => expect(addToWaitlist).toHaveBeenCalledWith('org-1', { patientId: 'p-1' }));
@@ -121,7 +128,7 @@ describe('WaitlistPanel', () => {
 
   it('does not refetch when adding an entry fails', async () => {
     addToWaitlist.mockRejectedValueOnce(new Error('x'));
-    render(<WaitlistPanel />);
+    render(<WaitlistPanel onBookAppointment={jest.fn()} />);
     await screen.findByText('add');
     fireEvent.click(screen.getByText('add'));
     await waitFor(() => expect(addToWaitlist).toHaveBeenCalled());
@@ -130,7 +137,7 @@ describe('WaitlistPanel', () => {
 
   it('shows a load error when the fetch throws', async () => {
     fetchWaitlist.mockReset().mockRejectedValue(new Error('down'));
-    render(<WaitlistPanel />);
+    render(<WaitlistPanel onBookAppointment={jest.fn()} />);
     await waitFor(() =>
       expect(screen.getByTestId('error')).toHaveTextContent('Unable to load the waitlist')
     );
@@ -138,7 +145,7 @@ describe('WaitlistPanel', () => {
 
   it('renders nothing to load without a primary org', async () => {
     primaryOrgId = null;
-    render(<WaitlistPanel />);
+    render(<WaitlistPanel onBookAppointment={jest.fn()} />);
     await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('false'));
     expect(fetchWaitlist).not.toHaveBeenCalled();
   });
