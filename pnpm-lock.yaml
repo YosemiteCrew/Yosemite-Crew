@@ -300,7 +300,7 @@ importers:
         version: 4.8.3
       stripe:
         specifier: ^22.5.0
-        version: 22.6.1(@types/node@26.4.0)
+        version: 22.5.0(@types/node@26.4.0)
       uuid:
         specifier: 11.1.1
         version: 11.1.1
@@ -24251,8 +24251,8 @@ packages:
     engines: {node: '>=8'}
     dev: true
 
-  /stripe@22.6.1(@types/node@26.4.0):
-    resolution: {integrity: sha512-hAKSkGeVt2u46TRYhmnvwmVHxBNtOCJnPjc+SH5sP2B2ypElYzAAY3Ljx0Ar8C2w8nfpFQiZ95qoDCDsFkXMTA==}
+  /stripe@22.5.0(@types/node@26.4.0):
+    resolution: {integrity: sha512-QVwMwriC0bbySx6R4dpsvJ0W//GojC1kwWVS6rPSoVqDUIZX4Hy3TaUrd2AZeXEAaKbfWIjQjvo3vKAReHZ0vQ==}
     engines: {node: '>=18'}
     peerDependencies:
       '@types/node': '>=18'
