@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { getStorageItem, setStorageItem } from '@/app/lib/browserStorage';
 import { PHONE_MEDIA_QUERY } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import { COOKIE_CONSENT_KEY } from '@/app/lib/posthog';
+import { reportConsentDecision } from '@/app/lib/consentReporter';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
@@ -37,10 +38,14 @@ const getServerConsentSnapshot = () => null;
 
 const handleConsent = () => {
   setConsent('true');
+  // Report the accept to the backend, which relays it to the panel's consent
+  // ledger. Fire-and-forget: the banner has already served its purpose.
+  void reportConsentDecision(true);
 };
 
 const handleRejection = () => {
   setConsent('false');
+  void reportConsentDecision(false);
 };
 
 const Cookies = () => {
