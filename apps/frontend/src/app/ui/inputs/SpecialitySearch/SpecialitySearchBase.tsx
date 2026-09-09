@@ -2,10 +2,15 @@ import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { IoSearch } from 'react-icons/io5';
 import { specialties as SPECIALITIES } from '@/app/lib/specialities';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { useListboxKeyboardNav } from '@/app/ui/inputs/Dropdown/useDropdownKeyboardNav';
 
 import './SpecialitySearch.css';
 
 const DEFAULT_CURRENT_SPECIALITIES: never[] = [];
+
+/** One row of the results listbox: a matching speciality, or the single "add new" row shown when nothing matches. */
+type SpecialityOption =
+  { id: string; kind: 'speciality'; name: string } | { id: 'add'; kind: 'add' };
 
 type SpecialitySearchBaseProps<T extends { name: string }> = {
   organisationId?: string | null;
@@ -50,6 +55,18 @@ const SpecialitySearchBase = <T extends { name: string }>({
       return name.includes(q);
     });
   }, [query, selectedNames, currentNames]);
+
+  const listOptions: SpecialityOption[] = useMemo(
+    () =>
+      filtered.length > 0
+        ? filtered.map((speciality: { name: string }, index: number) => ({
+            id: String(index),
+            kind: 'speciality' as const,
+            name: speciality.name,
+          }))
+        : [{ id: 'add', kind: 'add' as const }],
+    [filtered]
+  );
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -103,6 +120,27 @@ const SpecialitySearchBase = <T extends { name: string }>({
     setOpen(false);
   };
 
+  const selectOption = (option: SpecialityOption) => {
+    if (option.kind === 'add') {
+      handleAddSpeciality();
+    } else {
+      handleSelectSpeciality({ name: option.name });
+    }
+  };
+
+  const { activeOptionId, handleKeyDown } = useListboxKeyboardNav({
+    open,
+    openDropdown: () => setOpen(true),
+    closeDropdown: () => setOpen(false),
+    options: listOptions,
+    listboxId,
+    selectionKey: undefined,
+    getOptionValue: (option) => option.id,
+    isOptionSelected: () => false,
+    selectOption,
+    spaceSkipsInput: true,
+  });
+
   return (
     <div className="step-search" ref={wrapperRef}>
       <IoSearch size={15} className="step-search-icon" color="var(--color-text-tertiary)" />
@@ -119,25 +157,52 @@ const SpecialitySearchBase = <T extends { name: string }>({
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
+        onKeyDown={handleKeyDown}
+        role="combobox"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-controls={open ? listboxId : undefined}
+        aria-activedescendant={activeOptionId}
       />
       {open && (
-        <div className="step-search-dropdown" id={listboxId} aria-label="Speciality results">
-          {filtered?.length > 0 ? (
-            filtered.map((speciality: any) => (
+        <div
+          className="step-search-dropdown"
+          id={listboxId}
+          role="listbox"
+          aria-label="Speciality results"
+        >
+          {listOptions.map((option) => {
+            const optionId = `${listboxId}-option-${option.id}`;
+            const isActive = activeOptionId === optionId;
+            if (option.kind === 'add') {
+              return (
+                <button
+                  key="add"
+                  type="button"
+                  id={optionId}
+                  role="option"
+                  aria-selected={isActive}
+                  className="step-search-add"
+                  onClick={handleAddSpeciality}
+                >
+                  New speciality “{query.trim()}”
+                </button>
+              );
+            }
+            return (
               <button
-                key={speciality.name}
+                key={option.name}
                 type="button"
+                id={optionId}
+                role="option"
+                aria-selected={isActive}
                 className="step-search-speciality"
-                onClick={() => handleSelectSpeciality(speciality)}
+                onClick={() => handleSelectSpeciality({ name: option.name })}
               >
-                <div className="step-search-speciality-title">{speciality.name}</div>
+                <div className="step-search-speciality-title">{option.name}</div>
               </button>
-            ))
-          ) : (
-            <button type="button" className="step-search-add" onClick={handleAddSpeciality}>
-              New speciality “{query.trim()}”
-            </button>
-          )}
+            );
+          })}
         </div>
       )}
     </div>

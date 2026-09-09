@@ -163,9 +163,9 @@ export const DropdownOpen: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
     const results = within(await canvas.findByLabelText(RESULTS));
-    await expect(results.getByRole('button', { name: 'General Consult' })).toBeInTheDocument();
+    await expect(results.getByRole('option', { name: 'General Consult' })).toBeInTheDocument();
     await expect(
-      results.getByRole('button', { name: 'Dental Cleaning & Scaling' })
+      results.getByRole('option', { name: 'Dental Cleaning & Scaling' })
     ).toBeInTheDocument();
   },
 };
@@ -176,7 +176,7 @@ export const PickFromCatalogue: Story = {
     const canvas = within(canvasElement);
     const field = canvas.getByRole('textbox', { name: FIELD });
     await userEvent.click(field);
-    await userEvent.click(canvas.getByRole('button', { name: 'Tooth Extraction' }));
+    await userEvent.click(canvas.getByRole('option', { name: 'Tooth Extraction' }));
 
     const chips = within(canvas.getByRole('list', { name: 'Dentistry services' }));
     await expect(chips.getByText('Tooth Extraction')).toBeInTheDocument();
@@ -206,7 +206,7 @@ export const CreateCustom: Story = {
     await userEvent.click(field);
     await userEvent.type(field, 'feline dental radiographs');
     await userEvent.click(
-      canvas.getByRole('button', { name: 'Add service “feline dental radiographs”' })
+      canvas.getByRole('option', { name: 'Add service “feline dental radiographs”' })
     );
 
     const chips = within(canvas.getByRole('list', { name: 'Dentistry services' }));
@@ -246,13 +246,13 @@ export const AlreadyAdded: Story = {
     await userEvent.click(field);
     const results = within(await canvas.findByLabelText(RESULTS));
     await expect(
-      results.queryByRole('button', { name: 'Tooth Extraction' })
+      results.queryByRole('option', { name: 'Tooth Extraction' })
     ).not.toBeInTheDocument();
 
     // Typing an existing name in a different case falls through to the create
     // row, and the wrapper still refuses it.
     await userEvent.type(field, 'tooth extraction');
-    await userEvent.click(canvas.getByRole('button', { name: 'Add service “tooth extraction”' }));
+    await userEvent.click(canvas.getByRole('option', { name: 'Add service “tooth extraction”' }));
     await expect(chips.getAllByRole('listitem')).toHaveLength(2);
     await expect(field).toHaveValue('');
   },
