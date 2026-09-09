@@ -150,9 +150,9 @@ export const DropdownOpen: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
     const results = within(await canvas.findByLabelText(RESULTS));
-    await expect(results.getAllByRole('button')).toHaveLength(specialties.length);
-    await expect(results.getByRole('button', { name: 'Cardiology' })).toBeInTheDocument();
-    await expect(results.getByRole('button', { name: 'Dentistry' })).toBeInTheDocument();
+    await expect(results.getAllByRole('option')).toHaveLength(specialties.length);
+    await expect(results.getByRole('option', { name: 'Cardiology' })).toBeInTheDocument();
+    await expect(results.getByRole('option', { name: 'Dentistry' })).toBeInTheDocument();
   },
 };
 
@@ -162,7 +162,7 @@ export const PickAppends: Story = {
     const canvas = within(canvasElement);
     const field = canvas.getByRole('textbox', { name: FIELD });
     await userEvent.click(field);
-    await userEvent.click(canvas.getByRole('button', { name: 'Cardiology' }));
+    await userEvent.click(canvas.getByRole('option', { name: 'Cardiology' }));
 
     const chips = within(canvas.getByRole('list', { name: SELECTED }));
     await expect(chips.getByText('Cardiology')).toBeInTheDocument();
@@ -192,7 +192,7 @@ export const CreateCapitalised: Story = {
     await userEvent.click(field);
     await userEvent.type(field, 'exotic reptile medicine');
     await userEvent.click(
-      canvas.getByRole('button', { name: 'New speciality “exotic reptile medicine”' })
+      canvas.getByRole('option', { name: 'New speciality “exotic reptile medicine”' })
     );
 
     const chips = within(canvas.getByRole('list', { name: SELECTED }));
@@ -221,7 +221,7 @@ export const SingleSelect: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
-    await userEvent.click(canvas.getByRole('button', { name: 'Dermatology' }));
+    await userEvent.click(canvas.getByRole('option', { name: 'Dermatology' }));
 
     const chips = within(canvas.getByRole('list', { name: SELECTED }));
     await expect(chips.getAllByRole('listitem')).toHaveLength(1);
@@ -248,10 +248,10 @@ export const CurrentHidden: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
     const results = within(await canvas.findByLabelText(RESULTS));
-    await expect(results.getAllByRole('button')).toHaveLength(specialties.length - 2);
-    await expect(results.queryByRole('button', { name: 'Cardiology' })).not.toBeInTheDocument();
-    await expect(results.queryByRole('button', { name: 'Dermatology' })).not.toBeInTheDocument();
-    await expect(results.getByRole('button', { name: 'Dentistry' })).toBeInTheDocument();
+    await expect(results.getAllByRole('option')).toHaveLength(specialties.length - 2);
+    await expect(results.queryByRole('option', { name: 'Cardiology' })).not.toBeInTheDocument();
+    await expect(results.queryByRole('option', { name: 'Dermatology' })).not.toBeInTheDocument();
+    await expect(results.getByRole('option', { name: 'Dentistry' })).toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -274,7 +274,7 @@ export const FallsBackToPrimaryOrg: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
-    await userEvent.click(canvas.getByRole('button', { name: 'Ophthalmology' }));
+    await userEvent.click(canvas.getByRole('option', { name: 'Ophthalmology' }));
 
     const chips = within(canvas.getByRole('list', { name: SELECTED }));
     await expect(chips.getByText('Ophthalmology')).toBeInTheDocument();
@@ -299,7 +299,7 @@ export const NoOrganisation: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
-    await userEvent.click(canvas.getByRole('button', { name: 'Cardiology' }));
+    await userEvent.click(canvas.getByRole('option', { name: 'Cardiology' }));
 
     // Nothing to stamp the speciality with, so nothing is added - and the
     // dropdown stays open, because the early return skips the close as well.
