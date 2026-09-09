@@ -115,12 +115,17 @@ describe('waitlistService', () => {
 
   it.each([
     ['offer', offerWaitlistEntry],
-    ['book', bookWaitlistEntry],
     ['cancel', cancelWaitlistEntry],
   ] as const)('posts the %s transition', async (action, fn) => {
     postDataMock.mockResolvedValue({ data: { ...entry, status: 'OFFERED' } });
     await fn('org-1', 'w-1');
-    expect(postDataMock).toHaveBeenCalledWith(`${BASE}/w-1/${action}`);
+    expect(postDataMock).toHaveBeenCalledWith(`${BASE}/w-1/${action}`, undefined);
+  });
+
+  it('books an entry against the appointment already created for it', async () => {
+    postDataMock.mockResolvedValue({ data: { ...entry, status: 'BOOKED' } });
+    await bookWaitlistEntry('org-1', 'w-1', 'appt-1');
+    expect(postDataMock).toHaveBeenCalledWith(`${BASE}/w-1/book`, { appointmentId: 'appt-1' });
   });
 
   it.each(['', '../admin', 'entry/other', 'https://attacker.test'])(

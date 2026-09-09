@@ -4,6 +4,36 @@ import { AuditTrailService } from "src/services/audit-trail.service";
 import { NotificationService } from "src/services/notification.service";
 import { sendEmail } from "src/utils/email";
 import logger from "src/utils/logger";
+import {
+  AppointmentPrismaService,
+  AppointmentPrismaServiceError,
+} from "src/services/appointment.prisma.service";
+import { fromAppointmentRequestDTO } from "@yosemite-crew/types";
+
+jest.mock("@yosemite-crew/types", () => ({
+  ...(jest.requireActual("@yosemite-crew/types") as unknown as Record<
+    string,
+    unknown
+  >),
+  fromAppointmentRequestDTO: jest.fn(),
+  toAppointmentResponseDTO: jest.fn((appointment) => appointment),
+}));
+
+jest.mock("src/services/appointment.prisma.service", () => {
+  class AppointmentPrismaServiceError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode: number,
+    ) {
+      super(message);
+      this.name = "AppointmentPrismaServiceError";
+    }
+  }
+  return {
+    AppointmentPrismaService: { getById: jest.fn() },
+    AppointmentPrismaServiceError,
+  };
+});
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -90,6 +120,12 @@ beforeEach(() => {
   pm.parent.findUnique.mockResolvedValue(null);
   pm.patient.findUnique.mockResolvedValue({ name: "Buddy" });
   pm.appointment.findUnique.mockResolvedValue(null);
+  (fromAppointmentRequestDTO as jest.Mock).mockReturnValue({
+    patient: { id: "pat-1" },
+  });
+  (AppointmentPrismaService.getById as jest.Mock).mockResolvedValue({
+    id: "appt-1",
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -269,23 +305,39 @@ describe("WaitlistService.offer", () => {
 // ---------------------------------------------------------------------------
 
 describe("WaitlistService.book", () => {
-  it("transitions WAITING to BOOKED", async () => {
-    await WaitlistService.book("entry-1", "org-1", "vet-1");
+  it("transitions WAITING to BOOKED and links the appointment", async () => {
+    const result = await WaitlistService.book(
+      "entry-1",
+      "org-1",
+      "appt-1",
+      "vet-1",
+    );
+
+    expect(AppointmentPrismaService.getById).toHaveBeenCalledWith("appt-1", {
+      organisationId: "org-1",
+    });
     expect(pm.waitlistEntry.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ status: "BOOKED" }),
+        data: expect.objectContaining({
+          status: "BOOKED",
+          appointmentId: "appt-1",
+        }),
       }),
     );
     expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: "WAITLIST_ENTRY_BOOKED" }),
+      expect.objectContaining({
+        eventType: "WAITLIST_ENTRY_BOOKED",
+        metadata: { appointmentId: "appt-1" },
+      }),
     );
+    expect(result.appointmentId).toBe("appt-1");
   });
 
   it("transitions OFFERED to BOOKED", async () => {
     pm.waitlistEntry.findFirst.mockResolvedValue(
       makeEntry({ status: "OFFERED" }),
     );
-    await WaitlistService.book("entry-1", "org-1");
+    await WaitlistService.book("entry-1", "org-1", "appt-1");
     expect(pm.waitlistEntry.update).toHaveBeenCalled();
   });
 
@@ -294,10 +346,46 @@ describe("WaitlistService.book", () => {
       makeEntry({ status: "CANCELLED" }),
     );
     await expect(
-      WaitlistService.book("entry-1", "org-1"),
+      WaitlistService.book("entry-1", "org-1", "appt-1"),
     ).rejects.toMatchObject({
       statusCode: 409,
     });
+    expect(AppointmentPrismaService.getById).not.toHaveBeenCalled();
+  });
+
+  it("rejects an appointment that does not belong to this entry's patient", async () => {
+    (fromAppointmentRequestDTO as jest.Mock).mockReturnValue({
+      patient: { id: "some-other-patient" },
+    });
+
+    await expect(
+      WaitlistService.book("entry-1", "org-1", "appt-1"),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(pm.waitlistEntry.update).not.toHaveBeenCalled();
+  });
+
+  it("surfaces an AppointmentPrismaServiceError as a WaitlistError with the same status (e.g. appointment not found in this org)", async () => {
+    (AppointmentPrismaService.getById as jest.Mock).mockRejectedValue(
+      new AppointmentPrismaServiceError("Appointment not found", 404),
+    );
+
+    await expect(
+      WaitlistService.book("entry-1", "org-1", "appt-1"),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Appointment not found",
+    });
+    expect(pm.waitlistEntry.update).not.toHaveBeenCalled();
+  });
+
+  it("still throws an unexpected non-appointment error rather than swallowing it", async () => {
+    (AppointmentPrismaService.getById as jest.Mock).mockRejectedValue(
+      new Error("db down"),
+    );
+
+    await expect(
+      WaitlistService.book("entry-1", "org-1", "appt-1"),
+    ).rejects.toThrow("db down");
   });
 });
 

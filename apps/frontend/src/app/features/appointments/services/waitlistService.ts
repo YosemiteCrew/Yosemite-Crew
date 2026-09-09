@@ -98,13 +98,15 @@ export const addToWaitlist = async (
 const transition = async (
   organisationId: string,
   entryId: string,
-  action: 'offer' | 'book' | 'cancel'
+  action: 'offer' | 'book' | 'cancel',
+  body?: Record<string, unknown>
 ): Promise<WaitlistEntry> => {
   const safeOrganisationId = safePathSegment(organisationId, 'organisation');
   const safeEntryId = safePathSegment(entryId, 'waitlist entry');
   try {
-    const res = await postData<WaitlistEntry>(
-      `/v1/pms/organisation/${safeOrganisationId}/waitlist/${safeEntryId}/${action}`
+    const res = await postData<WaitlistEntry, Record<string, unknown> | undefined>(
+      `/v1/pms/organisation/${safeOrganisationId}/waitlist/${safeEntryId}/${action}`,
+      body
     );
     return res.data;
   } catch (err) {
@@ -116,8 +118,14 @@ const transition = async (
 export const offerWaitlistEntry = (organisationId: string, entryId: string) =>
   transition(organisationId, entryId, 'offer');
 
-export const bookWaitlistEntry = (organisationId: string, entryId: string) =>
-  transition(organisationId, entryId, 'book');
+/**
+ * Links an entry to the appointment staff already created for it through the
+ * ordinary New Appointment form - a waitlist entry has no slot of its own to
+ * book. See `openWaitlistAppointment`/`completeWaitlistBooking` in the
+ * Appointments page for the flow this closes out.
+ */
+export const bookWaitlistEntry = (organisationId: string, entryId: string, appointmentId: string) =>
+  transition(organisationId, entryId, 'book', { appointmentId });
 
 export const cancelWaitlistEntry = (organisationId: string, entryId: string) =>
   transition(organisationId, entryId, 'cancel');

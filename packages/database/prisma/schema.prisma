@@ -2331,6 +2331,10 @@ model WaitlistEntry {
   status          WaitlistStatus @default(WAITING)
   offeredAt       DateTime?
   bookedAt        DateTime?
+  // The appointment `book()` created once a slot was actually found for this
+  // entry. Unique because booking is a one-time conversion, not a running
+  // link - an entry that is later re-added after cancelling starts a new row.
+  appointmentId   String?        @unique
   expiresAt       DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
