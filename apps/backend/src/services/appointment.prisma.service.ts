@@ -2387,6 +2387,107 @@ export const AppointmentPrismaService = {
     return toResponse(updated);
   },
 
+  /**
+   * Same gap as `syncAppointmentOnArrival` (patient-check-in.service.ts), for
+   * the other end of a visit: PatientCheckIn.COMPLETED never touched the
+   * linked Appointment, so the Calendar kept showing "Checked in" for a visit
+   * the front desk had already closed out. A front-desk completion can land
+   * with the appointment still at CHECKED_IN - staff never explicitly moved
+   * it to IN_PROGRESS - so this bridges through IN_PROGRESS first;
+   * `assertAppointmentTransition` only allows one hop at a time. Also runs
+   * the same billing-readiness side effect `updateAppointmentPMS` runs on its
+   * own COMPLETED branch, so a visit closed from the front desk is actually
+   * closed out, not just relabelled.
+   */
+  async completeAppointment(appointmentId: string, organisationId: string) {
+    if (!appointmentId) {
+      throw new AppointmentPrismaServiceError("appointmentId is required", 400);
+    }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
+
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
+    });
+    const row = assertExists(
+      current as AppointmentRow | null,
+      "Appointment not found",
+    );
+
+    const needsInProgressBridge = row.status === "CHECKED_IN";
+    if (needsInProgressBridge) {
+      assertAppointmentTransition(
+        row.status,
+        "IN_PROGRESS",
+        "completeAppointment",
+      );
+    } else {
+      assertAppointmentTransition(
+        row.status,
+        "COMPLETED",
+        "completeAppointment",
+      );
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (needsInProgressBridge) {
+        await tx.appointment.update({
+          where: { id: appointmentId },
+          data: { status: "IN_PROGRESS", updatedAt: new Date() },
+        });
+      }
+      return tx.appointment.update({
+        where: { id: appointmentId },
+        data: { status: "COMPLETED", updatedAt: new Date() },
+      });
+    });
+
+    await InvoiceService.markAppointmentReadyForBilling(appointmentId, {
+      organisationId: row.organisationId,
+    });
+
+    return toResponse(updated);
+  },
+
+  /**
+   * Same gap as `completeAppointment`, for the NO_SHOW terminal status. Only
+   * reachable from UPCOMING per `assertAppointmentTransition` - a no-op in
+   * the common case where the check-in already advanced the appointment to
+   * CHECKED_IN, which is correct: a patient the desk has a check-in record
+   * for did show up.
+   */
+  async markAppointmentNoShow(appointmentId: string, organisationId: string) {
+    if (!appointmentId) {
+      throw new AppointmentPrismaServiceError("appointmentId is required", 400);
+    }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
+
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
+    });
+    const row = assertExists(
+      current as AppointmentRow | null,
+      "Appointment not found",
+    );
+    assertAppointmentTransition(row.status, "NO_SHOW", "markAppointmentNoShow");
+
+    const updated = await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { status: "NO_SHOW", updatedAt: new Date() },
+    });
+
+    return toResponse(updated);
+  },
+
   async getById(
     appointmentId: string,
     scope: AppointmentAccessScope,
