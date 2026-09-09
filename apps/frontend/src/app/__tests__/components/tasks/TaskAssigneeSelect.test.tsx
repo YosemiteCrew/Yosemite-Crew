@@ -51,6 +51,17 @@ describe('TaskAssigneeSelect', () => {
     expect(within(listbox).getAllByRole('option')).toHaveLength(3);
   });
 
+  it('replaces the closed trigger button with the search input rather than nesting one inside the other', () => {
+    // <button> cannot contain <input> (invalid interactive-content nesting), so
+    // opening must swap the trigger element, not just what renders inside it.
+    renderSelect();
+    openDropdown();
+
+    const searchInput = screen.getByLabelText('Search staff or pet parents');
+    expect(searchInput.closest('button')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Assign to/i })).not.toBeInTheDocument();
+  });
+
   it('filters both groups by the same search query', () => {
     renderSelect();
     openDropdown();
@@ -152,9 +163,13 @@ describe('TaskAssigneeSelect', () => {
     renderSelect();
     const trigger = screen.getByRole('button', { name: /Assign to/i });
     fireEvent.keyDown(trigger, { key: 'ArrowDown' }); // opens, seeds Dr Brunner active
-    fireEvent.keyDown(trigger, { key: 'ArrowDown' }); // Elif Kaya
-    fireEvent.keyDown(trigger, { key: 'ArrowDown' }); // Amelia
-    fireEvent.keyDown(trigger, { key: 'Enter' });
+    // Opening swaps the closed <button> for the focused search <input> (they
+    // cannot be nested - <button> may not contain <input>), so subsequent keys
+    // go to the input, same as a real user typing after the panel opens.
+    const searchInput = screen.getByLabelText('Search staff or pet parents');
+    fireEvent.keyDown(searchInput, { key: 'ArrowDown' }); // Elif Kaya
+    fireEvent.keyDown(searchInput, { key: 'ArrowDown' }); // Amelia
+    fireEvent.keyDown(searchInput, { key: 'Enter' });
 
     expect(onSelectParent).toHaveBeenCalledWith(expect.objectContaining({ value: 'p1' }));
   });
