@@ -261,9 +261,7 @@ export const Default: Story = {
     const canvas = within(canvasElement);
 
     await expect(canvas.findByRole('heading', { name: 'Consents' })).toBeVisible();
-    await expect(
-      await canvas.findByText('Cranial cruciate ligament repair (left stifle)')
-    ).toBeVisible();
+    await expect(canvas.findByText('Cranial cruciate ligament repair (left stifle)')).toBeVisible();
     await expect(canvas.getByText('2 active')).toBeVisible();
 
     // Grant: the form POSTs through the mocked adapter, which appends the
@@ -294,9 +292,7 @@ export const Default: Story = {
     );
     await userEvent.click(rowCanvas.getByRole('button', { name: 'Revoke consent' }));
 
-    await expect(
-      await rowCanvas.findByText('Reason: Client rescheduled the procedure.')
-    ).toBeVisible();
+    await expect(rowCanvas.findByText('Reason: Client rescheduled the procedure.')).toBeVisible();
     await expect(
       rowCanvas.queryByRole('button', { name: 'Revoke Surgical consent' })
     ).not.toBeInTheDocument();
@@ -309,9 +305,7 @@ export const Empty: Story = {
   beforeEach: prepare({ fixture: { kind: 'resolves', records: [] } }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      await canvas.findByText('No consents recorded for this patient yet.')
-    ).toBeVisible();
+    await expect(canvas.findByText('No consents recorded for this patient yet.')).toBeVisible();
     await expect(canvas.queryByText(/active/)).not.toBeInTheDocument();
   },
 };
@@ -352,9 +346,7 @@ export const ReadOnly: Story = {
   }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      await canvas.findByText('Cranial cruciate ligament repair (left stifle)')
-    ).toBeVisible();
+    await expect(canvas.findByText('Cranial cruciate ligament repair (left stifle)')).toBeVisible();
     // The field is still there to read; the controls are absent rather than disabled.
     await expect(canvas.queryByRole('button', { name: 'Record consent' })).not.toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: /^Revoke/ })).not.toBeInTheDocument();

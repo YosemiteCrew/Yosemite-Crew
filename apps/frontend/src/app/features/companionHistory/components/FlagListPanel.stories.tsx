@@ -227,9 +227,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      await canvas.findByRole('heading', { level: 3, name: 'Patient flags' })
-    ).toBeVisible();
+    await expect(canvas.findByRole('heading', { level: 3, name: 'Patient flags' })).toBeVisible();
     await expect(canvas.getByText('2 active')).toBeVisible();
     await expect(canvas.getByText('Bites when startled')).toBeVisible();
     await expect(canvas.getByText('Jumps low fences')).toBeVisible();
