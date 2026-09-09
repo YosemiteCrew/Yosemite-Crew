@@ -3339,7 +3339,7 @@ describe("FinancePaymentService", () => {
 
     expect(Stripe).toHaveBeenCalledWith(
       "sk_test_ctor",
-      expect.objectContaining({ apiVersion: expect.any(String) }),
+      expect.objectContaining({ apiVersion: "2026-07-29.dahlia" }),
     );
     expect(constructed.refunds.create).toHaveBeenCalledWith(
       { charge: "ch_new_client", amount: 5000 },
