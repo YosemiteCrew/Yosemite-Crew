@@ -919,9 +919,11 @@ const IntegrationFilterTabs = ({
   activeFilter: IntegrationsPageState['activeFilter'];
   setActiveFilter: IntegrationsPageState['setActiveFilter'];
 }) => (
-  // NOSONAR: styled flex pill group; native <fieldset> defaults (block layout, border,
-  // required legend) break the pill design — same pattern as InvoiceStatusFilterPills.
-  <div role="group" aria-label="Filter integrations" className="flex items-center gap-2 flex-wrap">
+  <div /* NOSONAR: styled flex pill group; native <fieldset> defaults (block layout, border, required legend) break the pill design */
+    role="group"
+    aria-label="Filter integrations"
+    className="flex items-center gap-2 flex-wrap"
+  >
     {integrationFilters.map((tab) => (
       <FilterChip
         key={tab.key}
