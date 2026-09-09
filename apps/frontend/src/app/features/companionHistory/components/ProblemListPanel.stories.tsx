@@ -236,9 +236,7 @@ export const Default: ProblemListPanelStory = {
   name: 'Problems loaded',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      await canvas.findByRole('heading', { level: 3, name: 'Problem list' })
-    ).toBeVisible();
+    await expect(canvas.findByRole('heading', { level: 3, name: 'Problem list' })).toBeVisible();
     await expect(canvas.getByText('Chronic kidney disease')).toBeVisible();
     await expect(canvas.getByText('Severe')).toBeVisible();
     await expect(canvas.getByText('Otitis externa (left ear)')).toBeVisible();
@@ -271,9 +269,7 @@ export const Empty: ProblemListPanelStory = {
   beforeEach: prepare({ fixture: { kind: 'resolves', problems: [] } }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      await canvas.findByText('No problems recorded for this patient yet.')
-    ).toBeVisible();
+    await expect(canvas.findByText('No problems recorded for this patient yet.')).toBeVisible();
     await expect(canvas.queryByText('Chronic kidney disease')).not.toBeInTheDocument();
   },
 };

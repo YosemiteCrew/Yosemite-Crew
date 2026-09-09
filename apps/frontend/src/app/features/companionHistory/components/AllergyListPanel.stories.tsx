@@ -266,9 +266,7 @@ export const Empty: AllergyListPanelStory = {
   beforeEach: prepare({ fixture: { kind: 'resolves', allergies: [] } }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      await canvas.findByText('No allergies recorded for this patient yet.')
-    ).toBeVisible();
+    await expect(canvas.findByText('No allergies recorded for this patient yet.')).toBeVisible();
     await expect(canvas.queryByText('Penicillin')).not.toBeInTheDocument();
   },
 };
