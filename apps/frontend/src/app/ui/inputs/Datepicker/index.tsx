@@ -54,7 +54,7 @@ const DateInputButton = ({
         ref={ref}
         type="button"
         onClick={onClick}
-        className={`flex h-10 w-10 items-center justify-center ${getFieldControlClassName()} ${className ?? ''}`}
+        className={`flex h-10! w-10! items-center justify-center ${getFieldControlClassName()} ${className ?? ''}`}
         aria-label="Toggle calendar"
         aria-describedby={errorId}
       >
