@@ -2,6 +2,7 @@ import React, { useId } from 'react';
 import { IoArrowForward, IoCameraOutline, IoClose } from 'react-icons/io5';
 import { FiCheck } from 'react-icons/fi';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import {
   CompanionAlert,
   ALERT_PRIORITY_CONFIG,
@@ -33,18 +34,20 @@ export const InfoRow = ({ label, value }: { label: string; value: React.ReactNod
   </div>
 );
 
+/** Read-only alert badge: the shared status-pill box, coloured by alert priority. */
 export const AlertChipView = ({ alert }: { alert: CompanionAlert }) => {
   const cfg = ALERT_PRIORITY_CONFIG[alert.priority] ?? ALERT_PRIORITY_CONFIG.medium;
   return (
-    <span
-      className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[10px] font-bold border leading-[1.4]"
-      style={{ background: cfg.bg, color: cfg.text, borderColor: cfg.border }}
-    >
-      {alert.label}
-    </span>
+    <StatusPill label={alert.label} tokens={{ bg: cfg.bg, text: cfg.text, border: cfg.border }} />
   );
 };
 
+/**
+ * Editable/removable alert chip. Not a plain `StatusPill` render - it carries an
+ * inline remove button `StatusPill` has no affordance for - but the box geometry
+ * (padding, leading, case, tracking) is kept identical to it on purpose so an
+ * edit-mode chip doesn't visibly mismatch the read-only one it replaces in place.
+ */
 export const AlertChipEdit = ({
   alert,
   onRemove,
@@ -55,7 +58,7 @@ export const AlertChipEdit = ({
   const cfg = ALERT_PRIORITY_CONFIG[alert.priority];
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full px-[9px] py-[3px] text-[10px] font-bold border leading-[1.4]"
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] border leading-[normal]"
       style={{ background: cfg.bg, color: cfg.text, borderColor: cfg.border }}
     >
       {alert.label}
