@@ -436,7 +436,7 @@ describe('Appointments page', () => {
     expect(bookWaitlistEntryMock).not.toHaveBeenCalled();
     expect(notifyMock).toHaveBeenCalledWith('warning', {
       title: 'Waitlist not updated',
-      text: 'The appointment was created for a different patient. Review the waitlist before booking this patient again.',
+      text: 'The appointment could not be confirmed. Review the waitlist before booking this patient again.',
     });
   });
 
