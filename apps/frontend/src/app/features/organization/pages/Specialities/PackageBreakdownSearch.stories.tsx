@@ -61,9 +61,9 @@ const SearchHarness = (args: SearchProps) => {
   );
 };
 
-/** The panel carries no role or label, so it is reached through a row it contains. */
+/** The panel is a `role="listbox"`, so it is reached through an option it contains. */
 const panelFor = (canvasElement: HTMLElement, rowName: RegExp) =>
-  within(canvasElement).getByRole('button', { name: rowName }).parentElement as HTMLElement;
+  within(canvasElement).getByRole('option', { name: rowName }).parentElement as HTMLElement;
 
 const meta = {
   title: 'Organization/PackageBreakdownSearch',
@@ -79,9 +79,13 @@ const meta = {
           'There are **two** panels, not one, and they are separate elements with different ' +
           'padding: the results list (`overflow-hidden`, rows at `px-4 py-2`) and the "No items ' +
           'found." card (`px-4 py-3`). Both are `absolute top-full left-0 right-0 z-50 mt-1` over ' +
-          'a `--screen` fill with a `card-border` hairline, so they overlay whatever follows the ' +
-          'field rather than pushing it down - which means a regression to static positioning ' +
-          'shoves the entire breakdown table down the page instead of failing visibly.\n\n' +
+          'a `--screen` fill with a 13px-radius `--hairline` border and a `--sh28` shadow, matching ' +
+          'the floating-panel tokens the canonical `Dropdown` component uses, so they overlay ' +
+          'whatever follows the field rather than pushing it down - which means a regression to ' +
+          'static positioning shoves the entire breakdown table down the page instead of failing ' +
+          'visibly. The results list is a `role="listbox"` of `role="option"` rows, keyboard-' +
+          'navigable with Arrow keys / Home / End / Enter / Space / Escape via the shared ' +
+          '`useListboxKeyboardNav` hook.\n\n' +
           'The three conditions are mutually exclusive by arithmetic rather than by an explicit ' +
           'branch: results render when `filteredSearch.length > 0`, the empty card when there is a ' +
           'trimmed query, no results **and** `searchLoading` is false. Nothing renders while a ' +
@@ -134,7 +138,7 @@ export const TypingOpensResults: Story = {
     const panel = panelFor(canvasElement, /Dermatology consult/);
     // Assert the panel has its rows and that they carry both halves of their line -
     // an empty overlay would satisfy "the dropdown opened" on its own.
-    const rows = within(panel).getAllByRole('button');
+    const rows = within(panel).getAllByRole('option');
     await expect(rows).toHaveLength(2);
     await expect(rows[0]).toHaveTextContent('Dermatology consult');
     await expect(rows[0]).toHaveTextContent('Consultation · $85');
@@ -159,7 +163,7 @@ export const ResultsOpen: Story = {
   args: { searchQuery: 'a', filteredSearch: CATALOG },
   play: async ({ canvasElement }) => {
     const panel = panelFor(canvasElement, /Dermatology consult/);
-    const rows = within(panel).getAllByRole('button');
+    const rows = within(panel).getAllByRole('option');
     await expect(rows).toHaveLength(6);
     // One row per CatalogItemType, so every label in TYPE_LABELS is on screen at once.
     await expect(panel).toHaveTextContent('Diagnostics · $62');
@@ -211,7 +215,7 @@ export const Selecting: Story = {
   args: { searchQuery: 'dental', filteredSearch: [CATALOG[1]] },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: /Dental scale and polish/ }));
+    await userEvent.click(canvas.getByRole('option', { name: /Dental scale and polish/ }));
     // The whole entry goes back to the form - price, discounts and nested breakdown
     // included - not just an id.
     await expect(args.onSelectItem).toHaveBeenCalledWith(CATALOG[1]);
