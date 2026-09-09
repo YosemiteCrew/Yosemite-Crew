@@ -726,7 +726,7 @@ function Story() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#8f8984',
+              color: 'var(--ink-faint)',
             }}
           >
             Whose history is it, anyway
@@ -754,7 +754,7 @@ function Story() {
                 fontStyle: 'italic',
                 fontWeight: 500,
                 letterSpacing: '-0.01em',
-                color: '#ff90d4',
+                color: 'var(--pink)',
               }}
             >
               Your companion is yours. The record of their life should be too.
