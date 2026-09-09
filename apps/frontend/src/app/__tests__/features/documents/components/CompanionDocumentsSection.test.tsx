@@ -138,8 +138,10 @@ describe('CompanionDocumentsSection', () => {
     // Month bucket header, typed sub-category label, and both status pills.
     expect(screen.getByText('January 2026')).toBeInTheDocument();
     expect(screen.getByText(/Vaccination/)).toBeInTheDocument();
-    // "Synced" is both a filter tab (button) and this row's status pill (span).
-    expect(screen.getByText('Synced', { selector: 'span' })).toBeInTheDocument();
+    // "Synced" is both a filter tab (FilterChip, which also renders its label in
+    // a span) and this row's status pill - scope to the status pill's own class
+    // to disambiguate.
+    expect(screen.getByText('Synced', { selector: '.yc-status-pill' })).toBeInTheDocument();
     expect(screen.getByText('PMS visible')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Open vaccination card' }));
@@ -252,6 +254,30 @@ describe('CompanionDocumentsSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Synced' }));
     expect(screen.getByText('Synced Report')).toBeInTheDocument();
     expect(screen.queryByText('Manual Upload')).not.toBeInTheDocument();
+  });
+
+  it('renders the source tabs with the design system FilterChip geometry', async () => {
+    loadCompanionDocumentMock.mockResolvedValue([
+      {
+        id: 's1',
+        title: 'Synced Report',
+        category: 'HEALTH',
+        subcategory: 'LAB_TEST',
+        issueDate: '2026-02-01T10:00:00Z',
+        syncedFromPms: true,
+        attachments: [{ mimeType: 'application/pdf' }],
+      },
+    ]);
+
+    render(<CompanionDocumentsSection companionId="comp-1" />);
+    await waitFor(() => expect(screen.getByText('Synced Report')).toBeInTheDocument());
+
+    // The shared FilterChip control (apps/frontend/src/app/ui/filters/FilterChip.tsx),
+    // not a hand-rolled pill that happens to look similar - h-8/px-[13px]/text-[12.5px]
+    // is FilterChip's one geometry, pixels the old bespoke pill (px-3 py-1.5, text-[12px])
+    // did not use.
+    const allChip = screen.getByRole('button', { name: /^All/ });
+    expect(allChip).toHaveClass('h-8', 'px-[13px]', 'text-[12.5px]');
   });
 
   it('shows an inline message when a filter matches no records', async () => {
