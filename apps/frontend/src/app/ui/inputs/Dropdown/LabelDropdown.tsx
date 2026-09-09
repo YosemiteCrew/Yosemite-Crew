@@ -74,6 +74,8 @@ type DropdownPanelProps = {
   noOptionsMessage?: string;
   onOptionHover: (option: DropdownOption) => void;
   onOptionSelect: (option: DropdownOption) => void;
+  /** Currently selected value, so each option row can report `aria-selected`. */
+  selectedValue?: string;
 };
 
 const DropdownPanel = ({
@@ -88,6 +90,7 @@ const DropdownPanel = ({
   noOptionsMessage,
   onOptionHover,
   onOptionSelect,
+  selectedValue,
 }: DropdownPanelProps) => {
   const emptyMessage = searchQuery
     ? 'No matches found'
@@ -95,6 +98,7 @@ const DropdownPanel = ({
   return (
     <div
       id={listboxId}
+      role="listbox"
       aria-label={placeholder}
       data-portal-dropdown
       data-terminology-lock={isTerminologyLocked ? 'true' : undefined}
@@ -107,6 +111,8 @@ const DropdownPanel = ({
             key={option.value}
             id={`${listboxId}-option-${option.value}`}
             type="button"
+            role="option"
+            aria-selected={option.value === selectedValue}
             className={optionClassName(activeOptionId === `${listboxId}-option-${option.value}`)}
             onMouseEnter={() => onOptionHover(option)}
             onClick={() => onOptionSelect(option)}
@@ -314,6 +320,7 @@ const LabelDropdown = ({
       noOptionsMessage={noOptionsMessage}
       onOptionHover={(option) => setActiveIndex(filteredOptions.indexOf(option))}
       onOptionSelect={selectOption}
+      selectedValue={selected?.value}
     />
   );
 

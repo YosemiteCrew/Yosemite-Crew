@@ -155,7 +155,7 @@ describe('AccessibilityReportPage', () => {
       target: { value: 'https://app.example.com/appointments' },
     });
     fireEvent.click(screen.getByRole('button', { name: /How severe is the impact/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Very difficult to use' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Very difficult to use' }));
     fireEvent.change(screen.getByLabelText(/Describe the barrier/i), {
       target: { value: 'Cannot tab to the submit button.' },
     });
@@ -283,11 +283,11 @@ describe('AccessibilityReportPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /How severe is the impact/i }));
 
     expect(
-      screen.getByRole('button', { name: 'Cannot use the feature at all' })
+      screen.getByRole('option', { name: 'Cannot use the feature at all' })
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Very difficult to use' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Inconvenient but workable' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Not sure' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Very difficult to use' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Inconvenient but workable' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Not sure' })).toBeInTheDocument();
   });
 
   it('breadcrumb links back to accessibility statement', () => {

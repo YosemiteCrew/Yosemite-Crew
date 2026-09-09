@@ -45,7 +45,7 @@ describe('MultiSelectDropdown', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Select/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'One', pressed: false }));
+    fireEvent.click(screen.getByRole('option', { name: 'One', selected: false }));
     expect(onChange).toHaveBeenCalledWith(['One']);
 
     rerender(
@@ -59,7 +59,7 @@ describe('MultiSelectDropdown', () => {
 
     expect(screen.getByText('One')).toBeInTheDocument();
 
-    const selectedOption = screen.getByRole('button', { name: 'One', pressed: true });
+    const selectedOption = screen.getByRole('option', { name: 'One', selected: true });
     fireEvent.click(selectedOption);
     expect(onChange).toHaveBeenCalledWith([]);
   });
@@ -157,9 +157,9 @@ describe('MultiSelectDropdown', () => {
     expect(onChange).toHaveBeenCalledWith(['One']);
 
     fireEvent.click(trigger);
-    expect(screen.getByRole('button', { name: 'One', pressed: false })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'One', selected: false })).toBeInTheDocument();
     fireEvent.keyDown(trigger, { key: 'Escape' });
-    expect(screen.queryByRole('button', { name: 'One', pressed: false })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'One', selected: false })).not.toBeInTheDocument();
   });
 
   it('filters options and shows an empty search state', () => {
@@ -330,7 +330,7 @@ describe('MultiSelectDropdown', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Select/i }));
-    expect(screen.getByRole('button', { name: 'One', pressed: false })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'One', selected: false })).toBeInTheDocument();
   });
 
   it('toggles the dropdown when the chevron icon is clicked', () => {
@@ -390,12 +390,12 @@ describe('MultiSelectDropdown', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Select/i }));
 
-    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Two', pressed: false }));
+    fireEvent.mouseEnter(screen.getByRole('option', { name: 'Two', selected: false }));
 
-    expect(screen.getByRole('button', { name: 'Two', pressed: false })).toHaveClass(
+    expect(screen.getByRole('option', { name: 'Two', selected: false })).toHaveClass(
       'bg-card-hover'
     );
-    expect(screen.getByRole('button', { name: 'One', pressed: false })).not.toHaveClass(
+    expect(screen.getByRole('option', { name: 'One', selected: false })).not.toHaveClass(
       'bg-card-hover'
     );
   });
@@ -405,5 +405,25 @@ describe('MultiSelectDropdown', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Select/i }));
     expect(screen.getByText('No options available')).toBeInTheDocument();
+  });
+
+  it('exposes listbox/option ARIA roles with aria-selected on the panel', () => {
+    render(
+      <MultiSelectDropdown
+        placeholder="Select"
+        value={['One']}
+        onChange={jest.fn()}
+        options={['One', 'Two']}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Select/i }));
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    const options = screen.getAllByRole('option');
+    expect(options).toHaveLength(2);
+
+    expect(screen.getByRole('option', { name: 'One', selected: true })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Two', selected: false })).toBeInTheDocument();
   });
 });

@@ -414,11 +414,11 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     fireEvent.change(screen.getByLabelText('Order notes'), { target: { value: 'Fasted sample' } });
     fireEvent.change(screen.getByLabelText('Collection date'), { target: { value: '2026-06-03' } });
     fireEvent.click(screen.getByRole('button', { name: /veterinarian: dr\. tim apple/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Sarah Mitchell' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Sarah Mitchell' }));
     fireEvent.click(screen.getByRole('button', { name: /technician: sarah mitchell/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Dr. Tim Apple' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Dr. Tim Apple' }));
     fireEvent.click(screen.getByRole('button', { name: /test type: reference lab/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'In-house' }));
+    fireEvent.click(screen.getByRole('option', { name: 'In-house' }));
 
     expect(hook.setNotes).toHaveBeenCalledWith('Fasted sample');
     expect(hook.setSpecimenCollectionDate).toHaveBeenCalledWith('2026-06-03');

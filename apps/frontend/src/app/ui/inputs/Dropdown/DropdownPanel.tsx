@@ -17,6 +17,8 @@ type DropdownPanelProps = {
   filteredList: DropdownOption[];
   setActiveIndex: (index: number) => void;
   selectOption: (option: DropdownOption) => void;
+  /** Currently selected value, so each option row can report `aria-selected`. */
+  value: string;
 };
 
 const DropdownPanel = ({
@@ -34,9 +36,11 @@ const DropdownPanel = ({
   filteredList,
   setActiveIndex,
   selectOption,
+  value,
 }: DropdownPanelProps) => (
   <div
     id={listboxId}
+    role="listbox"
     aria-label={placeholder}
     data-portal-dropdown
     className={`select-input-dropdown ${shouldPortal ? 'select-input-dropdown-portal' : ''} ${dropdownClassName ?? ''}`}
@@ -69,11 +73,14 @@ const DropdownPanel = ({
       const label: string = option.label ?? option.value ?? '';
       const valueToSend: string = option.value ?? option.label ?? '';
       const isActive = activeOptionId === `${listboxId}-option-${valueToSend}`;
+      const isSelected = valueToSend === value;
       return (
         <button
           key={valueToSend || label}
           id={`${listboxId}-option-${valueToSend}`}
           type="button"
+          role="option"
+          aria-selected={isSelected}
           className={`select-input-dropdown-item ${isActive ? 'select-input-dropdown-item-active' : ''}`}
           onMouseEnter={() => setActiveIndex(index)}
           onClick={() => selectOption(option)}
