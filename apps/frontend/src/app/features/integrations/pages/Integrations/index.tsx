@@ -919,20 +919,26 @@ const IntegrationFilterTabs = ({
   activeFilter: IntegrationsPageState['activeFilter'];
   setActiveFilter: IntegrationsPageState['setActiveFilter'];
 }) => (
-  <div /* NOSONAR: styled flex pill group; native <fieldset> defaults (block layout, border, required legend) break the pill design */
-    role="group"
-    aria-label="Filter integrations"
-    className="flex items-center gap-2 flex-wrap"
-  >
-    {integrationFilters.map((tab) => (
-      <FilterChip
-        key={tab.key}
-        label={tab.label}
-        active={activeFilter === tab.key}
-        onClick={() => setActiveFilter(tab.key)}
-      />
-    ))}
-  </div>
+  // fieldset, not role="group" (Sonar S6819): the role survives natively and
+  // the legend supplies the accessible name, so getByRole('group', { name })
+  // still resolves. Tailwind preflight already zeroes fieldset margin/padding/
+  // border, so the pill layout below is untouched. Chosen over a NOSONAR
+  // suppression on role="group" - that silences the CI check without fixing
+  // the underlying accessibility gap, and this codebase's other filter rows
+  // (e.g. Slotpicker) already use this exact pattern for the same rule.
+  <fieldset className="m-0 border-0 p-0">
+    <legend className="sr-only">Filter integrations</legend>
+    <div className="flex items-center gap-2 flex-wrap">
+      {integrationFilters.map((tab) => (
+        <FilterChip
+          key={tab.key}
+          label={tab.label}
+          active={activeFilter === tab.key}
+          onClick={() => setActiveFilter(tab.key)}
+        />
+      ))}
+    </div>
+  </fieldset>
 );
 
 // Compact integration card — design: 16px/18px padding, a 10px column gap and a
