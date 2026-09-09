@@ -51,7 +51,7 @@
       "qs": "6.16.0",
       "serialize-javascript": "7.0.5",
       "undici": "7.29.0",
-      "svgo": "3.3.4",
+      "svgo": "3.3.5",
       "@hono/node-server": "2.0.11",
       "hono": "4.13.5",
       "yauzl": "3.2.1",
@@ -159,11 +159,15 @@
       "react-native>jest-environment-node": "^30.4.1",
       "engine.io": "6.6.7",
       "dompurify": "3.4.14",
-      "sharp": "0.35.3",
+      "sharp": "0.35.4",
       "adm-zip": "0.6.0",
       "http-proxy-middleware": "2.0.10",
       "stream-chat": "9.52.0",
-      "zod": "4.5.4"
+      "zod": "4.5.4",
+      "toml": "4.2.0",
+      "stream-json": "3.5.0",
+      "@humanfs/node": "0.16.8",
+      "decode-uri-component": "0.5.0"
     },
     "patchedDependencies": {
       "react-native@0.81.6": "patches/react-native@0.81.6.patch",
