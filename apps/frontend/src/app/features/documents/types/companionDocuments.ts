@@ -142,6 +142,12 @@ export type CompanionRecord = {
    * longer always 'DOCUMENT'.
    */
   sourceKind?: string;
+  /**
+   * The rendered PDF for a signed/generated record (Documenso e-signing).
+   * Only ever set for `sourceKind !== 'DOCUMENT'` rows - a plain uploaded
+   * file's file lives in `attachments` instead.
+   */
+  pdfUrl?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
