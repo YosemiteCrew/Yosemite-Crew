@@ -323,7 +323,7 @@ function Origin() {
             padding: 'clamp(40px, 6vw, 72px) 0 clamp(88px, 12vw, 170px)',
           }}
         >
-          <Reveal delay={0} style={{ ...eyebrowStyle, color: '#8f8984' }}>
+          <Reveal delay={0} style={{ ...eyebrowStyle, color: 'var(--ink-faint)' }}>
             Where this started
           </Reveal>
           <Reveal

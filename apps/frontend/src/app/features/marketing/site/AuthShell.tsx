@@ -103,7 +103,7 @@ export function AuthBrandContent({
           fontWeight: 700,
           letterSpacing: '0.11em',
           textTransform: 'uppercase',
-          color: '#5ce1e6',
+          color: 'var(--cyan)',
           animation: 'ycFade 0.9s ease 0.1s both',
         }}
       >

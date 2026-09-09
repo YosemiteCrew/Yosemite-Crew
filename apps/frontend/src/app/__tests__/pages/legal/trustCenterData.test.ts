@@ -68,7 +68,7 @@ describe('trustCenterData', () => {
         description: 'US federal law on the validity of e-signatures.',
         icon: 'create-outline',
         iconBg: '#e6f2ff',
-        iconColor: '#257bed',
+        iconColor: 'var(--blue)',
       },
       {
         name: 'UETA',
@@ -100,7 +100,7 @@ describe('trustCenterData', () => {
         description: 'US protection for patient health information.',
         icon: 'medkit-outline',
         iconBg: '#e6f2ff',
-        iconColor: '#257bed',
+        iconColor: 'var(--blue)',
       },
     ]);
   });
