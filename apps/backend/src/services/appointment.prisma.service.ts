@@ -1862,6 +1862,34 @@ export const AppointmentPrismaService = {
     return toResponse(updated);
   },
 
+  async updateAppointmentRoom(
+    appointmentId: string,
+    organisationId: string,
+    room: { id: string; name: string },
+  ) {
+    if (!appointmentId) {
+      throw new AppointmentPrismaServiceError("appointmentId is required", 400);
+    }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
+
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
+    });
+    assertExists(current as AppointmentRow | null, "Appointment not found");
+
+    // No caller uses the return value - this only exists to persist the
+    // room, so it skips the DTO conversion's extra payment-state queries.
+    await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { room: toJsonValue(room), updatedAt: new Date() },
+    });
+  },
+
   async admitAppointmentToInpatient(
     appointmentId: string,
     organisationId: string,

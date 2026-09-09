@@ -101,6 +101,38 @@ const syncAppointmentOnArrival = async (
   }
 };
 
+/**
+ * Front desk's "current room" and the schedule's own Appointment.room are
+ * the same fact tracked in two places: reassigning a room at check-in never
+ * touched the appointment, so the Board kept showing whatever room the
+ * appointment was booked into even after the patient moved. Best-effort for
+ * the same reason as syncAppointmentOnArrival - a check-in isn't always
+ * linked to an appointment, and a stale/terminal appointment shouldn't block
+ * the front desk from recording a room move.
+ */
+const syncAppointmentRoom = async (
+  appointmentId: string | undefined,
+  organisationId: string,
+  roomId: string,
+): Promise<void> => {
+  if (!appointmentId) return;
+  const room = await prisma.organisationRoom.findFirst({
+    where: { id: roomId, organisationId },
+    select: { id: true, name: true },
+  });
+  if (!room) return;
+  try {
+    await AppointmentPrismaService.updateAppointmentRoom(
+      appointmentId,
+      organisationId,
+      room,
+    );
+  } catch (err) {
+    if (err instanceof AppointmentPrismaServiceError) return;
+    throw err;
+  }
+};
+
 export const PatientCheckInService = {
   async create(params: CreateCheckInParams) {
     const record = await prisma.patientCheckIn.create({
@@ -259,11 +291,19 @@ export const PatientCheckInService = {
   },
 
   async assignRoom(id: string, organisationId: string, roomId: string) {
-    await assertCheckIn(id, organisationId);
-    return prisma.patientCheckIn.update({
+    const existing = await assertCheckIn(id, organisationId);
+    const record = await prisma.patientCheckIn.update({
       where: { id },
       data: { assignedRoomId: roomId },
       select: checkInSelect,
     });
+
+    await syncAppointmentRoom(
+      existing.appointmentId ?? undefined,
+      organisationId,
+      roomId,
+    );
+
+    return record;
   },
 };
