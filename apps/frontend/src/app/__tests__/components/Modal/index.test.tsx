@@ -136,6 +136,28 @@ describe('Modal', () => {
     expect(screen.getByText('Content')).toBeInTheDocument();
   });
 
+  it.each(['drawer', 'centered'] as const)(
+    'scrims the %s variant with the same dim as every other overlay',
+    (variant) => {
+      // The drawer used to dim with a separate, lighter `--color-overlay-backdrop`
+      // token at a 2px blur while every other overlay in the app (centered, the
+      // phone sheet, the guide player) used `--sh55` at 6px - reported as the
+      // background behind a drawer panel reading washed-out/low-contrast next to
+      // any other overlay in the same app. Both variants now share one scrim.
+      render(
+        <Modal showModal setShowModal={jest.fn()} variant={variant}>
+          <div>Content</div>
+        </Modal>
+      );
+
+      const dialog = screen.getByRole('dialog');
+      const backdrop = dialog.previousElementSibling as HTMLElement;
+      expect(backdrop).toHaveAttribute('aria-hidden', 'true');
+      expect(backdrop.style.backgroundColor).toBe('var(--sh55)');
+      expect(backdrop.className).toContain('backdrop-blur-[6px]');
+    }
+  );
+
   it.each([
     ['sm', 'sm:w-[480px]'],
     ['md', 'sm:w-[680px]'],
