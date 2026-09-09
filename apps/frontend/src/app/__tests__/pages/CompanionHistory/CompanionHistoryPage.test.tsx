@@ -147,6 +147,11 @@ jest.mock('@/app/features/companionHistory/components/FlagListPanel', () => ({
   default: ({ companionId }: any) => <div data-testid="flag-list-panel">{companionId}</div>,
 }));
 
+jest.mock('@/app/features/companionHistory/components/PocLabListPanel', () => ({
+  __esModule: true,
+  default: ({ companionId }: any) => <div data-testid="poc-lab-list-panel">{companionId}</div>,
+}));
+
 jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
   useIsPhone: () => mockIsPhone,
   PHONE_MEDIA_QUERY: '(max-width: 767px)',
@@ -357,6 +362,7 @@ describe('CompanionHistoryPage', () => {
     expect(screen.getByTestId('allergy-list-panel')).toHaveTextContent('c-1');
     expect(screen.getByTestId('consent-list-panel')).toHaveTextContent('c-1');
     expect(screen.getByTestId('flag-list-panel')).toHaveTextContent('c-1');
+    expect(screen.getByTestId('poc-lab-list-panel')).toHaveTextContent('c-1');
     expect(screen.getByText("Buddy's overview")).toBeInTheDocument();
     expect(screen.getByText('Labrador / Canine')).toBeInTheDocument();
 
