@@ -542,17 +542,21 @@ const resolveTemplateModeFromContext = async (
 };
 
 /**
- * Templates can be requested by one kind or several (a CONSENT lookup has to
- * match both CONSENT and the legacy FORM-tagged templates authored before
- * CONSENT existed as a storage value - see normalizeResolverKind). Collapses
- * that either shape to what Prisma's `kind` field actually accepts.
+ * One kind or several - a CONSENT lookup has to match both CONSENT and the
+ * legacy FORM-tagged templates authored before CONSENT existed as a storage
+ * value (see normalizeResolverKind), so every kind filter accepts either shape.
+ */
+type TemplateKindFilter =
+  | TemplateKind
+  | TemplateContractKind
+  | ReadonlyArray<TemplateKind | TemplateContractKind>;
+
+/**
+ * Collapses either shape of TemplateKindFilter to what Prisma's `kind` field
+ * actually accepts.
  */
 const toKindFilter = (
-  kind:
-    | TemplateKind
-    | TemplateContractKind
-    | ReadonlyArray<TemplateKind | TemplateContractKind>
-    | undefined,
+  kind: TemplateKindFilter | undefined,
 ): Prisma.TemplateWhereInput["kind"] => {
   if (!kind) return undefined;
   const storageKinds = (Array.isArray(kind) ? kind : [kind]).map(
@@ -1207,10 +1211,7 @@ export const TemplateService = {
   async listForOrganisation(
     organisationId: string,
     filters?: {
-      kind?:
-        | TemplateKind
-        | TemplateContractKind
-        | ReadonlyArray<TemplateKind | TemplateContractKind>;
+      kind?: TemplateKindFilter;
       status?: TemplateStatus;
       scope?: TemplateScope;
       search?: string;
@@ -1241,10 +1242,7 @@ export const TemplateService = {
    * explicit `kind` filter can only narrow further, never widen.
    */
   async listLibrary(filters?: {
-    kind?:
-      | TemplateKind
-      | TemplateContractKind
-      | ReadonlyArray<TemplateKind | TemplateContractKind>;
+    kind?: TemplateKindFilter;
     status?: TemplateStatus;
     scope?: TemplateScope;
     search?: string;
@@ -1293,10 +1291,7 @@ export const TemplateService = {
     organisationId: string,
     ownerUserId: string,
     filters?: {
-      kind?:
-        | TemplateKind
-        | TemplateContractKind
-        | ReadonlyArray<TemplateKind | TemplateContractKind>;
+      kind?: TemplateKindFilter;
       status?: TemplateStatus;
       scope?: TemplateScope;
       search?: string;
