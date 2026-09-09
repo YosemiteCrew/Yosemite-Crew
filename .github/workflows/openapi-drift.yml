@@ -11,7 +11,7 @@ on:
     paths:
       - 'apps/backend/src/routers/**'
       - 'apps/backend/src/middlewares/rbac.ts'
-      - 'apps/dev-docs/static/openapi.yaml'
+      - 'apps/frontend/public/static/openapi/openapi.yaml'
       - 'scripts/ci/openapi-drift.mjs'
       - '.github/workflows/openapi-drift.yml'
   push:
@@ -19,7 +19,7 @@ on:
     paths:
       - 'apps/backend/src/routers/**'
       - 'apps/backend/src/middlewares/rbac.ts'
-      - 'apps/dev-docs/static/openapi.yaml'
+      - 'apps/frontend/public/static/openapi/openapi.yaml'
       - 'scripts/ci/openapi-drift.mjs'
       - '.github/workflows/openapi-drift.yml'
   workflow_dispatch:

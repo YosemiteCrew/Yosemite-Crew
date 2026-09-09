@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Yosemite Crew API
   version: 1.0.0
-  description: 'FHIR and non-FHIR endpoints generated from backend routers.'
+  description: 'FHIR and non-FHIR endpoints. Written by hand and checked for drift against the backend routers in CI (scripts/ci/openapi-drift.mjs) - there is no generator.'
 servers:
   - url: https://api.yosemitecrew.com
     description: Production
@@ -38,6 +38,15 @@ paths:
                 properties:
                   id:
                     type: string
+                  message:
+                    type: string
+        400:
+          description: 'Client validation failed, e.g. "fullName and email are required" or "Checkbox confirmation is required"'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
                   message:
                     type: string
         500:
@@ -116,6 +125,26 @@ paths:
           in: header
           required: false
           description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  '/v1/adverse-event/{id}':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/adverse-event/{id}'
+      operationId: get_v1_adverse_event_id
+      parameters:
+        - name: id
+          in: path
+          required: true
           schema:
             type: string
       responses:
@@ -1799,6 +1828,12 @@ paths:
       operationId: post_fhir_v1_companion
       security:
         - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Patient'
       responses:
         401:
           description: Response

@@ -43,7 +43,6 @@ export const PLANS: BillingPlan[] = [
       'First 1,000 calls free each month',
       'Unlimited API keys',
       'Live + test environments',
-      'Webhook support',
       'Priority support',
     ],
     recommended: true,
