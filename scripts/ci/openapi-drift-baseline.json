@@ -2,5 +2,5 @@
   "_comment": "Ratchet ceilings for scripts/ci/openapi-drift.mjs. These are known, tracked debt (#2941-#2944), not a target - the gate fails only if a count goes ABOVE its ceiling, so a PR cannot make the gap wider. Lower a ceiling by hand after doing real completion work, or regenerate with --update-baseline after such work. Never raise a ceiling to make a failing PR pass - that defeats the point of the ratchet.",
   "missingFromSpec": 793,
   "staleInSpec": 34,
-  "placeholderSchemas": 362
+  "placeholderSchemas": 256
 }
