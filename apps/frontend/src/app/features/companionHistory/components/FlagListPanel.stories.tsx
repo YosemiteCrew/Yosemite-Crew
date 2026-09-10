@@ -227,7 +227,9 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.findByRole('heading', { level: 2, name: 'Patient flags' })).toBeVisible();
+    await expect(
+      await canvas.findByRole('heading', { level: 2, name: 'Patient flags' })
+    ).toBeVisible();
     await expect(canvas.getByText('2 active')).toBeVisible();
     await expect(canvas.getByText('Bites when startled')).toBeVisible();
     await expect(canvas.getByText('Jumps low fences')).toBeVisible();
@@ -244,7 +246,7 @@ export const Empty: Story = {
   beforeEach: prepare({ fixture: { kind: 'resolves', flags: [] } }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.findByText('No active flags for this patient.')).toBeVisible();
+    await expect(await canvas.findByText('No active flags for this patient.')).toBeVisible();
     await expect(canvas.getByRole('button', { name: 'Add flag' })).toBeEnabled();
   },
 };
@@ -284,7 +286,7 @@ export const ReadOnly: Story = {
   }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.findByText('Bites when startled')).toBeVisible();
+    await expect(await canvas.findByText('Bites when startled')).toBeVisible();
     // Flags are still readable; only the edit affordances are gone.
     await expect(canvas.queryByRole('button', { name: 'Add flag' })).not.toBeInTheDocument();
     await expect(
@@ -306,7 +308,7 @@ export const AddingAFlag: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Save flag' }));
 
     // The form closes and the list is reloaded, so the new flag joins the seeded ones.
-    await expect(canvas.findByText('Needs sedation for X-rays')).toBeVisible();
+    await expect(await canvas.findByText('Needs sedation for X-rays')).toBeVisible();
     await expect(canvas.getByText('3 active')).toBeVisible();
     await expect(canvas.queryByLabelText('Flag title')).not.toBeInTheDocument();
   },
