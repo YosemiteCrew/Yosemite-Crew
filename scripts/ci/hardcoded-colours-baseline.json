@@ -1,8 +1,12 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "e8b7262dca97366d0fbeb72adc942f56493e5104",
-  "total": 243,
+  "generated_at": "4b699be43276f02d6489cf38fdfd472cb12886ea",
+  "total": 221,
   "justified": {
+    "apps/frontend/src/app/features/appointments/components/AppointmentCentralModal/AppointmentAvatar.stories.tsx": {
+      "n": 1,
+      "why": "A named const holding --blue-text's light-mode resolved value ('rgb(22, 87, 201)'), used only so the dark-theme story can assert it did NOT get this value - a negative computed-style assertion, not an authored literal."
+    },
     "apps/frontend/src/app/features/appointments/components/Availability/Availability.tsx": {
       "n": 1,
       "why": "The toggle knob is deliberately fixed white in both themes, and the reason is recorded at the call site: --screen flips, so in espresso the off knob was #2f271e on a #3a3128 track, a contrast of 1.15, and vanished. Tokenising this re-introduces that bug."
@@ -22,6 +26,18 @@
     "apps/frontend/src/app/features/appointments/components/Calendar/common/MenuActionsList.stories.tsx": {
       "n": 1,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/NowIndicator.stories.tsx": {
+      "n": 4,
+      "why": "Four computed-style assertions against real, deliberately-resolved token values, each commented at the call site: --blue's fixed fill ('rgb(37, 123, 237)', asserted identically in both themes) and --blue-text, which lightens from 'rgb(22, 87, 201)' in light to 'rgb(143, 182, 245)' in dark so the time label stays readable on espresso. getComputedStyle() always returns the resolved colour, never the variable name, so these have no token-referencing form to migrate to."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/SlotGridLines.stories.tsx": {
+      "n": 2,
+      "why": "Two computed-style assertions pinning --hairline's resolved value in each theme ('rgb(229, 220, 207)' light, 'rgb(64, 54, 43)' dark), commented at the call site as deliberate: to prove the token actually flipped rather than a literal surviving the theme switch. getComputedStyle() always returns the resolved colour, never the variable name."
+    },
+    "apps/frontend/src/app/features/appointments/components/Calendar/common/StaffInput.stories.tsx": {
+      "n": 2,
+      "why": "One 'rgba(0, 0, 0, 0)' computed-style assertion (the standard 'nothing painted here' oracle) and one asserting --screen's resolved espresso value ('rgb(47, 39, 30)'), commented at the call site as deliberate: to prove the chip's background tracks the token rather than a light literal that only works on bone."
     },
     "apps/frontend/src/app/features/appointments/components/Calendar/common/TimedEventMarker.stories.tsx": {
       "n": 2,
@@ -63,9 +79,29 @@
       "n": 2,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
     },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/RxBadge.stories.tsx": {
+      "n": 1,
+      "why": "A named const holding --color-text-brand's light-mode resolved value ('rgb(22, 87, 201)'), used only so the dark-theme story can assert it did NOT get this value - a negative computed-style assertion, not an authored literal."
+    },
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/StaffField.stories.tsx": {
       "n": 2,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/TitleAddIcon.stories.tsx": {
+      "n": 1,
+      "why": "A named const holding --color-text-brand's light-mode resolved value ('rgb(22, 87, 201)'), used only so the dark-theme story can assert it did NOT get this value - a negative computed-style assertion, not an authored literal."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer.stories.tsx": {
+      "n": 4,
+      "why": "'rgb(247,243,236)' and 'rgb(47,39,30)' each appear twice, all inside the story's doc-string, which deliberately renders and documents a live bug: PackageBreakdownTooltip's text and background both resolve to --screen, so the text is measurably the same colour as the surface under it (1.00:1 in both themes) - prose measuring a real regression, not an authored literal."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/DischargeDateTimeModal.stories.tsx": {
+      "n": 1,
+      "why": "'rgba(234, 55, 41, 0.18)' appears only in the story's doc-string, describing --color-danger-100's real resolved value as part of measuring a genuine legibility bug (the same --color-neutral-0/--screen collapse documented in TotalBillContainer.stories.tsx) - prose about a token's value, not an authored literal."
+    },
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/steps/AllDocumentsTable.stories.tsx": {
+      "n": 6,
+      "why": "All six literals (#525659, #fff, #1a1a1a, rgba(0,0,0,.4), #6b6b6b, #ddd) sit inside a fake generated HTML document string - a stand-in discharge-summary preview, styled like paper (Georgia serif, its own background/ink/shadow) - used so the story exercises the real getSafePdfPreviewUrl code path without a binary fixture. Same pattern as PdfPreviewOverlay.stories.tsx (see PR #2986): a previewed document's own styling, not themed app chrome."
     },
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep.tsx": {
       "n": 2,
@@ -261,15 +297,6 @@
     "apps/frontend/src/app/(routes)/(public)/accessibility/report/AccessibilityReportClient.stories.tsx": 1,
     "apps/frontend/src/app/(routes)/(public)/payment-status/PaymentStatusContent.stories.tsx": 4,
     "apps/frontend/src/app/(routes)/(public)/payment-status/PaymentStatusContent.tsx": 3,
-    "apps/frontend/src/app/features/appointments/components/AppointmentCentralModal/AppointmentAvatar.stories.tsx": 1,
-    "apps/frontend/src/app/features/appointments/components/Calendar/common/NowIndicator.stories.tsx": 4,
-    "apps/frontend/src/app/features/appointments/components/Calendar/common/SlotGridLines.stories.tsx": 2,
-    "apps/frontend/src/app/features/appointments/components/Calendar/common/StaffInput.stories.tsx": 2,
-    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/RxBadge.stories.tsx": 1,
-    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/TitleAddIcon.stories.tsx": 1,
-    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer.stories.tsx": 4,
-    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/DischargeDateTimeModal.stories.tsx": 1,
-    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/steps/AllDocumentsTable.stories.tsx": 6,
     "apps/frontend/src/app/features/auth/pages/SignIn/SignIn.tsx": 2,
     "apps/frontend/src/app/features/auth/pages/SignUp/SignUp.tsx": 2,
     "apps/frontend/src/app/features/companionHistory/components/AuditTimeline.stories.tsx": 4,
