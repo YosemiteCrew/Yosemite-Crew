@@ -738,6 +738,9 @@ input[type='radio']:focus-visible {
   --spot: #1d1c1b;
   /* ink that sits on --spot; light in both themes because --spot never flips */
   --spot-ink: #eae2d5;
+  /* muted body copy on --spot; fixed like --spot-ink, same reason - --ink-faint2
+     flips and would go too dark to read against a background that never does. */
+  --spot-ink-faint: #a9a39e;
   /* success accent that sits on --spot; fixed like --spot-ink, same reason */
   --spot-success: #9be8c9;
   /* brand-blue accent that sits on --spot; fixed like --spot-ink, same reason.
@@ -855,6 +858,7 @@ html[data-theme='dark'] {
   --warn: #f5a83c;
   --spot: #17140f;
   --spot-ink: #f4efe6;
+  --spot-ink-faint: #a9a39e;
   --spot-success: #9be8c9;
   --spot-blue: #82afec;
   --code-str: #8acbb4;
