@@ -136,20 +136,17 @@ const specOperations = (spec) => {
  * placeholder can also sit inside a named component schema referenced from a
  * path.
  */
-const MAX_WALK_DEPTH = 1000;
-
 const placeholderSchemaCount = (spec) => {
   let count = 0;
-  const walk = (node, depth = 0) => {
-    if (depth >= MAX_WALK_DEPTH || node === null || typeof node !== 'object') return;
-    if (Array.isArray(node)) {
-      for (const v of node) walk(v, depth + 1);
-      return;
-    }
+  const pending = [spec];
+  const visited = new WeakSet();
+  while (pending.length > 0) {
+    const node = pending.pop();
+    if (node === null || typeof node !== 'object' || visited.has(node)) continue;
+    visited.add(node);
     if (node.additionalProperties === true && !node.properties) count++;
-    for (const key of Object.keys(node)) walk(node[key], depth + 1);
-  };
-  walk(spec);
+    pending.push(...Object.values(node));
+  }
   return count;
 };
 
