@@ -1,7 +1,7 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "45fcfc9bcaf70d4922dd663c0da4fe8fe9673deb",
-  "total": 342,
+  "generated_at": "0226b03f6700a96058a357900e6641b119fd19dd",
+  "total": 339,
   "justified": {
     "apps/frontend/src/app/features/appointments/components/Availability/Availability.tsx": {
       "n": 1,
@@ -201,7 +201,6 @@
     "apps/frontend/src/app/features/appointments/components/Calendar/common/NowIndicator.stories.tsx": 4,
     "apps/frontend/src/app/features/appointments/components/Calendar/common/SlotGridLines.stories.tsx": 2,
     "apps/frontend/src/app/features/appointments/components/Calendar/common/StaffInput.stories.tsx": 2,
-    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/PaymentLinkStatus.css": 3,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/RxBadge.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/TitleAddIcon.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer.stories.tsx": 4,
