@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
@@ -286,5 +288,41 @@ describe('DeveloperPortalHome page', () => {
     expect(screen.queryByText('FHIR-NATIVE API')).not.toBeInTheDocument();
     expect(screen.queryByText('Quick status')).not.toBeInTheDocument();
     expect(screen.queryByTestId('primary-View docs')).not.toBeInTheDocument();
+  });
+});
+
+describe('spot-card ink stays on the fixed --spot tokens, not the flipping ones', () => {
+  // --ink and --color-ink invert with the site theme; --spot and its --spot-ink/
+  // --spot-success companions do not, because the "quick status" / "platform
+  // status" cards are pinned near-black in both themes (see the comments above
+  // .dev-hero-card and .dev-ph-status). Using the flipping tokens here collapses
+  // text-on-background contrast to 1:1 in one of the two themes.
+  const readCss = (relPath: string) => readFileSync(join(process.cwd(), relPath), 'utf8');
+
+  it('keeps the desktop quick-status card off the flipping ink tokens', () => {
+    const css = readCss(
+      'src/app/features/developers/pages/DeveloperPortalHome/DeveloperPortalHome.css'
+    );
+    expect(css).not.toMatch(/\.dev-status-(title|value)\s*{[^}]*color:\s*var\(--ink\)/);
+    expect(css).not.toMatch(/\.dev-status-label\s*{[^}]*var\(--ink\)/);
+    expect(css).toContain('background: var(--spot);');
+  });
+
+  it('keeps the phone platform-status card off the flipping ink and background tokens', () => {
+    const css = readCss(
+      'src/app/features/developers/pages/DeveloperPortalHome/PhoneDevHome.css'
+    );
+    expect(css).not.toMatch(/\.dev-ph-status\s*{[^}]*background:\s*var\(--color-ink\)/);
+    expect(css).not.toMatch(/\.dev-ph-status-title\s*{[^}]*color:\s*var\(--ink\)/);
+    expect(css).not.toMatch(/\.dev-ph-status-live\s*{[^}]*color:\s*var\(--success-text\)/);
+    expect(css).toContain('background: var(--spot);');
+    expect(css).toContain('var(--spot-ink)');
+    expect(css).toContain('var(--spot-success)');
+  });
+
+  it('declares --spot-success in both theme blocks, matching the --spot-ink pattern', () => {
+    const css = readCss('src/app/globals.css');
+    const occurrences = css.match(/--spot-success:\s*#9be8c9;/g) ?? [];
+    expect(occurrences).toHaveLength(2);
   });
 });

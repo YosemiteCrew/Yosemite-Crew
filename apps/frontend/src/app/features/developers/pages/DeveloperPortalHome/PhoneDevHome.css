@@ -35,8 +35,8 @@
 
 /* Dark platform-status card — stays near-black in both themes (design spot). */
 .dev-ph-status {
-  background: var(--color-ink);
-  border: 1px solid rgba(244, 239, 230, 0.12);
+  background: var(--spot);
+  border: 1px solid color-mix(in srgb, var(--spot-ink) 12%, transparent);
   border-radius: 16px;
   padding: 14px 15px;
   display: flex;
@@ -56,7 +56,7 @@
   margin: 0;
   font-size: 12.5px;
   font-weight: 700;
-  color: #f4efe6;
+  color: var(--spot-ink);
 }
 
 .dev-ph-status-live {
@@ -65,7 +65,7 @@
   gap: 5px;
   font-size: 10.5px;
   font-weight: 600;
-  color: #9be8c9;
+  color: var(--spot-success);
 }
 
 .dev-ph-status-live-dot {
@@ -106,13 +106,13 @@
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: #8b8794;
+  color: color-mix(in srgb, var(--spot-ink) 60%, transparent);
 }
 
 .dev-ph-metric-value {
   font-size: 16px;
   font-weight: 700;
-  color: #f4efe6;
+  color: var(--spot-ink);
   font-variant-numeric: tabular-nums;
 }
 
