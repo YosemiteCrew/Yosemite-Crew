@@ -236,7 +236,7 @@ export const Default: ProblemListPanelStory = {
   name: 'Problems loaded',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.findByRole('heading', { level: 3, name: 'Problem list' })).toBeVisible();
+    await expect(canvas.findByRole('heading', { level: 2, name: 'Problem list' })).toBeVisible();
     await expect(canvas.getByText('Chronic kidney disease')).toBeVisible();
     await expect(canvas.getByText('Severe')).toBeVisible();
     await expect(canvas.getByText('Otitis externa (left ear)')).toBeVisible();
@@ -279,7 +279,7 @@ export const Loading: ProblemListPanelStory = {
   beforeEach: prepare({ fixture: { kind: 'pending' } }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByRole('heading', { level: 3, name: 'Problem list' });
+    await canvas.findByRole('heading', { level: 2, name: 'Problem list' });
     await waitFor(() =>
       expect(canvasElement.querySelector('ul[aria-hidden="true"]')).not.toBeNull()
     );

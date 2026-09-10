@@ -227,7 +227,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.findByRole('heading', { level: 3, name: 'Patient flags' })).toBeVisible();
+    await expect(canvas.findByRole('heading', { level: 2, name: 'Patient flags' })).toBeVisible();
     await expect(canvas.getByText('2 active')).toBeVisible();
     await expect(canvas.getByText('Bites when startled')).toBeVisible();
     await expect(canvas.getByText('Jumps low fences')).toBeVisible();
@@ -254,7 +254,7 @@ export const Loading: Story = {
   beforeEach: prepare({ fixture: { kind: 'pending' } }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByRole('heading', { level: 3, name: 'Patient flags' });
+    await canvas.findByRole('heading', { level: 2, name: 'Patient flags' });
     // The skeleton rows render in place of the list while the fetch is pending.
     await waitFor(() =>
       expect(canvasElement.querySelector('ul[aria-hidden="true"]')).not.toBeNull()
