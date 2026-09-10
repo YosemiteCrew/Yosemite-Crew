@@ -87,6 +87,17 @@ describe('DevelopersPage', () => {
     expect(portalLink).toHaveAttribute('href', '/developers/signup');
   });
 
+  it('routes the Triage Agent plugin icon through the flipping --avatar-green-ink token', () => {
+    // iconBg (var(--avatar-green-bg)) already flips with the theme. A literal
+    // iconColor would stay pinned to the light-mode dark-green while the
+    // background moved to its dark-mode translucent wash - unlike the AI Scribe
+    // and Voice Reminders rows, which both pass their matching -ink token.
+    const title = screen.getByText('Triage Agent');
+    const row = title.parentElement?.parentElement as HTMLElement;
+    const iconSpan = row.querySelector('span') as HTMLElement;
+    expect(iconSpan.style.color).toBe('var(--avatar-green-ink)');
+  });
+
   it('renders the economics section with a 0% platform cut and blue keep-all copy', () => {
     expect(screen.getByText('The economics')).toBeInTheDocument();
     expect(screen.getByText('0%')).toBeInTheDocument();
