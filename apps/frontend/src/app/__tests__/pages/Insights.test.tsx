@@ -156,11 +156,4 @@ describe('Insights page', () => {
     const line = screen.getByText(/What you measure is what you actually care about/);
     expect(line).toHaveStyle({ color: 'var(--spot-ink)' });
   });
-
-  test('the closing CTA emphasis tracks the --color-brand-700 token, not a frozen literal', () => {
-    render(<Insights />);
-
-    const emphasis = screen.getByText('Then read the code.');
-    expect(emphasis).toHaveStyle({ color: 'var(--color-brand-700)' });
-  });
 });

@@ -472,10 +472,10 @@ function BusinessPlanCard({ price, period }: Readonly<{ price: string; period: s
     <Reveal delay={100} style={BUSINESS_CARD_STYLE}>
       <PlanBadgeHeader
         label="Business"
-        labelColor="var(--color-brand-700)"
+        labelColor="#82afec"
         badge="RECOMMENDED"
         badgeColor="#1d1c1b"
-        badgeBg="var(--color-brand-700)"
+        badgeBg="#82afec"
       />
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', margin: '20px 0 4px' }}>
         <span
@@ -761,7 +761,7 @@ function NoFeeSection() {
                 fontStyle: 'italic',
                 fontWeight: 500,
                 letterSpacing: '-0.01em',
-                color: 'var(--color-brand-700)',
+                color: '#82afec',
               }}
             >
               You pay your vet, and your statement says your vet.

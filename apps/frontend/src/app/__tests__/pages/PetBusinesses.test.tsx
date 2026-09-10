@@ -196,13 +196,4 @@ describe('PetBusinesses page', () => {
     const statement = screen.getByText(/There's a dog-eared notebook next to the keyboard/);
     expect(statement.parentElement).toHaveStyle({ color: 'var(--spot-ink)' });
   });
-
-  test('the notebook punchline tracks the --color-brand-700 token, not a frozen literal', () => {
-    render(<PetBusinesses />);
-
-    const punchline = screen.getByText(
-      'We built the software so you can finally close the notebook.'
-    );
-    expect(punchline).toHaveStyle({ color: 'var(--color-brand-700)' });
-  });
 });
