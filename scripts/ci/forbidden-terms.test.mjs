@@ -28,6 +28,7 @@ import test from 'node:test';
 
 import {
   addedLines,
+  ATTRIBUTION_SURFACE,
   compilePattern,
   corpusLines,
   scanSurface,
@@ -1027,6 +1028,95 @@ test("this repository's own prose passes every surface", () => {
   const result = run(['scan', '--dir', dir], { FORBIDDEN_TERMS_PATTERN_B64: b64(SYNTHETIC) });
   assert.equal(result.code, 0);
   assert.match(result.stdout, /clean/);
+});
+
+// ---------------------------------------------------------------------------
+// Attribution on introduced commit messages
+// ---------------------------------------------------------------------------
+
+const ASSISTANT = 'cla' + 'ude';
+const AI_TRAILER = `Co-authored-by: ${ASSISTANT} <assistant@example.invalid>`;
+const HUMAN_TRAILER = 'Co-authored-by: A Human <human@example.invalid>';
+
+function scanWith(overrides) {
+  return run(['scan', '--dir', surfaceDir(overrides)], {
+    FORBIDDEN_TERMS_PATTERN_B64: b64(SYNTHETIC),
+  });
+}
+
+test('an attribution trailer in an introduced commit message blocks the run', () => {
+  const result = scanWith({
+    messages: ['feat(api): add the thing', '', AI_TRAILER, ''].join('\n'),
+  });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /BLOCKED - an AI-attribution trailer/);
+  assert.match(result.stderr, /\[messages\] entry 3/);
+});
+
+test('the same trailer in a pull-request body does not trigger the attribution arm', () => {
+  const result = scanWith({ body: `Upstream release notes:\n\n${AI_TRAILER}\n` });
+
+  assert.equal(result.code, 0);
+  assert.doesNotMatch(result.stdout, /BLOCKED/);
+});
+
+test('the same trailer in a diff fixture does not trigger the attribution arm', () => {
+  const diff = [
+    '--- /dev/null',
+    '+++ b/some.test.ts',
+    '@@ -0,0 +1,1 @@',
+    `+${AI_TRAILER}`,
+    '',
+  ].join('\n');
+  const result = scanWith({ diff });
+
+  assert.equal(result.code, 0);
+});
+
+test('human co-author and DCO trailers remain allowed', () => {
+  const result = scanWith({
+    messages: `feat(api): add the thing\n\n${HUMAN_TRAILER}\nSigned-off-by: A Human <human@example.invalid>\n`,
+  });
+
+  assert.equal(result.code, 0);
+});
+
+test('a clean run reports both checks', () => {
+  const result = scanWith({});
+
+  assert.equal(result.code, 0);
+  assert.match(result.stdout, /6 surfaces read/);
+  assert.match(result.stdout, /no AI-attribution trailer on the 'messages' surface/);
+});
+
+test('both checks identify themselves when both fail', () => {
+  const term = SYNTHETIC.split('|')[0];
+  const result = scanWith({ messages: `feat(api): ${term} import\n\n${AI_TRAILER}\n` });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /BLOCKED - a named external product/);
+  assert.match(result.stderr, /BLOCKED - an AI-attribution trailer/);
+});
+
+test('the messages surface is built from the pull request merge-base range', () => {
+  const workflow = readFileSync(WORKFLOW, 'utf8');
+  const body = workflow
+    .split('\n')
+    .filter((line) => !/^\s*#/u.test(line))
+    .join('\n');
+  const collectors = [...body.matchAll(/git log[^\n]*?"\$\{([A-Z_]+)\}\.\.([^"]+)"/gu)];
+
+  assert.notEqual(collectors.length, 0, 'no commit-message range collector found');
+  for (const [, base, head] of collectors) {
+    assert.equal(base, 'MERGE_BASE');
+    assert.match(head, /gate-head$/u);
+  }
+});
+
+test('the attribution arm is fixed to the messages surface', () => {
+  assert.equal(SURFACES.has(ATTRIBUTION_SURFACE), true);
+  assert.equal(ATTRIBUTION_SURFACE, 'messages');
 });
 
 // ---------------------------------------------------------------------------

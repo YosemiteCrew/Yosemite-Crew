@@ -60,6 +60,24 @@ const ALLOWED_PROSE = path.join(import.meta.dirname, 'forbidden-terms-allowed-pr
  */
 export const SURFACES = new Set(['diff', 'names', 'messages', 'branch', 'title', 'body']);
 
+/** The only surface whose text can describe commits introduced by this pull request. */
+export const ATTRIBUTION_SURFACE = 'messages';
+
+// Keep assistant names separate so this source never contains a complete trailer.
+const ASSISTANTS = 'claude|codex|copilot';
+
+/** Attribution forms forbidden by repository convention on introduced commit messages. */
+export const ATTRIBUTION_PATTERN = new RegExp(
+  [
+    String.raw`co-authored-by:.*(${ASSISTANTS})`,
+    String.raw`generated (with|by).*(${ASSISTANTS})`,
+    String.raw`(${ASSISTANTS}) code`,
+    String.raw`made with (${ASSISTANTS})`,
+    String.raw`\u{1F916} generated`,
+  ].join('|'),
+  'iu'
+);
+
 /** Raised for anything that means "the guard could not run" - always exit 2. */
 class GuardError extends Error {}
 
@@ -492,6 +510,7 @@ function runScan(argv) {
   process.chdir(root);
 
   const findings = [];
+  const attributions = [];
   for (const surface of SURFACES) {
     let text;
     let fd;
@@ -538,33 +557,50 @@ function runScan(argv) {
       if (fd !== undefined) closeSync(fd);
     }
     findings.push(...scanSurface(pattern, surface, text));
+    if (surface === ATTRIBUTION_SURFACE) {
+      attributions.push(...scanSurface(ATTRIBUTION_PATTERN, surface, text));
+    }
   }
 
-  if (findings.length === 0) {
+  if (findings.length === 0 && attributions.length === 0) {
     process.stdout.write(
-      `forbidden-terms: clean - ${SURFACES.size} surfaces read, no named external product on any of them.\n`
+      `forbidden-terms: clean - ${SURFACES.size} surfaces read, no named external product on any of them, ` +
+        `no AI-attribution trailer on the '${ATTRIBUTION_SURFACE}' surface.\n`
     );
     return 0;
   }
 
-  process.stderr.write(
-    `forbidden-terms: BLOCKED - a named external product appears on ${findings.length} line(s).\n\n`
-  );
-  for (const finding of findings) {
-    // Only the diff surface has a file of its own; for the others the "file" IS
-    // the surface, and `[names] names:1` reads worse than `[names] entry 1`.
-    const where =
-      finding.file === finding.surface
-        ? `entry ${finding.line}`
-        : `${finding.file}:${finding.line}`;
-    process.stderr.write(`  [${finding.surface}] ${where}\n`);
+  if (findings.length > 0) {
+    process.stderr.write(
+      `forbidden-terms: BLOCKED - a named external product appears on ${findings.length} line(s).\n\n`
+    );
+    for (const finding of findings) {
+      const where =
+        finding.file === finding.surface
+          ? `entry ${finding.line}`
+          : `${finding.file}:${finding.line}`;
+      process.stderr.write(`  [${finding.surface}] ${where}\n`);
+    }
+    process.stderr.write(
+      '\nThese repositories are public. Draw on prior art freely; never name the source in code,\n' +
+        'comments, tests, fixtures, docs, commit messages, branch names or pull-request text.\n' +
+        'Describe the behaviour and the clinical need instead.\n\n' +
+        'The match itself is deliberately not printed: this log is public.\n'
+    );
   }
-  process.stderr.write(
-    '\nThese repositories are public. Draw on prior art freely; never name the source in code,\n' +
-      'comments, tests, fixtures, docs, commit messages, branch names or pull-request text.\n' +
-      'Describe the behaviour and the clinical need instead.\n\n' +
-      'The match itself is deliberately not printed: this log is public.\n'
-  );
+
+  if (attributions.length > 0) {
+    process.stderr.write(
+      `${findings.length > 0 ? '\n' : ''}forbidden-terms: BLOCKED - an AI-attribution trailer appears in ` +
+        `${attributions.length} commit-message line(s) this pull request introduces.\n\n`
+    );
+    for (const attribution of attributions) {
+      process.stderr.write(`  [${attribution.surface}] entry ${attribution.line}\n`);
+    }
+    process.stderr.write(
+      '\nCommits here carry no AI-attribution footer. Amend the commit or rebase the branch, then force-push.\n'
+    );
+  }
   return 1;
 }
 
