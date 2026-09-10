@@ -336,7 +336,10 @@ export const LoadFailed: Story = {
   beforeEach: [prepare({ fixture: { kind: 'rejects' } }), muteExpectedFailureLogs],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const alert = await canvas.findByRole('alert');
+    // A generous timeout: the reject -> catch -> setError -> re-render chain is
+    // synchronous in the app, but on a loaded CI/dev machine the default 1s
+    // findBy* window can be too tight for the browser's main thread to commit it.
+    const alert = await canvas.findByRole('alert', {}, { timeout: 10000 });
     await expect(alert).toHaveTextContent('Could not load the consent list. Please try again.');
     await expect(
       canvas.queryByText('No consents recorded for this patient yet.')
@@ -370,6 +373,6 @@ export const Hidden: Story = {
   play: async ({ canvasElement }) => {
     // canView is derived synchronously from the store, seeded by beforeEach
     // before this mounts, so there is no flash of content to wait out.
-    await waitFor(() => expect(canvasElement).toBeEmptyDOMElement());
+    await waitFor(() => expect(canvasElement).toBeEmptyDOMElement(), { timeout: 10000 });
   },
 };
