@@ -38,6 +38,11 @@
      1.34:1. --color-surface-card is the real card surface and has a dark
      value. */
   background: var(--color-surface-card);
+  /* A near-black-navy shadow, not one of the --sh* tokens (see
+     LaunchGrowTab.css's .LaunchTabDiv.active for the same reasoning - no
+     --sh* value is a byte-identical match across both themes). Justified in
+     the hardcoded-colours baseline, along with the expanded-state shadow
+     below (close to but not an exact match for --blue's rgb(37, 123, 237)). */
   box-shadow: 0 5px 16px 0 rgba(8, 15, 52, 0.06);
   transition:
     border-color 180ms ease,

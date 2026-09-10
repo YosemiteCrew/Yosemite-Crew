@@ -59,6 +59,9 @@
   position: relative;
   border: 1px solid var(--color-card-border);
   border-radius: 12px;
+  /* A warm-brown shadow (~10% alpha, 8-digit hex), not one of the --sh*
+     tokens or --ink (#1d1c1b) - a distinct bespoke value with no exact token
+     match. Justified in the hardcoded-colours baseline. */
   box-shadow: 0px 0px 30px 0px #4738271a;
 }
 .preview-img {
