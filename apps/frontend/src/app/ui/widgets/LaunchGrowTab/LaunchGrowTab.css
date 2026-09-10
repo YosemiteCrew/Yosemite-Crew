@@ -34,6 +34,10 @@
 
 .LaunchTabDiv.active {
   flex-grow: 25;
+  /* Plain black, not one of the --sh* shadow tokens: --sh05 is
+     rgba(29, 28, 27, 0.05) in light and rgba(0, 0, 0, 0.2) in dark - swapping
+     this to a token would change the rendered light-mode shadow, not
+     preserve it. Justified in the hardcoded-colours baseline. */
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
@@ -216,6 +220,11 @@
     left: 15px;
     right: 15px;
     height: 50px;
+    /* The fixed light-blue tint from Launchtabs' second entry
+       (LaunchGrowTab.tsx, growtab.color '#E9F2FD') at 95% opacity - reused
+       here by design, but only within this one widget, so a global token
+       would carry no benefit beyond these two spots. Justified in the
+       hardcoded-colours baseline, alongside the .tsx array's own literals. */
     background: rgba(233, 242, 253, 0.95);
     border-radius: 25px;
     align-items: center;
@@ -252,6 +261,11 @@
        was missed when the desktop one moved. */
     background: var(--blue-strong);
     color: var(--white-text);
+    /* A standalone colored glow - the desktop active tab (above) uses a
+       plain black shadow instead, so this has no desktop twin to derive
+       from. Close to but not an exact match for --blue's rgb(37, 123, 237);
+       treating it as --blue-derived would be guessing at a value change, not
+       preserving one. Justified in the hardcoded-colours baseline. */
     box-shadow: 0px 2px 8px rgba(36, 122, 237, 0.3);
     flex-grow: 1;
     flex-shrink: 1;
