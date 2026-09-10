@@ -90,6 +90,7 @@ describe('payment-status public page', () => {
     render(<PaymentStatusPage />);
 
     await waitFor(() => expect(screen.getByText('Payment complete')).toBeInTheDocument());
+    expect(document.querySelector('svg circle')).toHaveAttribute('stroke', 'var(--success)');
     expect(screen.getByText('Status paid')).toBeInTheDocument();
     expect(screen.getByText('Amount 100')).toBeInTheDocument();
     expect(screen.getByText('Session sess_1...BCDE')).toBeInTheDocument();
@@ -108,6 +109,7 @@ describe('payment-status public page', () => {
     render(<PaymentStatusPage />);
 
     await waitFor(() => expect(screen.getByText('Payment cancelled')).toBeInTheDocument());
+    expect(document.querySelector('svg circle')).toHaveAttribute('stroke', 'var(--danger)');
     expect(
       screen.getByText('This payment did not complete. If this looks wrong, contact support.')
     ).toBeInTheDocument();
