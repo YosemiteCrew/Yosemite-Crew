@@ -472,14 +472,15 @@ function HeroTerminalCard() {
           color: '#d6d1cd',
         }}
       >
-        <span style={{ color: '#54b492' }}>$</span> git clone yosemitecrew/Yosemite-Crew
+        <span style={{ color: 'var(--color-success-400)' }}>$</span> git clone
+        yosemitecrew/Yosemite-Crew
         {'\n'}
-        <span style={{ color: '#54b492' }}>$</span> pnpm install{' '}
+        <span style={{ color: 'var(--color-success-400)' }}>$</span> pnpm install{' '}
         <span style={{ color: '#5c5956' }}>&amp;&amp;</span> pnpm dev
         {'\n'}
         <span style={{ color: 'var(--ink-faint)' }}>→ PIMS live on :3000</span>
         {'\n'}
-        <span style={{ color: '#54b492' }}>$</span>
+        <span style={{ color: 'var(--color-success-400)' }}>$</span>
         {' open localhost:3000/dev-docs'}
         <span
           style={{
@@ -866,9 +867,9 @@ function FhirBundleCard() {
           <span style={{ color: 'var(--ink-faint)' }}>{'{'}</span>
           {'\n  '}
           <span style={{ color: 'var(--cyan)' }}>&quot;resourceType&quot;</span>:{' '}
-          <span style={{ color: '#8acbb4' }}>&quot;Bundle&quot;</span>,{'\n  '}
+          <span style={{ color: 'var(--color-success-300)' }}>&quot;Bundle&quot;</span>,{'\n  '}
           <span style={{ color: 'var(--cyan)' }}>&quot;type&quot;</span>:{' '}
-          <span style={{ color: '#8acbb4' }}>&quot;searchset&quot;</span>,{'\n  '}
+          <span style={{ color: 'var(--color-success-300)' }}>&quot;searchset&quot;</span>,{'\n  '}
           <span style={{ color: 'var(--cyan)' }}>&quot;total&quot;</span>:{' '}
           <span style={{ color: 'var(--color-warning-400)' }}>3</span>,{'\n  '}
           <span style={{ color: 'var(--cyan)' }}>&quot;entry&quot;</span>:{' '}
@@ -876,20 +877,22 @@ function FhirBundleCard() {
           {'\n    '}
           <span style={{ color: 'var(--ink-faint)' }}>{'{'}</span>{' '}
           <span style={{ color: 'var(--cyan)' }}>&quot;code&quot;</span>:{' '}
-          <span style={{ color: '#8acbb4' }}>&quot;rabies-vax&quot;</span>,{'\n      '}
+          <span style={{ color: 'var(--color-success-300)' }}>&quot;rabies-vax&quot;</span>,
+          {'\n      '}
           <span style={{ color: 'var(--cyan)' }}>&quot;validYears&quot;</span>:{' '}
           <span style={{ color: 'var(--color-warning-400)' }}>3</span>,{'\n      '}
           <span style={{ color: 'var(--cyan)' }}>&quot;authority&quot;</span>:{' '}
-          <span style={{ color: '#8acbb4' }}>&quot;EU&quot;</span>{' '}
+          <span style={{ color: 'var(--color-success-300)' }}>&quot;EU&quot;</span>{' '}
           <span style={{ color: 'var(--ink-faint)' }}>{'},'}</span>
           {'\n    '}
           <span style={{ color: 'var(--ink-faint)' }}>{'{'}</span>{' '}
           <span style={{ color: 'var(--cyan)' }}>&quot;code&quot;</span>:{' '}
-          <span style={{ color: '#8acbb4' }}>&quot;rabies-vax&quot;</span>,{'\n      '}
+          <span style={{ color: 'var(--color-success-300)' }}>&quot;rabies-vax&quot;</span>,
+          {'\n      '}
           <span style={{ color: 'var(--cyan)' }}>&quot;validYears&quot;</span>:{' '}
           <span style={{ color: 'var(--color-warning-400)' }}>1</span>,{'\n      '}
           <span style={{ color: 'var(--cyan)' }}>&quot;authority&quot;</span>:{' '}
-          <span style={{ color: '#8acbb4' }}>&quot;US&quot;</span>{' '}
+          <span style={{ color: 'var(--color-success-300)' }}>&quot;US&quot;</span>{' '}
           <span style={{ color: 'var(--ink-faint)' }}>{'}'}</span>
           {'\n  '}
           <span style={{ color: 'var(--ink-faint)' }}>]</span>
