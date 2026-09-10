@@ -1,7 +1,7 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "9d564294508046d8fe3699c41e97a7813dcdd12a",
-  "total": 297,
+  "generated_at": "1044d499c968f60127de86602659f835e2bc3e61",
+  "total": 291,
   "justified": {
     "apps/frontend/src/app/features/appointments/components/Availability/Availability.tsx": {
       "n": 1,
@@ -232,7 +232,6 @@
     "apps/frontend/src/app/features/companions/pages/Companions/InClinicTodayBand.tsx": 2,
     "apps/frontend/src/app/features/developers/pages/DeveloperApiKeys/DeveloperApiKeys.css": 4,
     "apps/frontend/src/app/features/developers/pages/DeveloperDocs/DeveloperDocs.css": 4,
-    "apps/frontend/src/app/features/developers/pages/DeveloperWebsiteBuilder/DeveloperWebsiteBuilder.css": 6,
     "apps/frontend/src/app/features/guides/pages/Guides.tsx": 5,
     "apps/frontend/src/app/features/integrations/pages/Integrations/integrations.css": 3,
     "apps/frontend/src/app/features/legal/pages/TrustCenter.stories.tsx": 5,
