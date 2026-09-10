@@ -184,7 +184,7 @@ function MiniStat({ value, label }: Readonly<{ value: string; label: string }>) 
           fontSize: 26,
           fontWeight: 500,
           letterSpacing: '-0.03em',
-          color: '#f4efe6',
+          color: 'var(--spot-ink)',
         }}
       >
         {value}
@@ -852,7 +852,7 @@ function LatestReleaseCard() {
               fontSize: 'clamp(30px, 4vw, 44px)',
               fontWeight: 500,
               letterSpacing: '-0.03em',
-              color: '#f4efe6',
+              color: 'var(--spot-ink)',
             }}
           >
             {release.tag ?? 'Loading...'}

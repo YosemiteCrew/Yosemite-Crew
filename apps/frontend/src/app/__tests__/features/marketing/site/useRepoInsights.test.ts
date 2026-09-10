@@ -1,4 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { useRepoInsights } from '@/app/features/marketing/site/useRepoInsights';
 
 type FetchLike = typeof fetch;
@@ -75,7 +77,10 @@ describe('useRepoInsights', () => {
     expect(result.current.facts?.issues).toBe('12');
 
     await waitFor(() => expect(result.current.languages?.[0].name).toBe('TypeScript'));
-    expect(result.current.languages?.[0].color).toBe('#257bed');
+    // Was the literal '#257bed'; now reads the fixed --blue token instead (see
+    // the guard test below), so this asserts the value langColor() actually
+    // returns rather than the colour it resolves to once painted.
+    expect(result.current.languages?.[0].color).toBe('var(--blue)');
     expect(Math.round(result.current.languages?.[0].pct ?? 0)).toBe(80);
 
     await waitFor(() => expect(result.current.commits?.[0].message).toBe('feat: add insights'));
@@ -306,5 +311,25 @@ describe('useRepoInsights', () => {
 
     await waitFor(() => expect(result.current.heartbeat).toEqual([4, 8]), { timeout: 4000 });
     expect(activityCalls).toBe(2);
+  });
+});
+
+describe('LANG_COLORS reads TypeScript and HTML from the fixed --blue/--pink tokens', () => {
+  // These two are the only LANG_COLORS entries that happen to coincide with
+  // an existing token that is genuinely fixed across both theme blocks -
+  // the rest are a deliberate categorical palette with no token match.
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/site/useRepoInsights.ts'),
+    'utf8'
+  );
+
+  it('does not hardcode the TypeScript/HTML swatches as frozen literals', () => {
+    expect(source).not.toContain("'#257bed'");
+    expect(source).not.toContain("'#ff90d4'");
+  });
+
+  it('routes TypeScript through --blue and HTML through --pink', () => {
+    expect(source).toMatch(/TypeScript:\s*'var\(--blue\)'/);
+    expect(source).toMatch(/HTML:\s*'var\(--pink\)'/);
   });
 });
