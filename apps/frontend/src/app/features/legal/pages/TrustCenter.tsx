@@ -41,7 +41,7 @@ const getStatusPillStyle = (status: Certification['status']): CSSProperties => {
     fontWeight: 700,
     letterSpacing: '0.04em',
     color: compliant ? 'var(--color-success-800)' : 'var(--color-warning-800)',
-    background: compliant ? '#e6f4ef' : '#fef3e9',
+    background: compliant ? 'var(--color-success-100)' : 'var(--color-warning-100)',
     padding: '4px 10px',
     borderRadius: 9999,
     whiteSpace: 'nowrap',
