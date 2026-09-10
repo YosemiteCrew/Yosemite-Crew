@@ -149,4 +149,11 @@ describe('Insights page', () => {
     const { container } = render(<Insights />);
     expect(container.querySelector('img[src="https://av/ada.png"]')).toBeInTheDocument();
   });
+
+  test('the manifesto line ink tracks the --spot-ink token, not a frozen literal', () => {
+    render(<Insights />);
+
+    const line = screen.getByText(/What you measure is what you actually care about/);
+    expect(line).toHaveStyle({ color: 'var(--spot-ink)' });
+  });
 });

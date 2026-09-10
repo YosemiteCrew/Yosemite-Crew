@@ -109,4 +109,11 @@ describe('PetParents page', () => {
     const clinic = screen.getByRole('link', { name: 'I run a clinic' });
     expect(clinic).toHaveAttribute('href', '/pet-businesses');
   });
+
+  test('the spotlight statement ink tracks the --spot-ink token, not a frozen literal', () => {
+    render(<PetParents />);
+
+    const statement = screen.getByText(/When Germaine moved from the UK to Barcelona/);
+    expect(statement).toHaveStyle({ color: 'var(--spot-ink)' });
+  });
 });
