@@ -1,7 +1,7 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "1c4f6e5096a958dccc3ac54c17d595085780bd82",
-  "total": 188,
+  "generated_at": "1deee4858cb605c3bc2600b3c15e6feba117af6f",
+  "total": 142,
   "justified": {
     "apps/frontend/src/app/(routes)/(app)/chat/page.css": {
       "n": 1,
@@ -239,6 +239,10 @@
       "n": 2,
       "why": "CARD_BG (#faf7f1) and a border colour (#e6ded1) are close to but not exact matches for any token (--color-screen is #f7f3ec, --color-hairline is #e5dccf) - left as literals when PR #2963 tokenised this file's other 8 exact-match literals, and still not exact matches now."
     },
+    "apps/frontend/src/app/features/marketing/pages/DevelopersPage/DevelopersPage.tsx": {
+      "n": 45,
+      "why": "Every remaining literal sits inside a component whose root background is the fixed var(--spot) surface (HeroTerminalCard, FhirBundleCard, Economics/EconomicsCard/EconomicsBars/EconColumn, ClosingCta) - a near-black chrome that does not flip with the page theme, unlike --spot's own siblings --spot-ink/--spot-blue which are already tokenised here. The literals are terminal/JSON syntax-highlight colours, dividers and gradient stops chosen for that fixed backdrop; several coincide with a themed token's light-mode value (e.g. #d6d1cd == --divider light, #a9a39e == --ink-faint2 light), but tokenising would make them follow the PAGE theme while the panel they sit on does not, so a dark-mode toggle would recreate the low-contrast bug already documented for --spot-ink/--spot-success/--spot-blue. One genuine bug found and fixed in the same pass: the Marketplace section's green PluginRow (line ~1127, a var(--band) themed section, not --spot) pinned iconColor to the literal #006642 instead of var(--avatar-green-ink) like its blue/amber siblings - that one is a real token replacement, not part of this justified count."
+    },
     "apps/frontend/src/app/features/marketing/site/MarketingShell.stories.tsx": {
       "n": 2,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
@@ -347,7 +351,6 @@
   "files": {
     "apps/frontend/src/app/features/marketing/pages/About/About.tsx": 6,
     "apps/frontend/src/app/features/marketing/pages/ContactusPage/ContactusPage.tsx": 10,
-    "apps/frontend/src/app/features/marketing/pages/DevelopersPage/DevelopersPage.tsx": 46,
     "apps/frontend/src/app/features/marketing/pages/Home/Home.tsx": 19,
     "apps/frontend/src/app/features/marketing/pages/Insights/Insights.stories.tsx": 1,
     "apps/frontend/src/app/features/marketing/pages/Insights/Insights.tsx": 19,

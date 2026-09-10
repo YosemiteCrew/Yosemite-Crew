@@ -1124,7 +1124,7 @@ function Marketplace() {
             />
             <PluginRow
               iconBg="var(--avatar-green-bg)"
-              iconColor="#006642"
+              iconColor="var(--avatar-green-ink)"
               icon={<IoPulseOutline aria-hidden="true" style={{ fontSize: '20px' }} />}
               title="Triage Agent"
               desc="Sorts the inbox before the vet reads it"
