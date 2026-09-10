@@ -24,12 +24,12 @@ const BRAND_POINT_ICON_STYLE: CSSProperties = {
   width: 38,
   height: 38,
   borderRadius: 11,
-  background: 'rgba(234,226,213,0.10)',
-  border: '1px solid rgba(234,226,213,0.16)',
+  background: 'color-mix(in srgb, var(--spot-ink) 10%, transparent)',
+  border: '1px solid color-mix(in srgb, var(--spot-ink) 16%, transparent)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  color: '#8fb6f5',
+  color: 'var(--color-accent-dark)',
 };
 
 const GITHUB_STAR_PILL_STYLE: CSSProperties = {
@@ -40,8 +40,8 @@ const GITHUB_STAR_PILL_STYLE: CSSProperties = {
   textDecoration: 'none',
   padding: '10px 16px 10px 14px',
   borderRadius: 9999,
-  border: '1px solid rgba(234,226,213,0.18)',
-  background: 'rgba(234,226,213,0.05)',
+  border: '1px solid color-mix(in srgb, var(--spot-ink) 18%, transparent)',
+  background: 'color-mix(in srgb, var(--spot-ink) 5%, transparent)',
   color: 'var(--spot-ink)',
   fontSize: 14,
   letterSpacing: '-0.01em',
@@ -159,7 +159,11 @@ export function AuthBrandContent({
           {stars ? `Star on GitHub · ${stars}` : 'Star on GitHub'}
         </span>
         <span
-          style={{ width: 1, height: 13, background: 'rgba(234,226,213,0.22)' }}
+          style={{
+            width: 1,
+            height: 13,
+            background: 'color-mix(in srgb, var(--spot-ink) 22%, transparent)',
+          }}
           aria-hidden="true"
         />
         <span style={{ color: '#b7ac9d' }}>building in the open</span>
@@ -208,7 +212,8 @@ export function AuthShell({ brand, topRight, children }: Readonly<AuthShellProps
               right: -140,
               width: 620,
               height: 520,
-              background: 'radial-gradient(closest-side, rgba(37,123,237,0.26), transparent 70%)',
+              background:
+                'radial-gradient(closest-side, color-mix(in srgb, var(--blue) 26%, transparent), transparent 70%)',
               animation: 'ycDrift 36s ease-in-out infinite alternate',
             }}
           />
@@ -219,7 +224,8 @@ export function AuthShell({ brand, topRight, children }: Readonly<AuthShellProps
               left: -160,
               width: 600,
               height: 500,
-              background: 'radial-gradient(closest-side, rgba(92,225,230,0.14), transparent 70%)',
+              background:
+                'radial-gradient(closest-side, color-mix(in srgb, var(--color-cyan) 14%, transparent), transparent 70%)',
               animation: 'ycDrift 46s ease-in-out 4s infinite alternate-reverse',
             }}
           />
@@ -230,7 +236,8 @@ export function AuthShell({ brand, topRight, children }: Readonly<AuthShellProps
               right: -80,
               width: 360,
               height: 320,
-              background: 'radial-gradient(closest-side, rgba(255,144,212,0.10), transparent 70%)',
+              background:
+                'radial-gradient(closest-side, color-mix(in srgb, var(--pink) 10%, transparent), transparent 70%)',
               animation: 'ycDrift 54s ease-in-out 2s infinite alternate',
             }}
           />
