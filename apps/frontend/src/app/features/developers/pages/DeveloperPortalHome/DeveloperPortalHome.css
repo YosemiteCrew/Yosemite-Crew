@@ -99,7 +99,7 @@
   margin: 0;
   font-size: 14px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--spot-ink);
 }
 
 .dev-hero-card ul {
@@ -120,12 +120,12 @@
 }
 
 .dev-status-label {
-  color: color-mix(in srgb, var(--ink) 60%, transparent);
+  color: color-mix(in srgb, var(--spot-ink) 60%, transparent);
 }
 
 .dev-status-value {
   font-weight: 700;
-  color: var(--ink);
+  color: var(--spot-ink);
 }
 
 .dev-status-active {
