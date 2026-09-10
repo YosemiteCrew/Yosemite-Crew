@@ -1084,7 +1084,7 @@ function NotebookSection() {
                   fontStyle: 'italic',
                   fontWeight: 500,
                   letterSpacing: '-0.01em',
-                  color: '#82afec',
+                  color: 'var(--color-brand-700)',
                 }}
               >
                 We built the software so you can finally close the notebook.
