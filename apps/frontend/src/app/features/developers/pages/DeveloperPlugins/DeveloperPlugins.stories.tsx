@@ -341,11 +341,12 @@ export const Dark: Story = {
     const tint = getComputedStyle(must(canvasElement, '.dev-plugin-card-icon')).backgroundColor;
     await expect(alphaOf(tint)).toBeLessThan(1);
 
-    /* The promo panel is the one thing that does NOT flip - `--spot` is dark in
-       both themes and the title is a hardcoded `#f4efe6`. That is correct, and is
-       why the panel needs its own check: it is now dark-on-dark, and the browser
-       mock has to stay a distinguishable window rather than melting into the
-       panel behind it. */
+    /* The promo panel's background is the one thing that does NOT flip - `--spot`
+       is dark in both themes, and the title now reads its ink from --spot-ink
+       (dark-mode value #f4efe6) rather than a hardcoded literal. That is why the
+       panel needs its own check: it is now dark-on-dark, and the browser mock has
+       to stay a distinguishable window rather than melting into the panel behind
+       it. */
     await expect(getComputedStyle(must(canvasElement, '.dev-website-title')).color).toBe(
       'rgb(244, 239, 230)'
     );
@@ -366,8 +367,9 @@ export const Dark: Story = {
       description: {
         story:
           'Espresso dark. The plugin cards and the browser mock flip with the shell; the promo ' +
-          'panel does not, because it is painted from the always-dark `--spot` and its copy ' +
-          'colours are literals rather than tokens.',
+          'panel does not, because it is painted from the always-dark `--spot`, and its copy ' +
+          'reads ink from `--spot-ink` (which is fixed to --spot the same way) rather than a ' +
+          'flipping token.',
       },
     },
   },
