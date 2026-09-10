@@ -1,249 +1,306 @@
 <p align="center">
   <a href="https://yosemitecrew.com/">
-    <img src="https://d2il6osz49gpup.cloudfront.net/YC.svg" width="200px" alt="YC logo" />
+    <img src="https://d2il6osz49gpup.cloudfront.net/YC.svg" width="180" alt="Yosemite Crew" />
   </a>
 </p>
 
-<h1 align="center">Yosemite Crew</h1>
+<h1 align="center">Open-Source Operating System for Animal Health</h1>
 
 <p align="center">
-  <b>Open-source veterinary practice management</b><br />
-  Web, mobile, desktop, integrations, and practical AI skills for the veterinary community.
+  <strong>Yosemite Crew</strong><br />
+  A veterinary PIMS at the core. Connected apps, integrations, and community skills around it.<br />
+  Built for veterinary teams, the families they care for, and the developers extending both.
 </p>
 
 <p align="center">
-  For veterinary teams, pet owners, and developers.
+  <a href="https://yosemitecrew.com/">Website</a> &middot;
+  <a href="#skills-for-users">User skills</a> &middot;
+  <a href="#local-development">Developer setup</a> &middot;
+  <a href="./CONTRIBUTING.md">Contribute</a> &middot;
+  <a href="https://discord.gg/SwM6mX85KD">Community</a>
 </p>
 
-<div align="center">
+[![CI on dev](https://github.com/YosemiteCrew/Yosemite-Crew/actions/workflows/ci.yaml/badge.svg?branch=dev&event=push)](https://github.com/YosemiteCrew/Yosemite-Crew/actions/workflows/ci.yaml?query=branch%3Adev+event%3Apush)
+[![Supply chain on dev](https://github.com/YosemiteCrew/Yosemite-Crew/actions/workflows/supply-chain.yml/badge.svg?branch=dev&event=push)](https://github.com/YosemiteCrew/Yosemite-Crew/actions/workflows/supply-chain.yml?query=branch%3Adev+event%3Apush)
+[![License: AGPL-3.0 with exception](https://img.shields.io/badge/license-AGPL--3.0%20with%20exception-blue)](./License.txt)
+[![Node.js 22](https://img.shields.io/badge/node-22-43853d?logo=node.js&logoColor=white)](./.nvmrc)
+[![pnpm 8.15.6](https://img.shields.io/badge/pnpm-8.15.6-f69220?logo=pnpm&logoColor=white)](./package.json)
+[![Discord community](https://img.shields.io/discord/1325181058777616395?label=Discord&logo=discord&logoColor=white&color=5865f2)](https://discord.gg/SwM6mX85KD)
 
-[![Website](https://img.shields.io/badge/Yosemite%20Crew-D04122)](https://yosemitecrew.com/) [![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) [![Github License](https://img.shields.io/badge/License-4CAF50)](https://github.com/YosemiteCrew/Yosemite-Crew/tree/main?tab=License-1-ov-file) [![Figma](https://img.shields.io/badge/Figma-383838?logo=figma)](https://www.figma.com/design/NAAV4XGcJ6FlGXGK68AUbp/Yosemite-Crew?node-id=0-1&t=qCMi0h3RReIRMkrK-1) [![Discord](https://img.shields.io/discord/1325181058777616395?color=7289da&label=Discord&logo=discord&logoColor=ffffff)](https://discord.gg/SwM6mX85KD) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/YosemiteCrew/Yosemite-Crew)
-
-</div>
-<br>
+## Product Walkthrough
 
 https://github.com/user-attachments/assets/50209ebc-f966-4916-abb4-d697b5fbf778
 
-<br>
+## Code Quality (SonarCloud)
 
-# 📖 Contents
+### Backend
 
-- [Overview](#-overview)
-- [Who It Is For](#-who-it-is-for)
+[![Backend Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Backend&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Backend)
+[![Backend Coverage](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Backend&metric=coverage)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Backend)
+[![Backend Bugs](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Backend&metric=bugs)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Backend)
+[![Backend Code Smells](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Backend&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Backend)
+[![Backend Reliability](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Backend&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Backend)
+[![Backend Security Rating](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Backend&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Backend)
+[![Backend Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Backend&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Backend)
+[![Backend Duplicated Lines](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Backend&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Backend)
+
+### Frontend
+
+[![Frontend Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)
+[![Frontend Coverage](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=coverage)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)
+[![Frontend Bugs](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=bugs)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)
+[![Frontend Code Smells](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)
+[![Frontend Reliability](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)
+[![Frontend Security Rating](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)
+[![Frontend Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)
+[![Frontend Duplicated Lines](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)
+
+### Mobile App
+
+[![Mobile App Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_MobileAppYC&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_MobileAppYC)
+[![Mobile App Coverage](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_MobileAppYC&metric=coverage)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_MobileAppYC)
+[![Mobile App Bugs](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_MobileAppYC&metric=bugs)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_MobileAppYC)
+[![Mobile App Code Smells](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_MobileAppYC&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_MobileAppYC)
+[![Mobile App Reliability](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_MobileAppYC&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_MobileAppYC)
+[![Mobile App Security Rating](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_MobileAppYC&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_MobileAppYC)
+[![Mobile App Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_MobileAppYC&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_MobileAppYC)
+[![Mobile App Duplicated Lines](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_MobileAppYC&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_MobileAppYC)
+
+### Desktop
+
+[![Desktop Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Desktop&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Desktop)
+[![Desktop Coverage](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Desktop&metric=coverage)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Desktop)
+[![Desktop Bugs](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Desktop&metric=bugs)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Desktop)
+[![Desktop Code Smells](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Desktop&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Desktop)
+[![Desktop Reliability](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Desktop&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Desktop)
+[![Desktop Security Rating](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Desktop&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Desktop)
+[![Desktop Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Desktop&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Desktop)
+[![Desktop Duplicated Lines](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Desktop&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Desktop)
+
+## Contents
+
+- [Overview](#overview)
+- [Who It Is For](#who-it-is-for)
 - [Skills for Users](#skills-for-users)
-- [Architecture](#-architecture)
-- [Inside the Monorepo](#-inside-the-monorepo)
-- [Installation](#-installation)
-- [Our Tech Stack](#-our-tech-stack)
-- [Engineering Quality](#-engineering-quality)
-- [Documentation](#-documentation)
-- [Dev Environment Access](#-dev-environment-access)
-- [Join Our Growing Community](#-join-our-growing-community)
-- [License](#-license)
+- [Architecture](#architecture)
+- [Repository Map](#repository-map)
+- [Our Tech Stack](#our-tech-stack)
+- [Local Development](#local-development)
+- [Security and Quality](#security-and-quality)
+- [Documentation](#documentation)
+- [Contributing and Community](#contributing-and-community)
+- [License](#license)
 
-<br>
+## Overview
 
-# 📝 Overview
+Yosemite Crew is an open-source operating system for animal health, with a veterinary Practice Information Management System (PIMS) at its core.
 
-Yosemite Crew is an open-source veterinary Practice Information Management System (PIMS). This repository contains the staff-facing web app, pet-owner mobile app, desktop client, backend API, and shared packages for integrations.
+- **Practice operations:** scheduling, tasks, inventory, billing, and communications.
+- **Clinical workflows:** patient records, forms, and connected laboratory workflows.
+- **Pet-owner experience:** appointments, records, and communication with participating practices.
+- **Developer access:** inspect and extend the source, use documented REST and FHIR-oriented interfaces, or connect a compatible client to the optional MCP server.
 
-The platform covers scheduling, clinical records, forms, tasks, inventory, billing, and communications. Developers can inspect and extend the code and use documented REST and FHIR-oriented interfaces. Available workflows depend on the deployed version, configuration, permissions, and connected services.
+## Who It Is For
 
-The [user skills](#skills-for-users) are a separate collection of reusable AI instructions for buying software, running a practice, and preparing for veterinary visits. They work without a Yosemite Crew account, API key, or running application. Your chosen AI assistant may have its own account requirements and charges.
+### Veterinary Teams
 
-For platform development, follow [Installation](#-installation). Development contributions target `dev`; `main` is the release branch. Running the platform also requires infrastructure and service configuration, not just cloning the source. See [License](#-license) for software and branding terms.
+Manage appointments, clinical records, inventory, billing, and client messages in the web or desktop PIMS. Use the community skills to compare software, onboard staff, audit exports, and review practice workflows.
 
-<br>
+### Pet Owners
 
-# 👥 Who It Is For
+Access appointments, records, and messages through participating practices in the mobile app. Use the visit-preparation skill to organize observations and questions before an appointment.
 
-<table>
-<tr>
-<td width="33%" valign="top">
+### Developers
 
-### 🐾 Pet Owners
+Extend the apps, build REST/FHIR integrations, or query the developer API through the read-only MCP server. Start with the [repository map](#repository-map), [local setup](#local-development), and [contributor guide](./CONTRIBUTING.md).
 
-Use the mobile app for appointments, records, and communication with participating practices, subject to the services they enable.
+## Skills for Users
 
-Use the standalone visit-preparation skill to organize observations, medication information, and questions for your veterinary team.
-
-</td>
-<td width="33%" valign="top">
-
-### 🏥 Clinics & Providers
-
-Use the web or desktop PIMS for practice operations, or extend the source to fit your team's requirements.
-
-Use the community skills for software evaluation, staff onboarding, client messages, migration checks, stock planning, and workflow reviews, regardless of your current software supplier.
-
-Deployment, access controls, backups, and compliance with local requirements remain responsibilities to assess and maintain. Open source is not a compliance certification or a guarantee against vendor lock-in.
-
-</td>
-<td width="33%" valign="top">
-
-### 💻 Developers
-
-Contribute to the apps and shared packages, or build against the documented API surfaces.
-
-The [MCP server](./packages/mcp-server/README.md) exposes selected read-only developer API tools to compatible AI clients. It is a separate integration, not required by the user skills.
-
-Start with the [contributor guide](./CONTRIBUTING.md), app-specific READMEs, and [developer documentation](./apps/frontend/content/docs).
-
-</td>
-</tr>
-</table>
-
-<br>
-
-# Skills for Users
-
-Skills give a compatible AI assistant a repeatable workflow, relevant checklists, and clear limits. These seven skills are for veterinary teams, software buyers, and pet owners, not just developers. You can use them with your own documents and spreadsheets without installing the Yosemite Crew application.
+Use these seven skills in your AI assistant without a Yosemite Crew account, API key, or server. They contain instructions and reference files, not executable scripts or service connectors.
 
 ### Choose a Skill
 
-| Skill                                                                         | Who it helps                                           | What you can produce                                                                                                 |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| [Veterinary software buyer](./.agents/skills/yosemite-vet-software-buyer/)    | Owners and managers evaluating any veterinary software | Requirements, demo questions, quote comparisons, hidden-clause reviews, and purchase or exit decisions               |
-| [Staff onboarding and SOPs](./.agents/skills/yosemite-staff-onboarding/)      | Managers and team leads                                | Role-specific induction plans, competency checklists, and procedures based on approved practice policies             |
-| [Client communications](./.agents/skills/yosemite-client-communications/)     | Reception and clinical teams                           | Reminders, estimate explanations, complaint responses, and follow-ups from confirmed facts and approved instructions |
-| [Data migration audit](./.agents/skills/yosemite-data-migration-audit/)       | Teams changing systems                                 | Read-only checks for missing records, duplicate IDs, broken links, attachment gaps, and balance differences          |
-| [Inventory planning](./.agents/skills/yosemite-inventory-planning/)           | Stock leads and practice managers                      | Expiry reviews, count discrepancies, and provisional reorder lists using confirmed units, demand, and lead times     |
-| [Practice workflow audit](./.agents/skills/yosemite-practice-workflow-audit/) | Owners, managers, and operational teams                | Process maps, evidence-backed bottlenecks, and small measurable improvements, including no-purchase options          |
-| [Vet visit preparation](./.agents/skills/yosemite-vet-visit-prep/)            | Pet owners                                             | A concise appointment brief with observations, reported medications, history, and questions                          |
+| Skill                                                                         | What to provide                                                  | What you get                                                                                 |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| [Veterinary software buyer](./.agents/skills/yosemite-vet-software-buyer/)    | Quotes, contracts, budget, and required workflows                | Requirements, quote comparisons, hidden-clause reviews, and purchase or exit questions       |
+| [Staff onboarding and SOPs](./.agents/skills/yosemite-staff-onboarding/)      | Role, approved practice policies, and training schedule          | Induction plans, competency checklists, and SOP drafts                                       |
+| [Client communications](./.agents/skills/yosemite-client-communications/)     | Confirmed facts, approved care instructions, and message channel | Reminder, follow-up, estimate-explanation, or complaint-response drafts                      |
+| [Data migration audit](./.agents/skills/yosemite-data-migration-audit/)       | Source export, destination sample, and field mapping             | Read-only checks for missing records, broken links, attachment gaps, and balance differences |
+| [Inventory planning](./.agents/skills/yosemite-inventory-planning/)           | Stock counts, units, expiry dates, demand, and lead times        | Expiry reviews, count discrepancies, and provisional reorder lists                           |
+| [Practice workflow audit](./.agents/skills/yosemite-practice-workflow-audit/) | Process steps, workload, timings, and observed delays            | Process maps, bottlenecks, and measurable improvement plans                                  |
+| [Vet visit preparation](./.agents/skills/yosemite-vet-visit-prep/)            | Observations, symptom timeline, medication list, and questions   | A concise veterinary appointment brief                                                       |
 
-### Use a Skill
+### Get Started
 
-1. Open the linked folder and read `SKILL.md`. Keep the **whole folder**, including any `references/` and `agents/` files, when downloading or copying a skill.
-2. Load it in your assistant using the locations below. Copy only the user skills you need, not the repository's unrelated engineering skills. If a folder with the same name already exists, compare versions before replacing it.
-3. Ask for a specific outcome and provide the minimum relevant information. Start with fictional or redacted examples when possible. Review the result and resolve missing facts before using it operationally.
+1. Open a skill folder and read `SKILL.md`.
+2. Install the whole folder, including `references/` and `agents/`, using the instructions below. Compare versions before replacing an existing copy.
+3. Invoke the skill with your requested output and the relevant redacted documents. Copy only the user skills you need, not the repository's engineering skills.
 
-**Codex:** repository skills live in [`.agents/skills`](./.agents/skills/). For use across your own projects, copy the selected folder to `~/.agents/skills/`; alternatively, ask `$skill-installer` to install it from its GitHub folder link. Mention the skill with `$` in your prompt. See the [Codex usage documentation](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills).
+<details>
+<summary><strong>Codex setup and invocation</strong></summary>
 
-**Assistants using `.claude/skills`:** matching copies live in [`.claude/skills`](./.claude/skills/). Copy a selected folder to `~/.claude/skills/` for personal use, or keep it in your project's `.claude/skills/`. Invoke it with `/skill-name`. See the [slash-command usage documentation](https://code.claude.com/docs/en/skills#choose-where-skills-load).
+Repository skills are in [`.agents/skills`](./.agents/skills/). For use across projects, copy the selected skill folder to `~/.agents/skills/`. Alternatively, ask `$skill-installer` to install the skill from its GitHub folder link.
 
-**Other assistants:** if local skill installation is not supported, you can supply `SKILL.md` and the relevant reference files as task instructions. This does not install a connector or automatically grant access to your records. Compatibility and file-handling features depend on the assistant.
+Invoke it with `$` and its exact folder name, for example `$yosemite-vet-software-buyer`. See the [skill usage documentation](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills).
 
-Example Codex prompts, after installing the relevant skill:
+</details>
+
+<details>
+<summary><strong>Assistants using .claude/skills</strong></summary>
+
+Matching copies are in [`.claude/skills`](./.claude/skills/). Keep the selected folder in your project's `.claude/skills/`, or copy it to `~/.claude/skills/` for personal use.
+
+Invoke it with `/` and its exact folder name, for example `/yosemite-inventory-planning`, followed by your request. See the [slash-command usage documentation](https://code.claude.com/docs/en/skills#choose-where-skills-load).
+
+</details>
+
+<details>
+<summary><strong>Other assistants and manual use</strong></summary>
+
+If your assistant cannot install local skills, attach `SKILL.md` and the relevant reference files to your request. Attach any authorized input documents separately; the skill has no automatic access to your records.
+
+</details>
+
+### Example Requests
+
+For slash-command assistants, replace `$skill-name` with `/skill-name`.
+
+**Before signing a software agreement:**
 
 ```text
-Use $yosemite-vet-software-buyer to review this redacted software agreement for renewal terms, extra fees, data-export rights, and exit costs. Do not favor any supplier.
-
-Use $yosemite-staff-onboarding to build a receptionist onboarding plan from these approved policies. Keep missing approvals visible.
-
-Use $yosemite-inventory-planning to review this stock sheet for expiry exposure and draft a reorder list. Do not place orders.
-
-Use $yosemite-vet-visit-prep to organize my observations and questions into a brief for my veterinarian. Do not diagnose or suggest medication changes.
+Use $yosemite-vet-software-buyer to review this redacted agreement.
+Check renewal terms, extra fees, data-export rights, and exit costs.
+Separate confirmed clauses from unanswered questions. Favor no supplier.
 ```
 
-For slash-command invocation, begin with the corresponding command, such as `/yosemite-inventory-planning`, followed by your request. The skill folder name is the invocation name in the examples above.
+**For a practice stock review:**
 
-### Independence and Safe Use
+```text
+Use $yosemite-inventory-planning to review this stock sheet.
+Flag expiry exposure and missing unit or lead-time information.
+Draft a reorder list for review. Do not place orders.
+```
 
-Yosemite Crew publishes these skills, but supplier recommendations must be impartial, including when Yosemite Crew itself is evaluated. The skills do not require using our software, include sales calls, or award preference for affiliation. Improving an existing process or buying nothing can be the appropriate outcome.
+**Before a veterinary appointment:**
 
-These are instruction-based assistants, not clinical, legal, or regulatory certifications. Clinical content needs the appropriate veterinary review; an urgent concern takes priority over preparing a document. Drafting does not authorize sending messages, buying stock, changing medication, moving records, or signing agreements. Unknown information must stay visible rather than becoming an invented fact.
+```text
+Use $yosemite-vet-visit-prep to organize my observations and questions
+into a short brief for my veterinarian. Do not diagnose or suggest
+medication changes.
+```
 
-Only provide data you are authorized to use in the chosen AI service. Remove unnecessary identifiers and credentials, check your practice's data-handling rules, and keep sensitive outputs out of public issues and pull requests. These seven skills contain no executable scripts or required service connectors.
+### Independence, Privacy, and Limits
 
-<br>
+- **Vendor neutrality:** evaluate all suppliers, including Yosemite Crew, by the same criteria. Keeping your existing software or buying nothing remains an option; no sales call is required.
+- **Unverified information:** flag missing facts and approvals rather than inventing them. Review drafts before operational use.
+- **Professional review:** clinical content needs veterinary review; contracts and regulatory questions need qualified advice. Do not delay urgent veterinary care to prepare a brief.
+- **Authorization:** obtain separate approval before sending messages, placing orders, moving records, or signing agreements. Skills do not authorize medication changes.
+- **Data handling:** use only information you are authorized to share with the chosen AI service. Redact unnecessary identifiers and credentials, follow practice policy, and keep sensitive records out of public issues and pull requests.
 
-# 🏛 Architecture
-
-The web, mobile, and desktop clients use the backend API. External integrations use the documented API routes; the optional MCP server wraps selected developer data endpoints. The standalone user skills are not connected to these services by default.
+## Architecture
 
 ```mermaid
-%%{init: {"theme":"base","themeVariables":{"fontFamily":"ui-sans-serif, -apple-system, Segoe UI, Helvetica, Arial, sans-serif","primaryColor":"#ffffff","primaryTextColor":"#1d1c1b","primaryBorderColor":"#bfbfbe","lineColor":"#a09f9f","clusterBkg":"#f7f7f7","clusterBorder":"#eaeaea","fontSize":"14px"}}}%%
 flowchart LR
-    subgraph clients ["Clients"]
-        WEB["Web PIMS<br/><sub>Next.js 15 · React 19</sub>"]
-        MOB["Mobile App<br/><sub>React Native 0.81</sub>"]
-        DESK["Desktop Shell<br/><sub>Electron</sub>"]
-        EXT["Your Integration<br/><sub>FHIR R4 · public APIs</sub>"]
+    subgraph CLIENTS["Apps and integrations"]
+        WEB["Web PIMS / Next.js + React"]
+        MOBILE["Pet-owner app / React Native"]
+        DESKTOP["Desktop / Electron"]
+        INTEGRATION["External integrations / REST + FHIR R4"]
+        MCP["Optional read-only MCP server"]
     end
-
-    subgraph platform ["Platform"]
-        API["Express API<br/><sub>REST + FHIR routers</sub>"]
-        RT["Socket.IO<br/><sub>realtime</sub>"]
-        JOBS["BullMQ Workers<br/><sub>reminders · labs · schedules</sub>"]
+    subgraph PLATFORM["Backend platform"]
+        API["Express API"]
+        REALTIME["Socket.IO realtime"]
+        JOBS["BullMQ workers"]
     end
-
-    subgraph data ["Data & Services"]
-        PG[("Supabase Postgres<br/><sub>Prisma schema and migrations</sub>")]
-        REDIS[("Redis<br/><sub>queue backing store</sub>")]
-        AUTH["SuperTokens<br/><sub>session boundary</sub>"]
-        AWS["AWS<br/><sub>S3 · SES · Pinpoint</sub>"]
-        LABS["Lab & Partner<br/><sub>IDEXX · Merck</sub>"]
+    subgraph SERVICES["Data and configured services"]
+        DB[("Supabase Postgres / Prisma")]
+        REDIS[("Redis")]
+        AUTH["SuperTokens authentication"]
+        AWS["AWS S3 / SES"]
+        STRIPE["Stripe payments"]
+        IDEXX["IDEXX laboratory integration"]
+        MERCK["Merck Manuals / HealthLink"]
     end
-
     WEB --> API
-    MOB --> API
-    DESK --> API
-    EXT --> API
-
-    API <--> RT
-    API --> JOBS
-    API --> PG
+    MOBILE --> API
+    DESKTOP --> API
+    INTEGRATION --> API
+    MCP --> API
+    API <--> REALTIME
     API --> AUTH
+    API --> DB
+    API --> JOBS
     API --> AWS
+    API --> STRIPE
+    API --> IDEXX
+    API --> MERCK
     JOBS --> REDIS
-    JOBS --> PG
-    JOBS --> LABS
-
-    classDef accent fill:#f2f8ff,stroke:#247aed,stroke-width:1.5px,color:#1d1c1b
-    classDef store fill:#f7f7f7,stroke:#a09f9f,color:#1d1c1b
-    class API,EXT accent
-    class PG,REDIS store
+    JOBS --> DB
+    JOBS --> IDEXX
 ```
 
-**Postgres is the persistence source of truth.** Prisma owns the schema and migrations in [`packages/database`](./packages/database/README.md). Access also depends on application authorization and organization-scoped queries; database technology alone does not guarantee isolation. See [ADR 0001](./docs/adr/0001-postgres-prisma-source-of-truth.md).
+**Persistence:** Prisma owns the PostgreSQL schema and migrations in [`packages/database`](./packages/database/README.md). Enforce application authorization and organization-scoped access when reading or writing practice data. See [ADR 0001](./docs/adr/0001-postgres-prisma-source-of-truth.md).
 
-**FHIR-oriented interfaces use FHIR R4 resource shapes** alongside application REST endpoints. Check the [router documentation](./apps/frontend/content/docs/apps/backend/routers) for the resources, operations, and authorization each integration actually supports; do not assume complete FHIR conformance from the label alone.
+**Interoperability:** the [router documentation](./apps/frontend/content/docs/apps/backend/routers) lists supported REST/FHIR resources, operations, and authorization requirements.
 
-<br>
+## Repository Map
 
-# 🗂 Inside the Monorepo
+This is a TypeScript monorepo managed with pnpm workspaces and Turborepo.
 
-A pnpm + Turborepo workspace. Apps ship; packages are the shared spine underneath them.
+### Applications
 
-### Apps
+| Application                                        | Purpose and implementation                                                                                                       |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| [`apps/frontend`](./apps/frontend/README.md)       | Staff web PIMS and documentation at `/docs`. Next.js 15, React 19, and Zustand; Storybook, Playwright, and accessibility checks. |
+| [`apps/backend`](./apps/backend/README.md)         | Express 4 API on TypeScript, Prisma persistence, Socket.IO realtime, BullMQ workers, Stripe payments, and external integrations. |
+| [`apps/mobileAppYC`](./apps/mobileAppYC/README.md) | Pet-owner app using React Native 0.81, Redux Toolkit, and i18next localization, with a local Detox end-to-end harness.           |
+| [`apps/desktop`](./apps/desktop/README.md)         | Electron client with electron-builder packaging, signing and notarization configuration, and electron-updater for app updates.   |
 
-| App                | What it is                                                                                                 |
-| ------------------ | ---------------------------------------------------------------------------------------------------------- |
-| `apps/frontend`    | Web PIMS and developer documentation at `/docs`. Next.js 15, React 19, Zustand, Storybook, and Playwright. |
-| `apps/backend`     | The API. Express 4 on TypeScript, Prisma, Socket.IO realtime, BullMQ workers, Stripe.                      |
-| `apps/mobileAppYC` | The pet parent app. React Native 0.81, Redux, i18next localization, Detox end-to-end.                      |
-| `apps/desktop`     | The desktop shell. Electron, packaged by electron-builder, notarized, with auto-update.                    |
+### Shared Packages
 
-### Packages
+| Package                                                        | Responsibility                                                                                                 |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [`@yosemite-crew/database`](./packages/database/README.md)     | Prisma schema, migrations, and database access helpers. The persistence schema's source of truth.              |
+| [`@yosemite-crew/auth`](./packages/auth)                       | Provider-neutral authentication boundary, backed by SuperTokens, with session and MFA integration.             |
+| [`@yosemite-crew/types`](./packages/types)                     | Shared domain models, forms, and API data-transfer types for web, mobile, and backend.                         |
+| [`@yosemite-crew/fhir`](./packages/fhir)                       | Helpers for working with FHIR R4 resource representations.                                                     |
+| [`@yosemite-crew/fhirtypes`](./packages/fhirtypes)             | TypeScript definitions for FHIR resources and common clinical data structures.                                 |
+| [`@yosemite-crew/lib`](./packages/lib)                         | Cross-workspace utilities, shared error handling, and clinical PDF generation.                                 |
+| [`@yosemite-crew/mcp-server`](./packages/mcp-server/README.md) | Optional MCP interface to selected read-only developer API operations, authenticated with a developer API key. |
 
-| Package                     | What it holds                                                 |
-| --------------------------- | ------------------------------------------------------------- |
-| `@yosemite-crew/database`   | The Prisma schema and migrations. The schema source of truth. |
-| `@yosemite-crew/auth`       | Provider-independent session boundary built on SuperTokens.   |
-| `@yosemite-crew/types`      | Shared domain and form types across web, mobile, and API.     |
-| `@yosemite-crew/fhir`       | FHIR R4 helpers.                                              |
-| `@yosemite-crew/fhirtypes`  | FHIR R4 resource type definitions.                            |
-| `@yosemite-crew/lib`        | Cross-workspace utilities.                                    |
-| `@yosemite-crew/mcp-server` | MCP server mounting the developer data plane.                 |
+Skills live in [`.agents/skills`](./.agents/skills/) and [`.claude/skills`](./.claude/skills/). Contributor instructions are in [AGENTS.md](./AGENTS.md).
 
-The [`.agents/skills`](./.agents/skills/) and [`.claude/skills`](./.claude/skills/) directories contain both community user skills and repository engineering guidance. The seven user-facing skills are listed [above](#skills-for-users); contributor instructions start in [AGENTS.md](./AGENTS.md).
+## Our Tech Stack
 
-<br>
+- **Language and workspace:** TypeScript, pnpm workspaces, and Turborepo for shared code, dependency management, and task orchestration.
+- **Web:** Next.js and React, with Zustand for client state; Storybook and Chromatic for component review, and Playwright for end-to-end and accessibility checks.
+- **Backend:** Express, Socket.IO for realtime updates, and BullMQ backed by Redis for background work.
+- **Data:** Supabase Postgres with Prisma for schema management, migrations, and database access.
+- **Authentication:** SuperTokens behind the shared authentication package's provider-neutral interface.
+- **Mobile:** React Native, Redux Toolkit, and i18next, with native Android/iOS tooling and Detox for local end-to-end checks.
+- **Desktop:** Electron, electron-builder, and electron-updater for the desktop application and its release packaging.
+- **Payments:** Stripe integration for configured payment workflows.
+- **Cloud services:** AWS S3 for object storage and SES for email; Pinpoint SDK is also listed in the backend dependencies.
+- **Clinical interoperability:** FHIR R4 resource shapes alongside application REST endpoints; IDEXX laboratory integration and Merck Manuals / HealthLink content integration.
+- **AI integration:** An optional read-only MCP server for developer API access, plus standalone user skills that do not require it.
 
-# 💻 Installation
+Dependency manifests: [web](./apps/frontend/package.json), [backend](./apps/backend/package.json), [mobile](./apps/mobileAppYC/package.json), [desktop](./apps/desktop/package.json), and [lockfile](./pnpm-lock.yaml). Configure provider accounts, credentials, and permissions before using Stripe, AWS, IDEXX, or Merck integrations.
 
-### Prerequisites
+## Local Development
+
+Contributions target `dev`; `main` is the release branch. For skills only, use [skill installation](#get-started) instead.
+
+### 1. Prepare the Toolchain
 
 - Git
-- Node.js 22 (see [`.nvmrc`](./.nvmrc))
-- pnpm 8.15.6 (pinned by `packageManager` in [`package.json`](./package.json))
-- PostgreSQL, Redis, and the authentication/service configuration needed for the app you are running
+- **Node.js 22**, as specified in [`.nvmrc`](./.nvmrc)
+- **pnpm 8.15.6**, pinned in [`package.json`](./package.json)
+- A dedicated development PostgreSQL database, Redis, and the authentication and external-service configuration required for the workflows you will run
 
-The [user skills](#skills-for-users) do not need any of these application dependencies. The steps below are for platform development, not a production deployment guide.
+### 2. Clone and Install
 
-### Clone and Install
-
-Clone the development branch. Contributors should fork first and substitute their fork URL in the clone command; pull requests target `dev`.
+Contributors should fork first and substitute their fork URL in the clone command.
 
 ```shell
 git clone --branch dev https://github.com/YosemiteCrew/Yosemite-Crew.git
@@ -251,168 +308,125 @@ cd Yosemite-Crew
 pnpm install --frozen-lockfile
 ```
 
-Git hooks are installed during dependency installation. Keep the staged-secret, formatting, commit-message, and pre-push checks enabled.
+Dependency installation sets up the repository's Git hooks. Keep secret scanning, formatting, commit-message checks, and pre-push checks enabled.
 
-### Configure Services
+### 3. Configure Services
 
-For a fresh checkout, copy the example files and fill in the configuration required for your environment. Do not overwrite an existing local configuration or commit secrets.
+For a **fresh checkout only**, copy the example environment files and fill in the values required for your environment. Do not overwrite existing local files or commit secrets.
 
 ```shell
 cp apps/backend/.env.example apps/backend/.env
 cp apps/frontend/.env.example apps/frontend/.env
 ```
 
-The examples are starting points, not a provisioned environment. Configure the backend's PostgreSQL connection, Redis, authentication, and any services used by the workflows you intend to exercise. Set `DATABASE_URL` and `DIRECT_URL` for Prisma commands in the invoking shell; app-specific environment files are not automatically loaded by every workspace command. Use a dedicated development database, never production credentials for local setup.
+Configure PostgreSQL, Redis, authentication, and the integrations you will use. Make `DATABASE_URL` and `DIRECT_URL` available in the shell that runs Prisma commands; app-specific `.env` files are not automatically loaded by every workspace command. Never use production credentials for local setup.
 
-Generate the Prisma client after installing dependencies:
+Generate the Prisma client:
 
 ```shell
 pnpm --filter @yosemite-crew/database run prisma:generate
 ```
 
-Before applying migrations, read the [database setup and baseline guidance](./packages/database/README.md). An existing or restored database needs its migration history checked before replaying migrations. The legacy root [`docker-compose.yml`](./docker-compose.yml) refers to removed app directories and does not provision PostgreSQL or Redis; it is not a working local setup.
+Before applying migrations, follow the [database setup and baseline guidance](./packages/database/README.md). Check migration history first for any existing or restored database.
 
-### Run the Apps
+> Do not use the root [`docker-compose.yml`](./docker-compose.yml) for local setup: it targets removed app directories and provisions neither PostgreSQL nor Redis.
 
-After service configuration, start the web app and API from the repository root:
+### 4. Start the Web App and API
 
 ```shell
 pnpm run dev --filter frontend --filter backend
 ```
 
-To run only one app, use `pnpm --filter frontend run dev` or `pnpm --filter backend run dev`. The default web address is `http://localhost:3000`; the backend example uses port `4000`. Keep the frontend API URL and authentication origins consistent with your environment.
+The default web address is `http://localhost:3000`; the backend example uses port `4000`. Keep API URLs and authentication origins consistent with your environment. To run one app, use `pnpm --filter frontend run dev` or `pnpm --filter backend run dev`.
 
-Mobile setup uses `variables.local.ts` and native configuration from [`config-templates`](./apps/mobileAppYC/config-templates), not the web/backend `.env` files. Follow the [mobile setup guide](./apps/mobileAppYC/README.md), including the Android or iOS toolchain, before running Metro and a platform build in separate terminals:
+<details>
+<summary><strong>Mobile, desktop, and MCP setup</strong></summary>
+
+**Mobile:** follow the [mobile setup guide](./apps/mobileAppYC/README.md) and [`config-templates`](./apps/mobileAppYC/config-templates). Mobile uses `variables.local.ts` and native configuration, not the web/backend `.env` files. Install the appropriate Android or iOS toolchain first.
+
+Start Metro:
 
 ```shell
 pnpm --filter mobileAppYC run start
 ```
 
+In a separate terminal, start the platform you configured:
+
 ```shell
-# Choose the platform you configured.
 pnpm --filter mobileAppYC run android
 # Or: pnpm --filter mobileAppYC run ios
 ```
 
-For the desktop app, follow its [setup and packaging guide](./apps/desktop/README.md). For the optional AI-to-API integration, follow the [MCP server guide](./packages/mcp-server/README.md); user skills do not need it.
+**Desktop:** use the [desktop setup and packaging guide](./apps/desktop/README.md).
 
-### Validate a Change
+**MCP:** use the [MCP server guide](./packages/mcp-server/README.md) for read-only developer API access.
 
-Start with the checks and targeted tests for the affected workspace in [CONTRIBUTING.md](./CONTRIBUTING.md) and [AGENTS.md](./AGENTS.md). Root `pnpm run lint` and `pnpm run type-check` also run on pre-push. `pnpm run verify` runs the broader lint, type-check, test, and build sequence; it is not a substitute for CI's security, accessibility, end-to-end, or release checks.
+</details>
 
-<br>
+### 5. Validate Your Changes
 
-# 🚀 Our Tech Stack
+Follow [CONTRIBUTING.md](./CONTRIBUTING.md) and [AGENTS.md](./AGENTS.md) for the affected workspace's checks and targeted tests. Root `pnpm run lint` and `pnpm run type-check` also run on pre-push.
 
-- [TypeScript](https://www.typescriptlang.org/) for type safety
-- [Turborepo](https://turbo.build) and [PNPM Workspaces](https://pnpm.io/workspaces) for a powerful monorepo structure and efficient build system
-- [Express](https://expressjs.com/) as a backend framework, with [Supabase](https://supabase.com/) Postgres and [Prisma](https://www.prisma.io/) for data storage and migrations
-- [BullMQ](https://docs.bullmq.io/) on [Redis](https://redis.io/) for background jobs, and [Socket.IO](https://socket.io/) for realtime updates
-- [Next.js](https://nextjs.org/) and [React](https://reactjs.org/) for the frontend, with [Zustand](https://zustand.docs.pmnd.rs/) for state management
-- [React Native](https://reactnative.dev/) for mobile app development, and [Electron](https://www.electronjs.org/) for the desktop shell
-- [FHIR R4](https://hl7.org/fhir/R4/) for clinical interoperability
-- [Stripe](https://stripe.com/) for payments
-- [AWS](https://aws.amazon.com) to ensure reliable and scalable cloud infrastructure
+`pnpm run verify` runs lint, type-check, tests, and builds. CI also checks security, accessibility, end-to-end workflows, and releases; required checks are documented in the [CI runbook](./docs/ci/required-checks-migration.md).
 
-<br>
+## Security and Quality
 
-# ✅ Engineering Quality
+**Report suspected vulnerabilities privately through [SECURITY.md](./SECURITY.md), not in a public issue.** Never include credentials, client records, or patient records in bug reports. Request development or staging access from maintainers through a secure channel.
 
-The repository defines workspace checks, security scans, and review workflows. CI selects affected workspaces and conditionally runs relevant suites; inspect the checks for the specific commit rather than treating a badge as proof that every suite ran.
+| Area                   | Checks and tooling                                                                     |
+| ---------------------- | -------------------------------------------------------------------------------------- |
+| Code quality           | Per-app SonarCloud analysis, TypeScript, linting, and CodeQL                           |
+| Automated tests        | Workspace unit and component tests, coverage checks, and targeted regression tests     |
+| Web experience         | Playwright end-to-end and accessibility checks; Storybook and Chromatic for components |
+| Mobile experience      | A Detox harness for local end-to-end checks                                            |
+| Supply chain           | Dependency review, SBOM generation, vulnerability scanning, and license checks         |
+| Secret protection      | Staged-secret scanning and CI secret checks                                            |
+| Contribution standards | Conventional commits, PR title validation, and required review workflows               |
 
-| Gate                | What it enforces                                                                                             |
-| ------------------- | ------------------------------------------------------------------------------------------------------------ |
-| **Static analysis** | SonarCloud quality gate per app (see the table below), plus CodeQL scanning.                                 |
-| **Types & lint**    | Repo-wide `type-check` and `lint`, enforced again on pre-push.                                               |
-| **Tests**           | Unit and component suites per workspace, with coverage held on touched files.                                |
-| **Accessibility**   | A dedicated accessibility suite and Playwright a11y run on the web app.                                      |
-| **End-to-end**      | Playwright on the web app, enforced in CI. A Detox harness is available for the mobile app and runs locally. |
-| **Visual review**   | Storybook and Chromatic for the component library.                                                           |
-| **Supply chain**    | Dependency review, SBOM/vulnerability/license workflows, and staged-secret scanning.                         |
-| **Governance**      | Conventional commits and PR title validation.                                                                |
+Contribution requirements: [engineering standards](./docs/engineering-standards.md) and [required CI checks](./docs/ci/required-checks-migration.md).
 
-## Code Quality (SonarCloud)
+## Documentation
 
-[![SonarQube Cloud](https://sonarcloud.io/images/project_badges/sonarcloud-light.svg)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)
+| Resource                                                                          | What it covers                                                   |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [Developer documentation](./apps/frontend/content/docs)                           | Platform and API documentation, served by the web app at `/docs` |
+| [User skills](#skills-for-users)                                                  | Standalone workflows for buyers, practice teams, and pet owners  |
+| [Database guide](./packages/database/README.md)                                   | Prisma setup, migrations, and existing-database precautions      |
+| [MCP server guide](./packages/mcp-server/README.md)                               | Optional read-only developer API tools                           |
+| [Architecture guides](./docs/guide)                                               | Platform design, realtime, notifications, and analytics          |
+| [Architecture decisions](./docs/adr)                                              | Recorded technical decisions and their context                   |
+| [Engineering wiki](https://github.com/YosemiteCrew/Yosemite-Crew/wiki)            | Additional engineering reference material                        |
+| [Design files](https://www.figma.com/design/NAAV4XGcJ6FlGXGK68AUbp/Yosemite-Crew) | Shared product design workspace                                  |
+| [DeepWiki](https://deepwiki.com/YosemiteCrew/Yosemite-Crew)                       | An AI-generated codebase tour; verify details against the source |
 
-| Metric       | Backend                                                                                                                                                                                                                      | Platform (Frontend)                                                                                                                                                                                                            | Mobile App                                                                                                                                                                                                                           | Desktop                                                                                                                                                                                                                      |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Quality Gate | [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Backend&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Backend)      | [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)      | [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_MobileAppYC&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_MobileAppYC)      | [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Desktop&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Desktop)      |
-| Coverage     | [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Backend&metric=coverage)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Backend)                     | [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=coverage)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)                     | [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_MobileAppYC&metric=coverage)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_MobileAppYC)                     | [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Desktop&metric=coverage)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Desktop)                     |
-| Bugs         | [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Backend&metric=bugs)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Backend)                             | [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=bugs)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)                             | [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_MobileAppYC&metric=bugs)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_MobileAppYC)                             | [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Desktop&metric=bugs)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Desktop)                             |
-| Code Smells  | [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Backend&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Backend)               | [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend)               | [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_MobileAppYC&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_MobileAppYC)               | [![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Desktop&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Desktop)               |
-| Reliability  | [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Backend&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Backend) | [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Frontend&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Frontend) | [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_MobileAppYC&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_MobileAppYC) | [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=yosemitecrew_Yosemite-Crew_Desktop&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=yosemitecrew_Yosemite-Crew_Desktop) |
+## Contributing and Community
 
-- Contributor workflow: [CONTRIBUTING.md](./CONTRIBUTING.md)
-- Security reporting: [SECURITY.md](./SECURITY.md)
-- Engineering standards: [docs/engineering-standards.md](./docs/engineering-standards.md)
-- Architecture decisions: [docs/adr](./docs/adr)
-- AI/automation contribution policy: [AGENTS.md](./AGENTS.md)
+Contributions can be code, documentation, tests, translations, or improvements to a user skill. Start with [CONTRIBUTING.md](./CONTRIBUTING.md), check [existing issues](https://github.com/YosemiteCrew/Yosemite-Crew/issues), and target pull requests at `dev`.
 
-<br>
+For skill improvements, keep recommendations vendor-neutral, protect sensitive information, and use fictional or redacted examples. Keep corresponding `.agents/skills` and `.claude/skills` copies in sync, including their supporting files.
 
-# 📚 Documentation
+- **Questions and discussion:** [Discord](https://discord.gg/SwM6mX85KD)
+- **Project news:** [LinkedIn](https://www.linkedin.com/company/yosemitecrew/)
+- **Community updates:** [Instagram](https://www.instagram.com/yosemite_crew) and [TikTok](https://www.tiktok.com/@yosemitecrew)
+- **Source and releases:** [GitHub](https://github.com/YosemiteCrew/Yosemite-Crew) and [release history](https://github.com/YosemiteCrew/Yosemite-Crew/releases)
 
-| Where                                                                  | What you will find                                                     |
-| ---------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| [Developer docs](./apps/frontend/content/docs)                         | The documentation, served at /docs for platform and API documentation. |
-| [Skills for users](#skills-for-users)                                  | Seven standalone workflows for buyers, practice teams, and pet owners. |
-| [MCP server](./packages/mcp-server/README.md)                          | Optional read-only access to selected developer API operations.        |
-| [Database setup](./packages/database/README.md)                        | Prisma migrations and existing-database baseline precautions.          |
-| [Engineering wiki](https://github.com/YosemiteCrew/Yosemite-Crew/wiki) | The structured engineering knowledge base.                             |
-| [Architecture guides](./docs/guide)                                    | PIMS architecture, realtime, notifications, analytics.                 |
-| [Architecture decisions](./docs/adr)                                   | The record of why the platform is shaped as it is.                     |
-| [DeepWiki](https://deepwiki.com/YosemiteCrew/Yosemite-Crew)            | An AI-generated tour of the codebase.                                  |
+Thank you to everyone contributing code, reporting issues, improving documentation, and sharing the project.
 
-<br>
+<a href="https://github.com/YosemiteCrew/Yosemite-Crew/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=YosemiteCrew/Yosemite-Crew" alt="Yosemite Crew contributors" />
+</a>
 
-# 🔑 Dev Environment Access
+<details>
+<summary><strong>Project growth</strong></summary>
 
-Request current dev or staging access from the maintainers through a secure channel. Do not publish shared credentials in repository documentation.
+[![Star history](https://api.star-history.com/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date)](https://star-history.com/#YosemiteCrew/Yosemite-Crew&Date)
 
-<br>
+Browse the project's [stargazers](https://github.com/YosemiteCrew/Yosemite-Crew/stargazers) and [forks](https://github.com/YosemiteCrew/Yosemite-Crew/network/members).
 
-# 💬 Join Our Growing Community
+</details>
 
-- Star our repo and show your support!
-- [Tik-tok](https://www.tiktok.com/@yosemitecrew) and [Instagram](https://www.instagram.com/yosemite_crew) for memes
-- Follow us on [LinkedIn](https://www.linkedin.com/company/yosemitecrew/) to get all the latest news
-- Join our [Discord](https://discord.com/invite/SwM6mX85KD) to chat with fellow contributors and users
-- [Contribute](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) - we love contributions! Whether it's code, docs, or ideas, your help is always welcome!
-
-<br>
-
-# 📜 License
+## License
 
 Yosemite Crew is released under the **GNU Affero General Public License v3.0**, with a Yosemite Crew licensing exception that permits combining the program with works under CC-BY-3.0 and CC-BY-4.0.
 
-The YOSEMITE CREW name, logo, and branding are **not** covered by the open source license. Commercial use of the branding requires a separate commercial license. See [License.txt](./License.txt) for the full terms.
-
-<br>
-
-# ⭐ Star History
-
-<a href="https://star-history.com/#YosemiteCrew/Yosemite-Crew&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date" />
- </picture>
-</a>
-
-# Thanks to the community!
-
-## ✨ Contributors
-
-Thanks to everyone who has contributed to Yosemite Crew!
-
-<a href="https://github.com/YosemiteCrew/Yosemite-Crew/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=YosemiteCrew/Yosemite-Crew" alt="Contributors" />
-</a>
-
-## ⭐ Stargazers &nbsp;·&nbsp; 🍴 Forkers
-
-See the [growth over time](#-star-history) above. Browse everyone who starred or forked the project:
-
-- ⭐ [View all Stargazers](https://github.com/YosemiteCrew/Yosemite-Crew/stargazers)
-- 🍴 [View all Forkers](https://github.com/YosemiteCrew/Yosemite-Crew/network/members)
+The YOSEMITE CREW name, logo, and branding are **not** covered by the open-source license. Commercial use of the branding requires a separate commercial license. See [License.txt](./License.txt) for the full terms.
