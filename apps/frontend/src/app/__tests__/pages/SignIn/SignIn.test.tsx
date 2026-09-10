@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
@@ -634,5 +636,25 @@ describe('SignIn Page', () => {
     const { container } = render(<SignIn />);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
+  });
+});
+
+describe('auth-brand headline reads the fixed accent-dark token', () => {
+  // AuthShell's brand panel is painted with a literal, permanently-dark
+  // gradient (never a token), so the "clinic" emphasis must stay pinned to a
+  // fixed-dark-tuned ink rather than the flipping --blue-text - otherwise
+  // light mode would put --blue-text's near-black light value on the
+  // permanently-dark hero.
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/auth/pages/SignIn/SignIn.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode the emphasis colour as a frozen literal', () => {
+    expect(source).not.toContain("color: '#8fb6f5'");
+  });
+
+  it('routes the emphasis colour through --color-accent-dark', () => {
+    expect(source).toContain("color: 'var(--color-accent-dark)'");
   });
 });
