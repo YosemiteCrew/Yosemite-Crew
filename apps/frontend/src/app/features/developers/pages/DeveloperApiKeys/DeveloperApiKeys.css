@@ -32,7 +32,7 @@
 
 .DevApiKeys-reveal p {
   margin: 0;
-  color: #f4efe6;
+  color: var(--spot-ink);
 }
 
 .DevApiKeys-secret {
@@ -41,8 +41,8 @@
   gap: 12px;
   flex-wrap: wrap;
   padding: 13px 15px;
-  background: rgba(244, 239, 230, 0.06);
-  border: 1px solid rgba(244, 239, 230, 0.16);
+  background: color-mix(in srgb, var(--spot-ink) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--spot-ink) 16%, transparent);
   border-radius: 14px;
 }
 
@@ -52,7 +52,7 @@
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 13.5px;
   line-height: 1.5;
-  color: #f4efe6;
+  color: var(--spot-ink);
   word-break: break-all;
 }
 
