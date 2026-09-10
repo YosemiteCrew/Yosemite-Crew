@@ -7,13 +7,13 @@
 
 @keyframes ycWorkspacePulseDot {
   0% {
-    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0.35);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 35%, transparent);
   }
   60% {
-    box-shadow: 0 0 0 6px rgba(0, 143, 93, 0);
+    box-shadow: 0 0 0 6px transparent;
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 
