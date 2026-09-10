@@ -152,7 +152,7 @@
   align-items: center;
   padding: 4px 12px;
   border-radius: 9999px;
-  background: rgba(92, 225, 230, 0.14);
+  background: color-mix(in srgb, var(--color-cyan) 14%, transparent);
   color: var(--color-cyan);
   font-weight: 700;
   text-transform: uppercase;
@@ -164,7 +164,7 @@
   font-size: 24px;
   font-weight: 400;
   letter-spacing: -0.015em;
-  color: #f4efe6;
+  color: var(--spot-ink);
   text-wrap: balance;
 }
 
@@ -177,7 +177,7 @@
   margin: 0;
   font-size: 13px;
   line-height: 1.6;
-  color: rgba(244, 239, 230, 0.72);
+  color: color-mix(in srgb, var(--spot-ink) 72%, transparent);
 }
 
 .dev-website-actions {
@@ -201,15 +201,16 @@
 .dev-website-cta.primary {
   /* The ink is pinned because the fill is. --color-cyan is declared once and
      never flips, while --color-ink resolves to --ink and goes cream in espresso,
-     which put 1.37 cream-on-cyan on this CTA against 10.83 in light. The
-     `.ghost` sibling below already hardcodes its own ink for the same reason. */
+     which put 1.37 cream-on-cyan on this CTA against 10.83 in light. Unlike the
+     `.ghost` sibling below (which sits on --spot and uses --spot-ink), there is
+     no token for ink pinned against a --color-cyan fill specifically. */
   background: var(--color-cyan);
   color: #1d1c1b;
 }
 
 .dev-website-cta.ghost {
-  border: 1px solid rgba(244, 239, 230, 0.28);
-  color: #f4efe6;
+  border: 1px solid color-mix(in srgb, var(--spot-ink) 28%, transparent);
+  color: var(--spot-ink);
   font-weight: 600;
 }
 
