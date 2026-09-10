@@ -55,13 +55,7 @@
 }
 
 .dev-hero-copy {
-  background: var(--color-surface-card);
-  border: 1px solid var(--color-card-border);
-  border-radius: 18px;
   padding: 20px 22px;
-  box-shadow:
-    0 1px 2px rgba(29, 28, 27, 0.03),
-    0 8px 22px rgba(29, 28, 27, 0.05);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -151,7 +145,7 @@
   width: 6px;
   height: 6px;
   border-radius: 9999px;
-  background: #008f5d;
+  background: var(--color-success-600);
 }
 
 .dev-tabular {
@@ -166,16 +160,10 @@
 }
 
 .dev-portal-card {
-  background: var(--color-surface-card);
-  border: 1px solid var(--color-card-border);
-  border-radius: 18px;
   padding: 18px 20px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  box-shadow:
-    0 1px 2px rgba(29, 28, 27, 0.03),
-    0 8px 22px rgba(29, 28, 27, 0.05);
 }
 
 .dev-card-head {

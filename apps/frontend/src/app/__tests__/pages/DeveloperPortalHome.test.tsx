@@ -178,6 +178,24 @@ describe('DeveloperPortalHome page', () => {
     );
   });
 
+  test('uses the shared card surface for developer portal cards', async () => {
+    useAuthStoreMock.mockReturnValue({
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
+    });
+
+    await renderSettled();
+
+    expect(screen.getByText('FHIR-NATIVE API').closest('.dev-hero-copy')).toHaveClass(
+      'yc-card-surface'
+    );
+    expect(
+      screen.getByRole('heading', { name: 'Quick links' }).closest('.dev-portal-card')
+    ).toHaveClass('yc-card-surface');
+    expect(
+      screen.getByRole('heading', { name: 'Your API keys' }).closest('.dev-portal-card')
+    ).toHaveClass('yc-card-surface');
+  });
+
   test('quick status reads the real key count and call count', async () => {
     useAuthStoreMock.mockReturnValue({
       ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
