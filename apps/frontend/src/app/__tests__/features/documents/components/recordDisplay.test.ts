@@ -94,10 +94,10 @@ describe('recordDisplay', () => {
   });
 
   describe('getRecordStatusPills', () => {
-    it('returns a success pill for synced records plus a PMS-visible pill', () => {
+    it('returns a success pill for synced records plus a PIMS-visible pill', () => {
       expect(getRecordStatusPills(rec({ syncedFromPms: true, pmsVisible: true }))).toEqual([
         { label: 'Synced', tone: 'success' },
-        { label: 'PMS visible', tone: 'info' },
+        { label: 'PIMS visible', tone: 'info' },
       ]);
     });
 

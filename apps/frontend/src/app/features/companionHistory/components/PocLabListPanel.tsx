@@ -179,9 +179,9 @@ export const PocLabList = ({
         <span className="text-[var(--ink-muted)]" aria-hidden="true">
           <IoFlaskOutline size={17} />
         </span>
-        <h3 id="poc-lab-heading" className="text-[13.5px] font-bold text-[var(--ink)]">
+        <h2 id="poc-lab-heading" className="text-[13.5px] font-bold text-[var(--ink)]">
           In-house lab results
-        </h3>
+        </h2>
         {!loading && !error && records.length > 0 ? (
           <StatusPill
             label={`${records.length} recorded`}

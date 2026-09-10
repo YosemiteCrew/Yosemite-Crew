@@ -309,9 +309,9 @@ const FlagList = ({
         <span className="text-[var(--ink-muted)]" aria-hidden="true">
           <IoFlagOutline size={18} />
         </span>
-        <h3 id="patient-flag-list-heading" className="text-[13.5px] font-bold text-[var(--ink)]">
+        <h2 id="patient-flag-list-heading" className="text-[13.5px] font-bold text-[var(--ink)]">
           Patient flags
-        </h3>
+        </h2>
         {!loading && !error && activeCount > 0 ? (
           <StatusPill
             label={`${activeCount} active`}

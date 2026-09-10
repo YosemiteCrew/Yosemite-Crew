@@ -19,9 +19,9 @@ const DocumentsListPanel = ({ companionId }: { companionId: string }) => (
       <span className="text-[var(--ink-muted)]" aria-hidden="true">
         <IoDocumentTextOutline size={17} />
       </span>
-      <h3 id="companion-documents-heading" className="text-[13.5px] font-bold text-[var(--ink)]">
+      <h2 id="companion-documents-heading" className="text-[13.5px] font-bold text-[var(--ink)]">
         Documents
-      </h3>
+      </h2>
     </header>
     <div className="px-4 py-3">
       <CompanionDocumentsSection companionId={companionId} />
