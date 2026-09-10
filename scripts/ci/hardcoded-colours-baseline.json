@@ -1,7 +1,7 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "45fcfc9bcaf70d4922dd663c0da4fe8fe9673deb",
-  "total": 347,
+  "generated_at": "0226b03f6700a96058a357900e6641b119fd19dd",
+  "total": 339,
   "justified": {
     "apps/frontend/src/app/features/appointments/components/Availability/Availability.tsx": {
       "n": 1,
@@ -216,8 +216,6 @@
     "apps/frontend/src/app/features/developers/pages/DeveloperDocs/DeveloperDocs.css": 4,
     "apps/frontend/src/app/features/developers/pages/DeveloperPlugins/DeveloperPlugins.css": 7,
     "apps/frontend/src/app/features/developers/pages/DeveloperPlugins/DeveloperPlugins.stories.tsx": 2,
-    "apps/frontend/src/app/features/developers/pages/DeveloperPortalHome/DeveloperPortalHome.css": 3,
-    "apps/frontend/src/app/features/developers/pages/DeveloperPortalHome/PhoneDevHome.css": 5,
     "apps/frontend/src/app/features/developers/pages/DeveloperSettings/DeveloperSettings.css": 6,
     "apps/frontend/src/app/features/developers/pages/DeveloperWebsiteBuilder/DeveloperWebsiteBuilder.css": 6,
     "apps/frontend/src/app/features/guides/pages/Guides.tsx": 5,
