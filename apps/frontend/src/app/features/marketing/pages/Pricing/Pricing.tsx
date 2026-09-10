@@ -490,7 +490,9 @@ function BusinessPlanCard({ price, period }: Readonly<{ price: string; period: s
           {price}
         </span>
       </div>
-      <div style={{ fontSize: '14px', color: '#a9a39e', marginBottom: '18px' }}>{period}</div>
+      <div style={{ fontSize: '14px', color: 'var(--spot-ink-faint)', marginBottom: '18px' }}>
+        {period}
+      </div>
       <p
         style={{
           margin: '0 0 22px',
