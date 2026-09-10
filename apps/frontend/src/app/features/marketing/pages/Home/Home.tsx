@@ -524,9 +524,30 @@ function HeroRecoveryCard() {
     >
       <div style={HERO_STAT_CARD_STYLE}>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 26 }}>
-          <span style={{ width: 4, height: '40%', background: '#99bdec', borderRadius: 2 }} />
-          <span style={{ width: 4, height: '65%', background: '#6aa1eb', borderRadius: 2 }} />
-          <span style={{ width: 4, height: '50%', background: '#3b87ec', borderRadius: 2 }} />
+          <span
+            style={{
+              width: 4,
+              height: '40%',
+              background: 'var(--color-brand-600)',
+              borderRadius: 2,
+            }}
+          />
+          <span
+            style={{
+              width: 4,
+              height: '65%',
+              background: 'var(--color-brand-800)',
+              borderRadius: 2,
+            }}
+          />
+          <span
+            style={{
+              width: 4,
+              height: '50%',
+              background: 'var(--color-brand-925)',
+              borderRadius: 2,
+            }}
+          />
           <span style={{ width: 4, height: '90%', background: 'var(--blue)', borderRadius: 2 }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -1546,7 +1567,14 @@ function DevApiHeader() {
       >
         GET /fhir/Patient/bella
       </span>
-      <span style={{ fontSize: 12, fontWeight: 700, color: '#33a57d', letterSpacing: '0.06em' }}>
+      <span
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          color: 'var(--color-success-500)',
+          letterSpacing: '0.06em',
+        }}
+      >
         200 OK
       </span>
     </div>
@@ -1570,12 +1598,12 @@ function DevApiResponse() {
       {'\n  '}
       <span style={{ color: 'var(--spot-blue)' }}>&quot;resourceType&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
-      <span style={{ color: '#8acbb4' }}>&quot;Patient&quot;</span>
+      <span style={{ color: 'var(--color-success-300)' }}>&quot;Patient&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>,</span>
       {'\n  '}
       <span style={{ color: 'var(--spot-blue)' }}>&quot;id&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
-      <span style={{ color: '#8acbb4' }}>&quot;bella-2014&quot;</span>
+      <span style={{ color: 'var(--color-success-300)' }}>&quot;bella-2014&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>,</span>
       {'\n  '}
       <span style={{ color: 'var(--spot-blue)' }}>&quot;extension&quot;</span>
@@ -1583,12 +1611,12 @@ function DevApiResponse() {
       {'\n    '}
       <span style={{ color: 'var(--spot-blue)' }}>&quot;url&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
-      <span style={{ color: '#8acbb4' }}>&quot;.../animal-species&quot;</span>
+      <span style={{ color: 'var(--color-success-300)' }}>&quot;.../animal-species&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>,</span>
       {'\n    '}
       <span style={{ color: 'var(--spot-blue)' }}>&quot;valueCode&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
-      <span style={{ color: '#8acbb4' }}>&quot;canine&quot;</span>
+      <span style={{ color: 'var(--color-success-300)' }}>&quot;canine&quot;</span>
       {'\n  '}
       <span style={{ color: 'var(--ink-faint)' }}>{'}],'}</span>
       {'\n  '}
@@ -1596,7 +1624,7 @@ function DevApiResponse() {
       <span style={{ color: 'var(--ink-faint)' }}>: [{'{'}</span>{' '}
       <span style={{ color: 'var(--spot-blue)' }}>&quot;text&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
-      <span style={{ color: '#8acbb4' }}>&quot;Bella&quot;</span>{' '}
+      <span style={{ color: 'var(--color-success-300)' }}>&quot;Bella&quot;</span>{' '}
       <span style={{ color: 'var(--ink-faint)' }}>{'}],'}</span>
       {'\n  '}
       <span style={{ color: 'var(--spot-blue)' }}>&quot;managingOrganization&quot;</span>
@@ -1604,7 +1632,7 @@ function DevApiResponse() {
       {'\n    '}
       <span style={{ color: 'var(--spot-blue)' }}>&quot;display&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
-      <span style={{ color: '#8acbb4' }}>&quot;Alpenblick Clinic&quot;</span>
+      <span style={{ color: 'var(--color-success-300)' }}>&quot;Alpenblick Clinic&quot;</span>
       {'\n  '}
       <span style={{ color: 'var(--ink-faint)' }}>{'}'}</span>
       {'\n'}

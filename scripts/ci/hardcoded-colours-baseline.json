@@ -1,7 +1,7 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "e98baad68cf758a50319418f8709bc3892e2a8d5",
-  "total": 122,
+  "generated_at": "f4fbd219def4e02ae69e7ce92b70bd833cef8229",
+  "total": 98,
   "justified": {
     "apps/frontend/src/app/(routes)/(app)/chat/page.css": {
       "n": 1,
@@ -240,8 +240,12 @@
       "why": "CARD_BG (#faf7f1) and a border colour (#e6ded1) are close to but not exact matches for any token (--color-screen is #f7f3ec, --color-hairline is #e5dccf) - left as literals when PR #2963 tokenised this file's other 8 exact-match literals, and still not exact matches now."
     },
     "apps/frontend/src/app/features/marketing/pages/DevelopersPage/DevelopersPage.tsx": {
-      "n": 39,
-      "why": "Four unrelated groups of deliberate illustration colours, none derivable from an existing token without changing the rendered value: (1) a fake terminal/code-editor mockup (traffic-light dots #454341, header rule #302f2e, terminal body text #d6d1cd, green '$' prompt #54b492, '&&' operator #5c5956, JSON string colour #8acbb4 - the last is --code-str's own dark-mode value, but --code-str itself flips for real light-surface code cards, which this mockup is not) - this same small palette recurs across Home.tsx, Insights.tsx, Pricing.tsx and About.tsx, so a shared token family may be worth formalising in its own follow-up, but is out of scope here; (2) the '0% platform cut' comparison-bar illustration (track #2c2926, border #35322f, striped fill #4a4643/#423e3b, and the already-investigated #2f6fc0 border - see PR #2977) plus its own bespoke near-black gradient card (#232120 to #1a1918, border #35322f); (3) three icon glyphs at a single-file-only muted grey (#6f6a66, not reused elsewhere); (4) two fixed-white ink spots (#ffffff) on fills that are themselves fixed (the 100%-filled blue bar, and the '0%' hero figure on --spot) plus one decorative gloss overlay (rgba(255,255,255,0.18)) - the same justified pattern as ChatContainer.css's white-on-fixed-blue ink, just inline rather than in a stylesheet."
+      "n": 30,
+      "why": "Three unrelated groups of deliberate illustration colours, none derivable from an existing token without changing the rendered value: (1) the fake terminal/code-editor mockup's remaining chrome (traffic-light dots #454341, header rule #302f2e, terminal body text #d6d1cd, '&&' operator #5c5956) - its string colour (#8acbb4) and '$' prompt (#54b492) were tokenised via the fixed --color-success-300/-400 ramp entries once that ramp was discovered to be fixed (see this PR); (2) the '0% platform cut' comparison-bar illustration (track #2c2926, border #35322f, striped fill #4a4643/#423e3b, and the already-investigated #2f6fc0 border - see PR #2977) plus its own bespoke near-black gradient card (#232120 to #1a1918, border #35322f); (3) three icon glyphs at a single-file-only muted grey (#6f6a66, not reused elsewhere), two fixed-white ink spots (#ffffff) on fills that are themselves fixed (the 100%-filled blue bar, and the '0%' hero figure on --spot), and one decorative gloss overlay (rgba(255,255,255,0.18)) - the same justified pattern as ChatContainer.css's white-on-fixed-blue ink, just inline rather than in a stylesheet."
+    },
+    "apps/frontend/src/app/features/marketing/pages/Home/Home.tsx": {
+      "n": 9,
+      "why": "The same fake terminal/code-editor mockup chrome justified in DevelopersPage.tsx (traffic-light dots #454341 x3, header rule #302f2e x2, terminal body text #d6d1cd - its string/prompt colours were tokenised via --color-success-300/-500 in this PR, same as DevelopersPage.tsx's). Plus two more single-file bespoke spots: an avatar-stack placeholder background (#e6e3e0) and a phone-mockup bezel (#1d1c1b x2) - the bezel is a physical-device colour on a decorative illustration, not a themed app surface, the same reasoning as the media-overlay literals justified in Guides.tsx and InClinicTodayBand.tsx (PR #2990)."
     },
     "apps/frontend/src/app/features/marketing/site/AuthShell.tsx": {
       "n": 8,
@@ -355,13 +359,12 @@
   "files": {
     "apps/frontend/src/app/features/marketing/pages/About/About.tsx": 4,
     "apps/frontend/src/app/features/marketing/pages/ContactusPage/ContactusPage.tsx": 10,
-    "apps/frontend/src/app/features/marketing/pages/Home/Home.tsx": 19,
     "apps/frontend/src/app/features/marketing/pages/Insights/Insights.stories.tsx": 1,
     "apps/frontend/src/app/features/marketing/pages/Insights/Insights.tsx": 19,
     "apps/frontend/src/app/features/marketing/pages/PetBusinesses/PetBusinesses.tsx": 3,
     "apps/frontend/src/app/features/marketing/pages/PetParents/PetParents.tsx": 10,
     "apps/frontend/src/app/features/marketing/pages/Pricing/Pricing.stories.tsx": 3,
-    "apps/frontend/src/app/features/marketing/pages/Pricing/Pricing.tsx": 14,
+    "apps/frontend/src/app/features/marketing/pages/Pricing/Pricing.tsx": 9,
     "apps/frontend/src/app/features/marketing/site/assets.ts": 2,
     "apps/frontend/src/app/features/marketing/site/AuthShell.stories.tsx": 2,
     "apps/frontend/src/app/features/marketing/site/marketing.css": 1,
