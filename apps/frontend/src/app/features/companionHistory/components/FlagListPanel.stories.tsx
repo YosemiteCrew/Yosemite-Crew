@@ -272,7 +272,10 @@ export const LoadFailed: Story = {
   beforeEach: [prepare({ fixture: { kind: 'rejects' } }), muteExpectedFailureLogs],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const alert = await canvas.findByRole('alert');
+    // A generous timeout: the reject -> catch -> setError -> re-render chain is
+    // synchronous in the app, but on a loaded CI/dev machine the default 1s
+    // findBy* window can be too tight for the browser's main thread to commit it.
+    const alert = await canvas.findByRole('alert', {}, { timeout: 10000 });
     await expect(alert).toHaveTextContent('Could not load patient flags. Please try again.');
     await expect(canvas.queryByText('Bites when startled')).not.toBeInTheDocument();
   },

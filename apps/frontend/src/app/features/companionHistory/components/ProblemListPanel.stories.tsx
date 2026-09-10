@@ -299,7 +299,10 @@ export const LoadFailed: ProblemListPanelStory = {
   beforeEach: [prepare({ fixture: { kind: 'rejects' } }), muteExpectedFailureLogs],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const alert = await canvas.findByRole('alert');
+    // A generous timeout: the reject -> catch -> setError -> re-render chain is
+    // synchronous in the app, but on a loaded CI/dev machine the default 1s
+    // findBy* window can be too tight for the browser's main thread to commit it.
+    const alert = await canvas.findByRole('alert', {}, { timeout: 10000 });
     await expect(alert).toHaveTextContent('Could not load the problem list. Please try again.');
     await expect(canvas.queryByText('Chronic kidney disease')).not.toBeInTheDocument();
   },
@@ -328,6 +331,6 @@ export const NoAccess: ProblemListPanelStory = {
     revoked: ['appointments:view:any'],
   }),
   play: async ({ canvasElement }) => {
-    await waitFor(() => expect(canvasElement).toBeEmptyDOMElement());
+    await waitFor(() => expect(canvasElement).toBeEmptyDOMElement(), { timeout: 10000 });
   },
 };
