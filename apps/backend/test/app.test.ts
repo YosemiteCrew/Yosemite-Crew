@@ -1,7 +1,7 @@
 import { IncomingMessage, ServerResponse } from "node:http";
 import type { Socket } from "node:net";
 import { PassThrough } from "node:stream";
-import type { Express, RequestHandler } from "express";
+import type { ErrorRequestHandler, Express, RequestHandler } from "express";
 
 const mockRegisterRoutes = jest.fn();
 const mockStripeWebhook = jest.fn();
@@ -283,6 +283,24 @@ describe("createApp", () => {
     expect(response.statusCode).toBe(500);
     expect(response.getHeader("content-type")).toContain("application/json");
     expect(body).toEqual({ message: "Internal server error." });
+  });
+
+  it("delegates unhandled errors after the response headers were sent", () => {
+    const app = createApp();
+    const stack = ((app as unknown as { _router: { stack: Layer[] } })._router
+      .stack ?? []) as Layer[];
+    const errorHandler = stack.at(-1)?.handle as unknown as ErrorRequestHandler;
+    const error = new Error("boom after headers");
+    const next = jest.fn();
+
+    errorHandler(
+      error,
+      {} as Parameters<ErrorRequestHandler>[1],
+      { headersSent: true } as Parameters<ErrorRequestHandler>[2],
+      next,
+    );
+
+    expect(next).toHaveBeenCalledWith(error);
   });
 });
 
