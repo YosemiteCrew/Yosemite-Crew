@@ -31,12 +31,12 @@ exports[`PocLabListPanel loads the patient list and expands a result detail 1`] 
           />
         </svg>
       </span>
-      <h3
+      <h2
         class="text-[13.5px] font-bold text-[var(--ink)]"
         id="poc-lab-heading"
       >
         In-house lab results
-      </h3>
+      </h2>
       <span
         class="yc-status-pill inline-flex w-fit max-w-full shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full! border! px-2.5 py-[3px] text-[10px] leading-[normal] font-bold uppercase tracking-[0.08em] ml-2 tabular-nums"
         style="background-color: var(--color-pill-neutral-bg); color: var(--color-pill-neutral-text); border-color: var(--color-pill-neutral-border); border-style: solid;"

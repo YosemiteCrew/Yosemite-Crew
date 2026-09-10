@@ -238,7 +238,7 @@ export const Default: AllergyListPanelStory = {
   name: 'Allergies loaded',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.findByRole('heading', { level: 3, name: 'Allergies' })).toBeVisible();
+    await expect(canvas.findByRole('heading', { level: 2, name: 'Allergies' })).toBeVisible();
     await expect(canvas.getByText('Penicillin')).toBeVisible();
     await expect(canvas.getByText('Life-threatening')).toBeVisible();
     await expect(canvas.getByText('Chicken protein')).toBeVisible();
@@ -276,7 +276,7 @@ export const Loading: AllergyListPanelStory = {
   beforeEach: prepare({ fixture: { kind: 'pending' } }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByRole('heading', { level: 3, name: 'Allergies' });
+    await canvas.findByRole('heading', { level: 2, name: 'Allergies' });
     await waitFor(() =>
       expect(canvasElement.querySelector('ul[aria-hidden="true"]')).not.toBeNull()
     );
