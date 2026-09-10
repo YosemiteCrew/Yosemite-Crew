@@ -521,6 +521,7 @@ describe("DocumentController", () => {
         category: undefined,
         subcategory: undefined,
         appointmentId: undefined,
+        excludeKind: "CONSENT",
       });
     });
 
@@ -540,6 +541,19 @@ describe("DocumentController", () => {
       mockGenericError("listForPms");
       await DocumentController.listForPms(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(500);
+    });
+
+    it("excludes signed consent documents, which the dedicated consent list already covers", async () => {
+      (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
+      req.params = { patientId: "c1" };
+      req.query = {};
+      mockedDocumentService.listForPms.mockResolvedValue([] as any);
+
+      await DocumentController.listForPms(req as any, res as Response);
+      expect(mockedDocumentService.listForPms).toHaveBeenCalledWith(
+        expect.objectContaining({ excludeKind: "CONSENT" }),
+      );
     });
   });
 
