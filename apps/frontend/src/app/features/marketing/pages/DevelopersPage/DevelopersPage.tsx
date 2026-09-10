@@ -208,7 +208,7 @@ const ECON_BAR_LABEL_MUTED_STYLE: React.CSSProperties = {
   fontSize: '12px',
   fontWeight: 700,
   letterSpacing: '0.01em',
-  color: '#a9a39e',
+  color: 'var(--spot-ink-faint)',
 };
 
 const ECON_BAR_LABEL_LIGHT_STYLE: React.CSSProperties = {
@@ -1124,7 +1124,7 @@ function Marketplace() {
             />
             <PluginRow
               iconBg="var(--avatar-green-bg)"
-              iconColor="#006642"
+              iconColor="var(--avatar-green-ink)"
               icon={<IoPulseOutline aria-hidden="true" style={{ fontSize: '20px' }} />}
               title="Triage Agent"
               desc="Sorts the inbox before the vet reads it"
@@ -1277,7 +1277,7 @@ function EconColumn({ index, icon, title, desc, delay }: Readonly<EconColumnProp
           fontSize: '14.5px',
           lineHeight: 1.6,
           letterSpacing: '-0.01em',
-          color: '#a9a39e',
+          color: 'var(--spot-ink-faint)',
         }}
       >
         {desc}
@@ -1335,7 +1335,7 @@ function EconomicsKeepPanel() {
           fontSize: '15px',
           lineHeight: 1.6,
           letterSpacing: '-0.01em',
-          color: '#a9a39e',
+          color: 'var(--spot-ink-faint)',
           maxWidth: '42ch',
         }}
       >
@@ -1558,7 +1558,7 @@ function Economics() {
       />
       <HeroGlow
         parallax={false}
-        color="rgba(130,175,236,0.08)"
+        color="color-mix(in srgb, var(--spot-blue) 8%, transparent)"
         box={{ bottom: '-220px', right: '-160px', width: '680px', height: '520px' }}
         animation="ycDrift 42s ease-in-out 3s infinite alternate-reverse"
       />
@@ -1608,7 +1608,7 @@ function Economics() {
               fontSize: '18px',
               lineHeight: 1.65,
               letterSpacing: '-0.02em',
-              color: '#a9a39e',
+              color: 'var(--spot-ink-faint)',
               textWrap: 'pretty',
             }}
           >
@@ -1799,7 +1799,7 @@ function ClosingCta() {
               fontSize: '18px',
               lineHeight: 1.65,
               letterSpacing: '-0.02em',
-              color: '#a9a39e',
+              color: 'var(--spot-ink-faint)',
               textWrap: 'pretty',
             }}
           >
