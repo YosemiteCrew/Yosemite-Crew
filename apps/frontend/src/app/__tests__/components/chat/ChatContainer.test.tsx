@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import ProtectedChatContainer, {
   ChatContainer,
@@ -3327,5 +3329,22 @@ describe('ChannelPreviewWrapper + ChatClosedFooter', () => {
     render(<ChatClosedFooter closedAt={new Date(Date.now() - 5 * 60 * 1000).toISOString()} />);
     expect(screen.getByText('Chat session closed')).toBeInTheDocument();
     expect(screen.getByText('5 minutes ago')).toBeInTheDocument();
+  });
+});
+
+describe('presence-dot pulse reads off the --success token, not a frozen literal', () => {
+  const css = readFileSync(
+    join(process.cwd(), 'src/app/features/chat/components/ChatContainer.css'),
+    'utf8'
+  );
+
+  it('does not hardcode --success light value as a frozen rgba', () => {
+    expect(css).not.toMatch(/rgba\(\s*0\s*,\s*143\s*,\s*93/);
+  });
+
+  it('mixes --success toward transparent for the pulse, and fades fully transparent at rest', () => {
+    expect(css).toContain('color-mix(in srgb, var(--success) 35%, transparent)');
+    expect(css).toContain('box-shadow: 0 0 0 6px transparent;');
+    expect(css).toContain('box-shadow: 0 0 0 0 transparent;');
   });
 });
