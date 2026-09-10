@@ -1,15 +1,11 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "b45ff5400a8e1fa7435a03151863dd15a2e0e4b4",
-  "total": 368,
+  "generated_at": "52226c9a0241236cb111486f78b58603b3f11c50",
+  "total": 360,
   "justified": {
     "apps/frontend/src/app/features/appointments/components/Availability/Availability.tsx": {
       "n": 1,
       "why": "The toggle knob is deliberately fixed white in both themes, and the reason is recorded at the call site: --screen flips, so in espresso the off knob was #2f271e on a #3a3128 track, a contrast of 1.15, and vanished. Tokenising this re-introduces that bug."
-    },
-    "apps/frontend/src/app/features/appointments/components/Calendar/Task/WeekCalendar.stories.tsx": {
-      "n": 2,
-      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
     },
     "apps/frontend/src/app/features/appointments/components/Calendar/common/AllDayEventsRow.stories.tsx": {
       "n": 1,
@@ -43,6 +39,14 @@
       "n": 2,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
     },
+    "apps/frontend/src/app/features/appointments/components/Calendar/Task/WeekCalendar.stories.tsx": {
+      "n": 2,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions.stories.tsx": {
+      "n": 1,
+      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/BilledBadge.stories.tsx": {
       "n": 1,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
@@ -66,10 +70,6 @@
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep.tsx": {
       "n": 2,
       "why": "A <style> string written into a print popup's document.head. That window loads none of this app's CSS, so every custom property is undefined there and var(--ink) would paint the browser default rather than the invoice's ink."
-    },
-    "apps/frontend/src/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Finance/InvoicePaymentActions.stories.tsx": {
-      "n": 1,
-      "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
     },
     "apps/frontend/src/app/features/auth/pages/SignIn/SignIn.stories.tsx": {
       "n": 1,
@@ -147,14 +147,6 @@
       "n": 2,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
     },
-    "apps/frontend/src/app/features/petPassport/components/WalletPassPreview.stories.tsx": {
-      "n": 3,
-      "why": "All three literals are prose in the story's docs description, restating the wallet-pass palette (--pbg #efe8dc, --pfg #1d1c1b, --pml #6b6763) the component reproduces from the pass service. WalletPassPreview.tsx is already justified for the same palette: the real pass is rendered by Apple/Google Wallet outside this app and cannot read our custom properties, so the preview must not flip with the theme. A token reference here would document a token, not paint it - this line is the on-file record of that fixed palette."
-    },
-    "apps/frontend/src/app/features/petPassport/components/WalletPassPreview.tsx": {
-      "n": 8,
-      "why": "Reproduces the wallet-pass service's fixed pass colours (background #EFE8DC, foreground #1D1C1B, label #6B6763, per the comment at the top of the file). Apple Wallet and Google Wallet render the real pass outside this app and do not follow its theme, so a preview that flipped in dark mode would show the user a pass that does not exist."
-    },
     "apps/frontend/src/app/features/petPassport/components/attestation/AttestationDocumentPanel.stories.tsx": {
       "n": 10,
       "why": "Every literal in this file lives inside SCAN_SVG, a data-URI SVG standing in for a photographed certificate the panel previews. The string is URL-encoded into the image src, so the browser renders it as a standalone document that cannot read this app's custom properties - a var() there resolves to the browser default and paints a scan that does not exist. These colours are the content of a scan (paper and print), not UI chrome."
@@ -162,6 +154,14 @@
     "apps/frontend/src/app/features/petPassport/components/attestation/RecordAttestationModal.stories.tsx": {
       "n": 9,
       "why": "Every literal in this file lives inside SCAN_SVG, a data-URI SVG standing in for a photographed certificate the modal previews. The string is URL-encoded into the image src, so the browser renders it as a standalone document that cannot read this app's custom properties - a var() there resolves to the browser default and paints a scan that does not exist. These colours are the content of a scan (paper and print), not UI chrome."
+    },
+    "apps/frontend/src/app/features/petPassport/components/WalletPassPreview.stories.tsx": {
+      "n": 3,
+      "why": "All three literals are prose in the story's docs description, restating the wallet-pass palette (--pbg #efe8dc, --pfg #1d1c1b, --pml #6b6763) the component reproduces from the pass service. WalletPassPreview.tsx is already justified for the same palette: the real pass is rendered by Apple/Google Wallet outside this app and cannot read our custom properties, so the preview must not flip with the theme. A token reference here would document a token, not paint it - this line is the on-file record of that fixed palette."
+    },
+    "apps/frontend/src/app/features/petPassport/components/WalletPassPreview.tsx": {
+      "n": 8,
+      "why": "Reproduces the wallet-pass service's fixed pass colours (background #EFE8DC, foreground #1D1C1B, label #6B6763, per the comment at the top of the file). Apple Wallet and Google Wallet render the real pass outside this app and do not follow its theme, so a preview that flipped in dark mode would show the user a pass that does not exist."
     },
     "apps/frontend/src/app/features/settings/pages/Settings/Sections/YourOrganizations.stories.tsx": {
       "n": 1,
@@ -201,11 +201,11 @@
     "apps/frontend/src/app/features/appointments/components/Calendar/common/NowIndicator.stories.tsx": 4,
     "apps/frontend/src/app/features/appointments/components/Calendar/common/SlotGridLines.stories.tsx": 2,
     "apps/frontend/src/app/features/appointments/components/Calendar/common/StaffInput.stories.tsx": 2,
-    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/DischargeDateTimeModal.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/PaymentLinkStatus.css": 3,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/RxBadge.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/TitleAddIcon.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer.stories.tsx": 4,
+    "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/DischargeDateTimeModal.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/steps/AllDocumentsTable.stories.tsx": 6,
     "apps/frontend/src/app/features/auth/pages/SignIn/SignIn.tsx": 2,
     "apps/frontend/src/app/features/auth/pages/SignUp/SignUp.tsx": 2,
@@ -224,8 +224,7 @@
     "apps/frontend/src/app/features/guides/pages/Guides.tsx": 5,
     "apps/frontend/src/app/features/integrations/pages/Integrations/integrations.css": 3,
     "apps/frontend/src/app/features/legal/pages/TrustCenter.stories.tsx": 5,
-    "apps/frontend/src/app/features/legal/pages/TrustCenter.tsx": 4,
-    "apps/frontend/src/app/features/legal/pages/trustCenterData.ts": 6,
+    "apps/frontend/src/app/features/legal/pages/TrustCenter.tsx": 2,
     "apps/frontend/src/app/features/marketing/pages/About/About.tsx": 6,
     "apps/frontend/src/app/features/marketing/pages/ContactusPage/ContactusPage.tsx": 10,
     "apps/frontend/src/app/features/marketing/pages/DevelopersPage/DevelopersPage.tsx": 50,
@@ -236,14 +235,14 @@
     "apps/frontend/src/app/features/marketing/pages/PetParents/PetParents.tsx": 10,
     "apps/frontend/src/app/features/marketing/pages/Pricing/Pricing.stories.tsx": 3,
     "apps/frontend/src/app/features/marketing/pages/Pricing/Pricing.tsx": 18,
+    "apps/frontend/src/app/features/marketing/site/assets.ts": 2,
     "apps/frontend/src/app/features/marketing/site/AuthShell.stories.tsx": 2,
     "apps/frontend/src/app/features/marketing/site/AuthShell.tsx": 17,
-    "apps/frontend/src/app/features/marketing/site/SiteFooter.stories.tsx": 2,
-    "apps/frontend/src/app/features/marketing/site/SiteFooter.tsx": 9,
-    "apps/frontend/src/app/features/marketing/site/assets.ts": 2,
     "apps/frontend/src/app/features/marketing/site/marketing.css": 7,
     "apps/frontend/src/app/features/marketing/site/motion.stories.tsx": 2,
     "apps/frontend/src/app/features/marketing/site/motion.tsx": 7,
+    "apps/frontend/src/app/features/marketing/site/SiteFooter.stories.tsx": 2,
+    "apps/frontend/src/app/features/marketing/site/SiteFooter.tsx": 9,
     "apps/frontend/src/app/features/marketing/site/useRepoInsights.ts": 14,
     "apps/frontend/src/app/ui/layout/Notifications/Notifications.css": 1,
     "apps/frontend/src/app/ui/layout/PhoneShell/PhoneShell.css": 4,
