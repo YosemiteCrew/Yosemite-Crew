@@ -1,7 +1,7 @@
 import { IncomingMessage, ServerResponse } from "node:http";
 import type { Socket } from "node:net";
 import { PassThrough } from "node:stream";
-import type { RequestHandler } from "express";
+import type { Express, RequestHandler } from "express";
 
 const mockRegisterRoutes = jest.fn();
 const mockStripeWebhook = jest.fn();
@@ -263,6 +263,26 @@ describe("createApp", () => {
       "http://localhost:3000",
     );
     expect(response.getHeader("access-control-allow-credentials")).toBe("true");
+  });
+
+  // #2752: without a final application-level error handler, an error that
+  // escapes a route falls through to Express's own default handler, which
+  // answers with an HTML page instead of the JSON shape every other error
+  // path in this app uses.
+  it("returns a JSON error, not Express's default HTML page, when a route throws", async () => {
+    mockRegisterRoutes.mockImplementationOnce((app: Express) => {
+      app.get("/test-unhandled-throw", () => {
+        throw new Error("boom");
+      });
+    });
+
+    const app = createApp();
+    const response = await request(app, { path: "/test-unhandled-throw" });
+    const body = JSON.parse(response.body) as { message: string };
+
+    expect(response.statusCode).toBe(500);
+    expect(response.getHeader("content-type")).toContain("application/json");
+    expect(body).toEqual({ message: "Internal server error." });
   });
 });
 
