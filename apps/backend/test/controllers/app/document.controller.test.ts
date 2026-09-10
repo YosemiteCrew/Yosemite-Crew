@@ -26,6 +26,7 @@ jest.mock("../../../src/services/document.service", () => {
       listForAppointmentPms: jest.fn(),
       update: jest.fn(),
       listForPms: jest.fn(),
+      listConsentDocumentsForPms: jest.fn(),
       getByIdForParent: jest.fn(),
       getByIdForPms: jest.fn(),
       deleteForParent: jest.fn(),
@@ -538,6 +539,63 @@ describe("DocumentController", () => {
       req.params = { patientId: "c1" };
       mockGenericError("listForPms");
       await DocumentController.listForPms(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe("listConsentForPms", () => {
+    it("should 401 if auth missing", async () => {
+      await DocumentController.listConsentForPms(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(401);
+    });
+
+    it("should 400 if patientId missing", async () => {
+      (req as any).userId = "pms1";
+      req.params = {};
+      await DocumentController.listConsentForPms(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("should 400 if organisationId missing", async () => {
+      (req as any).userId = "pms1";
+      req.params = { patientId: "c1" };
+      await DocumentController.listConsentForPms(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("should succeed (200) and scope the lookup to patientId and organisationId", async () => {
+      (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
+      req.params = { patientId: "c1" };
+      mockedDocumentService.listConsentDocumentsForPms.mockResolvedValue(
+        [] as any,
+      );
+
+      await DocumentController.listConsentForPms(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(
+        mockedDocumentService.listConsentDocumentsForPms,
+      ).toHaveBeenCalledWith({
+        patientId: "c1",
+        organisationId: "org1",
+      });
+    });
+
+    it("should handle service error", async () => {
+      (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
+      req.params = { patientId: "c1" };
+      mockServiceError("listConsentDocumentsForPms", 404);
+      await DocumentController.listConsentForPms(req as any, res as Response);
+      expect(statusMock).toHaveBeenCalledWith(404);
+    });
+
+    it("should handle generic error", async () => {
+      (req as any).userId = "pms1";
+      (req as any).organisationId = "org1";
+      req.params = { patientId: "c1" };
+      mockGenericError("listConsentDocumentsForPms");
+      await DocumentController.listConsentForPms(req as any, res as Response);
       expect(statusMock).toHaveBeenCalledWith(500);
     });
   });

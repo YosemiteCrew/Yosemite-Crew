@@ -417,6 +417,45 @@ export const DocumentController = {
     }
   },
 
+  listConsentForPms: async (
+    req: Request<{ patientId?: string }>,
+    res: Response,
+  ) => {
+    try {
+      const orgReq = req as OrgRequest;
+      const organisationId = orgReq.organisationId;
+      const pmsUserId = resolveVerifiedUserId(req);
+      if (!pmsUserId) {
+        return res
+          .status(401)
+          .json({ message: "Not authenticated as PMS user." });
+      }
+
+      const { patientId } = req.params;
+
+      if (!patientId) {
+        return res.status(400).json({ message: "Companion ID is required." });
+      }
+
+      if (!organisationId) {
+        return res.status(400).json({ message: "organisationId is required." });
+      }
+
+      const docs = await DocumentService.listConsentDocumentsForPms({
+        patientId,
+        organisationId,
+      });
+
+      return res.status(200).json(docs);
+    } catch (error) {
+      if (error instanceof DocumentServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      logger.error("Failed to list consent documents for PMS", error);
+      return res.status(500).json({ message: "Unable to fetch documents." });
+    }
+  },
+
   getForParent: async (req: Request<{ id: string }>, res: Response) => {
     try {
       const authUserId = resolveVerifiedUserId(req);

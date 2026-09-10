@@ -695,7 +695,7 @@ describe("TemplateService.create", () => {
     expect(result).toEqual({ id: "created" });
   });
 
-  it("maps CONSENT to the FORM storage kind and binds the owner for user templates", async () => {
+  it("stores CONSENT as its own storage kind and binds the owner for user templates", async () => {
     const txTemplateCreate = jest.fn().mockResolvedValue({ id: "tpl-user" });
     (prisma.$transaction as jest.Mock).mockImplementation(
       async (callback: any) =>
@@ -719,7 +719,7 @@ describe("TemplateService.create", () => {
 
     expect(txTemplateCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        kind: "FORM",
+        kind: "CONSENT",
         ownerUserId: "user-9",
         updatedBy: "user-2",
         rules: undefined,
@@ -1647,7 +1647,7 @@ describe("TemplateService list methods", () => {
         where: expect.objectContaining({
           organisationId: "org-1",
           ownership: "ORG_TEMPLATE",
-          kind: "FORM",
+          kind: "CONSENT",
           status: "PUBLISHED",
           scope: "ORGANISATION",
           OR: [
@@ -1717,6 +1717,50 @@ describe("TemplateService list methods", () => {
     expect(prisma.template.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ kind: "CARE_PATHWAY" }),
+      }),
+    );
+  });
+
+  it("queries an IN filter when asked for more than one kind at once", async () => {
+    (prisma.template.findMany as jest.Mock).mockResolvedValue([]);
+
+    await TemplateService.listForOrganisation("org-1", {
+      kind: ["CONSENT", "FORM"],
+    });
+
+    expect(prisma.template.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ kind: { in: ["CONSENT", "FORM"] } }),
+      }),
+    );
+  });
+
+  it("intersects a multi-kind library request with the caller's allowed kinds", async () => {
+    (prisma.template.findMany as jest.Mock).mockResolvedValue([]);
+
+    await TemplateService.listLibrary({
+      kind: ["CONSENT", "FORM"],
+      allowedKinds: ["FORM"],
+    });
+
+    expect(prisma.template.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ kind: "FORM" }),
+      }),
+    );
+  });
+
+  it("denies a multi-kind library request with no overlap in the caller's allowed kinds", async () => {
+    (prisma.template.findMany as jest.Mock).mockResolvedValue([]);
+
+    await TemplateService.listLibrary({
+      kind: ["CONSENT"],
+      allowedKinds: ["FORM"],
+    });
+
+    expect(prisma.template.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ kind: { in: [] } }),
       }),
     );
   });
@@ -1920,6 +1964,36 @@ describe("TemplateService.resolve", () => {
       templateId: "c1",
       reason: "Matched organisation default template for kind (default).",
     });
+  });
+
+  it("resolves a CONSENT lookup against both CONSENT and legacy FORM-stored templates", async () => {
+    // Templates authored before CONSENT existed as a storage value are still
+    // FORM - normalizeResolverKind widens the lookup so a CONSENT resolve
+    // keeps finding them alongside anything newly stored as CONSENT.
+    listForOrganisationSpy.mockResolvedValue([
+      resolverTemplate({
+        id: "legacy-form-consent",
+        appliesTo: { defaultForKind: true },
+      }),
+    ] as never);
+    (prisma.templateVersion.findUnique as jest.Mock).mockResolvedValue({
+      id: "v-legacy",
+      version: 1,
+      schemaSnapshot: { sections: [] },
+      renderConfigSnapshot: null,
+      validationSnapshot: null,
+    });
+
+    const result = await TemplateService.resolve({
+      organisationId: "org-1",
+      kind: "CONSENT",
+    });
+
+    expect(listForOrganisationSpy).toHaveBeenCalledWith(
+      "org-1",
+      expect.objectContaining({ kind: ["CONSENT", "FORM"] }),
+    );
+    expect(result).toMatchObject({ templateId: "legacy-form-consent" });
   });
 
   it("falls back to a YC library default template", async () => {

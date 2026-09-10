@@ -23,6 +23,8 @@ import type {
   ConsentType,
   PatientConsent,
 } from '@/app/features/companionHistory/services/patientConsentService';
+import type { CompanionRecord } from '@/app/features/documents/types/companionDocuments';
+import { formatDisplayDate } from '@/app/lib/date';
 
 /** The values the grant form emits. `expiresAt` is a raw `YYYY-MM-DD` (or ''). */
 export type ConsentFormValues = {
@@ -48,6 +50,13 @@ export type ConsentListProps = {
   creating?: boolean;
   /** Id of the consent currently being revoked, so its row shows a pending state. */
   revokingId?: string | null;
+  /**
+   * Signed/generated consent PDFs from the e-signing portal (Documenso).
+   * A separate data source from `consents` above - see
+   * `useSignedConsentDocuments` - so it renders as its own sub-list rather
+   * than being merged into rows it has no link to.
+   */
+  signedDocuments?: CompanionRecord[];
 };
 
 const STATUS_LABEL: Record<ConsentStatus, string> = {
@@ -391,6 +400,48 @@ const ConsentListBody = ({
   );
 };
 
+/** A single signed consent PDF from the e-signing portal - opens in a new tab. */
+const SignedDocumentRow = ({ document }: { document: CompanionRecord }) => {
+  const signedDate = formatDisplayDate(document.signedAt ?? undefined, '');
+  return (
+    <li className={rowClass}>
+      <span className="min-w-0">
+        <span className={clsx(titleClass, 'block truncate')}>{document.title}</span>
+        <span className={clsx(metaClass, 'mt-0.5 block text-[var(--ink-muted)]')}>
+          {signedDate ? `Signed ${signedDate}` : 'Signed'}
+        </span>
+      </span>
+      {document.pdfUrl ? (
+        <Secondary
+          size="compact"
+          text="View"
+          onClick={() => globalThis.open(document.pdfUrl ?? '', '_blank', 'noopener')}
+          ariaLabel={`View signed document: ${document.title}`}
+        />
+      ) : null}
+    </li>
+  );
+};
+
+/**
+ * The signed PDFs the e-signing portal produced, as their own sub-list -
+ * distinct from the manually-recorded consents above, since nothing links a
+ * given `PatientConsent` row to a given signed document.
+ */
+const SignedConsentDocuments = ({ documents }: { documents: CompanionRecord[] }) => {
+  if (documents.length === 0) return null;
+  return (
+    <div className="border-t border-[var(--divider)]">
+      <div className={clsx(fieldLabelClass, 'px-4 pt-3')}>Signed documents</div>
+      <ul className="divide-y divide-[var(--divider)]">
+        {documents.map((document) => (
+          <SignedDocumentRow key={document.id ?? document.title} document={document} />
+        ))}
+      </ul>
+    </div>
+  );
+};
+
 /**
  * Presentational clinical consent-list panel. Renders the consents the caller
  * supplies and surfaces grant/revoke intents through callbacks; it never
@@ -405,6 +456,7 @@ const ConsentList = ({
   onRevoke,
   creating = false,
   revokingId = null,
+  signedDocuments = [],
 }: ConsentListProps) => {
   const [showForm, setShowForm] = useState(false);
   const activeCount = useMemo(
@@ -443,6 +495,8 @@ const ConsentList = ({
         onRevoke={onRevoke}
         revokingId={revokingId}
       />
+
+      <SignedConsentDocuments documents={signedDocuments} />
     </section>
   );
 };
