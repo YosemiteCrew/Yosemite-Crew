@@ -94,9 +94,9 @@ export const ClinicalListHeader = ({
     <span className="text-[var(--ink-muted)]" aria-hidden="true">
       {icon}
     </span>
-    <h3 id={headingId} className="text-[13.5px] font-bold text-[var(--ink)]">
+    <h2 id={headingId} className="text-[13.5px] font-bold text-[var(--ink)]">
       {title}
-    </h3>
+    </h2>
     {!loading && !error && activeCount > 0 ? (
       <StatusPill label={`${activeCount} active`} tone="warning" className="ml-2 tabular-nums" />
     ) : null}
