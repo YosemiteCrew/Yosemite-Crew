@@ -310,6 +310,10 @@
   padding: 3px 9px;
   border-radius: 7px;
   background: var(--color-cyan);
+  /* Ink pinned against --color-cyan's fixed fill, same reasoning as
+     DeveloperPlugins' .dev-website-cta.primary and DeveloperSettings'
+     .dev-switch.on .dev-switch-thumb: --color-cyan never flips, so a
+     token that resolves through --ink would go cream-on-cyan in espresso. */
   color: #1d1c1b;
   font-size: 10.5px;
   font-weight: 800;
@@ -366,14 +370,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  border-bottom: 1px solid rgba(244, 239, 230, 0.1);
+  border-bottom: 1px solid color-mix(in srgb, var(--spot-ink) 10%, transparent);
 }
 
 .DocsCodePanelLabel {
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: rgba(244, 239, 230, 0.55);
+  color: color-mix(in srgb, var(--spot-ink) 55%, transparent);
 }
 
 .DocsCodeCopy {
@@ -395,7 +399,7 @@
   font-family: ui-monospace, monospace;
   font-size: 11px;
   line-height: 1.65;
-  color: #f4efe6;
+  color: var(--spot-ink);
   overflow-x: auto;
 }
 

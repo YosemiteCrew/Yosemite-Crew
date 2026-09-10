@@ -1,6 +1,8 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 jest.mock('@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard', () => ({
   __esModule: true,
@@ -224,5 +226,39 @@ describe('DeveloperDocs reader', () => {
     fireEvent.click(screen.getByRole('button', { name: /Copy page/i }));
     await waitFor(() => expect(writeText).toHaveBeenCalled());
     expect(screen.getByRole('button', { name: /Copy page/i })).toBeInTheDocument();
+  });
+});
+
+describe('code panel reads ink from the fixed --spot-ink token', () => {
+  // .DocsCodePanel is painted from --spot, which stays dark in both themes.
+  // Its header border, label and code ink must come from --spot-ink (fixed
+  // the same way), not a frozen cream literal - otherwise light mode shows
+  // the dark-mode ink shade instead of the light-tuned one. .DocsMethod's
+  // ink stays a literal, justified in the baseline: it is pinned to
+  // --color-cyan's fixed fill, not --spot, so --spot-ink does not apply.
+  const css = readFileSync(
+    join(process.cwd(), 'src/app/features/developers/pages/DeveloperDocs/DeveloperDocs.css'),
+    'utf8'
+  );
+
+  it('does not hardcode the code panel chrome as frozen cream literals', () => {
+    expect(css).not.toMatch(/\.DocsCodePanelHead\s*{[^}]*rgba\(\s*244,\s*239,\s*230/);
+    expect(css).not.toMatch(/\.DocsCodePanelLabel\s*{[^}]*color:\s*rgba\(\s*244,\s*239,\s*230/);
+    expect(css).not.toMatch(/\.DocsCodePre\s*{[^}]*color:\s*#f4efe6/);
+  });
+
+  it('routes the code panel chrome through --spot-ink', () => {
+    expect(css).toMatch(
+      /\.DocsCodePanelHead\s*{[^}]*border-bottom:\s*1px solid color-mix\(in srgb, var\(--spot-ink\) 10%/
+    );
+    expect(css).toMatch(
+      /\.DocsCodePanelLabel\s*{[^}]*color:\s*color-mix\(in srgb, var\(--spot-ink\) 55%/
+    );
+    expect(css).toMatch(/\.DocsCodePre\s*{[^}]*color:\s*var\(--spot-ink\)/);
+  });
+
+  it('keeps .DocsMethod ink pinned to --color-cyan as a justified literal', () => {
+    expect(css).toMatch(/\.DocsMethod\s*{[^}]*background:\s*var\(--color-cyan\)/);
+    expect(css).toMatch(/\.DocsMethod\s*{[^}]*color:\s*#1d1c1b/);
   });
 });
