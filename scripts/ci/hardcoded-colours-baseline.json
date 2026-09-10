@@ -1,7 +1,7 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "bba5e754b47cfdaf364877ceb0d430b3e831072c",
-  "total": 256,
+  "generated_at": "e8b7262dca97366d0fbeb72adc942f56493e5104",
+  "total": 243,
   "justified": {
     "apps/frontend/src/app/features/appointments/components/Availability/Availability.tsx": {
       "n": 1,
@@ -207,6 +207,22 @@
       "n": 1,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
     },
+    "apps/frontend/src/app/ui/overlays/Modal/GuidePlayerModal.stories.tsx": {
+      "n": 2,
+      "why": "The doc-string at the top of this file already explains both literals in full: the video surface is deliberately painted with a hard-coded near-black #1d1c1b and a literal #f7f3ec ink instead of tokens, because a video frame is dark in both themes - explicitly flagged in the story's own prose as 'exactly the kind of thing a token sweep would \"fix\" by mistake.'"
+    },
+    "apps/frontend/src/app/ui/overlays/Modal/VideoPlayerModal.stories.tsx": {
+      "n": 3,
+      "why": "All three literals (#1d2b3a x2, #ffffff) sit inside an inline SVG data-URI used only as a fake poster image for the story, so the video story never has to make a network request - a mocked asset's own artwork, not themed app UI."
+    },
+    "apps/frontend/src/app/ui/overlays/PdfPreviewOverlay.stories.tsx": {
+      "n": 6,
+      "why": "All six literals (#525659, #fff, #1a1a1a, rgba(0,0,0,.4), #6b6b6b, #ddd) sit inside a fake generated HTML document string - a stand-in invoice preview, styled like paper (Georgia serif, its own background/ink/shadow) - used so the story exercises the real getSafePdfPreviewUrl code path without a binary fixture. A previewed document's own styling, not themed app chrome."
+    },
+    "apps/frontend/src/app/ui/overlays/Toast/Toast.css": {
+      "n": 2,
+      "why": "Already commented at the declaration: --auth-toast-ink/--auth-toast-ink-muted are the light-theme ink values, deliberately pinned because the three toast background tints (--color-toast-error/warning/success-bg) are fixed pastels that do not flip with the theme. The themed --ink/--ink-body went cream in espresso, putting cream text on a peach bar (1.01-1.37:1) - a user who mistyped a password in dark mode was shown an empty coloured strip."
+    },
     "apps/frontend/src/app/ui/primitives/RichTextEditor/FloatingToolbar.stories.tsx": {
       "n": 2,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
@@ -281,10 +297,6 @@
     "apps/frontend/src/app/features/marketing/site/SiteFooter.tsx": 9,
     "apps/frontend/src/app/features/marketing/site/useRepoInsights.ts": 14,
     "apps/frontend/src/app/ui/layout/Notifications/Notifications.css": 1,
-    "apps/frontend/src/app/ui/layout/PhoneShell/PhoneShell.css": 1,
-    "apps/frontend/src/app/ui/overlays/Modal/GuidePlayerModal.stories.tsx": 2,
-    "apps/frontend/src/app/ui/overlays/Modal/VideoPlayerModal.stories.tsx": 3,
-    "apps/frontend/src/app/ui/overlays/PdfPreviewOverlay.stories.tsx": 6,
-    "apps/frontend/src/app/ui/overlays/Toast/Toast.css": 2
+    "apps/frontend/src/app/ui/layout/PhoneShell/PhoneShell.css": 1
   }
 }
