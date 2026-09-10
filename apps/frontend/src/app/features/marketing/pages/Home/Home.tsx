@@ -950,7 +950,7 @@ function Manifesto() {
                 fontStyle: 'italic',
                 fontWeight: 500,
                 letterSpacing: '-0.01em',
-                color: '#82afec',
+                color: 'var(--color-brand-700)',
               }}
             >
               We build for that afternoon.
@@ -1568,41 +1568,41 @@ function DevApiResponse() {
     >
       <span style={{ color: 'var(--ink-faint)' }}>{'{'}</span>
       {'\n  '}
-      <span style={{ color: '#82afec' }}>&quot;resourceType&quot;</span>
+      <span style={{ color: 'var(--color-brand-700)' }}>&quot;resourceType&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
       <span style={{ color: '#8acbb4' }}>&quot;Patient&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>,</span>
       {'\n  '}
-      <span style={{ color: '#82afec' }}>&quot;id&quot;</span>
+      <span style={{ color: 'var(--color-brand-700)' }}>&quot;id&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
       <span style={{ color: '#8acbb4' }}>&quot;bella-2014&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>,</span>
       {'\n  '}
-      <span style={{ color: '#82afec' }}>&quot;extension&quot;</span>
+      <span style={{ color: 'var(--color-brand-700)' }}>&quot;extension&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>: [{'{'}</span>
       {'\n    '}
-      <span style={{ color: '#82afec' }}>&quot;url&quot;</span>
+      <span style={{ color: 'var(--color-brand-700)' }}>&quot;url&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
       <span style={{ color: '#8acbb4' }}>&quot;.../animal-species&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>,</span>
       {'\n    '}
-      <span style={{ color: '#82afec' }}>&quot;valueCode&quot;</span>
+      <span style={{ color: 'var(--color-brand-700)' }}>&quot;valueCode&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
       <span style={{ color: '#8acbb4' }}>&quot;canine&quot;</span>
       {'\n  '}
       <span style={{ color: 'var(--ink-faint)' }}>{'}],'}</span>
       {'\n  '}
-      <span style={{ color: '#82afec' }}>&quot;name&quot;</span>
+      <span style={{ color: 'var(--color-brand-700)' }}>&quot;name&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>: [{'{'}</span>{' '}
-      <span style={{ color: '#82afec' }}>&quot;text&quot;</span>
+      <span style={{ color: 'var(--color-brand-700)' }}>&quot;text&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
       <span style={{ color: '#8acbb4' }}>&quot;Bella&quot;</span>{' '}
       <span style={{ color: 'var(--ink-faint)' }}>{'}],'}</span>
       {'\n  '}
-      <span style={{ color: '#82afec' }}>&quot;managingOrganization&quot;</span>
+      <span style={{ color: 'var(--color-brand-700)' }}>&quot;managingOrganization&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>: {'{'}</span>
       {'\n    '}
-      <span style={{ color: '#82afec' }}>&quot;display&quot;</span>
+      <span style={{ color: 'var(--color-brand-700)' }}>&quot;display&quot;</span>
       <span style={{ color: 'var(--ink-faint)' }}>:</span>{' '}
       <span style={{ color: '#8acbb4' }}>&quot;Alpenblick Clinic&quot;</span>
       {'\n  '}
@@ -1644,7 +1644,9 @@ function DevPluginCard() {
           Publish to the marketplace in an afternoon
         </span>
       </div>
-      <span style={{ fontSize: 12, color: '#82afec', fontWeight: 500 }}>Install</span>
+      <span style={{ fontSize: 12, color: 'var(--color-brand-700)', fontWeight: 500 }}>
+        Install
+      </span>
     </div>
   );
 }

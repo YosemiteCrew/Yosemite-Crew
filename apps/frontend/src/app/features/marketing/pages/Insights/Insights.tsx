@@ -1421,7 +1421,7 @@ function FinalCta() {
                   fontFamily: SERIF,
                   fontStyle: 'italic',
                   fontWeight: 500,
-                  color: '#82afec',
+                  color: 'var(--color-brand-700)',
                 }}
               >
                 Then read the code.

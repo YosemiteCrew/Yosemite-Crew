@@ -155,4 +155,9 @@ describe('DevelopersPage', () => {
     const title = screen.getByText('Bring your own model');
     expect(title.style.color).toBe('var(--spot-ink)');
   });
+
+  it('keeps the economics "100%" badge on the --color-brand-700 token', () => {
+    const badge = screen.getByText('100%');
+    expect(badge.style.color).toBe('var(--color-brand-700)');
+  });
 });

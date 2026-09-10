@@ -1253,7 +1253,7 @@ function EconColumn({ index, icon, title, desc, delay }: Readonly<EconColumnProp
             fontStyle: 'italic',
             fontWeight: 500,
             fontSize: '27px',
-            color: '#82afec',
+            color: 'var(--color-brand-700)',
           }}
         >
           {index}
@@ -1310,7 +1310,7 @@ function EconomicsKeepPanel() {
             letterSpacing: '0.05em',
             textTransform: 'uppercase',
             fontWeight: 700,
-            color: '#82afec',
+            color: 'var(--color-brand-700)',
           }}
         >
           platform
@@ -1423,7 +1423,9 @@ function EconomicsBars() {
           >
             Yosemite Crew marketplace
           </span>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: '#82afec' }}>100%</span>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-brand-700)' }}>
+            100%
+          </span>
         </div>
         <div
           style={{
@@ -1593,7 +1595,7 @@ function Economics() {
                 fontStyle: 'italic',
                 fontWeight: 500,
                 letterSpacing: '-0.01em',
-                color: '#82afec',
+                color: 'var(--color-brand-700)',
               }}
             >
               Keep all of it.
