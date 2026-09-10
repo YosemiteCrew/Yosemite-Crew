@@ -142,7 +142,7 @@ describe('CompanionDocumentsSection', () => {
     // a span) and this row's status pill - scope to the status pill's own class
     // to disambiguate.
     expect(screen.getByText('Synced', { selector: '.yc-status-pill' })).toBeInTheDocument();
-    expect(screen.getByText('PMS visible')).toBeInTheDocument();
+    expect(screen.getByText('PIMS visible')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Open vaccination card' }));
     await waitFor(() => expect(loadDocumentDownloadURLMock).toHaveBeenCalledWith('doc-1'));
