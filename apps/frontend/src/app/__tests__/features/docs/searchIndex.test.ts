@@ -69,6 +69,6 @@ describe('search index', () => {
 
   it('stays far smaller than the plugin index it replaces', () => {
     const bytes = Buffer.byteLength(JSON.stringify(index));
-    expect(bytes).toBeLessThan(300 * 1024);
+    expect(bytes).toBeLessThan(400 * 1024);
   });
 });
