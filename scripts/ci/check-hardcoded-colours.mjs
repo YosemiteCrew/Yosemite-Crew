@@ -43,6 +43,11 @@
  * Exit 0 clean. Exit 1 the gate ran and something failed it. Exit 2 the gate
  * could not run - no baseline, an empty walk, a failed selftest. A caller that
  * treats 2 as clean has removed the gate.
+ *
+ * A run also prints an ADVISORY line (issue #2852) when a four-digit hex
+ * token the gate deliberately does not match - see the four-digit narrowing
+ * below - sits next to a colour property rather than in prose. This never
+ * changes the exit code; it is a report for a human, not a finding.
  */
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname, relative, resolve, isAbsolute, sep } from 'node:path';
@@ -107,12 +112,13 @@ const MIN_FILES = 200;
    The cost runs the other way and is deliberate: `#1234` IS a legal `#RGBA`
    colour and this branch now refuses it. Accepted because bucket 4 is 10/10
    references and 0/10 colours today - so there is no current finding to lose -
-   and that ratio is the thing to re-measure. Note that NOTHING WILL ANNOUNCE
-   IT: a blind spot in a detector has no detector, so the day an all-decimal
-   RGBA lands, this gate is the component that will not say so. The re-measure
-   is periodic or it does not happen. The selftest pins the blind spot, so
-   restoring detection has to update a case rather than change behaviour
-   quietly.
+   and that ratio is the thing to re-measure. A blind spot in a detector has no
+   detector, so `findSuspiciousFourDigit` below (issue #2852) prints an
+   ADVISORY - never a failure - when a suppressed token sits next to a colour
+   property, narrowing "nothing will announce it" to "nothing will announce a
+   suppressed token written somewhere that heuristic does not name". The
+   selftest pins the blind spot itself, so restoring detection in HEX still
+   has to update a case rather than change behaviour quietly.
 
    The trade also changed KIND, not just size: a four-digit reference used to
    be a loud false positive somebody triaged, and an all-decimal RGBA is now a
@@ -127,6 +133,26 @@ const HEX =
 // use, not a literal - is not a finding, and carried to the closing paren so
 // the failure message shows the whole colour rather than `rgba(0`.
 const FUNCTIONAL = /\b(?:rgba?|hsla?)\(\s*[\d.][^)]*\)/g;
+
+/* Issue #2852, option B. HEX's negative lookahead above refuses exactly this
+   shape - four decimal digits, nothing more - so this pattern is the mirror
+   image: it matches only what HEX just walked past. That is deliberate
+   duplication, not drift: HEX cannot report this shape without un-suppressing
+   every issue reference #2851 removed, and this pattern must not affect what
+   HEX matches, so they stay two patterns rather than one shared between two
+   call sites with different jobs. */
+const SUSPICIOUS_FOUR_DIGIT = /#[0-9]{4}(?!\w)/g;
+
+/* Bucket 4 was 10/10 issue references and 0/10 colours at the baseline #2852
+   measured against - there is nothing to distinguish them on shape alone. A
+   colour and a cross-reference read identically as `#DDDD`; what differs is
+   what sits next to them. This is a REPORT, not a gate: it narrows by
+   proximity to a colour-bearing property so the common case (a reference in
+   prose) stays silent, but the heuristic can still miss a token written
+   somewhere this list does not name, so it must never fail a build - only
+   `findColours`/`compare` may do that. */
+const COLOUR_CONTEXT = /\b(?:color|background|border|fill|stroke)\b|linear-gradient\(/i;
+const COLOUR_CONTEXT_WINDOW = 60;
 
 class GateError extends Error {}
 
@@ -230,6 +256,29 @@ export const findColours = (source, { css = false } = {}) => {
 };
 
 /**
+ * The suppressed half of the four-digit bucket, narrowed to the tokens that
+ * sit next to a colour-bearing property or inside `linear-gradient(`. See
+ * issue #2852: `findColours` cannot report these without reopening every
+ * issue reference #2851 removed, so this is a separate, advisory pass -
+ * callers must not treat its output as a gate finding.
+ */
+export const findSuspiciousFourDigit = (source, { css = false } = {}) => {
+  const stripped = stripComments(source, { lineComments: !css });
+  const findings = [];
+  SUSPICIOUS_FOUR_DIGIT.lastIndex = 0;
+  let m;
+  while ((m = SUSPICIOUS_FOUR_DIGIT.exec(stripped)) !== null) {
+    const windowStart = Math.max(0, m.index - COLOUR_CONTEXT_WINDOW);
+    const context = stripped.slice(windowStart, m.index);
+    if (COLOUR_CONTEXT.test(context)) {
+      const line = stripped.slice(0, m.index).split('\n').length;
+      findings.push({ line, text: m[0] });
+    }
+  }
+  return findings.sort((a, b) => a.line - b.line);
+};
+
+/**
  * `maxDepth` guards against unbounded stack growth, and is not a scan limit:
  * the deepest path under `apps/frontend/src` is nowhere near it. A tree that
  * DID reach the cap would be silently under-scanned, which is the one failure
@@ -254,7 +303,11 @@ const walk = (dir, acc = [], depth = 0, maxDepth = 100) => {
   return acc;
 };
 
-/** `{ counts: { path: n }, findings: [{ file, line, text }], scanned: n }`. */
+/**
+ * `{ counts: { path: n }, findings: [{ file, line, text }], suspicious: [{
+ * file, line, text }], scanned: n }`. `suspicious` is advisory (issue #2852)
+ * and must never feed `compare` or a baseline - see `findSuspiciousFourDigit`.
+ */
 export const scan = (roots = SCAN_ROOTS) => {
   const files = [];
   for (const root of roots) {
@@ -270,14 +323,20 @@ export const scan = (roots = SCAN_ROOTS) => {
   }
   const counts = {};
   const findings = [];
+  const suspicious = [];
   for (const file of files) {
     const rel = relative(repoRoot, file);
-    for (const hit of findColours(readFileSync(file, 'utf8'), { css: file.endsWith('.css') })) {
+    const source = readFileSync(file, 'utf8');
+    const css = file.endsWith('.css');
+    for (const hit of findColours(source, { css })) {
       findings.push({ file: rel, ...hit });
       counts[rel] = (counts[rel] ?? 0) + 1;
     }
+    for (const hit of findSuspiciousFourDigit(source, { css })) {
+      suspicious.push({ file: rel, ...hit });
+    }
   }
-  return { counts, findings, scanned: files.length };
+  return { counts, findings, suspicious, scanned: files.length };
 };
 
 /**
@@ -503,7 +562,7 @@ const main = () => {
     return 0;
   }
 
-  const { counts, findings, scanned } = scan();
+  const { counts, findings, suspicious, scanned } = scan();
   if (scanned < MIN_FILES) {
     console.error(
       `could not run: walked ${scanned} files, expected at least ${MIN_FILES}. ` +
@@ -520,6 +579,20 @@ const main = () => {
 
   if (args.includes('--list')) {
     for (const f of findings) console.log(`${f.file}:${f.line}  ${f.text}`);
+  }
+
+  /* Issue #2852, option B: a report, not a gate. This can never fail the
+     build - it only tells a human that a token the four-digit narrowing is
+     suppressing sits next to a colour-bearing property, so the "re-measure
+     when this stops being empty" the narrowing's own comment asks for has
+     something other than a person's memory to trigger it. */
+  if (suspicious.length) {
+    console.log(
+      `\nAdvisory (not a failure): ${suspicious.length} four-digit hex token(s) ` +
+        'suppressed by the all-decimal blind spot (issue #2852) sit next to a colour ' +
+        'property. Confirm each is a colour, not an issue reference:\n'
+    );
+    for (const { file, line, text } of suspicious) console.log(`  ${file}:${line}  ${text}`);
   }
 
   const { files: baseline, justified, generatedAt } = readBaseline();
