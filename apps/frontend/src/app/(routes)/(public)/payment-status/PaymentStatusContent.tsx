@@ -177,18 +177,18 @@ export function PaymentStatusContent() {
           <div className="relative flex items-center justify-center size-24 rounded-full">
             {(requestState === 'missing_session' || requestState === 'error') && (
               <svg className="size-24" viewBox="0 0 120 120" aria-hidden>
-                <circle cx="60" cy="60" r="46" fill="none" stroke="#dc2626" strokeWidth="6" />
+                <circle cx="60" cy="60" r="46" fill="none" stroke="var(--danger)" strokeWidth="6" />
                 <path
                   d="M42 42l36 36"
                   fill="none"
-                  stroke="#dc2626"
+                  stroke="var(--danger)"
                   strokeWidth="7"
                   strokeLinecap="round"
                 />
                 <path
                   d="M78 42l-36 36"
                   fill="none"
-                  stroke="#dc2626"
+                  stroke="var(--danger)"
                   strokeWidth="7"
                   strokeLinecap="round"
                 />
@@ -196,11 +196,18 @@ export function PaymentStatusContent() {
             )}
             {data?.status === 'paid' && (
               <svg className="size-24" viewBox="0 0 120 120" aria-hidden>
-                <circle cx="60" cy="60" r="46" fill="none" stroke="#16a34a" strokeWidth="6" />
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="46"
+                  fill="none"
+                  stroke="var(--success)"
+                  strokeWidth="6"
+                />
                 <path
                   d="M38 62l16 16 30-34"
                   fill="none"
-                  stroke="#16a34a"
+                  stroke="var(--success)"
                   strokeWidth="7"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -216,18 +223,18 @@ export function PaymentStatusContent() {
             )}
             {data?.status === 'no_payment_required' && (
               <svg className="size-24" viewBox="0 0 120 120" aria-hidden>
-                <circle cx="60" cy="60" r="46" fill="none" stroke="#dc2626" strokeWidth="6" />
+                <circle cx="60" cy="60" r="46" fill="none" stroke="var(--danger)" strokeWidth="6" />
                 <path
                   d="M42 42l36 36"
                   fill="none"
-                  stroke="#dc2626"
+                  stroke="var(--danger)"
                   strokeWidth="7"
                   strokeLinecap="round"
                 />
                 <path
                   d="M78 42l-36 36"
                   fill="none"
-                  stroke="#dc2626"
+                  stroke="var(--danger)"
                   strokeWidth="7"
                   strokeLinecap="round"
                 />

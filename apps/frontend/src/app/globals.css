@@ -2138,6 +2138,12 @@ body:has([data-yc-app]) {
      6.42:1. */
   --color-warning-100: #fef3e9;
   --color-warning-900: #874913;
+  /* The success accent, pinned for the same reason as the others: it flips to
+     #2bbd86 in dark, and PaymentStatusContent's paid-checkmark stroke reads
+     var(--success) directly on this fixed-white card. --danger does not need
+     the same pin - it is already declared to the identical #ea3729 in both
+     the light and dark scopes, so nothing here would change it either way. */
+  --success: #008f5d;
 }
 
 html[data-theme='dark'] body:has([data-yc-app]) {
