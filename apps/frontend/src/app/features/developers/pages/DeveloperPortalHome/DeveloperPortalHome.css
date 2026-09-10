@@ -60,8 +60,8 @@
   border-radius: 18px;
   padding: 20px 22px;
   box-shadow:
-    0 1px 2px rgba(29, 28, 27, 0.03),
-    0 8px 22px rgba(29, 28, 27, 0.05);
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -151,7 +151,7 @@
   width: 6px;
   height: 6px;
   border-radius: 9999px;
-  background: #008f5d;
+  background: var(--color-success-600);
 }
 
 .dev-tabular {
@@ -174,8 +174,8 @@
   flex-direction: column;
   gap: 10px;
   box-shadow:
-    0 1px 2px rgba(29, 28, 27, 0.03),
-    0 8px 22px rgba(29, 28, 27, 0.05);
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05);
 }
 
 .dev-card-head {
