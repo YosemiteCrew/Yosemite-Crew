@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { renderToString } from 'react-dom/server';
 import { hydrateRoot } from 'react-dom/client';
 import { render, screen, act, renderHook, fireEvent } from '@testing-library/react';
@@ -509,6 +511,22 @@ describe('motion primitives', () => {
     // The scrim carries data-hero-scrim so it flips to the dark gradient in dark mode
     // instead of washing the hero to a muddy mid-tone.
     expect(container.querySelector('[data-hero-scrim]')).toBeInTheDocument();
+  });
+
+  it('keeps the dark-mode hero video at the same visibility as light mode', () => {
+    // Both were opacity: 0.3 / brightness: 0.8 in light. The original dark-mode
+    // pass (2026-07-07, part of a ~500-literal theming sweep with no stated
+    // rationale for this rule) cut dark to opacity 0.16 / brightness 0.5 - live
+    // verification showed this reduced the video to indistinct colour blobs,
+    // losing the actual animal imagery the hero exists to show. The scrim
+    // above already carries its own per-theme contrast treatment for the
+    // overlaid text, so the video itself does not need a second, harsher cut.
+    const css = readFileSync(join(process.cwd(), 'src/app/globals.css'), 'utf8');
+    const match = css.match(/html\[data-theme='dark'\]\s*\[data-hero-video\]\s*{([^}]*)}/);
+    expect(match).not.toBeNull();
+    const rule = match![1];
+    expect(rule).toMatch(/opacity:\s*0\.3\s*!important/);
+    expect(rule).toMatch(/brightness\(0\.8\)\s*!important/);
   });
 
   it('HeroVideo renders nothing under reduced motion', () => {
