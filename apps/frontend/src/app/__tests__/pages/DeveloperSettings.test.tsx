@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
@@ -157,6 +159,35 @@ describe('DeveloperSettings', () => {
     expect(notifyMock).toHaveBeenCalledWith(
       'warning',
       expect.objectContaining({ title: 'Notification preferences coming soon' })
+    );
+  });
+});
+
+describe('secret card reads ink from the fixed --spot-ink/--color-cyan tokens', () => {
+  // .dev-secret-card is painted from --spot, which stays dark in both themes.
+  // Its icon tint, body text and cancel-link ink must come from
+  // --spot-ink/--color-cyan (fixed the same way), not the flipping --ink -
+  // otherwise light mode collapses toward 1:1 contrast, the same class of bug
+  // fixed on DeveloperPortalHome (PR #2967) and DeveloperPlugins (PR #2974).
+  const css = readFileSync(
+    join(
+      process.cwd(),
+      'src/app/features/developers/pages/DeveloperSettings/DeveloperSettings.css'
+    ),
+    'utf8'
+  );
+
+  it('does not hardcode the secret card copy as a frozen cream literal', () => {
+    expect(css).not.toMatch(/\.dev-secret-text\s*{[^}]*color:\s*#f4efe6/);
+    expect(css).not.toMatch(/\.dev-secret-cancel\s*{[^}]*rgba\(\s*244,\s*239,\s*230/);
+    expect(css).not.toMatch(/\.dev-secret-icon\s*{[^}]*rgba\(\s*92,\s*225,\s*230/);
+  });
+
+  it('routes the secret card copy through --spot-ink and the icon tint through --color-cyan', () => {
+    expect(css).toMatch(/\.dev-secret-text\s*{[^}]*color:\s*var\(--spot-ink\)/);
+    expect(css).toMatch(/\.dev-secret-cancel\s*{[^}]*color-mix\(in srgb, var\(--spot-ink\) 60%/);
+    expect(css).toMatch(
+      /\.dev-secret-icon\s*{[^}]*background:\s*color-mix\(in srgb, var\(--color-cyan\) 14%/
     );
   });
 });
