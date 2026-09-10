@@ -311,6 +311,12 @@
   border: 1px solid var(--color-card-border);
 }
 
+/* Fixed dark, for the same reason as the off thumb above: the track is
+   --color-cyan, which is declared once and never flips, so the thumb needs a
+   fixed ink rather than --ink (which goes cream in espresso and would vanish
+   on the still-cyan track). No token exists yet for ink pinned against a
+   --color-cyan fill specifically - see DeveloperPlugins.css's
+   .dev-website-cta.primary for the same unresolved case. */
 .dev-switch.on .dev-switch-thumb {
   background: #1d1c1b;
   border-color: #1d1c1b;
@@ -331,7 +337,7 @@
   width: 34px;
   height: 34px;
   border-radius: 11px;
-  background: rgba(92, 225, 230, 0.14);
+  background: color-mix(in srgb, var(--color-cyan) 14%, transparent);
   color: var(--color-cyan);
   display: flex;
   align-items: center;
@@ -344,7 +350,7 @@
   min-width: 0;
   font-size: 12px;
   line-height: 1.5;
-  color: #f4efe6;
+  color: var(--spot-ink);
 }
 
 .dev-secret-action {
@@ -358,7 +364,7 @@
 }
 
 .dev-secret-cancel {
-  color: rgba(244, 239, 230, 0.6);
+  color: color-mix(in srgb, var(--spot-ink) 60%, transparent);
   background: transparent;
   border: none;
   cursor: pointer;
