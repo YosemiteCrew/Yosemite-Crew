@@ -1,7 +1,7 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "211cc649dc2a0a1963a85e52bdb9f47fc4067c0f",
-  "total": 304,
+  "generated_at": "9d564294508046d8fe3699c41e97a7813dcdd12a",
+  "total": 297,
   "justified": {
     "apps/frontend/src/app/features/appointments/components/Availability/Availability.tsx": {
       "n": 1,
@@ -82,6 +82,14 @@
     "apps/frontend/src/app/features/chat/components/ChatComposer.stories.tsx": {
       "n": 1,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/chat/components/ChatContainer.css": {
+      "n": 2,
+      "why": "--str-chat__on-primary-color and --str-chat__on-unread-badge-color are white ink sitting on var(--blue), which is declared identically (#257bed) in both light and dark blocks - it does not actually flip, so a fixed white literal carries no theme risk here, unlike the --spot-family cases elsewhere in this sweep where the underlying surface does flip."
+    },
+    "apps/frontend/src/app/features/chat/components/ChatContainer.stories.tsx": {
+      "n": 2,
+      "why": "Both occurrences are Storybook play-function test assertions comparing a computed style against 'rgb(241, 235, 225)' - the resolved value of --screen-2, verifying the footer/empty-state icon actually painted the intended surface rather than falling through to a stylesheet that failed to apply. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
     },
     "apps/frontend/src/app/features/chat/components/ChatSidebarHeader.stories.tsx": {
       "n": 1,
@@ -220,8 +228,6 @@
     "apps/frontend/src/app/features/appointments/pages/AppointmentWorkspace/steps/AllDocumentsTable.stories.tsx": 6,
     "apps/frontend/src/app/features/auth/pages/SignIn/SignIn.tsx": 2,
     "apps/frontend/src/app/features/auth/pages/SignUp/SignUp.tsx": 2,
-    "apps/frontend/src/app/features/chat/components/ChatContainer.css": 5,
-    "apps/frontend/src/app/features/chat/components/ChatContainer.stories.tsx": 2,
     "apps/frontend/src/app/features/companionHistory/components/AuditTimeline.stories.tsx": 4,
     "apps/frontend/src/app/features/companions/pages/Companions/InClinicTodayBand.tsx": 2,
     "apps/frontend/src/app/features/developers/pages/DeveloperApiKeys/DeveloperApiKeys.css": 4,
