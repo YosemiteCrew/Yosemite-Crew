@@ -20,18 +20,31 @@
  * a router composed indirectly, or a middleware applied through a helper, is
  * invisible to a grep and present here.
  *
- *   node scripts/ci/openapi-drift.mjs            # report and exit non-zero on drift
- *   node scripts/ci/openapi-drift.mjs --json     # machine-readable
+ *   node scripts/ci/openapi-drift.mjs                  # report and exit non-zero on drift
+ *   node scripts/ci/openapi-drift.mjs --json           # machine-readable
+ *   node scripts/ci/openapi-drift.mjs --update-baseline  # rewrite the ratchet file to current counts
+ *
+ * Three counts beyond the org-header check are ratcheted against
+ * openapi-drift-baseline.json rather than required to be zero: missingFromSpec
+ * (mounted routes absent from the spec), staleInSpec (spec operations with no
+ * matching mount), and placeholderSchemas (request/response bodies documented
+ * as a bare `additionalProperties: true` with no properties - true today of
+ * 371 operations, see #2944). None of the three can go to zero in one PR, so
+ * requiring zero would either block everything or get bypassed; the ratchet
+ * instead fails only when a PR makes one of them WORSE than the committed
+ * baseline, so the gap can shrink over time but never silently grows.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { parse } from 'yaml';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const SPEC_PATH = path.join(REPO_ROOT, 'apps/frontend/public/static/openapi/openapi.yaml');
+const BASELINE_PATH = path.join(REPO_ROOT, 'scripts/ci/openapi-drift-baseline.json');
 const ORG_HEADER = 'x-org-id';
 const REQUIRES_ORG = Symbol.for('yosemite.requiresOrgPermissions');
+const RATCHETED_KEYS = ['missingFromSpec', 'staleInSpec', 'placeholderSchemas'];
 
 /** Express path params (`:id`) to OpenAPI templates (`{id}`). */
 const toOpenApiPath = (p) => p.replace(/:([A-Za-z0-9_]+)/g, '{$1}');
@@ -114,6 +127,32 @@ const specOperations = (spec) => {
   return ops;
 };
 
+/**
+ * Request/response bodies documented as a bare `{ additionalProperties: true }`
+ * with no `properties` key - an operation whose shape was never actually
+ * written down, as opposed to a `components.schemas` entry that legitimately
+ * carries `additionalProperties: true` alongside real `properties` to allow
+ * extra fields. Walks the whole document rather than just `paths`, since a
+ * placeholder can also sit inside a named component schema referenced from a
+ * path.
+ */
+const MAX_WALK_DEPTH = 1000;
+
+const placeholderSchemaCount = (spec) => {
+  let count = 0;
+  const walk = (node, depth = 0) => {
+    if (depth >= MAX_WALK_DEPTH || node === null || typeof node !== 'object') return;
+    if (Array.isArray(node)) {
+      for (const v of node) walk(v, depth + 1);
+      return;
+    }
+    if (node.additionalProperties === true && !node.properties) count++;
+    for (const key of Object.keys(node)) walk(node[key], depth + 1);
+  };
+  walk(spec);
+  return count;
+};
+
 const main = async () => {
   const { registerRoutes } = await import(
     path.join(REPO_ROOT, 'apps/backend/src/routers/index.ts')
@@ -138,6 +177,7 @@ const main = async () => {
 
   const mounted = new Set(routes.map((r) => `${r.method} ${r.path}`));
   const staleInSpec = [...ops.keys()].filter((k) => !mounted.has(k));
+  const placeholderSchemas = placeholderSchemaCount(spec);
 
   const report = {
     mountedRoutes: routes.length,
@@ -146,7 +186,21 @@ const main = async () => {
     missingFromSpec,
     missingOrgHeader,
     staleInSpec,
+    placeholderSchemas,
   };
+
+  if (process.argv.includes('--update-baseline')) {
+    const baseline = {
+      _comment: JSON.parse(readFileSync(BASELINE_PATH, 'utf8'))._comment,
+      missingFromSpec: missingFromSpec.length,
+      staleInSpec: staleInSpec.length,
+      placeholderSchemas,
+    };
+    writeFileSync(BASELINE_PATH, `${JSON.stringify(baseline, null, 2)}\n`);
+    console.log(`openapi-drift: wrote new baseline to ${path.relative(REPO_ROOT, BASELINE_PATH)}`);
+    console.log(JSON.stringify(baseline, null, 2));
+    process.exit(0);
+  }
 
   if (process.argv.includes('--json')) {
     console.log(JSON.stringify(report, null, 2));
@@ -164,6 +218,9 @@ const main = async () => {
     show('Mounted but absent from the spec', missingFromSpec);
     show(`Organisation-scoped but missing the ${ORG_HEADER} header`, missingOrgHeader);
     show('In the spec but no longer mounted', staleInSpec);
+    console.log(
+      `\nPlaceholder request/response schemas (additionalProperties only, no shape): ${placeholderSchemas}`
+    );
   }
 
   /* Only the org-header check is fatal for now. The route-coverage counts are
@@ -191,6 +248,30 @@ const main = async () => {
       `\nopenapi-drift: ${missingOrgHeader.length} organisation-scoped operation(s) do not ` +
         `declare the ${ORG_HEADER} header, so a client generated from this spec would be ` +
         `rejected with 400 before reaching a controller.`
+    );
+    process.exit(1);
+  }
+
+  /* Ratchet: missingFromSpec, staleInSpec and placeholderSchemas cannot go to
+     zero in one PR (~800 routes are undocumented today, tracked in #2941-#2944),
+     so this fails only when a count exceeds its committed baseline - a PR can
+     hold the line or improve it, never widen it in silence. */
+  const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'));
+  const countOf = (key) => (Array.isArray(report[key]) ? report[key].length : report[key]);
+  const regressions = RATCHETED_KEYS.filter((key) => countOf(key) > baseline[key]).map((key) => ({
+    key,
+    was: baseline[key],
+    now: countOf(key),
+  }));
+  if (regressions.length > 0) {
+    console.error('\nopenapi-drift: this change widens the documented gap beyond its baseline:');
+    for (const r of regressions) {
+      console.error(`  ${r.key}: baseline ${r.was} -> now ${r.now}`);
+    }
+    console.error(
+      `\nAdd the new route(s)/schema(s) to the spec, or run ` +
+        `'node scripts/ci/openapi-drift.mjs --update-baseline' if this PR genuinely reduces the gap ` +
+        `elsewhere and the increase here is deliberate and reviewed.`
     );
     process.exit(1);
   }
