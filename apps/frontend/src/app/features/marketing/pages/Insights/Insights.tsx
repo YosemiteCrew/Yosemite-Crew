@@ -675,7 +675,7 @@ const MANIFESTO_LINE_STYLE: CSSProperties = {
   fontWeight: 500,
   lineHeight: 1.34,
   letterSpacing: '-0.035em',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
   textWrap: 'pretty',
 };
 
@@ -1366,7 +1366,7 @@ const FINAL_CTA_HEADING_STYLE: CSSProperties = {
   fontWeight: 500,
   lineHeight: 1.06,
   letterSpacing: '-0.055em',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
   textWrap: 'balance',
 };
 
@@ -1388,7 +1388,7 @@ const FINAL_CTA_GHOST_STYLE: CSSProperties = {
   justifyContent: 'center',
   gap: 10,
   background: 'transparent',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
   fontSize: 17,
   fontWeight: 500,
   letterSpacing: '-0.02em',

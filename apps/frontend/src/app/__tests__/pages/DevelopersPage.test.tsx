@@ -147,4 +147,12 @@ describe('DevelopersPage', () => {
       expect(key.style.color).toBe('var(--cyan)');
     });
   });
+
+  it('keeps the Economics column titles on the --spot-ink token', () => {
+    // EconColumn sits on the Economics section's always-dark --spot background,
+    // reached via a sibling function rather than a direct JSX wrap - easy to get
+    // wrong, so pinned here rather than trusted from reading the source alone.
+    const title = screen.getByText('Bring your own model');
+    expect(title.style.color).toBe('var(--spot-ink)');
+  });
 });

@@ -740,7 +740,7 @@ function Story() {
               fontWeight: 500,
               lineHeight: 1.34,
               letterSpacing: '-0.035em',
-              color: '#eae2d5',
+              color: 'var(--spot-ink)',
               textWrap: 'pretty',
             }}
           >
