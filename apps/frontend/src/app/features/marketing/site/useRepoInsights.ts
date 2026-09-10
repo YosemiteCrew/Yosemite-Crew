@@ -56,11 +56,11 @@ const EMPTY: RepoInsights = {
 const GITHUB_ACCEPT = 'application/vnd.github+json';
 
 const LANG_COLORS: Record<string, string> = {
-  TypeScript: '#257bed',
+  TypeScript: 'var(--blue)',
   JavaScript: '#d99a2b',
   CSS: '#38ccd8',
   SCSS: '#38ccd8',
-  HTML: '#ff90d4',
+  HTML: 'var(--pink)',
   Kotlin: '#8a6fb0',
   Swift: '#c98a5e',
   'Objective-C': '#7c9bb5',

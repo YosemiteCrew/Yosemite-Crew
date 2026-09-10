@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
@@ -155,5 +157,30 @@ describe('Insights page', () => {
 
     const line = screen.getByText(/What you measure is what you actually care about/);
     expect(line).toHaveStyle({ color: 'var(--spot-ink)' });
+  });
+});
+
+describe('the console and release cards read their primary ink from --spot-ink', () => {
+  // ConsoleMiniStats/MiniStat and LatestReleaseCard both sit on background:
+  // var(--spot), which never flips, so their headline ink must read
+  // var(--spot-ink) rather than a frozen copy of its dark-mode value.
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/pages/Insights/Insights.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode the console/release ink as a frozen literal', () => {
+    expect(source).not.toContain("color: '#f4efe6'");
+  });
+
+  it('routes the console/release ink through --spot-ink', () => {
+    // Both MiniStat's value and LatestReleaseCard's tag share this exact
+    // `letterSpacing: '-0.03em'` immediately before `color`, which no other
+    // --spot-ink call site in this file uses - anchoring on it (rather than
+    // a bare count) keeps the assertion sensitive to reverting these two
+    // specific sites, not just any --spot-ink usage already in the file.
+    const occurrences =
+      source.match(/letterSpacing:\s*'-0\.03em',\s*color:\s*'var\(--spot-ink\)'/g) ?? [];
+    expect(occurrences).toHaveLength(2);
   });
 });
