@@ -67,7 +67,7 @@ describe('trustCenterData', () => {
         status: 'COMPLIANT',
         description: 'US federal law on the validity of e-signatures.',
         icon: 'create-outline',
-        iconBg: '#e6f2ff',
+        iconBg: 'var(--blue-soft)',
         iconColor: 'var(--blue)',
       },
       {
@@ -75,15 +75,15 @@ describe('trustCenterData', () => {
         status: 'COMPLIANT',
         description: 'US state law for electronic transactions.',
         icon: 'swap-horizontal-outline',
-        iconBg: '#f5f3ff',
-        iconColor: '#5b21b6',
+        iconBg: 'var(--avatar-violet-bg)',
+        iconColor: 'var(--avatar-violet-ink)',
       },
       {
         name: 'eIDAS (SES)',
         status: 'COMPLIANT',
         description: 'EU electronic identification, Level 1.',
         icon: 'finger-print-outline',
-        iconBg: '#e6f4ef',
+        iconBg: 'var(--color-success-100)',
         iconColor: 'var(--color-success-800)',
       },
       {
@@ -91,7 +91,7 @@ describe('trustCenterData', () => {
         status: 'PLANNED',
         description: 'Swiss federal law on electronic signatures.',
         icon: 'ribbon-outline',
-        iconBg: '#fef3e9',
+        iconBg: 'var(--color-warning-100)',
         iconColor: 'var(--color-warning-800)',
       },
       {
@@ -99,7 +99,7 @@ describe('trustCenterData', () => {
         status: 'PLANNED',
         description: 'US protection for patient health information.',
         icon: 'medkit-outline',
-        iconBg: '#e6f2ff',
+        iconBg: 'var(--blue-soft)',
         iconColor: 'var(--blue)',
       },
     ]);
