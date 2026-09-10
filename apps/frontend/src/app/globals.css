@@ -1123,8 +1123,8 @@ html[data-theme='dark'] [data-hero-scrim] {
     ) !important;
 }
 html[data-theme='dark'] [data-hero-video] {
-  opacity: 0.16 !important;
-  filter: blur(1px) saturate(150%) brightness(0.5) !important;
+  opacity: 0.3 !important;
+  filter: blur(1px) saturate(150%) brightness(0.8) !important;
 }
 html[data-theme='dark'] [data-yc-footer] a[data-appbadge] {
   background: #f7f3ec !important;
