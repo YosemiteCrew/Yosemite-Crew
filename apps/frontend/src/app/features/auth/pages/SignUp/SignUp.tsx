@@ -185,7 +185,10 @@ const SignUpBrand = ({ effectiveDeveloper }: { effectiveDeveloper: boolean }) =>
         </>
       ) : (
         <>
-          See the <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#8fb6f5' }}>whole</em>{' '}
+          See the{' '}
+          <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--color-accent-dark)' }}>
+            whole
+          </em>{' '}
           animal.
         </>
       )

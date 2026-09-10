@@ -275,8 +275,10 @@ const SignInForm = ({
         ) : (
           <>
             Pick up where your{' '}
-            <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#8fb6f5' }}>clinic</em> left
-            off.
+            <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--color-accent-dark)' }}>
+              clinic
+            </em>{' '}
+            left off.
           </>
         )
       }
