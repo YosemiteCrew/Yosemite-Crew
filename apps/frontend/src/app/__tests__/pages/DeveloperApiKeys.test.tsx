@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
@@ -207,5 +209,33 @@ describe('DeveloperApiKeys page', () => {
 
     await user.click(screen.getByRole('button', { name: 'Revoke' }));
     expect(await screen.findByText(/Could not revoke the API key/)).toBeInTheDocument();
+  });
+});
+
+describe('reveal panel reads ink from the fixed --spot-ink token', () => {
+  // .DevApiKeys-reveal is painted from --spot, which stays dark in both
+  // themes. Its paragraph, secret chip and code ink must come from
+  // --spot-ink (fixed the same way), not a frozen cream literal - otherwise
+  // light mode shows the dark-mode ink shade instead of the light-tuned one.
+  const css = readFileSync(
+    join(process.cwd(), 'src/app/features/developers/pages/DeveloperApiKeys/DeveloperApiKeys.css'),
+    'utf8'
+  );
+
+  it('does not hardcode the reveal panel ink as a frozen cream literal', () => {
+    expect(css).not.toMatch(/\.DevApiKeys-reveal p\s*{[^}]*color:\s*#f4efe6/);
+    expect(css).not.toMatch(/\.DevApiKeys-secret\s*{[^}]*rgba\(\s*244,\s*239,\s*230/);
+    expect(css).not.toMatch(/\.DevApiKeys-secret code\s*{[^}]*color:\s*#f4efe6/);
+  });
+
+  it('routes the reveal panel ink through --spot-ink', () => {
+    expect(css).toMatch(/\.DevApiKeys-reveal p\s*{[^}]*color:\s*var\(--spot-ink\)/);
+    expect(css).toMatch(
+      /\.DevApiKeys-secret\s*{[^}]*background:\s*color-mix\(in srgb, var\(--spot-ink\) 6%/
+    );
+    expect(css).toMatch(
+      /\.DevApiKeys-secret\s*{[^}]*border:\s*1px solid color-mix\(in srgb, var\(--spot-ink\) 16%/
+    );
+    expect(css).toMatch(/\.DevApiKeys-secret code\s*{[^}]*color:\s*var\(--spot-ink\)/);
   });
 });
