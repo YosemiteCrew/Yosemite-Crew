@@ -128,7 +128,7 @@ const DeveloperPortalHome = () => {
 
         <section className="DevPortalHome">
           <div className="dev-portal-hero">
-            <div className="dev-hero-copy">
+            <div className="dev-hero-copy yc-card-surface">
               <span className="dev-badge text-caption-3">FHIR-NATIVE API</span>
               <p className="dev-hero-headline text-text-primary">
                 One API for appointments, patients, and records. The same one the PIMS runs on.
@@ -171,7 +171,7 @@ const DeveloperPortalHome = () => {
           </div>
 
           <div className="dev-portal-grid">
-            <div className="dev-portal-card">
+            <div className="dev-portal-card yc-card-surface">
               <div className="dev-card-head">
                 <h2 className="dev-card-title">Quick links</h2>
                 <span className="dev-card-pill secondary text-caption-3">Resources</span>
@@ -219,7 +219,7 @@ const DeveloperPortalHome = () => {
               so neither could ever be populated. An empty state would still
               claim the feature exists.
             */}
-            <div className="dev-portal-card">
+            <div className="dev-portal-card yc-card-surface">
               <div className="dev-card-head">
                 <h2 className="dev-card-title">Your API keys</h2>
                 <span className="dev-card-pill secondary text-caption-3">Access</span>
