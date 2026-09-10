@@ -19,15 +19,15 @@ const companionSelectMeta = {
           'The companion picker shared by the appointment panels that put a patient on a list ' +
           '(the waitlist and the check-in board). Each panel names the same control differently - ' +
           '"Companion" on the waitlist, "Patient" at the front desk - so the wording is passed in as ' +
-          'props while the select markup stays one definition. The select disables itself and swaps ' +
-          'the placeholder for `emptyLabel` when `companions` is empty, and appends the owner name to ' +
-          'an option only when a companion has one.',
+          'props while the markup stays one definition: a searchable LabelDropdown, not a native ' +
+          '`<select>` (whose open option list is unstyleable browser chrome). The control disables ' +
+          'itself and swaps the placeholder for `emptyLabel` when `companions` is empty, and appends ' +
+          'the owner name to an option only when a companion has one.',
       },
     },
   },
   tags: ['autodocs'],
   args: {
-    id: 'waitlist-companion',
     label: 'Companion',
     placeholder: 'Select a companion',
     emptyLabel: 'No companions available',
@@ -64,7 +64,6 @@ export const WithoutOwnerNames: CompanionSelectStory = {
 export const CheckInWording: CompanionSelectStory = {
   name: 'Reused at the check-in board',
   args: {
-    id: 'checkin-patient',
     label: 'Patient',
     placeholder: 'Select a patient',
     emptyLabel: 'No patients waiting',
