@@ -399,12 +399,17 @@ export const DocumentController = {
         return res.status(400).json({ message: "organisationId is required." });
       }
 
+      // Signed consent PDFs already have their own dedicated list
+      // (listConsentForPms, below) that the companion-history Consent panel
+      // renders - without this exclusion they would also come back here and
+      // render a second time in the generic Documents panel.
       const docs = await DocumentService.listForPms({
         patientId,
         organisationId,
         category: getFirstQueryValue(category),
         subcategory: getFirstQueryValue(subcategory),
         appointmentId: getFirstQueryValue(appointmentId),
+        excludeKind: "CONSENT",
       });
 
       return res.status(200).json(docs);
