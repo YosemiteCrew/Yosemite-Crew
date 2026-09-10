@@ -236,7 +236,9 @@ export const Default: ProblemListPanelStory = {
   name: 'Problems loaded',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.findByRole('heading', { level: 2, name: 'Problem list' })).toBeVisible();
+    await expect(
+      await canvas.findByRole('heading', { level: 2, name: 'Problem list' })
+    ).toBeVisible();
     await expect(canvas.getByText('Chronic kidney disease')).toBeVisible();
     await expect(canvas.getByText('Severe')).toBeVisible();
     await expect(canvas.getByText('Otitis externa (left ear)')).toBeVisible();
@@ -249,7 +251,7 @@ export const Default: ProblemListPanelStory = {
     const titleInput = await canvas.findByLabelText('Problem title');
     await userEvent.type(titleInput, 'Seasonal allergies');
     await userEvent.click(canvas.getByRole('button', { name: 'Save problem' }));
-    await expect(canvas.findByText('Seasonal allergies')).toBeVisible();
+    await expect(await canvas.findByText('Seasonal allergies')).toBeVisible();
     await expect(canvas.queryByRole('button', { name: 'Save problem' })).not.toBeInTheDocument();
 
     // Real resolve flow: submits through the panel, into the mocked POST.
@@ -269,7 +271,9 @@ export const Empty: ProblemListPanelStory = {
   beforeEach: prepare({ fixture: { kind: 'resolves', problems: [] } }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.findByText('No problems recorded for this patient yet.')).toBeVisible();
+    await expect(
+      await canvas.findByText('No problems recorded for this patient yet.')
+    ).toBeVisible();
     await expect(canvas.queryByText('Chronic kidney disease')).not.toBeInTheDocument();
   },
 };
@@ -309,7 +313,7 @@ export const ReadOnly: ProblemListPanelStory = {
   }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.findByText('Chronic kidney disease')).toBeVisible();
+    await expect(await canvas.findByText('Chronic kidney disease')).toBeVisible();
     await expect(canvas.queryByRole('button', { name: 'Add problem' })).not.toBeInTheDocument();
     await expect(
       canvas.queryByRole('button', { name: 'Resolve Otitis externa (left ear)' })
