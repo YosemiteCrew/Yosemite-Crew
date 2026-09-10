@@ -1,7 +1,7 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "f4fbd219def4e02ae69e7ce92b70bd833cef8229",
-  "total": 98,
+  "generated_at": "31a4286867c80eaab3ca709d499a343fc5b2e600",
+  "total": 65,
   "justified": {
     "apps/frontend/src/app/(routes)/(app)/chat/page.css": {
       "n": 1,
@@ -247,6 +247,10 @@
       "n": 9,
       "why": "The same fake terminal/code-editor mockup chrome justified in DevelopersPage.tsx (traffic-light dots #454341 x3, header rule #302f2e x2, terminal body text #d6d1cd - its string/prompt colours were tokenised via --color-success-300/-500 in this PR, same as DevelopersPage.tsx's). Plus two more single-file bespoke spots: an avatar-stack placeholder background (#e6e3e0) and a phone-mockup bezel (#1d1c1b x2) - the bezel is a physical-device colour on a decorative illustration, not a themed app surface, the same reasoning as the media-overlay literals justified in Guides.tsx and InClinicTodayBand.tsx (PR #2990)."
     },
+    "apps/frontend/src/app/features/marketing/pages/Insights/Insights.tsx": {
+      "n": 17,
+      "why": "Two --spot cards (a live GitHub-stats console, a latest-release card - both background: var(--spot)) carry four DIFFERENT close-but-not-identical muted-grey inks (#8a8074 x5, #6b6155 x2, #a89e90 x2 - the dark-mode value of the flipping --ink-muted, hardcoded because the card itself never flips - plus the already-tokenised #f4efe6 in this PR), none matching --spot-ink-faint's #a9a39e exactly, so each was picked independently rather than drawn from a shared token. Also on the same console: a bespoke near-black panel (#232120, border #302f2e x3, matching DevelopersPage.tsx's EconomicsCard pattern), a 'LIVE' status pair (dot #2bbd86 - --success's dark-mode value, no matching --spot-success-strength token exists - and its paired label #6cd6a3), the shared terminal-mockup text colour #d6d1cd (see DevelopersPage.tsx), and the shared bespoke CTA border #454341 (see DevelopersPage.tsx's CLOSING_PORTAL_LINK_STYLE)."
+    },
     "apps/frontend/src/app/features/marketing/site/AuthShell.tsx": {
       "n": 8,
       "why": "The brand panel's own bespoke near-black gradient (#2a2723 to #131210, matching DevelopersPage.tsx's EconomicsCard pattern - see PR #2992). The remaining five (subtitle/footer ink #b7ac9d x2, point text #d8cec0, star icon gold #ffd479, 'Star on GitHub' emphasis white #fff) are single-file bespoke choices with no matching token - #fff in particular is a deliberately brighter emphasis colour next to surrounding --spot-ink copy, the same pattern as Pricing.tsx's price figure and DevelopersPage.tsx's '0%' hero figure."
@@ -254,6 +258,10 @@
     "apps/frontend/src/app/features/marketing/site/MarketingShell.stories.tsx": {
       "n": 2,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/marketing/site/useRepoInsights.ts": {
+      "n": 12,
+      "why": "LANG_COLORS is a deliberate categorical palette (GitHub-style per-language repo-stats colours) - each language needs a visually distinct swatch, and only two of the thirteen (TypeScript, HTML) happened to coincide with an existing fixed token (--blue, --pink respectively, tokenised in this PR). The rest (JavaScript, CSS/SCSS, Kotlin, Swift, Objective-C, Java, Ruby, Shell, Dockerfile, Python) and the LANG_FALLBACK tail colour are bespoke hues with no match anywhere in the token set - a qualitative palette, not derivable from the design system."
     },
     "apps/frontend/src/app/features/onboarding/pages/StripeOnboarding/index.tsx": {
       "n": 1,
@@ -360,7 +368,6 @@
     "apps/frontend/src/app/features/marketing/pages/About/About.tsx": 4,
     "apps/frontend/src/app/features/marketing/pages/ContactusPage/ContactusPage.tsx": 10,
     "apps/frontend/src/app/features/marketing/pages/Insights/Insights.stories.tsx": 1,
-    "apps/frontend/src/app/features/marketing/pages/Insights/Insights.tsx": 19,
     "apps/frontend/src/app/features/marketing/pages/PetBusinesses/PetBusinesses.tsx": 3,
     "apps/frontend/src/app/features/marketing/pages/PetParents/PetParents.tsx": 10,
     "apps/frontend/src/app/features/marketing/pages/Pricing/Pricing.stories.tsx": 3,
@@ -371,7 +378,6 @@
     "apps/frontend/src/app/features/marketing/site/motion.stories.tsx": 2,
     "apps/frontend/src/app/features/marketing/site/motion.tsx": 7,
     "apps/frontend/src/app/features/marketing/site/SiteFooter.stories.tsx": 2,
-    "apps/frontend/src/app/features/marketing/site/SiteFooter.tsx": 9,
-    "apps/frontend/src/app/features/marketing/site/useRepoInsights.ts": 14
+    "apps/frontend/src/app/features/marketing/site/SiteFooter.tsx": 9
   }
 }
