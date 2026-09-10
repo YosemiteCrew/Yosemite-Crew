@@ -1,7 +1,7 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "52226c9a0241236cb111486f78b58603b3f11c50",
-  "total": 360,
+  "generated_at": "3cbac57a47b207cdd51f444936ca197eca9bce2e",
+  "total": 355,
   "justified": {
     "apps/frontend/src/app/features/appointments/components/Availability/Availability.tsx": {
       "n": 1,
@@ -195,8 +195,8 @@
   "files": {
     "apps/frontend/src/app/(routes)/(app)/chat/page.css": 1,
     "apps/frontend/src/app/(routes)/(public)/accessibility/report/AccessibilityReportClient.stories.tsx": 1,
-    "apps/frontend/src/app/(routes)/(public)/payment-status/PaymentStatusContent.stories.tsx": 1,
-    "apps/frontend/src/app/(routes)/(public)/payment-status/PaymentStatusContent.tsx": 11,
+    "apps/frontend/src/app/(routes)/(public)/payment-status/PaymentStatusContent.stories.tsx": 4,
+    "apps/frontend/src/app/(routes)/(public)/payment-status/PaymentStatusContent.tsx": 3,
     "apps/frontend/src/app/features/appointments/components/AppointmentCentralModal/AppointmentAvatar.stories.tsx": 1,
     "apps/frontend/src/app/features/appointments/components/Calendar/common/NowIndicator.stories.tsx": 4,
     "apps/frontend/src/app/features/appointments/components/Calendar/common/SlotGridLines.stories.tsx": 2,
