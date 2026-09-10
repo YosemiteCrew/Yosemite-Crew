@@ -27,11 +27,11 @@ const FREE_FEATURES: FeatureItem[] = [
 ];
 
 const BUSINESS_FEATURES: FeatureItem[] = [
-  { label: 'Unlimited appointments & tools', dot: '#54b492' },
-  { label: 'Team, rooms & departments', dot: '#54b492' },
-  { label: 'Billing, invoicing & Stripe payments', dot: '#54b492' },
-  { label: 'Financial reporting & analytics', dot: '#54b492' },
-  { label: 'Dedicated Discord support', dot: '#54b492' },
+  { label: 'Unlimited appointments & tools', dot: 'var(--color-success-400)' },
+  { label: 'Team, rooms & departments', dot: 'var(--color-success-400)' },
+  { label: 'Billing, invoicing & Stripe payments', dot: 'var(--color-success-400)' },
+  { label: 'Financial reporting & analytics', dot: 'var(--color-success-400)' },
+  { label: 'Dedicated Discord support', dot: 'var(--color-success-400)' },
 ];
 
 const ENTERPRISE_FEATURES: FeatureItem[] = [
