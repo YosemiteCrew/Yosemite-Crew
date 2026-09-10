@@ -4,11 +4,20 @@
  * Usage: node scripts/generate-router-docs.mjs
  */
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'fs';
-import { join } from 'path';
+import { join, resolve, basename, sep } from 'path';
 
 const ROUTERS_DIR = 'apps/backend/src/routers';
 const DOCS_DIR = 'apps/frontend/content/docs/apps/backend/routers';
 const INDEX_FILE = 'apps/frontend/content/docs/apps/backend/index.md';
+
+// Path containment: filenames come from readdirSync, but a router file named
+// like "../../x.router.ts" (or any name with separators) must never write a
+// doc page outside DOCS_DIR. Cheap guard matching the repo's readdir-loop
+// convention.
+function safeRouterName(file) {
+  const name = file.replace(/\.(router|routes)\.ts$/, '');
+  return name === basename(name) && /^[\w.-]+$/.test(name) ? name : null;
+}
 
 function extractBlock(src, startIndex) {
   let depth = 1;
@@ -233,7 +242,11 @@ const indexEntries = [];
 
 for (const file of files) {
   // observationTool.routes.ts -> observationTool, mobile.config.router.ts -> mobile.config
-  const routerName = file.replace(/\.(router|routes)\.ts$/, '');
+  const routerName = safeRouterName(file);
+  if (routerName === null) {
+    console.warn(`⚠ Skipping ${file}: name resolves outside ${DOCS_DIR}`);
+    continue;
+  }
   const routerPath = join(routerDir, file);
   const routes = parseRouterFile(routerPath);
 
@@ -244,6 +257,11 @@ for (const file of files) {
 
   const doc = generateDocPage(routerName, routes);
   const docFile = join(docsDir, `${routerName}.md`);
+  const resolvedFile = resolve(docFile);
+  const resolvedBase = resolve(docsDir);
+  if (!resolvedFile.startsWith(resolvedBase + sep) && resolvedFile !== resolvedBase) {
+    throw new Error(`Refusing to write outside ${DOCS_DIR}: ${docFile}`);
+  }
   if (existsSync(docFile)) {
     console.log(`↷ kept existing ${routerName}.md (hand-maintained)`);
   } else {
