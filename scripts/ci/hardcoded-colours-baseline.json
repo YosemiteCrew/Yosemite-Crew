@@ -1,7 +1,7 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "1deee4858cb605c3bc2600b3c15e6feba117af6f",
-  "total": 139,
+  "generated_at": "e98baad68cf758a50319418f8709bc3892e2a8d5",
+  "total": 122,
   "justified": {
     "apps/frontend/src/app/(routes)/(app)/chat/page.css": {
       "n": 1,
@@ -243,6 +243,10 @@
       "n": 39,
       "why": "Four unrelated groups of deliberate illustration colours, none derivable from an existing token without changing the rendered value: (1) a fake terminal/code-editor mockup (traffic-light dots #454341, header rule #302f2e, terminal body text #d6d1cd, green '$' prompt #54b492, '&&' operator #5c5956, JSON string colour #8acbb4 - the last is --code-str's own dark-mode value, but --code-str itself flips for real light-surface code cards, which this mockup is not) - this same small palette recurs across Home.tsx, Insights.tsx, Pricing.tsx and About.tsx, so a shared token family may be worth formalising in its own follow-up, but is out of scope here; (2) the '0% platform cut' comparison-bar illustration (track #2c2926, border #35322f, striped fill #4a4643/#423e3b, and the already-investigated #2f6fc0 border - see PR #2977) plus its own bespoke near-black gradient card (#232120 to #1a1918, border #35322f); (3) three icon glyphs at a single-file-only muted grey (#6f6a66, not reused elsewhere); (4) two fixed-white ink spots (#ffffff) on fills that are themselves fixed (the 100%-filled blue bar, and the '0%' hero figure on --spot) plus one decorative gloss overlay (rgba(255,255,255,0.18)) - the same justified pattern as ChatContainer.css's white-on-fixed-blue ink, just inline rather than in a stylesheet."
     },
+    "apps/frontend/src/app/features/marketing/site/AuthShell.tsx": {
+      "n": 8,
+      "why": "The brand panel's own bespoke near-black gradient (#2a2723 to #131210, matching DevelopersPage.tsx's EconomicsCard pattern - see PR #2992). The remaining five (subtitle/footer ink #b7ac9d x2, point text #d8cec0, star icon gold #ffd479, 'Star on GitHub' emphasis white #fff) are single-file bespoke choices with no matching token - #fff in particular is a deliberately brighter emphasis colour next to surrounding --spot-ink copy, the same pattern as Pricing.tsx's price figure and DevelopersPage.tsx's '0%' hero figure."
+    },
     "apps/frontend/src/app/features/marketing/site/MarketingShell.stories.tsx": {
       "n": 2,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
@@ -360,7 +364,6 @@
     "apps/frontend/src/app/features/marketing/pages/Pricing/Pricing.tsx": 14,
     "apps/frontend/src/app/features/marketing/site/assets.ts": 2,
     "apps/frontend/src/app/features/marketing/site/AuthShell.stories.tsx": 2,
-    "apps/frontend/src/app/features/marketing/site/AuthShell.tsx": 17,
     "apps/frontend/src/app/features/marketing/site/marketing.css": 1,
     "apps/frontend/src/app/features/marketing/site/motion.stories.tsx": 2,
     "apps/frontend/src/app/features/marketing/site/motion.tsx": 7,
