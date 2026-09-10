@@ -223,8 +223,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/AppointmentListEnvelope'
   /fhir/v1/appointment/mobile/documentUpload:
     post:
       tags:
@@ -254,8 +253,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/UploadUrlEnvelope'
         500:
           description: Response
           content:
@@ -285,8 +283,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/AppointmentListEnvelope'
   '/fhir/v1/appointment/mobile/{appointmentId}/reschedule':
     patch:
       tags:
@@ -313,8 +310,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/AppointmentEnvelope'
   '/fhir/v1/appointment/mobile/{appointmentId}/cancel':
     patch:
       tags:
@@ -341,8 +337,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/AppointmentEnvelope'
   '/fhir/v1/appointment/mobile/{appointmentId}/checkin':
     patch:
       tags:
@@ -363,8 +358,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/AppointmentEnvelope'
   '/fhir/v1/appointment/mobile/{appointmentId}':
     get:
       tags:
@@ -385,8 +379,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/AppointmentDataEnvelope'
   /fhir/v1/appointment/pms:
     post:
       tags:
@@ -451,8 +444,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/AppointmentListEnvelope'
   '/fhir/v1/appointment/pms/organisation/{organisationId}/companion/{companionId}':
     get:
       tags:
@@ -478,8 +470,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/AppointmentListEnvelope'
   '/fhir/v1/appointment/pms/{organisationId}/{appointmentId}/accept':
     patch:
       tags:
@@ -548,8 +539,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/AppointmentEnvelope'
   '/fhir/v1/appointment/pms/{organisationId}/{appointmentId}/cancel':
     patch:
       tags:
@@ -581,8 +571,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/AppointmentEnvelope'
   '/fhir/v1/appointment/pms/{organisationId}/{appointmentId}/checkin':
     patch:
       tags:
@@ -608,8 +597,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/AppointmentEnvelope'
   '/fhir/v1/appointment/pms/{organisationId}/{appointmentId}':
     patch:
       tags:
@@ -666,8 +654,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/AppointmentDataEnvelope'
   '/fhir/v1/appointment/pms/{organisationId}/{appointmentId}/forms':
     post:
       tags:
@@ -699,8 +686,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/AppointmentEnvelope'
   '/v1/audit-trail/companion/{companionId}':
     get:
       tags:
@@ -10153,6 +10139,41 @@ components:
       required:
         - resourceType
         - participant
+    AppointmentDataEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Appointment'
+    AppointmentEnvelope:
+      type: object
+      required: [message, data]
+      properties:
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/Appointment'
+    AppointmentListEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Appointment'
+    UploadUrlEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [url, key]
+          properties:
+            url:
+              type: string
+              format: uri
+            key:
+              type: string
     AppointmentParticipant:
       type: object
       properties:
@@ -14431,10 +14452,12 @@ components:
         - organisationId
     UploadUrlBody:
       type: object
+      required: [patientId, mimeType]
       properties:
-        companionId:
+        patientId:
           type: string
-      additionalProperties: true
+        mimeType:
+          type: string
     DocumentRequestBody:
       type: object
       properties:
@@ -14515,6 +14538,9 @@ components:
           type: string
         isEmergency:
           type: boolean
+        durationMinutes:
+          type: integer
+          minimum: 1
       additionalProperties: true
       required:
         - startTime
