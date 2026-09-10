@@ -195,7 +195,7 @@ const MANIFESTO_STATEMENT_STYLE: CSSProperties = {
   fontWeight: 500,
   lineHeight: 1.35,
   letterSpacing: '-0.035em',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
   textWrap: 'pretty',
 };
 
@@ -278,7 +278,7 @@ const DEV_PLUGIN_ICON_STYLE: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
 };
 
 const CTA_SUBTITLE_STYLE: CSSProperties = {
@@ -1635,7 +1635,7 @@ function DevPluginCard() {
             fontSize: 13.5,
             fontWeight: 700,
             letterSpacing: '-0.02em',
-            color: '#eae2d5',
+            color: 'var(--spot-ink)',
           }}
         >
           AI Scribe · your plugin here

@@ -13,7 +13,7 @@ jest.mock('next/image', () => ({
 
 jest.mock('@/app/features/marketing/site', () => ({
   HeroVideo: () => <div data-testid="hero-video" />,
-  Reveal: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  Reveal: ({ children, as: Comp = 'div', style }: any) => <Comp style={style}>{children}</Comp>,
   Spotlight: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   ReleasePill: ({ label, version }: { label: string; version: string }) => (
     <div data-testid="release-pill">
@@ -188,5 +188,12 @@ describe('PetBusinesses page', () => {
     expect(
       screen.getByText(/Self-host free forever, or let us run it pay-as-you-go/i)
     ).toBeInTheDocument();
+  });
+
+  test('the spotlight statement ink tracks the --spot-ink token, not a frozen literal', () => {
+    render(<PetBusinesses />);
+
+    const statement = screen.getByText(/There's a dog-eared notebook next to the keyboard/);
+    expect(statement.parentElement).toHaveStyle({ color: 'var(--spot-ink)' });
   });
 });
