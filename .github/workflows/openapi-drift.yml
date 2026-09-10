@@ -4,7 +4,10 @@ name: OpenAPI Drift
 # generator, so it drifts silently. This walks the LIVE Express stack and fails
 # when an organisation-scoped route's operation does not declare `x-org-id` -
 # the header `withOrgPermissions()` needs, whose absence made every org-scoped
-# call from the rendered reference fail with a 400 (#2573).
+# call from the rendered reference fail with a 400 (#2573) - and, via a ratchet
+# against scripts/ci/openapi-drift-baseline.json, when a PR makes the spec's
+# route coverage, stale-route count, or unshaped placeholder-schema count worse
+# than the committed baseline (#2942).
 on:
   pull_request:
     branches: [main, dev]
@@ -13,6 +16,7 @@ on:
       - 'apps/backend/src/middlewares/rbac.ts'
       - 'apps/frontend/public/static/openapi/openapi.yaml'
       - 'scripts/ci/openapi-drift.mjs'
+      - 'scripts/ci/openapi-drift-baseline.json'
       - '.github/workflows/openapi-drift.yml'
   push:
     branches: [main, dev]
@@ -21,6 +25,7 @@ on:
       - 'apps/backend/src/middlewares/rbac.ts'
       - 'apps/frontend/public/static/openapi/openapi.yaml'
       - 'scripts/ci/openapi-drift.mjs'
+      - 'scripts/ci/openapi-drift-baseline.json'
       - '.github/workflows/openapi-drift.yml'
   workflow_dispatch:
 

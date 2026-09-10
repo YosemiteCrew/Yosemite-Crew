@@ -24,14 +24,15 @@ Covers the appointment lifecycle (request, reschedule, cancel, check-in, accept/
 
 - Auth: `requireMobileAuth`
 - Body: `UploadUrlBody`
-- Body fields: `companionId`, `mimeType`
+- Body fields: `patientId`, `mimeType`
 - Controller: `AppointmentController.getDocumentUplaodURL`
 - Response: `400`: keys `message`, `200`: JSON, `500`: keys `message`
 
-### GET /mobile/companion/:companionId
+### GET /mobile/companion/:patientId
 
 - Auth: `requireMobileAuth`
-- Params: `companionId`
+- RBAC: `requireCompanionPermission`
+- Params: `patientId`
 - Controller: `AppointmentController.listByCompanion`
 
 ### PATCH /mobile/:appointmentId/reschedule
@@ -77,11 +78,11 @@ Covers the appointment lifecycle (request, reschedule, cancel, check-in, accept/
 - Params: `organisationId`
 - Controller: `AppointmentController.listByOrganisation`
 
-### GET /pms/organisation/:organisationId/companion/:companionId
+### GET /pms/organisation/:organisationId/companion/:patientId
 
 - Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
-- Params: `organisationId`, `companionId`
+- Params: `organisationId`, `patientId`
 - Controller: `AppointmentController.listByCompanionForOrganisation`
 
 ### PATCH /pms/:organisationId/:appointmentId/accept
