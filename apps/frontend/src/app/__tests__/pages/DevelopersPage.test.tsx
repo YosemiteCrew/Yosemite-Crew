@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { DevelopersPage } from '@/app/features/marketing/pages/DevelopersPage/DevelopersPage';
@@ -154,5 +156,31 @@ describe('DevelopersPage', () => {
     // wrong, so pinned here rather than trusted from reading the source alone.
     const title = screen.getByText('Bring your own model');
     expect(title.style.color).toBe('var(--spot-ink)');
+  });
+});
+
+describe('marketplace row and hero glow read from real tokens', () => {
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/pages/DevelopersPage/DevelopersPage.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode the Triage Agent icon colour as a frozen light-mode literal', () => {
+    // --avatar-green-bg flips (a pale mint in light, a translucent dark-green
+    // tint in dark), so the icon ink pinned against it must flip too - the
+    // sibling amber row already reads var(--avatar-amber-ink) correctly.
+    expect(source).not.toContain('iconColor="#006642"');
+  });
+
+  it('routes the Triage Agent icon colour through --avatar-green-ink', () => {
+    expect(source).toContain('iconColor="var(--avatar-green-ink)"');
+  });
+
+  it('does not hardcode the second hero glow as a frozen rgba literal', () => {
+    expect(source).not.toContain('color="rgba(130,175,236,0.08)"');
+  });
+
+  it('routes the second hero glow through --spot-blue via color-mix', () => {
+    expect(source).toContain('color="color-mix(in srgb, var(--spot-blue) 8%, transparent)"');
   });
 });

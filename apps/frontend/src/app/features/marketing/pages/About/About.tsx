@@ -352,7 +352,7 @@ function Origin() {
               fontSize: 'clamp(18px, 2.1vw, 22px)',
               lineHeight: 1.6,
               letterSpacing: '-0.02em',
-              color: '#a9a39e',
+              color: 'var(--spot-ink-faint)',
               textWrap: 'pretty',
             }}
           >
@@ -1159,7 +1159,7 @@ function ClosingCta() {
               fontSize: '18px',
               lineHeight: 1.65,
               letterSpacing: '-0.02em',
-              color: '#a9a39e',
+              color: 'var(--spot-ink-faint)',
               textWrap: 'pretty',
             }}
           >
