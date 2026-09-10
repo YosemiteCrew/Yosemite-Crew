@@ -398,6 +398,7 @@ const loadRenderedDocumentsForAppointments = async (params: {
   appointmentIds: string[];
   organisationId: string;
   kind?: TemplateKind;
+  excludeKind?: TemplateKind;
 }) => {
   if (params.appointmentIds.length === 0) {
     return [];
@@ -407,6 +408,7 @@ const loadRenderedDocumentsForAppointments = async (params: {
     where: {
       organisationId: params.organisationId,
       ...(params.kind ? { kind: params.kind } : {}),
+      ...(params.excludeKind ? { kind: { not: params.excludeKind } } : {}),
       OR: [
         {
           templateInstance: {
@@ -744,6 +746,7 @@ export const DocumentService = {
     category?: string;
     subcategory?: string;
     appointmentId?: string;
+    excludeKind?: TemplateKind;
   }): Promise<DocumentDto[]> {
     const patientId = normalizeStringId(params.patientId, "patientId");
     await assertPmsCanAccessCompanion(params.organisationId, patientId);
@@ -781,6 +784,7 @@ export const DocumentService = {
         return loadRenderedDocumentsForAppointments({
           appointmentIds: scopedAppointmentIds,
           organisationId: params.organisationId,
+          excludeKind: params.excludeKind,
         });
       })(),
     ]);
