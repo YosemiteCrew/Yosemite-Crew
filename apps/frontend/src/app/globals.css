@@ -740,6 +740,11 @@ input[type='radio']:focus-visible {
   --spot-ink: #eae2d5;
   /* success accent that sits on --spot; fixed like --spot-ink, same reason */
   --spot-success: #9be8c9;
+  /* brand-blue accent that sits on --spot; fixed like --spot-ink, same reason.
+     Used for JSON syntax keys, callouts and badges on the marketing site's
+     always-dark panels - --blue-text is tuned for the theme-flipping bone/
+     espresso surfaces instead and goes navy-on-black in light mode here. */
+  --spot-blue: #82afec;
   /* light-surface code card syntax + mockup avatar chips */
   --code-str: #006642;
   --avatar-violet-bg: #f5f3ff;
@@ -851,6 +856,7 @@ html[data-theme='dark'] {
   --spot: #17140f;
   --spot-ink: #f4efe6;
   --spot-success: #9be8c9;
+  --spot-blue: #82afec;
   --code-str: #8acbb4;
   --nav-hover: rgba(255, 255, 255, 0.06);
   --glass-btn: linear-gradient(180deg, rgba(54, 46, 37, 0.82), rgba(34, 29, 23, 0.72));
