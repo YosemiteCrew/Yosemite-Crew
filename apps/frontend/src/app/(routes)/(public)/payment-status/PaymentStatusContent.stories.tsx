@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import { expect, waitFor } from 'storybook/test';
 import { PaymentStatusContent } from './PaymentStatusContent';
 
 type Outcome = 'paid' | 'unpaid' | 'no_payment_required';
@@ -99,9 +100,35 @@ export const Loading: Story = {
   beforeEach: stubStatus,
 };
 
+/** The icon circle, however many paths are drawn inside it - the first `<circle>` is always the ring. */
+const iconRing = (canvasElement: HTMLElement) =>
+  waitFor(() => {
+    const el = canvasElement.querySelector('svg circle');
+    if (!el) throw new Error('status icon has not rendered yet');
+    return el;
+  });
+
 export const Paid: Story = {
   parameters: withSession(SESSION.paid),
   beforeEach: stubStatus,
+  play: async ({ canvasElement }) => {
+    const ring = await iconRing(canvasElement);
+    // The app's own success token (#008f5d), not a generic Tailwind green.
+    await expect(getComputedStyle(ring).stroke).toBe('rgb(0, 143, 93)');
+  },
+};
+
+export const PaidDark: Story = {
+  name: 'Paid (dark)',
+  parameters: withSession(SESSION.paid),
+  globals: { theme: 'dark' },
+  beforeEach: stubStatus,
+  play: async ({ canvasElement }) => {
+    const ring = await iconRing(canvasElement);
+    // --success itself flips to #2bbd86 in dark; the fixed-light pin on this
+    // surface is what keeps the receipt's checkmark at the light value here.
+    await expect(getComputedStyle(ring).stroke).toBe('rgb(0, 143, 93)');
+  },
 };
 
 export const Unpaid: Story = {
@@ -113,6 +140,11 @@ export const NoPaymentRequired: Story = {
   name: 'No payment required',
   parameters: withSession(SESSION.noPayment),
   beforeEach: stubStatus,
+  play: async ({ canvasElement }) => {
+    const ring = await iconRing(canvasElement);
+    // The app's own danger token (#ea3729), not Tailwind's red-600 (#dc2626).
+    await expect(getComputedStyle(ring).stroke).toBe('rgb(234, 55, 41)');
+  },
 };
 
 export const MissingSession: Story = {
