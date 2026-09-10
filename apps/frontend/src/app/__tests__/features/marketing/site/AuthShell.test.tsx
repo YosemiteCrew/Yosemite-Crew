@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { IoCalendarOutline } from 'react-icons/io5';
@@ -83,5 +85,48 @@ describe('AuthShell', () => {
     expect(container.querySelector('[data-brandpanel="true"]')).toHaveStyle({
       color: 'var(--spot-ink)',
     });
+  });
+});
+
+describe('brand panel reads ink and glow colours from real tokens', () => {
+  // BRAND_PANEL_STYLE is painted from a fixed near-black gradient, never
+  // themed, so everything on it must read a token that either never flips
+  // (--spot-ink, --blue, --color-cyan, --pink, --color-accent-dark) rather
+  // than a hardcoded copy of one theme's resolved value.
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/site/AuthShell.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode the point-icon ink as a frozen light-mode literal', () => {
+    expect(source).not.toContain("color: '#8fb6f5'");
+  });
+
+  it('routes the point-icon ink through --color-accent-dark', () => {
+    expect(source).toContain("color: 'var(--color-accent-dark)'");
+  });
+
+  it('does not hardcode the spot-ink tints as frozen rgba literals', () => {
+    expect(source).not.toMatch(/rgba\(234,\s*226,\s*213/);
+  });
+
+  it('routes the spot-ink tints through color-mix', () => {
+    expect(source).toMatch(/color-mix\(in srgb, var\(--spot-ink\) 10%, transparent\)/);
+    expect(source).toMatch(/color-mix\(in srgb, var\(--spot-ink\) 16%, transparent\)/);
+    expect(source).toMatch(/color-mix\(in srgb, var\(--spot-ink\) 18%, transparent\)/);
+    expect(source).toMatch(/color-mix\(in srgb, var\(--spot-ink\) 5%, transparent\)/);
+    expect(source).toMatch(/color-mix\(in srgb, var\(--spot-ink\) 22%, transparent\)/);
+  });
+
+  it('does not hardcode the ambient glows as frozen rgba literals', () => {
+    expect(source).not.toContain('rgba(37,123,237,0.26)');
+    expect(source).not.toContain('rgba(92,225,230,0.14)');
+    expect(source).not.toContain('rgba(255,144,212,0.10)');
+  });
+
+  it('routes the ambient glows through --blue, --color-cyan and --pink', () => {
+    expect(source).toMatch(/color-mix\(in srgb, var\(--blue\) 26%, transparent\)/);
+    expect(source).toMatch(/color-mix\(in srgb, var\(--color-cyan\) 14%, transparent\)/);
+    expect(source).toMatch(/color-mix\(in srgb, var\(--pink\) 10%, transparent\)/);
   });
 });
