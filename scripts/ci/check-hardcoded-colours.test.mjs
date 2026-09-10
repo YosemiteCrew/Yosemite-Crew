@@ -9,6 +9,7 @@ import {
   baselineFreshness,
   compare,
   findColours,
+  findSuspiciousFourDigit,
   scan,
   selftest,
   stripComments,
@@ -135,6 +136,81 @@ test('the case table notices when the four-digit narrowing is reverted', () => {
     missed.includes('four-digit issue reference in a string'),
     'the pre-narrowing pattern must fail the four-digit reference case'
   );
+});
+
+/* ---------------------------------------------------------------------------
+   Issue #2852: the suppressed four-digit bucket, reported (not gated) when it
+   sits next to a colour property.
+   --------------------------------------------------------------------------- */
+
+test('a suppressed four-digit token next to a colour property is reported', () => {
+  assert.deepEqual(
+    findSuspiciousFourDigit('const s = { background: "#1234" };').map((f) => f.text),
+    ['#1234']
+  );
+  assert.deepEqual(
+    findSuspiciousFourDigit('a { border: 1px solid #5678; }', { css: true }).map((f) => f.text),
+    ['#5678']
+  );
+});
+
+test('a suppressed four-digit token inside linear-gradient is reported without a property name', () => {
+  // No "color"/"background"/etc keyword on this line - the gradient function
+  // itself is the context, which is the clause the issue calls out by name.
+  assert.deepEqual(
+    findSuspiciousFourDigit('const g = "linear-gradient(#1234 0%, #5678 100%)";').map(
+      (f) => f.text
+    ),
+    ['#1234', '#5678']
+  );
+});
+
+test('a four-digit token with no colour-bearing neighbour stays silent', () => {
+  // This is the common case #2852 exists to protect: an issue reference in
+  // prose, nowhere near a colour property.
+  assert.deepEqual(findSuspiciousFourDigit('const s = "PR #1234 fixed a bug";'), []);
+});
+
+test('a colour keyword outside the context window does not manufacture a report', () => {
+  const farAway = 'background'.padEnd(80, ' ') + '"#1234"';
+  assert.deepEqual(findSuspiciousFourDigit(`const s = ${farAway};`), []);
+});
+
+test('the suspicious scan does not re-report what findColours already caught', () => {
+  // A four-digit token carrying a hex letter is a real finding from HEX
+  // already; the suppressed-bucket scanner only matches all-decimal digits,
+  // so it must not double-report `#e6dd`.
+  assert.deepEqual(findSuspiciousFourDigit('const a = { color: "#e6dd" };'), []);
+  assert.deepEqual(
+    findColours('const a = { color: "#e6dd" };').map((f) => f.text),
+    ['#e6dd']
+  );
+});
+
+test('a longer run of decimal digits is not a four-digit token', () => {
+  // #12345 has five digits; the trailing boundary that keeps HEX silent on it
+  // applies here too, so this scanner must not treat it as #1234 plus a
+  // trailing "5".
+  assert.deepEqual(findSuspiciousFourDigit('const s = { color: "#12345" };'), []);
+});
+
+test('a suppressed token inside a comment is stripped, even next to a colour keyword', () => {
+  assert.deepEqual(findSuspiciousFourDigit('/* background: #1234 was rejected */'), []);
+  assert.deepEqual(
+    findSuspiciousFourDigit('a { /* border: #1234 */ color: var(--x); }', { css: true }),
+    []
+  );
+});
+
+test('the suspicious scan is advisory only - it never appears in scan() counts', () => {
+  // `compare`/the baseline must only ever see `findColours` output. This is
+  // the load-bearing guarantee for issue #2852 being a report and not a gate:
+  // a regression here would silently turn the advisory into a build failure.
+  const { suspicious, findings } = scan();
+  assert.ok(Array.isArray(suspicious));
+  for (const f of suspicious) {
+    assert.ok(!findings.some((x) => x.file === f.file && x.line === f.line && x.text === f.text));
+  }
 });
 
 test('compare reports an increase against the baseline', () => {
