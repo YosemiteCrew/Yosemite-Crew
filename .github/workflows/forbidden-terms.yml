@@ -346,6 +346,14 @@ jobs:
             > "${RUNNER_TEMP}/surfaces/diff"
           git diff --name-only --diff-filter=ACMRT "${MERGE_BASE}" refs/remotes/origin/gate-head \
             > "${RUNNER_TEMP}/surfaces/names"
+          # The attribution arm reads only `messages`: this range is the set of
+          # commits the pull request introduces. A matching trailer quoted in a
+          # pull-request body therefore remains outside the arm.
+          #
+          # Residual: a feature branch that merges upstream commits also puts
+          # those messages in this range. Feature branches here do not use that
+          # shape and dependency pull requests contain one commit, so the risk
+          # is small but non-zero.
           git log --format=%B "${MERGE_BASE}..refs/remotes/origin/gate-head" \
             > "${RUNNER_TEMP}/surfaces/messages"
           # Through env and never interpolated into the script: the title and
