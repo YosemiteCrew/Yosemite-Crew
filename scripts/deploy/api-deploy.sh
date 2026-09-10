@@ -327,7 +327,7 @@ if [ -n "$CONTROL_FAILURES" ]; then
 fi
 
 say "cutover"
-pm2 restart "$PM2_TARGET" --update-env
+pm2 restart "$PM2_TARGET" --interpreter "$NODE_BIN/node" --update-env
 pm2 save
 # pm2 reporting "online" is not the same as serving, and checking the port
 # immediately races the boot. Give it time, then check what is actually true.

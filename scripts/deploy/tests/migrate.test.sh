@@ -887,6 +887,18 @@ else
      "probe=$POST_PROBE_LINE gate=$POST_GATE_LINE cutover=$CUTOVER_LINE"
 fi
 
+# PM2 persists this command into its saved process list. PATH protects this
+# deploy invocation, but an explicit interpreter also protects later hand
+# restarts from resolving the system Node instead of the repository's Node.
+PM2_TARGET_TOKEN="\$PM2_TARGET"
+NODE_INTERPRETER_TOKEN="\$NODE_BIN/node"
+if grep -qF "pm2 restart \"${PM2_TARGET_TOKEN}\" --interpreter \"${NODE_INTERPRETER_TOKEN}\" --update-env" "$DEPLOY_SH"; then
+  ok "api-deploy.sh persists the configured Node interpreter in PM2"
+else
+  no "api-deploy.sh persists the configured Node interpreter in PM2" \
+     "the cutover restart does not pass --interpreter \"\$NODE_BIN/node\""
+fi
+
 # The record is only useful if it is READ before the checkout moves the tree and
 # WRITTEN only once the cutover is verified. Both are orderings in the real file
 # that no stand-in can exercise, and both are the whole of #2714: reading after
