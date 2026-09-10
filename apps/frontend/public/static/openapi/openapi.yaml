@@ -9352,12 +9352,536 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/developer/organizations':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/developer/organizations'
+      description: "Practices this API key's owner may act for. Not org-scoped: reads only the caller's own active memberships, so a key holder can discover which ids to pass as x-org-id elsewhere. Deliberately not gated by a scope."
+      operationId: get_v1_developer_organizations
+      security:
+        - DeveloperApiKeyAuth: []
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeveloperOrganizationSummary'
+        401:
+          description: 'No API key presented, or the key is invalid, revoked or expired'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperApiErrorEnvelope'
+  '/v1/developer/usage':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/developer/usage'
+      description: 'Call count and monthly quota for the current billing period. Not org-scoped and not scope-gated: usage belongs to the developer, not to a practice, and a key that has exhausted its quota still needs to read why it is being rejected.'
+      operationId: get_v1_developer_usage
+      security:
+        - DeveloperApiKeyAuth: []
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DeveloperUsage'
+        401:
+          description: 'No API key presented, or the key is invalid, revoked or expired'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperApiErrorEnvelope'
+  '/v1/developer/appointments':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/developer/appointments'
+      description: 'Appointments for one practice, keyset-paginated and ordered by (appointmentDate, id). Requires the appointments:read scope and a live active membership of the practice named in x-org-id.'
+      operationId: get_v1_developer_appointments
+      security:
+        - DeveloperApiKeyAuth: []
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: "Practice to read from. Must be one of the ids returned by GET /v1/developer/organizations for this key's owner."
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          description: 'ISO 8601 date-time lower bound on appointmentDate'
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          description: 'ISO 8601 date-time upper bound on appointmentDate'
+          schema:
+            type: string
+            format: date-time
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [REQUESTED, UPCOMING, CHECKED_IN, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW]
+        - name: limit
+          in: query
+          required: false
+          description: 'Page size, clamped server-side (default 50, max 100)'
+          schema:
+            type: integer
+        - name: cursor
+          in: query
+          required: false
+          description: "Opaque cursor from a previous response's pagination.nextCursor"
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeveloperAppointment'
+                  pagination:
+                    type: object
+                    properties:
+                      limit:
+                        type: integer
+                      nextCursor:
+                        type: string
+                        nullable: true
+        400:
+          description: 'Missing organisation context, or from/to/status/cursor failed validation'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperApiErrorEnvelope'
+        401:
+          description: 'No API key presented, or the key is invalid, revoked or expired'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperApiErrorEnvelope'
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperApiErrorEnvelope'
+  '/v1/developer/appointments/{appointmentId}':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/developer/appointments/{appointmentId}'
+      description: 'One appointment. The practice is derived from the appointment record itself rather than from x-org-id, so a key holder cannot read a record in another practice by naming it in the header.'
+      operationId: get_v1_developer_appointments_appointmentId
+      security:
+        - DeveloperApiKeyAuth: []
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DeveloperAppointment'
+        400:
+          description: Missing organisation context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperApiErrorEnvelope'
+        401:
+          description: 'No API key presented, or the key is invalid, revoked or expired'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperApiErrorEnvelope'
+        404:
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperApiErrorEnvelope'
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperApiErrorEnvelope'
+  '/v1/developers/api-keys':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/developers/api-keys'
+      description: 'Issue a new API key for the signed-in developer. Session-authenticated only, deliberately with no role or organisation gate: this account type has no UserOrganization row. The plaintext key is returned exactly once, in this response, and never again.'
+      operationId: post_v1_developers_api_keys
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeveloperApiKeyBody'
+      responses:
+        201:
+          description: Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedDeveloperApiKey'
+        400:
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  errors:
+                    type: object
+                    additionalProperties: true
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        429:
+          description: 'Active API key limit reached (25 per developer)'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/developers/api-keys'
+      description: "List this developer's own API keys, most recently created first. Never includes the plaintext secret."
+      operationId: get_v1_developers_api_keys
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DeveloperApiKey'
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  '/v1/developers/api-keys/{keyId}':
+    delete:
+      tags:
+        - 'Non-FHIR'
+      summary: 'DELETE /v1/developers/api-keys/{keyId}'
+      description: "Revoke one of this developer's own API keys. Revoking does not delete the row; it stops the key from authenticating."
+      operationId: delete_v1_developers_api_keys_keyId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: Revoked, no content
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        404:
+          description: API key not found (wrong id, or it does not belong to this developer)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  '/v1/developers/billing':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/developers/billing'
+      description: "This developer's own subscription. A developer with no Stripe subscription yet gets a synthetic free-plan record rather than a 404."
+      operationId: get_v1_developers_billing
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DeveloperSubscription'
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  '/v1/developers/billing/checkout':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/developers/billing/checkout'
+      description: 'Create a Stripe Checkout session for this developer to start a paid subscription.'
+      operationId: post_v1_developers_billing_checkout
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [successUrl, cancelUrl]
+              properties:
+                successUrl:
+                  type: string
+                  format: uri
+                cancelUrl:
+                  type: string
+                  format: uri
+      responses:
+        201:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                        format: uri
+        400:
+          description: 'successUrl or cancelUrl missing or not a valid URL'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  '/v1/developers/billing/portal':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/developers/billing/portal'
+      description: 'Create a Stripe Billing Portal session so this developer can manage their existing subscription.'
+      operationId: post_v1_developers_billing_portal
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [returnUrl]
+              properties:
+                returnUrl:
+                  type: string
+                  format: uri
+      responses:
+        201:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                        format: uri
+        400:
+          description: returnUrl is required
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  '/v1/developers/billing/webhook':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/developers/billing/webhook'
+      description: "Stripe webhook receiver for developer billing events. Not part of the developer-facing surface: authenticated by Stripe's request signature (stripe-signature header) rather than a session or API key, and mounted directly on the app ahead of the JSON body parser so the raw body reaches the signature check."
+      operationId: post_v1_developers_billing_webhook
+      parameters:
+        - name: stripe-signature
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+        400:
+          description: 'Missing stripe-signature header, or signature verification failed'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        500:
+          description: Webhook handler failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  '/v1/developers/usage':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/developers/usage'
+      description: "This developer's own call count and quota for a billing period. Session-authenticated counterpart to GET /v1/developer/usage (which is API-key authenticated) — backed by the same service."
+      operationId: get_v1_developers_usage
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          required: false
+          description: 'Billing period as YYYY-MM. Defaults to the current month.'
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DeveloperUsage'
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
 components:
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    DeveloperApiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: 'yc_<live|test>_<secret> - a developer API key, not a session JWT'
   schemas:
     AccessPolicy:
       type: object
@@ -14111,3 +14635,212 @@ components:
         businessType:
           type: string
       additionalProperties: true
+    DeveloperApiErrorEnvelope:
+      type: object
+      description: 'Error shape used by the /v1/developer API-key data plane. The codes are a closed set the published client libraries parse; adding one is a contract change.'
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+          enum: [invalid_request, missing_api_key, not_found, internal_error]
+    DeveloperOrganizationSummary:
+      type: object
+      description: "One practice an API key's owner has a live active membership of, and their role there."
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        roleCode:
+          type: string
+        roleDisplay:
+          type: string
+          nullable: true
+    DeveloperAppointment:
+      type: object
+      description: 'Flat, non-FHIR appointment shape returned by the developer data plane. Distinct from the FHIR-shaped Appointment schema used by /fhir/v1/appointment: patient, lead, room, appointmentType and supportStaff are opaque JSON columns with no fixed shape at the database level, so they are documented as free-form objects rather than guessed at.'
+      properties:
+        id:
+          type: string
+        organisationId:
+          type: string
+        patient:
+          type: object
+          additionalProperties: true
+        lead:
+          type: object
+          additionalProperties: true
+          nullable: true
+        appointmentType:
+          type: object
+          additionalProperties: true
+          nullable: true
+        room:
+          type: object
+          additionalProperties: true
+          nullable: true
+        appointmentKind:
+          type: string
+          enum: [OUTPATIENT, INPATIENT]
+        appointmentDate:
+          type: string
+          format: date-time
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        timeSlot:
+          type: string
+        durationMinutes:
+          type: integer
+        status:
+          type: string
+          enum: [REQUESTED, UPCOMING, CHECKED_IN, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW]
+        isEmergency:
+          type: boolean
+        concern:
+          type: string
+          nullable: true
+        caseId:
+          type: string
+          nullable: true
+        encounterId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    DeveloperUsage:
+      type: object
+      description: 'Call count and quota for one billing period. limit is null on the pro/enterprise plans, which are unmetered against a fixed ceiling.'
+      properties:
+        billingPeriod:
+          type: string
+          description: 'YYYY-MM'
+        callCount:
+          type: integer
+        limit:
+          type: integer
+          nullable: true
+    CreateDeveloperApiKeyBody:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        scopes:
+          type: array
+          items:
+            type: string
+          maxItems: 50
+        environment:
+          type: string
+          enum: [live, test]
+          description: "Defaults to live. A test key is unmetered and never billed, but in v1 still reads the practice's real data - there is no sandbox yet."
+        expiresAt:
+          type: string
+          format: date-time
+    IssuedDeveloperApiKey:
+      type: object
+      description: 'Returned once, at creation. apiKey is the plaintext secret and is never retrievable again - only prefix and last4 are stored for display afterward.'
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        prefix:
+          type: string
+        last4:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        environment:
+          type: string
+          enum: [live, test]
+        apiKey:
+          type: string
+    DeveloperApiKey:
+      type: object
+      description: 'A developer API key as listed in the portal. Never carries the plaintext secret.'
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        prefix:
+          type: string
+        last4:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        environment:
+          type: string
+          enum: [live, test]
+        status:
+          type: string
+          enum: [active, revoked]
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    DeveloperSubscription:
+      type: object
+      description: "A developer's own Stripe subscription state. A developer with no subscription yet gets a synthetic record with id null and plan free rather than a 404."
+      properties:
+        id:
+          type: string
+          nullable: true
+        ownerUserId:
+          type: string
+        plan:
+          type: string
+          enum: [free, pro, enterprise]
+        status:
+          type: string
+          enum: [active, trialing, past_due, canceled, incomplete]
+        stripeSubscriptionItemId:
+          type: string
+          nullable: true
+        currentPeriodStart:
+          type: string
+          format: date-time
+          nullable: true
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          nullable: true
+        cancelAtPeriodEnd:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
