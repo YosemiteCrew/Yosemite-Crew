@@ -1,8 +1,24 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "4b699be43276f02d6489cf38fdfd472cb12886ea",
-  "total": 221,
+  "generated_at": "1c4f6e5096a958dccc3ac54c17d595085780bd82",
+  "total": 188,
   "justified": {
+    "apps/frontend/src/app/(routes)/(app)/chat/page.css": {
+      "n": 1,
+      "why": "A bespoke box-shadow (rgba(15, 23, 42, 0.08)) with no exact match in the --sh* family - same reasoning as the widget shadows justified in PR #2985."
+    },
+    "apps/frontend/src/app/(routes)/(public)/accessibility/report/AccessibilityReportClient.stories.tsx": {
+      "n": 1,
+      "why": "'#e6ddd0' appears only in the story's doc-string, documenting a real bug on the same data-yc-surface=\"light\" pinned-card pattern as PaymentStatusContent: the card is a literal bg-white in both themes, so without the pin the themed --ink-body (#e6ddd0 in dark) put the confirmation copy at 1.34:1 - white on white."
+    },
+    "apps/frontend/src/app/(routes)/(public)/payment-status/PaymentStatusContent.stories.tsx": {
+      "n": 4,
+      "why": "'#1d1c1b' appears in the meta description's prose, documenting --ink-fixed's value. The three rgb(...) literals are computed-style assertions pinning the app's own success/danger token values (commented at each call site as deliberate, verifying the card's intentionally-fixed-light surface keeps its icon colour in both themes) - getComputedStyle() always returns the resolved colour, never the variable name."
+    },
+    "apps/frontend/src/app/(routes)/(public)/payment-status/PaymentStatusContent.tsx": {
+      "n": 3,
+      "why": "Three rgba() literals forming a decorative gradient, on a surface explicitly pinned light via data-yc-surface=\"light\" (commented at the call site: 'a receipt that inverts under a dark OS setting reads as a different document'). Deliberately not theme-aware by design."
+    },
     "apps/frontend/src/app/features/appointments/components/AppointmentCentralModal/AppointmentAvatar.stories.tsx": {
       "n": 1,
       "why": "A named const holding --blue-text's light-mode resolved value ('rgb(22, 87, 201)'), used only so the dark-theme story can assert it did NOT get this value - a negative computed-style assertion, not an authored literal."
@@ -111,6 +127,14 @@
       "n": 1,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
     },
+    "apps/frontend/src/app/features/auth/pages/SignIn/SignIn.tsx": {
+      "n": 1,
+      "why": "The account-type segmented control's active-tab shadow (rgba(29, 28, 27, 0.08)) is close to but not an exact match for any --sh* step (--sh03 is 0.03, --sh05 is 0.05, --sh10 is 0.1) - swapping to the nearest step would be a value change, not a preserving refactor."
+    },
+    "apps/frontend/src/app/features/auth/pages/SignUp/SignUp.tsx": {
+      "n": 1,
+      "why": "White ink on the Terms checkbox's fixed var(--blue) fill - the same justified pattern as ChatContainer.css's --str-chat__on-primary-color: --blue is declared identically in both theme blocks, so a fixed white literal carries no theme risk."
+    },
     "apps/frontend/src/app/features/chat/components/ChannelHeaderBar.stories.tsx": {
       "n": 1,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
@@ -131,6 +155,10 @@
       "n": 1,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
     },
+    "apps/frontend/src/app/features/companionHistory/components/AuditTimeline.stories.tsx": {
+      "n": 4,
+      "why": "One standard 'rgba(0, 0, 0, 0)' computed-style assertion, plus three literals ('#a6271d', '#f2938a', 'rgb(48, 47, 46)') appearing only in the story's doc-string, documenting --danger-text's real per-theme values as part of describing a genuine bug this same story caught (a Tailwind class compiling to no rule at all across five PIMS error messages)."
+    },
     "apps/frontend/src/app/features/companionHistory/components/HistoryEmptyState.stories.tsx": {
       "n": 1,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
@@ -138,6 +166,10 @@
     "apps/frontend/src/app/features/companions/pages/Companions/InClinicTodayBand.stories.tsx": {
       "n": 1,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/companions/pages/Companions/InClinicTodayBand.tsx": {
+      "n": 2,
+      "why": "The time badge overlays a photo (BandMedia), which is not theme-aware, so its scrim (rgba(29,28,27,0.55), --ink's light value) and text (#f7f3ec, --screen's light value) are deliberately fixed rather than reading the flipping --ink/--screen tokens - reading --screen would go near-black in dark and vanish against the dark scrim, the exact class of bug this sweep exists to catch, just inverted."
     },
     "apps/frontend/src/app/features/companions/pages/Companions/SpeciesTabs.stories.tsx": {
       "n": 1,
@@ -179,6 +211,10 @@
       "n": 1,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
     },
+    "apps/frontend/src/app/features/guides/pages/Guides.tsx": {
+      "n": 5,
+      "why": "Two overlay badges (a play button and a duration pill) painted on a video thumbnail image, same reasoning as InClinicTodayBand.tsx: fixed light background/ink/shadow (rgba(247,243,236,0.92), #1d1c1b, rgba(0,0,0,0.35), rgba(0,0,0,0.62), #f7f3ec) because the underlying media is not theme-aware."
+    },
     "apps/frontend/src/app/features/integrations/pages/Integrations/IdexxSettingsModal.stories.tsx": {
       "n": 1,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
@@ -194,6 +230,14 @@
     "apps/frontend/src/app/features/legal/pages/LegalContent.stories.tsx": {
       "n": 1,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/legal/pages/TrustCenter.stories.tsx": {
+      "n": 5,
+      "why": "PILL_COLOURS is explicitly commented '`getStatusPillStyle`, resolved' - computed-style test-oracle values, not authored literals. The fifth ('rgba(0, 0, 0, 0)') is the standard 'nothing painted here' oracle."
+    },
+    "apps/frontend/src/app/features/legal/pages/TrustCenter.tsx": {
+      "n": 2,
+      "why": "CARD_BG (#faf7f1) and a border colour (#e6ded1) are close to but not exact matches for any token (--color-screen is #f7f3ec, --color-hairline is #e5dccf) - left as literals when PR #2963 tokenised this file's other 8 exact-match literals, and still not exact matches now."
     },
     "apps/frontend/src/app/features/marketing/site/MarketingShell.stories.tsx": {
       "n": 2,
@@ -238,6 +282,14 @@
     "apps/frontend/src/app/features/tasks/components/TaskWeekAgenda.stories.tsx": {
       "n": 1,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/ui/layout/Notifications/Notifications.css": {
+      "n": 1,
+      "why": "Already commented at the declaration: white text on a fixed var(--blue-strong) fill - the same justified pattern as ChatContainer.css's --str-chat__on-primary-color."
+    },
+    "apps/frontend/src/app/ui/layout/PhoneShell/PhoneShell.css": {
+      "n": 1,
+      "why": "Already commented at the declaration: white text on a fixed var(--blue-strong) fill - the same justified pattern as ChatContainer.css's --str-chat__on-primary-color."
     },
     "apps/frontend/src/app/ui/overlays/Modal/ConfirmModal.stories.tsx": {
       "n": 1,
@@ -293,17 +345,6 @@
     }
   },
   "files": {
-    "apps/frontend/src/app/(routes)/(app)/chat/page.css": 1,
-    "apps/frontend/src/app/(routes)/(public)/accessibility/report/AccessibilityReportClient.stories.tsx": 1,
-    "apps/frontend/src/app/(routes)/(public)/payment-status/PaymentStatusContent.stories.tsx": 4,
-    "apps/frontend/src/app/(routes)/(public)/payment-status/PaymentStatusContent.tsx": 3,
-    "apps/frontend/src/app/features/auth/pages/SignIn/SignIn.tsx": 2,
-    "apps/frontend/src/app/features/auth/pages/SignUp/SignUp.tsx": 2,
-    "apps/frontend/src/app/features/companionHistory/components/AuditTimeline.stories.tsx": 4,
-    "apps/frontend/src/app/features/companions/pages/Companions/InClinicTodayBand.tsx": 2,
-    "apps/frontend/src/app/features/guides/pages/Guides.tsx": 5,
-    "apps/frontend/src/app/features/legal/pages/TrustCenter.stories.tsx": 5,
-    "apps/frontend/src/app/features/legal/pages/TrustCenter.tsx": 2,
     "apps/frontend/src/app/features/marketing/pages/About/About.tsx": 6,
     "apps/frontend/src/app/features/marketing/pages/ContactusPage/ContactusPage.tsx": 10,
     "apps/frontend/src/app/features/marketing/pages/DevelopersPage/DevelopersPage.tsx": 46,
@@ -322,8 +363,6 @@
     "apps/frontend/src/app/features/marketing/site/motion.tsx": 7,
     "apps/frontend/src/app/features/marketing/site/SiteFooter.stories.tsx": 2,
     "apps/frontend/src/app/features/marketing/site/SiteFooter.tsx": 9,
-    "apps/frontend/src/app/features/marketing/site/useRepoInsights.ts": 14,
-    "apps/frontend/src/app/ui/layout/Notifications/Notifications.css": 1,
-    "apps/frontend/src/app/ui/layout/PhoneShell/PhoneShell.css": 1
+    "apps/frontend/src/app/features/marketing/site/useRepoInsights.ts": 14
   }
 }
