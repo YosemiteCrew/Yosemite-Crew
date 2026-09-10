@@ -6,13 +6,13 @@
    Design: 7px var(--success) dot with a 3.4s expanding ring. */
 @keyframes ycIntegrationsPulseDot {
   0% {
-    box-shadow: 0 0 0 0 rgb(0 143 93 / 35%);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 35%, transparent);
   }
   60% {
-    box-shadow: 0 0 0 6px rgb(0 143 93 / 0%);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--success) 0%, transparent);
   }
   100% {
-    box-shadow: 0 0 0 0 rgb(0 143 93 / 0%);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 0%, transparent);
   }
 }
 
