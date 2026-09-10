@@ -26,6 +26,11 @@
   color: var(--white-text);
   background: var(--color-linkedin-blue);
   border-radius: 50%;
+  /* Plain black, not one of the --sh* shadow tokens - see LaunchGrowTab.css's
+     .LaunchTabDiv.active for the same reasoning: no --sh* value is a
+     byte-identical match across both themes, so swapping to one would change
+     the rendered shadow rather than preserve it. Justified in the
+     hardcoded-colours baseline, along with the hover state below. */
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
   transition:
     transform 0.15s ease,

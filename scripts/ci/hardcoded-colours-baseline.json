@@ -1,7 +1,7 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "4a58a4724ab515a7aaed28e8be7e81d46b7c9020",
-  "total": 271,
+  "generated_at": "bba5e754b47cfdaf364877ceb0d430b3e831072c",
+  "total": 256,
   "justified": {
     "apps/frontend/src/app/features/appointments/components/Availability/Availability.tsx": {
       "n": 1,
@@ -214,6 +214,30 @@
     "apps/frontend/src/app/ui/theme/themeCore.ts": {
       "n": 2,
       "why": "The fallback for <meta name=\"theme-color\"> when getComputedStyle has not yet resolved --page (first paint, and SSR-hydration order). The meta element's content attribute is read by the browser chrome, which does not resolve CSS custom properties, so it must be a literal colour."
+    },
+    "apps/frontend/src/app/ui/widgets/DynamicChart/ChartCanvas.stories.tsx": {
+      "n": 4,
+      "why": "The #fff/#ccc pair (in a documentation string, not CSS) and the rgb(255, 255, 255)/rgb(204, 204, 204) pair (computed-style assertions) all describe recharts' own default tooltip styling - the story deliberately passes no custom styling to either <Tooltip />, so the bubble renders recharts' bare default and reads no design token at all. Not app-authored colour; tokenising would misrepresent what the story documents."
+    },
+    "apps/frontend/src/app/ui/widgets/Faq/Faq.css": {
+      "n": 2,
+      "why": "Two bespoke box-shadow literals: the resting-state shadow is a near-black-navy tint with no byte-identical match in the --sh* family (see LaunchGrowTab.css's .LaunchTabDiv.active for why swapping to a --sh* token would change the rendered light-mode shadow rather than preserve it); the expanded-state shadow is close to but not an exact match for --blue's rgb(37, 123, 237), so treating it as --blue-derived would be a value change, not a preserving refactor."
+    },
+    "apps/frontend/src/app/ui/widgets/LaunchGrowTab/LaunchGrowTab.css": {
+      "n": 3,
+      "why": "Three independent bespoke literals, all commented at their declarations: the active-tab shadow is plain black with no byte-identical --sh* match; the mobile tab-nav background is the fixed light-blue tint from LaunchGrowTab.tsx's growtab.color ('#E9F2FD') at 95% opacity, reused only within this one widget; the mobile active-tab glow is a standalone colored shadow (the desktop active tab uses plain black instead) close to but not an exact match for --blue's rgb(37, 123, 237)."
+    },
+    "apps/frontend/src/app/ui/widgets/LaunchGrowTab/LaunchGrowTab.tsx": {
+      "n": 3,
+      "why": "Fixed light-blue tab tints (ids 2-4 of Launchtabs), deliberately NOT theme-flipping: LaunchGrowTab.css's .BuildText pins --ink-fixed against these backgrounds specifically because they stay light in both themes (a themed ink there put fixed-dark text on a dark card at 1.16:1 in espresso). Single-purpose pastels invented for this tab set, not derived from the shared palette - id 1 already reads through the real --blue-strong token, these three don't have an equivalent. '#E9F2FD' reappears once more in LaunchGrowTab.css's mobile-tab-nav background at 95% opacity, the only overlap and still local to this widget."
+    },
+    "apps/frontend/src/app/ui/widgets/TeamSlide/TeamSlide.css": {
+      "n": 2,
+      "why": "Two plain-black box-shadow literals (resting and hover state on the LinkedIn badge) with no byte-identical match in the --sh* family - see LaunchGrowTab.css's .LaunchTabDiv.active for the same reasoning."
+    },
+    "apps/frontend/src/app/ui/widgets/UploadImage/UploadImage.css": {
+      "n": 1,
+      "why": "A warm-brown 8-digit-hex box-shadow (~10% alpha) with no exact match in --sh* or --ink (#1d1c1b) - a distinct bespoke value."
     }
   },
   "files": {
@@ -261,12 +285,6 @@
     "apps/frontend/src/app/ui/overlays/Modal/GuidePlayerModal.stories.tsx": 2,
     "apps/frontend/src/app/ui/overlays/Modal/VideoPlayerModal.stories.tsx": 3,
     "apps/frontend/src/app/ui/overlays/PdfPreviewOverlay.stories.tsx": 6,
-    "apps/frontend/src/app/ui/overlays/Toast/Toast.css": 2,
-    "apps/frontend/src/app/ui/widgets/DynamicChart/ChartCanvas.stories.tsx": 4,
-    "apps/frontend/src/app/ui/widgets/Faq/Faq.css": 2,
-    "apps/frontend/src/app/ui/widgets/LaunchGrowTab/LaunchGrowTab.css": 3,
-    "apps/frontend/src/app/ui/widgets/LaunchGrowTab/LaunchGrowTab.tsx": 3,
-    "apps/frontend/src/app/ui/widgets/TeamSlide/TeamSlide.css": 2,
-    "apps/frontend/src/app/ui/widgets/UploadImage/UploadImage.css": 1
+    "apps/frontend/src/app/ui/overlays/Toast/Toast.css": 2
   }
 }
