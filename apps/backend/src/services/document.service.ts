@@ -1,3 +1,4 @@
+import type { TemplateKind } from "@yosemite-crew/database";
 import { prisma } from "src/config/prisma";
 import {
   deleteFromS3,
@@ -396,6 +397,7 @@ const loadAppointmentForDocumentLookup = async (appointmentId: string) => {
 const loadRenderedDocumentsForAppointments = async (params: {
   appointmentIds: string[];
   organisationId: string;
+  kind?: TemplateKind;
 }) => {
   if (params.appointmentIds.length === 0) {
     return [];
@@ -404,6 +406,7 @@ const loadRenderedDocumentsForAppointments = async (params: {
   const renderedDocuments = (await prisma.renderedDocument.findMany({
     where: {
       organisationId: params.organisationId,
+      ...(params.kind ? { kind: params.kind } : {}),
       OR: [
         {
           templateInstance: {
@@ -787,6 +790,34 @@ export const DocumentService = {
         new Date(right.updatedAt).getTime() -
         new Date(left.updatedAt).getTime(),
     );
+  },
+
+  /**
+   * Just the e-signing-portal (Documenso) documents that are actually
+   * consent, for the companion-history Consent section - not every
+   * RenderedDocument (SOAP notes, prescriptions, invoices, ...) and not the
+   * plain uploaded Document rows listForPms also returns. Deliberately a
+   * narrow sibling rather than a listForPms option: listForPms feeds three
+   * other consumers (PMS docs tab, mobile app tab, companion-history
+   * timeline) and widening its existing merge is riskier than adding this.
+   */
+  async listConsentDocumentsForPms(params: {
+    patientId: string;
+    organisationId: string;
+  }): Promise<DocumentDto[]> {
+    const patientId = normalizeStringId(params.patientId, "patientId");
+    await assertPmsCanAccessCompanion(params.organisationId, patientId);
+
+    const appointmentIds = await loadAppointmentIdsForPatient({
+      patientId,
+      organisationId: params.organisationId,
+    });
+
+    return loadRenderedDocumentsForAppointments({
+      appointmentIds,
+      organisationId: params.organisationId,
+      kind: "CONSENT",
+    });
   },
 
   async getByIdForParent(

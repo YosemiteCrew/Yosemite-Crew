@@ -10,6 +10,8 @@ import {
   revokePatientConsent,
   type PatientConsent,
 } from '@/app/features/companionHistory/services/patientConsentService';
+import { loadConsentDocumentsForCompanion } from '@/app/features/companions/services/companionDocumentService';
+import type { CompanionRecord } from '@/app/features/documents/types/companionDocuments';
 
 const notifyMock = jest.fn();
 let permissionsMock: string[] = ['appointments:view:any', 'appointments:edit:any'];
@@ -32,10 +34,15 @@ jest.mock('@/app/features/companionHistory/services/patientConsentService', () =
   revokePatientConsent: jest.fn(),
 }));
 
+jest.mock('@/app/features/companions/services/companionDocumentService', () => ({
+  loadConsentDocumentsForCompanion: jest.fn(),
+}));
+
 const fetchMock = fetchPatientConsents as jest.Mock;
 const grantMock = grantPatientConsent as jest.Mock;
 const revokeMock = revokePatientConsent as jest.Mock;
 const isAuthRedirectMock = isAuthRedirectError as jest.Mock;
+const loadSignedDocumentsMock = loadConsentDocumentsForCompanion as jest.Mock;
 
 const consent = (
   over: Partial<PatientConsent> & { id: string; consentType: PatientConsent['consentType'] }
@@ -61,6 +68,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   permissionsMock = ['appointments:view:any', 'appointments:edit:any'];
   fetchMock.mockResolvedValue([]);
+  loadSignedDocumentsMock.mockResolvedValue([]);
 });
 
 describe('ConsentListPanel', () => {
@@ -292,6 +300,43 @@ describe('ConsentListPanel', () => {
     const { container } = render(<ConsentListPanel companionId="comp-1" />);
     expect(container).toBeEmptyDOMElement();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('loads and renders signed consent documents from the e-signing portal', async () => {
+    const signedDoc: CompanionRecord = {
+      id: 'doc-1',
+      title: 'Surgical consent - Buddy',
+      category: 'HEALTH',
+      subcategory: 'SURGERY_OR_PROCEDURE',
+      attachments: [],
+      signedAt: '2026-02-01T00:00:00.000Z',
+      pdfUrl: 'https://files.example.com/consent-doc-1.pdf',
+      sourceKind: 'TEMPLATE_INSTANCE',
+    };
+    loadSignedDocumentsMock.mockResolvedValue([signedDoc]);
+    const openSpy = jest.spyOn(globalThis, 'open').mockImplementation(() => null);
+
+    render(<ConsentListPanel companionId="comp-1" />);
+
+    expect(await screen.findByText('Surgical consent - Buddy')).toBeInTheDocument();
+    expect(screen.getByText(/Signed Feb 1, 2026/)).toBeInTheDocument();
+    expect(loadSignedDocumentsMock).toHaveBeenCalledWith('comp-1');
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'View signed document: Surgical consent - Buddy' })
+    );
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://files.example.com/consent-doc-1.pdf',
+      '_blank',
+      'noopener'
+    );
+    openSpy.mockRestore();
+  });
+
+  it('does not load signed documents when the member cannot view consents', () => {
+    permissionsMock = [];
+    render(<ConsentListPanel companionId="comp-1" />);
+    expect(loadSignedDocumentsMock).not.toHaveBeenCalled();
   });
 
   it('hides the edit controls when the member can view but not edit', async () => {
