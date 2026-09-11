@@ -23,6 +23,7 @@ import {
 import { postData } from '@/app/services/axios';
 import { makeOptions } from '@/app/lib/options';
 import { Textarea } from '@/app/ui/Input';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 
 const NEWSREADER = 'var(--font-newsreader)';
 const EASE = 'cubic-bezier(0.16,1,0.3,1)';
@@ -1020,27 +1021,13 @@ function DsarFields({ values, setters, errors, confirm, submit }: Readonly<DsarF
         onSelect={setters.setSubselectedRequest}
       />
 
-      <div style={groupBlock}>
-        <label className="yc-lbl" htmlFor="dsar-area">
-          Under the rights of which law are you making this request?
-          {requiredMark}
-        </label>
-        <select
-          id="dsar-area"
-          className="yc-field"
-          data-testid="dynamic-select"
-          aria-label="Under the rights of which law are you making this request?"
-          value={values.area}
-          onChange={(e) => setters.setArea(e.target.value)}
-        >
-          <option value="">Select one</option>
-          {areaOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Dropdown
+        placeholder="Under the rights of which law are you making this request?"
+        value={values.area}
+        onChange={setters.setArea}
+        options={areaOptions}
+        emptyLabel="Select one"
+      />
 
       <div style={groupBlock}>
         <div style={groupHeading}>You are submitting this request to</div>

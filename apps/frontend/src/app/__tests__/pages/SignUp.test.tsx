@@ -1,7 +1,8 @@
 import React from 'react';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
@@ -159,9 +160,8 @@ describe('SignUp page', () => {
     authStoreMock.signUp.mockResolvedValue(true);
     render(<SignUp />);
 
-    fireEvent.change(screen.getByLabelText('I am'), {
-      target: { value: 'A developer' },
-    });
+    await userEvent.click(screen.getByRole('button', { name: /I am/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('A developer'));
     fillValidForm();
     fireEvent.click(getSubmitBtn());
 

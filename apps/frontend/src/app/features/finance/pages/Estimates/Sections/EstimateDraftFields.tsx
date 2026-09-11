@@ -2,6 +2,7 @@
 import React from 'react';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import { Textarea } from '@/app/ui/Input';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import { formatMoneyPrecise } from '@/app/lib/money';
 import EstimateLineRow from '@/app/features/finance/pages/Estimates/Sections/EstimateLineRow';
 import {
@@ -29,26 +30,13 @@ export const EstimateHeaderFields = ({
   setValidUntil: (value: string) => void;
 }) => (
   <>
-    <div className="flex flex-col gap-1">
-      <label htmlFor="estimate-companion" className="text-caption-2 font-bold text-text-tertiary">
-        Companion
-      </label>
-      <span className={fieldClass}>
-        <select
-          id="estimate-companion"
-          value={patientId}
-          onChange={(e) => setPatientId(e.target.value)}
-          className={inputClass}
-        >
-          <option value="">Choose a companion</option>
-          {companions.map((companion) => (
-            <option key={companion.id} value={companion.id}>
-              {companion.name}
-            </option>
-          ))}
-        </select>
-      </span>
-    </div>
+    <Dropdown
+      placeholder="Companion"
+      value={patientId}
+      onChange={setPatientId}
+      options={companions.map((companion) => ({ label: companion.name, value: companion.id }))}
+      emptyLabel="Choose a companion"
+    />
 
     <div className="flex flex-col gap-1">
       <label htmlFor="estimate-valid-until" className="text-caption-2 font-bold text-text-tertiary">

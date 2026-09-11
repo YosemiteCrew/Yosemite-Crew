@@ -18,6 +18,7 @@ import {
 } from '@/app/features/companionHistory/components/ClinicalListChrome';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { Textarea } from '@/app/ui/Input';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import type {
   ConsentStatus,
   ConsentType,
@@ -84,6 +85,8 @@ const TYPE_OPTIONS: ConsentType[] = [
   'DNR',
   'OTHER',
 ];
+
+const TYPE_DROPDOWN_OPTIONS = TYPE_OPTIONS.map((t) => ({ label: TYPE_LABEL[t], value: t }));
 
 /**
  * The status pill tone. An active DNR directive reads in the danger tone and an
@@ -277,23 +280,12 @@ const GrantConsentForm = ({
       className="flex flex-col gap-3 border-b border-[var(--divider)] bg-[var(--inset)] px-4 py-4"
       onSubmit={handleSubmit}
     >
-      <div className="flex flex-col gap-1">
-        <label className={fieldLabelClass} htmlFor="consent-type">
-          Consent type
-        </label>
-        <select
-          id="consent-type"
-          className={controlClass}
-          value={values.consentType}
-          onChange={(e) => setValues((v) => ({ ...v, consentType: e.target.value as ConsentType }))}
-        >
-          {TYPE_OPTIONS.map((t) => (
-            <option key={t} value={t}>
-              {TYPE_LABEL[t]}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Dropdown
+        placeholder="Consent type"
+        value={values.consentType}
+        onChange={(v) => setValues((prev) => ({ ...prev, consentType: v as ConsentType }))}
+        options={TYPE_DROPDOWN_OPTIONS}
+      />
       <div className="flex flex-col gap-1">
         <label className={fieldLabelClass} htmlFor="consent-procedure">
           Procedure
