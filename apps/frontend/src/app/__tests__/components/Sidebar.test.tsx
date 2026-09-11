@@ -258,6 +258,23 @@ describe('Sidebar', () => {
     expect(window.localStorage.getItem('yc_sidebar_collapsed')).toBe('1');
   });
 
+  it('falls back to the viewport width when no preference is stored, and stays live on resize', () => {
+    setup({ pathname: '/dashboard' }); // no explicit `collapsed` -> nothing stored
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 1440,
+    });
+
+    const { container } = render(<Sidebar />);
+    expect(container.querySelector('.sidebar-collapsed')).not.toBeInTheDocument();
+
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 500 });
+    fireEvent(window, new Event('resize'));
+
+    expect(container.querySelector('.sidebar-collapsed')).toBeInTheDocument();
+  });
+
   it('renders the collapsed icon rail when the stored preference is collapsed', () => {
     setup({ pathname: '/organization', collapsed: true });
 
@@ -367,5 +384,32 @@ describe('active-route focus ring stays distinct from the active-route colour', 
 
   it('gives .route-active:focus-visible its own outline colour', () => {
     expect(css).toMatch(/\.route-active:focus-visible\s*{\s*outline-color:\s*var\(--ink\);?\s*}/);
+  });
+});
+
+describe('sidebar collapse state does not read browser globals during the initial render', () => {
+  // jsdom can't reproduce a real server-to-client hydration pass (both the
+  // render and any effect run with full localStorage/window access in the
+  // test environment), so this is a source-text guard: the initial useState
+  // must be a plain `false` seeded from nothing but a literal, and the real
+  // preference (isSidebarCollapsedByDefault, which reads localStorage and
+  // window.innerWidth) must only be read inside a useEffect. Seeding the
+  // initial state from it directly means the client's first hydration render
+  // diverges from the server-rendered markup for any returning user with a
+  // stored "collapsed" preference or a <1280px viewport.
+  const source = readFileSync(join(process.cwd(), 'src/app/ui/layout/Sidebar/Sidebar.tsx'), 'utf8');
+
+  it('seeds prefersCollapsed with a literal false, not a browser read', () => {
+    expect(source).toMatch(/const \[prefersCollapsed, setPrefersCollapsed\] = useState\(false\);/);
+  });
+
+  it('reads the real preference only inside a post-mount effect', () => {
+    expect(source).toMatch(
+      /const update = \(\) => setPrefersCollapsed\(isSidebarCollapsedByDefault\(\)\);/
+    );
+  });
+
+  it('re-checks the preference on resize, not just once at mount', () => {
+    expect(source).toMatch(/globalThis\.window\?\.addEventListener\('resize', update\)/);
   });
 });
