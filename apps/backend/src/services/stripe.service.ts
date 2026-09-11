@@ -17,7 +17,10 @@ import { NotificationService } from "./notification.service";
 
 import { prisma } from "src/config/prisma";
 import { getOrgBillingCurrency } from "src/utils/billing";
-import { toStripeMinorUnits } from "src/utils/stripe-minor-units";
+import {
+  fromStripeMinorUnits,
+  toStripeMinorUnits,
+} from "src/utils/stripe-minor-units";
 import { recomputeOrganizationVerification } from "./organization-verification.service";
 import { Prisma } from "@prisma/client";
 
@@ -71,7 +74,10 @@ const resolveCapturedAmount = (
     return null;
   }
 
-  return capturedMinorUnits / 100;
+  return fromStripeMinorUnits(
+    capturedMinorUnits,
+    charge?.currency ?? pi.currency,
+  );
 };
 
 const isUniqueConstraintViolation = (error: unknown): boolean =>
@@ -579,7 +585,9 @@ export const StripeService = {
     // they render are projected out - never the session object itself.
     return {
       status: session.payment_status,
-      total: session.amount_total ? session.amount_total / 100 : 0,
+      total: session.amount_total
+        ? fromStripeMinorUnits(session.amount_total, session.currency ?? "usd")
+        : 0,
     };
   },
 
@@ -991,6 +999,7 @@ export const StripeService = {
 
   async _handleRefund(charge: Stripe.Charge) {
     const invoiceId = charge.metadata?.invoiceId;
+    const amount = fromStripeMinorUnits(charge.amount, charge.currency);
     const result = await FinancePaymentService.markInvoiceRefundedFromWebhook({
       invoiceId,
       paymentIntentId:
@@ -998,7 +1007,7 @@ export const StripeService = {
           ? charge.payment_intent
           : null,
       chargeId: charge.id,
-      amount: charge.amount / 100,
+      amount,
       currency: charge.currency,
       reason: charge.refunded ? "Refunded via Stripe" : undefined,
     });
@@ -1018,7 +1027,7 @@ export const StripeService = {
     }
 
     const notificationPayload = NotificationTemplates.Payment.REFUND_ISSUED(
-      charge.amount / 100,
+      amount,
       charge.currency,
     );
     await NotificationService.sendToUser(
@@ -1070,6 +1079,7 @@ export const StripeService = {
       return;
     }
 
+    const conversionCurrency = session.currency ?? "usd";
     const result =
       await FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
         invoiceId,
@@ -1081,11 +1091,16 @@ export const StripeService = {
             : null,
         currency: session.currency ?? null,
         amountSubtotal: session.amount_subtotal
-          ? session.amount_subtotal / 100
+          ? fromStripeMinorUnits(session.amount_subtotal, conversionCurrency)
           : null,
-        amountTotal: session.amount_total ? session.amount_total / 100 : null,
+        amountTotal: session.amount_total
+          ? fromStripeMinorUnits(session.amount_total, conversionCurrency)
+          : null,
         amountTax: session.total_details?.amount_tax
-          ? session.total_details.amount_tax / 100
+          ? fromStripeMinorUnits(
+              session.total_details.amount_tax,
+              conversionCurrency,
+            )
           : null,
         automaticTaxStatus: session.automatic_tax?.status ?? null,
         rawProviderPayload: {
