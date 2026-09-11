@@ -24,6 +24,7 @@ import { PRE_PAINT_SCRIPT } from '@/app/ui/theme/prePaintScript';
  * Without it `--ink-faint` stayed at the marketing value #8f8984, which is
  * 3.12:1 on the passport's --screen card at font sizes down to 10.5px.
  */
+// no-story: pure structural wrapper (pre-paint theme script + a display:contents scoping div); no visual content of its own
 export default function ShareLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <>
