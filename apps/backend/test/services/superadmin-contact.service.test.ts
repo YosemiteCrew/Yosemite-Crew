@@ -49,22 +49,29 @@ describe("SuperadminContactService.forwardWebContact", () => {
     process.env.SUPERADMIN_CONTACT_INTAKE_KEY = "shared-secret";
   };
 
-  it("does nothing when the URL is unset", async () => {
+  it("warns naming the missing var and does not fetch when the URL is unset", async () => {
     process.env.SUPERADMIN_CONTACT_INTAKE_KEY = "shared-secret";
     delete process.env.SUPERADMIN_CONTACT_INTAKE_URL;
     await SuperadminContactService.forwardWebContact(PAYLOAD);
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(warnMock).not.toHaveBeenCalled();
     expect(errorMock).not.toHaveBeenCalled();
+    expect(warnMock).toHaveBeenCalledWith(
+      "SuperAdmin contact mirroring is not configured",
+      { missing: "SUPERADMIN_CONTACT_INTAKE_URL" },
+    );
   });
 
-  it("does nothing when the key is unset", async () => {
+  it("warns naming the missing var and does not fetch when the key is unset", async () => {
     process.env.SUPERADMIN_CONTACT_INTAKE_URL =
       "https://panel.example.com/api/contact";
     delete process.env.SUPERADMIN_CONTACT_INTAKE_KEY;
     await SuperadminContactService.forwardWebContact(PAYLOAD);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(errorMock).not.toHaveBeenCalled();
+    expect(warnMock).toHaveBeenCalledWith(
+      "SuperAdmin contact mirroring is not configured",
+      { missing: "SUPERADMIN_CONTACT_INTAKE_KEY" },
+    );
   });
 
   it("posts the payload verbatim with the shared key and a timeout", async () => {

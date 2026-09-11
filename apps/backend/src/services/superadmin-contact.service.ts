@@ -26,7 +26,14 @@ export const SuperadminContactService = {
   ): Promise<void> {
     const url = process.env.SUPERADMIN_CONTACT_INTAKE_URL;
     const key = process.env.SUPERADMIN_CONTACT_INTAKE_KEY;
-    if (!url || !key) return;
+    if (!url || !key) {
+      logger.warn("SuperAdmin contact mirroring is not configured", {
+        missing: !url
+          ? "SUPERADMIN_CONTACT_INTAKE_URL"
+          : "SUPERADMIN_CONTACT_INTAKE_KEY",
+      });
+      return;
+    }
 
     try {
       const response = await fetch(url, {
