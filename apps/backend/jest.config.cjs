@@ -12,7 +12,6 @@ module.exports = {
     "<rootDir>/src/**/*.ts",
     "!<rootDir>/src/**/*.d.ts",
     "!<rootDir>/src/controllers/merck/merck-response.ts",
-    "!<rootDir>/src/controllers/web/documenso.controller.ts",
     "!<rootDir>/src/controllers/web/organisation-invite.controller.ts",
     "!<rootDir>/src/controllers/web/organisation-room.controller.ts",
     "!<rootDir>/src/middlewares/auth.ts",
@@ -31,7 +30,8 @@ module.exports = {
   ...(collectingCoverage ? { workerIdleMemoryLimit: "512MB" } : {}),
   setupFilesAfterEnv: ["<rootDir>/test/jest.setup.ts"],
   moduleNameMapper: {
-    "^@yosemite-crew/database$": "<rootDir>/../../packages/database/src/client.ts",
+    "^@yosemite-crew/database$":
+      "<rootDir>/../../packages/database/src/client.ts",
     "^@yosemite-crew/lib$": "<rootDir>/../../packages/lib/src/index.ts",
     "^@yosemite-crew/(.*)$": "<rootDir>/../../packages/$1/src",
     "^(\\.{1,2}/.*)\\.js$": "$1",

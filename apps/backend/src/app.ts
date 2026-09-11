@@ -1,4 +1,4 @@
-import express from "express";
+import express, { ErrorRequestHandler } from "express";
 import rateLimit from "express-rate-limit";
 import {
   resolveRateLimitMax,
@@ -32,6 +32,7 @@ import {
   validateAuthConfig,
 } from "@yosemite-crew/auth";
 import { authHooks } from "./config/auth-hooks";
+import logger from "./utils/logger";
 
 /**
  * Three states, not two.
@@ -56,6 +57,21 @@ function readAuthGate(): AuthGate {
     ? "enabled"
     : "incomplete";
 }
+
+// Last resort: any error that reaches here escaped every route's own
+// try/catch (and, when auth is on, SuperTokens' own handler too). Without
+// this, Express falls back to its default handler, which answers with an
+// HTML page instead of the JSON shape every other error path in this app
+// uses - the caller can't tell "the server broke" from "the server isn't
+// there" (#2752).
+const handleUnhandledError: ErrorRequestHandler = (err, _req, res, next) => {
+  logger.error("Unhandled application error:", err);
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+  res.status(500).json({ message: "Internal server error." });
+};
 
 export function createApp() {
   const app = express();
@@ -261,5 +277,6 @@ export function createApp() {
   if (superTokensEnabled) {
     registerSuperTokensErrorHandler(app);
   }
+  app.use(handleUnhandledError);
   return app;
 }

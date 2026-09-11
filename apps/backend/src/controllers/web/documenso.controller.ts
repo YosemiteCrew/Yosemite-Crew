@@ -21,6 +21,18 @@ interface DocumensoWebhookBody {
   };
 }
 
+// timingSafeEqual throws on a length mismatch, which would surface a
+// malformed signature as a 500 instead of the 401 it is.
+function isMatchingSignature(expected: string, provided: string): boolean {
+  const expectedBuf = Buffer.from(expected);
+  const providedBuf = Buffer.from(provided);
+  if (expectedBuf.length !== providedBuf.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(expectedBuf, providedBuf);
+}
+
 function verifySignature(
   payload: Buffer,
   signature: string,
@@ -31,15 +43,7 @@ function verifySignature(
     .update(payload)
     .digest("hex");
 
-  const expectedBuf = Buffer.from(expected);
-  const providedBuf = Buffer.from(signature);
-  // timingSafeEqual throws on a length mismatch, which would surface a
-  // malformed signature as a 500 instead of the 401 it is.
-  if (expectedBuf.length !== providedBuf.length) {
-    return false;
-  }
-
-  return crypto.timingSafeEqual(expectedBuf, providedBuf);
+  return isMatchingSignature(expected, signature);
 }
 
 function isDocumensoWebhookBody(body: unknown): body is DocumensoWebhookBody {
@@ -478,9 +482,7 @@ export const DocumensoKeyController = {
         .update(payload)
         .digest("hex");
 
-      if (
-        !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
-      ) {
+      if (!isMatchingSignature(expected, signature)) {
         logger.warn("Documenso key webhook signature invalid");
         return res.status(401).json({ message: "Invalid signature." });
       }
