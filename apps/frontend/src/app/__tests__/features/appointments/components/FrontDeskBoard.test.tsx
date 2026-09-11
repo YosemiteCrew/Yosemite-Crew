@@ -439,4 +439,12 @@ describe('FrontDeskBoard', () => {
 
     expect(within(screen.getByRole('alert')).getByText('Boom')).toBeInTheDocument();
   });
+
+  it('does not also claim the board is empty when the load failed', () => {
+    render(<FrontDeskBoard entries={[]} error="Boom" {...handlers()} />);
+
+    expect(within(screen.getByRole('alert')).getByText('Boom')).toBeInTheDocument();
+    expect(screen.queryByText('No patients are checked in')).not.toBeInTheDocument();
+    expect(screen.queryByText('No check-ins yet')).not.toBeInTheDocument();
+  });
 });
