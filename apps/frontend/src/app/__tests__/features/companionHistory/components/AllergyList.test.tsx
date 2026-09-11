@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import AllergyList from '@/app/features/companionHistory/components/AllergyList';
@@ -100,8 +100,10 @@ describe('AllergyList', () => {
     expect(allergenInput).toBeInTheDocument();
 
     await userEvent.type(allergenInput, 'Latex');
-    await userEvent.selectOptions(screen.getByLabelText('Type'), 'ENVIRONMENTAL');
-    await userEvent.selectOptions(screen.getByLabelText('Severity'), 'SEVERE');
+    await userEvent.click(screen.getByRole('button', { name: /Type/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Environmental'));
+    await userEvent.click(screen.getByRole('button', { name: /Severity/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Severe'));
     await userEvent.type(screen.getByLabelText('Reaction'), 'Contact dermatitis');
     fireEvent.change(screen.getByLabelText('Onset date'), { target: { value: '2026-02-01' } });
     await userEvent.type(screen.getByLabelText('Notes'), 'Gloves only');

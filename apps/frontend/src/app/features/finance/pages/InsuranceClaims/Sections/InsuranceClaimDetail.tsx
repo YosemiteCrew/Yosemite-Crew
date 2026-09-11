@@ -6,6 +6,7 @@ import { formatDisplayDate } from '@/app/lib/date';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { Textarea } from '@/app/ui/Input';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import {
   fieldClass,
@@ -124,24 +125,13 @@ const StatusChangeForm = ({
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-card-border p-4!">
-      <div className="flex flex-col gap-1">
-        <label htmlFor="claim-next-status" className="text-caption-2 font-bold text-text-tertiary">
-          Move claim to
-        </label>
-        <span className={`${fieldClass} max-w-72`}>
-          <select
-            id="claim-next-status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as InsuranceClaimStatus)}
-            className={inputClass}
-          >
-            {options.map((option) => (
-              <option key={option} value={option}>
-                {claimStatusLabel(option)}
-              </option>
-            ))}
-          </select>
-        </span>
+      <div className="max-w-72">
+        <Dropdown
+          placeholder="Move claim to"
+          value={status}
+          onChange={(v) => setStatus(v as InsuranceClaimStatus)}
+          options={options.map((option) => ({ label: claimStatusLabel(option), value: option }))}
+        />
       </div>
 
       {statusNeedsApprovedAmount(status) && (

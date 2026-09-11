@@ -375,10 +375,14 @@ describe('Finance > Estimates page', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Create a new estimate' }));
 
     const dialog = screen.getByRole('dialog', { name: 'Create an estimate' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Companion' }));
+    const companionListbox = screen.getByRole('listbox');
     // A companion with no stored name is still selectable, under a placeholder.
-    expect(within(dialog).getByRole('option', { name: 'Unnamed companion' })).toBeInTheDocument();
+    expect(
+      within(companionListbox).getByRole('option', { name: 'Unnamed companion' })
+    ).toBeInTheDocument();
+    await userEvent.click(within(companionListbox).getByText('Unnamed companion'));
 
-    await userEvent.selectOptions(within(dialog).getByLabelText('Companion'), 'c2');
     await userEvent.type(within(dialog).getByLabelText('Line 1 description'), 'Dental clean');
     await userEvent.clear(within(dialog).getByLabelText('Line 1 unit price'));
     await userEvent.type(within(dialog).getByLabelText('Line 1 unit price'), '50');
@@ -412,7 +416,8 @@ describe('Finance > Estimates page', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Create a new estimate' }));
     const dialog = screen.getByRole('dialog', { name: 'Create an estimate' });
-    await userEvent.selectOptions(within(dialog).getByLabelText('Companion'), 'c1');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Companion' }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Bruno'));
     await userEvent.type(within(dialog).getByLabelText('Line 1 description'), 'Dental clean');
     await userEvent.type(within(dialog).getByLabelText('Line 1 unit price'), '50');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Create this estimate' }));
@@ -658,7 +663,8 @@ describe('Finance > Estimates status filters', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Create a new estimate' }));
     const dialog = screen.getByRole('dialog', { name: 'Create an estimate' });
-    await userEvent.selectOptions(within(dialog).getByLabelText('Companion'), 'c1');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Companion' }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Bruno'));
     await userEvent.type(within(dialog).getByLabelText('Line 1 description'), 'Dental clean');
     await userEvent.clear(within(dialog).getByLabelText('Line 1 unit price'));
     await userEvent.type(within(dialog).getByLabelText('Line 1 unit price'), '50');

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import type { ApiKeyEnvironment } from '@/app/services/developerApiKeys';
 
 export interface NewApiKeyInput {
@@ -9,6 +10,11 @@ export interface NewApiKeyInput {
   environment: ApiKeyEnvironment;
   scopes?: string[];
 }
+
+const ENVIRONMENT_DROPDOWN_OPTIONS = [
+  { label: 'Live', value: 'live' },
+  { label: 'Test', value: 'test' },
+];
 
 /**
  * Owns its own field state.
@@ -61,18 +67,12 @@ const CreateKeyForm = ({
         placeholder="e.g. Production server"
         maxLength={100}
       />
-      <label className="text-body-3 text-text-primary" htmlFor="apiKeyEnv">
-        Environment
-      </label>
-      <select
-        id="apiKeyEnv"
-        className="DevApiKeys-input"
+      <Dropdown
+        placeholder="Environment"
         value={environment}
-        onChange={(event) => setEnvironment(event.target.value as ApiKeyEnvironment)}
-      >
-        <option value="live">Live</option>
-        <option value="test">Test</option>
-      </select>
+        onChange={(value) => setEnvironment(value as ApiKeyEnvironment)}
+        options={ENVIRONMENT_DROPDOWN_OPTIONS}
+      />
       <label className="text-body-3 text-text-primary" htmlFor="apiKeyScopes">
         Scopes (optional, comma-separated)
       </label>
