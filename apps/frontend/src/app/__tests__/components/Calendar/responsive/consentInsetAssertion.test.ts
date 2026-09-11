@@ -176,6 +176,12 @@ describe('measureConsentInsetResponse', () => {
       'consent inset 252px: before 718px, with card 718px, expected 538px - did not shrink: 718 is not less than 718; height 718 is not the expected 538'
     );
   });
+
+  it('describes a successful probe as ok', () => {
+    const { shell, setInset } = fakeShell(844, { responds: true });
+    const result = measureConsentInsetResponse(shell, 844, setInset);
+    expect(describeInsetProbe(result)).toContain(' - ok');
+  });
 });
 
 describe('resolveEnvInsetPx', () => {
@@ -183,6 +189,15 @@ describe('resolveEnvInsetPx', () => {
     // jsdom does not implement env(), so this is the "headless browser" case
     // the rest of the module already assumes as its default.
     expect(resolveEnvInsetPx()).toBe(0);
+  });
+
+  it('returns the resolved safe-area inset', () => {
+    const getComputedStyleSpy = jest
+      .spyOn(globalThis, 'getComputedStyle')
+      .mockReturnValue({ paddingBottom: '34px' } as CSSStyleDeclaration);
+
+    expect(resolveEnvInsetPx()).toBe(34);
+    getComputedStyleSpy.mockRestore();
   });
 
   it('removes the probe element it creates', () => {
