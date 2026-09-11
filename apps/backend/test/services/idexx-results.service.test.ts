@@ -280,7 +280,7 @@ describe("IdexxResultsService", () => {
       }),
     );
     expect(mockedLogger.error).toHaveBeenCalledWith(
-      "IDEXX results quarantined: a result status did not map to a LabOrder status",
+      "IDEXX results quarantined: one or more results could not be applied",
       { batchId: "batch-1", quarantined: 1 },
     );
   });
@@ -313,9 +313,71 @@ describe("IdexxResultsService", () => {
     expect(mockConfirmLatestBatch).not.toHaveBeenCalled();
     expect(mockedPrisma.labResultSyncState.upsert).not.toHaveBeenCalled();
     expect(mockedLogger.error).toHaveBeenCalledWith(
-      "IDEXX batch left unconfirmed: could not quarantine an unmapped result",
+      "IDEXX batch left unconfirmed: could not quarantine an unapplicable result",
       expect.objectContaining({ batchId: "batch-1" }),
     );
+  });
+
+  it("quarantines every result with no usable id without writing a LabResult", async () => {
+    mockedPrisma.labOrder.findFirst
+      .mockResolvedValueOnce({
+        id: "lab-order-1",
+        organisationId: "org-1",
+        appointmentId: "appointment-1",
+        createdByUserId: "user-1",
+        patientId: "patient-1",
+      } as any)
+      .mockResolvedValueOnce({
+        id: "lab-order-2",
+        organisationId: "org-2",
+        appointmentId: "appointment-2",
+        createdByUserId: "user-2",
+        patientId: "patient-2",
+      } as any);
+    mockGetLatestResults.mockResolvedValue({
+      batchId: "batch-1",
+      hasMoreResults: false,
+      results: [
+        {
+          orderId: "order-1",
+          status: "COMPLETE",
+          updatedDate: "2026-06-17T12:00:00.000Z",
+          patient: { patientId: "patient-1" },
+        },
+        {
+          resultId: "   ",
+          orderId: "order-2",
+          status: "COMPLETE",
+          updatedDate: "2026-06-17T12:05:00.000Z",
+          patient: { patientId: "patient-2" },
+        },
+      ],
+    });
+
+    await IdexxResultsService.pollLatest(2, 1);
+
+    expect(mockedPrisma.labResult.upsert).not.toHaveBeenCalled();
+    expect(mockedDocumentService.create).not.toHaveBeenCalled();
+    expect(mockedTaskService.createCustom).not.toHaveBeenCalled();
+    expect(mockedPrisma.labResultQuarantine.create).toHaveBeenCalledTimes(2);
+    expect(mockedPrisma.labResultQuarantine.create).toHaveBeenNthCalledWith(1, {
+      data: expect.objectContaining({
+        resultId: null,
+        orderId: "order-1",
+        organisationId: "org-1",
+        reason: "MISSING_RESULT_ID",
+      }),
+    });
+    expect(mockedPrisma.labResultQuarantine.create).toHaveBeenNthCalledWith(2, {
+      data: expect.objectContaining({
+        resultId: null,
+        orderId: "order-2",
+        organisationId: "org-2",
+        reason: "MISSING_RESULT_ID",
+      }),
+    });
+    expect(mockConfirmLatestBatch).toHaveBeenCalledWith("batch-1");
+    expect(mockedPrisma.labResultSyncState.upsert).toHaveBeenCalled();
   });
 
   // One row per unapplicable result, including when the provider sent no result id at all.
