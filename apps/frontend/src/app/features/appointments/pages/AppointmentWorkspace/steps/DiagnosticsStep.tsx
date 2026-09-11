@@ -593,10 +593,13 @@ const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
                     )}
                   </span>
                   {/* Order notes are saved at the order level (IDEXX has no per-test notes),
-                      shown here so they remain visible after refreshing or reopening (bug #1973). */}
+                      shown here so they remain visible after refreshing or reopening (bug #1973).
+                      They WRAP rather than truncate: the notes are free-text clinical content,
+                      and `truncate` left the tail reachable only by a `title` hover, which a
+                      phone does not have (#2790). */}
                   {order.notes && (
                     <span
-                      className="truncate text-caption-1 text-text-secondary"
+                      className="break-words text-caption-1 text-text-secondary"
                       title={order.notes}
                     >
                       <strong>Order notes:</strong> {order.notes}

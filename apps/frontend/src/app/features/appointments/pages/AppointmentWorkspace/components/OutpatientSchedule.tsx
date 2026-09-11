@@ -97,10 +97,20 @@ const VisitRow = ({ visit, isNext = false }: { visit: OutpatientVisit; isNext?: 
         </span>
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-body-4 font-bold text-text-primary">
+        {/* Wrap, do not truncate: `truncate` clips with an ellipsis and leaves
+            the tail of the title unreachable on a phone, which has no hover for
+            a `title` tooltip (#2790). Free text now flows to the lines it needs;
+            the `title` keeps the hover affordance for the widths where the row
+            still clips. */}
+        <span
+          className="block break-words text-body-4 font-bold text-text-primary"
+          title={visitTitle(visit)}
+        >
           {visitTitle(visit)}
         </span>
-        <span className="block truncate text-caption-1 text-text-tertiary">{subline}</span>
+        <span className="block break-words text-caption-1 text-text-tertiary" title={subline}>
+          {subline}
+        </span>
       </span>
       <VisitStatusPill status={visit.status} />
       <IoEllipsisHorizontal size={15} aria-hidden="true" className="shrink-0 text-text-tertiary" />

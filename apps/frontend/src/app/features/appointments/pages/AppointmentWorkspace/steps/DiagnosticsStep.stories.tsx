@@ -1029,3 +1029,49 @@ export const Phone: Story = {
     await expect(scroller.scrollWidth).toBeGreaterThan(scroller.clientWidth);
   },
 };
+
+export const OrderNotesOnPhone: Story = {
+  name: 'Phone (375) - order notes wrap',
+  globals: { viewport: { value: 'mobile', isRotated: false } },
+  /* Same pinned-column pattern as `Phone`: the viewport global reads through the
+     manager, which headless `iframe.html` renders skip, so the 375px column has
+     to be pinned inside the story itself for the measurement to be the phone
+     measurement wherever it runs. */
+  decorators: [
+    (Story) => (
+      <div className="w-[375px] bg-[var(--screen)] p-3">
+        <Story />
+      </div>
+    ),
+  ],
+  beforeEach: seed({
+    ...BASE,
+    orders: [
+      {
+        ...SUBMITTED_ORDER,
+        notes:
+          'Fasted sample, collected from the left jugular. Please combine with the pre-med ' +
+          'dose and hold the results for the afternoon consult.',
+      },
+    ],
+  }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByTitle('Submitted');
+    const orders = sectionOf(canvas, 'Order Status');
+
+    /* Order notes are free-text clinical content that previously sat on a
+       `truncate` row reachable only by a `title` hover - which a phone does not
+       have (#2790). On the stacked mobile layout the note column is full width,
+       so it now WRAPS to the lines it needs rather than clipping. `scrollWidth
+       > clientWidth` is the failure shape of `truncate`; this assertion is the
+       guard.
+       The measured element is the note SPAN (binding the strong's parent) and
+       not the `Order notes:` label itself, which is short and could never clip;
+       a guard over the label would pass for free whether the note wraps or was
+       dropped. */
+    const label = orders.getByText('Order notes:');
+    const note = label.parentElement as HTMLElement;
+    await expect(note.scrollWidth).toBeLessThanOrEqual(note.clientWidth);
+  },
+};
