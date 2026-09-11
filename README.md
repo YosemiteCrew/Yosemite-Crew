@@ -288,6 +288,8 @@ cp apps/frontend/.env.example apps/frontend/.env
 
 Configure PostgreSQL, Redis, authentication, and the integrations you will use. Make `DATABASE_URL` and `DIRECT_URL` available in the shell that runs Prisma commands; app-specific `.env` files are not automatically loaded by every workspace command. Never use production credentials for local setup.
 
+Use separate PostgreSQL databases for the application and a self-hosted SuperTokens core. Stream chat is optional for local work: leaving its two server credentials blank keeps the API bootable and records the upload-policy control as skipped, while chat operations remain unavailable until configured.
+
 Generate the Prisma client:
 
 ```shell
