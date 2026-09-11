@@ -1581,6 +1581,7 @@ describe("FinancePaymentService", () => {
       id: "re_9",
       status: "succeeded",
       amount: 9000,
+      currency: "usd",
     });
     (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
       id: "pay_9",
@@ -1637,6 +1638,68 @@ describe("FinancePaymentService", () => {
     );
     expect(result.refund.refundId).toBe("re_9");
     expect(result.invoice.status).toBe("REFUNDED");
+  });
+
+  it("keeps a zero-decimal Stripe invoice refund amount unscaled", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_jpy",
+      organisationId: "org_1",
+      totalAmount: 1000,
+      currency: "jpy",
+      status: "PAID",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce({ providerPaymentIntentId: "pi_jpy" })
+      .mockResolvedValueOnce({
+        invoiceId: "inv_jpy",
+        rawProviderPayload: { connectedAccountId: "acct_jpy" },
+      });
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
+      latest_charge: "ch_jpy",
+    });
+    (stripeClient.refunds.create as jest.Mock).mockResolvedValueOnce({
+      id: "re_jpy",
+      status: "succeeded",
+      amount: 1000,
+      currency: "jpy",
+    });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_jpy",
+      amount: 1000,
+      currency: "jpy",
+      provider: "STRIPE",
+    });
+    (prisma.refund.create as jest.Mock).mockResolvedValueOnce({
+      id: "refund_jpy",
+      status: "SUCCEEDED",
+    });
+    (prisma.payment.update as jest.Mock).mockResolvedValueOnce({
+      id: "pay_jpy",
+      status: "REFUNDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_jpy",
+      status: "REFUNDED",
+      currency: "jpy",
+      payments: [],
+    });
+
+    const result = await FinancePaymentService.refundInvoicePayment("inv_jpy");
+
+    expect(prisma.refund.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ amount: 1000, currency: "jpy" }),
+      }),
+    );
+    expect(result.refund.amountRefunded).toBe(1000);
   });
 
   it("refunds a payment by payment id", async () => {
@@ -4953,6 +5016,7 @@ describe("FinancePaymentService", () => {
       id: "re_t",
       status: "succeeded",
       amount: 9000,
+      currency: "usd",
     });
     (prisma.refund.create as jest.Mock).mockResolvedValueOnce({
       id: "refund_t",

@@ -13,7 +13,10 @@ import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
 import { FinanceEventService } from "./events";
 import { roundMoney } from "./pricing";
-import { toStripeMinorUnits } from "src/utils/stripe-minor-units";
+import {
+  fromStripeMinorUnits,
+  toStripeMinorUnits,
+} from "src/utils/stripe-minor-units";
 import { markInvoiceTreatmentItemsSettled } from "./settlement";
 
 type PaymentLineSummary = {
@@ -71,6 +74,7 @@ type StripeCheckoutSessionClient = {
       id: string;
       status: string;
       amount: number;
+      currency: string;
     }>;
   };
 };
@@ -1497,7 +1501,9 @@ export const FinancePaymentService = {
 
       providerRefundId = refund.id;
       refundStatus = refund.status;
-      amountRefunded = roundMoney(refund.amount / 100);
+      amountRefunded = roundMoney(
+        fromStripeMinorUnits(refund.amount, refund.currency),
+      );
     }
 
     const refund = await prisma.refund.create({
