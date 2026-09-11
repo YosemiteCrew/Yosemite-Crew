@@ -1,4 +1,7 @@
-import { toStripeMinorUnits } from "src/utils/stripe-minor-units";
+import {
+  fromStripeMinorUnits,
+  toStripeMinorUnits,
+} from "src/utils/stripe-minor-units";
 
 describe("toStripeMinorUnits", () => {
   it("scales a two-decimal currency by a hundred", () => {
@@ -54,5 +57,15 @@ describe("toStripeMinorUnits", () => {
 
   it("treats an unknown currency as two-decimal", () => {
     expect(toStripeMinorUnits(1, "zzz")).toBe(100);
+  });
+});
+
+describe("fromStripeMinorUnits", () => {
+  it("converts a two-decimal Stripe amount to major units", () => {
+    expect(fromStripeMinorUnits(1234, "usd")).toBe(12.34);
+  });
+
+  it("keeps a zero-decimal Stripe amount unscaled", () => {
+    expect(fromStripeMinorUnits(1000, " JPY ")).toBe(1000);
   });
 });
