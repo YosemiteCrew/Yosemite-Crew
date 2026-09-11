@@ -51,6 +51,7 @@ type Article = {
   version: string;
   title: string;
   summary: string;
+  detail?: string;
   /*
    * Identifiers that appear in the article's RENDERED detail but not in its
    * summary - the endpoint path, the permission, the stored status.
@@ -70,7 +71,9 @@ const ARTICLES: Record<string, Article> = {
     version: 'v1',
     title: 'Overview',
     summary:
-      'The Yosemite Crew API is a FHIR R4 surface served under /fhir/v1, alongside a set of application endpoints under /v1. Requests are authorised with the session your account already holds. A generated reference is in the full documentation. Treat it as partial rather than complete: it declares four appointment paths where the router serves twenty-one, and it does not list the x-org-id header that organisation-scoped routes require, so a request built straight from it is rejected before reaching a controller.',
+      'Yosemite Crew exposes two separate API surfaces. The API-key-authenticated data plane is read-only and mounted at /v1/developer; the FHIR examples elsewhere in this reader use signed-in sessions and do not accept developer API keys.',
+    detail:
+      'The data plane currently serves GET /v1/developer/organizations, GET /v1/developer/usage, GET /v1/developer/appointments, and GET /v1/developer/appointments/:appointmentId. The generated reference in the full documentation includes these routes, but the backend routers remain the source of truth.',
   },
   authentication: {
     category: 'Getting started',
@@ -78,7 +81,9 @@ const ARTICLES: Record<string, Article> = {
     version: 'v1',
     title: 'Authentication',
     summary:
-      'Requests are authorised with the signed-in session, and organisation-scoped routes read the practice from an x-org-id header. An API key created in this portal is also accepted, on its own dedicated surface: every route under /v1/developer requires a valid key, and the appointment routes additionally require the appointments:read scope. A key created before that scope check shipped carries no scopes and is refused by those routes - create a fresh one. A developer-only account still has no practice membership and no role in the permission model, so the session-authenticated, organisation-scoped routes described elsewhere in this reference answer 400 or 403 for it; /v1/developer is the surface a developer account can actually call.',
+      'Send a key created in this portal as an Authorization: Bearer token to /v1/developer. The session-authenticated management routes under /v1/developers and the FHIR surface do not accept developer API keys.',
+    detail:
+      'GET /organizations discovers every practice where the key owner has a live active membership and needs no x-org-id. GET /usage is developer-owned and also needs no practice header. GET /appointments requires appointments:read, x-org-id, a live active membership, and appointment-read permission. GET /appointments/:appointmentId derives the practice from the record but rechecks the same live membership and permission. Keys belong to their owner rather than one permanent practice; keys created before appointments:read shipped carry no scopes and must be replaced to call appointment routes.',
   },
   appointments: {
     category: 'APIs',
@@ -210,6 +215,7 @@ const DeveloperDocs = () => {
         article?.category,
         article?.title,
         article?.summary,
+        article?.detail,
         ...(article?.searchTerms ?? []),
       ].some((field) => field?.toLowerCase().includes(q));
     };
@@ -225,7 +231,7 @@ const DeveloperDocs = () => {
     });
   };
 
-  const pageText = `${active.title}\n\n${active.summary}`;
+  const pageText = [active.title, active.summary, active.detail].filter(Boolean).join('\n\n');
 
   return (
     <DevRouteGuard>
@@ -316,6 +322,7 @@ const DeveloperDocs = () => {
               <article className="DocsArticle">
                 <h3 className="DocsArticleTitle">{active.title}</h3>
                 <p className="DocsArticleText">{active.summary}</p>
+                {active.detail && <p className="DocsArticleText">{active.detail}</p>}
 
                 {isAppointments ? (
                   <>

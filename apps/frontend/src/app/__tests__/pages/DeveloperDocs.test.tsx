@@ -73,9 +73,8 @@ describe('DeveloperDocs reader', () => {
   /*
    * These pages documented an API that did not exist: POST /v2/appointments
    * behind `Authorization: Bearer $YC_KEY`, badged "v2 - STABLE", plus a
-   * Webhooks page. The mounted prefixes are /fhir, /v1, /public and /ap, no
-   * route accepts an API key, and there is no WebhookSubscription model - so a
-   * developer following the sample got a 404 from a documented stable endpoint.
+   * Webhooks page. The API-key data plane now lives under /v1/developer, but the
+   * old /v2 sample still never existed and there is no WebhookSubscription model.
    */
   it('does not document surfaces the API does not serve', () => {
     const { container } = render(<DeveloperDocs />);
@@ -84,6 +83,31 @@ describe('DeveloperDocs reader', () => {
     expect(text).not.toContain('/v2/');
     expect(text).not.toContain('Bearer $YC_KEY');
     expect(screen.queryByRole('button', { name: 'Webhooks' })).not.toBeInTheDocument();
+  });
+
+  it('documents the mounted read-only API-key surface and its auth boundaries', () => {
+    const { container } = render(<DeveloperDocs />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+    expect(container.textContent).toContain('API-key-authenticated data plane is read-only');
+    for (const path of [
+      '/v1/developer/organizations',
+      '/v1/developer/usage',
+      '/v1/developer/appointments',
+      '/v1/developer/appointments/:appointmentId',
+    ]) {
+      expect(container.textContent).toContain(path);
+    }
+    expect(container.textContent).toContain(
+      'FHIR examples elsewhere in this reader use signed-in sessions'
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Authentication' }));
+    expect(container.textContent).toContain('Authorization: Bearer');
+    expect(container.textContent).toContain('appointments:read');
+    expect(container.textContent).toContain('x-org-id');
+    expect(container.textContent).toContain('live active membership');
+    expect(container.textContent).toContain('rather than one permanent practice');
   });
 
   /* The pill and the copyable sample are separate strings, so they can drift.
