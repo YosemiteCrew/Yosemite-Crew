@@ -92,7 +92,12 @@ export const calculateBatchTotals = (
   if (hasOnHand || hasAllocated) {
     const onHandValue = hasOnHand ? onHand : 0;
     const allocatedValue = hasAllocated ? allocated : 0;
-    available = onHandValue - allocatedValue;
+    // Allocated can exceed on-hand (an over-allocation upstream), but "available"
+    // is a quantity someone can still take - it reads as nonsensical, not urgent,
+    // shown as negative. Floor at zero; the over-allocation itself is a separate,
+    // backend-side data question, not something this display should paper over
+    // by pretending it doesn't need a floor.
+    available = Math.max(0, onHandValue - allocatedValue);
   } else {
     available = undefined;
   }
@@ -703,7 +708,9 @@ export const getAvailableStock = (item: InventoryItem): number | undefined => {
   const onHand = toDisplayNumber(item.stock?.current);
   const allocated = toDisplayNumber(item.stock?.allocated) ?? 0;
   if (onHand === undefined) return undefined;
-  return onHand - allocated;
+  // See calculateBatchTotals above - over-allocation is a real, separate data
+  // problem, but "available" itself should never read as a negative quantity.
+  return Math.max(0, onHand - allocated);
 };
 
 export const getGrossProfitPerUnit = (item: InventoryItem): number | undefined => {
@@ -808,7 +815,9 @@ export const getDerivedStockHealth = (
  * An item at zero is below its reorder point by definition. This is the single
  * predicate both counts must agree on.
  */
-export const isBelowReorderPoint = (item: Parameters<typeof effectiveStockHealthKey>[0]): boolean => {
+export const isBelowReorderPoint = (
+  item: Parameters<typeof effectiveStockHealthKey>[0]
+): boolean => {
   const key = effectiveStockHealthKey(item);
   return key === 'LOW_STOCK' || key === 'OUT_OF_STOCK';
 };
