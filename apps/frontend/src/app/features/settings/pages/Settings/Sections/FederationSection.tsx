@@ -180,6 +180,7 @@ const LicenseTokenCard = ({
             value={token}
             onChange={(e) => setToken(e.target.value)}
             placeholder="Paste license token..."
+            aria-label="Federation license token"
             className="flex-1 text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary font-mono"
           />
           <Primary
@@ -382,6 +383,7 @@ const FollowingCard = () => {
           value={actorUri}
           onChange={(e) => setActorUri(e.target.value)}
           placeholder="https://other-clinic.example/ap/organizations/abc"
+          aria-label="Remote organisation URI to follow"
           className="flex-1 text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary"
         />
         <Primary

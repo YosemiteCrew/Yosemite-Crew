@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Sidebar from '@/app/ui/layout/Sidebar/Sidebar';
@@ -352,5 +354,18 @@ describe('Sidebar', () => {
       'href',
       '/appointments'
     );
+  });
+});
+
+describe('active-route focus ring stays distinct from the active-route colour', () => {
+  // jsdom doesn't run the real CSS cascade, so this is a source-text guard, not a
+  // rendered one: --nav-active and the global focus outline both resolve to the
+  // same #8fb6f5 in dark mode (checked directly in globals.css), so without this
+  // override a keyboard-focused active route's ring is the same colour as the
+  // row's own active-state ink and background tint.
+  const css = readFileSync(join(process.cwd(), 'src/app/ui/layout/Sidebar/Sidebar.css'), 'utf8');
+
+  it('gives .route-active:focus-visible its own outline colour', () => {
+    expect(css).toMatch(/\.route-active:focus-visible\s*{\s*outline-color:\s*var\(--ink\);?\s*}/);
   });
 });

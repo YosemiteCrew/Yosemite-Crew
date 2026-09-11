@@ -19,7 +19,7 @@ const ErrorTost: React.FC<ErrorTostProps> = ({
   onClose,
 }) => {
   return (
-    <div className={`SignError ${className}`}>
+    <div className={`SignError ${className}`} role="alert">
       <div className="ErroItemDiv">
         <div className="errortopbar">
           <div className="Errortexted">
