@@ -46,20 +46,19 @@ const meta = {
         component:
           'The in-portal API reference. Two of its states had never been drawn, and both are ' +
           'reachable in one click from the resting page.\n\n' +
-          '`DocsNavEmpty` replaces the **entire** section list - both headings and all seven ' +
+          '`DocsNavEmpty` replaces the **entire** section list - both headings and all five ' +
           'items - the moment the search text matches nothing. It is not a row appended below ' +
           'the nav: `filteredNav` drops any section whose items filter to zero, and an empty ' +
           'array swaps the whole map for a single "No matches" line. The Edit-on-GitHub link ' +
           'survives it, which is the only thing left in the rail.\n\n' +
           "The article body is a two-way branch on `activeId === 'appointments'` and nothing " +
           'else. Appointments gets the endpoint strip, the required-fields paragraph, the FHIR ' +
-          'note and the two code panels; every other one of the seven articles gets a title, a ' +
-          'summary and a "this is seed content" note, with the whole `DocsCode` block ' +
-          'unmounted. Six of the seven articles are therefore that second layout, and it had ' +
+          'note and the two code panels; every other article gets a title, one or two content ' +
+          'paragraphs and a "this is seed content" note, with the whole `DocsCode` block ' +
+          'unmounted. Four of the five articles are therefore that second layout, and it had ' +
           'never been rendered.\n\n' +
-          'The search filters `label` only, so a query that reads like a topic ("auth", ' +
-          '"webhook") works and one that reads like prose ("how do I create a booking") empties ' +
-          'the rail.',
+          'Search covers each article label, category, title, summary, detail and indexed terms, ' +
+          'so route paths and permission names remain discoverable.',
       },
     },
   },
@@ -82,7 +81,7 @@ export const Appointments: Story = {
 
     await expect(canvas.getByRole('heading', { name: 'Appointments' })).toBeInTheDocument();
 
-    // Seven nav items across two sections, all present before any filtering, and
+    // Five nav items across two sections, all present before any filtering, and
     // the highlight sits on the one the article is showing.
     await expect(canvasElement.querySelectorAll('.DocsNavItem')).toHaveLength(5);
     await expect(canvas.getByText('Getting started')).toBeInTheDocument();
@@ -127,7 +126,7 @@ export const NavEmpty: Story = {
     await expect(canvasElement.querySelectorAll('.DocsNavItem')).toHaveLength(0);
 
     /* The whole rail is gone, not just the items: both section headings and all
-       seven buttons unmount. Asserting the headings separately matters because a
+       five buttons unmount. Asserting the headings separately matters because a
        filter bug that emptied only the items would leave two orphan headings
        above the "No matches" line and still satisfy a check for the line alone. */
     await expect(canvas.queryByText('Getting started')).not.toBeInTheDocument();
@@ -183,22 +182,39 @@ export const NavFiltered: Story = {
     docs: {
       description: {
         story:
-          'The in-between state. Matching is a case-insensitive `includes` on the label only, ' +
-          'so "api" keeps two items whose titles contain it and drops "Authentication", which ' +
-          'is unambiguously an API topic.',
+          'The in-between state. Matching is a case-insensitive `includes` across article ' +
+          'content, so domain terms can filter the rail even when they are absent from labels.',
       },
     },
   },
 };
 
-export const SeedContentArticle: Story = {
-  name: 'Non-appointments article (seed content)',
+export const DeveloperDataPlane: Story = {
+  name: 'Developer API data plane',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Companions' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Overview' }));
 
-    const heading = await canvas.findByRole('heading', { name: 'Companions' });
+    const heading = await canvas.findByRole('heading', { name: 'Overview' });
     await expect(heading).toBeInTheDocument();
+    for (const path of [
+      '/v1/developer/organizations',
+      '/v1/developer/usage',
+      '/v1/developer/appointments',
+      '/v1/developer/appointments/:appointmentId',
+    ]) {
+      await expect(canvasElement.textContent).toContain(path);
+    }
+    await expect(canvasElement.textContent).toContain('data plane is read-only');
+    await expect(canvasElement.textContent).toContain(
+      'FHIR examples elsewhere in this reader use signed-in sessions'
+    );
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Authentication' }));
+    await expect(canvasElement.textContent).toContain('Authorization: Bearer');
+    await expect(canvasElement.textContent).toContain('appointments:read');
+    await expect(canvasElement.textContent).toContain('x-org-id');
+    await expect(canvasElement.textContent).toContain('live active membership');
     await expect(
       canvas.getByText(
         'This reference is seed content. Open the full documentation for the complete API reference.'
@@ -218,16 +234,16 @@ export const SeedContentArticle: Story = {
        labels, so a text query would match the rail and pass with the crumb stale. */
     const crumb = canvasElement.querySelector('.DocsBreadcrumb');
     if (!crumb) throw new Error('The breadcrumb did not render.');
-    await expect(crumb.textContent).toBe('Docs / APIs / Companions');
+    await expect(crumb.textContent).toBe('Docs / Getting started / Authentication');
     await expect(canvas.getByText('v1')).toBeInTheDocument();
   },
   parameters: {
     docs: {
       description: {
         story:
-          'The article column collapses to roughly a third of its height here because ' +
-          '`DocsCode` is gone, so the page bottom moves a long way up between two adjacent nav ' +
-          'items. Worth reviewing next to the appointments story rather than on its own.',
+          'The exact API-key data plane shown to developers: four read-only routes, bearer ' +
+          'authentication, per-request practice selection, and a clear boundary from the ' +
+          'session-authenticated FHIR surface.',
       },
     },
   },
