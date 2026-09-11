@@ -56,3 +56,12 @@ export const toStripeMinorUnits = (amount: number, currency: string): number =>
   ZERO_DECIMAL_CURRENCIES.has(currency.trim().toLowerCase())
     ? Math.round(amount)
     : Math.round(amount * 100);
+
+/** Convert an amount returned by Stripe to its major currency unit. */
+export const fromStripeMinorUnits = (
+  amount: number,
+  currency: string,
+): number =>
+  ZERO_DECIMAL_CURRENCIES.has(currency.trim().toLowerCase())
+    ? amount
+    : amount / 100;
