@@ -131,6 +131,15 @@ describe('alternateStoryPathFor', () => {
   it('returns null for a component not named index.tsx - no ambiguity to resolve', () => {
     assert.equal(alternateStoryPathFor('apps/frontend/src/app/features/x/Foo.tsx'), null);
   });
+
+  it("refuses to construct a path that escapes componentFile's own directory tree", () => {
+    // Defense in depth: evaluate()'s resolveWithin() would also reject the
+    // resulting path before ever reading it, but this must not even build
+    // a path pointing outside index.tsx's own directory in the first place.
+    assert.equal(alternateStoryPathFor('../../etc/index.tsx'), null);
+    assert.equal(alternateStoryPathFor('apps/frontend/../../etc/index.tsx'), null);
+    assert.equal(alternateStoryPathFor('/etc/index.tsx'), null);
+  });
 });
 
 describe('parseArgs', () => {

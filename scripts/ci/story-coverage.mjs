@@ -129,6 +129,12 @@ export function storyPathFor(componentFile) {
 export function alternateStoryPathFor(componentFile) {
   if (path.basename(componentFile) !== 'index.tsx') return null;
   const dir = path.dirname(componentFile);
+  // Defense in depth: evaluate()'s resolveWithin() already rejects any
+  // resulting path that escapes cwd before it is ever read, but this checks
+  // `dir` itself (not just its basename, which a `..` segment further up the
+  // path would not appear in) so this function never even constructs a path
+  // reaching outside componentFile's own directory tree.
+  if (dir.split(path.sep).includes('..') || path.isAbsolute(dir)) return null;
   return path.join(dir, `${path.basename(dir)}.stories.tsx`);
 }
 
