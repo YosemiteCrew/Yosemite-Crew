@@ -268,6 +268,25 @@ describe("ChatService.createOrgDirectChat", () => {
     );
     expect(res).toEqual({ ...created, _id: created.id });
   });
+
+  it("uses safe Stream names when direct-chat profiles are incomplete", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(null);
+    mockedPrisma.chatSession.create.mockResolvedValue({ id: "s-new" });
+    mockedUserService.getById
+      .mockResolvedValueOnce({ firstName: " ", lastName: "" })
+      .mockResolvedValueOnce({ firstName: "Jane" });
+
+    await ChatService.createOrgDirectChat("org1", "userB", "userA");
+
+    expect(mockUpsertUser).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ id: "userA", name: "User" }),
+    );
+    expect(mockUpsertUser).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ id: "userB", name: "Jane" }),
+    );
+  });
 });
 
 /* ----------------------------- createOrgGroupChat -------------------------- */
@@ -600,8 +619,9 @@ describe("ChatService.updateGroup", () => {
 /* -------------------------------- deleteGroup ------------------------------ */
 
 describe("ChatService.deleteGroup", () => {
+  const sessionId = "9b2bdf69-b118-4324-8960-27a910edbcea";
   const baseGroup = {
-    id: "s1",
+    id: sessionId,
     type: "ORG_GROUP",
     createdBy: "owner",
     status: "ACTIVE",
@@ -610,15 +630,31 @@ describe("ChatService.deleteGroup", () => {
     channelId: "ch1",
   };
 
+  it("rejects non-string session ids before querying", async () => {
+    await expect(
+      ChatService.deleteGroup({ $ne: "s1" } as unknown as string, "owner"),
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    expect(mockedPrisma.chatSession.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed session ids before querying", async () => {
+    await expect(
+      ChatService.deleteGroup("not-a-uuid", "owner"),
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    expect(mockedPrisma.chatSession.findFirst).not.toHaveBeenCalled();
+  });
+
   it("deletes the group", async () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(baseGroup);
     mockedPrisma.chatSession.deleteMany.mockResolvedValue({ count: 1 });
 
-    await ChatService.deleteGroup("s1", "owner");
+    await ChatService.deleteGroup(sessionId, "owner");
 
     expect(mockDelete).toHaveBeenCalled();
     expect(mockedPrisma.chatSession.deleteMany).toHaveBeenCalledWith({
-      where: { id: "s1" },
+      where: { id: sessionId },
     });
   });
 
@@ -627,7 +663,7 @@ describe("ChatService.deleteGroup", () => {
     mockDelete.mockRejectedValue(new Error("stream down"));
     mockedPrisma.chatSession.deleteMany.mockResolvedValue({ count: 1 });
 
-    await ChatService.deleteGroup("s1", "owner");
+    await ChatService.deleteGroup(sessionId, "owner");
 
     expect(mockedPrisma.chatSession.deleteMany).toHaveBeenCalled();
   });
@@ -636,7 +672,7 @@ describe("ChatService.deleteGroup", () => {
     mockedPrisma.chatSession.findFirst.mockResolvedValue(null);
 
     await expect(
-      ChatService.deleteGroup("s1", "owner"),
+      ChatService.deleteGroup(sessionId, "owner"),
     ).resolves.toBeUndefined();
     expect(mockDelete).not.toHaveBeenCalled();
   });

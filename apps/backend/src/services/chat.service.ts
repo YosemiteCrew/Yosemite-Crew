@@ -2,6 +2,7 @@
 import { ChannelData } from "stream-chat";
 import dayjs from "dayjs";
 import crypto from "node:crypto";
+import { z } from "zod";
 
 import { ChatSessionDocument, ChatSessionType } from "../models/chatSession";
 import { AppointmentDocument } from "../models/appointment";
@@ -42,6 +43,11 @@ type YosemiteChannelResponse = ChannelData & {
   name?: string;
   isPrivate?: boolean;
 };
+
+export const chatUserDisplayName = (
+  user?: { firstName?: string | null; lastName?: string | null } | null,
+) =>
+  [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() || "User";
 
 export class ChatServiceError extends Error {
   constructor(
@@ -360,7 +366,7 @@ export const ChatService = {
       const user = await UserService.getById(userId);
 
       await getStreamServer().upsertUser({
-        name: user?.firstName + " " + user?.lastName || "User",
+        name: chatUserDisplayName(user),
         id: userId,
         image:
           userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
@@ -429,7 +435,7 @@ export const ChatService = {
       const user = await UserService.getById(userId);
 
       await getStreamServer().upsertUser({
-        name: user?.firstName + " " + user?.lastName || "User",
+        name: chatUserDisplayName(user),
         id: userId,
         image:
           userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
@@ -561,7 +567,7 @@ export const ChatService = {
       const user = await UserService.getById(userId);
 
       await getStreamServer().upsertUser({
-        name: user?.firstName + " " + user?.lastName || "User",
+        name: chatUserDisplayName(user),
         id: userId,
         image:
           userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
@@ -654,8 +660,14 @@ export const ChatService = {
   },
 
   async deleteGroup(sessionId: string, actorUserId: string) {
+    const parsedSessionId = z.uuid().safeParse(sessionId);
+    if (!parsedSessionId.success) {
+      throw new ChatServiceError("sessionId is required");
+    }
+    const safeSessionId = String(parsedSessionId.data);
+
     const session = await prisma.chatSession.findFirst({
-      where: { id: sessionId },
+      where: { id: safeSessionId },
     });
     if (!session) return;
 
@@ -669,6 +681,8 @@ export const ChatService = {
       // Stream failure should not block DB cleanup
     }
 
-    await prisma.chatSession.deleteMany({ where: { id: sessionId } });
+    await prisma.chatSession.deleteMany({
+      where: { id: safeSessionId },
+    });
   },
 };

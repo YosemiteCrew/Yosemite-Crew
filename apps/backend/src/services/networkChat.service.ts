@@ -2,7 +2,7 @@
 import { ChannelData } from "stream-chat";
 import crypto from "node:crypto";
 
-import { ChatServiceError } from "./chat.service";
+import { ChatServiceError, chatUserDisplayName } from "./chat.service";
 import { UserProfileService } from "./user-profile.service";
 import { UserService } from "./user.service";
 import { prisma } from "src/config/prisma";
@@ -256,7 +256,7 @@ export const NetworkChatService = {
       const user = await UserService.getById(userId);
 
       await getStreamServer().upsertUser({
-        name: user?.firstName + " " + user?.lastName || "User",
+        name: chatUserDisplayName(user),
         id: userId,
         image:
           userProfile?.profile.personalDetails?.profilePictureUrl || undefined,
