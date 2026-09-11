@@ -443,9 +443,11 @@ describe('IntegrationsPage — enabled render', () => {
     expect(
       within(getCard('MSD Veterinary Manual')).getByRole('button', { name: 'Open manuals' })
     ).toBeInTheDocument();
-    // IDEXX reads as CONNECTED per the design; MSD keeps ENABLED.
+    // Both integrations read as CONNECTED when enabled - MSD used to fall through to
+    // the pill's raw-status-key default ("Enabled"), one word for the same state IDEXX
+    // spells "Connected".
     expect(within(getCard('IDEXX VetConnect PLUS')).getByText('Connected')).toBeInTheDocument();
-    expect(within(getCard('MSD Veterinary Manual')).getByText('Enabled')).toBeInTheDocument();
+    expect(within(getCard('MSD Veterinary Manual')).getByText('Connected')).toBeInTheDocument();
     await flush();
   });
 
