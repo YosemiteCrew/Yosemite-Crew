@@ -261,6 +261,31 @@ export const KeyboardFocus: Story = {
   },
 };
 
+export const OpenedByTap: Story = {
+  name: 'Opened by tap (touch)',
+  play: async ({ canvasElement }) => {
+    // Hover and focus have no touch equivalent, so this trigger has
+    // `openOnClick` - the same dispatch-until-listening pattern as the hover
+    // and focus stories, via a plain click instead.
+    const bubble = await openGlassTooltip(
+      within(canvasElement).getByRole('button', {
+        name: `View ${PACKAGE_ITEM.name} package breakdown`,
+      }),
+      { via: 'click' }
+    );
+    await expect(within(bubble).getAllByRole('columnheader')).toHaveLength(7);
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The one interaction the other stories never exercised: a tap, with no hover or ' +
+          'keyboard focus involved.',
+      },
+    },
+  },
+};
+
 export const NoBreakdown: Story = {
   name: 'Not a package (renders nothing)',
   args: {

@@ -58,13 +58,14 @@ const bubbles = () => [...document.querySelectorAll('[role="tooltip"]')] as HTML
  */
 export const openGlassTooltip = async (
   trigger: HTMLElement,
-  { via = 'hover' }: { via?: 'hover' | 'focus' } = {}
+  { via = 'hover' }: { via?: 'hover' | 'focus' | 'click' } = {}
 ): Promise<HTMLElement> => {
   const wrapper = glassTooltipWrapper(trigger);
-  const event = () =>
-    via === 'hover'
-      ? new MouseEvent('mouseenter', { bubbles: false })
-      : new FocusEvent('focusin', { bubbles: true });
+  const event = () => {
+    if (via === 'hover') return new MouseEvent('mouseenter', { bubbles: false });
+    if (via === 'click') return new MouseEvent('click', { bubbles: true });
+    return new FocusEvent('focusin', { bubbles: true });
+  };
 
   // Anything already open belongs to someone else and can never count as success.
   const stale = new Set(bubbles());
