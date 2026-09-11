@@ -133,6 +133,55 @@ jobs:
 
       - run: node scripts/mobile/version.mjs --check
 
+  story-coverage:
+    name: Story coverage
+    # scripts/ci/story-coverage.mjs fails a PR that adds a new apps/frontend
+    # component with no sibling Storybook story - as strict a bar as Sonar's:
+    # a listed dependency of `CI Required`, not an advisory. It only judges
+    # files a PR *adds* (see the script's own header for why), so the existing
+    # storyless backlog cannot block an unrelated change; it only stops that
+    # backlog from growing. Pure node:fs/path/child_process, no pnpm install
+    # needed - same shape as mobile-version above.
+    needs: core
+    if: needs.core.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # story-coverage.mjs diffs added files against the merge base, so
+          # full history must be present - the same reason core's detect job
+          # uses fetch-depth: 0.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Compute base SHA
+        id: base
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+        run: ./scripts/ci/compute-base-sha.sh >> "$GITHUB_OUTPUT"
+
+      - name: Every new frontend component needs a story
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: |
+          set -euo pipefail
+          # Fail closed, matching compute-base-sha.sh's own contract: an empty
+          # sha means no trustworthy base was found, not "nothing changed".
+          if [ -z "$BASE_SHA" ]; then
+            echo "::error::No trustworthy base SHA to diff against - cannot verify story coverage."
+            exit 1
+          fi
+          node scripts/ci/story-coverage.mjs --base "$BASE_SHA" --head HEAD
+
   ci-required:
     name: CI Required
     # REQUIRED on the `dev` ruleset since 2026-09-06, alongside
@@ -148,7 +197,7 @@ jobs:
     # points a reader at the opposite action. Runbook:
     # docs/ci/required-checks-migration.md.
     if: always()
-    needs: [core, test, migration, sonar, frontend-quality, mobile-version]
+    needs: [core, test, migration, sonar, frontend-quality, mobile-version, story-coverage]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
