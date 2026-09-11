@@ -86,7 +86,6 @@ const config = (over: Partial<Record<string, unknown>> = {}) => ({
   serviceIds: [],
   bookingWindowDays: 28,
   bufferMinutes: 10,
-  autoConfirm: false,
   welcomeMessage: null,
   replyToEmail: null,
   ...over,
@@ -250,7 +249,7 @@ describe('PublicBookingSetup', () => {
     expect(screen.getByText('What can pet parents book?')).toBeInTheDocument();
   });
 
-  it('updates availability selects and the confirmation toggle', async () => {
+  it('updates availability selects while confirmation remains fixed', async () => {
     await renderSetup();
 
     const windowSelect = screen.getByLabelText('Bookable window') as HTMLSelectElement;
@@ -261,10 +260,10 @@ describe('PublicBookingSetup', () => {
     fireEvent.change(bufferSelect, { target: { value: '30' } });
     expect(bufferSelect.value).toBe('30');
 
-    const toggle = screen.getByRole('switch', { name: 'Requests need confirmation' });
-    expect(toggle).toHaveAttribute('aria-checked', 'true');
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByText('Requests need confirmation.')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('switch', { name: 'Requests need confirmation' })
+    ).not.toBeInTheDocument();
   });
 
   it('notifies when skipping setup', async () => {
@@ -456,12 +455,11 @@ describe('PublicBookingSetup', () => {
   });
 
   describe('loading stored configuration', () => {
-    it('restores the saved window, buffer, confirmation mode and copy', async () => {
+    it('restores the saved window, buffer and copy', async () => {
       getConfigMock.mockResolvedValue(
         config({
           bookingWindowDays: 56,
           bufferMinutes: 30,
-          autoConfirm: true,
           welcomeMessage: 'Stored welcome',
           replyToEmail: 'stored@example.com',
         })
@@ -474,11 +472,6 @@ describe('PublicBookingSetup', () => {
       expect((screen.getByLabelText('Buffer between visits') as HTMLSelectElement).value).toBe(
         '30'
       );
-      expect(screen.getByRole('switch', { name: 'Requests need confirmation' })).toHaveAttribute(
-        'aria-checked',
-        'false'
-      );
-
       fireEvent.click(screen.getByRole('button', { name: /Continue/ }));
       expect((screen.getByLabelText('Welcome message') as HTMLInputElement).value).toBe(
         'Stored welcome'
@@ -611,7 +604,6 @@ describe('PublicBookingSetup', () => {
       fireEvent.click(screen.getByRole('button', { name: /Wellness & vaccination/ }));
       fireEvent.change(screen.getByLabelText('Bookable window'), { target: { value: '14' } });
       fireEvent.change(screen.getByLabelText('Buffer between visits'), { target: { value: '0' } });
-      fireEvent.click(screen.getByRole('switch', { name: 'Requests need confirmation' }));
       fireEvent.click(screen.getByRole('button', { name: /Continue/ }));
       fireEvent.change(screen.getByLabelText('Welcome message'), {
         target: { value: '  Come and see us  ' },
@@ -629,7 +621,6 @@ describe('PublicBookingSetup', () => {
         serviceIds: expect.not.arrayContaining(['s1']),
         bookingWindowDays: 14,
         bufferMinutes: 0,
-        autoConfirm: true,
         welcomeMessage: 'Come and see us',
         replyToEmail: 'desk@x.vet',
         // Unchanged: the practice did not touch the publish switch, so the save

@@ -126,7 +126,6 @@ type ResolvedPractice = {
     serviceIds: string[];
     bookingWindowDays: number;
     bufferMinutes: number;
-    autoConfirm: boolean;
     welcomeMessage: string | null;
     replyToEmail: string | null;
   } | null;
@@ -160,7 +159,6 @@ export const resolveSlug = async (
           serviceIds: true,
           bookingWindowDays: true,
           bufferMinutes: true,
-          autoConfirm: true,
           welcomeMessage: true,
           replyToEmail: true,
         },
@@ -283,7 +281,7 @@ export const PublicBookingService = {
         practice.settings?.bookingWindowDays ?? 28,
         MAX_BOOKING_WINDOW_DAYS,
       ),
-      requiresConfirmation: !practice.settings?.autoConfirm,
+      requiresConfirmation: true,
       services: offersNothing(practice)
         ? []
         : await loadPublicServices(practice),

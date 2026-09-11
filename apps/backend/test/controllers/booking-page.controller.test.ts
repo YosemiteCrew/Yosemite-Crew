@@ -56,7 +56,6 @@ const validBody = {
   serviceIds: ["3f6b1a2c-1111-4222-8333-444455556666"],
   bookingWindowDays: 28,
   bufferMinutes: 10,
-  autoConfirm: false,
   welcomeMessage: "Book a visit.",
   replyToEmail: "front@example.com",
 };
@@ -143,9 +142,23 @@ describe("BookingPageController", () => {
 
       expect(mockedService.saveConfig).toHaveBeenCalledWith(
         "org-1",
-        expect.objectContaining({ bookingWindowDays: 28, autoConfirm: false }),
+        expect.objectContaining({ bookingWindowDays: 28 }),
       );
       expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("ignores the retired auto-confirm field from legacy clients", async () => {
+      mockedService.saveConfig.mockResolvedValueOnce({});
+      const req = {
+        organisationId: "org-1",
+        params: {},
+        body: { ...validBody, autoConfirm: true },
+      } as never;
+
+      await BookingPageController.saveConfig(req, createResponse() as never);
+
+      const [, input] = mockedService.saveConfig.mock.calls[0];
+      expect(input).not.toHaveProperty("autoConfirm");
     });
 
     it("normalises omitted optional text to null", async () => {
@@ -157,7 +170,6 @@ describe("BookingPageController", () => {
           serviceIds: [],
           bookingWindowDays: 14,
           bufferMinutes: 0,
-          autoConfirm: true,
         },
       } as never;
 
@@ -177,7 +189,6 @@ describe("BookingPageController", () => {
       ["a non-uuid service id", { serviceIds: ["not-a-uuid"] }],
       ["a malformed reply-to address", { replyToEmail: "not-an-email" }],
       ["an over-long welcome message", { welcomeMessage: "x".repeat(501) }],
-      ["a missing autoConfirm flag", { autoConfirm: undefined }],
     ])("rejects %s", async (_label, override) => {
       const req = {
         organisationId: "org-1",
