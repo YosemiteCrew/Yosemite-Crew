@@ -39,6 +39,11 @@ const coerceString = (value: unknown): string | null => {
 const coerceStringOrEmpty = (value: unknown): string =>
   coerceString(value) ?? "";
 
+const coerceNonBlankString = (value: unknown): string | null => {
+  const coerced = coerceString(value);
+  return coerced?.trim() ? coerced : null;
+};
+
 /**
  * `organisationId` is the tenant key that lab-result reads authorize on, so it is taken from
  * the LabOrder we placed rather than from the provider's response, which is outside our
@@ -305,15 +310,21 @@ const maybeCreateResultArtifacts = async (
  * reason needs no migration; every value in use is named here.
  */
 export const QUARANTINE_REASON_UNMAPPED_STATUS = "UNMAPPED_RESULT_STATUS";
+export const QUARANTINE_REASON_MISSING_RESULT_ID = "MISSING_RESULT_ID";
+
+type QuarantineReason =
+  | typeof QUARANTINE_REASON_UNMAPPED_STATUS
+  | typeof QUARANTINE_REASON_MISSING_RESULT_ID;
 
 type UnapplicableResult = {
   result: IdexxResult;
   context: ResultOrderContext;
+  reason: QuarantineReason;
 };
 
 /**
- * Record a result the mapper could not apply, so the rest of its batch can be
- * confirmed.
+ * Record a result that could not be applied safely, so the rest of its batch
+ * can be confirmed.
  *
  * IDEXX confirms a BATCH, and `pollLatest` builds ONE client from
  * `IDEXX_GLOBAL_USERNAME` with `organisationId` derived per result. So refusing
@@ -322,10 +333,9 @@ type UnapplicableResult = {
  * unconfirmed batch is re-fetched on the next poll and meets the same row
  * again.
  *
- * Writing the row here is what makes confirming the rest safe. The LabOrder
- * transition is still not applied - that part of #2699 is unchanged and
- * deliberate - but it is now held in a queryable place with the payload needed
- * to replay it, rather than depending on the batch being re-sent forever.
+ * Writing the row here is what makes confirming the rest safe. The provider
+ * payload is held in a queryable place for investigation or replay rather than
+ * depending on the batch being re-sent forever.
  *
  * `create`, not `upsert`: this table has no unique key on purpose (see the
  * model comment), because collapsing two rows onto a key is exactly the silent
@@ -350,7 +360,7 @@ const quarantineOperation = (
   batchId: string,
   result: IdexxResult,
   context: ResultOrderContext,
-  reason: string,
+  reason: QuarantineReason,
 ) =>
   prisma.labResultQuarantine.create({
     data: {
@@ -358,7 +368,7 @@ const quarantineOperation = (
       batchId,
       // Null rather than "" when the provider sent nothing usable: an absent id
       // is worth seeing as absent.
-      resultId: coerceString(result.resultId),
+      resultId: coerceNonBlankString(result.resultId),
       orderId: coerceString(result.orderId),
       labOrderId: context.labOrderId,
       organisationId: context.organisationId,
@@ -371,7 +381,7 @@ const quarantineOperation = (
   });
 
 /**
- * Hold every result in this batch the mapper could not apply.
+ * Hold every result in this batch that could not be applied safely.
  *
  * Answers the only question the caller has: is this batch now safe to confirm.
  * False means nothing is holding the skipped transition, so confirming would
@@ -397,25 +407,20 @@ const quarantineUnapplicable = async (
     // This costs the no-unique-key decision nothing: that is about two distinct
     // rows in one batch, this is about one row written twice across polls.
     await prisma.$transaction(
-      unapplicable.map(({ result, context }) =>
-        quarantineOperation(
-          batchId,
-          result,
-          context,
-          QUARANTINE_REASON_UNMAPPED_STATUS,
-        ),
+      unapplicable.map(({ result, context, reason }) =>
+        quarantineOperation(batchId, result, context, reason),
       ),
     );
   } catch (err) {
     logger.error(
-      "IDEXX batch left unconfirmed: could not quarantine an unmapped result",
+      "IDEXX batch left unconfirmed: could not quarantine an unapplicable result",
       { batchId, err },
     );
     return false;
   }
 
   logger.error(
-    "IDEXX results quarantined: a result status did not map to a LabOrder status",
+    "IDEXX results quarantined: one or more results could not be applied",
     { batchId, quarantined: unapplicable.length },
   );
   return true;
@@ -424,12 +429,28 @@ const quarantineUnapplicable = async (
 const processIdexxResult = async (
   client: IdexxResultsClient,
   result: IdexxResult,
-) => {
+): Promise<{
+  context: ResultOrderContext;
+  quarantineReason: QuarantineReason | null;
+}> => {
   const context = await syncLabOrderFromResult(result);
-  const resultId = coerceStringOrEmpty(result.resultId);
+  const resultId = coerceNonBlankString(result.resultId);
+  if (!resultId) {
+    logger.warn("IDEXX result quarantined: missing result id", {
+      orderId: coerceString(result.orderId),
+      organisationId: context.organisationId,
+    });
+    return { context, quarantineReason: QUARANTINE_REASON_MISSING_RESULT_ID };
+  }
+
   await upsertLabResult(result, resultId, context.organisationId);
   await maybeCreateResultArtifacts(client, result, resultId, context);
-  return context;
+  return {
+    context,
+    quarantineReason: context.unmappedStatus
+      ? QUARANTINE_REASON_UNMAPPED_STATUS
+      : null,
+  };
 };
 
 const recordBatchSyncState = async (
@@ -483,9 +504,12 @@ export const IdexxResultsService = {
 
       const unapplicable: UnapplicableResult[] = [];
       for (const result of results as IdexxResult[]) {
-        const context = await processIdexxResult(client, result);
-        if (context.unmappedStatus) {
-          unapplicable.push({ result, context });
+        const { context, quarantineReason } = await processIdexxResult(
+          client,
+          result,
+        );
+        if (quarantineReason) {
+          unapplicable.push({ result, context, reason: quarantineReason });
         }
       }
 
