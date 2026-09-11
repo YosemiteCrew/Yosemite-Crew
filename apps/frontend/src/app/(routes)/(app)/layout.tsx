@@ -3,6 +3,7 @@ import { connection } from 'next/server';
 import SessionInitializer from '@/app/ui/layout/SessionInitializer';
 import ThemeScript from '@/app/ui/theme/ThemeScript';
 
+// no-story: pure structural wrapper (theme script + a display:contents scoping div) around SessionInitializer, which needs a real session/store context this route group's own tests already cover
 interface AppLayoutProps {
   children: React.ReactNode;
 }

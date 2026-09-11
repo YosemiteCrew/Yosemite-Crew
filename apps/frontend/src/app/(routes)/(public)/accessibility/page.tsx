@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { MarketingShell } from '@/app/features/marketing/site';
 import AccessibilityStatement from '@/app/features/legal/pages/AccessibilityStatement';
 
+// no-story: thin Next.js route wrapper; real content is AccessibilityStatement, already storied
 export const metadata: Metadata = {
   title: 'Accessibility Statement · Yosemite Crew',
   description:

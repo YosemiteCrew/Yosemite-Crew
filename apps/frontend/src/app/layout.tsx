@@ -6,6 +6,7 @@ import './globals.css';
 // Warm-bone display serif for page titles + greeting moments. Self-hosted by next/font
 // at build time (served from /_next, so it satisfies the strict app-route CSP), exposed
 // as --font-newsreader-src which the --font-newsreader token consumes (see globals.css).
+// no-story: root Next.js layout - returns a full <html>/<body> document, which cannot mount inside Storybook's own DOM; every component it renders (SkipLink, Cookies, PostHogBootstrap, etc.) is already storied on its own
 const newsreader = Newsreader({
   subsets: ['latin'],
   style: ['normal', 'italic'],

@@ -3,6 +3,7 @@ import { Newsreader } from 'next/font/google';
 import PassportClient from './PassportClient';
 
 // Serif display face for the warm-bone passport surfaces (matches the design).
+// no-story: async server component that only unwraps a route param; real content is PassportClient, already storied
 const newsreader = Newsreader({
   subsets: ['latin'],
   weight: ['400', '500'],
