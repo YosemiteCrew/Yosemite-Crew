@@ -86,7 +86,7 @@ export const resolveEnvInsetPx = (): number => {
   probe.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
   document.body.appendChild(probe);
   const parsed = Number.parseFloat(globalThis.getComputedStyle(probe).paddingBottom);
-  document.body.removeChild(probe);
+  probe.remove();
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
