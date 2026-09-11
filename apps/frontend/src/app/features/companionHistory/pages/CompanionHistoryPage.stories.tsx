@@ -13,6 +13,7 @@ import api from '@/app/services/axios';
 import {
   describeInsetProbe,
   measureConsentInsetResponse,
+  resolveEnvInsetPx,
 } from '@/app/features/appointments/pages/AppointmentWorkspace/phone/consentInsetAssertion';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { formatDisplayDate } from '@/app/lib/date';
@@ -1260,7 +1261,12 @@ export const Phone: Story = {
       value === null
         ? root.style.removeProperty('--yc-consent-inset')
         : root.style.setProperty('--yc-consent-inset', value);
-    const probe = measureConsentInsetResponse(shell as HTMLElement, window.innerHeight, setInset);
+    const probe = measureConsentInsetResponse(
+      shell as HTMLElement,
+      window.innerHeight,
+      setInset,
+      resolveEnvInsetPx()
+    );
     await expect(probe.ok, describeInsetProbe(probe)).toBe(true);
   },
   parameters: {

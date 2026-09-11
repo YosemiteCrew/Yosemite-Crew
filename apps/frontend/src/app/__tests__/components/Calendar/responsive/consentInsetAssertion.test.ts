@@ -6,6 +6,7 @@ import {
   describeInsetProbe,
   expectedShellHeight,
   measureConsentInsetResponse,
+  resolveEnvInsetPx,
 } from '@/app/features/appointments/pages/AppointmentWorkspace/phone/consentInsetAssertion';
 
 /**
@@ -54,6 +55,28 @@ describe('chooseProbeInset', () => {
     // inset === TAB_BAR_PX changes nothing under max(), so the boundary is <=.
     const height = HEADER_PX + MIN_H_PX + 1 + TAB_BAR_PX;
     expect(chooseProbeInset(height).usable).toBe(false);
+  });
+
+  it('refuses a viewport it would accept with no safe-area inset, once one is present', () => {
+    /* The false-alarm band from issue #2806: at 640px the chosen inset is 105,
+       which beats the bare 72px tab bar but loses to `72 + 34` - the term the
+       CSS `max()` actually competes with on a device with a home indicator. */
+    const bare = chooseProbeInset(640);
+    expect(bare).toEqual({ usable: true, inset: 105 });
+
+    const withHomeIndicator = chooseProbeInset(640, 34);
+    expect(withHomeIndicator.usable).toBe(false);
+    expect(withHomeIndicator.inset).toBe(105);
+    expect('reason' in withHomeIndicator && withHomeIndicator.reason).toContain(
+      '106px tab-bar term (72px bar + 34px safe-area inset)'
+    );
+  });
+
+  it('shifts the unusable boundary by the safe-area inset, not just the bare bar', () => {
+    // inset === TAB_BAR_PX + envInsetPx is still the boundary, moved by envInsetPx.
+    const height = HEADER_PX + MIN_H_PX + 1 + TAB_BAR_PX + 20;
+    expect(chooseProbeInset(height, 20).usable).toBe(false);
+    expect(chooseProbeInset(height, 19).usable).toBe(true);
   });
 });
 
@@ -124,6 +147,17 @@ describe('measureConsentInsetResponse', () => {
     expect(result.reason).toContain('too short');
   });
 
+  it('passes the false-alarm-band viewport with no safe-area inset, refuses it with one', () => {
+    // Same 640px shell that responds correctly to the CSS max() - only the
+    // env(safe-area-inset-bottom) term should change the verdict, not the shell.
+    const { shell, setInset } = fakeShell(640, { responds: true });
+    expect(measureConsentInsetResponse(shell, 640, setInset).ok).toBe(true);
+    expect(measureConsentInsetResponse(shell, 640, setInset, 34).ok).toBe(false);
+    expect(measureConsentInsetResponse(shell, 640, setInset, 34).reason).toContain(
+      'safe-area inset'
+    );
+  });
+
   it('always clears the property it set, including on the refusing path', () => {
     const seen: Array<string | null> = [];
     const shell = { getBoundingClientRect: () => ({ height: 718 }) as DOMRect };
@@ -141,5 +175,19 @@ describe('measureConsentInsetResponse', () => {
     expect(describeInsetProbe(result)).toBe(
       'consent inset 252px: before 718px, with card 718px, expected 538px - did not shrink: 718 is not less than 718; height 718 is not the expected 538'
     );
+  });
+});
+
+describe('resolveEnvInsetPx', () => {
+  it('degrades to 0 rather than NaN when the engine cannot evaluate env()', () => {
+    // jsdom does not implement env(), so this is the "headless browser" case
+    // the rest of the module already assumes as its default.
+    expect(resolveEnvInsetPx()).toBe(0);
+  });
+
+  it('removes the probe element it creates', () => {
+    const before = document.body.childElementCount;
+    resolveEnvInsetPx();
+    expect(document.body.childElementCount).toBe(before);
   });
 });
