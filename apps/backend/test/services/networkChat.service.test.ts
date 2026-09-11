@@ -378,6 +378,32 @@ describe("NetworkChatService.createNetworkDirectChat", () => {
     expect(result).toBe(created);
   });
 
+  it("uses safe Stream names when cross-org profiles are incomplete", async () => {
+    bothOrgsEnabled();
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(null);
+    mockedUserProfile.mockResolvedValue({ profile: { personalDetails: {} } });
+    mockedUserService
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ lastName: "Doe" });
+    mockedPrisma.chatSession.create.mockResolvedValue({ id: "new" });
+
+    await NetworkChatService.createNetworkDirectChat({
+      requesterUserId: "userA",
+      requesterOrgId: "org1",
+      otherUserId: "userB",
+      otherOrgId: "org2",
+    });
+
+    expect(mockUpsertUser).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ id: "userA", name: "User" }),
+    );
+    expect(mockUpsertUser).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ id: "userB", name: "Doe" }),
+    );
+  });
+
   it("rejects with 400 when a user tries to chat with themselves", async () => {
     await expect(
       NetworkChatService.createNetworkDirectChat({
