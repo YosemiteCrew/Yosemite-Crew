@@ -237,6 +237,23 @@ describe('SignUp page', () => {
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
+
+  test('shows a live password strength readout that improves as the password does', () => {
+    render(<SignUp />);
+    expect(screen.queryByText(/password strength/i)).not.toBeInTheDocument();
+
+    setFieldValue('Set up password', 'short');
+    expect(screen.getByText('Password strength: Too weak')).toBeInTheDocument();
+
+    setFieldValue('Set up password', 'Secret!23');
+    expect(screen.getByText('Password strength: Strong')).toBeInTheDocument();
+  });
+
+  test('does not show a strength readout on the confirm-password field', () => {
+    render(<SignUp />);
+    setFieldValue('Confirm password', 'Secret!23');
+    expect(screen.queryByText(/password strength/i)).not.toBeInTheDocument();
+  });
 });
 
 describe('auth-brand headline reads the fixed accent-dark token', () => {
