@@ -23125,9 +23125,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'AccessPolicy'"
+          type: string
+          enum:
+            - AccessPolicy
+          description: This is a AccessPolicy resource
         id:
           type: string
         meta:
@@ -23141,9 +23142,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -23157,13 +23156,9 @@ components:
         basedOn:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: 'Type Reference<AccessPolicy>'
+            $ref: '#/components/schemas/Reference'
         compartment:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         resource:
           type: array
           items:
@@ -23183,9 +23178,11 @@ components:
         value:
           type: string
         action:
-          type: object
-          additionalProperties: true
-          description: "Type 'allow' | 'block'"
+          type: string
+          enum:
+            - allow
+            - block
+          description: Access rule action applied to incoming traffic.
       additionalProperties: true
       required:
         - value
@@ -23196,9 +23193,7 @@ components:
         resourceType:
           type: string
         compartment:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         criteria:
           type: string
         readonly:
@@ -23206,9 +23201,16 @@ components:
         interaction:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: "Type ('read' | 'vread' | 'update' | 'delete' | 'history' | 'create' | 'search')"
+            type: string
+            enum:
+              - read
+              - vread
+              - update
+              - delete
+              - history
+              - create
+              - search
+            description: Permitted FHIR interaction with this resource type.
         hiddenFields:
           type: array
           items:
@@ -23234,13 +23236,21 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         use:
-          type: object
-          additionalProperties: true
-          description: "Type 'home' | 'work' | 'temp' | 'old' | 'billing'"
+          type: string
+          enum:
+            - home
+            - work
+            - temp
+            - old
+            - billing
+          description: The purpose of this address.
         type:
-          type: object
-          additionalProperties: true
-          description: "Type 'postal' | 'physical' | 'both'"
+          type: string
+          enum:
+            - postal
+            - physical
+            - both
+          description: Distinguishes between physical addresses and mailing addresses.
         text:
           type: string
         line:
@@ -23272,9 +23282,13 @@ components:
         value:
           type: number
         comparator:
-          type: object
-          additionalProperties: true
-          description: "Type '<' | '<=' | '>=' | '>'"
+          type: string
+          enum:
+            - <
+            - <=
+            - '>='
+            - '>'
+          description: How the value should be understood relative to the stated value.
         unit:
           type: string
         system:
@@ -23302,9 +23316,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -23342,9 +23354,7 @@ components:
         reasonReference:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Reference
+            $ref: '#/components/schemas/Reference'
         priority:
           type: number
         description:
@@ -23352,9 +23362,7 @@ components:
         supportingInformation:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Reference
+            $ref: '#/components/schemas/Reference'
         start:
           type: string
         end:
@@ -23364,9 +23372,7 @@ components:
         slot:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Reference
+            $ref: '#/components/schemas/Reference'
         created:
           type: string
         comment:
@@ -23376,9 +23382,7 @@ components:
         basedOn:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Reference
+            $ref: '#/components/schemas/Reference'
         participant:
           type: array
           items:
@@ -23434,9 +23438,7 @@ components:
           items:
             $ref: '#/components/schemas/CodeableConcept'
         actor:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         required:
           type: string
         status:
@@ -23492,9 +23494,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'Basic'"
+          type: string
+          enum:
+            - Basic
+          description: This is a Basic resource
         id:
           type: string
         implicitRules:
@@ -23525,9 +23528,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'Binary'"
+          type: string
+          enum:
+            - Binary
+          description: This is a Binary resource
         id:
           type: string
         meta:
@@ -23539,9 +23543,7 @@ components:
         contentType:
           type: string
         securityContext:
-          type: object
-          additionalProperties: true
-          description: 'Type Reference<Resource>'
+          $ref: '#/components/schemas/Reference'
         data:
           type: string
         url:
@@ -23564,9 +23566,15 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         method:
-          type: object
-          additionalProperties: true
-          description: "Type 'GET' | 'HEAD' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'"
+          type: string
+          enum:
+            - GET
+            - HEAD
+            - POST
+            - PUT
+            - DELETE
+            - PATCH
+          description: The HTTP action to be executed for this entry.
         url:
           type: string
         ifNoneMatch:
@@ -23621,9 +23629,12 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         mode:
-          type: object
-          additionalProperties: true
-          description: "Type 'match' | 'include' | 'outcome'"
+          type: string
+          enum:
+            - match
+            - include
+            - outcome
+          description: Why this entry is in the result set - match, include, or outcome.
         score:
           type: number
       additionalProperties: true
@@ -23652,9 +23663,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'CapabilityStatement'"
+          type: string
+          enum:
+            - CapabilityStatement
+          description: This is a CapabilityStatement resource
         id:
           type: string
         meta:
@@ -23668,9 +23680,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -23688,9 +23698,13 @@ components:
         title:
           type: string
         status:
-          type: object
-          additionalProperties: true
-          description: "Type 'draft' | 'active' | 'retired' | 'unknown'"
+          type: string
+          enum:
+            - draft
+            - active
+            - retired
+            - unknown
+          description: The status of this capability statement.
         experimental:
           type: boolean
         date:
@@ -23712,9 +23726,12 @@ components:
         copyright:
           type: string
         kind:
-          type: object
-          additionalProperties: true
-          description: "Type 'instance' | 'capability' | 'requirements'"
+          type: string
+          enum:
+            - instance
+            - capability
+            - requirements
+          description: The way that this statement is intended to be used.
         instantiates:
           type: array
           items:
@@ -23728,9 +23745,31 @@ components:
         implementation:
           $ref: '#/components/schemas/CapabilityStatementImplementation'
         fhirVersion:
-          type: object
-          additionalProperties: true
-          description: "Type '0.01' | '0.05' | '0.06' | '0.11' | '0.0.80' | '0.0.81' | '0.0.82' | '0.4.0' | '0.5.0' | '1.0.0' |"
+          type: string
+          enum:
+            - '0.01'
+            - '0.05'
+            - '0.06'
+            - '0.11'
+            - 0.0.80
+            - 0.0.81
+            - 0.0.82
+            - 0.4.0
+            - 0.5.0
+            - 1.0.0
+            - 1.0.1
+            - 1.0.2
+            - 1.1.0
+            - 1.4.0
+            - 1.6.0
+            - 1.8.0
+            - 3.0.0
+            - 3.0.1
+            - 3.3.0
+            - 3.5.0
+            - 4.0.0
+            - 4.0.1
+          description: The version of the FHIR specification that this CapabilityStatement describes.
         format:
           type: array
           items:
@@ -23777,9 +23816,11 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         mode:
-          type: object
-          additionalProperties: true
-          description: "Type 'producer' | 'consumer'"
+          type: string
+          enum:
+            - producer
+            - consumer
+          description: Mode of this document declaration - producer or consumer.
         documentation:
           type: string
         profile:
@@ -23869,9 +23910,11 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         mode:
-          type: object
-          additionalProperties: true
-          description: "Type 'sender' | 'receiver'"
+          type: string
+          enum:
+            - sender
+            - receiver
+          description: The mode of this event declaration - sender or receiver.
         definition:
           type: string
       additionalProperties: true
@@ -23892,9 +23935,11 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         mode:
-          type: object
-          additionalProperties: true
-          description: "Type 'client' | 'server'"
+          type: string
+          enum:
+            - client
+            - server
+          description: Whether this portion of the statement describes the ability to initiate or receive restful operations.
         documentation:
           type: string
         security:
@@ -23936,9 +23981,13 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         code:
-          type: object
-          additionalProperties: true
-          description: "Type 'transaction' | 'batch' | 'search-system' | 'history-system'"
+          type: string
+          enum:
+            - transaction
+            - batch
+            - search-system
+            - history-system
+          description: A coded identifier of the system-level operation supported by the system.
         documentation:
           type: string
       additionalProperties: true
@@ -23958,9 +24007,16 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         type:
-          type: object
-          additionalProperties: true
-          description: Type ResourceType
+          type: string
+          enum:
+            - Basic
+            - Binary
+            - CodeSystem
+            - Invoice
+            - Questionnaire
+            - QuestionnaireResponse
+            - ValueSet
+          description: A type of resource exposed via the restful interface.
         profile:
           type: string
         supportedProfile:
@@ -23974,9 +24030,12 @@ components:
           items:
             $ref: '#/components/schemas/CapabilityStatementRestResourceInteraction'
         versioning:
-          type: object
-          additionalProperties: true
-          description: "Type 'no-version' | 'versioned' | 'versioned-update'"
+          type: string
+          enum:
+            - no-version
+            - versioned
+            - versioned-update
+          description: Whether and how the system supports versioning for this resource type.
         readHistory:
           type: boolean
         updateCreate:
@@ -23984,21 +24043,33 @@ components:
         conditionalCreate:
           type: boolean
         conditionalRead:
-          type: object
-          additionalProperties: true
-          description: "Type 'not-supported' | 'modified-since' | 'not-match' | 'full-support'"
+          type: string
+          enum:
+            - not-supported
+            - modified-since
+            - not-match
+            - full-support
+          description: A code that indicates how the server supports conditional read.
         conditionalUpdate:
           type: boolean
         conditionalDelete:
-          type: object
-          additionalProperties: true
-          description: "Type 'not-supported' | 'single' | 'multiple'"
+          type: string
+          enum:
+            - not-supported
+            - single
+            - multiple
+          description: A code that indicates how the server supports conditional delete.
         referencePolicy:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: "Type ('literal' | 'logical' | 'resolves' | 'enforced' | 'local')"
+            type: string
+            enum:
+              - literal
+              - logical
+              - resolves
+              - enforced
+              - local
+            description: A set of flags that defines how references are supported.
         searchInclude:
           type: array
           items:
@@ -24032,9 +24103,18 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         code:
-          type: object
-          additionalProperties: true
-          description: "Type 'read' | 'vread' | 'update' | 'patch' | 'delete' | 'history-instance' | 'history-type' | 'create' | 'search-type'"
+          type: string
+          enum:
+            - read
+            - vread
+            - update
+            - patch
+            - delete
+            - history-instance
+            - history-type
+            - create
+            - search-type
+          description: Coded identifier of the operation supported by the system resource.
         documentation:
           type: string
       additionalProperties: true
@@ -24081,9 +24161,18 @@ components:
         definition:
           type: string
         type:
-          type: object
-          additionalProperties: true
-          description: "Type 'number' | 'date' | 'string' | 'token' | 'reference' | 'composite' | 'quantity' | 'uri' | 'special'"
+          type: string
+          enum:
+            - number
+            - date
+            - string
+            - token
+            - reference
+            - composite
+            - quantity
+            - uri
+            - special
+          description: The type of value a search parameter refers to.
         documentation:
           type: string
       additionalProperties: true
@@ -24138,9 +24227,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'CodeSystem'"
+          type: string
+          enum:
+            - CodeSystem
+          description: This is a CodeSystem resource
         id:
           type: string
         implicitRules:
@@ -24168,9 +24258,13 @@ components:
         title:
           type: string
         status:
-          type: object
-          additionalProperties: true
-          description: "Type 'draft' | 'active' | 'retired' | 'unknown'"
+          type: string
+          enum:
+            - draft
+            - active
+            - retired
+            - unknown
+          description: The status of this code system.
         experimental:
           type: boolean
         date:
@@ -24192,17 +24286,26 @@ components:
         valueSet:
           type: string
         hierarchyMeaning:
-          type: object
-          additionalProperties: true
-          description: "Type 'grouped-by' | 'is-a' | 'part-of' | 'classified-with'"
+          type: string
+          enum:
+            - grouped-by
+            - is-a
+            - part-of
+            - classified-with
+          description: The meaning of the hierarchy of concepts as represented in this resource.
         compositional:
           type: boolean
         versionNeeded:
           type: boolean
         content:
-          type: object
-          additionalProperties: true
-          description: "Type 'not-present' | 'example' | 'fragment' | 'complete' | 'supplement'"
+          type: string
+          enum:
+            - not-present
+            - example
+            - fragment
+            - complete
+            - supplement
+          description: The extent of the content of the code system represented in this resource instance.
         supplements:
           type: string
         count:
@@ -24332,9 +24435,18 @@ components:
         operator:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: "Type ('=' | 'is-a' | 'descendent-of' | 'is-not-a' | 'regex' | 'in' | 'not-in' | 'generalizes' | 'exists')"
+            type: string
+            enum:
+              - =
+              - is-a
+              - descendent-of
+              - is-not-a
+              - regex
+              - in
+              - not-in
+              - generalizes
+              - exists
+            description: A list of operators that can be used with the filter.
         value:
           type: string
       additionalProperties: true
@@ -24362,9 +24474,16 @@ components:
         description:
           type: string
         type:
-          type: object
-          additionalProperties: true
-          description: "Type 'code' | 'Coding' | 'string' | 'integer' | 'boolean' | 'dateTime' | 'decimal'"
+          type: string
+          enum:
+            - code
+            - Coding
+            - string
+            - integer
+            - boolean
+            - dateTime
+            - decimal
+          description: The type of the property value.
       additionalProperties: true
       required:
         - code
@@ -24397,9 +24516,7 @@ components:
         concept:
           $ref: '#/components/schemas/CodeableConcept'
         reference:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
       additionalProperties: true
     Coding:
       type: object
@@ -24447,15 +24564,27 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         system:
-          type: object
-          additionalProperties: true
-          description: "Type 'phone' | 'fax' | 'email' | 'pager' | 'url' | 'sms' | 'other'"
+          type: string
+          enum:
+            - phone
+            - fax
+            - email
+            - pager
+            - url
+            - sms
+            - other
+          description: Telecommunications form for contact point.
         value:
           type: string
         use:
-          type: object
-          additionalProperties: true
-          description: "Type 'home' | 'work' | 'temp' | 'old' | 'mobile'"
+          type: string
+          enum:
+            - home
+            - work
+            - temp
+            - old
+            - mobile
+          description: Identifies the purpose for the contact point.
         rank:
           type: number
         period:
@@ -24473,9 +24602,13 @@ components:
         value:
           type: number
         comparator:
-          type: object
-          additionalProperties: true
-          description: "Type '<' | '<=' | '>=' | '>'"
+          type: string
+          enum:
+            - <
+            - <=
+            - '>='
+            - '>'
+          description: How the value should be understood relative to the stated value.
         unit:
           type: string
         system:
@@ -24495,9 +24628,13 @@ components:
         value:
           type: number
         comparator:
-          type: object
-          additionalProperties: true
-          description: "Type '<' | '<=' | '>=' | '>'"
+          type: string
+          enum:
+            - <
+            - <=
+            - '>='
+            - '>'
+          description: How the value should be understood relative to the stated value.
         unit:
           type: string
         system:
@@ -24517,9 +24654,13 @@ components:
         value:
           type: number
         comparator:
-          type: object
-          additionalProperties: true
-          description: "Type '<' | '<=' | '>=' | '>'"
+          type: string
+          enum:
+            - <
+            - <=
+            - '>='
+            - '>'
+          description: How the value should be understood relative to the stated value.
         unit:
           type: string
         system:
@@ -24531,9 +24672,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'Endpoint'"
+          type: string
+          enum:
+            - Endpoint
+          description: This is a Endpoint resource
         id:
           type: string
         meta:
@@ -24547,9 +24689,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -24563,17 +24703,21 @@ components:
           items:
             $ref: '#/components/schemas/Identifier'
         status:
-          type: object
-          additionalProperties: true
-          description: "Type 'active' | 'suspended' | 'error' | 'off' | 'entered-in-error' | 'test'"
+          type: string
+          enum:
+            - active
+            - suspended
+            - error
+            - off
+            - entered-in-error
+            - test
+          description: The status of the endpoint.
         connectionType:
           $ref: '#/components/schemas/Coding'
         name:
           type: string
         managingOrganization:
-          type: object
-          additionalProperties: true
-          description: 'Type Reference<Organization>'
+          $ref: '#/components/schemas/Reference'
         contact:
           type: array
           items:
@@ -24615,9 +24759,12 @@ components:
         name:
           type: string
         language:
-          type: object
-          additionalProperties: true
-          description: "Type 'text/cql' | 'text/fhirpath' | 'application/x-fhir-query'"
+          type: string
+          enum:
+            - text/cql
+            - text/fhirpath
+            - application/x-fhir-query
+          description: The media type of the language for the expression.
         expression:
           type: string
         reference:
@@ -24681,9 +24828,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'HealthcareService'"
+          type: string
+          enum:
+            - HealthcareService
+          description: This is a HealthcareService resource
         id:
           type: string
         meta:
@@ -24697,9 +24845,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -24715,9 +24861,7 @@ components:
         active:
           type: boolean
         providedBy:
-          type: object
-          additionalProperties: true
-          description: 'Type Reference<Organization>'
+          $ref: '#/components/schemas/Reference'
         category:
           type: array
           items:
@@ -24733,9 +24877,7 @@ components:
         location:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: 'Type Reference<Location>'
+            $ref: '#/components/schemas/Reference'
         name:
           type: string
         comment:
@@ -24751,9 +24893,7 @@ components:
         coverageArea:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: 'Type Reference<Location>'
+            $ref: '#/components/schemas/Reference'
         serviceProvisionCode:
           type: array
           items:
@@ -24793,9 +24933,7 @@ components:
         endpoint:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: 'Type Reference<Endpoint>'
+            $ref: '#/components/schemas/Reference'
       additionalProperties: true
       required:
         - resourceType
@@ -24815,9 +24953,16 @@ components:
         daysOfWeek:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: "Type ('mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun')"
+            type: string
+            enum:
+              - mon
+              - tue
+              - wed
+              - thu
+              - fri
+              - sat
+              - sun
+            description: Indicates which day of the week is available between the start and end times.
         allDay:
           type: boolean
         availableStartTime:
@@ -24873,9 +25018,16 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         use:
-          type: object
-          additionalProperties: true
-          description: "Type 'usual' | 'official' | 'temp' | 'nickname' | 'anonymous' | 'old' | 'maiden'"
+          type: string
+          enum:
+            - usual
+            - official
+            - temp
+            - nickname
+            - anonymous
+            - old
+            - maiden
+          description: Identifies the purpose for this name.
         text:
           type: string
         family:
@@ -24905,9 +25057,14 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         use:
-          type: object
-          additionalProperties: true
-          description: "Type 'usual' | 'official' | 'temp' | 'secondary' | 'old'"
+          type: string
+          enum:
+            - usual
+            - official
+            - temp
+            - secondary
+            - old
+          description: The purpose of this identifier.
         type:
           $ref: '#/components/schemas/CodeableConcept'
         system:
@@ -24921,9 +25078,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'Invoice'"
+          type: string
+          enum:
+            - Invoice
+          description: This is a Invoice resource
         id:
           type: string
         meta:
@@ -24937,9 +25095,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -24953,21 +25109,22 @@ components:
           items:
             $ref: '#/components/schemas/Identifier'
         status:
-          type: object
-          additionalProperties: true
-          description: Type InvoiceStatus
+          type: string
+          enum:
+            - draft
+            - issued
+            - balanced
+            - cancelled
+            - entered-in-error
+          description: The current state of the Invoice.
         cancelledReason:
           type: string
         type:
           $ref: '#/components/schemas/CodeableConcept'
         subject:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         recipient:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         date:
           type: string
         participant:
@@ -24975,13 +25132,9 @@ components:
           items:
             $ref: '#/components/schemas/InvoiceParticipant'
         issuer:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         account:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         lineItem:
           type: array
           items:
@@ -25010,9 +25163,7 @@ components:
         role:
           $ref: '#/components/schemas/CodeableConcept'
         actor:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
       additionalProperties: true
     InvoiceLineItem:
       type: object
@@ -25020,9 +25171,7 @@ components:
         sequence:
           type: number
         chargeItemReference:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         chargeItemCodeableConcept:
           $ref: '#/components/schemas/CodeableConcept'
         priceComponent:
@@ -25034,9 +25183,15 @@ components:
       type: object
       properties:
         type:
-          type: object
-          additionalProperties: true
-          description: Type InvoicePriceComponentType
+          type: string
+          enum:
+            - base
+            - surcharge
+            - deduction
+            - discount
+            - tax
+            - informational
+          description: The type of the invoice price component.
         code:
           $ref: '#/components/schemas/CodeableConcept'
         factor:
@@ -25056,9 +25211,7 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         authorReference:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         authorString:
           type: string
         time:
@@ -25072,9 +25225,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'Location'"
+          type: string
+          enum:
+            - Location
+          description: This is a Location resource
         id:
           type: string
         meta:
@@ -25088,9 +25242,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -25104,9 +25256,12 @@ components:
           items:
             $ref: '#/components/schemas/Identifier'
         status:
-          type: object
-          additionalProperties: true
-          description: "Type 'active' | 'suspended' | 'inactive'"
+          type: string
+          enum:
+            - active
+            - suspended
+            - inactive
+          description: The general availability of the resource.
         operationalStatus:
           $ref: '#/components/schemas/Coding'
         name:
@@ -25118,9 +25273,11 @@ components:
         description:
           type: string
         mode:
-          type: object
-          additionalProperties: true
-          description: "Type 'instance' | 'kind'"
+          type: string
+          enum:
+            - instance
+            - kind
+          description: Indicates whether a resource instance represents a specific location or a class of locations.
         type:
           type: array
           items:
@@ -25136,13 +25293,9 @@ components:
         position:
           $ref: '#/components/schemas/LocationPosition'
         managingOrganization:
-          type: object
-          additionalProperties: true
-          description: 'Type Reference<Organization>'
+          $ref: '#/components/schemas/Reference'
         partOf:
-          type: object
-          additionalProperties: true
-          description: 'Type Reference<Location>'
+          $ref: '#/components/schemas/Reference'
         hoursOfOperation:
           type: array
           items:
@@ -25152,9 +25305,7 @@ components:
         endpoint:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: 'Type Reference<Endpoint>'
+            $ref: '#/components/schemas/Reference'
       additionalProperties: true
       required:
         - resourceType
@@ -25174,9 +25325,16 @@ components:
         daysOfWeek:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: "Type ('mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun')"
+            type: string
+            enum:
+              - mon
+              - tue
+              - wed
+              - thu
+              - fri
+              - sat
+              - sun
+            description: Indicates which day of the week is available between the start and end times.
         allDay:
           type: boolean
         openingTime:
@@ -25237,29 +25395,19 @@ components:
         project:
           type: string
         author:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         onBehalfOf:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         account:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         accounts:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Reference
+            $ref: '#/components/schemas/Reference'
         compartment:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Reference
+            $ref: '#/components/schemas/Reference'
       additionalProperties: true
     Money:
       type: object
@@ -25273,9 +25421,188 @@ components:
         value:
           type: number
         currency:
-          type: object
-          additionalProperties: true
-          description: Type Currency
+          type: string
+          enum:
+            - AFN
+            - EUR
+            - ALL
+            - DZD
+            - USD
+            - AOA
+            - XCD
+            - ARS
+            - AMD
+            - AWG
+            - AUD
+            - AZN
+            - BSD
+            - BHD
+            - BDT
+            - BBD
+            - BYN
+            - BZD
+            - XOF
+            - BMD
+            - INR
+            - BTN
+            - BOB
+            - BOV
+            - BAM
+            - BWP
+            - NOK
+            - BRL
+            - BND
+            - BGN
+            - BIF
+            - CVE
+            - KHR
+            - XAF
+            - CAD
+            - KYD
+            - CLP
+            - CLF
+            - CNY
+            - COP
+            - COU
+            - KMF
+            - CDF
+            - NZD
+            - CRC
+            - CUP
+            - CUC
+            - ANG
+            - CZK
+            - DKK
+            - DJF
+            - DOP
+            - EGP
+            - SVC
+            - ERN
+            - SZL
+            - ETB
+            - FKP
+            - FJD
+            - XPF
+            - GMD
+            - GEL
+            - GHS
+            - GIP
+            - GTQ
+            - GBP
+            - GNF
+            - GYD
+            - HTG
+            - HNL
+            - HKD
+            - HUF
+            - ISK
+            - IDR
+            - XDR
+            - IRR
+            - IQD
+            - ILS
+            - JMD
+            - JPY
+            - JOD
+            - KZT
+            - KES
+            - KPW
+            - KRW
+            - KWD
+            - KGS
+            - LAK
+            - LBP
+            - LSL
+            - ZAR
+            - LRD
+            - LYD
+            - CHF
+            - MOP
+            - MKD
+            - MGA
+            - MWK
+            - MYR
+            - MVR
+            - MRU
+            - MUR
+            - XUA
+            - MXN
+            - MXV
+            - MDL
+            - MNT
+            - MAD
+            - MZN
+            - MMK
+            - NAD
+            - NPR
+            - NIO
+            - NGN
+            - OMR
+            - PKR
+            - PAB
+            - PGK
+            - PYG
+            - PEN
+            - PHP
+            - PLN
+            - QAR
+            - RON
+            - RUB
+            - RWF
+            - SHP
+            - WST
+            - STN
+            - SAR
+            - RSD
+            - SCR
+            - SLE
+            - SGD
+            - XSU
+            - SBD
+            - SOS
+            - SSP
+            - LKR
+            - SDG
+            - SRD
+            - SEK
+            - CHE
+            - CHW
+            - SYP
+            - TWD
+            - TJS
+            - TZS
+            - THB
+            - TOP
+            - TTD
+            - TND
+            - TRY
+            - TMT
+            - UGX
+            - UAH
+            - AED
+            - USN
+            - UYU
+            - UYI
+            - UYW
+            - UZS
+            - VUV
+            - VES
+            - VED
+            - VND
+            - YER
+            - ZMW
+            - ZWG
+            - XBA
+            - XBB
+            - XBC
+            - XBD
+            - XTS
+            - XXX
+            - XAU
+            - XPD
+            - XPT
+            - XAG
+          description: ISO 4217 currency code.
       additionalProperties: true
     MoneyQuantity:
       type: object
@@ -25289,9 +25616,13 @@ components:
         value:
           type: number
         comparator:
-          type: object
-          additionalProperties: true
-          description: "Type '<' | '<=' | '>=' | '>'"
+          type: string
+          enum:
+            - <
+            - <=
+            - '>='
+            - '>'
+          description: How the value should be understood relative to the stated value.
         unit:
           type: string
         system:
@@ -25309,9 +25640,13 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         status:
-          type: object
-          additionalProperties: true
-          description: "Type 'generated' | 'extensions' | 'additional' | 'empty'"
+          type: string
+          enum:
+            - generated
+            - extensions
+            - additional
+            - empty
+          description: The status of the narrative - whether it's entirely generated or human-authored.
         div:
           type: string
       additionalProperties: true
@@ -25322,9 +25657,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'OperationDefinition'"
+          type: string
+          enum:
+            - OperationDefinition
+          description: This is a OperationDefinition resource
         id:
           type: string
         meta:
@@ -25338,9 +25674,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -25358,13 +25692,19 @@ components:
         title:
           type: string
         status:
-          type: object
-          additionalProperties: true
-          description: "Type 'draft' | 'active' | 'retired' | 'unknown'"
+          type: string
+          enum:
+            - draft
+            - active
+            - retired
+            - unknown
+          description: The status of this operation definition.
         kind:
-          type: object
-          additionalProperties: true
-          description: "Type 'operation' | 'query'"
+          type: string
+          enum:
+            - operation
+            - query
+          description: Whether this is an operation or a named query.
         experimental:
           type: boolean
         date:
@@ -25394,9 +25734,16 @@ components:
         resource:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type ResourceType
+            type: string
+            enum:
+              - Basic
+              - Binary
+              - CodeSystem
+              - Invoice
+              - Questionnaire
+              - QuestionnaireResponse
+              - ValueSet
+            description: The resource types on which this operation can be executed.
         system:
           type: boolean
         type:
@@ -25461,9 +25808,11 @@ components:
         name:
           type: string
         use:
-          type: object
-          additionalProperties: true
-          description: "Type 'in' | 'out'"
+          type: string
+          enum:
+            - in
+            - out
+          description: Whether this is an input or an output parameter.
         min:
           type: number
         max:
@@ -25477,9 +25826,18 @@ components:
           items:
             type: string
         searchType:
-          type: object
-          additionalProperties: true
-          description: "Type 'number' | 'date' | 'string' | 'token' | 'reference' | 'composite' | 'quantity' | 'uri' | 'special'"
+          type: string
+          enum:
+            - number
+            - date
+            - string
+            - token
+            - reference
+            - composite
+            - quantity
+            - uri
+            - special
+          description: How the parameter is understood as a search parameter; only used if the parameter type is 'string'.
         binding:
           $ref: '#/components/schemas/OperationDefinitionParameterBinding'
         referencedFrom:
@@ -25510,9 +25868,13 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         strength:
-          type: object
-          additionalProperties: true
-          description: "Type 'required' | 'extensible' | 'preferred' | 'example'"
+          type: string
+          enum:
+            - required
+            - extensible
+            - preferred
+            - example
+          description: The degree of conformance expectations associated with this binding.
         valueSet:
           type: string
       additionalProperties: true
@@ -25543,9 +25905,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'OperationOutcome'"
+          type: string
+          enum:
+            - OperationOutcome
+          description: This is a OperationOutcome resource
         id:
           type: string
         meta:
@@ -25559,9 +25922,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -25592,13 +25953,48 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         severity:
-          type: object
-          additionalProperties: true
-          description: "Type 'fatal' | 'error' | 'warning' | 'information'"
+          type: string
+          enum:
+            - fatal
+            - error
+            - warning
+            - information
+          description: Whether the issue indicates a variation from successful processing.
         code:
-          type: object
-          additionalProperties: true
-          description: "Type 'invalid' | 'structure' | 'required' | 'value' | 'invariant' | 'security' | 'login' | 'unknown' | 'expired' |"
+          type: string
+          enum:
+            - invalid
+            - structure
+            - required
+            - value
+            - invariant
+            - security
+            - login
+            - unknown
+            - expired
+            - forbidden
+            - suppressed
+            - processing
+            - not-supported
+            - duplicate
+            - multiple-matches
+            - not-found
+            - deleted
+            - too-long
+            - code-invalid
+            - extension
+            - too-costly
+            - business-rule
+            - conflict
+            - transient
+            - lock-error
+            - no-store
+            - exception
+            - timeout
+            - incomplete
+            - throttled
+            - informational
+          description: The type of the issue, drawn from the FHIR IssueType value set.
         details:
           $ref: '#/components/schemas/CodeableConcept'
         diagnostics:
@@ -25619,9 +26015,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'Organization'"
+          type: string
+          enum:
+            - Organization
+          description: This is a Organization resource
         id:
           type: string
         meta:
@@ -25635,9 +26032,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -25671,9 +26066,7 @@ components:
           items:
             $ref: '#/components/schemas/Address'
         partOf:
-          type: object
-          additionalProperties: true
-          description: 'Type Reference<Organization>'
+          $ref: '#/components/schemas/Reference'
         contact:
           type: array
           items:
@@ -25709,9 +26102,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'OrganizationAffiliation'"
+          type: string
+          enum:
+            - OrganizationAffiliation
+          description: This is a OrganizationAffiliation resource
         id:
           type: string
         meta:
@@ -25725,9 +26119,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -25745,19 +26137,13 @@ components:
         period:
           $ref: '#/components/schemas/Period'
         organization:
-          type: object
-          additionalProperties: true
-          description: 'Type Reference<Organization>'
+          $ref: '#/components/schemas/Reference'
         participatingOrganization:
-          type: object
-          additionalProperties: true
-          description: 'Type Reference<Organization>'
+          $ref: '#/components/schemas/Reference'
         network:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: 'Type Reference<Organization>'
+            $ref: '#/components/schemas/Reference'
         code:
           type: array
           items:
@@ -25769,15 +26155,11 @@ components:
         location:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: 'Type Reference<Location>'
+            $ref: '#/components/schemas/Reference'
         healthcareService:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: 'Type Reference<HealthcareService>'
+            $ref: '#/components/schemas/Reference'
         telecom:
           type: array
           items:
@@ -25785,9 +26167,7 @@ components:
         endpoint:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: 'Type Reference<Endpoint>'
+            $ref: '#/components/schemas/Reference'
       additionalProperties: true
       required:
         - resourceType
@@ -25803,9 +26183,11 @@ components:
         name:
           type: string
         use:
-          type: object
-          additionalProperties: true
-          description: "Type 'in' | 'out'"
+          type: string
+          enum:
+            - in
+            - out
+          description: Whether the parameter is input or output for the module.
         min:
           type: number
         max:
@@ -25824,9 +26206,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'Parameters'"
+          type: string
+          enum:
+            - Parameters
+          description: This is a Parameters resource
         id:
           type: string
         meta:
@@ -25928,9 +26311,7 @@ components:
         valueRatio:
           $ref: '#/components/schemas/Ratio'
         valueReference:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         valueSampledData:
           $ref: '#/components/schemas/SampledData'
         valueTiming:
@@ -25940,9 +26321,7 @@ components:
         valueMeta:
           $ref: '#/components/schemas/Meta'
         resource:
-          type: object
-          additionalProperties: true
-          description: Type Resource
+          $ref: '#/components/schemas/Resource'
         part:
           type: array
           items:
@@ -25954,9 +26333,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'Patient'"
+          type: string
+          enum:
+            - Patient
+          description: This is a Patient resource
         id:
           type: string
         meta:
@@ -25970,9 +26350,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -25992,9 +26370,13 @@ components:
           items:
             $ref: '#/components/schemas/HumanName'
         gender:
-          type: object
-          additionalProperties: true
-          description: "Type 'male' | 'female' | 'other' | 'unknown'"
+          type: string
+          enum:
+            - male
+            - female
+            - other
+            - unknown
+          description: Administrative gender.
         birthDate:
           type: string
         photo:
@@ -26034,9 +26416,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'Practitioner'"
+          type: string
+          enum:
+            - Practitioner
+          description: This is a Practitioner resource
         id:
           type: string
         meta:
@@ -26050,9 +26433,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -26080,9 +26461,13 @@ components:
           items:
             $ref: '#/components/schemas/PractitionerAddress'
         gender:
-          type: object
-          additionalProperties: true
-          description: "Type 'male' | 'female' | 'other' | 'unknown'"
+          type: string
+          enum:
+            - male
+            - female
+            - other
+            - unknown
+          description: Administrative gender.
         birthDate:
           type: string
         photo:
@@ -26104,13 +26489,21 @@ components:
       type: object
       properties:
         use:
-          type: object
-          additionalProperties: true
-          description: "Type 'home' | 'work' | 'temp' | 'old' | 'billing'"
+          type: string
+          enum:
+            - home
+            - work
+            - temp
+            - old
+            - billing
+          description: The purpose of this address.
         type:
-          type: object
-          additionalProperties: true
-          description: "Type 'postal' | 'physical' | 'both'"
+          type: string
+          enum:
+            - postal
+            - physical
+            - both
+          description: Distinguishes between physical addresses and mailing addresses.
         text:
           type: string
         line:
@@ -26143,8 +26536,12 @@ components:
           $ref: '#/components/schemas/Period'
         issuer:
           type: object
-          additionalProperties: true
-          description: 'Type {'
+          properties:
+            display:
+              type: string
+            reference:
+              type: string
+          description: The organization that regulates and issues the qualification.
         display:
           type: string
         reference:
@@ -26156,9 +26553,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'PractitionerRole'"
+          type: string
+          enum:
+            - PractitionerRole
+          description: This is a PractitionerRole resource
         id:
           type: string
         meta:
@@ -26172,9 +26570,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -26192,13 +26588,9 @@ components:
         period:
           $ref: '#/components/schemas/Period'
         practitioner:
-          type: object
-          additionalProperties: true
-          description: 'Type Reference<Practitioner>'
+          $ref: '#/components/schemas/Reference'
         organization:
-          type: object
-          additionalProperties: true
-          description: 'Type Reference<Organization>'
+          $ref: '#/components/schemas/Reference'
         code:
           type: array
           items:
@@ -26210,15 +26602,11 @@ components:
         location:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: 'Type Reference<Location>'
+            $ref: '#/components/schemas/Reference'
         healthcareService:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: 'Type Reference<HealthcareService>'
+            $ref: '#/components/schemas/Reference'
         telecom:
           type: array
           items:
@@ -26234,9 +26622,7 @@ components:
         endpoint:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: 'Type Reference<Endpoint>'
+            $ref: '#/components/schemas/Reference'
       additionalProperties: true
       required:
         - resourceType
@@ -26246,9 +26632,16 @@ components:
         daysOfWeek:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: "Type ('mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun')"
+            type: string
+            enum:
+              - mon
+              - tue
+              - wed
+              - thu
+              - fri
+              - sat
+              - sun
+            description: Indicates which day of the week is available between the start and end times.
         allDay:
           type: boolean
         availableStartTime:
@@ -26276,9 +26669,13 @@ components:
         value:
           type: number
         comparator:
-          type: object
-          additionalProperties: true
-          description: "Type '<' | '<=' | '>=' | '>'"
+          type: string
+          enum:
+            - <
+            - <=
+            - '>='
+            - '>'
+          description: How the value should be understood relative to the stated value.
         unit:
           type: string
         system:
@@ -26306,9 +26703,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -26334,9 +26729,13 @@ components:
           items:
             type: string
         status:
-          type: object
-          additionalProperties: true
-          description: Type QuestionnaireStatus
+          type: string
+          enum:
+            - draft
+            - active
+            - retired
+            - unknown
+          description: The status of this questionnaire.
         experimental:
           type: boolean
         subjectType:
@@ -26399,9 +26798,25 @@ components:
         text:
           type: string
         type:
-          type: object
-          additionalProperties: true
-          description: Type QuestionnaireItemType
+          type: string
+          enum:
+            - group
+            - display
+            - boolean
+            - decimal
+            - integer
+            - date
+            - dateTime
+            - time
+            - string
+            - text
+            - url
+            - choice
+            - open-choice
+            - attachment
+            - reference
+            - quantity
+          description: The type of questionnaire item this represents.
         enableWhen:
           type: array
           items:
@@ -26443,9 +26858,16 @@ components:
         question:
           type: string
         operator:
-          type: object
-          additionalProperties: true
-          description: Type QuestionnaireEnableOperator
+          type: string
+          enum:
+            - =
+            - '!='
+            - '>'
+            - <
+            - '>='
+            - <=
+            - exists
+          description: Specifies the criteria by which the question is enabled.
         answerBoolean:
           type: boolean
         answerDecimal:
@@ -26465,9 +26887,7 @@ components:
         answerQuantity:
           $ref: '#/components/schemas/Quantity'
         answerReference:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
       additionalProperties: true
       required:
         - question
@@ -26486,9 +26906,7 @@ components:
         valueCoding:
           $ref: '#/components/schemas/Coding'
         valueReference:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         valueQuantity:
           $ref: '#/components/schemas/Quantity'
         initialSelected:
@@ -26520,9 +26938,7 @@ components:
         valueQuantity:
           $ref: '#/components/schemas/Quantity'
         valueReference:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
       additionalProperties: true
     QuestionnaireResponse:
       type: object
@@ -26544,9 +26960,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -26560,39 +26974,32 @@ components:
         basedOn:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Reference
+            $ref: '#/components/schemas/Reference'
         parent:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Reference
+            $ref: '#/components/schemas/Reference'
         questionnaire:
           type: string
         status:
-          type: object
-          additionalProperties: true
-          description: Type QuestionnaireResponseStatus
+          type: string
+          enum:
+            - in-progress
+            - completed
+            - amended
+            - entered-in-error
+            - stopped
+          description: The lifecycle status of the questionnaire response.
         subject:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         encounter:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         authored:
           type: string
         author:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         source:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         item:
           type: array
           items:
@@ -26644,8 +27051,14 @@ components:
           $ref: '#/components/schemas/Attachment'
         valueCoding:
           type: object
-          additionalProperties: true
-          description: 'Type {'
+          properties:
+            system:
+              type: string
+            code:
+              type: string
+            display:
+              type: string
+          description: 'If the answer is a data type: a coded value.'
         system:
           type: string
         code:
@@ -26654,16 +27067,22 @@ components:
           type: string
         valueQuantity:
           type: object
-          additionalProperties: true
-          description: 'Type {'
+          properties:
+            value:
+              type: number
+            unit:
+              type: string
+            system:
+              type: string
+            code:
+              type: string
+          description: 'If the answer is a data type: a measured amount.'
         value:
           type: number
         unit:
           type: string
         valueReference:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
         item:
           type: array
           items:
@@ -26701,9 +27120,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'RelatedPerson'"
+          type: string
+          enum:
+            - RelatedPerson
+          description: This is a RelatedPerson resource
         id:
           type: string
         meta:
@@ -26717,9 +27137,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -26747,9 +27165,13 @@ components:
           items:
             $ref: '#/components/schemas/ContactPoint'
         gender:
-          type: object
-          additionalProperties: true
-          description: "Type 'male' | 'female' | 'other' | 'unknown'"
+          type: string
+          enum:
+            - male
+            - female
+            - other
+            - unknown
+          description: Administrative gender.
         birthDate:
           type: string
         address:
@@ -26821,9 +27243,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'SearchParameter'"
+          type: string
+          enum:
+            - SearchParameter
+          description: This is a SearchParameter resource
         id:
           type: string
         meta:
@@ -26837,9 +27260,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -26857,9 +27278,13 @@ components:
         derivedFrom:
           type: string
         status:
-          type: object
-          additionalProperties: true
-          description: "Type 'draft' | 'active' | 'retired' | 'unknown'"
+          type: string
+          enum:
+            - draft
+            - active
+            - retired
+            - unknown
+          description: The status of this search parameter.
         experimental:
           type: boolean
         date:
@@ -26883,27 +27308,55 @@ components:
         base:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type ResourceType
+            type: string
+            enum:
+              - Basic
+              - Binary
+              - CodeSystem
+              - Invoice
+              - Questionnaire
+              - QuestionnaireResponse
+              - ValueSet
+            description: The base resource type(s) that this search parameter can be used against.
         type:
-          type: object
-          additionalProperties: true
-          description: "Type 'number' | 'date' | 'string' | 'token' | 'reference' | 'composite' | 'quantity' | 'uri' | 'special'"
+          type: string
+          enum:
+            - number
+            - date
+            - string
+            - token
+            - reference
+            - composite
+            - quantity
+            - uri
+            - special
+          description: The type of value that a search parameter may contain.
         expression:
           type: string
         xpath:
           type: string
         xpathUsage:
-          type: object
-          additionalProperties: true
-          description: "Type 'normal' | 'phonetic' | 'nearby' | 'distance' | 'other'"
+          type: string
+          enum:
+            - normal
+            - phonetic
+            - nearby
+            - distance
+            - other
+          description: How the search parameter relates to the set of elements returned by evaluating the xpath query.
         target:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type ResourceType
+            type: string
+            enum:
+              - Basic
+              - Binary
+              - CodeSystem
+              - Invoice
+              - Questionnaire
+              - QuestionnaireResponse
+              - ValueSet
+            description: Types of resource that may be the target of a reference search parameter.
         multipleOr:
           type: boolean
         multipleAnd:
@@ -26911,15 +27364,36 @@ components:
         comparator:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: "Type ('eq' | 'ne' | 'gt' | 'lt' | 'ge' | 'le' | 'sa' | 'eb' | 'ap')"
+            type: string
+            enum:
+              - eq
+              - ne
+              - gt
+              - lt
+              - ge
+              - le
+              - sa
+              - eb
+              - ap
+            description: Comparators supported for the search parameter.
         modifier:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: "Type ('missing' | 'exact' | 'contains' | 'not' | 'text' | 'in' | 'not-in' | 'below' | 'above' | 'type' | 'identifier' | 'ofType')"
+            type: string
+            enum:
+              - missing
+              - exact
+              - contains
+              - not
+              - text
+              - in
+              - not-in
+              - below
+              - above
+              - type
+              - identifier
+              - ofType
+            description: A modifier supported for the search parameter.
         chain:
           type: array
           items:
@@ -26981,9 +27455,10 @@ components:
       type: object
       properties:
         resourceType:
-          type: object
-          additionalProperties: true
-          description: "Type 'StructureDefinition'"
+          type: string
+          enum:
+            - StructureDefinition
+          description: This is a StructureDefinition resource
         id:
           type: string
         meta:
@@ -26997,9 +27472,7 @@ components:
         contained:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: Type Resource
+            $ref: '#/components/schemas/Resource'
         extension:
           type: array
           items:
@@ -27021,9 +27494,13 @@ components:
         title:
           type: string
         status:
-          type: object
-          additionalProperties: true
-          description: "Type 'draft' | 'active' | 'retired' | 'unknown'"
+          type: string
+          enum:
+            - draft
+            - active
+            - retired
+            - unknown
+          description: The status of this structure definition.
         experimental:
           type: boolean
         date:
@@ -27049,17 +27526,43 @@ components:
           items:
             $ref: '#/components/schemas/Coding'
         fhirVersion:
-          type: object
-          additionalProperties: true
-          description: "Type '0.01' | '0.05' | '0.06' | '0.11' | '0.0.80' | '0.0.81' | '0.0.82' | '0.4.0' | '0.5.0' | '1.0.0' |"
+          type: string
+          enum:
+            - '0.01'
+            - '0.05'
+            - '0.06'
+            - '0.11'
+            - 0.0.80
+            - 0.0.81
+            - 0.0.82
+            - 0.4.0
+            - 0.5.0
+            - 1.0.0
+            - 1.0.1
+            - 1.0.2
+            - 1.1.0
+            - 1.4.0
+            - 1.6.0
+            - 1.8.0
+            - 3.0.0
+            - 3.0.1
+            - 3.3.0
+            - 3.5.0
+            - 4.0.0
+            - 4.0.1
+          description: The version of the FHIR specification on which this StructureDefinition is based.
         mapping:
           type: array
           items:
             $ref: '#/components/schemas/StructureDefinitionMapping'
         kind:
-          type: object
-          additionalProperties: true
-          description: "Type 'primitive-type' | 'complex-type' | 'resource' | 'logical'"
+          type: string
+          enum:
+            - primitive-type
+            - complex-type
+            - resource
+            - logical
+          description: Defines the kind of structure that this definition is describing.
         abstract:
           type: boolean
         context:
@@ -27075,9 +27578,11 @@ components:
         baseDefinition:
           type: string
         derivation:
-          type: object
-          additionalProperties: true
-          description: "Type 'specialization' | 'constraint'"
+          type: string
+          enum:
+            - specialization
+            - constraint
+          description: How the type relates to the baseDefinition.
         snapshot:
           $ref: '#/components/schemas/StructureDefinitionSnapshot'
         differential:
@@ -27105,9 +27610,12 @@ components:
           items:
             $ref: '#/components/schemas/Extension'
         type:
-          type: object
-          additionalProperties: true
-          description: "Type 'fhirpath' | 'element' | 'extension'"
+          type: string
+          enum:
+            - fhirpath
+            - element
+            - extension
+          description: Defines how to interpret the expression that defines the context of the extension.
         expression:
           type: string
       additionalProperties: true
@@ -27212,9 +27720,16 @@ components:
         durationMax:
           type: number
         durationUnit:
-          type: object
-          additionalProperties: true
-          description: "Type 's' | 'min' | 'h' | 'd' | 'wk' | 'mo' | 'a'"
+          type: string
+          enum:
+            - s
+            - min
+            - h
+            - d
+            - wk
+            - mo
+            - a
+          description: The units of time for the duration, in UCUM units.
         frequency:
           type: number
         frequencyMax:
@@ -27224,23 +27739,63 @@ components:
         periodMax:
           type: number
         periodUnit:
-          type: object
-          additionalProperties: true
-          description: "Type 's' | 'min' | 'h' | 'd' | 'wk' | 'mo' | 'a'"
+          type: string
+          enum:
+            - s
+            - min
+            - h
+            - d
+            - wk
+            - mo
+            - a
+          description: The units of time for the period, in UCUM units.
         dayOfWeek:
           type: array
           items:
-            type: object
-            additionalProperties: true
-            description: "Type ('mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun')"
+            type: string
+            enum:
+              - mon
+              - tue
+              - wed
+              - thu
+              - fri
+              - sat
+              - sun
+            description: If one or more days of the week is provided, the action happens only on the specified day(s).
         timeOfDay:
           type: array
           items:
             type: string
         when:
-          type: object
-          additionalProperties: true
-          description: "Type ('MORN' | 'MORN.early' | 'MORN.late' | 'NOON' | 'AFT' | 'AFT.early' | 'AFT.late' | 'EVE' | 'EVE.early' |"
+          type: string
+          enum:
+            - MORN
+            - MORN.early
+            - MORN.late
+            - NOON
+            - AFT
+            - AFT.early
+            - AFT.late
+            - EVE
+            - EVE.early
+            - EVE.late
+            - NIGHT
+            - PHS
+            - HS
+            - WAKE
+            - C
+            - CM
+            - CD
+            - CV
+            - AC
+            - ACM
+            - ACD
+            - ACV
+            - PC
+            - PCM
+            - PCD
+            - PCV
+          description: An approximate time period during the day linked to an event of daily living.
         offset:
           type: number
       additionalProperties: true
@@ -27256,9 +27811,7 @@ components:
         valueRange:
           $ref: '#/components/schemas/Range'
         valueReference:
-          type: object
-          additionalProperties: true
-          description: Type Reference
+          $ref: '#/components/schemas/Reference'
       additionalProperties: true
       required:
         - code
@@ -27601,13 +28154,21 @@ components:
       type: object
       properties:
         status:
-          type: object
-          additionalProperties: true
-          description: Type ContactStatus
+          type: string
+          enum:
+            - OPEN
+            - IN_PROGRESS
+            - RESOLVED
+            - CLOSED
+          description: Contact status (packages/database/prisma/schema.prisma ContactStatus).
         type:
-          type: object
-          additionalProperties: true
-          description: Type ContactType
+          type: string
+          enum:
+            - GENERAL_ENQUIRY
+            - FEATURE_REQUEST
+            - DSAR
+            - COMPLAINT
+          description: Contact submission type (packages/database/prisma/schema.prisma ContactType).
         organisationId:
           type: string
       additionalProperties: true
@@ -27615,9 +28176,13 @@ components:
       type: object
       properties:
         status:
-          type: object
-          additionalProperties: true
-          description: Type ContactStatus
+          type: string
+          enum:
+            - OPEN
+            - IN_PROGRESS
+            - RESOLVED
+            - CLOSED
+          description: Contact status (packages/database/prisma/schema.prisma ContactStatus).
       additionalProperties: true
       required:
         - status
@@ -27650,8 +28215,31 @@ components:
       type: object
       properties:
         items:
-          type: object
-          additionalProperties: true
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              description:
+                type: string
+                nullable: true
+              quantity:
+                type: number
+              unitPrice:
+                type: number
+              discountPercent:
+                type: number
+              total:
+                type: number
+            required:
+              - name
+              - quantity
+              - unitPrice
+              - total
+          description: Invoice line items to add (packages/types/src/invoice.ts InvoiceItem).
       additionalProperties: true
     LinkPayload:
       type: object
@@ -27661,9 +28249,13 @@ components:
         organisationId:
           type: string
         organisationType:
-          type: object
-          additionalProperties: true
-          description: Type OrganisationType
+          type: string
+          enum:
+            - HOSPITAL
+            - BREEDER
+            - BOARDER
+            - GROOMER
+          description: Organisation type (packages/database/prisma/schema.prisma OrganisationType).
       additionalProperties: true
       required:
         - companionId
@@ -27684,9 +28276,13 @@ components:
           type: string
           nullable: true
         organisationType:
-          type: object
-          additionalProperties: true
-          description: Type OrganisationType
+          type: string
+          enum:
+            - HOSPITAL
+            - BREEDER
+            - BOARDER
+            - GROOMER
+          description: Organisation type (packages/database/prisma/schema.prisma OrganisationType).
       additionalProperties: true
       required:
         - companionId
@@ -27724,8 +28320,17 @@ components:
           type: array
           items:
             type: object
-            additionalProperties: true
-            description: Type DocumentAttachmentInput
+            properties:
+              key:
+                type: string
+              mimeType:
+                type: string
+              size:
+                type: number
+            description: An uploaded attachment reference (apps/backend/src/services/document.service.ts DocumentAttachmentInput).
+            required:
+              - key
+              - mimeType
         appointmentId:
           type: string
           nullable: true
@@ -27736,10 +28341,10 @@ components:
           type: string
           nullable: true
         issueDate:
-          type: object
-          additionalProperties: true
-          description: 'Type string | Date'
+          type: string
+          format: date-time
           nullable: true
+          description: When the document was issued.
       additionalProperties: true
     UpdateDocumentParams:
       type: object
@@ -27767,25 +28372,41 @@ components:
       type: object
       properties:
         status:
-          type: object
-          additionalProperties: true
-          description: Type TaskStatus
+          type: string
+          enum:
+            - PENDING
+            - IN_PROGRESS
+            - COMPLETED
+            - CANCELLED
+          description: Task status (packages/database/prisma/schema.prisma TaskStatus).
         completion:
           type: object
-          additionalProperties: true
-          description: Type CompleteTaskInput
+          properties:
+            filledBy:
+              type: string
+            answers:
+              type: object
+              additionalProperties: true
+              description: Free-form question-id to answer map (packages/database/prisma/schema.prisma stores this as an opaque JSON column; the question set, and therefore the answer keys, is caller-defined per task).
+            score:
+              type: number
+            summary:
+              type: string
+          description: Completion details when transitioning a task to COMPLETED (apps/backend/src/services/task.service.ts CompleteTaskInput).
+          required:
+            - filledBy
       additionalProperties: true
     RescheduleRequestBody:
       type: object
       properties:
         startTime:
-          type: object
-          additionalProperties: true
-          description: 'Type string | Date'
+          type: string
+          format: date-time
+          description: The new appointment start time.
         endTime:
-          type: object
-          additionalProperties: true
-          description: 'Type string | Date'
+          type: string
+          format: date-time
+          description: The new appointment end time.
         concern:
           type: string
         isEmergency:
@@ -27832,12 +28453,20 @@ components:
           type: string
         payload:
           type: object
-          additionalProperties: true
-          description: 'Type {'
+          properties:
+            id:
+              oneOf:
+                - type: string
+                - type: integer
+              nullable: true
+              description: The Documenso document id.
+          description: The Documenso webhook payload envelope (apps/backend/src/controllers/web/documenso.controller.ts).
         id:
-          type: object
-          additionalProperties: true
-          description: 'Type string | number'
+          oneOf:
+            - type: string
+            - type: integer
+          nullable: true
+          description: Mirrors payload.id - Documenso sends the document id both at the top level and nested under payload.
       additionalProperties: true
     NormalizedOccupancy:
       type: object
@@ -27849,9 +28478,12 @@ components:
           type: string
           format: 'date-time'
         sourceType:
-          type: object
-          additionalProperties: true
-          description: 'Type OccupancyMongo["sourceType"]'
+          type: string
+          enum:
+            - APPOINTMENT
+            - BLOCKED
+            - SURGERY
+          description: What kind of record this occupancy slot was normalized from (apps/backend/src/models/occupancy.ts).
         referenceId:
           type: string
       additionalProperties: true
@@ -27863,9 +28495,14 @@ components:
       type: object
       properties:
         category:
-          type: object
-          additionalProperties: true
-          description: Type OrgDocumentCategory
+          type: string
+          enum:
+            - TERMS_AND_CONDITIONS
+            - PRIVACY_POLICY
+            - CANCELLATION_POLICY
+            - FIRE_SAFETY
+            - GENERAL
+          description: Organisation document category (packages/database/prisma/schema.prisma OrgDocumentCategory).
         visibility:
           type: string
           enum:
@@ -27948,18 +28585,19 @@ components:
         patient:
           type: object
           additionalProperties: true
+          description: "The patient on this appointment. Opaque JSON column (packages/database/prisma/schema.prisma Appointment.patient), not database-enforced. Every current write path populates a consistent { id, name, species, breed?, parent: { id, name } } shape (packages/types/src/appointment.ts), but per this schema's own documented policy that shape is not asserted here since a historical row or a future write path could diverge."
         lead:
           type: object
           additionalProperties: true
-          nullable: true
+          description: "The assigned vet/practitioner. Opaque JSON column (packages/database/prisma/schema.prisma Appointment.lead), not database-enforced. Every current write path populates a consistent { id, name, profileUrl? } shape (packages/types/src/appointment.ts), but per this schema's own documented policy that shape is not asserted here since a historical row or a future write path could diverge."
         appointmentType:
           type: object
           additionalProperties: true
-          nullable: true
+          description: "The appointment type. Opaque JSON column (packages/database/prisma/schema.prisma Appointment.appointmentType), not database-enforced. Every current write path populates a consistent { id, name, speciality: { id, name } } shape (packages/types/src/appointment.ts), but per this schema's own documented policy that shape is not asserted here since a historical row or a future write path could diverge."
         room:
           type: object
           additionalProperties: true
-          nullable: true
+          description: "The assigned room. Opaque JSON column (packages/database/prisma/schema.prisma Appointment.room), not database-enforced. Every current write path populates a consistent { id, name, unitId?, unitName?, unit? } shape (packages/types/src/appointment.ts), but per this schema's own documented policy that shape is not asserted here since a historical row or a future write path could diverge."
         appointmentKind:
           type: string
           enum: [OUTPATIENT, INPATIENT]
@@ -28122,3 +28760,34 @@ components:
           type: string
           format: date-time
           nullable: true
+    Reference:
+      type: object
+      description: A reference from one resource to another (packages/fhirtypes/src/Reference.ts).
+      properties:
+        id:
+          type: string
+        extension:
+          type: array
+          items:
+            $ref: '#/components/schemas/Extension'
+        reference:
+          type: string
+          description: A reference to a location at which the other resource is found - a relative reference (relative to the service base URL) or an absolute URL. Internal fragment references (start with '#') refer to contained resources.
+        type:
+          type: string
+          description: The expected FHIR resource type of the target of the reference, as a canonical URL segment relative to http://hl7.org/fhir/StructureDefinition/ (e.g. "Patient").
+        identifier:
+          $ref: '#/components/schemas/Identifier'
+        display:
+          type: string
+          description: Plain text narrative that identifies the resource in addition to the resource reference.
+    Resource:
+      oneOf:
+        - $ref: '#/components/schemas/Basic'
+        - $ref: '#/components/schemas/Binary'
+        - $ref: '#/components/schemas/CodeSystem'
+        - $ref: '#/components/schemas/Invoice'
+        - $ref: '#/components/schemas/Questionnaire'
+        - $ref: '#/components/schemas/QuestionnaireResponse'
+        - $ref: '#/components/schemas/ValueSet'
+      description: A resource inlined via `contained` (or a generic Parameters.resource/BundleEntry.resource slot). Matches the union in packages/fhirtypes/src/Resource.ts - the resource types this app actually embeds this way, not the full FHIR resource set.
