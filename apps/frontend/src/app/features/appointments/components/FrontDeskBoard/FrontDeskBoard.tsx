@@ -565,6 +565,16 @@ const FrontDeskBoard = ({
 
   const body = (() => {
     if (loading) return <PanelLoadingRows rowClass={rowClass} />;
+    if (error) {
+      return (
+        <div
+          role="alert"
+          className="border-b border-[var(--divider)] bg-[var(--inset)] px-4 py-3 text-[12.5px] font-semibold text-[var(--danger-text)]"
+        >
+          {error}
+        </div>
+      );
+    }
     if (sorted.length === 0) {
       return (
         <PanelEmptyState message={showAll ? 'No check-ins yet' : 'No patients are checked in'} />
@@ -597,15 +607,6 @@ const FrontDeskBoard = ({
         onToggleShowAll={onToggleShowAll}
         onToggleAdd={onAdd ? () => setAddOpen((open) => !open) : undefined}
       />
-
-      {error && (
-        <div
-          role="alert"
-          className="border-b border-[var(--divider)] bg-[var(--inset)] px-4 py-3 text-[12.5px] font-semibold text-[var(--danger-text)]"
-        >
-          {error}
-        </div>
-      )}
 
       {onAdd && addOpen && (
         <AddCheckInForm companions={companions} onAdd={onAdd} onClose={() => setAddOpen(false)} />

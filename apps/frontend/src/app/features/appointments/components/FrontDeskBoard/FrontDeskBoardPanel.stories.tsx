@@ -537,9 +537,9 @@ export const LoadFailed: FrontDeskBoardPanelStory = {
     await expect(await canvas.findByRole('alert')).toHaveTextContent(
       'Unable to load the check-in board right now.'
     );
-    // The error banner and the empty body are not mutually exclusive - both
-    // render at once, since `checkIns` never left its initial empty array.
-    await expect(canvas.getByText('No patients are checked in')).toBeVisible();
+    // The error banner and the empty body are mutually exclusive: an unsuccessful
+    // read must not also claim the board is confirmed empty.
+    await expect(canvas.queryByText('No patients are checked in')).not.toBeInTheDocument();
   },
 };
 
