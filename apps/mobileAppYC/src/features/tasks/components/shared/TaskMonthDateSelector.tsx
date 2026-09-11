@@ -62,26 +62,30 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
       weekDates.length === 0 ||
       selectedDateIndex === -1
     ) {
-      return;
+      return undefined;
     }
-    setTimeout(() => {
+    const scroll = () => {
       dateListRef.current?.scrollToIndex({
         index: selectedDateIndex,
         viewPosition: 0.5,
         animated: true,
       });
-      setTimeout(() => {
-        dateListRef.current?.scrollToIndex({
-          index: selectedDateIndex,
-          viewPosition: 0.5,
-          animated: true,
-        });
-      }, 300);
-    }, 100);
+    };
+    // Both timers are scheduled up front (not nested) so a superseded
+    // selection can cancel both from the effect cleanup below - a date/month
+    // change while the first is still pending used to leave it uncancelled,
+    // so it fired against the new selection's stale index and visibly
+    // snapped the strip back to a date the user had already moved off of.
+    const initialTimer = setTimeout(scroll, 100);
+    const retryTimer = setTimeout(scroll, 400);
+    return () => {
+      clearTimeout(initialTimer);
+      clearTimeout(retryTimer);
+    };
   }, [autoScroll, weekDates.length, selectedDateIndex]);
 
   React.useEffect(() => {
-    scrollToSelected();
+    return scrollToSelected();
   }, [scrollToSelected]);
 
   const handlePreviousMonth = useCallback(() => {
