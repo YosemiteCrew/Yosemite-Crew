@@ -176,7 +176,8 @@ describe('FrontDeskBoard', () => {
       />
     );
 
-    await user.selectOptions(screen.getByLabelText('Assign room'), 'room-2');
+    await user.click(screen.getByRole('button', { name: /Assign room/ }));
+    await user.click(within(screen.getByRole('listbox')).getByText('Exam 2'));
     expect(props.onAssignRoom).toHaveBeenCalledWith('7', 'room-2');
   });
 
@@ -220,7 +221,8 @@ describe('FrontDeskBoard', () => {
 
     await user.click(screen.getByLabelText('Patient'));
     await user.click(screen.getByRole('option', { name: 'Bruno — Sarah' }));
-    await user.selectOptions(screen.getByLabelText('Triage priority'), 'IMMEDIATE');
+    await user.click(screen.getByRole('button', { name: /Triage priority/ }));
+    await user.click(within(screen.getByRole('listbox')).getByText('Immediate'));
     await user.click(screen.getByRole('button', { name: 'Check in patient' }));
 
     expect(props.onAdd).toHaveBeenCalledWith(
@@ -264,7 +266,7 @@ describe('FrontDeskBoard', () => {
     );
   });
 
-  it('ignores selecting the placeholder in the room control', async () => {
+  it('does not offer a blank option to clear an assigned room', async () => {
     const user = userEvent.setup();
     const props = handlers();
     render(
@@ -275,7 +277,8 @@ describe('FrontDeskBoard', () => {
       />
     );
 
-    await user.selectOptions(screen.getByLabelText('Assign room'), '');
+    await user.click(screen.getByRole('button', { name: /Assign room/ }));
+    expect(within(screen.getByRole('listbox')).queryByText('Assign room')).not.toBeInTheDocument();
     expect(props.onAssignRoom).not.toHaveBeenCalled();
   });
 

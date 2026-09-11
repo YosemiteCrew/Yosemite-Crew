@@ -458,8 +458,8 @@ describe('TreatmentStep', () => {
     // Each row shows the line price at the right end and a Refill field.
     expect(screen.getByText('$165')).toBeInTheDocument();
     expect(screen.getAllByLabelText('Refills').length).toBeGreaterThan(0);
-    // Fulfillment is a pill dropdown (not checkboxes), defaulting to the value.
-    expect(screen.getAllByRole('combobox', { name: /fulfillment/i }).length).toBeGreaterThan(0);
+    // Fulfillment is a shared Dropdown (not checkboxes), defaulting to the value.
+    expect(screen.getAllByRole('button', { name: /fulfillment/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByText('In-house fulfilled').length).toBeGreaterThan(0);
     // The old "Medication" tag no longer appears on the cards.
     expect(screen.queryByText('Medication')).not.toBeInTheDocument();
@@ -489,7 +489,7 @@ describe('TreatmentStep', () => {
 
     // The locked state is surfaced, and the row's controls are read-only.
     expect(screen.getByText('Finalized')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /fulfillment/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /fulfillment/i })).toBeDisabled();
   });
 
   it('does not block Save Treatment on a finalized row missing a now-required field', async () => {
@@ -661,10 +661,9 @@ describe('TreatmentStep', () => {
     );
     expect(savePrescriptionArtifact).not.toHaveBeenCalled();
 
-    // Fulfillment is a compact pill dropdown: open it, then pick the option.
-    fireEvent.change(screen.getAllByRole('combobox', { name: /fulfillment/i })[0], {
-      target: { value: 'PRESCRIPTION_ONLY' },
-    });
+    // Fulfillment is a shared Dropdown: open it, then pick the option.
+    fireEvent.click(screen.getAllByRole('button', { name: /fulfillment/i })[0]);
+    fireEvent.click(screen.getByRole('option', { name: 'Prescription only' }));
     expect(
       useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription[0].fulfillment
     ).toBe('PRESCRIPTION_ONLY');

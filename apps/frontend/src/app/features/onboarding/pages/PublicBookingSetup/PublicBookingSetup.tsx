@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Switch from '@/app/ui/primitives/Switch/Switch';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import {
   IoArrowBack,
   IoArrowForward,
@@ -37,6 +38,16 @@ const BUFFER_OPTIONS: { label: string; minutes: number }[] = [
   { label: '15 minutes', minutes: 15 },
   { label: '30 minutes', minutes: 30 },
 ];
+// Dropdown works in raw strings, so the day/minute counts above are mirrored
+// into string-valued options here rather than parsed back out of a label.
+const WINDOW_DROPDOWN_OPTIONS = WINDOW_OPTIONS.map((opt) => ({
+  label: opt.label,
+  value: String(opt.days),
+}));
+const BUFFER_DROPDOWN_OPTIONS = BUFFER_OPTIONS.map((opt) => ({
+  label: opt.label,
+  value: String(opt.minutes),
+}));
 const copyText = async (value: string): Promise<boolean> => {
   try {
     const clip = globalThis.navigator?.clipboard;
@@ -151,46 +162,18 @@ const BookingServicesStep = ({
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        {/* focus-within on the WRAPPER, because nothing else can show focus
-            here: globals.css suppresses the outline on input, select and
-            textarea on the grounds that each field shows border-color on focus,
-            and the inner control adds its own outline-none. These five notched
-            fields had neither, so a keyboard user tabbing through the public
-            booking setup got no indication of where they were at all. */}
-        <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px] focus-within:border-[var(--color-input-border-active)]">
-          <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
-            Bookable window
-          </span>
-          <select
-            aria-label="Bookable window"
-            value={bookingWindowDays}
-            onChange={(e) => onBookingWindowChange(Number(e.target.value))}
-            className="flex-1 bg-transparent text-[13.5px] font-semibold text-[var(--ink-body)] outline-none"
-          >
-            {WINDOW_OPTIONS.map((opt) => (
-              <option key={opt.days} value={opt.days}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px] focus-within:border-[var(--color-input-border-active)]">
-          <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
-            Buffer between visits
-          </span>
-          <select
-            aria-label="Buffer between visits"
-            value={bufferMinutes}
-            onChange={(e) => onBufferChange(Number(e.target.value))}
-            className="flex-1 bg-transparent text-[13.5px] font-semibold text-[var(--ink-body)] outline-none"
-          >
-            {BUFFER_OPTIONS.map((opt) => (
-              <option key={opt.minutes} value={opt.minutes}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Dropdown
+          placeholder="Bookable window"
+          value={String(bookingWindowDays)}
+          onChange={(v) => onBookingWindowChange(Number(v))}
+          options={WINDOW_DROPDOWN_OPTIONS}
+        />
+        <Dropdown
+          placeholder="Buffer between visits"
+          value={String(bufferMinutes)}
+          onChange={(v) => onBufferChange(Number(v))}
+          options={BUFFER_DROPDOWN_OPTIONS}
+        />
       </div>
 
       <div className="px-3.5 py-3 rounded-[14px] border border-[var(--divider)] bg-[var(--inset)]">

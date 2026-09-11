@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
@@ -156,6 +156,11 @@ const summaryValue = (label: string) => screen.getByText(label).nextElementSibli
 
 const createButton = () => screen.getByRole('button', { name: 'Create this estimate' });
 
+const selectCompanion = async (name: string) => {
+  await userEvent.click(screen.getByRole('button', { name: 'Companion' }));
+  await userEvent.click(within(screen.getByRole('listbox')).getByText(name));
+};
+
 const fillLine = async (
   index: number,
   values: { description: string; quantity: string; unitPrice: string; taxRate: string }
@@ -176,7 +181,7 @@ describe('CreateEstimateDialog', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('opens with one empty line and a zeroed summary', () => {
+  it('opens with one empty line and a zeroed summary', async () => {
     setup();
 
     expect(screen.getByRole('dialog', { name: 'Create an estimate' })).toBeInTheDocument();
@@ -187,7 +192,11 @@ describe('CreateEstimateDialog', () => {
     expect(summaryValue('Subtotal')).toBe('$0.00');
     expect(summaryValue('Tax')).toBe('$0.00');
     expect(summaryValue('Total')).toBe('$0.00');
-    expect(screen.getByRole('option', { name: 'Bruno' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Companion' }));
+    expect(
+      within(screen.getByRole('listbox')).getByRole('option', { name: 'Bruno' })
+    ).toBeInTheDocument();
   });
 
   it('recomputes the line total and the summary as the line is typed', async () => {
@@ -254,7 +263,7 @@ describe('CreateEstimateDialog', () => {
   it('blocks a submit with an invalid line and clears the message once it is fixed', async () => {
     const { onSubmit } = setup();
 
-    await userEvent.selectOptions(screen.getByLabelText('Companion'), 'c1');
+    await selectCompanion('Bruno');
     await userEvent.click(createButton());
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Every line needs a description.');
@@ -275,7 +284,7 @@ describe('CreateEstimateDialog', () => {
   it('submits the draft as a CreateEstimateInput with numeric items and an ISO validUntil', async () => {
     const { onSubmit } = setup();
 
-    await userEvent.selectOptions(screen.getByLabelText('Companion'), 'c2');
+    await selectCompanion('Mango');
     fireEvent.change(screen.getByLabelText('Valid until (optional)'), {
       target: { value: '2026-12-31' },
     });
@@ -309,7 +318,7 @@ describe('CreateEstimateDialog', () => {
   it('omits the optional fields when they were left empty', async () => {
     const { onSubmit } = setup();
 
-    await userEvent.selectOptions(screen.getByLabelText('Companion'), 'c1');
+    await selectCompanion('Bruno');
     await fillLine(1, {
       description: 'Dental clean',
       quantity: '2',

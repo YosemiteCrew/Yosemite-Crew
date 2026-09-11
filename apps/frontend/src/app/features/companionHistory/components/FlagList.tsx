@@ -6,6 +6,7 @@ import { IoAddOutline, IoCheckmarkOutline, IoFlagOutline } from 'react-icons/io5
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { Textarea } from '@/app/ui/Input';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import type {
   FlagSeverity,
   PatientFlag,
@@ -68,6 +69,15 @@ const TYPE_OPTIONS: PatientFlagType[] = [
   'OTHER',
 ];
 const SEVERITY_OPTIONS: FlagSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+
+const FLAG_TYPE_DROPDOWN_OPTIONS = TYPE_OPTIONS.map((type) => ({
+  label: TYPE_LABEL[type],
+  value: type,
+}));
+const SEVERITY_DROPDOWN_OPTIONS = SEVERITY_OPTIONS.map((severity) => ({
+  label: SEVERITY_LABEL[severity],
+  value: severity,
+}));
 
 const cardClass =
   'flex w-full flex-col rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03)]';
@@ -192,50 +202,22 @@ const CreateFlagForm = ({ creating, onCreate, onCancel }: CreateFlagFormProps) =
         />
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1">
-          <label className={fieldLabelClass} htmlFor="patient-flag-type">
-            Flag type
-          </label>
-          <select
-            id="patient-flag-type"
-            className={controlClass}
-            value={values.flagType}
-            onChange={(event) =>
-              setValues((current) => ({
-                ...current,
-                flagType: event.target.value as PatientFlagType,
-              }))
-            }
-          >
-            {TYPE_OPTIONS.map((type) => (
-              <option key={type} value={type}>
-                {TYPE_LABEL[type]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className={fieldLabelClass} htmlFor="patient-flag-severity">
-            Severity
-          </label>
-          <select
-            id="patient-flag-severity"
-            className={controlClass}
-            value={values.severity}
-            onChange={(event) =>
-              setValues((current) => ({
-                ...current,
-                severity: event.target.value as FlagSeverity,
-              }))
-            }
-          >
-            {SEVERITY_OPTIONS.map((severity) => (
-              <option key={severity} value={severity}>
-                {SEVERITY_LABEL[severity]}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Dropdown
+          placeholder="Flag type"
+          value={values.flagType}
+          onChange={(value) =>
+            setValues((current) => ({ ...current, flagType: value as PatientFlagType }))
+          }
+          options={FLAG_TYPE_DROPDOWN_OPTIONS}
+        />
+        <Dropdown
+          placeholder="Severity"
+          value={values.severity}
+          onChange={(value) =>
+            setValues((current) => ({ ...current, severity: value as FlagSeverity }))
+          }
+          options={SEVERITY_DROPDOWN_OPTIONS}
+        />
       </div>
       <div className="flex flex-col gap-1">
         <label className={fieldLabelClass} htmlFor="patient-flag-description">

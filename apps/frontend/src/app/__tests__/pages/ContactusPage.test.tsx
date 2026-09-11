@@ -1,7 +1,7 @@
 import React from 'react';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import ContactusPage from '@/app/features/marketing/pages/ContactusPage/ContactusPage';
@@ -337,9 +337,12 @@ describe('ContactusPage', () => {
           'Submit data service access request as The person whose name appears above'
         )
       );
-      fireEvent.change(screen.getByTestId('dynamic-select'), {
-        target: { value: 'UK_GDPR' },
-      });
+      await userEvent.click(
+        screen.getByRole('button', { name: /Under the rights of which law are you making/ })
+      );
+      await userEvent.click(
+        within(screen.getByRole('listbox')).getByText('UK GDPR / Data Protection Act 2018')
+      );
       fireEvent.click(
         screen.getByLabelText(
           'Submit data service access request to Access your personal information'

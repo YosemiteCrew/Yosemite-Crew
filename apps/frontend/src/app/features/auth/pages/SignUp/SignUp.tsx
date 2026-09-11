@@ -21,6 +21,7 @@ import { setStorageItem } from '@/app/lib/browserStorage';
 import { resetSidebarPreference } from '@/app/lib/sidebarPreference';
 import { AuthShell, AuthBrandContent } from '@/app/features/marketing/site';
 import { GithubSignInButton } from '@/app/features/auth/pages/GithubSignInButton';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import {
   AuthForm,
   AuthHeading,
@@ -34,6 +35,8 @@ import {
 
 const CLINIC_ROLE = 'A veterinary clinic, practice, or hospital';
 const DEVELOPER_ROLE = 'A developer';
+
+const ROLE_DROPDOWN_OPTIONS = [CLINIC_ROLE, DEVELOPER_ROLE];
 
 const CLINIC_POINTS = [
   {
@@ -227,21 +230,12 @@ type SignUpRoleFieldProps = {
 };
 
 const SignUpRoleField = ({ role, onRoleChange }: SignUpRoleFieldProps) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-    <label className="yc-lbl" htmlFor="signup-role">
-      I am
-    </label>
-    <select
-      id="signup-role"
-      className="yc-field"
-      aria-label="I am"
-      value={role}
-      onChange={(e) => onRoleChange(e.target.value)}
-    >
-      <option value={CLINIC_ROLE}>{CLINIC_ROLE}</option>
-      <option value={DEVELOPER_ROLE}>{DEVELOPER_ROLE}</option>
-    </select>
-  </div>
+  <Dropdown
+    placeholder="I am"
+    value={role}
+    onChange={onRoleChange}
+    options={ROLE_DROPDOWN_OPTIONS}
+  />
 );
 
 type SignUpFieldsProps = {

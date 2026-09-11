@@ -8,6 +8,7 @@ import {
   panelInputClass as inputClass,
 } from '@/app/ui/primitives/PanelStates/PanelStates';
 import { CompanionSelect } from '@/app/features/appointments/components/CompanionSelect';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import { IoPulseOutline, IoAddOutline } from 'react-icons/io5';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import { Textarea } from '@/app/ui/Input';
@@ -93,6 +94,11 @@ const TRIAGE_LABEL: Record<TriagePriority, string> = {
   STANDARD: 'Standard',
   NON_URGENT: 'Non-urgent',
 };
+
+const TRIAGE_DROPDOWN_OPTIONS = TRIAGE_ORDER.map((priority) => ({
+  label: TRIAGE_LABEL[priority],
+  value: priority,
+}));
 
 const STATUS_TONE: Record<CheckInStatus, StatusTone> = {
   WAITING: 'info',
@@ -230,28 +236,15 @@ const RoomControl = ({
   rooms: CheckInRoomOption[];
   busy: boolean;
   onAssignRoom: (id: string, roomId: string) => void;
-}) => {
-  const selectId = `checkin-room-${entry.id}`;
-  return (
-    <label className="flex items-center gap-1.5" htmlFor={selectId}>
-      <span className="sr-only">Assign room</span>
-      <select
-        id={selectId}
-        className={clsx(inputClass, 'w-auto py-1')}
-        value={entry.assignedRoomId ?? ''}
-        disabled={busy}
-        onChange={(e) => e.target.value && onAssignRoom(entry.id, e.target.value)}
-      >
-        <option value="">Assign room</option>
-        {rooms.map((room) => (
-          <option key={room.id} value={room.id}>
-            {room.name}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-};
+}) => (
+  <Dropdown
+    placeholder="Assign room"
+    value={entry.assignedRoomId ?? ''}
+    onChange={(roomId) => onAssignRoom(entry.id, roomId)}
+    options={rooms.map((room) => ({ label: room.name, value: room.id }))}
+    disabled={busy}
+  />
+);
 
 const CheckInRow = ({
   entry,
@@ -372,21 +365,12 @@ type AddCheckInFormState = ReturnType<typeof useAddCheckInForm>;
 
 const CheckInTimingFields = ({ form }: { form: AddCheckInFormState }) => (
   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-    <label className="flex flex-col gap-1" htmlFor="checkin-triage">
-      <span className={fieldLabelClass}>Triage priority</span>
-      <select
-        id="checkin-triage"
-        className={inputClass}
-        value={form.triagePriority}
-        onChange={(e) => form.setTriagePriority(e.target.value as TriagePriority)}
-      >
-        {TRIAGE_ORDER.map((priority) => (
-          <option key={priority} value={priority}>
-            {TRIAGE_LABEL[priority]}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Dropdown
+      placeholder="Triage priority"
+      value={form.triagePriority}
+      onChange={(v) => form.setTriagePriority(v as TriagePriority)}
+      options={TRIAGE_DROPDOWN_OPTIONS}
+    />
     <label className="flex flex-col gap-1" htmlFor="checkin-arrived">
       <span className={fieldLabelClass}>Arrived at</span>
       <input

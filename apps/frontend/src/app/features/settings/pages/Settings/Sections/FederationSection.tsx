@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNotify } from '@/app/hooks/useNotify';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { Textarea } from '@/app/ui/Input';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import { useConfirm } from '@/app/ui/overlays/Modal/ConfirmModal';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
@@ -43,6 +44,12 @@ const URGENCY_COLORS: Record<APReferralUrgency, string> = {
   URGENT: 'text-warning-700',
   EMERGENCY: 'text-danger-600',
 };
+
+const URGENCY_DROPDOWN_OPTIONS = [
+  { label: URGENCY_LABELS.ROUTINE, value: 'ROUTINE' },
+  { label: URGENCY_LABELS.URGENT, value: 'URGENT' },
+  { label: URGENCY_LABELS.EMERGENCY, value: 'EMERGENCY' },
+];
 
 // Federation states map onto the app's shared pill tones rather than carrying
 // their own colours. The original panel hardcoded Tailwind's default palette,
@@ -642,19 +649,12 @@ const ReferralFormFields = ({
       onChange={(v) => updateSummary('age', v)}
     />
     <div>
-      <label htmlFor="referral-urgency" className={FIELD_LABEL_CLS}>
-        Urgency
-      </label>
-      <select
-        id="referral-urgency"
-        className={REFERRAL_INPUT_CLS}
-        value={form.urgency}
-        onChange={(e) => update('urgency', e.target.value as APReferralUrgency)}
-      >
-        <option value="ROUTINE">Routine</option>
-        <option value="URGENT">Urgent</option>
-        <option value="EMERGENCY">Emergency</option>
-      </select>
+      <Dropdown
+        placeholder="Urgency"
+        value={form.urgency ?? 'ROUTINE'}
+        onChange={(v) => update('urgency', v as APReferralUrgency)}
+        options={URGENCY_DROPDOWN_OPTIONS}
+      />
     </div>
     <ReferralField
       id="referral-chief-complaint"

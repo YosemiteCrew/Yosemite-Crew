@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { isAuthRedirectError } from '@/app/services/axios';
@@ -105,8 +105,10 @@ describe('AllergyListPanel', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /Add allergy/ }));
     await userEvent.type(screen.getByLabelText('Allergen'), 'Latex');
-    await userEvent.selectOptions(screen.getByLabelText('Type'), 'ENVIRONMENTAL');
-    await userEvent.selectOptions(screen.getByLabelText('Severity'), 'MODERATE');
+    await userEvent.click(screen.getByRole('button', { name: /Type/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Environmental'));
+    await userEvent.click(screen.getByRole('button', { name: /Severity/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Moderate'));
     await userEvent.type(screen.getByLabelText('Reaction'), 'Dermatitis');
     await userEvent.type(screen.getByLabelText('Notes'), 'Gloves only');
     fireEvent.change(screen.getByLabelText('Onset date'), { target: { value: '2026-02-01' } });
