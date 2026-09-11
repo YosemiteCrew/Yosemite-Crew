@@ -76,8 +76,6 @@ type ServicesStepProps = {
   onBookingWindowChange: (value: number) => void;
   bufferMinutes: number;
   onBufferChange: (value: number) => void;
-  needsConfirmation: boolean;
-  onToggleConfirmation: () => void;
   onSkip: () => void;
   onContinue: () => void;
 };
@@ -92,8 +90,6 @@ const BookingServicesStep = ({
   onBookingWindowChange,
   bufferMinutes,
   onBufferChange,
-  needsConfirmation,
-  onToggleConfirmation,
   onSkip,
   onContinue,
 }: ServicesStepProps) => (
@@ -197,16 +193,11 @@ const BookingServicesStep = ({
         </label>
       </div>
 
-      <div className="flex items-center justify-between gap-3 px-3.5 py-3 rounded-[14px] border border-[var(--divider)] bg-[var(--inset)]">
+      <div className="px-3.5 py-3 rounded-[14px] border border-[var(--divider)] bg-[var(--inset)]">
         <span className="text-[12.5px] text-[var(--ink-body)]">
           <strong className="text-[var(--ink)]">Requests need confirmation.</strong> New bookings
           arrive as requests, not fixed slots.
         </span>
-        <Switch
-          checked={needsConfirmation}
-          label="Requests need confirmation"
-          onChange={onToggleConfirmation}
-        />
       </div>
     </div>
     <div className="flex items-center justify-between gap-3 px-7! py-4! border-t border-[var(--hairline)]">
@@ -534,7 +525,6 @@ const PublicBookingSetup = () => {
   const [selectionOverride, setSelectionOverride] = useState<Set<string> | null>(null);
   const [bookingWindowDays, setBookingWindowDays] = useState(WINDOW_OPTIONS[1].days);
   const [bufferMinutes, setBufferMinutes] = useState(BUFFER_OPTIONS[1].minutes);
-  const [needsConfirmation, setNeedsConfirmation] = useState(true);
   const [welcome, setWelcome] = useState(`Book a visit for your companion at ${orgName}.`);
   const [replyTo, setReplyTo] = useState('');
   const [copied, setCopied] = useState(false);
@@ -595,7 +585,6 @@ const PublicBookingSetup = () => {
         setConfig(loaded);
         setBookingWindowDays(loaded.bookingWindowDays);
         setBufferMinutes(loaded.bufferMinutes);
-        setNeedsConfirmation(!loaded.autoConfirm);
         setPublishOverride(null);
         if (loaded.welcomeMessage) setWelcome(loaded.welcomeMessage);
         if (loaded.replyToEmail) setReplyTo(loaded.replyToEmail);
@@ -650,7 +639,6 @@ const PublicBookingSetup = () => {
         serviceIds: [...selected].filter((id) => allBookableIds.has(id)),
         bookingWindowDays,
         bufferMinutes,
-        autoConfirm: !needsConfirmation,
         welcomeMessage: welcome.trim() || null,
         replyToEmail: replyTo.trim() || null,
         publicBookingEnabled: publish,
@@ -699,8 +687,6 @@ const PublicBookingSetup = () => {
             onBookingWindowChange={setBookingWindowDays}
             bufferMinutes={bufferMinutes}
             onBufferChange={setBufferMinutes}
-            needsConfirmation={needsConfirmation}
-            onToggleConfirmation={() => setNeedsConfirmation((v) => !v)}
             onSkip={handleSkip}
             onContinue={() => setStep(2)}
           />

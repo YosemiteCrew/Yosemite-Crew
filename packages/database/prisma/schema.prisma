@@ -1168,9 +1168,8 @@ model PublicBookingSettings {
   bookingWindowDays Int      @default(28)
   /// Padding added after a publicly booked slot.
   bufferMinutes     Int      @default(10)
-  /// False - the default - means a public request lands as REQUESTED for a human
-  /// to accept. True writes to the calendar directly, and is only ever honoured
-  /// after the requester has confirmed their email address.
+  /// Retained for schema compatibility. Public submissions always land as
+  /// requests for staff review, and application writes normalize this to false.
   autoConfirm       Boolean  @default(false)
   welcomeMessage    String?
   replyToEmail      String?
