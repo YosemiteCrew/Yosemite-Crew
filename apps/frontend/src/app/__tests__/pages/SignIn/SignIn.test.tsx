@@ -567,6 +567,24 @@ describe('SignIn Page', () => {
     expect(getEmailInput()).toHaveValue('');
   });
 
+  it('tells the user they were signed out when redirected here with reason=session-expired', () => {
+    (useSearchParams as jest.Mock).mockReturnValue(
+      new URLSearchParams({ next: '/dashboard', reason: 'session-expired' })
+    );
+
+    render(<SignIn />);
+
+    expect(mockShowErrorTost).toHaveBeenCalledWith(
+      expect.objectContaining({ errortext: 'You were signed out' })
+    );
+  });
+
+  it('says nothing when there is no reason param - a plain visit is not a sign-out', () => {
+    render(<SignIn />);
+
+    expect(mockShowErrorTost).not.toHaveBeenCalled();
+  });
+
   it('honors a safe next query param as the post-auth redirect', async () => {
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams({ next: '/create-org' }));
     mockSignIn.mockResolvedValue({});
