@@ -404,7 +404,6 @@ export type BookingPageConfig = {
   serviceIds: string[];
   bookingWindowDays: number;
   bufferMinutes: number;
-  autoConfirm: boolean;
   welcomeMessage: string | null;
   replyToEmail: string | null;
 };
@@ -419,7 +418,6 @@ const toConfig = (
     serviceIds: string[];
     bookingWindowDays: number;
     bufferMinutes: number;
-    autoConfirm: boolean;
     welcomeMessage: string | null;
     replyToEmail: string | null;
   } | null,
@@ -435,7 +433,6 @@ const toConfig = (
   serviceIds: settings?.serviceIds ?? [],
   bookingWindowDays: settings?.bookingWindowDays ?? DEFAULT_BOOKING_WINDOW_DAYS,
   bufferMinutes: settings?.bufferMinutes ?? DEFAULT_BUFFER_MINUTES,
-  autoConfirm: settings?.autoConfirm ?? false,
   welcomeMessage: settings?.welcomeMessage ?? null,
   replyToEmail: settings?.replyToEmail ?? null,
 });
@@ -444,7 +441,6 @@ export type BookingPageSettingsInput = {
   serviceIds: string[];
   bookingWindowDays: number;
   bufferMinutes: number;
-  autoConfirm: boolean;
   welcomeMessage?: string | null;
   replyToEmail?: string | null;
   /**
@@ -480,7 +476,6 @@ export const BookingPageService = {
         serviceIds: true,
         bookingWindowDays: true,
         bufferMinutes: true,
-        autoConfirm: true,
         welcomeMessage: true,
         replyToEmail: true,
       },
@@ -557,7 +552,7 @@ export const BookingPageService = {
       serviceIds: requested,
       bookingWindowDays: input.bookingWindowDays,
       bufferMinutes: input.bufferMinutes,
-      autoConfirm: input.autoConfirm,
+      autoConfirm: false,
       welcomeMessage: input.welcomeMessage?.trim() || null,
       replyToEmail: input.replyToEmail?.trim().toLowerCase() || null,
     };

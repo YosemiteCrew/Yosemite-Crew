@@ -73,7 +73,6 @@ const config = (over: Partial<BookingPageConfig> = {}): BookingPageConfig => ({
   serviceIds: [],
   bookingWindowDays: 28,
   bufferMinutes: 10,
-  autoConfirm: false,
   welcomeMessage: null,
   replyToEmail: null,
   ...over,
@@ -197,7 +196,10 @@ export const ServicesStep: Story = {
     // The selects carry the number the API stores, not the label.
     await expect(canvas.getByRole('combobox', { name: 'Bookable window' })).toHaveValue('28');
     await expect(canvas.getByRole('combobox', { name: 'Buffer between visits' })).toHaveValue('10');
-    await expect(canvas.getByRole('switch', { name: 'Requests need confirmation' })).toBeChecked();
+    await expect(canvas.getByText('Requests need confirmation.')).toBeInTheDocument();
+    await expect(
+      canvas.queryByRole('switch', { name: 'Requests need confirmation' })
+    ).not.toBeInTheDocument();
 
     // The two selects share one `grid-cols-1 sm:grid-cols-2` row: two tracks and
     // two children here, and the same grid is what drops to one column on a
@@ -213,7 +215,8 @@ export const ServicesStep: Story = {
       description: {
         story:
           'The entry pane. Every bookable service arrives already selected, which is the point of ' +
-          'the derived-selection design - the clinic opts services out rather than in.',
+          'the derived-selection design - the clinic opts services out rather than in. Booking ' +
+          'requests always require staff confirmation.',
       },
     },
   },

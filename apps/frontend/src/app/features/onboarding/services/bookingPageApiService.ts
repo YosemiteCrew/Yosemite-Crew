@@ -24,7 +24,6 @@ export type BookingPageConfig = {
   serviceIds: string[];
   bookingWindowDays: number;
   bufferMinutes: number;
-  autoConfirm: boolean;
   welcomeMessage: string | null;
   replyToEmail: string | null;
 };
@@ -33,7 +32,6 @@ export type BookingPageSettingsPayload = {
   serviceIds: string[];
   bookingWindowDays: number;
   bufferMinutes: number;
-  autoConfirm: boolean;
   welcomeMessage: string | null;
   replyToEmail: string | null;
   /**

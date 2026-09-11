@@ -22,9 +22,11 @@ Authenticated configuration surface the PIMS (Practice Information Management Sy
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Body: `SettingsSchema`
-- Body fields: `serviceIds`, `bookingWindowDays`, `bufferMinutes`, `autoConfirm`, `welcomeMessage`, `replyToEmail`, `publicBookingEnabled`
+- Body fields: `serviceIds`, `bookingWindowDays`, `bufferMinutes`, `welcomeMessage`, `replyToEmail`, `publicBookingEnabled`
 - Controller: `BookingPageController.saveConfig`
 - Response: `200`: keys `data`, `400`: keys `message`
+
+Public submissions always enter the staff-reviewed request queue. The configuration API does not expose an automatic-confirmation setting.
 
 ### GET /:organisationId/requests
 

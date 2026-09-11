@@ -71,7 +71,6 @@ const publishedOrg = (over: Record<string, unknown> = {}) => ({
     serviceIds: [SERVICE_ID],
     bookingWindowDays: 28,
     bufferMinutes: 10,
-    autoConfirm: false,
     welcomeMessage: "Book a visit.",
     replyToEmail: "front@example.com",
   },
@@ -230,7 +229,6 @@ describe("public-booking.service", () => {
             serviceIds: [],
             bookingWindowDays: 28,
             bufferMinutes: 10,
-            autoConfirm: false,
             welcomeMessage: null,
             replyToEmail: null,
           },
@@ -307,7 +305,6 @@ describe("public-booking.service", () => {
             serviceIds: [SERVICE_ID],
             bookingWindowDays: 9999,
             bufferMinutes: 10,
-            autoConfirm: true,
             welcomeMessage: null,
             replyToEmail: null,
           },
@@ -317,7 +314,27 @@ describe("public-booking.service", () => {
       const practice =
         await PublicBookingService.getPractice("park-veterinary");
       expect(practice.bookingWindowDays).toBe(180);
-      expect(practice.requiresConfirmation).toBe(false);
+    });
+
+    it("always reports staff confirmation and ignores the retired setting", async () => {
+      pm.organization.findUnique.mockResolvedValue(
+        publishedOrg({
+          bookingSettings: {
+            serviceIds: [SERVICE_ID],
+            bookingWindowDays: 28,
+            bufferMinutes: 10,
+            autoConfirm: true,
+            welcomeMessage: null,
+            replyToEmail: null,
+          },
+        }),
+      );
+
+      const practice =
+        await PublicBookingService.getPractice("park-veterinary");
+      expect(practice.requiresConfirmation).toBe(true);
+      const select = pm.organization.findUnique.mock.calls[0][0].select;
+      expect(select.bookingSettings.select).not.toHaveProperty("autoConfirm");
     });
   });
 
@@ -357,18 +374,9 @@ describe("public-booking.service", () => {
       );
     });
 
-    it("passes a zero buffer when the setting is unset", async () => {
+    it("passes a zero buffer when the practice has no settings row", async () => {
       pm.organization.findUnique.mockResolvedValue(
-        publishedOrg({
-          bookingSettings: {
-            serviceIds: [SERVICE_ID],
-            bookingWindowDays: 28,
-            bufferMinutes: 0,
-            autoConfirm: false,
-            welcomeMessage: null,
-            replyToEmail: null,
-          },
-        }),
+        publishedOrg({ bookingSettings: null }),
       );
 
       await PublicBookingService.getSlots(
@@ -462,7 +470,6 @@ describe("public-booking.service", () => {
             serviceIds: [],
             bookingWindowDays: 28,
             bufferMinutes: 10,
-            autoConfirm: false,
             welcomeMessage: null,
             replyToEmail: null,
           },
@@ -583,7 +590,6 @@ describe("public-booking.service", () => {
             serviceIds: [],
             bookingWindowDays: 28,
             bufferMinutes: 10,
-            autoConfirm: false,
             welcomeMessage: null,
             replyToEmail: null,
           },
