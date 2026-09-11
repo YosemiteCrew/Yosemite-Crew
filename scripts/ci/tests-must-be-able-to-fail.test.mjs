@@ -99,7 +99,7 @@ test('routes a changed test to the workspace that can run it', () => {
   assert.equal(workspaceOf('apps/backend/test/rate-limit-config.test.ts'), 'backend');
   assert.equal(workspaceOf('apps/frontend/src/app/__tests__/x.test.ts'), 'frontend');
   assert.equal(workspaceOf('scripts/ci/foo.test.mjs'), undefined);
-  assert.equal(workspaceOf('apps/mobileAppYC/__tests__/x.test.ts'), undefined);
+  assert.equal(workspaceOf('apps/mobileAppYC/__tests__/x.test.ts'), 'mobileAppYC');
 });
 
 test('groups tests per workspace and drops what this gate cannot run', () => {
@@ -108,11 +108,13 @@ test('groups tests per workspace and drops what this gate cannot run', () => {
     'apps/frontend/src/app/__tests__/b.test.ts',
     'apps/frontend/src/app/__tests__/c.test.ts',
     'apps/frontend/e2e/d.spec.ts',
+    'apps/mobileAppYC/__tests__/f.test.ts',
     'scripts/ci/e.test.mjs',
   ]);
-  assert.deepEqual([...grouped.keys()].sort(), ['backend', 'frontend']);
+  assert.deepEqual([...grouped.keys()].sort(), ['backend', 'frontend', 'mobileAppYC']);
   assert.equal(grouped.get('frontend').length, 2, 'e2e specs must not be run by this gate');
   assert.equal(grouped.get('backend').length, 1);
+  assert.equal(grouped.get('mobileAppYC').length, 1);
 });
 
 test('a PR with only e2e test changes is not treated as proven', () => {
