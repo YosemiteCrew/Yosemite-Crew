@@ -280,6 +280,12 @@ const useAddInventoryContent = ({
       errors.selling = 'Selling price is required';
     } else if (Number.isNaN(Number(pricing.selling))) {
       errors.selling = 'Enter a valid number';
+    } else if (
+      pricing.purchaseCost &&
+      !Number.isNaN(Number(pricing.purchaseCost)) &&
+      Number(pricing.selling) < Number(pricing.purchaseCost)
+    ) {
+      errors.selling = 'Selling price is below the purchase cost';
     }
     return errors;
   };
