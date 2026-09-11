@@ -1,11 +1,8 @@
 // src/controllers/app/chatWebhook.controller.ts
 import type { Request, Response } from "express";
-import { StreamChat } from "stream-chat";
 import { scanAttachmentUrl } from "src/services/attachmentScanner.service";
+import { getStreamServer } from "src/config/stream-client";
 import logger from "src/utils/logger";
-
-const STREAM_KEY = process.env.STREAM_API_KEY!;
-const STREAM_SECRET = process.env.STREAM_API_SECRET!;
 
 type StreamAttachment = { asset_url?: string; image_url?: string };
 type StreamWebhookEvent = {
@@ -45,7 +42,7 @@ export const scanMessageAttachments = async (
         `Unsafe chat attachment on message ${messageId.replace(/[\n\r]/g, "")} (${result.threat}); deleting message`,
       );
       try {
-        const client = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);
+        const client = getStreamServer();
         await client.deleteMessage(messageId, true);
       } catch (err) {
         logger.error("Failed to delete malicious chat message", err);
@@ -71,7 +68,7 @@ export const ChatWebhookController = {
       ? rawBody.toString("utf8")
       : rawBody;
 
-    const client = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);
+    const client = getStreamServer();
     if (!client.verifyWebhook(bodyString, signature)) {
       return res.status(401).json({ message: "Invalid signature" });
     }
