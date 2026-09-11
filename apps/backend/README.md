@@ -27,6 +27,8 @@ pnpm --filter backend run dev
 
 `LOCAL_DEVELOPMENT=true` switches on local-only behaviour: it opens CORS to `localhost:3000` (`src/app.ts`) and mounts the local-only MFA debug endpoint `POST /v1/auth/mfa/totp/debug/create-device`, which creates a TOTP device without the full enrolment flow. Both are keyed on this flag rather than on `NODE_ENV`, so a deployed tier running `NODE_ENV=development` never gets them. Set it only for a local run.
 
+Copy `.env.example` before starting. Its database variables target the application database, not the database used by a self-hosted SuperTokens core; Redis is required, while Stream chat credentials may stay blank unless you are working on chat.
+
 ## Running tests
 
 ```bash
