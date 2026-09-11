@@ -1238,6 +1238,13 @@ describe("StripeService", () => {
 
       expect(prisma.invoice.create).toHaveBeenCalled();
       expect(prisma.appointment.updateMany).toHaveBeenCalled();
+      // A minted invoice is already status: "PAID" - dashboard.service.ts's
+      // revenue queries filter on paidAt with no createdAt fallback, so a
+      // missing paidAt here would silently drop this invoice from revenue
+      // reporting forever.
+      const createCall = (prisma.invoice.create as jest.Mock).mock.calls[0][0];
+      expect(createCall.data.status).toBe("PAID");
+      expect(createCall.data.paidAt).toBeInstanceOf(Date);
     });
 
     it("settles open invoice for appointment booking payment", async () => {
