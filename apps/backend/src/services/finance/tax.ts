@@ -4,6 +4,10 @@ import {
   TaxBehavior as PrismaTaxBehavior,
   TaxProvider as PrismaTaxProvider,
 } from "@prisma/client";
+import {
+  fromStripeMinorUnits,
+  toStripeMinorUnits,
+} from "src/utils/stripe-minor-units";
 
 import type { InvoiceDiscountInput, InvoicePricingBreakdown } from "./pricing";
 import { roundMoney } from "./pricing";
@@ -154,32 +158,38 @@ const buildFallbackInvoiceTaxSnapshot = (
 const allocateInvoiceDiscountAcrossLines = (
   netAmounts: number[],
   invoiceDiscountTotal: number,
+  currency: string,
 ): number[] => {
   const lineBases = netAmounts.map((amount) => Math.max(0, roundMoney(amount)));
-  const totalBaseCents = lineBases.reduce(
-    (sum, amount) => sum + Math.round(amount * 100),
+  const totalBaseMinorUnits = lineBases.reduce(
+    (sum, amount) => sum + toStripeMinorUnits(amount, currency),
     0,
   );
-  const totalDiscountCents = Math.min(
-    Math.round(roundMoney(invoiceDiscountTotal) * 100),
-    totalBaseCents,
+  const totalDiscountMinorUnits = Math.min(
+    toStripeMinorUnits(roundMoney(invoiceDiscountTotal), currency),
+    totalBaseMinorUnits,
   );
 
-  if (!totalBaseCents || !totalDiscountCents) {
+  if (!totalBaseMinorUnits || !totalDiscountMinorUnits) {
     return lineBases.map(() => 0);
   }
 
   const allocations = lineBases.map((amount) => {
-    const cents = Math.round(amount * 100);
-    return Math.floor((cents * totalDiscountCents) / totalBaseCents);
+    const minorUnits = toStripeMinorUnits(amount, currency);
+    return Math.floor(
+      (minorUnits * totalDiscountMinorUnits) / totalBaseMinorUnits,
+    );
   });
 
-  const allocatedCents = allocations.reduce((sum, amount) => sum + amount, 0);
-  let remainder = totalDiscountCents - allocatedCents;
+  const allocatedMinorUnits = allocations.reduce(
+    (sum, amount) => sum + amount,
+    0,
+  );
+  let remainder = totalDiscountMinorUnits - allocatedMinorUnits;
 
   for (let index = 0; remainder > 0 && index < allocations.length; index += 1) {
-    const lineCents = Math.round(lineBases[index] * 100);
-    if (allocations[index] >= lineCents) {
+    const lineMinorUnits = toStripeMinorUnits(lineBases[index], currency);
+    if (allocations[index] >= lineMinorUnits) {
       continue;
     }
     allocations[index] += 1;
@@ -197,7 +207,7 @@ const allocateInvoiceDiscountAcrossLines = (
     }
   }
 
-  return allocations.map((amount) => amount / 100);
+  return allocations.map((amount) => fromStripeMinorUnits(amount, currency));
 };
 
 const buildAutomaticTaxLineItems = (
@@ -208,6 +218,7 @@ const buildAutomaticTaxLineItems = (
   const invoiceDiscountAllocations = allocateInvoiceDiscountAcrossLines(
     netAmounts,
     pricing.invoiceDiscountTotal,
+    input.currency,
   );
 
   return pricing.lines.map((line, index) => {
@@ -216,7 +227,7 @@ const buildAutomaticTaxLineItems = (
     );
 
     return {
-      amount: Math.round(discountedAmount * 100),
+      amount: toStripeMinorUnits(discountedAmount, input.currency),
       description: input.lineItems[index]?.description ?? `Line ${index + 1}`,
       currency: input.currency,
       tax_behavior:
@@ -298,10 +309,17 @@ const buildAutomaticTaxSnapshot = async (
 
   const totalTaxes = preview.total_taxes ?? [];
   const taxAmount = roundMoney(
-    totalTaxes.reduce((sum, tax) => sum + tax.amount, 0) / 100,
+    fromStripeMinorUnits(
+      totalTaxes.reduce((sum, tax) => sum + tax.amount, 0),
+      input.currency,
+    ),
   );
   const taxableSubtotal = roundMoney(
-    (preview.total_excluding_tax ?? pricing.totalAmount * 100) / 100,
+    fromStripeMinorUnits(
+      preview.total_excluding_tax ??
+        toStripeMinorUnits(pricing.totalAmount, input.currency),
+      input.currency,
+    ),
   );
   const jurisdictionCountry = input.customerAddress?.country ?? null;
   const jurisdictionState = input.customerAddress?.state ?? null;
