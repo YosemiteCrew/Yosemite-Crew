@@ -259,4 +259,32 @@ describe('TaskMonthDateSelector', () => {
       jest.runAllTimers();
     }).not.toThrow();
   });
+
+  it('cancels a pending scroll when the selected date changes before its timers fire', () => {
+    const {rerender} = renderSelector();
+    // Reselect before either of the first date's pending timers (100ms/400ms)
+    // fires.
+    rerender(
+      <TaskMonthDateSelector
+        currentMonth={CURRENT_MONTH}
+        selectedDate={new Date(2025, 5, 16)}
+        datesWithTasks={new Set<string>()}
+        onDateSelect={onDateSelect}
+        onMonthChange={onMonthChange}
+        theme={mockTheme}
+      />,
+    );
+
+    jest.runAllTimers();
+
+    // Every call must target June 16 (index 15) - a call targeting June 15
+    // (index 14) would mean the superseded timers fired anyway and snapped
+    // the strip back to the date the user already moved off of.
+    expect(mockScrollToIndex).toHaveBeenCalledTimes(2);
+    for (const call of mockScrollToIndex.mock.calls) {
+      expect(call[0]).toEqual(
+        expect.objectContaining({index: 15, viewPosition: 0.5, animated: true}),
+      );
+    }
+  });
 });
