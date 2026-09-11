@@ -22,8 +22,10 @@ import {
 import type { ClinicalPdfSignaturePlacement } from "@yosemite-crew/lib";
 import { prisma } from "src/config/prisma";
 import { uploadBufferAsFile } from "src/middlewares/upload";
+import { AuditTrailService } from "src/services/audit-trail.service";
 import { DocumensoService } from "src/services/documenso.service";
 import { renderRenderedDocumentPdfWithMetadata } from "src/services/rendered-document-renderer.service";
+import type { AuditEventType } from "src/models/audit-trail";
 import {
   INVALID_OUTBOUND_DOCUMENT_URL_MESSAGE,
   readValidatedPdfResponse,
@@ -63,7 +65,13 @@ export type {
 
 type RenderedDocumentWriteClient = Pick<
   Prisma.TransactionClient,
-  "renderedDocument" | "documentSignature"
+  | "renderedDocument"
+  | "documentSignature"
+  | "templateInstance"
+  | "clinicalArtifact"
+  | "case"
+  | "encounter"
+  | "appointment"
 >;
 
 type PersistedRenderedDocument = Prisma.RenderedDocumentGetPayload<{
@@ -736,11 +744,125 @@ export const signPersistedRenderedDocument = async (
           signerEmail: input.signerEmail,
           signerName: input.signerName,
           signingUrl,
+          signatureText: input.signatureText ?? null,
         },
       },
       include: { signature: true },
     }),
   );
+};
+
+/** The RenderedDocumentKind-shaped audit event for the (rare) kinds that have one; every
+ * other kind still gets audited, just under the generic DOCUMENT_UPDATED event. */
+const RENDERED_DOCUMENT_SIGNED_AUDIT_EVENT: Partial<
+  Record<PersistedRenderedDocument["kind"], AuditEventType>
+> = {
+  CONSENT: "CONSENT_FORM_SIGNED",
+  PRESCRIPTION: "PRESCRIPTION_SIGNED",
+};
+
+const extractAppointmentPatientId = (patient: unknown): string | null => {
+  if (patient && typeof patient === "object" && "id" in patient) {
+    const id = (patient as { id?: unknown }).id;
+    return typeof id === "string" && id.trim() ? id : null;
+  }
+  return null;
+};
+
+type ClinicalRecordLinkage = {
+  appointmentId: string | null;
+  caseId: string | null;
+  encounterId: string | null;
+};
+
+/**
+ * A RenderedDocument carries no patientId of its own - only the TemplateInstance
+ * or ClinicalArtifact it is linked to does, and even then only via
+ * appointmentId/caseId/encounterId (the same three-way linkage
+ * loadRenderedDocumentsForPatientRecords in document.service.ts reads on the
+ * way back out). Best-effort: a signed document with no resolvable patient -
+ * an org-level template with no clinical linkage at all - audits nothing
+ * rather than fabricating an id.
+ */
+const resolvePatientIdForSignedDocument = async (
+  client: RenderedDocumentWriteClient,
+  linkage: ClinicalRecordLinkage,
+): Promise<string | null> => {
+  if (linkage.caseId) {
+    const found = await client.case.findUnique({
+      where: { id: linkage.caseId },
+      select: { patientId: true },
+    });
+    if (found?.patientId) return found.patientId;
+  }
+  if (linkage.encounterId) {
+    const found = await client.encounter.findUnique({
+      where: { id: linkage.encounterId },
+      select: { patientId: true },
+    });
+    if (found?.patientId) return found.patientId;
+  }
+  if (linkage.appointmentId) {
+    const found = await client.appointment.findUnique({
+      where: { id: linkage.appointmentId },
+      select: { patient: true },
+    });
+    const patientId = extractAppointmentPatientId(found?.patient);
+    if (patientId) return patientId;
+  }
+  return null;
+};
+
+/**
+ * Marks the TemplateInstance/ClinicalArtifact a just-signed RenderedDocument is
+ * linked to (at most one of the two - the FKs are mutually exclusive by
+ * construction) as SIGNED too, and returns its clinical linkage in the same
+ * round trip so the caller can resolve a patient for the audit event without a
+ * second read. A document with neither link (FORM_SUBMISSION/TASK_SCHEDULE/
+ * INVOICE-sourced) has nothing to propagate to and no linkage to resolve.
+ */
+const propagateSigningCompletionToLinkedRecord = async (
+  client: RenderedDocumentWriteClient,
+  existing: PersistedRenderedDocument,
+  signedBy: string | undefined,
+  signedAt: Date,
+): Promise<ClinicalRecordLinkage | null> => {
+  if (existing.templateInstanceId) {
+    return client.templateInstance.update({
+      where: { id: existing.templateInstanceId },
+      data: { status: "SIGNED", signedBy, signedAt },
+      select: { appointmentId: true, caseId: true, encounterId: true },
+    });
+  }
+  if (existing.clinicalArtifactId) {
+    return client.clinicalArtifact.update({
+      where: { id: existing.clinicalArtifactId },
+      data: { status: "SIGNED", signedBy, signedAt },
+      select: { appointmentId: true, caseId: true, encounterId: true },
+    });
+  }
+  return null;
+};
+
+const recordRenderedDocumentSignedAuditSafely = async (
+  client: RenderedDocumentWriteClient,
+  existing: PersistedRenderedDocument,
+  linkage: ClinicalRecordLinkage | null,
+): Promise<void> => {
+  if (!linkage) return;
+  const patientId = await resolvePatientIdForSignedDocument(client, linkage);
+  if (!patientId) return;
+
+  await AuditTrailService.recordSafely({
+    organisationId: existing.organisationId,
+    patientId,
+    eventType:
+      RENDERED_DOCUMENT_SIGNED_AUDIT_EVENT[existing.kind] ?? "DOCUMENT_UPDATED",
+    actorType: "PMS_USER",
+    entityType: "DOCUMENT",
+    entityId: existing.id,
+    metadata: { renderedDocumentId: existing.id, kind: existing.kind },
+  });
 };
 
 export const completePersistedRenderedDocumentSigning = async (
@@ -797,33 +919,51 @@ export const completePersistedRenderedDocumentSigning = async (
     );
   }
 
+  const signedAt = new Date();
+  const signedBy = signing.signerId ?? existing.signedBy ?? undefined;
+  const signature = buildDocumentSignature(existing.id, {
+    signerId:
+      signing.signerId ?? signing.signerEmail ?? existing.signedBy ?? "",
+    signerType: signing.signerType ?? "PMS_USER",
+    signatureText: signing.signatureText,
+    signedAt,
+  });
+
   await client.documentSignature.create({
     data: {
       renderedDocumentId: existing.id,
-      signerId:
-        signing.signerId ?? signing.signerEmail ?? existing.signedBy ?? "",
-      signerType: signing.signerType ?? "PMS_USER",
-      signedAt: new Date(),
+      signerId: signature.signerId,
+      signerType: signature.signerType,
+      signatureText: signature.signatureText,
+      signedAt: signature.signedAt,
     },
   });
 
-  return normalizePersistedRenderedDocument(
-    await client.renderedDocument.update({
-      where: { id: existing.id },
-      data: {
+  const updated = await client.renderedDocument.update({
+    where: { id: existing.id },
+    data: {
+      status: "SIGNED",
+      signedBy,
+      signedAt,
+      pdfUrl: signedPdf.downloadUrl ?? existing.pdfUrl ?? undefined,
+      signing: {
+        ...signing,
         status: "SIGNED",
-        signedBy: signing.signerId ?? existing.signedBy ?? undefined,
-        signedAt: new Date(),
-        pdfUrl: signedPdf.downloadUrl ?? existing.pdfUrl ?? undefined,
-        signing: {
-          ...signing,
-          status: "SIGNED",
-          pdf: {
-            url: signedPdf.downloadUrl ?? null,
-          },
+        pdf: {
+          url: signedPdf.downloadUrl ?? null,
         },
       },
-      include: { signature: true },
-    }),
+    },
+    include: { signature: true },
+  });
+
+  const linkage = await propagateSigningCompletionToLinkedRecord(
+    client,
+    existing,
+    signedBy,
+    signedAt,
   );
+  await recordRenderedDocumentSignedAuditSafely(client, existing, linkage);
+
+  return normalizePersistedRenderedDocument(updated);
 };

@@ -19,6 +19,7 @@ import {
 import { DocumensoService } from "../../src/services/documenso.service";
 import { renderRenderedDocumentPdfWithMetadata } from "../../src/services/rendered-document-renderer.service";
 import { uploadBufferAsFile } from "../../src/middlewares/upload";
+import { AuditTrailService } from "../../src/services/audit-trail.service";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -29,6 +30,21 @@ jest.mock("src/config/prisma", () => ({
     },
     documentSignature: {
       create: jest.fn(),
+    },
+    templateInstance: {
+      update: jest.fn(),
+    },
+    clinicalArtifact: {
+      update: jest.fn(),
+    },
+    case: {
+      findUnique: jest.fn(),
+    },
+    encounter: {
+      findUnique: jest.fn(),
+    },
+    appointment: {
+      findUnique: jest.fn(),
     },
   },
 }));
@@ -46,6 +62,11 @@ jest.mock("../../src/services/rendered-document-renderer.service", () => ({
 jest.mock("../../src/middlewares/upload", () => ({
   uploadBufferAsFile: jest.fn(),
 }));
+jest.mock("../../src/services/audit-trail.service", () => ({
+  AuditTrailService: {
+    recordSafely: jest.fn(),
+  },
+}));
 jest.mock("axios", () => ({
   get: jest.fn(),
 }));
@@ -61,6 +82,11 @@ describe("rendered-document service", () => {
     documentSignature: {
       create: jest.Mock;
     };
+    templateInstance: { update: jest.Mock };
+    clinicalArtifact: { update: jest.Mock };
+    case: { findUnique: jest.Mock };
+    encounter: { findUnique: jest.Mock };
+    appointment: { findUnique: jest.Mock };
   };
   const mockedDocumensoService = DocumensoService as unknown as {
     resolveOrganisationApiKey: jest.Mock;
@@ -72,6 +98,9 @@ describe("rendered-document service", () => {
     renderRenderedDocumentPdfWithMetadata as jest.Mock;
   const mockedUploadBufferAsFile = uploadBufferAsFile as jest.Mock;
   const mockedAxiosGet = axios.get as jest.Mock;
+  const mockedAuditTrailService = AuditTrailService as unknown as {
+    recordSafely: jest.Mock;
+  };
 
   let lookupSpy: jest.SpyInstance;
 
@@ -90,6 +119,17 @@ describe("rendered-document service", () => {
       .mockResolvedValue([
         { address: "203.0.113.10", family: 4 },
       ] as unknown as dns.LookupAddress);
+    // These are only exercised by the signing-completion tests, but their
+    // call counts otherwise survive between `it` blocks in this describe
+    // (nothing here resets mocks globally), which would make a later
+    // `not.toHaveBeenCalled()` false-fail on a call left over from an
+    // earlier test.
+    mockedPrisma.templateInstance.update.mockClear();
+    mockedPrisma.clinicalArtifact.update.mockClear();
+    mockedPrisma.case.findUnique.mockClear();
+    mockedPrisma.encounter.findUnique.mockClear();
+    mockedPrisma.appointment.findUnique.mockClear();
+    mockedAuditTrailService.recordSafely.mockClear();
   });
 
   afterEach(() => {
@@ -1025,6 +1065,14 @@ describe("rendered-document service", () => {
     mockedPrisma.documentSignature.create.mockResolvedValueOnce({
       id: "sig-1",
     });
+    mockedPrisma.templateInstance.update.mockResolvedValueOnce({
+      appointmentId: null,
+      caseId: "case-1",
+      encounterId: null,
+    });
+    mockedPrisma.case.findUnique.mockResolvedValueOnce({
+      patientId: "patient-1",
+    });
     mockedPrisma.renderedDocument.update.mockResolvedValueOnce({
       id: "doc-1",
       organisationId: "org-123",
@@ -1100,5 +1148,176 @@ describe("rendered-document service", () => {
       }),
     );
     expect(result.status).toBe("SIGNED");
+
+    // THE CASE THIS GATE EXISTS FOR: the linked TemplateInstance never advanced
+    // past COMPLETED before this fix, so a query keyed on its status could
+    // never find a document RenderedDocument itself already calls signed.
+    expect(mockedPrisma.templateInstance.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "instance-123" },
+        data: expect.objectContaining({ status: "SIGNED", signedBy: "user-1" }),
+      }),
+    );
+    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+    expect(mockedPrisma.case.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "case-1" } }),
+    );
+    expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organisationId: "org-123",
+        patientId: "patient-1",
+        eventType: "DOCUMENT_UPDATED",
+        entityId: "doc-1",
+      }),
+    );
+  });
+
+  it("signs a CONSENT document with a signature text and emits CONSENT_FORM_SIGNED", async () => {
+    mockedDocumensoService.resolveOrganisationApiKey.mockResolvedValueOnce(
+      "api-key-1",
+    );
+    mockedDocumensoService.downloadSignedDocument.mockResolvedValueOnce({
+      downloadUrl: "https://signed.example/consent.pdf",
+    });
+    mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
+      id: "doc-2",
+      organisationId: "org-123",
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: "artifact-1",
+      templateInstanceId: null,
+      clinicalArtifactId: "artifact-1",
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
+      kind: "CONSENT",
+      version: 1,
+      title: "Surgical Consent",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: null,
+      pdf: null,
+      signing: {
+        required: true,
+        provider: "DOCUMENSO",
+        status: "IN_PROGRESS",
+        documentId: "43",
+        signerId: "parent-1",
+        signerType: "PARENT",
+        signatureText: "Jane Owner",
+      },
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-06-13T00:00:00.000Z"),
+      updatedAt: new Date("2026-06-13T00:00:00.000Z"),
+      signature: null,
+    });
+    mockedPrisma.documentSignature.create.mockResolvedValueOnce({
+      id: "sig-2",
+    });
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      appointmentId: null,
+      caseId: null,
+      encounterId: "encounter-1",
+    });
+    mockedPrisma.encounter.findUnique.mockResolvedValueOnce({
+      patientId: "patient-2",
+    });
+    mockedPrisma.renderedDocument.update.mockResolvedValueOnce({
+      id: "doc-2",
+      status: "SIGNED",
+      signing: { status: "SIGNED" },
+      signature: { signatureText: "Jane Owner" },
+    });
+
+    await completePersistedRenderedDocumentSigning("doc-2");
+
+    // THE CASE THIS GATE EXISTS FOR: `signatureText` reaches the FHIR sign
+    // endpoint and is typed all the way through, but was silently dropped
+    // between initiation and this completion call - the column was always
+    // null until this fix threaded it back out of the `signing` JSON.
+    expect(mockedPrisma.documentSignature.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          signerId: "parent-1",
+          signerType: "PARENT",
+          signatureText: "Jane Owner",
+        }),
+      }),
+    );
+    expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "artifact-1" },
+        data: expect.objectContaining({ status: "SIGNED" }),
+      }),
+    );
+    expect(mockedPrisma.templateInstance.update).not.toHaveBeenCalled();
+    expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        patientId: "patient-2",
+        eventType: "CONSENT_FORM_SIGNED",
+      }),
+    );
+  });
+
+  it("skips the audit event when no patient can be resolved from the linked record", async () => {
+    mockedDocumensoService.resolveOrganisationApiKey.mockResolvedValueOnce(
+      "api-key-1",
+    );
+    mockedDocumensoService.downloadSignedDocument.mockResolvedValueOnce({
+      downloadUrl: "https://signed.example/org-doc.pdf",
+    });
+    mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
+      id: "doc-3",
+      organisationId: "org-123",
+      sourceKind: "TEMPLATE_INSTANCE",
+      sourceId: "instance-999",
+      templateInstanceId: "instance-999",
+      clinicalArtifactId: null,
+      kind: "FORM",
+      version: 1,
+      title: "Org-level form",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: null,
+      pdf: null,
+      signing: {
+        required: true,
+        provider: "DOCUMENSO",
+        status: "IN_PROGRESS",
+        documentId: "44",
+        signerId: "user-9",
+        signerType: "PMS_USER",
+      },
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-06-13T00:00:00.000Z"),
+      updatedAt: new Date("2026-06-13T00:00:00.000Z"),
+      signature: null,
+    });
+    mockedPrisma.documentSignature.create.mockResolvedValueOnce({
+      id: "sig-3",
+    });
+    // No appointmentId, caseId or encounterId at all - an org-level template
+    // instance with no clinical linkage.
+    mockedPrisma.templateInstance.update.mockResolvedValueOnce({
+      appointmentId: null,
+      caseId: null,
+      encounterId: null,
+    });
+    mockedPrisma.renderedDocument.update.mockResolvedValueOnce({
+      id: "doc-3",
+      status: "SIGNED",
+      signing: { status: "SIGNED" },
+      signature: null,
+    });
+
+    await completePersistedRenderedDocumentSigning("doc-3");
+
+    expect(mockedPrisma.case.findUnique).not.toHaveBeenCalled();
+    expect(mockedPrisma.encounter.findUnique).not.toHaveBeenCalled();
+    expect(mockedPrisma.appointment.findUnique).not.toHaveBeenCalled();
+    expect(mockedAuditTrailService.recordSafely).not.toHaveBeenCalled();
   });
 });
