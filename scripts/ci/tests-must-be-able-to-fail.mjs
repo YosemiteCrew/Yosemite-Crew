@@ -73,7 +73,7 @@ export const isCheckableSource = (file) => {
 export const workspaceOf = (file) => {
   const match = /^apps\/([^/]+)\//.exec(file);
   if (!match) return undefined;
-  return { frontend: 'frontend', backend: 'backend' }[match[1]];
+  return { frontend: 'frontend', backend: 'backend', mobileAppYC: 'mobileAppYC' }[match[1]];
 };
 
 /** Groups test paths by the workspace whose runner can execute them. */
