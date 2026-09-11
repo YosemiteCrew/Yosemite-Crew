@@ -159,6 +159,12 @@ const mintBookingInvoice = async (params: {
         patientId: patientId ?? undefined,
         currency: pi.currency ?? "usd",
         status: "PAID",
+        // Every other path that marks an invoice PAID sets paidAt in the same
+        // write (see updateInvoiceAfterPayment in finance/payment.ts) - this
+        // is the one that minted the invoice already-PAID and skipped it,
+        // which left paidAt-only queries like dashboard.service.ts's revenue
+        // aggregation silently dropping these invoices forever.
+        paidAt: new Date(),
         providerPaymentIntentId: pi.id,
         items: [
           {
