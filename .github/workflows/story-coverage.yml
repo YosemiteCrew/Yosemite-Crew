@@ -1,0 +1,54 @@
+name: Story Coverage
+
+# Fails when a pull request adds a new React component under apps/frontend
+# without a sibling Storybook story. Nothing else in CI checks this: Chromatic
+# only visually diffs stories that already exist, and the Storybook
+# interactions job only runs `play` functions on existing stories - neither
+# has any way to notice a component nobody ever gave a story in the first
+# place, which is how real UI bugs (an inconsistent button style, a native
+# <select> nobody themed) sat unreviewed. See scripts/ci/story-coverage.mjs
+# for the detection heuristic and its escape hatch (`// no-story: <reason>`).
+#
+# Scoped to files a PR ADDS, not the whole app: the pre-existing backlog of
+# storyless components is real and this gate does not attempt to clear it,
+# only stop it from growing - the same shape as scripts/ci/diff-coverage.mjs.
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'apps/frontend/src/app/**'
+      - 'scripts/ci/story-coverage.mjs'
+      - '.github/workflows/story-coverage.yml'
+
+concurrency:
+  group: story-coverage-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: New components have a Storybook story
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The gate diffs against the PR's merge base, which needs full
+          # history - a shallow checkout would report every added file as
+          # having no base to compare against.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+
+      - name: Check new components for a story
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/ci/story-coverage.mjs --base "$BASE_SHA" --head "$HEAD_SHA"
