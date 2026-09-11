@@ -362,7 +362,7 @@ function HeroPhone() {
       <div
         style={{
           width: 300,
-          background: '#1d1c1b',
+          background: 'var(--spot)',
           borderRadius: 46,
           padding: 8,
           boxShadow: '0 40px 90px var(--sh20)',
@@ -378,7 +378,9 @@ function HeroPhone() {
             }}
           >
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>9:41</span>
-            <span style={{ width: 78, height: 22, borderRadius: 9999, background: '#1d1c1b' }} />
+            <span
+              style={{ width: 78, height: 22, borderRadius: 9999, background: 'var(--spot)' }}
+            />
             <span style={{ display: 'flex', gap: 4, color: 'var(--ink-body)' }}>
               <IoCellular style={{ fontSize: 12 }} aria-hidden="true" />
               <IoBatteryFull style={{ fontSize: 14 }} aria-hidden="true" />
@@ -567,7 +569,7 @@ function Hero() {
           zIndex: 1,
           pointerEvents: 'none',
           background:
-            'radial-gradient(74% 72% at 32% 50%, rgba(239,232,220,0.95) 0%, rgba(239,232,220,0.66) 38%, rgba(239,232,220,0.12) 72%, rgba(239,232,220,0) 86%), linear-gradient(180deg, rgba(239,232,220,0.6) 0%, rgba(239,232,220,0.3) 46%, rgba(239,232,220,0.06) 74%, rgba(239,232,220,0) 92%)',
+            'radial-gradient(74% 72% at 32% 50%, color-mix(in srgb, var(--page) 95%, transparent) 0%, color-mix(in srgb, var(--page) 66%, transparent) 38%, color-mix(in srgb, var(--page) 12%, transparent) 72%, color-mix(in srgb, var(--page) 0%, transparent) 86%), linear-gradient(180deg, color-mix(in srgb, var(--page) 60%, transparent) 0%, color-mix(in srgb, var(--page) 30%, transparent) 46%, color-mix(in srgb, var(--page) 6%, transparent) 74%, color-mix(in srgb, var(--page) 0%, transparent) 92%)',
         }}
       />
       <HeroGlow

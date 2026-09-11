@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
@@ -455,5 +457,43 @@ describe('ContactusPage', () => {
       expect(screen.queryByText('submitting...')).not.toBeInTheDocument();
       expect(screen.getByText('Send message')).toBeInTheDocument();
     });
+  });
+});
+
+describe('ContactusPage routes its danger/blue/success accents through real tokens', () => {
+  // --color-danger-700, --blue and --success all flip per theme; the icon glyphs already
+  // read them via var(), so a frozen literal alongside them (the required-mark asterisk,
+  // the submit error, or an icon's bg/border tint) would silently stop matching the glyph
+  // colour the moment the theme flips. Source-text assertions, not computed-style ones:
+  // color-mix()/var() are opaque strings to jsdom, so getComputedStyle can't resolve them.
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/pages/ContactusPage/ContactusPage.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode the danger red as a frozen literal', () => {
+    expect(source).not.toContain("'#d53225'");
+  });
+
+  it('routes both danger-red usages through --color-danger-700', () => {
+    const occurrences = source.match(/var\(--color-danger-700\)/g) ?? [];
+    expect(occurrences).toHaveLength(2);
+  });
+
+  it('routes the email channel-card tint through --blue via color-mix', () => {
+    expect(source).toContain('iconBg="color-mix(in srgb, var(--blue) 10%, transparent)"');
+    expect(source).toContain('iconBorder="color-mix(in srgb, var(--blue) 18%, transparent)"');
+  });
+
+  it('routes the phone channel-card tint and the success-confirmation icon through --success via color-mix', () => {
+    expect(source).toContain('iconBg="color-mix(in srgb, var(--success) 10%, transparent)"');
+    expect(source).toContain('iconBorder="color-mix(in srgb, var(--success) 18%, transparent)"');
+    expect(source).toContain("background: 'color-mix(in srgb, var(--success) 12%, transparent)'");
+  });
+
+  it('leaves the Discord channel-card on its own brand colour, unmigrated', () => {
+    // Discord's official blurple - not a design-system token, so it should NOT be touched.
+    expect(source).toContain('iconBg="rgba(88,101,242,0.12)"');
+    expect(source).toContain('iconColor="#5865F2"');
   });
 });

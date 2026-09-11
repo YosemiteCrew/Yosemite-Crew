@@ -37,7 +37,7 @@ const HERO_SCRIM_STYLE: CSSProperties = {
   zIndex: 1,
   pointerEvents: 'none',
   background:
-    'linear-gradient(180deg, rgba(239,232,220,0.66) 0%, rgba(239,232,220,0.54) 40%, rgba(239,232,220,0.22) 64%, rgba(239,232,220,0.04) 92%, rgba(239,232,220,0) 100%)',
+    'linear-gradient(180deg, color-mix(in srgb, var(--page) 66%, transparent) 0%, color-mix(in srgb, var(--page) 54%, transparent) 40%, color-mix(in srgb, var(--page) 22%, transparent) 64%, color-mix(in srgb, var(--page) 4%, transparent) 92%, color-mix(in srgb, var(--page) 0%, transparent) 100%)',
 };
 
 /** Static base for the scroll-progress bar; width is applied inline from scroll state. */

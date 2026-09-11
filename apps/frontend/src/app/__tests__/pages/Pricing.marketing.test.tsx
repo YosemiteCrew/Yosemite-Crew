@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
@@ -79,5 +81,17 @@ describe('Pricing (marketing)', () => {
 
     expect(screen.getByText('Do you take a cut of my payments?')).toBeInTheDocument();
     expect(screen.getByText('Is it really free?')).toBeInTheDocument();
+  });
+});
+
+describe('the active billing-toggle pill routes its background through --spot, not a frozen literal', () => {
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/pages/Pricing/Pricing.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode the active pill background as a frozen literal', () => {
+    expect(source).toContain("background: active ? 'var(--spot)' : 'transparent'");
+    expect(source).not.toContain("background: active ? '#1d1c1b' : 'transparent'");
   });
 });
