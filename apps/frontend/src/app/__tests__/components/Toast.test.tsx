@@ -30,6 +30,14 @@ describe('ErrorTost Component', () => {
     fireEvent.click(closeButton);
     expect(onCloseMock).toHaveBeenCalledTimes(1);
   });
+
+  it('exposes itself to assistive tech as an alert, not a silent div', () => {
+    // Without role="alert" (or aria-live), a screen-reader user gets no
+    // announcement at all when this error appears - getByRole is the direct
+    // proof the announcement wiring exists, not just that text is present.
+    render(<ErrorTost errortext="Error Occurred" message="A detailed error message." />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Error Occurred');
+  });
 });
 
 describe('useErrorTost Hook', () => {
