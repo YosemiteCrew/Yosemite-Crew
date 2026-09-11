@@ -15,6 +15,7 @@ import { FormAssignmentService } from "../../../src/services/form-assignment.ser
 import { DocumensoService } from "../../../src/services/documenso.service";
 import { WorkspaceDocumentPacketService } from "../../../src/services/workspace-document-packet.service";
 import { notifyOwnerOfPassportUpdate } from "../../../src/services/pet-clinical-records.service";
+import { AuditTrailService } from "../../../src/services/audit-trail.service";
 import logger from "../../../src/utils/logger";
 
 jest.mock("../../../src/utils/logger");
@@ -65,6 +66,11 @@ jest.mock("../../../src/config/prisma", () => ({
 }));
 jest.mock("../../../src/services/pet-clinical-records.service", () => ({
   notifyOwnerOfPassportUpdate: jest.fn(),
+}));
+jest.mock("../../../src/services/audit-trail.service", () => ({
+  AuditTrailService: {
+    recordSafely: jest.fn(),
+  },
 }));
 
 const mockedLogger = jest.mocked(logger);
@@ -204,12 +210,25 @@ describe("DocumensoWebhookController", () => {
       payload: { id: "doc-pass-1" },
     });
     const mockedPrisma = prisma as any;
+    const mockedDocumensoService = DocumensoService as jest.Mocked<
+      typeof DocumensoService
+    >;
+    const mockedAuditTrailService = AuditTrailService as jest.Mocked<
+      typeof AuditTrailService
+    >;
     mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce({
       id: "att-1",
       artifactId: "art-1",
+      artifact: { organisationId: "org-1", kind: "PRESCRIPTION" },
     });
     mockedPrisma.clinicalArtifact.updateMany.mockResolvedValueOnce({
       count: 1,
+    });
+    mockedDocumensoService.resolveOrganisationApiKey.mockResolvedValueOnce(
+      "api-key-1",
+    );
+    mockedDocumensoService.downloadSignedDocument.mockResolvedValueOnce({
+      downloadUrl: "https://signed.example/passport.pdf",
     });
     mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
       encounterId: "enc-1",
@@ -236,9 +255,83 @@ describe("DocumensoWebhookController", () => {
         data: expect.objectContaining({ status: "SIGNED" }),
       }),
     );
+    // THE CASE THIS GATE EXISTS FOR: signedPdfUrl existed on the schema but was
+    // never written - a signed passport attestation had no stored link to its
+    // own signed PDF.
+    expect(mockedDocumensoService.downloadSignedDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ apiKey: "api-key-1" }),
+    );
+    expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          attestation: {
+            update: expect.objectContaining({
+              signingStatus: "SIGNED",
+              signedPdfUrl: "https://signed.example/passport.pdf",
+            }),
+          },
+        },
+      }),
+    );
     expect(notifyOwnerOfPassportUpdate).toHaveBeenCalledWith("pat-1");
+    // A second gap this same fix closes: no audit trail entry existed for a
+    // passport attestation ever being signed at all.
+    expect(mockedAuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organisationId: "org-1",
+        patientId: "pat-1",
+        entityId: "art-1",
+      }),
+    );
     expect(statusMock).toHaveBeenCalledWith(200);
     expect(mockedPrisma.formSubmission.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("still completes a passport record when the signed PDF download fails", async () => {
+    // Best-effort: DocumensoService.downloadSignedDocument already swallows its
+    // own errors and resolves undefined, so this only exercises that the
+    // caller does not treat a missing PDF as a reason to fail the webhook.
+    req = signedPassportRequest({
+      event: "DOCUMENT_COMPLETED",
+      payload: { id: "doc-pass-3" },
+    });
+    const mockedPrisma = prisma as any;
+    const mockedDocumensoService = DocumensoService as jest.Mocked<
+      typeof DocumensoService
+    >;
+    mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce({
+      id: "att-3",
+      artifactId: "art-3",
+      artifact: { organisationId: "org-1", kind: "PRESCRIPTION" },
+    });
+    mockedPrisma.clinicalArtifact.updateMany.mockResolvedValueOnce({
+      count: 1,
+    });
+    mockedDocumensoService.resolveOrganisationApiKey.mockResolvedValueOnce(
+      "api-key-1",
+    );
+    mockedDocumensoService.downloadSignedDocument.mockResolvedValueOnce(
+      undefined,
+    );
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      encounterId: null,
+    });
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          attestation: {
+            update: expect.objectContaining({
+              signingStatus: "SIGNED",
+              signedPdfUrl: undefined,
+            }),
+          },
+        },
+      }),
+    );
+    expect(statusMock).toHaveBeenCalledWith(200);
   });
 
   it("never resurrects a record revoked while its signature was outstanding", async () => {
@@ -373,6 +466,7 @@ describe("DocumensoWebhookController", () => {
     mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce({
       id: "att-2",
       artifactId: "art-2",
+      artifact: { organisationId: "org-1", kind: "PRESCRIPTION" },
     });
     mockedPrisma.clinicalArtifact.updateMany.mockResolvedValueOnce({
       count: 1,

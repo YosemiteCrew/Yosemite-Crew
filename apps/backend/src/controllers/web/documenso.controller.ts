@@ -4,6 +4,7 @@ import {
   DocumensoExternalRole,
   DocumensoService,
 } from "src/services/documenso.service";
+import { AuditTrailService } from "src/services/audit-trail.service";
 import { FormAssignmentService } from "src/services/form-assignment.service";
 import { completePersistedRenderedDocumentSigning } from "src/services/rendered-document.service";
 import { notifyOwnerOfPassportUpdate } from "src/services/pet-clinical-records.service";
@@ -263,7 +264,11 @@ async function handlePassportRecordEvent(
       supersededById: null,
       artifact: { status: { not: "VOID" } },
     },
-    select: { id: true, artifactId: true },
+    select: {
+      id: true,
+      artifactId: true,
+      artifact: { select: { organisationId: true, kind: true } },
+    },
   });
   if (!attestation) return false;
   const signedAt = new Date();
@@ -287,9 +292,30 @@ async function handlePassportRecordEvent(
   // Already handled, or revoked in flight: ack the webhook, notify nobody.
   if (claimed.count === 0) return true;
 
+  // Best-effort: a download failure must not block flipping the artifact to
+  // SIGNED (the state the passport actually reads) - it only leaves
+  // signedPdfUrl unset, same as before this fetch existed.
+  const apiKey = await DocumensoService.resolveOrganisationApiKey(
+    attestation.artifact.organisationId,
+  );
+  const signedPdf = apiKey
+    ? await DocumensoService.downloadSignedDocument({
+        documentId: Number.parseInt(documentId, 10),
+        apiKey,
+      })
+    : undefined;
+
   const artifact = await prisma.clinicalArtifact.update({
     where: { id: attestation.artifactId },
-    data: { attestation: { update: { signingStatus: "SIGNED", signedAt } } },
+    data: {
+      attestation: {
+        update: {
+          signingStatus: "SIGNED",
+          signedAt,
+          signedPdfUrl: signedPdf?.downloadUrl,
+        },
+      },
+    },
     select: { encounterId: true },
   });
   // Tell the owner their passport gained a verified record (best-effort).
@@ -298,7 +324,22 @@ async function handlePassportRecordEvent(
       where: { id: artifact.encounterId },
       select: { patientId: true },
     });
-    if (encounter) await notifyOwnerOfPassportUpdate(encounter.patientId);
+    if (encounter) {
+      await notifyOwnerOfPassportUpdate(encounter.patientId);
+      await AuditTrailService.recordSafely({
+        organisationId: attestation.artifact.organisationId,
+        patientId: encounter.patientId,
+        eventType: "DOCUMENT_UPDATED",
+        actorType: "SYSTEM",
+        entityType: "DOCUMENT",
+        entityId: attestation.artifactId,
+        metadata: {
+          clinicalArtifactId: attestation.artifactId,
+          kind: attestation.artifact.kind,
+          documensoDocumentId: documentId,
+        },
+      });
+    }
   }
   return true;
 }
