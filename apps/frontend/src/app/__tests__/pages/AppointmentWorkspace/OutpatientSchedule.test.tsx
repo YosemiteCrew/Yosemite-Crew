@@ -113,6 +113,32 @@ describe('OutpatientSchedule', () => {
     expect(screen.getAllByText('--').length).toBeGreaterThan(0);
   });
 
+  it('wraps long titles and sublines instead of truncating them on a phone (#2790)', () => {
+    const longTitle = 'Photobiomodulation and underwater treadmill rehabilitation review';
+    const { container } = render(
+      <OutpatientSchedule
+        schedule={model({
+          thisWeek: [visit({ id: 'a', title: longTitle })],
+          total: 1,
+        })}
+      />
+    );
+
+    // The title and subline are the two `break-words` spans in the row's title
+    // column. `truncate` is `overflow:hidden; text-overflow:ellipsis;
+    // white-space:nowrap` - the tail of the title and the lead/room line were
+    // clipped out of reach at phone width, where there is no hover for the
+    // `title` tooltip. Wrapping keeps every word reachable and never changes
+    // the pill's geometry, so the contract here is the class, not the text.
+    const row = container.querySelector('li') as HTMLElement;
+    const [title, subline] = row.querySelectorAll('span[title]');
+
+    expect(title.className).toMatch(/break-words/);
+    expect(subline.className).toMatch(/break-words/);
+    expect(title.className).not.toMatch(/truncate/);
+    expect(subline.className).not.toMatch(/truncate/);
+  });
+
   // The series elements are pass-throughs of backend fields nothing populates yet,
   // so each one must be entirely absent until its data is genuinely present.
   describe('series signals', () => {
