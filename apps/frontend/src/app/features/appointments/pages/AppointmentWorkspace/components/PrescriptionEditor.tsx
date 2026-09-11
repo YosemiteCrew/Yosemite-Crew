@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  IoChevronDownOutline,
   IoCopyOutline,
   IoLockClosedOutline,
   IoPrintOutline,
@@ -16,6 +15,7 @@ import {
   type MedicationSuggestion,
 } from '@/app/features/appointments/services/clinicalTermsService';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import type { DropdownOption } from '@/app/hooks/useDropdown';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
@@ -63,6 +63,10 @@ const FULFILLMENT_LABELS: Record<PrescriptionFulfillment, string> = {
 };
 
 const FULFILLMENT_OPTIONS = Object.keys(FULFILLMENT_LABELS) as PrescriptionFulfillment[];
+const FULFILLMENT_DROPDOWN_OPTIONS = FULFILLMENT_OPTIONS.map((option) => ({
+  label: FULFILLMENT_LABELS[option],
+  value: option,
+}));
 const EMPTY_CATALOG_ITEMS: Omit<PrescriptionItem, 'id'>[] = [];
 const EMPTY_TEMPLATE_ITEMS: PrescriptionTemplateOption[] = [];
 
@@ -99,8 +103,9 @@ const isClassificationOnly = (item: PrescriptionItem) =>
   Boolean(item.atcCode) && !item.inventoryItemId && !item.sku;
 
 /**
- * Compact fulfillment pill dropdown (In-house fulfilled / Prescription only),
- * styled like the workspace status pills with a small caret.
+ * Fulfillment dropdown (In-house fulfilled / Prescription only), using the
+ * shared design-system Dropdown so it matches the rest of the app instead of
+ * a browser-native <select>.
  */
 const FulfillmentDropdown = ({
   value,
@@ -110,34 +115,15 @@ const FulfillmentDropdown = ({
   value: PrescriptionFulfillment;
   disabled: boolean;
   onChange: (value: PrescriptionFulfillment) => void;
-}) => {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="relative">
-      <select
-        aria-label="Fulfillment"
-        disabled={disabled}
-        value={value}
-        onChange={(e) => onChange(e.target.value as PrescriptionFulfillment)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        className="flex appearance-none items-center gap-1 rounded-[13px] border border-[var(--hairline)] bg-[var(--field-bg)] py-1.5 pr-10 pl-4 text-[14px] leading-[120%] font-medium text-[var(--ink-body)] disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {FULFILLMENT_OPTIONS.map((option) => (
-          <option key={option} value={option}>
-            {FULFILLMENT_LABELS[option]}
-          </option>
-        ))}
-      </select>
-      <IoChevronDownOutline
-        size={16}
-        aria-hidden="true"
-        className={`pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 transition-transform ${open ? 'rotate-180' : ''}`}
-      />
-    </div>
-  );
-};
+}) => (
+  <Dropdown
+    placeholder="Fulfillment"
+    value={value}
+    disabled={disabled}
+    onChange={(v) => onChange(v as PrescriptionFulfillment)}
+    options={FULFILLMENT_DROPDOWN_OPTIONS}
+  />
+);
 
 /** Small neutral pill that surfaces an inventory-owned fact (read-only). */
 const FactChip = ({ label, value }: { label: string; value?: string }) => {

@@ -18,6 +18,7 @@ import {
 } from '@/app/features/companionHistory/components/ClinicalListChrome';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { Textarea } from '@/app/ui/Input';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import type {
   AllergySeverity,
   AllergyStatus,
@@ -88,6 +89,12 @@ const TYPE_LABEL: Record<AllergyType, string> = {
 
 const SEVERITY_OPTIONS: AllergySeverity[] = ['MILD', 'MODERATE', 'SEVERE', 'LIFE_THREATENING'];
 const TYPE_OPTIONS: AllergyType[] = ['DRUG', 'FOOD', 'ENVIRONMENTAL', 'OTHER'];
+
+const TYPE_DROPDOWN_OPTIONS = TYPE_OPTIONS.map((t) => ({ label: TYPE_LABEL[t], value: t }));
+const SEVERITY_DROPDOWN_OPTIONS = SEVERITY_OPTIONS.map((s) => ({
+  label: SEVERITY_LABEL[s],
+  value: s,
+}));
 
 const AllergyRow = ({
   allergy,
@@ -205,42 +212,20 @@ const CreateAllergyForm = ({
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label className={fieldLabelClass} htmlFor="allergy-type">
-            Type
-          </label>
-          <select
-            id="allergy-type"
-            className={controlClass}
+          <Dropdown
+            placeholder="Type"
             value={values.allergyType}
-            onChange={(e) =>
-              setValues((v) => ({ ...v, allergyType: e.target.value as AllergyType }))
-            }
-          >
-            {TYPE_OPTIONS.map((t) => (
-              <option key={t} value={t}>
-                {TYPE_LABEL[t]}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setValues((prev) => ({ ...prev, allergyType: v as AllergyType }))}
+            options={TYPE_DROPDOWN_OPTIONS}
+          />
         </div>
         <div className="flex flex-col gap-1">
-          <label className={fieldLabelClass} htmlFor="allergy-severity">
-            Severity
-          </label>
-          <select
-            id="allergy-severity"
-            className={controlClass}
+          <Dropdown
+            placeholder="Severity"
             value={values.severity}
-            onChange={(e) =>
-              setValues((v) => ({ ...v, severity: e.target.value as AllergySeverity }))
-            }
-          >
-            {SEVERITY_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {SEVERITY_LABEL[s]}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setValues((prev) => ({ ...prev, severity: v as AllergySeverity }))}
+            options={SEVERITY_DROPDOWN_OPTIONS}
+          />
         </div>
       </div>
       <div className="flex flex-col gap-1">

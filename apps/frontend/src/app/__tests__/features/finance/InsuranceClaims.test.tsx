@@ -248,7 +248,8 @@ describe('InsuranceClaims detail actions', () => {
     const onUpdateStatus = jest.fn();
     setup({ claims: [CLAIMS[1]], activeClaimId: 'c2', onUpdateStatus });
 
-    await userEvent.selectOptions(screen.getByLabelText('Move claim to'), 'APPROVED');
+    await userEvent.click(screen.getByRole('button', { name: /Move claim to/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Approved'));
     await userEvent.click(screen.getByRole('button', { name: "Update this claim's status" }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -267,7 +268,8 @@ describe('InsuranceClaims detail actions', () => {
     // c2 was submitted for 199.5; approving for 500 must be caught client-side.
     setup({ claims: [CLAIMS[1]], activeClaimId: 'c2', onUpdateStatus });
 
-    await userEvent.selectOptions(screen.getByLabelText('Move claim to'), 'APPROVED');
+    await userEvent.click(screen.getByRole('button', { name: /Move claim to/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Approved'));
     await userEvent.type(screen.getByLabelText('Approved amount'), '500');
     await userEvent.click(screen.getByRole('button', { name: "Update this claim's status" }));
 
@@ -352,7 +354,8 @@ describe('InsuranceClaims create form', () => {
     const onCreate = jest.fn();
     setup({ createOpen: true, claims: [], onCreate });
 
-    await userEvent.selectOptions(screen.getByLabelText('Companion'), 'pat-1');
+    await userEvent.click(screen.getByRole('button', { name: /Companion/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Marnie Whitlock'));
     await userEvent.clear(screen.getByLabelText('Insurer'));
     await userEvent.type(screen.getByLabelText('Insurer'), 'Petsure');
     await userEvent.type(screen.getByLabelText('Policy number'), 'PS-1');
@@ -374,7 +377,8 @@ describe('InsuranceClaims create form', () => {
     const onCreate = jest.fn();
     setup({ createOpen: true, claims: [], onCreate });
 
-    await userEvent.selectOptions(screen.getByLabelText('Companion'), 'pat-1');
+    await userEvent.click(screen.getByRole('button', { name: /Companion/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Marnie Whitlock'));
     await userEvent.type(screen.getByLabelText('Insurer'), 'Petsure');
     await userEvent.type(screen.getByLabelText('Policy number'), 'PS-1');
     await userEvent.type(screen.getByLabelText(/Submitted amount/), '0');

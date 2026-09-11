@@ -193,9 +193,13 @@ export const ServicesStep: Story = {
     await expect(canvas.queryByText('Full mouth radiograph')).not.toBeInTheDocument();
     await expect(canvas.queryByText('Retired nail trim')).not.toBeInTheDocument();
 
-    // The selects carry the number the API stores, not the label.
-    await expect(canvas.getByRole('combobox', { name: 'Bookable window' })).toHaveValue('28');
-    await expect(canvas.getByRole('combobox', { name: 'Buffer between visits' })).toHaveValue('10');
+    // The Dropdowns carry the number the API stores as their selected label.
+    await expect(canvas.getByRole('button', { name: /Bookable window/ })).toHaveTextContent(
+      'Up to 4 weeks ahead'
+    );
+    await expect(canvas.getByRole('button', { name: /Buffer between visits/ })).toHaveTextContent(
+      '10 minutes'
+    );
     await expect(canvas.getByText('Requests need confirmation.')).toBeInTheDocument();
     await expect(
       canvas.queryByRole('switch', { name: 'Requests need confirmation' })
@@ -367,7 +371,7 @@ export const ServicesStepEmpty: Story = {
 
     // Everything below the list is untouched by the empty state, and Continue is
     // live: an empty booking page can be carried straight through to step 2.
-    await expect(canvas.getByRole('combobox', { name: 'Bookable window' })).toBeEnabled();
+    await expect(canvas.getByRole('button', { name: /Bookable window/ })).toBeEnabled();
     await expect(canvas.getByRole('button', { name: 'Continue' })).toBeEnabled();
   },
   parameters: {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { isAuthRedirectError } from '@/app/services/axios';
@@ -91,8 +91,10 @@ describe('FlagListPanel', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Add flag' }));
     await userEvent.type(screen.getByLabelText('Flag title'), 'Use side entrance');
-    await userEvent.selectOptions(screen.getByLabelText('Flag type'), 'ESCAPE_RISK');
-    await userEvent.selectOptions(screen.getByLabelText('Severity'), 'HIGH');
+    await userEvent.click(screen.getByRole('button', { name: /Flag type/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Escape risk'));
+    await userEvent.click(screen.getByRole('button', { name: /Severity/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('High'));
     await userEvent.type(screen.getByLabelText('Description'), '  Keep both doors closed  ');
     await userEvent.click(screen.getByRole('button', { name: 'Save flag' }));
 

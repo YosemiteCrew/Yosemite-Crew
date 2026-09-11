@@ -178,8 +178,10 @@ describe('ControlledSubstanceRegister', () => {
     const form = screen.getByRole('form', { name: 'Add controlled substance entry' });
 
     await user.type(within(form).getByLabelText('Drug name'), 'Midazolam');
-    await user.selectOptions(within(form).getByLabelText('Control schedule'), 'IV');
-    await user.selectOptions(within(form).getByLabelText('Unit'), 'ML');
+    await user.click(within(form).getByRole('button', { name: /Control schedule/ }));
+    await user.click(within(screen.getByRole('listbox')).getByText('Schedule IV'));
+    await user.click(within(form).getByRole('button', { name: /Unit/ }));
+    await user.click(within(screen.getByRole('listbox')).getByText('mL'));
     await user.type(within(form).getByLabelText('Strength (optional)'), '5');
     await user.type(within(form).getByLabelText('Lot number (optional)'), 'LOT-9');
     await user.type(within(form).getByLabelText('Amount drawn'), '5');

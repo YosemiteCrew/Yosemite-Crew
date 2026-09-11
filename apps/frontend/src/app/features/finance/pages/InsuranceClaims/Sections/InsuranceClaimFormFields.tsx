@@ -2,6 +2,7 @@
 import React from 'react';
 import { currencySymbol } from '@/app/lib/money';
 import { Textarea } from '@/app/ui/Input';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import {
   fieldClass,
   inputClass,
@@ -31,24 +32,13 @@ const InsuranceClaimFormFields = ({
 }: InsuranceClaimFormFieldsProps) => (
   <>
     <div className="flex flex-col gap-1">
-      <label htmlFor="claim-companion" className="text-caption-2 font-bold text-text-tertiary">
-        Companion
-      </label>
-      <span className={fieldClass}>
-        <select
-          id="claim-companion"
-          value={draft.patientId}
-          onChange={(e) => setField({ patientId: e.target.value })}
-          className={inputClass}
-        >
-          <option value="">Choose a companion</option>
-          {companions.map((companion) => (
-            <option key={companion.id} value={companion.id}>
-              {companion.name}
-            </option>
-          ))}
-        </select>
-      </span>
+      <Dropdown
+        placeholder="Companion"
+        value={draft.patientId}
+        onChange={(v) => setField({ patientId: v })}
+        options={companions.map((companion) => ({ label: companion.name, value: companion.id }))}
+        emptyLabel="Choose a companion"
+      />
     </div>
 
     <div className="flex flex-col gap-1">

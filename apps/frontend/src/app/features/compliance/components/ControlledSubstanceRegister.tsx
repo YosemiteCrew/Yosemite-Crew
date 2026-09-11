@@ -8,6 +8,7 @@ import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import GenericTable, { type Column } from '@/app/ui/tables/GenericTable/GenericTable';
 import PaginatedCardList from '@/app/ui/tables/PaginatedCardList';
 import { Textarea } from '@/app/ui/Input';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import { formatDateTimeLocal } from '@/app/lib/date';
 import {
   DEA_SCHEDULES,
@@ -44,6 +45,16 @@ const inputClass =
   'min-w-0 flex-1 bg-transparent px-3 py-2 text-body-4 text-text-primary outline-none';
 const labelClass = 'text-caption-2 font-bold text-text-tertiary';
 const PHONE_REGISTER_PAGE_SIZE = 10;
+
+const DEA_SCHEDULE_DROPDOWN_OPTIONS = DEA_SCHEDULES.map((schedule) => ({
+  label: DEA_SCHEDULE_LABEL[schedule],
+  value: schedule,
+}));
+
+const DRUG_UNIT_DROPDOWN_OPTIONS = DRUG_UNITS.map((unit) => ({
+  label: DRUG_UNIT_LABEL[unit],
+  value: unit,
+}));
 
 /** yyyy-mm-dd (from a date input) to the ISO datetime the API's date bounds want. */
 const toIsoBound = (date: string, endOfDay: boolean): string | undefined => {
@@ -553,35 +564,19 @@ const AddEntryForm = ({ creating, createError, onSubmit, onCancel }: AddEntryFor
           />
         </Field>
 
-        <Field id="cs-schedule" label="Control schedule">
-          <select
-            id="cs-schedule"
-            value={deaSchedule}
-            onChange={(event) => setDeaSchedule(event.target.value as DeaSchedule)}
-            className={inputClass}
-          >
-            {DEA_SCHEDULES.map((schedule) => (
-              <option key={schedule} value={schedule}>
-                {DEA_SCHEDULE_LABEL[schedule]}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <Dropdown
+          placeholder="Control schedule"
+          value={deaSchedule}
+          onChange={(v) => setDeaSchedule(v as DeaSchedule)}
+          options={DEA_SCHEDULE_DROPDOWN_OPTIONS}
+        />
 
-        <Field id="cs-unit" label="Unit">
-          <select
-            id="cs-unit"
-            value={unit}
-            onChange={(event) => setUnit(event.target.value as DrugUnit)}
-            className={inputClass}
-          >
-            {DRUG_UNITS.map((option) => (
-              <option key={option} value={option}>
-                {DRUG_UNIT_LABEL[option]}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <Dropdown
+          placeholder="Unit"
+          value={unit}
+          onChange={(v) => setUnit(v as DrugUnit)}
+          options={DRUG_UNIT_DROPDOWN_OPTIONS}
+        />
 
         <Field id="cs-strength" label="Strength (optional)">
           <input

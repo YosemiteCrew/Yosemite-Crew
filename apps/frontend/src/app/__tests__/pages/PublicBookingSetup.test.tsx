@@ -1,5 +1,6 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
 const notifyMock = jest.fn();
@@ -62,6 +63,8 @@ jest.mock('react-icons/io5', () => ({
   IoCopyOutline: () => <span data-testid="i-copy" />,
   IoGlobeOutline: () => <span data-testid="i-globe" />,
   IoSaveOutline: () => <span data-testid="i-save" />,
+  // Dropdown (converted native selects) renders its own chevron icon.
+  IoChevronDown: () => <span data-testid="i-chevron" />,
 }));
 
 import PublicBookingSetup from '@/app/features/onboarding/pages/PublicBookingSetup/PublicBookingSetup';
@@ -135,17 +138,20 @@ describe('PublicBookingSetup', () => {
   it('shows keyboard focus on every notched field', async () => {
     /* globals.css suppresses the outline on input/select/textarea on the grounds
        that "each field shows border-color on focus", and the inner controls here
-       add their own outline-none. These five wrappers had neither, so tabbing
-       through this page gave a keyboard user no indication of where they were.
-       The affordance lives on the wrapper, so that is what this checks. */
-    await renderSetup();
+       add their own outline-none. These wrappers had neither, so tabbing through
+       this page gave a keyboard user no indication of where they were. The
+       affordance lives on the wrapper, so that is what this checks. Bookable
+       window and Buffer between visits now use the shared Dropdown component,
+       which manages its own focus affordance, so only the branding step's
+       notched fields remain to check here. */
+    await goToBranding();
 
     // The notched-field recipe exactly: a hairline 14px box. Other 14px-radius
     // elements on this page are buttons and are not focus surfaces.
     const notched = document.querySelectorAll('[class*="border-[var(--hairline)] rounded-[14px]"]');
-    // Two on this step; the other three are on later wizard steps. The count
+    // Three on this step: logo, welcome message, reply-to email. The count
     // only proves the query found the recipe - the per-field loop is the guard.
-    expect(notched.length).toBeGreaterThanOrEqual(2);
+    expect(notched.length).toBeGreaterThanOrEqual(3);
     for (const field of notched) {
       expect(field.className).toContain('focus-within:border-[var(--color-input-border-active)]');
     }
@@ -252,13 +258,17 @@ describe('PublicBookingSetup', () => {
   it('updates availability selects while confirmation remains fixed', async () => {
     await renderSetup();
 
-    const windowSelect = screen.getByLabelText('Bookable window') as HTMLSelectElement;
-    fireEvent.change(windowSelect, { target: { value: '56' } });
-    expect(windowSelect.value).toBe('56');
+    await userEvent.click(screen.getByRole('button', { name: /Bookable window/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Up to 8 weeks ahead'));
+    expect(screen.getByRole('button', { name: /Bookable window/ })).toHaveTextContent(
+      'Up to 8 weeks ahead'
+    );
 
-    const bufferSelect = screen.getByLabelText('Buffer between visits') as HTMLSelectElement;
-    fireEvent.change(bufferSelect, { target: { value: '30' } });
-    expect(bufferSelect.value).toBe('30');
+    await userEvent.click(screen.getByRole('button', { name: /Buffer between visits/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('30 minutes'));
+    expect(screen.getByRole('button', { name: /Buffer between visits/ })).toHaveTextContent(
+      '30 minutes'
+    );
 
     expect(screen.getByText('Requests need confirmation.')).toBeInTheDocument();
     expect(
@@ -467,10 +477,12 @@ describe('PublicBookingSetup', () => {
       await renderSetup();
 
       await waitFor(() =>
-        expect((screen.getByLabelText('Bookable window') as HTMLSelectElement).value).toBe('56')
+        expect(screen.getByRole('button', { name: /Bookable window/ })).toHaveTextContent(
+          'Up to 8 weeks ahead'
+        )
       );
-      expect((screen.getByLabelText('Buffer between visits') as HTMLSelectElement).value).toBe(
-        '30'
+      expect(screen.getByRole('button', { name: /Buffer between visits/ })).toHaveTextContent(
+        '30 minutes'
       );
       fireEvent.click(screen.getByRole('button', { name: /Continue/ }));
       expect((screen.getByLabelText('Welcome message') as HTMLInputElement).value).toBe(
@@ -602,8 +614,10 @@ describe('PublicBookingSetup', () => {
       await waitFor(() => expect(getConfigMock).toHaveBeenCalled());
 
       fireEvent.click(screen.getByRole('button', { name: /Wellness & vaccination/ }));
-      fireEvent.change(screen.getByLabelText('Bookable window'), { target: { value: '14' } });
-      fireEvent.change(screen.getByLabelText('Buffer between visits'), { target: { value: '0' } });
+      await userEvent.click(screen.getByRole('button', { name: /Bookable window/ }));
+      await userEvent.click(within(screen.getByRole('listbox')).getByText('Up to 2 weeks ahead'));
+      await userEvent.click(screen.getByRole('button', { name: /Buffer between visits/ }));
+      await userEvent.click(within(screen.getByRole('listbox')).getByText('0 minutes'));
       fireEvent.click(screen.getByRole('button', { name: /Continue/ }));
       fireEvent.change(screen.getByLabelText('Welcome message'), {
         target: { value: '  Come and see us  ' },

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { isAuthRedirectError } from '@/app/services/axios';
@@ -131,7 +131,8 @@ describe('ConsentListPanel', () => {
     await screen.findByText(/No consents recorded/);
 
     await userEvent.click(screen.getByRole('button', { name: 'Record consent' }));
-    await userEvent.selectOptions(screen.getByLabelText('Consent type'), 'DIAGNOSTIC');
+    await userEvent.click(screen.getByRole('button', { name: /Consent type/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Diagnostic'));
     await userEvent.type(screen.getByLabelText('Procedure'), 'Abdominal ultrasound');
     await userEvent.type(screen.getByLabelText('Consented by'), '  Sam Owner  ');
     fireEvent.change(screen.getByLabelText('Expiry date'), { target: { value: '2026-06-01' } });
