@@ -116,6 +116,28 @@ export function storyPathFor(componentFile) {
   return componentFile.replace(/\.tsx$/, '.stories.tsx');
 }
 
+/**
+ * A component living at <Dir>/index.tsx is commonly storied in this codebase
+ * as <Dir>/<Dir-basename>.stories.tsx (36 instances measured) rather than
+ * <Dir>/index.stories.tsx (21 instances) - both are real, established
+ * conventions here, not a typo either way. Checking only storyPathFor's
+ * index.stories.tsx guess flagged 32 components with a real, working story
+ * as "missing" simply because the story followed the other convention.
+ * Returns null for a component not named index.tsx, where no such ambiguity
+ * exists.
+ */
+export function alternateStoryPathFor(componentFile) {
+  if (path.basename(componentFile) !== 'index.tsx') return null;
+  const dir = path.dirname(componentFile);
+  // Defense in depth: evaluate()'s resolveWithin() already rejects any
+  // resulting path that escapes cwd before it is ever read, but this checks
+  // `dir` itself (not just its basename, which a `..` segment further up the
+  // path would not appear in) so this function never even constructs a path
+  // reaching outside componentFile's own directory tree.
+  if (dir.split(path.sep).includes('..') || path.isAbsolute(dir)) return null;
+  return path.join(dir, `${path.basename(dir)}.stories.tsx`);
+}
+
 // `files` comes from `git diff` output or a `--files` CLI argument, neither
 // of which this script should trust to stay under `cwd` - a relative path
 // containing `..` (or an absolute path) could otherwise make readFileSync
@@ -152,7 +174,13 @@ export function evaluate({ files, cwd = REPO_ROOT }) {
     checked.push(file);
     const storyFile = storyPathFor(file);
     const storyFullPath = resolveWithin(cwd, storyFile);
-    if (!storyFullPath || !existsSync(storyFullPath)) {
+    const hasPrimaryStory = !!storyFullPath && existsSync(storyFullPath);
+
+    const altStoryFile = alternateStoryPathFor(file);
+    const altStoryFullPath = altStoryFile ? resolveWithin(cwd, altStoryFile) : null;
+    const hasAltStory = !!altStoryFullPath && existsSync(altStoryFullPath);
+
+    if (!hasPrimaryStory && !hasAltStory) {
       missing.push({ file, expected: storyFile });
     }
   }

@@ -10,7 +10,13 @@ import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { looksLikeComponent, storyPathFor, evaluate, parseArgs } from './story-coverage.mjs';
+import {
+  looksLikeComponent,
+  storyPathFor,
+  alternateStoryPathFor,
+  evaluate,
+  parseArgs,
+} from './story-coverage.mjs';
 
 const REAL_COMPONENT = `
 import React from 'react';
@@ -114,6 +120,28 @@ describe('storyPathFor', () => {
   });
 });
 
+describe('alternateStoryPathFor', () => {
+  it('names the folder-basename story for an index.tsx component', () => {
+    assert.equal(
+      alternateStoryPathFor('apps/frontend/src/app/ui/cards/TaskCard/index.tsx'),
+      'apps/frontend/src/app/ui/cards/TaskCard/TaskCard.stories.tsx'
+    );
+  });
+
+  it('returns null for a component not named index.tsx - no ambiguity to resolve', () => {
+    assert.equal(alternateStoryPathFor('apps/frontend/src/app/features/x/Foo.tsx'), null);
+  });
+
+  it("refuses to construct a path that escapes componentFile's own directory tree", () => {
+    // Defense in depth: evaluate()'s resolveWithin() would also reject the
+    // resulting path before ever reading it, but this must not even build
+    // a path pointing outside index.tsx's own directory in the first place.
+    assert.equal(alternateStoryPathFor('../../etc/index.tsx'), null);
+    assert.equal(alternateStoryPathFor('apps/frontend/../../etc/index.tsx'), null);
+    assert.equal(alternateStoryPathFor('/etc/index.tsx'), null);
+  });
+});
+
 describe('parseArgs', () => {
   it('THE CASE THIS GATE EXISTS FOR: --files consumes every remaining argument, not just the first', () => {
     // Found via a real run against a historical commit: with a loop that
@@ -158,6 +186,31 @@ describe('evaluate', () => {
       writeFileSync(path.join(dir, 'Foo.stories.tsx'), 'export default {};');
       const { missing } = evaluate({ files: ['Foo.tsx'], cwd: dir });
       assert.deepEqual(missing, []);
+    });
+  });
+
+  it('does not flag an index.tsx component whose story uses the folder-basename convention', () => {
+    withFixture((dir) => {
+      const componentDir = path.join(dir, 'TaskCard');
+      mkdirSync(componentDir, { recursive: true });
+      writeFileSync(path.join(componentDir, 'index.tsx'), REAL_COMPONENT);
+      // Not index.stories.tsx - this is the other real convention this
+      // codebase uses, and storyPathFor alone would miss it.
+      writeFileSync(path.join(componentDir, 'TaskCard.stories.tsx'), 'export default {};');
+      const { missing } = evaluate({ files: ['TaskCard/index.tsx'], cwd: dir });
+      assert.deepEqual(missing, []);
+    });
+  });
+
+  it('still flags an index.tsx component with neither story naming present', () => {
+    withFixture((dir) => {
+      const componentDir = path.join(dir, 'TaskCard');
+      mkdirSync(componentDir, { recursive: true });
+      writeFileSync(path.join(componentDir, 'index.tsx'), REAL_COMPONENT);
+      const { missing } = evaluate({ files: ['TaskCard/index.tsx'], cwd: dir });
+      assert.deepEqual(missing, [
+        { file: 'TaskCard/index.tsx', expected: 'TaskCard/index.stories.tsx' },
+      ]);
     });
   });
 
