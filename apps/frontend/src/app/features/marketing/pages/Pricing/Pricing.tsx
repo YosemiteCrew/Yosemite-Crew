@@ -80,7 +80,7 @@ const billingBtnStyle = (active: boolean): React.CSSProperties => ({
   fontWeight: 600,
   letterSpacing: '-0.01em',
   transition: 'color 200ms, background 200ms',
-  background: active ? '#1d1c1b' : 'transparent',
+  background: active ? 'var(--spot)' : 'transparent',
   color: active ? '#f7f3ec' : 'var(--ink-muted)',
 });
 

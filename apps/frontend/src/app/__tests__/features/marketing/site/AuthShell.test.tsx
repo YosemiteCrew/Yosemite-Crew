@@ -130,3 +130,20 @@ describe('brand panel reads ink and glow colours from real tokens', () => {
     expect(source).toMatch(/color-mix\(in srgb, var\(--pink\) 10%, transparent\)/);
   });
 });
+
+describe('the AuthShell story fixtures route their brand-emphasis ink through real tokens', () => {
+  const storiesSource = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/site/AuthShell.stories.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode the pet-parent emphasis ink as a frozen literal', () => {
+    expect(storiesSource).not.toContain("color: '#8fb6f5'");
+    expect(storiesSource).toContain("color: 'var(--color-accent-dark)'");
+  });
+
+  it('does not hardcode the developer emphasis ink as a frozen literal', () => {
+    expect(storiesSource).not.toContain("color: '#5ce1e6'");
+    expect(storiesSource).toContain("color: 'var(--cyan)'");
+  });
+});

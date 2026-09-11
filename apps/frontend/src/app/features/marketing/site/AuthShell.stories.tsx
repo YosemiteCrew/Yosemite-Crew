@@ -94,7 +94,10 @@ const ClinicBrand = () => (
     eyebrow="Open-source operating system for animal health"
     title={
       <>
-        See the <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#8fb6f5' }}>whole</em>{' '}
+        See the{' '}
+        <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--color-accent-dark)' }}>
+          whole
+        </em>{' '}
         animal.
       </>
     }
@@ -109,7 +112,9 @@ const DeveloperBrand = () => (
     title={
       <>
         Build it in{' '}
-        <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#5ce1e6' }}>an afternoon.</em>
+        <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--cyan)' }}>
+          an afternoon.
+        </em>
       </>
     }
     subtitle="A FHIR-native API, a plugin system, and a codebase you can actually read. Publish once and reach every clinic running Yosemite Crew."
