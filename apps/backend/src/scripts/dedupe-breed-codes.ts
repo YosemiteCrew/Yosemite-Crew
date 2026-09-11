@@ -60,10 +60,9 @@ export const planDedupe = async (): Promise<DedupePlan> => {
   for (const entry of entries) {
     const canonical = canonicalBreedCode(entry.code);
     if (!canonical) continue;
-    byCanonical.set(canonical, [
-      ...(byCanonical.get(canonical) ?? []),
-      entry.code,
-    ]);
+    const codes = byCanonical.get(canonical) ?? [];
+    codes.push(entry.code);
+    byCanonical.set(canonical, codes);
   }
 
   const groups: DedupeGroup[] = [];
@@ -123,7 +122,23 @@ export const main = async () => {
   let mappingsDeduped = 0;
   let entriesDeactivated = 0;
 
+  const mappingKey = (targetSystem: string, targetCode: string) =>
+    `${targetSystem}:${targetCode}`;
+
   for (const group of groups) {
+    // Fetched once per group rather than once per loser mapping (an N+1
+    // read otherwise) and kept up to date as losers are repointed, so a
+    // second loser mapping to the same target is deduped instead of
+    // colliding with the unique (sourceSystem, sourceCode, targetSystem,
+    // targetCode) constraint the first repoint would already have claimed.
+    const winnerMappings = await prisma.codeMapping.findMany({
+      where: { sourceSystem: "YOSEMITECODE", sourceCode: group.winner },
+      select: { targetSystem: true, targetCode: true },
+    });
+    const winnerTargets = new Set(
+      winnerMappings.map((m) => mappingKey(m.targetSystem, m.targetCode)),
+    );
+
     for (const loser of group.losers) {
       const patientResult = await prisma.patient.updateMany({
         where: { breedCode: loser },
@@ -135,19 +150,8 @@ export const main = async () => {
         where: { sourceSystem: "YOSEMITECODE", sourceCode: loser },
       });
       for (const mapping of loserMappings) {
-        const existing = await prisma.codeMapping.findUnique({
-          where: {
-            sourceSystem_sourceCode_targetSystem_targetCode: {
-              sourceSystem: "YOSEMITECODE",
-              sourceCode: group.winner,
-              targetSystem: mapping.targetSystem,
-              targetCode: mapping.targetCode,
-            },
-          },
-        });
-        if (existing) {
-          // The winner already maps to the same target - the loser's row
-          // would only collide with the unique constraint if repointed.
+        const key = mappingKey(mapping.targetSystem, mapping.targetCode);
+        if (winnerTargets.has(key)) {
           await prisma.codeMapping.delete({ where: { id: mapping.id } });
           mappingsDeduped += 1;
         } else {
@@ -156,6 +160,7 @@ export const main = async () => {
             data: { sourceCode: group.winner },
           });
           mappingsRepointed += 1;
+          winnerTargets.add(key);
         }
       }
 

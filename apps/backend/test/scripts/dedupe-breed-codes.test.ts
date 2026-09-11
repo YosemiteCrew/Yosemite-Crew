@@ -3,7 +3,6 @@ jest.mock("src/config/prisma", () => ({
     codeEntry: { findMany: jest.fn(), update: jest.fn() },
     codeMapping: {
       findMany: jest.fn(),
-      findUnique: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     },
@@ -19,7 +18,6 @@ const mocked = prisma as unknown as {
   codeEntry: { findMany: jest.Mock; update: jest.Mock };
   codeMapping: {
     findMany: jest.Mock;
-    findUnique: jest.Mock;
     update: jest.Mock;
     delete: jest.Mock;
   };
@@ -142,17 +140,20 @@ describe("main", () => {
     });
   });
 
+  const loserMapping = {
+    id: "m1",
+    sourceSystem: "YOSEMITECODE",
+    sourceCode: "YBREED:CANINE:SHIH-TZU",
+    targetSystem: "IDEXX",
+    targetCode: "IDX-9",
+  };
+
   it("repoints a mapping's sourceCode when the winner has no equivalent mapping yet", async () => {
-    mocked.codeMapping.findMany.mockResolvedValue([
-      {
-        id: "m1",
-        sourceSystem: "YOSEMITECODE",
-        sourceCode: "YBREED:CANINE:SHIH-TZU",
-        targetSystem: "IDEXX",
-        targetCode: "IDX-9",
-      },
-    ]);
-    mocked.codeMapping.findUnique.mockResolvedValue(null);
+    mocked.codeMapping.findMany.mockImplementation(({ where }) =>
+      Promise.resolve(
+        where.sourceCode === "YBREED:CANINE:SHIH-TZU" ? [loserMapping] : [],
+      ),
+    );
     process.argv = ["node", "dedupe-breed-codes.ts", "--apply"];
 
     await main();
@@ -168,16 +169,13 @@ describe("main", () => {
   it("deletes the loser's mapping instead of repointing when the winner already has that target", async () => {
     // Repointing here would collide with the unique
     // (sourceSystem, sourceCode, targetSystem, targetCode) constraint.
-    mocked.codeMapping.findMany.mockResolvedValue([
-      {
-        id: "m1",
-        sourceSystem: "YOSEMITECODE",
-        sourceCode: "YBREED:CANINE:SHIH-TZU",
-        targetSystem: "IDEXX",
-        targetCode: "IDX-9",
-      },
-    ]);
-    mocked.codeMapping.findUnique.mockResolvedValue({ id: "m2" });
+    mocked.codeMapping.findMany.mockImplementation(({ where }) =>
+      Promise.resolve(
+        where.sourceCode === "YBREED:CANINE:SHIH-TZU"
+          ? [loserMapping]
+          : [{ targetSystem: "IDEXX", targetCode: "IDX-9" }],
+      ),
+    );
     process.argv = ["node", "dedupe-breed-codes.ts", "--apply"];
 
     await main();
@@ -186,6 +184,39 @@ describe("main", () => {
       where: { id: "m1" },
     });
     expect(mocked.codeMapping.update).not.toHaveBeenCalled();
+    expect(output()).toMatch(/1 duplicate mappings removed/);
+  });
+
+  it("dedupes a second loser mapping onto the same target the first loser was just repointed to", async () => {
+    // The winner has no mapping for this target before this group runs -
+    // the first loser's repoint is what creates it, and the second loser
+    // must see that in-memory update rather than re-querying and colliding.
+    mocked.codeEntry.findMany.mockResolvedValue([
+      { code: "YBREED:CANINE:SHIH_TZU" },
+      { code: "YBREED:CANINE:SHIH-TZU" },
+      { code: "ybreed:canine:shih_tzu" },
+    ]);
+    mocked.codeMapping.findMany.mockImplementation(({ where }) => {
+      if (where.sourceCode === "YBREED:CANINE:SHIH-TZU") {
+        return Promise.resolve([{ ...loserMapping, id: "m1" }]);
+      }
+      if (where.sourceCode === "ybreed:canine:shih_tzu") {
+        return Promise.resolve([{ ...loserMapping, id: "m2" }]);
+      }
+      return Promise.resolve([]);
+    });
+    process.argv = ["node", "dedupe-breed-codes.ts", "--apply"];
+
+    await main();
+
+    expect(mocked.codeMapping.update).toHaveBeenCalledWith({
+      where: { id: "m1" },
+      data: { sourceCode: "YBREED:CANINE:SHIH_TZU" },
+    });
+    expect(mocked.codeMapping.delete).toHaveBeenCalledWith({
+      where: { id: "m2" },
+    });
+    expect(output()).toMatch(/1 mappings repointed/);
     expect(output()).toMatch(/1 duplicate mappings removed/);
   });
 
