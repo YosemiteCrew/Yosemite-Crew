@@ -116,6 +116,18 @@ export function storyPathFor(componentFile) {
   return componentFile.replace(/\.tsx$/, '.stories.tsx');
 }
 
+// `files` comes from `git diff` output or a `--files` CLI argument, neither
+// of which this script should trust to stay under `cwd` - a relative path
+// containing `..` (or an absolute path) could otherwise make readFileSync
+// walk outside the repo. Returns null for anything that escapes `cwd`.
+function resolveWithin(cwd, file) {
+  const base = path.resolve(cwd);
+  const fullPath = path.resolve(base, file);
+  const relative = path.relative(base, fullPath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return null;
+  return fullPath;
+}
+
 export function evaluate({ files, cwd = REPO_ROOT }) {
   const missing = [];
   const skipped = [];
@@ -126,8 +138,8 @@ export function evaluate({ files, cwd = REPO_ROOT }) {
       skipped.push(file);
       continue;
     }
-    const fullPath = path.join(cwd, file);
-    if (!existsSync(fullPath)) {
+    const fullPath = resolveWithin(cwd, file);
+    if (!fullPath || !existsSync(fullPath)) {
       // Added then deleted again within the same PR range - nothing to check.
       skipped.push(file);
       continue;
@@ -139,7 +151,8 @@ export function evaluate({ files, cwd = REPO_ROOT }) {
     }
     checked.push(file);
     const storyFile = storyPathFor(file);
-    if (!existsSync(path.join(cwd, storyFile))) {
+    const storyFullPath = resolveWithin(cwd, storyFile);
+    if (!storyFullPath || !existsSync(storyFullPath)) {
       missing.push({ file, expected: storyFile });
     }
   }
