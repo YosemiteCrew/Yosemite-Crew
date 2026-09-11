@@ -15,6 +15,7 @@ import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 import { useAuthStore } from '@/app/stores/authStore';
 import OtpModal from '@/app/ui/overlays/OtpModal/OtpModal';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
+import { isStrongPassword } from '@/app/features/auth/lib/passwordStrength';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { useSignUpDraft } from '@/app/hooks/useSignUpDraft';
 import { setStorageItem } from '@/app/lib/browserStorage';
@@ -97,8 +98,6 @@ const passwordErrors = (
   password: string,
   confirmPassword: string
 ): { pError?: string; confirmPError?: string } => {
-  const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/;
-
   if (!password) {
     return {
       pError: 'Password is required',
@@ -106,7 +105,7 @@ const passwordErrors = (
     };
   }
 
-  if (!strongPasswordRegex.test(password)) {
+  if (!isStrongPassword(password)) {
     return {
       pError:
         'Password must be at least 8 characters long, include uppercase, lowercase, number, and special character',
@@ -316,6 +315,7 @@ const SignUpFields = ({
       onChange={onPasswordChange}
       showPassword={showPassword}
       onToggleShowPassword={onToggleShowPassword}
+      showStrength
     />
     <AuthTextField
       id="signup-confirm-password"

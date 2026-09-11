@@ -202,4 +202,22 @@ describe('ResetPassword landing page', () => {
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
+
+  it('shows a live password strength readout on the new-password field only', () => {
+    render(<ResetPassword />);
+    expect(screen.queryByText(/password strength/i)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'weak' } });
+    expect(screen.getByText('Password strength: Too weak')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('New password'), {
+      target: { value: 'Okay now 1!' },
+    });
+    expect(screen.getByText('Password strength: Strong')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Confirm password'), {
+      target: { value: 'Okay now 1!' },
+    });
+    expect(screen.getAllByText(/password strength/i)).toHaveLength(1);
+  });
 });
