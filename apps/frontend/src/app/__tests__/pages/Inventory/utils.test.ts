@@ -145,8 +145,17 @@ describe('Inventory Utils', () => {
       expect(result).toEqual({
         onHand: undefined,
         allocated: 5,
-        available: -5, // 0 - 5
+        // 0 - 5 = -5, floored to 0: "available" is a quantity someone can
+        // still take, so it never reads as negative even when allocation
+        // over-commits the on-hand count.
+        available: 0,
       });
+    });
+
+    it('floors available at zero when allocated exceeds on-hand', () => {
+      const batches: BatchValues[] = [{ quantity: '10', allocated: '25' } as BatchValues];
+      const result = calculateBatchTotals(batches);
+      expect(result).toEqual({ onHand: 10, allocated: 25, available: 0 });
     });
 
     it('ignores undefined values in summation', () => {
@@ -1021,6 +1030,12 @@ describe('inventory metric helpers', () => {
     expect(getAvailableStock(metricItem({ stock: { allocated: 5 } } as never))).toBeUndefined();
     // Missing allocated defaults to 0.
     expect(getAvailableStock(metricItem({ stock: { current: 7 } } as never))).toBe(7);
+  });
+
+  it('floors available stock at zero instead of showing a negative count', () => {
+    expect(getAvailableStock(metricItem({ stock: { current: 0, allocated: 10 } } as never))).toBe(
+      0
+    );
   });
 
   it('computes profit, margin, and markup with divide-by-zero guards', () => {
