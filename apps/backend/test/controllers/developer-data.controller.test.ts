@@ -6,6 +6,15 @@ const getAppointment = jest.fn();
 jest.mock("src/services/developer-data.service", () => ({
   clampPageSize: jest.requireActual("src/services/developer-data.service")
     .clampPageSize,
+  encodeAppointmentCursor: jest.requireActual(
+    "src/services/developer-data.service",
+  ).encodeAppointmentCursor,
+  parseAppointmentCursor: jest.requireActual(
+    "src/services/developer-data.service",
+  ).parseAppointmentCursor,
+  UnknownAppointmentCursorError: jest.requireActual(
+    "src/services/developer-data.service",
+  ).UnknownAppointmentCursorError,
   DeveloperDataService: { listOrganizations, listAppointments, getAppointment },
 }));
 
@@ -22,6 +31,10 @@ jest.mock("src/utils/logger", () => ({
 }));
 
 import { DeveloperDataController } from "src/controllers/web/developer-data.controller";
+import {
+  encodeAppointmentCursor,
+  UnknownAppointmentCursorError,
+} from "src/services/developer-data.service";
 
 const buildRes = () => {
   const res = {} as Response & { body?: unknown; code?: number };
@@ -157,7 +170,7 @@ describe("listAppointments", () => {
     expect(listAppointments).not.toHaveBeenCalled();
   });
 
-  it("accepts a well-formed cursor", async () => {
+  it("accepts an in-flight UUID cursor", async () => {
     listAppointments.mockResolvedValue({ items: [], nextCursor: null });
     const cursor = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
     await DeveloperDataController.listAppointments(
@@ -165,8 +178,42 @@ describe("listAppointments", () => {
       buildRes(),
     );
     expect(listAppointments).toHaveBeenCalledWith(
-      expect.objectContaining({ cursor }),
+      expect.objectContaining({ cursor: { legacyId: cursor } }),
     );
+  });
+
+  it("accepts the opaque appointment keyset cursor", async () => {
+    listAppointments.mockResolvedValue({ items: [], nextCursor: null });
+    const cursor = encodeAppointmentCursor({
+      appointmentDate: new Date("2026-09-11T09:00:00.000Z"),
+      id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+    });
+    await DeveloperDataController.listAppointments(
+      buildReq({ query: { cursor } } as never),
+      buildRes(),
+    );
+    expect(listAppointments).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cursor: {
+          appointmentDate: new Date("2026-09-11T09:00:00.000Z"),
+          id: "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+        },
+      }),
+    );
+  });
+
+  it("400s when a legacy cursor no longer names an appointment in the practice", async () => {
+    listAppointments.mockRejectedValue(new UnknownAppointmentCursorError());
+    const res = buildRes();
+    await DeveloperDataController.listAppointments(
+      buildReq({
+        query: { cursor: "3f2504e0-4f89-41d3-9a0c-0305e82c3301" },
+      } as never),
+      res,
+    );
+    expect(res.code).toBe(400);
+    expect(res.body).toMatchObject({ code: "invalid_request" });
+    expect(errorLog).not.toHaveBeenCalled();
   });
 
   /*

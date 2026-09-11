@@ -12,6 +12,9 @@ import type { AppointmentStatus, Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import {
   clampPageSize as clampToBounds,
+  encodeKeysetCursor,
+  parseKeysetCursor,
+  parseUuidCursor,
   splitPage,
 } from "src/services/shared/pagination";
 
@@ -53,11 +56,39 @@ export interface OrganizationSummary {
 export interface AppointmentQuery {
   organisationId: string;
   limit: number;
-  cursor?: string;
+  cursor?: AppointmentCursor;
   from?: Date;
   to?: Date;
   status?: AppointmentStatus;
 }
+
+export type AppointmentCursor =
+  { appointmentDate: Date; id: string } | { legacyId: string };
+
+export class UnknownAppointmentCursorError extends Error {}
+
+export const encodeAppointmentCursor = ({
+  appointmentDate,
+  id,
+}: Extract<AppointmentCursor, { appointmentDate: Date }>): string =>
+  encodeKeysetCursor({ createdAt: appointmentDate, id });
+
+export const parseAppointmentCursor = (
+  raw: unknown,
+): AppointmentCursor | undefined | null => {
+  const keyset = parseKeysetCursor(raw);
+  if (keyset) {
+    return { appointmentDate: keyset.createdAt, id: keyset.id };
+  }
+  if (keyset === undefined) {
+    return undefined;
+  }
+  const legacyId = parseUuidCursor(raw);
+  if (typeof legacyId !== "string") {
+    return legacyId;
+  }
+  return { legacyId };
+};
 
 export interface Page<T> {
   items: T[];
@@ -141,10 +172,9 @@ export const DeveloperDataService = {
   },
 
   /*
-   * Keyset pagination via Prisma's `cursor`, ordered by `(appointmentDate, id)`.
-   * The id tiebreak is not decoration: several appointments share a date, and
-   * without it the order is unstable and a page boundary can drop or repeat a
-   * row. `skip: 1` steps past the cursor row itself.
+   * Keyset pagination ordered by `(appointmentDate, id)`. The id tiebreak is
+   * not decoration: several appointments share a date, and without it the
+   * order is unstable and a page boundary can drop or repeat a row.
    */
   async listAppointments(query: AppointmentQuery): Promise<Page<unknown>> {
     const where: Prisma.AppointmentWhereInput = {
@@ -162,15 +192,43 @@ export const DeveloperDataService = {
       where.status = query.status;
     }
 
+    let cursor = query.cursor;
+    if (cursor && "legacyId" in cursor) {
+      const legacyRow = await prisma.appointment.findFirst({
+        where: {
+          id: cursor.legacyId,
+          organisationId: query.organisationId,
+        },
+        select: { id: true, appointmentDate: true },
+      });
+      if (!legacyRow) {
+        throw new UnknownAppointmentCursorError();
+      }
+      cursor = legacyRow;
+    }
+
+    if (cursor) {
+      where.OR = [
+        { appointmentDate: { gt: cursor.appointmentDate } },
+        {
+          appointmentDate: cursor.appointmentDate,
+          id: { gt: cursor.id },
+        },
+      ];
+    }
+
     const rows = await prisma.appointment.findMany({
       where,
       select: APPOINTMENT_FIELDS,
       orderBy: [{ appointmentDate: "asc" }, { id: "asc" }],
       take: query.limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
     });
 
-    const { items, nextCursor } = splitPage(rows, query.limit);
+    const { items, nextCursor } = splitPage(
+      rows,
+      query.limit,
+      encodeAppointmentCursor,
+    );
 
     return { items, nextCursor };
   },
