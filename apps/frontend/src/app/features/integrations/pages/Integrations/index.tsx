@@ -1064,7 +1064,10 @@ const MerckIntegrationCard = ({
         <div className={INTEGRATION_CARD_TITLE_CLASS} style={INTEGRATION_CARD_TITLE_STYLE}>
           MSD Veterinary Manual
         </div>
-        <IntegrationStatusPill status={s.merckIntegration?.status} />
+        <IntegrationStatusPill
+          status={s.merckIntegration?.status}
+          label={s.merckEnabled ? 'Connected' : undefined}
+        />
       </div>
       <div className={INTEGRATION_CARD_DESC_CLASS} style={INTEGRATION_CARD_DESC_STYLE}>
         Search the veterinary manual from the workspace side rail without leaving the visit. Free
