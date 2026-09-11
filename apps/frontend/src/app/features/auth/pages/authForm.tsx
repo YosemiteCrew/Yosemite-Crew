@@ -8,6 +8,11 @@ import {
   IoEyeOutline,
   IoPhonePortraitOutline,
 } from 'react-icons/io5';
+import {
+  PASSWORD_STRENGTH_MAX_SCORE,
+  passwordStrengthLabel,
+  scorePassword,
+} from '@/app/features/auth/lib/passwordStrength';
 
 /**
  * Shared building blocks for the sign in / sign up screens. Both pages render the
@@ -74,6 +79,32 @@ const toggleButtonStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+};
+
+const strengthMeterStyle: CSSProperties = {
+  display: 'flex',
+  gap: 5,
+  marginTop: 2,
+};
+
+const strengthBarStyle: CSSProperties = {
+  flex: 1,
+  height: 4,
+  borderRadius: 2,
+  background: 'var(--hairline)',
+};
+
+const strengthLabelStyle: CSSProperties = {
+  fontSize: 12.5,
+  color: 'var(--ink-faint)',
+  letterSpacing: '-0.01em',
+};
+
+const STRENGTH_BAR_COLOR: Record<string, string> = {
+  'Too weak': 'var(--color-danger-500)',
+  Weak: 'var(--color-warning-500)',
+  Fair: 'var(--color-warning-300)',
+  Strong: 'var(--color-success-600)',
 };
 
 const submitButtonStyle: CSSProperties = {
@@ -198,6 +229,28 @@ export const AuthTextField = ({
   );
 };
 
+const PasswordStrengthMeter = ({ password }: Readonly<{ password: string }>) => {
+  const score = scorePassword(password);
+  const label = passwordStrengthLabel(score);
+  const filledBars = Math.max(1, Math.ceil((score / PASSWORD_STRENGTH_MAX_SCORE) * 4));
+  return (
+    <div aria-live="polite">
+      <div style={strengthMeterStyle} aria-hidden="true">
+        {[0, 1, 2, 3].map((barIndex) => (
+          <div
+            key={barIndex}
+            style={{
+              ...strengthBarStyle,
+              background: barIndex < filledBars ? STRENGTH_BAR_COLOR[label] : 'var(--hairline)',
+            }}
+          />
+        ))}
+      </div>
+      <span style={strengthLabelStyle}>Password strength: {label}</span>
+    </div>
+  );
+};
+
 interface AuthPasswordFieldProps {
   id: string;
   label: string;
@@ -211,6 +264,7 @@ interface AuthPasswordFieldProps {
   placeholder: string;
   error?: string;
   labelAccessory?: ReactNode;
+  showStrength?: boolean;
 }
 
 export const AuthPasswordField = ({
@@ -226,6 +280,7 @@ export const AuthPasswordField = ({
   placeholder,
   error,
   labelAccessory,
+  showStrength,
 }: Readonly<AuthPasswordFieldProps>) => {
   const errorId = `${id}-error`;
   return (
@@ -260,6 +315,7 @@ export const AuthPasswordField = ({
           )}
         </button>
       </div>
+      {showStrength && value ? <PasswordStrengthMeter password={value} /> : null}
       <FieldError id={errorId} message={error} />
     </div>
   );

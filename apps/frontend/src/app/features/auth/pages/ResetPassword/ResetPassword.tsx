@@ -20,8 +20,7 @@ import {
   AuthPasswordField,
   AuthSubmitButton,
 } from '@/app/features/auth/pages/authForm';
-
-const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/;
+import { isStrongPassword } from '@/app/features/auth/lib/passwordStrength';
 
 const RESET_POINTS = [
   {
@@ -91,7 +90,7 @@ const getPasswordValidationErrors = (
       ...(confirmPassword ? {} : { confirmPassword: 'Confirm your new password' }),
     };
   }
-  if (!STRONG_PASSWORD_REGEX.test(password)) {
+  if (!isStrongPassword(password)) {
     return {
       password:
         'Password must be at least 8 characters long, include uppercase, lowercase, number, and special character',
@@ -238,6 +237,7 @@ const ResetPassword = () => {
                   setPassword(value);
                   setInputErrors({});
                 }}
+                showStrength
               />
               <AuthPasswordField
                 id="reset-confirm"
