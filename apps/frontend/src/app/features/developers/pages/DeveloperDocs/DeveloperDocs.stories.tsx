@@ -112,6 +112,44 @@ export const Appointments: Story = {
   },
 };
 
+export const Phone: Story = {
+  name: 'Phone: appointment reference',
+  tags: ['issue-2780'],
+  globals: { viewport: { value: 'mobile', isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const endpoint = canvas.getByText('/fhir/v1/appointment/pms');
+    const permission = canvas.getByText('appointments:edit:any', {
+      selector: '.DocsEndpointScope',
+    });
+    const controls = [
+      canvas.getByRole('link', { name: /Back to portal/i }),
+      canvas.getByRole('link', { name: /Open full docs/i }),
+      canvas.getByRole('button', { name: 'Appointments' }),
+      canvas.getByRole('button', { name: /Copy page/i }),
+      ...canvas.getAllByRole('button', { name: 'Copy' }),
+    ];
+
+    for (const control of controls) {
+      await expect(control.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+    }
+    await expect(endpoint.scrollWidth).toBeLessThanOrEqual(endpoint.clientWidth);
+    await expect(permission.scrollWidth).toBeLessThanOrEqual(permission.clientWidth);
+    await expect(globalThis.document.documentElement.scrollWidth).toBeLessThanOrEqual(
+      globalThis.window.innerWidth
+    );
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The populated appointment reference at phone width. The endpoint metadata wraps inside ' +
+          'the article while navigation and copy controls retain 44px touch targets.',
+      },
+    },
+  },
+};
+
 export const NavEmpty: Story = {
   name: 'No matches (nav emptied)',
   play: async ({ canvasElement }) => {

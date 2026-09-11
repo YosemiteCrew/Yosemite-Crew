@@ -410,6 +410,14 @@
 }
 
 @media (max-width: 767px) {
+  .DocsBackLink,
+  .DocsOpenLink,
+  .DocsNavItem,
+  .DocsCopyBtn,
+  .DocsCodeCopy {
+    min-height: 44px;
+  }
+
   .DocsShell {
     flex-direction: column;
     height: auto;
@@ -438,6 +446,23 @@
     width: auto;
     flex: none;
     white-space: nowrap;
+  }
+
+  .DocsEndpoint {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .DocsEndpointPath {
+    flex: 1 1 180px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .DocsEndpointScope {
+    flex-basis: 100%;
+    margin-left: 0;
+    overflow-wrap: anywhere;
   }
 
   .DocsMainHead {

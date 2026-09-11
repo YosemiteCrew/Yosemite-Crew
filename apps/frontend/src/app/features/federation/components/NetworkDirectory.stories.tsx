@@ -35,10 +35,7 @@ const CLINICS: APDirectoryClinic[] = [
   },
 ];
 
-/**
- * Every line on a clinic card is `truncate`, and the handle is one unbroken token.
- * Drop the class and this fixture widens its grid track instead of ellipsing.
- */
+/** The handle and host are unbroken tokens that must wrap without widening the card. */
 const LONG_HOST = 'veterinary-referral-and-emergency-centre-of-the-northern-highlands.example';
 const LONG_CLINICS: APDirectoryClinic[] = [
   {
@@ -147,7 +144,7 @@ const meta = {
           'listed yet" and the feature looked like it was simply doing nothing. They are one ' +
           '`unavailable` flag apart and identical in shape, which is exactly the sort of split that ' +
           'silently collapses back into one.\n\n' +
-          'A card carries three lines - organisation, handle, instance host - each `truncate`, and ' +
+          'A card carries three readable lines - organisation, handle, instance host - and ' +
           "one Follow pill. Pressing it stores that clinic's **actor URI** in `followingUri`, so " +
           'only the pressed card relabels to `Following...` and disables; the rest stay live. Both ' +
           'outcomes are toasts rather than inline state, and the failure path resets `followingUri` ' +
@@ -403,6 +400,7 @@ export const FollowFailed: Story = {
 
 export const Phone: Story = {
   name: 'Phone: long clinic names',
+  tags: ['issue-2780'],
   globals: { viewport: { value: 'mobile', isRotated: false } },
   beforeEach: stubDirectoryApi(async () => ({ clinics: LONG_CLINICS })),
   play: async ({ canvasElement }) => {
@@ -411,25 +409,33 @@ export const Phone: Story = {
     const card = cardFor(canvasElement, LONG_CLINICS[0].orgName);
     const grid = card.parentElement as HTMLElement;
 
-    /* A handle is one unbroken token with no wrap opportunity. Measured rather
-       than asserted on the class name: `truncate` going missing does not throw,
-       it just pushes the grid track wider than the panel and the whole page
-       starts scrolling sideways. */
+    const identifiers = LONG_CLINICS.slice(0, 1).flatMap((clinic) => [
+      canvas.getByText(clinic.orgName),
+      canvas.getByText(clinic.handle),
+      canvas.getByText(clinic.instanceHost),
+    ]);
+
+    /* These values must remain fully readable rather than being replaced by an
+       ellipsis. The overflow measurement separately guards long unbroken tokens. */
+    for (const identifier of identifiers) {
+      await expect(globalThis.getComputedStyle(identifier).textOverflow).not.toBe('ellipsis');
+    }
     await expect(card.scrollWidth).toBeLessThanOrEqual(card.clientWidth);
     await expect(grid.scrollWidth).toBeLessThanOrEqual(grid.clientWidth);
     await expect(globalThis.document.documentElement.scrollWidth).toBeLessThanOrEqual(
       globalThis.window.innerWidth
     );
-    // The pill keeps its full label rather than being squeezed by the long lines.
-    await expect(within(card).getByRole('button')).toHaveTextContent('Follow');
+    const follow = within(card).getByRole('button');
+    await expect(follow).toHaveTextContent('Follow');
+    await expect(follow.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
   },
   parameters: {
     docs: {
       description: {
         story:
           'A referral centre with a name and a handle far longer than the column. On a phone the ' +
-          'grid is a single column, so this is where the three truncating lines have the least room ' +
-          'and where a missing `truncate` shows first.',
+          'grid is a single column, so this checks that every identifier wraps in full, the card ' +
+          'does not widen the page, and the Follow action keeps a 44px touch target.',
       },
     },
   },
