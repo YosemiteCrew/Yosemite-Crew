@@ -442,9 +442,85 @@ const loadRenderedDocumentsForAppointments = async (params: {
   return renderedDocuments.map(mapRenderedDocumentToDto);
 };
 
+/**
+ * Rendered documents for every one of a patient's clinical records - not just
+ * their appointments. A TemplateInstance (or ClinicalArtifact) that generated
+ * a signed document can be linked by appointmentId, caseId, or encounterId -
+ * `case-encounter.service.ts`'s package-expansion path sets all three it has,
+ * and a case-only or encounter-only record leaves appointmentId null. Filtering
+ * on appointmentId alone silently drops a signed consent document whenever the
+ * record that produced it was never tied to a specific appointment - found via
+ * a real report that a patient's signed consent form did not appear on their
+ * Consents panel despite completePersistedRenderedDocumentSigning having run.
+ */
+const loadRenderedDocumentsForPatientRecords = async (params: {
+  appointmentIds: string[];
+  caseIds: string[];
+  encounterIds: string[];
+  organisationId: string;
+  kind?: TemplateKind;
+  excludeKind?: TemplateKind;
+}) => {
+  if (
+    params.appointmentIds.length === 0 &&
+    params.caseIds.length === 0 &&
+    params.encounterIds.length === 0
+  ) {
+    return [];
+  }
+
+  const linkClauses = (relation: "templateInstance" | "clinicalArtifact") => {
+    const clauses = [];
+    if (params.appointmentIds.length > 0) {
+      clauses.push({
+        [relation]: { is: { appointmentId: { in: params.appointmentIds } } },
+      });
+    }
+    if (params.caseIds.length > 0) {
+      clauses.push({ [relation]: { is: { caseId: { in: params.caseIds } } } });
+    }
+    if (params.encounterIds.length > 0) {
+      clauses.push({
+        [relation]: { is: { encounterId: { in: params.encounterIds } } },
+      });
+    }
+    return clauses;
+  };
+
+  const renderedDocuments = (await prisma.renderedDocument.findMany({
+    where: {
+      organisationId: params.organisationId,
+      ...(params.kind ? { kind: params.kind } : {}),
+      ...(params.excludeKind ? { kind: { not: params.excludeKind } } : {}),
+      OR: [
+        ...linkClauses("templateInstance"),
+        ...linkClauses("clinicalArtifact"),
+      ],
+    },
+    include: {
+      templateInstance: {
+        select: {
+          appointmentId: true,
+          encounterId: true,
+        },
+      },
+      clinicalArtifact: {
+        select: {
+          appointmentId: true,
+          encounterId: true,
+        },
+      },
+    },
+    orderBy: { updatedAt: "desc" },
+  })) as unknown as RenderedDocumentRow[];
+
+  return renderedDocuments.map(mapRenderedDocumentToDto);
+};
+
 // Appointment.patient is a JSON blob (no relational FK), so every other
 // patient-scoped appointment lookup in the codebase matches it the same way
-// - see appointmentService.getAppointmentsForCompanion.
+// - see appointmentService.getAppointmentsForCompanion. Case and Encounter
+// carry a real patientId column, so those are plain equality lookups.
 const loadAppointmentIdsForPatient = async (params: {
   patientId: string;
   organisationId: string;
@@ -458,6 +534,33 @@ const loadAppointmentIdsForPatient = async (params: {
   });
 
   return appointments.map((appointment) => appointment.id);
+};
+
+const loadCaseAndEncounterIdsForPatient = async (params: {
+  patientId: string;
+  organisationId: string;
+}): Promise<{ caseIds: string[]; encounterIds: string[] }> => {
+  const [cases, encounters] = await Promise.all([
+    prisma.case.findMany({
+      where: {
+        organisationId: params.organisationId,
+        patientId: params.patientId,
+      },
+      select: { id: true },
+    }),
+    prisma.encounter.findMany({
+      where: {
+        organisationId: params.organisationId,
+        patientId: params.patientId,
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  return {
+    caseIds: cases.map((c) => c.id),
+    encounterIds: encounters.map((e) => e.id),
+  };
 };
 
 const createDocumentRecord = async (
@@ -771,18 +874,36 @@ export const DocumentService = {
       }) as unknown as Promise<PrismaDocumentRow[]>,
       (async () => {
         // Signed/generated documents (Documenso e-signing) live on
-        // RenderedDocument, reached only via the appointment/encounter it was
-        // rendered for - there is no direct patientId column to filter by, so
-        // every one of the patient's own appointments has to be resolved first.
+        // RenderedDocument, reached only via the appointment/case/encounter it
+        // was rendered for - there is no direct patientId column to filter by,
+        // so every one of the patient's own records has to be resolved first.
+        // Case/encounter expansion is skipped when the caller names a specific
+        // appointmentId: that filter means "just this appointment", and a
+        // record linked only by case or encounter is not part of it.
         const patientAppointmentIds = await loadAppointmentIdsForPatient({
           patientId,
           organisationId: params.organisationId,
         });
-        const scopedAppointmentIds = appointmentId
-          ? patientAppointmentIds.filter((id) => id === appointmentId)
-          : patientAppointmentIds;
-        return loadRenderedDocumentsForAppointments({
-          appointmentIds: scopedAppointmentIds,
+        if (appointmentId) {
+          return loadRenderedDocumentsForPatientRecords({
+            appointmentIds: patientAppointmentIds.filter(
+              (id) => id === appointmentId,
+            ),
+            caseIds: [],
+            encounterIds: [],
+            organisationId: params.organisationId,
+            excludeKind: params.excludeKind,
+          });
+        }
+        const { caseIds, encounterIds } =
+          await loadCaseAndEncounterIdsForPatient({
+            patientId,
+            organisationId: params.organisationId,
+          });
+        return loadRenderedDocumentsForPatientRecords({
+          appointmentIds: patientAppointmentIds,
+          caseIds,
+          encounterIds,
           organisationId: params.organisationId,
           excludeKind: params.excludeKind,
         });
@@ -812,13 +933,21 @@ export const DocumentService = {
     const patientId = normalizeStringId(params.patientId, "patientId");
     await assertPmsCanAccessCompanion(params.organisationId, patientId);
 
-    const appointmentIds = await loadAppointmentIdsForPatient({
-      patientId,
-      organisationId: params.organisationId,
-    });
+    const [appointmentIds, { caseIds, encounterIds }] = await Promise.all([
+      loadAppointmentIdsForPatient({
+        patientId,
+        organisationId: params.organisationId,
+      }),
+      loadCaseAndEncounterIdsForPatient({
+        patientId,
+        organisationId: params.organisationId,
+      }),
+    ]);
 
-    return loadRenderedDocumentsForAppointments({
+    return loadRenderedDocumentsForPatientRecords({
       appointmentIds,
+      caseIds,
+      encounterIds,
       organisationId: params.organisationId,
       kind: "CONSENT",
     });
