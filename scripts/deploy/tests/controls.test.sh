@@ -661,8 +661,25 @@ check "no annotation is redirected to stderr by an enclosing group" \
 # Driven both ways: inside the region 1 red, above it 0 red under the regional
 # version. There is no `exec` anywhere in api-deploy.sh or lib/ today, so a
 # whole-file check has nothing to false-positive on.
-DEPLOY_EXEC_REDIRECT="$(grep -cE '^[[:space:]]*exec[[:space:]]+>&?[12&]' \
-  <<< "$DEPLOY_CODE" || true)"
+#
+# The scope is the SHELL, not the file (#2766): api-deploy.sh sources
+# lib/git-sync.sh, lib/migrate.sh and lib/controls.sh into that same shell (see
+# the `.` lines above `say()`), so an `exec` written in any of them is exactly
+# as effective as one in api-deploy.sh itself, and a check that only reads
+# DEPLOY_CODE misses it by one hop. Blanked the same way as DEPLOY_CODE, for
+# the same reason: a paragraph quoting the pattern must not redden its own
+# guard.
+#
+# The pattern also widened from `>&?[12&]` to `[0-9]*[><]`: the old one only
+# matched `exec >&2` and missed two spellings with the identical effect on
+# stdout - the numbered-fd form (`exec 1>&2`) and the path form
+# (`exec >/dev/stderr`). Stated cost, unchanged from #2766: this also flags fd
+# juggling that never touches stdout, `exec 3>&1` being the obvious one - a
+# false positive judged cheaper than the false negative it replaces.
+LIB_CODE="$(for f in "$HERE"/../lib/*.sh; do sed -E 's/^[[:space:]]*#.*$//' "$f"; done)"
+DEPLOY_EXEC_REDIRECT="$(grep -cE '^[[:space:]]*exec[[:space:]]+[0-9]*[><]' \
+  <<< "$DEPLOY_CODE
+$LIB_CODE" || true)"
 check "the deploy script does not redirect the whole shell" \
   "0 shell redirects" "$DEPLOY_EXEC_REDIRECT shell redirects"
 
