@@ -252,9 +252,9 @@ describe('PackagesTab', () => {
     expect(screen.getByText('Premium Package')).toBeInTheDocument();
   });
 
-  it('renders "Click to add package" button when draft is not open', () => {
+  it('renders "Add package" button when draft is not open', () => {
     render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
-    expect(screen.getByText('Click to add package')).toBeInTheDocument();
+    expect(screen.getByText('Add package')).toBeInTheDocument();
   });
 
   it('shows empty state message when no packages exist', () => {
@@ -321,20 +321,20 @@ describe('PackagesTab', () => {
 
   // --- Section 2: Add flow ---
 
-  it('opens add draft at bottom when "Click to add package" is clicked', () => {
+  it('opens add draft at bottom when "Add package" is clicked', () => {
     render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
-    fireEvent.click(screen.getByText('Click to add package'));
+    fireEvent.click(screen.getByText('Add package'));
     expect(screen.getByTestId('add-draft')).toBeInTheDocument();
     // Add button should be hidden while draft is open
-    expect(screen.queryByText('Click to add package')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add package')).not.toBeInTheDocument();
   });
 
   it('closes the add draft when Close Draft is clicked', () => {
     render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
-    fireEvent.click(screen.getByText('Click to add package'));
+    fireEvent.click(screen.getByText('Add package'));
     fireEvent.click(screen.getByText('Close Draft'));
     expect(screen.queryByTestId('add-draft')).not.toBeInTheDocument();
-    expect(screen.getByText('Click to add package')).toBeInTheDocument();
+    expect(screen.getByText('Add package')).toBeInTheDocument();
   });
 
   // --- Section 3: Edit flow ---
@@ -438,7 +438,7 @@ describe('PackagesTab', () => {
       ref.current?.openAdd();
     });
     expect(screen.getByTestId('add-draft')).toBeInTheDocument();
-    expect(screen.queryByText('Click to add package')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add package')).not.toBeInTheDocument();
   });
 
   it('does not hydrate when editing a package that already has a breakdown', () => {

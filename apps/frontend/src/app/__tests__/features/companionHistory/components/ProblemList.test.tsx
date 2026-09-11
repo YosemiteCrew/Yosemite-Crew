@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import ProblemList from '@/app/features/companionHistory/components/ProblemList';
@@ -96,7 +96,8 @@ describe('ProblemList', () => {
     expect(nameInput).toBeInTheDocument();
 
     await userEvent.type(nameInput, 'New skin lesion');
-    await userEvent.selectOptions(screen.getByLabelText('Severity'), 'MODERATE');
+    await userEvent.click(screen.getByRole('button', { name: /Severity/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('Moderate'));
     fireEvent.change(screen.getByLabelText('Onset date'), { target: { value: '2026-02-01' } });
 
     await userEvent.click(screen.getByRole('button', { name: 'Save problem' }));
