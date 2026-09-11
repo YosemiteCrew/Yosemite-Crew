@@ -459,6 +459,24 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     expect(screen.getByText(/Fasted patient/)).toBeInTheDocument();
   });
 
+  it('wraps the saved order notes instead of truncating the tail on a clipped line (#2790)', () => {
+    const notes =
+      'Fasted sample, collected from the left jugular. Please combine with the pre-med ' +
+      'dose and hold the results for the afternoon consult.';
+    renderStep({ appointmentOrders: [makeOrder({ notes })] });
+
+    // The note span previously sat on `truncate` (`white-space:nowrap` +
+    // `overflow:hidden` + ellipsis), which emptied the tail out of reach at
+    // phone width - the only access to it was the `title` hover, and a phone
+    // has no hover. `break-words` lets the free-text note flow to the lines it
+    // needs. jsdom does not lay out text, so the wrap contract is pinned via
+    // the classes the way the storybook play pins it via scrollWidth.
+    const label = screen.getByText('Order notes:');
+    const note = label.parentElement as HTMLElement;
+    expect(note.className).toMatch(/break-words/);
+    expect(note.className).not.toMatch(/truncate/);
+  });
+
   it('disables create when no tests are queued and renders the empty queue message', () => {
     renderStep({ selectedTests: [] });
 
