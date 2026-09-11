@@ -272,7 +272,7 @@ const VISUALLY_HIDDEN_INPUT_STYLE: CSSProperties = {
 };
 
 const requiredMark = (
-  <span aria-hidden="true" style={{ color: '#d53225' }}>
+  <span aria-hidden="true" style={{ color: 'var(--color-danger-700)' }}>
     {' '}
     *
   </span>
@@ -669,8 +669,8 @@ function ContactHero() {
       >
         <ChannelCard
           href="mailto:support@yosemitecrew.com"
-          iconBg="rgba(37,123,237,0.10)"
-          iconBorder="rgba(37,123,237,0.18)"
+          iconBg="color-mix(in srgb, var(--blue) 10%, transparent)"
+          iconBorder="color-mix(in srgb, var(--blue) 18%, transparent)"
           iconColor="var(--blue)"
           icon={<IoAtOutline aria-hidden="true" style={{ fontSize: 22 }} />}
           kicker="Email"
@@ -678,8 +678,8 @@ function ContactHero() {
         />
         <ChannelCard
           href="tel:+4915227763275"
-          iconBg="rgba(0,143,93,0.10)"
-          iconBorder="rgba(0,143,93,0.18)"
+          iconBg="color-mix(in srgb, var(--success) 10%, transparent)"
+          iconBorder="color-mix(in srgb, var(--success) 18%, transparent)"
           iconColor="var(--success)"
           icon={<IoCallOutline aria-hidden="true" style={{ fontSize: 20 }} />}
           kicker="Phone"
@@ -688,6 +688,8 @@ function ContactHero() {
         <ChannelCard
           href={DISCORD_INVITE_URL}
           external
+          // Discord's own brand blurple (#5865F2) - not a design-system colour, so
+          // it stays a literal rather than being pointed at an unrelated token.
           iconBg="rgba(88,101,242,0.12)"
           iconBorder="rgba(88,101,242,0.22)"
           iconColor="#5865F2"
@@ -954,7 +956,7 @@ function SubmitError({ message }: Readonly<{ message: string }>) {
         alignItems: 'center',
         gap: 8,
         fontSize: 14,
-        color: '#d53225',
+        color: 'var(--color-danger-700)',
         letterSpacing: '-0.01em',
       }}
     >
@@ -1178,7 +1180,7 @@ const SUCCESS_ICON_STYLE: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'rgba(0,143,93,0.12)',
+  background: 'color-mix(in srgb, var(--success) 12%, transparent)',
   color: 'var(--success)',
 };
 

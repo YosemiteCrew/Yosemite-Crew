@@ -1,7 +1,7 @@
 {
   "generated_by": "scripts/ci/check-hardcoded-colours.mjs --update",
-  "generated_at": "31a4286867c80eaab3ca709d499a343fc5b2e600",
-  "total": 65,
+  "generated_at": "dd20db6ed9703b8ee8c5d79bda2b938983dbbae5",
+  "total": 0,
   "justified": {
     "apps/frontend/src/app/(routes)/(app)/chat/page.css": {
       "n": 1,
@@ -239,6 +239,14 @@
       "n": 2,
       "why": "CARD_BG (#faf7f1) and a border colour (#e6ded1) are close to but not exact matches for any token (--color-screen is #f7f3ec, --color-hairline is #e5dccf) - left as literals when PR #2963 tokenised this file's other 8 exact-match literals, and still not exact matches now."
     },
+    "apps/frontend/src/app/features/marketing/pages/About/About.tsx": {
+      "n": 3,
+      "why": "'#454341' is a bespoke faint border on a --spot-ink-tinted button, no exact match in the token set (checked --ink/--ink-body/--divider/--hairline families). '#e0d8ce' (the two borderTop dividers) is likewise a bespoke divider tint close to but distinct from --divider (#d6d1cd) and --hairline (#e5dccf) - checked both, neither is an exact match, so migrating would shift the rendered value rather than preserve it."
+    },
+    "apps/frontend/src/app/features/marketing/pages/ContactusPage/ContactusPage.tsx": {
+      "n": 3,
+      "why": "Discord's own brand blurple (rgb(88,101,242) / #5865F2), used only for the Discord channel-card icon - not a design-system colour, so it stays a literal rather than being pointed at an unrelated token."
+    },
     "apps/frontend/src/app/features/marketing/pages/DevelopersPage/DevelopersPage.tsx": {
       "n": 30,
       "why": "Three unrelated groups of deliberate illustration colours, none derivable from an existing token without changing the rendered value: (1) the fake terminal/code-editor mockup's remaining chrome (traffic-light dots #454341, header rule #302f2e, terminal body text #d6d1cd, '&&' operator #5c5956) - its string colour (#8acbb4) and '$' prompt (#54b492) were tokenised via the fixed --color-success-300/-400 ramp entries once that ramp was discovered to be fixed (see this PR); (2) the '0% platform cut' comparison-bar illustration (track #2c2926, border #35322f, striped fill #4a4643/#423e3b, and the already-investigated #2f6fc0 border - see PR #2977) plus its own bespoke near-black gradient card (#232120 to #1a1918, border #35322f); (3) three icon glyphs at a single-file-only muted grey (#6f6a66, not reused elsewhere), two fixed-white ink spots (#ffffff) on fills that are themselves fixed (the 100%-filled blue bar, and the '0%' hero figure on --spot), and one decorative gloss overlay (rgba(255,255,255,0.18)) - the same justified pattern as ChatContainer.css's white-on-fixed-blue ink, just inline rather than in a stylesheet."
@@ -247,17 +255,57 @@
       "n": 9,
       "why": "The same fake terminal/code-editor mockup chrome justified in DevelopersPage.tsx (traffic-light dots #454341 x3, header rule #302f2e x2, terminal body text #d6d1cd - its string/prompt colours were tokenised via --color-success-300/-500 in this PR, same as DevelopersPage.tsx's). Plus two more single-file bespoke spots: an avatar-stack placeholder background (#e6e3e0) and a phone-mockup bezel (#1d1c1b x2) - the bezel is a physical-device colour on a decorative illustration, not a themed app surface, the same reasoning as the media-overlay literals justified in Guides.tsx and InClinicTodayBand.tsx (PR #2990)."
     },
+    "apps/frontend/src/app/features/marketing/pages/Insights/Insights.stories.tsx": {
+      "n": 1,
+      "why": "FALLBACK_LANGUAGE_COLOUR is a computed-style assertion (documented at the const) - the resolved form of --spot-ink-faint (#a9a39e), asserted against the rendered swatch colour for the one language with no explicit LANG_COLORS entry."
+    },
     "apps/frontend/src/app/features/marketing/pages/Insights/Insights.tsx": {
       "n": 17,
       "why": "Two --spot cards (a live GitHub-stats console, a latest-release card - both background: var(--spot)) carry four DIFFERENT close-but-not-identical muted-grey inks (#8a8074 x5, #6b6155 x2, #a89e90 x2 - the dark-mode value of the flipping --ink-muted, hardcoded because the card itself never flips - plus the already-tokenised #f4efe6 in this PR), none matching --spot-ink-faint's #a9a39e exactly, so each was picked independently rather than drawn from a shared token. Also on the same console: a bespoke near-black panel (#232120, border #302f2e x3, matching DevelopersPage.tsx's EconomicsCard pattern), a 'LIVE' status pair (dot #2bbd86 - --success's dark-mode value, no matching --spot-success-strength token exists - and its paired label #6cd6a3), the shared terminal-mockup text colour #d6d1cd (see DevelopersPage.tsx), and the shared bespoke CTA border #454341 (see DevelopersPage.tsx's CLOSING_PORTAL_LINK_STYLE)."
+    },
+    "apps/frontend/src/app/features/marketing/pages/PetBusinesses/PetBusinesses.tsx": {
+      "n": 2,
+      "why": "'#837d78' is a bespoke faint/secondary label tint (also used identically in SiteFooter.tsx) with no exact match in --ink-faint/--ink-muted/--ink-body. '#e6ded1' is a bespoke section divider on a var(--page) surface, distinct from --divider (#d6d1cd) and --hairline (#e5dccf) - checked both, no exact match."
+    },
+    "apps/frontend/src/app/features/marketing/pages/Pricing/Pricing.stories.tsx": {
+      "n": 3,
+      "why": "'rgb(29, 28, 27)' and 'rgba(0, 0, 0, 0)' are computed-style assertions pinning the billing toggle's on/off pill background (documented at the const declaration) - getComputedStyle() only ever returns a resolved colour, never a token name, so there is no token-referencing form to migrate to; the value matches the now-tokenized var(--spot) exactly. '#1d1c1b' at line 117 is inside the story's markdown doc-string prose, not a rendered style."
+    },
+    "apps/frontend/src/app/features/marketing/pages/Pricing/Pricing.tsx": {
+      "n": 8,
+      "why": "All eight sit on BusinessPlanCard's var(--spot) always-dark surface as ink/foreground colours, not backgrounds. '#f7f3ec' (the billing-toggle active label and the CTA chip background) is close to but not an exact match for --spot-ink (#eae2d5/#f4efe6) or --screen (which flips) - checked both. The two '#1d1c1b' ink usages (badgeColor on a --spot-blue badge, and the CTA chip's own text) match --spot's value exactly but --spot is a surface token, not an ink token, and reusing it for a foreground role was already rejected as a pattern in DeveloperDocs' .DocsMethod (PR #2984) - same call here for consistency. '#ffffff' is the oversized price figure's intentionally stronger-than-spot-ink emphasis colour. '#d6d1cd' (feature copy + the PlanFeatureList colour prop) coincidentally matches --divider's light-mode value, but --divider flips (to #3a3128) and this is ink on an always-dark card, not a border, so using it would go invisible in dark mode - a false match, not a real one. '#302f2e' is the feature-list's own divider line colour on that same always-dark card; sibling cards use var(--inset) for this, which isn't available here since --inset flips and would vanish against --spot."
+    },
+    "apps/frontend/src/app/features/marketing/site/assets.ts": {
+      "n": 2,
+      "why": "Same GITHUB_STAR_CTA_STYLE pairing as Pricing.tsx's BUSINESS_CTA_STYLE (see that entry) - '#f7f3ec' has no exact fixed-token match and '#1d1c1b' is ink-on-a-light-chip, not the --spot surface role, so it stays a literal for the same reason as .DocsMethod (PR #2984)."
     },
     "apps/frontend/src/app/features/marketing/site/AuthShell.tsx": {
       "n": 8,
       "why": "The brand panel's own bespoke near-black gradient (#2a2723 to #131210, matching DevelopersPage.tsx's EconomicsCard pattern - see PR #2992). The remaining five (subtitle/footer ink #b7ac9d x2, point text #d8cec0, star icon gold #ffd479, 'Star on GitHub' emphasis white #fff) are single-file bespoke choices with no matching token - #fff in particular is a deliberately brighter emphasis colour next to surrounding --spot-ink copy, the same pattern as Pricing.tsx's price figure and DevelopersPage.tsx's '0%' hero figure."
     },
+    "apps/frontend/src/app/features/marketing/site/marketing.css": {
+      "n": 1,
+      "why": "A pure-white gloss/sheen highlight on .yc-btn-primary's hover sweep - a lightening overlay independent of theme, not tied to any ink/surface token."
+    },
     "apps/frontend/src/app/features/marketing/site/MarketingShell.stories.tsx": {
       "n": 2,
       "why": "Every occurrence in this file is a Storybook play-function test assertion (or a local const it is assigned through) comparing a computed style against 'rgba(0, 0, 0, 0)' - the browser's own canonical getComputedStyle() value for 'nothing painted here', not a colour authored in this codebase. A design-token reference would never match a computed style string, so the literal has to stay exactly this to keep testing what it tests."
+    },
+    "apps/frontend/src/app/features/marketing/site/motion.stories.tsx": {
+      "n": 2,
+      "why": "Bespoke demo-only styling for the Spotlight story's illustration box, with no exact match in the token set - not a real page surface."
+    },
+    "apps/frontend/src/app/features/marketing/site/motion.tsx": {
+      "n": 2,
+      "why": "The Spotlight component's cursor-follow glow colour (rgb(90,160,255)) - a distinct, brighter blue chosen for this specific hover effect, not an exact match for --blue (rgb(37,123,237)) or any --glow-b* stop."
+    },
+    "apps/frontend/src/app/features/marketing/site/SiteFooter.stories.tsx": {
+      "n": 2,
+      "why": "Computed-style assertions (documented at the call site) pinning the footer status dot's colours, including 'rgb(29, 107, 79)' which is the resolved form of SiteFooter.tsx's own #1d6b4f literal (see that file's entry above) - getComputedStyle() never returns a token name, so there's nothing to migrate to."
+    },
+    "apps/frontend/src/app/features/marketing/site/SiteFooter.tsx": {
+      "n": 8,
+      "why": "'#e0dcd8' (x2, an outline-pill border and a divider) and '#cfe9dd' (another outline-pill border) are bespoke tints with no exact token match (checked --divider/--hairline/--pill-raised families). '#e5dccf' coincidentally matches --hairline's light-mode value but is used here as text ink, not a border, and --hairline flips - a false match. '#837d78' (x2) is the same bespoke faint-label tint used in PetBusinesses.tsx. '#f5c518' is GitHub's own star-icon yellow, not a design-system colour. '#1d6b4f' is STATUS_TONE_TEXT.success - its siblings (warning/danger) already read var(--amber)/var(--danger), so this one not following the theme looks like a genuine gap, but no existing token matches #1d6b4f exactly (closest is --success-text at #006642/#2bbd86, a different shade) - migrating it would change the rendered colour, not preserve it, so it's flagged here rather than silently changed; worth a follow-up if the mismatch turns out to matter in dark mode."
     },
     "apps/frontend/src/app/features/marketing/site/useRepoInsights.ts": {
       "n": 12,
@@ -364,20 +412,5 @@
       "why": "A warm-brown 8-digit-hex box-shadow (~10% alpha) with no exact match in --sh* or --ink (#1d1c1b) - a distinct bespoke value."
     }
   },
-  "files": {
-    "apps/frontend/src/app/features/marketing/pages/About/About.tsx": 4,
-    "apps/frontend/src/app/features/marketing/pages/ContactusPage/ContactusPage.tsx": 10,
-    "apps/frontend/src/app/features/marketing/pages/Insights/Insights.stories.tsx": 1,
-    "apps/frontend/src/app/features/marketing/pages/PetBusinesses/PetBusinesses.tsx": 3,
-    "apps/frontend/src/app/features/marketing/pages/PetParents/PetParents.tsx": 10,
-    "apps/frontend/src/app/features/marketing/pages/Pricing/Pricing.stories.tsx": 3,
-    "apps/frontend/src/app/features/marketing/pages/Pricing/Pricing.tsx": 9,
-    "apps/frontend/src/app/features/marketing/site/assets.ts": 2,
-    "apps/frontend/src/app/features/marketing/site/AuthShell.stories.tsx": 2,
-    "apps/frontend/src/app/features/marketing/site/marketing.css": 1,
-    "apps/frontend/src/app/features/marketing/site/motion.stories.tsx": 2,
-    "apps/frontend/src/app/features/marketing/site/motion.tsx": 7,
-    "apps/frontend/src/app/features/marketing/site/SiteFooter.stories.tsx": 2,
-    "apps/frontend/src/app/features/marketing/site/SiteFooter.tsx": 9
-  }
+  "files": {}
 }

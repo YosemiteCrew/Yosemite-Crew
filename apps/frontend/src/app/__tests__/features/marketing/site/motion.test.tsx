@@ -629,3 +629,20 @@ describe('motion primitives', () => {
     fireEvent.mouseLeave(spot);
   });
 });
+
+describe('the shared hero scrim routes its fade through --page, not a frozen literal', () => {
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/site/motion.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode HERO_SCRIM_STYLE as a frozen page-background literal', () => {
+    expect(source).not.toContain('rgba(239,232,220');
+  });
+
+  it('routes all five HERO_SCRIM_STYLE gradient stops through --page via color-mix', () => {
+    const occurrences =
+      source.match(/color-mix\(in srgb, var\(--page\) \d+%, transparent\)/g) ?? [];
+    expect(occurrences).toHaveLength(5);
+  });
+});

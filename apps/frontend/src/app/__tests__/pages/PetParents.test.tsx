@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
@@ -115,5 +117,36 @@ describe('PetParents page', () => {
 
     const statement = screen.getByText(/When Germaine moved from the UK to Barcelona/);
     expect(statement).toHaveStyle({ color: 'var(--spot-ink)' });
+  });
+});
+
+describe('the phone mockup and hero scrim route their tints through real tokens', () => {
+  // color-mix()/var() are opaque strings to jsdom's getComputedStyle, so these are
+  // source-text assertions rather than rendered ones (same technique as Insights.test.tsx).
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/pages/PetParents/PetParents.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode the phone bezel/notch as a frozen literal', () => {
+    expect(source).not.toContain("'#1d1c1b'");
+  });
+
+  it('routes the phone bezel and notch pill through --spot', () => {
+    // The phone body's own background and the notch pill are two of the three var(--spot)
+    // background usages in this file (the third, pre-existing one is the Spotlight section
+    // wrapper) - anchoring on the count keeps this sensitive to those two sites reverting.
+    const occurrences = source.match(/background:\s*'var\(--spot\)'/g) ?? [];
+    expect(occurrences).toHaveLength(3);
+  });
+
+  it('does not hardcode the hero scrim fade as a frozen page-background literal', () => {
+    expect(source).not.toContain('rgba(239,232,220');
+  });
+
+  it('routes all eight hero-scrim gradient stops through --page via color-mix', () => {
+    const occurrences =
+      source.match(/color-mix\(in srgb, var\(--page\) \d+%, transparent\)/g) ?? [];
+    expect(occurrences).toHaveLength(8);
   });
 });

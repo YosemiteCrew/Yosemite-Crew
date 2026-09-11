@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
@@ -195,5 +197,22 @@ describe('PetBusinesses page', () => {
 
     const statement = screen.getByText(/There's a dog-eared notebook next to the keyboard/);
     expect(statement.parentElement).toHaveStyle({ color: 'var(--spot-ink)' });
+  });
+});
+
+describe('the desktop-app status dot pulse routes through --success, not a frozen literal', () => {
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/pages/PetBusinesses/PetBusinesses.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode the pulse-ring as a frozen success literal', () => {
+    expect(source).not.toContain('rgba(0,143,93');
+  });
+
+  it('routes the pulse-ring through --success via color-mix', () => {
+    expect(source).toContain(
+      "boxShadow: '0 0 0 3px color-mix(in srgb, var(--success) 16%, transparent)'"
+    );
   });
 });

@@ -554,7 +554,7 @@ function HeroDownloadRow({ macRef, winRef }: Readonly<HeroDownloadRowProps>) {
             height: 7,
             borderRadius: 9999,
             background: 'var(--success)',
-            boxShadow: '0 0 0 3px rgba(0,143,93,0.16)',
+            boxShadow: '0 0 0 3px color-mix(in srgb, var(--success) 16%, transparent)',
           }}
         />
         {'Runs offline. Get the desktop app'}
