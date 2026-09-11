@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { Icon } from '@/app/ui/icons/Icon';
 import {
   IoCloudOfflineOutline,
@@ -157,6 +157,31 @@ const SignInForm = ({
 
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // redirectToSignIn (services/axios.ts) tags this on when an expired/invalid
+  // session bounces someone here mid-use - without it, landing back on sign-in
+  // looks identical to just navigating here, with nothing telling the user why.
+  // showErrorTost isn't memoized by useErrorTost, so a ref guards against
+  // re-firing the toast every time this effect re-runs on a fresh reference.
+  const hasShownSessionExpiredToast = useRef(false);
+  useEffect(() => {
+    if (hasShownSessionExpiredToast.current) return;
+    if (searchParams?.get('reason') !== 'session-expired') return;
+    hasShownSessionExpiredToast.current = true;
+    showErrorTost({
+      message: 'Please sign in again to continue.',
+      errortext: 'You were signed out',
+      iconElement: (
+        <Icon
+          icon="solar:danger-triangle-bold"
+          width="20"
+          height="20"
+          color="var(--color-danger-600)"
+        />
+      ),
+      className: 'errofoundbg',
+    });
+  }, [searchParams, showErrorTost]);
 
   const handleCodeResendonError = async () => {
     try {
