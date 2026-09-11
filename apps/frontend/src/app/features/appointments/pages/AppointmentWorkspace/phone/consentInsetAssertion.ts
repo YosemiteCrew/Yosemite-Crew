@@ -27,17 +27,24 @@ export type InsetChoice =
 /**
  * The inset to probe with.
  *
- * It has to beat `TAB_BAR_PX` (or the `max()` returns the tab-bar term and the
- * calc is never exercised) and stay above `MIN_H_PX` (or the floor answers
- * instead of the calc, which passes while measuring the wrong mechanism).
+ * It has to beat the tab-bar TERM the CSS actually competes with -
+ * `TAB_BAR_PX + envInsetPx`, not the bare `TAB_BAR_PX` - or the `max()`
+ * returns the tab-bar term and the calc is never exercised. It also has to
+ * stay above `MIN_H_PX` (or the floor answers instead of the calc, which
+ * passes while measuring the wrong mechanism).
+ *
+ * `envInsetPx` defaults to 0, matching `env(safe-area-inset-bottom)` in a
+ * headless browser; a real device with a home indicator resolves it higher,
+ * which shrinks the usable band from the tab-bar end.
  */
-export const chooseProbeInset = (viewportHeight: number): InsetChoice => {
+export const chooseProbeInset = (viewportHeight: number, envInsetPx = 0): InsetChoice => {
   const inset = Math.min(PREFERRED_INSET_PX, viewportHeight - HEADER_PX - MIN_H_PX - 1);
-  if (inset <= TAB_BAR_PX) {
+  const tabBarTerm = TAB_BAR_PX + envInsetPx;
+  if (inset <= tabBarTerm) {
     return {
       usable: false,
       inset,
-      reason: `viewport ${viewportHeight}px is too short to exercise the calc above the ${MIN_H_PX}px floor: the largest usable inset is ${inset}px, which does not beat the ${TAB_BAR_PX}px tab-bar term`,
+      reason: `viewport ${viewportHeight}px is too short to exercise the calc above the ${MIN_H_PX}px floor: the largest usable inset is ${inset}px, which does not beat the ${tabBarTerm}px tab-bar term (${TAB_BAR_PX}px bar + ${envInsetPx}px safe-area inset)`,
     };
   }
   return { usable: true, inset };
@@ -67,16 +74,34 @@ export type InsetProbeResult = {
 type Shell = Pick<HTMLElement, 'getBoundingClientRect'>;
 
 /**
+ * Reads the safe-area inset the CSS `max()` term actually competes with,
+ * instead of assuming it is 0. jsdom does not evaluate `env()` (padding-bottom
+ * resolves empty, hence the finite-or-0 fallback), so this is only a real
+ * measurement under an engine that does - Storybook's Playwright runner.
+ */
+export const resolveEnvInsetPx = (): number => {
+  const probe = document.createElement('div');
+  probe.style.position = 'absolute';
+  probe.style.visibility = 'hidden';
+  probe.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
+  document.body.appendChild(probe);
+  const parsed = Number.parseFloat(globalThis.getComputedStyle(probe).paddingBottom);
+  document.body.removeChild(probe);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+/**
  * Sets the inset, reads the shell, and puts it back. Returns what it saw rather
  * than asserting, so the discrimination itself can be tested.
  */
 export const measureConsentInsetResponse = (
   shell: Shell,
   viewportHeight: number,
-  setInset: (value: string | null) => void
+  setInset: (value: string | null) => void,
+  envInsetPx = 0
 ): InsetProbeResult => {
   const before = shell.getBoundingClientRect().height;
-  const choice = chooseProbeInset(viewportHeight);
+  const choice = chooseProbeInset(viewportHeight, envInsetPx);
   const expected = expectedShellHeight(viewportHeight, choice.inset);
 
   if (!choice.usable) {
