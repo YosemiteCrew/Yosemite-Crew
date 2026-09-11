@@ -284,6 +284,9 @@ const StripeOnboarding = () => {
   );
 };
 
+// no-story: ProtectedRoute/OrgGuard/Suspense composition with no UI of its own;
+// the real screen is the unexported StripeOnboarding it wraps, whose visible
+// pieces are covered by StripeSetupStatus.stories.tsx.
 const ProtectedStripeOnboarding = () => {
   return (
     <ProtectedRoute>
