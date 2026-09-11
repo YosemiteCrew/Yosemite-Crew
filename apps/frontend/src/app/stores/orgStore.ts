@@ -1,9 +1,23 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { Organisation, UserOrganization } from '@yosemite-crew/types';
-import { getPersistStorage } from '@/app/lib/browserStorage';
+import { getPersistStorage, getStorageItem, setStorageItem } from '@/app/lib/browserStorage';
 
 type OrgStatus = 'idle' | 'loading' | 'loaded' | 'error';
+
+// A transient failure of the session *check* itself (see axios.ts's 401
+// handler) is treated the same as a genuine logout: it wipes primaryOrgId
+// along with the rest of session state even though the user never actually
+// signed out. That leaves setOrgs's "keep the current primary" path with
+// nothing to keep, so it falls back to picking orgIds[0] - silently
+// switching the user's active org on an ordinary re-auth. This key is
+// deliberately NOT part of the zustand `persist` blob below (which the
+// session-reset path wipes wholesale via removeStorageItem('org-store')),
+// so it survives that wipe and lets setOrgs restore the real last-active
+// org - but only when the id is still present in the freshly-fetched org
+// list, so a different user on a shared browser can never be routed into
+// an org they don't actually belong to.
+const LAST_ACTIVE_ORG_ID_KEY = 'yc_last_active_org_id';
 
 // The backend's org list responses (e.g. mapOrganizationFromPrisma) include raw
 // integration credentials that no frontend code ever reads. This store's
@@ -72,9 +86,16 @@ export const useOrgStore = create<OrgState>()(
             primaryOrgId = orgIds.includes(state.primaryOrgId)
               ? state.primaryOrgId
               : (orgIds[0] ?? null);
+          } else if (opts?.keepPrimaryIfPresent) {
+            const lastActiveOrgId = getStorageItem('local', LAST_ACTIVE_ORG_ID_KEY);
+            primaryOrgId =
+              lastActiveOrgId && orgIds.includes(lastActiveOrgId)
+                ? lastActiveOrgId
+                : (orgIds[0] ?? null);
           } else {
             primaryOrgId = orgIds[0] ?? null;
           }
+          if (primaryOrgId) setStorageItem('local', LAST_ACTIVE_ORG_ID_KEY, primaryOrgId);
           return {
             orgsById,
             orgIds,
@@ -130,6 +151,7 @@ export const useOrgStore = create<OrgState>()(
           if (orgId && !state.orgsById[orgId]) {
             return state;
           }
+          if (orgId) setStorageItem('local', LAST_ACTIVE_ORG_ID_KEY, orgId);
           return {
             primaryOrgId: orgId,
           };
