@@ -193,4 +193,41 @@ describe('evaluate', () => {
       assert.deepEqual(skipped, ['Gone.tsx']);
     });
   });
+
+  it('THE CASE THIS GATE EXISTS FOR: a path escaping cwd via ../ is skipped, not read', () => {
+    // `files` comes from git diff output or a --files argument; the fixture
+    // here plants a real file just outside `dir` and proves it is never
+    // opened by asserting it does not surface as `checked` or `missing`.
+    withFixture((dir) => {
+      const parent = path.dirname(dir);
+      const outside = path.join(parent, `story-coverage-escape-${path.basename(dir)}.tsx`);
+      writeFileSync(outside, REAL_COMPONENT);
+      try {
+        const { missing, checked, skipped } = evaluate({
+          files: [`../${path.basename(outside)}`],
+          cwd: dir,
+        });
+        assert.deepEqual(checked, []);
+        assert.deepEqual(missing, []);
+        assert.deepEqual(skipped, [`../${path.basename(outside)}`]);
+      } finally {
+        rmSync(outside, { force: true });
+      }
+    });
+  });
+
+  it('an absolute path is skipped, not read', () => {
+    withFixture((dir) => {
+      const outside = path.join(tmpdir(), `story-coverage-abs-${Date.now()}.tsx`);
+      writeFileSync(outside, REAL_COMPONENT);
+      try {
+        const { missing, checked, skipped } = evaluate({ files: [outside], cwd: dir });
+        assert.deepEqual(checked, []);
+        assert.deepEqual(missing, []);
+        assert.deepEqual(skipped, [outside]);
+      } finally {
+        rmSync(outside, { force: true });
+      }
+    });
+  });
 });
