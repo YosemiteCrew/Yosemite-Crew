@@ -218,15 +218,19 @@ describe('evaluate', () => {
 
   it('an absolute path is skipped, not read', () => {
     withFixture((dir) => {
-      const outside = path.join(tmpdir(), `story-coverage-abs-${Date.now()}.tsx`);
-      writeFileSync(outside, REAL_COMPONENT);
+      // A private, randomly-named directory (mkdtempSync, same as withFixture)
+      // rather than a predictable name under the shared os temp dir - a fixed
+      // name there is a symlink-race target another process could pre-create.
+      const outsideDir = mkdtempSync(path.join(tmpdir(), 'story-coverage-abs-'));
+      const outside = path.join(outsideDir, 'Foo.tsx');
       try {
+        writeFileSync(outside, REAL_COMPONENT);
         const { missing, checked, skipped } = evaluate({ files: [outside], cwd: dir });
         assert.deepEqual(checked, []);
         assert.deepEqual(missing, []);
         assert.deepEqual(skipped, [outside]);
       } finally {
-        rmSync(outside, { force: true });
+        rmSync(outsideDir, { recursive: true, force: true });
       }
     });
   });
