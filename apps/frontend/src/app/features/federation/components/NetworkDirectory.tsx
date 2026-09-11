@@ -88,14 +88,18 @@ const ClinicCard = ({
 }) => (
   <div className="flex flex-col gap-3 rounded-[20px] border border-[var(--hairline)] bg-[var(--screen)] p-4 shadow-[0_1px_2px_var(--sh03)]">
     <div className="flex min-w-0 flex-col gap-0.5">
-      <div className="truncate text-[14px] font-bold text-[var(--ink)]">{clinic.orgName}</div>
-      <div className="truncate text-[12.5px] text-[var(--ink-muted)]">{clinic.handle}</div>
-      <div className="truncate text-[12px] text-[var(--ink-faint)]">{clinic.instanceHost}</div>
+      <div className="break-words text-[14px] font-bold text-[var(--ink)]">{clinic.orgName}</div>
+      <div className="[overflow-wrap:anywhere] text-[12.5px] text-[var(--ink-muted)]">
+        {clinic.handle}
+      </div>
+      <div className="[overflow-wrap:anywhere] text-[12px] text-[var(--ink-faint)]">
+        {clinic.instanceHost}
+      </div>
     </div>
     <div className="flex justify-end">
       <Primary
         href="#"
-        size="small"
+        size="large"
         text={following ? 'Following...' : 'Follow'}
         onClick={() => onFollow(clinic)}
         isDisabled={following}
