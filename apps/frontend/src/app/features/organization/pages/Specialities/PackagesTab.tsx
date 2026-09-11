@@ -388,18 +388,20 @@ function PackagesTab({ specialityId, organisationId, ref }: PackagesTabProps) {
       )}
 
       {!draftOpen && (
-        <button
-          type="button"
-          onClick={() => {
-            setActivePackage(null);
-            setDraftAtTop(false);
-            setDraftOpen(true);
-          }}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-dashed border-input-border-active text-body-4 text-text-brand hover:bg-primary-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-        >
-          <IoAddOutline size={16} aria-hidden="true" />
-          Click to add package
-        </button>
+        <div className="border-t border-[var(--hairline)] px-5! py-[11px]! @3xl:px-[22px]!">
+          <button
+            type="button"
+            onClick={() => {
+              setActivePackage(null);
+              setDraftAtTop(false);
+              setDraftOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[var(--blue-text)] hover:text-[var(--nav-active)] transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)] rounded"
+          >
+            <IoAddOutline size={14} aria-hidden="true" />
+            Add package
+          </button>
+        </div>
       )}
 
       {actionMode === 'archive' && activePackage && (

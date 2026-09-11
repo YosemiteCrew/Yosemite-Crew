@@ -18,6 +18,7 @@ import {
 } from '@/app/features/companionHistory/components/ClinicalListChrome';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { Textarea } from '@/app/ui/Input';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import type {
   PatientProblem,
   ProblemSeverity,
@@ -73,6 +74,11 @@ const SEVERITY_TONE: Record<ProblemSeverity, StatusTone> = {
 };
 
 const SEVERITY_OPTIONS: ProblemSeverity[] = ['MILD', 'MODERATE', 'SEVERE'];
+
+const SEVERITY_DROPDOWN_OPTIONS = [
+  { label: 'No severity', value: '' },
+  ...SEVERITY_OPTIONS.map((s) => ({ label: SEVERITY_LABEL[s], value: s })),
+];
 
 const ProblemRow = ({
   problem,
@@ -181,23 +187,12 @@ const CreateProblemForm = ({
         />
       </label>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1">
-          <span className={fieldLabelClass}>Severity</span>
-          <select
-            className={controlClass}
-            value={values.severity}
-            onChange={(e) =>
-              setValues((v) => ({ ...v, severity: e.target.value as ProblemSeverity | '' }))
-            }
-          >
-            <option value="">No severity</option>
-            {SEVERITY_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {SEVERITY_LABEL[s]}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Dropdown
+          placeholder="Severity"
+          value={values.severity}
+          onChange={(v) => setValues((prev) => ({ ...prev, severity: v as ProblemSeverity | '' }))}
+          options={SEVERITY_DROPDOWN_OPTIONS}
+        />
         <label className="flex flex-col gap-1">
           <span className={fieldLabelClass}>Onset date</span>
           <input
