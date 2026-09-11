@@ -6,6 +6,7 @@ import {
   patchData,
   isAuthRedirectError,
   clearInFlightGetRequests,
+  buildSignInRedirectUrl,
 } from '@/app/services/axios';
 import Session from 'supertokens-web-js/recipe/session';
 import { useAuthStore } from '@/app/stores/authStore';
@@ -520,6 +521,19 @@ describe('Axios Service', () => {
         expect(isAuthRedirectError(caughtError)).toBe(true);
       }
       expect(mockSignout).toHaveBeenCalled();
+    });
+
+    it('builds the sign-in redirect URL with a reason SignIn can show a notice for', () => {
+      // Covers what actually lands in the browser bar: encodes the current
+      // route into `next` and always tags `reason=session-expired`, which
+      // SignIn reads to tell the user they were signed out rather than just
+      // landing on the page with no explanation.
+      expect(buildSignInRedirectUrl('/appointments')).toBe(
+        '/signin?next=%2Fappointments&reason=session-expired'
+      );
+      expect(buildSignInRedirectUrl('/finance?tab=invoices')).toBe(
+        '/signin?next=%2Ffinance%3Ftab%3Dinvoices&reason=session-expired'
+      );
     });
 
     it('treats a failing session check as a lost session', async () => {
