@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 
+// no-story: thin Next.js route wrapper (guards + Suspense only); real content is NetworkDirectory, already storied
 const NetworkDirectory = dynamic(
   () => import('@/app/features/federation/components/NetworkDirectory'),
   { ssr: false, loading: () => null }

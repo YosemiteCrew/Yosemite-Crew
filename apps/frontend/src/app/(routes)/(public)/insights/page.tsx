@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { MarketingShell } from '@/app/features/marketing/site';
 import { Insights } from '@/app/features/marketing/pages/Insights/Insights';
 
+// no-story: thin Next.js route wrapper; real content is Insights, already storied
 export const metadata: Metadata = {
   title: 'Insights · Yosemite Crew',
   description:
