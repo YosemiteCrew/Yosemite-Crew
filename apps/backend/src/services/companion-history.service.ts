@@ -781,7 +781,7 @@ export const CompanionHistoryService = {
 
     const paged = filtered.slice(0, limit);
     const nextCursor =
-      paged.length === limit ? buildCursor(paged.at(-1)!) : null;
+      filtered.length > limit ? buildCursor(paged.at(-1)!) : null;
 
     const countsByType = paged.reduce(
       (acc, entry) => {

@@ -123,6 +123,41 @@ describe("CompanionHistoryService", () => {
     expect(secondPage.entries[0].link.id).toBe("apt-2");
   });
 
+  it("does not return a cursor when the final page exactly matches the limit", async () => {
+    (TaskService.listForCompanion as jest.Mock).mockResolvedValue([
+      {
+        _id: "task-1",
+        organisationId,
+        name: "First task",
+        category: "CARE",
+        audience: "EMPLOYEE_TASK",
+        dueAt: new Date("2024-01-02T09:00:00.000Z"),
+        status: "PENDING",
+        createdAt: new Date("2024-01-02T09:00:00.000Z"),
+      },
+      {
+        _id: "task-2",
+        organisationId,
+        name: "Second task",
+        category: "CARE",
+        audience: "EMPLOYEE_TASK",
+        dueAt: new Date("2024-01-01T09:00:00.000Z"),
+        status: "PENDING",
+        createdAt: new Date("2024-01-01T09:00:00.000Z"),
+      },
+    ]);
+
+    const result = await CompanionHistoryService.listForCompanion({
+      organisationId,
+      patientId: companionId,
+      limit: 2,
+      types: ["TASK"],
+    });
+
+    expect(result.entries).toHaveLength(2);
+    expect(result.nextCursor).toBeNull();
+  });
+
   it("filters by types", async () => {
     (
       AppointmentService.getAppointmentsForCompanionByOrganisation as jest.Mock
