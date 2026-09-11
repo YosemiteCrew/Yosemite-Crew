@@ -2,9 +2,8 @@
 
 const { execFileSync } = require('node:child_process');
 
-const PROTECTED_ROOTS = ['apps/mobileAppYC/', 'apps/frontend/'];
 const BLOCKED_LOCAL_FILES = [
-  /^apps\/frontend\/\.env(?:$|\.local$|\.(?!example$).+)/,
+  /^(?:.*\/)?\.env(?:$|\.local$|\.(?!example$).+)/,
   /^apps\/mobileAppYC\/android\/app\/google-services\.json$/,
   /^apps\/mobileAppYC\/android\/app\/src\/main\/res\/values\/strings\.xml$/,
   /^apps\/mobileAppYC\/android\/gradle\.properties$/,
@@ -100,7 +99,12 @@ const runGitleaksWhenAvailable = () => {
       stdio: 'inherit',
     });
   } catch (error) {
-    if (error.code === 'ENOENT') return;
+    if (error.code === 'ENOENT') {
+      console.warn(
+        'Warning: gitleaks is not installed; continuing with the repository staged-secret scan.'
+      );
+      return;
+    }
     process.exit(error.status ?? 1);
   }
 };
@@ -109,8 +113,6 @@ const getExtension = (file) => {
   const index = file.lastIndexOf('.');
   return index === -1 ? '' : file.slice(index).toLowerCase();
 };
-
-const isProtectedPath = (file) => PROTECTED_ROOTS.some((root) => file.startsWith(root));
 
 const isBlockedLocalFile = (file) => BLOCKED_LOCAL_FILES.some((pattern) => pattern.test(file));
 
@@ -155,7 +157,7 @@ const findLineNumber = (content, index) => content.slice(0, index).split('\n').l
 const findings = [];
 runGitleaksWhenAvailable();
 
-const stagedFiles = getStagedFiles().filter(isProtectedPath);
+const stagedFiles = getStagedFiles();
 
 for (const file of stagedFiles) {
   if (isBlockedLocalFile(file)) {
