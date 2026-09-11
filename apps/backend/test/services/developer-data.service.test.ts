@@ -24,10 +24,17 @@ const store: {
 const matches = (row: Row, where: Row | undefined): boolean => {
   if (!where) return true;
   return Object.entries(where).every(([field, condition]) => {
+    if (field === "OR") {
+      return (condition as Row[]).some((candidate) => matches(row, candidate));
+    }
     const value = row[field];
+    if (condition instanceof Date) {
+      return value instanceof Date && value.getTime() === condition.getTime();
+    }
     if (condition !== null && typeof condition === "object") {
       const c = condition as Record<string, unknown>;
       if ("in" in c) return (c.in as unknown[]).includes(value);
+      if ("gt" in c && (value as never) <= (c.gt as never)) return false;
       if ("gte" in c && (value as Date) < (c.gte as Date)) return false;
       if ("lte" in c && (value as Date) > (c.lte as Date)) return false;
       return true;
@@ -102,11 +109,24 @@ import {
   DeveloperDataService,
   MAX_PAGE_SIZE,
   normaliseOrganisationReference,
+  parseAppointmentCursor,
+  UnknownAppointmentCursorError,
 } from "src/services/developer-data.service";
 
 const ORG_A = "org-a";
 const ORG_B = "org-b";
 const USER = "user-1";
+const APPOINTMENT_IDS = [
+  "00000000-0000-4000-8000-000000000001",
+  "00000000-0000-4000-8000-000000000002",
+  "00000000-0000-4000-8000-000000000003",
+];
+
+const useUuidAppointmentIds = () => {
+  store.appointment.slice(0, 3).forEach((appointment, index) => {
+    appointment.id = APPOINTMENT_IDS[index];
+  });
+};
 
 const appointmentAt = (id: string, organisationId: string, day: number) => ({
   id,
@@ -223,23 +243,97 @@ describe("listAppointments", () => {
   });
 
   it("paginates without dropping or repeating a row across the boundary", async () => {
+    useUuidAppointmentIds();
     const first = await DeveloperDataService.listAppointments({
       organisationId: ORG_A,
       limit: 2,
     });
     expect((first.items as { id: string }[]).map((i) => i.id)).toEqual([
-      "a1",
-      "a2",
+      APPOINTMENT_IDS[0],
+      APPOINTMENT_IDS[1],
     ]);
-    expect(first.nextCursor).toBe("a2");
+    const cursor = parseAppointmentCursor(first.nextCursor);
+    expect(cursor).toEqual({
+      id: APPOINTMENT_IDS[1],
+      appointmentDate: new Date(Date.UTC(2026, 8, 2)),
+    });
+    if (!cursor) throw new Error("Expected a valid appointment cursor");
 
     const second = await DeveloperDataService.listAppointments({
       organisationId: ORG_A,
       limit: 2,
-      cursor: first.nextCursor ?? undefined,
+      cursor,
     });
-    expect((second.items as { id: string }[]).map((i) => i.id)).toEqual(["a3"]);
+    expect((second.items as { id: string }[]).map((i) => i.id)).toEqual([
+      APPOINTMENT_IDS[2],
+    ]);
     expect(second.nextCursor).toBeNull();
+  });
+
+  it("does not drop the next row when the cursor appointment leaves the status filter", async () => {
+    useUuidAppointmentIds();
+    const first = await DeveloperDataService.listAppointments({
+      organisationId: ORG_A,
+      limit: 2,
+      status: "UPCOMING" as never,
+    });
+    store.appointment[1].status = "CANCELLED";
+    const cursor = parseAppointmentCursor(first.nextCursor);
+    if (!cursor) throw new Error("Expected a valid appointment cursor");
+
+    const second = await DeveloperDataService.listAppointments({
+      organisationId: ORG_A,
+      limit: 2,
+      status: "UPCOMING" as never,
+      cursor,
+    });
+
+    expect((second.items as { id: string }[]).map((item) => item.id)).toEqual([
+      APPOINTMENT_IDS[2],
+    ]);
+  });
+
+  it("uses id as the exclusive tiebreak when appointment dates match", async () => {
+    store.appointment[2].appointmentDate = store.appointment[1].appointmentDate;
+    const cursor = {
+      appointmentDate: store.appointment[1].appointmentDate as Date,
+      id: "a2",
+    };
+
+    const page = await DeveloperDataService.listAppointments({
+      organisationId: ORG_A,
+      limit: 2,
+      cursor,
+    });
+
+    expect((page.items as { id: string }[]).map((item) => item.id)).toEqual([
+      "a3",
+    ]);
+  });
+
+  it("accepts an in-flight UUID cursor through the scoped compatibility lookup", async () => {
+    const legacyId = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+    store.appointment[1].id = legacyId;
+
+    const page = await DeveloperDataService.listAppointments({
+      organisationId: ORG_A,
+      limit: 2,
+      cursor: { legacyId },
+    });
+
+    expect((page.items as { id: string }[]).map((item) => item.id)).toEqual([
+      "a3",
+    ]);
+  });
+
+  it("rejects a legacy cursor that belongs to another practice", async () => {
+    await expect(
+      DeveloperDataService.listAppointments({
+        organisationId: ORG_A,
+        limit: 2,
+        cursor: { legacyId: "b1" },
+      }),
+    ).rejects.toBeInstanceOf(UnknownAppointmentCursorError);
   });
 
   it("filters by date window", async () => {

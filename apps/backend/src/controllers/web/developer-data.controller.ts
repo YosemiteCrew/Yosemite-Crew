@@ -21,8 +21,9 @@ import {
 import {
   clampPageSize,
   DeveloperDataService,
+  parseAppointmentCursor,
+  UnknownAppointmentCursorError,
 } from "../../services/developer-data.service";
-import { parseUuidCursor } from "../../services/shared/pagination";
 import { DeveloperUsageService } from "../../services/developer-usage.service";
 
 type ErrorCode =
@@ -134,7 +135,7 @@ export const DeveloperDataController = {
      */
     const rawCursor =
       typeof req.query.cursor === "string" ? req.query.cursor : "";
-    const cursor = parseUuidCursor(req.query.cursor);
+    const cursor = parseAppointmentCursor(req.query.cursor);
     if (cursor === null) {
       // Logged newline-stripped: the value is caller-controlled and a raw CR/LF
       // in it would forge a second log line.
@@ -164,6 +165,15 @@ export const DeveloperDataController = {
         pagination: { limit, nextCursor: page.nextCursor },
       });
     } catch (err) {
+      if (err instanceof UnknownAppointmentCursorError) {
+        fail(
+          res,
+          400,
+          "invalid_request",
+          "Unknown or expired cursor. Use pagination.nextCursor from the previous response.",
+        );
+        return;
+      }
       logger.error("DeveloperDataController.listAppointments failed", err);
       fail(res, 500, "internal_error", "Internal server error");
     }
