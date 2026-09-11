@@ -32,7 +32,6 @@ const SettingsSchema = z.object({
   serviceIds: z.array(z.uuid()).max(200),
   bookingWindowDays: z.number().int().min(1).max(180),
   bufferMinutes: z.number().int().min(0).max(240),
-  autoConfirm: z.boolean(),
   welcomeMessage: z.string().trim().max(500).nullish(),
   replyToEmail: z.string().trim().pipe(z.email().max(254)).nullish(),
   // Optional on purpose: a caller that omits it is saving settings, not
@@ -105,7 +104,6 @@ export const BookingPageController = {
         serviceIds: parsed.data.serviceIds,
         bookingWindowDays: parsed.data.bookingWindowDays,
         bufferMinutes: parsed.data.bufferMinutes,
-        autoConfirm: parsed.data.autoConfirm,
         welcomeMessage: parsed.data.welcomeMessage ?? null,
         replyToEmail: parsed.data.replyToEmail ?? null,
         publicBookingEnabled: parsed.data.publicBookingEnabled,

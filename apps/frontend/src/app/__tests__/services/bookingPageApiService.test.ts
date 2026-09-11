@@ -31,7 +31,6 @@ const config: BookingPageConfig = {
   serviceIds: ['svc-1'],
   bookingWindowDays: 28,
   bufferMinutes: 10,
-  autoConfirm: false,
   welcomeMessage: null,
   replyToEmail: null,
 };
@@ -52,7 +51,6 @@ describe('bookingPageApi', () => {
       serviceIds: ['svc-1'],
       bookingWindowDays: 28,
       bufferMinutes: 10,
-      autoConfirm: false,
       welcomeMessage: 'Hello',
       replyToEmail: 'desk@example.com',
     };
@@ -73,7 +71,6 @@ describe('bookingPageApi', () => {
         serviceIds: [],
         bookingWindowDays: 28,
         bufferMinutes: 10,
-        autoConfirm: false,
         welcomeMessage: null,
         replyToEmail: null,
       })
