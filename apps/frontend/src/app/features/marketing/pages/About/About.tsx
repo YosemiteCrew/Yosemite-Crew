@@ -299,7 +299,7 @@ function Origin() {
               aspectRatio: '3 / 2',
               borderRadius: '28px',
               overflow: 'hidden',
-              background: 'rgba(239,232,220,0.06)',
+              background: 'color-mix(in srgb, var(--page) 6%, transparent)',
             }}
           >
             <Image

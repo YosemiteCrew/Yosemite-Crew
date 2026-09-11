@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
@@ -57,5 +59,22 @@ describe('SiteFooter', () => {
     starsValue = null;
     render(<SiteFooter />);
     expect(screen.getByText('★')).toBeInTheDocument();
+  });
+});
+
+describe('the version-stat divider routes its tint through --page, not a frozen literal', () => {
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/site/SiteFooter.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode the borderLeft as a frozen page-background literal', () => {
+    expect(source).not.toContain('rgba(239,232,220');
+  });
+
+  it('routes it through --page via color-mix', () => {
+    expect(source).toContain(
+      "borderLeft: '1px solid color-mix(in srgb, var(--page) 22%, transparent)'"
+    );
   });
 });

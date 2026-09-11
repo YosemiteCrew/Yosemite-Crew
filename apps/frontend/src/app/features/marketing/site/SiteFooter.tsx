@@ -113,7 +113,7 @@ const STAR_COUNT_STYLE: CSSProperties = {
   gap: 4,
   paddingLeft: 11,
   marginLeft: 2,
-  borderLeft: '1px solid rgba(239,232,220,0.22)',
+  borderLeft: '1px solid color-mix(in srgb, var(--page) 22%, transparent)',
   color: '#e5dccf',
   fontVariantNumeric: 'tabular-nums',
 };

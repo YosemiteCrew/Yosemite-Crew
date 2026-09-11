@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
@@ -233,5 +235,20 @@ describe('About (marketing)', () => {
       'href',
       '/contact-us'
     );
+  });
+});
+
+describe('the origin-photo frame background routes through --page, not a frozen literal', () => {
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/pages/About/About.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode it as a frozen page-background literal', () => {
+    expect(source).not.toContain('rgba(239,232,220');
+  });
+
+  it('routes it through --page via color-mix', () => {
+    expect(source).toContain("background: 'color-mix(in srgb, var(--page) 6%, transparent)'");
   });
 });
