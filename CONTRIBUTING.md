@@ -62,6 +62,22 @@ pnpm run lint --filter frontend
 pnpm run test --filter backend
 ```
 
+### Every new frontend component needs a Storybook story
+
+A pull request that adds a new component under `apps/frontend/src/app` and no
+sibling `*.stories.tsx` fails CI (`scripts/ci/story-coverage.mjs`, run as the
+`Story coverage` check) - a required, blocking gate, the same tier as the
+Sonar quality gate. It only judges files the PR *adds*, not the pre-existing
+backlog, so it can't block an unrelated change.
+
+If a file genuinely doesn't need a story (a thin wrapper, something only ever
+exercised inside a parent's story), mark it explicitly rather than working
+around the gate:
+
+```tsx
+// no-story: thin route wrapper, real content is <FooPage>, already storied
+```
+
 ## Commit Message Convention
 
 Commit messages are validated by `commitlint` (locally via Husky and in CI).

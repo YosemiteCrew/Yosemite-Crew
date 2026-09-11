@@ -17,6 +17,10 @@ directly:
 - `_sonar` - scan only, reading the coverage `_test` produced. No install, no
   Prisma, no jest. Kill switch: set the `DISABLE_SONAR` repo variable to `true`.
 - `frontend-quality` - bundle budgets and Lighthouse, consuming `next-build`.
+- `story-coverage` - `scripts/ci/story-coverage.mjs` fails a PR that adds a new
+  `apps/frontend` component with no sibling Storybook story. Added to
+  `CI Required`'s dependency list 2026-09-11, at the same blocking tier as
+  `sonar`'s quality gate - not an advisory check.
 - `CI Required` - one aggregate check. **Required on `dev` since 2026-09-06.**
 
 ## What was removed, and where it went
