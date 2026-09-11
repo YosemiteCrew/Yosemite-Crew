@@ -8,6 +8,7 @@ import {
 } from "../../src/services/finance/payment";
 import { FinanceSubscriptionService } from "../../src/services/finance/subscription";
 import { NotificationService } from "../../src/services/notification.service";
+import { NotificationTemplates } from "../../src/utils/notificationTemplates";
 import logger from "../../src/utils/logger";
 import { recomputeOrganizationVerification } from "../../src/services/organization-verification.service";
 import { prisma } from "src/config/prisma";
@@ -655,6 +656,18 @@ describe("StripeService", () => {
 
       const result = await StripeService.retrieveCheckoutSession("sess_1");
       expect(result).toEqual({ status: "paid", total: 123 });
+    });
+
+    it("keeps zero-decimal checkout session totals unscaled", async () => {
+      mStripe.checkout.sessions.retrieve.mockResolvedValueOnce({
+        payment_status: "paid",
+        amount_total: 12300,
+        currency: "jpy",
+      });
+
+      const result = await StripeService.retrieveCheckoutSession("sess_jpy");
+
+      expect(result).toEqual({ status: "paid", total: 12300 });
     });
 
     it("retrieves the session on the connected account it was created on", async () => {
@@ -1888,6 +1901,37 @@ describe("StripeService", () => {
       expect(logger.info).toHaveBeenCalledWith("Invoice inv_1 marked PAID");
     });
 
+    it("keeps a zero-decimal captured amount unscaled", async () => {
+      (
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded as jest.Mock
+      ).mockResolvedValueOnce({
+        action: "PAID",
+        invoice: {
+          id: "inv_jpy",
+          parentId: "p",
+          totalAmount: 5000,
+          currency: "jpy",
+        },
+      });
+      mStripe.charges.retrieve.mockResolvedValueOnce({
+        id: "ch_jpy",
+        receipt_url: "r",
+        amount_captured: 5000,
+        currency: "jpy",
+      });
+
+      await StripeService._handleInvoicePayment({
+        id: "pi_jpy",
+        currency: "jpy",
+        latest_charge: "ch_jpy",
+        metadata: { invoiceId: "inv_jpy" },
+      } as any);
+
+      expect(
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded,
+      ).toHaveBeenCalledWith(expect.objectContaining({ amount: 5000 }));
+    });
+
     it("falls back to amount_received when there is no charge", async () => {
       (
         FinancePaymentService.handleInvoicePaymentIntentSucceeded as jest.Mock
@@ -2027,6 +2071,31 @@ describe("StripeService", () => {
   });
 
   describe("_handleRefund guards", () => {
+    it("keeps zero-decimal refund ledger and notification amounts unscaled", async () => {
+      (
+        FinancePaymentService.markInvoiceRefundedFromWebhook as jest.Mock
+      ).mockResolvedValueOnce({
+        action: "REFUNDED",
+        invoice: { id: "inv_jpy", parentId: "par_jpy" },
+      });
+
+      await StripeService._handleRefund({
+        id: "ch_jpy",
+        payment_intent: "pi_jpy",
+        amount: 1000,
+        currency: "jpy",
+        metadata: { invoiceId: "inv_jpy" },
+      } as any);
+
+      expect(
+        FinancePaymentService.markInvoiceRefundedFromWebhook,
+      ).toHaveBeenCalledWith(expect.objectContaining({ amount: 1000 }));
+      expect(NotificationTemplates.Payment.REFUND_ISSUED).toHaveBeenCalledWith(
+        1000,
+        "jpy",
+      );
+    });
+
     it("logs loudly when a refund matches no invoice", async () => {
       /*
        * The customer has their money back and no invoice moved to REFUNDED, so
@@ -2363,6 +2432,35 @@ describe("StripeService", () => {
       expect(NotificationService.sendToUser).toHaveBeenCalledWith(
         "par_1",
         "mock-success-payload",
+      );
+    });
+
+    it("keeps zero-decimal checkout subtotal, total, and tax unscaled", async () => {
+      (
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted as jest.Mock
+      ).mockResolvedValueOnce({
+        action: "IGNORED",
+        invoice: { id: "inv_jpy" },
+      });
+
+      await StripeService._handleInvoiceCheckout({
+        id: "cs_jpy",
+        payment_status: "paid",
+        currency: "jpy",
+        amount_subtotal: 9000,
+        amount_total: 10000,
+        total_details: { amount_tax: 1000 },
+        metadata: { invoiceId: "inv_jpy" },
+      } as any);
+
+      expect(
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amountSubtotal: 9000,
+          amountTotal: 10000,
+          amountTax: 1000,
+        }),
       );
     });
   });
