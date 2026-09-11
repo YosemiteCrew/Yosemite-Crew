@@ -47,7 +47,7 @@ pnpm --filter backend run start
 
 `Dockerfile` builds the production API image; `Dockerfile.test` builds the image used for test runs.
 
-The repo-root `docker-compose.yml` is stale — it builds only `website` and `api` from `apps/website/Dockerfile` and `apps/api/Dockerfile`, neither of which exists, and it provisions no database or Redis. Do not use it to bring up local dependencies; provision PostgreSQL and Redis yourself.
+The repository does not currently provide a Docker Compose setup. Provision PostgreSQL and Redis separately when running the API locally.
 
 ## Parent & Companion Linking
 
