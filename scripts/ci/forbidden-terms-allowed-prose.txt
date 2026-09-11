@@ -22,12 +22,12 @@
 
 # README.md
 <h1 align="center">Open-Source Operating System for Animal Health</h1>
-and the open platform that grows around it.
-Most veterinary software asks a clinic to bend around the vendor: rigid subscriptions, closed data, and a roadmap someone else owns. Yosemite Crew inverts that. The clinical record is yours, the schema is open, the integration surface speaks [FHIR R4](https://hl7.org/fhir/R4/), and the entire platform is yours to fork, extend, or run yourself.
-**Customization & integration.** Open source means no rigid subscription lock-in, and a system you can shape to how your practice actually works.
-- Before opening a pull request, run the same gates CI will run.
-Open source is a promise about how the code is kept, not only about who can read it. Every change entering `dev` passes the same gates.
-The YOSEMITE CREW name, logo, and branding are **not** covered by the open source license. Commercial use of the branding requires a separate commercial license. See [License.txt](./License.txt) for the full terms.
+Yosemite Crew is an open-source operating system for animal health, with a veterinary Practice Information Management System (PIMS) at its core.
+1. Open a skill folder and read `SKILL.md`.
+Contributions can be code, documentation, tests, translations, or improvements to a user skill. Start with [CONTRIBUTING.md](./CONTRIBUTING.md), check [existing issues](https://github.com/YosemiteCrew/Yosemite-Crew/issues), and target pull requests at `dev`.
+Follow [CONTRIBUTING.md](./CONTRIBUTING.md) and [AGENTS.md](./AGENTS.md) for the affected workspace's checks and targeted tests. Root `pnpm run lint` and `pnpm run type-check` also run on pre-push.
+Dependency installation sets up the repository's Git hooks. Keep secret scanning, formatting, commit-message checks, and pre-push checks enabled.
+The YOSEMITE CREW name, logo, and branding are **not** covered by the open-source license. Commercial use of the branding requires a separate commercial license. See [License.txt](./License.txt) for the full terms.
 
 # CONTRIBUTING.md
 If you find a bug, please open an issue with clear reproduction steps, expected behavior, and actual behavior.

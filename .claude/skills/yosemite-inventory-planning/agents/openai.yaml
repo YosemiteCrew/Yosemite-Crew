@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Yosemite Crew Inventory Planning'
+  short_description: 'Stock, expiry, and provisional reorder planning'
+  default_prompt: 'Use $yosemite-inventory-planning to review this stock sheet for expiry exposure, discrepancies, and replenishment needs.'
