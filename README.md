@@ -298,7 +298,7 @@ pnpm --filter @yosemite-crew/database run prisma:generate
 
 Before applying migrations, follow the [database setup and baseline guidance](./packages/database/README.md). Check migration history first for any existing or restored database.
 
-> Do not use the root [`docker-compose.yml`](./docker-compose.yml) for local setup: it targets removed app directories and provisions neither PostgreSQL nor Redis.
+The repository does not currently provide a Docker Compose setup. Use the pnpm workflow above and provision PostgreSQL and Redis separately.
 
 ### 4. Start the Web App and API
 
