@@ -3,6 +3,7 @@ import PublicShell from '@/app/ui/layout/PublicShell';
 import NotFoundState from '@/app/ui/layout/states/NotFoundState';
 import UniversalSearchPalette from '@/app/ui/layout/UniversalSearch/UniversalSearchPalette';
 
+// no-story: thin composition of already-storied pieces (PublicShell, NotFoundState, UniversalSearchPalette)
 export default function NotFound() {
   return (
     <PublicShell>

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 
 import SignUp from '@/app/features/auth/pages/SignUp/SignUp';
 
+// no-story: thin Next.js route wrapper; real content is SignUp, already storied (developer variant is a prop, exercised in SignUp.stories.tsx)
 export const metadata: Metadata = {
   title: 'Developer Sign Up — Yosemite Crew',
   description: 'Create a developer account to build on the Yosemite Crew platform.',
