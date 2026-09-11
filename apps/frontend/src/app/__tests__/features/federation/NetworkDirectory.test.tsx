@@ -25,12 +25,14 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
     text,
     onClick,
     isDisabled,
+    size,
   }: {
     text: string;
     onClick: () => void;
     isDisabled?: boolean;
+    size?: string;
   }) => (
-    <button type="button" onClick={onClick} disabled={isDisabled ?? false}>
+    <button type="button" onClick={onClick} disabled={isDisabled ?? false} data-size={size}>
       {text}
     </button>
   ),
@@ -96,6 +98,25 @@ describe('NetworkDirectory', () => {
     expect(screen.getByText('a.example')).toBeInTheDocument();
     expect(screen.getByText('Beta Animal Hospital')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Follow' })).toHaveLength(2);
+  });
+
+  it('keeps long identifiers readable and gives Follow a phone-sized target', async () => {
+    const longClinic: APDirectoryClinic = {
+      ...clinicA,
+      orgName: 'Veterinary Referral and Emergency Centre of the Northern Highlands',
+      handle: '@northern-highlands-referral-reception@veterinary-referral.example',
+      instanceHost: 'veterinary-referral-and-emergency-centre.example',
+    };
+    (listDirectory as jest.Mock).mockResolvedValue({ clinics: [longClinic], unavailable: false });
+
+    render(<NetworkDirectory />);
+
+    const name = await screen.findByText(longClinic.orgName);
+    expect(name).toHaveClass('break-words');
+    expect(name).not.toHaveClass('truncate');
+    expect(screen.getByText(longClinic.handle)).toHaveClass('[overflow-wrap:anywhere]');
+    expect(screen.getByText(longClinic.instanceHost)).toHaveClass('[overflow-wrap:anywhere]');
+    expect(screen.getByRole('button', { name: 'Follow' })).toHaveAttribute('data-size', 'large');
   });
 
   it('notifies error when the directory fails to load', async () => {
