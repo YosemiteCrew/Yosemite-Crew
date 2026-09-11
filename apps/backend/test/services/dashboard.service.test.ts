@@ -127,6 +127,37 @@ describe("DashboardService", () => {
       expect(result.staffOnDuty).toBe(1);
     });
 
+    it("queries both stored spellings of organisationReference, not just the bare id", async () => {
+      (
+        AvailabilityService.getCurrentStatusBulk as jest.Mock
+      ).mockResolvedValueOnce(new Map([["staff-1", "Consulting"]]));
+      (prisma.userOrganization.findMany as jest.Mock).mockResolvedValueOnce([
+        { practitionerReference: "staff-1" },
+      ]);
+      (prisma.appointment.count as jest.Mock).mockResolvedValueOnce(0);
+      (prisma.task.count as jest.Mock).mockResolvedValueOnce(0);
+      (prisma.invoice.aggregate as jest.Mock).mockResolvedValueOnce({
+        _sum: { totalAmount: null },
+      });
+
+      const result = await DashboardService.getSummary({
+        organisationId: mockOrgId,
+        range: "today",
+      });
+
+      expect(result.staffOnDuty).toBe(1);
+
+      const where = (prisma.userOrganization.findMany as jest.Mock).mock
+        .calls[0][0].where;
+      expect(where.active).toBe(true);
+      const refs = (where.OR as Array<{ organizationReference: string }>)
+        .map((match) => match.organizationReference)
+        .sort();
+      // A membership stored as `Organization/<id>` from the FHIR path would
+      // otherwise render as zero staff on duty.
+      expect(refs).toEqual(["Organization/org-123", "org-123"]);
+    });
+
     // Test different ranges to cover switch case in resolveRange
     const ranges: SummaryRange[] = [
       "today",
