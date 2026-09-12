@@ -112,6 +112,9 @@ jest.mock("../../src/config/prisma", () => ({
       findFirst: jest.fn(),
       create: jest.fn(),
     },
+    parentPatient: {
+      findFirst: jest.fn(),
+    },
     patientCheckIn: {
       findFirst: jest.fn(),
       create: jest.fn(),
@@ -259,6 +262,10 @@ describe("AppointmentPrismaService", () => {
       type: "dog",
       speciesCode: "canislf",
     });
+    mockedPrisma.parentPatient.findFirst.mockResolvedValue({
+      role: "PRIMARY",
+      permissions: {},
+    } as any);
     mockedPrisma.roomUnitAssignment.findFirst.mockResolvedValue(null);
     mockedPrisma.roomUnitAssignment.update.mockResolvedValue({} as any);
     mockedPrisma.roomUnitAssignment.create.mockResolvedValue({
@@ -570,6 +577,47 @@ describe("AppointmentPrismaService", () => {
       });
       expect(mockedPrisma.appointment.findFirst).not.toHaveBeenCalled();
       expect(result.id).toBe("appt_1");
+    });
+
+    it("allows an active co-parent with appointment permission", async () => {
+      mockedPrisma.appointment.findUnique.mockResolvedValue(makeRow());
+      mockedPrisma.parentPatient.findFirst.mockResolvedValue({
+        role: "CO_PARENT",
+        permissions: { appointments: true },
+      } as any);
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      const result = await AppointmentPrismaService.getById("appt_1", {
+        parentId: "co_parent_1",
+      });
+
+      expect(result.id).toBe("appt_1");
+      expect(mockedPrisma.parentPatient.findFirst).toHaveBeenCalledWith({
+        where: {
+          parentId: "co_parent_1",
+          patientId: "comp_1",
+          status: "ACTIVE",
+          role: { in: ["PRIMARY", "CO_PARENT"] },
+        },
+        select: { role: true, permissions: true },
+      });
+    });
+
+    it("returns 404 when a co-parent appointment permission is revoked", async () => {
+      mockedPrisma.appointment.findUnique.mockResolvedValue(makeRow());
+      mockedPrisma.parentPatient.findFirst.mockResolvedValue({
+        role: "CO_PARENT",
+        permissions: { appointments: false },
+      } as any);
+
+      await expect(
+        AppointmentPrismaService.getById("appt_1", {
+          parentId: "co_parent_1",
+        }),
+      ).rejects.toMatchObject({
+        message: "Appointment not found",
+        statusCode: 404,
+      });
     });
 
     it("binds to organisationId via findFirst when org is supplied", async () => {
@@ -4229,10 +4277,11 @@ describe("AppointmentPrismaService", () => {
       });
     });
 
-    it("getById parent-scope: 404 when the row patient has no parent", async () => {
+    it("getById parent-scope: 404 without an active companion link", async () => {
       mockedPrisma.appointment.findFirst.mockResolvedValue(
         makeRow({ organisationId: "org_1", patient: { id: "comp_1" } }),
       );
+      mockedPrisma.parentPatient.findFirst.mockResolvedValue(null);
 
       await expect(
         AppointmentPrismaService.getById("appt_1", {

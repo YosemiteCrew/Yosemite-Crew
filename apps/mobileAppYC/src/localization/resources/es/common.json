@@ -371,7 +371,14 @@
     "chatLockedTitle": "El chat aun no esta abierto",
     "chatLockedBody": "El chat se abre un dia antes de tu cita.\n\nCita: {{appointmentTime}}\nSe abre en: {{hours}} h {{minutes}} min",
     "chatUnavailableTitle": "Chat cerrado",
-    "chatUnavailableBody": "Esta cita ha terminado y el chat ya no esta disponible."
+    "chatUnavailableBody": "Esta cita ha terminado y el chat ya no esta disponible.",
+    "visitPreparation": {
+      "title": "Antes de la visita",
+      "source": "Instrucciones de {{practice}}",
+      "unavailable": "Las instrucciones de preparación no están disponibles. Contacta con la clínica si necesitas indicaciones antes de la visita.",
+      "paperworkTitle": "Documentación asignada",
+      "noPaperwork": "No hay documentación asignada para esta cita."
+    }
   },
   "account": {
     "opensInBrowser": "Se abre en tu navegador, fuera de la aplicacion",
