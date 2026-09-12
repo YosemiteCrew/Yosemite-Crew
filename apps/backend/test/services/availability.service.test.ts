@@ -506,6 +506,31 @@ describe("AvailabilityService", () => {
         isAvailable: true,
       });
     });
+
+    it("bounds the occupancy query to this week's Sunday, not next Monday (#3141)", async () => {
+      // Monday 2026-09-14 through Sunday 2026-09-20 is the queried week.
+      const refDate = new Date("2026-09-14T12:00:00Z");
+      baseSpy.mockResolvedValue([
+        {
+          dayOfWeek: "MONDAY",
+          slots: [{ startTime: "10:00", endTime: "10:30" }],
+        },
+      ]);
+      overrideSpy.mockResolvedValue(null);
+      (prisma.occupancy.findMany as jest.Mock).mockResolvedValue([]);
+
+      await AvailabilityService.getWeeklyFinalAvailability(
+        "org1",
+        "u1",
+        refDate,
+      );
+
+      const query = (prisma.occupancy.findMany as jest.Mock).mock.calls[0][0];
+      const weekEnd: Date = query.where.startTime.lte;
+      // A weekEnd that spills into 2026-09-21 (next Monday) would pull that
+      // day's occupancies into this week's same-named Monday bucket.
+      expect(weekEnd.toISOString()).toBe("2026-09-20T23:59:59.999Z");
+    });
   });
 
   describe("getFinalAvailabilityForDate", () => {
@@ -773,6 +798,24 @@ describe("AvailabilityService", () => {
 
       expect(statuses.size).toBe(0);
       expect(prisma.baseAvailability.findMany).not.toHaveBeenCalled();
+    });
+
+    it("bounds the weekly occupancy query to this week's Sunday, not next Monday (#3141)", async () => {
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValue([]);
+      (
+        prisma.weeklyAvailabilityOverride.findMany as jest.Mock
+      ).mockResolvedValue([]);
+      (prisma.occupancy.findMany as jest.Mock).mockResolvedValue([]);
+
+      await AvailabilityService.getCurrentStatusBulk(ORG, ["u-1"]);
+
+      // NOW is Wednesday 2026-03-11, so its Monday-anchored week ends Sunday
+      // 2026-03-15. The first occupancy.findMany call is the weekly-window
+      // read (see the Promise.all order in getCurrentStatusBulk).
+      const weekQuery = (prisma.occupancy.findMany as jest.Mock).mock
+        .calls[0][0];
+      const weekEnd: Date = weekQuery.where.startTime.lte;
+      expect(weekEnd.toISOString()).toBe("2026-03-15T23:59:59.999Z");
     });
   });
 });
