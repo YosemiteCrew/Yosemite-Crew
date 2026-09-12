@@ -107,14 +107,6 @@
 	<true/>
 	<key>UIAppFonts</key>
 	<array>
-		<string>ClashDisplay-Bold.otf</string>
-		<string>ClashDisplay-Extralight.otf</string>
-		<string>ClashDisplay-Light.otf</string>
-		<string>ClashDisplay-Medium.otf</string>
-		<string>ClashDisplay-Regular.otf</string>
-		<string>ClashDisplay-Semibold.otf</string>
-		<string>ClashDisplay-Variable.ttf</string>
-		<string>ClashGrotesk-Medium.otf</string>
 		<string>Satoshi-Black.otf</string>
 		<string>Satoshi-Bold.otf</string>
 		<string>Satoshi-Light.otf</string>

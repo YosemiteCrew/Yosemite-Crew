@@ -61,47 +61,238 @@ export const mockTheme = {
     full: 9999,
   },
   typography: {
-    h1: {fontSize: 36, fontWeight: '700', lineHeight: 45, fontFamily: 'ClashDisplay-Bold'},
-    h2: {fontSize: 30, fontWeight: '700', lineHeight: 37.5, fontFamily: 'ClashDisplay-Bold'},
-    h3: {fontSize: 26, fontWeight: '500', lineHeight: 31.2, fontFamily: 'ClashGrotesk-Medium', letterSpacing: -0.26},
-    h4: {fontSize: 20, fontWeight: '600', lineHeight: 27.5, fontFamily: 'ClashDisplay-Semibold'},
-    h5: {fontSize: 18, fontWeight: '500', lineHeight: 27, fontFamily: 'ClashDisplay-Medium'},
-    h6: {fontSize: 16, fontWeight: '500', lineHeight: 24, fontFamily: 'ClashDisplay-Medium'},
+    h1: {
+      fontSize: 36,
+      fontWeight: '700',
+      lineHeight: 45,
+      fontFamily: 'Satoshi-Bold',
+    },
+    h2: {
+      fontSize: 30,
+      fontWeight: '700',
+      lineHeight: 37.5,
+      fontFamily: 'Satoshi-Medium',
+    },
+    h3: {
+      fontSize: 26,
+      fontWeight: '500',
+      lineHeight: 31.2,
+      fontFamily: 'Satoshi-Medium',
+      letterSpacing: -0.26,
+    },
+    h4: {
+      fontSize: 20,
+      fontWeight: '600',
+      lineHeight: 27.5,
+      fontFamily: 'Satoshi-Medium',
+    },
+    h5: {
+      fontSize: 18,
+      fontWeight: '500',
+      lineHeight: 27,
+      fontFamily: 'Satoshi-Medium',
+    },
+    h6: {
+      fontSize: 16,
+      fontWeight: '500',
+      lineHeight: 24,
+      fontFamily: 'Satoshi-Medium',
+    },
     headlineLarge: {fontSize: 32, fontWeight: '700'},
     headlineMedium: {fontSize: 28, fontWeight: '600'},
     headlineSmall: {fontSize: 24, fontWeight: '600'},
-    titleLarge: {fontSize: 20, fontWeight: '500', lineHeight: 24, fontFamily: 'ClashGrotesk-Medium', letterSpacing: -0.2},
-    titleMedium: {fontSize: 18, fontWeight: '500', lineHeight: 21.6, fontFamily: 'ClashGrotesk-Medium', letterSpacing: -0.18},
-    titleSmall: {fontSize: 16, fontWeight: '500', lineHeight: 19.2, fontFamily: 'ClashGrotesk-Medium', letterSpacing: -0.16},
-    bodyLarge: {fontSize: 18, fontWeight: '400', lineHeight: 29.25, fontFamily: 'Satoshi-Regular'},
-    bodyMedium: {fontSize: 14, fontWeight: '400', fontFamily: 'Satoshi-Regular'},
-    bodySmall: {fontSize: 14, fontWeight: '400', lineHeight: 21, fontFamily: 'Satoshi-Regular'},
-    bodySmallTight: {fontSize: 14, fontWeight: '400', lineHeight: 19.6, fontFamily: 'Satoshi-Regular'},
-    bodyExtraSmall: {fontSize: 13, fontWeight: '400', lineHeight: 16, fontFamily: 'Satoshi-Regular'},
+    titleLarge: {
+      fontSize: 20,
+      fontWeight: '500',
+      lineHeight: 24,
+      fontFamily: 'Satoshi-Medium',
+      letterSpacing: -0.2,
+    },
+    titleMedium: {
+      fontSize: 18,
+      fontWeight: '500',
+      lineHeight: 21.6,
+      fontFamily: 'Satoshi-Medium',
+      letterSpacing: -0.18,
+    },
+    titleSmall: {
+      fontSize: 16,
+      fontWeight: '500',
+      lineHeight: 19.2,
+      fontFamily: 'Satoshi-Medium',
+      letterSpacing: -0.16,
+    },
+    bodyLarge: {
+      fontSize: 18,
+      fontWeight: '400',
+      lineHeight: 29.25,
+      fontFamily: 'Satoshi-Regular',
+    },
+    bodyMedium: {
+      fontSize: 14,
+      fontWeight: '400',
+      fontFamily: 'Satoshi-Regular',
+    },
+    bodySmall: {
+      fontSize: 14,
+      fontWeight: '400',
+      lineHeight: 21,
+      fontFamily: 'Satoshi-Regular',
+    },
+    bodySmallTight: {
+      fontSize: 14,
+      fontWeight: '400',
+      lineHeight: 19.6,
+      fontFamily: 'Satoshi-Regular',
+    },
+    bodyExtraSmall: {
+      fontSize: 13,
+      fontWeight: '400',
+      lineHeight: 16,
+      fontFamily: 'Satoshi-Regular',
+    },
     labelLarge: {fontSize: 14, fontWeight: '500'},
     labelMedium: {fontSize: 12, fontWeight: '500'},
-    labelSmall: {fontSize: 14, fontWeight: '500', lineHeight: 21, fontFamily: 'Satoshi-Medium'},
-    labelXsBold: {fontSize: 13, fontWeight: '700', lineHeight: 15.6, fontFamily: 'Satoshi-Bold', letterSpacing: 0},
-    labelXxsBold: {fontSize: 12, fontWeight: '700', lineHeight: 14.4, fontFamily: 'Satoshi-Bold', letterSpacing: 0},
-    button: {fontSize: 16, fontWeight: '500', lineHeight: 20, fontFamily: 'Satoshi-Medium'},
-    buttonSmall: {fontSize: 14, fontWeight: '500', lineHeight: 14, fontFamily: 'Satoshi-Medium'},
-    caption: {fontSize: 12, fontWeight: '400', lineHeight: 18, fontFamily: 'SFProText-regular'},
-    captionBold: {fontSize: 12, fontWeight: '600', lineHeight: 18, fontFamily: 'SFProText-semibold'},
-    paragraph: {fontSize: 16, fontWeight: '400', lineHeight: 19.2, fontFamily: 'Satoshi-Regular', letterSpacing: -0.32},
-    paragraphBold: {fontSize: 16, fontWeight: '700', lineHeight: 19.2, fontFamily: 'Satoshi-Bold', letterSpacing: -0.32},
-    cta: {fontSize: 18, fontWeight: '500', lineHeight: 18, fontFamily: 'ClashGrotesk-Medium', letterSpacing: -0.18},
-    screenTitle: {fontSize: 16, fontWeight: '500', lineHeight: 19.2, fontFamily: 'ClashGrotesk-Medium', letterSpacing: -0.16},
-    inputLabel: {fontSize: 14, fontWeight: '700', lineHeight: 16, fontFamily: 'Satoshi-Bold', letterSpacing: -0.42},
-    input: {fontSize: 16, fontWeight: '400', lineHeight: 19.2, fontFamily: 'Satoshi-Regular', letterSpacing: -0.32},
-    inputFilled: {fontSize: 16, fontWeight: '500', lineHeight: 16, fontFamily: 'Satoshi-Medium', letterSpacing: -0.48},
-    inputError: {fontSize: 14, fontWeight: '700', lineHeight: 16, fontFamily: 'Satoshi-Bold', letterSpacing: -0.42, color: '#EA3729'},
-    tabLabelFocused: {fontSize: 12, fontWeight: '900', lineHeight: 14.4, fontFamily: 'Satoshi-Black'},
-    tabLabel: {fontSize: 12, fontWeight: '500', lineHeight: 14.4, fontFamily: 'Satoshi-Medium'},
-    h4Alt: {fontSize: 23, fontWeight: '500', lineHeight: 27.6, fontFamily: 'ClashGrotesk-Medium', letterSpacing: -0.23},
-    h5Clash23: {fontSize: 23, fontWeight: '500', lineHeight: 27.6, fontFamily: 'ClashGrotesk-Medium', letterSpacing: -0.46},
-    paragraph18Bold: {fontSize: 18, fontWeight: '700', lineHeight: 21.6, fontFamily: 'Satoshi-Bold', letterSpacing: -0.36},
-    subtitleBold14: {fontSize: 14, fontWeight: '700', lineHeight: 16.8, fontFamily: 'Satoshi-Bold'},
-    buttonH6Clash19: {fontSize: 19, fontWeight: '500', lineHeight: 22.8, fontFamily: 'ClashGrotesk-Medium', letterSpacing: -0.38},
+    labelSmall: {
+      fontSize: 14,
+      fontWeight: '500',
+      lineHeight: 21,
+      fontFamily: 'Satoshi-Medium',
+    },
+    labelXsBold: {
+      fontSize: 13,
+      fontWeight: '700',
+      lineHeight: 15.6,
+      fontFamily: 'Satoshi-Bold',
+      letterSpacing: 0,
+    },
+    labelXxsBold: {
+      fontSize: 12,
+      fontWeight: '700',
+      lineHeight: 14.4,
+      fontFamily: 'Satoshi-Bold',
+      letterSpacing: 0,
+    },
+    button: {
+      fontSize: 16,
+      fontWeight: '500',
+      lineHeight: 20,
+      fontFamily: 'Satoshi-Medium',
+    },
+    buttonSmall: {
+      fontSize: 14,
+      fontWeight: '500',
+      lineHeight: 14,
+      fontFamily: 'Satoshi-Medium',
+    },
+    caption: {
+      fontSize: 12,
+      fontWeight: '400',
+      lineHeight: 18,
+      fontFamily: 'SFProText-regular',
+    },
+    captionBold: {
+      fontSize: 12,
+      fontWeight: '600',
+      lineHeight: 18,
+      fontFamily: 'SFProText-semibold',
+    },
+    paragraph: {
+      fontSize: 16,
+      fontWeight: '400',
+      lineHeight: 19.2,
+      fontFamily: 'Satoshi-Regular',
+      letterSpacing: -0.32,
+    },
+    paragraphBold: {
+      fontSize: 16,
+      fontWeight: '700',
+      lineHeight: 19.2,
+      fontFamily: 'Satoshi-Bold',
+      letterSpacing: -0.32,
+    },
+    cta: {
+      fontSize: 18,
+      fontWeight: '500',
+      lineHeight: 18,
+      fontFamily: 'Satoshi-Medium',
+      letterSpacing: -0.18,
+    },
+    screenTitle: {
+      fontSize: 16,
+      fontWeight: '500',
+      lineHeight: 19.2,
+      fontFamily: 'Satoshi-Medium',
+      letterSpacing: -0.16,
+    },
+    inputLabel: {
+      fontSize: 14,
+      fontWeight: '700',
+      lineHeight: 16,
+      fontFamily: 'Satoshi-Bold',
+      letterSpacing: -0.42,
+    },
+    input: {
+      fontSize: 16,
+      fontWeight: '400',
+      lineHeight: 19.2,
+      fontFamily: 'Satoshi-Regular',
+      letterSpacing: -0.32,
+    },
+    inputFilled: {
+      fontSize: 16,
+      fontWeight: '500',
+      lineHeight: 16,
+      fontFamily: 'Satoshi-Medium',
+      letterSpacing: -0.48,
+    },
+    inputError: {
+      fontSize: 14,
+      fontWeight: '700',
+      lineHeight: 16,
+      fontFamily: 'Satoshi-Bold',
+      letterSpacing: -0.42,
+      color: '#EA3729',
+    },
+    tabLabelFocused: {
+      fontSize: 12,
+      fontWeight: '900',
+      lineHeight: 14.4,
+      fontFamily: 'Satoshi-Black',
+    },
+    tabLabel: {
+      fontSize: 12,
+      fontWeight: '500',
+      lineHeight: 14.4,
+      fontFamily: 'Satoshi-Medium',
+    },
+    h4Alt: {
+      fontSize: 23,
+      fontWeight: '500',
+      lineHeight: 27.6,
+      fontFamily: 'Satoshi-Medium',
+      letterSpacing: -0.23,
+    },
+    paragraph18Bold: {
+      fontSize: 18,
+      fontWeight: '700',
+      lineHeight: 21.6,
+      fontFamily: 'Satoshi-Bold',
+      letterSpacing: -0.36,
+    },
+    subtitleBold14: {
+      fontSize: 14,
+      fontWeight: '700',
+      lineHeight: 16.8,
+      fontFamily: 'Satoshi-Bold',
+    },
+    button19: {
+      fontSize: 19,
+      fontWeight: '500',
+      lineHeight: 22.8,
+      fontFamily: 'Satoshi-Medium',
+      letterSpacing: -0.38,
+    },
   },
   shadows: {
     none: {},
@@ -162,7 +353,11 @@ export const setupMocks = () => {
     SafeAreaView: ({children}: any) => {
       const ReactModule = require('react');
       const {View} = require('react-native');
-      return ReactModule.createElement(View, {testID: 'safe-area-view'}, children);
+      return ReactModule.createElement(
+        View,
+        {testID: 'safe-area-view'},
+        children,
+      );
     },
     useSafeAreaInsets: () => ({top: 0, right: 0, bottom: 0, left: 0}),
   }));
@@ -173,7 +368,7 @@ export const setupMocks = () => {
       {},
       {
         get: () => 1, // Return mock image source
-      }
+      },
     ),
   }));
 };
@@ -193,7 +388,7 @@ export function renderWithProviders(
     store: customStore,
     withNavigation = false,
     ...renderOptions
-  }: ExtendedRenderOptions = {}
+  }: ExtendedRenderOptions = {},
 ) {
   const testStore = customStore || store;
 
@@ -207,7 +402,10 @@ export function renderWithProviders(
     return <SafeAreaProvider>{content}</SafeAreaProvider>;
   };
 
-  return {store: testStore, ...render(ui, {wrapper: Wrapper, ...renderOptions})};
+  return {
+    store: testStore,
+    ...render(ui, {wrapper: Wrapper, ...renderOptions}),
+  };
 }
 
 // ============================================================================
@@ -302,14 +500,14 @@ export const mockComponents = {
         ReactModule.createElement(
           TouchableOpacity,
           {testID: 'back-button', onPress: onBack},
-          ReactModule.createElement(Text, null, 'Back')
+          ReactModule.createElement(Text, null, 'Back'),
         ),
       rightIcon &&
         ReactModule.createElement(
           TouchableOpacity,
           {testID: 'right-button', onPress: onRightPress},
-          ReactModule.createElement(Text, null, 'Right')
-        )
+          ReactModule.createElement(Text, null, 'Right'),
+        ),
     );
   },
 
@@ -322,7 +520,11 @@ export const mockComponents = {
   LiquidGlassCard: ({children, style, fallbackStyle}: any) => {
     const ReactModule = require('react');
     const {View} = require('react-native');
-    return ReactModule.createElement(View, {style: [style, fallbackStyle]}, children);
+    return ReactModule.createElement(
+      View,
+      {style: [style, fallbackStyle]},
+      children,
+    );
   },
 
   LiquidGlassButton: ({title, onPress, leftIcon, rightIcon}: any) => {
@@ -333,7 +535,7 @@ export const mockComponents = {
       {onPress, testID: 'liquid-glass-button'},
       leftIcon && ReactModule.createElement(View, null, leftIcon),
       ReactModule.createElement(Text, null, title),
-      rightIcon && ReactModule.createElement(View, null, rightIcon)
+      rightIcon && ReactModule.createElement(View, null, rightIcon),
     );
   },
 
@@ -365,7 +567,10 @@ export const flushPromises = () => new Promise(setImmediate);
 // ============================================================================
 
 export const mockImageSerializer = {
-  test: (val: any) => val && typeof val === 'object' && val.$$typeof === Symbol.for('react.test.json'),
+  test: (val: any) =>
+    val &&
+    typeof val === 'object' &&
+    val.$$typeof === Symbol.for('react.test.json'),
   print: (val: any) => {
     if (val.type === 'Image') {
       return `<Image source={${val.props.source}} />`;

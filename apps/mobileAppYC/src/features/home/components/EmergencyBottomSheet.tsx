@@ -281,7 +281,7 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['2'],
     },
     optionTitle: {
-      ...theme.typography.h6Clash,
+      ...theme.typography.h6,
       color: theme.colors.secondary,
       textAlign: 'left',
     },

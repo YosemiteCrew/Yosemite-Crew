@@ -305,7 +305,7 @@ const createStyles = (theme: any, compact = false) =>
       color: theme.colors.textSecondary,
     },
     totalValue: {
-      ...theme.typography.h6Clash,
+      ...theme.typography.h6,
       color: theme.colors.secondary,
     },
   });

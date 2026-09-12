@@ -176,7 +176,7 @@ const createStyles = (theme: any) =>
       justifyContent: 'center',
     },
     bannerText: {
-      ...theme.typography.clashBody13,
+      ...theme.typography.body13Medium,
       flex: 1,
       color: BANNER_INK,
     },
