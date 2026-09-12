@@ -9,7 +9,11 @@ import {
   autoScrollCalendarHorizontally,
   autoScrollCalendarVertically,
 } from '@/app/features/appointments/components/Calendar/helpers';
-import { formatDateInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
+import {
+  buildDateInPreferredTimeZone,
+  formatDateInPreferredTimeZone,
+  getDatePartsInPreferredTimeZone,
+} from '@/app/lib/timezone';
 import TaskSlotGridLines from '@/app/features/appointments/components/Calendar/Task/TaskSlotGridLines';
 import TaskDropOverlays from '@/app/features/appointments/components/Calendar/Task/TaskDropOverlays';
 import TaskMarker from '@/app/features/appointments/components/Calendar/Task/TaskMarker';
@@ -26,7 +30,7 @@ const buildTaskSlotLabels = (dropDate: Date, hour: number) => {
     day: 'numeric',
   });
   const timeLabel = formatDateInPreferredTimeZone(
-    new Date(dropDate.getTime() + hour * 60 * 60 * 1000),
+    buildDateInPreferredTimeZone(dropDate, hour * 60),
     { hour: 'numeric', minute: '2-digit' }
   );
   return {

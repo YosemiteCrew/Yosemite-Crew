@@ -9,7 +9,6 @@ import {
   StockHealthStatus,
   BatchValues,
 } from '@/app/features/inventory/pages/Inventory/types';
-import { formatDisplayDate as formatGlobalDisplayDate } from '@/app/lib/date';
 /* The blank-aware pair lives in lib/validators, beside the other coercions, so
    surfaces outside inventory can use it too. Re-exported here because this
    file's own consumers already import their numeric helpers from it. */
@@ -46,21 +45,48 @@ const cleanObject = (obj: Record<string, unknown>) =>
     return acc;
   }, {});
 
-const parseDateSafe = (value?: string): Date | null => {
+export type InventoryCalendarDateParts = { year: number; month: number; day: number };
+
+export const parseInventoryCalendarDateParts = (
+  value?: string
+): InventoryCalendarDateParts | null => {
   if (!value) return null;
-  if (value.includes('/')) {
-    const [dd, mm, yyyy] = value.split('/');
-    const parsed = new Date(`${yyyy}-${mm}-${dd}`);
-    if (!Number.isNaN(parsed.getTime())) return parsed;
+  const slashMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})(?:$|T)/.exec(value);
+  let parts: InventoryCalendarDateParts | null = null;
+  if (slashMatch) {
+    parts = {
+      year: Number(slashMatch[3]),
+      month: Number(slashMatch[2]),
+      day: Number(slashMatch[1]),
+    };
+  } else if (isoMatch) {
+    parts = { year: Number(isoMatch[1]), month: Number(isoMatch[2]), day: Number(isoMatch[3]) };
   }
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  if (!parts) return null;
+  const check = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+  const valid =
+    check.getUTCFullYear() === parts.year &&
+    check.getUTCMonth() === parts.month - 1 &&
+    check.getUTCDate() === parts.day;
+  return valid ? parts : null;
+};
+
+const parseDateSafe = (value?: string): Date | null => {
+  const parts = parseInventoryCalendarDateParts(value);
+  return parts ? new Date(Date.UTC(parts.year, parts.month - 1, parts.day)) : null;
 };
 
 export const formatDisplayDate = (value?: string): string => {
   if (!value) return '';
-  const normalizedDate = parseDateSafe(value);
-  return normalizedDate ? formatGlobalDisplayDate(normalizedDate, '') : '';
+  const parts = parseInventoryCalendarDateParts(value);
+  if (!parts) return '';
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(parts.year, parts.month - 1, parts.day)));
 };
 
 export const calculateBatchTotals = (
@@ -490,27 +516,13 @@ export const buildBatchPayload = (batch: BatchValues): InventoryBatchPayload | u
   const quantity = toPayloadNumber(batch.quantity ?? batchRecord.current ?? batchRecord.available);
   const allocated = toPayloadNumber(batch.allocated);
   const normalizeDateForApi = (val?: string) => {
-    if (!val) return undefined;
-    if (val.includes('/')) {
-      const [dd, mm, yyyy] = val.split('/');
-      const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
-      if (!Number.isNaN(parsed.getTime())) {
-        return parsed.toISOString();
-      }
+    const parts = parseInventoryCalendarDateParts(val);
+    if (!parts) return undefined;
+    if (val?.includes('T')) {
+      const instant = new Date(val);
+      if (!Number.isNaN(instant.getTime())) return instant.toISOString();
     }
-    const isoDateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(val);
-    if (isoDateMatch) {
-      const [, yyyy, mm, dd] = isoDateMatch;
-      const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
-      if (!Number.isNaN(parsed.getTime())) {
-        return parsed.toISOString();
-      }
-    }
-    const parsed = new Date(val);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toISOString();
-    }
-    return undefined;
+    return new Date(Date.UTC(parts.year, parts.month - 1, parts.day)).toISOString();
   };
 
   const normalizedManufacture = normalizeDateForApi(batch.manufactureDate);
@@ -518,10 +530,6 @@ export const buildBatchPayload = (batch: BatchValues): InventoryBatchPayload | u
   const normalizedMinShelfLife = normalizeDateForApi(
     batch.nextRefillDate ?? batch.minShelfLifeAlertDate
   );
-  const manufactureRaw = toStringSafe(batch.manufactureDate);
-  const expiryRaw = toStringSafe(batch.expiryDate);
-  const minShelfRaw = toStringSafe(batch.nextRefillDate ?? batch.minShelfLifeAlertDate);
-
   const payload: InventoryBatchPayload = cleanObject({
     _id: batch._id,
     itemId: batch.itemId,
@@ -531,9 +539,9 @@ export const buildBatchPayload = (batch: BatchValues): InventoryBatchPayload | u
     regulatoryTrackingId: batch.tracking,
     expiryWarningBefore: batch.expiryWarningBefore,
     barcode: batch.barcode,
-    manufactureDate: normalizedManufacture ?? (manufactureRaw || undefined),
-    expiryDate: normalizedExpiry ?? (expiryRaw || undefined),
-    minShelfLifeAlertDate: normalizedMinShelfLife ?? (minShelfRaw || undefined),
+    manufactureDate: normalizedManufacture,
+    expiryDate: normalizedExpiry,
+    minShelfLifeAlertDate: normalizedMinShelfLife,
     quantity,
     allocated,
   });
