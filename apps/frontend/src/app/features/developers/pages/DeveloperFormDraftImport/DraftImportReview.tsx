@@ -38,7 +38,7 @@ const DraftImportReview = ({
   return (
     <div className="DraftImport-review">
       {view.stale && (
-        <div className="DraftImport-stale" role="status">
+        <output className="DraftImport-stale">
           <p>
             The source form changed since this draft was created. Refresh to see the current diff
             before deciding.
@@ -49,7 +49,7 @@ const DraftImportReview = ({
             isDisabled={refreshing}
             style={{ maxWidth: 140 }}
           />
-        </div>
+        </output>
       )}
 
       {view.unsupportedConstructs.length > 0 && (
