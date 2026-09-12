@@ -3,7 +3,8 @@
  *
  * The envelope is NOT uniform across the stack and pretending otherwise
  * produces useless messages. The controllers answer `{ message, code }`, but
- * `authorizeApiKey` (401/429) and the RBAC guards (403) answer `{ message }`
+ * API-key authentication and metering (401/429), plus the RBAC guards (403),
+ * answer `{ message }`
  * with no code, because they predate this surface and are shared with the
  * session-authenticated routes. So status is the primary signal and `code` is
  * a refinement when present.
