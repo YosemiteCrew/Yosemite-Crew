@@ -487,6 +487,13 @@ const appointmentsSlice = createSlice({
       .addCase(fetchAppointmentById.fulfilled, (state, action) => {
         upsertAppointment(state, action.payload);
       })
+      .addCase(fetchAppointmentById.rejected, (state, action) => {
+        state.items = state.items.filter(
+          appointment => appointment.id !== action.meta.arg.appointmentId,
+        );
+        state.error =
+          (action.payload as string) ?? 'Unable to load appointment';
+      })
       .addCase(createAppointment.pending, state => {
         state.loading = true;
         state.error = null;

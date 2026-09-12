@@ -21,6 +21,7 @@ import { FinancePaymentService } from "./finance/payment";
 import { resolvePaymentCollectionMethod } from "src/utils/payment";
 import { CompanionOrganisationService } from "./companion-organisation.service";
 import { isSpeciesCompatible } from "./shared/normalize-tokens";
+import { hasCompanionFeature } from "src/middlewares/companion-access";
 
 type AppointmentStatus = AppointmentDomain["status"];
 
@@ -1435,6 +1436,28 @@ const getParentIdFromRow = (row: AppointmentRow): string | undefined => {
   return typeof parentId === "string" && parentId.trim() ? parentId : undefined;
 };
 
+const canParentViewAppointment = async (
+  row: AppointmentRow,
+  parentId: string,
+): Promise<boolean> => {
+  const patientId = getPatientId(row.patient);
+  if (!patientId) return false;
+
+  const link = await prisma.parentPatient.findFirst({
+    where: {
+      parentId,
+      patientId,
+      status: "ACTIVE",
+      role: { in: ["PRIMARY", "CO_PARENT"] },
+    },
+    select: { role: true, permissions: true },
+  });
+
+  return Boolean(
+    link && hasCompanionFeature(link.role, link.permissions, "appointments"),
+  );
+};
+
 const assertParentOwnsAppointment = (row: AppointmentRow, parentId: string) => {
   if (getParentIdFromRow(row) !== parentId) {
     throw new AppointmentPrismaServiceError(
@@ -2513,7 +2536,8 @@ export const AppointmentPrismaService = {
     }
 
     const canViewAsActor = actorId && canViewOwnAppointment(row, actorId);
-    const canViewAsParent = parentId && getParentIdFromRow(row) === parentId;
+    const canViewAsParent =
+      parentId && (await canParentViewAppointment(row, parentId));
 
     if ((actorId || parentId) && !canViewAsActor && !canViewAsParent) {
       throw new AppointmentPrismaServiceError("Appointment not found", 404);

@@ -94,6 +94,9 @@ jest.mock("src/config/prisma", () => ({
     formAssignment: {
       findFirst: jest.fn(),
     },
+    parentPatient: {
+      findFirst: jest.fn(),
+    },
     organization: {
       findUnique: jest.fn(),
     },
@@ -159,6 +162,7 @@ describe("FormService", () => {
     (prisma.appointment.updateMany as jest.Mock).mockReset();
     (prisma.appointment.findUnique as jest.Mock).mockReset();
     (prisma.appointment.findMany as jest.Mock).mockReset();
+    (prisma.parentPatient.findFirst as jest.Mock).mockReset();
 
     (prisma.organization.findUnique as jest.Mock).mockReset();
     (prisma.user.findMany as jest.Mock).mockReset();
@@ -194,6 +198,12 @@ describe("FormService", () => {
     (prisma.templateInstance.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.appointment.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.parentPatient.findFirst as jest.Mock).mockImplementation(
+      ({ where }: any) =>
+        where.parentId === "parent-a"
+          ? { role: "PRIMARY", permissions: {} }
+          : null,
+    );
     (FormAssignmentService.listForAppointment as jest.Mock).mockResolvedValue(
       [],
     );
@@ -815,7 +825,11 @@ describe("FormService", () => {
       it("rejects a template that was never assigned", async () => {
         arrangeTemplate();
         (prisma.appointment.findFirst as jest.Mock).mockResolvedValue({
-          patient: { parent: { id: "parent-1" } },
+          patient: { id: "companion-1", parent: { id: "parent-1" } },
+        });
+        (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+          role: "PRIMARY",
+          permissions: {},
         });
         (prisma.formAssignment.findFirst as jest.Mock).mockResolvedValue(null);
 
@@ -842,7 +856,11 @@ describe("FormService", () => {
       it("allows an assigned parent to submit their own appointment's form", async () => {
         arrangeTemplate();
         (prisma.appointment.findFirst as jest.Mock).mockResolvedValue({
-          patient: { parent: { id: "parent-1" } },
+          patient: { id: "companion-1", parent: { id: "parent-1" } },
+        });
+        (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+          role: "PRIMARY",
+          permissions: {},
         });
         (prisma.formAssignment.findFirst as jest.Mock).mockResolvedValue({
           id: "assignment-1",
@@ -1332,13 +1350,52 @@ describe("FormService", () => {
     it("throws forbidden when viewer parent does not own appointment", async () => {
       (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
         organisationId: "o",
-        patient: { parent: { id: "parent-a" } },
+        patient: { id: "companion-a", parent: { id: "parent-a" } },
       });
 
       await expect(
         FormService.getFormsForAppointment({
           appointmentId: validId,
           viewerParentId: "parent-b",
+        }),
+      ).rejects.toThrow("Forbidden");
+    });
+
+    it("allows assigned paperwork for an authorised co-parent", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        organisationId: "o",
+        patient: { id: "companion-a", parent: { id: "parent-a" } },
+      });
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+        role: "CO_PARENT",
+        permissions: { appointments: true },
+      });
+      (prisma.organization.findUnique as jest.Mock).mockResolvedValue({
+        type: "HOSPITAL",
+      });
+
+      await expect(
+        FormService.getFormsForAppointment({
+          appointmentId: validId,
+          viewerParentId: "co-parent-a",
+        }),
+      ).resolves.toMatchObject({ appointmentId: validId });
+    });
+
+    it("rejects assigned paperwork after co-parent access is revoked", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        organisationId: "o",
+        patient: { id: "companion-a", parent: { id: "parent-a" } },
+      });
+      (prisma.parentPatient.findFirst as jest.Mock).mockResolvedValue({
+        role: "CO_PARENT",
+        permissions: { appointments: false },
+      });
+
+      await expect(
+        FormService.getFormsForAppointment({
+          appointmentId: validId,
+          viewerParentId: "co-parent-a",
         }),
       ).rejects.toThrow("Forbidden");
     });
@@ -1365,7 +1422,7 @@ describe("FormService", () => {
     it("marks assignments viewed when a parent opens the appointment forms", async () => {
       (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
         organisationId: "org-viewed",
-        patient: { parent: { id: "parent-a" } },
+        patient: { id: "companion-a", parent: { id: "parent-a" } },
       });
       (prisma.organization.findUnique as jest.Mock).mockResolvedValue({
         type: "HOSPITAL",
