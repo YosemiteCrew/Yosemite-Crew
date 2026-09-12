@@ -4,6 +4,7 @@ import {
   FinancePaymentService,
   __setFinanceStripeClientForTests,
   cancelOpenCheckoutSessionAttempts,
+  getInvoiceFinancialSummary,
   resolveStripeConnectedAccountId,
 } from "../../src/services/finance/payment";
 import { prisma } from "src/config/prisma";
@@ -75,6 +76,33 @@ describe("FinancePaymentService", () => {
     });
     process.env.STRIPE_SECRET_KEY = "sk_test_mock";
     process.env.APP_URL = "https://app.test";
+  });
+
+  it("nets successful refunds when summarising invoice payments", async () => {
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([
+      { amount: 200, refunds: [{ amount: 50, status: "SUCCEEDED" }] },
+      { amount: 25, refunds: [{ amount: 30, status: "SUCCEEDED" }] },
+    ]);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await expect(getInvoiceFinancialSummary("inv_1", 200)).resolves.toEqual({
+      paid: 150,
+      credited: 0,
+      balance: 50,
+    });
+    expect(prisma.payment.findMany).toHaveBeenCalledWith({
+      where: {
+        invoiceId: "inv_1",
+        status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED", "REFUNDED"] },
+      },
+      select: {
+        amount: true,
+        refunds: {
+          where: { status: "SUCCEEDED" },
+          select: { amount: true, status: true },
+        },
+      },
+    });
   });
 
   it("creates provider-backed payment attempts", async () => {
