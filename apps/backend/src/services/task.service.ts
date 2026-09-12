@@ -27,7 +27,8 @@ export type TaskAudience = "EMPLOYEE_TASK" | "PARENT_TASK";
 export type TaskSource = "YC_LIBRARY" | "ORG_TEMPLATE" | "CUSTOM";
 export type TaskStatus = PrismaTaskStatus;
 export type TaskPriority = PrismaTaskPriority;
-export type TaskRecurrenceType = "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+export type TaskRecurrenceType =
+  "ONCE" | "DAILY" | "WEEKLY" | "MONTHLY" | "CUSTOM";
 
 export type MedicationDoseInput = {
   time?: string;
