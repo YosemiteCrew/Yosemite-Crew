@@ -14,6 +14,7 @@ import coParentInviteRouter from "./coparentInvite.router";
 import parentCompanionRouter from "./parent-companion.router";
 import companionOrganisationRouter from "./companion-organisation.router";
 import docuemntRouter from "./document.router";
+import migrationAuditRouter from "./migration-audit.router";
 import serviceRouter from "./service.router";
 import appointmentRouter from "./appointment.router";
 import stripeRouter from "./stripe.router";
@@ -159,6 +160,7 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/parent-companion`, parentCompanionRouter);
   app.use(`/v1/companion-organisation`, companionOrganisationRouter);
   app.use(`/v1/document`, docuemntRouter);
+  app.use(`/v1/migration-audit`, migrationAuditRouter);
   app.use(`/fhir/v1/service`, serviceRouter);
   app.use(`/fhir/v1/healthcare-service`, healthcareServiceRouter);
   app.use(`/fhir/v1/appointment`, appointmentRouter);

@@ -50,6 +50,9 @@ export const ATTACHMENT_MIME_TYPES = new Set([
   "application/pdf",
 ]);
 
+/** CSV only, for the migration-audit bundle upload (#3056) - deliberately narrow. */
+export const CSV_MIME_TYPES = new Set(["text/csv"]);
+
 export const IMAGE_ONLY_MIME_TYPES = IMAGE_MIME_TYPES;
 
 const isAllowedMimeType = (
@@ -102,6 +105,8 @@ const mimeTypeToExtension = (mimeType: string): string => {
       return ".ppt";
     case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
       return ".pptx";
+    case "text/csv":
+      return ".csv";
     default:
       return "";
   }
@@ -287,6 +292,32 @@ function getURLForKey(key: string) {
 }
 
 // Delete File from S3
+/**
+ * Read an object this backend owns, refusing anything over `maxBytes` before
+ * the body is fetched. Mirrors the bounded-fetch discipline of
+ * `outbound-document-url.ts`'s axios `maxContentLength`, applied to our own
+ * bucket instead of an outbound URL - a `headObject` size check happens
+ * first, so an oversized object is refused without downloading it.
+ */
+async function readObjectBounded(
+  s3Key: string,
+  maxBytes: number,
+): Promise<Buffer> {
+  const bucket = getBucketName();
+
+  const head = await s3.headObject({ Bucket: bucket, Key: s3Key }).promise();
+  if (typeof head.ContentLength === "number" && head.ContentLength > maxBytes) {
+    throw new Error(`Object ${s3Key} exceeds the ${maxBytes} byte limit.`);
+  }
+
+  const response = await s3.getObject({ Bucket: bucket, Key: s3Key }).promise();
+
+  if (Buffer.isBuffer(response.Body)) return response.Body;
+  if (response.Body instanceof Uint8Array) return Buffer.from(response.Body);
+  if (typeof response.Body === "string") return Buffer.from(response.Body);
+  return Buffer.alloc(0);
+}
+
 async function deleteFromS3(s3Key: string) {
   const bucket = getBucketName();
   try {
@@ -430,6 +461,7 @@ export {
   generatePresignedUrl,
   moveFile,
   deleteFromS3,
+  readObjectBounded,
   buildS3Key,
   mimeTypeToExtension,
   setupLifecyclePolicy,

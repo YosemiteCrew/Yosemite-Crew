@@ -470,6 +470,76 @@ model LabResultQuarantine {
   @@index([organisationId])
 }
 
+enum MigrationAuditStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum MigrationAuditSection {
+  OWNERS
+  ANIMALS
+  APPOINTMENTS
+  ATTACHMENTS
+}
+
+/// Mirrors FHIR OperationOutcome.issue.severity so a report can be rendered
+/// with `@yosemite-crew/fhir` types at the API boundary without a second enum.
+enum MigrationAuditSeverity {
+  FATAL
+  ERROR
+  WARNING
+  INFORMATION
+}
+
+/// A read-only audit of a candidate migration bundle (#3056). Never writes
+/// clinic records - only records what a bundle contains and what is wrong
+/// with it, scoped to the organisation that uploaded it.
+///
+/// inputHash pins the run to the exact bytes it validated, so re-running the
+/// same bundle is detectably the same input rather than a fresh guess.
+model MigrationAuditRun {
+  id              String                 @id @default(uuid())
+  organisationId  String
+  createdByUserId String
+  status          MigrationAuditStatus   @default(PENDING)
+  /// sha256 of the concatenated source file bytes, in a fixed file order.
+  inputHash       String
+  /// { owners: s3Key, animals: s3Key, appointments: s3Key, attachments?: s3Key }
+  sourceFiles     Json
+  /// Per-section counts once COMPLETED: records seen, supported, not
+  /// assessed, duplicates, orphans. Absent while PENDING/RUNNING.
+  summary         Json?
+  errorMessage    String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  completedAt     DateTime?
+  issues          MigrationAuditIssue[]
+
+  @@index([organisationId, createdAt])
+  @@index([organisationId, inputHash])
+}
+
+/// One finding, pointing at the exact input row it came from. Never stores
+/// the row's raw cell content - a code plus row/column reference is enough to
+/// review, and it keeps an untrusted spreadsheet cell out of this table.
+model MigrationAuditIssue {
+  id          String                 @id @default(uuid())
+  auditRunId  String
+  auditRun    MigrationAuditRun      @relation(fields: [auditRunId], references: [id], onDelete: Cascade)
+  section     MigrationAuditSection
+  severity    MigrationAuditSeverity
+  code        String
+  diagnostics String
+  sourceFile  String
+  rowNumber   Int?
+  createdAt   DateTime               @default(now())
+
+  @@index([auditRunId])
+  @@index([auditRunId, section, severity])
+}
+
 model LabResultSyncState {
   id            String    @id @default(uuid())
   provider      String    @unique
