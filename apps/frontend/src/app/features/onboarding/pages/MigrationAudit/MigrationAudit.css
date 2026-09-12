@@ -1,0 +1,160 @@
+/**
+ * Migration-audit review UI (#3057), the frontend follow-up to #3056's
+ * read-only API. Card frame (background/border/radius/shadow) comes from the
+ * shared `.yc-card-surface` class in globals.css - these rules only add
+ * layout, same split as DeveloperFormDraftImport.css.
+ */
+
+.MigrationAudit-intro {
+  margin: 8px 0 24px;
+  max-width: 640px;
+}
+
+.MigrationAudit-error {
+  margin-bottom: 16px;
+  color: var(--color-text-error);
+}
+
+/* Upload step ---------------------------------------------------------------- */
+
+.MigrationAudit-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 640px;
+  padding: 20px 22px;
+}
+
+.MigrationAudit-limits {
+  margin: 0;
+}
+
+.MigrationAudit-fileList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.MigrationAudit-fileRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--color-inset);
+  border: 1px solid var(--divider);
+  border-radius: 12px;
+}
+
+.MigrationAudit-fileHeading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.MigrationAudit-columns {
+  margin: 0;
+}
+
+.MigrationAudit-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.MigrationAudit-badge--required {
+  background: var(--status-completed-bg);
+  color: var(--status-completed-text);
+  border-color: var(--status-completed-border);
+}
+
+.MigrationAudit-badge--optional {
+  background: var(--color-inset);
+  color: var(--color-text-secondary);
+  border-color: var(--divider);
+}
+
+/* Review ---------------------------------------------------------------------- */
+
+.MigrationAudit-progress {
+  display: block;
+  padding: 18px 20px;
+}
+
+.MigrationAudit-failed {
+  padding: 18px 20px;
+}
+
+.MigrationAudit-review {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 780px;
+}
+
+.MigrationAudit-summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.MigrationAudit-summaryCard {
+  padding: 16px 18px;
+}
+
+.MigrationAudit-summaryStats {
+  margin: 10px 0 0;
+  display: flex;
+  gap: 18px;
+}
+
+.MigrationAudit-summaryStats dt {
+  margin: 0;
+}
+
+.MigrationAudit-summaryStats dd {
+  margin: 2px 0 0;
+}
+
+.MigrationAudit-findings {
+  padding: 18px 20px;
+}
+
+.MigrationAudit-findingGroup + .MigrationAudit-findingGroup {
+  margin-top: 18px;
+}
+
+.MigrationAudit-findingGroupTitle {
+  margin: 0 0 8px;
+}
+
+.MigrationAudit-findingList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.MigrationAudit-findingList li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  background: var(--color-inset);
+  border: 1px solid var(--divider);
+  border-radius: 10px;
+}
+
+.MigrationAudit-findingRow {
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
