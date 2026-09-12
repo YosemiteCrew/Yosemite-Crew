@@ -149,7 +149,7 @@ type Story = StoryObj<typeof meta>;
 export const Closed: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole('textbox', { name: FIELD })).toHaveValue('');
+    await expect(canvas.getByRole('combobox', { name: FIELD })).toHaveValue('');
     await expect(canvas.queryByLabelText(RESULTS)).not.toBeInTheDocument();
     await expect(
       within(canvas.getByRole('list', { name: 'Dentistry services' })).queryAllByRole('listitem')
@@ -161,7 +161,7 @@ export const DropdownOpen: Story = {
   name: 'Dropdown open',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
+    await userEvent.click(canvas.getByRole('combobox', { name: FIELD }));
     const results = within(await canvas.findByLabelText(RESULTS));
     await expect(results.getByRole('option', { name: 'General Consult' })).toBeInTheDocument();
     await expect(
@@ -174,7 +174,7 @@ export const PickFromCatalogue: Story = {
   name: 'Pick from the catalogue',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const field = canvas.getByRole('textbox', { name: FIELD });
+    const field = canvas.getByRole('combobox', { name: FIELD });
     await userEvent.click(field);
     await userEvent.click(canvas.getByRole('option', { name: 'Tooth Extraction' }));
 
@@ -202,7 +202,7 @@ export const CreateCustom: Story = {
   name: 'Create a custom service',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const field = canvas.getByRole('textbox', { name: FIELD });
+    const field = canvas.getByRole('combobox', { name: FIELD });
     await userEvent.click(field);
     await userEvent.type(field, 'feline dental radiographs');
     await userEvent.click(
@@ -239,7 +239,7 @@ export const AlreadyAdded: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const field = canvas.getByRole('textbox', { name: FIELD });
+    const field = canvas.getByRole('combobox', { name: FIELD });
     const chips = within(canvas.getByRole('list', { name: 'Dentistry services' }));
     await expect(chips.getAllByRole('listitem')).toHaveLength(2);
 

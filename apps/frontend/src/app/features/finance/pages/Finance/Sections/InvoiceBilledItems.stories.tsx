@@ -196,8 +196,8 @@ export const MissingAmounts: Story = {
     /* Both money cells fall back through `?? 0` into `formatMoney`, which means
        a FORMATTED zero rather than a blank cell or the literal "0". Read as
        exact text: `toHaveTextContent('0')` would also pass on "£10". */
-    await expect(row.children[2].textContent).toBe('£0');
-    await expect(row.children[3].textContent).toBe('£0');
+    await expect(row.children[2].textContent).toBe('£0.00');
+    await expect(row.children[3].textContent).toBe('£0.00');
 
     /* And it is the invoice's currency, not a hardcoded dollar. This component
        is the one place in the drawer that formats a per-line figure, so a
