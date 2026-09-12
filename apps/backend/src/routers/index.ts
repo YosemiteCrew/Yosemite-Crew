@@ -24,6 +24,7 @@ import ratingRouter from "./organisationRating.router";
 import invoiceRouter from "./invoice.router";
 import formRouter from "./form.router";
 import formAssignmentRouter from "./form-assignment.router";
+import formDraftImportRouter from "./formDraftImport.router";
 import templateRouter from "./template.router";
 import templateFhirRouter from "./template.fhir.router";
 import renderedDocumentFhirRouter from "./rendered-document.fhir.router";
@@ -173,6 +174,7 @@ export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/invoice`, invoiceRouter);
   app.use(`/fhir/v1/form`, formRouter);
   app.use(`/v1/forms`, formAssignmentRouter);
+  app.use(`/v1/form-draft-imports`, formDraftImportRouter);
   app.use(`/fhir/v1/template`, templateFhirRouter);
   app.use(`/fhir/v1/rendered-document`, renderedDocumentFhirRouter);
   app.use(`/fhir/v1/task`, taskFhirRouter);
