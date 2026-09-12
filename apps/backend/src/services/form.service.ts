@@ -29,6 +29,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { TemplateService } from "src/services/template.service";
+import { hasCompanionFeature } from "src/middlewares/companion-access";
 
 export class FormServiceError extends Error {
   constructor(
@@ -505,12 +506,10 @@ const assertTemplateSubmittableByParent = async (params: {
       select: { patient: true },
     });
 
-    if (
-      !appointment ||
-      resolveAppointmentParentId(appointment) !== params.parentId
-    ) {
+    if (!appointment) {
       throw new FormServiceError("Forbidden", 403);
     }
+    await assertParentCanViewAppointment(appointment, params.parentId);
   }
 
   // With an appointment the parent link is already proven above, so the
@@ -853,6 +852,40 @@ const resolveAppointmentParentId = (
 
   const parentId = (parent as { id?: unknown }).id;
   return typeof parentId === "string" ? parentId : undefined;
+};
+
+const resolveAppointmentPatientId = (
+  appointment: { patient?: unknown } | null | undefined,
+) => {
+  const patient = appointment?.patient;
+  if (!patient || typeof patient !== "object") return undefined;
+  const patientId = (patient as { id?: unknown }).id;
+  return typeof patientId === "string" ? patientId : undefined;
+};
+
+const assertParentCanViewAppointment = async (
+  appointment: { patient?: unknown },
+  parentId: string,
+) => {
+  const patientId = resolveAppointmentPatientId(appointment);
+  if (!patientId) throw new FormServiceError("Forbidden", 403);
+
+  const link = await prisma.parentPatient.findFirst({
+    where: {
+      parentId,
+      patientId,
+      status: "ACTIVE",
+      role: { in: ["PRIMARY", "CO_PARENT"] },
+    },
+    select: { role: true, permissions: true },
+  });
+
+  if (
+    !link ||
+    !hasCompanionFeature(link.role, link.permissions, "appointments")
+  ) {
+    throw new FormServiceError("Forbidden", 403);
+  }
 };
 
 // Helpers
@@ -1694,13 +1727,7 @@ export const FormService = {
     }
 
     if (params.viewerParentId) {
-      const appointmentParentId = resolveAppointmentParentId(appointment);
-      if (
-        !appointmentParentId ||
-        appointmentParentId !== params.viewerParentId
-      ) {
-        throw new FormServiceError("Forbidden", 403);
-      }
+      await assertParentCanViewAppointment(appointment, params.viewerParentId);
 
       try {
         await FormAssignmentService.markViewedForAppointment({

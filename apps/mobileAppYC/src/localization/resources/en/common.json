@@ -371,7 +371,14 @@
     "chatLockedTitle": "Chat not open yet",
     "chatLockedBody": "Chat opens a day before your appointment.\n\nAppointment: {{appointmentTime}}\nOpens in: {{hours}}h {{minutes}}m",
     "chatUnavailableTitle": "Chat closed",
-    "chatUnavailableBody": "This appointment has ended and chat is no longer available."
+    "chatUnavailableBody": "This appointment has ended and chat is no longer available.",
+    "visitPreparation": {
+      "title": "Before your visit",
+      "source": "Instructions from {{practice}}",
+      "unavailable": "Preparation instructions are unavailable. Contact the practice if you need guidance before this visit.",
+      "paperworkTitle": "Assigned paperwork",
+      "noPaperwork": "No paperwork is assigned for this appointment."
+    }
   },
   "account": {
     "opensInBrowser": "Opens in your browser, outside the app",
