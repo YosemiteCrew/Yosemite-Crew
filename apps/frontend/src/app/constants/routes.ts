@@ -81,6 +81,12 @@ export const appRoutes: RouteItem[] = [
 export const devRoutes: RouteItem[] = [
   { name: 'Dashboard', href: '/developers/home' },
   { name: 'API Keys', href: '/developers/api-keys' },
+  {
+    name: 'Form Draft Import',
+    href: '/developers/form-draft-import',
+    verify: true,
+    requiredAnyPermissions: [PERMISSIONS.FORMS_VIEW_ANY],
+  },
   { name: 'Billing', href: '/developers/billing' },
   { name: 'Website - Builder', href: '/developers/website-builder' },
   { name: 'Plugins', href: '/developers/plugins' },
