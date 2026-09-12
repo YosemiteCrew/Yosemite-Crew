@@ -118,4 +118,80 @@ describe('DocsSearch', () => {
     });
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
+
+  it('selects results with the keyboard and activates the selected link', async () => {
+    mockIndex();
+    render(<DocsSearch />);
+    const input = screen.getByRole('combobox');
+    await act(async () => {
+      fireEvent.focus(input);
+    });
+    fireEvent.change(input, { target: { value: 'api' } });
+
+    const option = await screen.findByRole('option', { name: /User API/ });
+    const click = jest.spyOn(option, 'click').mockImplementation(() => undefined);
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+
+    expect(option).toHaveAttribute('aria-selected', 'true');
+    expect(input).toHaveAttribute('aria-activedescendant', option.id);
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(click).toHaveBeenCalledTimes(1);
+  });
+
+  it('clamps arrow navigation and resets selection when the query changes', async () => {
+    mockIndex();
+    render(<DocsSearch />);
+    const input = screen.getByRole('combobox');
+    await act(async () => {
+      fireEvent.focus(input);
+    });
+    fireEvent.change(input, { target: { value: 'i' } });
+    const options = await screen.findAllByRole('option');
+
+    fireEvent.keyDown(input, { key: 'End' });
+    expect(options.at(-1)).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(options.at(-1)).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(input, { key: 'Home' });
+    expect(options[0]).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(input, { key: 'ArrowUp' });
+    expect(options[0]).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.change(input, { target: { value: 'user' } });
+    await waitFor(() => expect(input).not.toHaveAttribute('aria-activedescendant'));
+    expect(screen.getByRole('option')).toHaveAttribute('aria-selected', 'false');
+  });
+
+  it('retries a failed load once and preserves the query', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 500 })
+      .mockResolvedValueOnce({ ok: true, json: async () => INDEX }) as unknown as typeof fetch;
+
+    render(<DocsSearch />);
+    const input = screen.getByRole('combobox');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'user' } });
+    const retry = await screen.findByRole('button', { name: 'Retry' });
+    fireEvent.click(retry);
+
+    expect(await screen.findByRole('option', { name: /User API/ })).toBeInTheDocument();
+    expect(input).toHaveValue('user');
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('deduplicates repeated load attempts while a request is pending', () => {
+    global.fetch = jest
+      .fn()
+      .mockReturnValue(new Promise(() => undefined)) as unknown as typeof fetch;
+    render(<DocsSearch />);
+    const input = screen.getByRole('combobox');
+
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+    fireEvent.focus(input);
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
 });
