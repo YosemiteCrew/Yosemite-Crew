@@ -284,9 +284,11 @@ export const AllDocumentsTable = ({
                 className="flex items-start gap-3 rounded-2xl border border-card-border p-4"
               >
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
-                  <span className="truncate font-medium text-text-primary" title={document.title}>
-                    {document.title}
-                  </span>
+                  <GlassTooltip content={document.title} openOnClick className="w-full min-w-0">
+                    <span className="block truncate font-medium text-text-primary">
+                      {document.title}
+                    </span>
+                  </GlassTooltip>
                   <div className="flex flex-wrap items-center gap-2">
                     <DocumentSourcePill source={document.sourceKind} />
                     <span className="text-body-4 text-text-primary">

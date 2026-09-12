@@ -23,7 +23,11 @@ const meta = {
           'exercised by rendering a button. The stories now open the bubble in a `play` function, ' +
           'so the placement logic is under visual review.\n\n' +
           'Both entry paths are covered: hover, and keyboard focus via `focusin`, which is the one ' +
-          'a keyboard user actually gets.',
+          'a keyboard user actually gets.\n\n' +
+          '`openOnClick` adds a third: tap opens, and a tap outside the trigger or the bubble ' +
+          'closes it. Off by default because a trigger that already does something on click ' +
+          '(navigate, submit) would have that first tap consumed by the tooltip instead - only ' +
+          'set it on a trigger whose sole purpose is revealing `content`.',
       },
     },
   },
@@ -146,6 +150,25 @@ export const LongContent: Story = {
           'can never show.',
       },
     },
+  },
+};
+
+export const OpenOnClick: Story = {
+  name: 'Opened by tap (touch)',
+  args: { side: 'top', content: 'Reachable without hover', openOnClick: true },
+  render: (args) => (
+    <GlassTooltip {...args}>
+      <TriggerButton>Tap me</TriggerButton>
+    </GlassTooltip>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // Same dispatch-until-listening pattern as openOnHover: the click listener
+    // is bound in an effect that may not have flushed when play starts.
+    const bubble = await openGlassTooltip(canvas.getByRole('button', { name: 'Tap me' }), {
+      via: 'click',
+    });
+    await expect(bubble).toHaveTextContent('Reachable without hover');
   },
 };
 
