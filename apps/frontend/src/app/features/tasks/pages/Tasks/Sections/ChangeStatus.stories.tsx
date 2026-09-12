@@ -291,7 +291,7 @@ export const ChoosingAStatus: Story = {
     const dialog = await openDialog(canvasElement);
     const panel = await openStatusMenu(dialog, 'Pending');
 
-    await userEvent.click(within(panel).getByRole('button', { name: 'Completed' }));
+    await userEvent.click(within(panel).getByRole('option', { name: 'Completed' }));
 
     // The selection moves the trigger label and closes the panel. Both matter:
     // `LabelDropdown` keeps its own `internalSelected`, so a controlled parent
@@ -327,7 +327,7 @@ export const CancelLeavesTheTask: Story = {
     // Move the selection first, so Cancel has something to abandon. Cancelling an
     // untouched dialog would close either way and prove nothing about discarding.
     const panel = await openStatusMenu(dialog, 'Pending');
-    await userEvent.click(within(panel).getByRole('button', { name: 'Cancelled' }));
+    await userEvent.click(within(panel).getByRole('option', { name: 'Cancelled' }));
     await expect(
       within(dialog).getByRole('button', { name: 'Task status: Cancelled' })
     ).toBeInTheDocument();
