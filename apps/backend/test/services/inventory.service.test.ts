@@ -20,6 +20,7 @@ import {
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    $transaction: jest.fn(),
     organizationBilling: {
       findUnique: jest.fn(),
     },
@@ -82,6 +83,10 @@ jest.mock("../../src/services/inventory.catalog", () => ({
 describe("Inventory service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      async (callback: unknown) =>
+        typeof callback === "function" ? callback(prisma) : undefined,
+    );
     (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
       currency: "usd",
     });
@@ -1309,6 +1314,11 @@ describe("Inventory service guards, helpers, and branch paths", () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      async (callback: unknown) =>
+        typeof callback === "function" ? callback(prisma) : undefined,
+    );
 
     mockOf(calculateInventoryStockStatus).mockReturnValue("In stock");
     mockOf(calculatePricingMetrics).mockReturnValue({
@@ -2630,11 +2640,68 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       );
 
       expect(mockOf(prisma.inventoryBatch.update).mock.calls).toEqual([
-        [{ where: { id: "first" }, data: { quantity: 0 } }],
-        [{ where: { id: "second" }, data: { quantity: 3 } }],
+        [{ where: { id: "first" }, data: { quantity: { decrement: 4 } } }],
+        [{ where: { id: "second" }, data: { quantity: { decrement: 2 } } }],
       ]);
       expect(updated.onHand).toBe(10);
       expect(updated._id).toBe("item-1");
+    });
+
+    it("logs a stock movement for every batch it drains", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 10 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany)
+        .mockResolvedValueOnce([
+          batchRow({ id: "batch-a", quantity: 4 }),
+          batchRow({ id: "batch-b", quantity: 6 }),
+        ])
+        .mockResolvedValueOnce([
+          batchRow({ id: "batch-a", quantity: 0 }),
+          batchRow({ id: "batch-b", quantity: 4 }),
+        ]);
+      mockOf(prisma.inventoryItem.update).mockResolvedValue(
+        itemRow({ onHand: 4 }),
+      );
+
+      await InventoryService.consumeStock(
+        {
+          itemId: "item-1",
+          quantity: 6,
+          reason: "APPOINTMENT_USAGE",
+          referenceId: "appt-1",
+        },
+        "org-1",
+      );
+
+      expect(mockOf(prisma.inventoryStockMovement.create).mock.calls).toEqual([
+        [
+          {
+            data: {
+              itemId: "item-1",
+              batchId: "batch-a",
+              change: -4,
+              reason: "APPOINTMENT_USAGE",
+              referenceId: "appt-1",
+              userId: undefined,
+              createdAt: expect.any(Date),
+            },
+          },
+        ],
+        [
+          {
+            data: {
+              itemId: "item-1",
+              batchId: "batch-b",
+              change: -2,
+              reason: "APPOINTMENT_USAGE",
+              referenceId: "appt-1",
+              userId: undefined,
+              createdAt: expect.any(Date),
+            },
+          },
+        ],
+      ]);
     });
   });
 
