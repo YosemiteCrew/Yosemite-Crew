@@ -64,9 +64,18 @@ export const getStockErrors = (
   return errs;
 };
 
+const SLASH_DATE_SHAPE = /^\d{2}\/\d{2}\/\d{4}$/;
+const ISO_DATE_SHAPE = /^\d{4}-\d{2}-\d{2}(?:$|T)/;
+
 export const parseDate = (value?: string): Date | null => {
   const parts = parseInventoryCalendarDateParts(value);
-  return parts ? new Date(parts.year, parts.month - 1, parts.day) : null;
+  if (parts) return new Date(parts.year, parts.month - 1, parts.day);
+  // A value shaped like dd/mm/yyyy or yyyy-mm-dd that failed calendar
+  // validation (e.g. 2026-02-31) must stay rejected, not roll over via the
+  // native Date fallback below.
+  if (!value || SLASH_DATE_SHAPE.test(value) || ISO_DATE_SHAPE.test(value)) return null;
+  const fallback = new Date(value);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
 };
 
 export const formatDate = (date: Date) => {
