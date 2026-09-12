@@ -3,7 +3,7 @@ import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import {
   eventsForDayHour,
-  getWeekDays,
+  getWeekDaysInPreferredTimeZone,
   HOURS_IN_DAY,
 } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import {
@@ -354,7 +354,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   availabilityLoaded = false,
   skipAutoScroll = false,
 }) => {
-  const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
+  const days = useMemo<Date[]>(() => getWeekDaysInPreferredTimeZone(weekStart), [weekStart]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const onWheelBoundary = useScrollBoundaryWheel();
   const onWheelHorizontal = useWheelToHorizontalScroll();
