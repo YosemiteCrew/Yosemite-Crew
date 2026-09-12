@@ -36,6 +36,27 @@ const isTerminal = (status: MigrationAuditRun['status']) =>
   status === 'COMPLETED' || status === 'FAILED';
 
 /**
+ * The chosen files, the run and the error banner all belong to the
+ * organisation they were produced for, so they carry that organisation's id
+ * and are read back through it. Switching organisations must never leave the
+ * previous one's report on screen, nor keep polling its run id through the
+ * newly selected organisation's endpoint.
+ */
+type AuditState = {
+  orgId: string | null;
+  files: Partial<Record<MigrationAuditFileRole, File>>;
+  run: MigrationAuditRun | null;
+  error: string | null;
+};
+
+const emptyState = (orgId: string | null): AuditState => ({
+  orgId,
+  files: {},
+  run: null,
+  error: null,
+});
+
+/**
  * Review surface for #3056's read-only migration-audit API: upload the
  * source CSVs directly to S3 via presigned URLs, create the run, poll until
  * it leaves PENDING/RUNNING, then hand the result to MigrationAuditReview.
@@ -46,11 +67,17 @@ const isTerminal = (status: MigrationAuditRun['status']) =>
 const MigrationAudit = () => {
   const primaryOrgId = useOrgStore((state) => state.primaryOrgId);
 
-  const [files, setFiles] = useState<Partial<Record<MigrationAuditFileRole, File>>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [run, setRun] = useState<MigrationAuditRun | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [stored, setStored] = useState<AuditState>(() => emptyState(primaryOrgId));
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // React re-renders before committing a state update made during render, so
+  // another organisation's leftovers are dropped without ever painting and
+  // without the effects below ever seeing them.
+  if (stored.orgId !== primaryOrgId) {
+    setStored(emptyState(primaryOrgId));
+  }
+  const { files, run, error } = stored;
 
   const stopPolling = useCallback(() => {
     if (pollTimer.current !== null) {
@@ -63,11 +90,13 @@ const MigrationAudit = () => {
 
   useEffect(() => {
     if (!primaryOrgId || !run || isTerminal(run.status)) return;
+    const orgId = primaryOrgId;
+    const runId = run.id;
 
     const interval = setInterval(async () => {
       try {
-        const refreshed = await getMigrationAuditRun(primaryOrgId, run.id);
-        setRun(refreshed);
+        const refreshed = await getMigrationAuditRun(orgId, runId);
+        setStored((prev) => (prev.orgId === orgId ? { ...prev, run: refreshed } : prev));
         if (isTerminal(refreshed.status)) stopPolling();
       } catch (err) {
         logger.error('Failed to poll migration audit run', err);
@@ -83,32 +112,34 @@ const MigrationAudit = () => {
   }, [primaryOrgId, run?.id, run?.status, stopPolling]);
 
   const handleFileChange = (role: MigrationAuditFileRole, file: File | null) => {
-    setFiles((prev) => {
-      const next = { ...prev };
-      if (file) {
-        next[role] = file;
-      } else {
-        delete next[role];
-      }
-      return next;
-    });
+    const next = { ...files };
+    if (file) {
+      next[role] = file;
+    } else {
+      delete next[role];
+    }
+    setStored({ orgId: primaryOrgId, files: next, run, error });
   };
 
   const canSubmit = REQUIRED_ROLES.every((role) => Boolean(files[role]));
 
   const handleSubmit = async () => {
     if (!primaryOrgId || !canSubmit) return;
+    // Everything this submit writes back is tagged with the organisation it
+    // was started for, so a switch mid-upload leaves the result inert.
+    const orgId = primaryOrgId;
+    const submittedFiles = files;
     setSubmitting(true);
-    setError(null);
+    setStored({ orgId, files: submittedFiles, run: null, error: null });
     try {
       const uploads = MIGRATION_AUDIT_SECTIONS.flatMap((section) => {
-        const file = files[section.role];
+        const file = submittedFiles[section.role];
         if (!file) return [];
         return [{ role: section.role, file }];
       });
       const uploadedFiles = await Promise.all(
         uploads.map(async ({ role, file }) => {
-          const { url, key } = await getMigrationAuditUploadUrl(primaryOrgId);
+          const { url, key } = await getMigrationAuditUploadUrl(orgId);
           await uploadMigrationAuditFile(url, file);
           return [role, key] as const;
         })
@@ -117,19 +148,29 @@ const MigrationAudit = () => {
         Record<MigrationAuditFileRole, string>
       >;
 
-      const created = await createMigrationAuditRun(primaryOrgId, sourceKeys);
-      setRun({
-        id: created.id,
-        status: created.status,
-        summary: null,
-        errorMessage: null,
-        createdAt: new Date().toISOString(),
-        completedAt: null,
-        outcome: { resourceType: 'OperationOutcome', issue: [] },
+      const created = await createMigrationAuditRun(orgId, sourceKeys);
+      setStored({
+        orgId,
+        files: submittedFiles,
+        error: null,
+        run: {
+          id: created.id,
+          status: created.status,
+          summary: null,
+          errorMessage: null,
+          createdAt: new Date().toISOString(),
+          completedAt: null,
+          outcome: { resourceType: 'OperationOutcome', issue: [] },
+        },
       });
     } catch (err) {
       logger.error('Failed to start migration audit', err);
-      setError('Could not start the migration audit. Please try again.');
+      setStored({
+        orgId,
+        files: submittedFiles,
+        run: null,
+        error: 'Could not start the migration audit. Please try again.',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -137,9 +178,7 @@ const MigrationAudit = () => {
 
   const handleStartNew = () => {
     stopPolling();
-    setRun(null);
-    setFiles({});
-    setError(null);
+    setStored(emptyState(primaryOrgId));
   };
 
   return (
