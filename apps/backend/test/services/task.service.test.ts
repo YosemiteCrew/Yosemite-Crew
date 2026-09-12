@@ -2632,36 +2632,93 @@ describe("TaskService", () => {
       expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
     });
 
-    it("cancels every occurrence for scope=ALL without touching the master recurrence", async () => {
+    it("cancels every occurrence for scope=ALL and ends the master's recurrence", async () => {
+      // The recurrence engine no longer infers "series stopped" from the
+      // master row's own occurrence status (cancelling only occurrence #1
+      // must not stop the series - see task.recurrence.engine.ts), so an
+      // ALL-scope cancel has to end the series explicitly via
+      // recurrence.endDate, the same mechanism THIS_AND_FOLLOWING uses.
+      const fixedNow = new Date("2026-01-10T00:00:00.000Z");
+      jest.useFakeTimers({ now: fixedNow });
+      try {
+        mockedPrisma.task.findFirst.mockResolvedValueOnce(
+          ownedTask({
+            assignedTo: "user-1",
+            recurrence: { type: "DAILY", isMaster: true },
+          }) as never,
+        );
+        mockedPrisma.task.findMany.mockResolvedValueOnce([
+          { id: "task-1", dueAt, createdBy: "user-1", assignedTo: "user-1" },
+          {
+            id: "task-2",
+            dueAt: new Date("2026-01-02T12:00:00.000Z"),
+            createdBy: "user-1",
+            assignedTo: "user-1",
+          },
+        ] as never);
+        const txUpdateMany = jest.fn().mockResolvedValue({ count: 2 });
+        const txUpdate = jest.fn().mockResolvedValue({});
+        const txFindUnique = jest.fn().mockResolvedValue({
+          id: "task-1",
+          recurrence: { type: "DAILY", isMaster: true },
+        });
+        mockedPrisma.$transaction.mockImplementationOnce(
+          async (cb: (tx: unknown) => Promise<unknown>) =>
+            cb({
+              task: {
+                updateMany: txUpdateMany,
+                update: txUpdate,
+                findUnique: txFindUnique,
+              },
+            }),
+        );
+
+        await TaskService.deleteTask("task-1", "user-1", "ALL", "org-1");
+
+        expect(txUpdateMany).toHaveBeenCalledWith({
+          where: { id: { in: ["task-1", "task-2"] }, organisationId: "org-1" },
+          data: { status: "CANCELLED" },
+        });
+        expect(txFindUnique).toHaveBeenCalledWith({
+          where: { id: "task-1" },
+        });
+        expect(txUpdate).toHaveBeenCalledWith({
+          where: { id: "task-1" },
+          data: {
+            recurrence: {
+              type: "DAILY",
+              isMaster: true,
+              masterTaskId: undefined,
+              cronExpression: undefined,
+              endDate: fixedNow,
+            },
+          },
+        });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it("cancelling only the first occurrence (scope=THIS) on a master row does not touch its recurrence", async () => {
+      // Regression for #3181: the master row IS occurrence #1, so a plain
+      // "THIS" cancel on it must only flip that row's own status and must
+      // never write recurrence.endDate - otherwise the series stops
+      // generating any further occurrences.
       mockedPrisma.task.findFirst.mockResolvedValueOnce(
         ownedTask({
           assignedTo: "user-1",
           recurrence: { type: "DAILY", isMaster: true },
         }) as never,
       );
-      mockedPrisma.task.findMany.mockResolvedValueOnce([
-        { id: "task-1", dueAt, createdBy: "user-1", assignedTo: "user-1" },
-        {
-          id: "task-2",
-          dueAt: new Date("2026-01-02T12:00:00.000Z"),
-          createdBy: "user-1",
-          assignedTo: "user-1",
-        },
-      ] as never);
-      const txUpdateMany = jest.fn().mockResolvedValue({ count: 2 });
-      const txUpdate = jest.fn();
-      mockedPrisma.$transaction.mockImplementationOnce(
-        async (cb: (tx: unknown) => Promise<unknown>) =>
-          cb({ task: { updateMany: txUpdateMany, update: txUpdate } }),
-      );
+      mockedPrisma.task.update.mockResolvedValueOnce({} as never);
 
-      await TaskService.deleteTask("task-1", "user-1", "ALL", "org-1");
+      await TaskService.deleteTask("task-1", "user-1");
 
-      expect(txUpdateMany).toHaveBeenCalledWith({
-        where: { id: { in: ["task-1", "task-2"] }, organisationId: "org-1" },
+      expect(mockedPrisma.task.update).toHaveBeenCalledWith({
+        where: { id: "task-1" },
         data: { status: "CANCELLED" },
       });
-      expect(txUpdate).not.toHaveBeenCalled();
+      expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
     });
 
     it("caps the master recurrence and cancels only future rows for THIS_AND_FOLLOWING", async () => {
