@@ -458,7 +458,7 @@ export const Verified: Story = {
     // query keyed to ITS OWN width, not the viewport, so only the section
     // header is asserted here rather than which of the two layouts a
     // particular column width happens to select.
-    await expect(canvas.getByText('Specialties, services & packages')).toBeVisible();
+    await expect(canvas.getByText('Specialities, services & packages')).toBeVisible();
 
     // The rest of the verified-only content further down the page.
     await expect(canvas.getByRole('heading', { name: 'Linked medical devices' })).toBeVisible();
@@ -489,7 +489,7 @@ export const Unverified: Story = {
     await expect(canvas.getByText('PENDING')).toBeVisible();
 
     // The reduced branch: specialities and the delete control, nothing else.
-    await expect(canvas.getByText('Specialties, services & packages')).toBeVisible();
+    await expect(canvas.getByText('Specialities, services & packages')).toBeVisible();
     await expect(canvas.getByRole('button', { name: 'Delete organization' })).toBeEnabled();
 
     // None of the verified-only sections mount at all - not hidden, absent.
