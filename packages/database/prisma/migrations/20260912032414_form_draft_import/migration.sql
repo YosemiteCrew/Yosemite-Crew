@@ -32,3 +32,13 @@ ALTER TABLE "FormDraftImport" ADD CONSTRAINT "FormDraftImport_sourceFormId_fkey"
 
 -- AddForeignKey
 ALTER TABLE "FormDraftImport" ADD CONSTRAINT "FormDraftImport_draftFormId_fkey" FOREIGN KEY ("draftFormId") REFERENCES "Form"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- deployed-code-survives: this table is created earlier in this same
+--   migration, so no code deployed before it ever queried it - there is no
+--   existing reader for the RLS enable to take rows away from. The API
+--   endpoints that read/write this table ship in this same PR and connect
+--   as the owning role, which bypasses RLS, matching every other
+--   ENABLE ROW LEVEL SECURITY in this migration set (e.g.
+--   MigrationAuditRun, 20260912004235).
+-- Deny direct Supabase PostgREST access; the API connects as the owning role.
+ALTER TABLE "FormDraftImport" ENABLE ROW LEVEL SECURITY;
