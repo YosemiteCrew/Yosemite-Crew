@@ -24,10 +24,18 @@ export const TaskReminderEngine = {
   async run() {
     const nowUtc = dayjs.utc();
 
+    // Bound the scan with a lookback grace window rather than an upper
+    // bound of "now": a `dueAt >= now` filter excludes a task the instant
+    // its due time passes, which for a zero-offset reminder (fire at due
+    // time) means no worker tick ever sees it - the tick just before due
+    // finds it too early, and the tick just after finds it already
+    // filtered out. `reminder.scheduledNotificationId` (checked below)
+    // is what actually stops a reminder from resending, so the query only
+    // needs to keep the scan bounded, not gate delivery.
     const tasks = await prisma.task.findMany({
       where: {
         status: { in: ["PENDING", "IN_PROGRESS"] },
-        dueAt: { gte: nowUtc.toDate() },
+        dueAt: { gte: nowUtc.subtract(1, "day").toDate() },
       },
     });
 
