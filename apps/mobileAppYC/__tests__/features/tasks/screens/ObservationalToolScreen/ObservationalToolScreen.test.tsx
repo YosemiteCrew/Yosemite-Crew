@@ -137,7 +137,7 @@ jest.mock('../../../../../src/hooks', () => ({
         body12: {},
         labelXxsBold: {},
         captionBoldSatoshi: {},
-        h6Clash: {},
+        h6: {},
         paragraphBold: {},
         body13: {},
         button: {},

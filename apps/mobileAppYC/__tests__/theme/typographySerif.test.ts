@@ -1,6 +1,12 @@
 import {typography, fonts} from '@/theme/typography';
 
 describe('serif display typography', () => {
+  it('does not expose the retired Clash family', () => {
+    expect(Object.values(fonts)).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/Clash/i)]),
+    );
+  });
+
   it('registers the Newsreader family constants', () => {
     expect(fonts.NEWSREADER_REGULAR).toBe('Newsreader-Regular');
     expect(fonts.NEWSREADER_ITALIC).toBe('Newsreader-Italic');

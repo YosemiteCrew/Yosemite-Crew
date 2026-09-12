@@ -190,17 +190,17 @@ const createStyles = (theme: any) =>
       width: '100%',
     },
     primaryButtonText: {
-      ...theme.typography.buttonH6Clash19,
+      ...theme.typography.button19,
       textAlign: 'center',
       color: theme.colors.ctaText,
     },
     secondaryButtonText: {
-      ...theme.typography.buttonH6Clash19,
+      ...theme.typography.button19,
       textAlign: 'center',
       color: theme.colors.secondary,
     },
     cancelButtonText: {
-      ...theme.typography.buttonH6Clash19,
+      ...theme.typography.button19,
       textAlign: 'center',
       color: theme.colors.secondary,
     },
