@@ -114,7 +114,7 @@ export const CustomActions: Story = {
 export const LongTitle: Story = {
   name: 'Long title beside the action',
   args: {
-    title: 'Specialties, services & packages available for online booking',
+    title: 'Specialities, services & packages available for online booking',
     buttonTitle: 'Manage',
   },
   parameters: {
