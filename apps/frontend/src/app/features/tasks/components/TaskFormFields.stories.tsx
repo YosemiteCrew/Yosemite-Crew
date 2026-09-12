@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 
 import type { Option } from '@/app/features/companions/types/companion';
 import type { Task } from '@/app/features/tasks/types/task';
@@ -134,11 +134,8 @@ const meta = {
           'each branch - last in the two stacks, but *above* Instructions in the chips layout. ' +
           '**The template picker disappears** when `hideTemplatePicker` is set or ' +
           '`templateOptions` is empty, and those two paths are indistinguishable in the output.\n\n' +
-          'Errors are reported inconsistently by the underlying inputs, which is the one ' +
-          'accessibility fact worth knowing here: the task name, due date and time errors are ' +
-          '`role="alert"`, while the category and assignee errors come from `LabelDropdown` and ' +
-          'are announced to nobody. The same `dueAt` error is also passed to two fields, so it ' +
-          'renders - and is announced - twice.',
+          'Every validation message is announced with `role="alert"`. The shared `dueAt` error ' +
+          'is passed to both the date and time fields, so it renders - and is announced - twice.',
       },
     },
   },
@@ -261,7 +258,7 @@ export const DialogTwoColumn: Story = {
 };
 
 export const NewTaskChips: Story = {
-  name: 'Two column with assignee chips - the New task dialog',
+  name: 'Two column with grouped assignee picker - the New task dialog',
   args: {
     twoColumn: true,
     assigneeChips: true,
@@ -294,16 +291,17 @@ export const NewTaskChips: Story = {
     await expect(canvas.queryByText('Assigned to')).not.toBeInTheDocument();
     await expect(canvas.getByText('Assign to')).toBeInTheDocument();
 
-    /* Exactly one chip is pressed, and it is the team chip for the task's current
-       assignee - `audience` decides which list the selection is read against, so a
-       parent whose id happened to match would NOT light up here. Matched on the
-       pressed state and the text rather than the accessible name, because the
-       monogram avatar is not `aria-hidden` and folds its initials into the name. */
-    const chipRow = fieldRoot(canvasElement).children[3] as HTMLElement;
-    const pressed = within(chipRow).getAllByRole('button', { pressed: true });
-    await expect(pressed).toHaveLength(1);
-    await expect(pressed[0]).toHaveTextContent('Dr. Ravi Patel');
-    await expect(within(chipRow).getAllByRole('button')).toHaveLength(3);
+    /* The compact chip row was replaced by one searchable picker. The trigger resolves
+       the current staff assignee, while the portalled list keeps all three grouped
+       choices and marks that assignee as selected. */
+    const trigger = canvas.getByRole('button', { name: 'Assign to: Dr. Ravi Patel' });
+    await userEvent.click(trigger);
+    const listbox = await within(document.body).findByRole('listbox');
+    const options = within(listbox).getAllByRole('option');
+    await expect(options).toHaveLength(3);
+    const selected = options.filter((option) => option.getAttribute('aria-selected') === 'true');
+    await expect(selected).toHaveLength(1);
+    await expect(selected[0]).toHaveTextContent('Dr. Ravi Patel');
 
     /* Due / Time / Repeat share a three-track row and Priority / Reminder a
        two-track one - the demotion of the secondary controls below the core fields
@@ -386,17 +384,14 @@ export const ValidationErrors: Story = {
        a duplication bug if you meet it in a screenshot. */
     await expect(canvas.getAllByText('Due date and time are required')).toHaveLength(2);
 
-    /* Three alerts, not five. The task name, due date and time errors are
-       `role="alert"`; the category and assignee errors come from `LabelDropdown`,
-       which renders them as plain text - visible, red, and announced to nobody.
-       Asserted as a count so that fixing the dropdown flips this deliberately
-       rather than passing quietly. */
+    /* Five alerts: task name, category, assignee, due date and due time. The due
+       message appears twice because both controls receive the same field error. */
     const alerts = canvas.getAllByRole('alert');
-    await expect(alerts).toHaveLength(3);
-    await expect(canvas.getByText('Category is required').closest('[role="alert"]')).toBeNull();
+    await expect(alerts).toHaveLength(5);
+    await expect(canvas.getByText('Category is required').closest('[role="alert"]')).not.toBeNull();
     await expect(
       canvas.getByText('Please select a companion or staff').closest('[role="alert"]')
-    ).toBeNull();
+    ).not.toBeNull();
     await expect(canvas.getByText('Name is required').closest('[role="alert"]')).not.toBeNull();
 
     // The empty task name is a real empty input, not a placeholder-shaped value.

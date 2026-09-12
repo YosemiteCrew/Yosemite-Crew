@@ -498,7 +498,7 @@ export const PermissionDenied: Story = {
     // gated body underneath is swapped for the denied card.
     await expect(await canvas.findByRole('heading', { level: 1, name: 'Tasks (4)' })).toBeVisible();
     await expect(canvas.getByRole('button', { name: 'List' })).toBeVisible();
-    await expect(await canvas.findByText(/You.t have access to Tasks/)).toBeVisible();
+    await expect(await canvas.findByText("You don't have access to Tasks")).toBeVisible();
     await expect(
       canvas.getByText(/Your role \(Owner\) can.t view tasks and assignments\./)
     ).toBeVisible();

@@ -8,8 +8,8 @@ import TextRenderer from './TextRenderer';
 
 type TextareaField = FormField & { type: 'textarea' };
 
-/** `placeholder` is authored in the builder and, as the stories below show, never
-    reaches the runtime control - FormDesc has no placeholder prop at all. */
+/** `placeholder` is authored in the builder and never reaches the runtime control;
+    FormDesc falls back to the field label instead. */
 const HISTORY: TextareaField = {
   id: 'history',
   type: 'textarea',
@@ -73,10 +73,10 @@ const meta = {
           'answers scroll inside the box rather than pushing the rest of the form down the page, ' +
           'which is the behaviour that matters and the one asserted.\n\n' +
           'Two things it does NOT do, both asserted below because both are invisible until ' +
-          'someone relies on them. The authored `placeholder` is dropped - FormDesc accepts no ' +
-          'placeholder prop, so an empty field shows an empty box and nothing else. And FormDesc ' +
-          'hardcodes `required` on the textarea, so a field the schema marks optional is still a ' +
-          'required control in the DOM.',
+          'someone relies on them. The authored `placeholder` is dropped - TextRenderer passes ' +
+          'none, so FormDesc falls back to the field label. And FormDesc defaults `required` on ' +
+          'the textarea, so a field the schema marks optional is still a required control in ' +
+          'the DOM.',
       },
     },
   },
@@ -104,9 +104,9 @@ export const Default: Story = {
     await expect(textarea).toHaveAttribute('name', 'history');
     await expect(textarea).toHaveValue('Reduced appetite for four days.');
 
-    // The builder lets an author write a placeholder for this field; FormDesc has
-    // no placeholder prop, so it never arrives. An empty answer shows a bare box.
-    await expect(textarea).not.toHaveAttribute('placeholder');
+    // The builder lets an author write a placeholder for this field, but TextRenderer
+    // drops it. FormDesc receives no explicit placeholder and falls back to the label.
+    await expect(textarea).toHaveAttribute('placeholder', 'History');
 
     // It emits the string, not the change event. A renderer that forwarded `e`
     // would still "work" until the caller tried to store the value.
@@ -160,13 +160,13 @@ export const MissingLabel: Story = {
   play: async ({ canvasElement }) => {
     const textarea = within(canvasElement).getByRole('textbox');
 
-    /* `field.label || ''` is passed straight through, and FormDesc renders it in
-       both places at once: an empty <label> and `aria-label=""`. An empty
-       aria-label is ignored, the empty label element contributes nothing, so the
-       control ends up with no accessible name and a screen reader announces a
-       bare text area. FormRenderer covers for this by inventing a label from the
-       field id before it gets here - mounted directly, nothing does. */
-    await expect(textarea).toHaveAttribute('aria-label', '');
+    /* `field.label || ''` is passed straight through. FormDesc renders an empty
+       <label> and falls back to an empty placeholder, while Textarea adds no
+       `aria-label`. The empty label contributes nothing, so the control ends up
+       with no accessible name. FormRenderer covers for this by inventing a label
+       from the field id before it gets here - mounted directly, nothing does. */
+    await expect(textarea).not.toHaveAttribute('aria-label');
+    await expect(textarea).toHaveAttribute('placeholder', '');
     const label = canvasElement.querySelector(`label[for="${CSS.escape(textarea.id)}"]`);
     await expect(label).not.toBeNull();
     await expect(label?.textContent).toBe('');
