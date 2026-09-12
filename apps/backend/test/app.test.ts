@@ -1,5 +1,5 @@
-import { IncomingMessage, ServerResponse } from "node:http";
-import type { Socket } from "node:net";
+import { createServer, IncomingMessage, ServerResponse } from "node:http";
+import type { AddressInfo, Socket } from "node:net";
 import { PassThrough } from "node:stream";
 import type { ErrorRequestHandler, Express, RequestHandler } from "express";
 
@@ -113,7 +113,6 @@ async function request(
   (socket as PassThrough & { remoteAddress?: string }).remoteAddress =
     "127.0.0.1";
   const requestSocket = socket as unknown as Socket;
-
   const req = new IncomingMessage(requestSocket);
   req.method = method;
   req.url = path;
@@ -122,7 +121,6 @@ async function request(
   );
   req.socket = requestSocket;
   req.connection = requestSocket;
-
   const res = new ServerResponse(req);
   res.assignSocket(requestSocket);
 
@@ -138,13 +136,15 @@ async function request(
         handle: (request: IncomingMessage, response: ServerResponse) => void;
       }
     ).handle(req, res);
+    req.push(null);
   });
 
   const raw = Buffer.concat(rawChunks).toString("utf8");
   const separator = "\r\n\r\n";
   const splitIndex = raw.indexOf(separator);
   const headerText = splitIndex >= 0 ? raw.slice(0, splitIndex) : raw;
-  const body = splitIndex >= 0 ? raw.slice(splitIndex + separator.length) : "";
+  const responseBody =
+    splitIndex >= 0 ? raw.slice(splitIndex + separator.length) : "";
   const headerLines = headerText.split("\r\n");
   const headersMap: Record<string, string> = {};
 
@@ -159,9 +159,31 @@ async function request(
   return {
     statusCode: res.statusCode,
     headers: headersMap,
-    body,
+    body: responseBody,
     getHeader: (name: string) => headersMap[name.toLowerCase()],
   };
+}
+
+async function withHttpServer<T>(
+  app: ReturnType<typeof createApp>,
+  run: (origin: string) => Promise<T>,
+): Promise<T> {
+  const server = createServer(app);
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+  const address = server.address() as AddressInfo;
+  try {
+    return await run(`http://127.0.0.1:${address.port}`);
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
 }
 
 describe("createApp", () => {
@@ -315,6 +337,7 @@ describe("createApp auth wiring", () => {
     "SUPERTOKENS_DISABLED",
     "SUPERTOKENS_CONNECTION_URI",
     "AUTH_API_DOMAIN",
+    "AUTH_API_BASE_PATH",
     "AUTH_WEBSITE_DOMAIN",
   ];
 
@@ -361,6 +384,160 @@ describe("createApp auth wiring", () => {
 
     expect(mockInitSuperTokens).not.toHaveBeenCalled();
     expect(mockSetAuthService).toHaveBeenCalledWith(null);
+  });
+
+  const signUpBody = (email: string) => ({
+    formFields: [
+      { id: "email", value: email },
+      { id: "password", value: "synthetic-test-value" },
+      { id: "turnstileToken", value: "verified-token" },
+    ],
+  });
+
+  const postSignUp = async (
+    origin: string,
+    path: string,
+    email: string,
+    forwardedFor?: string,
+  ) => {
+    const response = await fetch(`${origin}${path}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: authEnv.AUTH_WEBSITE_DOMAIN,
+        ...(forwardedFor ? { "x-forwarded-for": forwardedFor } : {}),
+      },
+      body: JSON.stringify(signUpBody(email)),
+    });
+    return {
+      statusCode: response.status,
+      body: await response.text(),
+      allowedOrigin: response.headers.get("access-control-allow-origin"),
+      allowsCredentials: response.headers.get(
+        "access-control-allow-credentials",
+      ),
+    };
+  };
+
+  const mountSignUpPassThrough = () => {
+    mockRegisterSuperTokensBeforeRoutes.mockImplementationOnce(
+      (app: Express) => {
+        const authBasePath = process.env.AUTH_API_BASE_PATH ?? "/auth";
+        app.post(
+          [`${authBasePath}/signup`, `${authBasePath}/:tenantId/signup`],
+          (_req, res) => {
+            res.status(204).end();
+          },
+        );
+      },
+    );
+  };
+
+  it("refuses the sixth signup from one IP within the signup window", async () => {
+    Object.assign(process.env, authEnv);
+    mountSignUpPassThrough();
+    const app = createApp();
+    const stack = ((app as unknown as { _router: { stack: Layer[] } })._router
+      .stack ?? []) as Layer[];
+    const signupLayers = stack.filter(
+      (layer) =>
+        Array.isArray(layer.route?.path) &&
+        layer.route.path.includes("/auth/signup"),
+    );
+    const signupJsonParserIndex = signupLayers[0]?.route?.stack.findIndex(
+      (layer) => layer.handle.name === "jsonParser",
+    );
+
+    expect(signupJsonParserIndex).toBeGreaterThanOrEqual(0);
+    expect(signupLayers).toHaveLength(2);
+
+    const responses = await withHttpServer(app, async (origin) => {
+      const attempts = [];
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        attempts.push(
+          await postSignUp(
+            origin,
+            "/auth/signup",
+            `clinic@domain-${attempt}.example`,
+          ),
+        );
+      }
+      return attempts;
+    });
+
+    expect(
+      responses.slice(0, 5).every((response) => response.statusCode === 204),
+    ).toBe(true);
+    expect(responses[5].statusCode).toBe(200);
+    expect(responses[5].allowedOrigin).toBe(authEnv.AUTH_WEBSITE_DOMAIN);
+    expect(responses[5].allowsCredentials).toBe("true");
+    expect(JSON.parse(responses[5].body)).toEqual({
+      status: "SIGN_UP_NOT_ALLOWED",
+      reason: "Too many signup attempts. Please try again later.",
+    });
+  });
+
+  it("refuses the sixth signup for one email domain across different IPs", async () => {
+    Object.assign(process.env, authEnv);
+    mountSignUpPassThrough();
+    const app = createApp();
+
+    const { responses, otherDomain } = await withHttpServer(
+      app,
+      async (origin) => {
+        const attempts = [];
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          attempts.push(
+            await postSignUp(
+              origin,
+              "/auth/public/signup",
+              `clinic-${attempt}@${attempt % 2 === 0 ? "gmail.com" : "googlemail.com"}`,
+              `192.0.2.${attempt + 1}`,
+            ),
+          );
+        }
+        return {
+          responses: attempts,
+          otherDomain: await postSignUp(
+            origin,
+            "/auth/public/signup",
+            "owner@different.example",
+            "192.0.2.99",
+          ),
+        };
+      },
+    );
+
+    expect(
+      responses.slice(0, 5).every((response) => response.statusCode === 204),
+    ).toBe(true);
+    expect(responses[5].statusCode).toBe(200);
+    expect(otherDomain.statusCode).toBe(204);
+  });
+
+  it("applies signup rate limits at the configured auth base path", async () => {
+    Object.assign(process.env, authEnv, { AUTH_API_BASE_PATH: "/identity" });
+    mountSignUpPassThrough();
+    const app = createApp();
+
+    const responses = await withHttpServer(app, async (origin) => {
+      const attempts = [];
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        attempts.push(
+          await postSignUp(
+            origin,
+            "/identity/signup",
+            `clinic@domain-${attempt}.example`,
+          ),
+        );
+      }
+      return attempts;
+    });
+
+    expect(
+      responses.slice(0, 5).map((response) => response.statusCode),
+    ).toEqual([204, 204, 204, 204, 204]);
+    expect(responses[5].statusCode).toBe(200);
   });
 });
 

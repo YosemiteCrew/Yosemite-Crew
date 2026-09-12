@@ -145,6 +145,7 @@ export const buildContentSecurityPolicy = ({
       'https://connect-js.stripe.com',
       'https://cal.com',
       'https://app.cal.com',
+      'https://challenges.cloudflare.com',
       ...postHogScriptHosts,
     ]
       .filter(Boolean)
@@ -183,6 +184,7 @@ export const buildContentSecurityPolicy = ({
       'https://places.googleapis.com',
       'https://cal.com',
       'https://app.cal.com',
+      'https://challenges.cloudflare.com',
       'https://api.openstatus.dev',
       'https://yosemite-crew.openstatus.dev',
       ...postHogConnectHosts,
@@ -207,6 +209,7 @@ export const buildContentSecurityPolicy = ({
       'https://hooks.stripe.com',
       'https://cal.com',
       'https://app.cal.com',
+      'https://challenges.cloudflare.com',
       // Both forms per domain: a `*.` wildcard does not match the bare apex host.
       ...MERCK_MANUAL_DOMAINS.flatMap((domain) => [`https://${domain}`, `https://*.${domain}`]),
       'https://*.idexx.com',

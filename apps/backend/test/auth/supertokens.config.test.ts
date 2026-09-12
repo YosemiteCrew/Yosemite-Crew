@@ -65,7 +65,10 @@ const ORIGINAL_ENV = {
   AUTH_APPLE_KEY_ID: process.env.AUTH_APPLE_KEY_ID,
   AUTH_APPLE_PRIVATE_KEY: process.env.AUTH_APPLE_PRIVATE_KEY,
   AUTH_APPLE_TEAM_ID: process.env.AUTH_APPLE_TEAM_ID,
+  TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
 };
+
+const ORIGINAL_FETCH = globalThis.fetch;
 
 const restoreEnv = () => {
   for (const [key, value] of Object.entries(ORIGINAL_ENV)) {
@@ -101,6 +104,8 @@ describe("@yosemite-crew/auth supertokens config", () => {
     delete process.env.SMTP_PASSWORD;
     delete process.env.SMTP_FROM_NAME;
     delete process.env.SMTP_FROM_EMAIL;
+    delete process.env.TURNSTILE_SECRET_KEY;
+    globalThis.fetch = ORIGINAL_FETCH;
   });
 
   afterEach(() => {
@@ -119,6 +124,409 @@ describe("@yosemite-crew/auth supertokens config", () => {
     expect(() => getSuperTokensConfig()).toThrow(
       "[auth] Missing required environment variable: SMTP_HOST",
     );
+  });
+
+  describe("business signup abuse controls", () => {
+    const configureProtectedSignup = () => {
+      process.env.SMTP_HOST = "smtp.example.test";
+      process.env.SMTP_PORT = "465";
+      process.env.SMTP_SECURE = "true";
+      process.env.SMTP_USER = "smtp-user";
+      process.env.SMTP_PASSWORD = "smtp-password";
+      process.env.SMTP_FROM_NAME = "Yosemite Crew";
+      process.env.SMTP_FROM_EMAIL = "auth@example.test";
+      process.env.TURNSTILE_SECRET_KEY = "unit-test-only";
+
+      const { getSuperTokensConfig } = require("@yosemite-crew/auth");
+      getSuperTokensConfig();
+      return mockEmailPasswordInit.mock.calls[0]?.[0] as any;
+    };
+
+    const successfulVerification = () => {
+      globalThis.fetch = jest.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          success: true,
+          action: "business_signup",
+          hostname: "app.example.com",
+        }),
+      })) as unknown as typeof fetch;
+    };
+
+    const signUpInput = (email = "First.Last+wave@GoogleMail.com") => ({
+      formFields: [
+        { id: "email", value: email },
+        { id: "password", value: "synthetic-test-value" },
+        { id: "turnstileToken", value: "verified-token" },
+      ],
+      tenantId: "public",
+      session: undefined,
+      shouldTryLinkingWithSessionUser: undefined,
+      options: { req: { original: { ip: "192.0.2.10" } } },
+      userContext: {},
+    });
+
+    it("registers the bot token field, validates it, and canonicalizes Gmail before signup", async () => {
+      successfulVerification();
+      const config = configureProtectedSignup();
+      const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
+      const signUpPOST = config.override.apis({
+        signUpPOST: originalSignUpPOST,
+      }).signUpPOST;
+
+      await expect(signUpPOST(signUpInput())).resolves.toEqual({
+        status: "OK",
+      });
+
+      const botField = config.signUpFeature.formFields.find(
+        (field: { id: string }) => field.id === "turnstileToken",
+      );
+      expect(botField.optional).toBe(true);
+      await expect(
+        botField.validate("x".repeat(2049), "public", {}),
+      ).resolves.toBe("Complete bot verification before creating an account.");
+      expect(originalSignUpPOST).toHaveBeenCalledWith(
+        expect.objectContaining({
+          formFields: expect.arrayContaining([
+            { id: "email", value: "firstlast@gmail.com" },
+          ]),
+        }),
+      );
+
+      const verificationRequest = (globalThis.fetch as jest.Mock).mock.calls[0];
+      expect(verificationRequest[0]).toBe(
+        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      );
+      const verificationBody = verificationRequest[1].body as URLSearchParams;
+      expect(verificationBody.get("response")).toBe("verified-token");
+      expect(verificationBody.get("remoteip")).toBe("192.0.2.10");
+    });
+
+    it.each([
+      [
+        "an invalid token",
+        {
+          success: false,
+          action: "business_signup",
+          hostname: "app.example.com",
+        },
+      ],
+      [
+        "a token minted for another action",
+        { success: true, action: "contact_form", hostname: "app.example.com" },
+      ],
+      [
+        "a token minted for another hostname",
+        {
+          success: true,
+          action: "business_signup",
+          hostname: "attacker.example",
+        },
+      ],
+    ])("refuses signup for %s", async (_label, verificationResult) => {
+      globalThis.fetch = jest.fn(async () => ({
+        ok: true,
+        json: async () => verificationResult,
+      })) as unknown as typeof fetch;
+      const config = configureProtectedSignup();
+      const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
+      const signUpPOST = config.override.apis({
+        signUpPOST: originalSignUpPOST,
+      }).signUpPOST;
+
+      await expect(signUpPOST(signUpInput())).resolves.toEqual({
+        status: "SIGN_UP_NOT_ALLOWED",
+        reason:
+          "We could not verify this signup. Please refresh and try again.",
+      });
+      expect(originalSignUpPOST).not.toHaveBeenCalled();
+    });
+
+    it("refuses signup when the bot token is missing", async () => {
+      successfulVerification();
+      const config = configureProtectedSignup();
+      const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
+      const signUpPOST = config.override.apis({
+        signUpPOST: originalSignUpPOST,
+      }).signUpPOST;
+      const input = signUpInput();
+      input.formFields = input.formFields.filter(
+        (field) => field.id !== "turnstileToken",
+      );
+
+      await expect(signUpPOST(input)).resolves.toMatchObject({
+        status: "SIGN_UP_NOT_ALLOWED",
+      });
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+      expect(originalSignUpPOST).not.toHaveBeenCalled();
+    });
+
+    it("refuses an oversized bot token before calling Turnstile", async () => {
+      successfulVerification();
+      const config = configureProtectedSignup();
+      const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
+      const signUpPOST = config.override.apis({
+        signUpPOST: originalSignUpPOST,
+      }).signUpPOST;
+      const input = signUpInput();
+      input.formFields.find((field) => field.id === "turnstileToken")!.value =
+        "x".repeat(2049);
+
+      await expect(signUpPOST(input)).resolves.toMatchObject({
+        status: "SIGN_UP_NOT_ALLOWED",
+      });
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+      expect(originalSignUpPOST).not.toHaveBeenCalled();
+    });
+
+    it("fails closed when Turnstile is unavailable", async () => {
+      globalThis.fetch = jest.fn(async () => {
+        throw new Error("synthetic network failure");
+      }) as unknown as typeof fetch;
+      const consoleError = jest
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const config = configureProtectedSignup();
+      const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
+      const signUpPOST = config.override.apis({
+        signUpPOST: originalSignUpPOST,
+      }).signUpPOST;
+
+      await expect(signUpPOST(signUpInput())).resolves.toMatchObject({
+        status: "SIGN_UP_NOT_ALLOWED",
+      });
+      expect(originalSignUpPOST).not.toHaveBeenCalled();
+      expect(consoleError).toHaveBeenCalledWith(
+        "[auth] Turnstile verification failed",
+        expect.any(Error),
+      );
+      consoleError.mockRestore();
+    });
+
+    it("fails closed when Turnstile returns a non-successful response", async () => {
+      globalThis.fetch = jest.fn(async () => ({
+        ok: false,
+        json: async () => ({
+          success: true,
+          action: "business_signup",
+          hostname: "app.example.com",
+        }),
+      })) as unknown as typeof fetch;
+      const config = configureProtectedSignup();
+      const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
+      const signUpPOST = config.override.apis({
+        signUpPOST: originalSignUpPOST,
+      }).signUpPOST;
+
+      await expect(signUpPOST(signUpInput())).resolves.toMatchObject({
+        status: "SIGN_UP_NOT_ALLOWED",
+      });
+      expect(originalSignUpPOST).not.toHaveBeenCalled();
+    });
+
+    it("tries an exact legacy Gmail alias before the canonical sign-in", async () => {
+      successfulVerification();
+      const config = configureProtectedSignup();
+      const originalSignInPOST = jest.fn(async () => ({ status: "OK" }));
+      const signInPOST = config.override.apis({
+        signInPOST: originalSignInPOST,
+      }).signInPOST;
+      const aliasField = [
+        { id: "email", value: "First.Last+wave@GoogleMail.com" },
+      ];
+
+      await signInPOST({ formFields: aliasField });
+
+      expect(originalSignInPOST).toHaveBeenCalledTimes(1);
+      expect(originalSignInPOST).toHaveBeenCalledWith(
+        expect.objectContaining({ formFields: aliasField }),
+      );
+    });
+
+    it("falls back to the canonical Gmail address for sign-in", async () => {
+      successfulVerification();
+      const config = configureProtectedSignup();
+      const originalSignInPOST = jest
+        .fn()
+        .mockResolvedValueOnce({ status: "WRONG_CREDENTIALS_ERROR" })
+        .mockResolvedValueOnce({ status: "OK" });
+      const originalEmailExistsGET = jest.fn(async () => ({
+        status: "OK",
+        exists: false,
+      }));
+      const signInPOST = config.override.apis({
+        signInPOST: originalSignInPOST,
+        emailExistsGET: originalEmailExistsGET,
+      }).signInPOST;
+
+      await expect(signInPOST(signUpInput())).resolves.toEqual({
+        status: "OK",
+      });
+
+      expect(originalSignInPOST).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          formFields: expect.arrayContaining([
+            { id: "email", value: "firstlast@gmail.com" },
+          ]),
+        }),
+      );
+    });
+
+    it("does not fall through to a canonical sibling after a legacy alias rejects the password", async () => {
+      successfulVerification();
+      const config = configureProtectedSignup();
+      const originalSignInPOST = jest.fn(async () => ({
+        status: "WRONG_CREDENTIALS_ERROR",
+      }));
+      const originalEmailExistsGET = jest.fn(async () => ({
+        status: "OK",
+        exists: true,
+      }));
+      const signInPOST = config.override.apis({
+        signInPOST: originalSignInPOST,
+        emailExistsGET: originalEmailExistsGET,
+      }).signInPOST;
+
+      await expect(signInPOST(signUpInput())).resolves.toEqual({
+        status: "WRONG_CREDENTIALS_ERROR",
+      });
+
+      expect(originalSignInPOST).toHaveBeenCalledTimes(1);
+      expect(originalEmailExistsGET).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: "First.Last+wave@GoogleMail.com",
+        }),
+      );
+    });
+
+    it("uses the canonical Gmail address for password reset when no legacy alias exists", async () => {
+      successfulVerification();
+      const config = configureProtectedSignup();
+      const originalResetPOST = jest.fn(async () => ({ status: "OK" }));
+      const originalEmailExistsGET = jest.fn(async () => ({
+        status: "OK",
+        exists: false,
+      }));
+      const resetPOST = config.override.apis({
+        generatePasswordResetTokenPOST: originalResetPOST,
+        emailExistsGET: originalEmailExistsGET,
+      }).generatePasswordResetTokenPOST;
+
+      await resetPOST(signUpInput());
+
+      expect(originalResetPOST).toHaveBeenCalledWith(
+        expect.objectContaining({
+          formFields: expect.arrayContaining([
+            { id: "email", value: "firstlast@gmail.com" },
+          ]),
+        }),
+      );
+    });
+
+    it("preserves an exact legacy Gmail alias for password reset", async () => {
+      successfulVerification();
+      const config = configureProtectedSignup();
+      const originalResetPOST = jest.fn(async () => ({ status: "OK" }));
+      const originalEmailExistsGET = jest.fn(async () => ({
+        status: "OK",
+        exists: true,
+      }));
+      const resetPOST = config.override.apis({
+        generatePasswordResetTokenPOST: originalResetPOST,
+        emailExistsGET: originalEmailExistsGET,
+      }).generatePasswordResetTokenPOST;
+      const input = signUpInput();
+
+      await resetPOST(input);
+
+      expect(originalEmailExistsGET).toHaveBeenCalledTimes(1);
+      expect(originalResetPOST).toHaveBeenCalledWith(input);
+    });
+
+    it("reports canonical Gmail accounts through the email-exists API", async () => {
+      successfulVerification();
+      const config = configureProtectedSignup();
+      const originalEmailExistsGET = jest
+        .fn()
+        .mockResolvedValueOnce({ status: "OK", exists: false })
+        .mockResolvedValueOnce({ status: "OK", exists: true });
+      const emailExistsGET = config.override.apis({
+        emailExistsGET: originalEmailExistsGET,
+      }).emailExistsGET;
+
+      await expect(
+        emailExistsGET({ email: "First.Last+wave@GoogleMail.com" }),
+      ).resolves.toEqual({ status: "OK", exists: true });
+      expect(originalEmailExistsGET).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ email: "firstlast@gmail.com" }),
+      );
+    });
+
+    it("allows local signup when Turnstile is not configured", async () => {
+      process.env.SMTP_HOST = "smtp.example.test";
+      process.env.SMTP_PORT = "465";
+      process.env.SMTP_USER = "smtp-user";
+      process.env.SMTP_PASSWORD = "smtp-password";
+      process.env.SMTP_FROM_EMAIL = "auth@example.test";
+      globalThis.fetch = jest.fn() as unknown as typeof fetch;
+
+      const { getSuperTokensConfig } = require("@yosemite-crew/auth");
+      getSuperTokensConfig();
+      const config = mockEmailPasswordInit.mock.calls[0]?.[0] as any;
+      const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
+      const signUpPOST = config.override.apis({
+        signUpPOST: originalSignUpPOST,
+      }).signUpPOST;
+
+      await expect(signUpPOST(signUpInput())).resolves.toEqual({
+        status: "OK",
+      });
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+      expect(originalSignUpPOST).toHaveBeenCalledTimes(1);
+    });
+
+    it("blocks only signup when the Turnstile secret is missing in production", async () => {
+      process.env.SMTP_HOST = "smtp.example.test";
+      process.env.SMTP_PORT = "465";
+      process.env.SMTP_USER = "smtp-user";
+      process.env.SMTP_PASSWORD = "smtp-password";
+      process.env.SMTP_FROM_EMAIL = "auth@example.test";
+      const originalNodeEnv = process.env.NODE_ENV;
+      (process.env as Record<string, string | undefined>).NODE_ENV =
+        "production";
+      globalThis.fetch = jest.fn() as unknown as typeof fetch;
+
+      try {
+        const { getSuperTokensConfig } = require("@yosemite-crew/auth");
+        getSuperTokensConfig();
+        const config = mockEmailPasswordInit.mock.calls[0]?.[0] as any;
+        const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
+        const originalSignInPOST = jest.fn(async () => ({ status: "OK" }));
+        const apis = config.override.apis({
+          signUpPOST: originalSignUpPOST,
+          signInPOST: originalSignInPOST,
+        });
+
+        await expect(apis.signUpPOST(signUpInput())).resolves.toEqual({
+          status: "SIGN_UP_NOT_ALLOWED",
+          reason:
+            "We could not verify this signup. Please refresh and try again.",
+        });
+        await expect(
+          apis.signInPOST({
+            formFields: [{ id: "email", value: "member@example.test" }],
+          }),
+        ).resolves.toEqual({ status: "OK" });
+        expect(globalThis.fetch).not.toHaveBeenCalled();
+        expect(originalSignUpPOST).not.toHaveBeenCalled();
+        expect(originalSignInPOST).toHaveBeenCalledTimes(1);
+      } finally {
+        (process.env as Record<string, string | undefined>).NODE_ENV =
+          originalNodeEnv;
+      }
+    });
   });
 
   it("configures the demo password and suppresses demo email delivery when the review account is enabled", async () => {
@@ -286,7 +694,8 @@ describe("@yosemite-crew/auth supertokens config", () => {
       // called and the social path cannot be reached.
       process.env.AUTH_APPLE_CLIENT_ID = "com.example.mobile";
       process.env.AUTH_APPLE_KEY_ID = "KEY123";
-      process.env.AUTH_APPLE_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----";
+      process.env.AUTH_APPLE_PRIVATE_KEY =
+        "synthetic-private-key-for-config-test";
       process.env.AUTH_APPLE_TEAM_ID = "TEAM123";
       mockGetUserMetadata.mockResolvedValue({ metadata: {} });
 
@@ -494,7 +903,8 @@ describe("@yosemite-crew/auth supertokens config", () => {
       process.env.SMTP_FROM_EMAIL = "auth@example.test";
       process.env.AUTH_APPLE_CLIENT_ID = BUNDLE_ID;
       process.env.AUTH_APPLE_KEY_ID = "KEY123";
-      process.env.AUTH_APPLE_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----";
+      process.env.AUTH_APPLE_PRIVATE_KEY =
+        "synthetic-private-key-for-config-test";
       process.env.AUTH_APPLE_TEAM_ID = "TEAM123";
 
       if (options.serviceId) {
