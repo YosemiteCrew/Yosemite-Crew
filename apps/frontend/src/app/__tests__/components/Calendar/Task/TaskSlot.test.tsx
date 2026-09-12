@@ -6,6 +6,7 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
 import { Task } from '@/app/features/tasks/types/task';
 import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
+import { getPreferredTimeZone, setPreferredTimeZone } from '@/app/lib/timezone';
 
 jest.mock('@/app/hooks/useTeam', () => ({
   useTeamForPrimaryOrg: jest.fn(),
@@ -25,11 +26,43 @@ expect.extend(toHaveNoViolations);
 
 describe('TaskSlot', () => {
   const handleViewTask = jest.fn();
+  const originalTimeZone = getPreferredTimeZone();
 
   beforeEach(() => {
     jest.clearAllMocks();
     (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([{ _id: 'user-1', name: 'Alex' }]);
     (calcNearestAvailableMinute as jest.Mock).mockImplementation((minute: number) => minute);
+  });
+
+  afterEach(() => {
+    setPreferredTimeZone(originalTimeZone);
+  });
+
+  it('announces the row time without inheriting the date cursor clock', () => {
+    setPreferredTimeZone('America/Los_Angeles');
+    const cursorAt1527 = new Date('2026-03-16T22:27:00.000Z');
+
+    render(
+      <TaskSlot
+        slotEvents={[]}
+        handleViewTask={handleViewTask}
+        height={180}
+        hour={0}
+        dropDate={cursorAt1527}
+        onCreateTaskAt={jest.fn()}
+      />
+    );
+
+    expect(
+      screen.getByRole('region', {
+        name: 'Tasks slot for Monday, March 16 at 12:00 AM',
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: 'Create task on Monday, March 16 at 12:00 AM',
+      })
+    ).toBeInTheDocument();
   });
 
   it('renders tasks with member names and triggers view handler', () => {

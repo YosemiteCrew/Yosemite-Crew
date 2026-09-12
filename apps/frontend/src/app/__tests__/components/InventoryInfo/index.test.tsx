@@ -2,12 +2,16 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import InventoryInfo from '@/app/features/inventory/components/InventoryInfo';
 import { BusinessType } from '@/app/features/organization/types/org';
+import type { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
 
 // ----------------------------------------------------------------------------
 // 1. Mocks & Setup
 // ----------------------------------------------------------------------------
 
 jest.mock('@/app/features/inventory/pages/Inventory/utils', () => ({
+  parseInventoryCalendarDateParts: jest.requireActual(
+    '@/app/features/inventory/pages/Inventory/utils'
+  ).parseInventoryCalendarDateParts,
   formatDisplayDate: jest.fn((val) => (val ? `Formatted ${val}` : '')),
   toStringSafe: jest.fn((val) => (val === null || val === undefined ? '' : String(val))),
   formatCurrencyValue: jest.fn((val, currency) =>
@@ -120,24 +124,31 @@ const getAction = () => screen.queryByTestId('danger-btn') ?? screen.getByTestId
 
 jest.mock('@/app/ui/inputs/Datepicker', () => ({
   __esModule: true,
-  default: ({ currentDate, setCurrentDate, placeholder }: any) => (
-    <>
-      <input
-        data-testid={`datepicker-${placeholder}`}
-        value={currentDate ? currentDate.toISOString().split('T')[0] : ''}
-        onChange={(e) => {
-          const d = e.target.value ? new Date(e.target.value) : null;
-          setCurrentDate(d);
-        }}
-      />
-      {/* Drives the updater-function form of setCurrentDate. */}
-      <button
-        type="button"
-        data-testid={`datepicker-updater-${placeholder}`}
-        onClick={() => setCurrentDate((prev: Date | null) => prev ?? new Date(2030, 2, 4))}
-      />
-    </>
-  ),
+  default: ({ currentDate, setCurrentDate, placeholder }: any) => {
+    const localDate = currentDate
+      ? `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(
+          currentDate.getDate()
+        ).padStart(2, '0')}`
+      : '';
+    return (
+      <>
+        <input
+          data-testid={`datepicker-${placeholder}`}
+          value={localDate}
+          onChange={(e) => {
+            const d = e.target.value ? new Date(e.target.value) : null;
+            setCurrentDate(d);
+          }}
+        />
+        {/* Drives the updater-function form of setCurrentDate. */}
+        <button
+          type="button"
+          data-testid={`datepicker-updater-${placeholder}`}
+          onClick={() => setCurrentDate((prev: Date | null) => prev ?? new Date(2030, 2, 4))}
+        />
+      </>
+    );
+  },
 }));
 
 jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
@@ -443,6 +454,34 @@ describe('InventoryInfo Component', () => {
     await act(async () => {
       fireEvent.click(getAction());
     });
+  });
+
+  it('opens a midnight UTC expiry on the same picker day and preserves it on unrelated edits', async () => {
+    const itemWithUtcExpiry = {
+      ...defaultProps.activeInventory,
+      batches: [
+        {
+          ...defaultProps.activeInventory.batches![0],
+          expiryDate: '2026-03-01T00:00:00.000Z',
+        },
+      ],
+    } as InventoryItem;
+    render(<InventoryInfo {...defaultProps} activeInventory={itemWithUtcExpiry} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+
+    expect(screen.getAllByTestId('datepicker-Exp Date')[0]).toHaveValue('2026-03-01');
+    fireEvent.change(screen.getAllByTestId('input-barcode')[0], {
+      target: { value: 'UNCHANGED-DATE' },
+    });
+    await act(async () => {
+      fireEvent.click(getAction());
+    });
+
+    expect(mockOnUpdateBatch).toHaveBeenCalledWith(
+      'item-1',
+      expect.arrayContaining([expect.objectContaining({ expiryDate: '2026-03-01T00:00:00.000Z' })])
+    );
   });
 
   it('saves batch-section barcode and expiry warning per batch, without mirroring to item attributes', async () => {

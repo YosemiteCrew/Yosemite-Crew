@@ -14,6 +14,9 @@ import {
 } from '@/app/features/inventory/components/inventoryInfoHelpers';
 
 jest.mock('@/app/features/inventory/pages/Inventory/utils', () => ({
+  parseInventoryCalendarDateParts: jest.requireActual(
+    '@/app/features/inventory/pages/Inventory/utils'
+  ).parseInventoryCalendarDateParts,
   formatDisplayDate: jest.fn((value) => (value ? `Formatted ${value}` : '')),
   toStringSafe: jest.fn((value) => (value === null || value === undefined ? '' : String(value))),
   formatCurrencyValue: jest.fn(),
@@ -56,13 +59,15 @@ describe('InventoryInfo helpers', () => {
   });
 
   it('parses ISO, dd/mm/yyyy, and invalid dates correctly', () => {
-    expect(parseDate('2026-07-06')?.toISOString()).toContain('2026-07-06');
-    expect(parseDate('06/07/2026')?.toISOString()).toContain('2026-07-06');
+    expect(parseDate('2026-07-06')).toEqual(new Date(2026, 6, 6));
+    expect(parseDate('06/07/2026')).toEqual(new Date(2026, 6, 6));
+    expect(parseDate('2026-03-01T00:00:00.000Z')).toEqual(new Date(2026, 2, 1));
+    expect(parseDate('2026-02-31')).toBeNull();
     expect(parseDate('not-a-date')).toBeNull();
   });
 
   it('formats dates as yyyy-mm-dd', () => {
-    expect(formatDate(new Date('2026-07-06T00:00:00.000Z'))).toBe('2026-07-06');
+    expect(formatDate(new Date(2026, 6, 6))).toBe('2026-07-06');
   });
 
   it('normalizes options and resolves labels with fallback', () => {

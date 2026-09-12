@@ -86,6 +86,10 @@ describe('Inventory Utils', () => {
       expect(formatDisplayDate(dateStr)).toBe('Oct 5, 2023');
     });
 
+    it('keeps a midnight UTC calendar date on the same displayed day', () => {
+      expect(formatDisplayDate('2026-03-01T00:00:00.000Z')).toBe('Mar 1, 2026');
+    });
+
     it('formats Slash separated dates (dd/mm/yyyy) correctly', () => {
       const dateStr = '05/10/2023'; // 5th Oct
       expect(formatDisplayDate(dateStr)).toBe('Oct 5, 2023');
@@ -642,6 +646,25 @@ describe('Inventory Utils', () => {
         };
         const payload = buildBatchPayload(batch);
         expect(payload?.expiryDate).toBe('2026-01-01T05:30:00.000Z');
+      });
+
+      it('rejects impossible calendar dates instead of rolling them forward', () => {
+        const batch = {
+          ...mockInventoryItem.batches![1],
+          manufactureDate: '2025-02-29',
+          expiryDate: '31/02/2026',
+          nextRefillDate: '2026-13-01',
+        };
+        const payload = buildBatchPayload(batch);
+
+        expect(payload).not.toHaveProperty('manufactureDate');
+        expect(payload).not.toHaveProperty('expiryDate');
+        expect(payload).not.toHaveProperty('minShelfLifeAlertDate');
+      });
+
+      it('accepts leap day as a calendar date', () => {
+        const batch = { ...mockInventoryItem.batches![1], expiryDate: '2028-02-29' };
+        expect(buildBatchPayload(batch)?.expiryDate).toBe('2028-02-29T00:00:00.000Z');
       });
 
       it('preserves per-batch expiry warning and barcode fields', () => {

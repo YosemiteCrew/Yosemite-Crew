@@ -289,3 +289,35 @@ export const PricingSection: Story = {
     },
   },
 };
+
+export const CalendarDateBoundary: Story = {
+  name: 'Batch calendar date at UTC boundary',
+  args: {
+    initialSection: 'batch',
+    activeInventory: {
+      ...ITEM,
+      batch: {
+        ...ITEM.batch,
+        manufactureDate: '2028-02-29T00:00:00.000Z',
+        expiryDate: '2026-03-01T00:00:00.000Z',
+      },
+      batches: [
+        {
+          ...ITEM.batches![0],
+          manufactureDate: '2028-02-29T00:00:00.000Z',
+          expiryDate: '2026-03-01T00:00:00.000Z',
+        },
+      ],
+    },
+  },
+  play: async () => {
+    const body = within(document.body);
+    await userEvent.click(await body.findByRole('button', { name: 'Edit Batch / Lot details' }));
+    await expect(
+      body.getByRole('button', { name: 'Manufacturing date: Feb 29, 2028, toggle calendar' })
+    ).toBeInTheDocument();
+    await expect(
+      body.getByRole('button', { name: 'Expiry date: Mar 1, 2026, toggle calendar' })
+    ).toBeInTheDocument();
+  },
+};

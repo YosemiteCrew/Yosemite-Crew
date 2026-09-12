@@ -4,6 +4,7 @@ import {
   formatCurrencyValue,
   formatPercentValue,
   getMarginPercent,
+  parseInventoryCalendarDateParts,
   toDisplayNumber,
 } from './utils';
 
@@ -17,23 +18,9 @@ export const getPhoneUnitAbbrev = (item: InventoryItem): string => {
 
 /** Expiry as the design's compact `MM/YYYY`, or '' when the date is missing/invalid. */
 export const formatExpiryShort = (value?: string): string => {
-  if (!value) return '';
-  let date: Date | null = null;
-  if (value.includes('/')) {
-    const parts = value.split('/');
-    if (parts.length === 3 && parts[2].length === 4) {
-      const [dd, mm, yyyy] = parts;
-      const parsed = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-      if (!Number.isNaN(parsed.getTime())) date = parsed;
-    }
-  }
-  if (!date) {
-    const parsed = new Date(value);
-    if (!Number.isNaN(parsed.getTime())) date = parsed;
-  }
-  if (!date) return '';
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  return `${month}/${date.getFullYear()}`;
+  const parts = parseInventoryCalendarDateParts(value);
+  if (!parts) return '';
+  return `${String(parts.month).padStart(2, '0')}/${parts.year}`;
 };
 
 // Inventory numeric fields arrive as strings that are '' when absent; `Number('')`

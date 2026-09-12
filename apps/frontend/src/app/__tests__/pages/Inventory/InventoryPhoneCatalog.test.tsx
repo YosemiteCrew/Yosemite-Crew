@@ -85,11 +85,13 @@ const lowItem = makeItem({
 describe('InventoryPhoneCatalog helpers', () => {
   it('formatExpiryShort handles ISO, dd/mm/yyyy, empty and invalid dates', () => {
     expect(formatExpiryShort('2028-01-15')).toBe('01/2028');
+    expect(formatExpiryShort('2026-03-01T00:00:00.000Z')).toBe('03/2026');
     expect(formatExpiryShort('15/06/2027')).toBe('06/2027');
     expect(formatExpiryShort('')).toBe('');
     expect(formatExpiryShort(undefined)).toBe('');
     expect(formatExpiryShort('aa/bb/cccc')).toBe('');
     expect(formatExpiryShort('not-a-date')).toBe('');
+    expect(formatExpiryShort('2026-02-31')).toBe('');
   });
 
   it('getPhoneUnitAbbrev infers box vs unit from the item name', () => {
