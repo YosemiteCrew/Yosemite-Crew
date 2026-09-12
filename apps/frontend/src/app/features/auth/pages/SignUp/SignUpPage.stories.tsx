@@ -32,6 +32,8 @@ const clearSignUpDraft = () => {
   removeStorageItem('session', 'yc_signup_draft');
 };
 
+const CLINIC_ROLE = 'A veterinary clinic, practice, or hospital';
+
 const DEVELOPER: AuthUser = {
   userId: 'user-dev-1',
   email: 'mira.lindqvist@yosemitecrew.example',
@@ -132,7 +134,7 @@ export const SignedOut: Story = {
   beforeEach: withSession({ status: 'unauthenticated', checkSession: fn(async () => null) }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole('combobox', { name: 'I am' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: `I am: ${CLINIC_ROLE}` })).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Create account' })).toBeInTheDocument();
     await expect(canvas.getByRole('heading', { level: 2 }).textContent).toBe(
       'See the whole animal.'
