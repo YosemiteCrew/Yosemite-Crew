@@ -47,6 +47,9 @@ const stubDirectUpload = () => {
 };
 
 const ORG_ID = 'org-storybook';
+const OTHER_ORG_ID = 'org-storybook-2';
+const PRESIGNED_URL =
+  'https://yosemite-crew-migration.s3.eu-central-1.amazonaws.com/orgs/org-storybook/f.csv?X-Amz-Signature=storybook';
 
 const OWNER_MEMBERSHIP: UserOrganization = {
   practitionerReference: 'Practitioner/user-storybook',
@@ -75,7 +78,13 @@ const seedStores = () => {
   });
   useOrgStore.setState({
     primaryOrgId: ORG_ID,
-    membershipsByOrgId: { [ORG_ID]: OWNER_MEMBERSHIP },
+    membershipsByOrgId: {
+      [ORG_ID]: OWNER_MEMBERSHIP,
+      [OTHER_ORG_ID]: {
+        ...OWNER_MEMBERSHIP,
+        organizationReference: `Organization/${OTHER_ORG_ID}`,
+      },
+    },
     status: 'loaded',
   });
 
@@ -132,7 +141,10 @@ export const RunToCompletion: Story = {
     const method = config.method?.toLowerCase();
     const url = config.url ?? '';
     if (method === 'post' && url.endsWith('/upload-url')) {
-      return { status: 200, body: { url: 'https://s3.example/put', key: `orgs/${ORG_ID}/f.csv` } };
+      // uploadMigrationAuditFile rejects anything that is not an https
+      // *.amazonaws.com host, so the stub has to be shaped like a real
+      // presigned S3 URL or the upload never happens.
+      return { status: 200, body: { url: PRESIGNED_URL, key: `orgs/${ORG_ID}/f.csv` } };
     }
     if (method === 'post') {
       return { status: 201, body: { id: 'run-storybook', status: 'PENDING' } };
@@ -196,6 +208,20 @@ export const RunToCompletion: Story = {
       timeout: 10_000,
     });
     await expect(canvas.getByText('Row 2')).toBeInTheDocument();
+  },
+};
+
+export const OrganisationSwitch: Story = {
+  name: "Switching organisation clears the previous one's report",
+  beforeEach: RunToCompletion.beforeEach,
+  play: async (context) => {
+    await RunToCompletion.play?.(context);
+    const canvas = within(context.canvasElement);
+
+    useOrgStore.setState({ primaryOrgId: OTHER_ORG_ID });
+
+    await waitFor(() => expect(canvas.queryByText('Findings (1)')).not.toBeInTheDocument());
+    await expect(await canvas.findByLabelText('Owners')).toHaveValue('');
   },
 };
 

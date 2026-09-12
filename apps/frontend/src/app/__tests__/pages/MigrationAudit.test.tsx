@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
@@ -223,6 +223,65 @@ describe('MigrationAudit page', () => {
       expect(screen.getByRole('button', { name: 'Run migration audit' })).toBeInTheDocument();
     },
     POLL_INTERVAL_MS + 5000
+  );
+
+  it(
+    "drops the previous organisation's completed report when the active organisation changes",
+    async () => {
+      const user = userEvent.setup();
+      createRunMock.mockResolvedValue({ id: 'run1', status: 'PENDING' });
+      getRunMock.mockResolvedValue(COMPLETED_RUN);
+
+      render(<MigrationAudit />);
+      await selectRequiredFiles(user);
+      await user.click(screen.getByRole('button', { name: 'Run migration audit' }));
+      expect(
+        await screen.findByText('Findings (1)', {}, { timeout: POLL_INTERVAL_MS + 2000 })
+      ).toBeInTheDocument();
+
+      await act(async () => {
+        useOrgStore.setState({ primaryOrgId: 'org2' });
+      });
+
+      expect(screen.queryByText('Findings (1)')).not.toBeInTheDocument();
+      // The chosen files went with it, so org2 starts from an empty form.
+      expect(screen.getByRole('button', { name: 'Run migration audit' })).toBeDisabled();
+
+      // And it is gone for good - switching back does not resurrect it.
+      await act(async () => {
+        useOrgStore.setState({ primaryOrgId: 'org1' });
+      });
+      expect(screen.queryByText('Findings (1)')).not.toBeInTheDocument();
+    },
+    2 * POLL_INTERVAL_MS + 5000
+  );
+
+  it(
+    "stops polling the previous organisation's run when the active organisation changes",
+    async () => {
+      const user = userEvent.setup();
+      createRunMock.mockResolvedValue({ id: 'run1', status: 'PENDING' });
+      getRunMock.mockResolvedValue({ ...COMPLETED_RUN, status: 'RUNNING', completedAt: null });
+
+      render(<MigrationAudit />);
+      await selectRequiredFiles(user);
+      await user.click(screen.getByRole('button', { name: 'Run migration audit' }));
+      await waitFor(() => expect(getRunMock).toHaveBeenCalledWith('org1', 'run1'), {
+        timeout: POLL_INTERVAL_MS + 2000,
+      });
+
+      await act(async () => {
+        useOrgStore.setState({ primaryOrgId: 'org2' });
+      });
+      getRunMock.mockClear();
+
+      expect(screen.queryByText(/Reading the uploaded files/)).not.toBeInTheDocument();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 2 * POLL_INTERVAL_MS));
+      });
+      expect(getRunMock).not.toHaveBeenCalled();
+    },
+    4 * POLL_INTERVAL_MS + 5000
   );
 
   it('shows an error banner when the upload fails', async () => {
