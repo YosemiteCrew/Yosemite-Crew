@@ -1,0 +1,158 @@
+/**
+ * Intake-form draft-import review (#3060). Follows the same card/badge
+ * vocabulary as DeveloperApiKeys.css - real tokens, not grey/white fallback
+ * literals, so it stays in step with the rest of the developer portal.
+ *
+ * The card frame itself (background/border/radius/shadow) is not
+ * re-declared here - it comes from the shared `.yc-card-surface` class in
+ * globals.css (see app/__tests__/ui/tokens/cardSurface.test.ts), which this
+ * file's own classes only add layout to.
+ */
+
+.DraftImport-intro {
+  margin: 8px 0 24px;
+  max-width: 640px;
+}
+
+.DraftImport-error {
+  margin-bottom: 16px;
+  color: var(--color-text-error);
+}
+
+/* Form ---------------------------------------------------------------------- */
+
+.DraftImport-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 640px;
+  margin-bottom: 24px;
+  padding: 20px 22px;
+}
+
+.DraftImport-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 13.5px;
+}
+
+.DraftImport-formActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* Review ---------------------------------------------------------------------- */
+
+.DraftImport-review {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 720px;
+}
+
+.DraftImport-stale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  background: var(--color-inset);
+  border: 1px solid var(--divider);
+  border-radius: 14px;
+}
+
+.DraftImport-section {
+  padding: 18px 20px;
+}
+
+.DraftImport-unsupportedList,
+.DraftImport-fieldList,
+.DraftImport-diffList {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.DraftImport-unsupportedList li {
+  padding: 10px 12px;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: 10px;
+}
+
+.DraftImport-unsupportedLine {
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.DraftImport-fieldList li,
+.DraftImport-diffList li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.DraftImport-fieldLabel {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.DraftImport-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.DraftImport-badge--type {
+  background: var(--color-inset);
+  color: var(--color-text-secondary);
+  border-color: var(--divider);
+}
+
+.DraftImport-badge--required {
+  background: var(--status-completed-bg);
+  color: var(--status-completed-text);
+  border-color: var(--status-completed-border);
+}
+
+.DraftImport-badge--added {
+  background: var(--status-completed-bg);
+  color: var(--status-completed-text);
+  border-color: var(--status-completed-border);
+}
+
+.DraftImport-badge--removed {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--danger-border);
+}
+
+.DraftImport-badge--changed {
+  background: var(--color-inset);
+  color: var(--color-text-secondary);
+  border-color: var(--divider);
+}
+
+.DraftImport-badge--unchanged {
+  background: transparent;
+  color: var(--color-text-tertiary);
+  border-color: var(--divider);
+}
+
+.DraftImport-reviewActions {
+  display: flex;
+  gap: 12px;
+}
