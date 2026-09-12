@@ -365,22 +365,6 @@ const useAppointmentDisplayData = (params: {
   ]);
 };
 
-const useEnsureAppointmentLoaded = ({
-  apt,
-  appointmentId,
-  dispatch,
-}: {
-  apt: any;
-  appointmentId: string;
-  dispatch: AppDispatch;
-}) => {
-  useReactEffect(() => {
-    if (!apt) {
-      dispatch(fetchAppointmentById({appointmentId}));
-    }
-  }, [apt, appointmentId, dispatch]);
-};
-
 const useAppointmentDocumentsEffect = ({
   appointmentId,
   companionId,
@@ -769,7 +753,6 @@ export const ViewAppointmentScreen: React.FC = () => {
     lastDocumentsFetchTsRef.current = Date.now();
   }, []);
 
-  useEnsureAppointmentLoaded({apt, appointmentId, dispatch});
   useAppointmentDocumentsEffect({
     appointmentId,
     companionId: apt?.companionId,
@@ -810,6 +793,9 @@ export const ViewAppointmentScreen: React.FC = () => {
   }, [apt, appointmentId, dispatch]);
   useFocusEffect(
     React.useCallback(() => {
+      if (appointmentId) {
+        dispatch(fetchAppointmentById({appointmentId}));
+      }
       if (companionId) {
         dispatch(fetchExpensesForCompanion({companionId}));
       }
@@ -1203,6 +1189,7 @@ export const ViewAppointmentScreen: React.FC = () => {
   });
   const {dateTimeLabel} = formatAppointmentDateTime(apt);
   const merckOrganisationId = apt.businessId ?? null;
+  const preparationInstructions = service?.description?.trim() || null;
 
   const appointmentDetailItems: DetailItem[] = [
     {label: 'Date & Time', value: dateTimeLabel},
@@ -1258,6 +1245,23 @@ export const ViewAppointmentScreen: React.FC = () => {
               items={appointmentDetailItems}
             />
 
+            <View style={styles.detailsCard} accessibilityRole="summary">
+              <Text style={styles.sectionTitle}>
+                {i18next.t('appointments.visitPreparation.title')}
+              </Text>
+              <Text style={styles.emptyDocsText}>
+                {preparationInstructions ??
+                  i18next.t('appointments.visitPreparation.unavailable')}
+              </Text>
+              {preparationInstructions ? (
+                <Text style={styles.emptyDocsText}>
+                  {i18next.t('appointments.visitPreparation.source', {
+                    practice: businessName,
+                  })}
+                </Text>
+              ) : null}
+            </View>
+
             {apt.uploadedFiles?.length ? (
               <View style={styles.detailsCard}>
                 <Text style={styles.sectionTitle}>Your uploaded documents</Text>
@@ -1304,7 +1308,9 @@ export const ViewAppointmentScreen: React.FC = () => {
             </View>
 
             <View style={styles.detailsCard}>
-              <Text style={styles.sectionTitle}>Forms / prescription</Text>
+              <Text style={styles.sectionTitle}>
+                {i18next.t('appointments.visitPreparation.paperworkTitle')}
+              </Text>
               {(() => {
                 if (formsLoading) {
                   return <ActivityIndicator />;
@@ -1314,7 +1320,7 @@ export const ViewAppointmentScreen: React.FC = () => {
                 }
                 return (
                   <Text style={styles.emptyDocsText}>
-                    No forms for this appointment yet.
+                    {i18next.t('appointments.visitPreparation.noPaperwork')}
                   </Text>
                 );
               })()}
