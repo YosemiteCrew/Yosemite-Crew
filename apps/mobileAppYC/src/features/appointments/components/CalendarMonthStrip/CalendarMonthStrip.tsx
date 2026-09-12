@@ -221,14 +221,14 @@ const createStyles = (theme: any) =>
     dateItemToday: {borderColor: theme.colors.primary, borderWidth: 2},
     dateItemDisabled: {opacity: 0.3, backgroundColor: theme.colors.background},
     dateDay: {
-      ...theme.typography.h6Clash,
+      ...theme.typography.h6,
       color: theme.colors.textSecondary,
       marginBottom: theme.spacing['1'],
       textAlign: 'center',
     },
     dateDaySelected: {color: theme.colors.blueText, fontWeight: '500'},
     dateNumber: {
-      ...theme.typography.h6Clash,
+      ...theme.typography.h6,
       color: theme.colors.textSecondary,
       textAlign: 'center',
     },

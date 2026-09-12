@@ -1008,7 +1008,7 @@ const createStyles = (theme: any) => {
       alignSelf: 'flex-start',
     },
     otCtaButtonText: {
-      ...theme.typography.buttonH6Clash19,
+      ...theme.typography.button19,
       color: theme.colors.ctaText,
       textAlign: 'center',
     },
@@ -1179,7 +1179,7 @@ const createStyles = (theme: any) => {
       height: 56,
     },
     completeButtonText: {
-      ...theme.typography.buttonH6Clash19,
+      ...theme.typography.button19,
       color: theme.colors.ctaText,
       textAlign: 'center',
     },
@@ -1192,7 +1192,7 @@ const createStyles = (theme: any) => {
       height: 56,
     },
     reuseButtonText: {
-      ...theme.typography.buttonH6Clash19,
+      ...theme.typography.button19,
       color: theme.colors.ctaText,
       textAlign: 'center',
     },

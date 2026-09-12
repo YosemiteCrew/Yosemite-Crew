@@ -171,8 +171,7 @@ const createStyles = (theme: any) =>
       paddingVertical: theme.spacing['6'],
     },
     title: {
-      // H5 Clash Grotesk 23
-      ...theme.typography.h5Clash23,
+      ...theme.typography.h3,
       color: theme.colors.secondary,
       textAlign: 'center',
     },
@@ -220,14 +219,12 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     buttonText: {
-      // YC/H6 Clash Grotesk 19
-      ...theme.typography.buttonH6Clash19,
+      ...theme.typography.button19,
       color: theme.colors.secondary,
       textAlign: 'center',
     },
     deleteText: {
-      // YC/H6 Clash Grotesk 19
-      ...theme.typography.buttonH6Clash19,
+      ...theme.typography.button19,
       textAlign: 'center',
       color: theme.colors.white,
     },

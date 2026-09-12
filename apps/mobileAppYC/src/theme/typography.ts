@@ -1,14 +1,6 @@
 import {TextStyle} from 'react-native';
 
 export const fonts = {
-  CLASH_DISPLAY_BOLD: 'ClashDisplay-Bold',
-  CLASH_DISPLAY_EXTRA_LIGHT: 'ClashDisplay-Extralight',
-  CLASH_DISPLAY_LIGHT: 'ClashDisplay-Light',
-  CLASH_DISPLAY_MEDIUM: 'ClashDisplay-Medium',
-  CLASH_DISPLAY_REGULAR: 'ClashDisplay-Regular',
-  CLASH_DISPLAY_SEMIBOLD: 'ClashDisplay-Semibold',
-  CLASH_DISPLAY_VARIABLE: 'ClashDisplay-Variable',
-  CLASH_GRO_MEDIUM: 'ClashGrotesk-Medium',
   SATOSHI_BLACK: 'Satoshi-Black',
   SATOSHI_BOLD: 'Satoshi-Bold',
   SATOSHI_LIGHT: 'Satoshi-Light',
@@ -252,9 +244,7 @@ export const typography = {
   h4,
   h4Alt: h4,
   h5,
-  h5Clash23: h3,
   h6,
-  h6Clash: h6,
   headlineMedium: {...h2, letterSpacing: -0.2},
 
   // Titles
@@ -276,7 +266,7 @@ export const typography = {
     lineHeight: 21.6,
     letterSpacing: -0.36,
   },
-  clashBody13: {
+  body13Medium: {
     fontFamily: fonts.SATOSHI_MEDIUM,
     fontSize: fontSizes['13'],
     lineHeight: Math.round(fontSizes['13'] * 1.4),
@@ -335,7 +325,7 @@ export const typography = {
     fontSize: fontSizes.lg,
     lineHeight: Math.round(fontSizes.lg * 1.25),
   },
-  buttonH6Clash19: {
+  button19: {
     fontFamily: fonts.SATOSHI_MEDIUM,
     fontSize: fontSizes['19'],
     lineHeight: Math.round(fontSizes['19'] * 1.3),
