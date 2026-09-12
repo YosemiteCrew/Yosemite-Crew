@@ -7,6 +7,7 @@
  * that shows up later as one story failing to render, far from its cause.
  */
 import config from '../../../../.storybook/main';
+import NextScript from '../../../../.storybook/mocks/nextScript';
 
 type AliasEntry = { find: string | RegExp; replacement: string };
 
@@ -66,7 +67,15 @@ describe('.storybook viteFinal alias handling', () => {
     expect(entry?.replacement.endsWith('mocks/mediaSources.ts')).toBe(true);
   });
 
+  it('replaces next/script with the no-op Storybook implementation', () => {
+    const out = run(undefined);
+    const entry = out.find((a) => String(a.find) === '/^next\\/script$/');
+
+    expect(entry?.replacement.endsWith('mocks/nextScript.tsx')).toBe(true);
+    expect(NextScript()).toBeNull();
+  });
+
   it('copes with no inherited aliases at all', () => {
-    expect(run(undefined).length).toBe(6);
+    expect(run(undefined).length).toBe(7);
   });
 });
