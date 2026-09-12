@@ -394,21 +394,193 @@ function processSection(
   };
 }
 
+type SectionSummaryMap = Record<
+  MigrationAuditSectionName,
+  MigrationAuditSectionSummary
+>;
+type RowsBySection = Partial<Record<MigrationAuditSectionName, ParsedRow[]>>;
+type FileBySection = Partial<
+  Record<MigrationAuditSectionName, MigrationAuditFileInput>
+>;
+
+interface CrossReferenceIndexes {
+  ownerIds: Set<string>;
+  animalOwner: Map<string, string>;
+  animalIds: Set<string>;
+}
+
+/**
+ * Indexes built once from the parsed OWNERS/ANIMALS rows, shared by every
+ * cross-reference check below rather than each recomputing its own.
+ */
+function buildCrossReferenceIndexes(
+  parsedRowsBySection: RowsBySection,
+): CrossReferenceIndexes {
+  const ownerIds = new Set(
+    (parsedRowsBySection.OWNERS ?? [])
+      .map((r) => r.external_id)
+      .filter(usableIdentifier),
+  );
+  const animalOwner = new Map<string, string>();
+  (parsedRowsBySection.ANIMALS ?? []).forEach((row) => {
+    if (
+      usableIdentifier(row.external_id) &&
+      usableIdentifier(row.owner_external_id)
+    ) {
+      animalOwner.set(row.external_id, row.owner_external_id);
+    }
+  });
+  return { ownerIds, animalOwner, animalIds: new Set(animalOwner.keys()) };
+}
+
+/**
+ * Only runs against sections that were themselves ASSESSED - referencing a
+ * NOT_ASSESSED section would report every row in the dependent section as
+ * orphaned, which is a fact about the missing file, not about the rows that
+ * reference it. Mutates `summary.ANIMALS.orphanReferences` and returns the
+ * issues found; a no-op (empty issues, summary untouched) when the guard fails.
+ */
+function checkAnimalOwnerLinks(
+  summary: SectionSummaryMap,
+  rows: ParsedRow[] | undefined,
+  file: MigrationAuditFileInput | undefined,
+  ownerIds: Set<string>,
+): MigrationAuditIssueDraft[] {
+  if (
+    summary.ANIMALS.status !== "ASSESSED" ||
+    summary.OWNERS.status !== "ASSESSED"
+  ) {
+    return [];
+  }
+
+  const issues: MigrationAuditIssueDraft[] = [];
+  let orphanCount = 0;
+  rows!.forEach((row, index) => {
+    if (!usableIdentifier(row.owner_external_id)) return; // already flagged unsafe/missing
+    if (!ownerIds.has(row.owner_external_id)) {
+      orphanCount += 1;
+      issues.push({
+        section: "ANIMALS",
+        severity: "ERROR",
+        code: "orphan_reference",
+        diagnostics: `${file!.fileName} row ${index + 1} references owner_external_id not present in owners.csv.`,
+        sourceFile: file!.fileName,
+        rowNumber: index + 1,
+      });
+    }
+  });
+  summary.ANIMALS.orphanReferences = orphanCount;
+  return issues;
+}
+
+/** Same ASSESSED-only guard as {@link checkAnimalOwnerLinks}, for appointments. */
+function checkAppointmentLinks(
+  summary: SectionSummaryMap,
+  rows: ParsedRow[] | undefined,
+  file: MigrationAuditFileInput | undefined,
+  animalIds: Set<string>,
+  animalOwner: Map<string, string>,
+): MigrationAuditIssueDraft[] {
+  if (
+    summary.APPOINTMENTS.status !== "ASSESSED" ||
+    summary.ANIMALS.status !== "ASSESSED"
+  ) {
+    return [];
+  }
+
+  const issues: MigrationAuditIssueDraft[] = [];
+  let orphanCount = 0;
+  let ambiguousCount = 0;
+  rows!.forEach((row, index) => {
+    if (!usableIdentifier(row.animal_external_id)) return;
+
+    if (!animalIds.has(row.animal_external_id)) {
+      orphanCount += 1;
+      issues.push({
+        section: "APPOINTMENTS",
+        severity: "ERROR",
+        code: "orphan_reference",
+        diagnostics: `${file!.fileName} row ${index + 1} references animal_external_id not present in animals.csv.`,
+        sourceFile: file!.fileName,
+        rowNumber: index + 1,
+      });
+      return;
+    }
+
+    if (!usableIdentifier(row.owner_external_id)) return;
+    const resolvedOwner = animalOwner.get(row.animal_external_id);
+    if (resolvedOwner && resolvedOwner !== row.owner_external_id) {
+      ambiguousCount += 1;
+      issues.push({
+        section: "APPOINTMENTS",
+        severity: "WARNING",
+        code: "ambiguous_owner_reference",
+        diagnostics: `${file!.fileName} row ${index + 1}'s owner_external_id does not match the referenced animal's owner in animals.csv. Review required before mapping.`,
+        sourceFile: file!.fileName,
+        rowNumber: index + 1,
+      });
+    }
+  });
+  summary.APPOINTMENTS.orphanReferences = orphanCount + ambiguousCount;
+  return issues;
+}
+
+/**
+ * Same ASSESSED-only guard as {@link checkAnimalOwnerLinks}, for the optional
+ * attachment manifest. A URL-shaped filename is flagged instead of resolved -
+ * this audit never fetches an external reference.
+ */
+function checkAttachmentLinks(
+  summary: SectionSummaryMap,
+  rows: ParsedRow[] | undefined,
+  file: MigrationAuditFileInput | undefined,
+  animalIds: Set<string>,
+): MigrationAuditIssueDraft[] {
+  if (
+    summary.ATTACHMENTS?.status !== "ASSESSED" ||
+    summary.ANIMALS.status !== "ASSESSED"
+  ) {
+    return [];
+  }
+
+  const issues: MigrationAuditIssueDraft[] = [];
+  let orphanCount = 0;
+  rows!.forEach((row, index) => {
+    if (URL_LIKE.test(row.filename ?? "")) {
+      issues.push({
+        section: "ATTACHMENTS",
+        severity: "ERROR",
+        code: "external_reference_unsupported",
+        diagnostics: `${file!.fileName} row ${index + 1}'s filename is a URL. External attachment URLs are never fetched by this audit.`,
+        sourceFile: file!.fileName,
+        rowNumber: index + 1,
+      });
+      return;
+    }
+    if (!usableIdentifier(row.animal_external_id)) return;
+    if (!animalIds.has(row.animal_external_id)) {
+      orphanCount += 1;
+      issues.push({
+        section: "ATTACHMENTS",
+        severity: "ERROR",
+        code: "orphan_reference",
+        diagnostics: `${file!.fileName} row ${index + 1} references animal_external_id not present in animals.csv.`,
+        sourceFile: file!.fileName,
+        rowNumber: index + 1,
+      });
+    }
+  });
+  summary.ATTACHMENTS.orphanReferences = orphanCount;
+  return issues;
+}
+
 export function planMigrationAudit(
   input: MigrationAuditPlanInput,
 ): MigrationAuditPlan {
   const issues: MigrationAuditIssueDraft[] = [];
-  const summary = {} as Record<
-    MigrationAuditSectionName,
-    MigrationAuditSectionSummary
-  >;
-
-  const parsedRowsBySection: Partial<
-    Record<MigrationAuditSectionName, ParsedRow[]>
-  > = {};
-  const fileBySection: Partial<
-    Record<MigrationAuditSectionName, MigrationAuditFileInput>
-  > = {};
+  const summary = {} as SectionSummaryMap;
+  const parsedRowsBySection: RowsBySection = {};
+  const fileBySection: FileBySection = {};
 
   const SECTION_INPUTS: [
     MigrationAuditSectionName,
@@ -429,122 +601,30 @@ export function planMigrationAudit(
     if (result.rows) parsedRowsBySection[section] = result.rows;
   }
 
-  // Cross-reference checks. Only run against sections that were themselves
-  // ASSESSED - referencing a NOT_ASSESSED section would report every row in
-  // the dependent section as orphaned, which is a fact about the missing
-  // file, not about the rows that reference it.
-  const ownerIds = new Set(
-    (parsedRowsBySection.OWNERS ?? [])
-      .map((r) => r.external_id)
-      .filter(usableIdentifier),
+  const { ownerIds, animalOwner, animalIds } =
+    buildCrossReferenceIndexes(parsedRowsBySection);
+
+  issues.push(
+    ...checkAnimalOwnerLinks(
+      summary,
+      parsedRowsBySection.ANIMALS,
+      fileBySection.ANIMALS,
+      ownerIds,
+    ),
+    ...checkAppointmentLinks(
+      summary,
+      parsedRowsBySection.APPOINTMENTS,
+      fileBySection.APPOINTMENTS,
+      animalIds,
+      animalOwner,
+    ),
+    ...checkAttachmentLinks(
+      summary,
+      parsedRowsBySection.ATTACHMENTS,
+      fileBySection.ATTACHMENTS,
+      animalIds,
+    ),
   );
-  const animalOwner = new Map<string, string>();
-  (parsedRowsBySection.ANIMALS ?? []).forEach((row) => {
-    if (
-      usableIdentifier(row.external_id) &&
-      usableIdentifier(row.owner_external_id)
-    ) {
-      animalOwner.set(row.external_id, row.owner_external_id);
-    }
-  });
-  const animalIds = new Set(animalOwner.keys());
-
-  let animalOrphans = 0;
-  if (
-    summary.ANIMALS.status === "ASSESSED" &&
-    summary.OWNERS.status === "ASSESSED"
-  ) {
-    parsedRowsBySection.ANIMALS!.forEach((row, index) => {
-      if (!usableIdentifier(row.owner_external_id)) return; // already flagged unsafe/missing
-      if (!ownerIds.has(row.owner_external_id)) {
-        animalOrphans += 1;
-        issues.push({
-          section: "ANIMALS",
-          severity: "ERROR",
-          code: "orphan_reference",
-          diagnostics: `${fileBySection.ANIMALS!.fileName} row ${index + 1} references owner_external_id not present in owners.csv.`,
-          sourceFile: fileBySection.ANIMALS!.fileName,
-          rowNumber: index + 1,
-        });
-      }
-    });
-    summary.ANIMALS.orphanReferences = animalOrphans;
-  }
-
-  let appointmentOrphans = 0;
-  let appointmentAmbiguous = 0;
-  if (
-    summary.APPOINTMENTS.status === "ASSESSED" &&
-    summary.ANIMALS.status === "ASSESSED"
-  ) {
-    parsedRowsBySection.APPOINTMENTS!.forEach((row, index) => {
-      const file = fileBySection.APPOINTMENTS!;
-      if (!usableIdentifier(row.animal_external_id)) return;
-
-      if (!animalIds.has(row.animal_external_id)) {
-        appointmentOrphans += 1;
-        issues.push({
-          section: "APPOINTMENTS",
-          severity: "ERROR",
-          code: "orphan_reference",
-          diagnostics: `${file.fileName} row ${index + 1} references animal_external_id not present in animals.csv.`,
-          sourceFile: file.fileName,
-          rowNumber: index + 1,
-        });
-        return;
-      }
-
-      if (!usableIdentifier(row.owner_external_id)) return;
-      const resolvedOwner = animalOwner.get(row.animal_external_id);
-      if (resolvedOwner && resolvedOwner !== row.owner_external_id) {
-        appointmentAmbiguous += 1;
-        issues.push({
-          section: "APPOINTMENTS",
-          severity: "WARNING",
-          code: "ambiguous_owner_reference",
-          diagnostics: `${file.fileName} row ${index + 1}'s owner_external_id does not match the referenced animal's owner in animals.csv. Review required before mapping.`,
-          sourceFile: file.fileName,
-          rowNumber: index + 1,
-        });
-      }
-    });
-    summary.APPOINTMENTS.orphanReferences =
-      appointmentOrphans + appointmentAmbiguous;
-  }
-
-  if (
-    summary.ATTACHMENTS?.status === "ASSESSED" &&
-    summary.ANIMALS.status === "ASSESSED"
-  ) {
-    const file = fileBySection.ATTACHMENTS!;
-    let attachmentOrphans = 0;
-    parsedRowsBySection.ATTACHMENTS!.forEach((row, index) => {
-      if (URL_LIKE.test(row.filename ?? "")) {
-        issues.push({
-          section: "ATTACHMENTS",
-          severity: "ERROR",
-          code: "external_reference_unsupported",
-          diagnostics: `${file.fileName} row ${index + 1}'s filename is a URL. External attachment URLs are never fetched by this audit.`,
-          sourceFile: file.fileName,
-          rowNumber: index + 1,
-        });
-        return;
-      }
-      if (!usableIdentifier(row.animal_external_id)) return;
-      if (!animalIds.has(row.animal_external_id)) {
-        attachmentOrphans += 1;
-        issues.push({
-          section: "ATTACHMENTS",
-          severity: "ERROR",
-          code: "orphan_reference",
-          diagnostics: `${file.fileName} row ${index + 1} references animal_external_id not present in animals.csv.`,
-          sourceFile: file.fileName,
-          rowNumber: index + 1,
-        });
-      }
-    });
-    summary.ATTACHMENTS.orphanReferences = attachmentOrphans;
-  }
 
   return { issues, summary };
 }
