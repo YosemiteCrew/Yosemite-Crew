@@ -10,7 +10,7 @@ import { prisma } from "src/config/prisma";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-type RecurrenceType = "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+type RecurrenceType = "ONCE" | "DAILY" | "WEEKLY" | "MONTHLY" | "CUSTOM";
 
 const MAX_HORIZON_DAYS = 30;
 const MAX_CHILDREN_PER_RUN = 50;
@@ -22,7 +22,44 @@ export class TaskRecurrenceEngineError extends Error {
   }
 }
 
-const computeNextDueAt = (
+// Calendar month length is timezone-independent, so this needs no tz plugin.
+const daysInMonth = (year: number, month0: number): number =>
+  new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
+
+// Monthly recurrence anchors to the ORIGINAL calendar day, not "same day next
+// month": if a target month is too short for that day, skip it entirely and
+// keep looking rather than clamping (Jan 31 -> Mar 31, never Feb 28).
+const addMonthlyRecurrence = (
+  base: dayjs.Dayjs,
+  taskTimezone: string | undefined,
+): dayjs.Dayjs => {
+  const originalDay = base.date();
+  let year = base.year();
+  let month = base.month();
+
+  do {
+    month += 1;
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    }
+  } while (daysInMonth(year, month) < originalDay);
+
+  // dayjs's tz-aware setters (.date()/.month()/.year()) keep the UTC offset
+  // captured when .tz() was first called instead of recomputing it for the
+  // new date, so stepping across a DST boundary that way silently mislabels
+  // the instant by the DST delta. Rebuilding the wall-clock string and
+  // reparsing through dayjs.tz() forces a fresh offset lookup instead.
+  const pad = (value: number, length = 2) =>
+    String(value).padStart(length, "0");
+  const wallClock = `${year}-${pad(month + 1)}-${pad(originalDay)}T${pad(
+    base.hour(),
+  )}:${pad(base.minute())}:${pad(base.second())}.${pad(base.millisecond(), 3)}`;
+
+  return taskTimezone ? dayjs.tz(wallClock, taskTimezone) : dayjs(wallClock);
+};
+
+export const computeNextDueAt = (
   recurrenceType: RecurrenceType,
   previousDueAt: Date,
   timezone: string | undefined,
@@ -39,6 +76,8 @@ const computeNextDueAt = (
       return base.add(1, "day").toDate();
     case "WEEKLY":
       return base.add(1, "week").toDate();
+    case "MONTHLY":
+      return addMonthlyRecurrence(base, timezone).toDate();
     case "CUSTOM":
       if (!cronExpression) return null;
       try {
@@ -69,7 +108,7 @@ const computeNextDueAt = (
   }
 };
 
-const getNextOccurrence = (
+export const getNextOccurrence = (
   recurrenceType: RecurrenceType,
   previousDueAt: Date,
   timezone: string | undefined,
