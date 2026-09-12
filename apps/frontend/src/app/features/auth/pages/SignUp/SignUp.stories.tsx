@@ -97,8 +97,9 @@ export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    const role = canvas.getByRole('combobox', { name: 'I am' });
-    await expect(role).toHaveValue(CLINIC_ROLE);
+    const role = canvas.getByRole('button', { name: `I am: ${CLINIC_ROLE}` });
+    await expect(role).toHaveTextContent(CLINIC_ROLE);
+    await expect(role).toHaveAttribute('aria-haspopup', 'listbox');
 
     // The brand panel is the only h2 on the page; the two h1s are the page heading
     // and the preview decorator's sr-only landmark title, so read this by level.
@@ -201,7 +202,12 @@ export const DeveloperPane: Story = {
       'See the whole animal.'
     );
 
-    await userEvent.selectOptions(canvas.getByRole('combobox', { name: 'I am' }), DEVELOPER_ROLE);
+    const role = canvas.getByRole('button', { name: `I am: ${CLINIC_ROLE}` });
+    await userEvent.click(role);
+    const roleListbox = within(canvasElement.ownerDocument.body).getByRole('listbox', {
+      name: 'I am',
+    });
+    await userEvent.click(within(roleListbox).getByRole('option', { name: DEVELOPER_ROLE }));
 
     // Re-queried inside the waitFor rather than held from before the swap: the
     // headline is rebuilt around a different <em>, and the assertion should fail
