@@ -110,26 +110,77 @@ export interface DraftImportView {
   updatedAt: Date;
 }
 
+interface ValidatedCreateInput {
+  organisationId: string;
+  userId: string;
+  suppliedText: string;
+  sourceForm: SourceFormContext | null;
+}
+
+const validateCreateInput = async (
+  input: CreateDraftImportInput,
+): Promise<ValidatedCreateInput> => {
+  const organisationId = ensureId(input.organisationId, "organisationId");
+  const userId = ensureId(input.userId, "userId");
+  const suppliedText = input.suppliedText ?? "";
+
+  if (!suppliedText.trim()) {
+    throw new FormServiceError("suppliedText must not be empty", 400);
+  }
+  if (suppliedText.length > MAX_SUPPLIED_TEXT_LENGTH) {
+    throw new FormServiceError(
+      `suppliedText must not exceed ${MAX_SUPPLIED_TEXT_LENGTH} characters`,
+      400,
+    );
+  }
+
+  const sourceFormId = input.sourceFormId?.trim() || undefined;
+  const sourceForm = sourceFormId
+    ? await loadSourceForm(organisationId, sourceFormId)
+    : null;
+
+  return { organisationId, userId, suppliedText, sourceForm };
+};
+
+const createDraftForm = async (
+  organisationId: string,
+  userId: string,
+  sourceForm: SourceFormContext | null,
+  fields: ParsedDraftField[],
+): Promise<string> => {
+  const draftFormLike: FormType = {
+    _id: "",
+    orgId: organisationId,
+    name: sourceForm ? `${sourceForm.name} (draft import)` : "Imported form",
+    category: sourceForm?.category ?? "General",
+    visibilityType: "Internal",
+    status: "draft",
+    schema: toFormFieldSchema(fields),
+    requiredSigner: hasSignatureField(fields) ? "CLIENT" : undefined,
+    createdBy: userId,
+    updatedBy: userId,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const questionnaire = toFHIRQuestionnaire(draftFormLike);
+  const created = await FormService.create(
+    organisationId,
+    questionnaire,
+    userId,
+  );
+  const draftFormId = created.id;
+  if (!draftFormId) {
+    // Defensive only - FormService.create always returns the persisted id.
+    throw new FormServiceError("Failed to create draft form", 500);
+  }
+  return draftFormId;
+};
+
 export const FormDraftImportService = {
   async create(input: CreateDraftImportInput): Promise<DraftImportView> {
-    const organisationId = ensureId(input.organisationId, "organisationId");
-    const userId = ensureId(input.userId, "userId");
-    const suppliedText = input.suppliedText ?? "";
-
-    if (!suppliedText.trim()) {
-      throw new FormServiceError("suppliedText must not be empty", 400);
-    }
-    if (suppliedText.length > MAX_SUPPLIED_TEXT_LENGTH) {
-      throw new FormServiceError(
-        `suppliedText must not exceed ${MAX_SUPPLIED_TEXT_LENGTH} characters`,
-        400,
-      );
-    }
-
-    const sourceFormId = input.sourceFormId?.trim() || undefined;
-    const sourceForm = sourceFormId
-      ? await loadSourceForm(organisationId, sourceFormId)
-      : null;
+    const { organisationId, userId, suppliedText, sourceForm } =
+      await validateCreateInput(input);
 
     const { fields, unsupportedConstructs } =
       parseSuppliedFormText(suppliedText);
@@ -141,32 +192,12 @@ export const FormDraftImportService = {
       );
     }
 
-    const draftFormLike: FormType = {
-      _id: "",
-      orgId: organisationId,
-      name: sourceForm ? `${sourceForm.name} (draft import)` : "Imported form",
-      category: sourceForm?.category ?? "General",
-      visibilityType: "Internal",
-      status: "draft",
-      schema: toFormFieldSchema(fields),
-      requiredSigner: hasSignatureField(fields) ? "CLIENT" : undefined,
-      createdBy: userId,
-      updatedBy: userId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    const questionnaire = toFHIRQuestionnaire(draftFormLike);
-    const created = await FormService.create(
+    const draftFormId = await createDraftForm(
       organisationId,
-      questionnaire,
       userId,
+      sourceForm,
+      fields,
     );
-    const draftFormId = created.id;
-    if (!draftFormId) {
-      // Defensive only - FormService.create always returns the persisted id.
-      throw new FormServiceError("Failed to create draft form", 500);
-    }
 
     const record = await prisma.formDraftImport.create({
       data: {
