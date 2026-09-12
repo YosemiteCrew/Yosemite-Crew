@@ -396,6 +396,23 @@
   color: var(--color-text-tertiary);
 }
 
+.DocsSearchRetry {
+  margin-top: 8px;
+  border: 0;
+  padding: 0;
+  color: var(--blue-text);
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.DocsSearchRetry:focus-visible {
+  outline: 2px solid var(--blue-text);
+  outline-offset: 3px;
+}
+
 .DocsSearchResult {
   display: flex;
   align-items: baseline;

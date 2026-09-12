@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import DocsShell from '@/app/features/docs/DocsShell';
+import SkipLink from '@/app/ui/layout/SkipLink';
 import { loadCorpus } from '@/app/features/docs/corpus';
 import { renderDoc } from '@/app/features/docs/render';
 import type { NavNode } from '@/app/features/docs/docsNav';
@@ -71,6 +72,31 @@ describe('DocsShell', () => {
     await shell('x');
     expect(screen.getByRole('link', { name: 'Overview' })).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Search the documentation' })).toBeInTheDocument();
+  });
+
+  it('provides the global skip link with one focusable main-content target', async () => {
+    const { container } = render(
+      <>
+        <SkipLink />
+        <DocsShell
+          nav={NAV}
+          toc={TOC}
+          title="Getting Started"
+          breadcrumb={['Docs', 'Getting Started']}
+          tree={await treeFor('x')}
+          editUrl="https://github.com/YosemiteCrew/Yosemite-Crew/edit/dev/apps/frontend/content/docs/test.md"
+        />
+      </>
+    );
+    expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute(
+      'href',
+      '#main-content'
+    );
+    const target = container.querySelectorAll('#main-content');
+
+    expect(target).toHaveLength(1);
+    expect(target[0]).toHaveAttribute('tabindex', '-1');
+    expect(target[0]?.tagName).toBe('MAIN');
   });
 
   it('renders the table of contents, nesting depth-3 entries', async () => {
