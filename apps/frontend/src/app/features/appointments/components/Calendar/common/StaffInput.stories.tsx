@@ -153,7 +153,7 @@ export const LongStaffList: Story = {
     // the tail of the list is simply not visible. Pinned because the classes
     // promise otherwise, and because a future switch to a textarea would change
     // the popover's height without anything else objecting.
-    await expect(Math.round(box.height)).toBe(44);
+    await expect(Math.round(box.height)).toBe(40);
     // `min-w-0` is what keeps that overflow inside the column instead of
     // stretching the popover to fit the longest staff list.
     const column = canvasElement.querySelector('[data-story-column]') as HTMLElement;

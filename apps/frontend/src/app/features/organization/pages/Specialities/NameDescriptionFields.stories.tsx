@@ -72,7 +72,7 @@ export const Empty: Story = {
     await expect(args.onNameChange).toHaveBeenCalledTimes(1);
 
     // No error prop, so nothing may claim the field is invalid.
-    await expect(canvas.getByLabelText('Name')).toHaveAttribute('aria-invalid', 'false');
+    await expect(canvas.getByLabelText('Name')).not.toHaveAttribute('aria-invalid');
     await expect(canvas.queryByRole('alert')).toBeNull();
 
     /* With no `textareaRows` the element carries no `rows` at all, so the height
