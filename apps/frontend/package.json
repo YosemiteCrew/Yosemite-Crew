@@ -45,7 +45,7 @@
     "@tiptap/starter-kit": "^3.30.5",
     "axios": "^1.20.0",
     "classnames": "^2.5.1",
-    "dompurify": "^3.4.14",
+    "dompurify": "3.4.15",
     "framer-motion": "^13.1.1",
     "gray-matter": "^4.0.3",
     "hast-util-to-jsx-runtime": "^2.3.6",
