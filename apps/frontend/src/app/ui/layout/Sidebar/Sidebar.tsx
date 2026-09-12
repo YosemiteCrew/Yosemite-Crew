@@ -56,6 +56,7 @@ const ROUTE_ICONS: Record<string, IconType> = {
   Network: IoGlobeOutline,
   Templates: IoBookOutline,
   'API Keys': IoKeyOutline,
+  'Form Draft Import': IoBookOutline,
   Billing: IoWalletOutline,
   'Website - Builder': IoGlobeOutline,
   Plugins: IoExtensionPuzzleOutline,
@@ -71,7 +72,10 @@ const APP_ROUTE_GROUPS = [
 ] as const;
 
 const DEV_ROUTE_GROUPS = [
-  { label: 'Developer', routeNames: ['Dashboard', 'API Keys', 'Billing', 'Website - Builder'] },
+  {
+    label: 'Developer',
+    routeNames: ['Dashboard', 'API Keys', 'Form Draft Import', 'Billing', 'Website - Builder'],
+  },
   { label: 'Platform', routeNames: ['Plugins', 'Documentation'] },
 ] as const;
 
