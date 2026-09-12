@@ -74,7 +74,7 @@ export default function DocsShell({
         <div className="DocsLayout">
           <DocsSidebar nav={nav} />
 
-          <main className="DocsMain" id="docs-content">
+          <main className="DocsMain" id="main-content" tabIndex={-1}>
             <nav className="DocsBreadcrumb" aria-label="Breadcrumb">
               {breadcrumb.map((crumb, index) => (
                 <span key={crumb}>
