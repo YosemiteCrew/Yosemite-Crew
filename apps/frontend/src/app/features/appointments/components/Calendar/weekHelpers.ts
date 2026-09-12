@@ -1,6 +1,11 @@
 import { Appointment } from '@yosemite-crew/types';
 import { formatDisplayDate } from '@/app/lib/date';
-import { getHourInPreferredTimeZone, isOnPreferredTimeZoneCalendarDay } from '@/app/lib/timezone';
+import {
+  buildPreferredTimeZoneDayInstant,
+  getDatePartsInPreferredTimeZone,
+  getHourInPreferredTimeZone,
+  isOnPreferredTimeZoneCalendarDay,
+} from '@/app/lib/timezone';
 
 export const HOURS_IN_DAY = 24;
 
@@ -17,6 +22,35 @@ export function getWeekDays(weekStart: Date): Date[] {
     d.setDate(base.getDate() + i);
     return d;
   });
+}
+
+/**
+ * Noon-anchored instant for the preferred-timezone calendar day containing `date`.
+ *
+ * Unlike `startOfDay`, which zeroes the *browser's* local clock, this reads the
+ * calendar day from the clinic's preferred timezone and re-anchors it at noon in
+ * that same zone - noon sits far from any day boundary, so the result survives
+ * being reinterpreted through the browser's own (possibly very different) offset
+ * without drifting onto a neighbouring date (see `buildPreferredTimeZoneDayInstant`).
+ */
+export function startOfPreferredTimeZoneDay(date: Date): Date {
+  const { year, month, day } = getDatePartsInPreferredTimeZone(date);
+  return buildPreferredTimeZoneDayInstant(year, month, day);
+}
+
+/**
+ * The seven days of the week beginning at `weekStart`, anchored in the clinic's
+ * preferred timezone rather than the browser's. `getWeekDays` derives its
+ * columns from a browser-local midnight, which can land on the wrong clinic
+ * calendar day for a browser far enough from the preferred zone; this instead
+ * steps the *preferred-zone* calendar date forward, so column N is always the
+ * clinic's own Nth day of the week regardless of where the browser sits.
+ */
+export function getWeekDaysInPreferredTimeZone(weekStart: Date): Date[] {
+  const { year, month, day } = getDatePartsInPreferredTimeZone(weekStart);
+  return Array.from({ length: 7 }, (_, i) =>
+    buildPreferredTimeZoneDayInstant(year, month, day + i)
+  );
 }
 
 export function eventsForDayHour(events: Appointment[], day: Date, hour: number): Appointment[] {
