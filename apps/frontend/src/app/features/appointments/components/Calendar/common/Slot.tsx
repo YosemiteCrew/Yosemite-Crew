@@ -7,7 +7,7 @@ import {
   autoScrollCalendarVertically,
 } from '@/app/features/appointments/components/Calendar/helpers';
 import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
-import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
+import { buildDateInPreferredTimeZone, formatDateInPreferredTimeZone } from '@/app/lib/timezone';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useSlotMarkerInteractions } from '@/app/features/appointments/components/Calendar/common/useSlotMarkerInteractions';
@@ -109,7 +109,7 @@ const buildSlotLabels = (dropDate: Date | undefined, dropHour: number) => {
     day: 'numeric',
   });
   const timeLabel = formatDateInPreferredTimeZone(
-    new Date(dropDate.getTime() + dropHour * 60 * 60 * 1000),
+    buildDateInPreferredTimeZone(dropDate, dropHour * 60),
     { hour: 'numeric', minute: '2-digit' }
   );
   return {

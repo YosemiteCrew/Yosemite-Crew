@@ -1,5 +1,8 @@
 import { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
-import { formatDisplayDate } from '@/app/features/inventory/pages/Inventory/utils';
+import {
+  formatDisplayDate,
+  parseInventoryCalendarDateParts,
+} from '@/app/features/inventory/pages/Inventory/utils';
 
 export const validateNumberField = (
   value: unknown,
@@ -62,22 +65,8 @@ export const getStockErrors = (
 };
 
 export const parseDate = (value?: string): Date | null => {
-  if (!value) return null;
-  if (value.includes('/')) {
-    const [dd, mm, yyyy] = value.split('/');
-    const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
-    if (!Number.isNaN(parsed.getTime())) return parsed;
-  }
-
-  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
-  if (isoMatch) {
-    const [, yyyy, mm, dd] = isoMatch;
-    const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
-    if (!Number.isNaN(parsed.getTime())) return parsed;
-  }
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+  const parts = parseInventoryCalendarDateParts(value);
+  return parts ? new Date(parts.year, parts.month - 1, parts.day) : null;
 };
 
 export const formatDate = (date: Date) => {
