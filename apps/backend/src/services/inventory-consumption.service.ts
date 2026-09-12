@@ -1170,7 +1170,17 @@ const applyInventoryConsumption = async (
   params: InventoryConsumptionApplyParams,
 ) => {
   const item = await requireInventoryItemForAdjustment(tx, params);
-  if ((item.onHand ?? 0) < params.quantity) {
+  // A NORMAL-source consumption must not eat into stock already reserved for
+  // someone else via InventoryAllocationService.allocateStock (the allocation
+  // path itself enforces onHand-allocated>=quantity; this guard mirrors it).
+  // An ALLOCATED-source consumption is drawing down that same reservation, so
+  // it is checked against onHand alone - finalizeInventoryAdjustment below
+  // reduces `allocated` for that case.
+  const availableForConsumption =
+    params.stockSource === "ALLOCATED"
+      ? (item.onHand ?? 0)
+      : (item.onHand ?? 0) - (item.allocated ?? 0);
+  if (availableForConsumption < params.quantity) {
     throw new InventoryConsumptionServiceError("Insufficient stock", 400);
   }
 
@@ -1195,7 +1205,7 @@ const applyInventoryConsumption = async (
 
     await tx.inventoryBatch.update({
       where: { id: batch.id },
-      data: { quantity: available - consume },
+      data: { quantity: { decrement: consume } },
     });
 
     await tx.inventoryStockMovement.create({

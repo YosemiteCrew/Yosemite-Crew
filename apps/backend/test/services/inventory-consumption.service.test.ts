@@ -215,6 +215,21 @@ describe("InventoryConsumptionService", () => {
     });
 
     expect(events).toHaveLength(1);
+    // Batch decrements must be atomic Prisma `decrement` writes, not a
+    // literal computed value - otherwise a concurrent consumption of the same
+    // batch produces a lost update even inside this transaction.
+    expect(mockedPrisma.inventoryBatch.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "batch-1" },
+        data: { quantity: { decrement: 2 } },
+      }),
+    );
+    expect(mockedPrisma.inventoryBatch.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "batch-2" },
+        data: { quantity: { decrement: 1 } },
+      }),
+    );
     expect(mockedPrisma.inventoryItem.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: { onHand: 3 },
@@ -2674,6 +2689,36 @@ describe("InventoryConsumptionService", () => {
         ],
       }),
     ).rejects.toThrow("Insufficient stock");
+  });
+
+  // onHand(10) alone would pass a quantity of 8, but 5 of that onHand is
+  // already reserved via InventoryAllocationService.allocateStock for a
+  // different patient/encounter - a NORMAL-source consumption must respect
+  // that reservation the same way allocateStock's own guard does.
+  it("refuses a NORMAL-source consumption that would dispense allocated (reserved) stock", async () => {
+    mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+      id: "item-reserved",
+      organisationId: "org-1",
+      onHand: 10,
+      allocated: 5,
+    });
+
+    await expect(
+      InventoryConsumptionService.consume({
+        organisationId: "org-1",
+        sourceType: "PRESCRIPTION",
+        sourceId: "rx-reserved",
+        metadata: { dispenseStockSource: "NORMAL" },
+        lines: [
+          {
+            sourceLineKey: "line-1",
+            inventoryItemId: "item-reserved",
+            quantity: 8,
+          },
+        ],
+      }),
+    ).rejects.toThrow("Insufficient stock");
+    expect(mockedPrisma.inventoryBatch.update).not.toHaveBeenCalled();
   });
 
   it("throws when batches cannot cover the full requested consumption", async () => {
