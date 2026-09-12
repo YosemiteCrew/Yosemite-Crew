@@ -506,6 +506,30 @@ describe("AvailabilityService", () => {
         isAvailable: true,
       });
     });
+
+    it("bounds the occupancy query to the actual 7-day week, not an 8th day", async () => {
+      // Monday 2026-03-09 through Sunday 2026-03-15. A buggy `weekEnd` of
+      // `weekStart + 7 days` reaches into the *following* Monday and pulls
+      // its occupancies into this week's bucket (#3141).
+      const refDate = new Date("2026-03-09T00:00:00Z"); // Monday
+      baseSpy.mockResolvedValue([]);
+      overrideSpy.mockResolvedValue(null);
+      (prisma.occupancy.findMany as jest.Mock).mockResolvedValue([]);
+
+      await AvailabilityService.getWeeklyFinalAvailability(
+        "org1",
+        "u1",
+        refDate,
+      );
+
+      const call = (prisma.occupancy.findMany as jest.Mock).mock.calls[0][0];
+      expect(call.where.startTime.lte).toEqual(
+        new Date("2026-03-15T23:59:59.999Z"), // end of this week's Sunday
+      );
+      expect(call.where.endTime.gte).toEqual(
+        new Date("2026-03-09T00:00:00.000Z"), // start of this week's Monday
+      );
+    });
   });
 
   describe("getFinalAvailabilityForDate", () => {
@@ -773,6 +797,30 @@ describe("AvailabilityService", () => {
 
       expect(statuses.size).toBe(0);
       expect(prisma.baseAvailability.findMany).not.toHaveBeenCalled();
+    });
+
+    it("bounds the weekly occupancy query to the actual 7-day week, not an 8th day", async () => {
+      // NOW is Wednesday 2026-03-11, whose week is Monday 2026-03-09
+      // through Sunday 2026-03-15 (#3141).
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValue([]);
+      (
+        prisma.weeklyAvailabilityOverride.findMany as jest.Mock
+      ).mockResolvedValue([]);
+      (prisma.occupancy.findMany as jest.Mock).mockResolvedValue([]);
+
+      await AvailabilityService.getCurrentStatusBulk(ORG, ["u1"]);
+
+      // The weekly-window call has no `select`; the "occupied right now"
+      // call does (`select: { userId: true }`) - that's what tells them apart.
+      const weeklyCall = (
+        prisma.occupancy.findMany as jest.Mock
+      ).mock.calls.find((call) => !call[0].select)?.[0];
+      expect(weeklyCall.where.startTime.lte).toEqual(
+        new Date("2026-03-15T23:59:59.999Z"), // end of this week's Sunday
+      );
+      expect(weeklyCall.where.endTime.gte).toEqual(
+        new Date("2026-03-09T00:00:00.000Z"), // start of this week's Monday
+      );
     });
   });
 });
