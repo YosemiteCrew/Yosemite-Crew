@@ -54,7 +54,7 @@ describe('DevelopersPage', () => {
     expect(screen.getByText(/A FHIR-native API, a plugin marketplace/i)).toBeInTheDocument();
 
     const readDocs = screen.getByRole('link', { name: /Read the docs/i });
-    expect(readDocs).toHaveAttribute('href', '/developers/signup');
+    expect(readDocs).toHaveAttribute('href', '/docs');
 
     const cloneRepo = screen.getByRole('link', { name: /Clone the repo/i });
     expect(cloneRepo).toHaveAttribute('href', 'https://github.com/YosemiteCrew/Yosemite-Crew');

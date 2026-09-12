@@ -387,7 +387,7 @@ function HeroLeftColumn({ primaryRef, ghostRef }: Readonly<HeroCtaRefs>) {
       >
         <Link
           ref={primaryRef}
-          href="/developers/signup"
+          href="/docs"
           className="yc-btn-primary"
           style={HERO_PRIMARY_CTA_STYLE}
         >
