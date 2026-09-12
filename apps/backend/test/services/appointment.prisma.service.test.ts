@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, jest, it } from "@jest/globals";
+import { Prisma } from "@prisma/client";
 import { AppointmentPrismaService } from "../../src/services/appointment.prisma.service";
 import { prisma } from "../../src/config/prisma";
 import { InvoiceService } from "../../src/services/invoice.service";
@@ -537,6 +538,15 @@ describe("AppointmentPrismaService", () => {
       mockedInvoiceService.createCheckoutSessionAndEmailParent,
     ).toHaveBeenCalledWith("inv_1");
     expect(result.status).toBe("UPCOMING");
+    // #3139: the lead-availability check-and-write must run Serializable, or
+    // two concurrent bookings can both pass `assertLeadAvailability` under
+    // READ COMMITTED and double-book the same lead vet.
+    expect(mockedPrisma.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      },
+    );
   });
 
   it("rejects PMS online payment creation for in-clinic collection", async () => {
@@ -2313,6 +2323,14 @@ describe("AppointmentPrismaService", () => {
         }),
       );
       expect(result.status).toBe("UPCOMING");
+      // #3139: same race as createAppointment - approval also re-checks and
+      // books the lead's occupancy, so it needs the same isolation guarantee.
+      expect(mockedPrisma.$transaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
     });
   });
 
@@ -3396,6 +3414,14 @@ describe("AppointmentPrismaService", () => {
         mockedInvoiceService.markAppointmentReadyForBilling,
       ).not.toHaveBeenCalled();
       expect(result.status).toBe("UPCOMING");
+      // #3139: an edit that rebooks the lead's occupancy shares the same race
+      // as create/approve and needs the same isolation guarantee.
+      expect(mockedPrisma.$transaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
     });
 
     const seedInProgressTransition = (encounter: Record<string, unknown>) => {
