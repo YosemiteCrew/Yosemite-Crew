@@ -151,6 +151,8 @@ const mapRecurrenceToFrequency = (recurrence?: {
       return 'daily';
     case 'WEEKLY':
       return 'weekly';
+    case 'MONTHLY':
+      return 'monthly';
     case 'CUSTOM':
       return 'daily';
     default:
@@ -165,7 +167,7 @@ const mapFrequencyToRecurrence = (
   const freq = frequency.toString().toLowerCase();
   if (freq === 'daily' || freq === 'every-day') return 'DAILY';
   if (freq === 'weekly') return 'WEEKLY';
-  if (freq === 'monthly') return 'WEEKLY'; // Note: Backend RecurrenceType doesn't have MONTHLY, using WEEKLY as placeholder
+  if (freq === 'monthly') return 'MONTHLY';
   if (freq === 'once') return 'ONCE';
   return 'ONCE';
 };

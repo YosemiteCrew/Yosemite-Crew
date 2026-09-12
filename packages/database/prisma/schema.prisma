@@ -2129,6 +2129,7 @@ enum RecurrenceType {
   ONCE
   DAILY
   WEEKLY
+  MONTHLY
   CUSTOM
 }
 
