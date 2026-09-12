@@ -219,6 +219,29 @@ describe('DeveloperDocs reader', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
   });
 
+  /* ARTICLES.appointments has no `detail` field - the endpoint, scope, and
+     restrictions live only in JSX below `pageText`. Copy page must still carry
+     them, or an agent pasting the page misses the integration instructions
+     that are already on screen. Assert the copied string itself, not the
+     rendered DOM, since the DOM already had this text before the fix. */
+  it('carries the endpoint, scope, restriction and both samples into the copied page text', async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    setClipboard(writeText);
+
+    render(<DeveloperDocs />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Copy page/i }));
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+
+    const copied = writeText.mock.calls[0][0] as string;
+    expect(copied).toContain('POST /fhir/v1/appointment/pms');
+    expect(copied).toContain('appointments:edit:any');
+    expect(copied).toMatch(/practice surface, not a developer one/i);
+    expect(copied).toContain('Organization/<practice-id>');
+    expect(copied).toContain('RelatedPerson/<parent-id>');
+    expect(copied).toContain('"status": "UPCOMING"');
+  });
+
   it('copies the response code sample', async () => {
     const writeText = jest.fn().mockResolvedValue(undefined);
     setClipboard(writeText);
