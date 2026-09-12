@@ -152,6 +152,11 @@ const readStagedFile = (file) => {
   }
 };
 
+const hasStagedAdditions = (file) => {
+  const diff = runGit(['diff', '--cached', '--unified=0', '--no-ext-diff', '--', file]);
+  return diff.split('\n').some((line) => line.startsWith('+') && !line.startsWith('+++'));
+};
+
 const findLineNumber = (content, index) => content.slice(0, index).split('\n').length;
 
 const findings = [];
@@ -161,11 +166,13 @@ const stagedFiles = getStagedFiles();
 
 for (const file of stagedFiles) {
   if (isBlockedLocalFile(file)) {
-    findings.push({
-      file,
-      line: 1,
-      name: 'local secrets file',
-    });
+    if (hasStagedAdditions(file)) {
+      findings.push({
+        file,
+        line: 1,
+        name: 'local secrets file',
+      });
+    }
     continue;
   }
 

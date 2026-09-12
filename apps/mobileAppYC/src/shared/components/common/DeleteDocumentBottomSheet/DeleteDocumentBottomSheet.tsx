@@ -112,12 +112,12 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     buttonText: {
-      ...theme.typography.buttonH6Clash19,
+      ...theme.typography.button19,
       color: theme.colors.secondary,
       textAlign: 'center',
     },
     deleteText: {
-      ...theme.typography.buttonH6Clash19,
+      ...theme.typography.button19,
       textAlign: 'center',
       color: theme.colors.white,
     },

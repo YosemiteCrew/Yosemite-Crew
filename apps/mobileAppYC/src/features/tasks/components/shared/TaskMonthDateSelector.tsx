@@ -267,7 +267,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     dayName: {
-      ...theme.typography.h6Clash,
+      ...theme.typography.h6,
       color: theme.colors.textSecondary,
       marginBottom: theme.spacing['1'],
       textAlign: 'center',
@@ -283,7 +283,7 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
     },
     dayNumber: {
-      ...theme.typography.h6Clash,
+      ...theme.typography.h6,
       color: theme.colors.textSecondary,
       textAlign: 'center',
     },

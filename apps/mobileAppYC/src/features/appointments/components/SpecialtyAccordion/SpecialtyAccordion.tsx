@@ -299,7 +299,7 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['2'],
     },
     serviceName: {
-      ...theme.typography.h6Clash,
+      ...theme.typography.h6,
       color: theme.colors.text,
       flex: 1,
     },
