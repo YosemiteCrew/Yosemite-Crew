@@ -58,6 +58,13 @@ CREATE INDEX "MigrationAuditIssue_auditRunId_section_severity_idx" ON "Migration
 -- AddForeignKey
 ALTER TABLE "MigrationAuditIssue" ADD CONSTRAINT "MigrationAuditIssue_auditRunId_fkey" FOREIGN KEY ("auditRunId") REFERENCES "MigrationAuditRun"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- deployed-code-survives: both tables are created earlier in this same
+--   migration, so no code deployed before it ever queried them - there is no
+--   existing reader for the RLS enable to take rows away from. The API
+--   endpoints that read/write these tables ship in this same PR and connect
+--   as the owning role, which bypasses RLS, matching every other
+--   ENABLE ROW LEVEL SECURITY in this migration set (e.g.
+--   LabResultQuarantine, 20260905130000).
 -- Deny direct Supabase PostgREST access; the API connects as the owning role.
 ALTER TABLE "MigrationAuditRun" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "MigrationAuditIssue" ENABLE ROW LEVEL SECURITY;
