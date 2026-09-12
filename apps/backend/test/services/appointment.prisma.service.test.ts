@@ -1433,15 +1433,17 @@ describe("AppointmentPrismaService", () => {
   });
 
   it("blocks PMS approval when the lead already has overlapping occupancy", async () => {
-    mockedPrisma.appointment.findUnique.mockResolvedValue(
+    mockedPrisma.appointment.findFirst.mockResolvedValue(
       makeRow({ status: "REQUESTED" }),
     );
     mockedPrisma.occupancy.findFirst.mockResolvedValue({ id: "occ_1" } as any);
 
     await expect(
-      AppointmentPrismaService.approveRequestedFromPms("appt_1", {
-        resourceType: "Appointment",
-      } as any),
+      AppointmentPrismaService.approveRequestedFromPms(
+        "appt_1",
+        { resourceType: "Appointment" } as any,
+        "org_1",
+      ),
     ).rejects.toMatchObject({
       message: "Selected vet is not available for this slot.",
       statusCode: 409,
@@ -1653,6 +1655,59 @@ describe("AppointmentPrismaService", () => {
         statusCode: 400,
       });
       expect(mockedPrisma.appointment.create).not.toHaveBeenCalled();
+    });
+
+    it("returns 404 rather than cancelling another tenant's appointment", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
+
+      await expect(
+        AppointmentPrismaService.cancelAppointment("appt_in_org_b", "org_a"),
+      ).rejects.toMatchObject({
+        message: "Appointment not found",
+        statusCode: 404,
+      });
+      expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+        where: { id: "appt_in_org_b", organisationId: "org_a" },
+      });
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+    });
+
+    it("returns 404 rather than rejecting another tenant's requested appointment", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
+
+      await expect(
+        AppointmentPrismaService.rejectRequestedAppointment(
+          "appt_in_org_b",
+          "org_a",
+        ),
+      ).rejects.toMatchObject({
+        message: "Appointment not found",
+        statusCode: 404,
+      });
+      expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+        where: { id: "appt_in_org_b", organisationId: "org_a" },
+      });
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+    });
+
+    it("returns 404 rather than approving another tenant's requested appointment", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
+
+      await expect(
+        AppointmentPrismaService.approveRequestedFromPms(
+          "appt_in_org_b",
+          { resourceType: "Appointment" } as any,
+          "org_a",
+        ),
+      ).rejects.toMatchObject({
+        message: "Appointment not found",
+        statusCode: 404,
+      });
+      expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+        where: { id: "appt_in_org_b", organisationId: "org_a" },
+      });
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+      expect(mockedPrisma.occupancy.create).not.toHaveBeenCalled();
     });
   });
 
@@ -2144,22 +2199,39 @@ describe("AppointmentPrismaService", () => {
   describe("approveRequestedFromPms", () => {
     it("requires an appointmentId", async () => {
       await expect(
-        AppointmentPrismaService.approveRequestedFromPms("", {
-          resourceType: "Appointment",
-        } as any),
+        AppointmentPrismaService.approveRequestedFromPms(
+          "",
+          { resourceType: "Appointment" } as any,
+          "org_1",
+        ),
       ).rejects.toMatchObject({
         message: "appointmentId is required",
         statusCode: 400,
       });
     });
 
+    it("requires an organisationId", async () => {
+      await expect(
+        AppointmentPrismaService.approveRequestedFromPms(
+          "appt_1",
+          { resourceType: "Appointment" } as any,
+          "",
+        ),
+      ).rejects.toMatchObject({
+        message: "organisationId is required",
+        statusCode: 400,
+      });
+    });
+
     it("throws 404 when the appointment does not exist", async () => {
-      mockedPrisma.appointment.findUnique.mockResolvedValue(null);
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
 
       await expect(
-        AppointmentPrismaService.approveRequestedFromPms("appt_1", {
-          resourceType: "Appointment",
-        } as any),
+        AppointmentPrismaService.approveRequestedFromPms(
+          "appt_1",
+          { resourceType: "Appointment" } as any,
+          "org_1",
+        ),
       ).rejects.toMatchObject({
         message: "Appointment not found",
         statusCode: 404,
@@ -2167,21 +2239,23 @@ describe("AppointmentPrismaService", () => {
     });
 
     it("rejects a transition from a terminal status", async () => {
-      mockedPrisma.appointment.findUnique.mockResolvedValue(
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
         makeRow({ status: "COMPLETED" }),
       );
 
       await expect(
-        AppointmentPrismaService.approveRequestedFromPms("appt_1", {
-          resourceType: "Appointment",
-        } as any),
+        AppointmentPrismaService.approveRequestedFromPms(
+          "appt_1",
+          { resourceType: "Appointment" } as any,
+          "org_1",
+        ),
       ).rejects.toMatchObject({
         statusCode: 409,
       });
     });
 
     it("requires a lead vet to approve", async () => {
-      mockedPrisma.appointment.findUnique.mockResolvedValue(
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
         makeRow({ status: "REQUESTED" }),
       );
       mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
@@ -2190,9 +2264,11 @@ describe("AppointmentPrismaService", () => {
       } as any);
 
       await expect(
-        AppointmentPrismaService.approveRequestedFromPms("appt_1", {
-          resourceType: "Appointment",
-        } as any),
+        AppointmentPrismaService.approveRequestedFromPms(
+          "appt_1",
+          { resourceType: "Appointment" } as any,
+          "org_1",
+        ),
       ).rejects.toMatchObject({
         message: "Lead vet is required to approve an appointment.",
         statusCode: 400,
@@ -2200,7 +2276,7 @@ describe("AppointmentPrismaService", () => {
     });
 
     it("approves a requested appointment and books lead occupancy", async () => {
-      mockedPrisma.appointment.findUnique.mockResolvedValue(
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
         makeRow({ status: "REQUESTED", caseId: "case_1" }),
       );
       mockedPrisma.case.findUnique.mockResolvedValue({
@@ -2216,8 +2292,12 @@ describe("AppointmentPrismaService", () => {
       const result = await AppointmentPrismaService.approveRequestedFromPms(
         "appt_1",
         { resourceType: "Appointment" } as any,
+        "org_1",
       );
 
+      expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+        where: { id: "appt_1", organisationId: "org_1" },
+      });
       expect(mockedPrisma.occupancy.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
@@ -2239,18 +2319,27 @@ describe("AppointmentPrismaService", () => {
   describe("rejectRequestedAppointment", () => {
     it("requires an appointmentId", async () => {
       await expect(
-        AppointmentPrismaService.rejectRequestedAppointment(""),
+        AppointmentPrismaService.rejectRequestedAppointment("", "org_1"),
       ).rejects.toMatchObject({
         message: "appointmentId is required",
         statusCode: 400,
       });
     });
 
+    it("requires an organisationId", async () => {
+      await expect(
+        AppointmentPrismaService.rejectRequestedAppointment("appt_1", ""),
+      ).rejects.toMatchObject({
+        message: "organisationId is required",
+        statusCode: 400,
+      });
+    });
+
     it("throws 404 when the appointment does not exist", async () => {
-      mockedPrisma.appointment.findUnique.mockResolvedValue(null);
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
 
       await expect(
-        AppointmentPrismaService.rejectRequestedAppointment("appt_1"),
+        AppointmentPrismaService.rejectRequestedAppointment("appt_1", "org_1"),
       ).rejects.toMatchObject({
         message: "Appointment not found",
         statusCode: 404,
@@ -2258,7 +2347,7 @@ describe("AppointmentPrismaService", () => {
     });
 
     it("cancels a requested appointment", async () => {
-      mockedPrisma.appointment.findUnique.mockResolvedValue(
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
         makeRow({ status: "REQUESTED" }),
       );
       mockedPrisma.appointment.update.mockResolvedValue(
@@ -2266,9 +2355,14 @@ describe("AppointmentPrismaService", () => {
       );
       mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
-      const result =
-        await AppointmentPrismaService.rejectRequestedAppointment("appt_1");
+      const result = await AppointmentPrismaService.rejectRequestedAppointment(
+        "appt_1",
+        "org_1",
+      );
 
+      expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+        where: { id: "appt_1", organisationId: "org_1" },
+      });
       expect(mockedPrisma.appointment.update).toHaveBeenCalledWith({
         where: { id: "appt_1" },
         data: { status: "CANCELLED", updatedAt: expect.any(Date) },
@@ -3635,18 +3729,27 @@ describe("AppointmentPrismaService", () => {
   describe("cancelAppointment", () => {
     it("requires an appointmentId", async () => {
       await expect(
-        AppointmentPrismaService.cancelAppointment(""),
+        AppointmentPrismaService.cancelAppointment("", "org_1"),
       ).rejects.toMatchObject({
         message: "appointmentId is required",
         statusCode: 400,
       });
     });
 
+    it("requires an organisationId", async () => {
+      await expect(
+        AppointmentPrismaService.cancelAppointment("appt_1", ""),
+      ).rejects.toMatchObject({
+        message: "organisationId is required",
+        statusCode: 400,
+      });
+    });
+
     it("throws 404 when the appointment does not exist", async () => {
-      mockedPrisma.appointment.findUnique.mockResolvedValue(null);
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
 
       await expect(
-        AppointmentPrismaService.cancelAppointment("appt_1"),
+        AppointmentPrismaService.cancelAppointment("appt_1", "org_1"),
       ).rejects.toMatchObject({
         message: "Appointment not found",
         statusCode: 404,
@@ -3654,7 +3757,7 @@ describe("AppointmentPrismaService", () => {
     });
 
     it("cancels an upcoming appointment", async () => {
-      mockedPrisma.appointment.findUnique.mockResolvedValue(
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
         makeRow({ status: "UPCOMING" }),
       );
       mockedPrisma.appointment.update.mockResolvedValue(
@@ -3662,8 +3765,14 @@ describe("AppointmentPrismaService", () => {
       );
       mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
-      const result = await AppointmentPrismaService.cancelAppointment("appt_1");
+      const result = await AppointmentPrismaService.cancelAppointment(
+        "appt_1",
+        "org_1",
+      );
 
+      expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+        where: { id: "appt_1", organisationId: "org_1" },
+      });
       expect(mockedPrisma.occupancy.deleteMany).toHaveBeenCalled();
       expect(result.status).toBe("CANCELLED");
     });
@@ -4447,7 +4556,7 @@ describe("AppointmentPrismaService", () => {
         startTime: new Date("2026-06-10T10:00:00.000Z"),
         endTime: new Date("2026-06-10T10:30:00.000Z"),
       } as any);
-      mockedPrisma.appointment.findUnique.mockResolvedValue(
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
         makeRow({ status: "REQUESTED" }),
       );
       mockedPrisma.appointment.update.mockResolvedValue(
@@ -4458,6 +4567,7 @@ describe("AppointmentPrismaService", () => {
       const result = await AppointmentPrismaService.approveRequestedFromPms(
         "appt_1",
         { resourceType: "Appointment" } as any,
+        "org_1",
       );
 
       expect(mockedPrisma.appointment.update).toHaveBeenCalledWith(

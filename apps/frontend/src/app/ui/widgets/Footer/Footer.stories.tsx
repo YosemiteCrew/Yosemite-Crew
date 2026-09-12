@@ -1,5 +1,6 @@
 import { PLATFORM_STATUS_API_URL } from '@/app/hooks/usePlatformStatus';
 import type { Meta, StoryObj } from '@storybook/react';
+import { expect, within } from 'storybook/test';
 
 import Footer from './Footer';
 
@@ -122,6 +123,48 @@ export const Mobile: Story = {
           'Below the tablet breakpoint the link columns stack under the brand block and the legal ' +
           'copy centres. The badge strip is the part that struggles here - five fixed-width logos on ' +
           'a 375px canvas.',
+      },
+    },
+  },
+};
+
+export const DarkTheme: Story = {
+  name: 'Compliance badges (dark)',
+  globals: { theme: 'dark' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(document.documentElement.dataset.theme).toBe('dark');
+
+    /* GDPR/ISO/FHIR are solid dark ink on a transparent PNG and the SOC 2 seal
+       is AICPA's own near-black circle - all four disappear into the footer's
+       own dark background without this filter. Asserting the computed style
+       (not just that the <img> is present) is the point: a broken selector
+       still renders four healthy-looking, invisible images. */
+    const badges = [
+      canvas.getAllByRole('img').find((img) => img.className.includes('gdpr-footer')),
+      canvas.getAllByRole('img').find((img) => img.className.includes('soc-footer')),
+      canvas.getAllByRole('img').find((img) => img.className.includes('iso-footer')),
+      canvas.getAllByRole('img').find((img) => img.className.includes('fhir-footer')),
+    ];
+    for (const badge of badges) {
+      await expect(badge).toBeDefined();
+      await expect(getComputedStyle(badge as Element).filter).toContain('brightness');
+    }
+
+    // The FDA/21 CFR mark ships on its own opaque white plate already, so it
+    // reads fine on either theme and must NOT get the same filter - that
+    // would wash its black wordmark out against its own white background.
+    const fda = canvas.getAllByRole('img').find((img) => img.className.includes('fda-footer'));
+    await expect(getComputedStyle(fda as Element).filter).not.toContain('brightness');
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The certification strip is the one part of the footer with real third-party marks in it, ' +
+          "so this recolours the existing images (grayscale + brightness, the same filter AuthShell's " +
+          'permanently-dark brand panel already uses for the identical problem) rather than swapping ' +
+          'in a redrawn "dark" logo for anything AICPA/ISO/HL7 actually issued.',
       },
     },
   },

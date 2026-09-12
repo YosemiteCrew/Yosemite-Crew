@@ -58,6 +58,7 @@ const config: StorybookConfigWithFavicon = {
         }));
 
     viteConfig.resolve.alias = [
+      { find: /^next\/script$/, replacement: path.join(here, 'mocks/nextScript.tsx') },
       ...inherited,
       { find: /^@\/features\//, replacement: `${path.join(src, 'app/features')}/` },
       { find: /^@\/ui\//, replacement: `${path.join(src, 'app/ui')}/` },

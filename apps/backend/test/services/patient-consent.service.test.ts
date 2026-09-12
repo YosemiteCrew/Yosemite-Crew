@@ -7,6 +7,7 @@ import { AuditTrailService } from "src/services/audit-trail.service";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    patientOrganisation: { findFirst: jest.fn() },
     patientConsent: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -21,6 +22,7 @@ jest.mock("src/services/audit-trail.service", () => ({
 }));
 
 const pm = prisma as unknown as {
+  patientOrganisation: { findFirst: jest.Mock };
   patientConsent: {
     create: jest.Mock;
     findFirst: jest.Mock;
@@ -53,6 +55,9 @@ const makeConsent = (over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   jest.clearAllMocks();
   (AuditTrailService.recordSafely as jest.Mock).mockResolvedValue(undefined);
+  // Default: the companion belongs to the caller's organisation. Cross-tenant
+  // is asserted explicitly in its own test below.
+  pm.patientOrganisation.findFirst.mockResolvedValue({ id: "patient-org-1" });
   pm.patientConsent.findFirst.mockResolvedValue(makeConsent());
   pm.patientConsent.create.mockResolvedValue(makeConsent());
   pm.patientConsent.update.mockImplementation(
@@ -107,6 +112,22 @@ describe("PatientConsentService.grant", () => {
         }),
       );
     }
+  });
+
+  it("refuses to write against a companion in another organisation", async () => {
+    // The caller is a legitimate member of org-1; the companion is not.
+    pm.patientOrganisation.findFirst.mockResolvedValue(null);
+
+    await expect(
+      PatientConsentService.grant({
+        organisationId: "org-1",
+        patientId: "pat-1",
+        consentType: "SURGICAL",
+      }),
+    ).rejects.toThrow("Companion not found.");
+
+    // Rejecting is not enough - nothing may be persisted on the way out.
+    expect(pm.patientConsent.create).not.toHaveBeenCalled();
   });
 });
 

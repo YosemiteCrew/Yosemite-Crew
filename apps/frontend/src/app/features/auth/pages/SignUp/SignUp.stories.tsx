@@ -14,6 +14,26 @@ import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/use
 
 const CLINIC_ROLE = 'A veterinary clinic, practice, or hospital';
 const DEVELOPER_ROLE = 'A developer';
+const TURNSTILE_STORY_SITE_KEY = 'storybook-test-site-key';
+let lastTurnstileToken = '';
+
+const installTurnstileStub = () => {
+  const storyWindow = globalThis.window as Window & { turnstile?: unknown };
+  const previousTurnstile = storyWindow.turnstile;
+  storyWindow.turnstile = {
+    render: (_container: HTMLElement, options: { callback: (token: string) => void }) => {
+      const token = 'storybook-test-token';
+      lastTurnstileToken = token;
+      options.callback(token);
+      return 'storybook-widget';
+    },
+    reset: () => undefined,
+    remove: () => undefined,
+  };
+  return () => {
+    storyWindow.turnstile = previousTurnstile;
+  };
+};
 
 /**
  * Seeds the marketing-stats session cache that the auth brand panel reads through
@@ -48,6 +68,7 @@ const clearSignUpDraft = () => {
 const meta = {
   title: 'Auth/SignUp',
   component: SignUp,
+  args: { turnstileSiteKey: TURNSTILE_STORY_SITE_KEY },
   parameters: {
     layout: 'fullscreen',
     /* Stops the preview decorator stamping a SECOND `data-yc-app` around the
@@ -84,8 +105,11 @@ const meta = {
   },
   tags: ['autodocs'],
   beforeEach: () => {
+    lastTurnstileToken = '';
+    const restoreTurnstile = installTurnstileStub();
     seedGithubStats();
     clearSignUpDraft();
+    return restoreTurnstile;
   },
 } satisfies Meta<typeof SignUp>;
 
@@ -96,6 +120,8 @@ export const Default: Story = {
   name: 'Clinic pane (default)',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+
+    await waitFor(() => expect(lastTurnstileToken).toBe('storybook-test-token'));
 
     const role = canvas.getByRole('button', { name: `I am: ${CLINIC_ROLE}` });
     await expect(role).toHaveTextContent(CLINIC_ROLE);
