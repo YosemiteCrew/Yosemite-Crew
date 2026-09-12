@@ -15,6 +15,7 @@ const passThrough = (_req: Request, _res: Response, next: NextFunction) =>
 
 jest.mock("src/middlewares/api-key-auth", () => ({
   authorizeApiKey: passThrough,
+  meterApiKeyUsage: passThrough,
   requireScope: (scope: unknown) => {
     scopeCalls.push(scope);
     return passThrough;
@@ -60,11 +61,31 @@ describe("developer data router", () => {
     expect(layers.some((l) => !l.route)).toBe(true);
   });
 
+  it("registers usage before metering while data routes remain metered", () => {
+    const usageIndex = layers.findIndex(
+      (layer) => layer.route?.path === "/usage",
+    );
+    const meteringIndex = layers.findIndex(
+      (layer, index) => !layer.route && index > usageIndex,
+    );
+    const organizationsIndex = layers.findIndex(
+      (layer) => layer.route?.path === "/organizations",
+    );
+    const appointmentsIndex = layers.findIndex(
+      (layer) => layer.route?.path === "/appointments",
+    );
+
+    expect(usageIndex).toBeGreaterThanOrEqual(0);
+    expect(meteringIndex).toBeGreaterThan(usageIndex);
+    expect(organizationsIndex).toBeGreaterThan(meteringIndex);
+    expect(appointmentsIndex).toBeGreaterThan(meteringIndex);
+  });
+
   it("registers exactly the four published routes", () => {
     const paths = layers.flatMap((l) => (l.route ? [l.route.path] : []));
     expect(paths).toEqual([
-      "/organizations",
       "/usage",
+      "/organizations",
       "/appointments",
       "/appointments/:appointmentId",
     ]);
