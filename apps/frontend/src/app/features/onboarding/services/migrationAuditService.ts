@@ -1,5 +1,5 @@
-import axios from 'axios';
 import { getData, postData } from '@/app/services/axios';
+import { uploadFileToS3 } from '@/app/features/inventory/services/inventoryUploadService';
 import type { OperationOutcome } from '@yosemite-crew/fhir';
 
 export type MigrationAuditFileRole = 'owners' | 'animals' | 'appointments' | 'attachments';
@@ -26,8 +26,28 @@ export interface MigrationAuditRun {
   outcome: OperationOutcome;
 }
 
-const runsBase = (organisationId: string) =>
-  `/v1/migration-audit/pms/organisations/${organisationId}/migration-audit`;
+const assertPathId = (value: string, label: string): string => {
+  if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error(`Invalid ${label} ID`);
+  return value;
+};
+
+const runsBase = (organisationId: string) => {
+  const safeOrganisationId = assertPathId(organisationId, 'organisation');
+  return `/v1/migration-audit/pms/organisations/${safeOrganisationId}/migration-audit`;
+};
+
+const assertUploadUrl = (value: string): string => {
+  const url = new URL(value);
+  if (
+    url.protocol !== 'https:' ||
+    !url.hostname.endsWith('.amazonaws.com') ||
+    url.username ||
+    url.password
+  ) {
+    throw new Error('Invalid migration audit upload URL');
+  }
+  return url.toString();
+};
 
 export const getMigrationAuditUploadUrl = async (
   organisationId: string
@@ -46,10 +66,12 @@ export const getMigrationAuditUploadUrl = async (
  * exact value that was signed, not the file's reported type.
  */
 export const uploadMigrationAuditFile = async (uploadUrl: string, file: File): Promise<void> => {
-  await axios.put(uploadUrl, file, {
-    headers: { 'Content-Type': 'text/csv' },
-    withCredentials: false,
+  const safeUploadUrl = assertUploadUrl(uploadUrl);
+  const csvFile = new File([file], file.name, {
+    type: 'text/csv',
+    lastModified: file.lastModified,
   });
+  await uploadFileToS3(safeUploadUrl, csvFile);
 };
 
 export const createMigrationAuditRun = async (
@@ -67,6 +89,7 @@ export const getMigrationAuditRun = async (
   organisationId: string,
   auditRunId: string
 ): Promise<MigrationAuditRun> => {
-  const res = await getData<MigrationAuditRun>(`${runsBase(organisationId)}/${auditRunId}`);
+  const safeAuditRunId = assertPathId(auditRunId, 'migration audit run');
+  const res = await getData<MigrationAuditRun>(`${runsBase(organisationId)}/${safeAuditRunId}`);
   return res.data;
 };

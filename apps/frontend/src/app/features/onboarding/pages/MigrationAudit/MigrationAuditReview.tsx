@@ -149,13 +149,11 @@ const MigrationAuditReview = ({ run, onStartNew }: MigrationAuditReviewProps) =>
                   {file}
                 </h3>
                 <ul className="MigrationAudit-findingList">
-                  {issues.map((issue, index) => {
+                  {issues.map((issue) => {
                     const row = rowFor(issue);
+                    const issueKey = JSON.stringify(issue);
                     return (
-                      <li
-                        key={`${file}-${index}`}
-                        data-testid={`migration-audit-finding-${file}-${index}`}
-                      >
+                      <li key={issueKey}>
                         <StatusPill label={issue.severity} tone={severityTone(issue.severity)} />
                         {row && <span className="MigrationAudit-findingRow">Row {row}</span>}
                         <p className="text-body-3 text-text-secondary">{issue.diagnostics}</p>

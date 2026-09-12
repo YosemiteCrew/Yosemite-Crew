@@ -23,7 +23,14 @@ import './MigrationAudit.css';
 import '@/app/features/organizations/styles/Organizations.css';
 
 export const POLL_INTERVAL_MS = 2000;
-const REQUIRED_ROLES = MIGRATION_AUDIT_SECTIONS.filter((s) => s.required).map((s) => s.role);
+const getRequiredRoles = (): MigrationAuditFileRole[] => {
+  const roles: MigrationAuditFileRole[] = [];
+  for (const section of MIGRATION_AUDIT_SECTIONS) {
+    if (section.required) roles.push(section.role);
+  }
+  return roles;
+};
+const REQUIRED_ROLES = getRequiredRoles();
 
 const isTerminal = (status: MigrationAuditRun['status']) =>
   status === 'COMPLETED' || status === 'FAILED';
@@ -57,7 +64,7 @@ const MigrationAudit = () => {
   useEffect(() => {
     if (!primaryOrgId || !run || isTerminal(run.status)) return;
 
-    pollTimer.current = setInterval(async () => {
+    const interval = setInterval(async () => {
       try {
         const refreshed = await getMigrationAuditRun(primaryOrgId, run.id);
         setRun(refreshed);
@@ -66,8 +73,12 @@ const MigrationAudit = () => {
         logger.error('Failed to poll migration audit run', err);
       }
     }, POLL_INTERVAL_MS);
+    pollTimer.current = interval;
 
-    return stopPolling;
+    return () => {
+      clearInterval(interval);
+      if (pollTimer.current === interval) pollTimer.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-runs only on run id/status transitions, not every `run` update the poll itself produces
   }, [primaryOrgId, run?.id, run?.status, stopPolling]);
 
@@ -90,14 +101,21 @@ const MigrationAudit = () => {
     setSubmitting(true);
     setError(null);
     try {
-      const sourceKeys: Partial<Record<MigrationAuditFileRole, string>> = {};
-      for (const section of MIGRATION_AUDIT_SECTIONS) {
+      const uploads = MIGRATION_AUDIT_SECTIONS.flatMap((section) => {
         const file = files[section.role];
-        if (!file) continue;
-        const { url, key } = await getMigrationAuditUploadUrl(primaryOrgId);
-        await uploadMigrationAuditFile(url, file);
-        sourceKeys[section.role] = key;
-      }
+        if (!file) return [];
+        return [{ role: section.role, file }];
+      });
+      const uploadedFiles = await Promise.all(
+        uploads.map(async ({ role, file }) => {
+          const { url, key } = await getMigrationAuditUploadUrl(primaryOrgId);
+          await uploadMigrationAuditFile(url, file);
+          return [role, key] as const;
+        })
+      );
+      const sourceKeys = Object.fromEntries(uploadedFiles) as Partial<
+        Record<MigrationAuditFileRole, string>
+      >;
 
       const created = await createMigrationAuditRun(primaryOrgId, sourceKeys);
       setRun({
