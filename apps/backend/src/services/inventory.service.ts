@@ -614,17 +614,20 @@ export interface InventoryTurnoverRow {
   status: InventoryTurnoverStatus;
 }
 
+type PrismaClientOrTx = typeof prisma | Prisma.TransactionClient;
+
 /**
  * HELPER: Recompute onHand and allocated from batches
  */
 const recomputeStockFromBatches = async (
   itemId: string,
+  client: PrismaClientOrTx = prisma,
 ): Promise<{
   onHand: number;
   allocated: number;
   nearestExpiry: Date | null;
 }> => {
-  const batches = await prisma.inventoryBatch.findMany({
+  const batches = await client.inventoryBatch.findMany({
     where: { itemId },
   });
 
@@ -659,8 +662,11 @@ const ensureObjectId = (id: string, fieldName = "id"): string => {
 /**
  * HELPER: log stock movment
  */
-const logMovement = async (payload: StockMovementInput) => {
-  await prisma.inventoryStockMovement.create({
+const logMovement = async (
+  payload: StockMovementInput,
+  client: PrismaClientOrTx = prisma,
+) => {
+  await client.inventoryStockMovement.create({
     data: {
       itemId: payload.itemId ?? undefined,
       batchId: payload.batchId ?? undefined,
@@ -1985,37 +1991,50 @@ export const InventoryService = {
       throw new InventoryServiceError("quantity must be > 0", 400);
     }
 
-    const item = await prisma.inventoryItem.findFirst({
-      where: { id: safeItemId, organisationId: safeOrganisationId },
-    });
-    if (!item) {
-      throw new InventoryServiceError("Inventory item not found", 404);
-    }
-
-    if ((item.onHand ?? 0) < input.quantity) {
-      throw new InventoryServiceError("Insufficient stock", 400);
-    }
-
-    const batches = await prisma.inventoryBatch.findMany({
-      where: { itemId: safeItemId },
-      orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
-    });
-
-    const plan = planFifoConsumption(batches, input.quantity);
-    for (const { index, newQuantity } of plan) {
-      const batch = batches[index];
-      await prisma.inventoryBatch.update({
-        where: { id: batch.id },
-        data: { quantity: newQuantity },
+    const updated = await prisma.$transaction(async (tx) => {
+      const item = await tx.inventoryItem.findFirst({
+        where: { id: safeItemId, organisationId: safeOrganisationId },
       });
-    }
+      if (!item) {
+        throw new InventoryServiceError("Inventory item not found", 404);
+      }
 
-    // Reservations are tracked on the item (see allocateStock), not on batches,
-    // so consumption must not recompute `allocated` from the batch rows.
-    const { onHand } = await recomputeStockFromBatches(safeItemId);
-    const updated = await prisma.inventoryItem.update({
-      where: { id: safeItemId },
-      data: { onHand },
+      if ((item.onHand ?? 0) < input.quantity) {
+        throw new InventoryServiceError("Insufficient stock", 400);
+      }
+
+      const batches = await tx.inventoryBatch.findMany({
+        where: { itemId: safeItemId },
+        orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
+      });
+
+      const plan = planFifoConsumption(batches, input.quantity);
+      for (const { index, newQuantity } of plan) {
+        const batch = batches[index];
+        const consumed = (batch.quantity ?? 0) - newQuantity;
+        await tx.inventoryBatch.update({
+          where: { id: batch.id },
+          data: { quantity: { decrement: consumed } },
+        });
+        await logMovement(
+          {
+            itemId: safeItemId,
+            batchId: batch.id,
+            change: -consumed,
+            reason: input.reason,
+            referenceId: input.referenceId,
+          },
+          tx,
+        );
+      }
+
+      // Reservations are tracked on the item (see allocateStock), not on batches,
+      // so consumption must not recompute `allocated` from the batch rows.
+      const { onHand } = await recomputeStockFromBatches(safeItemId, tx);
+      return tx.inventoryItem.update({
+        where: { id: safeItemId },
+        data: { onHand },
+      });
     });
 
     return {
