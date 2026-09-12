@@ -2628,6 +2628,9 @@ model Form {
   versions    FormVersion[]
   submissions FormSubmission[]
 
+  draftImportsAsSource FormDraftImport[] @relation("FormDraftImportSource")
+  draftImportAsDraft   FormDraftImport?  @relation("FormDraftImportDraft")
+
   @@index([orgId, status])
   @@index([orgId, category])
   @@index([orgId, businessType, category, status])
@@ -2730,6 +2733,31 @@ model FormAssignment {
   @@index([organisationId, companionId])
   @@index([organisationId, status])
   @@index([templateId, templateVersion])
+}
+
+// A deterministic, human-reviewed conversion of supplied intake-form text into
+// a draft Form (#3055). Never auto-publishes: sourceForm stays untouched until
+// a person uses the existing separate publish endpoint on the draft Form. The
+// stored source snapshot lets the diff view detect a concurrent edit to the
+// source form and refuse to show a comparison against a base that has moved.
+model FormDraftImport {
+  id                      String   @id @default(uuid())
+  organisationId          String
+  sourceFormId            String?
+  sourceFormVersionAtImport Int?
+  sourceFormUpdatedAtImport DateTime?
+  draftFormId             String   @unique
+  suppliedText            String
+  unsupportedConstructs   Json
+  createdByUserId         String
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  sourceForm Form? @relation("FormDraftImportSource", fields: [sourceFormId], references: [id], onDelete: SetNull)
+  draftForm  Form  @relation("FormDraftImportDraft", fields: [draftFormId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId])
+  @@index([sourceFormId])
 }
 
 model Template {

@@ -23319,6 +23319,217 @@ paths:
                 properties:
                   error:
                     type: string
+  '/v1/form-draft-imports/{orgId}':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/form-draft-imports/{orgId}'
+      operationId: post_v1_form_draft_imports_orgId
+      description: Deterministically converts supplied intake-form text into a new draft Form (status=draft), reusing the existing Form/FormVersion schema, validators and publish machinery. Never publishes; publishing stays on the existing /fhir/v1/form/admin/{formId}/publish route.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - suppliedText
+              properties:
+                suppliedText:
+                  type: string
+                  maxLength: 20000
+                  description: '`|`-delimited lines, one field per line: label | type | required|optional | comma-separated options (choice types only).'
+                sourceFormId:
+                  type: string
+                  format: uuid
+                  description: An existing Form in this organisation to diff the proposed fields against. Omit to import as a brand-new form.
+      responses:
+        201:
+          description: Draft Form created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FormDraftImport'
+        400:
+          description: Empty/oversized suppliedText, no supported fields found, or a body that fails validation.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        401:
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        403:
+          description: Caller is not an active member of this organisation, or lacks forms:edit:any.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        404:
+          description: sourceFormId does not exist in this organisation.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  '/v1/form-draft-imports/{orgId}/{id}':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/form-draft-imports/{orgId}/{id}'
+      operationId: get_v1_form_draft_imports_orgId_id
+      description: Re-parses the stored suppliedText and recomputes the diff against the source form's CURRENT latest version, so a concurrent edit to the source form is visible as stale=true rather than served from a cached comparison.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FormDraftImport'
+        401:
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        403:
+          description: Caller is not an active member of this organisation, or lacks forms:view:any.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        404:
+          description: No such draft import in this organisation.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+    delete:
+      tags:
+        - 'Non-FHIR'
+      summary: 'DELETE /v1/form-draft-imports/{orgId}/{id}'
+      operationId: delete_v1_form_draft_imports_orgId_id
+      description: Discards a draft import by deleting its still-draft Form. Refuses (409) once the draft Form has been published through the existing human publish path, so this action can never undo a publish.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        204:
+          description: Draft discarded.
+        401:
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        403:
+          description: Caller is not an active member of this organisation, or lacks forms:edit:any.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        404:
+          description: No such draft import in this organisation.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        409:
+          description: The draft Form has already been published and can no longer be discarded here.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
 components:
   securitySchemes:
     BearerAuth:
@@ -25642,6 +25853,137 @@ components:
           type: integer
         orphanReferences:
           type: integer
+    FormDraftImportField:
+      type: object
+      required:
+        - id
+        - type
+        - label
+        - required
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum:
+            - input
+            - textarea
+            - richtext
+            - number
+            - dropdown
+            - radio
+            - checkbox
+            - boolean
+            - date
+            - signature
+        label:
+          type: string
+        required:
+          type: boolean
+        options:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              value:
+                type: string
+        sourceLine:
+          type: integer
+    FormDraftImportUnsupportedConstruct:
+      type: object
+      required:
+        - line
+        - raw
+        - reason
+      description: A supplied-text line that could not be mapped to a supported field. Reported, never silently dropped.
+      properties:
+        line:
+          type: integer
+        raw:
+          type: string
+        reason:
+          type: string
+    FormDraftImportDiffEntry:
+      type: object
+      required:
+        - id
+        - change
+      properties:
+        id:
+          type: string
+        change:
+          type: string
+          enum:
+            - added
+            - removed
+            - changed
+            - unchanged
+        before:
+          type: object
+          nullable: true
+          properties:
+            type:
+              type: string
+            label:
+              type: string
+            required:
+              type: boolean
+        after:
+          type: object
+          nullable: true
+          properties:
+            type:
+              type: string
+            label:
+              type: string
+            required:
+              type: boolean
+    FormDraftImport:
+      type: object
+      required:
+        - id
+        - organisationId
+        - draftFormId
+        - fields
+        - unsupportedConstructs
+        - diff
+        - stale
+      properties:
+        id:
+          type: string
+        organisationId:
+          type: string
+        sourceFormId:
+          type: string
+          nullable: true
+        draftFormId:
+          type: string
+          description: The Form (status=draft) created from suppliedText, editable and publishable through the existing form admin routes.
+        suppliedText:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/FormDraftImportField'
+        unsupportedConstructs:
+          type: array
+          items:
+            $ref: '#/components/schemas/FormDraftImportUnsupportedConstruct'
+        diff:
+          type: array
+          items:
+            $ref: '#/components/schemas/FormDraftImportDiffEntry'
+        stale:
+          type: boolean
+          description: True when the source form was edited or republished after this import was created; the diff above is against its CURRENT version, not the one this draft was originally based on.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     Money:
       type: object
       properties:
