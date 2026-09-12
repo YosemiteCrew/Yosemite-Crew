@@ -231,7 +231,7 @@ const DeveloperDocs = () => {
     });
   };
 
-  const pageText = (() => {
+  const pageText = useMemo(() => {
     const lines = [active.title, active.summary, active.detail].filter(Boolean);
     if (isAppointments) {
       lines.push(
@@ -244,7 +244,7 @@ const DeveloperDocs = () => {
       );
     }
     return lines.join('\n\n');
-  })();
+  }, [active, isAppointments]);
 
   return (
     <DevRouteGuard>
