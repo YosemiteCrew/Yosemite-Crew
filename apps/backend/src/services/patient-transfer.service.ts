@@ -1,5 +1,6 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import type { Prisma } from "@prisma/client";
 
 export class PatientTransferError extends Error {
@@ -78,6 +79,13 @@ const assertTransfer = async (id: string, organisationId: string) => {
 export const PatientTransferService = {
   async create(params: CreateTransferParams) {
     const { organisationId, patientId, transferredBy, ...rest } = params;
+
+    // The caller is authenticated against this organisation, but the patient id
+    // arrives from the request. Without this the row would be written against
+    // another tenant's companion, invisible to every view that scopes by org.
+    await assertPatientOrgMembership(patientId, organisationId, () => {
+      throw new PatientTransferError("Companion not found.", 404);
+    });
 
     const transfer = await prisma.patientTransfer.create({
       data: {

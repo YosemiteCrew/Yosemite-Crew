@@ -306,14 +306,23 @@ export const AppointmentController = {
   },
 
   acceptRequested: async (
-    req: Request<{ appointmentId: string }, unknown, AppointmentRequestDTO>,
+    req: Request<
+      { organisationId: string; appointmentId: string },
+      unknown,
+      AppointmentRequestDTO
+    >,
     res: Response,
   ) => {
     try {
       const { appointmentId } = req.params;
+      const organisationId = resolveAuthorizedOrganisationId(req);
+      if (!organisationId) {
+        return res.status(400).json({ message: "Missing organisationId" });
+      }
       const data = await AppointmentPrismaService.approveRequestedFromPms(
         appointmentId,
         req.body,
+        organisationId,
       );
       return res.status(200).json({ message: "Appointment accepted", data });
     } catch (err: unknown) {
@@ -323,15 +332,19 @@ export const AppointmentController = {
   },
 
   rejectRequested: async (
-    req: Request<{ appointmentId: string }>,
+    req: Request<{ organisationId: string; appointmentId: string }>,
     res: Response,
   ) => {
     try {
       const { appointmentId } = req.params;
-      const data =
-        await AppointmentPrismaService.rejectRequestedAppointment(
-          appointmentId,
-        );
+      const organisationId = resolveAuthorizedOrganisationId(req);
+      if (!organisationId) {
+        return res.status(400).json({ message: "Missing organisationId" });
+      }
+      const data = await AppointmentPrismaService.rejectRequestedAppointment(
+        appointmentId,
+        organisationId,
+      );
       return res.status(200).json({ message: "Appointment rejected", data });
     } catch (err: unknown) {
       logger.error("Appointment rejection error", err);
@@ -534,12 +547,21 @@ export const AppointmentController = {
   },
 
   cancelFromPMS: async (
-    req: Request<{ appointmentId: string }, unknown, CancelBody>,
+    req: Request<
+      { organisationId: string; appointmentId: string },
+      unknown,
+      CancelBody
+    >,
     res: Response,
   ) => {
     try {
+      const organisationId = resolveAuthorizedOrganisationId(req);
+      if (!organisationId) {
+        return res.status(400).json({ message: "Missing organisationId" });
+      }
       const data = await AppointmentPrismaService.cancelAppointment(
         req.params.appointmentId,
+        organisationId,
       );
       return res.status(200).json({ message: "Appointment cancelled", data });
     } catch (err: unknown) {

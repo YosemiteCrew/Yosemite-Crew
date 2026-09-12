@@ -1,5 +1,6 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import type { Prisma } from "@prisma/client";
 
 export class PatientConsentError extends Error {
@@ -89,6 +90,13 @@ export const PatientConsentService = {
       documentId,
       notes,
     } = params;
+
+    // The caller is authenticated against this organisation, but the patient id
+    // arrives from the request. Without this the row would be written against
+    // another tenant's companion, invisible to every view that scopes by org.
+    await assertPatientOrgMembership(patientId, organisationId, () => {
+      throw new PatientConsentError("Companion not found.", 404);
+    });
 
     const record = await prisma.patientConsent.create({
       data: {

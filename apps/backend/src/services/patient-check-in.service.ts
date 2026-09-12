@@ -160,10 +160,14 @@ const syncAppointmentOnComplete = async (
 /** Same gap as `syncAppointmentOnComplete`, for cancelling a check-in. */
 const syncAppointmentOnCancel = async (
   appointmentId: string | undefined,
+  organisationId: string,
 ): Promise<void> => {
   if (!appointmentId) return;
   try {
-    await AppointmentPrismaService.cancelAppointment(appointmentId);
+    await AppointmentPrismaService.cancelAppointment(
+      appointmentId,
+      organisationId,
+    );
   } catch (err) {
     if (err instanceof AppointmentPrismaServiceError) return;
     throw err;
@@ -335,7 +339,10 @@ export const PatientCheckInService = {
       select: checkInSelect,
     });
 
-    await syncAppointmentOnCancel(existing.appointmentId ?? undefined);
+    await syncAppointmentOnCancel(
+      existing.appointmentId ?? undefined,
+      organisationId,
+    );
 
     return record;
   },

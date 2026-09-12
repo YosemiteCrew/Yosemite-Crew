@@ -223,7 +223,7 @@ export const DraftFieldErrors: Story = {
        not merely message-free - `aria-invalid="true"` with nothing to read is
        worse than no flag at all. */
     const clean = canvas.getByLabelText('Result (IU/ml)');
-    await expect(clean).toHaveAttribute('aria-invalid', 'false');
+    await expect(clean).not.toHaveAttribute('aria-invalid');
     await expect(clean).not.toHaveAttribute('aria-describedby');
     await expect(canvas.getAllByRole('alert')).toHaveLength(2);
   },

@@ -397,7 +397,7 @@ describe("PatientCheckInService", () => {
 
       await PatientCheckInService.cancel("checkin-1", "org-1");
 
-      expect(mockedCancelAppointment).toHaveBeenCalledWith("appt-1");
+      expect(mockedCancelAppointment).toHaveBeenCalledWith("appt-1", "org-1");
     });
 
     it("still cancels the check-in when the appointment cannot be transitioned", async () => {

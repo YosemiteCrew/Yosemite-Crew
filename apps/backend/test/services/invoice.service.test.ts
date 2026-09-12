@@ -2503,6 +2503,19 @@ describe("InvoiceService", () => {
             createdAt: new Date("2026-06-18T11:00:00.000Z"),
             updatedAt: new Date("2026-06-18T11:00:00.000Z"),
           },
+          {
+            id: "refund_failed",
+            paymentId: "pay_1",
+            provider: "STRIPE",
+            providerRefundId: null,
+            amount: 25,
+            currency: "usd",
+            status: "FAILED",
+            reason: null,
+            rawProviderPayload: null,
+            createdAt: new Date("2026-06-18T12:00:00.000Z"),
+            updatedAt: new Date("2026-06-18T12:00:00.000Z"),
+          },
         ],
         createdAt: new Date("2026-06-18T09:00:00.000Z"),
         updatedAt: new Date("2026-06-18T10:00:00.000Z"),
@@ -2540,18 +2553,18 @@ describe("InvoiceService", () => {
     expect(result.invoice.settlementSummary).toEqual(
       expect.objectContaining({
         invoiceTotal: 100,
-        cashPaid: 50,
+        cashPaid: 40,
         credited: 10,
-        effectivePaid: 50,
-        balance: 40,
+        effectivePaid: 40,
+        balance: 50,
       }),
     );
     expect(result.invoice.settlementSummary.lineAllocations).toEqual([
       expect.objectContaining({
         id: "line_1",
-        cashApplied: 50,
+        cashApplied: 40,
         creditApplied: 10,
-        remaining: 40,
+        remaining: 50,
       }),
     ]);
   });
@@ -3809,7 +3822,12 @@ describe("InvoiceService", () => {
     ];
     (prisma.invoice.findMany as jest.Mock).mockResolvedValueOnce(invoices);
     (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([
-      { id: "pay_a", invoiceId: "inv_a", amount: 50, refunds: [] },
+      {
+        id: "pay_a",
+        invoiceId: "inv_a",
+        amount: 50,
+        refunds: [{ amount: 15, status: "SUCCEEDED" }],
+      },
     ]);
     (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([
       { id: "cn_a", invoiceId: "inv_a", amount: 20 },
@@ -3817,9 +3835,9 @@ describe("InvoiceService", () => {
 
     const results = await InvoiceService.listForOrganisation(organisationId);
 
-    // inv_a: 200 total, 50 paid, 20 credited -> 130 outstanding.
+    // inv_a: 200 total, 35 net paid, 20 credited -> 145 outstanding.
     expect(results[0].settlementSummary).toEqual(
-      expect.objectContaining({ cashPaid: 50, credited: 20, balance: 130 }),
+      expect.objectContaining({ cashPaid: 35, credited: 20, balance: 145 }),
     );
     // inv_b has neither, so it still owes the whole amount.
     expect(results[1].settlementSummary).toEqual(

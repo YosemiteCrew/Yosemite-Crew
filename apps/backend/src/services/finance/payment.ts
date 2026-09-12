@@ -12,7 +12,7 @@ import Stripe from "stripe";
 import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
 import { FinanceEventService } from "./events";
-import { roundMoney } from "./pricing";
+import { getNetPaymentAmount, roundMoney } from "./pricing";
 import {
   fromStripeMinorUnits,
   toStripeMinorUnits,
@@ -213,8 +213,17 @@ export const getInvoiceFinancialSummary = async (
 ): Promise<InvoiceFinancialSummary> => {
   const [payments, creditNotes] = await Promise.all([
     prisma.payment.findMany({
-      where: { invoiceId, status: "SUCCEEDED" },
-      select: { amount: true },
+      where: {
+        invoiceId,
+        status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED", "REFUNDED"] },
+      },
+      select: {
+        amount: true,
+        refunds: {
+          where: { status: "SUCCEEDED" },
+          select: { amount: true, status: true },
+        },
+      },
     }),
     prisma.creditNote.findMany({
       where: { invoiceId, status: "ISSUED" },
@@ -223,7 +232,7 @@ export const getInvoiceFinancialSummary = async (
   ]);
 
   const paid = roundMoney(
-    payments.reduce((sum, payment) => sum + payment.amount, 0),
+    payments.reduce((sum, payment) => sum + getNetPaymentAmount(payment), 0),
   );
   const credited = roundMoney(
     creditNotes.reduce((sum, creditNote) => sum + creditNote.amount, 0),

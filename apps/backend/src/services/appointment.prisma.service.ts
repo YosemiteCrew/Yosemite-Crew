@@ -1794,13 +1794,20 @@ export const AppointmentPrismaService = {
   async approveRequestedFromPms(
     appointmentId: string,
     dto: AppointmentRequestDTO,
+    organisationId: string,
   ) {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
     }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
 
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
     });
     const row = assertExists(
       current as AppointmentRow | null,
@@ -1837,13 +1844,22 @@ export const AppointmentPrismaService = {
     return toResponse(updated);
   },
 
-  async rejectRequestedAppointment(appointmentId: string) {
+  async rejectRequestedAppointment(
+    appointmentId: string,
+    organisationId: string,
+  ) {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
     }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
 
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
     });
     const row = assertExists(
       current as AppointmentRow | null,
@@ -2378,13 +2394,19 @@ export const AppointmentPrismaService = {
     return toResponse(updated);
   },
 
-  async cancelAppointment(appointmentId: string) {
+  async cancelAppointment(appointmentId: string, organisationId: string) {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
     }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
 
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
     });
     const row = assertExists(
       current as AppointmentRow | null,
