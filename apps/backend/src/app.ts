@@ -1,4 +1,8 @@
-import express, { ErrorRequestHandler } from "express";
+import express, {
+  ErrorRequestHandler,
+  type Request,
+  type Response,
+} from "express";
 import rateLimit from "express-rate-limit";
 import {
   resolveRateLimitMax,
@@ -43,6 +47,37 @@ import logger from "./utils/logger";
  * return computed the distinction and then threw it away.
  */
 type AuthGate = "enabled" | "disabled" | "incomplete";
+const SIGNUP_RATE_LIMIT_REASON =
+  "Too many signup attempts. Please try again later.";
+
+function signupRateLimitResponse(_req: Request, res: Response) {
+  res
+    .status(200)
+    .json({ status: "SIGN_UP_NOT_ALLOWED", reason: SIGNUP_RATE_LIMIT_REASON });
+}
+
+function signupEmailDomain(req: Request): string {
+  const body = req.body as unknown;
+  if (
+    !body ||
+    typeof body !== "object" ||
+    !("formFields" in body) ||
+    !Array.isArray(body.formFields)
+  ) {
+    return "invalid";
+  }
+  const email = body.formFields.find(
+    (field: unknown): field is { id: "email"; value?: unknown } =>
+      Boolean(
+        field &&
+        typeof field === "object" &&
+        (field as { id?: unknown }).id === "email",
+      ),
+  )?.value;
+  if (typeof email !== "string") return "invalid";
+  const domain = email.trim().toLowerCase().split("@").at(-1);
+  return domain === "googlemail.com" ? "gmail.com" : domain || "invalid";
+}
 
 function readAuthGate(): AuthGate {
   const disabled =
@@ -85,17 +120,49 @@ export function createApp() {
 
     initSuperTokens(authHooks);
     setAuthService(new AuthService(createAuthProvider(authConfig)));
+    const authBasePath = process.env.AUTH_API_BASE_PATH ?? "/auth";
+    const signupPaths = [
+      `${authBasePath}/signup`,
+      `${authBasePath}/:tenantId/signup`,
+    ];
+    const signupCors = cors({
+      origin: process.env.AUTH_WEBSITE_DOMAIN,
+      credentials: true,
+    });
 
     // The provider's own auth routes (sign-in/up, OTP, refresh) are mounted
     // before the global limiter, so give them a dedicated - stricter - one:
     // they are the brute-force / enumeration surface.
+    const signupIpLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 5,
+      standardHeaders: true,
+      legacyHeaders: false,
+      handler: signupRateLimitResponse,
+    });
+    const signupDomainLimiter = rateLimit({
+      windowMs: 60 * 60 * 1000,
+      max: 5,
+      standardHeaders: true,
+      legacyHeaders: false,
+      keyGenerator: signupEmailDomain,
+      handler: signupRateLimitResponse,
+    });
+    app.post(
+      signupPaths,
+      signupCors,
+      express.json({ limit: "16kb" }),
+      signupIpLimiter,
+      signupDomainLimiter,
+    );
+
     const authLimiter = rateLimit({
       windowMs: 15 * 60 * 1000,
       max: 100,
       standardHeaders: true,
       legacyHeaders: false,
     });
-    app.use("/auth", authLimiter);
+    app.use(authBasePath, authLimiter);
 
     registerSuperTokensBeforeRoutes(app);
     recordControl("authentication", "applied");
