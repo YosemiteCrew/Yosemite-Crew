@@ -6451,6 +6451,215 @@ paths:
                       type: string
                       nullable: true
                 description: DocumentController.listForAppointment (same handler as the mobile POST /appointments/:id) -> DocumentService.listForAppointmentPms for an org caller.
+  '/v1/migration-audit/pms/organisations/{organisationId}/migration-audit/upload-url':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/migration-audit/pms/organisations/{organisationId}/migration-audit/upload-url'
+      operationId: post_v1_migration_audit_pms_organisations_organisationId_migration_audit_upload_url
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        200:
+          description: A presigned S3 PUT URL scoped to this organisation, restricted to text/csv.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - url
+                  - key
+                properties:
+                  url:
+                    type: string
+                  key:
+                    type: string
+        400:
+          description: organisationId is required.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  '/v1/migration-audit/pms/organisations/{organisationId}/migration-audit':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/migration-audit/pms/organisations/{organisationId}/migration-audit'
+      operationId: post_v1_migration_audit_pms_organisations_organisationId_migration_audit
+      description: Starts a read-only migration audit run for a bundle already uploaded via the upload-url endpoint above. Never writes any clinic record.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - sourceKeys
+              properties:
+                sourceKeys:
+                  type: object
+                  required:
+                    - owners
+                    - animals
+                    - appointments
+                  properties:
+                    owners:
+                      type: string
+                      description: S3 key returned by the upload-url endpoint.
+                    animals:
+                      type: string
+                    appointments:
+                      type: string
+                    attachments:
+                      type: string
+                      description: Optional attachment manifest CSV key.
+      responses:
+        201:
+          description: Audit run created and enqueued.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - status
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                    enum:
+                      - PENDING
+                      - RUNNING
+                      - COMPLETED
+                      - FAILED
+        400:
+          description: Missing required file(s), a key that does not belong to this organisation, or a body that fails validation.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        401:
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  '/v1/migration-audit/pms/organisations/{organisationId}/migration-audit/{auditRunId}':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/migration-audit/pms/organisations/{organisationId}/migration-audit/{auditRunId}'
+      operationId: get_v1_migration_audit_pms_organisations_organisationId_migration_audit_auditRunId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: auditRunId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        200:
+          description: Run status, per-section summary once COMPLETED, and findings as a FHIR OperationOutcome (row/column reference only - never the raw untrusted cell content).
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - status
+                  - outcome
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                    enum:
+                      - PENDING
+                      - RUNNING
+                      - COMPLETED
+                      - FAILED
+                  summary:
+                    type: object
+                    nullable: true
+                    description: Present once the run leaves PENDING/RUNNING. Absent otherwise.
+                    properties:
+                      OWNERS:
+                        $ref: '#/components/schemas/MigrationAuditSectionSummary'
+                      ANIMALS:
+                        $ref: '#/components/schemas/MigrationAuditSectionSummary'
+                      APPOINTMENTS:
+                        $ref: '#/components/schemas/MigrationAuditSectionSummary'
+                      ATTACHMENTS:
+                        $ref: '#/components/schemas/MigrationAuditSectionSummary'
+                  errorMessage:
+                    type: string
+                    nullable: true
+                  createdAt:
+                    type: string
+                    format: date-time
+                  completedAt:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  outcome:
+                    $ref: '#/components/schemas/OperationOutcome'
+        404:
+          description: Migration audit run not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
   /v1/expense/:
     post:
       tags:
@@ -25409,6 +25618,30 @@ components:
           items:
             $ref: '#/components/schemas/Reference'
       additionalProperties: true
+    MigrationAuditSectionSummary:
+      type: object
+      description: One entry per bundle section (owners/animals/appointments/attachments) in a migration-audit run's summary.
+      required:
+        - status
+        - totalRows
+        - duplicateIdentifiers
+        - orphanReferences
+      properties:
+        status:
+          type: string
+          enum:
+            - ASSESSED
+            - NOT_ASSESSED
+        notAssessedReason:
+          type: string
+          nullable: true
+          description: Why the section is NOT_ASSESSED, e.g. file_not_provided, file_too_large, malformed_file, too_many_rows, missing_column.
+        totalRows:
+          type: integer
+        duplicateIdentifiers:
+          type: integer
+        orphanReferences:
+          type: integer
     Money:
       type: object
       properties:
