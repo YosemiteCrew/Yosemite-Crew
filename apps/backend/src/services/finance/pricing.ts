@@ -45,6 +45,18 @@ const MONEY_SCALE = 100;
 export const roundMoney = (value: number): number =>
   Math.round((value + Number.EPSILON) * MONEY_SCALE) / MONEY_SCALE;
 
+export const getNetPaymentAmount = (payment: {
+  amount: number;
+  refunds?: Array<{ amount: number; status: string }>;
+}): number => {
+  const refunded = roundMoney(
+    (payment.refunds ?? [])
+      .filter((refund) => refund.status === "SUCCEEDED")
+      .reduce((sum, refund) => sum + refund.amount, 0),
+  );
+  return roundMoney(Math.max(0, payment.amount - refunded));
+};
+
 const normalizePositiveNumber = (value: number | null | undefined): number => {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
     return 0;

@@ -15,6 +15,7 @@ import {
 import {
   calculateInvoiceDiscountPercentOfBase,
   calculateInvoicePricing,
+  getNetPaymentAmount,
   roundMoney,
   type InvoiceDiscountInput as PricingInvoiceDiscountInput,
 } from "./finance/pricing";
@@ -494,7 +495,7 @@ const computeInvoiceFinancialDetails = (
     : [];
 
   const actualCashPaid = roundMoney(
-    payments.reduce((sum, payment) => sum + payment.amount, 0),
+    payments.reduce((sum, payment) => sum + getNetPaymentAmount(payment), 0),
   );
   const depositRecordedAmount = roundMoney(invoice.depositCollectedAmount ?? 0);
   const credited = roundMoney(
