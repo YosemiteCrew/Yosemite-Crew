@@ -112,8 +112,9 @@ export type AuthStore = {
     password: string,
     firstName: string,
     lastName: string,
-    role?: string
-  ) => Promise<{ userId: string } | undefined>;
+    role?: string,
+    turnstileToken?: string
+  ) => Promise<{ userId: string; email: string } | undefined>;
   confirmSignUp: (email: string, code: string) => Promise<boolean>;
   verifyEmail: () => Promise<'OK' | 'INVALID_TOKEN'>;
   resendVerificationEmail: () => Promise<'OK' | 'ALREADY_VERIFIED'>;
@@ -270,11 +271,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   // the name and role to provision with.
   pendingSignUp: readPendingSignUp(),
 
-  signUp: async (email, password, firstName, lastName, role = 'member') => {
+  signUp: async (email, password, firstName, lastName, role, turnstileToken) => {
     set({ loading: true, error: null });
     try {
       const response = await EmailPassword.signUp({
-        formFields: emailPasswordFormFields(email, password),
+        formFields: [
+          ...emailPasswordFormFields(email, password),
+          ...(turnstileToken ? [{ id: 'turnstileToken', value: turnstileToken }] : []),
+        ],
       });
       if (response.status === 'FIELD_ERROR') {
         const emailError = response.formFields.find(
@@ -291,7 +295,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       if (response.status === 'SIGN_UP_NOT_ALLOWED') {
         throw makeAuthError(response.reason, 'SIGN_UP_NOT_ALLOWED');
       }
-      const pending = { email, firstName, lastName, role };
+      const registeredEmail = response.user.emails?.[0] ?? email;
+      const pending = { email: registeredEmail, firstName, lastName, role: role ?? 'member' };
       set({ loading: false, pendingSignUp: pending });
       // Also persisted: verification links are routinely opened in a new tab or
       // after a reload, and the in-memory copy does not survive either. Without
@@ -303,7 +308,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       } catch (error) {
         logger.warn('Failed to send the verification email after sign up', error);
       }
-      return { userId: response.user.id };
+      return { userId: response.user.id, email: registeredEmail };
     } catch (error) {
       set({ loading: false });
       throw error instanceof Error ? error : new Error(String(error));

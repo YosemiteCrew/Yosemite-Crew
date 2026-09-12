@@ -29,6 +29,15 @@ function requireEnv(name: string): string {
 }
 
 const SUPERTOKENS_API_KEY_FIELD = 'apiKey' as const;
+const TURNSTILE_SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+const TURNSTILE_ACTION = 'business_signup';
+const TURNSTILE_TOKEN_FIELD = 'turnstileToken';
+const TURNSTILE_FIELD_ERROR = 'Complete bot verification before creating an account.';
+const TURNSTILE_SIGNUP_ERROR = 'We could not verify this signup. Please refresh and try again.';
+
+function isValidTurnstileToken(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= 2048;
+}
 
 // Keys this package stores on SuperTokens' userContext to carry login-flow
 // facts from the recipe overrides into session creation and MFA policy.
@@ -63,6 +72,71 @@ if (
 }
 
 type MutableContext = Record<string, unknown>;
+
+function canonicalizeEmail(email: string): string {
+  const trimmed = email.trim();
+  const separator = trimmed.lastIndexOf('@');
+  if (separator < 1) return trimmed;
+
+  const local = trimmed.slice(0, separator);
+  const domain = trimmed.slice(separator + 1).toLowerCase();
+  if (domain !== 'gmail.com' && domain !== 'googlemail.com') {
+    return `${local}@${domain}`;
+  }
+
+  return `${local.toLowerCase().split('+')[0].replaceAll('.', '')}@gmail.com`;
+}
+
+function canonicalizeEmailFields<T extends { formFields: { id: string; value: unknown }[] }>(
+  input: T
+): T {
+  return {
+    ...input,
+    formFields: input.formFields.map((field) =>
+      field.id === 'email' && typeof field.value === 'string'
+        ? { ...field, value: canonicalizeEmail(field.value) }
+        : field
+    ),
+  } as T;
+}
+
+function readEmailField(input: {
+  formFields: { id: string; value: unknown }[];
+}): string | undefined {
+  const value = input.formFields.find((field) => field.id === 'email')?.value;
+  return typeof value === 'string' ? value : undefined;
+}
+
+async function verifyTurnstile(input: {
+  token: string;
+  secret: string;
+  hostname: string;
+  remoteIp?: string;
+}): Promise<boolean> {
+  try {
+    const body = new URLSearchParams({ secret: input.secret, response: input.token });
+    if (input.remoteIp) body.set('remoteip', input.remoteIp);
+    const response = await fetch(TURNSTILE_SITEVERIFY_URL, {
+      method: 'POST',
+      body,
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return false;
+    const result = (await response.json()) as {
+      success?: boolean;
+      action?: string;
+      hostname?: string;
+    };
+    return (
+      result.success === true &&
+      result.action === TURNSTILE_ACTION &&
+      result.hostname === input.hostname
+    );
+  } catch (error) {
+    console.error('[auth] Turnstile verification failed', error);
+    return false;
+  }
+}
 
 function defaultProfileForMethod(method: LoginMethod): AuthProfile {
   // Staff sign in with email+password; every other first factor (email OTP,
@@ -316,6 +390,10 @@ export function getSuperTokensConfig(): TypeInput {
   const supertokensApiKey = process.env.SUPERTOKENS_API_KEY;
   const smtpSettings = getSmtpSettings();
   const thirdPartyProviders = buildThirdPartyProviders();
+  const appInfo = getAuthAppInfo();
+  const turnstileSecret = process.env.TURNSTILE_SECRET_KEY?.trim();
+  const turnstileRequired = process.env.NODE_ENV === 'production' || Boolean(turnstileSecret);
+  const turnstileHostname = new URL(requireEnv('AUTH_WEBSITE_DOMAIN')).hostname;
 
   const firstFactors = [
     MultiFactorAuth.FactorIds.EMAILPASSWORD,
@@ -329,13 +407,112 @@ export function getSuperTokensConfig(): TypeInput {
       connectionURI: requireEnv('SUPERTOKENS_CONNECTION_URI'),
       ...(supertokensApiKey ? { [SUPERTOKENS_API_KEY_FIELD]: supertokensApiKey } : undefined),
     },
-    appInfo: getAuthAppInfo(),
+    appInfo,
     recipeList: [
       EmailPassword.init({
+        signUpFeature: {
+          formFields: [
+            {
+              id: TURNSTILE_TOKEN_FIELD,
+              optional: true,
+              validate: async (value) =>
+                isValidTurnstileToken(value) ? undefined : TURNSTILE_FIELD_ERROR,
+            },
+          ],
+        },
         emailDelivery: {
           service: new SMTPService({ smtpSettings }),
         },
         override: {
+          apis: (original) => {
+            const signUpPOST = original.signUpPOST;
+            const signInPOST = original.signInPOST;
+            const generatePasswordResetTokenPOST = original.generatePasswordResetTokenPOST;
+            const emailExistsGET = original.emailExistsGET;
+
+            return {
+              ...original,
+              signUpPOST:
+                signUpPOST === undefined
+                  ? undefined
+                  : async (input) => {
+                      const normalizedInput = canonicalizeEmailFields(input);
+                      if (turnstileRequired) {
+                        const token = input.formFields.find(
+                          (field) => field.id === TURNSTILE_TOKEN_FIELD
+                        )?.value;
+                        const remoteIp = (input.options.req.original as { ip?: string }).ip;
+                        if (
+                          !turnstileSecret ||
+                          !isValidTurnstileToken(token) ||
+                          !(await verifyTurnstile({
+                            token,
+                            secret: turnstileSecret,
+                            hostname: turnstileHostname,
+                            remoteIp,
+                          }))
+                        ) {
+                          return { status: 'SIGN_UP_NOT_ALLOWED', reason: TURNSTILE_SIGNUP_ERROR };
+                        }
+                      }
+                      return signUpPOST(normalizedInput);
+                    },
+              signInPOST:
+                signInPOST === undefined
+                  ? undefined
+                  : async (input) => {
+                      const result = await signInPOST(input);
+                      const email = readEmailField(input);
+                      if (result.status !== 'WRONG_CREDENTIALS_ERROR' || email === undefined) {
+                        return result;
+                      }
+                      const canonicalEmail = canonicalizeEmail(email);
+                      if (canonicalEmail === email || emailExistsGET === undefined) return result;
+                      const exactAccount = await emailExistsGET({
+                        email,
+                        tenantId: input.tenantId,
+                        options: input.options,
+                        userContext: input.userContext,
+                      });
+                      return exactAccount.status !== 'OK' || exactAccount.exists
+                        ? result
+                        : signInPOST(canonicalizeEmailFields(input));
+                    },
+              generatePasswordResetTokenPOST:
+                generatePasswordResetTokenPOST === undefined
+                  ? undefined
+                  : async (input) => {
+                      const email = readEmailField(input);
+                      if (email === undefined || emailExistsGET === undefined) {
+                        return generatePasswordResetTokenPOST(input);
+                      }
+                      const canonicalEmail = canonicalizeEmail(email);
+                      if (canonicalEmail === email) {
+                        return generatePasswordResetTokenPOST(input);
+                      }
+                      const exactAccount = await emailExistsGET({
+                        email,
+                        tenantId: input.tenantId,
+                        options: input.options,
+                        userContext: input.userContext,
+                      });
+                      return exactAccount.status !== 'OK' || exactAccount.exists
+                        ? generatePasswordResetTokenPOST(input)
+                        : generatePasswordResetTokenPOST(canonicalizeEmailFields(input));
+                    },
+              emailExistsGET:
+                emailExistsGET === undefined
+                  ? undefined
+                  : async (input) => {
+                      const result = await emailExistsGET(input);
+                      if (result.status !== 'OK' || result.exists) return result;
+                      const canonicalEmail = canonicalizeEmail(input.email);
+                      return canonicalEmail === input.email
+                        ? result
+                        : emailExistsGET({ ...input, email: canonicalEmail });
+                    },
+            };
+          },
           functions: (original) => ({
             ...original,
             signUp: async (input) => {

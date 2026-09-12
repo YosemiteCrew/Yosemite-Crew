@@ -175,11 +175,43 @@ describe('authStore (SuperTokens)', () => {
 
   describe('signUp', () => {
     it('signs up, stores the pending profile, and sends a verification email', async () => {
-      mockSignUpApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
+      mockSignUpApi.mockResolvedValue({
+        status: 'OK',
+        user: { id: 'user-1', emails: ['firstlast@gmail.com'] },
+      });
 
       const result = await useAuthStore
         .getState()
-        .signUp('test@email.com', 'Test-password-1!', 'John', 'Doe');
+        .signUp(
+          'First.Last+wave@gmail.com',
+          'Test-password-1!',
+          'John',
+          'Doe',
+          undefined,
+          'verified-token'
+        );
+
+      expect(mockSignUpApi).toHaveBeenCalledWith({
+        formFields: [
+          { id: 'email', value: 'First.Last+wave@gmail.com' },
+          { id: 'password', value: 'Test-password-1!' },
+          { id: 'turnstileToken', value: 'verified-token' },
+        ],
+      });
+      expect(result).toEqual({ userId: 'user-1', email: 'firstlast@gmail.com' });
+      expect(useAuthStore.getState().pendingSignUp).toEqual({
+        email: 'firstlast@gmail.com',
+        firstName: 'John',
+        lastName: 'Doe',
+        role: 'member',
+      });
+      expect(mockSendVerificationEmail).toHaveBeenCalled();
+    });
+
+    it('omits the bot token field when local development does not use Turnstile', async () => {
+      mockSignUpApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1', emails: [] } });
+
+      await useAuthStore.getState().signUp('test@email.com', 'Test-password-1!', 'John', 'Doe');
 
       expect(mockSignUpApi).toHaveBeenCalledWith({
         formFields: [
@@ -187,14 +219,6 @@ describe('authStore (SuperTokens)', () => {
           { id: 'password', value: 'Test-password-1!' },
         ],
       });
-      expect(result).toEqual({ userId: 'user-1' });
-      expect(useAuthStore.getState().pendingSignUp).toEqual({
-        email: 'test@email.com',
-        firstName: 'John',
-        lastName: 'Doe',
-        role: 'member',
-      });
-      expect(mockSendVerificationEmail).toHaveBeenCalled();
     });
 
     it('keeps a custom role in the pending sign-up profile', async () => {
@@ -215,7 +239,7 @@ describe('authStore (SuperTokens)', () => {
         .getState()
         .signUp('test@email.com', 'Test-password-1!', 'John', 'Doe');
 
-      expect(result).toEqual({ userId: 'user-1' });
+      expect(result).toEqual({ userId: 'user-1', email: 'test@email.com' });
       expect(logger.warn).toHaveBeenCalledWith(
         'Failed to send the verification email after sign up',
         expect.any(Error)

@@ -1,6 +1,8 @@
 'use client';
-import { useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
+import Script from 'next/script';
+import { useTheme } from '@/app/ui/theme';
 import { Icon } from '@/app/ui/icons/Icon';
 import {
   IoCalendarOutline,
@@ -38,6 +40,31 @@ const CLINIC_ROLE = 'A veterinary clinic, practice, or hospital';
 const DEVELOPER_ROLE = 'A developer';
 
 const ROLE_DROPDOWN_OPTIONS = [CLINIC_ROLE, DEVELOPER_ROLE];
+const TURNSTILE_SCRIPT = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+const TURNSTILE_ACTION = 'business_signup';
+const TURNSTILE_FIELD_ERROR = 'Complete bot verification before creating an account.';
+const TURNSTILE_UNAVAILABLE_ERROR = 'Bot verification is unavailable. Please try again later.';
+
+type TurnstileApi = {
+  render: (
+    container: HTMLElement,
+    options: {
+      sitekey: string;
+      action: string;
+      size: 'flexible';
+      theme: 'light' | 'dark';
+      callback: (token: string) => void;
+      'expired-callback': () => void;
+      'error-callback': () => boolean;
+      'unsupported-callback': () => void;
+    }
+  ) => string;
+  reset: (widgetId: string) => void;
+  remove: (widgetId: string) => void;
+};
+
+const getTurnstile = () =>
+  (globalThis.window as (Window & { turnstile?: TurnstileApi }) | undefined)?.turnstile;
 
 const CLINIC_POINTS = [
   {
@@ -138,6 +165,7 @@ const validateSignUpInputs = (
     pError?: string;
     confirmPError?: string;
     agree?: string;
+    bot?: string;
   } = {};
 
   if (!firstName) errors.firstName = 'First name is required';
@@ -161,6 +189,7 @@ type SignUpErrors = {
   email?: string;
   pError?: string;
   agree?: string;
+  bot?: string;
 };
 
 type SignUpProps = {
@@ -168,6 +197,67 @@ type SignUpProps = {
   signinHref?: string;
   allowNext?: boolean;
   isDeveloper?: boolean;
+  turnstileSiteKey?: string;
+};
+
+type SignUpBotCheckProps = {
+  siteKey?: string;
+  error?: string;
+  resetCounter: number;
+  onTokenChange: (token: string, error?: string) => void;
+};
+
+const SignUpBotCheck = ({ siteKey, error, resetCounter, onTokenChange }: SignUpBotCheckProps) => {
+  const { theme } = useTheme();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const widgetIdRef = useRef<string | undefined>(undefined);
+
+  const renderWidget = useCallback(() => {
+    const turnstile = getTurnstile();
+    if (!siteKey || !turnstile || !containerRef.current || widgetIdRef.current) return;
+    widgetIdRef.current = turnstile.render(containerRef.current, {
+      sitekey: siteKey,
+      action: TURNSTILE_ACTION,
+      size: 'flexible',
+      theme,
+      callback: onTokenChange,
+      'expired-callback': () => onTokenChange(''),
+      'error-callback': () => {
+        onTokenChange('', TURNSTILE_UNAVAILABLE_ERROR);
+        return true;
+      },
+      'unsupported-callback': () => onTokenChange('', TURNSTILE_UNAVAILABLE_ERROR),
+    });
+  }, [onTokenChange, siteKey, theme]);
+
+  useEffect(() => {
+    renderWidget();
+    return () => {
+      if (widgetIdRef.current) getTurnstile()?.remove(widgetIdRef.current);
+      widgetIdRef.current = undefined;
+    };
+  }, [renderWidget]);
+
+  useEffect(() => {
+    if (resetCounter > 0 && widgetIdRef.current) {
+      getTurnstile()?.reset(widgetIdRef.current);
+    }
+  }, [resetCounter]);
+
+  if (!siteKey) return <FieldError message={TURNSTILE_UNAVAILABLE_ERROR} />;
+
+  return (
+    <>
+      <Script
+        src={TURNSTILE_SCRIPT}
+        strategy="afterInteractive"
+        onReady={renderWidget}
+        onError={() => onTokenChange('', TURNSTILE_UNAVAILABLE_ERROR)}
+      />
+      <div ref={containerRef} style={{ minHeight: 65 }} />
+      <FieldError message={error} />
+    </>
+  );
 };
 
 const SignUpBrand = ({ effectiveDeveloper }: { effectiveDeveloper: boolean }) => (
@@ -429,6 +519,7 @@ const SignUp = ({
   postAuthRedirect,
   signinHref = '/signin',
   isDeveloper = false,
+  turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
 }: Readonly<SignUpProps>) => {
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const { signUp } = useAuthStore();
@@ -441,8 +532,12 @@ const SignUp = ({
   const [showPassword, setShowPassword] = useState(false);
   const [agree, setAgree] = useState(false);
   const [role, setRole] = useState(isDeveloper ? DEVELOPER_ROLE : CLINIC_ROLE);
+  const turnstileTokenRef = useRef('');
+  const [turnstileResetCounter, setTurnstileResetCounter] = useState(0);
+  const [registeredEmail, setRegisteredEmail] = useState('');
 
   const effectiveDeveloper = isDeveloper || role === DEVELOPER_ROLE;
+  const turnstileRequired = process.env.NODE_ENV === 'production' || Boolean(turnstileSiteKey);
 
   const { clearSignUpDraft } = useSignUpDraft({
     firstName,
@@ -465,12 +560,21 @@ const SignUp = ({
       setInputErrors((prev) => ({ ...prev, [field]: undefined }));
     };
 
-  const handleSignupSuccess = () => {
+  const handleTurnstileTokenChange = useCallback((token: string, error?: string) => {
+    turnstileTokenRef.current = token;
+    setInputErrors((prev) => ({
+      ...prev,
+      bot: error ?? (token ? undefined : TURNSTILE_FIELD_ERROR),
+    }));
+  }, []);
+
+  const handleSignupSuccess = (signupEmail: string) => {
     resetSidebarPreference();
     clearSignUpDraft();
     globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
     setStorageItem('session', 'devAuth', effectiveDeveloper ? 'true' : 'false');
     setIsSubmitting(false);
+    setRegisteredEmail(signupEmail);
     setShowVerifyModal(true);
   };
 
@@ -489,6 +593,8 @@ const SignUp = ({
     });
     setIsSubmitting(false);
     setShowVerifyModal(false);
+    turnstileTokenRef.current = '';
+    setTurnstileResetCounter((counter) => counter + 1);
   };
 
   const handleSignUp = async (e: { preventDefault: () => void }) => {
@@ -502,6 +608,9 @@ const SignUp = ({
       confirmPassword,
       agree
     );
+    if (turnstileRequired && !turnstileTokenRef.current) {
+      errors.bot = turnstileSiteKey ? TURNSTILE_FIELD_ERROR : TURNSTILE_UNAVAILABLE_ERROR;
+    }
 
     setInputErrors(errors);
 
@@ -511,14 +620,17 @@ const SignUp = ({
 
     try {
       setIsSubmitting(true);
-      const args: Parameters<typeof signUp> = effectiveDeveloper
-        ? [normalizedEmail, password, firstName, lastName, 'developer']
-        : [normalizedEmail, password, firstName, lastName];
+      const args: Parameters<typeof signUp> = [normalizedEmail, password, firstName, lastName];
+      if (effectiveDeveloper) args.push('developer');
+      if (turnstileTokenRef.current) {
+        if (!effectiveDeveloper) args.push(undefined);
+        args.push(turnstileTokenRef.current);
+      }
 
       const result = await signUp(...args);
 
       if (result) {
-        handleSignupSuccess();
+        handleSignupSuccess(result.email);
       }
     } catch (error: any) {
       handleSignupError(error);
@@ -555,6 +667,14 @@ const SignUp = ({
             error={inputErrors.agree}
             onAgreeChange={handleFieldChange(setAgree, 'agree')}
           />
+          {turnstileRequired ? (
+            <SignUpBotCheck
+              siteKey={turnstileSiteKey}
+              error={inputErrors.bot}
+              resetCounter={turnstileResetCounter}
+              onTokenChange={handleTurnstileTokenChange}
+            />
+          ) : null}
           <AuthSubmitButton
             idle="Create account"
             busy="Creating account..."
@@ -565,7 +685,7 @@ const SignUp = ({
         <SignUpPetParentNote />
       </AuthShell>
       <OtpModal
-        email={normalizeEmail(email)}
+        email={registeredEmail || normalizeEmail(email)}
         password={password}
         showErrorTost={showErrorTost}
         showVerifyModal={showVerifyModal}

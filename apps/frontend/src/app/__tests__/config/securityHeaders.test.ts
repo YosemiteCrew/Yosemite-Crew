@@ -116,6 +116,7 @@ describe('security headers', () => {
     expect(directives.get('script-src')).toContain("'nonce-test-nonce'");
     expect(directives.get('script-src')).toContain('https://js.stripe.com');
     expect(directives.get('script-src')).toContain('https://connect-js.stripe.com');
+    expect(directives.get('script-src')).toContain('https://challenges.cloudflare.com');
     expect(directives.get('script-src')).toContain('https://*.js.stripe.com');
     expect(directives.get('script-src')).toContain('https://eu-assets.i.posthog.com');
     expect(directives.get('script-src')).not.toContain('https://us-assets.i.posthog.com');
@@ -130,6 +131,7 @@ describe('security headers', () => {
     expect(directives.get('connect-src')).toContain('https://api.stripe.com');
     expect(directives.get('connect-src')).toContain('https://connect-js.stripe.com');
     expect(directives.get('connect-src')).toContain('https://places.googleapis.com');
+    expect(directives.get('connect-src')).toContain('https://challenges.cloudflare.com');
     expect(directives.get('connect-src')).toContain('https://raw.githubusercontent.com');
     // Deliberately absent: the Discord member count is fetched server-side by
     // /api/community/discord-members, so the browser never connects to
@@ -146,6 +148,7 @@ describe('security headers', () => {
     expect(directives.get('frame-src')).toContain('https://js.stripe.com');
     expect(directives.get('frame-src')).toContain('https://*.js.stripe.com');
     expect(directives.get('frame-src')).toContain('https://connect-js.stripe.com');
+    expect(directives.get('frame-src')).toContain('https://challenges.cloudflare.com');
     expect(directives.get('img-src')).toContain('https://*.stripe.com');
     // Every host isAllowedMerckUrl accepts must be frameable, apex included —
     // a `*.` wildcard does not match the bare domain.
