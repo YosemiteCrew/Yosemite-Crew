@@ -205,6 +205,21 @@
   height: 56px;
 }
 
+/* The GDPR/ISO/FHIR marks are solid dark ink on a transparent background, and
+   the SOC 2 seal is a near-black AICPA-issued circle - both read fine on the
+   light footer but disappear into it once html[data-theme='dark'] turns the
+   footer's own background dark. These are official third-party marks (AICPA's
+   licensed SOC seal among them), so the fix is the same brightness/grayscale
+   filter AuthShell.tsx already uses for the identical problem on its
+   permanently-dark brand panel - it recolours the existing pixels for
+   legibility without redrawing or replacing any mark. */
+html[data-theme='dark'] .gdpr-footer,
+html[data-theme='dark'] .soc-footer,
+html[data-theme='dark'] .iso-footer,
+html[data-theme='dark'] .fhir-footer {
+  filter: grayscale(1) brightness(2.2);
+}
+
 @media screen and (max-width: 1024px) {
   .Footersec {
     padding: 0px 25px 25px 25px;
