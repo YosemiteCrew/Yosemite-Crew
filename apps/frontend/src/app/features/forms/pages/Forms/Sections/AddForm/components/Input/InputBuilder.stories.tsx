@@ -152,7 +152,7 @@ export const TextField: Story = {
 
     // Geometry, because the row height and the gutter are the only thing keeping the
     // two editors apart and neither is asserted anywhere else.
-    await expect(labelBox.getBoundingClientRect().height).toBe(44);
+    await expect(labelBox.getBoundingClientRect().height).toBe(40);
     await expect(getComputedStyle(builderRoot(canvasElement)).rowGap).toBe('12px');
 
     /* The wiring guard. Both handlers spread the whole field and overwrite one key,

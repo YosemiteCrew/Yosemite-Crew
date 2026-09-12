@@ -139,7 +139,7 @@ type Story = StoryObj<typeof meta>;
 export const Closed: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole('textbox', { name: FIELD })).toHaveValue('');
+    await expect(canvas.getByRole('combobox', { name: FIELD })).toHaveValue('');
     await expect(canvas.queryByLabelText(RESULTS)).not.toBeInTheDocument();
   },
 };
@@ -148,7 +148,7 @@ export const DropdownOpen: Story = {
   name: 'Dropdown open',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
+    await userEvent.click(canvas.getByRole('combobox', { name: FIELD }));
     const results = within(await canvas.findByLabelText(RESULTS));
     await expect(results.getAllByRole('option')).toHaveLength(specialties.length);
     await expect(results.getByRole('option', { name: 'Cardiology' })).toBeInTheDocument();
@@ -160,7 +160,7 @@ export const PickAppends: Story = {
   name: 'Pick appends a speciality',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const field = canvas.getByRole('textbox', { name: FIELD });
+    const field = canvas.getByRole('combobox', { name: FIELD });
     await userEvent.click(field);
     await userEvent.click(canvas.getByRole('option', { name: 'Cardiology' }));
 
@@ -188,7 +188,7 @@ export const CreateCapitalised: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const field = canvas.getByRole('textbox', { name: FIELD });
+    const field = canvas.getByRole('combobox', { name: FIELD });
     await userEvent.click(field);
     await userEvent.type(field, 'exotic reptile medicine');
     await userEvent.click(
@@ -220,7 +220,7 @@ export const SingleSelect: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
+    await userEvent.click(canvas.getByRole('combobox', { name: FIELD }));
     await userEvent.click(canvas.getByRole('option', { name: 'Dermatology' }));
 
     const chips = within(canvas.getByRole('list', { name: SELECTED }));
@@ -246,7 +246,7 @@ export const CurrentHidden: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
+    await userEvent.click(canvas.getByRole('combobox', { name: FIELD }));
     const results = within(await canvas.findByLabelText(RESULTS));
     await expect(results.getAllByRole('option')).toHaveLength(specialties.length - 2);
     await expect(results.queryByRole('option', { name: 'Cardiology' })).not.toBeInTheDocument();
@@ -273,7 +273,7 @@ export const FallsBackToPrimaryOrg: Story = {
   beforeEach: withPrimaryOrg,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
+    await userEvent.click(canvas.getByRole('combobox', { name: FIELD }));
     await userEvent.click(canvas.getByRole('option', { name: 'Ophthalmology' }));
 
     const chips = within(canvas.getByRole('list', { name: SELECTED }));
@@ -298,7 +298,7 @@ export const NoOrganisation: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('textbox', { name: FIELD }));
+    await userEvent.click(canvas.getByRole('combobox', { name: FIELD }));
     await userEvent.click(canvas.getByRole('option', { name: 'Cardiology' }));
 
     // Nothing to stamp the speciality with, so nothing is added - and the
