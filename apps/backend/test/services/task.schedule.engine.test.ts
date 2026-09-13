@@ -312,6 +312,61 @@ describe("TaskScheduleEngine", () => {
     errorSpy.mockRestore();
   });
 
+  it("does not recreate a seed whose task id already persisted from a prior partial retry", async () => {
+    // Regression for #3182: a first activation attempt created "First" and
+    // then failed persisting "Second" mid-loop. If generatedTaskIds is only
+    // ever written once, at the end, that failure leaves it empty and a
+    // retry recreates "First" again - two "First" rows, one orphaned from
+    // the schedule. Persisting after each seed lets the retry resume from
+    // the first seed that has no id yet.
+    const firstSeed = {
+      source: "ORG_TEMPLATE",
+      organisationId: "org-1",
+      createdBy: "creator-1",
+      assignedTo: "employee-1",
+      audience: "EMPLOYEE_TASK",
+      category: "Care",
+      name: "First",
+      dueAt: "2026-01-01T08:00:00.000Z",
+    };
+    const secondSeed = {
+      ...firstSeed,
+      name: "Second",
+      dueAt: "2026-01-01T09:00:00.000Z",
+    };
+
+    mockedPrisma.taskSchedule.findMany.mockResolvedValueOnce([
+      {
+        id: "schedule-retry",
+        templateKind: "CARE_PATHWAY",
+        status: "ACTIVE",
+        // "First" already succeeded and was persisted on the prior attempt.
+        generatedTaskIds: ["first-task-id"],
+        materializedSeeds: [firstSeed, secondSeed],
+      },
+    ]);
+    mockedTaskService.createFromWorkflowSeed.mockResolvedValueOnce({
+      id: "second-task-id",
+    });
+    mockedPrisma.taskSchedule.update.mockResolvedValue({});
+
+    await TaskScheduleEngine.run();
+
+    expect(mockedTaskService.createFromWorkflowSeed).toHaveBeenCalledTimes(1);
+    expect(mockedTaskService.createFromWorkflowSeed).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Second" }),
+      expect.objectContaining({ notify: false }),
+    );
+    expect(mockedPrisma.taskSchedule.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { id: "schedule-retry" },
+        data: expect.objectContaining({
+          generatedTaskIds: ["first-task-id", "second-task-id"],
+        }),
+      }),
+    );
+  });
+
   it("skips schedules that already have generated task ids", async () => {
     mockedPrisma.taskSchedule.findMany.mockResolvedValueOnce([
       {

@@ -92,6 +92,10 @@ jest.mock('@/app/lib/appointments', () => ({
 
 jest.mock('@/app/features/appointments/components/Calendar/weekHelpers', () => ({
   getWeekDays: jest.fn(() => [new Date('2025-01-06T00:00:00Z'), new Date('2025-01-07T00:00:00Z')]),
+  getWeekDaysInPreferredTimeZone: jest.fn(() => [
+    new Date('2025-01-06T00:00:00Z'),
+    new Date('2025-01-07T00:00:00Z'),
+  ]),
 }));
 
 jest.mock('@/app/lib/timezone', () => ({

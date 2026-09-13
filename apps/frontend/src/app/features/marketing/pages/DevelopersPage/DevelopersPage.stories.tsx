@@ -93,8 +93,8 @@ const meta = {
           '`useMagnet` on all four CTAs. All of those read `prefers-reduced-motion` through JS, ' +
           'which is why the reduced-motion story below is a real branch and not a screenshot ' +
           'variant.\n\n' +
-          'Three of the five links point at `/developers/signup` - including the hero’s ' +
-          '"Read the docs", which does not go to any docs.',
+          'The hero’s "Read the docs" link opens the public `/docs` route, while the two ' +
+          'developer portal links open `/developers/signup`.',
       },
     },
   },
@@ -153,9 +153,13 @@ export const Default: Story = {
     }
     await expect(canvas.getAllByRole('link', { name: /github|repo/i })).toHaveLength(2);
 
-    /* "Read the docs" does not lead to docs: it and both portal links share one
-       destination. Asserting it stops the trio drifting apart silently. */
-    for (const name of ['Read the docs', 'Open the developer portal', 'Developer portal']) {
+    await expect(canvas.getByRole('link', { name: 'Read the docs' })).toHaveAttribute(
+      'href',
+      '/docs'
+    );
+
+    /* Both developer portal links intentionally share the signup destination. */
+    for (const name of ['Open the developer portal', 'Developer portal']) {
       await expect(canvas.getByRole('link', { name })).toHaveAttribute(
         'href',
         '/developers/signup'

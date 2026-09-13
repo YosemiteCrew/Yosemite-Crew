@@ -4,7 +4,13 @@ import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
 import cronParser from "cron-parser";
 
-import { Prisma, TaskAudience, TaskSource, TaskStatus } from "@prisma/client";
+import {
+  Prisma,
+  TaskAudience,
+  TaskPriority,
+  TaskSource,
+  TaskStatus,
+} from "@prisma/client";
 import { prisma } from "src/config/prisma";
 
 dayjs.extend(utc);
@@ -36,9 +42,18 @@ const computeNextDueAt = (
     case "ONCE":
       return null;
     case "DAILY":
-      return base.add(1, "day").toDate();
-    case "WEEKLY":
-      return base.add(1, "week").toDate();
+    case "WEEKLY": {
+      // `.add()` on a dayjs-tz instant preserves the previous instant's UTC
+      // offset instead of recomputing it for the destination date, so it
+      // silently shifts local wall-clock time across a DST transition.
+      // Re-parsing the target calendar date as a naive local string keeps
+      // the same local time of day regardless of offset changes.
+      const unit = recurrenceType === "DAILY" ? "day" : "week";
+      const target = base.add(1, unit).format("YYYY-MM-DDTHH:mm:ss.SSS");
+      return timezone
+        ? dayjs.tz(target, timezone).toDate()
+        : dayjs(target).toDate();
+    }
     case "CUSTOM":
       if (!cronExpression) return null;
       try {
@@ -107,8 +122,10 @@ const cloneFromMasterPrisma = (
     libraryTaskId: string | null;
     templateId: string | null;
     category: string;
+    subcategory: string | null;
     name: string;
     description: string | null;
+    additionalNotes: string | null;
     medication: Prisma.InputJsonValue | null;
     observationToolId: string | null;
     dueAt: Date;
@@ -117,6 +134,8 @@ const cloneFromMasterPrisma = (
     reminder: Prisma.InputJsonValue | null;
     syncWithCalendar: boolean | null;
     attachments: Prisma.InputJsonValue | null;
+    assignedGroupId: string | null;
+    priority: TaskPriority | null;
   },
   dueAt: Date,
 ) => ({
@@ -131,12 +150,16 @@ const cloneFromMasterPrisma = (
   libraryTaskId: master.libraryTaskId ?? undefined,
   templateId: master.templateId ?? undefined,
   category: master.category,
+  subcategory: master.subcategory ?? undefined,
   name: master.name,
   description: master.description ?? undefined,
+  additionalNotes: master.additionalNotes ?? undefined,
   medication: master.medication ?? undefined,
   observationToolId: master.observationToolId ?? undefined,
   dueAt,
   timezone: master.timezone ?? undefined,
+  assignedGroupId: master.assignedGroupId ?? undefined,
+  priority: master.priority ?? undefined,
   recurrence: (() => {
     const recurrenceBase =
       (master.recurrence as Record<string, Prisma.InputJsonValue> | null) ?? {};
@@ -148,7 +171,16 @@ const cloneFromMasterPrisma = (
       endDate: recurrenceBase["endDate"] ?? undefined,
     } as Prisma.InputJsonValue;
   })(),
-  reminder: master.reminder ?? undefined,
+  // Reset the sent/notification marker for the new occurrence — copying the
+  // parent's reminder verbatim would carry over a scheduledNotificationId
+  // set once the parent's own reminder fired, which makes the reminder
+  // worker treat this brand-new occurrence as already sent.
+  reminder: master.reminder
+    ? {
+        ...(master.reminder as Record<string, Prisma.InputJsonValue>),
+        scheduledNotificationId: undefined,
+      }
+    : undefined,
   syncWithCalendar: master.syncWithCalendar ?? undefined,
   attachments: master.attachments ?? undefined,
   status: "PENDING" as TaskStatus,
@@ -159,9 +191,15 @@ export const TaskRecurrenceEngine = {
     const now = dayjs();
     const horizon = now.add(MAX_HORIZON_DAYS, "day");
 
+    // Deliberately not filtered on the master row's own `status`: the master
+    // row IS occurrence #1, so cancelling only that occurrence (scope
+    // "THIS") would otherwise stop the whole series from generating any
+    // further children. A series-level stop is expressed via
+    // `recurrence.endDate` (set by the THIS_AND_FOLLOWING/ALL cancel paths
+    // in TaskService), which `getNextOccurrence` already honors below.
     const masters = await prisma.task.findMany({
       where: {
-        status: { not: "CANCELLED" },
+        recurrence: { path: ["isMaster"], equals: true },
       },
     });
 

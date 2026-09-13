@@ -208,10 +208,6 @@ const materializeSchedule = async (
   },
   now: Date,
 ) => {
-  if (isNonEmptyStringArray(schedule.generatedTaskIds)) {
-    return;
-  }
-
   if (
     !Array.isArray(schedule.materializedSeeds) ||
     schedule.materializedSeeds.length === 0
@@ -219,21 +215,45 @@ const materializeSchedule = async (
     return;
   }
 
-  const seeds = schedule.materializedSeeds.map(parseSeed);
-  const generatedTaskIds: string[] = [];
+  // `generatedTaskIds` is persisted incrementally (one write per seed)
+  // rather than once at the end of the loop. Previously a mid-loop failure
+  // (e.g. seed 2 of 2 throwing) left the array empty even though seed 1's
+  // task row had already been created, so a retry re-ran every seed from
+  // scratch and duplicated the ones that had already succeeded. Persisting
+  // after each success lets a retry resume from the first seed that never
+  // got an id, instead of redoing already-generated ones.
+  const generatedTaskIds: string[] = isNonEmptyStringArray(
+    schedule.generatedTaskIds,
+  )
+    ? [...schedule.generatedTaskIds]
+    : [];
 
-  for (const seed of seeds) {
+  // Compare against the raw seed count before parsing: a schedule that is
+  // already fully materialized must stay a no-op even if its stored seeds
+  // are old/invalid shapes, exactly as before this change.
+  if (generatedTaskIds.length >= schedule.materializedSeeds.length) {
+    return;
+  }
+
+  const seeds = schedule.materializedSeeds.map(parseSeed);
+
+  for (let index = generatedTaskIds.length; index < seeds.length; index++) {
     const task = await TaskService.createFromWorkflowSeed(
-      toWorkflowSeedInput(seed),
+      toWorkflowSeedInput(seeds[index]),
       { notify: false },
     );
     generatedTaskIds.push(task.id);
+
+    await prisma.taskSchedule.update({
+      where: { id: schedule.id },
+      data: { generatedTaskIds },
+    });
   }
 
   await prisma.taskSchedule.update({
     where: { id: schedule.id },
     data: {
-      generatedTaskIds: generatedTaskIds,
+      generatedTaskIds,
       status: scheduleStatusForTemplateKind(schedule.templateKind),
       completedAt:
         schedule.templateKind === TemplateKind.TASK_TEMPLATE ? now : null,

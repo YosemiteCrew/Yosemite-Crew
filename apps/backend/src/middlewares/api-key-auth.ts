@@ -55,6 +55,21 @@ export const authorizeApiKey = async (
     return res.status(401).json({ message: "Invalid or expired API key" });
   }
 
+  (req as ApiKeyRequest).apiKey = verified;
+  (req as AuthenticatedRequest).userId = verified.ownerUserId;
+  return next();
+};
+
+export const meterApiKeyUsage = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void | Response> => {
+  const verified = (req as ApiKeyRequest).apiKey;
+  if (!verified) {
+    return res.status(401).json({ message: "Missing authenticated API key" });
+  }
+
   const usage = await DeveloperUsageService.incrementAndCheck(
     verified.ownerUserId,
     verified.environment,
@@ -65,8 +80,6 @@ export const authorizeApiKey = async (
     });
   }
 
-  (req as ApiKeyRequest).apiKey = verified;
-  (req as AuthenticatedRequest).userId = verified.ownerUserId;
   return next();
 };
 

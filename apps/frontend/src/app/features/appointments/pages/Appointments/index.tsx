@@ -21,7 +21,7 @@ const ViewAppointmentOverviewModal = React.lazy(
     import('@/app/features/appointments/pages/Appointments/Sections/ViewAppointmentOverviewModal')
 );
 import TitleCalendar from '@/app/ui/widgets/TitleCalendar';
-import { startOfDay } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import { startOfPreferredTimeZoneDay } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import {
   useAppointmentsForPrimaryOrg,
@@ -407,7 +407,7 @@ const useAppointmentsView = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [waitlistBooking, setWaitlistBooking] = useState<WaitlistEntryView | null>(null);
   const [waitlistRefreshKey, setWaitlistRefreshKey] = useState(0);
-  const [weekStart, setWeekStart] = useState(() => startOfDay(currentDate));
+  const [weekStart, setWeekStart] = useState(() => startOfPreferredTimeZoneDay(currentDate));
   const { plannerSectionRef } = usePlannerAutoLock({
     activeView,
     topOffset: activeView === 'list' ? 72 : 16,
@@ -427,7 +427,8 @@ const useAppointmentsView = () => {
   // effect, so the derived value is correct on the same commit as the change.
   const weekKey = `${activeCalendar}:${currentDate.getTime()}`;
   useOnValueChange(weekKey, () => {
-    const nextWeekStart = activeCalendar === 'week' ? startOfDay(currentDate) : weekStart;
+    const nextWeekStart =
+      activeCalendar === 'week' ? startOfPreferredTimeZoneDay(currentDate) : weekStart;
     if (nextWeekStart.getTime() !== weekStart.getTime()) {
       setWeekStart(nextWeekStart);
     }
