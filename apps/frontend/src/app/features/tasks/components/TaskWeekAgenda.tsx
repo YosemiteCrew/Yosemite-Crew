@@ -6,7 +6,9 @@ import {
   getWeekDays,
 } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import {
+  buildDateInPreferredTimeZone,
   formatDateInPreferredTimeZone,
+  getDateKeyInPreferredTimeZone,
   isOnPreferredTimeZoneCalendarDay,
 } from '@/app/lib/timezone';
 import { getTaskCategoryLabel } from '@/app/features/tasks/constants/taskTaxonomy';
@@ -114,11 +116,11 @@ const TaskWeekAgenda = ({
   // weekStart/currentDate happen to land, matching the design's week header.
   const days = useMemo(() => getWeekDays(getStartOfWeek(currentDate, 1)), [currentDate]);
   const today = useMemo(() => new Date(), []);
-  const todayStartMs = useMemo(() => {
-    const start = new Date(today);
-    start.setHours(0, 0, 0, 0);
-    return start.getTime();
-  }, [today]);
+  // Compared against a day column's date key rather than its raw instant: a
+  // column is a preferred-timezone noon anchor, not browser midnight, so
+  // today's own column would compare greater than a browser-local start-of-day
+  // and misclassify itself as a future day.
+  const todayDateKey = useMemo(() => getDateKeyInPreferredTimeZone(today), [today]);
 
   const tasksByDay = useMemo(() => {
     const buckets = days.map(() => [] as Task[]);
@@ -154,8 +156,10 @@ const TaskWeekAgenda = ({
 
   const handleColumnAdd = useCallback(
     (day: Date) => {
-      const dueAt = new Date(day);
-      dueAt.setHours(DEFAULT_NEW_TASK_HOUR, 0, 0, 0);
+      // buildDateInPreferredTimeZone reads `day`'s calendar day in the clinic's
+      // timezone and builds 9am there - a browser setHours would put the new
+      // task at 9am on whatever day the browser's clock reads off `day` instead.
+      const dueAt = buildDateInPreferredTimeZone(day, DEFAULT_NEW_TASK_HOUR * 60);
       onCreateFromCalendarSlot?.({ dueAt });
     },
     [onCreateFromCalendarSlot]
@@ -191,7 +195,7 @@ const TaskWeekAgenda = ({
 
       <div className="grid min-h-0 flex-1 grid-cols-7 overflow-y-auto scrollbar-hidden">
         {days.map((day, index) => {
-          const isFutureDay = day.getTime() > todayStartMs;
+          const isFutureDay = getDateKeyInPreferredTimeZone(day) > todayDateKey;
           const isTodayColumn = isOnPreferredTimeZoneCalendarDay(today, day);
           const dayTasks = tasksByDay[index] ?? [];
           return (

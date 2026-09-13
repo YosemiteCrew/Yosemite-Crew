@@ -9,7 +9,7 @@ import {
   toLocalDayKey,
 } from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
 import { getWeekDaysInPreferredTimeZone } from '@/app/features/appointments/components/Calendar/weekHelpers';
-import { buildDateInPreferredTimeZone } from '@/app/lib/timezone';
+import { buildDateInPreferredTimeZone, getDateKeyInPreferredTimeZone } from '@/app/lib/timezone';
 
 type TeamMember = ReturnType<typeof useTeamForPrimaryOrg>[number];
 
@@ -34,7 +34,7 @@ type CollectValidMinutesParams = {
 };
 
 export const getSlotCacheKey = (serviceId: string, date: Date) =>
-  `${serviceId}:${date.toISOString().slice(0, 10)}`;
+  `${serviceId}:${getDateKeyInPreferredTimeZone(date)}`;
 
 export const buildAppointmentStartFromCalendarMinutes = (date: Date, minuteOfDay: number) =>
   buildDateInPreferredTimeZone(date, clampMinutes(minuteOfDay));
