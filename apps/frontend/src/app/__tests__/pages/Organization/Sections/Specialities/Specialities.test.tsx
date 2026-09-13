@@ -100,6 +100,14 @@ describe('Specialities section', () => {
     expect(accordionButtonSpy).toHaveBeenCalledWith(expect.objectContaining({ showButton: true }));
   });
 
+  it('titles the card "Specialities" to match the table column and footer copy', () => {
+    render(<Specialities />);
+
+    expect(accordionButtonSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Specialities, services & packages' })
+    );
+  });
+
   it('resyncs the active speciality when the list refreshes with an updated match', () => {
     useSpecialitiesMock.mockReturnValue([{ _id: 'spec-1', name: 'Surgery v2', services: [] }]);
     const { rerender } = render(<Specialities />);
