@@ -8,7 +8,8 @@
  * Every org-scoped route composes four middlewares in this order, and the order
  * is load-bearing:
  *
- *   authorizeApiKey        verify the key, meter the call, bind req.userId
+ *   authorizeApiKey        verify the key and bind req.userId
+ *   meterApiKeyUsage       meter the data call and enforce its quota
  *   requireScope(...)      the key must carry the scope for this resource
  *   withOrgPermissions()   caller must hold a live active membership of the
  *                          organisation named in x-org-id, resolved per request
@@ -26,7 +27,11 @@
  * `x-org-id` while fetching a record owned by practice B.
  */
 import { Router } from "express";
-import { authorizeApiKey, requireScope } from "src/middlewares/api-key-auth";
+import {
+  authorizeApiKey,
+  meterApiKeyUsage,
+  requireScope,
+} from "src/middlewares/api-key-auth";
 import {
   requirePermission,
   withAppointmentOrgPermissions,
@@ -39,6 +44,15 @@ const developerDataRouter = Router();
 developerDataRouter.use(authorizeApiKey);
 
 /*
+ * Also not org-gated, and scope-free: usage belongs to the developer, not to a
+ * practice. Authentication runs first, but metering starts after this route so
+ * a key that has exhausted its quota can still read the state behind the 429.
+ */
+developerDataRouter.get("/usage", DeveloperDataController.getUsage);
+
+developerDataRouter.use(meterApiKeyUsage);
+
+/*
  * Not org-gated, deliberately: this is how a key holder discovers which
  * practices they may name in `x-org-id`, so it cannot itself require one. It
  * reads only the caller's own active memberships.
@@ -47,15 +61,6 @@ developerDataRouter.get(
   "/organizations",
   DeveloperDataController.listOrganizations,
 );
-
-/*
- * Also not org-gated, and scope-free: usage belongs to the developer, not to a
- * practice, and a key that has exhausted its quota still needs to be able to
- * read why. `authorizeApiKey` answers 429 before this handler on a key that is
- * over quota, so this reports the state that produced the 429 on the next
- * period rather than acting as an escape hatch.
- */
-developerDataRouter.get("/usage", DeveloperDataController.getUsage);
 
 developerDataRouter.get(
   "/appointments",

@@ -629,7 +629,7 @@ export const AvailabilityService = {
     );
 
     // Load occupancies for the week
-    const weekEnd = dayjs(weekStart).add(7, "day").endOf("day").toDate();
+    const weekEnd = dayjs(weekStart).utc().add(6, "day").endOf("day").toDate();
 
     const occupancies = await prisma.occupancy.findMany({
       where: {
@@ -731,7 +731,7 @@ export const AvailabilityService = {
     const nowUtc = dayjs.utc();
     const now = nowUtc.toDate();
     const { weekStart, weekDates } = resolveWeekBounds(now);
-    const weekEnd = dayjs(weekStart).add(7, "day").endOf("day").toDate();
+    const weekEnd = dayjs(weekStart).utc().add(6, "day").endOf("day").toDate();
 
     const [baseRows, overrideRows, weekOccupancies, currentOccupancies] =
       await Promise.all([

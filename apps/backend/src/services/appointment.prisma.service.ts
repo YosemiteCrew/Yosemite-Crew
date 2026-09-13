@@ -1533,79 +1533,84 @@ const createAppointment = async (
     getPatientId(input.patient),
   );
 
-  const created = await prisma.$transaction(async (tx) => {
-    const patientId = getPatientId(input.patient);
-    const resolvedCaseId = await resolveCaseContext({
-      tx,
-      appointmentKind,
-      caseId,
-      organisationId: input.organisationId,
-      patientId,
-      parentId: input.patient.parent?.id,
-      concern: input.concern,
-    });
-
-    await assertEncounterMatchesAppointmentContext({
-      tx,
-      encounterId,
-      caseId: resolvedCaseId,
-      organisationId: input.organisationId,
-      patientId,
-    });
-
-    const templateDefaults = await resolveTemplateDefaultsForSelection({
-      tx,
-      organisationId: input.organisationId,
-      selection,
-    });
-    const appointmentType = attachTemplateDefaults(
-      input.appointmentType,
-      templateDefaults,
-    );
-
-    const appointment = await tx.appointment.create({
-      data: {
-        patient: toJsonValue(input.patient),
-        lead: input.lead ? toJsonValue(input.lead) : Prisma.JsonNull,
-        supportStaff: input.supportStaff ? toJsonValue(input.supportStaff) : [],
-        room: input.room ? toJsonValue(input.room) : Prisma.JsonNull,
-        appointmentType: appointmentType
-          ? toJsonValue(appointmentType)
-          : Prisma.JsonNull,
-        appointmentKind,
-        organisationId: input.organisationId,
-        appointmentDate: input.appointmentDate,
-        startTime: input.startTime,
-        endTime: input.endTime,
-        timeSlot: input.timeSlot,
-        durationMinutes: input.durationMinutes,
-        status,
-        isEmergency: input.isEmergency ?? false,
-        concern: input.concern ?? null,
-        attachments: input.attachments
-          ? toJsonValue(input.attachments)
-          : Prisma.JsonNull,
-        formIds: input.formIds ?? [],
-        caseId: resolvedCaseId ?? null,
-        encounterId: encounterId ?? null,
-        productItemId: selection.productItemId,
-        expiresAt: null,
-      },
-    });
-
-    if (status === "UPCOMING") {
-      await upsertAppointmentOccupancy({
+  const created = await prisma.$transaction(
+    async (tx) => {
+      const patientId = getPatientId(input.patient);
+      const resolvedCaseId = await resolveCaseContext({
         tx,
-        appointmentId: appointment.id,
-        organisationId: appointment.organisationId,
-        leadId: input.lead?.id,
-        startTime: appointment.startTime,
-        endTime: appointment.endTime,
+        appointmentKind,
+        caseId,
+        organisationId: input.organisationId,
+        patientId,
+        parentId: input.patient.parent?.id,
+        concern: input.concern,
       });
-    }
 
-    return appointment;
-  });
+      await assertEncounterMatchesAppointmentContext({
+        tx,
+        encounterId,
+        caseId: resolvedCaseId,
+        organisationId: input.organisationId,
+        patientId,
+      });
+
+      const templateDefaults = await resolveTemplateDefaultsForSelection({
+        tx,
+        organisationId: input.organisationId,
+        selection,
+      });
+      const appointmentType = attachTemplateDefaults(
+        input.appointmentType,
+        templateDefaults,
+      );
+
+      const appointment = await tx.appointment.create({
+        data: {
+          patient: toJsonValue(input.patient),
+          lead: input.lead ? toJsonValue(input.lead) : Prisma.JsonNull,
+          supportStaff: input.supportStaff
+            ? toJsonValue(input.supportStaff)
+            : [],
+          room: input.room ? toJsonValue(input.room) : Prisma.JsonNull,
+          appointmentType: appointmentType
+            ? toJsonValue(appointmentType)
+            : Prisma.JsonNull,
+          appointmentKind,
+          organisationId: input.organisationId,
+          appointmentDate: input.appointmentDate,
+          startTime: input.startTime,
+          endTime: input.endTime,
+          timeSlot: input.timeSlot,
+          durationMinutes: input.durationMinutes,
+          status,
+          isEmergency: input.isEmergency ?? false,
+          concern: input.concern ?? null,
+          attachments: input.attachments
+            ? toJsonValue(input.attachments)
+            : Prisma.JsonNull,
+          formIds: input.formIds ?? [],
+          caseId: resolvedCaseId ?? null,
+          encounterId: encounterId ?? null,
+          productItemId: selection.productItemId,
+          expiresAt: null,
+        },
+      });
+
+      if (status === "UPCOMING") {
+        await upsertAppointmentOccupancy({
+          tx,
+          appointmentId: appointment.id,
+          organisationId: appointment.organisationId,
+          leadId: input.lead?.id,
+          startTime: appointment.startTime,
+          endTime: appointment.endTime,
+        });
+      }
+
+      return appointment;
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
 
   // Linking the companion to the organisation happens only once the booking has
   // actually been persisted. It used to run BEFORE the transaction, so a payload
@@ -1829,16 +1834,18 @@ export const AppointmentPrismaService = {
     }
 
     const patch = applyDtoPatch(row, dto, "UPCOMING");
-    const updated = await prisma.$transaction((tx) =>
-      approveRequestedFromPmsInTransaction({
-        tx,
-        appointmentId,
-        row,
-        patch,
-        patient: input.patient,
-        concern: input.concern,
-        leadId,
-      }),
+    const updated = await prisma.$transaction(
+      (tx) =>
+        approveRequestedFromPmsInTransaction({
+          tx,
+          appointmentId,
+          row,
+          patch,
+          patient: input.patient,
+          concern: input.concern,
+          leadId,
+        }),
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
 
     return toResponse(updated);
@@ -2252,111 +2259,114 @@ export const AppointmentPrismaService = {
     });
     assertSelectionSupportsAppointmentKind(selection, appointmentKind);
     const patch = applyDtoPatch(row, dto, input.status ?? row.status);
-    const updated = await prisma.$transaction(async (tx) => {
-      const patientId = getPatientId(input.patient);
-      const resolvedCaseId = await resolveCaseContext({
-        tx,
-        appointmentKind,
-        caseId,
-        organisationId: row.organisationId,
-        patientId,
-        parentId: input.patient.parent?.id,
-        concern: input.concern,
-      });
-
-      await assertEncounterMatchesAppointmentContext({
-        tx,
-        encounterId,
-        caseId: resolvedCaseId,
-        organisationId: row.organisationId,
-        patientId,
-      });
-
-      const templateDefaults = await resolveTemplateDefaultsForSelection({
-        tx,
-        organisationId: row.organisationId,
-        selection,
-      });
-      const appointmentType = attachTemplateDefaults(
-        input.appointmentType ??
-          (row.appointmentType as AppointmentDomain["appointmentType"]),
-        templateDefaults,
-      );
-
-      if (patch.status === "UPCOMING") {
-        await upsertAppointmentOccupancy({
+    const updated = await prisma.$transaction(
+      async (tx) => {
+        const patientId = getPatientId(input.patient);
+        const resolvedCaseId = await resolveCaseContext({
           tx,
-          appointmentId,
+          appointmentKind,
+          caseId,
           organisationId: row.organisationId,
-          leadId: input.lead?.id ?? getLeadIdFromRow(row),
-          startTime: patch.startTime,
-          endTime: patch.endTime,
+          patientId,
+          parentId: input.patient.parent?.id,
+          concern: input.concern,
         });
-      } else {
-        await upsertAppointmentOccupancy({
-          tx,
-          appointmentId,
-          organisationId: row.organisationId,
-          startTime: patch.startTime,
-          endTime: patch.endTime,
-        });
-      }
 
-      // On the transition into IN_PROGRESS, stamp the encounter's real actual-start so the
-      // workspace visit timer runs (bug #1903). Guarantee an encounter first: an appointment can
-      // reach IN_PROGRESS without one (e.g. a CHECKED_IN set from the edit form rather than the
-      // encounter-creating check-in action), and with no encounter there is nowhere to record the
-      // start, so the timer stays "Not started". Thread the ensured ids into the update below so it
-      // does not overwrite the freshly-linked case/encounter back to null.
-      let inProgressEncounterId = encounterId;
-      let inProgressCaseId = resolvedCaseId;
-      if (patch.status === "IN_PROGRESS" && row.status !== "IN_PROGRESS") {
-        if (!inProgressEncounterId) {
-          // Create the encounter from the PATCHED appointment context (patient, kind, type, case,
-          // concern, times) - the same values the update below writes - so a request that both
-          // starts the appointment AND edits it never links an encounter built from stale
-          // pre-update context.
-          const patchedRow = {
-            ...row,
-            patient: input.patient,
-            appointmentKind,
-            appointmentType,
-            concern: input.concern ?? row.concern,
-            startTime: patch.startTime,
-            endTime: patch.endTime,
-            caseId: resolvedCaseId ?? row.caseId,
-            encounterId: null,
-          } as AppointmentRow;
-          const ensured = await ensureEncounterOnCheckIn({
+        await assertEncounterMatchesAppointmentContext({
+          tx,
+          encounterId,
+          caseId: resolvedCaseId,
+          organisationId: row.organisationId,
+          patientId,
+        });
+
+        const templateDefaults = await resolveTemplateDefaultsForSelection({
+          tx,
+          organisationId: row.organisationId,
+          selection,
+        });
+        const appointmentType = attachTemplateDefaults(
+          input.appointmentType ??
+            (row.appointmentType as AppointmentDomain["appointmentType"]),
+          templateDefaults,
+        );
+
+        if (patch.status === "UPCOMING") {
+          await upsertAppointmentOccupancy({
             tx,
             appointmentId,
-            current: patchedRow,
-            caseId: resolvedCaseId,
+            organisationId: row.organisationId,
+            leadId: input.lead?.id ?? getLeadIdFromRow(row),
+            startTime: patch.startTime,
+            endTime: patch.endTime,
           });
-          inProgressEncounterId = ensured.encounterId;
-          inProgressCaseId = ensured.caseId ?? resolvedCaseId;
+        } else {
+          await upsertAppointmentOccupancy({
+            tx,
+            appointmentId,
+            organisationId: row.organisationId,
+            startTime: patch.startTime,
+            endTime: patch.endTime,
+          });
         }
-        await stampEncounterActualStartOnProgress({
-          tx,
-          encounterId: inProgressEncounterId,
-          startedAt: new Date(),
-        });
-      }
 
-      return tx.appointment.update({
-        where: { id: appointmentId },
-        data: {
-          ...patch,
-          appointmentType: appointmentType
-            ? toJsonValue(appointmentType)
-            : toNullableJsonValue(row.appointmentType),
-          caseId: inProgressCaseId ?? null,
-          encounterId: inProgressEncounterId ?? null,
-          productItemId: selection.productItemId,
-          updatedAt: new Date(),
-        },
-      });
-    });
+        // On the transition into IN_PROGRESS, stamp the encounter's real actual-start so the
+        // workspace visit timer runs (bug #1903). Guarantee an encounter first: an appointment can
+        // reach IN_PROGRESS without one (e.g. a CHECKED_IN set from the edit form rather than the
+        // encounter-creating check-in action), and with no encounter there is nowhere to record the
+        // start, so the timer stays "Not started". Thread the ensured ids into the update below so it
+        // does not overwrite the freshly-linked case/encounter back to null.
+        let inProgressEncounterId = encounterId;
+        let inProgressCaseId = resolvedCaseId;
+        if (patch.status === "IN_PROGRESS" && row.status !== "IN_PROGRESS") {
+          if (!inProgressEncounterId) {
+            // Create the encounter from the PATCHED appointment context (patient, kind, type, case,
+            // concern, times) - the same values the update below writes - so a request that both
+            // starts the appointment AND edits it never links an encounter built from stale
+            // pre-update context.
+            const patchedRow = {
+              ...row,
+              patient: input.patient,
+              appointmentKind,
+              appointmentType,
+              concern: input.concern ?? row.concern,
+              startTime: patch.startTime,
+              endTime: patch.endTime,
+              caseId: resolvedCaseId ?? row.caseId,
+              encounterId: null,
+            } as AppointmentRow;
+            const ensured = await ensureEncounterOnCheckIn({
+              tx,
+              appointmentId,
+              current: patchedRow,
+              caseId: resolvedCaseId,
+            });
+            inProgressEncounterId = ensured.encounterId;
+            inProgressCaseId = ensured.caseId ?? resolvedCaseId;
+          }
+          await stampEncounterActualStartOnProgress({
+            tx,
+            encounterId: inProgressEncounterId,
+            startedAt: new Date(),
+          });
+        }
+
+        return tx.appointment.update({
+          where: { id: appointmentId },
+          data: {
+            ...patch,
+            appointmentType: appointmentType
+              ? toJsonValue(appointmentType)
+              : toNullableJsonValue(row.appointmentType),
+            caseId: inProgressCaseId ?? null,
+            encounterId: inProgressEncounterId ?? null,
+            productItemId: selection.productItemId,
+            updatedAt: new Date(),
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
 
     if (patch.status === "COMPLETED") {
       await InvoiceService.markAppointmentReadyForBilling(appointmentId, {

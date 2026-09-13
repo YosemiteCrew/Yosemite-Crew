@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import {
   authorizeApiKey,
+  meterApiKeyUsage,
   requireScope,
 } from "../../src/middlewares/api-key-auth";
 import { DeveloperApiKeyService } from "../../src/services/developer-api-key.service";
@@ -41,7 +42,6 @@ describe("authorizeApiKey", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     next = jest.fn();
-    incrementMock.mockResolvedValue({ allowed: true, callCount: 1 });
   });
 
   it("401 when no key is presented", async () => {
@@ -109,12 +109,57 @@ describe("authorizeApiKey", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("429 when quota is exceeded", async () => {
+  it("does not meter during authentication", async () => {
     verifyMock.mockResolvedValue(verifiedKey);
-    incrementMock.mockResolvedValue({ allowed: false, callCount: 1001 });
-    const res = buildRes();
     await authorizeApiKey(
       buildReq({ authorization: "Bearer yc_live_good" }),
+      buildRes(),
+      next,
+    );
+    expect(incrementMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps concurrent authentication-only requests unmetered", async () => {
+    verifyMock.mockResolvedValue(verifiedKey);
+    await Promise.all([
+      authorizeApiKey(
+        buildReq({ authorization: "Bearer yc_live_good" }),
+        buildRes(),
+        next,
+      ),
+      authorizeApiKey(
+        buildReq({ authorization: "Bearer yc_live_good" }),
+        buildRes(),
+        next,
+      ),
+    ]);
+
+    expect(next).toHaveBeenCalledTimes(2);
+    expect(incrementMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("meterApiKeyUsage", () => {
+  let next: NextFunction;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    next = jest.fn();
+    incrementMock.mockResolvedValue({ allowed: true, callCount: 1 });
+  });
+
+  it("401 without authenticated key context", async () => {
+    const res = buildRes();
+    await meterApiKeyUsage(buildReq(), res, next);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(incrementMock).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("429 when quota is exceeded", async () => {
+    incrementMock.mockResolvedValue({ allowed: false, callCount: 1001 });
+    const res = buildRes();
+    await meterApiKeyUsage(
+      { apiKey: verifiedKey } as unknown as Request,
       res,
       next,
     );
@@ -123,10 +168,9 @@ describe("authorizeApiKey", () => {
   });
 
   it("calls incrementAndCheck with the ownerUserId and the key's environment", async () => {
-    verifyMock.mockResolvedValue(verifiedKey);
     const res = buildRes();
-    await authorizeApiKey(
-      buildReq({ authorization: "Bearer yc_live_good" }),
+    await meterApiKeyUsage(
+      { apiKey: verifiedKey } as unknown as Request,
       res,
       next,
     );
@@ -139,10 +183,9 @@ describe("authorizeApiKey", () => {
        meter event (#2549). The middleware is the only thing that knows which
        environment authenticated; the service cannot discriminate unless this
        passes it on. */
-    verifyMock.mockResolvedValue({ ...verifiedKey, environment: "test" });
     const res = buildRes();
-    await authorizeApiKey(
-      buildReq({ authorization: "Bearer yc_test_good" }),
+    await meterApiKeyUsage(
+      { apiKey: { ...verifiedKey, environment: "test" } } as unknown as Request,
       res,
       next,
     );
