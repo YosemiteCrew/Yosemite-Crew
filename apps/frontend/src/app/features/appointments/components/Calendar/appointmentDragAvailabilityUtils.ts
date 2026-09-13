@@ -8,7 +8,7 @@ import {
   hasAppointmentConflict,
   toLocalDayKey,
 } from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
-import { getWeekDays } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import { getWeekDaysInPreferredTimeZone } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import { buildDateInPreferredTimeZone } from '@/app/lib/timezone';
 
 type TeamMember = ReturnType<typeof useTeamForPrimaryOrg>[number];
@@ -286,7 +286,8 @@ export const buildDragPrefetchTargets = (
   teams: ReturnType<typeof useTeamForPrimaryOrg>
 ): Array<{ date: Date; targetLeadId?: string }> => {
   if (activeCalendar === 'day') return [{ date: currentDate }];
-  if (activeCalendar === 'week') return getWeekDays(weekStart).map((date) => ({ date }));
+  if (activeCalendar === 'week')
+    return getWeekDaysInPreferredTimeZone(weekStart).map((date) => ({ date }));
   if (activeCalendar === 'team') {
     return (teams || []).map((member) => ({
       date: currentDate,
