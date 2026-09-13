@@ -1,4 +1,4 @@
-import {createAsyncThunk} from '@reduxjs/toolkit';
+import {createAsyncThunk, nanoid} from '@reduxjs/toolkit';
 import type {
   Task,
   TaskStatus,
@@ -60,6 +60,26 @@ export const addTask = createAsyncThunk<
   }
 });
 
+// updateTask/deleteTask are themselves in flight (their own `.pending` case
+// already set `state.tasks.loading = true`) when they need this refresh, and
+// `fetchTasksForCompanion`'s `condition` refuses to start a fetch while that
+// same flag is true - dispatching the thunk here would be silently dropped
+// (a `ConditionError` the callers already swallow), never refreshing wider
+// scopes. Calling the API directly and dispatching the plain `.fulfilled`
+// action bypasses that guard while still going through the exact reducer
+// case a normal fetch would.
+const refreshCompanionTasks = async (
+  dispatch: AppDispatch,
+  companionId: string,
+): Promise<void> => {
+  const tasks = await taskApi.list({companionId});
+  dispatch(
+    fetchTasksForCompanion.fulfilled({companionId, tasks}, nanoid(), {
+      companionId,
+    }),
+  );
+};
+
 // Both thunks below resolve to just the server response (a Task, or nothing
 // for the 204 cancel) so existing `.unwrap()` call sites keep working
 // unchanged. The scope this call used is recovered from `action.meta.arg` in
@@ -90,7 +110,7 @@ export const updateTask = createAsyncThunk<
       // next natural fetch.
       if (scope !== 'THIS' && companionId) {
         try {
-          await dispatch(fetchTasksForCompanion({companionId})).unwrap();
+          await refreshCompanionTasks(dispatch, companionId);
         } catch {
           // Intentionally swallowed - see comment above.
         }
@@ -120,7 +140,7 @@ export const deleteTask = createAsyncThunk<
 
       if (scope !== 'THIS' && companionId) {
         try {
-          await dispatch(fetchTasksForCompanion({companionId})).unwrap();
+          await refreshCompanionTasks(dispatch, companionId);
         } catch {
           // See updateTask above: the cancel already persisted server-side.
         }
