@@ -458,6 +458,56 @@ describe('parseWhen day parts with no day', () => {
   });
 });
 
+describe('parseWhen clock times with no am or pm beside a day part', () => {
+  it('reads "at 8 tonight" as 20:00 today, not 08:00', () => {
+    expect(localParts(parseWhen('at 8 tonight', NOW))).toEqual(
+      at(2026, 2, 3, 20, 0),
+    );
+  });
+
+  it('reads "tomorrow evening at 7" as 19:00 tomorrow', () => {
+    expect(localParts(parseWhen('tomorrow evening at 7', NOW))).toEqual(
+      at(2026, 2, 4, 19, 0),
+    );
+  });
+
+  it('reads "at 9:30 in the evening" as 21:30 today, with no day named', () => {
+    expect(localParts(parseWhen('at 9:30 in the evening', NOW))).toEqual(
+      at(2026, 2, 3, 21, 30),
+    );
+  });
+
+  it('reads the Spanish "esta tarde at 4" as 16:00 today', () => {
+    expect(localParts(parseWhen('esta tarde at 4', NOW))).toEqual(
+      at(2026, 2, 3, 16, 0),
+    );
+  });
+
+  it('keeps "at 7 in the morning" in the morning', () => {
+    expect(localParts(parseWhen('at 7 in the morning', NOW))).toEqual(
+      at(2026, 2, 4, 7, 0),
+    );
+  });
+
+  it('keeps an explicit am even beside an evening day part', () => {
+    expect(localParts(parseWhen('tomorrow evening at 6am', NOW))).toEqual(
+      at(2026, 2, 4, 6, 0),
+    );
+  });
+
+  it('keeps a 24-hour time beside a night day part', () => {
+    expect(localParts(parseWhen('tonight at 20:15', NOW))).toEqual(
+      at(2026, 2, 3, 20, 15),
+    );
+  });
+
+  it('keeps 12 as said rather than guessing noon or midnight', () => {
+    expect(localParts(parseWhen('tomorrow night at 12', NOW))).toEqual(
+      at(2026, 2, 4, 12, 0),
+    );
+  });
+});
+
 describe('parseWhen with no date in the text', () => {
   it('returns null for an empty string', () => {
     expect(parseWhen('', NOW)).toBeNull();

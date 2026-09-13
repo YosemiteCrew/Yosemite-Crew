@@ -162,6 +162,26 @@ const parseDayPart = (normalized: string): number | null => {
 };
 
 /**
+ * The hour of a clock time said without am/pm, read against the day part.
+ *
+ * "at 8 tonight" and "9:30 in the evening" name no meridiem, so the clock
+ * alone gave 08:00 and 09:30 and the dose landed in the morning. An
+ * afternoon, evening or night day part moves a 1-11 hour past noon; a morning
+ * day part, a 24-hour reading and an explicit am or pm are kept as said.
+ */
+const hourWithDayPartMeridiem = (
+  text: string,
+  hour: number,
+  dayPartHour: number | null,
+): number => {
+  const saysMeridiem = parseMeridiemTime(normalizeKeepingClock(text)) !== null;
+  const afterNoon = dayPartHour !== null && dayPartHour > 12;
+  return !saysMeridiem && afterNoon && hour >= 1 && hour < 12
+    ? hour + 12
+    : hour;
+};
+
+/**
  * Resolves a date phrase against `now`.
  *
  * Returns null when the text carries no date information at all, so callers
@@ -287,7 +307,9 @@ export const parseWhen = (text: string, now: Date): string | null => {
 
   const clock = parseClockTime(text);
   const dayPartHour = parseDayPart(normalized);
-  const hour = clock?.hour ?? dayPartHour ?? DEFAULT_HOUR;
+  const hour = clock
+    ? hourWithDayPartMeridiem(text, clock.hour, dayPartHour)
+    : (dayPartHour ?? DEFAULT_HOUR);
   const minute = clock?.minute ?? 0;
 
   const dated =
@@ -307,7 +329,7 @@ export const parseWhen = (text: string, now: Date): string | null => {
   }
 
   if (clock) {
-    return resolveNextOccurrence(now, clock.hour, clock.minute);
+    return resolveNextOccurrence(now, hour, clock.minute);
   }
   if (dayPartHour !== null) {
     return resolveNextOccurrence(now, dayPartHour, 0);
