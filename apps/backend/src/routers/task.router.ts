@@ -27,6 +27,8 @@ router.get("/mobile/:taskId", requireMobileAuth, TaskController.getById);
 
 router.patch("/mobile/:taskId", requireMobileAuth, TaskController.updateTask);
 
+router.delete("/mobile/:taskId", requireMobileAuth, TaskController.deleteTask);
+
 router.post(
   "/mobile/:taskId/status",
   requireMobileAuth,
