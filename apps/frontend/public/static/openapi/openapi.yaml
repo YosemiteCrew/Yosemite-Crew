@@ -19637,6 +19637,36 @@ paths:
                   updatedAt:
                     type: string
                     format: date-time
+    delete:
+      tags:
+        - 'Non-FHIR'
+      summary: 'DELETE /v1/task/mobile/{taskId}'
+      operationId: delete_v1_task_mobile_taskId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: scope
+          in: query
+          required: false
+          description: Recurrence scope for a recurring task; defaults to THIS when omitted or unrecognised.
+          schema:
+            type: string
+            enum:
+              - THIS
+              - THIS_AND_FOLLOWING
+              - ALL
+      responses:
+        204:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
   '/v1/task/mobile/{taskId}/status':
     post:
       tags:
