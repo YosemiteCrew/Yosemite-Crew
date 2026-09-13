@@ -251,6 +251,11 @@ describe("task workflow materializer", () => {
       cronExpression: "0 7 * * *",
       endDate: new Date("2026-01-04T07:00:00.000Z"),
     });
+    // endAfterDays: 3 must survive materialization as a concrete end bound
+    // relative to this block's own due time (2026-09-13, issue #3194).
+    expect(seeds[0].recurrence?.endDate?.toISOString()).toBe(
+      "2026-01-04T07:00:00.000Z",
+    );
     expect(seeds[0].reminder).toEqual({ enabled: true, offsetMinutes: 10 });
     expect(seeds[0].dueAt.toISOString()).toBe("2026-01-01T07:00:00.000Z");
     expect(seeds[1].name).toBe("Feeding check");
@@ -565,5 +570,137 @@ describe("task workflow materializer", () => {
         endDate: new Date("2026-01-05T08:00:00.000Z"),
       });
     });
+  });
+});
+
+describe("task workflow template recurrence normalization (#3194, #3195)", () => {
+  const templateInstanceSnapshot = (recurrence: unknown) => ({
+    sections: [
+      {
+        id: "definition",
+        data: {
+          taskKind: "MEDICATION",
+          category: "Medication",
+          name: "Evening medicine",
+        },
+      },
+      { id: "assignment", data: { defaultRole: "EMPLOYEE_TASK" } },
+      { id: "timing", data: { recurrence } },
+    ],
+  });
+
+  const materialize = (recurrence: unknown) =>
+    materializeTaskWorkflowSeeds(
+      "TASK_TEMPLATE",
+      templateInstanceSnapshot(recurrence),
+      {
+        organisationId: "org-1",
+        createdBy: "creator-1",
+        templateId: "tmpl-recurrence",
+        dueAt: new Date("2026-01-01T09:00:00.000Z"),
+        resolveAssignee: () => "employee-2",
+      },
+    );
+
+  it("honors a bare DAILY select value from the template blueprint (#3195)", () => {
+    const seeds = materialize("DAILY");
+
+    expect(seeds[0].recurrence).toMatchObject({
+      type: "DAILY",
+      isMaster: true,
+    });
+  });
+
+  it("honors a bare WEEKLY select value from the template blueprint (#3195)", () => {
+    const seeds = materialize("WEEKLY");
+
+    expect(seeds[0].recurrence?.type).toBe("WEEKLY");
+  });
+
+  it("creates a nonrepeating task for a bare ONCE select value", () => {
+    const seeds = materialize("ONCE");
+
+    expect(seeds[0].recurrence?.type).toBe("ONCE");
+  });
+
+  it("still honors an existing object-shaped recurrence and its cron", () => {
+    const seeds = materialize({
+      type: "CUSTOM",
+      customCron: "0 8 * * *",
+    });
+
+    expect(seeds[0].recurrence).toMatchObject({
+      type: "CUSTOM",
+      cronExpression: "0 8 * * *",
+    });
+  });
+
+  it("computes endDate from defaultEndOffsetDays relative to the occurrence due time (#3194)", () => {
+    const seeds = materialize({ type: "DAILY", defaultEndOffsetDays: 2 });
+
+    expect(seeds[0].recurrence?.endDate?.toISOString()).toBe(
+      "2026-01-03T09:00:00.000Z",
+    );
+  });
+
+  it("treats a zero-day end offset as bounding out any later occurrence", () => {
+    const seeds = materialize({ type: "DAILY", defaultEndOffsetDays: 0 });
+
+    // Inclusive of this occurrence's own due time, so the *next* generated
+    // occurrence (dueAt + 1 day) will read as after endDate and stop.
+    expect(seeds[0].recurrence?.endDate?.toISOString()).toBe(
+      "2026-01-01T09:00:00.000Z",
+    );
+  });
+
+  it("leaves recurrence unbounded when no end field is present", () => {
+    const seeds = materialize({ type: "DAILY" });
+
+    expect(seeds[0].recurrence?.endDate).toBeUndefined();
+  });
+
+  it("computes a deterministic endDate across a DST transition (ms-based, see ponytail note)", () => {
+    // 2026-03-08 is the US spring-forward date; a naive UTC-ms offset does not
+    // try to preserve local wall-clock time across it, and this test pins
+    // that documented behavior rather than a timezone-aware recomputation.
+    const seeds = materializeTaskWorkflowSeeds(
+      "TASK_TEMPLATE",
+      templateInstanceSnapshot({ type: "DAILY", defaultEndOffsetDays: 1 }),
+      {
+        organisationId: "org-1",
+        createdBy: "creator-1",
+        templateId: "tmpl-recurrence",
+        dueAt: new Date("2026-03-07T09:00:00.000Z"),
+        resolveAssignee: () => "employee-2",
+      },
+    );
+
+    expect(seeds[0].recurrence?.endDate?.toISOString()).toBe(
+      "2026-03-08T09:00:00.000Z",
+    );
+  });
+
+  it("rejects an unrecognised recurrence selection instead of silently downgrading it", () => {
+    expect(() => materialize("FORTNIGHTLY")).toThrow(/recurrence/i);
+  });
+
+  it("rejects a bare CUSTOM selection with no cron expression", () => {
+    expect(() => materialize("CUSTOM")).toThrow(/cron/i);
+  });
+
+  it("rejects an object-shaped CUSTOM recurrence missing its cron expression", () => {
+    expect(() => materialize({ type: "CUSTOM" })).toThrow(/cron/i);
+  });
+
+  it("rejects a negative end offset at the input boundary", () => {
+    expect(() =>
+      materialize({ type: "DAILY", defaultEndOffsetDays: -1 }),
+    ).toThrow(/end offset/i);
+  });
+
+  it("rejects a nonfinite end offset at the input boundary", () => {
+    expect(() =>
+      materialize({ type: "DAILY", defaultEndOffsetDays: Infinity }),
+    ).toThrow(/end offset/i);
   });
 });
