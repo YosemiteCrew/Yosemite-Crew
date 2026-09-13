@@ -222,20 +222,42 @@ describe('taskService', () => {
       expect(mapApiTaskToTask({category: 'UNKNOWN'}).category).toBe('custom');
     });
 
-    it('maps Recurrence correctly', () => {
-      expect(mapApiTaskToTask({recurrence: {type: 'DAILY'}}).frequency).toBe(
-        'daily',
-      );
-      expect(mapApiTaskToTask({recurrence: {type: 'WEEKLY'}}).frequency).toBe(
-        'weekly',
-      );
-      expect(mapApiTaskToTask({recurrence: {type: 'MONTHLY'}}).frequency).toBe(
-        'monthly',
-      );
-      expect(mapApiTaskToTask({recurrence: {type: 'CUSTOM'}}).frequency).toBe(
-        'daily',
-      );
+    it('maps a recurring master task to its series frequency', () => {
+      expect(
+        mapApiTaskToTask({recurrence: {type: 'DAILY', isMaster: true}})
+          .frequency,
+      ).toBe('daily');
+      expect(
+        mapApiTaskToTask({recurrence: {type: 'WEEKLY', isMaster: true}})
+          .frequency,
+      ).toBe('weekly');
+      expect(
+        mapApiTaskToTask({recurrence: {type: 'MONTHLY', isMaster: true}})
+          .frequency,
+      ).toBe('monthly');
+      expect(
+        mapApiTaskToTask({recurrence: {type: 'CUSTOM', isMaster: true}})
+          .frequency,
+      ).toBe('daily');
       expect(mapApiTaskToTask({recurrence: null}).frequency).toBe('once');
+    });
+
+    it('maps a materialized child occurrence to "once" regardless of the series type it belongs to', () => {
+      // Regression for #3210: a materialized child copies its master's
+      // `type` verbatim (for reference) but is `isMaster: false`. If its
+      // frequency were derived from `type` alone, the mobile calendar would
+      // independently re-project it as its own series on top of the
+      // master's projection, duplicating every future occurrence.
+      expect(
+        mapApiTaskToTask({
+          recurrence: {type: 'WEEKLY', isMaster: false, masterTaskId: 'm1'},
+        }).frequency,
+      ).toBe('once');
+      expect(
+        mapApiTaskToTask({
+          recurrence: {type: 'DAILY', isMaster: false, masterTaskId: 'm1'},
+        }).frequency,
+      ).toBe('once');
     });
 
     it('maps Reminders correctly', () => {
@@ -565,7 +587,7 @@ describe('taskService', () => {
       expect(draft.recurrence?.type).toBe('MONTHLY');
 
       const roundTripped = mapApiTaskToTask({
-        recurrence: {type: draft.recurrence?.type},
+        recurrence: {type: draft.recurrence?.type, isMaster: true},
       });
 
       expect(roundTripped.frequency).toBe('monthly');
