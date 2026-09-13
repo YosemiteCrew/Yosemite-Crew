@@ -230,6 +230,45 @@ describe("scheduling utils", () => {
     });
   });
 
+  it("matches a negative-offset DST slot only via the correct candidate-day shift", async () => {
+    // Regression test for #3140 using the issue's own example timezone.
+    // America/New_York is a negative offset, so the day that actually
+    // lands a UTC-midnight-anchored slot in range is one day before the
+    // requested date (utcDateShift -1) - buildCalendarPrefillMatches must
+    // search that shift and use its DST rule (EDT) to find the match. An
+    // epoch-anchored (always EST) conversion would compute 08:00 local
+    // instead of 09:00 and miss this match entirely.
+    const matches = await buildCalendarPrefillMatches({
+      inputDate: new Date("2026-07-15T00:00:00.000Z"),
+      timezone: "America/New_York",
+      minuteOfDay: 9 * 60,
+      leadId: "vet-1",
+      contexts: [
+        {
+          matchId: "service-1",
+          organisationId: "org-1",
+          durationMinutes: 30,
+          vetIds: ["vet-1"],
+        },
+      ],
+      utcDateShifts: [-1, 0, 1] as const,
+      getBookableWindows: async () => ({
+        date: "2026-07-15",
+        dayOfWeek: "WEDNESDAY",
+        windows: [{ startTime: "13:00", endTime: "13:30", vetIds: ["vet-1"] }],
+      }),
+    });
+
+    expect(matches).toHaveLength(1);
+    expect(matches[0]).toMatchObject({
+      matchId: "service-1",
+      meta: {
+        localStartMinute: 9 * 60,
+        localEndMinute: 9 * 60 + 30,
+      },
+    });
+  });
+
   it("filters lead mismatches and out-of-tolerance slots from prefill matches", async () => {
     const matches = await buildCalendarPrefillMatches({
       inputDate: new Date("2026-06-20T00:00:00.000Z"),
