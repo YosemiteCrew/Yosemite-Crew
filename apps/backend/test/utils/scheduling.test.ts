@@ -23,16 +23,30 @@ describe("scheduling utils", () => {
   });
 
   it("converts UTC clock time into an offset timezone clock", () => {
-    expect(utcClockTimeToTimezoneClock("01:30", "UTC+02:00")).toEqual({
-      minutes: 210,
-      dayOffset: 0,
-    });
+    expect(
+      utcClockTimeToTimezoneClock(
+        "01:30",
+        "UTC+02:00",
+        new Date("2026-01-15T00:00:00.000Z"),
+      ),
+    ).toEqual({ minutes: 210, dayOffset: 0 });
+  });
+
+  it("uses the appointment date when applying timezone daylight saving", () => {
+    expect(
+      utcClockTimeToTimezoneClock(
+        "13:00",
+        "America/New_York",
+        new Date("2026-07-15T00:00:00.000Z"),
+      ),
+    ).toEqual({ minutes: 540, dayOffset: 1 });
   });
 
   it("normalizes a slot into the selected day window", () => {
     expect(
       normalizeSlotForSelectedDay({
         timezone: "UTC+02:00",
+        referenceDate: new Date("2026-01-15T00:00:00.000Z"),
         utcDateShift: 0,
         slot: {
           startTime: "00:30",
@@ -49,6 +63,7 @@ describe("scheduling utils", () => {
     expect(
       normalizeSlotForSelectedDay({
         timezone: "UTC",
+        referenceDate: new Date("2026-01-15T00:00:00.000Z"),
         utcDateShift: -1,
         slot: {
           startTime: "00:30",
@@ -185,6 +200,33 @@ describe("scheduling utils", () => {
         localStartMinute: 540,
         localEndMinute: 570,
       },
+    });
+  });
+
+  it("matches calendar prefills using the target date's daylight saving offset", async () => {
+    const matches = await buildCalendarPrefillMatches({
+      inputDate: new Date("2026-07-15T00:00:00.000Z"),
+      timezone: "Europe/Paris",
+      minuteOfDay: 900,
+      contexts: [
+        {
+          matchId: "service-1",
+          organisationId: "org-1",
+          durationMinutes: 30,
+          vetIds: ["vet-1"],
+        },
+      ],
+      utcDateShifts: [0] as const,
+      getBookableWindows: async () => ({
+        date: "2026-07-15",
+        dayOfWeek: "WEDNESDAY",
+        windows: [{ startTime: "13:00", endTime: "13:30", vetIds: ["vet-1"] }],
+      }),
+    });
+
+    expect(matches[0]?.meta).toEqual({
+      localStartMinute: 900,
+      localEndMinute: 930,
     });
   });
 
