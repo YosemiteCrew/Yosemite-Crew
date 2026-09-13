@@ -450,6 +450,99 @@ describe('SignIn Page', () => {
     );
   });
 
+  // --- Persistent inline sign-in error (in addition to the toast above) ---
+
+  it('shows a persistent inline error alongside the toast on sign-in failure', async () => {
+    mockSignIn.mockRejectedValue(new Error('Invalid credentials'));
+
+    render(<SignIn />);
+
+    fireEvent.change(getEmailInput(), { target: { value: 'test@example.com' } });
+    fireEvent.change(getPasswordInput(), { target: { value: 'pass123' } });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Invalid credentials');
+  });
+
+  it('shows the rate-limit message inline, not just as a toast', async () => {
+    mockSignIn.mockRejectedValue({ response: { status: 429 } });
+
+    render(<SignIn />);
+
+    fireEvent.change(getEmailInput(), { target: { value: 'test@example.com' } });
+    fireEvent.change(getPasswordInput(), { target: { value: 'pass123' } });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    expect(
+      screen.getByText(
+        'Too many requests right now. Your sign in was accepted - please wait a minute and try again.'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the inline error visible until the user edits a field', async () => {
+    mockSignIn.mockRejectedValue(new Error('Invalid credentials'));
+
+    render(<SignIn />);
+
+    fireEvent.change(getEmailInput(), { target: { value: 'test@example.com' } });
+    fireEvent.change(getPasswordInput(), { target: { value: 'pass123' } });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    expect(screen.getByText('Invalid credentials')).toBeInTheDocument();
+
+    fireEvent.change(getPasswordInput(), { target: { value: 'pass1234' } });
+
+    expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument();
+  });
+
+  it('clears the previous inline error as soon as a retry is submitted', async () => {
+    mockSignIn.mockRejectedValueOnce(new Error('Invalid credentials'));
+    mockSignIn.mockResolvedValueOnce({});
+
+    render(<SignIn />);
+
+    fireEvent.change(getEmailInput(), { target: { value: 'test@example.com' } });
+    fireEvent.change(getPasswordInput(), { target: { value: 'pass123' } });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+    expect(screen.getByText('Invalid credentials')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument();
+  });
+
+  it('does not show an inline error for the unconfirmed-account flow', async () => {
+    const error = { code: 'UserNotConfirmedException' };
+    mockSignIn.mockRejectedValue(error);
+    mockResendCode.mockResolvedValue(true);
+
+    render(<SignIn />);
+
+    fireEvent.change(getEmailInput(), { target: { value: 'unconfirmed@test.com' } });
+    fireEvent.change(getPasswordInput(), { target: { value: 'pass123' } });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('handles UserNotConfirmedException by resending code and showing modal', async () => {
     const error = { code: 'UserNotConfirmedException' };
     mockSignIn.mockRejectedValue(error);

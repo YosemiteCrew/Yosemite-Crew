@@ -32,6 +32,7 @@ import {
   AuthPasswordField,
   AuthSubmitButton,
   AuthAltNote,
+  FieldError,
 } from '@/app/features/auth/pages/authForm';
 import { signInErrorMessage } from '@/app/features/auth/lib/signInErrorMessage';
 
@@ -154,6 +155,10 @@ const SignInForm = ({
     email?: string;
     pError?: string;
   }>({});
+  // A toast disappears on its own and is easy to miss; a rate-limit or other
+  // sign-in failure also gets this persistent inline message, which stays
+  // until the user edits a field or retries (see handleSignIn/onChange below).
+  const [formError, setFormError] = useState<string | undefined>(undefined);
 
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -209,6 +214,7 @@ const SignInForm = ({
 
   const handleSignIn = async (e: React.SyntheticEvent) => {
     e.preventDefault();
+    setFormError(undefined);
 
     const errors: { email?: string; pError?: string } = {};
     const normalizedEmail = normalizeEmail(email);
@@ -265,8 +271,10 @@ const SignInForm = ({
       if (error?.code === 'UserNotConfirmedException') {
         await handleCodeResendonError();
       } else {
+        const message = signInErrorMessage(error);
+        setFormError(message);
         showErrorTost({
-          message: signInErrorMessage(error),
+          message,
           errortext: 'Error',
           iconElement: (
             <Icon
@@ -360,6 +368,7 @@ const SignInForm = ({
             onChange={(value) => {
               setEmail(value);
               setInputErrors((prev) => ({ ...prev, email: undefined }));
+              setFormError(undefined);
             }}
           />
           <AuthPasswordField
@@ -374,6 +383,7 @@ const SignInForm = ({
             onChange={(value) => {
               setPassword(value);
               setInputErrors((prev) => ({ ...prev, pError: undefined }));
+              setFormError(undefined);
             }}
             showPassword={showPassword}
             onToggleShowPassword={() => setShowPassword((prev) => !prev)}
@@ -392,6 +402,7 @@ const SignInForm = ({
             }
           />
           <AuthSubmitButton idle="Sign in" busy="Signing in..." isSubmitting={isSubmitting} />
+          <FieldError id="signin-form-error" message={formError} />
         </AuthForm>
         {isDeveloper ? (
           <GithubSignInButton note="GitHub is available for developer accounts." />
