@@ -31,10 +31,10 @@ const withDefaultTimeZone = () => {
 
 /**
  * Monday 23 February 2026 to Sunday 1 March, each anchored at UTC noon. The
- * weekday and the today test are read in the preferred zone, the numeral comes off
- * the LOCAL date, and noon is far enough from both midnights that the two agree
- * whatever zone the runner sits in. The week deliberately rolls over the month, so
- * the strip carries a one-digit date next to six two-digit ones.
+ * weekday, the numeral and the today test are all read in the preferred zone, and
+ * noon is far enough from both midnights that they agree whatever zone the runner
+ * sits in. The week deliberately rolls over the month, so the strip carries a
+ * one-digit date next to six two-digit ones.
  */
 const atNoonUtc = (isoDate: string): Date => new Date(`${isoDate}T12:00:00.000Z`);
 

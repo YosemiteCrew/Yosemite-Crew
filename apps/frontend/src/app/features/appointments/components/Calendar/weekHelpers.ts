@@ -16,12 +16,12 @@ export function startOfDay(date: Date): Date {
 }
 
 export function getWeekDays(weekStart: Date): Date[] {
-  const base = startOfDay(weekStart);
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(base);
-    d.setDate(base.getDate() + i);
-    return d;
-  });
+  const year = weekStart.getFullYear();
+  const month = weekStart.getMonth() + 1;
+  const date = weekStart.getDate();
+  return Array.from({ length: 7 }, (_, i) =>
+    buildPreferredTimeZoneDayInstant(year, month, date + i)
+  );
 }
 
 /**

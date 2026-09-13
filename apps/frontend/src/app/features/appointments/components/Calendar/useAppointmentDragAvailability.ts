@@ -3,7 +3,10 @@ import { Appointment } from '@yosemite-crew/types';
 import { getSlotsForServiceAndDateForPrimaryOrg } from '@/app/features/appointments/services/appointmentService';
 import { Slot } from '@/app/features/appointments/types/appointments';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
-import { utcClockTimeToPreferredTimeZoneClock } from '@/app/lib/timezone';
+import {
+  getBrowserLocalDateForPreferredCalendarDay,
+  utcClockTimeToPreferredTimeZoneClock,
+} from '@/app/lib/timezone';
 import { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
 import { logger } from '@/app/lib/logger';
 import {
@@ -75,7 +78,16 @@ const useDragAvailabilityInputs = ({
   const getSlotsForMoveValidation = useCallback(async (serviceId: string, date: Date) => {
     const cacheKey = getSlotCacheKey(serviceId, date);
     if (slotsCacheRef.current[cacheKey]) return slotsCacheRef.current[cacheKey];
-    const slots = await getSlotsForServiceAndDateForPrimaryOrg(serviceId, date);
+    // getSlotsForServiceAndDateForPrimaryOrg builds its request date with
+    // formatDateLocal, which reads BROWSER-local year/month/day. `date` here can
+    // be a week-column day anchored anywhere in its clinic calendar day, so it is
+    // normalized to a Date whose browser-local components match that clinic day
+    // before crossing into browser-local-reading code, rather than letting the
+    // API request the browser's day instead of the clinic's.
+    const slots = await getSlotsForServiceAndDateForPrimaryOrg(
+      serviceId,
+      getBrowserLocalDateForPreferredCalendarDay(date)
+    );
     slotsCacheRef.current[cacheKey] = slots;
     return slots;
   }, []);

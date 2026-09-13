@@ -485,6 +485,31 @@ export const buildDateInPreferredTimeZone = (calendarDay: Date, minuteOfDay: num
   return zonedWallClockToInstant(year, month, day, hour, minute, getPreferredTimeZone());
 };
 
+// Midnight, in the preferred timezone, of the calendar day `value` represents there.
+export const getStartOfDayInPreferredTimeZone = (value: Date): Date =>
+  buildDateInPreferredTimeZone(value, 0);
+
+// Midnight of the calendar day AFTER the one `value` represents in the preferred
+// timezone - an exclusive upper bound for "everything on this day". Going through
+// buildPreferredTimeZoneDayInstant's noon anchor first (rather than adding 24h of
+// milliseconds to start-of-day) lets JS Date normalize the month/year rollover and
+// keeps the result correct across a DST transition.
+export const getStartOfNextDayInPreferredTimeZone = (value: Date): Date => {
+  const { year, month, day } = getDatePartsInPreferredTimeZone(value);
+  const nextDayAnchor = buildPreferredTimeZoneDayInstant(year, month, day + 1);
+  return buildDateInPreferredTimeZone(nextDayAnchor, 0);
+};
+
+// A Date whose BROWSER-LOCAL year/month/day match the calendar day `value`
+// represents in the preferred timezone. For the rare call site that must hand a
+// Date to code which reads browser-local components (e.g. formatDateLocal
+// building an API date string) but still needs to target the clinic's calendar
+// day rather than whatever day the browser's own clock would read off `value`.
+export const getBrowserLocalDateForPreferredCalendarDay = (value: Date): Date => {
+  const { year, month, day } = getDatePartsInPreferredTimeZone(value);
+  return new Date(year, month - 1, day);
+};
+
 // Build the instant that represents (year, month, day) at LOCAL NOON in the preferred time zone.
 // Anchoring at local noon - never at UTC noon - keeps the calendar-day round-trip stable through
 // getDateKeyInPreferredTimeZone in every zone, including those 12+ hours ahead of UTC (e.g.

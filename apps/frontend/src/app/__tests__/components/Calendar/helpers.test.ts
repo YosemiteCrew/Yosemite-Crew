@@ -31,6 +31,17 @@ jest.mock('@/app/lib/timezone', () => ({
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate(),
+  getStartOfDayInPreferredTimeZone: (date: Date) => {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  },
+  getStartOfNextDayInPreferredTimeZone: (date: Date) => {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() + 1);
+    return start;
+  },
 }));
 
 describe('Calendar Helpers', () => {

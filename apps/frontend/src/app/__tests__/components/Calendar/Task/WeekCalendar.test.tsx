@@ -25,6 +25,17 @@ jest.mock('@/app/lib/timezone', () => ({
     value.getFullYear() === day.getFullYear() &&
     value.getMonth() === day.getMonth() &&
     value.getDate() === day.getDate(),
+  getStartOfDayInPreferredTimeZone: (value: Date) => {
+    const start = new Date(value);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  },
+  getStartOfNextDayInPreferredTimeZone: (value: Date) => {
+    const start = new Date(value);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() + 1);
+    return start;
+  },
 }));
 
 const mockEventsForDay = jest.fn();

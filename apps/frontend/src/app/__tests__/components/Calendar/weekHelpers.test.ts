@@ -15,6 +15,8 @@ import { DEFAULT_TIMEZONE } from '@/app/lib/timezone';
 
 jest.mock('@/app/lib/timezone', () => ({
   DEFAULT_TIMEZONE: 'UTC',
+  buildPreferredTimeZoneDayInstant: (year: number, month: number, day: number) =>
+    new Date(year, month - 1, day, 12, 0, 0, 0),
   getHourInPreferredTimeZone: (date: Date) => date.getHours(),
   formatDateInPreferredTimeZone: (date: Date, options?: Intl.DateTimeFormatOptions) =>
     new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', ...options }).format(date),
@@ -58,8 +60,10 @@ describe('Calendar Week Helpers', () => {
       expect(days[1].getDate()).toBe(2);
       expect(days[6].getDate()).toBe(7);
 
-      // Verify items are new Date objects based on startOfDay
-      expect(days[3].getHours()).toBe(0);
+      // Each column is anchored at preferred-timezone LOCAL NOON, not browser
+      // midnight, so the weekday label and date numeral read from the same
+      // instant agree in every timezone.
+      expect(days[3].getHours()).toBe(12);
     });
 
     it('handles month rollover correctly', () => {
