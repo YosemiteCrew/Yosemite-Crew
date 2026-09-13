@@ -117,6 +117,19 @@ jest.mock('@/app/lib/timezone', () => ({
     const [hours, minutes] = time.split(':').map(Number);
     return { minutes: hours * 60 + minutes, dayOffset: 0 };
   }),
+  getDateKeyInPreferredTimeZone: jest.fn((date: Date) => date.toISOString().slice(0, 10)),
+  getBrowserLocalDateForPreferredCalendarDay: jest.fn((date: Date) => new Date(date)),
+  getStartOfDayInPreferredTimeZone: jest.fn((date: Date) => {
+    const start = new Date(date);
+    start.setUTCHours(0, 0, 0, 0);
+    return start;
+  }),
+  getStartOfNextDayInPreferredTimeZone: jest.fn((date: Date) => {
+    const start = new Date(date);
+    start.setUTCHours(0, 0, 0, 0);
+    start.setUTCDate(start.getUTCDate() + 1);
+    return start;
+  }),
 }));
 
 jest.mock('@/app/stores/orgStore', () => ({

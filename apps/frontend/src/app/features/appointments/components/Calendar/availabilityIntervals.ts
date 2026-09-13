@@ -1,7 +1,11 @@
 import { ApiDayAvailability } from '@/app/features/appointments/components/Availability/utils';
 import { Appointment } from '@yosemite-crew/types';
 import { getWeekDays } from '@/app/features/appointments/components/Calendar/weekHelpers';
-import { PreferredTimeZoneClock } from '@/app/lib/timezone';
+import {
+  getStartOfDayInPreferredTimeZone,
+  getStartOfNextDayInPreferredTimeZone,
+  PreferredTimeZoneClock,
+} from '@/app/lib/timezone';
 
 export type DropAvailabilityInterval = {
   startMinute: number;
@@ -10,9 +14,12 @@ export type DropAvailabilityInterval = {
 
 export const filterAppointmentsForWeek = (appointments: Appointment[], weekStart: Date) => {
   const weekDays = getWeekDays(weekStart);
-  const weekRangeStart = weekDays[0];
-  const weekRangeEnd = new Date(weekDays.at(-1) ?? weekRangeStart);
-  weekRangeEnd.setDate(weekRangeEnd.getDate() + 1);
+  // The week days are preferred-timezone noon anchors, not browser midnight, so
+  // the range boundaries must be derived in the preferred timezone too - a raw
+  // setDate(+1) on a noon anchor would land on the wrong instant for the same
+  // reason a noon-anchored column can't answer "which day is this" via getDate().
+  const weekRangeStart = getStartOfDayInPreferredTimeZone(weekDays[0]);
+  const weekRangeEnd = getStartOfNextDayInPreferredTimeZone(weekDays.at(-1) ?? weekDays[0]);
 
   return appointments.filter((event) => {
     const eventStart = new Date(event.startTime);
