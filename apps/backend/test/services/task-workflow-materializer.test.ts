@@ -247,7 +247,9 @@ describe("task workflow materializer", () => {
     expect(seeds[0].additionalNotes).toBe("Give with food");
     expect(seeds[0].recurrence).toMatchObject({
       type: "DAILY",
+      isMaster: true,
       cronExpression: "0 7 * * *",
+      endDate: new Date("2026-01-04T07:00:00.000Z"),
     });
     expect(seeds[0].reminder).toEqual({ enabled: true, offsetMinutes: 10 });
     expect(seeds[0].dueAt.toISOString()).toBe("2026-01-01T07:00:00.000Z");
@@ -330,5 +332,238 @@ describe("task workflow materializer", () => {
     expect(seeds).toHaveLength(1);
     expect(seeds[0].assignedTo).toBe("employee-2");
     expect(seeds[0].dueAt.toISOString()).toBe("2026-01-01T09:30:00.000Z");
+  });
+
+  describe("recurrence end date bound", () => {
+    it("derives the template instance recurrence end date from defaultEndOffsetDays", () => {
+      const seed = materializeTaskTemplateSeed(
+        {
+          taskKind: "MEDICATION",
+          category: "Medication",
+          name: "Give antibiotics",
+          defaultRole: "EMPLOYEE_TASK",
+          defaultRecurrence: { type: "DAILY", defaultEndOffsetDays: 2 },
+        },
+        {
+          organisationId: "org-1",
+          createdBy: "creator-1",
+          templateId: "tmpl-1",
+          dueAt: new Date("2026-01-01T10:00:00.000Z"),
+          resolveAssignee: () => "user-1",
+        },
+      );
+
+      expect(seed.recurrence).toMatchObject({
+        type: "DAILY",
+        isMaster: true,
+        endDate: new Date("2026-01-03T10:00:00.000Z"),
+      });
+    });
+
+    it("leaves the recurrence unbounded when defaultEndOffsetDays is absent", () => {
+      const seed = materializeTaskTemplateSeed(
+        {
+          taskKind: "MEDICATION",
+          category: "Medication",
+          name: "Give antibiotics",
+          defaultRole: "EMPLOYEE_TASK",
+          defaultRecurrence: { type: "DAILY" },
+        },
+        {
+          organisationId: "org-1",
+          createdBy: "creator-1",
+          templateId: "tmpl-1",
+          dueAt: new Date("2026-01-01T10:00:00.000Z"),
+          resolveAssignee: () => "user-1",
+        },
+      );
+
+      expect(seed.recurrence?.endDate).toBeUndefined();
+    });
+
+    it("treats a zero-day offset as bounding generation to the first occurrence", () => {
+      const seed = materializeTaskTemplateSeed(
+        {
+          taskKind: "MEDICATION",
+          category: "Medication",
+          name: "Give antibiotics",
+          defaultRole: "EMPLOYEE_TASK",
+          defaultRecurrence: { type: "DAILY", defaultEndOffsetDays: 0 },
+        },
+        {
+          organisationId: "org-1",
+          createdBy: "creator-1",
+          templateId: "tmpl-1",
+          dueAt: new Date("2026-01-01T10:00:00.000Z"),
+          resolveAssignee: () => "user-1",
+        },
+      );
+
+      expect(seed.recurrence?.endDate).toEqual(
+        new Date("2026-01-01T10:00:00.000Z"),
+      );
+    });
+
+    it("rejects a negative defaultEndOffsetDays at the input boundary", () => {
+      expect(() =>
+        materializeTaskWorkflowSeeds(
+          "TASK_TEMPLATE",
+          {
+            sections: [
+              {
+                id: "definition",
+                data: {
+                  taskKind: "MEDICATION",
+                  category: "Medication",
+                  name: "Task",
+                },
+              },
+              { id: "assignment", data: { defaultRole: "EMPLOYEE_TASK" } },
+              {
+                id: "timing",
+                data: {
+                  recurrence: { type: "DAILY", defaultEndOffsetDays: -1 },
+                },
+              },
+            ],
+          },
+          {
+            organisationId: "org-1",
+            createdBy: "creator-1",
+            templateId: "tmpl-1",
+            anchorAt: new Date("2026-01-01T09:00:00.000Z"),
+            resolveAssignee: () => "user-1",
+          },
+        ),
+      ).toThrow(/finite, non-negative/);
+    });
+
+    it("rejects a non-finite defaultEndOffsetDays at the input boundary", () => {
+      expect(() =>
+        materializeTaskWorkflowSeeds(
+          "TASK_TEMPLATE",
+          {
+            sections: [
+              {
+                id: "definition",
+                data: {
+                  taskKind: "MEDICATION",
+                  category: "Medication",
+                  name: "Task",
+                },
+              },
+              { id: "assignment", data: { defaultRole: "EMPLOYEE_TASK" } },
+              {
+                id: "timing",
+                data: {
+                  recurrence: { type: "DAILY", defaultEndOffsetDays: Infinity },
+                },
+              },
+            ],
+          },
+          {
+            organisationId: "org-1",
+            createdBy: "creator-1",
+            templateId: "tmpl-1",
+            anchorAt: new Date("2026-01-01T09:00:00.000Z"),
+            resolveAssignee: () => "user-1",
+          },
+        ),
+      ).toThrow(/finite, non-negative/);
+    });
+
+    it("derives the care pathway recurrence end date from endAfterDays", () => {
+      const seeds = materializeCarePathwaySeeds(
+        {
+          taskBlocks: [
+            {
+              dayOffset: 0,
+              timeOfDay: "08:00",
+              taskKind: "MEDICATION",
+              category: "Medication",
+              name: "Morning medicine",
+              audience: "EMPLOYEE_TASK",
+              recurrence: { type: "DAILY", endAfterDays: 5 },
+            },
+          ],
+        },
+        {
+          admissionAt: new Date("2026-01-01T00:00:00.000Z"),
+          organisationId: "org-1",
+          createdBy: "creator-1",
+          templateId: "tmpl-4",
+          resolveAssignee: () => "employee-1",
+        },
+      );
+
+      expect(seeds[0].recurrence).toMatchObject({
+        type: "DAILY",
+        isMaster: true,
+        endDate: new Date("2026-01-06T08:00:00.000Z"),
+      });
+    });
+
+    it("rejects a negative endAfterDays in a care pathway block at the input boundary", () => {
+      expect(() =>
+        materializeTaskWorkflowSeeds(
+          "CARE_PATHWAY",
+          {
+            taskBlocks: [
+              {
+                dayOffset: 0,
+                timeOfDay: "08:00",
+                taskKind: "MEDICATION",
+                category: "Medication",
+                name: "Morning medicine",
+                audience: "EMPLOYEE_TASK",
+                recurrence: { type: "DAILY", endAfterDays: -3 },
+              },
+            ],
+          },
+          {
+            admissionAt: new Date("2026-01-01T00:00:00.000Z"),
+            organisationId: "org-1",
+            createdBy: "creator-1",
+            templateId: "tmpl-4",
+            resolveAssignee: () => "employee-1",
+          },
+        ),
+      ).toThrow(/finite, non-negative/);
+    });
+
+    it("bounds a custom cron recurrence with the same end date logic", () => {
+      const seeds = materializeCarePathwaySeeds(
+        {
+          taskBlocks: [
+            {
+              dayOffset: 0,
+              timeOfDay: "08:00",
+              taskKind: "MEDICATION",
+              category: "Medication",
+              name: "Morning medicine",
+              audience: "EMPLOYEE_TASK",
+              recurrence: {
+                type: "CUSTOM",
+                customCron: "0 8 * * *",
+                endAfterDays: 4,
+              },
+            },
+          ],
+        },
+        {
+          admissionAt: new Date("2026-01-01T00:00:00.000Z"),
+          organisationId: "org-1",
+          createdBy: "creator-1",
+          templateId: "tmpl-4",
+          resolveAssignee: () => "employee-1",
+        },
+      );
+
+      expect(seeds[0].recurrence).toMatchObject({
+        type: "CUSTOM",
+        cronExpression: "0 8 * * *",
+        endDate: new Date("2026-01-05T08:00:00.000Z"),
+      });
+    });
   });
 });
