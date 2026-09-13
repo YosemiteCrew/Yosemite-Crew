@@ -80,6 +80,7 @@ import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
 import {
   buildPreferredTimeZoneDayInstant,
+  getDateKeyInPreferredTimeZone,
   getDatePartsInPreferredTimeZone,
   getMinutesSinceStartOfDayInPreferredTimeZone,
 } from '@/app/lib/timezone';
@@ -91,7 +92,11 @@ const PlannerViewSkeleton = () => (
   <div className="h-full min-h-125 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
 );
 
-const parseWaitlistCalendarDay = (value: string | null): Date | null => {
+// Parses a "YYYY-MM-DD"-prefixed calendar day (from a waitlist entry's
+// earliestDate, or the page's own `?date=` query param) into the preferred
+// time zone's instant for that day, rejecting anything that doesn't round-trip
+// to the same calendar day (e.g. an out-of-range day-of-month).
+const parseCalendarDateParam = (value: string | null): Date | null => {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value ?? '');
   if (!match) return null;
 
@@ -404,7 +409,26 @@ const useAppointmentsView = () => {
       setActiveView(next);
     });
   };
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  // Defaults to today; the `?date=` watcher below (which also runs on this
+  // first render) overrides it before paint when the URL already names a day,
+  // so a reload, deep link, or shared URL lands on the same day.
+  const [currentDate, setCurrentDate] = useState<Date>(() => getTodayInPreferredTimeZone());
+  // Every calendar/board view changes the date through this, not the raw
+  // setter, so `?date=` always reflects what's on screen (reload/share-safe).
+  // An imperative push from the handler rather than an effect keyed on
+  // currentDate - a router object recreated per render (real in some
+  // embeddings, and how the test double behaves) would otherwise refire that
+  // effect on every unrelated re-render.
+  const handleCurrentDateChange: React.Dispatch<React.SetStateAction<Date>> = (next) => {
+    const resolvedDate =
+      typeof next === 'function' ? (next as (prev: Date) => Date)(currentDate) : next;
+    setCurrentDate(resolvedDate);
+    const dateKey = getDateKeyInPreferredTimeZone(resolvedDate);
+    if (searchParams.get('date') === dateKey) return;
+    const params = new URLSearchParams(window.location.search);
+    params.set('date', dateKey);
+    router.push(`?${params.toString()}`, { scroll: false });
+  };
   const [waitlistBooking, setWaitlistBooking] = useState<WaitlistEntryView | null>(null);
   const [waitlistRefreshKey, setWaitlistRefreshKey] = useState(0);
   const [weekStart, setWeekStart] = useState(() => startOfDay(currentDate));
@@ -430,6 +454,21 @@ const useAppointmentsView = () => {
     const nextWeekStart = activeCalendar === 'week' ? startOfDay(currentDate) : weekStart;
     if (nextWeekStart.getTime() !== weekStart.getTime()) {
       setWeekStart(nextWeekStart);
+    }
+  });
+
+  // Follow `?date=` into currentDate - on the very first render (hydrating
+  // from a reload, deep link, or shared URL), and later for a change that
+  // did not originate from handleCurrentDateChange (browser back/forward, or
+  // a fresh navigation to a link carrying a different date). Render-time
+  // prev-comparison (see the null-sentinel note above) instead of an effect,
+  // since this calls setCurrentDate itself.
+  const dateParam = searchParams.get('date');
+  useOnValueChange(dateParam, () => {
+    const parsedDate = parseCalendarDateParam(dateParam);
+    if (!parsedDate) return;
+    if (getDateKeyInPreferredTimeZone(parsedDate) !== getDateKeyInPreferredTimeZone(currentDate)) {
+      setCurrentDate(parsedDate);
     }
   });
 
@@ -533,7 +572,7 @@ const useAppointmentsView = () => {
 
   const openWaitlistAppointment = (entry: WaitlistEntryView) => {
     const today = getTodayInPreferredTimeZone();
-    const requestedDate = parseWaitlistCalendarDay(entry.earliestDate) ?? today;
+    const requestedDate = parseCalendarDateParam(entry.earliestDate) ?? today;
     const date =
       Number.isNaN(requestedDate.getTime()) || requestedDate < today ? today : requestedDate;
     setWaitlistBooking(entry);
@@ -604,7 +643,7 @@ const useAppointmentsView = () => {
         activeCalendar={activeCalendar}
         setActiveCalendar={handleActiveCalendarChange}
         currentDate={currentDate}
-        setCurrentDate={setCurrentDate}
+        setCurrentDate={handleCurrentDateChange}
         weekStart={weekStart}
         setWeekStart={setWeekStart}
         setReschedulePopup={setReschedulePopup}
@@ -629,7 +668,7 @@ const useAppointmentsView = () => {
       <AppointmentBoard
         appointments={filteredList}
         currentDate={currentDate}
-        setCurrentDate={setCurrentDate}
+        setCurrentDate={handleCurrentDateChange}
         canEditAppointments={canEditAppointments}
         setActiveAppointment={setActiveAppointment}
         setViewPopup={setViewPopup}
