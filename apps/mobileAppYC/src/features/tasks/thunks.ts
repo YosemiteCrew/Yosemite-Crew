@@ -1,7 +1,12 @@
 import {createAsyncThunk} from '@reduxjs/toolkit';
-import type {Task, TaskStatus, TaskStatusApi} from './types';
+import type {
+  Task,
+  TaskStatus,
+  TaskStatusApi,
+  TaskRecurrenceScope,
+} from './types';
 import {taskApi, type TaskDraftPayload} from './services/taskService';
-import type {RootState} from '@/app/store';
+import type {AppDispatch, RootState} from '@/app/store';
 
 const normalizeStatusForApi = (status: TaskStatus): TaskStatusApi => {
   const upper = String(status).toUpperCase();
@@ -55,51 +60,97 @@ export const addTask = createAsyncThunk<
   }
 });
 
+// Both thunks below resolve to just the server response (a Task, or nothing
+// for the 204 cancel) so existing `.unwrap()` call sites keep working
+// unchanged. The scope this call used is recovered from `action.meta.arg` in
+// the reducer rather than folded into the payload.
 export const updateTask = createAsyncThunk<
   Task,
-  {taskId: string; updates: Partial<TaskDraftPayload>},
-  {rejectValue: string}
->('tasks/updateTask', async ({taskId, updates}, {rejectWithValue}) => {
-  try {
-    const updatedTask = await taskApi.update(taskId, updates);
-    return updatedTask;
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error ? error.message : 'Failed to update task',
-    );
-  }
-});
+  {
+    taskId: string;
+    updates: Partial<TaskDraftPayload>;
+    scope?: TaskRecurrenceScope;
+    companionId?: string;
+  },
+  {dispatch: AppDispatch; rejectValue: string}
+>(
+  'tasks/updateTask',
+  async (
+    {taskId, updates, scope = 'THIS', companionId},
+    {rejectWithValue, dispatch},
+  ) => {
+    try {
+      const updatedTask = await taskApi.update(taskId, updates, scope);
+
+      // A scoped write can touch rows this response does not describe (the
+      // server returns only the row named in the URL), so refresh the whole
+      // companion from source rather than guessing which cached rows moved.
+      // A refresh failure here must not turn an already-persisted mutation
+      // into a reported save failure - the cache just goes stale until the
+      // next natural fetch.
+      if (scope !== 'THIS' && companionId) {
+        try {
+          await dispatch(fetchTasksForCompanion({companionId})).unwrap();
+        } catch {
+          // Intentionally swallowed - see comment above.
+        }
+      }
+
+      return updatedTask;
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to update task',
+      );
+    }
+  },
+);
 
 export const deleteTask = createAsyncThunk<
-  Task,
-  {taskId: string; companionId?: string},
-  {rejectValue: string}
->('tasks/deleteTask', async ({taskId}, {rejectWithValue}) => {
-  try {
-    const cancelled = await taskApi.changeStatus(taskId, 'CANCELLED');
-    return cancelled;
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error ? error.message : 'Failed to delete task',
-    );
-  }
-});
+  void,
+  {taskId: string; companionId?: string; scope?: TaskRecurrenceScope},
+  {dispatch: AppDispatch; rejectValue: string}
+>(
+  'tasks/deleteTask',
+  async (
+    {taskId, companionId, scope = 'THIS'},
+    {rejectWithValue, dispatch},
+  ) => {
+    try {
+      await taskApi.remove(taskId, scope);
+
+      if (scope !== 'THIS' && companionId) {
+        try {
+          await dispatch(fetchTasksForCompanion({companionId})).unwrap();
+        } catch {
+          // See updateTask above: the cancel already persisted server-side.
+        }
+      }
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to delete task',
+      );
+    }
+  },
+);
 
 export const markTaskStatus = createAsyncThunk<
   Task,
   {taskId: string; status: TaskStatus; completion?: any},
   {rejectValue: string}
->('tasks/markTaskStatus', async ({taskId, status, completion}, {rejectWithValue}) => {
-  try {
-    const updated = await taskApi.changeStatus(
-      taskId,
-      normalizeStatusForApi(status),
-      completion,
-    );
-    return updated;
-  } catch (error) {
-    return rejectWithValue(
-      error instanceof Error ? error.message : 'Failed to update task status',
-    );
-  }
-});
+>(
+  'tasks/markTaskStatus',
+  async ({taskId, status, completion}, {rejectWithValue}) => {
+    try {
+      const updated = await taskApi.changeStatus(
+        taskId,
+        normalizeStatusForApi(status),
+        completion,
+      );
+      return updated;
+    } catch (error) {
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Failed to update task status',
+      );
+    }
+  },
+);

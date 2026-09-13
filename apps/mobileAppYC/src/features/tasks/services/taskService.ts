@@ -13,6 +13,7 @@ import type {
   TaskStatus,
   TaskStatusApi,
   RecurrenceType,
+  TaskRecurrenceScope,
   TaskFormData,
 } from '@/features/tasks/types';
 import {
@@ -530,18 +531,36 @@ export const taskApi = {
     return mapApiTaskToTask(response.data);
   },
 
-  async update(taskId: string, updates: Partial<TaskDraftPayload>) {
+  async update(
+    taskId: string,
+    updates: Partial<TaskDraftPayload>,
+    scope?: TaskRecurrenceScope,
+  ) {
     const {accessToken} = await ensureAccessToken();
     const response = await apiClient.patch(
       `/v1/task/mobile/${taskId}`,
       updates,
       {
+        params: scope ? {scope} : undefined,
         headers: {
           ...withAuthHeaders(accessToken),
         },
       },
     );
     return mapApiTaskToTask(response.data);
+  },
+
+  // Recurrence-scope aware cancel. THIS cancels only this occurrence; ALL
+  // cancels the whole series via the backend's series cancel operation -
+  // this is never a client-side loop over individual rows.
+  async remove(taskId: string, scope?: TaskRecurrenceScope) {
+    const {accessToken} = await ensureAccessToken();
+    await apiClient.delete(`/v1/task/mobile/${taskId}`, {
+      params: scope ? {scope} : undefined,
+      headers: {
+        ...withAuthHeaders(accessToken),
+      },
+    });
   },
 
   async changeStatus(taskId: string, status: TaskStatusApi, completion?: any) {
