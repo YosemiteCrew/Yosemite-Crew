@@ -77,7 +77,7 @@ const CLINIC_POINTS: readonly AuthBrandPoint[] = [
 const DEV_POINTS: readonly AuthBrandPoint[] = [
   {
     icon: <IoCodeSlashOutline style={{ fontSize: 19 }} aria-hidden="true" />,
-    text: 'REST and FHIR APIs, typed SDKs, and webhooks.',
+    text: 'Authenticated read-only API access for organizations, usage, and appointments.',
   },
   {
     icon: <IoGitBranchOutline style={{ fontSize: 19 }} aria-hidden="true" />,
@@ -85,7 +85,7 @@ const DEV_POINTS: readonly AuthBrandPoint[] = [
   },
   {
     icon: <IoExtensionPuzzleOutline style={{ fontSize: 19 }} aria-hidden="true" />,
-    text: 'Ship plugins to the marketplace. Reach every clinic.',
+    text: 'Marketplace distribution, SDKs, and webhooks are on the public roadmap.',
   },
 ];
 
@@ -117,7 +117,7 @@ const DeveloperBrand = () => (
         </em>
       </>
     }
-    subtitle="A FHIR-native API, a plugin system, and a codebase you can actually read. Publish once and reach every clinic running Yosemite Crew."
+    subtitle="Use the open-source codebase and today's read-only developer API. Follow the public roadmap for SDKs, webhooks, and marketplace distribution."
     points={DEV_POINTS}
   />
 );
@@ -320,7 +320,9 @@ export const DeveloperSignUp: Story = {
     ).toBeInTheDocument();
     await expect(within(brand).getByText('Open-source developer platform')).toBeInTheDocument();
     await expect(
-      within(brand).getByText('REST and FHIR APIs, typed SDKs, and webhooks.')
+      within(brand).getByText(
+        'Authenticated read-only API access for organizations, usage, and appointments.'
+      )
     ).toBeInTheDocument();
 
     // The prompt is the mirror of the sign-in one and points at the developer

@@ -52,7 +52,14 @@ jest.mock('@/app/stores/authStore', () => ({
 jest.mock('@/app/features/marketing/site', () => ({
   __esModule: true,
   GITHUB_REPO_URL: 'https://github.com/YosemiteCrew/Yosemite-Crew',
-  AuthBrandContent: (props: any) => <div data-testid="auth-brand" data-eyebrow={props.eyebrow} />,
+  AuthBrandContent: (props: any) => (
+    <div data-testid="auth-brand" data-eyebrow={props.eyebrow}>
+      <p>{props.subtitle}</p>
+      {props.points.map((point: { text: string }) => (
+        <span key={point.text}>{point.text}</span>
+      ))}
+    </div>
+  ),
   AuthShell: ({ brand, topRight, children }: any) => (
     <div data-testid="auth-shell">
       <div>{brand}</div>
@@ -217,6 +224,16 @@ describe('SignUp page', () => {
     render(<SignUp isDeveloper />);
 
     expect(screen.queryByLabelText('I am')).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Authenticated read-only API access for organizations, usage, and appointments.'
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Marketplace distribution, SDKs, and webhooks are on the public roadmap.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/typed SDKs/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Reach every clinic/i)).not.toBeInTheDocument();
 
     fillValidForm();
     fireEvent.click(getSubmitBtn());
