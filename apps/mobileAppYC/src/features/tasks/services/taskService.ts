@@ -143,10 +143,17 @@ const mapBackendCategoryToUi = (category?: string): Task['category'] => {
   }
 };
 
+// A materialized child occurrence (`isMaster: false`) carries the series'
+// `type` verbatim for reference, but it is a single dated row, not a series
+// head — only the master independently projects future occurrences. Gating
+// on `isMaster` keeps a child from being re-projected by the client-side
+// `taskOccursOnDate` calendar logic on top of the master's own projection.
 const mapRecurrenceToFrequency = (recurrence?: {
   type?: RecurrenceType;
+  isMaster?: boolean;
 }): Task['frequency'] => {
-  switch (recurrence?.type) {
+  if (!recurrence?.isMaster) return 'once';
+  switch (recurrence.type) {
     case 'DAILY':
       return 'daily';
     case 'WEEKLY':
