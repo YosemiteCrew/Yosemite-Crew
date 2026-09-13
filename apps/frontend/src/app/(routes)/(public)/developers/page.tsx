@@ -6,7 +6,7 @@ import { DevelopersPage } from '@/app/features/marketing/pages/DevelopersPage/De
 export const metadata: Metadata = {
   title: 'Developers · Yosemite Crew',
   description:
-    'A FHIR-native API, a plugin marketplace, and a codebase you can actually read. Build an AI scribe, a triage agent or a smarter reminder, and ship it to working clinics.',
+    'Explore the open-source codebase and the authenticated, read-only Yosemite Crew developer API.',
 };
 
 export default function Page() {

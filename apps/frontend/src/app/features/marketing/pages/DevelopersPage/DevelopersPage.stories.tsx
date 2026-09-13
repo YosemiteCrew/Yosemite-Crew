@@ -14,10 +14,10 @@ import DevelopersPage from './DevelopersPage';
 
 /** The six section headings, in the order the page composes them. */
 const SECTION_SPINE = [
-  'One animal, many authorities.',
+  'Read the data plane that exists today.',
   'FHIR-native, all the way down.',
-  'Publish once. Reach every clinic.',
-  'Bring your own AI. Sell to every clinic. Keep all of it.',
+  'Build now. Distribute it yourself.',
+  'Bring your own AI. Deploy it directly. Choose your own terms.',
   'Read every line. Change any of it. Leave with all of it.',
   'Clone it tonight.',
 ];
@@ -85,7 +85,7 @@ const meta = {
       description: {
         component:
           'The `/developers` landing page: hero, the machine-user statement, the FHIR API and ' +
-          'marketplace features, the 0% economics panel, the open-source proof row and the ' +
+          'marketplace preview, the planned economics panel, the open-source proof row and the ' +
           'closing CTA.\n\n' +
           'It fetches nothing and holds no state, so what it is really made of is motion ' +
           'primitives: `Reveal` on nearly every block, `Spotlight` on the three dark sections, ' +
@@ -187,7 +187,7 @@ export const Default: Story = {
        under 0.77 rather than exactly it because the track's 1px border eats into the
        percentage box. */
     const storeBar = fillFraction(canvas.getByText(/^they take 15/));
-    const oursBar = fillFraction(canvas.getByText('every euro is yours'));
+    const oursBar = fillFraction(canvas.getByText('terms to be confirmed'));
     await expect(storeBar).toBeGreaterThan(0.74);
     await expect(storeBar).toBeLessThan(0.79);
     await expect(oursBar).toBeGreaterThan(0.98);
@@ -196,7 +196,8 @@ export const Default: Story = {
     /* Motion is live: the control for the ReducedMotion story. Hovering the economics
        card tilts it AND lights the spotlight it sits in - one glow, not all three,
        because only the section under the cursor gets the mousemove. */
-    const tilt = canvas.getByText('0%').closest('[data-reveal]')?.firstElementChild as HTMLElement;
+    const tilt = canvas.getByText('Planned').closest('[data-reveal]')
+      ?.firstElementChild as HTMLElement;
     await userEvent.hover(tilt);
     await expect(tilt.style.transform).toMatch(/perspective\(1100px\)/);
     const lit = Array.from(
@@ -236,7 +237,8 @@ export const ReducedMotion: Story = {
     /* Tilt never attaches its listeners, so the card stays flat under the cursor and
        never even gets the `transition`/`will-change` the effect would have written.
        Both are inline styles nobody looks at, and this is the only place they are checked. */
-    const tilt = canvas.getByText('0%').closest('[data-reveal]')?.firstElementChild as HTMLElement;
+    const tilt = canvas.getByText('Planned').closest('[data-reveal]')
+      ?.firstElementChild as HTMLElement;
     await userEvent.hover(tilt);
     await expect(tilt.style.transform).toBe('');
     await expect(tilt.style.willChange).toBe('');
