@@ -18,15 +18,38 @@ export const formatDateToISODate = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-export const parseISODate = (iso: string): Date => {
-  const [yearStr, monthStr, dayStr] = iso.split('-');
-  const year = Number(yearStr);
-  const month = Number(monthStr);
-  const day = Number(dayStr);
-  if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) {
-    return new Date();
+export const parseDateOnly = (value: string): Date | null => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:$|T)/.exec(value);
+  if (!match) {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
-  return new Date(year, month - 1, day);
+
+  if (value.length > 10 && Number.isNaN(new Date(value).getTime())) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const parsed = new Date(year, month, day);
+  return parsed.getFullYear() === year &&
+    parsed.getMonth() === month &&
+    parsed.getDate() === day
+    ? parsed
+    : null;
+};
+
+export const normalizeDateOnly = (value?: string | null): string => {
+  if (!value) {
+    return '';
+  }
+  const parsed = parseDateOnly(value);
+  return parsed ? formatDateToISODate(parsed) : '';
+};
+
+export const parseISODate = (iso: string): Date => {
+  return parseDateOnly(iso) ?? new Date();
 };
 
 export const addDays = (date: Date, days: number): Date => {

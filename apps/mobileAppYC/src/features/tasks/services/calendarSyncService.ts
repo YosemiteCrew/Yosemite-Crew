@@ -1,6 +1,7 @@
 import {Alert, Linking, Platform} from 'react-native';
 import RNCalendarEvents from 'react-native-calendar-events';
 import type {Task} from '@/features/tasks/types';
+import {parseDateOnly} from '@/shared/utils/dateHelpers';
 
 import i18next from 'i18next';
 // Tasks created before calendar selection stored a provider name rather than a
@@ -141,7 +142,14 @@ const parseDosageTime = (
       return null;
     }
 
-    if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    if (
+      Number.isNaN(hours) ||
+      Number.isNaN(minutes) ||
+      hours < 0 ||
+      hours > 23 ||
+      minutes < 0 ||
+      minutes > 59
+    ) {
       return null;
     }
 
@@ -206,7 +214,10 @@ const createSingleDosageEvent = async (
     return null;
   }
 
-  const eventDate = new Date(task.date || new Date());
+  const eventDate = task.date ? parseDateOnly(task.date) : new Date();
+  if (!eventDate) {
+    return null;
+  }
   eventDate.setHours(timeInfo.hours, timeInfo.minutes, 0, 0);
   const eventEnd = new Date(eventDate.getTime() + 30 * 60 * 1000);
 
@@ -263,6 +274,20 @@ const createDosageCalendarEvents = async (
     }
   ).dosages;
   const eventIds: string[] = [];
+
+  const hasInvalidDate = Boolean(task.date && !parseDateOnly(task.date));
+  const invalidDosage = dosages.find(dosage => !parseDosageTime(dosage.time));
+  if (hasInvalidDate || invalidDosage) {
+    console.warn(
+      '[Calendar] Invalid dosage schedule:',
+      hasInvalidDate ? task.date : invalidDosage?.time,
+    );
+    Alert.alert(
+      i18next.t('alerts.tasks.calendar'),
+      i18next.t('alerts.tasks.calendarBody'),
+    );
+    return null;
+  }
 
   const recurrenceParams = buildRecurrenceParams(task);
   let alarms: Array<{date: number}> | undefined;

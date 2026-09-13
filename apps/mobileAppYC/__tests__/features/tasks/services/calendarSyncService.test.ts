@@ -416,6 +416,43 @@ describe('calendarSyncService', () => {
       expect(result).toBe('evt-1,evt-2');
     });
 
+    it('keeps every dosage on the selected local day', async () => {
+      await createCalendarEventForTask({
+        ...baseTask,
+        date: '2026-09-15',
+        details: {
+          medicineName: 'Synthetic medication',
+          dosages: [
+            {id: 'd1', label: 'Morning', time: '08:00'},
+            {id: 'd2', label: 'Evening', time: '20:00'},
+          ],
+        },
+      } as any);
+
+      const starts = (RNCalendarEvents.saveEvent as jest.Mock).mock.calls.map(
+        ([, options]) => options.startDate,
+      );
+      expect(starts).toEqual([
+        new Date(2026, 8, 15, 8).toISOString(),
+        new Date(2026, 8, 15, 20).toISOString(),
+      ]);
+    });
+
+    it('rejects an invalid task date before creating any dosage events', async () => {
+      const result = await createCalendarEventForTask({
+        ...baseTask,
+        date: '2026-02-30',
+        details: {
+          medicineName: 'Synthetic medication',
+          dosages: [{id: 'd1', label: 'Morning', time: '08:00'}],
+        },
+      } as any);
+
+      expect(result).toBeNull();
+      expect(RNCalendarEvents.saveEvent).not.toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalled();
+    });
+
     it('skips invalid dosage times', async () => {
       const invalidTask = {
         ...baseTask,
@@ -430,9 +467,10 @@ describe('calendarSyncService', () => {
       expect(RNCalendarEvents.saveEvent).not.toHaveBeenCalled();
       expect(result).toBeNull();
       expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Invalid dosage time'),
+        expect.stringContaining('Invalid dosage schedule'),
         'invalid-time',
       );
+      expect(Alert.alert).toHaveBeenCalled();
     });
 
     it('parses an ISO datetime dosage time', async () => {
@@ -465,7 +503,7 @@ describe('calendarSyncService', () => {
 
       expect(result).toBeNull();
       expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Invalid dosage time'),
+        expect.stringContaining('Invalid dosage schedule'),
         'ab:cd',
       );
     });
@@ -483,7 +521,7 @@ describe('calendarSyncService', () => {
 
       expect(result).toBeNull();
       expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Invalid dosage time'),
+        expect.stringContaining('Invalid dosage schedule'),
         12345,
       );
     });

@@ -1,5 +1,7 @@
 import {
   formatDateToISODate,
+  normalizeDateOnly,
+  parseDateOnly,
   parseISODate,
   addDays,
   getWeekDates,
@@ -125,6 +127,21 @@ describe('dateHelpers', () => {
 
     it('should return today (mocked) for NaN components', () => {
       expect(parseISODate('2025-foo-bar')).toEqual(MOCK_TODAY);
+    });
+  });
+
+  describe('date-only values', () => {
+    it('preserves the calendar date from a midnight UTC response', () => {
+      expect(normalizeDateOnly('2025-09-15T00:00:00.000Z')).toBe('2025-09-15');
+      expect(parseDateOnly('2025-09-15T00:00:00.000Z')).toEqual(
+        new Date(2025, 8, 15),
+      );
+    });
+
+    it('rejects missing, impossible, and malformed values', () => {
+      expect(normalizeDateOnly()).toBe('');
+      expect(normalizeDateOnly('2025-02-30')).toBe('');
+      expect(parseDateOnly('2025-09-15Tinvalid')).toBeNull();
     });
   });
 
