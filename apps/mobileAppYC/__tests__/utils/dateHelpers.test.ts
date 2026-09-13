@@ -180,9 +180,7 @@ describe('dateHelpers', () => {
       expect(selected?.dayName).toBe('Wed');
     });
 
-    it('should correctly mark today (Oct 31)', () => {
-
-    });
+    it('should correctly mark today (Oct 31)', () => {});
   });
 
   describe('getMonthDates', () => {
@@ -215,41 +213,81 @@ describe('dateHelpers', () => {
       expect(selected?.monthName).toBe('October');
     });
 
-    it('should mark today (Oct 31)', () => {
-    });
+    it('should mark today (Oct 31)', () => {});
   });
 
   describe('getPreviousMonth', () => {
     it('should go to the previous month', () => {
-      // FIX: Use a mid-month date to avoid month-end rollover issues
       const date = new Date(2025, 9, 15); // Oct 15
       const prev = getPreviousMonth(date);
       expect(prev.getMonth()).toBe(8); // September
     });
 
     it('should handle year rollover', () => {
-      // FIX: Use valid date constructor
       const date = new Date(2025, 0, 15); // Jan 15
       const prev = getPreviousMonth(date);
       expect(prev.getMonth()).toBe(11); // December
       expect(prev.getFullYear()).toBe(2024);
     });
+
+    it('should not overflow past February when leaving March 31 (non-leap year)', () => {
+      const date = new Date(2025, 2, 31); // Mar 31, 2025 (not a leap year)
+      const prev = getPreviousMonth(date);
+      expect(prev.getMonth()).toBe(1); // February
+      expect(prev.getFullYear()).toBe(2025);
+    });
+
+    it('should not overflow past February when leaving March 31 (leap year)', () => {
+      const date = new Date(2024, 2, 31); // Mar 31, 2024 (leap year)
+      const prev = getPreviousMonth(date);
+      expect(prev.getMonth()).toBe(1); // February
+      expect(prev.getFullYear()).toBe(2024);
+    });
+
+    it('should not mutate the input Date', () => {
+      const date = new Date(2025, 2, 31);
+      const original = date.getTime();
+      getPreviousMonth(date);
+      expect(date.getTime()).toBe(original);
+    });
   });
 
   describe('getNextMonth', () => {
     it('should go to the next month', () => {
-      // FIX: Use a mid-month date to avoid month-end rollover issues
       const date = new Date(2025, 9, 15); // Oct 15
       const next = getNextMonth(date);
       expect(next.getMonth()).toBe(10); // November
     });
 
     it('should handle year rollover', () => {
-      // FIX: Use clear month index
       const date = new Date(2025, 11, 15); // Dec 15
       const next = getNextMonth(date);
       expect(next.getMonth()).toBe(0); // January
       expect(next.getFullYear()).toBe(2026);
+    });
+
+    it.each([29, 30, 31])(
+      'should not skip February when leaving January %i (non-leap year)',
+      day => {
+        const date = new Date(2025, 0, day); // Jan <day>, 2025 (not a leap year)
+        const next = getNextMonth(date);
+        expect(next.getMonth()).toBe(1); // February
+        expect(next.getFullYear()).toBe(2025);
+      },
+    );
+
+    it('should not skip March when leaving January 31 (leap year)', () => {
+      const date = new Date(2024, 0, 31); // Jan 31, 2024 (leap year)
+      const next = getNextMonth(date);
+      expect(next.getMonth()).toBe(1); // February
+      expect(next.getFullYear()).toBe(2024);
+    });
+
+    it('should not mutate the input Date', () => {
+      const date = new Date(2025, 0, 31);
+      const original = date.getTime();
+      getNextMonth(date);
+      expect(date.getTime()).toBe(original);
     });
   });
 
@@ -349,16 +387,12 @@ describe('dateHelpers', () => {
 
   // Test for the function you missed in the original report
   describe('formatDateDisplay', () => {
-    it('should format a Date object to DD/MM/YYYY', () => {
-    });
+    it('should format a Date object to DD/MM/YYYY', () => {});
 
-    it('should format a date string to DD/MM/YYYY', () => {
-    });
+    it('should format a date string to DD/MM/YYYY', () => {});
 
-    it('should return an empty string for null', () => {
-    });
+    it('should return an empty string for null', () => {});
 
-    it('should return an empty string for undefined', () => {
-    });
+    it('should return an empty string for undefined', () => {});
   });
 });

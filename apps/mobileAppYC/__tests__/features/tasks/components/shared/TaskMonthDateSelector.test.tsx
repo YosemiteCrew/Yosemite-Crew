@@ -114,6 +114,30 @@ describe('TaskMonthDateSelector', () => {
     expect(onMonthChange).toHaveBeenCalledWith(getNextMonth(CURRENT_MONTH));
   });
 
+  it('advances from January 31 to February, not March', () => {
+    const jan31 = new Date(2025, 0, 31);
+    renderSelector({currentMonth: jan31, selectedDate: jan31});
+    const pressables = screen.UNSAFE_getAllByType(PressableType);
+    fireEvent.press(pressables[1]); // right arrow / next month
+
+    expect(onMonthChange).toHaveBeenCalledTimes(1);
+    const result: Date = onMonthChange.mock.calls[0][0];
+    expect(result.getFullYear()).toBe(2025);
+    expect(result.getMonth()).toBe(1); // February
+  });
+
+  it('goes back from March 31 to February, not remaining in March', () => {
+    const mar31 = new Date(2025, 2, 31);
+    renderSelector({currentMonth: mar31, selectedDate: mar31});
+    const pressables = screen.UNSAFE_getAllByType(PressableType);
+    fireEvent.press(pressables[0]); // left arrow / previous month
+
+    expect(onMonthChange).toHaveBeenCalledTimes(1);
+    const result: Date = onMonthChange.mock.calls[0][0];
+    expect(result.getFullYear()).toBe(2025);
+    expect(result.getMonth()).toBe(1); // February
+  });
+
   it('calls onDateSelect when a current-month date is pressed', () => {
     renderSelector();
     const weekDates = getMonthDates(CURRENT_MONTH, SELECTED_DATE);
