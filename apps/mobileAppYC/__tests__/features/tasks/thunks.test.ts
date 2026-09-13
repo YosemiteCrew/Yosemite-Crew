@@ -66,12 +66,6 @@ describe('features/tasks/thunks', () => {
     mockTaskApi.update.mockResolvedValue(createMockTask());
     mockTaskApi.remove.mockResolvedValue(undefined);
     mockTaskApi.changeStatus.mockResolvedValue(createMockTask());
-    // A bare jest.fn() dispatch has no .unwrap() - give it one so the
-    // thunks' internal companion-refresh dispatch resolves instead of
-    // throwing (which the thunk under test already swallows on purpose).
-    mockDispatch.mockReturnValue({
-      unwrap: jest.fn().mockResolvedValue(undefined),
-    });
   });
 
   afterEach(() => {
@@ -230,13 +224,16 @@ describe('features/tasks/thunks', () => {
       expect(result.payload).toBe('Failed to update task');
     });
 
-    // createAsyncThunk's own pending/fulfilled/rejected dispatches are plain
-    // objects; a nested `dispatch(fetchTasksForCompanion(...))` call passes a
-    // thunk FUNCTION instead, since callThunk drives the action creator
-    // directly rather than through real thunk middleware. That difference in
-    // kind is what distinguishes "refreshed the companion" from "did not".
-    const dispatchedAThunkFunction = () =>
-      mockDispatch.mock.calls.some(call => typeof call[0] === 'function');
+    // The companion refresh bypasses dispatch(fetchTasksForCompanion(...))
+    // entirely (that thunk's own `condition` would refuse to run while this
+    // same updateTask/deleteTask call is still in flight - see thunks.ts) and
+    // instead calls the API directly, then dispatches the plain `.fulfilled`
+    // action. So "did it refresh" is read off `taskApi.list`, not off what
+    // was dispatched.
+    const dispatchedCompanionRefresh = () =>
+      mockDispatch.mock.calls.some(
+        call => call[0]?.type === 'tasks/fetchTasksForCompanion/fulfilled',
+      );
 
     it('passes an explicit THIS scope through to the API call unchanged', async () => {
       await callThunk(updateTask, {
@@ -251,7 +248,8 @@ describe('features/tasks/thunks', () => {
         'THIS',
       );
       // A single-occurrence write never needs a companion-wide refresh.
-      expect(dispatchedAThunkFunction()).toBe(false);
+      expect(mockTaskApi.list).not.toHaveBeenCalled();
+      expect(dispatchedCompanionRefresh()).toBe(false);
     });
 
     it('passes an explicit ALL scope through and refreshes the companion afterward', async () => {
@@ -266,13 +264,12 @@ describe('features/tasks/thunks', () => {
         {name: 'New Title'},
         'ALL',
       );
-      expect(dispatchedAThunkFunction()).toBe(true);
+      expect(mockTaskApi.list).toHaveBeenCalledWith({companionId: 'c1'});
+      expect(dispatchedCompanionRefresh()).toBe(true);
     });
 
     it('does not surface a save failure when only the post-ALL companion refresh rejects', async () => {
-      mockDispatch.mockReturnValue({
-        unwrap: jest.fn().mockRejectedValue(new Error('refresh failed')),
-      });
+      mockTaskApi.list.mockRejectedValue(new Error('refresh failed'));
 
       const result = await callThunk(updateTask, {
         taskId: '1',
@@ -320,8 +317,10 @@ describe('features/tasks/thunks', () => {
       expect(result.payload).toBe('Failed to delete task');
     });
 
-    const dispatchedAThunkFunction = () =>
-      mockDispatch.mock.calls.some(call => typeof call[0] === 'function');
+    const dispatchedCompanionRefresh = () =>
+      mockDispatch.mock.calls.some(
+        call => call[0]?.type === 'tasks/fetchTasksForCompanion/fulfilled',
+      );
 
     it('passes an explicit THIS scope through without a companion refresh', async () => {
       await callThunk(deleteTask, {
@@ -330,7 +329,8 @@ describe('features/tasks/thunks', () => {
         scope: 'THIS',
       });
       expect(mockTaskApi.remove).toHaveBeenCalledWith('1', 'THIS');
-      expect(dispatchedAThunkFunction()).toBe(false);
+      expect(mockTaskApi.list).not.toHaveBeenCalled();
+      expect(dispatchedCompanionRefresh()).toBe(false);
     });
 
     it('passes an explicit ALL scope through and refreshes the companion afterward', async () => {
@@ -340,13 +340,12 @@ describe('features/tasks/thunks', () => {
         scope: 'ALL',
       });
       expect(mockTaskApi.remove).toHaveBeenCalledWith('1', 'ALL');
-      expect(dispatchedAThunkFunction()).toBe(true);
+      expect(mockTaskApi.list).toHaveBeenCalledWith({companionId: 'c1'});
+      expect(dispatchedCompanionRefresh()).toBe(true);
     });
 
     it('does not surface a delete failure when only the post-ALL companion refresh rejects', async () => {
-      mockDispatch.mockReturnValue({
-        unwrap: jest.fn().mockRejectedValue(new Error('refresh failed')),
-      });
+      mockTaskApi.list.mockRejectedValue(new Error('refresh failed'));
 
       const result = await callThunk(deleteTask, {
         taskId: '1',
