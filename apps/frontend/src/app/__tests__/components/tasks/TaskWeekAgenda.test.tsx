@@ -36,6 +36,17 @@ jest.mock('@/app/lib/timezone', () => ({
       x.getDate() === y.getDate()
     );
   },
+  buildDateInPreferredTimeZone: (day: Date, minuteOfDay: number) => {
+    const d = new Date(day);
+    d.setHours(Math.floor(minuteOfDay / 60), minuteOfDay % 60, 0, 0);
+    return d;
+  },
+  getDateKeyInPreferredTimeZone: (date: Date) => {
+    const d = new Date(date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+      d.getDate()
+    ).padStart(2, '0')}`;
+  },
 }));
 
 jest.mock('@/app/hooks/useMemberMap', () => ({
