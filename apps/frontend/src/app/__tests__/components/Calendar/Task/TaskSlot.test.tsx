@@ -142,6 +142,26 @@ describe('TaskSlot', () => {
     expect(onCreateTaskAt).toHaveBeenCalledTimes(2);
   });
 
+  it('announces the row clock time, not the date cursor time of day, for the midnight row', () => {
+    render(
+      <TaskSlot
+        slotEvents={[]}
+        handleViewTask={handleViewTask}
+        height={180}
+        hour={0}
+        dropDate={new Date('2026-03-16T15:27:00.000Z')}
+        onCreateTaskAt={jest.fn()}
+      />
+    );
+
+    expect(
+      screen.getByRole('button', { name: /Create task on .* at 12:00 AM/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('region', { name: /Tasks slot for .* at 12:00 AM/i })
+    ).toBeInTheDocument();
+  });
+
   it('handles drop for dragged task with nearest available minute', () => {
     const onTaskDropAt = jest.fn();
     (calcNearestAvailableMinute as jest.Mock).mockReturnValue(625);

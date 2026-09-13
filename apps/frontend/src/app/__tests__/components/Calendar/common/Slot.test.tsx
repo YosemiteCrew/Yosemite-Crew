@@ -385,6 +385,31 @@ describe('Slot (Appointments)', () => {
     expect(onCreateAppointmentAt).toHaveBeenCalled();
   });
 
+  it('announces the row clock time, not the date cursor time of day, for the midnight row', () => {
+    render(
+      <Slot
+        slotEvents={[]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={0}
+        canEditAppointments
+        dropDate={new Date('2030-01-15T15:27:00.000Z')}
+        dropHour={0}
+        onCreateAppointmentAt={jest.fn()}
+      />
+    );
+
+    expect(
+      screen.getByRole('button', { name: /Create appointment on .* at 12:00 AM/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('region', { name: /Appointments slot for .* at 12:00 AM/i })
+    ).toBeInTheDocument();
+  });
+
   it('drops dragged appointment into nearest available minute', () => {
     const onAppointmentDropAt = jest.fn();
     (calcNearestAvailableMinute as jest.Mock).mockReturnValue(575);
