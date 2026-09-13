@@ -2,6 +2,7 @@ import {
   parseAssistantLink,
   resolveHandoffTarget,
 } from '@/features/assistant/services/handoffNavigation';
+import * as dateHelpers from '@/shared/utils/dateHelpers';
 
 describe('parseAssistantLink', () => {
   it('treats a bare yc://app as the root path with no params', () => {
@@ -141,14 +142,53 @@ describe('parseAssistantLink', () => {
 });
 
 describe('resolveHandoffTarget', () => {
-  it('routes /tasks/new to the add-task screen with an ISO "when" truncated to a date', () => {
-    expect(
-      resolveHandoffTarget('yc://app/tasks/new?when=2026-09-10T09:30:00.000Z'),
-    ).toEqual({
+  it('routes /tasks/new to the add-task screen with an ISO "when" read as a local day', () => {
+    const when = new Date(2026, 8, 10, 9, 30).toISOString();
+    expect(resolveHandoffTarget(`yc://app/tasks/new?when=${when}`)).toEqual({
       tab: 'Tasks',
       screen: 'AddTask',
       params: {prefillDate: '2026-09-10'},
     });
+  });
+
+  describe('reading "when" on the device clock, not the UTC day', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    // Jest's sandboxed process.env does not reach the timezone the runtime
+    // uses, so the zone cannot be pinned per test. These cases instead fail
+    // for a UTC slice wherever the runner is: the spy in every zone, the
+    // round trips in any zone that is not UTC.
+    it('formats the exact instant in local time rather than slicing the string', () => {
+      const format = jest
+        .spyOn(dateHelpers, 'formatDateToISODate')
+        .mockReturnValue('local-day');
+      // 21:00 on 10 September in Los Angeles is 04:00Z on the 11th.
+      const when = '2026-09-11T04:00:00.000Z';
+
+      expect(
+        resolveHandoffTarget(`yc://app/tasks/new?when=${when}`)?.params,
+      ).toEqual({prefillDate: 'local-day'});
+      expect(format).toHaveBeenCalledTimes(1);
+      expect(format.mock.calls[0][0].getTime()).toBe(Date.parse(when));
+    });
+
+    it.each([
+      ['just after local midnight', 0, 30],
+      ['just before local midnight', 23, 30],
+    ])('keeps a "when" %s on the local day', (_label, hours, minutes) => {
+      const when = new Date(2026, 8, 10, hours, minutes).toISOString();
+      expect(
+        resolveHandoffTarget(`yc://app/tasks/new?when=${when}`)?.params,
+      ).toEqual({prefillDate: '2026-09-10'});
+    });
+  });
+
+  it('leaves prefillDate undefined when "when" is not a date', () => {
+    expect(
+      resolveHandoffTarget('yc://app/tasks/new?when=tomorrow')?.params,
+    ).toEqual({prefillDate: undefined});
   });
 
   it('passes an already-date-only "when" through unchanged', () => {
