@@ -84,7 +84,7 @@ const CLINIC_POINTS = [
 const DEV_POINTS = [
   {
     icon: <IoCodeSlashOutline style={{ fontSize: 19 }} aria-hidden="true" />,
-    text: 'REST and FHIR APIs, typed SDKs, and webhooks.',
+    text: 'Authenticated read-only API access for organizations, usage, and appointments.',
   },
   {
     icon: <IoGitBranchOutline style={{ fontSize: 19 }} aria-hidden="true" />,
@@ -92,7 +92,7 @@ const DEV_POINTS = [
   },
   {
     icon: <IoExtensionPuzzleOutline style={{ fontSize: 19 }} aria-hidden="true" />,
-    text: 'Ship plugins to the marketplace. Reach every clinic.',
+    text: 'Marketplace distribution, SDKs, and webhooks are on the public roadmap.',
   },
 ] as const;
 
@@ -287,7 +287,7 @@ const SignUpBrand = ({ effectiveDeveloper }: { effectiveDeveloper: boolean }) =>
     }
     subtitle={
       effectiveDeveloper
-        ? 'A FHIR-native API, a plugin system, and a codebase you can actually read. Publish once and reach every clinic running Yosemite Crew.'
+        ? "Use the open-source codebase and today's read-only developer API. Follow the public roadmap for SDKs, webhooks, and marketplace distribution."
         : 'The operating system veterinary clinics run on, and the platform developers build on. Free to self-host, and yours to own.'
     }
     points={effectiveDeveloper ? DEV_POINTS : CLINIC_POINTS}

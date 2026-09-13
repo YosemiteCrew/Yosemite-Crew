@@ -252,9 +252,9 @@ export const DeveloperPane: Story = {
     // All three points are replaced, not just re-ordered - SignUp shares no point
     // copy between the two branches.
     for (const point of [
-      'REST and FHIR APIs, typed SDKs, and webhooks.',
+      'Authenticated read-only API access for organizations, usage, and appointments.',
       'Open source. Read it, run it locally, send a PR.',
-      'Ship plugins to the marketplace. Reach every clinic.',
+      'Marketplace distribution, SDKs, and webhooks are on the public roadmap.',
     ]) {
       await expect(canvas.getByText(point)).toBeInTheDocument();
     }

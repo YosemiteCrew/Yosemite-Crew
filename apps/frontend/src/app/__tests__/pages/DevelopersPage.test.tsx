@@ -51,7 +51,7 @@ describe('DevelopersPage', () => {
   });
 
   it('renders the hero subcopy and primary CTAs', () => {
-    expect(screen.getByText(/A FHIR-native API, a plugin marketplace/i)).toBeInTheDocument();
+    expect(screen.getByText(/authenticated, read-only developer API/i)).toBeInTheDocument();
 
     const readDocs = screen.getByRole('link', { name: /Read the docs/i });
     expect(readDocs).toHaveAttribute('href', '/docs');
@@ -72,14 +72,14 @@ describe('DevelopersPage', () => {
   });
 
   it('renders the FHIR-native API feature section', () => {
-    expect(screen.getByText('One animal, many authorities.')).toBeInTheDocument();
+    expect(screen.getByText('Read the data plane that exists today.')).toBeInTheDocument();
     expect(screen.getByText('FHIR-native, all the way down.')).toBeInTheDocument();
     expect(screen.getByText('MedicationRequest')).toBeInTheDocument();
     expect(screen.getByText('DiagnosticReport')).toBeInTheDocument();
   });
 
   it('renders the marketplace plugin rows', () => {
-    expect(screen.getByText('Publish once. Reach every clinic.')).toBeInTheDocument();
+    expect(screen.getByText('Build now. Distribute it yourself.')).toBeInTheDocument();
     expect(screen.getByText('AI Scribe')).toBeInTheDocument();
     expect(screen.getByText('Triage Agent')).toBeInTheDocument();
     expect(screen.getByText('Voice Reminders')).toBeInTheDocument();
@@ -87,17 +87,23 @@ describe('DevelopersPage', () => {
 
     const portalLink = screen.getByRole('link', { name: /Open the developer portal/i });
     expect(portalLink).toHaveAttribute('href', '/developers/signup');
+
+    const roadmapLink = screen.getByRole('link', { name: /Follow the capability roadmap/i });
+    expect(roadmapLink).toHaveAttribute(
+      'href',
+      'https://github.com/YosemiteCrew/Yosemite-Crew/issues/1582'
+    );
   });
 
-  it('renders the economics section with a 0% platform cut and blue keep-all copy', () => {
+  it('labels marketplace economics as planned', () => {
     expect(screen.getByText('The economics')).toBeInTheDocument();
-    expect(screen.getByText('0%')).toBeInTheDocument();
-    expect(screen.getByText('Keep all of it.')).toBeInTheDocument();
-    expect(screen.getByText('100%')).toBeInTheDocument();
-    expect(screen.getByText('every euro is yours')).toBeInTheDocument();
+    expect(screen.getByText('Planned')).toBeInTheDocument();
+    expect(screen.getByText('Choose your own terms.')).toBeInTheDocument();
+    expect(screen.getByText('Roadmap')).toBeInTheDocument();
+    expect(screen.getByText('terms to be confirmed')).toBeInTheDocument();
     expect(screen.getByText('Bring your own model')).toBeInTheDocument();
-    expect(screen.getByText('Sell to every clinic')).toBeInTheDocument();
-    expect(screen.getByText('Paid direct')).toBeInTheDocument();
+    expect(screen.getByText('Deploy practice by practice')).toBeInTheDocument();
+    expect(screen.getByText('Choose your terms')).toBeInTheDocument();
   });
 
   it('renders the open source proof cards', () => {
@@ -125,7 +131,7 @@ describe('DevelopersPage', () => {
   });
 
   it('marks headings with the Newsreader serif display font', () => {
-    const heading = screen.getByRole('heading', { name: 'One animal, many authorities.' });
+    const heading = screen.getByRole('heading', { name: 'Read the data plane that exists today.' });
     expect(heading.style.fontFamily).toContain('var(--font-newsreader)');
   });
 
@@ -137,7 +143,7 @@ describe('DevelopersPage', () => {
   it('renders the FHIR response codes with cyan keys', () => {
     // Hero Patient response key uses the cyan-text token (light value #38ccd8),
     // which flips to a brighter cyan on the dark theme's response card.
-    const heroKey = screen.getByText('"species"');
+    const heroKey = screen.getByText('"id"');
     expect(heroKey.style.color).toBe('var(--cyan-text)');
 
     // The bundle.json block keys sit on an always-dark code card, so they keep the
@@ -148,6 +154,23 @@ describe('DevelopersPage', () => {
     bundleKeys.forEach((key) => {
       expect(key.style.color).toBe('var(--cyan)');
     });
+  });
+
+  it('shows runnable setup and only mounted developer API routes', () => {
+    const body = document.body.textContent ?? '';
+    expect(body).toContain('git clone https://github.com/YosemiteCrew/Yosemite-Crew.git');
+    expect(body).toContain('cd Yosemite-Crew');
+    expect(body).toContain('pnpm install --frozen-lockfile');
+    expect(body).toContain('pnpm --filter frontend run dev');
+    expect(body).toContain('http://localhost:3000/docs');
+    expect(body).toContain('/v1/developer/organizations');
+    expect(screen.getAllByText('/v1/developer/organizations')).toHaveLength(2);
+    expect(body).toContain('/v1/developer/usage');
+    expect(body).toContain('/v1/developer/appointments');
+    expect(body).not.toContain('/fhir/Patient/bella');
+    expect(body).not.toContain('/fhir/subscriptions');
+    expect(body).not.toContain('Publish once. Reach every clinic.');
+    expect(body).not.toContain('typed SDKs');
   });
 
   it('keeps the Economics column titles on the --spot-ink token', () => {

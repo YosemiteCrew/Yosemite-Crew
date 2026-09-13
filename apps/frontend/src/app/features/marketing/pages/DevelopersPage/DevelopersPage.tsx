@@ -370,9 +370,9 @@ function HeroLeftColumn({ primaryRef, ghostRef }: Readonly<HeroCtaRefs>) {
       </div>
       <HeroHeadline />
       <p style={HERO_SUBHEAD_STYLE}>
-        A FHIR-native API, a plugin marketplace, and a codebase you can actually read. Build an AI
-        scribe, a triage agent or a smarter reminder, and put it in front of working clinics without
-        a committee to die in.
+        Start with the open-source codebase and the authenticated, read-only developer API. Inspect
+        organizations, usage and appointments today, then follow the public roadmap as write APIs
+        and marketplace distribution are built.
       </p>
       <div
         data-stack-m="true"
@@ -407,7 +407,7 @@ function HeroLeftColumn({ primaryRef, ghostRef }: Readonly<HeroCtaRefs>) {
   );
 }
 
-/** Hero terminal mock: zsh window running the clone / install / publish commands. */
+/** Hero terminal mock: zsh window running the repository's documented frontend setup. */
 function HeroTerminalCard() {
   return (
     <div
@@ -473,15 +473,15 @@ function HeroTerminalCard() {
         }}
       >
         <span style={{ color: 'var(--color-success-400)' }}>$</span> git clone
-        yosemitecrew/Yosemite-Crew
+        https://github.com/YosemiteCrew/Yosemite-Crew.git
         {'\n'}
-        <span style={{ color: 'var(--color-success-400)' }}>$</span> pnpm install{' '}
-        <span style={{ color: '#5c5956' }}>&amp;&amp;</span> pnpm dev
+        <span style={{ color: 'var(--color-success-400)' }}>$</span> cd Yosemite-Crew
         {'\n'}
-        <span style={{ color: 'var(--ink-faint)' }}>→ PIMS live on :3000</span>
+        <span style={{ color: 'var(--color-success-400)' }}>$</span> pnpm install --frozen-lockfile
         {'\n'}
-        <span style={{ color: 'var(--color-success-400)' }}>$</span>
-        {' open localhost:3000/dev-docs'}
+        <span style={{ color: 'var(--color-success-400)' }}>$</span> pnpm --filter frontend run dev
+        {'\n'}
+        <span style={{ color: 'var(--ink-faint)' }}>→ open http://localhost:3000/docs</span>
         <span
           style={{
             display: 'inline-block',
@@ -498,7 +498,7 @@ function HeroTerminalCard() {
   );
 }
 
-/** Hero FHIR response card: GET /fhir/Patient/bella returning Bella's record. */
+/** Hero API response card: authenticated organization discovery on the developer data plane. */
 function HeroResponseCard() {
   return (
     <div
@@ -526,7 +526,8 @@ function HeroResponseCard() {
             color: 'var(--ink-muted)',
           }}
         >
-          <span style={{ color: 'var(--success)', fontWeight: 700 }}>GET</span> /fhir/Patient/bella
+          <span style={{ color: 'var(--success)', fontWeight: 700 }}>GET</span>{' '}
+          /v1/developer/organizations
         </span>
         <span
           style={{
@@ -550,18 +551,14 @@ function HeroResponseCard() {
           overflowX: 'auto',
         }}
       >
-        <span style={{ color: 'var(--ink-faint2)' }}>{'{'}</span>
+        <span style={{ color: 'var(--ink-faint2)' }}>[{'{'}</span>
         {'\n  '}
-        <span style={{ color: 'var(--cyan-text)' }}>&quot;resourceType&quot;</span>:{' '}
-        <span style={{ color: 'var(--code-str)' }}>&quot;Patient&quot;</span>,{'\n  '}
-        <span style={{ color: 'var(--cyan-text)' }}>&quot;species&quot;</span>:{' '}
-        <span style={{ color: 'var(--code-str)' }}>&quot;canine&quot;</span>,{' '}
+        <span style={{ color: 'var(--cyan-text)' }}>&quot;id&quot;</span>:{' '}
+        <span style={{ color: 'var(--code-str)' }}>&quot;org_demo&quot;</span>,{'\n  '}
         <span style={{ color: 'var(--cyan-text)' }}>&quot;name&quot;</span>:{' '}
-        <span style={{ color: 'var(--code-str)' }}>&quot;Bella&quot;</span>,{'\n  '}
-        <span style={{ color: 'var(--cyan-text)' }}>&quot;managingOrg&quot;</span>:{' '}
-        <span style={{ color: 'var(--code-str)' }}>&quot;Alpenblick Clinic&quot;</span>
+        <span style={{ color: 'var(--code-str)' }}>&quot;Demo Practice&quot;</span>
         {'\n'}
-        <span style={{ color: 'var(--ink-faint2)' }}>{'}'}</span>
+        <span style={{ color: 'var(--ink-faint2)' }}>{'}'}]</span>
       </pre>
     </div>
   );
@@ -753,7 +750,7 @@ function FhirApiCopy() {
           color: 'var(--blue)',
         }}
       >
-        FHIR-native API
+        Authenticated developer API
       </span>
       <h2
         style={{
@@ -767,7 +764,7 @@ function FhirApiCopy() {
           textWrap: 'balance',
         }}
       >
-        One animal, many authorities.
+        Read the data plane that exists today.
       </h2>
       <p
         style={{
@@ -779,10 +776,9 @@ function FhirApiCopy() {
           textWrap: 'pretty',
         }}
       >
-        A rabies shot that counts for three years on one side of a border counts for one on the
-        other, and a chip required in Madrid runs on a frequency scanners elsewhere can&apos;t read.
-        Instead of forcing one true record, the API speaks FHIR and translates between the versions,
-        so every system keeps its own truth and the animal still moves between them.
+        Create an API key in the developer portal and send it as a Bearer token. Organization and
+        usage discovery are available directly; appointment reads also require the documented scope,
+        practice header and a current practice membership.
       </p>
       <div
         style={{
@@ -793,9 +789,9 @@ function FhirApiCopy() {
           width: '100%',
         }}
       >
-        <ApiLine method="GET" color="var(--success)" path="/fhir/Observation?patient=bella" />
-        <ApiLine method="POST" color="var(--blue)" path="/fhir/Appointment" />
-        <ApiLine method="SUB" color="var(--avatar-amber-ink)" path="/fhir/subscriptions" />
+        <ApiLine method="GET" color="var(--success)" path="/v1/developer/organizations" />
+        <ApiLine method="GET" color="var(--success)" path="/v1/developer/usage" />
+        <ApiLine method="GET" color="var(--success)" path="/v1/developer/appointments" />
       </div>
     </Reveal>
   );
@@ -1071,7 +1067,7 @@ function PluginRow({ iconBg, iconColor, icon, title, desc, cta }: Readonly<Plugi
             borderRadius: '9999px',
           }}
         >
-          Install
+          Preview
         </span>
       ) : (
         <span
@@ -1084,7 +1080,7 @@ function PluginRow({ iconBg, iconColor, icon, title, desc, cta }: Readonly<Plugi
             borderRadius: '9999px',
           }}
         >
-          Installed
+          Preview
         </span>
       )}
     </div>
@@ -1166,7 +1162,7 @@ function Marketplace() {
                   Your plugin here
                 </div>
                 <div style={{ fontSize: '12.5px', color: 'var(--ink-faint2)' }}>
-                  Publish in an afternoon
+                  Planned marketplace listing
                 </div>
               </div>
             </div>
@@ -1191,7 +1187,7 @@ function Marketplace() {
                 color: 'var(--blue)',
               }}
             >
-              Plugin marketplace
+              Marketplace preview
             </span>
             <h2
               style={{
@@ -1205,7 +1201,7 @@ function Marketplace() {
                 textWrap: 'balance',
               }}
             >
-              Publish once. Reach every clinic.
+              Build now. Distribute it yourself.
             </h2>
             <p
               style={{
@@ -1231,6 +1227,16 @@ function Marketplace() {
               Open the developer portal{' '}
               <IoArrowForwardOutline aria-hidden="true" style={{ fontSize: '16px' }} />
             </Link>
+            <a
+              href={`${GITHUB_REPO_URL}/issues/1582`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="yc-link"
+              style={MARKETPLACE_PORTAL_LINK_STYLE}
+            >
+              Follow the capability roadmap{' '}
+              <IoArrowForwardOutline aria-hidden="true" style={{ fontSize: '16px' }} />
+            </a>
           </Reveal>
         </div>
       </div>
@@ -1289,7 +1295,7 @@ function EconColumn({ index, icon, title, desc, delay }: Readonly<EconColumnProp
   );
 }
 
-/** Economics keep panel: the 0% platform-cut figure and its supporting copy. */
+/** Economics keep panel: planned marketplace terms and their current status. */
 function EconomicsKeepPanel() {
   return (
     <div>
@@ -1304,7 +1310,7 @@ function EconomicsKeepPanel() {
             color: '#ffffff',
           }}
         >
-          0%
+          Planned
         </span>
         <span
           style={{
@@ -1316,7 +1322,7 @@ function EconomicsKeepPanel() {
             color: 'var(--spot-blue)',
           }}
         >
-          platform
+          marketplace
           <br />
           cut
         </span>
@@ -1330,7 +1336,7 @@ function EconomicsKeepPanel() {
           color: 'var(--spot-ink)',
         }}
       >
-        What you charge is what you keep.
+        Commercial terms are not live yet.
       </div>
       <div
         style={{
@@ -1342,14 +1348,14 @@ function EconomicsKeepPanel() {
           maxWidth: '42ch',
         }}
       >
-        Clinics pay you directly through the marketplace. No revenue share, no platform tax, and no
-        tokens resold back to you.
+        Marketplace payments and distribution are planned capabilities. Today, developers arrange
+        deployment and commercial terms directly with each practice.
       </div>
     </div>
   );
 }
 
-/** Economics bars: what a developer keeps on app stores (77%) versus this marketplace (100%). */
+/** Economics bars: existing platform fees versus the marketplace's unshipped terms. */
 function EconomicsBars() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -1424,9 +1430,11 @@ function EconomicsBars() {
               color: 'var(--spot-ink)',
             }}
           >
-            Yosemite Crew marketplace
+            Planned Yosemite Crew marketplace
           </span>
-          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--spot-blue)' }}>100%</span>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--spot-blue)' }}>
+            Roadmap
+          </span>
         </div>
         <div
           style={{
@@ -1454,14 +1462,14 @@ function EconomicsBars() {
               }}
             />
           </div>
-          <span style={ECON_BAR_LABEL_LIGHT_STYLE}>every euro is yours</span>
+          <span style={ECON_BAR_LABEL_LIGHT_STYLE}>terms to be confirmed</span>
         </div>
       </div>
     </div>
   );
 }
 
-/** Economics card: the tilted 0% panel pairing the keep figure with the comparison bars. */
+/** Economics card: the tilted roadmap panel pairing status with the comparison bars. */
 function EconomicsCard() {
   return (
     <Reveal delay={150}>
@@ -1529,27 +1537,27 @@ function EconomicsColumns() {
           />
         }
         title="Bring your own model"
-        desc="Point your own Claude or Codex subscription at the API and build headless PIMs and agents on your own keys. We never sit between you and the model."
+        desc="Use Claude, Codex or another client to call Yosemite Crew with a Yosemite API key. Your model-provider subscription is separate from Yosemite authentication."
       />
       <EconColumn
         index="02"
         delay={90}
         icon={<IoRocketOutline aria-hidden="true" style={{ fontSize: '19px', color: '#6f6a66' }} />}
-        title="Sell to every clinic"
-        desc="Ship an AI scribe, a voice agent or a triage bot to the marketplace. One publish reaches every practice already running the platform."
+        title="Deploy practice by practice"
+        desc="Build against the available APIs and deploy directly for each practice while marketplace distribution remains on the roadmap."
       />
       <EconColumn
         index="03"
         delay={180}
         icon={<IoCardOutline aria-hidden="true" style={{ fontSize: '19px', color: '#6f6a66' }} />}
-        title="Paid direct"
-        desc="Clinics pay you directly for what you build. Next to the cut every app store takes, keeping all of it is the whole point."
+        title="Choose your terms"
+        desc="Arrange deployment and commercial terms directly with each practice until marketplace payments are designed and shipped."
       />
     </div>
   );
 }
 
-/** Economics: 0% platform cut, comparison bars, editorial row. Stays BLUE, not cyan. */
+/** Economics: planned marketplace terms, comparison bars, editorial row. Stays BLUE, not cyan. */
 function Economics() {
   return (
     <Spotlight style={{ background: 'var(--spot)', overflow: 'hidden' }}>
@@ -1589,7 +1597,7 @@ function Economics() {
         </Reveal>
         <Reveal delay={60}>
           <h2 style={ECONOMICS_HEADLINE_STYLE}>
-            Bring your own AI. Sell to every clinic.{' '}
+            Bring your own AI. Deploy it directly.{' '}
             <span
               style={{
                 fontFamily: NEWSREADER,
@@ -1599,7 +1607,7 @@ function Economics() {
                 color: 'var(--spot-blue)',
               }}
             >
-              Keep all of it.
+              Choose your own terms.
             </span>
           </h2>
         </Reveal>
@@ -1615,9 +1623,9 @@ function Economics() {
               textWrap: 'pretty',
             }}
           >
-            Most platforms rent you their model, then take a cut of everything you earn on top of
-            it. We do neither. Point your own Claude or Codex subscription at the API, build
-            whatever you want, and sell it straight to the practices that need it.
+            Bring your preferred AI client and its provider credentials, then authenticate that
+            client separately with a Yosemite API key. Direct deployment works today; marketplace
+            distribution and payments remain planned work.
           </p>
         </Reveal>
 
