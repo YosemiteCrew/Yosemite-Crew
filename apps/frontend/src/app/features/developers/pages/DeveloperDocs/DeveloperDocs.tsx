@@ -231,7 +231,20 @@ const DeveloperDocs = () => {
     });
   };
 
-  const pageText = [active.title, active.summary, active.detail].filter(Boolean).join('\n\n');
+  const pageText = useMemo(() => {
+    const lines = [active.title, active.summary, active.detail].filter(Boolean);
+    if (isAppointments) {
+      lines.push(
+        'Endpoint: POST /fhir/v1/appointment/pms',
+        'Required scope: appointments:edit:any',
+        'Practice surface, not a developer one: needs an active practice membership and appointments:edit:any. A developer-only account holds neither; calling it with a developer session returns 400 or 403.',
+        'Body: FHIR R4 Appointment. Practice is read from an Organization participant (not x-org-id). Submitted status is ignored; created appointments are stored as UPCOMING. Parent must be a RelatedPerson participant.',
+        'Request (cURL):\n' + CURL_SAMPLE,
+        'Response (201):\n' + RESPONSE_SAMPLE,
+      );
+    }
+    return lines.join('\n\n');
+  }, [active, isAppointments]);
 
   return (
     <DevRouteGuard>
