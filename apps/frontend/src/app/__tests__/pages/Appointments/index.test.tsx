@@ -1352,4 +1352,86 @@ describe('Appointments page', () => {
 
     expect(appointmentInfoSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: false }));
   });
+
+  describe('appointment date URL persistence', () => {
+    it('hydrates the initial date from the ?date= query param', async () => {
+      useSearchParamsMock.mockReturnValue({
+        get: (key: string) => (key === 'date' ? '2026-09-20' : null),
+      });
+
+      await renderAppointments();
+
+      const calendarProps = calendarSpy.mock.calls[0][0];
+      expect(getDateKeyInPreferredTimeZone(calendarProps.currentDate)).toBe('2026-09-20');
+    });
+
+    it('falls back to today when there is no ?date= query param', async () => {
+      await renderAppointments();
+
+      const calendarProps = calendarSpy.mock.calls[0][0];
+      expect(getDateKeyInPreferredTimeZone(calendarProps.currentDate)).toBe(
+        getDateKeyInPreferredTimeZone(new Date())
+      );
+    });
+
+    it('ignores a malformed ?date= query param and falls back to today', async () => {
+      useSearchParamsMock.mockReturnValue({
+        get: (key: string) => (key === 'date' ? 'not-a-date' : null),
+      });
+
+      await renderAppointments();
+
+      const calendarProps = calendarSpy.mock.calls[0][0];
+      expect(getDateKeyInPreferredTimeZone(calendarProps.currentDate)).toBe(
+        getDateKeyInPreferredTimeZone(new Date())
+      );
+    });
+
+    it('does not touch the URL on initial render', async () => {
+      await renderAppointments();
+
+      expect(routerPushMock).not.toHaveBeenCalled();
+    });
+
+    it('pushes the new date to the URL when the calendar changes the current date', async () => {
+      await renderAppointments();
+
+      const calendarProps = calendarSpy.mock.calls[0][0];
+      const newDate = new Date('2025-06-15T00:00:00.000Z');
+
+      await act(async () => {
+        calendarProps.setCurrentDate(newDate);
+        await Promise.resolve();
+      });
+
+      expect(routerPushMock).toHaveBeenCalledWith(
+        expect.stringContaining('date=2025-06-15'),
+        expect.objectContaining({ scroll: false })
+      );
+    });
+
+    it('updates the current date when the ?date= query param changes externally (e.g. back/forward)', async () => {
+      // A single stable object whose `get` reads the live `dateParam` value -
+      // matching real useSearchParams(), which keeps one referentially stable
+      // object per URL rather than a fresh one on every read.
+      let dateParam: string | null = null;
+      useSearchParamsMock.mockReturnValue({
+        get: (key: string) => (key === 'date' ? dateParam : null),
+      });
+
+      const { rerender } = render(<ProtectedAppointments />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      dateParam = '2026-11-05';
+      await act(async () => {
+        rerender(<ProtectedAppointments />);
+        await Promise.resolve();
+      });
+
+      const lastCalendarProps = calendarSpy.mock.calls.at(-1)?.[0];
+      expect(getDateKeyInPreferredTimeZone(lastCalendarProps.currentDate)).toBe('2026-11-05');
+    });
+  });
 });
