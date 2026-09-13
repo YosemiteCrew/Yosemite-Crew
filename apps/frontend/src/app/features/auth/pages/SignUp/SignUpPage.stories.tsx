@@ -33,6 +33,32 @@ const clearSignUpDraft = () => {
 };
 
 const CLINIC_ROLE = 'A veterinary clinic, practice, or hospital';
+const TURNSTILE_STORY_SITE_KEY = 'storybook-test-site-key';
+const TURNSTILE_UNAVAILABLE_TEXT = 'Bot verification is unavailable. Please try again later.';
+
+/**
+ * Same fixture as `Auth/SignUp`'s stories: without a site key, `SignUpBotCheck`
+ * renders the fail-closed `TURNSTILE_UNAVAILABLE_ERROR` immediately, which is
+ * what made these wrapper stories show that alert instead of their intended
+ * state (see #3201). Stubbing `window.turnstile` alone is not enough - the
+ * component still needs a truthy `turnstileSiteKey`, threaded through
+ * `SignUpPage`'s own prop of the same name.
+ */
+const installTurnstileStub = () => {
+  const storyWindow = globalThis.window as Window & { turnstile?: unknown };
+  const previousTurnstile = storyWindow.turnstile;
+  storyWindow.turnstile = {
+    render: (_container: HTMLElement, options: { callback: (token: string) => void }) => {
+      options.callback('storybook-test-token');
+      return 'storybook-widget';
+    },
+    reset: () => undefined,
+    remove: () => undefined,
+  };
+  return () => {
+    storyWindow.turnstile = previousTurnstile;
+  };
+};
 
 const DEVELOPER: AuthUser = {
   userId: 'user-dev-1',
@@ -119,10 +145,12 @@ const meta = {
     },
   },
   tags: ['autodocs'],
+  args: { turnstileSiteKey: TURNSTILE_STORY_SITE_KEY },
   globals: { viewport: { value: 'desktop', isRotated: false } },
   beforeEach: () => {
     seedGithubStats();
     clearSignUpDraft();
+    return installTurnstileStub();
   },
 } satisfies Meta<typeof SignUpPage>;
 
@@ -141,6 +169,11 @@ export const SignedOut: Story = {
     );
     await expect(useAuthStore.getState().checkSession).not.toHaveBeenCalled();
     await expect(redirect).not.toHaveBeenCalled();
+
+    // Regression for #3201: without the story's site key and turnstile stub,
+    // SignUpBotCheck fails closed and this alert replaces the widget before
+    // the form is ever interacted with.
+    await expect(canvas.queryByText(TURNSTILE_UNAVAILABLE_TEXT)).not.toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -162,6 +195,9 @@ export const SessionUnresolved: Story = {
     await expect(canvas.getByRole('button', { name: 'Create account' })).toBeInTheDocument();
     await waitFor(() => expect(useAuthStore.getState().checkSession).toHaveBeenCalledTimes(1));
     await expect(redirect).not.toHaveBeenCalled();
+
+    // Regression for #3201, see the Signed out story above.
+    await expect(canvas.queryByText(TURNSTILE_UNAVAILABLE_TEXT)).not.toBeInTheDocument();
   },
   parameters: {
     docs: {
