@@ -143,9 +143,13 @@ const mapBackendCategoryToUi = (category?: string): Task['category'] => {
   }
 };
 
+// Materialized children explicitly set `isMaster: false` and must not project.
+// Older recurring tasks can omit the flag, so only `false` collapses to once.
 const mapRecurrenceToFrequency = (recurrence?: {
   type?: RecurrenceType;
+  isMaster?: boolean;
 }): Task['frequency'] => {
+  if (recurrence?.isMaster === false) return 'once';
   switch (recurrence?.type) {
     case 'DAILY':
       return 'daily';
