@@ -229,6 +229,9 @@ describe('taskService', () => {
       expect(mapApiTaskToTask({recurrence: {type: 'WEEKLY'}}).frequency).toBe(
         'weekly',
       );
+      expect(mapApiTaskToTask({recurrence: {type: 'MONTHLY'}}).frequency).toBe(
+        'monthly',
+      );
       expect(mapApiTaskToTask({recurrence: {type: 'CUSTOM'}}).frequency).toBe(
         'daily',
       );
@@ -543,11 +546,45 @@ describe('taskService', () => {
 
       checkFreq('daily', 'DAILY');
       checkFreq('weekly', 'WEEKLY');
-      checkFreq('monthly', 'WEEKLY'); // Falls back to WEEKLY per code logic
+      checkFreq('monthly', 'MONTHLY');
       checkFreq('once', 'ONCE');
       checkFreq(undefined, 'ONCE');
       checkFreq('every-day', 'DAILY');
       checkFreq('something-else', 'ONCE');
+    });
+
+    it('round-trips Monthly through draft build and response mapping', () => {
+      const draft = buildTaskDraftFromForm({
+        formData: {
+          ...baseForm,
+          frequency: 'monthly',
+        } as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      expect(draft.recurrence?.type).toBe('MONTHLY');
+
+      const roundTripped = mapApiTaskToTask({
+        recurrence: {type: draft.recurrence?.type},
+      });
+
+      expect(roundTripped.frequency).toBe('monthly');
+    });
+
+    it('prioritizes Monthly medication frequency over the general frequency for the recurrence engine', () => {
+      const draft = buildTaskDraftFromForm({
+        formData: {
+          ...baseForm,
+          healthTaskType: 'give-medication',
+          frequency: 'weekly',
+          medicationFrequency: 'monthly',
+        } as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      // The value that drives TaskRecurrenceEngine cadence must be MONTHLY,
+      // not the unrelated general `frequency` field.
+      expect(draft.recurrence?.type).toBe('MONTHLY');
     });
 
     it('falls back across task date, title, description, category, and time fields', () => {
