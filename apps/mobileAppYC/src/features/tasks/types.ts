@@ -68,7 +68,7 @@ export type TaskStatus =
   | 'in_progress'
   | 'cancelled';
 
-export type RecurrenceType = 'ONCE' | 'DAILY' | 'WEEKLY' | 'CUSTOM';
+export type RecurrenceType = 'ONCE' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'CUSTOM';
 export type OTFieldType =
   'TEXT' | 'NUMBER' | 'CHOICE' | 'BOOLEAN' | 'PHOTO' | 'VIDEO';
 
