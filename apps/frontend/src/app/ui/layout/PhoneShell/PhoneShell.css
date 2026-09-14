@@ -235,7 +235,14 @@
   .yc-phone-fab {
     position: fixed;
     right: 16px;
-    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    /* Same reservation `#main-content` makes above: until a choice is stored,
+       the consent card denies 336px of an 844px viewport and sits above this
+       button at its normal 72px dock - not clipped, but unclickable, since
+       the opaque card (z-9999) intercepts the tap before it reaches the FAB
+       (z-840) underneath. `max`, not a sum, for the same double-counting
+       reason - the card's published strip already contains the tab bar's
+       72px. */
+    bottom: max(calc(72px + env(safe-area-inset-bottom, 0px)), var(--yc-consent-inset, 0px));
     z-index: 840;
     display: inline-flex;
     width: 52px;

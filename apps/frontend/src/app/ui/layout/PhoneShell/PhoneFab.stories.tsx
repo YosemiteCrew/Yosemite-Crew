@@ -60,6 +60,38 @@ export const NewAppointment: Story = {
   },
 };
 
+export const RespectsTheConsentStrip: Story = {
+  name: 'Docks above the cookie card, not underneath it',
+  args: { action: resolveFabAction('/appointments') },
+  play: async ({ canvasElement }) => {
+    const root = document.documentElement;
+    const fab = within(canvasElement).getByRole('button', { name: 'New appointment' });
+    const bottomPx = () => Number.parseFloat(globalThis.getComputedStyle(fab).bottom);
+
+    // No card stored: the tab-bar dock. env(safe-area-inset-bottom) is 0 in a
+    // headless browser, so this is 72 there and larger on a device - read it
+    // rather than asserting the literal, matching `MainContentInset`'s probe
+    // for the same property.
+    const barOnly = bottomPx();
+    await expect(barOnly).toBeGreaterThanOrEqual(72);
+
+    try {
+      // Taller than the dock: until a choice is stored the card sits on top of
+      // the FAB at its old fixed offset (z-9999 over z-840) and a click never
+      // lands - `max` must move the button above the card instead.
+      root.style.setProperty('--yc-consent-inset', '336px');
+      await expect(bottomPx()).toBe(336);
+
+      // Shorter than the dock: the dock still wins, which is the half a sum
+      // gets wrong by adding the two together.
+      root.style.setProperty('--yc-consent-inset', '20px');
+      await expect(bottomPx()).toBe(barOnly);
+    } finally {
+      root.style.removeProperty('--yc-consent-inset');
+    }
+  },
+};
+
 export const NewTask: Story = {
   name: 'Tasks list',
   args: { action: resolveFabAction('/tasks') },
