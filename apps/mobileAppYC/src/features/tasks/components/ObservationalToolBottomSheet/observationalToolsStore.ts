@@ -13,12 +13,17 @@ function _notifyTools() {
 }
 
 function _startFetchTools() {
-  if (_toolsFetching) return;
+  // `_toolsLoaded` only flips to true on a successful fetch below, so a
+  // failure leaves it false and the next subscribeTools() call (e.g.
+  // reopening the bottom sheet) retries instead of leaving the tool list
+  // empty for the rest of the session.
+  if (_toolsFetching || _toolsLoaded) return;
   _toolsFetching = true;
   observationToolApi
     .list({onlyActive: true})
     .then(list => {
       _tools = list;
+      _toolsLoaded = true;
     })
     .catch(error => {
       console.warn(
@@ -27,7 +32,7 @@ function _startFetchTools() {
       );
     })
     .finally(() => {
-      _toolsLoaded = true;
+      _toolsFetching = false;
       _notifyTools();
     });
 }

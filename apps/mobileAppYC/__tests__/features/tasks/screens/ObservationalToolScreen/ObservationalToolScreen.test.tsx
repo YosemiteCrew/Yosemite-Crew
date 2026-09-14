@@ -2087,4 +2087,41 @@ describe('ObservationalToolScreen', () => {
       );
     });
   });
+
+  describe('Per-task state reset', () => {
+    // React Navigation updates params on an already-focused screen instance
+    // rather than remounting it, so a second observational tool opened for a
+    // different task used to inherit the first task's in-progress answers
+    // and stage instead of starting over on its own landing screen.
+    it('starts over on the landing stage when navigated to a different task', async () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selector => {
+        if (selector === selectAuthUser) return mockUser;
+        return selector({
+          ...defaultMockState,
+          businesses: {
+            businesses: [mockBusinesses[0]],
+            services: [mockServices[0]],
+          },
+        });
+      });
+
+      const {getByTestId, getByText, queryByText, rerender} = renderScreen();
+
+      await waitFor(() => expect(getByTestId('btn-Next')).toBeTruthy());
+      fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+      await waitFor(() => expect(getByText('Step 1 of 5')).toBeTruthy());
+
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {taskId: 'task-456'},
+      });
+      rerender(<ObservationalToolScreen />);
+
+      await waitFor(() => {
+        expect(queryByText('Step 1 of 5')).toBeNull();
+      });
+      // Back on the landing stage's own "start" affordance, not stuck
+      // mid-form on the previous task's step.
+      expect(getByTestId('btn-Next')).toBeTruthy();
+    });
+  });
 });

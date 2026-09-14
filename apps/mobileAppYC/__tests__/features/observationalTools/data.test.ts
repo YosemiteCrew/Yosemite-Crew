@@ -27,6 +27,19 @@ describe('Observational Tools Data', () => {
       expect(keys).toContain('equine-grimace-scale');
     });
 
+    it('marks every step of every static instrument as required', () => {
+      // Every category contributes to the composite pain score, so none of
+      // them is optional. Left unset, ObservationalToolScreen's
+      // isStepCompleted() treats an unanswered step as already complete,
+      // letting the whole instrument be submitted with zero answers.
+      Object.values(observationalToolDefinitions).forEach(tool => {
+        expect(tool.steps.length).toBeGreaterThan(0);
+        tool.steps.forEach(step => {
+          expect(step.required).toBe(true);
+        });
+      });
+    });
+
     describe('Feline Grimace Scale (Has Images)', () => {
       const tool = observationalToolDefinitions['feline-grimace-scale'];
 
@@ -40,9 +53,9 @@ describe('Observational Tools Data', () => {
 
       it('should populate the default empty state', () => {
         expect(tool.emptyState).toEqual({
-            title: 'Not just yet!',
-            message: expect.stringContaining("medical team isn't handing out"),
-            image: 'mock-image-otNoProviders',
+          title: 'Not just yet!',
+          message: expect.stringContaining("medical team isn't handing out"),
+          image: 'mock-image-otNoProviders',
         });
       });
 

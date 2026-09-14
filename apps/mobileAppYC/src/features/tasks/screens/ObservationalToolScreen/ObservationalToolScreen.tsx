@@ -175,6 +175,23 @@ export const ObservationalToolScreen: React.FC = () => {
   const [companionImageErrorUri, setCompanionImageErrorUri] = useState<
     string | null
   >(null);
+
+  // React Navigation updates params on the already-focused screen instance
+  // rather than remounting it, so without this every piece of per-task state
+  // above survived a navigation to a DIFFERENT task: a second observational
+  // tool opened for another pet could inherit the first pet's answers, land
+  // mid-form instead of on the landing stage, and auto-pick a stale provider.
+  useEffect(() => {
+    setStage('landing');
+    setCurrentStepIndex(0);
+    setResponses({});
+    setSelectedProviderKey(null);
+    setProviderTouched(false);
+    setStepTouched(false);
+    setRemoteDefinition(null);
+    setCompanionImageErrorUri(null);
+  }, [taskId]);
+
   const scrollToTop = useCallback(() => {
     scrollViewRef.current?.scrollTo({y: 0, animated: true});
   }, []);
