@@ -162,7 +162,11 @@ export const coParentSlice = createSlice({
             state.accessByCompanionId[companionId] = access;
             return;
           }
-          state.defaultAccess ??= access;
+          // Always take the latest fetch, not just the first one ever seen.
+          // `promoteCoParentToPrimary` (EditCoParentScreen) re-dispatches
+          // fetchParentAccess specifically to refresh this value; the prior
+          // `??=` left it permanently stuck at its first-ever role/permissions.
+          state.defaultAccess = access;
         });
         if (updates.length > 0) {
           const first = updates.find(u => Boolean(u.role)) ?? updates[0];
