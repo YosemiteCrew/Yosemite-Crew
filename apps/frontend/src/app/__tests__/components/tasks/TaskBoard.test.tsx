@@ -573,10 +573,13 @@ describe('TaskBoard', () => {
     );
     // identity.name branch: resolveMemberName('unnamed') === '-' → identity.name 'Display Only'.
     expect(screen.getByText('Display Only')).toBeInTheDocument();
-    // resolved truthy: unknown id 'ghost' shows raw id.
+    // resolved truthy and genuinely meaningful ('ghost' is what resolveMemberName
+    // itself returned, not a raw id slipping through unresolved) - shown as-is.
     expect(screen.getByText('ghost')).toBeInTheDocument();
-    // resolved '-' + no identity → raw id 'lost'.
-    expect(screen.getByText('lost')).toBeInTheDocument();
+    // resolved '-' + no identity + no team-map entry for 'lost': must read as
+    // unknown, never as the raw id it failed to resolve. getMetaAssigneeName
+    // blanks a '-' name entirely, so the regression guard is the id's absence.
+    expect(screen.queryByText('lost')).not.toBeInTheDocument();
   });
 
   it('adds a task from the Pending column quick-add affordance', () => {
