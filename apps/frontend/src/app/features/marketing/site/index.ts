@@ -35,10 +35,12 @@ export {
 export { useGithubContributors, type GithubContributor } from './useGithubContributors';
 export {
   useRepoInsights,
+  timeAgo,
   type RepoInsights,
   type RepoLanguage,
   type RepoCommit,
   type RepoContributor,
   type RepoFacts,
 } from './useRepoInsights';
+export { useCloudUsers, type CloudUsersStats } from './useCloudUsers';
 export * from './assets';

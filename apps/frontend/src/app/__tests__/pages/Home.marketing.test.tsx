@@ -27,6 +27,11 @@ const EMPTY_STATS: StatsShape = {
 // Reassigned per test so the null-stat placeholder path can be exercised.
 let mockStats: StatsShape = DEFAULT_STATS;
 
+type CloudUsersShape = { totalUsers: string | null; latestSignupAt: string | null };
+const DEFAULT_CLOUD_USERS: CloudUsersShape = { totalUsers: '346', latestSignupAt: null };
+const EMPTY_CLOUD_USERS: CloudUsersShape = { totalUsers: null, latestSignupAt: null };
+let mockCloudUsers: CloudUsersShape = DEFAULT_CLOUD_USERS;
+
 jest.mock('next/image', () => ({
   __esModule: true,
   default: jest.requireActual('@/app/__tests__/support/marketingTestMocks').NextImageMock,
@@ -52,6 +57,8 @@ jest.mock('@/app/features/marketing/site', () => {
     useParallax: () => React_.createRef(),
     InkAnnotate: ({ children }: { children: React.ReactNode }) => children,
     useGithubStats: () => mockStats,
+    useCloudUsers: () => mockCloudUsers,
+    timeAgo: (iso?: string) => (iso ? '14m ago' : null),
     HERO_AVATARS: ['/a.png', '/b.png', '/c.png'],
     COMPANION_PHOTOS: { dog: '/dog.webp', horse: '/horse.webp', cat: '/cat.webp' },
     HERO_VIDEOS: { home: 'https://cdn.example/hero.mp4' },
@@ -63,6 +70,7 @@ jest.mock('@/app/features/marketing/site', () => {
 describe('Home marketing page', () => {
   beforeEach(() => {
     mockStats = DEFAULT_STATS;
+    mockCloudUsers = DEFAULT_CLOUD_USERS;
     render(<Home />);
   });
 
@@ -98,10 +106,17 @@ describe('Home marketing page', () => {
   });
 
   it('renders the live metrics grid labels', () => {
+    expect(screen.getByText('Cloud users')).toBeInTheDocument();
     expect(screen.getByText('Repository clones')).toBeInTheDocument();
     expect(screen.getByText('Contributors')).toBeInTheDocument();
     expect(screen.getByText('Discord members')).toBeInTheDocument();
     expect(screen.getByText('Repo stars')).toBeInTheDocument();
+  });
+
+  it('shows a last-signup recency caption on the cloud users tile once a timestamp resolves', () => {
+    mockCloudUsers = { totalUsers: '346', latestSignupAt: '2026-09-12T11:46:00.000Z' };
+    render(<Home />);
+    expect(screen.getByText('live · last signup 14m ago')).toBeInTheDocument();
   });
 
   it('wraps the release lanes in a block element, not a span', () => {
@@ -136,9 +151,10 @@ describe('Home marketing page', () => {
 describe('Home marketing page with no live stats yet', () => {
   it('falls back to a placeholder for every still-null stat', () => {
     mockStats = EMPTY_STATS;
+    mockCloudUsers = EMPTY_CLOUD_USERS;
     render(<Home />);
-    // Hero social proof plus the four-metric grid all render the '·' placeholder.
-    expect(screen.getAllByText('·').length).toBeGreaterThanOrEqual(4);
+    // Hero social proof plus the five-metric grid all render the '·' placeholder.
+    expect(screen.getAllByText('·').length).toBeGreaterThanOrEqual(5);
     expect(screen.getAllByText(/repository clones/i).length).toBeGreaterThanOrEqual(1);
   });
 });
