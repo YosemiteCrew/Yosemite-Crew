@@ -1424,12 +1424,19 @@ describe('ObservationalToolScreen', () => {
       fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
       await waitFor(() => expect(getByText('Step 1 of 5')).toBeTruthy());
 
-      // static steps are optional -> advance without selecting to the last step
-      fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
-      fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
-      fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
-      fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+      // Static steps are required too (same gate as the remote definition),
+      // so advancing through the fallback definition needs an answer per step.
+      [
+        'Ears facing forward',
+        'Eyes opened',
+        'Relaxed (round shape)',
+        'Loose (relaxed) and curved',
+      ].forEach(option => {
+        fireEvent(getByText(option), 'press');
+        fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+      });
       await waitFor(() => expect(getByText('Step 5 of 5')).toBeTruthy());
+      fireEvent(getByText('Head above the shoulder line'), 'press');
 
       fireEvent(
         getByTestId('btn-Submit and schedule appointment'),
@@ -1440,7 +1447,13 @@ describe('ObservationalToolScreen', () => {
         expect(observationToolApi.submit).toHaveBeenCalledWith(
           expect.objectContaining({
             toolId: 'feline-grimace-scale',
-            answers: {},
+            answers: {
+              'fgs-ear-position': 'ears-forward',
+              'fgs-orbital-tightening': 'eyes-opened',
+              'fgs-muzzle-tension': 'muzzle-relaxed',
+              'fgs-whisker-change': 'whisker-loose',
+              'fgs-head-position': 'head-above-shoulder',
+            },
           }),
         );
       });
