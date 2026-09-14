@@ -29,6 +29,8 @@ import {
   useMagnet,
   useParallax,
   useGithubStats,
+  useCloudUsers,
+  timeAgo,
   HERO_AVATARS,
   COMPANION_PHOTOS,
   HERO_VIDEOS,
@@ -1977,6 +1979,8 @@ function Metric({ value, label, source, delay }: MetricProps) {
 
 function BuildingInPublic() {
   const stats = useGithubStats();
+  const cloudUsers = useCloudUsers();
+  const latestSignup = timeAgo(cloudUsers.latestSignupAt ?? undefined);
   return (
     <section style={{ background: 'var(--page)' }}>
       <div
@@ -2027,34 +2031,40 @@ function BuildingInPublic() {
           data-grid-2-m="true"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(5, 1fr)',
             gap: 'clamp(24px, 3vw, 48px)',
             marginTop: 'clamp(40px, 5vw, 64px)',
           }}
         >
           <Metric
+            value={cloudUsers.totalUsers ?? '·'}
+            label="Cloud users"
+            source={latestSignup ? `live · last signup ${latestSignup}` : 'live via Yosemite Crew'}
+            delay={0}
+          />
+          <Metric
             value={stats.repositoryClones ?? '·'}
             label="Repository clones"
             source="live via GitHub"
-            delay={0}
+            delay={80}
           />
           <Metric
             value={stats.contributors ?? '·'}
             label="Contributors"
             source="live via GitHub"
-            delay={80}
+            delay={160}
           />
           <Metric
             value={stats.discord ?? '·'}
             label="Discord members"
             source="live via Discord"
-            delay={160}
+            delay={240}
           />
           <Metric
             value={stats.starsFull ?? '·'}
             label="Repo stars"
             source="live via GitHub"
-            delay={240}
+            delay={320}
           />
         </div>
       </div>
