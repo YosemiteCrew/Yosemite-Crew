@@ -11,7 +11,10 @@ import {
   rephrase,
 } from '@/features/assistant/services/onDeviceModel';
 import {ASSISTANT_ACTION_IDS} from '@/features/assistant/actions/catalogue';
-import {RULES_CONFIDENCE_THRESHOLD} from '@/features/assistant/constants';
+import {
+  ON_DEVICE_MODEL_TIMEOUT_MS,
+  RULES_CONFIDENCE_THRESHOLD,
+} from '@/features/assistant/constants';
 
 const mockGetOnDeviceModelModule = jest.fn();
 const mockPlatformProviderLabel = jest.fn(() => 'Apple Intelligence');
@@ -343,6 +346,20 @@ describe('classify', () => {
       classify('when is the vet visit', 'catalogue'),
     ).resolves.toBeNull();
   });
+
+  it('gives up and returns null instead of hanging forever when the native call never resolves', async () => {
+    jest.useFakeTimers();
+    try {
+      useModule({generate: jest.fn(() => new Promise(() => {}))});
+
+      const pending = classify('when is the vet visit', 'catalogue');
+      await jest.advanceTimersByTimeAsync(ON_DEVICE_MODEL_TIMEOUT_MS);
+
+      await expect(pending).resolves.toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
 
 describe('rephrase', () => {
@@ -427,5 +444,19 @@ describe('rephrase', () => {
     });
 
     await expect(rephrase(sentence)).resolves.toBe(sentence);
+  });
+
+  it('gives up and returns the original sentence instead of hanging forever when the native call never resolves', async () => {
+    jest.useFakeTimers();
+    try {
+      useModule({generate: jest.fn(() => new Promise(() => {}))});
+
+      const pending = rephrase(sentence);
+      await jest.advanceTimersByTimeAsync(ON_DEVICE_MODEL_TIMEOUT_MS);
+
+      await expect(pending).resolves.toBe(sentence);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

@@ -7,24 +7,20 @@ import {SuggestionChips} from '@/features/assistant/components/SuggestionChips/S
 import {ASSISTANT_ACTIONS} from '@/features/assistant/actions/catalogue';
 
 /**
- * The chips are the catalogue's sample phrases, flattened in catalogue order.
- * Pinned here as literals so a reorder of the catalogue (which would silently
- * change what a first-run user is offered) fails a test rather than sliding by.
+ * The chips are one sample phrase per catalogue action (the action's first),
+ * in catalogue order. Pinned here as literals so a reorder or resize of the
+ * catalogue (which would silently change what a first-run user is offered)
+ * fails a test rather than sliding by.
  */
-const ALL_PHRASE_KEYS = [
+const ONE_PHRASE_PER_ACTION_KEYS = [
   'assistant.actions.nextAppointment.phrase1',
-  'assistant.actions.nextAppointment.phrase2',
   'assistant.actions.vaccinationStatus.phrase1',
-  'assistant.actions.vaccinationStatus.phrase2',
   'assistant.actions.upcomingTasks.phrase1',
-  'assistant.actions.upcomingTasks.phrase2',
   'assistant.actions.petOverview.phrase1',
   'assistant.actions.expenseSummary.phrase1',
   'assistant.actions.addCareTask.phrase1',
-  'assistant.actions.addCareTask.phrase2',
   'assistant.actions.logExpense.phrase1',
   'assistant.actions.bookAppointment.phrase1',
-  'assistant.actions.bookAppointment.phrase2',
 ];
 
 /**
@@ -86,10 +82,10 @@ const chipTexts = (
 
 describe('SuggestionChips', () => {
   describe('chip source', () => {
-    it('draws its phrases from the catalogue, flattened in catalogue order', () => {
+    it('draws one sample phrase per catalogue action, in catalogue order', () => {
       expect(
-        ASSISTANT_ACTIONS.flatMap(action => [...action.samplePhraseKeys]),
-      ).toEqual(ALL_PHRASE_KEYS);
+        ASSISTANT_ACTIONS.map(action => action.samplePhraseKeys[0]),
+      ).toEqual(ONE_PHRASE_PER_ACTION_KEYS);
     });
 
     it('renders four chips when the limit prop is omitted entirely', () => {
@@ -104,10 +100,12 @@ describe('SuggestionChips', () => {
       expect(utils.getAllByRole('button')).toHaveLength(4);
     });
 
-    it('shows the first four sample phrases by default', () => {
+    it('shows the first four actions, one phrase each, by default', () => {
       const utils = renderChips();
 
-      expect(chipTexts(utils)).toEqual(labelsFor(ALL_PHRASE_KEYS.slice(0, 4)));
+      expect(chipTexts(utils)).toEqual(
+        labelsFor(ONE_PHRASE_PER_ACTION_KEYS.slice(0, 4)),
+      );
     });
 
     it('shows only two chips when limit is 2', () => {
@@ -115,22 +113,22 @@ describe('SuggestionChips', () => {
 
       expect(chipTexts(utils)).toEqual([
         "When is Milo's next visit?",
-        'Next appointment',
+        'Is Milo up to date on shots?',
       ]);
     });
 
-    it('flattens across actions with a single sample phrase when limit is 8', () => {
+    it('spans every action once, not just the first two, when limit is 8', () => {
       const utils = renderChips({limit: 8});
 
       expect(chipTexts(utils)).toEqual([
         "When is Milo's next visit?",
-        'Next appointment',
         'Is Milo up to date on shots?',
-        'Vaccination status',
         "What's due this week?",
-        'Upcoming tasks',
         'Tell me about Milo',
         'How much have I spent?',
+        'Remind me to give Milo his pill',
+        'Log a 40 euro vet bill',
+        'Book a check-up for Milo',
       ]);
     });
 
@@ -141,22 +139,26 @@ describe('SuggestionChips', () => {
       expect(utils.queryByText("When is Milo's next visit?")).toBeNull();
     });
 
-    it('renders every sample phrase once when limit exceeds the catalogue', () => {
+    it('never shows a second phrase for the same action, even when the limit exceeds the catalogue', () => {
       const utils = renderChips({limit: 500});
 
-      expect(chipTexts(utils)).toEqual(labelsFor(ALL_PHRASE_KEYS));
+      expect(chipTexts(utils)).toEqual(labelsFor(ONE_PHRASE_PER_ACTION_KEYS));
+      expect(utils.queryByText('Next appointment')).toBeNull();
+      expect(utils.queryByText('Vaccination status')).toBeNull();
     });
 
     // The limit is handed straight to Array.prototype.slice, so a negative cap
     // counts back from the end instead of capping. Pinned as the current
-    // behaviour, not endorsed: -1 widens the row to 12 chips.
+    // behaviour, not endorsed: -1 drops only the last of the 8 actions.
     it('counts a negative limit back from the end instead of capping', () => {
       const utils = renderChips({limit: -1});
 
       expect(utils.getAllByRole('button')).toHaveLength(
-        ALL_PHRASE_KEYS.length - 1,
+        ONE_PHRASE_PER_ACTION_KEYS.length - 1,
       );
-      expect(chipTexts(utils)).toEqual(labelsFor(ALL_PHRASE_KEYS.slice(0, -1)));
+      expect(chipTexts(utils)).toEqual(
+        labelsFor(ONE_PHRASE_PER_ACTION_KEYS.slice(0, -1)),
+      );
     });
 
     it('drops chips when the limit shrinks on a re-render', () => {
@@ -173,8 +175,8 @@ describe('SuggestionChips', () => {
         getAllByRole('button').map(c => c.props.accessibilityLabel),
       ).toEqual([
         "When is Milo's next visit?",
-        'Next appointment',
         'Is Milo up to date on shots?',
+        "What's due this week?",
       ]);
     });
   });
@@ -192,7 +194,7 @@ describe('SuggestionChips', () => {
     it('renders one Text label per chip', () => {
       const utils = renderChips({limit: 3});
 
-      labelsFor(ALL_PHRASE_KEYS.slice(0, 3)).forEach(label => {
+      labelsFor(ONE_PHRASE_PER_ACTION_KEYS.slice(0, 3)).forEach(label => {
         expect(utils.getByText(label)).toBeTruthy();
       });
     });
@@ -217,10 +219,10 @@ describe('SuggestionChips', () => {
     it('reports the label of the chip that was pressed, not the first one', () => {
       const utils = renderChips();
 
-      fireEvent.press(utils.getByText('Vaccination status'));
+      fireEvent.press(utils.getByText('Tell me about Milo'));
 
       expect(utils.onSelect).toHaveBeenCalledTimes(1);
-      expect(utils.onSelect).toHaveBeenCalledWith('Vaccination status');
+      expect(utils.onSelect).toHaveBeenCalledWith('Tell me about Milo');
     });
 
     it('passes the translated label rather than the catalogue key', () => {
@@ -237,12 +239,12 @@ describe('SuggestionChips', () => {
     it('reports each chip separately when several are pressed', () => {
       const utils = renderChips({limit: 4});
 
-      fireEvent.press(utils.getByText('Next appointment'));
       fireEvent.press(utils.getByText('Is Milo up to date on shots?'));
+      fireEvent.press(utils.getByText("What's due this week?"));
 
       expect(utils.onSelect.mock.calls).toEqual([
-        ['Next appointment'],
         ['Is Milo up to date on shots?'],
+        ["What's due this week?"],
       ]);
     });
   });
@@ -261,7 +263,7 @@ describe('SuggestionChips', () => {
     it('labels each button with the phrase it will send', () => {
       const utils = renderChips({limit: 3});
 
-      labelsFor(ALL_PHRASE_KEYS.slice(0, 3)).forEach(label => {
+      labelsFor(ONE_PHRASE_PER_ACTION_KEYS.slice(0, 3)).forEach(label => {
         expect(utils.getByLabelText(label)).toBeTruthy();
       });
     });

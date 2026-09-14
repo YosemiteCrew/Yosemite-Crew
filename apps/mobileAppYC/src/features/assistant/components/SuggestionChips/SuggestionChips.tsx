@@ -54,7 +54,13 @@ export const SuggestionChips: React.FC<SuggestionChipsProps> = ({
 
   const phrases = useMemo(
     () =>
-      ASSISTANT_ACTIONS.flatMap(action => action.samplePhraseKeys)
+      // One phrase per action, not every phrase of the first action(s): the
+      // catalogue is meant to be discoverable, but flattening every action's
+      // samplePhraseKeys before slicing let the first one or two actions
+      // (each with 2 sample phrases) fill the whole row, so the remaining
+      // catalogue - including every handoff action - was never suggested.
+      ASSISTANT_ACTIONS.map(action => action.samplePhraseKeys[0])
+        .filter((key): key is string => Boolean(key))
         .slice(0, limit)
         .map(key => ({key, label: t(key)})),
     [limit, t],
