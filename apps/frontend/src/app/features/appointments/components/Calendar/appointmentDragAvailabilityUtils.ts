@@ -134,7 +134,7 @@ export const resolveMemberDisplayName = (
   if (!raw) return '-';
   const resolved = resolveMemberName(raw);
   if (resolved && resolved !== '-') return resolved;
-  return teamNameById[normalizeId(raw)] || raw;
+  return teamNameById[normalizeId(raw)] || '-';
 };
 
 const getSlotMinuteBounds = (

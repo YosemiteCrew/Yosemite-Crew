@@ -628,8 +628,10 @@ describe('TaskSlot', () => {
     const dialog = screen.getByRole('dialog', { name: 'Editable' });
     // A resolved name is used directly.
     expect(within(dialog).getByText('Manager Sam')).toBeInTheDocument();
-    // A "-" resolution falls back to the raw id.
-    expect(within(dialog).getByText('ghost')).toBeInTheDocument();
+    // An unresolvable id reads as unknown, never as the raw id itself - "ghost"
+    // must not appear anywhere the popover renders text.
+    expect(within(dialog).getAllByText('-').length).toBeGreaterThanOrEqual(1);
+    expect(within(dialog).queryByText('ghost')).not.toBeInTheDocument();
     expect(within(dialog).getAllByText('General').length).toBeGreaterThanOrEqual(1);
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Reschedule task' }));

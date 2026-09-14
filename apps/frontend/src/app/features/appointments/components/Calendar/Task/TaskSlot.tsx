@@ -126,7 +126,7 @@ const TaskSlot = ({
       const raw = String(memberId ?? '').trim();
       if (!raw) return '-';
       const resolved = resolveDisplayName?.(raw);
-      return resolved && resolved !== '-' ? resolved : raw;
+      return resolved && resolved !== '-' ? resolved : '-';
     },
     [resolveDisplayName]
   );
