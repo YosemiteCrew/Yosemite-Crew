@@ -177,6 +177,26 @@ describe('VoiceMessagePlayer', () => {
     await waitFor(() => expect(Sound.resumePlayer).toHaveBeenCalled());
   });
 
+  it('does not hard-stop playback or tear down listeners merely from pausing', async () => {
+    // Regression: the unmount-cleanup effect used to depend on `isPlaying`,
+    // so pausing (isPlaying true -> false) re-ran that cleanup with the
+    // *previous* render's isPlaying still true, calling stopPlayer() and
+    // removing both listeners right after every pause - breaking resume.
+    render(
+      <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
+    );
+
+    pressPlayPauseButton(); // play
+    await waitFor(() => expect(Sound.startPlayer).toHaveBeenCalled());
+
+    pressPlayPauseButton(); // pause
+    await waitFor(() => expect(Sound.pausePlayer).toHaveBeenCalled());
+
+    expect(Sound.stopPlayer).not.toHaveBeenCalled();
+    expect(Sound.removePlayBackListener).not.toHaveBeenCalled();
+    expect(Sound.removePlaybackEndListener).not.toHaveBeenCalled();
+  });
+
   // --- 3. Stop Control & Lifecycle ---
 
   it('stops playback and resets when stop button is pressed', async () => {
@@ -268,9 +288,9 @@ describe('VoiceMessagePlayer', () => {
       .mockImplementation(() => {});
 
     // Note: Use mockRejectedValueOnce for the FIRST call (explicit user stop).
-    // Use mockResolvedValue for subsequent calls (useEffect cleanup).
-    // The component's useEffect calls stopPlayer() when isPlaying flips to false,
-    // and since that useEffect call is not caught, it would crash the test if we simply used mockRejectedValue.
+    // mockResolvedValue covers any further call (e.g. the real unmount
+    // cleanup, which no longer fires on every isPlaying change, only at
+    // actual unmount) so an unrelated later call can't reject unhandled.
     (Sound.stopPlayer as jest.Mock)
       .mockRejectedValueOnce(new Error('Stop Error'))
       .mockResolvedValue(undefined);
