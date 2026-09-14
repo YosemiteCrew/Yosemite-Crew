@@ -27,6 +27,14 @@ export const RULES_CONFIDENCE_THRESHOLD = 0.6;
  */
 export const BARE_NAME_CONFIDENCE = 0.45;
 
+/**
+ * How long a single native on-device-model call may run before the assistant
+ * gives up on it and falls back to the plain resolver answer. `classify` and
+ * `rephrase` are both optional enhancements over the rule parser/resolvers,
+ * so a hung native call must not leave the "thinking" state stuck forever.
+ */
+export const ON_DEVICE_MODEL_TIMEOUT_MS = 8000;
+
 /** How many pets the snapshot carries to the native side. */
 export const SNAPSHOT_PET_LIMIT = 12;
 
