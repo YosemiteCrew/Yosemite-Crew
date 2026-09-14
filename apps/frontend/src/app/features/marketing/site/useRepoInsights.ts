@@ -80,7 +80,7 @@ const compact = (n: number | undefined): string => {
   return n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
 };
 
-const timeAgo = (iso?: string): string => {
+export const timeAgo = (iso?: string): string => {
   if (!iso) return '';
   const seconds = (Date.now() - new Date(iso).getTime()) / 1000;
   if (seconds < 90) return 'just now';
