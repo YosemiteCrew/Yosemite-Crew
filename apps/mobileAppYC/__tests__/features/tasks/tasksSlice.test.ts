@@ -265,6 +265,9 @@ describe('features/tasks/taskSlice', () => {
       const action = {
         type: fulfilledType,
         payload: updatedTask, // Full task object
+        // THIS-scoped: the reducer patches the single row the server
+        // returned, keyed off the thunk's own arg rather than the payload.
+        meta: {arg: {taskId: updatedTask.id, updates: {}, scope: 'THIS'}},
       };
       const nextState = tasksReducer(startState, action);
 
@@ -285,6 +288,7 @@ describe('features/tasks/taskSlice', () => {
           createdAt: '2023-01-01T00:00:00.000Z',
           updatedAt: '2023-01-01T00:00:00.000Z',
         }, // Full task object with non-existent ID
+        meta: {arg: {taskId: '999', updates: {}, scope: 'THIS'}},
       };
       const nextState = tasksReducer(startState, action);
       expect(nextState.items).toEqual(startState.items);
@@ -319,11 +323,12 @@ describe('features/tasks/taskSlice', () => {
     });
 
     it('should update the task with cancelled status on fulfilled', () => {
-      // Delete returns the cancelled task and updates it in place
-      const cancelledTask = {...startState.items[0], status: 'CANCELLED'};
+      // The cancel endpoint returns no body (204); the reducer marks the
+      // row cancelled locally using the thunk's own arg, not the payload.
       const action = {
         type: fulfilledType,
-        payload: cancelledTask, // Full task object that was cancelled
+        payload: undefined,
+        meta: {arg: {taskId: startState.items[0].id, scope: 'THIS'}},
       };
       const nextState = tasksReducer(startState, action);
 
