@@ -4,7 +4,8 @@ import Image from 'next/image';
 import clsx from 'clsx';
 import { IoAddCircleOutline, IoEye } from 'react-icons/io5';
 import InventoryCard from '@/app/ui/cards/InventoryCard';
-import PaginatedGridTable, { GridHeaderCell } from '@/app/ui/tables/PaginatedGridTable';
+import GenericTable, { type Column } from '@/app/ui/tables/GenericTable/GenericTable';
+import PaginatedCardList from '@/app/ui/tables/PaginatedCardList';
 import { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
 import {
   displayStatusLabel,
@@ -14,7 +15,7 @@ import {
   getAvailableStock,
   getMarginPercent,
 } from '@/app/features/inventory/pages/Inventory/utils';
-import { getInventoryStatusStyle } from '@/app/ui/tables/tableUtils';
+import { getInventoryStatusTone } from '@/app/constants/status';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { getSafeOrgImageUrl } from '@/app/lib/urls';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
@@ -31,25 +32,6 @@ type InventoryTableProps = {
 };
 
 const PAGE_SIZE = 8;
-
-// Design column track (item · category · health · abc · expiry · on-hand ·
-// available · unit cost · selling · margin · location · actions).
-const GRID_COLUMNS = '1.7fr 1fr 110px 46px 96px 84px 84px 84px 84px 74px 96px 96px';
-
-const HEADER_CELLS: GridHeaderCell[] = [
-  { label: 'Item' },
-  { label: 'Category' },
-  { label: 'Stock health' },
-  { label: 'ABC' },
-  { label: 'Expiry' },
-  { label: 'On hand', align: 'right' },
-  { label: 'Available', align: 'right' },
-  { label: 'Unit cost', align: 'right' },
-  { label: 'Selling', align: 'right' },
-  { label: 'Margin', align: 'right' },
-  { label: 'Location', className: 'pl-3' },
-  { label: '' },
-];
 
 const displayValue = (val?: string | number | null) => {
   if (val === undefined || val === null) return '—';
@@ -85,7 +67,7 @@ const getInventoryImageSrc = (item: InventoryItem) => {
 };
 
 const InventoryStatusPill = ({ label }: { label: string }) => (
-  <SharedStatusPill label={label} style={getInventoryStatusStyle(label)} />
+  <SharedStatusPill label={label} tone={getInventoryStatusTone(label)} />
 );
 
 const toCellTitle = (value?: string | null): string | undefined => {
@@ -105,10 +87,6 @@ const ProductCell = ({ item }: { item: InventoryItem }) => {
         )}
       </div>
       <div className="min-w-0">
-        {/* The item track is 1.7fr of a 1320px grid, so a long product name
-            clips with no way to read the rest — there is no detail hover on this
-            cell. The finance table's equivalent name cell already carries a
-            title; this one did not. */}
         <div
           className="truncate text-[13px] font-bold leading-tight text-[var(--ink)]"
           title={item.basicInfo.name}
@@ -121,108 +99,184 @@ const ProductCell = ({ item }: { item: InventoryItem }) => {
   );
 };
 
-const InventoryRow = ({
+const RowActions = ({
   item,
   onView,
   onRestock,
+  low,
 }: {
   item: InventoryItem;
   onView: (item: InventoryItem) => void;
   onRestock?: (item: InventoryItem) => void;
-}) => {
-  const statusLabel = displayStatusLabel(item);
-  const statusKey = statusLabel.toLowerCase();
-  const expired = statusKey === 'expired';
-  const low = statusKey === 'low stock';
-  const available = getAvailableStock(item);
-  const margin = getMarginPercent(item);
-  const expiryLabel = formatDisplayDate(item.batch.expiryDate) || '—';
-  const unit = getUnitAbbrev(item);
+  low: boolean;
+}) => (
+  <div className="flex items-center justify-center gap-1.5">
+    {onRestock && (
+      <GlassTooltip content="Restock" side="top">
+        <button
+          type="button"
+          onClick={() => onRestock(item)}
+          aria-label={`Restock ${item.basicInfo.name}`}
+          className={clsx(
+            'flex size-[30px] items-center justify-center rounded-full! transition-colors',
+            low
+              ? 'bg-[var(--nav-active-bg)] text-[var(--nav-active)]'
+              : 'grid-row-action border text-text-secondary hover:bg-card-hover'
+          )}
+        >
+          <IoAddCircleOutline size={15} />
+        </button>
+      </GlassTooltip>
+    )}
+    <GlassTooltip content="View details" side="top">
+      <button
+        type="button"
+        onClick={() => onView(item)}
+        aria-label={`View ${item.basicInfo.name}`}
+        className="grid-row-action flex size-[30px] items-center justify-center rounded-full! border text-text-secondary transition-colors hover:bg-card-hover"
+      >
+        <IoEye size={14} />
+      </button>
+    </GlassTooltip>
+  </div>
+);
 
-  return (
-    <div
-      className="grid items-center gap-2.5 border-t border-card-border px-5 py-3 text-[13px] text-text-primary transition-colors hover:bg-[var(--surface-soft)]"
-      style={{
-        gridTemplateColumns: GRID_COLUMNS,
-        backgroundColor: expired ? 'var(--danger-bg-faint)' : undefined,
-      }}
-    >
-      <ProductCell item={item} />
+const buildColumns = (
+  onView: (item: InventoryItem) => void,
+  onRestock?: (item: InventoryItem) => void
+): Column<InventoryItem>[] => [
+  {
+    label: 'Item',
+    key: 'item',
+    width: '300px',
+    render: (item) => <ProductCell item={item} />,
+  },
+  {
+    label: 'Category',
+    key: 'category',
+    width: '170px',
+    render: (item) => (
       <div className="truncate text-[12.5px] text-text-secondary">
         {item.basicInfo.category || '—'}
         {item.basicInfo.subCategory ? ` / ${item.basicInfo.subCategory}` : ''}
       </div>
-      <div>
-        <InventoryStatusPill label={statusLabel} />
-      </div>
+    ),
+  },
+  {
+    label: 'Stock health',
+    key: 'stockHealth',
+    width: '128px',
+    render: (item) => <InventoryStatusPill label={displayStatusLabel(item)} />,
+  },
+  {
+    label: 'ABC',
+    key: 'abc',
+    width: '52px',
+    render: (item) => (
       <div className="font-bold">{(item.stock.abcClass || '').replace('Class ', '') || '—'}</div>
-      <div
-        className={`text-[12.5px] tabular-nums ${
-          expired ? 'cell-ink-danger font-bold' : 'cell-ink-success'
-        }`}
-      >
-        {expiryLabel}
-      </div>
-      <div className="text-right tabular-nums">
-        {displayValue(item.stock.current || '') === '—' ? '—' : `${item.stock.current} ${unit}`}
-      </div>
-      <div className={`text-right tabular-nums ${low ? 'cell-ink-warn font-bold' : ''}`}>
-        {available === undefined ? '—' : `${available} ${unit}`}
-      </div>
+    ),
+  },
+  {
+    label: 'Expiry',
+    key: 'expiry',
+    width: '104px',
+    render: (item) => {
+      const expired = displayStatusLabel(item).toLowerCase() === 'expired';
+      return (
+        <div
+          className={`text-[12.5px] tabular-nums ${expired ? 'cell-ink-danger font-bold' : 'cell-ink-success'}`}
+        >
+          {formatDisplayDate(item.batch.expiryDate) || '—'}
+        </div>
+      );
+    },
+  },
+  {
+    label: 'On hand',
+    key: 'onHand',
+    width: '88px',
+    render: (item) => {
+      const unit = getUnitAbbrev(item);
+      return (
+        <div className="text-right tabular-nums">
+          {displayValue(item.stock.current || '') === '—' ? '—' : `${item.stock.current} ${unit}`}
+        </div>
+      );
+    },
+  },
+  {
+    label: 'Available',
+    key: 'available',
+    width: '88px',
+    render: (item) => {
+      const low = displayStatusLabel(item).toLowerCase() === 'low stock';
+      const available = getAvailableStock(item);
+      const unit = getUnitAbbrev(item);
+      return (
+        <div className={`text-right tabular-nums ${low ? 'cell-ink-warn font-bold' : ''}`}>
+          {available === undefined ? '—' : `${available} ${unit}`}
+        </div>
+      );
+    },
+  },
+  {
+    label: 'Unit cost',
+    key: 'unitCost',
+    width: '88px',
+    render: (item) => (
       <div className="text-right tabular-nums">
         {formatCurrencyValue(item.pricing.purchaseCost, item.currency)}
       </div>
+    ),
+  },
+  {
+    label: 'Selling',
+    key: 'selling',
+    width: '88px',
+    render: (item) => (
       <div className="text-right tabular-nums">
         {formatCurrencyValue(item.pricing.selling, item.currency)}
       </div>
+    ),
+  },
+  {
+    label: 'Margin',
+    key: 'margin',
+    width: '78px',
+    render: (item) => {
+      const margin = getMarginPercent(item);
+      return (
+        <div
+          className={`text-right tabular-nums ${margin === undefined ? 'text-text-tertiary' : 'cell-ink-success font-bold'}`}
+        >
+          {formatPercentValue(margin)}
+        </div>
+      );
+    },
+  },
+  {
+    label: 'Location',
+    key: 'location',
+    width: '100px',
+    render: (item) => (
       <div
-        className={`text-right tabular-nums ${
-          margin === undefined ? 'text-text-tertiary' : 'cell-ink-success font-bold'
-        }`}
-      >
-        {formatPercentValue(margin)}
-      </div>
-      {/* Location is a fixed 96px track, so "Cold storage, shelf B2" clipped
-          long before it was readable and, with no title, was unreachable
-          without opening the item. No title on the em-dash placeholder. */}
-      <div
-        className="cell-ink-link truncate pl-3 text-[12.5px]"
+        className="cell-ink-link truncate text-[12.5px]"
         title={toCellTitle(item.stock.stockLocation)}
       >
         {displayValue(item.stock.stockLocation)}
       </div>
-      <div className="flex items-center justify-center gap-1.5">
-        {onRestock && (
-          <GlassTooltip content="Restock" side="top">
-            <button
-              type="button"
-              onClick={() => onRestock(item)}
-              aria-label={`Restock ${item.basicInfo.name}`}
-              className={clsx(
-                'flex size-[30px] items-center justify-center rounded-full! transition-colors',
-                low
-                  ? 'bg-[var(--nav-active-bg)] text-[var(--nav-active)]'
-                  : 'grid-row-action border text-text-secondary hover:bg-card-hover'
-              )}
-            >
-              <IoAddCircleOutline size={15} />
-            </button>
-          </GlassTooltip>
-        )}
-        <GlassTooltip content="View details" side="top">
-          <button
-            type="button"
-            onClick={() => onView(item)}
-            aria-label={`View ${item.basicInfo.name}`}
-            className="grid-row-action flex size-[30px] items-center justify-center rounded-full! border text-text-secondary transition-colors hover:bg-card-hover"
-          >
-            <IoEye size={14} />
-          </button>
-        </GlassTooltip>
-      </div>
-    </div>
-  );
-};
+    ),
+  },
+  {
+    label: '',
+    key: 'actions',
+    width: '96px',
+    render: (item) => {
+      const low = displayStatusLabel(item).toLowerCase() === 'low stock';
+      return <RowActions item={item} onView={onView} onRestock={onRestock} low={low} />;
+    },
+  },
+];
 
 const InventoryTable = ({
   filteredList,
@@ -240,30 +294,38 @@ const InventoryTable = ({
     setViewInventory(true);
   };
 
+  const columns = buildColumns(handleViewInventory, onRestock);
+
   return (
-    <PaginatedGridTable
-      rows={filteredList}
-      pageSize={PAGE_SIZE}
-      gridColumns={GRID_COLUMNS}
-      minWidthPx={1320}
-      headerCells={HEADER_CELLS}
-      itemNoun="items"
-      renderRow={(item) => (
-        <InventoryRow
-          key={item.id ?? item.basicInfo.name}
-          item={item}
-          onView={handleViewInventory}
-          onRestock={onRestock}
+    <div className="table-wrapper inventory-scroll-x h-full min-h-0 overflow-hidden">
+      <div className="inventory-table-list h-full min-h-0 flex-1">
+        <GenericTable
+          data={filteredList}
+          columns={columns}
+          pagination
+          pageSize={PAGE_SIZE}
+          tableClassName="inventory-table-fixed"
+          itemNoun="items"
+          rowClassName={(item) =>
+            displayStatusLabel(item).toLowerCase() === 'expired' ? 'inventory-row-expired' : ''
+          }
         />
-      )}
-      renderCard={(item) => (
-        <InventoryCard
-          key={item.id ?? item.basicInfo.name}
-          item={item}
-          handleViewInventory={handleViewInventory}
-        />
-      )}
-    />
+      </div>
+      <PaginatedCardList
+        items={filteredList}
+        pageSize={PAGE_SIZE}
+        className="inventory-card-list"
+        listClassName="pb-2 sm:pb-3"
+        itemNoun="items"
+        renderCard={(item) => (
+          <InventoryCard
+            key={item.id ?? item.basicInfo.name}
+            item={item}
+            handleViewInventory={handleViewInventory}
+          />
+        )}
+      />
+    </div>
   );
 };
 
