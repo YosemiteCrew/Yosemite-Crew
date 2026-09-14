@@ -151,6 +151,11 @@ describe('Inventory page inner components', () => {
         setFilterOpen={setFilterOpen}
         setFilters={setFilters}
         setSortMode={setSortMode}
+        lowStockCount={0}
+        expiringSoonCount={0}
+        isNeedsRestockActive={false}
+        isExpiringSoonActive={false}
+        onToggleQuickFilter={jest.fn()}
       />
     );
 
@@ -204,6 +209,11 @@ describe('Inventory page inner components', () => {
       dispensaryStatusFilter: 'ALL' as const,
       setDispensaryStatusFilter: jest.fn(),
       setDispensarySearch: jest.fn(),
+      lowStockCount: 0,
+      expiringSoonCount: 0,
+      isNeedsRestockActive: false,
+      isExpiringSoonActive: false,
+      onToggleQuickFilter: jest.fn(),
     };
 
     const { rerender } = render(<ActiveFilterBar activeView="inventory" {...sharedProps} />);

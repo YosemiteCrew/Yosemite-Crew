@@ -60,7 +60,7 @@ import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimar
 import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import DispensaryDetailModal from '@/app/features/inventory/components/DispensaryDetailModal';
 import InventoryPhoneCatalog from '@/app/features/inventory/pages/Inventory/InventoryPhoneCatalog';
-import InventoryAlertsPanel from '@/app/features/inventory/components/InventoryAlerts/InventoryAlertsPanel';
+import FilterChip from '@/app/ui/filters/FilterChip';
 import type { InventoryTurnoverFilterState } from '@/app/ui/filters/InventoryTurnoverFilters';
 import { StatusOption, status } from '@/app/features/companions/pages/Companions/types';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -117,12 +117,28 @@ export const compareInventoryRows = (
 export const getSupplierName = (item: InventoryItem) =>
   (item.vendor?.supplierName || item.vendor?.vendor || '').trim();
 
+// NEEDS_RESTOCK is additive to the Filter modal's own LOW_STOCK/EXPIRED/
+// OUT_OF_STOCK radio (raw equality, unchanged): it is the quick-filter chips'
+// value, matching the same LOW_STOCK-or-OUT_OF_STOCK set the header count
+// (isBelowReorderPoint) already uses, so the chip's count and the rows it
+// filters to always agree — plain equality against 'LOW_STOCK' alone would
+// under-count relative to that header the same way the alerts panel used to
+// (see isBelowReorderPoint's own comment).
+const matchesStockHealthFilter = (
+  stockHealthFilter: string,
+  stockHealthKey: string,
+  item: InventoryItem
+): boolean => {
+  if (stockHealthFilter === 'ALL') return true;
+  if (stockHealthFilter === 'NEEDS_RESTOCK') return isBelowReorderPoint(item);
+  return stockHealthKey === stockHealthFilter;
+};
+
 export const filterAndSortInventory = (
   inventory: InventoryItem[],
   filters: InventoryFiltersState,
   debouncedSearch: string,
-  sortMode: SortMode,
-  alertedItemIds: readonly string[] | null = null
+  sortMode: SortMode
 ): InventoryItem[] => {
   const normalizedSearch = debouncedSearch.trim().toLowerCase();
   const visibilityFilter = (filters.visibility ?? 'ALL').toUpperCase();
@@ -137,7 +153,6 @@ export const filterAndSortInventory = (
   const selectedLocationSet = new Set(selectedLocations);
   const selectedAbcClassSet = new Set(selectedAbcClasses);
   const selectedSupplierSet = new Set(selectedSuppliers);
-  const alertedItemIdSet = alertedItemIds === null ? null : new Set(alertedItemIds);
   const nextFiltered = inventory.filter((item) => {
     const statusKey = (item.status || item.basicInfo.status || '').toUpperCase();
     // Use the same effective (explicit-or-derived) key as the header counts and the
@@ -156,9 +171,8 @@ export const filterAndSortInventory = (
       selectedAbcClasses.length === 0 || selectedAbcClassSet.has(item.stock?.abcClass ?? '');
     const supplierMatch =
       selectedSuppliers.length === 0 || selectedSupplierSet.has(getSupplierName(item));
-    const alertMatch = alertedItemIdSet === null || alertedItemIdSet.has(item.id ?? '');
     const visibilityMatch = visibilityFilter === 'ALL' || statusKey === visibilityFilter;
-    const stockHealthMatch = stockHealthFilter === 'ALL' || stockHealthKey === stockHealthFilter;
+    const stockHealthMatch = matchesStockHealthFilter(stockHealthFilter, stockHealthKey, item);
     const searchMatch =
       normalizedSearch === '' ||
       item.basicInfo.name.toLowerCase().includes(normalizedSearch) ||
@@ -172,7 +186,6 @@ export const filterAndSortInventory = (
       locationMatch &&
       abcClassMatch &&
       supplierMatch &&
-      alertMatch &&
       visibilityMatch &&
       stockHealthMatch &&
       searchMatch
@@ -289,6 +302,11 @@ type InventoryFilterBarProps = {
   setFilterOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setFilters: React.Dispatch<React.SetStateAction<InventoryFiltersState>>;
   setSortMode: React.Dispatch<React.SetStateAction<SortMode>>;
+  lowStockCount: number;
+  expiringSoonCount: number;
+  isNeedsRestockActive: boolean;
+  isExpiringSoonActive: boolean;
+  onToggleQuickFilter: (value: 'NEEDS_RESTOCK' | 'EXPIRING_SOON') => void;
 };
 
 /* The shared filter-chip geometry: 32px tall, 13px padding, 12.5px type, the
@@ -313,6 +331,11 @@ export const InventoryFilterBar = ({
   setFilterOpen,
   setFilters,
   setSortMode,
+  lowStockCount,
+  expiringSoonCount,
+  isNeedsRestockActive,
+  isExpiringSoonActive,
+  onToggleQuickFilter,
 }: InventoryFilterBarProps) => {
   const [sortOpen, setSortOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -357,10 +380,13 @@ export const InventoryFilterBar = ({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Category and Low-stock quick pills were removed here: both are covered by
-          the Filter dropdown (category + stock-health), leaving only Active/Hidden. */}
+      {/* Category quick pills stay out of this row - covered by the Filter dropdown
+          (category + stock-health). Low stock / Expiring soon reappear here as
+          count-carrying FilterChips: real toggles into the same table below,
+          replacing the two separate summary cards that used to preview the same
+          rows above it. */}
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {(['ACTIVE', 'HIDDEN'] as const).map((vis) => {
             const label = getVisibilityLabel(vis);
             const active = filters.visibility === vis;
@@ -375,6 +401,21 @@ export const InventoryFilterBar = ({
               </button>
             );
           })}
+          <span className="h-5 w-px bg-[var(--hairline)]" aria-hidden="true" />
+          <FilterChip
+            label="Low stock"
+            tone="danger"
+            active={isNeedsRestockActive}
+            count={lowStockCount}
+            onClick={() => onToggleQuickFilter('NEEDS_RESTOCK')}
+          />
+          <FilterChip
+            label="Expiring soon"
+            tone="danger"
+            active={isExpiringSoonActive}
+            count={expiringSoonCount}
+            onClick={() => onToggleQuickFilter('EXPIRING_SOON')}
+          />
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -555,6 +596,11 @@ type ActiveFilterBarProps = {
   dispensaryStatusFilter: DispensaryStatus | 'ALL';
   setDispensaryStatusFilter: React.Dispatch<React.SetStateAction<DispensaryStatus | 'ALL'>>;
   setDispensarySearch: React.Dispatch<React.SetStateAction<string>>;
+  lowStockCount: number;
+  expiringSoonCount: number;
+  isNeedsRestockActive: boolean;
+  isExpiringSoonActive: boolean;
+  onToggleQuickFilter: (value: 'NEEDS_RESTOCK' | 'EXPIRING_SOON') => void;
 };
 
 export const ActiveFilterBar = (props: ActiveFilterBarProps) => {
@@ -567,6 +613,11 @@ export const ActiveFilterBar = (props: ActiveFilterBarProps) => {
         setFilterOpen={props.setFilterOpen}
         setFilters={props.setFilters}
         setSortMode={props.setSortMode}
+        lowStockCount={props.lowStockCount}
+        expiringSoonCount={props.expiringSoonCount}
+        isNeedsRestockActive={props.isNeedsRestockActive}
+        isExpiringSoonActive={props.isExpiringSoonActive}
+        onToggleQuickFilter={props.onToggleQuickFilter}
       />
     );
   }
@@ -776,11 +827,14 @@ const useInventoryContent = () => {
   });
 
   const [filters, setFilters] = useState<InventoryFiltersState>(defaultFilters);
-  const [alertedItemIds, setAlertedItemIds] = useState<string[] | null>(null);
   const [dispensaryRecords, setDispensaryRecords] = useState<DispensaryRecord[]>([]);
 
+  // A NEEDS_RESTOCK/EXPIRING_SOON quick filter carried into a switched-to
+  // organisation's completely different catalog would read as "no results" for
+  // the wrong reason - only the stock-health quick filter resets, same narrow
+  // scope as the alert-selection reset this replaced.
   useOnValueChange(primaryOrgId, () => {
-    setAlertedItemIds(null);
+    setFilters((prev) => ({ ...prev, status: 'ALL' }));
   });
 
   // Pure fetch (null = leave current state alone) so the refresh effect can apply
@@ -941,8 +995,8 @@ const useInventoryContent = () => {
   });
 
   const filteredInventory = useMemo(
-    () => filterAndSortInventory(inventory, filters, debouncedSearch, sortMode, alertedItemIds),
-    [inventory, filters, debouncedSearch, sortMode, alertedItemIds]
+    () => filterAndSortInventory(inventory, filters, debouncedSearch, sortMode),
+    [inventory, filters, debouncedSearch, sortMode]
   );
 
   useOnValueChange(filteredInventory, () => {
@@ -1084,22 +1138,8 @@ const useInventoryContent = () => {
     setViewInventory(true);
   }, []);
 
-  const showAlertedInventory = useCallback((itemIds: string[]) => {
-    setAlertedItemIds(Array.from(new Set(itemIds.filter(Boolean))));
-    setFilters({
-      ...defaultFilters,
-      visibility: 'ALL',
-      categories: [],
-      subCategories: [],
-      locations: [],
-      abcClasses: [],
-      suppliers: [],
-    });
-  }, []);
-
   const updateFilters = useCallback<React.Dispatch<React.SetStateAction<InventoryFiltersState>>>(
     (next) => {
-      setAlertedItemIds(null);
       setFilters(next);
     },
     []
@@ -1216,6 +1256,25 @@ const useInventoryContent = () => {
         .length,
     [visibilityScopedInventory]
   );
+  // Distinct from expiredCount: a batch inside its expiry-warning window but not
+  // yet past due. The server already annotates this on fetch (see useInventory's
+  // expiringWithinDays request, "keep the catalogue's EXPIRING_SOON state in step
+  // with the alert panel's 30-day preview"), so effectiveStockHealthKey already
+  // reads it correctly off the same `inventory` array the table renders from.
+  const expiringSoonCount = useMemo(
+    () =>
+      visibilityScopedInventory.filter((item) => effectiveStockHealthKey(item) === 'EXPIRING_SOON')
+        .length,
+    [visibilityScopedInventory]
+  );
+  const isNeedsRestockActive = filters.status === 'NEEDS_RESTOCK';
+  const isExpiringSoonActive = filters.status === 'EXPIRING_SOON';
+  const toggleQuickStatusFilter = useCallback(
+    (value: 'NEEDS_RESTOCK' | 'EXPIRING_SOON') => {
+      updateFilters((prev) => ({ ...prev, status: prev.status === value ? 'ALL' : value }));
+    },
+    [updateFilters]
+  );
 
   const getTitleCount = () => {
     if (activeView === 'turnover') return filteredDispensaryRecords.length;
@@ -1322,20 +1381,13 @@ const useInventoryContent = () => {
                 dispensaryStatusFilter={dispensaryStatusFilter}
                 setDispensaryStatusFilter={setDispensaryStatusFilter}
                 setDispensarySearch={setDispensarySearch}
+                lowStockCount={lowStockCount}
+                expiringSoonCount={expiringSoonCount}
+                isNeedsRestockActive={isNeedsRestockActive}
+                isExpiringSoonActive={isExpiringSoonActive}
+                onToggleQuickFilter={toggleQuickStatusFilter}
               />
             </div>
-
-            {activeView === 'inventory' && (
-              <section aria-label="Inventory alerts" className="w-full shrink-0">
-                <InventoryAlertsPanel
-                  organisationId={primaryOrgId ?? undefined}
-                  onViewLowStock={(items) => showAlertedInventory(items.map((item) => item.id))}
-                  onViewExpiring={(batches) =>
-                    showAlertedInventory(batches.map((batch) => batch.itemId))
-                  }
-                />
-              </section>
-            )}
 
             {loadingList && activeView === 'inventory' && (
               <div className="text-grey-noti text-sm font-satoshi">Loading inventory…</div>

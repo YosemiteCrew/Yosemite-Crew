@@ -97,6 +97,33 @@ export const getAppointmentStatusTone = (status?: string | null): StatusTone => 
   }
 };
 
+/** Mirrors getStatusBadgeStyle in features/inventory/pages/Inventory/utils.ts -
+ * same mapping, tone path instead of an explicit style object. Kept in sync by
+ * hand since the two consumers (InventoryCard's phone row, InventoryTable's
+ * desktop row) moved to the tone path at different times. */
+export const getInventoryStatusTone = (status?: string | null): StatusTone => {
+  const key = String(status ?? '')
+    .trim()
+    .toLowerCase();
+  switch (key) {
+    case 'low stock':
+      return 'warning';
+    case 'overstocked':
+    case 'expiring soon':
+      return 'info';
+    case 'expired':
+      return 'danger';
+    case 'healthy':
+    case 'active':
+    case 'in stock':
+      return 'success';
+    case 'out of stock':
+    case 'hidden':
+    default:
+      return 'neutral';
+  }
+};
+
 /**
  * Builds a StatusLabel whose colour tokens all derive from one CSS variable
  * prefix (`--<prefix>-bg` / `--<prefix>-text` / `--<prefix>-border`).
