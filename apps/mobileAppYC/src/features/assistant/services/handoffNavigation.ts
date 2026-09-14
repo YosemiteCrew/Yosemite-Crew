@@ -6,6 +6,7 @@
  * Siri or an Android shortcut, which arrive as the identical URL.
  */
 import type {TabParamList} from '@/navigation/types';
+import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 import {trimEndWhile} from '../utils/trimEdges';
 
 export interface HandoffTarget {
@@ -84,6 +85,23 @@ export const parseAssistantLink = (
 };
 
 /**
+ * The add-task form takes a LOCAL calendar day, not a timestamp.
+ *
+ * `when` is `toISOString()` output, so its first ten characters are the UTC
+ * day. Sliced, "tonight" said in Los Angeles (21:00, 04:00Z the next morning)
+ * opened the form on tomorrow. A value that is already date-only is kept.
+ */
+const localDay = (when: string): string | undefined => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(when)) {
+    return when;
+  }
+  const parsed = new Date(when);
+  return Number.isNaN(parsed.getTime())
+    ? undefined
+    : formatDateToISODate(parsed);
+};
+
+/**
  * Maps a link to a target.
  *
  * Unknown paths return null so an unrecognised link lands the user nowhere
@@ -102,8 +120,7 @@ export const resolveHandoffTarget = (link: string): HandoffTarget | null => {
       tab: 'Tasks',
       screen: 'AddTask',
       params: {
-        // The add-task form takes a date, not a timestamp.
-        prefillDate: params.when ? params.when.slice(0, 10) : undefined,
+        prefillDate: params.when ? localDay(params.when) : undefined,
       },
     };
   }
