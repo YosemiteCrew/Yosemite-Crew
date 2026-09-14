@@ -13,6 +13,7 @@ import {
   TaskServiceError,
   type CompleteTaskInput,
 } from "../../../src/services/task.service";
+import { AuthUserMobileService } from "../../../src/services/authUserMobile.service";
 
 jest.mock("../../../src/services/task.service", () => {
   const actual = jest.requireActual(
@@ -31,7 +32,10 @@ jest.mock("../../../src/services/task.service", () => {
   };
 });
 
+jest.mock("../../../src/services/authUserMobile.service");
+
 const mockedTaskService = jest.mocked(TaskService);
+const mockedAuthUserMobileService = jest.mocked(AuthUserMobileService);
 
 describe("TaskController", () => {
   type TestRequest = Partial<Request> & {
@@ -552,6 +556,115 @@ describe("TaskController", () => {
         "org-1",
       );
       expect(statusMock).toHaveBeenCalledWith(204);
+    });
+  });
+
+  describe("updateTask (mobile)", () => {
+    beforeEach(() => {
+      req.userId = "provider-user-id";
+      req.body = { name: "new" } as any;
+    });
+
+    it("rejects when the provider id has no linked parent account", async () => {
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue(
+        null as never,
+      );
+
+      await TaskController.updateTask(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Parent account not found",
+      });
+      expect(mockedTaskService.updateTask).not.toHaveBeenCalled();
+    });
+
+    it("passes the resolved parentId and selected scope through to the service", async () => {
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "parent-1",
+      } as never);
+      req.query = { scope: "ALL" } as any;
+      mockedTaskService.updateTask.mockResolvedValue({ id: "task-1" } as any);
+
+      await TaskController.updateTask(req as Request, res);
+
+      expect(mockedTaskService.updateTask).toHaveBeenCalledWith(
+        "task-1",
+        { name: "new" },
+        "parent-1",
+        "ALL",
+      );
+      expect(jsonMock).toHaveBeenCalledWith({ id: "task-1" });
+    });
+
+    it("defaults to the THIS scope when the query omits it", async () => {
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "parent-1",
+      } as never);
+      req.query = {} as never;
+      mockedTaskService.updateTask.mockResolvedValue({ id: "task-1" } as any);
+
+      await TaskController.updateTask(req as Request, res);
+
+      expect(mockedTaskService.updateTask).toHaveBeenCalledWith(
+        "task-1",
+        { name: "new" },
+        "parent-1",
+        "THIS",
+      );
+    });
+  });
+
+  describe("deleteTask (mobile)", () => {
+    beforeEach(() => {
+      req.userId = "provider-user-id";
+    });
+
+    it("rejects when the provider id has no linked parent account", async () => {
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue(
+        null as never,
+      );
+
+      await TaskController.deleteTask(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Parent account not found",
+      });
+      expect(mockedTaskService.deleteTask).not.toHaveBeenCalled();
+    });
+
+    it("invokes deleteTask with the resolved parentId and selected scope", async () => {
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "parent-1",
+      } as never);
+      req.query = { scope: "ALL" } as any;
+      mockedTaskService.deleteTask.mockResolvedValue(undefined as any);
+
+      await TaskController.deleteTask(req as Request, res);
+
+      expect(mockedTaskService.deleteTask).toHaveBeenCalledWith(
+        "task-1",
+        "parent-1",
+        "ALL",
+      );
+      expect(statusMock).toHaveBeenCalledWith(204);
+    });
+
+    it("defaults a delete to the THIS scope when the query omits it", async () => {
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "parent-1",
+      } as never);
+      req.query = {} as never;
+      mockedTaskService.deleteTask.mockResolvedValue(undefined as any);
+
+      await TaskController.deleteTask(req as Request, res);
+
+      expect(mockedTaskService.deleteTask).toHaveBeenCalledWith(
+        "task-1",
+        "parent-1",
+        "THIS",
+      );
     });
   });
 });
