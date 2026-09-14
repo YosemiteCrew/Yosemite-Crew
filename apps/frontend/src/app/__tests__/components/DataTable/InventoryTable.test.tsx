@@ -95,6 +95,16 @@ const tableBranch = (container: HTMLElement) =>
 const cardBranch = (container: HTMLElement) =>
   within(container.querySelector('.inventory-card-list') as HTMLElement);
 
+// TableFooter's count line is "Showing " + <span>{end} of {total}</span> + " items"
+// - three text nodes around a nested element, not one string - so the default
+// getByText string matcher never sees the whole sentence. A function matcher
+// checking the element's own full textContent is RTL's own documented fix.
+const findByShowingText = (scope: ReturnType<typeof within>, expected: string) =>
+  scope.getByText(
+    (_content: string, el: Element | null) =>
+      el?.textContent?.replace(/\s+/g, ' ').trim() === expected
+  );
+
 describe('InventoryTable', () => {
   const item = {
     id: 'item-1',
@@ -159,7 +169,7 @@ describe('InventoryTable', () => {
     expect(cards).toHaveLength(1);
   });
 
-  it('renders the footer summary', () => {
+  it('renders no footer when everything fits on one page', () => {
     const { container } = render(
       <InventoryTable
         filteredList={[item]}
@@ -168,9 +178,10 @@ describe('InventoryTable', () => {
       />
     );
 
-    expect(tableBranch(container).getByText('Showing 1–1 of 1 items')).toBeInTheDocument();
-    // The card branch carries its own pager: below 1023 it is the only visible branch.
-    expect(cardBranch(container).getByText('Showing 1–1 of 1 items')).toBeInTheDocument();
+    // GenericTable and PaginatedCardList both suppress their footer when there
+    // is nothing to page through - a single item is one page in each branch.
+    expect(tableBranch(container).queryByText(/Showing/)).not.toBeInTheDocument();
+    expect(cardBranch(container).queryByText(/Showing/)).not.toBeInTheDocument();
   });
 
   it('handles view action', () => {
@@ -576,7 +587,7 @@ describe('InventoryTable', () => {
     expect(screen.getAllByText('NoId').length).toBeGreaterThan(0);
   });
 
-  it('renders the empty states for the table, footer, and card list', () => {
+  it('renders the empty states for the table and card list', () => {
     render(
       <InventoryTable
         filteredList={[]}
@@ -586,14 +597,15 @@ describe('InventoryTable', () => {
     );
 
     /* Two nodes, not "at least one": the table branch and the card branch are
-       both in the jsdom DOM, and each must carry its own empty state. The
-       footer summary ("No items") is a separate string from the empty state. */
+       both in the jsdom DOM, and each must carry its own empty state. Neither
+       GenericTable nor PaginatedCardList render a pagination footer at all
+       when there is nothing to page through (matches every other GenericTable
+       + PaginatedCardList pairing in the app - Appointments, Tasks, Finance). */
     expect(screen.getAllByText('No items yet')).toHaveLength(2);
     expect(screen.getAllByText('Items appear here as soon as there are any.')).toHaveLength(2);
-    expect(screen.getByText('No items')).toBeInTheDocument();
   });
 
-  it('paginates when there is more than one page of items', () => {
+  it('paginates the desktop table independently of the mobile card list', () => {
     const many = Array.from({ length: 9 }, (_, i) =>
       makeItem({ id: `p${i}`, basicInfo: { name: `Item ${i + 1}` } })
     );
@@ -607,8 +619,11 @@ describe('InventoryTable', () => {
     );
     const pager = () => tableBranch(container);
 
-    expect(pager().getByText('Showing 1–8 of 9 items')).toBeInTheDocument();
+    expect(findByShowingText(pager(), 'Showing 8 of 9 items')).toBeInTheDocument();
     expect(pager().getByLabelText('Page 1')).toHaveAttribute('aria-current', 'page');
+    // The card branch (its own PaginatedCardList, own page state) pages 9 items
+    // at the same 8-per-page size, so it shows the identical first page here.
+    expect(findByShowingText(cardBranch(container), 'Showing 8 of 9 items')).toBeInTheDocument();
 
     const prev = pager().getByRole('button', { name: 'Previous' });
     const next = pager().getByRole('button', { name: 'Next' });
@@ -616,14 +631,16 @@ describe('InventoryTable', () => {
     expect(next).not.toBeDisabled();
 
     fireEvent.click(next);
-    expect(pager().getByText('Showing 9–9 of 9 items')).toBeInTheDocument();
+    expect(findByShowingText(pager(), 'Showing 9 of 9 items')).toBeInTheDocument();
     expect(pager().getByLabelText('Page 2')).toHaveAttribute('aria-current', 'page');
     expect(pager().getByRole('button', { name: 'Next' })).toBeDisabled();
-    // Paging is shared state: the card branch must land on the same short last page.
-    expect(cardBranch(container).getByText('Showing 9–9 of 9 items')).toBeInTheDocument();
+    // GenericTable and PaginatedCardList keep independent page state (the same
+    // pairing Appointments/Tasks use) - advancing the table does not move the
+    // card branch, which is the only visible branch below the 1023px breakpoint.
+    expect(findByShowingText(cardBranch(container), 'Showing 8 of 9 items')).toBeInTheDocument();
 
     fireEvent.click(pager().getByRole('button', { name: 'Previous' }));
-    expect(pager().getByText('Showing 1–8 of 9 items')).toBeInTheDocument();
+    expect(findByShowingText(pager(), 'Showing 8 of 9 items')).toBeInTheDocument();
   });
 
   it('clamps the current page when the list shrinks below it', () => {
@@ -650,6 +667,10 @@ describe('InventoryTable', () => {
       />
     );
 
-    expect(tableBranch(container).getByText('Showing 1–1 of 1 items')).toBeInTheDocument();
+    // The list shrank to one page, so GenericTable clamps back and drops the
+    // footer entirely (nothing left to page through) - the solo row must still
+    // be visible rather than stranded behind the since-vanished page 2.
+    expect(tableBranch(container).getByText('Solo')).toBeInTheDocument();
+    expect(tableBranch(container).queryByText(/Showing/)).not.toBeInTheDocument();
   });
 });
