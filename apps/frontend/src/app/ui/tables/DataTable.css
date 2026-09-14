@@ -71,6 +71,10 @@ span.cell-overflow-count {
   table-layout: fixed;
   min-width: 1238px; /* 160+110+172+152+128+144+108+124+140 */
 }
+.inventory-table-fixed {
+  table-layout: fixed;
+  min-width: 1380px; /* 300+170+128+52+104+88+88+88+88+78+100+96 */
+}
 .invoice-compact-fixed {
   table-layout: fixed;
 }
@@ -84,7 +88,8 @@ span.cell-overflow-count {
 .invoice-table-fixed thead th:nth-child(6),
 .invoice-table-fixed thead th:nth-child(7),
 .invoice-compact-fixed thead th:nth-child(3),
-.inventory-turnover-table-fixed thead th:nth-child(n + 3):nth-child(-n + 8) {
+.inventory-turnover-table-fixed thead th:nth-child(n + 3):nth-child(-n + 8),
+.inventory-table-fixed thead th:nth-child(n + 6):nth-child(-n + 10) {
   text-align: right;
 }
 /* Allow fixed-layout tables to scroll horizontally when the viewport is
@@ -393,4 +398,10 @@ span.cell-overflow-count {
 }
 .appointment-row-emergency > td:first-child {
   box-shadow: inset 3px 0 0 0 var(--danger);
+}
+/* Expired inventory rows get the same faint wash as an emergency appointment
+   row, without the leading accent bar — expiry is a stock-health fact about
+   the row, not an event needing the same first-glance urgency treatment. */
+.inventory-row-expired > td {
+  background: var(--danger-bg-faint);
 }
