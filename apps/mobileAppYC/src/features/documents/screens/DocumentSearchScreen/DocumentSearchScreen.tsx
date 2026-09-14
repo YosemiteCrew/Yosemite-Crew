@@ -29,6 +29,7 @@ import {
   clearSearchResults,
 } from '@/features/documents/documentSlice';
 import {formatLabel} from '@/shared/utils/helpers';
+import {parseISODate} from '@/shared/utils/dateHelpers';
 import {createAllCommonStyles} from '@/shared/utils/screenStyles';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
@@ -38,7 +39,11 @@ type DocumentSearchNavigationProp =
 const RECENT_SEARCH_LIMIT = 6;
 
 const formatMetaDate = (value: string): string => {
-  const date = new Date(value);
+  // issueDate is a YYYY-MM-DD calendar day; `new Date` would read it as UTC
+  // midnight and show the previous day west of UTC.
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? parseISODate(value)
+    : new Date(value);
   if (Number.isNaN(date.getTime())) {
     return '';
   }
