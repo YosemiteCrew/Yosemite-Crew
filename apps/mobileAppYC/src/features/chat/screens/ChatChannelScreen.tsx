@@ -196,9 +196,15 @@ export const ChatChannelScreen: React.FC = () => {
           ? err.message
           : 'Failed to load chat. Please try again.';
 
-      if (err.message?.includes('API key')) {
+      // Lower-cased: the actual thrown/axios strings ("Stream API Key not
+      // configured", "Network Error") don't match the case these checks were
+      // written against, so the tailored messages below never fired and
+      // every failure - including a real connectivity drop - showed the
+      // generic "Failed to load chat" text instead.
+      const lowerMessage = err.message?.toLowerCase() ?? '';
+      if (lowerMessage.includes('api key')) {
         errorMessage = 'Chat is not configured. Please contact support.';
-      } else if (err.message?.includes('network')) {
+      } else if (lowerMessage.includes('network')) {
         errorMessage =
           'Network error. Please check your connection and try again.';
       }

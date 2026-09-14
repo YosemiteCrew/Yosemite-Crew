@@ -1,6 +1,8 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
-import {render, fireEvent} from '@testing-library/react-native';
+import {render, fireEvent, waitFor} from '@testing-library/react-native';
+import {Linking} from 'react-native';
+import {Toast} from 'toastify-react-native';
 import {CustomAttachment} from '@/features/chat/components/CustomAttachment';
 import {useMessageContext} from 'stream-chat-react-native';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
@@ -10,6 +12,10 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 // 1. Mock Hooks
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
+}));
+
+jest.mock('toastify-react-native', () => ({
+  Toast: {success: jest.fn(), error: jest.fn()},
 }));
 
 // 2. Mock Stream Chat
@@ -224,6 +230,62 @@ describe('CustomAttachment', () => {
 
       const {getByText} = render(<CustomAttachment />);
       expect(getByText('File')).toBeTruthy();
+    });
+
+    it('opens the file url when the row is pressed and the url can be opened', async () => {
+      jest.spyOn(Linking, 'canOpenURL').mockResolvedValue(true);
+      jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined as any);
+      mockContext([
+        {type: 'file', asset_url: 'http://file.pdf/doc', title: 'Open.pdf'},
+      ]);
+
+      const {getByText} = render(<CustomAttachment />);
+      fireEvent.press(getByText('Open.pdf'));
+
+      await waitFor(() => {
+        expect(Linking.openURL).toHaveBeenCalledWith('http://file.pdf/doc');
+      });
+      expect(Toast.error).not.toHaveBeenCalled();
+    });
+
+    it('shows an error toast instead of silently doing nothing when the file cannot be opened', async () => {
+      jest.spyOn(Linking, 'canOpenURL').mockResolvedValue(false);
+      const openURLSpy = jest.spyOn(Linking, 'openURL');
+      mockContext([
+        {type: 'file', asset_url: 'bad://url', title: 'Broken.pdf'},
+      ]);
+
+      const {getByText} = render(<CustomAttachment />);
+      fireEvent.press(getByText('Broken.pdf'));
+
+      await waitFor(() => {
+        expect(Toast.error).toHaveBeenCalledWith('Could not open this file');
+      });
+      expect(openURLSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  // 6. Multiple attachments on one message
+  describe('Multiple attachments', () => {
+    it('renders every attachment, not just the first', () => {
+      mockContext([
+        {type: 'image', asset_url: 'http://image1.png'},
+        {type: 'image', asset_url: 'http://image2.png'},
+        {type: 'video', asset_url: 'http://video.mp4', title: 'Second clip'},
+      ]);
+
+      const {getAllByTestId, getByText} = render(<CustomAttachment />);
+
+      expect(getAllByTestId('stream-default-attachment')).toHaveLength(2);
+      expect(getByText('Second clip')).toBeTruthy();
+    });
+
+    it('renders a single attachment unwrapped (no group container) when there is only one', () => {
+      mockContext([{type: 'image', asset_url: 'http://image.png'}]);
+
+      const {getAllByTestId} = render(<CustomAttachment />);
+
+      expect(getAllByTestId('stream-default-attachment')).toHaveLength(1);
     });
   });
 
