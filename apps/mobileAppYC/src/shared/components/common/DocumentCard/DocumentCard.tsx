@@ -6,11 +6,22 @@ import {SwipeableActionCard} from '@/shared/components/common/SwipeableActionCar
 import {useTheme} from '@/hooks';
 import {createCardStyles} from '@/shared/components/common/cardStyles';
 import {formatLabel} from '@/shared/utils/helpers';
+import {parseISODate} from '@/shared/utils/dateHelpers';
 
 const META_SEPARATOR = '  ·  ';
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const toDate = (date: string | Date): Date => {
+  if (typeof date !== 'string') {
+    return date;
+  }
+  // A YYYY-MM-DD issue date is a calendar day. `new Date` reads it as UTC
+  // midnight, which is the previous day west of UTC.
+  return DATE_ONLY_PATTERN.test(date) ? parseISODate(date) : new Date(date);
+};
 
 const formatReadableDate = (date: string | Date): string => {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const dateObj = toDate(date);
   if (Number.isNaN(dateObj.getTime())) {
     return '—';
   }

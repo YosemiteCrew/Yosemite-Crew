@@ -6,6 +6,13 @@ import {
   DocumentCard,
   DocumentCardProps,
 } from '../../../src/shared/components/common/DocumentCard/DocumentCard';
+import {parseISODate} from '@/shared/utils/dateHelpers';
+
+// Real parseISODate by default; one test swaps in a sentinel return value.
+jest.mock('@/shared/utils/dateHelpers', () => {
+  const actual = jest.requireActual('@/shared/utils/dateHelpers');
+  return {...actual, parseISODate: jest.fn(actual.parseISODate)};
+});
 
 // react-native's Pressable is wrapped in React.memo; UNSAFE_getByType must
 // match against the memoized inner component, not the memo wrapper.
@@ -118,6 +125,17 @@ describe('DocumentCard Component', () => {
     expect(
       getByText(/Checkup\s+·\s+Happy Vet Clinic\s+·\s+Dec 25, 2023/),
     ).toBeTruthy();
+  });
+
+  it('reads a date-only issue date as a local calendar day, not a UTC instant', () => {
+    // Jest cannot move the runner west of UTC, so a sentinel proves the card
+    // formats parseISODate's local Date rather than `new Date('YYYY-MM-DD')`.
+    (parseISODate as jest.Mock).mockReturnValueOnce(new Date(2099, 0, 1));
+    const {getByText} = render(
+      <DocumentCard {...defaultProps} issueDate="2023-12-25" />,
+    );
+    expect(parseISODate).toHaveBeenCalledWith('2023-12-25');
+    expect(getByText(/Jan 01, 2099$/)).toBeTruthy();
   });
 
   it('omits the date segment when the date is invalid', () => {
