@@ -18,9 +18,34 @@ import type {
 import {ASSISTANT_ACTION_IDS} from '../actions/catalogue';
 import {getOnDeviceModelModule, platformProviderLabel} from './nativeBridge';
 import {isNotLetter, trimEdgesWhile} from '../utils/trimEdges';
+import {ON_DEVICE_MODEL_TIMEOUT_MS} from '../constants';
 
 const CLASSIFY_MAX_TOKENS = 24;
 const REPHRASE_MAX_TOKENS = 96;
+
+/**
+ * Bounds a native model call so a hung `generate()` cannot leave the
+ * assistant's "thinking" state stuck forever - both `classify` and
+ * `rephrase` are optional enhancements, so a timeout is just another way
+ * the model turns out to be unusable right now.
+ */
+const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error('on-device model timed out')),
+      ms,
+    );
+    promise.then(
+      value => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      error => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 
 const UNAVAILABLE: OnDeviceModelAvailability = {
   available: false,
@@ -102,9 +127,12 @@ export const classify = async (
   }
 
   try {
-    const raw = await module.generate(
-      buildClassifyPrompt(utterance, actionDescriptions),
-      CLASSIFY_MAX_TOKENS,
+    const raw = await withTimeout(
+      module.generate(
+        buildClassifyPrompt(utterance, actionDescriptions),
+        CLASSIFY_MAX_TOKENS,
+      ),
+      ON_DEVICE_MODEL_TIMEOUT_MS,
     );
     const answer = String(raw ?? '').trim();
     // An id is a single token, so anything with whitespace inside it is prose
@@ -150,14 +178,17 @@ export const rephrase = async (sentence: string): Promise<string> => {
   }
 
   try {
-    const raw = await module.generate(
-      [
-        'Rewrite the sentence for a pet owner in at most 25 words.',
-        'Keep every date, number and name exactly as written.',
-        'Add no new facts. Reply with the sentence only.',
-        `Sentence: ${sentence}`,
-      ].join('\n'),
-      REPHRASE_MAX_TOKENS,
+    const raw = await withTimeout(
+      module.generate(
+        [
+          'Rewrite the sentence for a pet owner in at most 25 words.',
+          'Keep every date, number and name exactly as written.',
+          'Add no new facts. Reply with the sentence only.',
+          `Sentence: ${sentence}`,
+        ].join('\n'),
+        REPHRASE_MAX_TOKENS,
+      ),
+      ON_DEVICE_MODEL_TIMEOUT_MS,
     );
     const candidate = String(raw ?? '').trim();
     if (candidate.length === 0 || candidate.length > sentence.length * 2 + 40) {
