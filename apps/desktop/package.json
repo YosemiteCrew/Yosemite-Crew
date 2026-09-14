@@ -42,7 +42,7 @@
     "@types/sql.js": "^1.4.11",
     "@typescript-eslint/eslint-plugin": "^8.68.0",
     "@typescript-eslint/parser": "^8.68.0",
-    "electron": "^43.4.1",
+    "electron": "^44.0.0",
     "electron-builder": "^26.0.12",
     "globals": "^17.10.0",
     "jest": "^30.5.1",
