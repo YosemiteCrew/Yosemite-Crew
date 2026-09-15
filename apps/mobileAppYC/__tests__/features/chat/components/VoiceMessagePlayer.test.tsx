@@ -1,6 +1,7 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
 import {
+  act,
   render,
   fireEvent,
   waitFor,
@@ -259,6 +260,52 @@ describe('VoiceMessagePlayer', () => {
 
     expect(Sound.stopPlayer).toHaveBeenCalled();
     expect(Sound.removePlayBackListener).toHaveBeenCalled();
+  });
+
+  it('cleans up resources on unmount if paused mid-track', async () => {
+    const {unmount} = render(
+      <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
+    );
+
+    pressPlayPauseButton(); // play
+    await waitFor(() => expect(Sound.startPlayer).toHaveBeenCalled());
+    pressPlayPauseButton(); // pause
+    await waitFor(() => expect(Sound.pausePlayer).toHaveBeenCalled());
+
+    unmount();
+
+    expect(Sound.stopPlayer).toHaveBeenCalled();
+    expect(Sound.removePlayBackListener).toHaveBeenCalled();
+    expect(Sound.removePlaybackEndListener).toHaveBeenCalled();
+  });
+
+  it('leaves the shared player alone on unmount if this bubble never played', () => {
+    const {unmount} = render(
+      <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
+    );
+
+    unmount();
+
+    expect(Sound.stopPlayer).not.toHaveBeenCalled();
+    expect(Sound.removePlayBackListener).not.toHaveBeenCalled();
+  });
+
+  it('leaves the shared player alone on unmount once playback has ended', async () => {
+    const {unmount} = render(
+      <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
+    );
+
+    pressPlayPauseButton();
+    await waitFor(() =>
+      expect(Sound.addPlaybackEndListener).toHaveBeenCalled(),
+    );
+    act(() => mockPlaybackEndListener?.());
+    (Sound.removePlayBackListener as jest.Mock).mockClear();
+
+    unmount();
+
+    expect(Sound.stopPlayer).not.toHaveBeenCalled();
+    expect(Sound.removePlayBackListener).not.toHaveBeenCalled();
   });
 
   // --- 4. Error Handling ---
