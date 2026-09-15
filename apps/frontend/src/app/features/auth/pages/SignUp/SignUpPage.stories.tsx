@@ -164,8 +164,16 @@ export const SignedOut: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole('button', { name: `I am: ${CLINIC_ROLE}` })).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Create account' })).toBeInTheDocument();
-    await expect(canvas.getByRole('heading', { level: 2 }).textContent).toBe(
-      'See the whole animal.'
+    /* The brand panel owns the only h2, and marketing.css hides it at 940px and below,
+       which drops the heading from the accessibility tree. Read off the media query
+       rather than the viewport global: the global is inert when `iframe.html` is
+       loaded directly at a phone width (#3223). */
+    const brandPanelHidden = globalThis.matchMedia('(max-width: 940px)').matches;
+    await expect(canvas.queryByRole('heading', { level: 2 })?.textContent ?? null).toBe(
+      brandPanelHidden ? null : 'See the whole animal.'
+    );
+    await expect(globalThis.document.documentElement.scrollWidth).toBeLessThanOrEqual(
+      globalThis.window.innerWidth
     );
     await expect(useAuthStore.getState().checkSession).not.toHaveBeenCalled();
     await expect(redirect).not.toHaveBeenCalled();
@@ -182,6 +190,22 @@ export const SignedOut: Story = {
           'The page as a new visitor sees it. The shell is transparent and the sign-up form ' +
           'renders exactly as in its own stories, with no session check because the status is ' +
           'already settled.',
+      },
+    },
+  },
+};
+
+export const SignedOutPhone: Story = {
+  ...SignedOut,
+  name: 'Signed out (phone)',
+  globals: { viewport: { value: 'mobile', isRotated: false } },
+  parameters: {
+    chromatic: { viewports: [375] },
+    docs: {
+      description: {
+        story:
+          'The same visitor at 375. The brand panel is gone and the form takes the full width, ' +
+          'so the only change from the story above is the missing brand heading.',
       },
     },
   },
