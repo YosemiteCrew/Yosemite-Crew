@@ -123,7 +123,8 @@ export const buildTeamMemberNameMap = (
 };
 
 // Resolve a member's display name, preferring the member-map lookup and falling
-// back to the team name map, then the raw id.
+// back to the team name map, then '-'. Never the raw id: an unresolved id is a
+// database identifier, not a name.
 export const resolveMemberDisplayName = (
   memberId: string | undefined,
   normalizeId: NormalizeId,
@@ -134,7 +135,7 @@ export const resolveMemberDisplayName = (
   if (!raw) return '-';
   const resolved = resolveMemberName(raw);
   if (resolved && resolved !== '-') return resolved;
-  return teamNameById[normalizeId(raw)] || raw;
+  return teamNameById[normalizeId(raw)] || '-';
 };
 
 const getSlotMinuteBounds = (
