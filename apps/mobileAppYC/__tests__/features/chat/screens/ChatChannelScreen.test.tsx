@@ -365,6 +365,34 @@ describe('ChatChannelScreen', () => {
     });
   });
 
+  // streamChatService actually throws this exact, capital-K string - the
+  // matcher above must not depend on a lucky case match.
+  it('recognizes the real "Stream API Key not configured" error text', async () => {
+    (connectStreamUser as jest.Mock).mockRejectedValue(
+      new Error('Stream API Key not configured'),
+    );
+    const {getByText} = render(<ChatChannelScreen />);
+    await waitFor(() => {
+      expect(
+        getByText('Chat is not configured. Please contact support.'),
+      ).toBeTruthy();
+    });
+  });
+
+  // axios's own connectivity failure is literally "Network Error" (capital
+  // N/E) - the matcher above must not depend on a lucky case match.
+  it('recognizes axios\'s real "Network Error" text', async () => {
+    (connectStreamUser as jest.Mock).mockRejectedValue(
+      new Error('Network Error'),
+    );
+    const {getByText} = render(<ChatChannelScreen />);
+    await waitFor(() => {
+      expect(
+        getByText('Network error. Please check your connection and try again.'),
+      ).toBeTruthy();
+    });
+  });
+
   it('renders error fallback when the chat client is unavailable', async () => {
     (getChatClient as jest.Mock).mockReturnValue(null);
     const {getByText} = render(<ChatChannelScreen />);

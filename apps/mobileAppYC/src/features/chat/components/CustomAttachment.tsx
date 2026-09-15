@@ -9,7 +9,14 @@
  */
 
 import React from 'react';
-import {View, StyleSheet, Text, useWindowDimensions} from 'react-native';
+import {
+  Alert,
+  View,
+  StyleSheet,
+  Text,
+  Linking,
+  useWindowDimensions,
+} from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Attachment, useMessageContext} from 'stream-chat-react-native';
 import Video from 'react-native-video';
@@ -85,13 +92,27 @@ const FileAttachmentView: React.FC<{
       ? `${(attachment.file_size / 1024).toFixed(1)} KB`
       : undefined;
 
+  const handleOpenFile = async () => {
+    ReactNativeHapticFeedback.trigger('impactLight');
+    const url = attachment.asset_url;
+    try {
+      const canOpen = url && (await Linking.canOpenURL(url));
+      if (!canOpen) {
+        throw new Error('cannot open file url');
+      }
+      await Linking.openURL(url);
+    } catch (error) {
+      console.warn('Failed to open file attachment:', error);
+      // An Alert, not a toast: no ToastManager is mounted in this app, so a
+      // toast here would be as silent as the no-op this handler replaced.
+      Alert.alert('Could not open this file');
+    }
+  };
+
   return (
     <PressableOpacity
       style={styles.fileContainer}
-      onPress={() => {
-        ReactNativeHapticFeedback.trigger('impactLight');
-        // Open file (you can add Linking.openURL here)
-      }}
+      onPress={handleOpenFile}
       accessibilityRole="button"
       accessibilityLabel={fileName}>
       <View style={styles.fileIcon}>
@@ -112,6 +133,44 @@ const FileAttachmentView: React.FC<{
   );
 };
 
+const renderOneAttachment = (
+  attachment: any,
+  styles: ChatStyles,
+  theme: any,
+  key: React.Key,
+): React.ReactNode => {
+  if (attachment.type === 'audio' && attachment.asset_url) {
+    return (
+      <AudioAttachmentView key={key} styles={styles} attachment={attachment} />
+    );
+  }
+
+  if (attachment.type === 'video' && attachment.asset_url) {
+    return (
+      <VideoAttachmentView
+        key={key}
+        styles={styles}
+        theme={theme}
+        attachment={attachment}
+      />
+    );
+  }
+
+  if (attachment.type === 'file' && attachment.asset_url) {
+    return (
+      <FileAttachmentView
+        key={key}
+        styles={styles}
+        theme={theme}
+        attachment={attachment}
+      />
+    );
+  }
+
+  // Default rendering for images and other types
+  return <Attachment key={key} attachment={attachment} />;
+};
+
 export const CustomAttachment: React.FC = () => {
   const {message} = useMessageContext();
   const {theme} = useTheme();
@@ -126,38 +185,32 @@ export const CustomAttachment: React.FC = () => {
     return null;
   }
 
-  const attachment = message.attachments[0];
-
-  if (attachment.type === 'audio' && attachment.asset_url) {
-    return <AudioAttachmentView styles={styles} attachment={attachment} />;
+  // A message can carry more than one attachment (e.g. a multi-image send
+  // from Stream's stock composer); only rendering attachments[0] silently
+  // dropped every attachment after the first.
+  if (message.attachments.length === 1) {
+    return renderOneAttachment(message.attachments[0], styles, theme, 0);
   }
 
-  if (attachment.type === 'video' && attachment.asset_url) {
-    return (
-      <VideoAttachmentView
-        styles={styles}
-        theme={theme}
-        attachment={attachment}
-      />
-    );
-  }
-
-  if (attachment.type === 'file' && attachment.asset_url) {
-    return (
-      <FileAttachmentView
-        styles={styles}
-        theme={theme}
-        attachment={attachment}
-      />
-    );
-  }
-
-  // Default rendering for images and other types
-  return <Attachment attachment={attachment} />;
+  return (
+    <View style={styles.multiAttachmentGroup}>
+      {message.attachments.map((attachment: any, index: number) =>
+        renderOneAttachment(
+          attachment,
+          styles,
+          theme,
+          attachment.asset_url ?? attachment.id ?? index,
+        ),
+      )}
+    </View>
+  );
 };
 
 const createStyles = (theme: any, maxWidth: number) =>
   StyleSheet.create({
+    multiAttachmentGroup: {
+      gap: theme.spacing['1'],
+    },
     audioContainer: {
       marginVertical: theme.spacing['1'],
     },
