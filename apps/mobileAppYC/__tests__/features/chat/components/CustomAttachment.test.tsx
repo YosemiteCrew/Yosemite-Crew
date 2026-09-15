@@ -1,8 +1,7 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
-import {Linking} from 'react-native';
-import {Toast} from 'toastify-react-native';
+import {Alert, Linking} from 'react-native';
 import {CustomAttachment} from '@/features/chat/components/CustomAttachment';
 import {useMessageContext} from 'stream-chat-react-native';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
@@ -12,10 +11,6 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 // 1. Mock Hooks
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
-}));
-
-jest.mock('toastify-react-native', () => ({
-  Toast: {success: jest.fn(), error: jest.fn()},
 }));
 
 // 2. Mock Stream Chat
@@ -235,6 +230,7 @@ describe('CustomAttachment', () => {
     it('opens the file url when the row is pressed and the url can be opened', async () => {
       jest.spyOn(Linking, 'canOpenURL').mockResolvedValue(true);
       jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined as any);
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
       mockContext([
         {type: 'file', asset_url: 'http://file.pdf/doc', title: 'Open.pdf'},
       ]);
@@ -245,12 +241,13 @@ describe('CustomAttachment', () => {
       await waitFor(() => {
         expect(Linking.openURL).toHaveBeenCalledWith('http://file.pdf/doc');
       });
-      expect(Toast.error).not.toHaveBeenCalled();
+      expect(alertSpy).not.toHaveBeenCalled();
     });
 
-    it('shows an error toast instead of silently doing nothing when the file cannot be opened', async () => {
+    it('shows an error alert instead of silently doing nothing when the file cannot be opened', async () => {
       jest.spyOn(Linking, 'canOpenURL').mockResolvedValue(false);
       const openURLSpy = jest.spyOn(Linking, 'openURL');
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
       mockContext([
         {type: 'file', asset_url: 'bad://url', title: 'Broken.pdf'},
       ]);
@@ -259,7 +256,7 @@ describe('CustomAttachment', () => {
       fireEvent.press(getByText('Broken.pdf'));
 
       await waitFor(() => {
-        expect(Toast.error).toHaveBeenCalledWith('Could not open this file');
+        expect(alertSpy).toHaveBeenCalledWith('Could not open this file');
       });
       expect(openURLSpy).not.toHaveBeenCalled();
     });

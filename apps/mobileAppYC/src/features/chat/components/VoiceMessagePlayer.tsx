@@ -41,22 +41,17 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
   const [currentPosition, setCurrentPosition] = useState(0);
   const [duration, setDuration] = useState(initialDuration || 0);
 
-  // `isPlaying` is only read by the unmount cleanup below; a ref keeps that
-  // cleanup's closure current without making it depend on isPlaying, which
-  // used to run this effect's cleanup on every play/pause toggle (not just
-  // unmount) and call stopPlayer() - a hard stop, not a pause - right after
-  // the user paused. That also stripped the playback listeners the "resume"
-  // path relies on, so resume silently failed to update progress or detect
-  // end-of-track after a single pause/resume cycle.
-  const isPlayingRef = useRef(isPlaying);
-  useEffect(() => {
-    isPlayingRef.current = isPlaying;
-  }, [isPlaying]);
+  // Nitro Sound is one player shared by every bubble, so unmount tears it down
+  // only when this bubble owns a session: started and not yet stopped or ended,
+  // whether playing or paused. Gating on isPlaying leaked a paused bubble's
+  // listeners; depending on isPlaying in the effect ran this cleanup on every
+  // pause and hard-stopped playback, breaking resume.
+  const hasSessionRef = useRef(false);
 
   useEffect(() => {
     return () => {
       // Cleanup on unmount only
-      if (isPlayingRef.current) {
+      if (hasSessionRef.current) {
         Sound.stopPlayer();
         Sound.removePlayBackListener();
         Sound.removePlaybackEndListener();
@@ -87,9 +82,11 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
             setCurrentPosition(0);
             Sound.removePlayBackListener();
             Sound.removePlaybackEndListener();
+            hasSessionRef.current = false;
             ReactNativeHapticFeedback.trigger('notificationSuccess');
           });
 
+          hasSessionRef.current = true;
           await Sound.startPlayer(audioUrl);
         } else {
           // Resume
@@ -110,6 +107,7 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
       await Sound.stopPlayer();
       Sound.removePlayBackListener();
       Sound.removePlaybackEndListener();
+      hasSessionRef.current = false;
       setIsPlaying(false);
       setCurrentPosition(0);
     } catch (error) {

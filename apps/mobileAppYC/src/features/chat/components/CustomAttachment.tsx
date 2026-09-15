@@ -10,13 +10,13 @@
 
 import React from 'react';
 import {
+  Alert,
   View,
   StyleSheet,
   Text,
   Linking,
   useWindowDimensions,
 } from 'react-native';
-import {Toast} from 'toastify-react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Attachment, useMessageContext} from 'stream-chat-react-native';
 import Video from 'react-native-video';
@@ -103,7 +103,9 @@ const FileAttachmentView: React.FC<{
       await Linking.openURL(url);
     } catch (error) {
       console.warn('Failed to open file attachment:', error);
-      Toast.error('Could not open this file');
+      // An Alert, not a toast: no ToastManager is mounted in this app, so a
+      // toast here would be as silent as the no-op this handler replaced.
+      Alert.alert('Could not open this file');
     }
   };
 
