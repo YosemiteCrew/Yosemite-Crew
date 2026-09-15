@@ -586,7 +586,7 @@ const TaskBoard = ({
       };
     }
     return {
-      name: resolved && resolved !== '-' ? resolved : teamNameById[normalizeId(raw)] || raw,
+      name: resolved && resolved !== '-' ? resolved : teamNameById[normalizeId(raw)] || '-',
       label,
     };
   };

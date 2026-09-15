@@ -125,7 +125,7 @@ const TaskCard = ({
     <button
       type="button"
       onClick={() => onViewTask?.(entry.task)}
-      className="min-w-0 flex-1 text-left"
+      className="min-w-0 flex-1 self-stretch text-left"
     >
       <span
         className={clsx(
