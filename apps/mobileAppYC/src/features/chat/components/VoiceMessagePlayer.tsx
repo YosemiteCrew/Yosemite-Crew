@@ -9,7 +9,7 @@
  * - Haptic feedback
  */
 
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {View, StyleSheet, Text, ActivityIndicator} from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import Sound from 'react-native-nitro-sound';
@@ -41,16 +41,23 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
   const [currentPosition, setCurrentPosition] = useState(0);
   const [duration, setDuration] = useState(initialDuration || 0);
 
+  // Nitro Sound is one player shared by every bubble, so unmount tears it down
+  // only when this bubble owns a session: started and not yet stopped or ended,
+  // whether playing or paused. Gating on isPlaying leaked a paused bubble's
+  // listeners; depending on isPlaying in the effect ran this cleanup on every
+  // pause and hard-stopped playback, breaking resume.
+  const hasSessionRef = useRef(false);
+
   useEffect(() => {
     return () => {
-      // Cleanup on unmount
-      if (isPlaying) {
+      // Cleanup on unmount only
+      if (hasSessionRef.current) {
         Sound.stopPlayer();
         Sound.removePlayBackListener();
         Sound.removePlaybackEndListener();
       }
     };
-  }, [isPlaying]);
+  }, []);
 
   const handlePlayPause = async () => {
     ReactNativeHapticFeedback.trigger('impactLight');
@@ -75,9 +82,11 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
             setCurrentPosition(0);
             Sound.removePlayBackListener();
             Sound.removePlaybackEndListener();
+            hasSessionRef.current = false;
             ReactNativeHapticFeedback.trigger('notificationSuccess');
           });
 
+          hasSessionRef.current = true;
           await Sound.startPlayer(audioUrl);
         } else {
           // Resume
@@ -98,6 +107,7 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
       await Sound.stopPlayer();
       Sound.removePlayBackListener();
       Sound.removePlaybackEndListener();
+      hasSessionRef.current = false;
       setIsPlaying(false);
       setCurrentPosition(0);
     } catch (error) {

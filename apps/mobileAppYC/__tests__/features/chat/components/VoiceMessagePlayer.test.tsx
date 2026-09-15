@@ -1,6 +1,7 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
 import {
+  act,
   render,
   fireEvent,
   waitFor,
@@ -177,6 +178,26 @@ describe('VoiceMessagePlayer', () => {
     await waitFor(() => expect(Sound.resumePlayer).toHaveBeenCalled());
   });
 
+  it('does not hard-stop playback or tear down listeners merely from pausing', async () => {
+    // Regression: the unmount-cleanup effect used to depend on `isPlaying`,
+    // so pausing (isPlaying true -> false) re-ran that cleanup with the
+    // *previous* render's isPlaying still true, calling stopPlayer() and
+    // removing both listeners right after every pause - breaking resume.
+    render(
+      <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
+    );
+
+    pressPlayPauseButton(); // play
+    await waitFor(() => expect(Sound.startPlayer).toHaveBeenCalled());
+
+    pressPlayPauseButton(); // pause
+    await waitFor(() => expect(Sound.pausePlayer).toHaveBeenCalled());
+
+    expect(Sound.stopPlayer).not.toHaveBeenCalled();
+    expect(Sound.removePlayBackListener).not.toHaveBeenCalled();
+    expect(Sound.removePlaybackEndListener).not.toHaveBeenCalled();
+  });
+
   // --- 3. Stop Control & Lifecycle ---
 
   it('stops playback and resets when stop button is pressed', async () => {
@@ -241,6 +262,52 @@ describe('VoiceMessagePlayer', () => {
     expect(Sound.removePlayBackListener).toHaveBeenCalled();
   });
 
+  it('cleans up resources on unmount if paused mid-track', async () => {
+    const {unmount} = render(
+      <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
+    );
+
+    pressPlayPauseButton(); // play
+    await waitFor(() => expect(Sound.startPlayer).toHaveBeenCalled());
+    pressPlayPauseButton(); // pause
+    await waitFor(() => expect(Sound.pausePlayer).toHaveBeenCalled());
+
+    unmount();
+
+    expect(Sound.stopPlayer).toHaveBeenCalled();
+    expect(Sound.removePlayBackListener).toHaveBeenCalled();
+    expect(Sound.removePlaybackEndListener).toHaveBeenCalled();
+  });
+
+  it('leaves the shared player alone on unmount if this bubble never played', () => {
+    const {unmount} = render(
+      <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
+    );
+
+    unmount();
+
+    expect(Sound.stopPlayer).not.toHaveBeenCalled();
+    expect(Sound.removePlayBackListener).not.toHaveBeenCalled();
+  });
+
+  it('leaves the shared player alone on unmount once playback has ended', async () => {
+    const {unmount} = render(
+      <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
+    );
+
+    pressPlayPauseButton();
+    await waitFor(() =>
+      expect(Sound.addPlaybackEndListener).toHaveBeenCalled(),
+    );
+    act(() => mockPlaybackEndListener?.());
+    (Sound.removePlayBackListener as jest.Mock).mockClear();
+
+    unmount();
+
+    expect(Sound.stopPlayer).not.toHaveBeenCalled();
+    expect(Sound.removePlayBackListener).not.toHaveBeenCalled();
+  });
+
   // --- 4. Error Handling ---
 
   it('catches and logs errors during play start', async () => {
@@ -268,9 +335,9 @@ describe('VoiceMessagePlayer', () => {
       .mockImplementation(() => {});
 
     // Note: Use mockRejectedValueOnce for the FIRST call (explicit user stop).
-    // Use mockResolvedValue for subsequent calls (useEffect cleanup).
-    // The component's useEffect calls stopPlayer() when isPlaying flips to false,
-    // and since that useEffect call is not caught, it would crash the test if we simply used mockRejectedValue.
+    // mockResolvedValue covers any further call (e.g. the real unmount
+    // cleanup, which no longer fires on every isPlaying change, only at
+    // actual unmount) so an unrelated later call can't reject unhandled.
     (Sound.stopPlayer as jest.Mock)
       .mockRejectedValueOnce(new Error('Stop Error'))
       .mockResolvedValue(undefined);
