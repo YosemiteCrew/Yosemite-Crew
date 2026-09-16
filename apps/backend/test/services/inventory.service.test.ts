@@ -2901,7 +2901,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       expect(prisma.inventoryStockMovement.create).not.toHaveBeenCalled();
     });
 
-    it("draws down batches in expiry order and logs one movement per batch", async () => {
+    it("draws down batches atomically in expiry order and logs one movement per drawn batch", async () => {
       mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
         itemRow({ onHand: null }),
       );
@@ -2923,14 +2923,18 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         organisationId: "org-1",
       });
 
+      /*
+       * `decrement`, not a literal quantity: a concurrent draw-down on the
+       * same batch is applied by the database rather than lost. The empty
+       * batch is skipped entirely instead of being rewritten to 0.
+       */
       expect(mockOf(prisma.inventoryBatch.update).mock.calls).toEqual([
-        [{ where: { id: "unknown" }, data: { quantity: 0 } }],
-        [{ where: { id: "first" }, data: { quantity: 0 } }],
-        [{ where: { id: "second" }, data: { quantity: 3 } }],
+        [{ where: { id: "first" }, data: { quantity: { decrement: 4 } } }],
+        [{ where: { id: "second" }, data: { quantity: { decrement: 2 } } }],
       ]);
-      expect(prisma.inventoryStockMovement.create).toHaveBeenCalledTimes(3);
+      expect(prisma.inventoryStockMovement.create).toHaveBeenCalledTimes(2);
       expect(
-        mockOf(prisma.inventoryStockMovement.create).mock.calls[2][0].data,
+        mockOf(prisma.inventoryStockMovement.create).mock.calls[1][0].data,
       ).toMatchObject({
         itemId: "item-1",
         batchId: "second",
@@ -2941,7 +2945,32 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       expect(result._id).toBe("item-1");
     });
 
-    it("refuses to draw down more stock than the batches hold", async () => {
+    it("reads batches in a deterministic order and runs the whole adjustment in one transaction", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 5 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany).mockResolvedValue([
+        batchRow({ id: "only", quantity: 5 }),
+      ]);
+      mockOf(prisma.inventoryItem.update).mockResolvedValue(
+        itemRow({ onHand: 3 }),
+      );
+
+      await InventoryAdjustmentService.adjustStock({
+        itemId: "item-1",
+        newOnHand: 3,
+        reason: "SHRINKAGE",
+        organisationId: "org-1",
+      });
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(mockOf(prisma.inventoryBatch.findMany).mock.calls[0][0]).toEqual({
+        where: { itemId: "item-1" },
+        orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
+      });
+    });
+
+    it("refuses to draw down more stock than the batches hold without consuming any of it", async () => {
       mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
         itemRow({ onHand: 10 }),
       );
@@ -2960,6 +2989,15 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         message: "Insufficient stock for adjustment",
         statusCode: 400,
       });
+
+      /*
+       * The shortfall is refused before the first write. The old code emptied
+       * every batch it walked and only then threw, so the rejected adjustment
+       * still destroyed the stock it had already drawn.
+       */
+      expect(prisma.inventoryBatch.update).not.toHaveBeenCalled();
+      expect(prisma.inventoryStockMovement.create).not.toHaveBeenCalled();
+      expect(prisma.inventoryItem.update).not.toHaveBeenCalled();
     });
 
     it("creates a top-up batch and a positive movement when stock increases", async () => {
