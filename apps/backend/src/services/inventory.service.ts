@@ -2108,67 +2108,89 @@ export const InventoryAdjustmentService = {
       "organisationId",
     );
 
-    const item = await prisma.inventoryItem.findFirst({
-      where: { id: safeItemId, organisationId: safeOrganisationId },
-    });
-    if (!item) throw new InventoryServiceError("Item not found", 404);
-
-    const delta = input.newOnHand - (item.onHand ?? 0);
-
-    if (delta > 0) {
-      await prisma.inventoryBatch.create({
-        data: {
-          itemId: item.id,
-          organisationId: item.organisationId,
-          quantity: delta,
-          allocated: 0,
-        },
+    /*
+     * Every read and write below runs in one transaction. Without it a
+     * draw-down that ran out of stock part-way threw `Insufficient stock for
+     * adjustment` *after* already emptying the earlier batches, leaving the
+     * item short by whatever it had consumed before giving up, and the
+     * concurrent-write window matched the one fixed in `consumeStock`.
+     */
+    const updated = await prisma.$transaction(async (tx) => {
+      const item = await tx.inventoryItem.findFirst({
+        where: { id: safeItemId, organisationId: safeOrganisationId },
       });
+      if (!item) throw new InventoryServiceError("Item not found", 404);
 
-      await logMovement({
-        itemId: safeItemId,
-        change: delta,
-        reason: input.reason,
-        userId: input.userId,
-      });
-    } else if (delta < 0) {
-      let remaining = Math.abs(delta);
-      const batches = await prisma.inventoryBatch.findMany({
-        where: { itemId: item.id },
-        orderBy: { expiryDate: "asc" },
-      });
+      const delta = input.newOnHand - (item.onHand ?? 0);
 
-      for (const batch of batches) {
-        if (remaining <= 0) break;
-        const available = batch.quantity ?? 0;
-        const consume = Math.min(available, remaining);
-        remaining -= consume;
-        await prisma.inventoryBatch.update({
-          where: { id: batch.id },
-          data: { quantity: available - consume },
+      if (delta > 0) {
+        await tx.inventoryBatch.create({
+          data: {
+            itemId: item.id,
+            organisationId: item.organisationId,
+            quantity: delta,
+            allocated: 0,
+          },
         });
 
-        await logMovement({
-          itemId: input.itemId,
-          batchId: batch.id,
-          change: -consume,
-          reason: input.reason,
-          userId: input.userId,
-        });
-      }
-
-      if (remaining > 0) {
-        throw new InventoryServiceError(
-          "Insufficient stock for adjustment",
-          400,
+        await logMovement(
+          {
+            itemId: safeItemId,
+            change: delta,
+            reason: input.reason,
+            userId: input.userId,
+          },
+          tx,
         );
-      }
-    }
+      } else if (delta < 0) {
+        const batches = await tx.inventoryBatch.findMany({
+          where: { itemId: item.id },
+          orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
+        });
 
-    const { onHand } = await recomputeStockFromBatches(item.id);
-    const updated = await prisma.inventoryItem.update({
-      where: { id: item.id },
-      data: { onHand },
+        /*
+         * Planned before the first write, so a short draw-down is refused
+         * with nothing consumed. `planFifoConsumption` answers 500 for the
+         * same shortfall, so the total is checked here to keep this path's
+         * 400 - the caller asked for more than exists, which is their error.
+         */
+        const shortfall =
+          Math.abs(delta) -
+          batches.reduce((sum, batch) => sum + (batch.quantity ?? 0), 0);
+        if (shortfall > 0) {
+          throw new InventoryServiceError(
+            "Insufficient stock for adjustment",
+            400,
+          );
+        }
+
+        const plan = planFifoConsumption(batches, Math.abs(delta));
+        for (const { index, newQuantity } of plan) {
+          const batch = batches[index];
+          const consume = (batch.quantity ?? 0) - newQuantity;
+          await tx.inventoryBatch.update({
+            where: { id: batch.id },
+            data: { quantity: { decrement: consume } },
+          });
+
+          await logMovement(
+            {
+              itemId: safeItemId,
+              batchId: batch.id,
+              change: -consume,
+              reason: input.reason,
+              userId: input.userId,
+            },
+            tx,
+          );
+        }
+      }
+
+      const { onHand } = await recomputeStockFromBatches(item.id, tx);
+      return tx.inventoryItem.update({
+        where: { id: item.id },
+        data: { onHand },
+      });
     });
 
     return {
