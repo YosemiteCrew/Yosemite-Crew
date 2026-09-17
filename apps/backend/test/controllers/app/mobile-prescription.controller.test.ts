@@ -1,10 +1,30 @@
 const listPrescriptionsForParent = jest.fn();
+const getOwnedPrescriptionForRefill = jest.fn();
 const getByProviderUserId = jest.fn();
 const resolveVerifiedUserId = jest.fn();
+const createPrescriptionDispenseRequest = jest.fn();
 
 jest.mock("src/services/mobile-prescription.service", () => ({
-  MobilePrescriptionService: { listPrescriptionsForParent },
+  MobilePrescriptionService: {
+    listPrescriptionsForParent,
+    getOwnedPrescriptionForRefill,
+  },
 }));
+
+jest.mock("src/services/inventory-consumption.service", () => {
+  class InventoryConsumptionServiceError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode = 400,
+    ) {
+      super(message);
+    }
+  }
+  return {
+    InventoryConsumptionService: { createPrescriptionDispenseRequest },
+    InventoryConsumptionServiceError,
+  };
+});
 
 jest.mock("src/services/authUserMobile.service", () => ({
   AuthUserMobileService: { getByProviderUserId },
@@ -16,6 +36,7 @@ jest.mock("src/utils/logger", () => ({ error: jest.fn(), warn: jest.fn() }));
 
 import type { Request, Response } from "express";
 import { MobilePrescriptionController } from "src/controllers/app/prescription.controller";
+import { InventoryConsumptionServiceError } from "src/services/inventory-consumption.service";
 import { encodeKeysetCursor } from "src/services/shared/pagination";
 
 type MockResponse = {
@@ -33,6 +54,8 @@ const response = () => {
 const asRes = (r: MockResponse) => r as unknown as Response;
 const asReq = (query: Record<string, unknown> = {}) =>
   ({ query }) as unknown as Request;
+const asReqWithParams = (params: Record<string, unknown>) =>
+  ({ query: {}, params }) as unknown as Request;
 
 const page = (overrides: Record<string, unknown> = {}) => ({
   prescriptions: [],
@@ -178,6 +201,118 @@ describe("MobilePrescriptionController.listPrescriptions", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       message: "Failed to list prescriptions.",
+    });
+  });
+});
+
+describe("MobilePrescriptionController.requestRefill", () => {
+  const ownedPrescription = {
+    id: "rx-1",
+    organisationId: "org-1",
+    encounterId: "enc-1",
+    medications: [{ medication: "Meloxicam" }],
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    resolveVerifiedUserId.mockReturnValue("auth-1");
+    getByProviderUserId.mockResolvedValue({ parentId: "parent-1" });
+    getOwnedPrescriptionForRefill.mockResolvedValue(ownedPrescription);
+    createPrescriptionDispenseRequest.mockResolvedValue({ id: "req-1" });
+  });
+
+  it("refuses an unauthenticated caller before reading anything", async () => {
+    resolveVerifiedUserId.mockReturnValue(undefined);
+    const res = response();
+
+    await MobilePrescriptionController.requestRefill(
+      asReqWithParams({ id: "rx-1" }),
+      asRes(res),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(getOwnedPrescriptionForRefill).not.toHaveBeenCalled();
+    expect(createPrescriptionDispenseRequest).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 for a prescription id the parent does not own, without writing", async () => {
+    getOwnedPrescriptionForRefill.mockResolvedValue(null);
+    const res = response();
+
+    await MobilePrescriptionController.requestRefill(
+      asReqWithParams({ id: "rx-someone-elses" }),
+      asRes(res),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(createPrescriptionDispenseRequest).not.toHaveBeenCalled();
+  });
+
+  it("looks the prescription up by the path id under the resolved parent", async () => {
+    const res = response();
+
+    await MobilePrescriptionController.requestRefill(
+      asReqWithParams({ id: "rx-1" }),
+      asRes(res),
+    );
+
+    expect(getOwnedPrescriptionForRefill).toHaveBeenCalledWith(
+      "parent-1",
+      "rx-1",
+    );
+  });
+
+  it("writes the dispense request from the owned prescription's own fields", async () => {
+    const res = response();
+
+    await MobilePrescriptionController.requestRefill(
+      asReqWithParams({ id: "rx-1" }),
+      asRes(res),
+    );
+
+    expect(createPrescriptionDispenseRequest).toHaveBeenCalledWith({
+      organisationId: "org-1",
+      prescriptionId: "rx-1",
+      medications: [{ medication: "Meloxicam" }],
+      requestedBy: "parent-1",
+      context: { encounterId: "enc-1" },
+    });
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({ status: "PENDING" });
+  });
+
+  it("answers with the service error's own status code", async () => {
+    createPrescriptionDispenseRequest.mockRejectedValue(
+      new InventoryConsumptionServiceError(
+        "organisationId and prescriptionId are required",
+        400,
+      ),
+    );
+    const res = response();
+
+    await MobilePrescriptionController.requestRefill(
+      asReqWithParams({ id: "rx-1" }),
+      asRes(res),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "organisationId and prescriptionId are required",
+    });
+  });
+
+  it("answers 500 for an unexpected failure, rather than a silent no-op", async () => {
+    createPrescriptionDispenseRequest.mockRejectedValue(new Error("db down"));
+    const res = response();
+
+    await MobilePrescriptionController.requestRefill(
+      asReqWithParams({ id: "rx-1" }),
+      asRes(res),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Failed to request refill.",
     });
   });
 });

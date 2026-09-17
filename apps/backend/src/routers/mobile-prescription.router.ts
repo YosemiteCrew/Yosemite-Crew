@@ -11,4 +11,11 @@ mobilePrescriptionRouter.get(
   MobilePrescriptionController.listPrescriptions,
 );
 
+// Refill request for one of the signed-in parent's own prescriptions.
+mobilePrescriptionRouter.post(
+  "/mobile/:id/refill",
+  requireMobileAuth,
+  MobilePrescriptionController.requestRefill,
+);
+
 export default mobilePrescriptionRouter;
