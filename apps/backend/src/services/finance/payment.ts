@@ -1038,7 +1038,7 @@ const getStripeClient = (): StripeCheckoutSessionClient => {
   }
 
   stripeClient = new Stripe(apiKey, {
-    apiVersion: "2026-07-29.dahlia",
+    apiVersion: "2026-07-29.dahlia" as Stripe.LatestApiVersion,
   }) as unknown as StripeCheckoutSessionClient;
 
   return stripeClient;
