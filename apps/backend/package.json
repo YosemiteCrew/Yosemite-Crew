@@ -97,7 +97,7 @@
     "nodemon": "^3.1.14",
     "pdf-lib": "^1.17.1",
     "playwright": "1.62.1",
-    "prisma": "^6.19.3",
+    "prisma": "^7.10.0",
     "raw-body": "4.0.0",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
