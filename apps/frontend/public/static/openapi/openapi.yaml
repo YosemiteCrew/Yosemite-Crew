@@ -18462,6 +18462,80 @@ paths:
                 properties:
                   message:
                     type: string
+  /v1/prescription/mobile/{id}/refill:
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: POST /v1/prescription/mobile/{id}/refill
+      operationId: post_v1_prescription_mobile_id_refill
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The Prescription id, as returned by GET /v1/prescription/mobile.
+      responses:
+        401:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated:
+                    type: string
+                  message:
+                    type: string
+        404:
+          description: >-
+            The id does not match a prescription the caller's parent record
+            may read - either it belongs to someone else's companion, or it
+            has not reached a finalised (SIGNED/COMPLETED) status yet.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        201:
+          description: >-
+            The refill request was written. PrescriptionController.requestRefill
+            reuses InventoryConsumptionService.createPrescriptionDispenseRequest,
+            the same upsert the PIMS side runs when a prescription is signed, so
+            asking again while one is still PENDING is a no-op rather than a
+            duplicate.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    enum: [PENDING]
+        400:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
   /v1/stripe/webhook:
     post:
       tags:

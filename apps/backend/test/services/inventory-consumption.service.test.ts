@@ -13,6 +13,7 @@ jest.mock("src/utils/logger", () => ({
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    $executeRaw: jest.fn(),
     $transaction: jest.fn(),
     inventoryConsumptionRule: {
       upsert: jest.fn(),
@@ -59,6 +60,7 @@ jest.mock("src/config/prisma", () => ({
 }));
 
 type MockedPrisma = typeof prisma & {
+  $executeRaw: jest.Mock;
   $transaction: jest.Mock;
   inventoryConsumptionRule: {
     upsert: jest.Mock;
@@ -404,6 +406,14 @@ describe("InventoryConsumptionService", () => {
           reviewedBy: null,
         }),
       }),
+    );
+    expect(mockedPrisma.$executeRaw).toHaveBeenCalledTimes(2);
+    const [lockSql, lockKey] = mockedPrisma.$executeRaw.mock.calls[0];
+    expect(lockSql.join("")).toContain("pg_advisory_xact_lock");
+    expect(lockKey).toBe("prescription-dispense-request:org-1:rx-1");
+    expect(mockedPrisma.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      mockedPrisma.prescriptionDispenseRequest.findFirst.mock
+        .invocationCallOrder[0],
     );
   });
 
