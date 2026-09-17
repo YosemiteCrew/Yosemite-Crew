@@ -129,7 +129,7 @@
       "multer": "2.3.0",
       "aws-cdk-lib": "2.266.0",
       "@babel/core@7.29.0": "7.29.6",
-      "next": "15.5.24",
+      "next": "16.3.4",
       "sitemap": "9.0.0",
       "@tiptap/core@<3.30.5": "3.30.5",
       "@jsonjoy.com/fs-snapshot@<=4.57.7": "4.57.7",
