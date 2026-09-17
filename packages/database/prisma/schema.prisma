@@ -5712,9 +5712,18 @@ model ControlledSubstanceLog {
   balanceAfter       Float?
   administeredBy     String?
   notes              String?
+  /// The InventoryConsumptionEvent that moved the stock this entry records, and
+  /// the batch it was drawn from. Set only on entries the dispense and void
+  /// paths write; a hand-entered entry leaves both null. The pair is unique so
+  /// the database, not the call path, is what stops a replayed dispense from
+  /// being entered in the register twice - Postgres treats nulls as distinct,
+  /// so hand-entered rows never collide.
+  sourceEventId      String?
+  inventoryBatchId   String?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
+  @@unique([sourceEventId, inventoryBatchId])
   @@index([organisationId, drug])
   @@index([organisationId, loggedAt])
   @@map("ControlledSubstanceLog")

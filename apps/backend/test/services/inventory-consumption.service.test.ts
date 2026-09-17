@@ -21,6 +21,11 @@ jest.mock("src/config/prisma", () => ({
     },
     inventoryConsumptionEvent: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
+    controlledSubstanceLog: {
+      findFirst: jest.fn(),
       create: jest.fn(),
     },
     inventoryItem: {
@@ -67,6 +72,11 @@ type MockedPrisma = typeof prisma & {
   };
   inventoryConsumptionEvent: {
     findUnique: jest.Mock;
+    findFirst: jest.Mock;
+    create: jest.Mock;
+  };
+  controlledSubstanceLog: {
+    findFirst: jest.Mock;
     create: jest.Mock;
   };
   inventoryItem: {
@@ -115,6 +125,11 @@ describe("InventoryConsumptionService", () => {
       return undefined;
     });
     mockedPrisma.inventoryConsumptionEvent.findUnique.mockResolvedValue(null);
+    mockedPrisma.inventoryConsumptionEvent.findFirst.mockResolvedValue(null);
+    mockedPrisma.controlledSubstanceLog.findFirst.mockResolvedValue(null);
+    mockedPrisma.controlledSubstanceLog.create.mockResolvedValue({
+      id: "cs-log-created",
+    });
     mockedPrisma.inventoryStockMovement.findMany.mockResolvedValue([]);
     mockedPrisma.inventoryBatch.findFirst.mockResolvedValue(null);
     mockedPrisma.prescriptionDispenseRequest.findMany.mockResolvedValue([]);
@@ -3808,5 +3823,363 @@ describe("InventoryConsumptionService", () => {
         }),
       }),
     );
+  });
+
+  // #3142 bug 4: approving a dispense and voiding one moved controlled stock
+  // without ever writing the controlled substance register. These run the stock
+  // paths with a transaction client that is a DIFFERENT object from the module
+  // client, which is the production shape - the register write has to ride the
+  // caller's transaction rather than open its own connection.
+  describe("controlled substance register", () => {
+    const controlledItem = {
+      id: "item-cs-1",
+      organisationId: "org-1",
+      name: "Ketamine 100mg/ml",
+      onHand: 10,
+      allocated: 0,
+      controlledItem: true,
+      attributes: { drugSchedule: "Schedule III", species: ["DOG"] },
+      stockUnitType: "ml",
+      unitOfMeasure: null,
+    };
+
+    // The register mocks on the TRANSACTION client are separate jest.fn()s from
+    // the ones on the module client, so asserting on these proves the entry was
+    // written through the caller's transaction. Writing it through the module
+    // client instead would leave a register entry behind when the dispense
+    // rolls back, and these assertions would see nothing.
+    let txCsCreate: jest.Mock;
+    let txCsFindFirst: jest.Mock;
+
+    const useDistinctTransactionClient = () => {
+      txCsCreate = jest.fn().mockResolvedValue({ id: "cs-log-created" });
+      txCsFindFirst = jest.fn().mockResolvedValue(null);
+      mockedPrisma.$transaction.mockImplementation(
+        async (callback: unknown) => {
+          if (typeof callback === "function") {
+            return callback({
+              ...prisma,
+              controlledSubstanceLog: {
+                create: txCsCreate,
+                findFirst: txCsFindFirst,
+              },
+            });
+          }
+          return undefined;
+        },
+      );
+    };
+
+    const consumeControlledLine = (quantity: number) =>
+      InventoryConsumptionService.consume({
+        organisationId: "org-1",
+        sourceType: "PRESCRIPTION",
+        sourceId: "rx-cs-1",
+        lines: [
+          {
+            sourceLineKey: "line-1",
+            inventoryItemId: "item-cs-1",
+            quantity,
+          },
+        ],
+      });
+
+    beforeEach(() => {
+      useDistinctTransactionClient();
+      mockedPrisma.inventoryBatch.update.mockResolvedValue({});
+      mockedPrisma.inventoryStockMovement.create.mockResolvedValue({});
+      mockedPrisma.inventoryItem.update.mockResolvedValue({});
+      mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+        id: "event-cs-1",
+      });
+    });
+
+    it("writes one register entry per batch a controlled dispense draws from", async () => {
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValue(controlledItem);
+      mockedPrisma.inventoryBatch.findMany
+        .mockResolvedValueOnce([
+          { id: "batch-cs-1", quantity: 6, allocated: 0, lotNumber: "LOT-1" },
+          { id: "batch-cs-2", quantity: 10, allocated: 0, lotNumber: "LOT-2" },
+        ])
+        .mockResolvedValueOnce([
+          { id: "batch-cs-1", quantity: 0, allocated: 0, lotNumber: "LOT-1" },
+          { id: "batch-cs-2", quantity: 8, allocated: 0, lotNumber: "LOT-2" },
+        ]);
+
+      await consumeControlledLine(8);
+
+      expect(txCsCreate).toHaveBeenCalledTimes(2);
+      // The running balance is per entry, so the two rows reconcile against each
+      // other the way an inspector reads the register down the page.
+      expect(txCsCreate).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          data: expect.objectContaining({
+            organisationId: "org-1",
+            drug: "Ketamine 100mg/ml",
+            deaSchedule: "III",
+            unit: "ML",
+            lotNumber: "LOT-1",
+            amountDrawn: 6,
+            amountAdministered: 6,
+            amountWasted: 0,
+            balanceBefore: 10,
+            balanceAfter: 4,
+            sourceEventId: "event-cs-1",
+            inventoryBatchId: "batch-cs-1",
+          }),
+        }),
+      );
+      expect(txCsCreate).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          data: expect.objectContaining({
+            lotNumber: "LOT-2",
+            amountDrawn: 2,
+            balanceBefore: 4,
+            balanceAfter: 2,
+            sourceEventId: "event-cs-1",
+            inventoryBatchId: "batch-cs-2",
+          }),
+        }),
+      );
+    });
+
+    it("refuses the dispense when a controlled item carries no drug schedule, before any stock moves", async () => {
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValue({
+        ...controlledItem,
+        attributes: { drugSchedule: "Non-scheduled" },
+      });
+      mockedPrisma.inventoryBatch.findMany.mockResolvedValue([
+        { id: "batch-cs-1", quantity: 6, allocated: 0, lotNumber: "LOT-1" },
+      ]);
+
+      await expect(consumeControlledLine(2)).rejects.toThrow(
+        /no drug schedule/,
+      );
+
+      expect(mockedPrisma.inventoryBatch.update).not.toHaveBeenCalled();
+      expect(mockedPrisma.inventoryStockMovement.create).not.toHaveBeenCalled();
+      expect(txCsCreate).not.toHaveBeenCalled();
+    });
+
+    it("leaves an item that is not flagged controlled out of the register, whatever its attributes say", async () => {
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValue({
+        ...controlledItem,
+        controlledItem: false,
+        attributes: { drugSchedule: "Schedule II" },
+      });
+      mockedPrisma.inventoryBatch.findMany
+        .mockResolvedValueOnce([
+          { id: "batch-cs-1", quantity: 6, allocated: 0, lotNumber: "LOT-1" },
+        ])
+        .mockResolvedValueOnce([
+          { id: "batch-cs-1", quantity: 4, allocated: 0, lotNumber: "LOT-1" },
+        ]);
+
+      await consumeControlledLine(2);
+
+      expect(txCsCreate).not.toHaveBeenCalled();
+      expect(mockedPrisma.inventoryBatch.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { quantity: { decrement: 2 } } }),
+      );
+    });
+
+    it("reverses the register entry when the dispense is released", async () => {
+      mockedPrisma.inventoryStockMovement.findMany.mockResolvedValueOnce([
+        {
+          id: "movement-cs-1",
+          itemId: "item-cs-1",
+          batchId: "batch-cs-1",
+          change: -6,
+          reason: "PRESCRIPTION_DISPENSE",
+          referenceId: "rx-cs-1",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ]);
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValue({
+        ...controlledItem,
+        onHand: 4,
+      });
+      mockedPrisma.inventoryBatch.findMany.mockResolvedValueOnce([
+        { id: "batch-cs-1", quantity: 6, allocated: 0, lotNumber: "LOT-1" },
+      ]);
+      mockedPrisma.inventoryConsumptionEvent.findFirst.mockResolvedValueOnce({
+        id: "event-cs-1",
+      });
+      txCsFindFirst.mockResolvedValueOnce({
+        id: "cs-log-1",
+        organisationId: "org-1",
+        patientId: null,
+        encounterId: null,
+        loggedAt: new Date("2026-01-01T00:00:00.000Z"),
+        drug: "Ketamine 100mg/ml",
+        deaSchedule: "III",
+        lotNumber: "LOT-1",
+        strength: null,
+        unit: "ML",
+        amountDrawn: 6,
+        amountAdministered: 6,
+        amountWasted: 0,
+        wastedWitness: null,
+        balanceBefore: 10,
+        balanceAfter: 4,
+        administeredBy: null,
+        notes: null,
+        sourceEventId: "event-cs-1",
+        inventoryBatchId: "batch-cs-1",
+      });
+      mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+        id: "event-cs-release-1",
+      });
+
+      await InventoryConsumptionService.releasePrescription({
+        organisationId: "org-1",
+        prescriptionId: "rx-cs-1",
+        medications: [
+          {
+            inventoryItemId: "item-cs-1",
+            quantity: 6,
+            sourceLineKey: "line-1",
+          },
+        ],
+      });
+
+      expect(txCsCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            drug: "Ketamine 100mg/ml",
+            deaSchedule: "III",
+            lotNumber: "LOT-1",
+            amountDrawn: -6,
+            amountAdministered: -6,
+            balanceBefore: 4,
+            balanceAfter: 10,
+            // Keyed to the release, never to the dispense it cancels: the pair
+            // is unique, so inheriting it would collide.
+            sourceEventId: "event-cs-release-1",
+            inventoryBatchId: "batch-cs-1",
+            notes: expect.stringContaining("[reversal:cs-log-1]"),
+          }),
+        }),
+      );
+    });
+
+    it("reverses only the amount a partial release actually restored", async () => {
+      mockedPrisma.inventoryStockMovement.findMany.mockResolvedValueOnce([
+        {
+          id: "movement-cs-1",
+          itemId: "item-cs-1",
+          batchId: "batch-cs-1",
+          change: -6,
+          reason: "PRESCRIPTION_DISPENSE",
+          referenceId: "rx-cs-1",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ]);
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValue({
+        ...controlledItem,
+        onHand: 4,
+      });
+      mockedPrisma.inventoryBatch.findMany.mockResolvedValueOnce([
+        { id: "batch-cs-1", quantity: 6, allocated: 0, lotNumber: "LOT-1" },
+      ]);
+      mockedPrisma.inventoryConsumptionEvent.findFirst.mockResolvedValueOnce({
+        id: "event-cs-1",
+      });
+      txCsFindFirst.mockResolvedValueOnce({
+        id: "cs-log-1",
+        organisationId: "org-1",
+        patientId: null,
+        encounterId: null,
+        loggedAt: new Date("2026-01-01T00:00:00.000Z"),
+        drug: "Ketamine 100mg/ml",
+        deaSchedule: "III",
+        lotNumber: "LOT-1",
+        strength: null,
+        unit: "ML",
+        amountDrawn: 6,
+        amountAdministered: 6,
+        amountWasted: 0,
+        wastedWitness: null,
+        balanceBefore: 10,
+        balanceAfter: 4,
+        administeredBy: null,
+        notes: null,
+        sourceEventId: "event-cs-1",
+        inventoryBatchId: "batch-cs-1",
+      });
+      mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+        id: "event-cs-release-2",
+      });
+
+      await InventoryConsumptionService.releasePrescription({
+        organisationId: "org-1",
+        prescriptionId: "rx-cs-1",
+        medications: [
+          {
+            inventoryItemId: "item-cs-1",
+            quantity: 2,
+            sourceLineKey: "line-1",
+          },
+        ],
+      });
+
+      expect(txCsCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            amountDrawn: -2,
+            amountAdministered: -2,
+            balanceBefore: 4,
+            balanceAfter: 6,
+          }),
+        }),
+      );
+    });
+
+    it("writes nothing to the register when the release finds no dispense entry", async () => {
+      mockedPrisma.inventoryStockMovement.findMany.mockResolvedValueOnce([
+        {
+          id: "movement-cs-1",
+          itemId: "item-cs-1",
+          batchId: "batch-cs-1",
+          change: -6,
+          reason: "PRESCRIPTION_DISPENSE",
+          referenceId: "rx-cs-1",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ]);
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValue({
+        ...controlledItem,
+        onHand: 4,
+      });
+      mockedPrisma.inventoryBatch.findMany.mockResolvedValueOnce([
+        { id: "batch-cs-1", quantity: 6, allocated: 0, lotNumber: "LOT-1" },
+      ]);
+      mockedPrisma.inventoryConsumptionEvent.findFirst.mockResolvedValueOnce(
+        null,
+      );
+      mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+        id: "event-cs-release-3",
+      });
+
+      await InventoryConsumptionService.releasePrescription({
+        organisationId: "org-1",
+        prescriptionId: "rx-cs-1",
+        medications: [
+          {
+            inventoryItemId: "item-cs-1",
+            quantity: 6,
+            sourceLineKey: "line-1",
+          },
+        ],
+      });
+
+      expect(txCsCreate).not.toHaveBeenCalled();
+      // The stock still comes back - a missing ledger row must not strand it.
+      expect(mockedPrisma.inventoryBatch.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { quantity: { increment: 6 } } }),
+      );
+    });
   });
 });
