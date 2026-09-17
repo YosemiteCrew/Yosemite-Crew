@@ -7,6 +7,14 @@ import {
 } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
+import {
+  ControlledSubstanceLogService,
+  type DeaSchedule,
+} from "./controlled-substance-log.service";
+import {
+  resolveDrugUnit,
+  resolveItemDeaSchedule,
+} from "./controlled-substance-dispense";
 
 export class InventoryConsumptionServiceError extends Error {
   constructor(
@@ -1104,6 +1112,120 @@ const finalizeInventoryAdjustment = async (
   );
 };
 
+// #3142: controlled stock must never move without a controlled substance
+// register entry written in the same transaction. Everything the register needs
+// is derivable from the item and the batch except the DEA schedule, which is a
+// legal filing category and cannot be defaulted, so an item flagged controlled
+// with no resolvable schedule is refused here rather than dispensed
+// off-register - the silent skip is the defect being fixed.
+type ControlledDispenseItem = {
+  name: string;
+  controlledItem: boolean | null;
+  attributes: Prisma.JsonValue;
+  stockUnitType: string | null;
+  unitOfMeasure: string | null;
+  onHand: number | null;
+};
+
+const requireDispenseDeaSchedule = (
+  item: ControlledDispenseItem,
+): DeaSchedule | null => {
+  if (item.controlledItem !== true) return null;
+
+  const schedule = resolveItemDeaSchedule(item.attributes);
+  if (!schedule) {
+    throw new InventoryConsumptionServiceError(
+      `"${item.name}" is flagged as a controlled substance but carries no drug schedule, so this dispense cannot be entered in the controlled substance register. Set the item's drug schedule, then dispense.`,
+      400,
+    );
+  }
+  return schedule;
+};
+
+// One entry per batch drawn from, because the register answers "which lot left
+// the cabinet" and a single line can be filled from several batches.
+const recordControlledSubstanceDispense = async (
+  tx: Prisma.TransactionClient,
+  args: {
+    organisationId: string;
+    item: ControlledDispenseItem;
+    deaSchedule: DeaSchedule;
+    eventId: string;
+    openingOnHand: number;
+    draws: { batchId: string; quantity: number; lotNumber: string | null }[];
+  },
+) => {
+  const unit = resolveDrugUnit(
+    args.item.stockUnitType,
+    args.item.unitOfMeasure,
+  );
+  let balance = args.openingOnHand;
+
+  for (const draw of args.draws) {
+    const balanceBefore = balance;
+    balance -= draw.quantity;
+
+    await ControlledSubstanceLogService.create(
+      {
+        organisationId: args.organisationId,
+        loggedAt: new Date(),
+        drug: args.item.name,
+        deaSchedule: args.deaSchedule,
+        ...(draw.lotNumber ? { lotNumber: draw.lotNumber } : {}),
+        unit,
+        amountDrawn: draw.quantity,
+        amountAdministered: draw.quantity,
+        balanceBefore,
+        balanceAfter: balance,
+        sourceEventId: args.eventId,
+        inventoryBatchId: draw.batchId,
+      },
+      tx,
+    );
+  }
+};
+
+// The release path restores stock, so it never refuses: an item that lost its
+// schedule after being dispensed must still be returnable. It reverses whatever
+// entries the matching dispense wrote and nothing else.
+const reverseControlledSubstanceDispense = async (
+  tx: Prisma.TransactionClient,
+  args: {
+    params: InventoryConsumptionApplyParams;
+    releaseEventId: string;
+    restored: { batchId: string; quantity: number }[];
+  },
+) => {
+  if (!args.restored.length) return;
+
+  const consumeEvent = await tx.inventoryConsumptionEvent.findFirst({
+    where: {
+      organisationId: args.params.organisationId,
+      sourceType: args.params.sourceType,
+      sourceId: args.params.sourceId,
+      sourceLineKey: args.params.sourceLineKey,
+      inventoryItemId: args.params.inventoryItemId,
+      action: "CONSUME",
+    },
+    orderBy: [{ occurredAt: "desc" }],
+    select: { id: true },
+  });
+  if (!consumeEvent) return;
+
+  for (const restore of args.restored) {
+    await ControlledSubstanceLogService.reverseDispenseEntry(tx, {
+      organisationId: args.params.organisationId,
+      sourceEventId: consumeEvent.id,
+      inventoryBatchId: restore.batchId,
+      reversalEventId: args.releaseEventId,
+      amount: restore.quantity,
+      ...(args.params.movementReason
+        ? { reason: args.params.movementReason }
+        : {}),
+    });
+  }
+};
+
 const applyInventoryRelease = async (
   tx: Prisma.TransactionClient,
   params: InventoryConsumptionApplyParams,
@@ -1127,6 +1249,8 @@ const applyInventoryRelease = async (
     );
   }
 
+  const restored: { batchId: string; quantity: number }[] = [];
+
   let remainingRelease = params.quantity;
   for (const movement of movements) {
     if (remainingRelease <= 0) break;
@@ -1142,6 +1266,7 @@ const applyInventoryRelease = async (
         where: { id: movement.batchId },
         data: { quantity: { increment: restore } },
       });
+      restored.push({ batchId: movement.batchId, quantity: restore });
     }
 
     await tx.inventoryStockMovement.create({
@@ -1162,7 +1287,23 @@ const applyInventoryRelease = async (
     );
   }
 
-  return finalizeInventoryAdjustment(tx, params, item, 1, "RELEASE");
+  const event = await finalizeInventoryAdjustment(
+    tx,
+    params,
+    item,
+    1,
+    "RELEASE",
+  );
+
+  if (item.controlledItem === true) {
+    await reverseControlledSubstanceDispense(tx, {
+      params,
+      releaseEventId: event.id,
+      restored,
+    });
+  }
+
+  return event;
 };
 
 const applyInventoryConsumption = async (
@@ -1183,6 +1324,16 @@ const applyInventoryConsumption = async (
   if (availableForConsumption < params.quantity) {
     throw new InventoryConsumptionServiceError("Insufficient stock", 400);
   }
+
+  // Refused before any stock moves, so a controlled item with no schedule
+  // fails the dispense outright rather than half-applying it.
+  const deaSchedule = requireDispenseDeaSchedule(item);
+  const openingOnHand = item.onHand ?? 0;
+  const draws: {
+    batchId: string;
+    quantity: number;
+    lotNumber: string | null;
+  }[] = [];
 
   let remaining = params.quantity;
   const batches = await tx.inventoryBatch.findMany({
@@ -1217,6 +1368,12 @@ const applyInventoryConsumption = async (
         referenceId: params.sourceId,
       },
     });
+
+    draws.push({
+      batchId: batch.id,
+      quantity: consume,
+      lotNumber: batch.lotNumber ?? batch.batchNumber ?? null,
+    });
   }
 
   if (remaining > 0) {
@@ -1226,7 +1383,26 @@ const applyInventoryConsumption = async (
     );
   }
 
-  return finalizeInventoryAdjustment(tx, params, item, -1, "CONSUME");
+  const event = await finalizeInventoryAdjustment(
+    tx,
+    params,
+    item,
+    -1,
+    "CONSUME",
+  );
+
+  if (deaSchedule) {
+    await recordControlledSubstanceDispense(tx, {
+      organisationId: params.organisationId,
+      item,
+      deaSchedule,
+      eventId: event.id,
+      openingOnHand,
+      draws,
+    });
+  }
+
+  return event;
 };
 
 const consumeInventoryItem = async (

@@ -12,8 +12,16 @@ export class ControlledSubstanceLogError extends Error {
   }
 }
 
-type DeaSchedule = "II" | "III" | "IV" | "V";
-type DrugUnit = "ML" | "MG" | "MCG" | "TABLET" | "CAPSULE" | "PATCH" | "UNIT";
+export type DeaSchedule = "II" | "III" | "IV" | "V";
+export type DrugUnit =
+  "ML" | "MG" | "MCG" | "TABLET" | "CAPSULE" | "PATCH" | "UNIT";
+
+// The dispense and void paths already run inside prisma.$transaction, so every
+// write here has to be able to run on the caller's client. Writing through the
+// module-global client from inside someone else's transaction would put the
+// register entry on a second connection that the caller's rollback cannot
+// reach - which is how a dispense that failed leaves a register entry behind.
+type CsLogClient = typeof prisma | Prisma.TransactionClient;
 
 export interface CreateCsLogParams {
   organisationId: string;
@@ -33,6 +41,11 @@ export interface CreateCsLogParams {
   balanceAfter?: number;
   administeredBy?: string;
   notes?: string;
+  // Set only by the dispense and void paths: the InventoryConsumptionEvent that
+  // moved the stock, and the batch it was drawn from. Unique as a pair, so a
+  // replayed dispense cannot enter one movement in the register twice.
+  sourceEventId?: string;
+  inventoryBatchId?: string;
 }
 
 export type UpdateCsLogParams = Partial<
@@ -44,6 +57,10 @@ export type UpdateCsLogParams = Partial<
     | "drug"
     | "deaSchedule"
     | "unit"
+    // A correction adjusts quantities and notes. It must never re-point an
+    // entry at a different stock movement.
+    | "sourceEventId"
+    | "inventoryBatchId"
   >
 > & {
   correctedBy?: string;
@@ -83,6 +100,8 @@ const csLogSelect = {
   balanceAfter: true,
   administeredBy: true,
   notes: true,
+  sourceEventId: true,
+  inventoryBatchId: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.ControlledSubstanceLogSelect;
@@ -142,8 +161,12 @@ const buildLedgerNote = (
     .filter((part): part is string => Boolean(part))
     .join(" ");
 
-const assertRecord = async (id: string, organisationId: string) => {
-  const record = await prisma.controlledSubstanceLog.findFirst({
+const assertRecord = async (
+  id: string,
+  organisationId: string,
+  client: CsLogClient = prisma,
+) => {
+  const record = await client.controlledSubstanceLog.findFirst({
     where: { id, organisationId },
     select: csLogSelect,
   });
@@ -167,6 +190,13 @@ type CsLogRecord = Prisma.ControlledSubstanceLogGetPayload<{
 const buildReversalData = (
   record: CsLogRecord,
   notes: string,
+  // Never inherited from the entry being reversed: the pair is unique, and a
+  // reversal is caused by its own stock movement rather than by the one it
+  // cancels. A hand-entered correction or void passes nothing and gets nulls.
+  linkage: {
+    sourceEventId?: string | null;
+    inventoryBatchId?: string | null;
+  } = {},
 ): Prisma.ControlledSubstanceLogCreateInput => ({
   organisationId: record.organisationId,
   patientId: record.patientId,
@@ -185,6 +215,8 @@ const buildReversalData = (
   balanceAfter: record.balanceBefore,
   administeredBy: record.administeredBy,
   notes,
+  sourceEventId: linkage.sourceEventId ?? null,
+  inventoryBatchId: linkage.inventoryBatchId ?? null,
 });
 
 const assertNotReversed = async (
@@ -207,7 +239,10 @@ const assertNotReversed = async (
 };
 
 export const ControlledSubstanceLogService = {
-  async create(params: CreateCsLogParams) {
+  // `client` lets a caller that is already inside prisma.$transaction have its
+  // register entry committed or rolled back with the stock movement that caused
+  // it. Called with one argument it behaves exactly as before.
+  async create(params: CreateCsLogParams, client: CsLogClient = prisma) {
     const { organisationId, administeredBy, ...rest } = params;
 
     assertQuantitiesReconcile({
@@ -218,7 +253,7 @@ export const ControlledSubstanceLogService = {
       balanceAfter: rest.balanceAfter ?? null,
     });
 
-    const record = await prisma.controlledSubstanceLog.create({
+    const record = await client.controlledSubstanceLog.create({
       data: {
         organisationId,
         patientId: rest.patientId ?? null,
@@ -237,27 +272,103 @@ export const ControlledSubstanceLogService = {
         balanceAfter: rest.balanceAfter ?? null,
         administeredBy: administeredBy ?? null,
         notes: rest.notes ?? null,
+        sourceEventId: rest.sourceEventId ?? null,
+        inventoryBatchId: rest.inventoryBatchId ?? null,
       },
       select: csLogSelect,
     });
 
-    await AuditTrailService.recordSafely({
-      organisationId,
-      patientId: rest.patientId ?? "",
-      eventType: "CONTROLLED_SUBSTANCE_LOGGED",
-      actorType: "PMS_USER",
-      actorId: administeredBy ?? null,
-      entityType: "COMPANION",
-      entityId: record.id,
-      metadata: {
-        drug: rest.drug,
-        deaSchedule: rest.deaSchedule,
-        amountAdministered: rest.amountAdministered,
-        unit: rest.unit,
-      },
-    });
+    // The audit trail writes on the module-global client, so an entry appended
+    // inside a caller's transaction would leave a CONTROLLED_SUBSTANCE_LOGGED
+    // event behind if that transaction later rolled back - an audit record for
+    // a dispense that never happened. The transactional callers write their own
+    // stock-movement and consumption-event rows in the same transaction, so the
+    // movement stays fully traceable without this one.
+    if (client === prisma) {
+      await AuditTrailService.recordSafely({
+        organisationId,
+        patientId: rest.patientId ?? "",
+        eventType: "CONTROLLED_SUBSTANCE_LOGGED",
+        actorType: "PMS_USER",
+        actorId: administeredBy ?? null,
+        entityType: "COMPANION",
+        entityId: record.id,
+        metadata: {
+          drug: rest.drug,
+          deaSchedule: rest.deaSchedule,
+          amountAdministered: rest.amountAdministered,
+          unit: rest.unit,
+        },
+      });
+    }
 
     return record;
+  },
+
+  // Reverses the register entry a dispense wrote, found by the stock movement
+  // that wrote it. Returns null instead of throwing when there is nothing to
+  // reverse - an entry that predates this code, or a release of stock that was
+  // never controlled - because a void must not abort the stock transaction it
+  // is part of over a missing ledger row.
+  //
+  // `amount` is what the release actually restored, which is not always the
+  // whole entry: a release can cover part of a batch. Reversing the entry in
+  // full there would credit back stock the ledger never says left, so the
+  // reversal records the restored amount and no more.
+  async reverseDispenseEntry(
+    client: CsLogClient,
+    params: {
+      organisationId: string;
+      sourceEventId: string;
+      inventoryBatchId: string;
+      reversalEventId: string;
+      amount: number;
+      reason?: string;
+    },
+  ) {
+    const existing = await client.controlledSubstanceLog.findFirst({
+      where: {
+        organisationId: params.organisationId,
+        sourceEventId: params.sourceEventId,
+        inventoryBatchId: params.inventoryBatchId,
+      },
+      select: csLogSelect,
+    });
+    if (!existing) return null;
+
+    const restored = Math.min(Math.abs(params.amount), existing.amountDrawn);
+    if (restored <= 0) return null;
+
+    return client.controlledSubstanceLog.create({
+      data: {
+        organisationId: existing.organisationId,
+        patientId: existing.patientId,
+        encounterId: existing.encounterId,
+        loggedAt: existing.loggedAt,
+        drug: existing.drug,
+        deaSchedule: existing.deaSchedule,
+        lotNumber: existing.lotNumber,
+        strength: existing.strength,
+        unit: existing.unit,
+        amountDrawn: -restored,
+        amountAdministered: -restored,
+        amountWasted: 0,
+        wastedWitness: existing.wastedWitness,
+        balanceBefore: existing.balanceAfter,
+        balanceAfter:
+          existing.balanceAfter === null
+            ? null
+            : existing.balanceAfter + restored,
+        administeredBy: existing.administeredBy,
+        notes: buildLedgerNote(reversalMarker(existing.id), params.reason),
+        // Keyed to the release that caused it, never to the dispense it
+        // cancels: the pair is unique, and two partial releases of one
+        // dispense are two separate, truthful ledger rows.
+        sourceEventId: params.reversalEventId,
+        inventoryBatchId: params.inventoryBatchId,
+      },
+      select: csLogSelect,
+    });
   },
 
   async get(id: string, organisationId: string) {
