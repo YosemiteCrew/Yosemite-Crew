@@ -62,12 +62,17 @@ module.exports = {
       },
     ],
   },
-  // Everything in node_modules stays untransformed except jose and raw-body. The alternation
-  // covers both segments of the pnpm layout: the store directory
-  // (node_modules/.pnpm/jose@6.2.8/) and the links inside it
+  // Everything in node_modules stays untransformed except jose, raw-body and
+  // uuid. The alternation covers both segments of the pnpm layout: the store
+  // directory (node_modules/.pnpm/jose@6.2.8/) and the links inside it
   // (.../node_modules/jose/), so neither position matches and those files are
   // handed to the transform above.
+  //
+  // uuid joined the list at 14.0.2: it publishes `"type": "module"` with a
+  // `node` export condition pointing at ESM, and there is no CommonJS build
+  // left to fall back to, so every suite that reaches src/middlewares/upload.ts
+  // died on `Must use import to load ES Module` before running a single case.
   transformIgnorePatterns: [
-    "node_modules/(?!\\.pnpm/(?:jose|raw-body)@|(?:jose|raw-body)/)",
+    "node_modules/(?!\\.pnpm/(?:jose|raw-body|uuid)@|(?:jose|raw-body|uuid)/)",
   ],
 };
