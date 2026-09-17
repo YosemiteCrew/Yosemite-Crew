@@ -282,7 +282,76 @@ export const listPrescriptionsForParent = async (
   return { prescriptions, nextCursor, hasMore, limit };
 };
 
+export type OwnedPrescriptionForRefill = {
+  id: string;
+  organisationId: string;
+  encounterId: string;
+  medications: Array<Record<string, unknown>>;
+};
+
+/**
+ * The one prescription a refill request is written against, scoped the same
+ * way the list is: only through a permitted patient's own encounter, and only
+ * once it has reached a finalised, owner-visible status.
+ *
+ * Filtered in the `where`, not after the fetch — an id for someone else's
+ * prescription must come back null, not a 403 that confirms it exists.
+ */
+export const getOwnedPrescriptionForRefill = async (
+  parentId: string,
+  prescriptionId: string,
+): Promise<OwnedPrescriptionForRefill | null> => {
+  const patientIds = await listPermittedPatientIds(parentId);
+  if (patientIds.length === 0) {
+    return null;
+  }
+
+  const encounters = await prisma.encounter.findMany({
+    where: { patientId: { in: patientIds } },
+    select: { id: true },
+  });
+  if (encounters.length === 0) {
+    return null;
+  }
+
+  const prescription = await prisma.prescription.findFirst({
+    where: {
+      id: prescriptionId,
+      artifact: {
+        encounterId: { in: encounters.map((encounter) => encounter.id) },
+        status: { in: OWNER_VISIBLE_ARTIFACT_STATUSES },
+      },
+    },
+    include: {
+      items: { orderBy: { sortOrder: "asc" } },
+      artifact: { select: { encounterId: true, organisationId: true } },
+    },
+  });
+
+  const encounterId = prescription?.artifact.encounterId;
+  if (!prescription || !encounterId) {
+    return null;
+  }
+
+  return {
+    id: prescription.id,
+    organisationId: prescription.artifact.organisationId,
+    encounterId,
+    medications: prescription.items.map((item) => ({
+      medication: item.medication,
+      strength: item.strength ?? undefined,
+      dosage: item.dosage ?? undefined,
+      route: item.route ?? undefined,
+      frequency: item.frequency ?? undefined,
+      duration: item.duration ?? undefined,
+      quantity: item.quantity ?? undefined,
+      instructions: item.instructions ?? undefined,
+    })),
+  };
+};
+
 export const MobilePrescriptionService = {
   listPermittedPatientIds,
   listPrescriptionsForParent,
+  getOwnedPrescriptionForRefill,
 };

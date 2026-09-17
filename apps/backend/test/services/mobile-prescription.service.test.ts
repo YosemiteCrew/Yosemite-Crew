@@ -8,7 +8,7 @@ jest.mock("src/config/prisma", () => ({
   prisma: {
     parentPatient: { findMany: jest.fn() },
     encounter: { findMany: jest.fn() },
-    prescription: { findMany: jest.fn() },
+    prescription: { findMany: jest.fn(), findFirst: jest.fn() },
   },
 }));
 
@@ -18,6 +18,7 @@ import { encodeKeysetCursor } from "src/services/shared/pagination";
 const mockLinks = prisma.parentPatient.findMany as jest.Mock;
 const mockEncounters = prisma.encounter.findMany as jest.Mock;
 const mockPrescriptions = prisma.prescription.findMany as jest.Mock;
+const mockPrescriptionFindFirst = prisma.prescription.findFirst as jest.Mock;
 
 /**
  * A CO_PARENT by default, because that is the role the `medicalRecords` flag
@@ -443,6 +444,127 @@ describe("listPrescriptionsForParent pagination", () => {
       nextCursor: null,
       hasMore: false,
       limit: 5,
+    });
+  });
+});
+
+describe("getOwnedPrescriptionForRefill", () => {
+  it("returns null, and queries nothing further, when no patient is permitted", async () => {
+    mockLinks.mockResolvedValue([activeLink("pat-1", false)]);
+
+    const result =
+      await MobilePrescriptionService.getOwnedPrescriptionForRefill(
+        "parent-1",
+        "rx-1",
+      );
+
+    expect(result).toBeNull();
+    expect(mockEncounters).not.toHaveBeenCalled();
+    expect(mockPrescriptionFindFirst).not.toHaveBeenCalled();
+  });
+
+  it("returns null when the permitted patients have no encounters", async () => {
+    mockLinks.mockResolvedValue([activeLink("pat-1")]);
+    mockEncounters.mockResolvedValue([]);
+
+    const result =
+      await MobilePrescriptionService.getOwnedPrescriptionForRefill(
+        "parent-1",
+        "rx-1",
+      );
+
+    expect(result).toBeNull();
+    expect(mockPrescriptionFindFirst).not.toHaveBeenCalled();
+  });
+
+  it("scopes the lookup to the requested id, the permitted encounters, and owner-visible statuses", async () => {
+    mockLinks.mockResolvedValue([activeLink("pat-1")]);
+    mockEncounters.mockResolvedValue([{ id: "enc-1" }]);
+    mockPrescriptionFindFirst.mockResolvedValue(prescriptionRow());
+
+    await MobilePrescriptionService.getOwnedPrescriptionForRefill(
+      "parent-1",
+      "rx-1",
+    );
+
+    expect(mockPrescriptionFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "rx-1",
+          artifact: {
+            encounterId: { in: ["enc-1"] },
+            status: { in: ["COMPLETED", "SIGNED"] },
+          },
+        },
+      }),
+    );
+  });
+
+  it("returns null for a prescription id that does not match the scoped query", async () => {
+    mockLinks.mockResolvedValue([activeLink("pat-1")]);
+    mockEncounters.mockResolvedValue([{ id: "enc-1" }]);
+    mockPrescriptionFindFirst.mockResolvedValue(null);
+
+    const result =
+      await MobilePrescriptionService.getOwnedPrescriptionForRefill(
+        "parent-1",
+        "rx-someone-elses",
+      );
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null for a row whose artifact carries no encounter", async () => {
+    mockLinks.mockResolvedValue([activeLink("pat-1")]);
+    mockEncounters.mockResolvedValue([{ id: "enc-1" }]);
+    mockPrescriptionFindFirst.mockResolvedValue(
+      prescriptionRow({
+        artifact: {
+          encounterId: null,
+          organisationId: "org-1",
+          status: "SIGNED",
+          summary: null,
+          signedAt: null,
+        },
+      }),
+    );
+
+    const result =
+      await MobilePrescriptionService.getOwnedPrescriptionForRefill(
+        "parent-1",
+        "rx-1",
+      );
+
+    expect(result).toBeNull();
+  });
+
+  it("maps the matched prescription to the fields a dispense request needs", async () => {
+    mockLinks.mockResolvedValue([activeLink("pat-1")]);
+    mockEncounters.mockResolvedValue([{ id: "enc-1" }]);
+    mockPrescriptionFindFirst.mockResolvedValue(prescriptionRow());
+
+    const result =
+      await MobilePrescriptionService.getOwnedPrescriptionForRefill(
+        "parent-1",
+        "rx-1",
+      );
+
+    expect(result).toEqual({
+      id: "rx-1",
+      organisationId: "org-1",
+      encounterId: "enc-1",
+      medications: [
+        {
+          medication: "Meloxicam",
+          strength: "1.5 mg/ml",
+          dosage: "0.5 ml",
+          route: "Oral",
+          frequency: "Once daily",
+          duration: "5 days",
+          quantity: "1 bottle",
+          instructions: "Give with food",
+        },
+      ],
     });
   });
 });

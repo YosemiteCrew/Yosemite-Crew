@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { MobilePrescriptionService } from "src/services/mobile-prescription.service";
+import {
+  InventoryConsumptionService,
+  InventoryConsumptionServiceError,
+} from "src/services/inventory-consumption.service";
 import { resolveVerifiedUserId } from "src/utils/request";
 import { parseKeysetCursor } from "src/services/shared/pagination";
 import logger from "src/utils/logger";
@@ -82,6 +86,52 @@ export const MobilePrescriptionController = {
         }`,
       );
       return res.status(500).json({ message: "Failed to list prescriptions." });
+    }
+  },
+
+  requestRefill: async (req: Request, res: Response) => {
+    try {
+      const parentId = await resolveParentId(req, res);
+      if (!parentId) {
+        return;
+      }
+
+      const prescription =
+        await MobilePrescriptionService.getOwnedPrescriptionForRefill(
+          parentId,
+          req.params.id,
+        );
+      if (!prescription) {
+        return res.status(404).json({ message: "Prescription not found." });
+      }
+
+      /*
+       * The same write the PIMS side already makes when a prescription is
+       * signed (`shouldCreateDispenseRequestForPrescription`) and upserts on
+       * every re-request while one stays PENDING. Calling it here rather than
+       * inventing a second write path is what gives a refill request the
+       * right shape once it reaches staff, and what makes asking twice before
+       * the first fill is reviewed a no-op instead of a duplicate.
+       */
+      await InventoryConsumptionService.createPrescriptionDispenseRequest({
+        organisationId: prescription.organisationId,
+        prescriptionId: prescription.id,
+        medications: prescription.medications,
+        requestedBy: parentId,
+        context: { encounterId: prescription.encounterId },
+      });
+
+      return res.status(201).json({ status: "PENDING" });
+    } catch (err) {
+      if (err instanceof InventoryConsumptionServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error(
+        `Error requesting prescription refill: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`,
+      );
+      return res.status(500).json({ message: "Failed to request refill." });
     }
   },
 };
