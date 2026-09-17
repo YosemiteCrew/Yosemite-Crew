@@ -99,7 +99,9 @@ const getStripeClient = () => {
   const apiKey = process.env.STRIPE_SECRET_KEY;
   if (!apiKey) throw new Error("STRIPE_SECRET_KEY is not configured");
 
-  stripeClient = new Stripe(apiKey, { apiVersion: "2026-07-29.dahlia" });
+  stripeClient = new Stripe(apiKey, {
+    apiVersion: "2026-07-29.dahlia" as Stripe.LatestApiVersion,
+  });
   return stripeClient;
 };
 
