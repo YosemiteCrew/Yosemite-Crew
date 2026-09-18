@@ -64,8 +64,11 @@ export const setPrivacy = (
 };
 
 /**
- * Call after every return to the foreground, once the JS cover or lock
- * screen has drawn. Until then iOS keeps its own cover up.
+ * Call after every return from the background, once the JS cover or lock
+ * screen has drawn. Until then iOS keeps its own cover up. When the app was
+ * only inactive (the Face ID sheet, Control Center, a system alert), iOS
+ * takes its cover down by itself as the app becomes active again, so a call
+ * then is harmless but not needed.
  */
 export const coverRendered = (): Promise<boolean> =>
   settle(native => native.coverRendered(), false);
