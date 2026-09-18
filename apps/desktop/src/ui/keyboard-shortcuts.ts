@@ -61,6 +61,9 @@ interface ShortcutHandlerDeps {
   // Blur arrives before the focus of the window taking over, so the decision to
   // release the keys is deferred a tick. Injectable so tests need no timers.
   defer?: (cb: () => void) => void;
+  // True while the idle lock is up. These are OS-wide shortcuts, so they fire
+  // even with the lock page focused; none of them may reach the workspace.
+  isLocked: () => boolean;
   logger: {
     debug: (event: string, data?: unknown) => void;
     warn: (event: string, data?: unknown) => void;
@@ -87,6 +90,7 @@ export const createKeyboardShortcutManager = (
 
     for (const shortcut of SHORTCUTS) {
       const ok = deps.globalShortcut.register(shortcut.accelerator, () => {
+        if (deps.isLocked()) return;
         deps.logger.debug('shortcut_triggered', {
           id: shortcut.id,
           accelerator: shortcut.accelerator,

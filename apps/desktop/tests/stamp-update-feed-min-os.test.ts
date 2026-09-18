@@ -157,8 +157,8 @@ describe('main', () => {
     expect(stamp.main(['node', 'script', 'dist/latest-mac.yml'], h.deps)).toBe(0);
     expect(h.written).toHaveLength(1);
     // The resolved path, so what is written is what the guard admitted.
-    expect(h.written[0][0]).toBe(DIST_FEED);
-    expect(h.written[0][1]).toContain('minimumSystemVersion: 22.0.0');
+    expect(h.written[0]![0]).toBe(DIST_FEED);
+    expect(h.written[0]![1]).toContain('minimumSystemVersion: 22.0.0');
     expect(h.logged.join('\n')).toContain('22.0.0');
   });
 

@@ -41,6 +41,11 @@ const ROLE_ACCELERATORS: Record<string, string | { darwin: string; other?: strin
   hideOthers: { darwin: 'Cmd+Alt+H' },
 };
 
+// Roles with no accelerator of their own. Listed rather than omitted so that a
+// role the table has never seen is reported instead of silently contributing
+// nothing to the conflict set.
+const ROLES_WITHOUT_ACCELERATORS = ['about', 'services', 'unhide', 'help'];
+
 const MODIFIERS: Record<string, string> = {
   cmdorctrl: 'mod',
   commandorcontrol: 'mod',
@@ -74,6 +79,19 @@ const roleAccelerator = (role: string, platform: string): string | null => {
   if (!entry) return null;
   if (typeof entry === 'string') return entry;
   return platform === 'darwin' ? entry.darwin : (entry.other ?? null);
+};
+
+const rolesInTemplate = (platform: string): string[] => {
+  Object.defineProperty(process, 'platform', { value: platform });
+  const roles: string[] = [];
+  const walk = (items: Item[]): void => {
+    for (const item of items) {
+      if (item.role && !item.accelerator) roles.push(item.role);
+      if (item.submenu) walk(item.submenu);
+    }
+  };
+  walk(buildMenuTemplate(makeActions()) as Item[]);
+  return [...new Set(roles)];
 };
 
 const menuAccelerators = (platform: string): Map<string, string> => {
@@ -155,6 +173,26 @@ describe('no app shortcut is shadowed by a menu item', () => {
     ]) {
       expect(menu.has(normalize(accelerator, 'darwin'))).toBe(true);
     }
+  });
+
+  test.each(['darwin', 'win32'])(
+    '%s: every menu role is either in the accelerator table or declared to have none',
+    (platform) => {
+      const unaccounted = rolesInTemplate(platform).filter(
+        (role) => !(role in ROLE_ACCELERATORS) && !ROLES_WITHOUT_ACCELERATORS.includes(role)
+      );
+
+      expect(unaccounted).toEqual([]);
+    }
+  );
+
+  test.each(['darwin', 'win32'])('%s: no global shortcut takes a window key', (platform) => {
+    const windowKeys = new Set(WINDOW_SHORTCUTS.map((a) => normalize(a, platform)));
+    const clashes = SHORTCUTS.filter((s) => windowKeys.has(normalize(s.accelerator, platform))).map(
+      (s) => s.accelerator
+    );
+
+    expect(clashes).toEqual([]);
   });
 
   test('normalize resolves the platform modifier and the written order', () => {

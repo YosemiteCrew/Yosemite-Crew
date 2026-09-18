@@ -8,8 +8,9 @@ type Item = {
 
 let lastTemplate: Item[] = [];
 
+const quit = jest.fn();
 jest.mock('electron', () => ({
-  app: { name: 'Yosemite Crew PIMS', getLocale: () => 'en', quit: jest.fn() },
+  app: { name: 'Yosemite Crew PIMS', getLocale: () => 'en', quit: () => quit() },
   Menu: {
     buildFromTemplate: (tpl: Item[]) => {
       lastTemplate = tpl;
@@ -19,7 +20,7 @@ jest.mock('electron', () => ({
   },
 }));
 
-const openExternal = jest.fn(() => Promise.resolve());
+const openExternal = jest.fn<Promise<void>, unknown[]>(() => Promise.resolve());
 jest.mock('../src/shell/window-config', () => ({
   openExternal: (...a: unknown[]) => openExternal(...a),
 }));
@@ -64,6 +65,7 @@ const makeActions = (overrides: Partial<MenuActions> = {}): MenuActions => {
     tabMode: () => true,
     attachedTabId: () => 'a',
     tabManager: { getState: () => ({ tabs: [{ id: 'a' }, { id: 'b' }] }) },
+    isLocked: () => false,
     verifyAuditTrail: jest.fn(),
     exportCsDailyLog: jest.fn(),
     showDeaStatus: jest.fn(),
@@ -135,6 +137,32 @@ describe('createAppMenu', () => {
     const noSplit = run('darwin', { splitId: () => null });
     clickAll();
     expect(noSplit.setSplitTab).toHaveBeenCalledWith('b');
+  });
+
+  test('while the idle lock is up only Quit acts; the rest resume on unlock', () => {
+    let locked = true;
+    const actions = run('darwin', { isLocked: () => locked });
+    const fns = Object.values(actions).filter((v): v is jest.Mock => jest.isMockFunction(v));
+
+    clickAll();
+    for (const fn of fns) expect(fn).not.toHaveBeenCalled();
+    expect(openExternal).not.toHaveBeenCalled();
+    expect(quit).toHaveBeenCalledTimes(1);
+
+    // Read at click time: the same menu works again once unlocked.
+    locked = false;
+    clickAll();
+    expect(actions.newTab).toHaveBeenCalled();
+    expect(actions.activeContents).toHaveBeenCalled();
+    expect(openExternal).toHaveBeenCalled();
+  });
+
+  test('the Windows/Linux menu is held the same way', () => {
+    const actions = run('win32', { isLocked: () => true });
+    clickAll();
+    expect(actions.createSettingsWindow).not.toHaveBeenCalled();
+    expect(actions.openCommandPalette).not.toHaveBeenCalled();
+    expect(actions.activeContents).not.toHaveBeenCalled();
   });
 
   test('open-in-browser falls back to startUrl when no active contents', () => {

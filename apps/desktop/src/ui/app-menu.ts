@@ -23,6 +23,8 @@ export interface MenuActions {
   tabMode: () => boolean;
   attachedTabId: () => string | null;
   tabManager: { getState: () => { tabs: Array<{ id: string }> } } | null;
+  // True while the idle lock is up (read at click time, like the getters above).
+  isLocked: () => boolean;
   verifyAuditTrail: () => void;
   exportCsDailyLog: () => void;
   showDeaStatus: () => void;
@@ -62,6 +64,8 @@ export const buildMenuTemplate = (actions: MenuActions): MenuItemConstructorOpti
     if (wc && !wc.isDestroyed()) wc.send('yc:shortcut', shortcutId);
   };
 
+  const quit: MenuItemConstructorOptions = { label: tr('menu.quit'), click: () => app.quit() };
+
   const template: MenuItemConstructorOptions[] = [
     ...(isMac
       ? [
@@ -91,7 +95,7 @@ export const buildMenuTemplate = (actions: MenuActions): MenuItemConstructorOpti
               { role: 'hideOthers' as const },
               { role: 'unhide' as const },
               { type: 'separator' as const },
-              { label: tr('menu.quit'), click: () => app.quit() },
+              quit,
             ],
           },
         ]
@@ -327,7 +331,24 @@ export const buildMenuTemplate = (actions: MenuActions): MenuItemConstructorOpti
     },
   ];
 
-  return template;
+  // While the idle lock is up nothing here may act on the workspace behind it,
+  // whether by click or accelerator: every item with its own handler is inert
+  // until unlock, Quit excepted. Role items act on the focused contents, which
+  // the lock keeps on the lock page.
+  const holdWhileLocked = (items: MenuItemConstructorOptions[]): MenuItemConstructorOptions[] =>
+    items.map((item) => {
+      const { click, submenu } = item;
+      const held = { ...item };
+      if (click && item !== quit) {
+        held.click = (...args) => {
+          if (!actions.isLocked()) click(...args);
+        };
+      }
+      if (Array.isArray(submenu)) held.submenu = holdWhileLocked(submenu);
+      return held;
+    });
+
+  return holdWhileLocked(template);
 };
 
 export const createAppMenu = (actions: MenuActions): void => {
