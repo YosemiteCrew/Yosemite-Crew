@@ -748,6 +748,26 @@ describe('ipc-handlers — happy paths', () => {
     expect(services.logger.info).not.toHaveBeenCalledWith('cs_recorded', expect.anything());
   });
 
+  // The shared layout pass ends by raising the idle-lock overlay, so every path
+  // that attaches a tab view must go through it or a tab attached mid-lock
+  // would sit above the lock.
+  test.each([
+    ['yc:tab-new', 'https://yosemitecrew.com/x'],
+    ['yc:tab-activate', 't1'],
+    ['yc:tab-duplicate', 't1'],
+    ['yc:tab-reopen-closed'],
+    ['yc:tab-close', 't2'],
+  ])('%s runs the shared layout pass after attaching a tab', async (channel, ...args) => {
+    const services = makeServices();
+    // Reopen a tab the fixture's state actually lists, so there is one to attach.
+    (services.tabManager as unknown as { reopenClosed: jest.Mock }).reopenClosed.mockReturnValue(
+      't2'
+    );
+    const call = register(services);
+    expect(await call(channel, ...args)).toMatchObject({ ok: true });
+    expect(services.layoutTabChrome).toHaveBeenCalled();
+  });
+
   test('tab + window + misc handlers', async () => {
     const services = makeServices();
     const call = register(services);

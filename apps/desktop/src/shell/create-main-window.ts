@@ -46,6 +46,8 @@ export interface CreateMainWindowDeps {
   activeContents: () => Electron.WebContents | null;
   enterTabMode: (url: string) => void;
   layoutTabChrome: () => void;
+  // True while the idle lock is up: the menu and window gestures stand down.
+  isLocked: () => boolean;
 
   // Navigation
   loadStartUrl: () => void;
@@ -365,6 +367,7 @@ export const createMainWindow = async (
   });
 
   mainWindow.on('swipe', (_event, direction) => {
+    if (deps.isLocked()) return;
     const wc = deps.activeContents();
     if (!wc) return;
     if (direction === 'left') wc.navigationHistory.goForward();
@@ -400,6 +403,7 @@ export const createMainWindow = async (
     tabMode: deps.tabMode,
     attachedTabId: deps.attachedTabId,
     tabManager,
+    isLocked: deps.isLocked,
     verifyAuditTrail: deps.verifyAuditTrail,
     exportCsDailyLog: deps.exportCsDailyLog,
     showDeaStatus: deps.showDeaStatus,
