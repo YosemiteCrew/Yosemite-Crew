@@ -2487,11 +2487,24 @@ paths:
                   message:
                     type: string
         401:
-          description: No valid pet-parent session, or the session carries no user id
+          description: No session presented, or the session carries no verified user id
           content:
             application/json:
               schema:
                 type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        403:
+          description: 'A valid session for the wrong product. This route requires the pet_parent_mobile profile, so a staff web session reaches it authenticated and is still refused.'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
                 properties:
                   message:
                     type: string
