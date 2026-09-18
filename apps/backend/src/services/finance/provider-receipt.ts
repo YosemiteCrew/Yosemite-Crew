@@ -92,6 +92,19 @@ const REVERSED_STATUSES: readonly PrismaProviderReceiptStatus[] = [
 ];
 
 /**
+ * How many times the compare-and-set is attempted before giving up.
+ *
+ * Bounded rather than a spin. A lost CAS used to have one cause - another
+ * delivery attributed the receipt, which leaves nothing to do - and now has a
+ * second: a refund changed the status under a swap that was only ever about
+ * the owner, which would silently drop an attribution this delivery was
+ * holding. A refund contributes at most two status transitions
+ * (PARTIALLY_REFUNDED, then REFUNDED), so a second attempt closes the ordinary
+ * case, and a journal write on a webhook has no business retrying forever.
+ */
+const ATTRIBUTION_ATTEMPTS = 2;
+
+/**
  * Fill in a receipt whose owner is still unknown, once a later call knows it.
  *
  * The identity of a receipt is immutable - provider, merchant account and
@@ -116,19 +129,6 @@ const REVERSED_STATUSES: readonly PrismaProviderReceiptStatus[] = [
  *     overwritten by a decision taken before it existed;
  *   - it posts no credit anywhere. This is a journal.
  */
-/**
- * How many times the compare-and-set is attempted before giving up.
- *
- * Bounded rather than a spin. A lost CAS used to have one cause - another
- * delivery attributed the receipt, which leaves nothing to do - and now has a
- * second: a refund changed the status under a swap that was only ever about
- * the owner, which would silently drop an attribution this delivery was
- * holding. A refund contributes at most two status transitions
- * (PARTIALLY_REFUNDED, then REFUNDED), so a second attempt closes the ordinary
- * case, and a journal write on a webhook has no business retrying forever.
- */
-const ATTRIBUTION_ATTEMPTS = 2;
-
 const attributeIfOwnerStillUnknown = async (
   existing: {
     id: string;
