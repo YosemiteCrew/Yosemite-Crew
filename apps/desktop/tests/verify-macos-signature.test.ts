@@ -13,12 +13,13 @@ type VerifyModule = {
   ADHOC_FLAG: string;
   DEVELOPER_ID_AUTHORITY_PREFIX: string;
   UNSET_TEAM_IDENTIFIER: string;
-  assessMacSignature: (input: Record<string, unknown>) => Assessment;
+  assessMacSignature: (input?: Record<string, unknown>) => Assessment;
   formatReport: (target: string, assessment: Assessment) => string;
   hasDeveloperIdAuthority: (info: CodesignInfo) => boolean;
   hasTeamIdentifier: (info: CodesignInfo) => boolean;
   inspectArtifact: (target: string, deps?: Record<string, unknown>) => Record<string, unknown>;
   isAdHoc: (info: CodesignInfo) => boolean;
+  main: (argv: string[], deps?: Record<string, unknown>) => number;
   parseCodesignInfo: (output: unknown) => CodesignInfo;
   verifyTargets: (
     targets: string[],
@@ -493,7 +494,7 @@ describe('verifyTargets', () => {
     const run = (command: string, args: string[]): RunResult => {
       // First target good, second ad-hoc.
       const output = call < 4 ? DEVELOPER_ID_OUTPUT : AD_HOC_OUTPUT;
-      const statuses = call < 4 ? {} : { spctl: 3, stapler: 65 };
+      const statuses: Record<string, number> = call < 4 ? {} : { spctl: 3, stapler: 65 };
       call += 1;
       return runFor(output, statuses)(command, args);
     };

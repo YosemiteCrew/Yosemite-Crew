@@ -315,7 +315,7 @@ describe('createAuditLog', () => {
 
     const tampered = tamperedLog.query({ resourceType: 'patient' });
     expect(tampered[0]!.details).toEqual({ breed: 'Poodle' });
-    expect(tamperedLog.verify(tampered[0])).toBe(false);
+    expect(tamperedLog.verify(tampered[0]!)).toBe(false);
   });
 
   test('verifyAll reports valid and tampered counts', async () => {
@@ -394,7 +394,7 @@ describe('createAuditLog', () => {
     expect(log.verifyChain()).toBe(true);
 
     const entries = readJsonl<AuditEntry>(mem, logPath);
-    rewriteLog([entries[1], entries[0]]); // reordered
+    rewriteLog([entries[1]!, entries[0]!]); // reordered
     expect((await createAuditLog(tmpDir, deps)).verifyChain()).toBe(false);
   });
 

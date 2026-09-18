@@ -19,7 +19,7 @@ jest.mock('electron', () => ({
   },
 }));
 
-const openExternal = jest.fn(() => Promise.resolve());
+const openExternal = jest.fn<Promise<void>, unknown[]>(() => Promise.resolve());
 jest.mock('../src/shell/window-config', () => ({
   openExternal: (...a: unknown[]) => openExternal(...a),
 }));

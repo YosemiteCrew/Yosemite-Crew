@@ -366,7 +366,11 @@ describe('checkForUpdatesManually', () => {
     const result = await checkForUpdatesManually({
       electron: {
         app: { isPackaged: false },
-        dialog: { showMessageBox: (o) => messages.push(o) },
+        dialog: {
+          showMessageBox: (o) => {
+            messages.push(o);
+          },
+        },
       },
     });
     expect(result).toBeNull();
@@ -425,7 +429,11 @@ describe('checkForUpdatesManually', () => {
     await checkForUpdatesManually({
       electron: {
         app: { isPackaged: true },
-        dialog: { showMessageBox: (o) => messages.push(o) },
+        dialog: {
+          showMessageBox: (o) => {
+            messages.push(o);
+          },
+        },
       },
       autoUpdater: updater as never,
     });

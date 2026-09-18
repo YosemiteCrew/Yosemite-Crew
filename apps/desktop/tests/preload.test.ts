@@ -340,7 +340,7 @@ describe('preload bridge', () => {
     test('every member of YcDesktop except the platform value is a function', () => {
       const api = mockExposed.ycDesktop;
       const keys: (keyof YcDesktop)[] = Object.keys(
-        api as Record<string, unknown>
+        api as unknown as Record<string, unknown>
       ) as (keyof YcDesktop)[];
       const methods = keys.filter((key) => !VALUE_KEYS.includes(key));
       // The filter must remove exactly the value keys and leave a set to check,

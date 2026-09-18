@@ -14,9 +14,9 @@ describe('TabManager', () => {
       const state = tm.getState();
       expect(state.tabs).toHaveLength(1);
       expect(state.activeId).toBe(id);
-      expect(state.tabs[0].url).toBe('https://example.com');
-      expect(state.tabs[0].loading).toBe(true);
-      expect(state.tabs[0].pinned).toBe(false);
+      expect(state.tabs[0]!.url).toBe('https://example.com');
+      expect(state.tabs[0]!.loading).toBe(true);
+      expect(state.tabs[0]!.pinned).toBe(false);
     });
 
     it('creates a pinned tab before unpinned ones', () => {
@@ -24,14 +24,14 @@ describe('TabManager', () => {
       const id2 = tm.create('https://b.com');
       const id3 = tm.create('https://c.com', { pinned: true });
       const state = tm.getState();
-      expect(state.tabs[0].id).toBe(id1);
-      expect(state.tabs[1].id).toBe(id3);
-      expect(state.tabs[2].id).toBe(id2);
+      expect(state.tabs[0]!.id).toBe(id1);
+      expect(state.tabs[1]!.id).toBe(id3);
+      expect(state.tabs[2]!.id).toBe(id2);
     });
 
     it('accepts an initial title', () => {
       tm.create('https://example.com', { title: 'My Tab' });
-      expect(tm.getState().tabs[0].title).toBe('My Tab');
+      expect(tm.getState().tabs[0]!.title).toBe('My Tab');
     });
 
     it('generates unique ids', () => {
@@ -106,9 +106,9 @@ describe('TabManager', () => {
       const id3 = tm.create('https://c.com');
       tm.move(id3, 0);
       const state = tm.getState();
-      expect(state.tabs[0].id).toBe(id3);
-      expect(state.tabs[1].id).toBe(id1);
-      expect(state.tabs[2].id).toBe(id2);
+      expect(state.tabs[0]!.id).toBe(id3);
+      expect(state.tabs[1]!.id).toBe(id1);
+      expect(state.tabs[2]!.id).toBe(id2);
     });
 
     it('refuses to move pinned tab after unpinned', () => {
@@ -138,9 +138,9 @@ describe('TabManager', () => {
       expect(tm.move(id1, 2)).toBe(true);
 
       const state = tm.getState();
-      expect(state.tabs[0].id).toBe(id2);
-      expect(state.tabs[1].id).toBe(id3);
-      expect(state.tabs[2].id).toBe(id1);
+      expect(state.tabs[0]!.id).toBe(id2);
+      expect(state.tabs[1]!.id).toBe(id3);
+      expect(state.tabs[2]!.id).toBe(id1);
     });
 
     it('moves a tab to the end when toIndex is clamped', () => {
@@ -150,8 +150,8 @@ describe('TabManager', () => {
       expect(tm.move(id1, 999)).toBe(true);
 
       const state = tm.getState();
-      expect(state.tabs[0].id).toBe(id2);
-      expect(state.tabs[1].id).toBe(id1);
+      expect(state.tabs[0]!.id).toBe(id2);
+      expect(state.tabs[1]!.id).toBe(id1);
     });
 
     it('returns false for unknown id', () => {
@@ -165,14 +165,14 @@ describe('TabManager', () => {
       const id2 = tm.create('https://b.com');
       tm.pin(id2, true);
       const state = tm.getState();
-      expect(state.tabs[0].id).toBe(id2);
-      expect(state.tabs[0].pinned).toBe(true);
+      expect(state.tabs[0]!.id).toBe(id2);
+      expect(state.tabs[0]!.pinned).toBe(true);
     });
 
     it('unpins a tab and moves it after pinned', () => {
       const id1 = tm.create('https://a.com', { pinned: true });
       tm.pin(id1, false);
-      expect(tm.getState().tabs[0].pinned).toBe(false);
+      expect(tm.getState().tabs[0]!.pinned).toBe(false);
     });
 
     it('returns false for unknown id', () => {
@@ -225,9 +225,9 @@ describe('TabManager', () => {
         favicon: 'https://fav.icon',
       });
       const tab = tm.getState().tabs[0];
-      expect(tab.title).toBe('New Title');
-      expect(tab.loading).toBe(false);
-      expect(tab.favicon).toBe('https://fav.icon');
+      expect(tab!.title).toBe('New Title');
+      expect(tab!.loading).toBe(false);
+      expect(tab!.favicon).toBe('https://fav.icon');
     });
 
     it('returns false for unknown id', () => {
@@ -239,8 +239,8 @@ describe('TabManager', () => {
     it('returns snapshots (immutable copies)', () => {
       tm.create('https://a.com');
       const state = tm.getState();
-      state.tabs[0].title = 'Hacked';
-      expect(tm.getState().tabs[0].title).not.toBe('Hacked');
+      state.tabs[0]!.title = 'Hacked';
+      expect(tm.getState().tabs[0]!.title).not.toBe('Hacked');
     });
   });
 
@@ -294,7 +294,7 @@ describe('TabManager', () => {
       expect(tm.restore(json, isAllowed)).toBe(true);
       const state = tm.getState();
       expect(state.tabs).toHaveLength(1);
-      expect(state.tabs[0].url).toBe('https://app.example/a');
+      expect(state.tabs[0]!.url).toBe('https://app.example/a');
     });
 
     it('returns false when every restored tab is filtered out', () => {
@@ -342,6 +342,8 @@ describe('TabManager', () => {
           zoom: 1.0,
           error: null,
           offline: false,
+          audible: false,
+          muted: false,
           created: Date.now(),
         },
       ]);

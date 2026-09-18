@@ -30,7 +30,7 @@ jest.mock('electron', () => ({
   shell: { showItemInFolder: jest.fn() },
 }));
 
-const openExternal = jest.fn(() => Promise.resolve());
+const openExternal = jest.fn<Promise<void>, unknown[]>(() => Promise.resolve());
 jest.mock('../src/shell/window-config', () => ({
   openExternal: (...a: unknown[]) => openExternal(...a),
   secureWebPreferences: () => ({}),
@@ -86,7 +86,10 @@ const makeWc = () => ({
 const makeServices = (overrides: Partial<IpcServices> = {}): IpcServices => {
   const wc = makeWc();
   const view = {};
-  return {
+  // Assigned rather than spread: spreading a Partial<IpcServices> makes every
+  // property of the result optional, so a required member such as idleUnlock
+  // comes out as `| undefined` and the whole literal stops being IpcServices.
+  const services: IpcServices = {
     config: getDesktopConfig({}),
     logger: {
       debug: jest.fn(),
@@ -236,8 +239,9 @@ const makeServices = (overrides: Partial<IpcServices> = {}): IpcServices => {
     closeWindow: jest.fn(),
     retryOfflineLoad: jest.fn(),
     offlineTargetFor: jest.fn(() => 'https://yosemitecrew.com/'),
-    ...overrides,
+    idleUnlock: jest.fn(),
   };
+  return Object.assign(services, overrides);
 };
 
 const register = (services: IpcServices) => {
@@ -643,7 +647,9 @@ describe('ipc-handlers — happy paths', () => {
     expect(IPC_CHANNELS).not.toContain('yc:cs-set-witness-pin');
     expect(
       validateIpcRequest(
-        event,
+        // The double carries only the `url` this check reads; WebFrameMain has
+        // 38 more members no handler here touches.
+        event as unknown as Parameters<typeof validateIpcRequest>[0],
         'yc:cs-set-witness-pin',
         [{ witnessId: 'n1', witnessName: 'Jane', pin: '1234' }],
         getDesktopConfig({}),
@@ -792,7 +798,10 @@ describe('ipc-handlers — happy paths', () => {
   test('yc:tab-close exits tab mode when the last tab closes', async () => {
     const services = makeServices();
     const call = register(services);
-    services.tabManager.getState.mockReturnValue({ tabs: [], activeId: null });
+    (services.tabManager!.getState as unknown as jest.Mock).mockReturnValue({
+      tabs: [],
+      activeId: null,
+    });
     expect(await call('yc:tab-close', 't1')).toMatchObject({ ok: true });
     expect(services.exitTabMode).toHaveBeenCalled();
   });

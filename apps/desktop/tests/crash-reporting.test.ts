@@ -18,10 +18,10 @@ describe('crash reporting', () => {
         isPackaged: false,
       } as never,
       crashReporter: {
-        start: (options) => started.push(options as never),
+        start: (options: unknown) => started.push(options as never),
       } as never,
       logger: {
-        info: (event) => logs.push({ event }),
+        info: (event: string) => logs.push({ event }),
         warn: jest.fn(),
       } as never,
       env: {},
@@ -42,7 +42,7 @@ describe('crash reporting', () => {
         isPackaged: true,
       } as never,
       crashReporter: {
-        start: (options) => started.push(options as never),
+        start: (options: unknown) => started.push(options as never),
       } as never,
       logger: { info: jest.fn(), warn: jest.fn() } as never,
       env: {
