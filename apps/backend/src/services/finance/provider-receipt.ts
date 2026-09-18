@@ -80,7 +80,32 @@ export const initialReceiptStatus = (input: {
 };
 
 /**
- * Fill in an UNATTRIBUTED receipt once a later call knows who it belongs to.
+ * The states that record money already given back.
+ *
+ * Attribution must never overwrite one. They answer what happened to the
+ * capture, which is a different question from whose it was, and the second
+ * answer arriving later is not a reason to forget the first.
+ */
+const REVERSED_STATUSES: ReadonlySet<PrismaProviderReceiptStatus> = new Set([
+  "PARTIALLY_REFUNDED",
+  "REFUNDED",
+]);
+
+/**
+ * How many times the compare-and-set is attempted before giving up.
+ *
+ * Bounded rather than a spin. A lost CAS used to have one cause - another
+ * delivery attributed the receipt, which leaves nothing to do - and now has a
+ * second: a refund changed the status under a swap that was only ever about
+ * the owner, which would silently drop an attribution this delivery was
+ * holding. A refund contributes at most two status transitions
+ * (PARTIALLY_REFUNDED, then REFUNDED), so a second attempt closes the ordinary
+ * case, and a journal write on a webhook has no business retrying forever.
+ */
+const ATTRIBUTION_ATTEMPTS = 2;
+
+/**
+ * Fill in a receipt whose owner is still unknown, once a later call knows it.
  *
  * The identity of a receipt is immutable - provider, merchant account and
  * payment reference are the key and are never rewritten. What this fills in is
@@ -88,46 +113,130 @@ export const initialReceiptStatus = (input: {
  * written FIRST, before any lookup that could throw, so that no capture
  * depends on the rest of the handler succeeding.
  *
+ * The gate is the missing ORGANISATION, not the UNATTRIBUTED status. Those
+ * were the same predicate until a refund could move a receipt to
+ * PARTIALLY_REFUNDED: gating on the status then meant a partially refunded
+ * capture whose owner was never resolved could never be attributed at all, and
+ * its residual would sit in the reconciliation queue with no organisation
+ * forever. A receipt an operator has already acted on still cannot be
+ * rewritten, because acting on one gives it an organisation.
+ *
  * Deliberately narrow:
- *   - it only ever moves a receipt OUT of UNATTRIBUTED, so a receipt an
- *     operator has already acted on cannot be rewritten by a redelivery;
- *   - the status predicate is in the WHERE, not checked and then written, so a
- *     concurrent redelivery cannot both pass the check and both write;
+ *   - both halves of the state it decided from are in the WHERE - no owner,
+ *     and the exact status that was read - so this is a compare-and-set and
+ *     not a check followed by a write. Two concurrent redeliveries cannot both
+ *     pass it, and a refund landing in between cannot have its status
+ *     overwritten by a decision taken before it existed;
  *   - it posts no credit anywhere. This is a journal.
  */
-const attributeIfStillUnattributed = async (
-  existing: { id: string; status: PrismaProviderReceiptStatus },
+const attributeIfOwnerStillUnknown = async (
+  existing: {
+    id: string;
+    status: PrismaProviderReceiptStatus;
+    organisationId: string | null;
+  },
   input: JournalCaptureInput,
 ): Promise<PrismaProviderReceiptStatus> => {
-  if (existing.status !== "UNATTRIBUTED" || !input.organisationId) {
-    return existing.status;
+  if (!input.organisationId) return existing.status;
+
+  let observed: {
+    status: PrismaProviderReceiptStatus;
+    organisationId: string | null;
+  } = existing;
+
+  let attempts = 0;
+  while (observed.organisationId === null && attempts < ATTRIBUTION_ATTEMPTS) {
+    attempts += 1;
+
+    const status = REVERSED_STATUSES.has(observed.status)
+      ? observed.status
+      : initialReceiptStatus(input);
+
+    const updated = await prisma.providerReceipt.updateMany({
+      where: {
+        id: existing.id,
+        organisationId: null,
+        status: observed.status,
+      },
+      data: {
+        organisationId: input.organisationId,
+        invoiceId: input.invoiceId ?? null,
+        appointmentId: input.appointmentId ?? null,
+        reason: input.reason ?? null,
+        status,
+        version: { increment: 1 },
+      },
+    });
+
+    if (updated.count === 1) return status;
+
+    // count 0 means the row moved between the read and the write, so neither
+    // the status we intended nor the one we read is the stored one. The caller
+    // is told what a receipt IS, never what a lost race hoped it would be, so
+    // the next decision is taken from a fresh read.
+    const persisted = await prisma.providerReceipt.findUnique({
+      where: { id: existing.id },
+      select: { status: true, organisationId: true },
+    });
+    if (!persisted) return observed.status;
+    observed = persisted;
   }
 
-  const status = initialReceiptStatus(input);
-  const updated = await prisma.providerReceipt.updateMany({
-    where: { id: existing.id, status: "UNATTRIBUTED" },
-    data: {
-      organisationId: input.organisationId,
-      invoiceId: input.invoiceId ?? null,
-      appointmentId: input.appointmentId ?? null,
-      reason: input.reason ?? null,
-      status,
-      version: { increment: 1 },
-    },
-  });
+  // Someone else supplied the owner. That is the outcome, not a failure, and
+  // it is the ordinary way this loop ends - warning here would invent an alarm
+  // on a normal race.
+  if (observed.organisationId !== null) return observed.status;
 
-  if (updated.count === 1) return status;
-
-  // count 0 means the row left UNATTRIBUTED between the read and the write, so
-  // neither the status we intended nor the one we read is the stored one. The
-  // caller is told what a receipt IS, never what a lost race hoped it would be,
-  // so the only honest answer is a fresh read.
-  const persisted = await prisma.providerReceipt.findUnique({
-    where: { id: existing.id },
-    select: { status: true },
-  });
-  return persisted?.status ?? existing.status;
+  // Still nobody's after every attempt. Loud, because this delivery knew the
+  // owner and the stored receipt does not: the residual stays in the
+  // reconciliation queue unattributed until another delivery or an operator
+  // resolves it.
+  logger.warn(
+    `Receipt ${existing.id} lost the attribution race ${ATTRIBUTION_ATTEMPTS} times and is still unattributed`,
+  );
+  return observed.status;
 };
+
+export type RecordRefundInput = {
+  provider: PrismaPaymentProvider;
+  /** The connected account the capture landed in; platform captures pass null. */
+  merchantAccountRef?: string | null;
+  /** The provider's own reference for the CAPTURE being reversed. */
+  paymentRef: string;
+  /**
+   * What the provider says it has given back in total on this capture, not the
+   * amount of one refund event.
+   */
+  refundedAmount: number;
+  currency: string;
+};
+
+export type RecordRefundResult = {
+  id: string;
+  status: PrismaProviderReceiptStatus;
+  refundedAmount: number;
+  /** False when the stored figure already covered this refund. */
+  applied: boolean;
+};
+
+/**
+ * The state a receipt is in once the provider has given some of it back.
+ *
+ * A capture that has been refunded in full needs no allocation and no
+ * reconciliation, so REFUNDED replaces whatever it was - including
+ * UNATTRIBUTED, because money that has gone back needs no owner found for it.
+ * A partial refund leaves a residual that still does, which is why it gets its
+ * own state rather than being folded into either neighbour.
+ *
+ * `amount` and `refundedAmount` are both minor units divided by the same
+ * currency exponent, so they compare exactly; there is no rounding slack to
+ * absorb here and an epsilon would only hide a real over-refund.
+ */
+export const refundedReceiptStatus = (input: {
+  amount: number;
+  refundedAmount: number;
+}): PrismaProviderReceiptStatus =>
+  input.refundedAmount >= input.amount ? "REFUNDED" : "PARTIALLY_REFUNDED";
 
 export const ProviderReceiptService = {
   /**
@@ -194,7 +303,7 @@ export const ProviderReceiptService = {
 
       const existing = await prisma.providerReceipt.findUnique({
         where: { provider_merchantAccountRef_paymentRef: key },
-        select: { id: true, status: true },
+        select: { id: true, status: true, organisationId: true },
       });
       if (!existing) {
         // A unique violation whose row cannot then be read is not a replay. It
@@ -206,11 +315,130 @@ export const ProviderReceiptService = {
         return null;
       }
 
-      const attributed = await attributeIfStillUnattributed(existing, input);
+      const attributed = await attributeIfOwnerStillUnknown(existing, input);
       logger.info(
         `Captured payment ${input.paymentRef} on ${merchantAccountRef} was already journalled as receipt ${existing.id}`,
       );
       return { id: existing.id, status: attributed, created: false };
+    }
+  },
+
+  /**
+   * Reverse a journalled capture by the provider's cumulative refunded figure.
+   *
+   * Keyed on the capture's own reference, so a refund lands on the receipt for
+   * the money it is giving back and never on a sibling capture of the same
+   * appointment. Without this a receipt stayed at its full captured amount
+   * after the money had gone, and the issue's oracle - captured equals applied
+   * plus unapplied plus refunded - had no term to read for the last one.
+   *
+   * The figure is cumulative and the write is conditional on being an
+   * increase, so a redelivered event, an out-of-order pair of partial refunds
+   * and two concurrent deliveries all converge on the provider's own total
+   * rather than summing deltas into a number the provider never stated.
+   *
+   * It reverses the RECEIPT, not an allocation. Releasing the credit a refund
+   * takes back belongs to the single account-receipt transaction in #3163;
+   * `invoiceId` is left in place because it is the historical record of where
+   * the money went, and erasing it would destroy the only link a
+   * reconciliation has to work from.
+   *
+   * Never throws, for the same reason `journalCapture` does not: a webhook
+   * answered non-2xx is retried forever, and the refund has happened either
+   * way.
+   */
+  async recordRefund(
+    input: RecordRefundInput,
+  ): Promise<RecordRefundResult | null> {
+    const merchantAccountRef =
+      input.merchantAccountRef ?? PLATFORM_MERCHANT_ACCOUNT_REF;
+
+    try {
+      const existing = await prisma.providerReceipt.findUnique({
+        where: {
+          provider_merchantAccountRef_paymentRef: {
+            provider: input.provider,
+            merchantAccountRef,
+            paymentRef: input.paymentRef,
+          },
+        },
+        select: {
+          id: true,
+          amount: true,
+          currency: true,
+          status: true,
+          refundedAmount: true,
+        },
+      });
+
+      if (!existing) {
+        // The capture this reverses was never journalled, so there is nothing
+        // to reduce. Loud, because it means money left the account against a
+        // record we do not hold.
+        logger.error(
+          `Refund of ${input.paymentRef} on ${merchantAccountRef} has no journalled capture to reverse`,
+        );
+        return null;
+      }
+
+      if (existing.currency !== input.currency) {
+        // Two currencies cannot be compared, so writing this figure would put
+        // a number in the journal that means nothing against the amount beside
+        // it. A gap a human can see beats a total that silently does not add
+        // up.
+        logger.error(
+          `Refund of ${input.paymentRef} on ${merchantAccountRef} is in a different currency from the capture it reverses; not recorded`,
+        );
+        return null;
+      }
+
+      const status = refundedReceiptStatus({
+        amount: existing.amount,
+        refundedAmount: input.refundedAmount,
+      });
+
+      const updated = await prisma.providerReceipt.updateMany({
+        where: {
+          id: existing.id,
+          refundedAmount: { lt: input.refundedAmount },
+        },
+        data: {
+          refundedAmount: input.refundedAmount,
+          status,
+          version: { increment: 1 },
+        },
+      });
+
+      if (updated.count === 1) {
+        return {
+          id: existing.id,
+          status,
+          refundedAmount: input.refundedAmount,
+          applied: true,
+        };
+      }
+
+      // count 0 means the stored figure already covers this refund - a replay,
+      // an event delivered behind a later one, or a concurrent delivery that
+      // won. None of those is an error, and none of them makes the status this
+      // call computed the stored one, so the answer comes from a fresh read.
+      const persisted = await prisma.providerReceipt.findUnique({
+        where: { id: existing.id },
+        select: { status: true, refundedAmount: true },
+      });
+
+      return {
+        id: existing.id,
+        status: persisted?.status ?? existing.status,
+        refundedAmount: persisted?.refundedAmount ?? existing.refundedAmount,
+        applied: false,
+      };
+    } catch (error) {
+      logger.error(
+        `Could not record refund of ${input.paymentRef} on ${merchantAccountRef}`,
+        error,
+      );
+      return null;
     }
   },
 };

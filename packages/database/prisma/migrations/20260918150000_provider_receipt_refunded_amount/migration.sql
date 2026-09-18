@@ -1,0 +1,14 @@
+-- Refund reversal on the captured-payment journal (#3170).
+--
+-- A refund webhook could reach every record it needed EXCEPT the journal row
+-- for the capture it reverses, so a receipt stayed ALLOCATED or UNALLOCATED at
+-- its full captured amount after the money had gone back. The issue's oracle -
+-- captured equals applied plus unapplied plus refunded - had no term to read
+-- for the last one.
+--
+-- Cumulative rather than a per-event delta: the provider states the total it
+-- has given back on the charge, so a redelivered or out-of-order refund event
+-- is absorbed by comparing against what is stored rather than added twice.
+-- Additive with a default, so rows written before this migration read 0, which
+-- is what they mean.
+ALTER TABLE "ProviderReceipt" ADD COLUMN     "refundedAmount" DOUBLE PRECISION NOT NULL DEFAULT 0;
