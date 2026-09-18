@@ -27,14 +27,26 @@
  *
  * WHAT MAKES A SET OF ROWS ONE PUSH. The key `(userId, title, body, type)`
  * carries no event identity, so identical text is NOT on its own evidence of
- * duplication. Several templates render the same bytes for genuinely different
- * events: `Appointment.CANCELLED(companionName)` varies only by pet name, and
- * `Payment.PAYMENT_FAILED()` takes no arguments at all, so every failed card
- * retry produces one identical row. What the old bug actually left behind is
- * DEVICE FAN-OUT - one push, one row per device token, written from inside a
- * loop whose `sendToDevice` call was awaited. So the rows of one push are
- * separated by a single FCM round trip, and two distinct events are separated
- * by however long apart the events were.
+ * duplication. Two templates that can reach this table render the same bytes
+ * for genuinely different events: `Appointment.CANCELLED(companionName)` varies
+ * only by pet name (`appointment.service.ts` cancelAppointment:2031 and
+ * rejectRequestedAppointment:2119), and the `Payment` money templates -
+ * PAYMENT_SUCCESS, PAYMENT_PENDING, REFUND_ISSUED - carry an amount and a
+ * currency but no invoice id.
+ *
+ * That list is short for two separate reasons, and both were checked rather
+ * than assumed. A template whose `type` is not a `NotificationType` member
+ * never wrote a row at all: `sendToUser` coerces a missing type to "GENERAL"
+ * (`notification.service.ts:214`), the create throws, and the throw is
+ * swallowed - which rules out every `Care.*`, `Task.*`, `Auth.*` and
+ * `Expense.*` template. And `Payment.PAYMENT_FAILED` has a valid type but no
+ * production caller: its only reference repo-wide is its own unit test, so it
+ * has never written a row either.
+ *
+ * What the old bug actually left behind is DEVICE FAN-OUT - one push, one row
+ * per device token, written from inside a loop whose `sendToDevice` call was
+ * awaited. So the rows of one push are separated by a single FCM round trip,
+ * and two distinct events are separated by however long apart the events were.
  *
  * Rows of a key are therefore CLUSTERED on the gap between adjacent rows, and
  * each cluster of two or more is collapsed on its own. A key whose text recurs
@@ -65,19 +77,30 @@ const REFACTOR_2696_MERGED_AT = Date.parse("2026-09-05T12:46:40Z");
  * How far apart two ADJACENT rows of one key may be and still belong to the
  * same fan-out.
  *
- * This is a chosen bound, not a measured one: nothing in the table records
- * which push a row came from, and this desk has no production data to fit it
- * to. What bounds it from below is the old loop - it awaited one FCM round
- * trip per device token, so consecutive rows of one push are a round trip
- * apart, which is hundreds of milliseconds. What bounds it from above is the
- * shortest gap between two distinct events carrying identical text; a card
- * retry is the worst case and is still seconds. Two seconds sits between them.
+ * A chosen bound, not a measured one: nothing in the table records which push
+ * a row came from, and this desk has no production data to fit it to. It is
+ * sized on the one mechanism it models, because only one end of the range is
+ * bounded by anything at all.
  *
- * The previous value was five minutes, justified as "network latency". Five
- * minutes is around a thousand FCM round trips, and it is wide enough to merge
- * two failed-payment retries into one group and archive one of them.
+ * The bounded end is the old loop. It awaited `sendToDevice` before issuing
+ * the next token's write, so consecutive rows of one push are paced by one FCM
+ * round trip - hundreds of milliseconds. The write itself was NOT awaited
+ * (`void createNotificationRecord(...)`), so each row's `createdAt` is that
+ * pacing plus its own insert latency, and two rows of one push can even land
+ * out of token order. Two seconds is an order of magnitude of headroom over a
+ * round trip, which is what that jitter needs.
  *
- * Both error directions are real and they are NOT symmetric in cost:
+ * The other end is NOT bounded. Two distinct events carrying identical text
+ * are two independent requests - two appointments for one pet cancelled from
+ * the clinic screen, two charges of one amount settling on one account - and
+ * nothing makes them arrive slowly. So this constant cannot be placed safely
+ * BETWEEN a longest-fan-out and a shortest-distinct-gap: there is no
+ * shortest-distinct-gap to place it under. Every millisecond past the fan-out
+ * it models buys nothing but over-collapse. The previous value was five
+ * minutes, justified as "network latency" - about a thousand round trips of
+ * the thing it claimed to be sizing.
+ *
+ * The two error directions are real and NOT symmetric in cost:
  *   - too tight splits one fan-out in two, and its duplicate rows survive -
  *     the bug simply stays unfixed for that push, and a re-run after widening
  *     this constant still finds them;
@@ -85,6 +108,14 @@ const REFACTOR_2696_MERGED_AT = Date.parse("2026-09-05T12:46:40Z");
  *     direction that loses something.
  * So it is deliberately tight, and `rowsLeftUngrouped` below exists to make
  * the cost of that choice visible on the dry run instead of silent.
+ *
+ * RESIDUAL, stated rather than buried: two distinct events with identical text
+ * inside two seconds are indistinguishable from one fan-out, and this script
+ * will collapse them. Nothing on the row can separate them - there is no event
+ * id, and `updatedAt`, `enabled` and the uuid all carry no ordering. What is
+ * left is containment, not detection: the window is as tight as the mechanism
+ * allows, losers are archived and never deleted, and dry run is the default so
+ * the plan is read before it is written.
  */
 const FAN_OUT_ADJACENT_GAP_MS = 2 * 1000;
 
@@ -124,6 +155,13 @@ const groupKey = (row: {
  * exceeds one fan-out. Adjacent gaps, never the span of the whole run: a key
  * whose text recurs for months has a span of months, and rejecting it on that
  * span is what left the most-duplicated rows untouched.
+ *
+ * Single linkage, so a cluster CHAINS: rows each within one gap of the next
+ * join one cluster however long the chain runs. That is deliberate, because a
+ * fan-out is exactly a chain - one row per device token, each a round trip
+ * after the last - and a user's token count is not bounded by anything this
+ * script can read. Capping the total span instead would re-introduce the
+ * whole-run guard this replaced, on a smaller scale.
  */
 const clusterByAdjacentGap = <T extends { createdAt: Date }>(
   sorted: readonly T[],
