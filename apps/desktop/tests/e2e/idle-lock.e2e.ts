@@ -181,7 +181,7 @@ const focusedSince = (app: ElectronApplication, mark: number, url: string): Prom
     ({ webContents }, { mark: from, url: target }) => {
       const focused = ((globalThis as Record<string, unknown>).__focused as number[]).slice(from);
       const wc = webContents.getAllWebContents().find((w) => w.getURL().includes(target));
-      return Boolean(wc) && focused.at(-1) === wc!.id;
+      return Boolean(wc) && focused[focused.length - 1] === wc!.id;
     },
     { mark, url }
   );
@@ -190,7 +190,8 @@ const focusedSince = (app: ElectronApplication, mark: number, url: string): Prom
 const topmostView = (app: ElectronApplication): Promise<string> =>
   app.evaluate(({ BrowserWindow }) => {
     const win = BrowserWindow.getAllWindows().find((w) => w.contentView.children.length > 0);
-    const top = win?.contentView.children.at(-1) as { webContents?: { getURL(): string } };
+    const views = win?.contentView.children ?? [];
+    const top = views[views.length - 1] as { webContents?: { getURL(): string } } | undefined;
     return top?.webContents?.getURL() ?? '';
   });
 
@@ -209,7 +210,7 @@ const callShell = <T>(shell: Page, method: string, ...args: unknown[]): Promise<
         string,
         (...x: unknown[]) => Promise<unknown>
       >;
-      return yc[m](...a);
+      return yc[m]!(...a);
     },
     { m: method, a: args }
   ) as Promise<T>;
@@ -292,7 +293,7 @@ test.describe('idle lock', () => {
       let moves = 0;
       history.goBack = () => void moves++;
       history.goForward = () => void moves++;
-      const win = BrowserWindow.getAllWindows()[0];
+      const win = BrowserWindow.getAllWindows()[0]!;
       win.emit('swipe', {}, 'right');
       win.emit('swipe', {}, 'left');
       Object.assign(history, { goBack, goForward });
@@ -351,7 +352,7 @@ test.describe('idle lock', () => {
       await expect
         .poll(() =>
           app!.evaluate(({ BrowserWindow }, target) => {
-            const win = BrowserWindow.getAllWindows()[0];
+            const win = BrowserWindow.getAllWindows()[0]!;
             const views = win.contentView.children as unknown as Array<{
               webContents?: { getURL(): string };
             }>;
