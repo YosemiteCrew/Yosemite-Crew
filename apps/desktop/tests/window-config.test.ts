@@ -1,6 +1,7 @@
 const shellOpenExternal = jest.fn(() => Promise.resolve());
 const showErrorBox = jest.fn();
 const clipboardWriteText = jest.fn();
+const loggerError = jest.fn();
 
 class FakeMenu {
   items: FakeMenuItem[] = [];
@@ -30,12 +31,13 @@ jest.mock('../src/utils/logger', () => ({
     debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn(),
+    error: (...a: unknown[]) => loggerError(...a),
   }),
 }));
 
 import {
   openExternal,
+  copyLink,
   secureWebPreferences,
   childWindowOptions,
   handleWindowOpen,
@@ -65,6 +67,40 @@ describe('openExternal', () => {
     shellOpenExternal.mockRejectedValueOnce(new Error('nope'));
     await openExternal('https://yosemitecrew.com');
     expect(showErrorBox).toHaveBeenCalled();
+  });
+});
+
+describe('copyLink', () => {
+  test('writes the link to the clipboard', async () => {
+    await copyLink('https://yosemitecrew.com/x');
+    expect(clipboardWriteText).toHaveBeenCalledWith('https://yosemitecrew.com/x');
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  // Electron 44's writeText returns a promise, so a failed write arrives as a
+  // rejection rather than a throw. Unhandled it would reach the main process, which
+  // has no unhandledRejection handler - hence resolving, not rejecting, is the
+  // property under test.
+  test('swallows and logs a rejected write instead of letting it escape', async () => {
+    clipboardWriteText.mockRejectedValueOnce(new Error('clipboard busy'));
+    await expect(copyLink('https://yosemitecrew.com/x')).resolves.toBeUndefined();
+    expect(loggerError).toHaveBeenCalledWith(
+      'copy_link_failed',
+      expect.objectContaining({ href: 'https://yosemitecrew.com/x' })
+    );
+  });
+
+  test('the Copy Link menu item routes through copyLink, not the raw clipboard', async () => {
+    clipboardWriteText.mockRejectedValueOnce(new Error('clipboard busy'));
+    const menu = buildContextMenu(
+      { linkURL: 'https://yosemitecrew.com/x' },
+      {} as never
+    ) as unknown as FakeMenu;
+    const copy = menu.items.find((i) => i.opts.label === 'Copy Link');
+    expect(copy).toBeDefined();
+    copy?.click();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(loggerError).toHaveBeenCalledWith('copy_link_failed', expect.anything());
   });
 });
 
