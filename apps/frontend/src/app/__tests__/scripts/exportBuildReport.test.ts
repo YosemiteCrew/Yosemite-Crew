@@ -177,6 +177,66 @@ describe('export-build-report', () => {
     expect(result.output).toContain('do not repoint this at build-manifest.json');
   });
 
+  describe('keeps every read inside .next', () => {
+    // A manifest entry and a `<script src>` are both just strings in a file, and
+    // stripping a leading `/` does not stop `..`. Without containment the script
+    // resolves clean out of the build directory and reads whatever is there.
+    it('refuses a manifest entry that traverses out of the build directory', () => {
+      const result = run({
+        chunks: { 'static/chunks/a.js': 2048 },
+        appBuildManifest: { pages: { '/x/page': ['../../../etc/passwd.js'] } },
+      });
+
+      expect(result.code).toBe(1);
+      expect(result.output).toContain('which is outside');
+      expect(result.output).toContain('../../../etc/passwd.js');
+    });
+
+    it('refuses a document script src that traverses out of the build directory', () => {
+      const result = run({
+        chunks: { 'static/chunks/a.js': 2048 },
+        appBuildManifest: null,
+        documents: [{ route: 'index', chunks: ['../../../etc/passwd.js'] }],
+      });
+
+      expect(result.code).toBe(1);
+      expect(result.output).toContain('which is outside');
+    });
+
+    it('refuses a sibling directory whose name merely starts with .next', () => {
+      // `.nextrogue` passes a bare startsWith(NEXT_DIR) test, so the separator in
+      // the guard is what makes it a boundary rather than a prefix. The file is
+      // written so that without the guard the script reads it and reports a
+      // route, rather than failing on ENOENT for an unrelated reason.
+      const rogue = path.join(workdir, '.nextrogue');
+      mkdirSync(rogue, { recursive: true });
+      writeFileSync(path.join(rogue, 'x.js'), Buffer.alloc(2048, 'x'));
+
+      const result = run({
+        chunks: { 'static/chunks/a.js': 2048 },
+        appBuildManifest: { pages: { '/x/page': ['../.nextrogue/x.js'] } },
+      });
+
+      rmSync(rogue, { recursive: true, force: true });
+
+      expect(result.code).toBe(1);
+      expect(result.output).toContain('which is outside');
+    });
+
+    it('still accepts a legitimate build-root-relative reference', () => {
+      // The guard has to admit the normal shape, or it is just a broken script.
+      const result = run({
+        chunks: { 'static/chunks/a.js': 2048 },
+        appBuildManifest: { pages: { '/x/page': ['/static/chunks/a.js'] } },
+      });
+
+      expect(result.code).toBe(0);
+      expect(readReport().routes).toEqual([
+        { route: '/x', jsChunkCount: 1, totalBytes: 2048, totalKiB: 2 },
+      ]);
+    });
+  });
+
   it('names the source it used in the markdown report', () => {
     run({
       chunks: { 'static/chunks/a.js': 2048 },

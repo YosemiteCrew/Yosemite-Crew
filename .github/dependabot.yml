@@ -211,8 +211,16 @@ updates:
       # What is left is the decision itself, which is above a dependabot PR and
       # is not fixable by adjusting a budget number on one: whether to adopt
       # Turbopack as the production bundler, and whether to accept ~3% more
-      # first-load JS to take Next 16 at all. Expect the bump to fail honestly
-      # on the 1462.5 KiB lazy chat chunk against the 1190 KiB async ceiling.
+      # first-load JS to take Next 16 at all.
+      #
+      # Measured on a local 16.3.4 Turbopack build of dev at 89eedeaca with the
+      # fixed gate: the classification works - 1/5/42/249 across
+      # polyfills/shared/page/async rather than 0/0/0/297 - and the bump then
+      # fails honestly on three chunks, not one. 1462.6 KiB lazy against the
+      # 1190 KiB async ceiling, 453.8 KiB first-load against 290 KiB (it also
+      # exceeded the previous 375 KiB page ceiling), and a 222.7 KiB entry chunk
+      # against 178 KiB, where dev's largest entry chunk is 169.7 KiB. Those are
+      # the numbers the decision has to be made against.
       # There is no security pressure to take the major: no published next
       # advisory has a vulnerable range containing 15.5.24, and 15.x still
       # receives patches through this config.

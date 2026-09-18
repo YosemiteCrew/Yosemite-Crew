@@ -25,12 +25,37 @@ const normalizeRoute = (route) => route.replace(/^app\//, '/').replace(/\/page$/
 
 const formatKiB = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;
 
+/**
+ * Every path this script reads is resolved and then required to be inside
+ * `.next`. Containment at the read is the same instinct as refusing to guess
+ * when a source is missing: this script does not trust what produced its input.
+ */
+const insideNext = (candidate, resolved) => {
+  if (resolved !== NEXT_DIR && !resolved.startsWith(`${NEXT_DIR}${path.sep}`)) {
+    throw new Error(`${candidate} resolves to ${resolved}, which is outside ${NEXT_DIR}.`);
+  }
+
+  return resolved;
+};
+
+/**
+ * Asset references come out of a manifest entry or a `<script src>`, where a
+ * leading `/` means "the build root" rather than the filesystem root. Stripping
+ * it does not stop `..` - a segment like `../../etc/passwd` resolves clean out
+ * of the build directory, which is what the containment check is for.
+ */
+const resolveAssetInsideNext = (assetPath) => {
+  const normalized = assetPath.startsWith('/') ? assetPath.slice(1) : assetPath;
+  return insideNext(assetPath, path.resolve(NEXT_DIR, normalized));
+};
+
+/** For paths this script produced itself, which must still land inside `.next`. */
+const resolveInsideNext = (filePath) => insideNext(filePath, path.resolve(filePath));
+
 const sumChunkSizes = async (chunkPaths) => {
   const sizes = await Promise.all(
     chunkPaths.map(async (chunkPath) => {
-      const normalizedPath = chunkPath.startsWith('/') ? chunkPath.slice(1) : chunkPath;
-      const filePath = path.resolve(NEXT_DIR, normalizedPath);
-      const contents = await readFile(filePath);
+      const contents = await readFile(resolveAssetInsideNext(chunkPath));
       return contents.byteLength;
     })
   );
@@ -40,7 +65,7 @@ const sumChunkSizes = async (chunkPaths) => {
 
 const readJsonIfPresent = async (filePath) => {
   try {
-    return JSON.parse(await readFile(filePath, 'utf8'));
+    return JSON.parse(await readFile(resolveInsideNext(filePath), 'utf8'));
   } catch (error) {
     if (error.code === 'ENOENT') {
       return null;
@@ -127,7 +152,7 @@ const fromPrerenderedDocuments = async () => {
 
   const routes = await Promise.all(
     documents.map(async (documentPath) => {
-      const html = await readFile(documentPath, 'utf8');
+      const html = await readFile(resolveInsideNext(documentPath), 'utf8');
       const jsChunks = [...html.matchAll(SCRIPT_SRC_PATTERN)]
         .map(([, src]) => toAssetPath(src))
         .filter((assetPath) => assetPath?.endsWith('.js'));
