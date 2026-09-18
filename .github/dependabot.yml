@@ -191,6 +191,35 @@ updates:
       # toolchain across two ESLint majors.
       - dependency-name: 'eslint'
         update-types: ['version-update:semver-major']
+      # next is held on 15.x while the Next 16 adoption is decided (#3266). Two
+      # things break before any app code is touched, and neither is fixable by
+      # adjusting a budget number on the dependabot PR:
+      #   - Next 16 makes Turbopack the default production bundler, and
+      #     apps/frontend/scripts/check-bundle-budgets.mjs classifies chunks by
+      #     webpack filename shape. Under Turbopack all four patterns match
+      #     nothing, so every chunk falls through to the 375 KiB page budget and
+      #     the shared, polyfills and async ceilings silently guard zero chunks.
+      #     Measured on the real CI artifacts: 3/1/124 chunks in those
+      #     categories on 15.5.24, 0/0/0 on 16.3.4, all 297 in the fallback.
+      #   - Next 16 removed .next/app-build-manifest.json, which
+      #     apps/frontend/scripts/export-build-report.mjs reads with no
+      #     fallback, so the step after the budget check exits 1 under EITHER
+      #     bundler. Repointing it at build-manifest.json is not the fix - that
+      #     file is pages-router only and makes the script write an empty
+      #     report and exit 0.
+      # There is no security pressure to take the major: no published next
+      # advisory has a vulnerable range containing 15.5.24, and 15.x still
+      # receives patches through this config.
+      #
+      # Scoped to 16.x rather than all majors so a later major is still
+      # proposed, and because eslint 10 (held above) only clears once this one
+      # is taken - the hold needs to be visible, not permanent.
+      #
+      # Note for whoever takes it: next is pinned in TWO places, this repo's
+      # root pnpm.overrides and apps/frontend/package.json. A bump that moves
+      # only one fails the lockfile config check before CI reaches the gates.
+      - dependency-name: 'next'
+        versions: ['16.x']
     groups:
       # Every group is minor-and-patch only, including the named ones below. A
       # named group without `update-types` silently swallows MAJORS too, which is
