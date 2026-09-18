@@ -94,7 +94,10 @@ jest.mock("../../src/services/notification.service", () => ({
 
 jest.mock("../../src/services/finance/provider-receipt", () => ({
   __esModule: true,
-  ProviderReceiptService: { journalCapture: jest.fn() },
+  ProviderReceiptService: {
+    journalCapture: jest.fn(),
+    recordRefund: jest.fn(),
+  },
 }));
 
 jest.mock("../../src/services/organization-verification.service", () => ({
@@ -1339,6 +1342,7 @@ describe("StripeService", () => {
         payment_intent: "pi_3",
         metadata: { invoiceId: "inv_3" },
         amount: 1000,
+        amount_refunded: 1000,
         currency: "usd",
       } as any);
 
@@ -2096,6 +2100,7 @@ describe("StripeService", () => {
         id: "ch_jpy",
         payment_intent: "pi_jpy",
         amount: 1000,
+        amount_refunded: 1000,
         currency: "jpy",
         metadata: { invoiceId: "inv_jpy" },
       } as any);
@@ -2123,6 +2128,7 @@ describe("StripeService", () => {
         id: "ch_orphan",
         payment_intent: "pi_orphan",
         amount: 500,
+        amount_refunded: 500,
         currency: "usd",
         metadata: {},
       } as any);
@@ -2145,6 +2151,7 @@ describe("StripeService", () => {
         id: "ch_1",
         payment_intent: "pi_1",
         amount: 500,
+        amount_refunded: 500,
         currency: "usd",
         metadata: { invoiceId: "inv_1" },
       } as any);
@@ -2164,6 +2171,7 @@ describe("StripeService", () => {
         id: "ch_1",
         payment_intent: "pi_1",
         amount: 500,
+        amount_refunded: 500,
         currency: "usd",
         metadata: { invoiceId: "inv_1" },
       } as any);
@@ -2183,6 +2191,7 @@ describe("StripeService", () => {
         id: "ch_1",
         payment_intent: null,
         amount: 500,
+        amount_refunded: 500,
         currency: "usd",
         refunded: true,
         metadata: {},
@@ -3279,5 +3288,208 @@ describe("provider receipt journal", () => {
       expect.stringContaining("Could not journal captured payment pi_journal"),
       expect.any(Error),
     );
+  });
+});
+
+/*
+ * #3170 delivery 2. A refund reached the invoice, the Payment row and the
+ * customer, and everything EXCEPT the journal row for the capture it reverses -
+ * so a receipt stayed at its full captured amount after the money had gone
+ * back, and the issue's oracle (captured = applied + unapplied + refunded) had
+ * no term to read for the last one.
+ */
+describe("provider receipt refund reversal", () => {
+  const journalled = () =>
+    (ProviderReceiptService.journalCapture as jest.Mock).mock.calls.map(
+      ([input]) => input,
+    );
+  const reversed = () =>
+    (ProviderReceiptService.recordRefund as jest.Mock).mock.calls.map(
+      ([input]) => input,
+    );
+
+  // A realistic refunded charge. Stripe states amount_refunded on every charge
+  // and it is cumulative, so a 20.00 refund of a 100.00 capture looks like
+  // this - the shape the old code read as a full refund.
+  const refundedCharge = (overrides: Record<string, unknown> = {}) =>
+    ({
+      id: "ch_reversal",
+      payment_intent: "pi_reversal",
+      amount: 10000,
+      amount_captured: 10000,
+      amount_refunded: 2000,
+      currency: "gbp",
+      created: 1789718400,
+      metadata: { invoiceId: "inv_reversal" },
+      ...overrides,
+    }) as any;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (ProviderReceiptService.journalCapture as jest.Mock).mockResolvedValue({
+      id: "receipt-1",
+      status: "UNATTRIBUTED",
+      created: false,
+    });
+    (ProviderReceiptService.recordRefund as jest.Mock).mockResolvedValue({
+      id: "receipt-1",
+      status: "PARTIALLY_REFUNDED",
+      refundedAmount: 20,
+      applied: true,
+    });
+    (
+      FinancePaymentService.markInvoiceRefundedFromWebhook as jest.Mock
+    ).mockResolvedValue({
+      action: "REFUNDED",
+      invoice: { id: "inv_reversal", parentId: "par_1" },
+    });
+  });
+
+  it("reverses by what the provider gave back, not by what it captured", async () => {
+    // The defect: `charge.amount` is the CAPTURE. Reading it as the refund
+    // reported a 20.00 refund of a 100.00 charge as 100.00 - to the journal,
+    // to the refund ledger, to the invoice metadata and to the customer.
+    await StripeService._handleRefund(refundedCharge());
+
+    expect(reversed()).toEqual([
+      expect.objectContaining({ refundedAmount: 20, currency: "gbp" }),
+    ]);
+    expect(
+      FinancePaymentService.markInvoiceRefundedFromWebhook,
+    ).toHaveBeenCalledWith(expect.objectContaining({ amount: 20 }));
+    expect(NotificationTemplates.Payment.REFUND_ISSUED).toHaveBeenCalledWith(
+      20,
+      "gbp",
+    );
+  });
+
+  it("keys the reversal on the capture's own reference", async () => {
+    // On the payment intent, so the refund reduces the receipt for the money
+    // it is actually returning and never a sibling capture of the same
+    // appointment - the reinterpretation the issue forbids.
+    await StripeService._handleRefund(refundedCharge());
+
+    expect(reversed()[0]).toMatchObject({
+      provider: "STRIPE",
+      paymentRef: "pi_reversal",
+    });
+  });
+
+  it("journals the capture it is reversing before reducing it", async () => {
+    // A refund can arrive for a capture this journal never saw: one that
+    // predates the table, or one whose own webhook failed to write. The refund
+    // event carries the provider's figures for it, so it is recovered from
+    // stated facts rather than reported as an orphan.
+    await StripeService._handleRefund(refundedCharge());
+
+    expect(journalled()).toEqual([
+      expect.objectContaining({
+        provider: "STRIPE",
+        paymentRef: "pi_reversal",
+        amount: 100,
+        currency: "gbp",
+        capturedAt: new Date(1789718400 * 1000),
+      }),
+    ]);
+    expect(
+      (ProviderReceiptService.journalCapture as jest.Mock).mock
+        .invocationCallOrder[0],
+    ).toBeLessThan(
+      (ProviderReceiptService.recordRefund as jest.Mock).mock
+        .invocationCallOrder[0],
+    );
+  });
+
+  it("recovers the captured amount, not the authorised one", async () => {
+    // A partially captured charge returns less than it authorised, and the
+    // journal records what was taken.
+    await StripeService._handleRefund(
+      refundedCharge({ amount: 10000, amount_captured: 9000 }),
+    );
+
+    expect(journalled()[0]).toMatchObject({ amount: 90 });
+  });
+
+  it("attributes the recovered capture to nobody", async () => {
+    // Nothing in a refund event says whose money it was, and a receipt that
+    // claims an owner it guessed is worse than one a human has to resolve.
+    expect(journalled()).toEqual([]);
+
+    await StripeService._handleRefund(refundedCharge());
+
+    expect(journalled()[0].organisationId).toBeUndefined();
+    expect(journalled()[0].invoiceId).toBeUndefined();
+  });
+
+  it("carries the connected account the capture landed in", async () => {
+    // Without it every connected-account refund would look for its capture on
+    // the platform account and find nothing. The handler had no parameter for
+    // the account at all, while every sibling handler already took one.
+    await StripeService.handleWebhookEvent({
+      type: "charge.refunded",
+      account: "acct_connected",
+      data: { object: refundedCharge() },
+    } as any);
+
+    expect(journalled()[0]).toMatchObject({
+      merchantAccountRef: "acct_connected",
+    });
+    expect(reversed()[0]).toMatchObject({
+      merchantAccountRef: "acct_connected",
+    });
+  });
+
+  it("does not identify a capture for a charge that names no intent", async () => {
+    // Journalling it under the charge id instead would let the same money be
+    // recorded twice under two different references, which is the one thing
+    // this table exists to prevent.
+    await StripeService._handleRefund(
+      refundedCharge({ payment_intent: null, metadata: {} }),
+    );
+
+    expect(journalled()).toEqual([]);
+    expect(reversed()).toEqual([]);
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.stringContaining("names no payment intent"),
+    );
+  });
+
+  it("does not record a refund figure the provider did not state", async () => {
+    // A guessed number subtracted from a captured total is worse than a
+    // visible gap. The invoice path keeps the behaviour it has always had.
+    await StripeService._handleRefund(
+      refundedCharge({ amount_refunded: undefined }),
+    );
+
+    expect(journalled()).toEqual([]);
+    expect(reversed()).toEqual([]);
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.stringContaining("states no refunded amount"),
+    );
+    expect(
+      FinancePaymentService.markInvoiceRefundedFromWebhook,
+    ).toHaveBeenCalledWith(expect.objectContaining({ amount: 100 }));
+  });
+
+  it("never lets the journal be the reason a refund is not processed", async () => {
+    // The journal records the refund; it is not a precondition for handling
+    // it. Throwing here would stop the invoice being marked REFUNDED and the
+    // customer being told, and a Stripe retry would repeat that forever.
+    (ProviderReceiptService.recordRefund as jest.Mock).mockRejectedValue(
+      new Error("journal unavailable"),
+    );
+
+    await expect(
+      StripeService._handleRefund(refundedCharge()),
+    ).resolves.toBeUndefined();
+
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.stringContaining("Could not reverse the journalled capture"),
+      expect.any(Error),
+    );
+    expect(
+      FinancePaymentService.markInvoiceRefundedFromWebhook,
+    ).toHaveBeenCalled();
+    expect(NotificationService.sendToUser).toHaveBeenCalled();
   });
 });

@@ -129,6 +129,47 @@ const attributeIfStillUnattributed = async (
   return persisted?.status ?? existing.status;
 };
 
+export type RecordRefundInput = {
+  provider: PrismaPaymentProvider;
+  /** The connected account the capture landed in; platform captures pass null. */
+  merchantAccountRef?: string | null;
+  /** The provider's own reference for the CAPTURE being reversed. */
+  paymentRef: string;
+  /**
+   * What the provider says it has given back in total on this capture, not the
+   * amount of one refund event.
+   */
+  refundedAmount: number;
+  currency: string;
+};
+
+export type RecordRefundResult = {
+  id: string;
+  status: PrismaProviderReceiptStatus;
+  refundedAmount: number;
+  /** False when the stored figure already covered this refund. */
+  applied: boolean;
+};
+
+/**
+ * The state a receipt is in once the provider has given some of it back.
+ *
+ * A capture that has been refunded in full needs no allocation and no
+ * reconciliation, so REFUNDED replaces whatever it was - including
+ * UNATTRIBUTED, because money that has gone back needs no owner found for it.
+ * A partial refund leaves a residual that still does, which is why it gets its
+ * own state rather than being folded into either neighbour.
+ *
+ * `amount` and `refundedAmount` are both minor units divided by the same
+ * currency exponent, so they compare exactly; there is no rounding slack to
+ * absorb here and an epsilon would only hide a real over-refund.
+ */
+export const refundedReceiptStatus = (input: {
+  amount: number;
+  refundedAmount: number;
+}): PrismaProviderReceiptStatus =>
+  input.refundedAmount >= input.amount ? "REFUNDED" : "PARTIALLY_REFUNDED";
+
 export const ProviderReceiptService = {
   /**
    * Record a captured payment, exactly once per provider reference.
@@ -211,6 +252,125 @@ export const ProviderReceiptService = {
         `Captured payment ${input.paymentRef} on ${merchantAccountRef} was already journalled as receipt ${existing.id}`,
       );
       return { id: existing.id, status: attributed, created: false };
+    }
+  },
+
+  /**
+   * Reverse a journalled capture by the provider's cumulative refunded figure.
+   *
+   * Keyed on the capture's own reference, so a refund lands on the receipt for
+   * the money it is giving back and never on a sibling capture of the same
+   * appointment. Without this a receipt stayed at its full captured amount
+   * after the money had gone, and the issue's oracle - captured equals applied
+   * plus unapplied plus refunded - had no term to read for the last one.
+   *
+   * The figure is cumulative and the write is conditional on being an
+   * increase, so a redelivered event, an out-of-order pair of partial refunds
+   * and two concurrent deliveries all converge on the provider's own total
+   * rather than summing deltas into a number the provider never stated.
+   *
+   * It reverses the RECEIPT, not an allocation. Releasing the credit a refund
+   * takes back belongs to the single account-receipt transaction in #3163;
+   * `invoiceId` is left in place because it is the historical record of where
+   * the money went, and erasing it would destroy the only link a
+   * reconciliation has to work from.
+   *
+   * Never throws, for the same reason `journalCapture` does not: a webhook
+   * answered non-2xx is retried forever, and the refund has happened either
+   * way.
+   */
+  async recordRefund(
+    input: RecordRefundInput,
+  ): Promise<RecordRefundResult | null> {
+    const merchantAccountRef =
+      input.merchantAccountRef ?? PLATFORM_MERCHANT_ACCOUNT_REF;
+
+    try {
+      const existing = await prisma.providerReceipt.findUnique({
+        where: {
+          provider_merchantAccountRef_paymentRef: {
+            provider: input.provider,
+            merchantAccountRef,
+            paymentRef: input.paymentRef,
+          },
+        },
+        select: {
+          id: true,
+          amount: true,
+          currency: true,
+          status: true,
+          refundedAmount: true,
+        },
+      });
+
+      if (!existing) {
+        // The capture this reverses was never journalled, so there is nothing
+        // to reduce. Loud, because it means money left the account against a
+        // record we do not hold.
+        logger.error(
+          `Refund of ${input.paymentRef} on ${merchantAccountRef} has no journalled capture to reverse`,
+        );
+        return null;
+      }
+
+      if (existing.currency !== input.currency) {
+        // Two currencies cannot be compared, so writing this figure would put
+        // a number in the journal that means nothing against the amount beside
+        // it. A gap a human can see beats a total that silently does not add
+        // up.
+        logger.error(
+          `Refund of ${input.paymentRef} on ${merchantAccountRef} is in a different currency from the capture it reverses; not recorded`,
+        );
+        return null;
+      }
+
+      const status = refundedReceiptStatus({
+        amount: existing.amount,
+        refundedAmount: input.refundedAmount,
+      });
+
+      const updated = await prisma.providerReceipt.updateMany({
+        where: {
+          id: existing.id,
+          refundedAmount: { lt: input.refundedAmount },
+        },
+        data: {
+          refundedAmount: input.refundedAmount,
+          status,
+          version: { increment: 1 },
+        },
+      });
+
+      if (updated.count === 1) {
+        return {
+          id: existing.id,
+          status,
+          refundedAmount: input.refundedAmount,
+          applied: true,
+        };
+      }
+
+      // count 0 means the stored figure already covers this refund - a replay,
+      // an event delivered behind a later one, or a concurrent delivery that
+      // won. None of those is an error, and none of them makes the status this
+      // call computed the stored one, so the answer comes from a fresh read.
+      const persisted = await prisma.providerReceipt.findUnique({
+        where: { id: existing.id },
+        select: { status: true, refundedAmount: true },
+      });
+
+      return {
+        id: existing.id,
+        status: persisted?.status ?? existing.status,
+        refundedAmount: persisted?.refundedAmount ?? existing.refundedAmount,
+        applied: false,
+      };
+    } catch (error) {
+      logger.error(
+        `Could not record refund of ${input.paymentRef} on ${merchantAccountRef}`,
+        error,
+      );
+      return null;
     }
   },
 };
