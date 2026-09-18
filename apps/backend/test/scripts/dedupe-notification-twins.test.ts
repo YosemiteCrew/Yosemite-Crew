@@ -118,29 +118,47 @@ describe("planNotificationDedupe", () => {
     expect(groups).toEqual([]);
   });
 
-  // The blocker this rule exists for. Appointment.CANCELLED renders only the
-  // pet name and Payment.PAYMENT_FAILED takes no arguments at all, so two
-  // distinct events for one owner are byte-identical on the whole key. Only
-  // the gap can tell them apart, and a retry seconds later is the worst case.
+  // The blocker this rule exists for, built on a template that can actually
+  // reach this table: Appointment.CANCELLED renders only the pet name, so two
+  // appointments for one pet cancelled from the clinic screen are
+  // byte-identical on the whole key and only the gap tells them apart. The
+  // fixture sits 2.5s apart and the fan-out below sits 300ms apart, so between
+  // them they bracket FAN_OUT_ADJACENT_GAP_MS to (0.3s, 2.5s] - widening the
+  // constant to cover a second cancel breaks this test by design.
   it("leaves two distinct sends of identical text alone", async () => {
+    const cancelled = (id: string, at: string) =>
+      row({
+        id,
+        title: "Appointment Cancelled \u274c",
+        body: "Your appointment for Miso has been cancelled. We're here if you need to rebook.",
+        createdAt: new Date(at),
+      });
     mocked.notification.findMany.mockResolvedValue([
-      row({
-        id: "first-failure",
-        title: "Payment Failed",
-        body: "Something went wrong with your payment.",
-        createdAt: new Date("2026-09-01T10:00:00.000Z"),
-      }),
-      row({
-        id: "retry-failure",
-        title: "Payment Failed",
-        body: "Something went wrong with your payment.",
-        createdAt: new Date("2026-09-01T10:00:05.000Z"),
-      }),
+      cancelled("first-cancel", "2026-09-01T10:00:00.000Z"),
+      cancelled("second-cancel", "2026-09-01T10:00:02.500Z"),
     ]);
 
     const { groups } = await planNotificationDedupe();
 
     expect(groups).toEqual([]);
+  });
+
+  // Single linkage chains, and the cluster comment says so. Pinned because it
+  // is the property that decides what a many-device fan-out does, and an
+  // unpinned deliberate choice reads the same as an accident.
+  it("chains a fan-out across more devices than the gap itself spans", async () => {
+    mocked.notification.findMany.mockResolvedValue([
+      row({ id: "d1", createdAt: new Date("2026-09-01T10:00:00.000Z") }),
+      row({ id: "d2", createdAt: new Date("2026-09-01T10:00:01.500Z") }),
+      row({ id: "d3", createdAt: new Date("2026-09-01T10:00:03.000Z") }),
+    ]);
+
+    const { groups } = await planNotificationDedupe();
+
+    // d1 and d3 are 3s apart, wider than one gap, and still one cluster.
+    expect(groups.map((g) => [g.winnerId, g.loserIds] as const)).toEqual([
+      ["d1", ["d2", "d3"]],
+    ]);
   });
 
   it("collapses each fan-out separately when the same text recurs", async () => {
