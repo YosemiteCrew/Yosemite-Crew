@@ -310,8 +310,8 @@ importers:
         specifier: ^22.5.0
         version: 22.5.0(@types/node@26.4.1)
       uuid:
-        specifier: 11.1.1
-        version: 11.1.1
+        specifier: 14.0.2
+        version: 14.0.2
       validator:
         specifier: 13.15.35
         version: 13.15.35
@@ -940,8 +940,8 @@ importers:
         specifier: ^7.2.3
         version: 7.2.3(react-native@0.81.6)(react@19.1.4)
       uuid:
-        specifier: 11.1.1
-        version: 11.1.1
+        specifier: 14.0.2
+        version: 14.0.2
     devDependencies:
       '@babel/core':
         specifier: ^7.29.6
@@ -25893,7 +25893,6 @@ packages:
   /uuid@14.0.2:
     resolution: {integrity: sha512-xZe/16rV4aa+HGSOCiY2YeLT1OybRLrrkL/Rqaq7p7GMVXjFh+6wN4oMYgjFmnSnhY8t6Xpdl2l9qmnHYuMHwQ==}
     hasBin: true
-    dev: true
 
   /v8-compile-cache-lib@3.0.1:
     resolution: {integrity: sha512-wa7YjyUGfNZngI/vtK0UHAN+lgDCxBPCylVXGp0zu59Fz5aiGtNXaq3DhIov063MorB+VfufLh3JlF2KdTK3xg==}
