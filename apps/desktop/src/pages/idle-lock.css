@@ -92,6 +92,11 @@ body {
   animation: rise 0.7s var(--ease-spring) both;
 }
 
+/* The page draws its own scrim; the modal's default backdrop would darken it. */
+.lock-card::backdrop {
+  background: transparent;
+}
+
 .lock-icon {
   width: 58px;
   height: 58px;
@@ -156,6 +161,14 @@ body {
 
 .unlock:active {
   transform: translateY(1px);
+}
+
+/* Focus starts on Unlock, so the ring is on screen from the first frame; match
+   the ring the other local pages use rather than the OS accent. */
+.unlock:focus-visible,
+.use-password:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
 }
 
 .unlock:disabled {
