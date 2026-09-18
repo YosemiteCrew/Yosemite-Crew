@@ -19,9 +19,16 @@ const SCRIPT = path.resolve(__dirname, '../../../../scripts/check-bundle-budgets
 const BUDGETS = {
   page: 375 * 1024,
   async: 1190 * 1024,
-  shared: 195 * 1024,
+  shared: 225 * 1024,
   polyfills: 120 * 1024,
 } as const;
+
+// The framework chunk the shared ceiling was last ratcheted from, measured with
+// stat() on `framework-e6b407ea27ee0db6.js` in the CI `next-build` artefact for
+// run 35316200054 (react-dom 19.3.0). Written as a literal rather than derived
+// from BUDGETS.shared so it pins the ceiling to a real build instead of to
+// itself.
+const MEASURED_FRAMEWORK_CHUNK_BYTES = 219_031;
 
 type Chunk = { name: string; size: number };
 
@@ -88,6 +95,14 @@ describe('check-bundle-budgets', () => {
 
     expect(result.code).toBe(1);
     expect(result.output).toContain('framework-abc.js');
+  });
+
+  it('keeps the shared ceiling just above the framework chunk it was ratcheted from', () => {
+    // Both directions matter. Below the measured chunk the gate fails every build;
+    // far above it the gate passes everything and warns about nothing, which is the
+    // state the budgets were introduced to end.
+    expect(BUDGETS.shared).toBeGreaterThan(MEASURED_FRAMEWORK_CHUNK_BYTES);
+    expect(BUDGETS.shared).toBeLessThan(MEASURED_FRAMEWORK_CHUNK_BYTES * 1.1);
   });
 
   it('reports every offender, not just the first', () => {
