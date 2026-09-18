@@ -6,8 +6,9 @@ name: Mobile Gemfile check
 # validated a change to the Gemfile or its lockfile before this: the earliest
 # feedback was the next tagged release, on a macOS runner, after the signing
 # steps that precede `bundle exec pod install`. This resolves the bundle on
-# every pull request that touches either file, on ubuntu-latest, so an
-# unresolvable pin or a stale lockfile fails in seconds instead.
+# every pull request that touches the Gemfile, its lockfile or the Ruby
+# version they resolve against, on ubuntu-latest, so an unresolvable pin or a
+# stale lockfile fails in seconds instead.
 
 on:
   pull_request:
@@ -17,6 +18,7 @@ on:
     paths:
       - apps/mobileAppYC/Gemfile
       - apps/mobileAppYC/Gemfile.lock
+      - apps/mobileAppYC/.ruby-version
 
 concurrency:
   group: mobile-gemfile-check-${{ github.event.pull_request.number || github.ref }}
