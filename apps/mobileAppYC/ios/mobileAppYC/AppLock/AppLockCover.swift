@@ -4,9 +4,16 @@ import UIKit
 ///
 /// When the privacy flag is on, a cover built from BootSplash.storyboard goes
 /// up in its own window as soon as the app resigns active, so the app switcher
-/// snapshot shows only the cover. It stays up until JavaScript reports that its
-/// own cover or lock screen has drawn, so there is never a frame of content
-/// between the two.
+/// snapshot shows only the cover.
+///
+/// How it comes down depends on where the app went:
+/// - Back from the background: it stays up until JavaScript reports that its
+///   own cover or lock screen has drawn, so there is never a frame of content
+///   between the two.
+/// - Back from inactive only (the Face ID sheet, Control Center, Notification
+///   Center, a system alert or a call banner): it comes down as soon as the
+///   app is active again. iOS took no snapshot and the app never left the
+///   screen, so there is nothing for JavaScript to cover.
 final class AppLockCover {
   static let shared = AppLockCover()
 
@@ -17,6 +24,9 @@ final class AppLockCover {
   private static let coverLevel = UIWindow.Level.alert + 2
 
   private var coverWindow: UIWindow?
+
+  /// Whether the app has reached the background since the cover went up.
+  private var backgroundedSinceShown = false
 
   private init() {}
 
@@ -45,6 +55,20 @@ final class AppLockCover {
     window.accessibilityElementsHidden = true
     window.isHidden = false
     coverWindow = window
+    backgroundedSinceShown = false
+  }
+
+  /// Called from `applicationDidEnterBackground`.
+  func didEnterBackground() {
+    backgroundedSinceShown = true
+  }
+
+  /// Called from `applicationDidBecomeActive`. After a trip to the background
+  /// the cover waits for `coverRendered()`; otherwise it comes down now.
+  func didBecomeActive() {
+    if !backgroundedSinceShown {
+      hide()
+    }
   }
 
   /// Called once JavaScript has drawn its own cover or lock screen.
