@@ -64,7 +64,14 @@ export const buildMenuTemplate = (actions: MenuActions): MenuItemConstructorOpti
     if (wc && !wc.isDestroyed()) wc.send('yc:shortcut', shortcutId);
   };
 
-  const quit: MenuItemConstructorOptions = { label: tr('menu.quit'), click: () => app.quit() };
+  // Not `role: 'quit'` — the role would supply the accelerator but replace the
+  // translated label with the system one. Declaring the accelerator here keeps
+  // tr('menu.quit') and still shows ⌘Q beside the item.
+  const quit: MenuItemConstructorOptions = {
+    label: tr('menu.quit'),
+    accelerator: 'Cmd+Q',
+    click: () => app.quit(),
+  };
 
   const template: MenuItemConstructorOptions[] = [
     ...(isMac
