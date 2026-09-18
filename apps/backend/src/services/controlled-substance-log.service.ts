@@ -108,7 +108,7 @@ const csLogSelect = {
 
 // Quantities are stored as floats, so reconcile with a small tolerance instead
 // of exact equality.
-const QUANTITY_TOLERANCE = 1e-6;
+export const QUANTITY_TOLERANCE = 1e-6;
 
 const assertQuantitiesReconcile = (quantities: {
   amountDrawn: number;
@@ -352,6 +352,12 @@ export const ControlledSubstanceLogService = {
       where: {
         organisationId: params.organisationId,
         notes: { startsWith: reversalMarker(existing.id) },
+        // Only the reversals a RELEASE wrote. A correction or a void appends a
+        // full reversal carrying the same marker and no stock event, and
+        // counting one of those would read the whole draw as already restored:
+        // the release would then move the stock and write nothing at all in the
+        // register, which is the divergence this cap exists to prevent.
+        sourceEventId: { not: null },
       },
       select: { amountDrawn: true },
     });

@@ -9,6 +9,7 @@ import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
 import {
   ControlledSubstanceLogService,
+  QUANTITY_TOLERANCE,
   type DeaSchedule,
 } from "./controlled-substance-log.service";
 import {
@@ -1226,47 +1227,130 @@ const reverseControlledSubstanceDispense = async (
   }
 };
 
+// Movements carry no batch when the consumption did not draw from one, so the
+// batch id cannot key the running totals on its own. Empty string is safe: a
+// real id is a uuid and never empty.
+const UNBATCHED = "";
+
+const movementBatchKey = (batchId: string | null | undefined) =>
+  batchId ?? UNBATCHED;
+
+// What each batch still has out on this reference: everything the dispense took
+// (negative movements) less everything earlier releases already put back
+// (positive ones). Reading only the negatives let a second partial release
+// derive its allowance from the original draw again and credit back more stock
+// than ever left, while `reverseDispenseEntry` independently capped the register
+// at the unrestored amount - so stock and the controlled-substance register
+// disagreed by the difference.
+const outstandingByBatch = (
+  movements: { batchId: string | null; change: number | null }[],
+) => {
+  const outstanding = new Map<string, number>();
+  for (const movement of movements) {
+    const key = movementBatchKey(movement.batchId);
+    // Subtracting the signed change accumulates consumption and nets off
+    // returns in one pass.
+    outstanding.set(key, (outstanding.get(key) ?? 0) - (movement.change ?? 0));
+  }
+  return outstanding;
+};
+
 const applyInventoryRelease = async (
   tx: Prisma.TransactionClient,
   params: InventoryConsumptionApplyParams,
 ) => {
+  // Serialise releases of this item before reading anything this release is
+  // authorised against. Two concurrent partial releases of a single dispense
+  // would otherwise both read the same pre-release totals and each grant
+  // itself the whole remainder, putting back more than ever left - the netting
+  // below is a read-modify-write and is only as good as the lock in front of
+  // it. An advisory lock rather than `SELECT ... FOR UPDATE` on the item:
+  // locking the item row here would take it before this transaction writes the
+  // batch rows, while a concurrent consume takes the batch row first and the
+  // item row last, and two opposite orders deadlock. An advisory lock takes no
+  // row lock, so both paths still touch batch-then-item.
+  const releaseLockKey = `inventory-release:${params.inventoryItemId}`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${releaseLockKey}))`;
+
   const item = await requireInventoryItemForAdjustment(tx, params);
 
+  // Both signs, because the positives are what bounds this release.
   const movements = await tx.inventoryStockMovement.findMany({
     where: {
       itemId: params.inventoryItemId,
       referenceId: params.sourceId,
-      change: { lt: 0 },
       ...(params.batchId ? { batchId: params.batchId } : {}),
     },
     orderBy: [{ createdAt: "desc" }],
   });
 
-  if (!movements.length) {
+  const consumptions = movements.filter(
+    (movement) => (movement.change ?? 0) < 0,
+  );
+
+  if (!consumptions.length) {
     throw new InventoryConsumptionServiceError(
       "No prior consumption found to release",
       400,
     );
   }
 
-  const restored: { batchId: string; quantity: number }[] = [];
+  const outstanding = outstandingByBatch(movements);
+  const totalOutstanding = Array.from(outstanding.values()).reduce(
+    // A batch whose returns somehow exceed its draws contributes nothing
+    // rather than lending its surplus to another batch.
+    (total, remaining) => total + Math.max(remaining, 0),
+    0,
+  );
+
+  // Refused rather than silently clamped: the caller asked to put back stock
+  // this consumption never took, and throwing inside the transaction rolls back
+  // the whole release. Same tolerance the register reverses with, so the two
+  // sides cannot disagree about where zero is.
+  if (params.quantity > totalOutstanding + QUANTITY_TOLERANCE) {
+    throw new InventoryConsumptionServiceError(
+      "Release exceeds the quantity still outstanding for this consumption",
+      400,
+    );
+  }
+
+  // Keyed by batch, not appended per movement: a batch can have been drawn more
+  // than once under one reference, and the register keys a reversal on
+  // (release event, batch). Two entries for one batch would be two writes to
+  // the same unique pair, so the release would fail on the index instead of
+  // recording one reversal for what it actually put back in that lot.
+  const restoredByBatch = new Map<string, number>();
 
   let remainingRelease = params.quantity;
-  for (const movement of movements) {
-    if (remainingRelease <= 0) break;
+  for (const movement of consumptions) {
+    if (remainingRelease <= QUANTITY_TOLERANCE) break;
 
+    const key = movementBatchKey(movement.batchId);
+    const batchOutstanding = outstanding.get(key) ?? 0;
     const consumedQuantity = Math.abs(movement.change ?? 0);
     if (consumedQuantity <= 0) continue;
 
-    const restore = Math.min(remainingRelease, consumedQuantity);
+    // Capped by the batch's outstanding balance as well as by this movement, so
+    // a movement already reversed by an earlier release cannot fund a second.
+    const restore = Math.min(
+      remainingRelease,
+      consumedQuantity,
+      batchOutstanding,
+    );
+    if (restore <= QUANTITY_TOLERANCE) continue;
+
     remainingRelease -= restore;
+    outstanding.set(key, batchOutstanding - restore);
 
     if (movement.batchId) {
       await tx.inventoryBatch.update({
         where: { id: movement.batchId },
         data: { quantity: { increment: restore } },
       });
-      restored.push({ batchId: movement.batchId, quantity: restore });
+      restoredByBatch.set(
+        movement.batchId,
+        (restoredByBatch.get(movement.batchId) ?? 0) + restore,
+      );
     }
 
     await tx.inventoryStockMovement.create({
@@ -1280,7 +1364,11 @@ const applyInventoryRelease = async (
     });
   }
 
-  if (remainingRelease > 0) {
+  // A backstop the guard above should keep unreachable: the loop can restore
+  // exactly `totalOutstanding`, and nothing larger got past that check. Left in
+  // place so a future change to the netting cannot silently under-restore and
+  // still report the release as applied.
+  if (remainingRelease > QUANTITY_TOLERANCE) {
     throw new InventoryConsumptionServiceError(
       "Failed to release full requested quantity",
       500,
@@ -1299,7 +1387,10 @@ const applyInventoryRelease = async (
     await reverseControlledSubstanceDispense(tx, {
       params,
       releaseEventId: event.id,
-      restored,
+      restored: Array.from(restoredByBatch, ([batchId, quantity]) => ({
+        batchId,
+        quantity,
+      })),
     });
   }
 
