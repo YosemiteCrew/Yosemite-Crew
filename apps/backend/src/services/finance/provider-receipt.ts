@@ -3,7 +3,15 @@ import type {
   ProviderReceiptStatus as PrismaProviderReceiptStatus,
   Prisma,
 } from "@prisma/client";
+import { ProviderReceiptStatus } from "@prisma/client";
 import { prisma } from "src/config/prisma";
+import {
+  clampPageSize,
+  encodeKeysetCursor,
+  splitPage,
+  type KeysetCursor,
+  type PageSizeBounds,
+} from "src/services/shared/pagination";
 import logger from "src/utils/logger";
 
 /**
@@ -129,6 +137,135 @@ const attributeIfStillUnattributed = async (
   return persisted?.status ?? existing.status;
 };
 
+/**
+ * Every state a receipt can be filtered by, taken from the model rather than
+ * retyped.
+ *
+ * Derived so that a state added to the schema cannot be silently missing from
+ * the filter: a hand-written list would keep validating and quietly reject the
+ * new state as unknown, which reads to an operator as "there are none".
+ */
+export const RECONCILIATION_STATUSES = Object.values(ProviderReceiptStatus) as [
+  PrismaProviderReceiptStatus,
+  ...PrismaProviderReceiptStatus[],
+];
+
+/**
+ * How many receipts one page of the reconciliation queue holds (#3170).
+ *
+ * The issue names 50. It is both the default and the ceiling: an operator
+ * reads this queue a page at a time and no caller has a reason to ask for
+ * more. Clamping rather than rejecting means a client asking for 1000 gets a
+ * bounded page and a cursor instead of a 400 it has to learn to avoid.
+ */
+export const RECONCILIATION_PAGE_SIZE: PageSizeBounds = {
+  defaultSize: 50,
+  maxSize: 50,
+};
+
+/**
+ * The fields of a receipt the reconciliation queue returns.
+ *
+ * `rawProviderPayload` is deliberately absent. It is the provider's whole
+ * object - billing name, email and address among them - kept so a human can
+ * investigate one receipt, and a list endpoint returning it would put that on
+ * the wire for every row of every page. The queue needs the money, the state
+ * and the links; none of it needs the payload.
+ */
+const RECONCILIATION_FIELDS = {
+  id: true,
+  provider: true,
+  merchantAccountRef: true,
+  paymentRef: true,
+  organisationId: true,
+  invoiceId: true,
+  appointmentId: true,
+  amount: true,
+  currency: true,
+  capturedAt: true,
+  status: true,
+  reason: true,
+  version: true,
+  createdAt: true,
+} as const;
+
+/**
+ * Derived from the projection rather than written out beside it.
+ *
+ * A hand-written twin of the model drifts the moment a column is added or a
+ * nullability changes, and it drifts silently - both halves still compile. This
+ * way the response type IS the projection, so the two cannot disagree.
+ */
+export type ReconciliationReceipt = Prisma.ProviderReceiptGetPayload<{
+  select: typeof RECONCILIATION_FIELDS;
+}>;
+
+export type ListReconciliationInput = {
+  organisationId: string;
+  statuses?: readonly PrismaProviderReceiptStatus[];
+  capturedFrom?: Date;
+  capturedTo?: Date;
+  cursor?: KeysetCursor;
+  limit?: unknown;
+};
+
+export type ListReconciliationResult = {
+  receipts: ReconciliationReceipt[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  limit: number;
+};
+
+/**
+ * Which receipts one organisation may see in its queue.
+ *
+ * Two disjoint sets, and the second is why this endpoint exists. A receipt
+ * carrying this organisation's id is plainly theirs. A receipt carrying NO
+ * organisation but captured into the connected merchant account THIS
+ * organisation owns is also theirs - not by a guess about who paid, but
+ * because the money is sitting in their account. Without that arm every
+ * unattributed capture is invisible to everyone, which is the state #3170
+ * exists to end.
+ *
+ * A platform-account capture with no organisation is in no queue. `PLATFORM`
+ * is a sentinel shared by every tenant, so matching on it would show one
+ * organisation another's money, and nothing in such a receipt says whose it
+ * is - the issue is explicit that an unattributed receipt is never assigned by
+ * guessing.
+ */
+const reconciliationScope = (
+  organisationId: string,
+  merchantAccountRef: string | null,
+): Prisma.ProviderReceiptWhereInput[] => {
+  const scope: Prisma.ProviderReceiptWhereInput[] = [{ organisationId }];
+  if (
+    merchantAccountRef &&
+    merchantAccountRef !== PLATFORM_MERCHANT_ACCOUNT_REF
+  ) {
+    scope.push({ organisationId: null, merchantAccountRef });
+  }
+  return scope;
+};
+
+/**
+ * The exclusive `(createdAt, id)` comparison that continues a page.
+ *
+ * Written out rather than done with Prisma's `cursor` + `skip: 1`, because
+ * that pair is exclusive only while the cursor row is still in the filtered
+ * set: attributing or refunding a receipt moves it out of the status filter
+ * the caller is paging on, and the OFFSET then eats a real row while
+ * `hasMore` still says the list was complete. On a work queue, rows leaving
+ * the filter mid-page is the ordinary case rather than the rare one.
+ */
+const afterKeysetCursor = (
+  cursor: KeysetCursor,
+): Prisma.ProviderReceiptWhereInput => ({
+  OR: [
+    { createdAt: { lt: cursor.createdAt } },
+    { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+  ],
+});
+
 export const ProviderReceiptService = {
   /**
    * Record a captured payment, exactly once per provider reference.
@@ -212,5 +349,85 @@ export const ProviderReceiptService = {
       );
       return { id: existing.id, status: attributed, created: false };
     }
+  },
+
+  /**
+   * The reconciliation queue for one organisation (#3170 delivery 3).
+   *
+   * Until this existed the journal was write-only: captures that could not be
+   * matched to an invoice were recorded durably and then seen by nobody, which
+   * moves the gap rather than closing it. This is the read side - the list an
+   * operator works through.
+   *
+   * Ordered by when the receipt was journalled, newest first, because that is
+   * the order a queue is worked in and it is the only field guaranteed to be
+   * both stable and ours. `capturedAt` comes from the provider and can arrive
+   * out of order or be recovered from a refund event long afterwards, so
+   * sorting on it would shuffle rows between pages; it is a filter and a
+   * column, not the sort key.
+   *
+   * Reads nothing it does not return and returns nothing it did not read: the
+   * projection is explicit, so a field added to the model later does not
+   * silently join the response.
+   */
+  async listForReconciliation(
+    input: ListReconciliationInput,
+  ): Promise<ListReconciliationResult> {
+    const limit = clampPageSize(input.limit, RECONCILIATION_PAGE_SIZE);
+
+    /*
+     * The organisation's own connected account, read here rather than taken
+     * from the caller. It decides which unattributed captures are in scope, so
+     * a request-supplied value would let any caller name another tenant's
+     * merchant account and read their unattributed money.
+     */
+    const organisation = await prisma.organization.findUnique({
+      where: { id: input.organisationId },
+      select: { stripeAccountId: true },
+    });
+
+    const capturedAt =
+      input.capturedFrom || input.capturedTo
+        ? {
+            ...(input.capturedFrom ? { gte: input.capturedFrom } : {}),
+            ...(input.capturedTo ? { lte: input.capturedTo } : {}),
+          }
+        : undefined;
+
+    const where: Prisma.ProviderReceiptWhereInput = {
+      AND: [
+        {
+          OR: reconciliationScope(
+            input.organisationId,
+            organisation?.stripeAccountId ?? null,
+          ),
+        },
+        ...(input.statuses?.length
+          ? [{ status: { in: [...input.statuses] } }]
+          : []),
+        ...(capturedAt ? [{ capturedAt }] : []),
+        ...(input.cursor ? [afterKeysetCursor(input.cursor)] : []),
+      ],
+    };
+
+    const rows = await prisma.providerReceipt.findMany({
+      where,
+      select: RECONCILIATION_FIELDS,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      // One more than the page, which is how `hasMore` is answered without a
+      // second count query against a table that only grows.
+      take: limit + 1,
+    });
+
+    const page = splitPage(rows, limit, (row) =>
+      encodeKeysetCursor({ createdAt: row.createdAt, id: row.id }),
+    );
+
+    return {
+      receipts: page.items,
+      nextCursor: page.nextCursor,
+      hasMore: page.hasMore,
+      limit,
+    };
   },
 };
