@@ -248,6 +248,40 @@ const assertNotReversed = async (
   }
 };
 
+// Everything releases have already credited back against this entry, summed off
+// the reversal rows they wrote and found by the marker their notes start with -
+// the same link `assertNotReversed` uses. Two paths need this one number for
+// opposite reasons: a release caps itself on what is left of the draw, and an
+// amendment may not lower administered below what has already come back.
+//
+// Only the reversals a RELEASE wrote. `assertNotStockLinked` refuses a hand void
+// or correction of a stock-linked entry, so no hand reversal can carry this
+// marker; the clause states that invariant rather than depending on it. Were one
+// to exist, counting it would read the draw as already restored and a later
+// partial release would move the stock while the register stayed silent.
+const sumRestoredByReleases = async (
+  client: CsLogClient,
+  record: Pick<CsLogRecord, "id" | "organisationId">,
+) => {
+  const priorReversals = await client.controlledSubstanceLog.findMany({
+    where: {
+      organisationId: record.organisationId,
+      notes: { startsWith: reversalMarker(record.id) },
+      sourceEventId: { not: null },
+    },
+    select: { amountDrawn: true },
+  });
+  // A reversal stores its restored amount negated, so subtracting sums them.
+  return priorReversals.reduce(
+    (total, reversal) => total - reversal.amountDrawn,
+    0,
+  );
+};
+
+// Quantities are floats, so a sum of them can carry a 1e-16 tail that has no
+// business in a message a clinician reads.
+const formatQuantity = (amount: number) => Number(amount.toFixed(6)).toString();
+
 // A register row the dispense path wrote is half of an atomic pair whose other
 // half is the stock movement, so voiding it from the ledger side alone credits
 // the register without moving the cabinet. Refused, and the caller is pointed at
@@ -334,12 +368,73 @@ const amendedTuple = (existing: CsLogRecord, params: UpdateCsLogParams) => ({
   wastedWitness: params.wastedWitness ?? existing.wastedWitness,
 });
 
+// Every unit drawn has to end up somewhere the register can name: into the
+// patient, into witnessed waste, or back in the cabinet behind a release's own
+// reversal row. `assertQuantitiesReconcile` is one-sided - it stops a draw being
+// over-spent and passes a draw left short - and amendment is the path that lowers
+// administered, so here the slack is the whole point: 6 drawn and 4 administered
+// means 2 of a controlled drug went somewhere, and the register has to say where.
+const assertDrawIsAccountedFor = (
+  existing: CsLogRecord,
+  tuple: ReturnType<typeof amendedTuple>,
+  alreadyRestored: number,
+) => {
+  const { amountAdministered, amountWasted } = tuple;
+
+  // Closure is measured against the whole draw, not against the draw less what
+  // a release has returned, because a release does not leave its restored amount
+  // out of this row - `reverseDispenseEntry` writes `-restored` into its own
+  // row's administered as well as its drawn. So this row stays a gross statement
+  // of the draw and the register nets it with the reversal beside it: 6 drawn
+  // with 5 administered and 1 wasted, less a 2-unit release, reads as 4 out, 3
+  // administered, 1 wasted. Netting the target here instead would subtract the
+  // return twice. The message names the returned amount, because that is the
+  // figure a caller looking at the clinical truth is missing.
+  if (
+    Math.abs(amountAdministered + amountWasted - existing.amountDrawn) >
+    QUANTITY_TOLERANCE
+  ) {
+    const returned =
+      alreadyRestored > QUANTITY_TOLERANCE
+        ? ` ${formatQuantity(alreadyRestored)} of it has been returned to stock and is credited back by the release's own entry, so it still counts here.`
+        : "";
+    throw new ControlledSubstanceLogError(
+      `Amount administered plus amount wasted must account for the full amount drawn.${returned}`,
+      400,
+    );
+  }
+
+  // The other side of the same netting: the reversal rows have already taken
+  // `alreadyRestored` out of administered, so a row claiming less than that
+  // leaves the register showing more given back than was ever given. Read the
+  // other way round, it is what stops an amendment recording waste against drug
+  // that went back to the cabinet rather than into the patient.
+  if (amountAdministered < alreadyRestored - QUANTITY_TOLERANCE) {
+    throw new ControlledSubstanceLogError(
+      `Amount administered cannot be below the ${formatQuantity(alreadyRestored)} a release has already returned to stock.`,
+      400,
+    );
+  }
+};
+
+// Waste on a controlled substance is witnessed. Nothing in the backend asserts
+// that today, and this is not the place to start asserting it everywhere - but
+// this path is the one that turns a machine row claiming no waste into one that
+// records waste, so the witness is required where the waste is created.
+const assertWasteIsWitnessed = (tuple: ReturnType<typeof amendedTuple>) => {
+  if (tuple.amountWasted > QUANTITY_TOLERANCE && !tuple.wastedWitness) {
+    throw new ControlledSubstanceLogError(
+      "Recording waste on a controlled substance entry requires a waste witness.",
+      400,
+    );
+  }
+};
+
 const assertAmendmentReconciles = (
   existing: CsLogRecord,
   tuple: ReturnType<typeof amendedTuple>,
+  alreadyRestored: number,
 ) => {
-  const { amountAdministered, amountWasted, wastedWitness } = tuple;
-
   // Re-run against the draw the cabinet actually gave out rather than anything
   // the caller supplied - which is what makes freezing `amountDrawn` load-
   // bearing - and re-run at all because `buildReversalData` negates a row
@@ -348,38 +443,13 @@ const assertAmendmentReconciles = (
   // premise and let a later release negate quantities nobody checked.
   assertQuantitiesReconcile({
     amountDrawn: existing.amountDrawn,
-    amountAdministered,
-    amountWasted,
+    amountAdministered: tuple.amountAdministered,
+    amountWasted: tuple.amountWasted,
     balanceBefore: existing.balanceBefore,
     balanceAfter: existing.balanceAfter,
   });
-
-  // That check is one-sided: it stops a draw being over-spent and says nothing
-  // about a draw left short. Amendment is the path that lowers administered, so
-  // here the slack is the whole point - 6 drawn and 4 administered means 2 of a
-  // controlled drug went somewhere, and the register has to say where. The
-  // dispense's own row closes (all drawn, none wasted), so this holds before the
-  // amendment as well as after it.
-  if (
-    Math.abs(amountAdministered + amountWasted - existing.amountDrawn) >
-    QUANTITY_TOLERANCE
-  ) {
-    throw new ControlledSubstanceLogError(
-      "Amount administered plus amount wasted must account for the full amount drawn.",
-      400,
-    );
-  }
-
-  // Waste on a controlled substance is witnessed. Nothing in the backend asserts
-  // that today, and this is not the place to start asserting it everywhere - but
-  // this path is the one that turns a machine row claiming no waste into one
-  // that records waste, so the witness is required where the waste is created.
-  if (amountWasted > QUANTITY_TOLERANCE && !wastedWitness) {
-    throw new ControlledSubstanceLogError(
-      "Recording waste on a controlled substance entry requires a waste witness.",
-      400,
-    );
-  }
+  assertDrawIsAccountedFor(existing, tuple, alreadyRestored);
+  assertWasteIsWitnessed(tuple);
 };
 
 // Successive amendments read as a trail rather than overwriting each other, and
@@ -411,7 +481,11 @@ const amendStockLinkedEntry = async (
 ) => {
   assertOnlyAmendable(params);
   const tuple = amendedTuple(existing, params);
-  assertAmendmentReconciles(existing, tuple);
+  assertAmendmentReconciles(
+    existing,
+    tuple,
+    await sumRestoredByReleases(prisma, existing),
+  );
 
   const amended = await prisma.controlledSubstanceLog.update({
     where: { id: existing.id },
@@ -557,32 +631,13 @@ export const ControlledSubstanceLogService = {
     });
     if (!existing) return null;
 
-    // Every reversal of this entry that already exists, found by the marker its
-    // notes start with - the same link `assertNotReversed` uses. Without this
-    // the entry is the only thing each release can see, so a second partial
-    // release derives its row from the original dispense again: a 6-unit draw
-    // of 10 -> 4 released as 2 then 1 records 4 -> 6 and then 4 -> 5 instead of
-    // 4 -> 6 and 6 -> 7, and the individual cap lets repeated releases credit
-    // back more than was ever drawn.
-    const priorReversals = await client.controlledSubstanceLog.findMany({
-      where: {
-        organisationId: params.organisationId,
-        notes: { startsWith: reversalMarker(existing.id) },
-        // Only the reversals a RELEASE wrote. `assertNotStockLinked` refuses a
-        // hand void or correction of a stock-linked entry, so no hand reversal
-        // can carry this marker; the clause states that invariant rather than
-        // depending on it. Were one to exist, counting it would read the draw as
-        // already restored and a later partial release would move the stock
-        // while the register stayed silent.
-        sourceEventId: { not: null },
-      },
-      select: { amountDrawn: true },
-    });
-    // A reversal stores its restored amount negated, so subtracting sums them.
-    const alreadyRestored = priorReversals.reduce(
-      (total, reversal) => total - reversal.amountDrawn,
-      0,
-    );
+    // Without the reversals this entry already carries, the entry is the only
+    // thing each release can see, so a second partial release derives its row
+    // from the original dispense again: a 6-unit draw of 10 -> 4 released as 2
+    // then 1 records 4 -> 6 and then 4 -> 5 instead of 4 -> 6 and 6 -> 7, and
+    // the individual cap lets repeated releases credit back more than was ever
+    // drawn.
+    const alreadyRestored = await sumRestoredByReleases(client, existing);
 
     // The cap is what is LEFT of the original draw, not the draw itself.
     const remaining = existing.amountDrawn - alreadyRestored;
