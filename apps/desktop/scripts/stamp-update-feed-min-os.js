@@ -48,6 +48,12 @@ const MACOS_MAJOR_TO_DARWIN_MAJOR = Object.freeze({
 // Only the macOS feed. On Windows `os.release()` is a Windows version (10.0.x),
 // so stamping a Darwin floor into latest.yml would make every Windows client
 // consider the release unsupported forever.
+//
+// There is no separate beta feed to stamp: `app-builder-lib` short-circuits
+// `generateUpdatesFilesForAllChannels` for the `github` provider, and the beta
+// channel falls back to the one file when `beta-mac.yml` is absent (RELEASE.md,
+// "Channels"). Stamping latest-mac.yml therefore covers the beta clients, which
+// is every client while the app ships only `-beta.N` builds.
 const MAC_FEED_NAME = /^latest-mac(-[A-Za-z0-9._-]+)?\.yml$/;
 
 const KEY = 'minimumSystemVersion';
@@ -101,12 +107,34 @@ const stampFeed = (contents, darwinFloor) => {
   return `${line}\n${contents}`;
 };
 
+/**
+ * The absolute path of a feed inside the package's own `dist`, or a throw.
+ *
+ * The name guard covers only the last segment, so `../../../etc/latest-mac.yml`
+ * satisfies it and the read went wherever argv pointed. Resolving against the
+ * package root rather than `process.cwd()` keeps the answer independent of the
+ * directory the script was invoked from, so `dist/latest-mac.yml` means the same
+ * file whether the release step or a test calls it.
+ */
+const feedInsideDist = (packageRoot, feedPath) => {
+  const distRoot = path.join(packageRoot, 'dist');
+  const resolved = path.resolve(packageRoot, feedPath);
+  if (path.dirname(resolved) !== distRoot) {
+    throw new Error(
+      `${feedPath} resolves to ${resolved}, which is outside ${distRoot}. This only stamps ` +
+        'the feed electron-builder just wrote.'
+    );
+  }
+  return resolved;
+};
+
 const main = (argv, deps = {}) => {
   const readFile = deps.readFileSync ?? fs.readFileSync;
   const writeFile = deps.writeFileSync ?? fs.writeFileSync;
   const log = deps.log ?? console.log;
   const error = deps.error ?? console.error;
-  const packageJsonPath = deps.packageJsonPath ?? path.join(__dirname, '..', 'package.json');
+  const packageRoot = path.resolve(deps.packageRoot ?? path.join(__dirname, '..'));
+  const packageJsonPath = deps.packageJsonPath ?? path.join(packageRoot, 'package.json');
 
   const feedPath = argv[2];
   if (!feedPath) {
@@ -121,10 +149,11 @@ const main = (argv, deps = {}) => {
           'version, which is only meaningful in latest-mac.yml.'
       );
     }
+    const target = feedInsideDist(packageRoot, feedPath);
     const darwinFloor = darwinFloorFor(macFloorFrom(JSON.parse(readFile(packageJsonPath, 'utf8'))));
-    const stamped = stampFeed(readFile(feedPath, 'utf8'), darwinFloor);
-    writeFile(feedPath, stamped);
-    log(`[stamp-update-feed-min-os] ${feedPath}: ${KEY}: ${darwinFloor}`);
+    const stamped = stampFeed(readFile(target, 'utf8'), darwinFloor);
+    writeFile(target, stamped);
+    log(`[stamp-update-feed-min-os] ${target}: ${KEY}: ${darwinFloor}`);
     return 0;
   } catch (thrown) {
     error(`[stamp-update-feed-min-os] ${thrown.message || thrown}`);
@@ -136,6 +165,7 @@ module.exports = {
   MACOS_MAJOR_TO_DARWIN_MAJOR,
   MAC_FEED_NAME,
   darwinFloorFor,
+  feedInsideDist,
   macFloorFrom,
   main,
   stampFeed,

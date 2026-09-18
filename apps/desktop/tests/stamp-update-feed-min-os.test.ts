@@ -1,10 +1,12 @@
 import { createRequire } from 'node:module';
+import path from 'node:path';
 
 type StampModule = {
   MACOS_MAJOR_TO_DARWIN_MAJOR: Record<string, number>;
   MAC_FEED_NAME: RegExp;
   darwinFloorFor: (macosFloor: unknown) => string;
   macFloorFrom: (pkg: unknown) => string;
+  feedInsideDist: (packageRoot: string, feedPath: string) => string;
   main: (argv: string[], deps?: Record<string, unknown>) => number;
   stampFeed: (contents: string, darwinFloor: string) => string;
 };
@@ -98,12 +100,43 @@ describe('stampFeed', () => {
   });
 });
 
+const PACKAGE_ROOT = path.resolve('/fake/desktop');
+const DIST_FEED = path.join(PACKAGE_ROOT, 'dist', 'latest-mac.yml');
+
+describe('feedInsideDist', () => {
+  it('resolves a package-relative feed path against the package, not the cwd', () => {
+    expect(stamp.feedInsideDist(PACKAGE_ROOT, 'dist/latest-mac.yml')).toBe(DIST_FEED);
+    expect(stamp.feedInsideDist(PACKAGE_ROOT, DIST_FEED)).toBe(DIST_FEED);
+  });
+
+  it('refuses a path that climbs out of dist', () => {
+    // The name guard only checks the last segment, so this passes it.
+    expect(() => stamp.feedInsideDist(PACKAGE_ROOT, '../../../etc/latest-mac.yml')).toThrow(
+      /outside/
+    );
+    expect(() => stamp.feedInsideDist(PACKAGE_ROOT, 'dist/../latest-mac.yml')).toThrow(/outside/);
+  });
+
+  it('refuses an absolute path elsewhere on the filesystem', () => {
+    expect(() => stamp.feedInsideDist(PACKAGE_ROOT, '/tmp/latest-mac.yml')).toThrow(/outside/);
+  });
+
+  it('refuses a subdirectory of dist', () => {
+    // electron-builder writes the feed at the top of dist; anything nested is
+    // somewhere this script was not pointed at.
+    expect(() => stamp.feedInsideDist(PACKAGE_ROOT, 'dist/nested/latest-mac.yml')).toThrow(
+      /outside/
+    );
+  });
+});
+
 describe('main', () => {
   const harness = (contents: string | null) => {
     const written: Array<[string, string]> = [];
     const logged: string[] = [];
     const errored: string[] = [];
     const deps = {
+      packageRoot: PACKAGE_ROOT,
       packageJsonPath: '/fake/package.json',
       readFileSync: (target: string) => {
         if (target === '/fake/package.json') {
@@ -127,7 +160,8 @@ describe('main', () => {
     const h = harness(FEED);
     expect(stamp.main(['node', 'script', 'dist/latest-mac.yml'], h.deps)).toBe(0);
     expect(h.written).toHaveLength(1);
-    expect(h.written[0][0]).toBe('dist/latest-mac.yml');
+    // The resolved path, so what is written is what the guard admitted.
+    expect(h.written[0][0]).toBe(DIST_FEED);
     expect(h.written[0][1]).toContain('minimumSystemVersion: 22.0.0');
     expect(h.logged.join('\n')).toContain('22.0.0');
   });
@@ -151,6 +185,15 @@ describe('main', () => {
     const h = harness(FEED);
     expect(stamp.main(['node', 'script', 'dist/latest-linux.yml'], h.deps)).toBe(1);
     expect(h.written).toHaveLength(0);
+  });
+
+  it('refuses a feed path that escapes the package and writes nothing', () => {
+    // Aikido flagged the read: MAC_FEED_NAME checks only the basename, so this
+    // path satisfies it while pointing anywhere on the filesystem.
+    const h = harness(FEED);
+    expect(stamp.main(['node', 'script', '../../../etc/latest-mac.yml'], h.deps)).toBe(1);
+    expect(h.written).toHaveLength(0);
+    expect(h.errored.join('\n')).toMatch(/outside/);
   });
 
   it('reports usage when given no path', () => {
