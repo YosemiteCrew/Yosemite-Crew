@@ -256,10 +256,10 @@ describe('TabManager', () => {
 
       const state2 = tm2.getState();
       expect(state2.tabs).toHaveLength(2);
-      expect(state2.tabs[0].pinned).toBe(true);
-      expect(state2.tabs[0].url).toBe('https://a.com');
-      expect(state2.tabs[0].title).toBe('A');
-      expect(state2.tabs[1].url).toBe('https://b.com');
+      expect(state2.tabs[0]!.pinned).toBe(true);
+      expect(state2.tabs[0]!.url).toBe('https://a.com');
+      expect(state2.tabs[0]!.title).toBe('A');
+      expect(state2.tabs[1]!.url).toBe('https://b.com');
     });
 
     it('returns false for invalid JSON', () => {

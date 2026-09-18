@@ -299,7 +299,7 @@ describe('initAutoUpdates', () => {
       autoUpdater: updater as never,
       env: {},
     });
-    updater.handlers['update-downloaded']({ version: '2.0.0' });
+    updater.handlers['update-downloaded']!({ version: '2.0.0' });
     resolveBox({ response: 0 });
     await Promise.resolve();
     await Promise.resolve();
@@ -314,7 +314,7 @@ describe('initAutoUpdates', () => {
       autoUpdater: updater as never,
       env: {},
     });
-    updater.handlers['update-downloaded']({ version: '2.0.0' });
+    updater.handlers['update-downloaded']!({ version: '2.0.0' });
     await Promise.resolve();
     await Promise.resolve();
     expect(updater.calls).not.toContain('quitAndInstall');
@@ -334,7 +334,7 @@ describe('initAutoUpdates', () => {
       logger,
     });
 
-    updater.handlers['update-downloaded']({ version: '2.0.0' });
+    updater.handlers['update-downloaded']!({ version: '2.0.0' });
     await Promise.resolve();
     await Promise.resolve();
 
@@ -370,7 +370,7 @@ describe('checkForUpdatesManually', () => {
       },
     });
     expect(result).toBeNull();
-    expect(messages[0].message).toMatch(/installed app/i);
+    expect(messages[0]!.message).toMatch(/installed app/i);
   });
 
   test('registers feedback handlers and checks when packaged', async () => {
@@ -429,11 +429,11 @@ describe('checkForUpdatesManually', () => {
       },
       autoUpdater: updater as never,
     });
-    updater.handlers['update-not-available']({ version: '1.0.0' });
-    updater.handlers['update-available']({ version: '2.0.0' });
-    updater.handlers.error(new Error('offline'));
+    updater.handlers['update-not-available']!({ version: '1.0.0' });
+    updater.handlers['update-available']!({ version: '2.0.0' });
+    updater.handlers.error!(new Error('offline'));
     expect(messages.map((m) => m.type)).toEqual(['info', 'info', 'error']);
-    expect(messages[0].message).toMatch(/up to date/i);
+    expect(messages[0]!.message).toMatch(/up to date/i);
   });
 
   test('the background error handler is a safe no-op', async () => {
@@ -446,6 +446,6 @@ describe('checkForUpdatesManually', () => {
       autoUpdater: updater as never,
       env: {},
     });
-    expect(() => updater.handlers.error(new Error('background'))).not.toThrow();
+    expect(() => updater.handlers.error!(new Error('background'))).not.toThrow();
   });
 });

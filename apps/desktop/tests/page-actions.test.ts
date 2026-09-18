@@ -2,13 +2,13 @@ import { PAGE_ACTION_TRIGGERS, buildPageActionScript } from '../src/ui/page-acti
 
 describe('PAGE_ACTION_TRIGGERS', () => {
   test('covers the action palette items', () => {
-    expect(PAGE_ACTION_TRIGGERS['action-new-appointment'].clickText).toContain('add appointment');
-    expect(PAGE_ACTION_TRIGGERS['action-find-patient'].focusSelector).toMatch(/search/i);
+    expect(PAGE_ACTION_TRIGGERS['action-new-appointment']!.clickText).toContain('add appointment');
+    expect(PAGE_ACTION_TRIGGERS['action-find-patient']!.focusSelector).toMatch(/search/i);
     expect(
-      PAGE_ACTION_TRIGGERS['action-new-invoice'].clickText &&
-        PAGE_ACTION_TRIGGERS['action-new-invoice'].clickText.length
+      PAGE_ACTION_TRIGGERS['action-new-invoice']!.clickText &&
+        PAGE_ACTION_TRIGGERS['action-new-invoice']!.clickText.length
     ).toBeGreaterThan(0);
-    expect(PAGE_ACTION_TRIGGERS['action-check-in'].clickText).toContain('check in');
+    expect(PAGE_ACTION_TRIGGERS['action-check-in']!.clickText).toContain('check in');
   });
 });
 

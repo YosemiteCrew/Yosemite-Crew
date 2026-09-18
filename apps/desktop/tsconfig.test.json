@@ -10,5 +10,10 @@
     "allowJs": true,
     "types": ["node", "jest"]
   },
-  "include": ["tests/**/*.ts", "src/**/*.ts"]
+  "include": ["tests/**/*.ts", "src/**/*.ts"],
+  // `exclude` is inherited from ./tsconfig.json, which excludes "tests" so the
+  // production build never emits the suite. Inherited `exclude` filters this
+  // file's `include`, so without restating it here the test arm of `type-check`
+  // compiles zero test files and the suite is unchecked. See issue #3307.
+  "exclude": ["node_modules", "build"]
 }

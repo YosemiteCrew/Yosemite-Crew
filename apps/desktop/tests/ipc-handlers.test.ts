@@ -251,11 +251,14 @@ const register = (services: IpcServices) => {
       listeners[ch] = fn;
     },
   } as never);
-  return Object.assign((channel: string, ...args: unknown[]) => handlers[channel](event, ...args), {
-    emit: (channel: string, ...args: unknown[]) => listeners[channel]?.(event, ...args),
-    emitAs: (sender: unknown, channel: string, ...args: unknown[]) =>
-      listeners[channel]?.(sender, ...args),
-  });
+  return Object.assign(
+    (channel: string, ...args: unknown[]) => handlers[channel]!(event, ...args),
+    {
+      emit: (channel: string, ...args: unknown[]) => listeners[channel]?.(event, ...args),
+      emitAs: (sender: unknown, channel: string, ...args: unknown[]) =>
+        listeners[channel]?.(sender, ...args),
+    }
+  );
 };
 
 describe('ipc-handlers — tab preview caching', () => {
@@ -346,8 +349,8 @@ describe('ipc-handlers — happy paths', () => {
     expect(await call('yc:set-settings', { theme: 'dark' })).toMatchObject({
       ok: true,
     });
-    expect(await call('yc:execute-command', BUILTIN_ACTIONS[0].id)).toMatchObject({ ok: true });
-    expect(services.runCommandAction).toHaveBeenCalledWith(BUILTIN_ACTIONS[0].id);
+    expect(await call('yc:execute-command', BUILTIN_ACTIONS[0]!.id)).toMatchObject({ ok: true });
+    expect(services.runCommandAction).toHaveBeenCalledWith(BUILTIN_ACTIONS[0]!.id);
     expect(await call('yc:get-palette-recents')).toMatchObject({ ok: true });
     expect(await call('yc:get-palette-actions')).toMatchObject({ ok: true });
     expect(await call('yc:close-palette')).toEqual({ ok: true });

@@ -62,7 +62,7 @@ describe('apply-fuses', () => {
   const declaredFuses = (): string[] => {
     const block = /export declare enum FuseV1Options \{([^}]*)\}/.exec(fuseTypes);
     if (!block) throw new Error('FuseV1Options enum not found in @electron/fuses types');
-    return [...block[1].matchAll(/^\s*([A-Za-z0-9]+)\s*=/gm)].map((m) => m[1]);
+    return [...block[1]!.matchAll(/^\s*([A-Za-z0-9]+)\s*=/gm)].map((m) => m[1]);
   };
 
   it('reads a non-empty fuse list from the installed package', () => {

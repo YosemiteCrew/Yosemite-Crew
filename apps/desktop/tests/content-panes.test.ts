@@ -27,7 +27,18 @@ const makeSurface = () => ({
   },
 });
 
-const layout = (over: Partial<ContentPaneLayout> = {}) => {
+// The doubles carry more than the production interfaces do - makeSurface records
+// what was mounted - so the override bag has to be typed as the doubles, not as
+// ContentPaneLayout, or `surface.added` is not on the union the tests read back.
+type TestHost = ReturnType<typeof makeHost>;
+type TestSurface = ReturnType<typeof makeSurface>;
+
+type LayoutOverrides = Partial<Omit<ContentPaneLayout, 'host' | 'surface'>> & {
+  host?: TestHost;
+  surface?: TestSurface;
+};
+
+const layout = (over: LayoutOverrides = {}) => {
   const host = over.host ?? makeHost(['a', 'b']);
   const surface = over.surface ?? makeSurface();
   const mounted = layoutContentPanes({

@@ -59,10 +59,10 @@ describe('waste events report the witness that was actually verified', () => {
     logbook.record(WASTE);
 
     const [event] = dwLog.getWasteEvents();
-    expect(event.witnessId).toBe('');
-    expect(event.witnessName).toBe('');
+    expect(event!.witnessId).toBe('');
+    expect(event!.witnessName).toBe('');
     // This was hardcoded true, which is the defect.
-    expect(event.witnessPinVerified).toBe(false);
+    expect(event!.witnessPinVerified).toBe(false);
     expect(dwLog.getVerifiedWasteEvents()).toHaveLength(0);
   });
 
@@ -71,8 +71,8 @@ describe('waste events report the witness that was actually verified', () => {
     logbook.record({ ...WASTE, witnessId: 'nurse-1', witnessName: 'Nurse Jane' });
 
     const [event] = dwLog.getWasteEvents();
-    expect(event.witnessId).toBe('nurse-1');
-    expect(event.witnessPinVerified).toBe(false);
+    expect(event!.witnessId).toBe('nurse-1');
+    expect(event!.witnessPinVerified).toBe(false);
     expect(dwLog.getVerifiedWasteEvents()).toHaveLength(0);
   });
 
@@ -86,7 +86,7 @@ describe('waste events report the witness that was actually verified', () => {
     });
 
     const [event] = dwLog.getWasteEvents();
-    expect(event.witnessPinVerified).toBe(true);
+    expect(event!.witnessPinVerified).toBe(true);
     expect(dwLog.getVerifiedWasteEvents()).toHaveLength(1);
   });
 
@@ -104,7 +104,7 @@ describe('waste events report the witness that was actually verified', () => {
     expect(dwLog.getWasteEvents('Ketamine')).toHaveLength(2);
     const verified = dwLog.getVerifiedWasteEvents('Ketamine');
     expect(verified).toHaveLength(1);
-    expect(verified[0].lotNumber).toBe('B');
+    expect(verified[0]!.lotNumber).toBe('B');
   });
 
   test('recordWaste persists the verification it performed', async () => {
@@ -126,7 +126,7 @@ describe('waste events report the witness that was actually verified', () => {
     });
 
     // The flag reaches disk, so a later read is not guessing.
-    expect(logbook.getTransactions()[0].witnessPinVerified).toBe(true);
+    expect(logbook.getTransactions()[0]!.witnessPinVerified).toBe(true);
     expect(dwLog.getVerifiedWasteEvents()).toHaveLength(1);
   });
 
@@ -138,13 +138,13 @@ describe('waste events report the witness that was actually verified', () => {
     logbook.record({ ...WASTE, witnessId: 'nurse-1', witnessName: 'Nurse Jane' });
 
     const [entry] = auditLog.query({ resourceType: 'controlled-substance' });
-    expect(entry.details.witnessPinVerified).toBe(false);
-    expect(auditLog.verify(entry)).toBe(true);
+    expect(entry!.details.witnessPinVerified).toBe(false);
+    expect(auditLog.verify(entry!)).toBe(true);
 
     // The logbook file is not HMAC-protected. Someone with access to the data
     // directory can flip the flag there, but the signed audit entry still says
     // what was actually verified, so the two disagree and the alteration shows.
-    const tampered = { ...entry, details: { ...entry.details, witnessPinVerified: true } };
+    const tampered = { ...entry!, details: { ...entry!.details, witnessPinVerified: true } };
     expect(auditLog.verify(tampered)).toBe(false);
   });
 
@@ -152,17 +152,17 @@ describe('waste events report the witness that was actually verified', () => {
     const { logbook, dwLog } = await build();
     // Recorded honestly as unverified...
     logbook.record({ ...WASTE, witnessId: 'nurse-1', witnessName: 'Nurse Jane' });
-    expect(dwLog.getWasteEvents()[0].witnessPinVerified).toBe(false);
+    expect(dwLog.getWasteEvents()[0]!.witnessPinVerified).toBe(false);
 
     // ...then the logbook file is edited on disk to claim verification. The
     // logbook is not HMAC-protected, so this succeeds; the audit entry is
     // untouched and still says false, so verifyAll/verifyChain still pass.
-    const rows = readJsonl<CsTransaction>(mem, CS_LOG) as Array<Record<string, unknown>>;
-    rows[0].witnessPinVerified = true;
+    const rows = readJsonl<CsTransaction>(mem, CS_LOG) as unknown as Array<Record<string, unknown>>;
+    rows[0]!.witnessPinVerified = true;
     rewrite(CS_LOG, rows);
 
     const { dwLog: reread } = await build();
-    expect(reread.getWasteEvents()[0].witnessPinVerified).toBe(false);
+    expect(reread.getWasteEvents()[0]!.witnessPinVerified).toBe(false);
     expect(reread.getVerifiedWasteEvents()).toHaveLength(0);
   });
 
@@ -179,7 +179,7 @@ describe('waste events report the witness that was actually verified', () => {
 
     // No auditLog supplied: verification cannot be proved, so it is not claimed.
     const blind = createDualWitnessLog({ logbook, ...deps });
-    expect(blind.getWasteEvents()[0].witnessPinVerified).toBe(false);
+    expect(blind.getWasteEvents()[0]!.witnessPinVerified).toBe(false);
   });
 
   test('getWasteByWitness also derives verification from the signed entry', async () => {
@@ -205,8 +205,6 @@ describe('waste events report the witness that was actually verified', () => {
     expect(byWitness.filter((e) => e.witnessPinVerified)).toHaveLength(1);
   });
 
-
-
   const recordVerifiedWaste = (dwLog: ReturnType<typeof createDualWitnessLog>) => {
     dwLog.setWitnessPin('nurse-1', 'Nurse Jane', '1234');
     return dwLog.recordWaste({
@@ -231,24 +229,31 @@ describe('waste events report the witness that was actually verified', () => {
 
     // Forge the signed side: the details still claim verification, but the
     // signature no longer matches, so the entry proves nothing.
-    const entries = readJsonl<AuditEntry>(mem, AUDIT_LOG) as Array<Record<string, unknown>>;
-    entries[0].signature = 'f'.repeat(64);
+    const entries = readJsonl<AuditEntry>(mem, AUDIT_LOG) as unknown as Array<
+      Record<string, unknown>
+    >;
+    entries[0]!.signature = 'f'.repeat(64);
     rewrite(AUDIT_LOG, entries);
 
     const { dwLog: reread } = await build();
-    expect(reread.getWasteEvents()[0].witnessPinVerified).toBe(false);
+    expect(reread.getWasteEvents()[0]!.witnessPinVerified).toBe(false);
     expect(reread.getVerifiedWasteEvents()).toHaveLength(0);
   });
 
-  test('a transaction cannot borrow another record\'s verified audit entry', async () => {
+  test("a transaction cannot borrow another record's verified audit entry", async () => {
     const { logbook, dwLog } = await build();
     const verified = recordVerifiedWaste(dwLog);
-    logbook.record({ ...WASTE, lotNumber: 'LOT-B', witnessId: 'nurse-1', witnessName: 'Nurse Jane' });
+    logbook.record({
+      ...WASTE,
+      lotNumber: 'LOT-B',
+      witnessId: 'nurse-1',
+      witnessName: 'Nurse Jane',
+    });
 
     // Point the UNVERIFIED transaction at the verified transaction's audit
     // entry. The entry is genuine and its signature is valid, so only the
     // csTransactionId binding stops it being reused as proof.
-    const rows = readJsonl<CsTransaction>(mem, CS_LOG) as Array<Record<string, unknown>>;
+    const rows = readJsonl<CsTransaction>(mem, CS_LOG) as unknown as Array<Record<string, unknown>>;
     const borrower = rows.find((r) => r.lotNumber === 'LOT-B')!;
     const donor = rows.find((r) => r.id === verified.csTransactionId)!;
     borrower.auditEntryId = donor.auditEntryId;
@@ -259,7 +264,9 @@ describe('waste events report the witness that was actually verified', () => {
     const events = reread.getWasteEvents();
     expect(events).toHaveLength(2);
     expect(events.filter((e) => e.witnessPinVerified)).toHaveLength(1);
-    expect(reread.getWasteEvents('Ketamine').find((e) => e.lotNumber === 'LOT-B')!.witnessPinVerified).toBe(false);
+    expect(
+      reread.getWasteEvents('Ketamine').find((e) => e.lotNumber === 'LOT-B')!.witnessPinVerified
+    ).toBe(false);
   });
 
   test('swapping the witness on disk invalidates the verification', async () => {
@@ -270,9 +277,9 @@ describe('waste events report the witness that was actually verified', () => {
     // Keep the id and auditEntryId, change only who the logbook says witnessed
     // it. The signed entry is untouched and still valid, so without binding the
     // witness the forged person would be reported as the PIN-verified witness.
-    const rows = readJsonl<CsTransaction>(mem, CS_LOG) as Array<Record<string, unknown>>;
-    rows[0].witnessId = 'nurse-2';
-    rows[0].witnessName = 'Nurse Impostor';
+    const rows = readJsonl<CsTransaction>(mem, CS_LOG) as unknown as Array<Record<string, unknown>>;
+    rows[0]!.witnessId = 'nurse-2';
+    rows[0]!.witnessName = 'Nurse Impostor';
     rewrite(CS_LOG, rows);
 
     const { dwLog: reread } = await build();
@@ -286,8 +293,10 @@ describe('waste events report the witness that was actually verified', () => {
 
     // isAuditEntry only checks id and action, so a row with no details at all
     // loads fine. Dereferencing it would take the whole PMP dialog down.
-    const entries = readJsonl<AuditEntry>(mem, AUDIT_LOG) as Array<Record<string, unknown>>;
-    delete entries[0].details;
+    const entries = readJsonl<AuditEntry>(mem, AUDIT_LOG) as unknown as Array<
+      Record<string, unknown>
+    >;
+    delete entries[0]!.details;
     rewrite(AUDIT_LOG, entries);
 
     const { dwLog: reread } = await build();

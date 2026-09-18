@@ -501,8 +501,8 @@ describe('verifyTargets', () => {
     const result = verifyTargets(['good.app', 'adhoc.app'], { run, log });
 
     expect(result.ok).toBe(false);
-    expect(result.results[0].assessment.ok).toBe(true);
-    expect(result.results[1].assessment.ok).toBe(false);
+    expect(result.results[0]!.assessment.ok).toBe(true);
+    expect(result.results[1]!.assessment.ok).toBe(false);
   });
 
   it('honours requireNotarization: false end to end', () => {

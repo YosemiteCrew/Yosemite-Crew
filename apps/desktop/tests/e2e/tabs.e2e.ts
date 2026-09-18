@@ -77,14 +77,17 @@ type TabResult = {
 const callYcDesktop = <T>(page: Page, method: string, args: unknown[]): Promise<T> =>
   page.evaluate(
     ({ m, a }: { m: string; a: unknown[] }) => {
-      const yc = (window as Record<string, unknown>).ycDesktop as Record<string, unknown>;
+      const yc = (window as unknown as Record<string, unknown>).ycDesktop as Record<
+        string,
+        unknown
+      >;
       if (yc && typeof yc === 'object' && typeof yc[m] === 'function') {
         return (yc[m] as (...args: unknown[]) => unknown)(...a);
       }
       return null;
     },
     { m: method, a: args }
-  );
+  ) as Promise<T>;
 
 // Retries once when the page navigates mid-call. Closing the last tab makes the
 // app leave tab mode and return to the welcome screen, which tears down the
@@ -163,7 +166,7 @@ test.describe('tab E2E', () => {
     expect(state.ok).toBe(true);
     expect(Array.isArray(state.tabs)).toBe(true);
     expect(state.tabs!).toHaveLength(1);
-    expect(state.tabs![0].url).toContain(pimsServer.origin);
+    expect(state.tabs![0]!.url).toContain(pimsServer.origin);
   });
 
   test('opens a new tab via IPC', async () => {
@@ -199,7 +202,7 @@ test.describe('tab E2E', () => {
   test('closes a tab via IPC', async () => {
     // Start with 1 tab, create another, close the original
     const original = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    const originalId = original.tabs![0].id;
+    const originalId = original.tabs![0]!.id;
 
     const t2 = await evaluateYcDesktop<TabResult>(page, 'newTab', `${pimsServer.origin}/b`);
     await waitForTabCount(page, 2);
@@ -209,12 +212,12 @@ test.describe('tab E2E', () => {
 
     const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
     expect(state.tabs!).toHaveLength(1);
-    expect(state.tabs![0].id).toBe(t2.id);
+    expect(state.tabs![0]!.id).toBe(t2.id);
   });
 
   test('reorders tabs', async () => {
     const original = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    const originalId = original.tabs![0].id;
+    const originalId = original.tabs![0]!.id;
 
     await evaluateYcDesktop(page, 'newTab', `${pimsServer.origin}/b`);
     await evaluateYcDesktop(page, 'newTab', `${pimsServer.origin}/c`);
@@ -225,7 +228,7 @@ test.describe('tab E2E', () => {
     expect(moved.ok).toBe(true);
 
     const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    expect(state.tabs![2].id).toBe(originalId);
+    expect(state.tabs![2]!.id).toBe(originalId);
   });
 
   // #3287: closing the split only cleared the shell's splitId. The right-hand
@@ -259,8 +262,8 @@ test.describe('tab E2E', () => {
       .toBe(1);
 
     const [only] = await mountedContentPanes(app!);
-    expect(only.x).toBe(0);
-    expect(only.width).toBe(full);
+    expect(only!.x).toBe(0);
+    expect(only!.width).toBe(full);
   });
 
   test('pins and unpins a tab', async () => {
@@ -268,13 +271,13 @@ test.describe('tab E2E', () => {
     await waitForTabCount(page, 2);
 
     const state1 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    const tabId = state1.tabs![1].id;
+    const tabId = state1.tabs![1]!.id;
 
     const pinned = await evaluateYcDesktop<{ ok: boolean }>(page, 'pinTab', tabId, true);
     expect(pinned.ok).toBe(true);
 
     const state2 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    expect(state2.tabs![0].pinned).toBe(true); // pinned tabs sort first
+    expect(state2.tabs![0]!.pinned).toBe(true); // pinned tabs sort first
 
     const unpinned = await evaluateYcDesktop<{ ok: boolean }>(page, 'pinTab', tabId, false);
     expect(unpinned.ok).toBe(true);
@@ -285,7 +288,7 @@ test.describe('tab E2E', () => {
     await waitForTabCount(page, 2);
 
     const state1 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    const tabId = state1.tabs![1].id;
+    const tabId = state1.tabs![1]!.id;
 
     const dup = await evaluateYcDesktop<{ ok: boolean; id?: string }>(page, 'duplicateTab', tabId);
     expect(dup.ok).toBe(true);
@@ -300,7 +303,7 @@ test.describe('tab E2E', () => {
     await waitForTabCount(page, 2);
 
     const state1 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    const tabId = state1.tabs![0].id;
+    const tabId = state1.tabs![0]!.id;
 
     await evaluateYcDesktop(page, 'closeTab', tabId);
     await waitForTabCount(page, 1);
@@ -341,7 +344,7 @@ test.describe('tab E2E', () => {
     await waitForTabCount(page, 2);
 
     const state0 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    const closedId = state0.tabs![1].id;
+    const closedId = state0.tabs![1]!.id;
     await evaluateYcDesktop(page, 'closeTab', closedId);
     await waitForTabCount(page, 1);
 
@@ -355,7 +358,7 @@ test.describe('tab E2E', () => {
 
   test('closing all tabs returns empty list', async () => {
     const state0 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    const tabId = state0.tabs![0].id;
+    const tabId = state0.tabs![0]!.id;
     await evaluateYcDesktop(page, 'closeTab', tabId);
     await waitForTabCount(page, 0);
     const state1 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
@@ -365,7 +368,7 @@ test.describe('tab E2E', () => {
 
   test('sets tab zoom', async () => {
     const state0 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    const tabId = state0.tabs![0].id;
+    const tabId = state0.tabs![0]!.id;
     const zoomResult = await evaluateYcDesktop<{ ok: boolean }>(page, 'setTabZoom', tabId, 1.5);
     expect(zoomResult.ok).toBe(true);
   });

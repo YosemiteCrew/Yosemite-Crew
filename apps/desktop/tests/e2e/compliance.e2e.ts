@@ -68,14 +68,17 @@ const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
 const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): Promise<T> =>
   page.evaluate(
     ({ m, a }: { m: string; a: unknown[] }) => {
-      const yc = (window as Record<string, unknown>).ycDesktop as Record<string, unknown>;
+      const yc = (window as unknown as Record<string, unknown>).ycDesktop as Record<
+        string,
+        unknown
+      >;
       if (yc && typeof yc === 'object' && typeof yc[m] === 'function') {
         return (yc[m] as (...args: unknown[]) => unknown)(...a);
       }
       return null;
     },
     { m: method, a: args }
-  );
+  ) as Promise<T>;
 
 test.describe('compliance E2E', () => {
   let app: ElectronApplication | undefined;
