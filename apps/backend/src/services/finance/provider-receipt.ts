@@ -116,9 +116,17 @@ const attributeIfStillUnattributed = async (
     },
   });
 
+  if (updated.count === 1) return status;
+
   // count 0 means the row left UNATTRIBUTED between the read and the write, so
-  // the state we would report is not the state that is stored.
-  return updated.count === 1 ? status : existing.status;
+  // neither the status we intended nor the one we read is the stored one. The
+  // caller is told what a receipt IS, never what a lost race hoped it would be,
+  // so the only honest answer is a fresh read.
+  const persisted = await prisma.providerReceipt.findUnique({
+    where: { id: existing.id },
+    select: { status: true },
+  });
+  return persisted?.status ?? existing.status;
 };
 
 export const ProviderReceiptService = {
