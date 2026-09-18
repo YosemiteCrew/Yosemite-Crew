@@ -622,6 +622,10 @@ export const PetClinicalRecordService = {
         status: "SIGNED",
         signedBy: actor.id ?? null,
         signedAt,
+        // A signature is a generation of the artifact (#3144): a workspace draft
+        // still holding the pre-signature version now loses its claim instead of
+        // writing content onto a signed record.
+        version: { increment: 1 },
         attestation: {
           upsert: { create: attestationData, update: attestationData },
         },
@@ -659,6 +663,8 @@ export const PetClinicalRecordService = {
       where: { id: artifactId },
       data: {
         status: "VOID",
+        // See `attestRecord`: a revocation is a new generation (#3144).
+        version: { increment: 1 },
         attestation: {
           update: {
             signingStatus: "REVOKED",
@@ -787,6 +793,9 @@ export const PetClinicalRecordService = {
       where: { id: artifactId },
       data: {
         status: "IN_PROGRESS",
+        // See `attestRecord`: sending the record for signature is a new
+        // generation (#3144).
+        version: { increment: 1 },
         attestation: {
           upsert: { create: attestationData, update: attestationData },
         },

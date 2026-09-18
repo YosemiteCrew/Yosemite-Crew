@@ -1248,7 +1248,11 @@ describe("rendered-document service", () => {
     expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "artifact-1" },
-        data: expect.objectContaining({ status: "SIGNED" }),
+        // Signing advances the artifact generation (#3144).
+        data: expect.objectContaining({
+          status: "SIGNED",
+          version: { increment: 1 },
+        }),
       }),
     );
     expect(mockedPrisma.templateInstance.update).not.toHaveBeenCalled();

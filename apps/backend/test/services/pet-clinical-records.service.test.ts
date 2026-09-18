@@ -444,7 +444,12 @@ describe("PetClinicalRecordService.attestRecord", () => {
     expect(result.status).toBe("SIGNED");
     expect(prismaMock.clinicalArtifact.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ status: "SIGNED" }),
+        // Attesting advances the artifact generation (#3144), so a draft
+        // read before the signature can no longer claim a write.
+        data: expect.objectContaining({
+          status: "SIGNED",
+          version: { increment: 1 },
+        }),
       }),
     );
     expect(auditMock).toHaveBeenCalled();
@@ -565,7 +570,10 @@ describe("PetClinicalRecordService.revokeRecord", () => {
     expect(withReason.status).toBe("VOID");
     expect(prismaMock.clinicalArtifact.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ status: "VOID" }),
+        data: expect.objectContaining({
+          status: "VOID",
+          version: { increment: 1 },
+        }),
       }),
     );
     const withoutReason = await PetClinicalRecordService.revokeRecord(base);
@@ -640,7 +648,10 @@ describe("PetClinicalRecordService.requestRecordSignature", () => {
     });
     expect(prismaMock.clinicalArtifact.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ status: "IN_PROGRESS" }),
+        data: expect.objectContaining({
+          status: "IN_PROGRESS",
+          version: { increment: 1 },
+        }),
       }),
     );
   });
