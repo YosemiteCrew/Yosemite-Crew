@@ -847,5 +847,11 @@
         "prevention": "Desparasitación rutinaria con una frecuencia acorde al estilo de vida de la mascota, además de recoger las heces cuanto antes. Tu veterinario te indicará cada cuánto."
       }
     }
+  },
+  "appLock": {
+    "prompt": {
+      "title": "Desbloquear Yosemite Crew",
+      "cancel": "Cancelar"
+    }
   }
 }
