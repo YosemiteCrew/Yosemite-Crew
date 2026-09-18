@@ -2,6 +2,7 @@ type Item = {
   label?: string;
   role?: string;
   type?: string;
+  accelerator?: string;
   click?: () => void;
   submenu?: Item[];
 };
@@ -25,12 +26,19 @@ jest.mock('../src/shell/window-config', () => ({
 }));
 
 import { createAppMenu, type MenuActions } from '../src/ui/app-menu';
+import { t } from '../src/utils/i18n';
 
 const walk = (items: Item[], fn: (i: Item) => void): void => {
   for (const item of items) {
     fn(item);
     if (item.submenu) walk(item.submenu, fn);
   }
+};
+
+const collect = (): Item[] => {
+  const out: Item[] = [];
+  walk(lastTemplate, (i) => out.push(i));
+  return out;
 };
 
 const clickAll = (): void =>
@@ -139,5 +147,29 @@ describe('createAppMenu', () => {
     run('darwin', { activeContents: jest.fn(() => null) });
     clickAll();
     expect(openExternal).toHaveBeenCalledWith('https://yosemitecrew.com/signin');
+  });
+
+  test('the macOS Quit item carries Cmd+Q and still quits', () => {
+    run('darwin');
+    const quit = collect().find((i) => i.label === t('menu.quit', 'en'));
+    expect(quit).toBeDefined();
+    expect(quit?.accelerator).toBe('Cmd+Q');
+
+    const { app } = jest.requireMock('electron') as { app: { quit: jest.Mock } };
+    app.quit.mockClear();
+    quit?.click?.();
+    expect(app.quit).toHaveBeenCalledTimes(1);
+  });
+
+  test('Cmd+Q is declared once on macOS and never on Windows/Linux', () => {
+    run('darwin');
+    const mac = collect().filter((i) => i.accelerator === 'Cmd+Q');
+    expect(mac).toHaveLength(1);
+
+    run('win32');
+    const other = collect();
+    // Windows/Linux quit through `role: 'quit'`, which carries its own key.
+    expect(other.filter((i) => i.accelerator === 'Cmd+Q')).toHaveLength(0);
+    expect(other.some((i) => i.role === 'quit')).toBe(true);
   });
 });
