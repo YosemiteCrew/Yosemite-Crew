@@ -489,6 +489,29 @@ describe("ProviderReceiptService.recordRefund", () => {
     expect(mockedLogger.error).not.toHaveBeenCalled();
   });
 
+  it("falls back to the row it read when the re-read finds nothing", async () => {
+    // The receipt was removed between the write and the re-read. There is no
+    // stored state left to report, so the last state this call actually
+    // observed is the only honest answer - and it is still not `applied`.
+    mockedPrisma.providerReceipt.findUnique
+      .mockResolvedValueOnce(
+        stored({ refundedAmount: 50, status: "ALLOCATED" }),
+      )
+      .mockResolvedValueOnce(null);
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    const result = await ProviderReceiptService.recordRefund(
+      refund({ refundedAmount: 20 }),
+    );
+
+    expect(result).toEqual({
+      id: "receipt-1",
+      status: "ALLOCATED",
+      refundedAmount: 50,
+      applied: false,
+    });
+  });
+
   it("refuses a refund with no journalled capture to reverse", async () => {
     // Money left the account against a record this journal does not hold, so
     // it is loud rather than silent.

@@ -3471,6 +3471,24 @@ describe("provider receipt refund reversal", () => {
     ).toHaveBeenCalledWith(expect.objectContaining({ amount: 100 }));
   });
 
+  it("names the missing intent when an unmatched refund is reported", async () => {
+    // Both gaps at once: no intent to key the journal on and no invoice to
+    // move. The log has to say which charge and that the intent is unknown,
+    // because it is the only record a human gets.
+    (
+      FinancePaymentService.markInvoiceRefundedFromWebhook as jest.Mock
+    ).mockResolvedValue({ action: "NO_INVOICE" });
+
+    await StripeService._handleRefund(
+      refundedCharge({ payment_intent: null, metadata: {} }),
+    );
+
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.stringContaining("intent unknown"),
+    );
+    expect(NotificationService.sendToUser).not.toHaveBeenCalled();
+  });
+
   it("never lets the journal be the reason a refund is not processed", async () => {
     // The journal records the refund; it is not a precondition for handling
     // it. Throwing here would stop the invoice being marked REFUNDED and the
