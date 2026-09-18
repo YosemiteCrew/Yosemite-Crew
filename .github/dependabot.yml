@@ -191,8 +191,11 @@ updates:
       # toolchain across two ESLint majors.
       - dependency-name: 'eslint'
         update-types: ['version-update:semver-major']
-      # react, react-dom and react-test-renderer are frozen for dependabot -
-      # every update type, not just minors and majors (#3325).
+      # react and react-dom are frozen for dependabot - every update type, not
+      # just minors and majors (#3325). react-test-renderer is already frozen
+      # above, with the React Native native cluster; do not repeat it here, a
+      # duplicate dependency-name makes the whole file invalid and dependabot
+      # then applies NONE of these holds.
       #
       # react-native 0.81.6 declares `peerDependencies.react: ^19.1.4`, so a
       # minor bump to 19.3.0 satisfies the range and nothing refuses it. The
@@ -229,7 +232,6 @@ updates:
       # in one PR for the frontend.
       - dependency-name: 'react'
       - dependency-name: 'react-dom'
-      - dependency-name: 'react-test-renderer'
       # next is held on 15.x while the Next 16 adoption is decided (#3266).
       #
       # The two instrument failures that used to sit in front of that decision
