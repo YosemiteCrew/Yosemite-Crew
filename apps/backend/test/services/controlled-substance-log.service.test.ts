@@ -544,3 +544,148 @@ describe("ControlledSubstanceLogService.delete", () => {
     });
   });
 });
+
+describe("ControlledSubstanceLogService.reverseDispenseEntry", () => {
+  // 6 units drawn against an on-hand of 10, so the register closed at 4.
+  const dispenseEntry = {
+    ...baseEntry,
+    id: "cs-dispense-1",
+    amountDrawn: 6,
+    amountAdministered: 6,
+    amountWasted: 0,
+    balanceBefore: 10,
+    balanceAfter: 4,
+    sourceEventId: "event-dispense-1",
+    inventoryBatchId: "batch-1",
+  };
+
+  const reverse = (amount: number, reversalEventId = "event-release-1") =>
+    ControlledSubstanceLogService.reverseDispenseEntry(prisma, {
+      organisationId: "org-1",
+      sourceEventId: "event-dispense-1",
+      inventoryBatchId: "batch-1",
+      reversalEventId,
+      amount,
+    });
+
+  const writtenData = () => mockCreate.mock.calls[0][0].data;
+
+  beforeEach(() => {
+    mockFindFirst.mockResolvedValue(dispenseEntry);
+    mockFindMany.mockResolvedValue([]);
+    mockCreate.mockResolvedValue({ id: "cs-reversal-1" });
+  });
+
+  it("opens the first reversal at the balance the dispense closed on", async () => {
+    await reverse(2);
+
+    expect(writtenData()).toMatchObject({
+      amountDrawn: -2,
+      amountAdministered: -2,
+      balanceBefore: 4,
+      balanceAfter: 6,
+    });
+  });
+
+  // The regression. Both rows describe the same dispense, so a reversal that
+  // reads only that dispense opens the second row at 4 again and the register
+  // reads 4 -> 6 then 4 -> 5 rather than 4 -> 6 then 6 -> 7.
+  it("opens a later reversal where the previous one closed", async () => {
+    mockFindMany.mockResolvedValue([{ amountDrawn: -2 }]);
+
+    await reverse(1, "event-release-2");
+
+    expect(writtenData()).toMatchObject({
+      amountDrawn: -1,
+      balanceBefore: 6,
+      balanceAfter: 7,
+    });
+  });
+
+  it("chains across more than two releases", async () => {
+    mockFindMany.mockResolvedValue([{ amountDrawn: -2 }, { amountDrawn: -1 }]);
+
+    await reverse(3, "event-release-3");
+
+    expect(writtenData()).toMatchObject({
+      amountDrawn: -3,
+      balanceBefore: 7,
+      balanceAfter: 10,
+    });
+  });
+
+  // A per-reversal cap lets each release restore up to the whole original draw,
+  // so three releases of 6 would credit 18 units back against a 6-unit draw.
+  it("caps a release at what is left of the original draw, not at the draw", async () => {
+    mockFindMany.mockResolvedValue([{ amountDrawn: -4 }]);
+
+    await reverse(6, "event-release-2");
+
+    expect(writtenData()).toMatchObject({
+      amountDrawn: -2,
+      balanceBefore: 8,
+      balanceAfter: 10,
+    });
+  });
+
+  it("writes nothing once the draw is fully reversed", async () => {
+    mockFindMany.mockResolvedValue([{ amountDrawn: -6 }]);
+
+    await expect(reverse(2, "event-release-2")).resolves.toBeNull();
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  // 0.01 + 0.09 sums to 0.09999999999999999, so a 0.1 draw reversed in those
+  // two steps leaves 1.4e-17 - positive, so a `> 0` guard would write a row
+  // restoring nothing measurable, and only the tolerance rejects it. The
+  // fixture has to land on the positive side: equal totals cancel to exactly 0
+  // and would be rejected either way, which is no test of the tolerance at all.
+  it("writes nothing when only a float residue of the draw is left", async () => {
+    mockFindFirst.mockResolvedValue({ ...dispenseEntry, amountDrawn: 0.1 });
+    mockFindMany.mockResolvedValue([
+      { amountDrawn: -0.01 },
+      { amountDrawn: -0.09 },
+    ]);
+
+    await expect(reverse(0.05, "event-release-2")).resolves.toBeNull();
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("keeps the balance columns null when the dispense recorded none", async () => {
+    mockFindFirst.mockResolvedValue({
+      ...dispenseEntry,
+      balanceBefore: null,
+      balanceAfter: null,
+    });
+    mockFindMany.mockResolvedValue([{ amountDrawn: -2 }]);
+
+    await reverse(1, "event-release-2");
+
+    expect(writtenData()).toMatchObject({
+      amountDrawn: -1,
+      balanceBefore: null,
+      balanceAfter: null,
+    });
+  });
+
+  it("looks prior reversals up by the marker that names this dispense", async () => {
+    await reverse(2);
+
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organisationId: "org-1",
+          notes: { startsWith: "[reversal:cs-dispense-1]" },
+        }),
+      }),
+    );
+  });
+
+  it("returns null without querying reversals when no dispense entry exists", async () => {
+    mockFindFirst.mockResolvedValue(null);
+
+    await expect(reverse(2)).resolves.toBeNull();
+    expect(mockFindMany).not.toHaveBeenCalled();
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+});

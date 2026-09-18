@@ -315,6 +315,11 @@ export const ControlledSubstanceLogService = {
   // whole entry: a release can cover part of a batch. Reversing the entry in
   // full there would credit back stock the ledger never says left, so the
   // reversal records the restored amount and no more.
+  //
+  // Successive partial releases chain. Each row opens where the previous
+  // reversal closed and is capped at what is left of the original draw, so the
+  // balance column reads straight down the register and the sum of the
+  // reversals can never exceed the dispense they cancel.
   async reverseDispenseEntry(
     client: CsLogClient,
     params: {
@@ -336,8 +341,42 @@ export const ControlledSubstanceLogService = {
     });
     if (!existing) return null;
 
-    const restored = Math.min(Math.abs(params.amount), existing.amountDrawn);
-    if (restored <= 0) return null;
+    // Every reversal of this entry that already exists, found by the marker its
+    // notes start with - the same link `assertNotReversed` uses. Without this
+    // the entry is the only thing each release can see, so a second partial
+    // release derives its row from the original dispense again: a 6-unit draw
+    // of 10 -> 4 released as 2 then 1 records 4 -> 6 and then 4 -> 5 instead of
+    // 4 -> 6 and 6 -> 7, and the individual cap lets repeated releases credit
+    // back more than was ever drawn.
+    const priorReversals = await client.controlledSubstanceLog.findMany({
+      where: {
+        organisationId: params.organisationId,
+        notes: { startsWith: reversalMarker(existing.id) },
+      },
+      select: { amountDrawn: true },
+    });
+    // A reversal stores its restored amount negated, so subtracting sums them.
+    const alreadyRestored = priorReversals.reduce(
+      (total, reversal) => total - reversal.amountDrawn,
+      0,
+    );
+
+    // The cap is what is LEFT of the original draw, not the draw itself.
+    const remaining = existing.amountDrawn - alreadyRestored;
+    const restored = Math.min(Math.abs(params.amount), remaining);
+    // Tolerance rather than `> 0`: once the draw is fully reversed, float
+    // subtraction leaves a residue either side of zero, and a +4e-16 residue
+    // would otherwise write a ledger row that restores nothing.
+    if (restored <= QUANTITY_TOLERANCE) return null;
+
+    // Derived arithmetically rather than read off the newest reversal row, so
+    // it needs no ordering and cannot be decided by a createdAt tie: reversal k
+    // opens at the dispense's closing balance plus everything reversed before
+    // it, which is exactly reversal k-1's own closing balance.
+    const balanceBefore =
+      existing.balanceAfter === null
+        ? null
+        : existing.balanceAfter + alreadyRestored;
 
     return client.controlledSubstanceLog.create({
       data: {
@@ -354,11 +393,8 @@ export const ControlledSubstanceLogService = {
         amountAdministered: -restored,
         amountWasted: 0,
         wastedWitness: existing.wastedWitness,
-        balanceBefore: existing.balanceAfter,
-        balanceAfter:
-          existing.balanceAfter === null
-            ? null
-            : existing.balanceAfter + restored,
+        balanceBefore,
+        balanceAfter: balanceBefore === null ? null : balanceBefore + restored,
         administeredBy: existing.administeredBy,
         notes: buildLedgerNote(reversalMarker(existing.id), params.reason),
         // Keyed to the release that caused it, never to the dispense it
