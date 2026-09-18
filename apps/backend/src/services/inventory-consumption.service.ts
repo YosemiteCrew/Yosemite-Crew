@@ -1383,16 +1383,22 @@ const applyInventoryRelease = async (
     "RELEASE",
   );
 
-  if (item.controlledItem === true) {
-    await reverseControlledSubstanceDispense(tx, {
-      params,
-      releaseEventId: event.id,
-      restored: Array.from(restoredByBatch, ([batchId, quantity]) => ({
-        batchId,
-        quantity,
-      })),
-    });
-  }
+  // Deliberately not gated on `item.controlledItem`. That flag is re-read here
+  // at release time and is an ordinary editable boolean, so unticking it after
+  // the dispense would restore the stock and skip the register - controlled
+  // stock moving with no register movement, the defect #3142 exists to close,
+  // arriving on the return leg. Nor could it be repaired afterwards: the release
+  // event's idempotency key short-circuits any replay. What the register owes is
+  // decided by the dispense that wrote it, which is what the lookup below reads;
+  // a release of stock no dispense entered in the register writes nothing.
+  await reverseControlledSubstanceDispense(tx, {
+    params,
+    releaseEventId: event.id,
+    restored: Array.from(restoredByBatch, ([batchId, quantity]) => ({
+      batchId,
+      quantity,
+    })),
+  });
 
   return event;
 };

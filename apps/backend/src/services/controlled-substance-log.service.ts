@@ -238,6 +238,20 @@ const assertNotReversed = async (
   }
 };
 
+// A register row the dispense path wrote is half of an atomic pair whose other
+// half is the stock movement, so amending it from the ledger side alone moves
+// the register without moving the cabinet. Refused, and the caller is pointed at
+// the stock path, which reverses both together. Truthiness rather than a null
+// comparison: a hand-entered entry stores null here and a record that omits the
+// column must read as unlinked too.
+const assertNotStockLinked = (record: CsLogRecord) => {
+  if (!record.sourceEventId) return;
+  throw new ControlledSubstanceLogError(
+    "This entry records a stock movement and cannot be voided or corrected directly; return or void the dispense instead.",
+    409,
+  );
+};
+
 export const ControlledSubstanceLogService = {
   // `client` lets a caller that is already inside prisma.$transaction have its
   // register entry committed or rolled back with the stock movement that caused
@@ -352,11 +366,12 @@ export const ControlledSubstanceLogService = {
       where: {
         organisationId: params.organisationId,
         notes: { startsWith: reversalMarker(existing.id) },
-        // Only the reversals a RELEASE wrote. A correction or a void appends a
-        // full reversal carrying the same marker and no stock event, and
-        // counting one of those would read the whole draw as already restored:
-        // the release would then move the stock and write nothing at all in the
-        // register, which is the divergence this cap exists to prevent.
+        // Only the reversals a RELEASE wrote. `assertNotStockLinked` refuses a
+        // hand void or correction of a stock-linked entry, so no hand reversal
+        // can carry this marker; the clause states that invariant rather than
+        // depending on it. Were one to exist, counting it would read the draw as
+        // already restored and a later partial release would move the stock
+        // while the register stayed silent.
         sourceEventId: { not: null },
       },
       select: { amountDrawn: true },
@@ -446,6 +461,9 @@ export const ControlledSubstanceLogService = {
   // corrected entry is returned; the entry identified by `id` is left intact.
   async update(id: string, organisationId: string, params: UpdateCsLogParams) {
     const existing = await assertRecord(id, organisationId);
+    // Ahead of the quantity checks below, so a caller amending a machine-written
+    // row is told it is the wrong path rather than that its arithmetic is wrong.
+    assertNotStockLinked(existing);
 
     const amountDrawn = params.amountDrawn ?? existing.amountDrawn;
     const amountAdministered =
@@ -538,6 +556,10 @@ export const ControlledSubstanceLogService = {
     params: VoidCsLogParams = {},
   ) {
     const existing = await assertRecord(id, organisationId);
+    // Ahead of `assertNotReversed`, whose advice - correct the replacement entry
+    // - has no meaning for a partially released dispense: there is no
+    // replacement, and correcting is refused here too.
+    assertNotStockLinked(existing);
 
     const reversal = await prisma.$transaction(async (tx) => {
       await assertNotReversed(tx, existing);
