@@ -191,6 +191,90 @@ updates:
       # toolchain across two ESLint majors.
       - dependency-name: 'eslint'
         update-types: ['version-update:semver-major']
+      # react and react-dom are frozen for dependabot - every update type, not
+      # just minors and majors (#3325). react-test-renderer is already frozen
+      # above, with the React Native native cluster; do not repeat it here, a
+      # duplicate dependency-name makes the whole file invalid and dependabot
+      # then applies NONE of these holds.
+      #
+      # react-native 0.81.6 declares `peerDependencies.react: ^19.1.4`, so a
+      # minor bump to 19.3.0 satisfies the range and nothing refuses it. The
+      # renderer React Native ships enforces something narrower at runtime. In
+      # Libraries/Renderer/implementations/ReactNativeRenderer-prod.js the check
+      # is a literal string compare:
+      #
+      #   if ("19.1.4" !== React.version) throw Error('Incompatible React
+      #     versions: the "react" and "react-native-renderer" packages must have
+      #     the exact same version...')
+      #
+      # The iOS release app installed, launched and then terminated before its
+      # first screen on exactly that throw, and no CI stage could see it: jest
+      # never mounts through the native renderer, the peer range is not violated
+      # so the install is clean, and the release workflow builds and uploads the
+      # app without launching it.
+      #
+      # Because the comparison is against a baked-in literal, a PATCH breaks it
+      # the same way a minor does - 19.1.5 is as fatal as 19.3.0. There is no
+      # update-types subset that is safe, so the entries carry none.
+      #
+      # This is workspace-wide: there is one npm config for the whole pnpm
+      # workspace and ignores match on dependency-name only, so it also holds
+      # apps/frontend. react-dom is frozen alongside react for that reason - it
+      # carries the same exact-version guard against react, so leaving it
+      # updatable while react is held is the one configuration that guarantees
+      # the pair drifts apart.
+      #
+      # Ignore rules apply to dependabot SECURITY updates too, so a react
+      # advisory will not arrive as a PR while these entries stand. Accepted:
+      # the mobile app cannot take a react bump without a react-native bump
+      # anyway, and both lifts are deliberate manual changes - raise react with
+      # the react-native bump for mobile, and raise react and react-dom together
+      # in one PR for the frontend.
+      - dependency-name: 'react'
+      - dependency-name: 'react-dom'
+      # next is held on 15.x while the Next 16 adoption is decided (#3266).
+      #
+      # The two instrument failures that used to sit in front of that decision
+      # are fixed on dev and are no longer reasons to hold:
+      #   - check-bundle-budgets.mjs classified chunks by webpack filename
+      #     shape, so under Turbopack all four patterns matched nothing and
+      #     three of the four ceilings guarded zero chunks. It now classifies
+      #     from build-manifest.json and the prerendered documents, which both
+      #     bundlers emit, and throws instead of falling back to a default
+      #     bucket when a source is missing.
+      #   - export-build-report.mjs read .next/app-build-manifest.json, which
+      #     Next 16 removed, with no existence check. It now falls back to the
+      #     prerendered documents and fails loudly when neither source is
+      #     present. Repointing it at build-manifest.json is still not an
+      #     option - that file is pages-router only and makes the script write
+      #     an empty report and exit 0.
+      #
+      # What is left is the decision itself, which is above a dependabot PR and
+      # is not fixable by adjusting a budget number on one: whether to adopt
+      # Turbopack as the production bundler, and whether to accept ~3% more
+      # first-load JS to take Next 16 at all.
+      #
+      # Measured on a local 16.3.4 Turbopack build of dev at 89eedeaca with the
+      # fixed gate: the classification works - 1/5/42/249 across
+      # polyfills/shared/page/async rather than 0/0/0/297 - and the bump then
+      # fails honestly on three chunks, not one. 1462.6 KiB lazy against the
+      # 1190 KiB async ceiling, 453.8 KiB first-load against 290 KiB (it also
+      # exceeded the previous 375 KiB page ceiling), and a 222.7 KiB entry chunk
+      # against 178 KiB, where dev's largest entry chunk is 169.7 KiB. Those are
+      # the numbers the decision has to be made against.
+      # There is no security pressure to take the major: no published next
+      # advisory has a vulnerable range containing 15.5.24, and 15.x still
+      # receives patches through this config.
+      #
+      # Scoped to 16.x rather than all majors so a later major is still
+      # proposed, and because eslint 10 (held above) only clears once this one
+      # is taken - the hold needs to be visible, not permanent.
+      #
+      # Note for whoever takes it: next is pinned in TWO places, this repo's
+      # root pnpm.overrides and apps/frontend/package.json. A bump that moves
+      # only one fails the lockfile config check before CI reaches the gates.
+      - dependency-name: 'next'
+        versions: ['16.x']
     groups:
       # Every group is minor-and-patch only, including the named ones below. A
       # named group without `update-types` silently swallows MAJORS too, which is
