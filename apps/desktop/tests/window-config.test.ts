@@ -143,27 +143,60 @@ describe('navigation handlers', () => {
   });
 });
 
+// The five names the desktop shell grants, written out rather than read back from the
+// Set under test: an edit to permittedPermissions has to be an intentional edit here too.
+const EXPECTED_PERMISSIONS = [
+  'clipboard-read',
+  'display-capture',
+  'geolocation',
+  'media',
+  'notifications',
+];
+
+// Real Electron permission names that are deliberately NOT granted. All five appear in
+// both the request and the check union of electron 44.1.1; 'geolocation-approximate' is
+// one of the 27 names Electron 44 added, and we grant only precise 'geolocation'.
+const DENIED_PERMISSIONS = ['midiSysex', 'serial', 'usb', 'hid', 'geolocation-approximate'];
+
 describe('permissions', () => {
   const wc = { getURL: () => 'https://yosemitecrew.com/x' } as never;
 
-  test('grants permitted permissions for internal origins only', () => {
-    const perm = [...permittedPermissions][0];
-    expect(
-      shouldGrantPermission(perm, { requestingUrl: 'https://yosemitecrew.com/a' } as never, wc)
-    ).toBe(true);
-    expect(
-      shouldGrantPermission(
-        'midi-sysex',
-        { requestingUrl: 'https://yosemitecrew.com/a' } as never,
-        wc
-      )
-    ).toBe(false);
-    expect(shouldGrantPermission(perm, { requestingUrl: 'https://evil.com' } as never, wc)).toBe(
-      false
-    );
+  test('the allowlist is exactly the five expected permissions', () => {
+    expect([...permittedPermissions].sort()).toEqual([...EXPECTED_PERMISSIONS].sort());
   });
 
-  test('configureSessionPermissions wires both handlers', () => {
+  test('grants every allowlisted permission for an internal origin', () => {
+    for (const perm of EXPECTED_PERMISSIONS) {
+      expect(
+        shouldGrantPermission(perm, { requestingUrl: 'https://yosemitecrew.com/a' } as never, wc)
+      ).toBe(true);
+    }
+  });
+
+  test('denies real Electron permissions that are not allowlisted', () => {
+    for (const perm of DENIED_PERMISSIONS) {
+      expect(
+        shouldGrantPermission(perm, { requestingUrl: 'https://yosemitecrew.com/a' } as never, wc)
+      ).toBe(false);
+    }
+  });
+
+  test('denies allowlisted permissions for an external origin', () => {
+    for (const perm of EXPECTED_PERMISSIONS) {
+      expect(shouldGrantPermission(perm, { requestingUrl: 'https://evil.com' } as never, wc)).toBe(
+        false
+      );
+    }
+  });
+
+  test('falls back to the web contents URL when the request carries no url', () => {
+    expect(shouldGrantPermission('media', {} as never, wc)).toBe(true);
+    expect(
+      shouldGrantPermission('media', {} as never, { getURL: () => 'https://evil.com/x' } as never)
+    ).toBe(false);
+  });
+
+  describe('configureSessionPermissions', () => {
     let reqHandler: (
       wc: unknown,
       p: string,
@@ -171,22 +204,44 @@ describe('permissions', () => {
       d: unknown
     ) => void = () => {};
     let checkHandler: (wc: unknown, p: string, o: string) => boolean = () => false;
-    const ses = {
-      setPermissionRequestHandler: (fn: typeof reqHandler) => {
-        reqHandler = fn;
-      },
-      setPermissionCheckHandler: (fn: typeof checkHandler) => {
-        checkHandler = fn;
-      },
-    } as never;
-    configureSessionPermissions(ses);
-    const cb = jest.fn();
-    reqHandler(wc, [...permittedPermissions][0], cb, {
-      requestingUrl: 'https://yosemitecrew.com/a',
+
+    beforeEach(() => {
+      const ses = {
+        setPermissionRequestHandler: (fn: typeof reqHandler) => {
+          reqHandler = fn;
+        },
+        setPermissionCheckHandler: (fn: typeof checkHandler) => {
+          checkHandler = fn;
+        },
+      } as never;
+      configureSessionPermissions(ses);
     });
-    expect(cb).toHaveBeenCalledWith(true);
-    expect(checkHandler(wc, [...permittedPermissions][0], 'https://yosemitecrew.com')).toBe(true);
-    expect(checkHandler(wc, 'x', '')).toBe(false);
+
+    test('the request handler answers the callback with the allowlist decision', () => {
+      const granted = jest.fn();
+      reqHandler(wc, 'media', granted, { requestingUrl: 'https://yosemitecrew.com/a' });
+      expect(granted).toHaveBeenCalledWith(true);
+
+      const denied = jest.fn();
+      reqHandler(wc, 'midiSysex', denied, { requestingUrl: 'https://yosemitecrew.com/a' });
+      expect(denied).toHaveBeenCalledWith(false);
+    });
+
+    test('the check handler applies the allowlist to the requesting origin', () => {
+      expect(checkHandler(wc, 'media', 'https://yosemitecrew.com')).toBe(true);
+      expect(checkHandler(wc, 'midiSysex', 'https://yosemitecrew.com')).toBe(false);
+      expect(checkHandler(wc, 'media', 'https://evil.com')).toBe(false);
+    });
+
+    test('an empty origin is attributed to the web contents, not to the start URL', () => {
+      expect(checkHandler(wc, 'media', '')).toBe(true);
+      expect(checkHandler({ getURL: () => 'https://evil.com/x' }, 'media', '')).toBe(false);
+    });
+
+    test('a check that cannot be attributed to any origin is denied', () => {
+      expect(checkHandler(null, 'media', '')).toBe(false);
+      expect(checkHandler({ getURL: () => '' }, 'media', '')).toBe(false);
+    });
   });
 });
 
