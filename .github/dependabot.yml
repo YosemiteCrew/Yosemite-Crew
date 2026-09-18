@@ -191,6 +191,47 @@ updates:
       # toolchain across two ESLint majors.
       - dependency-name: 'eslint'
         update-types: ['version-update:semver-major']
+      # react and react-dom are frozen for dependabot - every update type, not
+      # just minors and majors (#3325). react-test-renderer is already frozen
+      # above, with the React Native native cluster; do not repeat it here, a
+      # duplicate dependency-name makes the whole file invalid and dependabot
+      # then applies NONE of these holds.
+      #
+      # react-native 0.81.6 declares `peerDependencies.react: ^19.1.4`, so a
+      # minor bump to 19.3.0 satisfies the range and nothing refuses it. The
+      # renderer React Native ships enforces something narrower at runtime. In
+      # Libraries/Renderer/implementations/ReactNativeRenderer-prod.js the check
+      # is a literal string compare:
+      #
+      #   if ("19.1.4" !== React.version) throw Error('Incompatible React
+      #     versions: the "react" and "react-native-renderer" packages must have
+      #     the exact same version...')
+      #
+      # The iOS release app installed, launched and then terminated before its
+      # first screen on exactly that throw, and no CI stage could see it: jest
+      # never mounts through the native renderer, the peer range is not violated
+      # so the install is clean, and the release workflow builds and uploads the
+      # app without launching it.
+      #
+      # Because the comparison is against a baked-in literal, a PATCH breaks it
+      # the same way a minor does - 19.1.5 is as fatal as 19.3.0. There is no
+      # update-types subset that is safe, so the entries carry none.
+      #
+      # This is workspace-wide: there is one npm config for the whole pnpm
+      # workspace and ignores match on dependency-name only, so it also holds
+      # apps/frontend. react-dom is frozen alongside react for that reason - it
+      # carries the same exact-version guard against react, so leaving it
+      # updatable while react is held is the one configuration that guarantees
+      # the pair drifts apart.
+      #
+      # Ignore rules apply to dependabot SECURITY updates too, so a react
+      # advisory will not arrive as a PR while these entries stand. Accepted:
+      # the mobile app cannot take a react bump without a react-native bump
+      # anyway, and both lifts are deliberate manual changes - raise react with
+      # the react-native bump for mobile, and raise react and react-dom together
+      # in one PR for the frontend.
+      - dependency-name: 'react'
+      - dependency-name: 'react-dom'
       # next is held on 15.x while the Next 16 adoption is decided (#3266).
       #
       # The two instrument failures that used to sit in front of that decision
