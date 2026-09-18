@@ -2,6 +2,7 @@ import {
   PLATFORM_MERCHANT_ACCOUNT_REF,
   ProviderReceiptService,
   initialReceiptStatus,
+  refundedReceiptStatus,
 } from "../../src/services/finance/provider-receipt";
 import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
@@ -339,5 +340,198 @@ describe("attribution on a later delivery", () => {
     );
 
     expect(result?.status).toBe("UNATTRIBUTED");
+  });
+});
+
+describe("refundedReceiptStatus", () => {
+  it("keeps a residual visible until the whole capture has gone back", () => {
+    // A partially refunded capture still has money to allocate, so folding it
+    // into either neighbour would either hide work or invent it.
+    expect(refundedReceiptStatus({ amount: 100, refundedAmount: 20 })).toBe(
+      "PARTIALLY_REFUNDED",
+    );
+    expect(refundedReceiptStatus({ amount: 100, refundedAmount: 100 })).toBe(
+      "REFUNDED",
+    );
+  });
+
+  it("treats a refund larger than the capture as fully refunded", () => {
+    // It should not happen, and if it does the receipt has nothing left to
+    // reconcile. The excess is a discrepancy for a human, not a reason to keep
+    // reporting a residual that is not there.
+    expect(refundedReceiptStatus({ amount: 100, refundedAmount: 120 })).toBe(
+      "REFUNDED",
+    );
+  });
+});
+
+describe("ProviderReceiptService.recordRefund", () => {
+  const refund = (overrides: Record<string, unknown> = {}) => ({
+    provider: "STRIPE" as const,
+    merchantAccountRef: "acct_connected",
+    paymentRef: "pi_captured",
+    refundedAmount: 20,
+    currency: "gbp",
+    ...overrides,
+  });
+
+  const stored = (overrides: Record<string, unknown> = {}) => ({
+    id: "receipt-1",
+    amount: 100,
+    currency: "gbp",
+    status: "ALLOCATED",
+    refundedAmount: 0,
+    ...overrides,
+  });
+
+  it("reduces the receipt for the capture the refund names", async () => {
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValueOnce(stored());
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValueOnce({ count: 1 });
+
+    const result = await ProviderReceiptService.recordRefund(refund());
+
+    expect(result).toEqual({
+      id: "receipt-1",
+      status: "PARTIALLY_REFUNDED",
+      refundedAmount: 20,
+      applied: true,
+    });
+    expect(mockedPrisma.providerReceipt.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          provider_merchantAccountRef_paymentRef: {
+            provider: "STRIPE",
+            merchantAccountRef: "acct_connected",
+            paymentRef: "pi_captured",
+          },
+        },
+      }),
+    );
+  });
+
+  it("looks for a platform capture under the sentinel, not under null", async () => {
+    // The same reason the sentinel exists at all: a NULL merchant account
+    // would not match the row the capture was written to.
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValueOnce(stored());
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValueOnce({ count: 1 });
+
+    await ProviderReceiptService.recordRefund(
+      refund({ merchantAccountRef: null }),
+    );
+
+    expect(
+      mockedPrisma.providerReceipt.findUnique.mock.calls[0][0].where
+        .provider_merchantAccountRef_paymentRef.merchantAccountRef,
+    ).toBe(PLATFORM_MERCHANT_ACCOUNT_REF);
+  });
+
+  it("marks a capture refunded in full", async () => {
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValueOnce(stored());
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValueOnce({ count: 1 });
+
+    const result = await ProviderReceiptService.recordRefund(
+      refund({ refundedAmount: 100 }),
+    );
+
+    expect(result).toMatchObject({ status: "REFUNDED", refundedAmount: 100 });
+  });
+
+  it("writes only when the provider's total has gone up", async () => {
+    /*
+     * The predicate is the whole guarantee, and it is asserted directly
+     * because a mocked count cannot distinguish it from a read-then-write: a
+     * replayed event, a pair of partial refunds delivered out of order and two
+     * concurrent deliveries all converge on the provider's stated total only
+     * while the increase is in the WHERE.
+     */
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValueOnce(stored());
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValueOnce({ count: 1 });
+
+    await ProviderReceiptService.recordRefund(refund({ refundedAmount: 35 }));
+
+    expect(mockedPrisma.providerReceipt.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "receipt-1", refundedAmount: { lt: 35 } },
+      }),
+    );
+  });
+
+  it("bumps the version so a later allocation can be made conditional on it", async () => {
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValueOnce(stored());
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValueOnce({ count: 1 });
+
+    await ProviderReceiptService.recordRefund(refund());
+
+    expect(
+      mockedPrisma.providerReceipt.updateMany.mock.calls[0][0].data.version,
+    ).toEqual({ increment: 1 });
+  });
+
+  it("reports the stored state when the refund was already covered", async () => {
+    // A redelivery, an event that arrived behind a later one, or a concurrent
+    // delivery that won. None is an error, and none makes the status this call
+    // computed the stored one - so the answer comes from a fresh read.
+    mockedPrisma.providerReceipt.findUnique
+      .mockResolvedValueOnce(stored({ refundedAmount: 100 }))
+      .mockResolvedValueOnce({ status: "REFUNDED", refundedAmount: 100 });
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    const result = await ProviderReceiptService.recordRefund(
+      refund({ refundedAmount: 20 }),
+    );
+
+    expect(result).toEqual({
+      id: "receipt-1",
+      status: "REFUNDED",
+      refundedAmount: 100,
+      applied: false,
+    });
+    expect(mockedLogger.error).not.toHaveBeenCalled();
+  });
+
+  it("refuses a refund with no journalled capture to reverse", async () => {
+    // Money left the account against a record this journal does not hold, so
+    // it is loud rather than silent.
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValueOnce(null);
+
+    const result = await ProviderReceiptService.recordRefund(refund());
+
+    expect(result).toBeNull();
+    expect(mockedPrisma.providerReceipt.updateMany).not.toHaveBeenCalled();
+    expect(mockedLogger.error).toHaveBeenCalledWith(
+      expect.stringContaining("no journalled capture to reverse"),
+    );
+  });
+
+  it("refuses a refund in a different currency from its capture", async () => {
+    // Two currencies do not compare, so this figure would mean nothing beside
+    // the amount it is meant to reduce.
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValueOnce(
+      stored({ currency: "usd" }),
+    );
+
+    const result = await ProviderReceiptService.recordRefund(refund());
+
+    expect(result).toBeNull();
+    expect(mockedPrisma.providerReceipt.updateMany).not.toHaveBeenCalled();
+    expect(mockedLogger.error).toHaveBeenCalledWith(
+      expect.stringContaining("different currency"),
+    );
+  });
+
+  it("never throws a storage failure back at the webhook", async () => {
+    // A non-2xx buys an endless provider retry of an event that cannot
+    // succeed, and the refund has happened either way.
+    mockedPrisma.providerReceipt.findUnique.mockRejectedValueOnce(
+      new Error("database unavailable"),
+    );
+
+    await expect(
+      ProviderReceiptService.recordRefund(refund()),
+    ).resolves.toBeNull();
+    expect(mockedLogger.error).toHaveBeenCalledWith(
+      expect.stringContaining("Could not record refund of pi_captured"),
+      expect.any(Error),
+    );
   });
 });
