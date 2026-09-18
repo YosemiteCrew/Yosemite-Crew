@@ -21,8 +21,11 @@ describe("finance/pricing", () => {
     // Any caller moved onto the exact quantizer changes by this much.
     expect(roundMoney(8.165)).toBe(8.16);
     expect(quantizeMoney(8.165, 2)).toBe(8.17);
-    expect(roundMoney(-10.005)).toBe(-10);
-    expect(quantizeMoney(-10.005, 2)).toBe(-10.01);
+    expect(roundMoney(-2.675)).toBe(-2.67);
+    expect(quantizeMoney(-2.675, 2)).toBe(-2.68);
+    // Where the nudge does reach the tie the two agree, so the divergence is
+    // a property of the amount and not of the sign.
+    expect(roundMoney(-10.005)).toBe(quantizeMoney(-10.005, 2));
   });
 
   describe("calculateInvoiceDiscountPercentOfBase", () => {
