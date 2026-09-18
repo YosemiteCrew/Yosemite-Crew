@@ -3,6 +3,7 @@ import {
   calculateInvoicePricing,
   roundMoney,
 } from "../../src/services/finance/pricing";
+import { UnsupportedLedgerCurrencyError } from "../../src/services/finance/currency";
 
 describe("finance/pricing", () => {
   it("rounds money deterministically", () => {
@@ -22,6 +23,95 @@ describe("finance/pricing", () => {
       expect(calculateInvoiceDiscountPercentOfBase(50, -10)).toBe(0);
       expect(calculateInvoiceDiscountPercentOfBase(0, 200)).toBe(0);
       expect(calculateInvoiceDiscountPercentOfBase(-5, 200)).toBe(0);
+    });
+  });
+
+  describe("currency precision", () => {
+    it("keeps three units of 0.10 at 0.30", () => {
+      const pricing = calculateInvoicePricing({
+        lines: [{ quantity: 3, unitAmount: 0.1 }],
+        currency: "USD",
+      });
+
+      expect(pricing.subtotal).toBe(0.3);
+      expect(pricing.totalAmount).toBe(0.3);
+    });
+
+    it("posts a zero-decimal currency without fractional units", () => {
+      const pricing = calculateInvoicePricing({
+        lines: [
+          { quantity: 3, unitAmount: 1200.5 },
+          { quantity: 1, unitAmount: 990.4 },
+        ],
+        taxRatePercent: 10,
+        currency: "JPY",
+      });
+
+      for (const amount of [
+        pricing.subtotal,
+        pricing.taxableSubtotal,
+        pricing.taxTotal,
+        pricing.totalAmount,
+        ...pricing.lines.flatMap((line) => [
+          line.grossAmount,
+          line.netAmount,
+          line.taxAmount,
+          line.totalAmount,
+        ]),
+      ]) {
+        expect(Number.isInteger(amount)).toBe(true);
+      }
+
+      expect(pricing.subtotal).toBe(4592);
+      expect(pricing.taxTotal).toBe(459);
+      expect(pricing.totalAmount).toBe(5051);
+    });
+
+    it("posts a three-decimal currency at three decimals", () => {
+      const pricing = calculateInvoicePricing({
+        lines: [{ quantity: 3, unitAmount: 1.2345 }],
+        currency: "KWD",
+      });
+
+      // 3 x 1.2345 is 3.7035, which two decimals would post as 3.70.
+      expect(pricing.subtotal).toBe(3.704);
+      expect(pricing.totalAmount).toBe(3.704);
+    });
+
+    it("allocates an invoice discount in the currency's own minor unit", () => {
+      const pricing = calculateInvoicePricing({
+        lines: [
+          { quantity: 1, unitAmount: 1000 },
+          { quantity: 1, unitAmount: 1000 },
+          { quantity: 1, unitAmount: 1000 },
+        ],
+        invoiceDiscount: { type: "FIXED_AMOUNT", value: 1000 },
+        currency: "JPY",
+      });
+
+      // A 1000 discount over three equal lines cannot divide evenly; the
+      // remainder is one whole yen handed to the first line, never a
+      // hundredth of one.
+      expect(pricing.invoiceDiscountTotal).toBe(1000);
+      expect(pricing.lines.map((line) => line.totalAmount)).toEqual([
+        666, 667, 667,
+      ]);
+      expect(pricing.totalAmount).toBe(2000);
+    });
+
+    it("prices an unsupported currency at the legacy precision only when it is omitted", () => {
+      expect(() =>
+        calculateInvoicePricing({
+          lines: [{ quantity: 1, unitAmount: 10 }],
+          currency: "HUF",
+        }),
+      ).toThrow(UnsupportedLedgerCurrencyError);
+
+      expect(
+        calculateInvoicePricing({
+          lines: [{ quantity: 3, unitAmount: 0.335 }],
+        }).totalAmount,
+      ).toBe(1.01);
     });
   });
 
