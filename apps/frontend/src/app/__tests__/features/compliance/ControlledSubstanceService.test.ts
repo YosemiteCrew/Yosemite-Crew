@@ -42,6 +42,7 @@ const record: ControlledSubstanceLog = {
   balanceAfter: null,
   administeredBy: 'Dr. Reyes',
   notes: null,
+  sourceEventId: null,
   createdAt: '2026-09-03T14:31:00.000Z',
   updatedAt: '2026-09-03T14:31:00.000Z',
 };
