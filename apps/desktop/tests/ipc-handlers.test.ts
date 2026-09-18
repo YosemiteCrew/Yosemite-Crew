@@ -45,10 +45,32 @@ import { createDualWitnessLog } from '../src/compliance/dual-witness';
 import { CsWriteError } from '../src/compliance/controlled-substance';
 import { AuditWriteError } from '../src/compliance/audit-log';
 import { getDesktopConfig } from '../src/core/navigation-policy';
+import { createOfflineRetryTargets } from '../src/shell/offline-retry';
 import { IPC_CHANNELS, validateIpcRequest } from '../src/core/ipc';
 import { BUILTIN_ACTIONS } from '../src/ui/command-palette';
 
-const event = { senderFrame: { url: 'https://yosemitecrew.com/dashboard' } };
+const OFFLINE_PAGE = 'file:///app/pages/offline.html';
+
+const makeSender = (id = 1, url = 'https://yosemitecrew.com/dashboard') => {
+  let current = url;
+  return {
+    id,
+    getURL: jest.fn(() => current),
+    loadURL: jest.fn((next: string) => {
+      current = next;
+      return Promise.resolve();
+    }),
+    once: jest.fn(),
+    showOfflinePage: () => {
+      current = OFFLINE_PAGE;
+    },
+  };
+};
+
+const event = {
+  senderFrame: { url: 'https://yosemitecrew.com/dashboard' },
+  sender: makeSender(),
+};
 
 const makeWc = () => ({
   findInPage: jest.fn(() => 7),
@@ -212,6 +234,8 @@ const makeServices = (overrides: Partial<IpcServices> = {}): IpcServices => {
     minimizeWindow: jest.fn(),
     toggleMaximizeWindow: jest.fn(),
     closeWindow: jest.fn(),
+    retryOfflineLoad: jest.fn(),
+    offlineTargetFor: jest.fn(() => 'https://yosemitecrew.com/'),
     ...overrides,
   };
 };
@@ -333,6 +357,35 @@ describe('ipc-handlers — happy paths', () => {
     expect(await call('yc:get-cached-content', 'https://hit')).toMatchObject({
       ok: true,
     });
+  });
+
+  // #3288: "Try again", the 20s countdown and the `online` listener all reach
+  // yc:reload, and any of them can fire after the user has moved to another tab.
+  test('offline retry reloads the sender, not whichever tab is active', async () => {
+    const retryTargets = createOfflineRetryTargets({
+      config: getDesktopConfig({}),
+      logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() } as never,
+      offlinePageUrl: OFFLINE_PAGE,
+    });
+    const activeTab = makeSender(2, 'https://yosemitecrew.com/inbox');
+    const services = makeServices({
+      retryOfflineLoad: retryTargets.retry,
+      offlineTargetFor: retryTargets.targetFor,
+      activeContents: () => activeTab as never,
+    });
+    const call = register(services);
+    const offlineTab = event.sender;
+
+    retryTargets.remember(offlineTab, 'https://yosemitecrew.com/patients/42/labs');
+    offlineTab.showOfflinePage();
+
+    expect(await call('yc:open-in-browser')).toEqual({ ok: true });
+    expect(openExternal).toHaveBeenLastCalledWith('https://yosemitecrew.com/patients/42/labs');
+
+    expect(await call('yc:reload')).toEqual({ ok: true });
+    expect(offlineTab.loadURL).toHaveBeenCalledWith('https://yosemitecrew.com/patients/42/labs');
+    expect(activeTab.loadURL).not.toHaveBeenCalled();
+    expect(services.loadStartUrl).not.toHaveBeenCalled();
   });
 
   test('sync, notifications, biometric, theme, compliance, vault', async () => {
