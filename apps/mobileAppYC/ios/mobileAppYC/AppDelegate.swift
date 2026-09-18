@@ -72,6 +72,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
     return false
   }
+
+  // App lock: put the privacy cover up before iOS snapshots the app for the
+  // app switcher. It does nothing unless the user has turned app lock on.
+  func applicationWillResignActive(_ application: UIApplication) {
+    AppLockCover.shared.showIfEnabled()
+  }
 }
 
 class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
