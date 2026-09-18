@@ -39,6 +39,8 @@ const CreateBodySchema = z.object({
 });
 
 const UpdateBodySchema = z.object({
+  // Amendable on an entry the dispense wrote, which has no patient to hand.
+  patientId: z.uuid().optional(),
   lotNumber: z.string().max(100).optional(),
   strength: z.number().positive().optional(),
   amountDrawn: z.number().positive().optional(),

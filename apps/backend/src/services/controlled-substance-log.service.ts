@@ -48,11 +48,13 @@ export interface CreateCsLogParams {
   inventoryBatchId?: string;
 }
 
+// `patientId` is deliberately not in this list: the dispense path has no patient
+// to hand and leaves it null, and a register entry with no patient on it is not
+// a record of anything.
 export type UpdateCsLogParams = Partial<
   Omit<
     CreateCsLogParams,
     | "organisationId"
-    | "patientId"
     | "loggedAt"
     | "drug"
     | "deaSchedule"
@@ -144,13 +146,21 @@ const assertQuantitiesReconcile = (quantities: {
   }
 };
 
-// The ledger is append-only: an entry is never mutated or deleted. A correction
+// The ledger is append-only for everything that moves stock: no entry's drawn
+// amount, balances or stock linkage is ever mutated or deleted. A correction
 // appends a reversing entry (every quantity negated) followed by a replacement
 // entry, and a void appends the reversing entry alone, so the original row and
 // the balances it carries stay readable and reconcilable forever. The trailing
 // `]` in the marker keeps `startsWith` from matching a longer id.
+//
+// The one exception is an entry the dispense path wrote. It cannot be corrected
+// that way - its reversal would say the whole draw came back while the stock is
+// still out - so the clinical facts the dispense could not know are amended on
+// the row itself, and the values they replace are carried in `notes` behind an
+// amendment marker rather than lost. See `amendStockLinkedEntry`.
 const reversalMarker = (sourceId: string) => `[reversal:${sourceId}]`;
 const correctionMarker = (sourceId: string) => `[correction:${sourceId}]`;
+const amendmentMarker = (sourceId: string) => `[amendment:${sourceId}]`;
 
 const buildLedgerNote = (
   marker: string,
@@ -239,7 +249,7 @@ const assertNotReversed = async (
 };
 
 // A register row the dispense path wrote is half of an atomic pair whose other
-// half is the stock movement, so amending it from the ledger side alone moves
+// half is the stock movement, so voiding it from the ledger side alone credits
 // the register without moving the cabinet. Refused, and the caller is pointed at
 // the stock path, which reverses both together. Truthiness rather than a null
 // comparison: a hand-entered entry stores null here and a record that omits the
@@ -247,9 +257,169 @@ const assertNotReversed = async (
 const assertNotStockLinked = (record: CsLogRecord) => {
   if (!record.sourceEventId) return;
   throw new ControlledSubstanceLogError(
-    "This entry records a stock movement and cannot be voided or corrected directly; return or void the dispense instead.",
+    "This entry records a stock movement and cannot be voided directly; return or void the dispense instead. Its patient, administration and waste details can still be amended.",
     409,
   );
+};
+
+// What a dispense writes about a draw it did not witness: the whole quantity as
+// administered, nothing wasted, and no patient, clinician or waste witness. Each
+// of these is a clinical fact the stock movement cannot supply, so each is
+// amendable on the row afterwards. Everything outside this set either moves
+// stock or identifies the movement, and stays frozen - `reverseDispenseEntry`
+// caps a later release on `amountDrawn`, and the balances are what makes the
+// register reconcile.
+const AMENDABLE_ON_STOCK_LINKED = [
+  "patientId",
+  "amountAdministered",
+  "amountWasted",
+  "wastedWitness",
+  "administeredBy",
+  "notes",
+] as const;
+
+type AmendableField = (typeof AMENDABLE_ON_STOCK_LINKED)[number];
+
+const assertOnlyAmendable = (params: UpdateCsLogParams) => {
+  const amendable = new Set<string>(AMENDABLE_ON_STOCK_LINKED);
+  // `correctedBy` and `correctionReason` describe the amendment rather than the
+  // entry, so they are never part of the frozen set.
+  const describes = new Set(["correctedBy", "correctionReason"]);
+  const frozen = Object.keys(params).filter(
+    (field) =>
+      params[field as keyof UpdateCsLogParams] !== undefined &&
+      !amendable.has(field) &&
+      !describes.has(field),
+  );
+  if (frozen.length === 0) return;
+  throw new ControlledSubstanceLogError(
+    `This entry records a stock movement; ${frozen.sort().join(", ")} cannot be changed from the register. Return or void the dispense instead.`,
+    409,
+  );
+};
+
+// The values an amendment replaces, written into the entry's own notes so the
+// register still shows what it said before - the ledger equivalent of a struck
+// through line, and the reason an in-place amendment is not a silent edit.
+const describeReplaced = (
+  existing: CsLogRecord,
+  params: UpdateCsLogParams,
+): string | null => {
+  const replaced = AMENDABLE_ON_STOCK_LINKED.filter(
+    (field) => field !== "notes",
+  )
+    .filter((field) => params[field] !== undefined)
+    .filter((field) => params[field] !== existing[field])
+    .map((field: AmendableField) => `${field}=${existing[field] ?? "none"}`);
+  return replaced.length > 0 ? `was ${replaced.join(" ")}` : null;
+};
+
+// Amends the clinical facts on an entry the dispense path wrote. The stock side
+// is untouched: `amountDrawn`, both balances and the linkage keep the values the
+// movement gave them, so a later release still nets against the real draw.
+const amendStockLinkedEntry = async (
+  existing: CsLogRecord,
+  params: UpdateCsLogParams,
+) => {
+  assertOnlyAmendable(params);
+
+  const amountAdministered =
+    params.amountAdministered ?? existing.amountAdministered;
+  const amountWasted = params.amountWasted ?? existing.amountWasted;
+
+  // Re-run against the draw the cabinet actually gave out rather than anything
+  // the caller supplied - which is what makes freezing `amountDrawn` load-
+  // bearing - and re-run at all because `buildReversalData` negates a row
+  // without re-validating it, on the stated premise that the row it negates
+  // already passed this. Amending in place is what would otherwise void that
+  // premise and let a later release negate quantities nobody checked.
+  assertQuantitiesReconcile({
+    amountDrawn: existing.amountDrawn,
+    amountAdministered,
+    amountWasted,
+    balanceBefore: existing.balanceBefore,
+    balanceAfter: existing.balanceAfter,
+  });
+
+  // That check is one-sided: it stops a draw being over-spent and says nothing
+  // about a draw left short. Amendment is the path that lowers administered, so
+  // here the slack is the whole point - 6 drawn and 4 administered means 2 of a
+  // controlled drug went somewhere, and the register has to say where. The
+  // dispense's own row closes (all drawn, none wasted), so this holds before the
+  // amendment as well as after it.
+  if (
+    Math.abs(amountAdministered + amountWasted - existing.amountDrawn) >
+    QUANTITY_TOLERANCE
+  ) {
+    throw new ControlledSubstanceLogError(
+      "Amount administered plus amount wasted must account for the full amount drawn.",
+      400,
+    );
+  }
+
+  // Waste on a controlled substance is witnessed. Nothing in the backend asserts
+  // that today, and this is not the place to start asserting it everywhere - but
+  // this path is the one that turns a machine row claiming no waste into one
+  // that records waste, so the witness is required where the waste is created.
+  const wastedWitness = params.wastedWitness ?? existing.wastedWitness;
+  if (amountWasted > QUANTITY_TOLERANCE && !wastedWitness) {
+    throw new ControlledSubstanceLogError(
+      "Recording waste on a controlled substance entry requires a waste witness.",
+      400,
+    );
+  }
+
+  const carried = [describeReplaced(existing, params), params.notes]
+    .filter((part): part is string => Boolean(part))
+    .join(" ");
+
+  const amended = await prisma.controlledSubstanceLog.update({
+    where: { id: existing.id },
+    data: {
+      patientId: params.patientId ?? existing.patientId,
+      amountAdministered,
+      amountWasted,
+      wastedWitness,
+      administeredBy: params.administeredBy ?? existing.administeredBy,
+      // Prepended, so successive amendments read as a trail rather than
+      // overwriting each other, and the entry's own note survives at the end.
+      notes: buildLedgerNote(
+        amendmentMarker(existing.id),
+        params.correctionReason,
+        [carried, existing.notes]
+          .filter((part): part is string => Boolean(part))
+          .join(" ") || null,
+      ),
+    },
+    select: csLogSelect,
+  });
+
+  await AuditTrailService.recordSafely({
+    organisationId: existing.organisationId,
+    patientId: amended.patientId ?? "",
+    eventType: "CONTROLLED_SUBSTANCE_LOGGED",
+    actorType: "PMS_USER",
+    actorId:
+      params.correctedBy ??
+      params.administeredBy ??
+      existing.administeredBy ??
+      null,
+    entityType: "COMPANION",
+    entityId: amended.id,
+    metadata: {
+      action: "AMENDMENT",
+      amendedEntryId: existing.id,
+      sourceEventId: existing.sourceEventId,
+      drug: existing.drug,
+      deaSchedule: existing.deaSchedule,
+      amountAdministered,
+      amountWasted,
+      unit: existing.unit,
+      ...(params.correctionReason ? { reason: params.correctionReason } : {}),
+    },
+  });
+
+  return amended;
 };
 
 export const ControlledSubstanceLogService = {
@@ -461,9 +631,11 @@ export const ControlledSubstanceLogService = {
   // corrected entry is returned; the entry identified by `id` is left intact.
   async update(id: string, organisationId: string, params: UpdateCsLogParams) {
     const existing = await assertRecord(id, organisationId);
-    // Ahead of the quantity checks below, so a caller amending a machine-written
-    // row is told it is the wrong path rather than that its arithmetic is wrong.
-    assertNotStockLinked(existing);
+    // A row the dispense wrote cannot be corrected by void-and-replace: its
+    // reversal would say the whole draw came back while the stock is still out,
+    // and the running balance would read the draw twice. The facts the dispense
+    // could not know are amended on the row instead; the rest stays frozen.
+    if (existing.sourceEventId) return amendStockLinkedEntry(existing, params);
 
     const amountDrawn = params.amountDrawn ?? existing.amountDrawn;
     const amountAdministered =
@@ -494,7 +666,7 @@ export const ControlledSubstanceLogService = {
       const correctionEntry = await tx.controlledSubstanceLog.create({
         data: {
           organisationId: existing.organisationId,
-          patientId: existing.patientId,
+          patientId: params.patientId ?? existing.patientId,
           encounterId: existing.encounterId,
           loggedAt: existing.loggedAt,
           drug: existing.drug,
