@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { basename, dirname, join, resolve } from 'node:path';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { basename, dirname, resolve } from 'node:path';
+import { existsSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import {
   classify,
@@ -12,11 +12,10 @@ import {
   isTestFile,
   verdict,
   categorizeSourceFiles,
-  reportPathIn,
   absolutePathsIn,
   resolveInside,
-  suitesRunFrom,
-  withReportDir,
+  suiteCountOf,
+  withJestReport,
 } from './tests-must-be-able-to-fail.mjs';
 
 test("recognises this repository's test conventions", () => {
@@ -353,14 +352,25 @@ test('the helper-only verdict is not excused by the label either', () => {
   assert.equal(r.ok, false, 'the label excuses a PASSING base run, not an unverifiable one');
 });
 
-test('the report name is a literal, so no workspace name can reach the path', () => {
+test('the report path is a literal name under the directory just created', () => {
   // The name used to interpolate the workspace, and one real workspace name
   // carries a slash - it pointed at a directory nobody had created, jest's
   // --outputFile write threw, and no desktop run could ever be reconciled.
-  const dir = '/tmp/some-report-dir';
-  assert.equal(dirname(reportPathIn(dir)), dir);
-  assert.equal(basename(reportPathIn(dir)).includes('/'), false);
-  assert.equal(reportPathIn(dir), reportPathIn(dir));
+  const seen = [];
+  for (const ws of ['frontend', 'backend', 'mobileAppYC', '@yosemite-crew/desktop']) {
+    withJestReport((report) => {
+      seen.push(report);
+      assert.equal(basename(report).includes('/'), false, ws);
+      assert.equal(existsSync(dirname(report)), true, ws);
+      assert.equal(dirname(dirname(report)), resolve(tmpdir()), ws);
+    });
+  }
+  assert.equal(
+    new Set(seen.map((p) => basename(p))).size,
+    1,
+    'the report name varies with the workspace'
+  );
+  assert.equal(new Set(seen.map((p) => dirname(p))).size, 4, 'two runs shared a report directory');
 });
 
 test('resolveInside accepts what is inside and refuses what is not', () => {
@@ -374,53 +384,39 @@ test('resolveInside accepts what is inside and refuses what is not', () => {
   }
 });
 
-test('a report read comes only from the run directory the gate created', () => {
-  // Fail closed, not open: the caller turns null into a shortfall, so a
-  // directory holding no report of ours can never supply a suite count.
-  const dir = mkdtempSync(join(tmpdir(), 'tests-must-be-able-to-fail-test-'));
-  const decoy = mkdtempSync(join(tmpdir(), 'tests-must-be-able-to-fail-test-'));
-  try {
-    writeFileSync(reportPathIn(dir), JSON.stringify({ numTotalTestSuites: 2 }));
-    // Same basename, wrong directory: a run that looked at the wrong one would
-    // read 99 and reconcile against it.
-    writeFileSync(reportPathIn(decoy), JSON.stringify({ numTotalTestSuites: 99 }));
-    assert.equal(suitesRunFrom(dir), 2);
-    assert.equal(suitesRunFrom(join(dir, 'nothing-here')), null);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-    rmSync(decoy, { recursive: true, force: true });
-  }
+test('the suite total comes from the report the run just wrote', () => {
+  assert.equal(
+    withJestReport((report) => writeFileSync(report, JSON.stringify({ numTotalTestSuites: 2 }))),
+    2
+  );
+  // Fail closed, not open: a run that wrote nothing is "the gate does not know
+  // how many suites ran", which the caller turns into a shortfall.
+  assert.equal(
+    withJestReport(() => {}),
+    null
+  );
 });
 
 test('the report directory is private, is not the shared tmpdir, and is removed', () => {
   let seen;
-  const returned = withReportDir((dir) => {
-    seen = dir;
-    assert.notEqual(dir, tmpdir(), 'writing reports straight into the shared tmpdir');
-    assert.equal(dirname(dir), resolve(tmpdir()));
-    assert.equal(existsSync(dir), true);
+  withJestReport((report) => {
+    seen = dirname(report);
+    assert.notEqual(seen, resolve(tmpdir()), 'writing reports straight into the shared tmpdir');
+    assert.equal(existsSync(seen), true);
     // Non-empty, so a cleanup that is not recursive leaves the directory behind.
-    writeFileSync(reportPathIn(dir), '{}');
-    return 'value';
+    writeFileSync(report, '{}');
   });
-  assert.equal(returned, 'value');
   assert.equal(existsSync(seen), false, 'report directory outlived the run');
-});
-
-test('two runs never share a report directory', () => {
-  const dirs = [withReportDir((d) => d), withReportDir((d) => d)];
-  assert.notEqual(dirs[0], dirs[1]);
 });
 
 test('the report directory is removed even when the run throws', () => {
   let seen;
-  assert.throws(() =>
-    withReportDir((dir) => {
-      seen = dir;
-      writeFileSync(reportPathIn(dir), '{}');
-      throw new Error('jest exploded');
-    })
-  );
+  const ran = withJestReport((report) => {
+    seen = dirname(report);
+    writeFileSync(report, '{}');
+    throw new Error('jest exploded');
+  });
+  assert.equal(ran, null);
   assert.equal(existsSync(seen), false);
 });
 
@@ -428,19 +424,11 @@ test('a report that does not state a suite count fails closed', () => {
   // The caller compares this to the number of files it handed jest, so any
   // non-number reaching it would be an inequality read as a shortfall by luck
   // rather than by decision.
-  const dir = mkdtempSync(join(tmpdir(), 'tests-must-be-able-to-fail-test-'));
-  const write = (body) => {
-    writeFileSync(reportPathIn(dir), body);
-    return suitesRunFrom(dir);
-  };
-  try {
-    assert.equal(write(JSON.stringify({ numTotalTestSuites: 3 })), 3);
-    assert.equal(write(JSON.stringify({ numTotalTestSuites: '3' })), null);
-    assert.equal(write(JSON.stringify({})), null);
-    assert.equal(write('not json'), null);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
+  assert.equal(suiteCountOf(JSON.stringify({ numTotalTestSuites: 3 })), 3);
+  assert.equal(suiteCountOf(JSON.stringify({ numTotalTestSuites: '3' })), null);
+  assert.equal(suiteCountOf(JSON.stringify({})), null);
+  assert.equal(suiteCountOf('not json'), null);
+  assert.equal(suiteCountOf(''), null);
 });
 
 test('changed paths are made absolute and confined to the repository', () => {
