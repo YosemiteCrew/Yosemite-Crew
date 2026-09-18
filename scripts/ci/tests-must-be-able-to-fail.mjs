@@ -259,6 +259,16 @@ export const verdict = ({
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 
+/**
+ * One workspace's changed test paths, absolute and confined to the repository.
+ *
+ * They arrive from `git diff --name-only`, which is outside input as far as
+ * this script is concerned, and they go on to be stat'd and handed to a
+ * runner - so they are confined before either happens rather than after.
+ */
+export const absolutePathsIn = (repoRoot, paths) =>
+  paths.map((path) => real(resolveInside(repoRoot, path)));
+
 /** Resolves a path the way jest prints one, tolerating one that is already gone. */
 const real = (path) => {
   try {
@@ -282,21 +292,25 @@ const discoverableIn = (ws, absolutePaths) => {
 };
 
 /**
- * Where one workspace's jest report is written.
+ * The jest report's name inside its own directory. A constant, deliberately.
  *
- * The name used to be `tests-must-be-able-to-fail-${ws}-${pid}.json` directly
- * under tmpdir. Two things were wrong with that. `@yosemite-crew/desktop`
- * carries a SLASH, so the path named a directory that does not exist and
- * jest's `writeFileSync` threw for every desktop-only change - the report was
- * never written and the run could not be reconciled. And a name a caller can
- * predict, in a directory everything on the runner shares, is a file another
- * process can put there first.
+ * It used to be `tests-must-be-able-to-fail-${ws}-${pid}.json` under tmpdir,
+ * and the workspace name is the part that was wrong. `@yosemite-crew/desktop`
+ * carries a SLASH, so the path named a directory nobody had created; jest
+ * writes `--outputFile` with a bare `writeFileSync` and no mkdir, so it threw
+ * for every desktop-only change and the run could never be reconciled. A name
+ * a caller can predict, in a directory the whole runner shares, was the second
+ * problem.
  *
- * So the directory is created private by us and the workspace is slugified
- * before it reaches the path: the only remaining variable component is the one
- * `mkdtempSync` chose, and nothing a caller supplies can leave the directory.
+ * Sanitising the workspace would fix both. Removing it fixes both without a
+ * sanitiser to get wrong: the directory is private, the name inside it is a
+ * literal, and no caller-supplied string reaches the path at all. The
+ * workspace is already on the log line above the run.
  */
-export const reportPathFor = (ws, dir) => join(dir, `${ws.replace(/[^a-z0-9]+/gi, '-')}.json`);
+const REPORT_FILENAME = 'report.json';
+
+/** Where this run's jest report is written, inside its own directory. */
+export const reportPathIn = (dir) => join(dir, REPORT_FILENAME);
 
 /**
  * Runs `fn` against a private report directory and removes it afterwards.
@@ -313,24 +327,33 @@ export const withReportDir = (fn) => {
   }
 };
 
-/** True when `candidate` names something strictly inside `dir`. */
-export const isInside = (dir, candidate) => {
-  const within = relative(resolve(dir), resolve(dir, candidate));
-  return within !== '' && !within.startsWith('..') && !isAbsolute(within);
+/**
+ * `candidate` resolved against `dir`, or a throw if it does not land inside it.
+ *
+ * Used where a path arrives from outside this script. Refusing is the right
+ * answer rather than a clamp: a changed-file list that names something above
+ * the repository root is not a list this gate can act on.
+ */
+export const resolveInside = (dir, candidate) => {
+  const base = resolve(dir);
+  const target = resolve(base, candidate);
+  const within = relative(base, target);
+  if (within === '' || within.startsWith('..') || isAbsolute(within)) {
+    throw new Error(`refusing a path that is not inside ${dir}: ${candidate}`);
+  }
+  return target;
 };
 
 /**
  * The suite total jest recorded, or null if it recorded nothing readable.
  *
- * The read is confined to the private report directory. `reportPathFor`
- * already slugifies the only caller-supplied component, so this is the second
- * of two independent guards rather than the only one: either alone keeps the
- * read inside the directory this run created.
+ * Takes the DIRECTORY, not the path. The name is a literal, so the only thing
+ * that varies is the directory `mkdtempSync` just created - there is no
+ * caller-supplied component to confine.
  */
-export const suitesRunFrom = (reportPath, reportDir) => {
+export const suitesRunFrom = (reportDir) => {
   try {
-    if (!isInside(reportDir, reportPath)) return null;
-    const report = JSON.parse(readFileSync(resolve(reportDir, reportPath), 'utf8'));
+    const report = JSON.parse(readFileSync(join(reportDir, REPORT_FILENAME), 'utf8'));
     return typeof report.numTotalTestSuites === 'number' ? report.numTotalTestSuites : null;
   } catch {
     // Fail closed. A missing or unparseable report is "the gate does not know
@@ -360,7 +383,7 @@ const runChangedTests = (byWorkspace, repoRoot) => {
   let suiteShortfall = null;
   let ranAnything = false;
   for (const [ws, paths] of byWorkspace) {
-    const absolute = paths.map((path) => real(resolve(repoRoot, path)));
+    const absolute = absolutePathsIn(repoRoot, paths);
     const runnable = discoverableIn(ws, absolute);
     const noTests = absolute.length - runnable.length;
     console.log(
@@ -374,7 +397,7 @@ const runChangedTests = (byWorkspace, repoRoot) => {
     // nothing reconciled it: `running 4 changed test file(s)` and jest's
     // `Test Suites: 2 passed` sat four lines apart and disagreed.
     const ran = withReportDir((reportDir) => {
-      const report = reportPathFor(ws, reportDir);
+      const report = reportPathIn(reportDir);
       try {
         jest(
           ws,
@@ -386,7 +409,7 @@ const runChangedTests = (byWorkspace, repoRoot) => {
       } catch {
         allPassed = false;
       }
-      return suitesRunFrom(report, reportDir);
+      return suitesRunFrom(reportDir);
     });
     if (ran !== runnable.length && !suiteShortfall) {
       suiteShortfall = { workspace: ws, expected: runnable.length, ran };
