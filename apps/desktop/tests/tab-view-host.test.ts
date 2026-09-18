@@ -115,7 +115,7 @@ describe('TabViewHost', () => {
       host.create('tab_1', 'https://example.com');
       const bounds = { x: 0, y: 40, width: 800, height: 560 };
       host.attach('tab_1', bounds);
-      const view = host.get('tab_1') as { setBounds: jest.Mock };
+      const view = host.get('tab_1') as unknown as { setBounds: jest.Mock };
       expect(view.setBounds).toHaveBeenCalledWith(bounds);
     });
 
@@ -123,7 +123,7 @@ describe('TabViewHost', () => {
       const host = createHost();
       host.create('tab_1', 'https://example.com');
       host.detach('tab_1');
-      const view = host.get('tab_1') as { setBounds: jest.Mock };
+      const view = host.get('tab_1') as unknown as { setBounds: jest.Mock };
       expect(view.setBounds).toHaveBeenCalledWith({
         x: 0,
         y: 0,
@@ -222,7 +222,7 @@ describe('TabViewHost', () => {
       const onUpdate = jest.fn();
       const host = createHost({ onUpdate });
       const view = host.create('tab_1', 'https://example.com');
-      view.webContents.isAudioMuted.mockReturnValue(false);
+      (view.webContents.isAudioMuted as jest.Mock).mockReturnValue(false);
       const result = host.toggleMute('tab_1');
       expect(result).toBe(true);
       expect(view.webContents.setAudioMuted).toHaveBeenCalledWith(true);
@@ -233,7 +233,7 @@ describe('TabViewHost', () => {
       const onUpdate = jest.fn();
       const host = createHost({ onUpdate });
       const view = host.create('tab_1', 'https://example.com');
-      view.webContents.isAudioMuted.mockReturnValue(true);
+      (view.webContents.isAudioMuted as jest.Mock).mockReturnValue(true);
       host.toggleMute('tab_1');
       expect(view.webContents.setAudioMuted).toHaveBeenCalledWith(false);
       expect(onUpdate).toHaveBeenCalledWith('tab_1', { muted: false });
@@ -277,13 +277,13 @@ describe('TabViewHost', () => {
     it('page-title-updated calls onUpdate', () => {
       const onUpdate = jest.fn();
       createHost({ onUpdate }).create('tab_1', 'https://example.com');
-      viewEventHandlers['page-title-updated'](undefined, 'New Title');
+      viewEventHandlers['page-title-updated']!(undefined, 'New Title');
       expect(onUpdate).toHaveBeenCalledWith('tab_1', { title: 'New Title' });
     });
 
     it('page-title-updated logs debug', () => {
       createHost().create('tab_1', 'https://example.com');
-      viewEventHandlers['page-title-updated'](undefined, 'New Title');
+      viewEventHandlers['page-title-updated']!(undefined, 'New Title');
       expect(dummyLogger.debug).toHaveBeenCalledWith('tab_title_updated', {
         id: 'tab_1',
         title: 'New Title',
@@ -293,7 +293,7 @@ describe('TabViewHost', () => {
     it('page-favicon-updated calls onUpdate with first favicon', () => {
       const onUpdate = jest.fn();
       createHost({ onUpdate }).create('tab_1', 'https://example.com');
-      viewEventHandlers['page-favicon-updated'](undefined, ['https://favicon.ico']);
+      viewEventHandlers['page-favicon-updated']!(undefined, ['https://favicon.ico']);
       expect(onUpdate).toHaveBeenCalledWith('tab_1', {
         favicon: 'https://favicon.ico',
       });
@@ -302,14 +302,14 @@ describe('TabViewHost', () => {
     it('page-favicon-updated handles empty list', () => {
       const onUpdate = jest.fn();
       createHost({ onUpdate }).create('tab_1', 'https://example.com');
-      viewEventHandlers['page-favicon-updated'](undefined, []);
+      viewEventHandlers['page-favicon-updated']!(undefined, []);
       expect(onUpdate).toHaveBeenCalledWith('tab_1', { favicon: '' });
     });
 
     it('did-start-loading calls onUpdate with loading true', () => {
       const onUpdate = jest.fn();
       createHost({ onUpdate }).create('tab_1', 'https://example.com');
-      viewEventHandlers['did-start-loading']();
+      viewEventHandlers['did-start-loading']!();
       expect(onUpdate).toHaveBeenCalledWith('tab_1', {
         loading: true,
         error: null,
@@ -319,7 +319,7 @@ describe('TabViewHost', () => {
     it('did-stop-loading calls onUpdate with loading false', () => {
       const onUpdate = jest.fn();
       createHost({ onUpdate }).create('tab_1', 'https://example.com');
-      viewEventHandlers['did-stop-loading']();
+      viewEventHandlers['did-stop-loading']!();
       expect(onUpdate).toHaveBeenCalledWith('tab_1', { loading: false });
     });
 
@@ -327,7 +327,7 @@ describe('TabViewHost', () => {
       const getZoom = jest.fn().mockReturnValue(1.25);
       const host = createHost({ getZoom });
       const view = host.create('tab_1', 'https://example.com');
-      viewEventHandlers['did-stop-loading']();
+      viewEventHandlers['did-stop-loading']!();
       expect(view.webContents.setZoomFactor).toHaveBeenCalledWith(1.25);
     });
 
@@ -335,14 +335,14 @@ describe('TabViewHost', () => {
       const getZoom = jest.fn().mockReturnValue(0);
       const host = createHost({ getZoom });
       const view = host.create('tab_1', 'https://example.com');
-      viewEventHandlers['did-stop-loading']();
+      viewEventHandlers['did-stop-loading']!();
       expect(view.webContents.setZoomFactor).not.toHaveBeenCalled();
     });
 
     it('did-fail-load calls onUpdate with error', () => {
       const onUpdate = jest.fn();
       createHost({ onUpdate }).create('tab_1', 'https://example.com');
-      viewEventHandlers['did-fail-load'](undefined, -3, 'ERR_CONNECTION_REFUSED');
+      viewEventHandlers['did-fail-load']!(undefined, -3, 'ERR_CONNECTION_REFUSED');
       expect(onUpdate).toHaveBeenCalledWith('tab_1', {
         error: 'ERR_CONNECTION_REFUSED',
         loading: false,
@@ -351,7 +351,7 @@ describe('TabViewHost', () => {
 
     it('did-fail-load logs warning', () => {
       createHost().create('tab_1', 'https://example.com');
-      viewEventHandlers['did-fail-load'](undefined, -3, 'ERR_CONNECTION_REFUSED');
+      viewEventHandlers['did-fail-load']!(undefined, -3, 'ERR_CONNECTION_REFUSED');
       expect(dummyLogger.warn).toHaveBeenCalledWith('tab_fail_load', {
         id: 'tab_1',
         error: 'ERR_CONNECTION_REFUSED',
@@ -361,7 +361,7 @@ describe('TabViewHost', () => {
     it('did-fail-load surfaces a main-frame failure via onLoadError', () => {
       const onLoadError = jest.fn();
       createHost({ onLoadError }).create('tab_1', 'https://example.com');
-      viewEventHandlers['did-fail-load'](
+      viewEventHandlers['did-fail-load']!(
         undefined,
         -106,
         'ERR_INTERNET_DISCONNECTED',
@@ -378,14 +378,20 @@ describe('TabViewHost', () => {
     it('did-fail-load ignores intentional aborts (ERR_ABORTED) for onLoadError', () => {
       const onLoadError = jest.fn();
       createHost({ onLoadError }).create('tab_1', 'https://example.com');
-      viewEventHandlers['did-fail-load'](undefined, -3, 'ERR_ABORTED', 'https://example.com', true);
+      viewEventHandlers['did-fail-load']!(
+        undefined,
+        -3,
+        'ERR_ABORTED',
+        'https://example.com',
+        true
+      );
       expect(onLoadError).not.toHaveBeenCalled();
     });
 
     it('did-fail-load ignores subframe failures for onLoadError', () => {
       const onLoadError = jest.fn();
       createHost({ onLoadError }).create('tab_1', 'https://example.com');
-      viewEventHandlers['did-fail-load'](
+      viewEventHandlers['did-fail-load']!(
         undefined,
         -106,
         'ERR_FAILED',
@@ -398,21 +404,21 @@ describe('TabViewHost', () => {
     it('media-started-playing calls onUpdate with audible true', () => {
       const onUpdate = jest.fn();
       createHost({ onUpdate }).create('tab_1', 'https://example.com');
-      viewEventHandlers['media-started-playing']();
+      viewEventHandlers['media-started-playing']!();
       expect(onUpdate).toHaveBeenCalledWith('tab_1', { audible: true });
     });
 
     it('media-paused calls onUpdate with audible false', () => {
       const onUpdate = jest.fn();
       createHost({ onUpdate }).create('tab_1', 'https://example.com');
-      viewEventHandlers['media-paused']();
+      viewEventHandlers['media-paused']!();
       expect(onUpdate).toHaveBeenCalledWith('tab_1', { audible: false });
     });
 
     it('input-event mouseUp button 3 goes back', () => {
       const host = createHost();
       const view = host.create('tab_1', 'https://example.com');
-      viewEventHandlers['input-event'](undefined, {
+      viewEventHandlers['input-event']!(undefined, {
         type: 'mouseUp',
         button: 3,
       });
@@ -423,7 +429,7 @@ describe('TabViewHost', () => {
     it('input-event mouseUp button 4 goes forward', () => {
       const host = createHost();
       const view = host.create('tab_1', 'https://example.com');
-      viewEventHandlers['input-event'](undefined, {
+      viewEventHandlers['input-event']!(undefined, {
         type: 'mouseUp',
         button: 4,
       });
@@ -433,7 +439,7 @@ describe('TabViewHost', () => {
     it('input-event non-mouseUp type does nothing', () => {
       const host = createHost();
       const view = host.create('tab_1', 'https://example.com');
-      viewEventHandlers['input-event'](undefined, {
+      viewEventHandlers['input-event']!(undefined, {
         type: 'keyDown',
         key: 'a',
       });
@@ -444,7 +450,7 @@ describe('TabViewHost', () => {
     it('input-event unknown button does nothing', () => {
       const host = createHost();
       const view = host.create('tab_1', 'https://example.com');
-      viewEventHandlers['input-event'](undefined, {
+      viewEventHandlers['input-event']!(undefined, {
         type: 'mouseUp',
         button: 999,
       });
@@ -457,8 +463,8 @@ describe('TabViewHost', () => {
       const host = createHost({ onDidFinishLoad });
       const view = host.create('tab_1', 'https://example.com');
       // A prior did-navigate records the main-frame status used by the cache hook.
-      viewEventHandlers['did-navigate'](undefined, 'https://example.com/page', 200);
-      viewEventHandlers['did-finish-load']();
+      viewEventHandlers['did-navigate']!(undefined, 'https://example.com/page', 200);
+      viewEventHandlers['did-finish-load']!();
       expect(onDidFinishLoad).toHaveBeenCalledWith('tab_1', view.webContents, 200);
     });
 
@@ -473,7 +479,7 @@ describe('TabViewHost', () => {
       const host = createHost({ onDidFinishLoad });
       const view = host.create('tab_1', 'https://example.com');
       (view.webContents.isDestroyed as jest.Mock).mockReturnValue(true);
-      viewEventHandlers['did-finish-load']();
+      viewEventHandlers['did-finish-load']!();
       expect(onDidFinishLoad).not.toHaveBeenCalled();
     });
 
@@ -482,7 +488,7 @@ describe('TabViewHost', () => {
       const host = createHost({ onNavigate });
       host.create('tab_1', 'https://example.com');
       const ev = { preventDefault: jest.fn() };
-      viewEventHandlers['will-navigate'](ev, 'https://other.com');
+      viewEventHandlers['will-navigate']!(ev, 'https://other.com');
       expect(onNavigate).toHaveBeenCalledWith(ev, 'https://other.com');
     });
 
@@ -491,7 +497,7 @@ describe('TabViewHost', () => {
       const host = createHost({ onNavigate });
       host.create('tab_1', 'https://example.com');
       const ev = { preventDefault: jest.fn() };
-      viewEventHandlers['will-redirect'](ev, 'https://other.com');
+      viewEventHandlers['will-redirect']!(ev, 'https://other.com');
       expect(onNavigate).toHaveBeenCalled();
     });
 

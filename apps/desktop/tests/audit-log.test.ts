@@ -61,7 +61,7 @@ describe('createAuditLog', () => {
 
     const results = log.query({ resourceType: 'patient' });
     expect(results).toHaveLength(1);
-    expect(results[0].action).toBe('patient:create');
+    expect(results[0]!.action).toBe('patient:create');
   });
 
   test('query filters by resourceId', async () => {
@@ -85,7 +85,7 @@ describe('createAuditLog', () => {
 
     const results = log.query({ resourceId: 'p1' });
     expect(results).toHaveLength(1);
-    expect(results[0].actor).toBe('dr-smith');
+    expect(results[0]!.actor).toBe('dr-smith');
   });
 
   test('query filters by since timestamp', async () => {
@@ -114,7 +114,7 @@ describe('createAuditLog', () => {
 
     const results = log.query({ since: 1500 });
     expect(results).toHaveLength(1);
-    expect(results[0].actor).toBe('dr-b');
+    expect(results[0]!.actor).toBe('dr-b');
   });
 
   test('query() without filters does not mutate the stored chain order', async () => {
@@ -181,8 +181,8 @@ describe('createAuditLog', () => {
 
     const results = log.query({ limit: 2 });
     expect(results).toHaveLength(2);
-    expect(results[0].action).toBe('a3');
-    expect(results[1].action).toBe('a2');
+    expect(results[0]!.action).toBe('a3');
+    expect(results[1]!.action).toBe('a2');
   });
 
   test('getByResource returns entries for a specific resource', async () => {
@@ -277,7 +277,7 @@ describe('createAuditLog', () => {
     });
 
     expect(log.getRange(1500, 2500)).toHaveLength(1);
-    expect(log.getRange(1500, 2500)[0].action).toBe('mid');
+    expect(log.getRange(1500, 2500)[0]!.action).toBe('mid');
   });
 
   test('verify returns true for untampered entry', async () => {
@@ -309,13 +309,13 @@ describe('createAuditLog', () => {
 
     // read the persisted log, tamper with it, write it back
     const entries = readJsonl<AuditEntry>(mem, logPath);
-    entries[0].details = { breed: 'Poodle' };
+    entries[0]!.details = { breed: 'Poodle' };
     rewriteLog(entries);
     const tamperedLog = await createAuditLog(tmpDir, deps);
 
     const tampered = tamperedLog.query({ resourceType: 'patient' });
-    expect(tampered[0].details).toEqual({ breed: 'Poodle' });
-    expect(tamperedLog.verify(tampered[0])).toBe(false);
+    expect(tampered[0]!.details).toEqual({ breed: 'Poodle' });
+    expect(tamperedLog.verify(tampered[0]!)).toBe(false);
   });
 
   test('verifyAll reports valid and tampered counts', async () => {
@@ -338,7 +338,7 @@ describe('createAuditLog', () => {
     });
 
     const entries = readJsonl<AuditEntry>(mem, logPath);
-    entries[0].resourceId = 'p999';
+    entries[0]!.resourceId = 'p999';
     rewriteLog(entries);
     const tamperedLog = await createAuditLog(tmpDir, deps);
 
@@ -394,7 +394,7 @@ describe('createAuditLog', () => {
     expect(log.verifyChain()).toBe(true);
 
     const entries = readJsonl<AuditEntry>(mem, logPath);
-    rewriteLog([entries[1], entries[0]]); // reordered
+    rewriteLog([entries[1]!, entries[0]!]); // reordered
     expect((await createAuditLog(tmpDir, deps)).verifyChain()).toBe(false);
   });
 

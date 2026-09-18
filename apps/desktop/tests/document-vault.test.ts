@@ -1,5 +1,6 @@
 import { createDocumentVault } from '../src/utils/document-vault';
 import type { VaultDocument, VaultSaveError } from '../src/utils/document-vault';
+import { fsSeam } from './helpers/fs-seam';
 
 // Narrow the save union to a document, failing the test if a write was refused.
 const expectDoc = (result: VaultDocument | VaultSaveError): VaultDocument => {
@@ -11,20 +12,20 @@ const makeDeps = (overrides: Record<string, unknown> = {}) => {
   const files = new Map<string, string | Buffer>();
   let uuidCounter = 0;
   return {
-    existsSync: (p: string) => files.has(p),
-    readFileSync: (p: string) => {
+    existsSync: fsSeam((p: string) => files.has(p)),
+    readFileSync: fsSeam((p: string) => {
       const v = files.get(p);
       if (!v) throw new Error('ENOENT');
       return v;
-    },
-    writeFileSync: (p: string, data: string | Buffer) => {
+    }),
+    writeFileSync: fsSeam((p: string, data: string | Buffer) => {
       files.set(p, data);
-    },
-    mkdirSync: () => undefined,
-    readdirSync: () => [],
-    unlinkSync: (p: string) => {
+    }),
+    mkdirSync: fsSeam(() => undefined),
+    readdirSync: fsSeam(() => []),
+    unlinkSync: fsSeam((p: string) => {
       files.delete(p);
-    },
+    }),
     randomUUID: () => {
       uuidCounter += 1;
       return `uuid-${uuidCounter}`;
@@ -53,8 +54,8 @@ describe('createDocumentVault', () => {
     vault.saveDocument('b.txt', 'bbb');
     const list = vault.listDocuments();
     expect(list).toHaveLength(2);
-    expect(list[0].filename).toBe('a.txt');
-    expect(list[1].filename).toBe('b.txt');
+    expect(list[0]!.filename).toBe('a.txt');
+    expect(list[1]!.filename).toBe('b.txt');
   });
 
   test('getDocument returns document and decrypted content', () => {
@@ -165,7 +166,7 @@ describe('createDocumentVault', () => {
     vault.saveDocument('notes.txt', 'notes');
     const results = vault.findDocuments({ filename: 'invoice' });
     expect(results).toHaveLength(1);
-    expect(results[0].filename).toBe('Invoice-123.pdf');
+    expect(results[0]!.filename).toBe('Invoice-123.pdf');
   });
 
   test('findDocuments by mimeType exact match', () => {
@@ -174,7 +175,7 @@ describe('createDocumentVault', () => {
     vault.saveDocument('doc.txt', 'text', 'text/plain');
     const results = vault.findDocuments({ mimeType: 'application/pdf' });
     expect(results).toHaveLength(1);
-    expect(results[0].filename).toBe('doc.pdf');
+    expect(results[0]!.filename).toBe('doc.pdf');
   });
 
   test('findDocuments returns empty array when no matches', () => {

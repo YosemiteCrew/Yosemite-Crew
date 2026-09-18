@@ -132,9 +132,9 @@ describe('createSyncEngine', () => {
 
     const results = await engine.fullSync(['patients', 'appointments']);
     expect(results).toHaveLength(2);
-    expect(results[0].table).toBe('patients');
-    expect(results[0].pushed).toBe(1);
-    expect(results[1].table).toBe('appointments');
+    expect(results[0]!.table).toBe('patients');
+    expect(results[0]!.pushed).toBe(1);
+    expect(results[1]!.table).toBe('appointments');
   });
 
   test('getLastSyncTimestamps returns empty initially', async () => {

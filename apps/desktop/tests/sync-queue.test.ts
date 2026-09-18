@@ -1,4 +1,5 @@
 import { createSyncQueue } from '../src/sync/sync-queue';
+import { fsSeam } from './helpers/fs-seam';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -8,15 +9,16 @@ describe('createSyncQueue', () => {
   let mockFs: Record<string, string> = {};
 
   const makeDeps = () => ({
-    readFileSync: jest.fn((filePath: string) => {
-      if (mockFs[filePath] !== undefined) return mockFs[filePath];
+    readFileSync: fsSeam((filePath: string) => {
+      const contents = mockFs[filePath];
+      if (contents !== undefined) return contents;
       throw new Error('ENOENT');
     }),
-    writeFileSync: jest.fn((filePath: string, data: string) => {
+    writeFileSync: fsSeam((filePath: string, data: string) => {
       mockFs[filePath] = data;
     }),
     mkdirSync: jest.fn(),
-    existsSync: jest.fn((filePath: string) => mockFs[filePath] !== undefined),
+    existsSync: fsSeam((filePath: string) => mockFs[filePath] !== undefined),
     now: jest.fn(() => 1000),
   });
 
@@ -67,7 +69,7 @@ describe('createSyncQueue', () => {
 
     const batch = queue.peek(1);
     expect(batch).toHaveLength(1);
-    expect(batch[0].entityId).toBe('p1');
+    expect(batch[0]!.entityId).toBe('p1');
   });
 
   test('pop removes a mutation by id', () => {

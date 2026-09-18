@@ -97,7 +97,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
     // Verify the transaction can be retrieved
     const transactions = logbook.getTransactions();
     expect(transactions).toHaveLength(1);
-    expect(transactions[0].drugName).toBe('Ketamine');
+    expect(transactions[0]!.drugName).toBe('Ketamine');
   });
 
   test('record on a blocked path throws instead of returning an unpersisted transaction', async () => {

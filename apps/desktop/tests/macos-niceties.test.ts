@@ -25,9 +25,9 @@ describe('macOS niceties', () => {
     const menu = createDockMenuTemplate(deps);
 
     expect(menu.map((item) => item.id)).toEqual(['show', 'check-for-updates', 'new-window']);
-    menu[0].click();
-    menu[1].click();
-    menu[2].click();
+    menu[0]!.click();
+    menu[1]!.click();
+    menu[2]!.click();
     expect(deps.show).toHaveBeenCalledTimes(1);
     expect(deps.checkForUpdates).toHaveBeenCalledTimes(1);
     expect(deps.newWindow).toHaveBeenCalledTimes(1);
