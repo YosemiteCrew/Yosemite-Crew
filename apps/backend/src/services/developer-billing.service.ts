@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import logger from "../utils/logger";
 import { prisma } from "src/config/prisma";
 import { DeveloperPlanTier, DeveloperSubscriptionStatus } from "@prisma/client";
+import { STRIPE_PINNED_API_VERSION } from "src/config/stripe-api-version";
 
 export class DeveloperBillingServiceError extends Error {
   constructor(
@@ -20,7 +21,7 @@ const getStripeClient = (): Stripe => {
   const apiKey = process.env.STRIPE_SECRET_KEY;
   if (!apiKey) throw new Error("STRIPE_SECRET_KEY is not configured");
   stripeClient = new Stripe(apiKey, {
-    apiVersion: "2026-07-29.dahlia" as Stripe.LatestApiVersion,
+    apiVersion: STRIPE_PINNED_API_VERSION,
   });
   return stripeClient;
 };

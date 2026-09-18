@@ -11,6 +11,7 @@ import {
 
 import type { InvoiceDiscountInput, InvoicePricingBreakdown } from "./pricing";
 import { roundMoney } from "./pricing";
+import { STRIPE_PINNED_API_VERSION } from "src/config/stripe-api-version";
 
 export type InvoiceTaxSnapshotInput = {
   provider: PrismaTaxProvider;
@@ -100,7 +101,7 @@ const getStripeClient = () => {
   if (!apiKey) throw new Error("STRIPE_SECRET_KEY is not configured");
 
   stripeClient = new Stripe(apiKey, {
-    apiVersion: "2026-07-29.dahlia" as Stripe.LatestApiVersion,
+    apiVersion: STRIPE_PINNED_API_VERSION,
   });
   return stripeClient;
 };
