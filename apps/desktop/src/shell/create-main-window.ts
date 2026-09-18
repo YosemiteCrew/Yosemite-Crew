@@ -49,7 +49,7 @@ export interface CreateMainWindowDeps {
 
   // Navigation
   loadStartUrl: () => void;
-  showOfflinePage: (reason: string) => void;
+  showOfflinePage: (reason: string, failedUrl?: string) => void;
   consumePendingDeepLink: () => void;
   trackAuthNavigation: (rawUrl: string) => void;
 
@@ -230,7 +230,7 @@ export const createMainWindow = async (
       // Only take over the screen when the failed tab is the visible one;
       // a background tab failing shouldn't replace what the user is viewing.
       if (id === deps.attachedTabId()) {
-        deps.showOfflinePage(info.error || `Could not reach ${info.url}`);
+        deps.showOfflinePage(info.error || `Could not reach ${info.url}`, info.url);
       }
     },
     getZoom: (id) => {
@@ -297,7 +297,8 @@ export const createMainWindow = async (
         }
       }
       deps.showOfflinePage(
-        errorDescription || `Could not reach ${validatedUrl || deps.config.startUrl.href}`
+        errorDescription || `Could not reach ${validatedUrl || deps.config.startUrl.href}`,
+        validatedUrl
       );
     }
   );
