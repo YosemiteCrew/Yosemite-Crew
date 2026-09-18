@@ -465,8 +465,8 @@ importers:
         specifier: ^8.68.0
         version: 8.69.0(eslint@9.39.2)(typescript@5.9.3)
       electron:
-        specifier: ^43.4.1
-        version: 43.5.1
+        specifier: ^44.1.1
+        version: 44.1.1
       electron-builder:
         specifier: ^26.0.12
         version: 26.15.3(electron-builder-squirrel-windows@26.15.3)
@@ -7511,7 +7511,7 @@ packages:
   /@posthog/core@1.48.1:
     resolution: {integrity: sha512-mxw31XdYgt/SnlwqLPAcltK67q+QmsiYjVLGQ4GbBc8OJ7O4yRFSDwAXt8QsokHokeyEZtTRWM6jDHL7LYMx1A==}
     dependencies:
-      '@posthog/types': 1.404.1
+      '@posthog/types': 1.408.0
     dev: false
 
   /@posthog/core@1.54.5:
@@ -7526,6 +7526,10 @@ packages:
 
   /@posthog/types@1.404.1:
     resolution: {integrity: sha512-i2Gei6ARfOSBeTN4s2yUP1p97s2UNI+1NWmtLjhnR/V6t3RFOfI1sBWKcJNWHjtoOCCWoAFU+PNPY6SgT2VtEQ==}
+    dev: false
+
+  /@posthog/types@1.408.0:
+    resolution: {integrity: sha512-xMY8QrRKsTYu4A4Of7XF/xEt0HcnZOWwnICm3do7tGKA0lTlnnr4YW0AHQN1Uv2P3BDqf5GQoqh91MKE+dgdcA==}
     dev: false
 
   /@posthog/types@1.412.2:
@@ -10347,8 +10351,8 @@ packages:
       '@types/node': 26.4.1
     dev: true
 
-  /@types/node@24.13.4:
-    resolution: {integrity: sha512-YJ7EqCstVTzIr0fMr7qul/977en+pQHrfmuKIo6Zr9i75Be21dr3MovcfvGtyvi2HAUrRerWps5sMO9I7WaxDw==}
+  /@types/node@24.13.5:
+    resolution: {integrity: sha512-TXyindR+lBr22aJIdMQzCFHPHR6cR4js838mRDCSz5hOKWZvZwsXSSiXDmjRj4iJmgl+sR9O+1mkoVBSMadNug==}
     dependencies:
       undici-types: 7.18.2
     dev: true
@@ -14084,14 +14088,14 @@ packages:
       - supports-color
     dev: true
 
-  /electron@43.5.1:
-    resolution: {integrity: sha512-lRHSwzZimdWWeqcTHFRCpicWwxBE6kotKIyGTusums/jvmVVC27rLPFikUz8LsLwV7gVWlYaiEYQAWzitbN6nA==}
+  /electron@44.1.1:
+    resolution: {integrity: sha512-N2WCq2sbOkqQgvXJYx2lS6UiO8bF+Yr67trDnS6JKa2WxTCRQsAjGl57SUtdW9h6r5PlduBFjIhxhgd3dzv1hg==}
     engines: {node: '>= 22.12.0'}
     hasBin: true
     dependencies:
       '@electron-internal/extract-zip': 1.0.5
       '@electron/get': 5.1.0
-      '@types/node': 24.13.4
+      '@types/node': 24.13.5
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -18701,6 +18705,10 @@ packages:
 
   /libphonenumber-js@1.13.10:
     resolution: {integrity: sha512-xJxrdqvbl2rtn2MaUJrUejz8J7/uZNC0V77oks2LxYrO/+ZtVpRmz+fEQMuu6VusnEB1fmpByiLS1WXecOnAnw==}
+    dev: false
+
+  /libphonenumber-js@1.13.12:
+    resolution: {integrity: sha512-uLVeV1c9OTk6qkdqnj+mpMD+ZdnZ0szVyWu58HwMmpwkHA1gCEkyjd3veZQXDnuw9KEwSRjcc9B1pS9XKIN1fA==}
     dev: false
 
   /libphonenumber-js@1.13.13:
@@ -24265,7 +24273,7 @@ packages:
       cross-fetch: 4.1.0
       debug: 4.4.3(supports-color@5.5.0)
       jose: 6.2.8
-      libphonenumber-js: 1.13.13
+      libphonenumber-js: 1.13.12
       nodemailer: 9.1.1
       pako: 2.2.0
       pkce-challenge: 3.1.0
