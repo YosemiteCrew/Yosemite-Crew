@@ -749,8 +749,8 @@ importers:
         specifier: ^4.4.1
         version: 4.4.1(react-native@0.81.6)(react@19.1.4)
       '@react-native-community/datetimepicker':
-        specifier: ^8.4.5
-        version: 8.6.0(react-native@0.81.6)(react@19.1.4)
+        specifier: ^9.2.0
+        version: 9.2.0(react-native@0.81.6)(react@19.1.4)
       '@react-native-community/geolocation':
         specifier: ^3.4.0
         version: 3.4.0(react-native@0.81.6)(react@19.1.4)
@@ -7782,8 +7782,8 @@ packages:
       - typescript
       - utf-8-validate
 
-  /@react-native-community/datetimepicker@8.6.0(react-native@0.81.6)(react@19.1.4):
-    resolution: {integrity: sha512-yxPSqNfxgpGaqHQIpatqe6ykeBdU/1pdsk/G3x01mY2bpTflLpmVTLqFSJYd3MiZzxNZcMs/j1dQakUczSjcYA==}
+  /@react-native-community/datetimepicker@9.2.0(react-native@0.81.6)(react@19.1.4):
+    resolution: {integrity: sha512-kSjzw0Zlsqlm7QHJ09uG3M4g4ZDfBLT0PvSq8mR2rNF3a02GGDufm1SASPy1whXYK+tlDp8Ung0CilT1GmBzYA==}
     peerDependencies:
       expo: '>=52.0.0'
       react: '*'
