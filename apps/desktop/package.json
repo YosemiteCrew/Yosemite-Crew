@@ -99,6 +99,7 @@
     ],
     "mac": {
       "category": "public.app-category.business",
+      "minimumSystemVersion": "13.0",
       "icon": "resources/icon.icns",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,

@@ -7911,6 +7911,7 @@ paths:
                         - capturedAt
                         - status
                         - reason
+                        - refundedAmount
                         - version
                         - createdAt
                       properties:
@@ -7957,6 +7958,9 @@ paths:
                           type: string
                           nullable: true
                           description: Why the receipt is in its current state, in the words of the path that wrote it. Read by a human; never parsed.
+                        refundedAmount:
+                          type: number
+                          description: 'What the provider says it has given back on this capture, cumulative over every refund against it - not the delta of one refund event. `amount` minus this is the residual still to reconcile.'
                         version:
                           type: integer
                           description: Bumped on every state change, so a later allocation can be made conditional on the state it was read from.

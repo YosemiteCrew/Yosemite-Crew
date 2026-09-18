@@ -174,6 +174,75 @@ const journalCapture = async (
   }
 };
 
+/**
+ * Reverse, in the journal, the capture a refund gives money back from (#3170).
+ *
+ * Keyed on the payment intent, which is the capture's reference, so the refund
+ * reduces the receipt for the money it is actually returning rather than a
+ * sibling capture on the same appointment.
+ *
+ * The capture is journalled first when the journal does not hold it. A refund
+ * event carries the provider's own figures for the charge it reverses, so a
+ * capture that predates this journal - or one whose own webhook failed to
+ * write - is recorded from stated facts rather than reported as an orphan, and
+ * the refund then has a receipt to reduce. It is written UNATTRIBUTED: nothing
+ * in a refund event says whose money it was.
+ */
+const reverseJournalledCapture = async (
+  charge: Stripe.Charge,
+  connectedAccountId: string | undefined,
+  paymentIntentId: string | null,
+  refundedAmount: number,
+) => {
+  if (!paymentIntentId) {
+    // A charge with no intent has no reference this journal is keyed on, and
+    // journalling it under the charge id would let the same money be recorded
+    // twice under two different references.
+    logger.error(
+      `Refund on charge ${charge.id} names no payment intent, so the capture it reverses cannot be identified in the journal`,
+    );
+    return;
+  }
+
+  const key = {
+    provider: "STRIPE" as const,
+    merchantAccountRef: connectedAccountId ?? null,
+    paymentRef: paymentIntentId,
+  };
+
+  try {
+    // amount_captured before amount, for the same reason settlement uses it: a
+    // partially captured charge returns less than it authorised.
+    const capturedMinorUnits =
+      typeof charge.amount_captured === "number"
+        ? charge.amount_captured
+        : charge.amount;
+
+    await ProviderReceiptService.journalCapture({
+      ...key,
+      amount: fromStripeMinorUnits(capturedMinorUnits, charge.currency),
+      currency: charge.currency,
+      capturedAt: new Date((charge.created ?? Date.now() / 1000) * 1000),
+      reason: `capture recovered from the refund event on charge ${charge.id}`,
+    });
+
+    await ProviderReceiptService.recordRefund({
+      ...key,
+      refundedAmount,
+      currency: charge.currency,
+    });
+  } catch (error) {
+    // The journal is a record of the refund, never a precondition for
+    // processing it. Letting it throw here would stop the invoice being marked
+    // REFUNDED and the customer being told - a worse outcome than a gap in the
+    // journal, and one that a Stripe retry would repeat forever.
+    logger.error(
+      `Could not reverse the journalled capture for refund on charge ${charge.id}`,
+      error,
+    );
+  }
+};
+
 /** The invoice already bound to this intent, if this delivery is a replay. */
 const findInvoiceBoundToIntent = (intentId: string) =>
   prisma.invoice.findUnique({
@@ -743,7 +812,7 @@ export const StripeService = {
         break;
 
       case "charge.refunded":
-        await this._handleRefund(event.data.object);
+        await this._handleRefund(event.data.object, connectedAccountId);
         break;
 
       // connect readiness
@@ -1125,15 +1194,44 @@ export const StripeService = {
     }
   },
 
-  async _handleRefund(charge: Stripe.Charge) {
+  async _handleRefund(charge: Stripe.Charge, connectedAccountId?: string) {
     const invoiceId = charge.metadata?.invoiceId;
-    const amount = fromStripeMinorUnits(charge.amount, charge.currency);
+    const paymentIntentId =
+      typeof charge.payment_intent === "string" ? charge.payment_intent : null;
+
+    // What the provider says it has given back on this charge, cumulative over
+    // every refund against it. `charge.amount` is what was CAPTURED, so the
+    // figure this path used to read reported a partial refund as a full one -
+    // to the refund ledger, to the invoice metadata and to the customer's
+    // notification.
+    const refundedMinorUnits =
+      typeof charge.amount_refunded === "number"
+        ? charge.amount_refunded
+        : null;
+    const amount = fromStripeMinorUnits(
+      refundedMinorUnits ?? charge.amount,
+      charge.currency,
+    );
+
+    if (refundedMinorUnits === null) {
+      // Malformed for a refund event. The invoice path keeps the behaviour it
+      // has always had, but a figure this uncertain does not go into the
+      // journal, where it would be subtracted from a captured total.
+      logger.error(
+        `Refund on charge ${charge.id} states no refunded amount; no journal reversal was recorded`,
+      );
+    } else {
+      await reverseJournalledCapture(
+        charge,
+        connectedAccountId,
+        paymentIntentId,
+        amount,
+      );
+    }
+
     const result = await FinancePaymentService.markInvoiceRefundedFromWebhook({
       invoiceId,
-      paymentIntentId:
-        typeof charge.payment_intent === "string"
-          ? charge.payment_intent
-          : null,
+      paymentIntentId,
       chargeId: charge.id,
       amount,
       currency: charge.currency,
@@ -1145,7 +1243,7 @@ export const StripeService = {
       // the books still show it PAID. ALREADY_REFUNDED below is a genuine
       // replay and stays quiet; this one needs a human.
       logger.error(
-        `Refund on charge ${charge.id} (intent ${typeof charge.payment_intent === "string" ? charge.payment_intent : "unknown"}) matched no invoice; the invoice it belongs to is still marked paid`,
+        `Refund on charge ${charge.id} (intent ${paymentIntentId ?? "unknown"}) matched no invoice; the invoice it belongs to is still marked paid`,
       );
       return;
     }
