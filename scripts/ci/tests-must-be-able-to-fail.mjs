@@ -38,7 +38,9 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { realpathSync, rmSync } from 'node:fs';
+import { readFileSync, realpathSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** A test file, by this repository's own conventions. */
@@ -137,6 +139,29 @@ export const categorizeSourceFiles = (source, existsAtBase, existsAtHead) => {
 };
 
 /**
+ * Of the changed test paths handed to a workspace, the ones jest itself will
+ * discover there.
+ *
+ * `jest --listTests` enumerates exactly the files that workspace's own
+ * `testMatch` and `testPathIgnorePatterns` admit, so intersecting with it
+ * separates the two reasons a path can contribute no suite:
+ *
+ * - legitimately, because it holds no tests - a `__tests__/support/` helper,
+ *   which is what `--passWithNoTests` exists for; and
+ * - wrongly, because the path never reached the runner - which is a bug, and
+ *   until #3264 was indistinguishable from the first.
+ *
+ * Both sides arrive already resolved through `realpathSync`, because jest
+ * prints absolute paths and `/var` is a symlink to `/private/var` on macOS -
+ * the same trap the direct-invocation check at the bottom of this file
+ * documents.
+ */
+export const selectDiscoverable = (paths, discovered) => {
+  const set = new Set(discovered);
+  return paths.filter((p) => set.has(p));
+};
+
+/**
  * The whole judgement, as a pure function, so it is tested directly rather than
  * inferred from a CI run.
  */
@@ -145,6 +170,7 @@ export const verdict = ({
   tests,
   testsPassedAgainstBase,
   nothingRunnable = false,
+  suiteShortfall = null,
   allowUnchangedBehaviour = false,
 }) => {
   if (source.length === 0) {
@@ -182,6 +208,34 @@ export const verdict = ({
         'the PR no-behaviour-change, or add a test if any of the deleted source still runs.',
     };
   }
+  // A path reached jest and no suite came back for it. Every branch below this
+  // one reads `testsPassedAgainstBase` as evidence, and a suite that did not
+  // run is not evidence either way - so the shortfall is reported rather than
+  // resolved, and no label excuses it. This sits ABOVE the two passing
+  // branches deliberately: the permissive reading of a suite that never
+  // executed is the exact false green this file exists to remove.
+  if (suiteShortfall) {
+    const { workspace, expected, ran } = suiteShortfall;
+    return {
+      ok: false,
+      reason:
+        `${expected} runnable test file(s) were handed to jest in ${workspace}, but ` +
+        `${ran === null ? 'no suite count came back' : `${ran} test suite(s) ran`}.\n` +
+        'A suite that did not run proves nothing about this branch, so the gate cannot\n' +
+        'judge it. This is a fault in the gate or in the changed test paths, not\n' +
+        'something the no-behaviour-change label covers.',
+    };
+  }
+  if (nothingRunnable === 'no-tests-in-changed-tests') {
+    return {
+      ok: false,
+      reason:
+        'None of the changed test files hold a test jest can run - they are helpers or\n' +
+        'fixtures, which is legitimate, but it means nothing was executed against the\n' +
+        'reverted source and the gate has no evidence either way.\n' +
+        'Change or add a test that asserts the behaviour this branch alters.',
+    };
+  }
   if (testsPassedAgainstBase === false) {
     return { ok: true, reason: 'the changed tests fail without the source change, as they must' };
   }
@@ -205,20 +259,79 @@ export const verdict = ({
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 
+/** Resolves a path the way jest prints one, tolerating one that is already gone. */
+const real = (path) => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+};
+
+const jest = (ws, jestArgs, options) =>
+  execFileSync('pnpm', ['--filter', ws, 'exec', 'jest', '--ci', ...jestArgs], options);
+
+/** The changed paths this workspace's jest will actually discover. */
+const discoverableIn = (ws, absolutePaths) => {
+  const listed = jest(ws, ['--listTests', '--passWithNoTests'], { encoding: 'utf8' })
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map(real);
+  return selectDiscoverable(absolutePaths, listed);
+};
+
+/** The suite total jest recorded, or null if it recorded nothing readable. */
+const suitesRunFrom = (reportPath) => {
+  try {
+    const report = JSON.parse(readFileSync(reportPath, 'utf8'));
+    return typeof report.numTotalTestSuites === 'number' ? report.numTotalTestSuites : null;
+  } catch {
+    // Fail closed. A missing or unparseable report is "the gate does not know
+    // how many suites ran", which the caller turns into a shortfall rather
+    // than into the permissive verdict.
+    return null;
+  }
+};
+
 /**
  * Runs each workspace's changed tests against the reverted source.
  *
  * Every workspace must pass for the branch to be judged "the tests survive their
  * own revert". One failing workspace proves the tests depend on the change.
+ *
+ * Paths go to jest ABSOLUTE and behind `--runTestsByPath`. A positional path is
+ * a REGEX matched against absolute test paths, so `__tests__/(routes)/book.test.tsx`
+ * is read as a capture group matching `.../routes/book.test.tsx`, which does not
+ * exist - the suite never ran, `--passWithNoTests` made that a clean exit 0, and
+ * the gate returned the permissive verdict for a test it had not executed.
+ * `--runTestsByPath` takes literal paths, and resolves them against the workspace
+ * `rootDir` rather than the repository root, which is why they are absolute here.
+ * (#3264)
  */
-const runChangedTests = (byWorkspace) => {
+const runChangedTests = (byWorkspace, repoRoot) => {
   let allPassed = true;
+  let suiteShortfall = null;
+  let ranAnything = false;
   for (const [ws, paths] of byWorkspace) {
-    console.log(`running ${paths.length} changed test file(s) in ${ws} against the base`);
+    const absolute = paths.map((path) => real(resolve(repoRoot, path)));
+    const runnable = discoverableIn(ws, absolute);
+    const noTests = absolute.length - runnable.length;
+    console.log(
+      `running ${runnable.length} changed test file(s) in ${ws} against the base` +
+        (noTests > 0 ? ` (${noTests} of ${absolute.length} hold no tests jest can run)` : '')
+    );
+    if (runnable.length === 0) continue;
+    ranAnything = true;
+
+    // The count was the only visible symptom of a path that never ran, and
+    // nothing reconciled it: `running 4 changed test file(s)` and jest's
+    // `Test Suites: 2 passed` sat four lines apart and disagreed.
+    const report = join(tmpdir(), `tests-must-be-able-to-fail-${ws}-${process.pid}.json`);
     try {
-      execFileSync(
-        'pnpm',
-        ['--filter', ws, 'exec', 'jest', '--ci', '--passWithNoTests', ...paths],
+      jest(
+        ws,
+        ['--passWithNoTests', '--runTestsByPath', '--json', '--outputFile', report, ...runnable],
         {
           stdio: 'inherit',
         }
@@ -226,8 +339,13 @@ const runChangedTests = (byWorkspace) => {
     } catch {
       allPassed = false;
     }
+    const ran = suitesRunFrom(report);
+    rmSync(report, { force: true });
+    if (ran !== runnable.length && !suiteShortfall) {
+      suiteShortfall = { workspace: ws, expected: runnable.length, ran };
+    }
   }
-  return allPassed;
+  return { allPassed, suiteShortfall, ranAnything };
 };
 
 const main = () => {
@@ -242,7 +360,16 @@ const main = () => {
     const bad = verdict({ source: ['a.ts'], tests: ['a.test.ts'], testsPassedAgainstBase: true });
     const good = verdict({ source: ['a.ts'], tests: ['a.test.ts'], testsPassedAgainstBase: false });
     const noTest = verdict({ source: ['a.ts'], tests: [], testsPassedAgainstBase: false });
-    if (bad.ok || !good.ok || noTest.ok) {
+    // A suite that never ran must not be read as one that passed, even under
+    // the label that excuses a passing base run.
+    const shortfall = verdict({
+      source: ['a.ts'],
+      tests: ['a.test.ts'],
+      testsPassedAgainstBase: false,
+      suiteShortfall: { workspace: 'frontend', expected: 2, ran: 1 },
+      allowUnchangedBehaviour: true,
+    });
+    if (bad.ok || !good.ok || noTest.ok || shortfall.ok) {
       console.error('selftest FAILED: the gate does not distinguish its own cases');
       process.exit(1);
     }
@@ -253,6 +380,10 @@ const main = () => {
   const base = get('--base', 'origin/dev');
   const allowUnchangedBehaviour = args.includes('--allow-unchanged-behaviour');
 
+  // --runTestsByPath resolves against the workspace rootDir, not the repo root,
+  // so the repo-relative paths a diff yields have to be made absolute first.
+  const repoRoot = git('rev-parse', '--show-toplevel');
+
   const files = git('diff', '--name-only', `${base}...HEAD`).split('\n').filter(Boolean);
   const { source, tests } = classify(files);
 
@@ -261,6 +392,7 @@ const main = () => {
 
   let testsPassedAgainstBase = null;
   let nothingRunnable = false;
+  let suiteShortfall = null;
 
   if (source.length > 0 && tests.length > 0) {
     // A file the branch ADDS does not exist at the base, and one it DELETES
@@ -306,7 +438,14 @@ const main = () => {
         console.log('no runnable unit tests changed (e2e only, or outside a known workspace)');
         nothingRunnable = 'e2e-only';
       } else {
-        testsPassedAgainstBase = runChangedTests(byWorkspace);
+        const run = runChangedTests(byWorkspace, repoRoot);
+        suiteShortfall = run.suiteShortfall;
+        // `allPassed` starts true and nothing ran to falsify it, so reading it
+        // as "the tests survived their own revert" would be the vacuous pass
+        // `--passWithNoTests` used to hand out for a branch whose only test
+        // change is a `__tests__/support/` helper.
+        testsPassedAgainstBase = run.ranAnything ? run.allPassed : null;
+        if (!run.ranAnything) nothingRunnable = 'no-tests-in-changed-tests';
       }
     } finally {
       // Always put the branch back, including when the run threw. Mirror the
@@ -326,6 +465,7 @@ const main = () => {
     tests,
     testsPassedAgainstBase,
     nothingRunnable,
+    suiteShortfall,
     allowUnchangedBehaviour,
   });
   console.log(`\n${result.ok ? 'PASS' : 'FAIL'}: ${result.reason}`);

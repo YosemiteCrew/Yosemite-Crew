@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   classify,
   groupTestsByWorkspace,
+  selectDiscoverable,
   workspaceOf,
   isCheckableSource,
   isTestFile,
@@ -213,4 +214,133 @@ test('categorizeSourceFiles: every file lands in exactly one category', () => {
   );
   const seen = [...result.added, ...result.deleted, ...result.modified].sort();
   assert.deepEqual(seen, [...files].sort());
+});
+
+test('keeps only the changed paths jest will actually discover', () => {
+  // The two reasons a handed-over path contributes no suite have to be told
+  // apart: a support helper legitimately holds no tests, a path jest never
+  // saw is a bug. Only the first may be subtracted silently.
+  const discovered = [
+    '/repo/apps/frontend/src/app/__tests__/(routes)/signin/page.test.tsx',
+    '/repo/apps/frontend/src/app/__tests__/ui/Button.test.tsx',
+  ];
+  const kept = selectDiscoverable(
+    [
+      '/repo/apps/frontend/src/app/__tests__/(routes)/signin/page.test.tsx',
+      '/repo/apps/frontend/src/app/__tests__/support/renderServerComponent.tsx',
+      '/repo/apps/frontend/src/app/__tests__/ui/Button.test.tsx',
+    ],
+    discovered
+  );
+  assert.deepEqual(kept, [
+    '/repo/apps/frontend/src/app/__tests__/(routes)/signin/page.test.tsx',
+    '/repo/apps/frontend/src/app/__tests__/ui/Button.test.tsx',
+  ]);
+});
+
+test('a route-group path is compared literally, not as a pattern', () => {
+  // #3264: handed to jest positionally, `(routes)` is a capture group, so the
+  // path matched `.../routes/...` - a DIFFERENT directory that also exists in
+  // this repository - and the real suite never ran. Set membership cannot do
+  // that: the two paths are simply unequal.
+  const kept = selectDiscoverable(
+    ['/repo/apps/frontend/src/app/__tests__/(routes)/signin/page.test.tsx'],
+    ['/repo/apps/frontend/src/app/__tests__/routes/signin/page.test.tsx']
+  );
+  assert.deepEqual(
+    kept,
+    [],
+    'a route-group path must not be satisfied by its unparenthesised twin'
+  );
+});
+
+test('selectDiscoverable returns nothing when jest discovered nothing', () => {
+  assert.deepEqual(selectDiscoverable(['/repo/a.test.ts'], []), []);
+});
+
+test('THE #3264 CASE: a suite that did not run is not read as one that passed', () => {
+  // `testsPassedAgainstBase: false` is the branch that PASSES the gate. A
+  // shortfall has to outrank it, or a path that silently never ran decides
+  // the verdict - which is what this whole file exists to prevent.
+  const r = verdict({
+    source: ['a.ts'],
+    tests: ['apps/frontend/src/app/__tests__/(routes)/signin/page.test.tsx'],
+    testsPassedAgainstBase: false,
+    suiteShortfall: { workspace: 'frontend', expected: 4, ran: 2 },
+  });
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /4 runnable test file\(s\) were handed to jest in frontend/);
+  assert.match(r.reason, /2 test suite\(s\) ran/);
+});
+
+test('a shortfall is not excused by the no-behaviour-change label', () => {
+  const r = verdict({
+    source: ['a.ts'],
+    tests: ['a.test.ts'],
+    testsPassedAgainstBase: true,
+    suiteShortfall: { workspace: 'backend', expected: 3, ran: 1 },
+    allowUnchangedBehaviour: true,
+  });
+  assert.equal(r.ok, false, 'the label excuses a passing base run, not an unexecuted one');
+  assert.match(r.reason, /not\nsomething the no-behaviour-change label covers/);
+});
+
+test('an unreadable jest report is reported as a shortfall, not as a pass', () => {
+  // suitesRunFrom returns null when the JSON is missing or unparseable, which
+  // must fail closed: "the gate does not know how many suites ran".
+  const r = verdict({
+    source: ['a.ts'],
+    tests: ['a.test.ts'],
+    testsPassedAgainstBase: false,
+    suiteShortfall: { workspace: 'frontend', expected: 2, ran: null },
+  });
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /no suite count came back/);
+});
+
+test('no shortfall leaves the existing verdicts untouched', () => {
+  // The new branch must be inert when every handed-over path ran.
+  assert.equal(
+    verdict({
+      source: ['a.ts'],
+      tests: ['a.test.ts'],
+      testsPassedAgainstBase: false,
+      suiteShortfall: null,
+    }).ok,
+    true
+  );
+  assert.equal(
+    verdict({
+      source: ['a.ts'],
+      tests: ['a.test.ts'],
+      testsPassedAgainstBase: true,
+      suiteShortfall: null,
+    }).ok,
+    false
+  );
+});
+
+test('a branch whose only test change is a helper proves nothing', () => {
+  // The helper legitimately holds no test, so jest exits 0 having run nothing
+  // and `allPassed` stays vacuously true. Reading that as "the tests survived
+  // their own revert" is the false green --passWithNoTests used to hand out.
+  const r = verdict({
+    source: ['a.ts'],
+    tests: ['apps/frontend/src/app/__tests__/support/renderServerComponent.tsx'],
+    testsPassedAgainstBase: null,
+    nothingRunnable: 'no-tests-in-changed-tests',
+  });
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /nothing was executed against the/);
+});
+
+test('the helper-only verdict is not excused by the label either', () => {
+  const r = verdict({
+    source: ['a.ts'],
+    tests: ['apps/frontend/src/app/__tests__/support/renderServerComponent.tsx'],
+    testsPassedAgainstBase: null,
+    nothingRunnable: 'no-tests-in-changed-tests',
+    allowUnchangedBehaviour: true,
+  });
+  assert.equal(r.ok, false, 'the label excuses a PASSING base run, not an unverifiable one');
 });
