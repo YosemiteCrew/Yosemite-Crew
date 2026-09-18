@@ -7067,6 +7067,11 @@ model ProviderReceipt {
   /// Why this receipt is in its current state, in the words of the path that
   /// wrote it. Read by a human doing reconciliation; never parsed.
   reason             String?
+  /// What the provider says it has given back on this capture, cumulative over
+  /// every refund against it - not the delta of one refund event. Stored that
+  /// way so a redelivered or out-of-order refund webhook is absorbed by
+  /// comparison instead of being added twice.
+  refundedAmount     Float                 @default(0)
   rawProviderPayload Json?
   /// Bumped on every state change so an allocation can be made conditional on
   /// the state it was read from (#3170 delivery 2).
