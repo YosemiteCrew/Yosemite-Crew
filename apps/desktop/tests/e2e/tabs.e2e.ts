@@ -136,6 +136,44 @@ const waitForTabCount = async (page: Page, count: number, timeout = 5000): Promi
     .toBe(count);
 };
 
+// Send a tab-jump key to the focused PIMS content view, the way a keyboard does:
+// through the window's input pipeline rather than into the page's DOM.
+const pressTabJumpKey = async (
+  app: ElectronApplication,
+  pimsOrigin: string,
+  key: string
+): Promise<void> => {
+  await app.evaluate(
+    async ({ webContents }, { origin, digit, modifier }) => {
+      const target = webContents
+        .getAllWebContents()
+        .find((wc) => wc.getURL().startsWith(origin) && !wc.isDestroyed());
+      if (!target) throw new Error(`no web contents is showing ${origin}`);
+      target.focus();
+      target.sendInputEvent({ type: 'keyDown', keyCode: digit, modifiers: [modifier] });
+      target.sendInputEvent({ type: 'keyUp', keyCode: digit, modifiers: [modifier] });
+    },
+    {
+      origin: pimsOrigin,
+      digit: key,
+      modifier: process.platform === 'darwin' ? ('meta' as const) : ('control' as const),
+    }
+  );
+};
+
+// The shortcut-list overlay lives in the tab-chrome view, which is a
+// WebContentsView rather than a window, so it is read from the main process.
+const cheatsheetDisplay = (app: ElectronApplication): Promise<string> =>
+  app.evaluate(async ({ webContents }) => {
+    const chrome = webContents
+      .getAllWebContents()
+      .find((wc) => wc.getURL().includes('tabbar.html') && !wc.isDestroyed());
+    if (!chrome) throw new Error('the tab chrome view is not loaded');
+    return (await chrome.executeJavaScript(
+      "document.getElementById('cheatsheet-overlay').style.display"
+    )) as string;
+  });
+
 test.describe('tab E2E', () => {
   let app: ElectronApplication | undefined;
   let page: Page;
@@ -310,6 +348,38 @@ test.describe('tab E2E', () => {
 
     const state2 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
     expect(state2.tabs!).toHaveLength(2);
+  });
+
+  test('Mod+1 and Mod+2 jump between tabs while the page holds focus', async () => {
+    const first = await evaluateYcDesktop<TabResult>(page, 'getTabs');
+    const firstId = first.tabs![0].id;
+    const second = await evaluateYcDesktop<TabResult>(page, 'newTab', `${pimsServer.origin}/a`);
+    await waitForTabCount(page, 2);
+
+    // Sent to the CONTENT view, not the tab strip: the strip's own key listener
+    // only sees a keystroke while the strip has focus, which the page holds for
+    // the rest of the session. Playwright cannot synthesise OS input, and the
+    // window's before-input-event hook is what this exercises.
+    await pressTabJumpKey(app!, pimsServer.origin, '1');
+    await expect
+      .poll(async () => (await evaluateYcDesktop<TabResult>(page, 'getTabs')).activeId)
+      .toBe(firstId);
+
+    await pressTabJumpKey(app!, pimsServer.origin, '2');
+    await expect
+      .poll(async () => (await evaluateYcDesktop<TabResult>(page, 'getTabs')).activeId)
+      .toBe(second.id);
+  });
+
+  test('the Keyboard Shortcuts menu item toggles the shortcut list', async () => {
+    await waitForTabCount(page, 1);
+    expect(await cheatsheetDisplay(app!)).not.toBe('block');
+
+    await clickMenuItem(app!, 'Keyboard Shortcuts');
+    await expect.poll(() => cheatsheetDisplay(app!)).toBe('block');
+
+    await clickMenuItem(app!, 'Keyboard Shortcuts');
+    await expect.poll(() => cheatsheetDisplay(app!)).not.toBe('block');
   });
 
   test('the New Tab menu item opens a tab', async () => {
