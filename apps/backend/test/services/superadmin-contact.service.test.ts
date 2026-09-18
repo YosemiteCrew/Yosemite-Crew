@@ -11,6 +11,16 @@ jest.mock("../../src/utils/logger", () => ({
   },
 }));
 
+jest.mock("../../src/config/prisma", () => ({
+  prisma: {
+    contactRequest: {
+      findMany: jest.fn(),
+      count: jest.fn(),
+    },
+    $disconnect: jest.fn(),
+  },
+}));
+
 import { SuperadminContactService } from "../../src/services/superadmin-contact.service";
 import type { CreateWebContactRequestInput } from "../../src/services/contact-us.service";
 

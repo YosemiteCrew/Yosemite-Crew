@@ -1,12 +1,15 @@
 import { Router } from "express";
 
 import { SuperAdminBusinessController } from "src/controllers/web/super-admin-business.controller";
+import { SuperAdminContactBackfillController } from "src/controllers/web/super-admin-contact-backfill.controller";
 import { SuperAdminLabIngestionController } from "src/controllers/web/super-admin-lab-ingestion.controller";
 import { requireAnyAuth } from "src/middlewares/auth";
+import { requireBackfillKey } from "src/middlewares/backfill-auth";
 import { requireSuperAdmin } from "src/middlewares/super-admin";
 
 const router = Router();
 
+// Super-admin authenticated routes (session-based)
 router.use(requireAnyAuth, requireSuperAdmin);
 
 router.get("/businesses", SuperAdminBusinessController.listBusinesses);
@@ -27,6 +30,15 @@ router.get(
 router.patch(
   "/lab-ingestion/quarantine/:id/resolve",
   SuperAdminLabIngestionController.resolveQuarantine,
+);
+
+// Backfill endpoint uses shared-secret auth (x-backfill-key) so the SuperAdmin
+// panel can trigger it without a Yosemite-Crew session. The panel's
+// YOSEMITE_BACKFILL_KEY must match the backend's YOSEMITE_BACKFILL_KEY.
+router.post(
+  "/contact-backfill",
+  requireBackfillKey,
+  SuperAdminContactBackfillController.triggerBackfill,
 );
 
 export default router;
