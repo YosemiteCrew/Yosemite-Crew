@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { dirname, join } from 'node:path';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import {
   classify,
   groupTestsByWorkspace,
@@ -9,6 +12,10 @@ import {
   isTestFile,
   verdict,
   categorizeSourceFiles,
+  reportPathFor,
+  isInside,
+  suitesRunFrom,
+  withReportDir,
 } from './tests-must-be-able-to-fail.mjs';
 
 test("recognises this repository's test conventions", () => {
@@ -343,4 +350,104 @@ test('the helper-only verdict is not excused by the label either', () => {
     allowUnchangedBehaviour: true,
   });
   assert.equal(r.ok, false, 'the label excuses a PASSING base run, not an unverifiable one');
+});
+
+test('the report path stays inside its directory for every workspace this gate runs', () => {
+  // `@yosemite-crew/desktop` is a real workspace name and it carries a slash.
+  // Interpolated raw, it named a directory nobody had created, so jest's
+  // --outputFile write threw and no desktop run could ever be reconciled.
+  const dir = '/tmp/some-report-dir';
+  for (const ws of ['frontend', 'backend', 'mobileAppYC', '@yosemite-crew/desktop']) {
+    const path = reportPathFor(ws, dir);
+    assert.equal(dirname(path), dir, ws);
+    assert.equal(isInside(dir, path), true, ws);
+  }
+});
+
+test('a workspace name that tries to climb out cannot', () => {
+  const dir = '/tmp/some-report-dir';
+  for (const hostile of ['../../etc/passwd', '..', '/etc/passwd', 'a/../../b']) {
+    assert.equal(dirname(reportPathFor(hostile, dir)), dir, hostile);
+    assert.equal(isInside(dir, reportPathFor(hostile, dir)), true, hostile);
+  }
+});
+
+test('isInside rejects what it is meant to reject', () => {
+  // Without these the containment guard would be satisfied by anything and
+  // the read it protects would be unbounded.
+  assert.equal(isInside('/tmp/d', '/tmp/d/report.json'), true);
+  assert.equal(isInside('/tmp/d', 'report.json'), true);
+  assert.equal(isInside('/tmp/d', '/tmp/d'), false); // the directory is not a report
+  assert.equal(isInside('/tmp/d', '../report.json'), false);
+  assert.equal(isInside('/tmp/d', '/etc/passwd'), false);
+  assert.equal(isInside('/tmp/d', '/tmp/dd/report.json'), false);
+});
+
+test('a readable report outside the run directory is not read', () => {
+  // Fail closed, not open: the caller turns null into a shortfall, so a report
+  // the gate did not write can never supply the suite count it trusts.
+  const dir = mkdtempSync(join(tmpdir(), 'tests-must-be-able-to-fail-test-'));
+  const outside = join(tmpdir(), `outside-${process.pid}.json`);
+  try {
+    writeFileSync(join(dir, 'frontend.json'), JSON.stringify({ numTotalTestSuites: 2 }));
+    writeFileSync(outside, JSON.stringify({ numTotalTestSuites: 99 }));
+    // The control: the same read succeeds when the report is where we put it.
+    assert.equal(suitesRunFrom(join(dir, 'frontend.json'), dir), 2);
+    assert.equal(suitesRunFrom(outside, dir), null);
+    assert.equal(suitesRunFrom(join(dir, '../..', outside), dir), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(outside, { force: true });
+  }
+});
+
+test('the report directory is private, is not the shared tmpdir, and is removed', () => {
+  let seen;
+  const returned = withReportDir((dir) => {
+    seen = dir;
+    assert.notEqual(dir, tmpdir(), 'writing reports straight into the shared tmpdir');
+    assert.equal(isInside(tmpdir(), dir), true);
+    assert.equal(existsSync(dir), true);
+    // Non-empty, so a cleanup that is not recursive leaves the directory behind.
+    writeFileSync(join(dir, 'frontend.json'), '{}');
+    return 'value';
+  });
+  assert.equal(returned, 'value');
+  assert.equal(existsSync(seen), false, 'report directory outlived the run');
+});
+
+test('two runs never share a report directory', () => {
+  const dirs = [withReportDir((d) => d), withReportDir((d) => d)];
+  assert.notEqual(dirs[0], dirs[1]);
+});
+
+test('the report directory is removed even when the run throws', () => {
+  let seen;
+  assert.throws(() =>
+    withReportDir((dir) => {
+      seen = dir;
+      writeFileSync(join(dir, 'frontend.json'), '{}');
+      throw new Error('jest exploded');
+    })
+  );
+  assert.equal(existsSync(seen), false);
+});
+
+test('a report that does not state a suite count fails closed', () => {
+  // The caller compares this to the number of files it handed jest, so any
+  // non-number reaching it would be an inequality read as a shortfall by luck
+  // rather than by decision.
+  const dir = mkdtempSync(join(tmpdir(), 'tests-must-be-able-to-fail-test-'));
+  const write = (body) => {
+    writeFileSync(join(dir, 'frontend.json'), body);
+    return suitesRunFrom(join(dir, 'frontend.json'), dir);
+  };
+  try {
+    assert.equal(write(JSON.stringify({ numTotalTestSuites: 3 })), 3);
+    assert.equal(write(JSON.stringify({ numTotalTestSuites: '3' })), null);
+    assert.equal(write(JSON.stringify({})), null);
+    assert.equal(write('not json'), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

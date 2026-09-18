@@ -38,9 +38,9 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, realpathSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** A test file, by this repository's own conventions. */
@@ -281,10 +281,56 @@ const discoverableIn = (ws, absolutePaths) => {
   return selectDiscoverable(absolutePaths, listed);
 };
 
-/** The suite total jest recorded, or null if it recorded nothing readable. */
-const suitesRunFrom = (reportPath) => {
+/**
+ * Where one workspace's jest report is written.
+ *
+ * The name used to be `tests-must-be-able-to-fail-${ws}-${pid}.json` directly
+ * under tmpdir. Two things were wrong with that. `@yosemite-crew/desktop`
+ * carries a SLASH, so the path named a directory that does not exist and
+ * jest's `writeFileSync` threw for every desktop-only change - the report was
+ * never written and the run could not be reconciled. And a name a caller can
+ * predict, in a directory everything on the runner shares, is a file another
+ * process can put there first.
+ *
+ * So the directory is created private by us and the workspace is slugified
+ * before it reaches the path: the only remaining variable component is the one
+ * `mkdtempSync` chose, and nothing a caller supplies can leave the directory.
+ */
+export const reportPathFor = (ws, dir) => join(dir, `${ws.replace(/[^a-z0-9]+/gi, '-')}.json`);
+
+/**
+ * Runs `fn` against a private report directory and removes it afterwards.
+ *
+ * Private because `mkdtempSync` creates it; ours because nothing else knows the
+ * name; gone afterwards whether `fn` returned or threw.
+ */
+export const withReportDir = (fn) => {
+  const dir = mkdtempSync(join(tmpdir(), 'tests-must-be-able-to-fail-'));
   try {
-    const report = JSON.parse(readFileSync(reportPath, 'utf8'));
+    return fn(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+};
+
+/** True when `candidate` names something strictly inside `dir`. */
+export const isInside = (dir, candidate) => {
+  const within = relative(resolve(dir), resolve(dir, candidate));
+  return within !== '' && !within.startsWith('..') && !isAbsolute(within);
+};
+
+/**
+ * The suite total jest recorded, or null if it recorded nothing readable.
+ *
+ * The read is confined to the private report directory. `reportPathFor`
+ * already slugifies the only caller-supplied component, so this is the second
+ * of two independent guards rather than the only one: either alone keeps the
+ * read inside the directory this run created.
+ */
+export const suitesRunFrom = (reportPath, reportDir) => {
+  try {
+    if (!isInside(reportDir, reportPath)) return null;
+    const report = JSON.parse(readFileSync(resolve(reportDir, reportPath), 'utf8'));
     return typeof report.numTotalTestSuites === 'number' ? report.numTotalTestSuites : null;
   } catch {
     // Fail closed. A missing or unparseable report is "the gate does not know
@@ -327,20 +373,21 @@ const runChangedTests = (byWorkspace, repoRoot) => {
     // The count was the only visible symptom of a path that never ran, and
     // nothing reconciled it: `running 4 changed test file(s)` and jest's
     // `Test Suites: 2 passed` sat four lines apart and disagreed.
-    const report = join(tmpdir(), `tests-must-be-able-to-fail-${ws}-${process.pid}.json`);
-    try {
-      jest(
-        ws,
-        ['--passWithNoTests', '--runTestsByPath', '--json', '--outputFile', report, ...runnable],
-        {
-          stdio: 'inherit',
-        }
-      );
-    } catch {
-      allPassed = false;
-    }
-    const ran = suitesRunFrom(report);
-    rmSync(report, { force: true });
+    const ran = withReportDir((reportDir) => {
+      const report = reportPathFor(ws, reportDir);
+      try {
+        jest(
+          ws,
+          ['--passWithNoTests', '--runTestsByPath', '--json', '--outputFile', report, ...runnable],
+          {
+            stdio: 'inherit',
+          }
+        );
+      } catch {
+        allPassed = false;
+      }
+      return suitesRunFrom(report, reportDir);
+    });
     if (ran !== runnable.length && !suiteShortfall) {
       suiteShortfall = { workspace: ws, expected: runnable.length, ran };
     }
