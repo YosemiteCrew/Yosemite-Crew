@@ -16,7 +16,7 @@
 [![Website](https://img.shields.io/badge/Yosemite%20Crew-D04122)](https://yosemitecrew.com/)
 [![Download](https://img.shields.io/github/v/release/YosemiteCrew/Yosemite-Crew?label=Download&color=2ea44f)](https://github.com/YosemiteCrew/Yosemite-Crew/releases)
 [![Platforms](https://img.shields.io/badge/macOS%20%7C%20Windows%20%7C%20Linux-383838?logo=apple&logoColor=white)](#-download)
-[![Built with Electron](https://img.shields.io/badge/Built%20with-Electron%2039-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
+[![Built with Electron](https://img.shields.io/badge/Built%20with-Electron%2044-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
 [![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md)
 [![Discord](https://img.shields.io/discord/1325181058777616395?color=7289da&label=Discord&logo=discord&logoColor=ffffff)](https://discord.gg/SwM6mX85KD)
 
@@ -95,16 +95,29 @@ It's the same PIMS your team knows, plus the things only a native app can do: it
 
 Get the newest signed build from the [**latest release**](https://github.com/YosemiteCrew/Yosemite-Crew/releases/latest), or browse [all releases](https://github.com/YosemiteCrew/Yosemite-Crew/releases):
 
-| Platform                          | File                                                                      |
-| --------------------------------- | ------------------------------------------------------------------------- |
-| **macOS** (Apple Silicon / Intel) | `Yosemite Crew PIMS-<version>-mac-<arch>.dmg`                             |
-| **Windows**                       | `Yosemite Crew PIMS-<version>-win-x64-setup.exe` (or the portable `.exe`) |
-| **Linux**                         | `Yosemite Crew PIMS-<version>-linux-<arch>.AppImage`                      |
+| Platform                      | File                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------- |
+| **macOS 13+** (Apple Silicon) | `Yosemite Crew PIMS-<version>-mac-arm64.dmg`                              |
+| **Windows 10+**               | `Yosemite Crew PIMS-<version>-win-x64-setup.exe` (or the portable `.exe`) |
+| **Linux**                     | Not published yet - [build from source](#-build-from-source)              |
 
 - **macOS** - open the `.dmg`, drag the app to Applications. Builds are **signed with a Developer ID and notarized by Apple**, so Gatekeeper opens them without warnings.
 - **Windows** - run the installer. Builds are **code-signed via Azure Artifact Signing** (publisher: _DuneXploration UG (haftungsbeschränkt)_). A brand-new certificate accrues SmartScreen reputation over time; if you see a "not commonly downloaded" prompt early on, choose **More info → Run anyway**.
 
 The app **updates itself** after install - no need to re-download for new versions.
+
+## 💻 Supported platforms
+
+| Platform | Minimum      | Architecture          | Shipped in releases                          |
+| -------- | ------------ | --------------------- | -------------------------------------------- |
+| macOS    | 13 Ventura   | Apple Silicon (arm64) | Yes - `.dmg` and `.zip`                      |
+| Windows  | 10           | x64                   | Yes - installer and portable `.exe`          |
+| Linux    | Not declared | x64                   | No - `desktop:dist:linux` (AppImage, `.deb`) |
+
+- **macOS 13 is Electron 44's floor** - the `Electron.app` it ships already declares `LSMinimumSystemVersion` 13.0. `build.mac.minimumSystemVersion` in `package.json` writes it into the app's `Info.plist` as `LSMinimumSystemVersion`, so macOS 12 Monterey and older refuse to open the app with a system message instead of it crashing at launch.
+- **Apple Silicon only** because the release workflow (`.github/workflows/desktop-release.yml`) builds on an arm64 `macos-14` runner and `build.mac` sets no `arch`, so electron-builder packages the runner's architecture. Intel Macs are not covered by release builds.
+- **Recorded against Electron 44.1.1.** Moving from Electron 43 to 44 raised the macOS floor from 12 Monterey to 13 Ventura and dropped the `win32-ia32` and `linux-armv7l` prebuilts, so 32-bit Windows and 32-bit ARM Linux cannot be built at all. None of the targets above used them.
+- **On the next Electron major**, read `LSMinimumSystemVersion` from the new `Electron.app/Contents/Info.plist` and its release notes, then update this table, `build.mac.minimumSystemVersion` and `tests/platform-support.test.ts`. That test fails on a new Electron major until you do, because the configured key overrides Electron's own value and would otherwise keep claiming the old floor.
 
 ## 🚀 Build from source
 
