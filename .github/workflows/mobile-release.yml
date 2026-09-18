@@ -277,6 +277,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Gemfile pins cocoapods/xcodeproj/activesupport/concurrent-ruby ranges to
+      # avoid known build failures. Nothing installed through the bundle before
+      # this, so the pins were inert: `pod install` and `gem install xcodeproj`
+      # below resolved against whatever the runner image happened to carry.
+      - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
+        with:
+          working-directory: apps/mobileAppYC
+          bundler-cache: true
+
       - name: Restore untracked config
         env:
           GOOGLE_SERVICE_INFO: ${{ secrets.IOS_GOOGLE_SERVICE_INFO_PLIST }}
@@ -382,7 +391,7 @@ jobs:
         run: |
           attempts=5
           for attempt in $(seq 1 "$attempts"); do
-            if pod install; then
+            if bundle exec pod install; then
               if [ "$attempt" -gt 1 ]; then
                 echo "::notice::pod install recovered on attempt ${attempt}"
               fi
@@ -420,10 +429,7 @@ jobs:
         env:
           DEVELOPMENT_TEAM: '9TZWPYQ45S'
         run: |
-          if ! ruby -rxcodeproj -e 'nil' 2>/dev/null; then
-            gem install xcodeproj --no-document
-          fi
-          ruby "${GITHUB_WORKSPACE}/scripts/ci/ios-manual-signing.rb" \
+          bundle exec ruby "${GITHUB_WORKSPACE}/scripts/ci/ios-manual-signing.rb" \
             mobileAppYC.xcodeproj mobileAppYC Release
 
       - name: Archive and export IPA

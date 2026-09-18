@@ -1,0 +1,50 @@
+name: Mobile Gemfile check
+
+# apps/mobileAppYC/Gemfile pins cocoapods/xcodeproj/activesupport/concurrent-ruby
+# ranges to avoid known build failures (see the comment above those pins, and
+# mobile-release.yml which now installs through this bundle). Nothing
+# validated a change to the Gemfile or its lockfile before this: the earliest
+# feedback was the next tagged release, on a macOS runner, after the signing
+# steps that precede `bundle exec pod install`. This resolves the bundle on
+# every pull request that touches either file, on ubuntu-latest, so an
+# unresolvable pin or a stale lockfile fails in seconds instead.
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+    paths:
+      - apps/mobileAppYC/Gemfile
+      - apps/mobileAppYC/Gemfile.lock
+
+concurrency:
+  group: mobile-gemfile-check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  bundle-lock:
+    name: Bundle resolves
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ruby/setup-ruby@a0102e0972be65f351c307e2d64b9314a57c8073 # v1.324.0
+        with:
+          working-directory: apps/mobileAppYC
+          bundler-cache: false
+
+      - name: Lockfile matches the Gemfile
+        working-directory: apps/mobileAppYC
+        run: |
+          bundle install
+          git diff --exit-code Gemfile.lock || {
+            echo "::error::Gemfile.lock is stale. Run 'bundle install' in apps/mobileAppYC and commit the result." >&2
+            exit 1
+          }
