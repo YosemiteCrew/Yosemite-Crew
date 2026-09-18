@@ -325,18 +325,20 @@ const describeReplaced = (
   return replaced.length > 0 ? `was ${replaced.join(" ")}` : null;
 };
 
-// Amends the clinical facts on an entry the dispense path wrote. The stock side
-// is untouched: `amountDrawn`, both balances and the linkage keep the values the
-// movement gave them, so a later release still nets against the real draw.
-const amendStockLinkedEntry = async (
-  existing: CsLogRecord,
-  params: UpdateCsLogParams,
-) => {
-  assertOnlyAmendable(params);
+// The tuple an amendment would leave on the row: the amended clinical facts read
+// against the draw and balances the stock movement owns and this path cannot
+// touch.
+const amendedTuple = (existing: CsLogRecord, params: UpdateCsLogParams) => ({
+  amountAdministered: params.amountAdministered ?? existing.amountAdministered,
+  amountWasted: params.amountWasted ?? existing.amountWasted,
+  wastedWitness: params.wastedWitness ?? existing.wastedWitness,
+});
 
-  const amountAdministered =
-    params.amountAdministered ?? existing.amountAdministered;
-  const amountWasted = params.amountWasted ?? existing.amountWasted;
+const assertAmendmentReconciles = (
+  existing: CsLogRecord,
+  tuple: ReturnType<typeof amendedTuple>,
+) => {
+  const { amountAdministered, amountWasted, wastedWitness } = tuple;
 
   // Re-run against the draw the cabinet actually gave out rather than anything
   // the caller supplied - which is what makes freezing `amountDrawn` load-
@@ -372,35 +374,52 @@ const amendStockLinkedEntry = async (
   // that today, and this is not the place to start asserting it everywhere - but
   // this path is the one that turns a machine row claiming no waste into one
   // that records waste, so the witness is required where the waste is created.
-  const wastedWitness = params.wastedWitness ?? existing.wastedWitness;
   if (amountWasted > QUANTITY_TOLERANCE && !wastedWitness) {
     throw new ControlledSubstanceLogError(
       "Recording waste on a controlled substance entry requires a waste witness.",
       400,
     );
   }
+};
 
-  const carried = [describeReplaced(existing, params), params.notes]
+// Successive amendments read as a trail rather than overwriting each other, and
+// the entry's own note survives at the end.
+const buildAmendmentNote = (
+  existing: CsLogRecord,
+  params: UpdateCsLogParams,
+) => {
+  const carried = [
+    describeReplaced(existing, params),
+    params.notes,
+    existing.notes,
+  ]
     .filter((part): part is string => Boolean(part))
     .join(" ");
+  return buildLedgerNote(
+    amendmentMarker(existing.id),
+    params.correctionReason,
+    carried || null,
+  );
+};
+
+// Amends the clinical facts on an entry the dispense path wrote. The stock side
+// is untouched: `amountDrawn`, both balances and the linkage keep the values the
+// movement gave them, so a later release still nets against the real draw.
+const amendStockLinkedEntry = async (
+  existing: CsLogRecord,
+  params: UpdateCsLogParams,
+) => {
+  assertOnlyAmendable(params);
+  const tuple = amendedTuple(existing, params);
+  assertAmendmentReconciles(existing, tuple);
 
   const amended = await prisma.controlledSubstanceLog.update({
     where: { id: existing.id },
     data: {
       patientId: params.patientId ?? existing.patientId,
-      amountAdministered,
-      amountWasted,
-      wastedWitness,
+      ...tuple,
       administeredBy: params.administeredBy ?? existing.administeredBy,
-      // Prepended, so successive amendments read as a trail rather than
-      // overwriting each other, and the entry's own note survives at the end.
-      notes: buildLedgerNote(
-        amendmentMarker(existing.id),
-        params.correctionReason,
-        [carried, existing.notes]
-          .filter((part): part is string => Boolean(part))
-          .join(" ") || null,
-      ),
+      notes: buildAmendmentNote(existing, params),
     },
     select: csLogSelect,
   });
@@ -417,16 +436,18 @@ const amendStockLinkedEntry = async (
       null,
     entityType: "COMPANION",
     entityId: amended.id,
+    // No `reason`: it is free text from the request and can carry patient detail,
+    // and it is already on the entry itself behind the amendment marker. The
+    // audit event does not need a second independent copy of it.
     metadata: {
       action: "AMENDMENT",
       amendedEntryId: existing.id,
       sourceEventId: existing.sourceEventId,
       drug: existing.drug,
       deaSchedule: existing.deaSchedule,
-      amountAdministered,
-      amountWasted,
+      amountAdministered: tuple.amountAdministered,
+      amountWasted: tuple.amountWasted,
       unit: existing.unit,
-      ...(params.correctionReason ? { reason: params.correctionReason } : {}),
     },
   });
 
