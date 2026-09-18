@@ -14,6 +14,9 @@ struct AddCareTaskIntent: AppIntent {
     "Opens a new care task or medication reminder, ready to confirm."
   )
   static var openAppWhenRun: Bool = true
+  /// Resolving the pet parameter reads pet names, and the app opens anyway,
+  /// so the hand-offs ask for an unlocked device as the read intents do.
+  static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
   @Parameter(title: "Pet")
   var pet: PetEntity?
@@ -46,6 +49,7 @@ struct BookAppointmentIntent: AppIntent {
     "Opens clinic search to book a vet or grooming appointment."
   )
   static var openAppWhenRun: Bool = true
+  static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
   @Parameter(title: "Pet")
   var pet: PetEntity?
@@ -74,6 +78,7 @@ struct LogExpenseIntent: AppIntent {
     "Opens a new expense record for a pet, ready to confirm."
   )
   static var openAppWhenRun: Bool = true
+  static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
   @Parameter(title: "Pet")
   var pet: PetEntity?
