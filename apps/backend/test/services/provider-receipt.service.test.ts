@@ -49,7 +49,7 @@ const capture = (overrides: Record<string, unknown> = {}) => ({
 });
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  jest.resetAllMocks();
 });
 
 describe("initialReceiptStatus", () => {
@@ -377,7 +377,7 @@ describe("attribution on a later delivery", () => {
         status: "UNATTRIBUTED",
         organisationId: null,
       })
-      .mockResolvedValueOnce({ status: "ALLOCATED" });
+      .mockResolvedValueOnce({ status: "ALLOCATED", organisationId: "org-9" });
     mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 0 });
 
     const result = await ProviderReceiptService.journalCapture(
@@ -385,10 +385,112 @@ describe("attribution on a later delivery", () => {
     );
 
     expect(result?.status).toBe("ALLOCATED");
+    // organisationId is in the re-read on purpose. A lost swap has two causes
+    // now - another delivery attributed it, or a refund moved the status - and
+    // the status alone cannot tell them apart.
     expect(mockedPrisma.providerReceipt.findUnique).toHaveBeenLastCalledWith({
       where: { id: "receipt-1" },
-      select: { status: true },
+      select: { status: true, organisationId: true },
     });
+    expect(mockedLogger.warn).not.toHaveBeenCalled();
+  });
+
+  it("retries the attribution when a refund moved the row under it", async () => {
+    /*
+     * A lost swap used to have one cause - another delivery attributed the
+     * receipt, which leaves nothing to do. A refund changing the status is a
+     * second, and it would silently drop an owner this delivery was holding.
+     */
+    mockedPrisma.providerReceipt.create.mockRejectedValue(uniqueViolation());
+    mockedPrisma.providerReceipt.findUnique
+      .mockResolvedValueOnce({
+        id: "receipt-1",
+        status: "UNATTRIBUTED",
+        organisationId: null,
+      })
+      .mockResolvedValueOnce({
+        status: "PARTIALLY_REFUNDED",
+        organisationId: null,
+      });
+    mockedPrisma.providerReceipt.updateMany
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 1 });
+
+    const result = await ProviderReceiptService.journalCapture(
+      capture({ organisationId: "org-1", invoiceId: "inv-1" }),
+    );
+
+    expect(result?.status).toBe("PARTIALLY_REFUNDED");
+    // The second attempt swaps against the state it just read, not the stale
+    // one it started from, and still carries the refund through.
+    const [{ where, data }] =
+      mockedPrisma.providerReceipt.updateMany.mock.calls[1];
+    expect(where).toEqual({
+      id: "receipt-1",
+      organisationId: null,
+      status: "PARTIALLY_REFUNDED",
+    });
+    expect(data).toMatchObject({ organisationId: "org-1" });
+    expect(data.status).toBe("PARTIALLY_REFUNDED");
+    expect(mockedLogger.warn).not.toHaveBeenCalled();
+  });
+
+  it("gives up after a bounded number of attempts rather than spinning", async () => {
+    // A journal write on a webhook has no business retrying forever, and an
+    // attribution this delivery could not land is not something to swallow.
+    mockedPrisma.providerReceipt.create.mockRejectedValue(uniqueViolation());
+    mockedPrisma.providerReceipt.findUnique
+      .mockResolvedValueOnce({
+        id: "receipt-1",
+        status: "UNATTRIBUTED",
+        organisationId: null,
+      })
+      .mockResolvedValue({
+        status: "PARTIALLY_REFUNDED",
+        organisationId: null,
+      });
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 0 });
+
+    const result = await ProviderReceiptService.journalCapture(
+      capture({ organisationId: "org-1" }),
+    );
+
+    expect(mockedPrisma.providerReceipt.updateMany).toHaveBeenCalledTimes(2);
+    expect(result?.status).toBe("PARTIALLY_REFUNDED");
+    expect(mockedLogger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("still unattributed"),
+    );
+  });
+
+  it("does not warn when the race was lost to another delivery attributing it", async () => {
+    // The benign cause, and the ordinary way the loop ends. Warning here would
+    // invent an alarm on a normal race.
+    mockedPrisma.providerReceipt.create.mockRejectedValue(uniqueViolation());
+    mockedPrisma.providerReceipt.findUnique
+      .mockResolvedValueOnce({
+        id: "receipt-1",
+        status: "UNATTRIBUTED",
+        organisationId: null,
+      })
+      .mockResolvedValueOnce({
+        status: "UNALLOCATED",
+        organisationId: null,
+      })
+      .mockResolvedValueOnce({
+        status: "ALLOCATED",
+        organisationId: "org-9",
+      });
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 0 });
+
+    const result = await ProviderReceiptService.journalCapture(
+      capture({ organisationId: "org-1" }),
+    );
+
+    // Both attempts are spent, so the owner arrives on the LAST re-read - the
+    // point at which the loop condition is no longer consulted.
+    expect(mockedPrisma.providerReceipt.updateMany).toHaveBeenCalledTimes(2);
+    expect(result?.status).toBe("ALLOCATED");
+    expect(mockedLogger.warn).not.toHaveBeenCalled();
   });
 
   it("does not invent a status when the lost race leaves nothing to re-read", async () => {
