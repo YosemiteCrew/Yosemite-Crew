@@ -31,6 +31,12 @@
   const previewDel = el('previewDel');
   const previewClose = el('previewClose');
 
+  // The reveal button opens the host's file manager, so it has to name the one
+  // the user has: Finder only exists on macOS.
+  previewReveal.textContent = globalThis.ycPlatformLabels.revealLabel(
+    globalThis.ycPlatformLabels.detectPlatform(yc, navigator.userAgent)
+  );
+
   const formatBytes = function (b) {
     if (b < 1024) return b + ' B';
     if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';

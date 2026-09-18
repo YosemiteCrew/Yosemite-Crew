@@ -260,7 +260,8 @@
           id="search-tabs-btn"
           class="tab-action-btn"
           aria-label="Search tabs"
-          title="Search tabs (Shift+Cmd+Y)"
+          data-shortcut-title="Search tabs"
+          data-shortcut="Mod+Shift+Y"
         >
           ⌕
         </button>
@@ -268,7 +269,8 @@
           id="new-tab-btn"
           class="tab-action-btn"
           aria-label="New tab"
-          title="New tab (Cmd+T)"
+          data-shortcut-title="New tab"
+          data-shortcut="Mod+T"
         >
           +
         </button>
@@ -323,64 +325,79 @@
           <div class="cs-group">
             <div class="cs-group-title">Tabs</div>
             <div class="cs-row">
-              <span class="cs-key">⌘T</span><span class="cs-desc">New tab</span>
+              <span class="cs-key" data-shortcut="Mod+T"></span><span class="cs-desc">New tab</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘W</span><span class="cs-desc">Close tab</span>
+              <span class="cs-key" data-shortcut="Mod+W"></span
+              ><span class="cs-desc">Close tab</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘⇧T</span><span class="cs-desc">Reopen closed tab</span>
+              <span class="cs-key" data-shortcut="Mod+Shift+T"></span
+              ><span class="cs-desc">Reopen closed tab</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘⇧Y</span><span class="cs-desc">Search tabs</span>
+              <span class="cs-key" data-shortcut="Mod+Shift+Y"></span
+              ><span class="cs-desc">Search tabs</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘1-9</span><span class="cs-desc">Jump to tab</span>
+              <span class="cs-key" data-shortcut="Mod+1-9"></span
+              ><span class="cs-desc">Jump to tab</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘⇧E</span><span class="cs-desc">Toggle vertical tabs</span>
+              <span class="cs-key" data-shortcut="Mod+Shift+E"></span
+              ><span class="cs-desc">Toggle vertical tabs</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘⇧\</span><span class="cs-desc">Split view</span>
+              <span class="cs-key" data-shortcut="Mod+Shift+\"></span
+              ><span class="cs-desc">Split view</span>
             </div>
           </div>
           <div class="cs-group">
             <div class="cs-group-title">Navigation</div>
             <div class="cs-row">
-              <span class="cs-key">⌘⇧H</span><span class="cs-desc">Home</span>
+              <span class="cs-key" data-shortcut="Mod+Shift+H"></span
+              ><span class="cs-desc">Home</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘⇧B</span><span class="cs-desc">Open in browser</span>
+              <span class="cs-key" data-shortcut="Mod+Shift+B"></span
+              ><span class="cs-desc">Open in browser</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘K</span><span class="cs-desc">Command palette</span>
+              <span class="cs-key" data-shortcut="Mod+K"></span
+              ><span class="cs-desc">Command palette</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘F</span><span class="cs-desc">Find in page</span>
+              <span class="cs-key" data-shortcut="Mod+F"></span
+              ><span class="cs-desc">Find in page</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘G</span><span class="cs-desc">Find next</span>
+              <span class="cs-key" data-shortcut="Mod+G"></span
+              ><span class="cs-desc">Find next</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘⇧G</span><span class="cs-desc">Find previous</span>
+              <span class="cs-key" data-shortcut="Mod+Shift+G"></span
+              ><span class="cs-desc">Find previous</span>
             </div>
           </div>
           <div class="cs-group">
             <div class="cs-group-title">Window</div>
             <div class="cs-row">
-              <span class="cs-key">⌘P</span><span class="cs-desc">Print</span>
+              <span class="cs-key" data-shortcut="Mod+P"></span><span class="cs-desc">Print</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘,</span><span class="cs-desc">Preferences</span>
+              <span class="cs-key" data-shortcut="Mod+,"></span
+              ><span class="cs-desc">Preferences</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘/</span><span class="cs-desc">Keyboard shortcuts</span>
+              <span class="cs-key" data-shortcut="Mod+/"></span
+              ><span class="cs-desc">Keyboard shortcuts</span>
             </div>
           </div>
         </div>
       </dialog>
     </div>
 
+    <script src="platform-labels.js"></script>
     <script>
       const tabStrip = document.getElementById('tab-strip');
       const newTabBtn = document.getElementById('new-tab-btn');
@@ -391,9 +408,28 @@
       let dragSrcId = null;
       let dragDropped = false;
 
+      // One reading of the host for every platform-dependent label and layout
+      // decision on this page: the preload's value when it is there, the user
+      // agent only as a fallback.
+      const platform = ycPlatformLabels.detectPlatform(yc, navigator.userAgent);
+      const isMac = platform === 'darwin';
+
       // Leave room for the macOS traffic-light buttons so tabs don't sit under them.
-      if (navigator.userAgent.includes('Macintosh')) {
+      if (isMac) {
         document.getElementById('tabbar').style.paddingLeft = '78px';
+      }
+
+      // Windows and Linux have neither the Command key nor its glyph, so the
+      // tab-bar tooltips and the cheat sheet are written as neutral
+      // accelerators in the markup and named for the host here.
+      for (const el of document.querySelectorAll('[data-shortcut]')) {
+        const prefix = el.dataset.shortcutTitle;
+        if (prefix) {
+          const named = ycPlatformLabels.shortcut(el.dataset.shortcut, platform, 'name');
+          el.title = prefix + ' (' + named + ')';
+        } else {
+          el.textContent = ycPlatformLabels.shortcut(el.dataset.shortcut, platform, 'symbol');
+        }
       }
 
       const send = (method, ...args) => {
@@ -900,7 +936,7 @@
 
       // Windows / Linux frameless window: surface caption controls (macOS uses
       // native traffic lights). Fire-and-forget to the main process.
-      if (!navigator.userAgent.includes('Macintosh')) {
+      if (!isMac) {
         const cap = document.getElementById('win-caption');
         if (cap) cap.style.display = 'flex';
         const minBtn = document.getElementById('win-min');

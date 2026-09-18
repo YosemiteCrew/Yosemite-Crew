@@ -4,6 +4,10 @@
     "rootDir": ".",
     "noEmit": true,
     "sourceMap": true,
+    // tests/platform-labels.test.ts imports src/pages/platform-labels.js, which
+    // is a plain browser script (the local pages load it over file://), so the
+    // program has to accept a .js file. Without this the import is TS7016.
+    "allowJs": true,
     "types": ["node", "jest"]
   },
   "include": ["tests/**/*.ts", "src/**/*.ts"]
