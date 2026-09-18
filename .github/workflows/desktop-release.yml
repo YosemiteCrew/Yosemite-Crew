@@ -254,6 +254,8 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: write
+    outputs:
+      min_system_version: ${{ steps.stamp.outputs.min_system_version }}
     # Same protected `release` environment gate for the Apple signing/notarization secrets.
     environment: release
     steps:
@@ -317,6 +319,48 @@ jobs:
           # -print0/-0 because the bundle name contains spaces.
           find dist -maxdepth 2 -type d -name '*.app' -print0 \
             | xargs -0 node scripts/verify-macos-signature.js
+
+      # electron-builder has no setting for this. `mac.minimumSystemVersion` reaches
+      # Info.plist and .pkg requirements only (app-builder-lib out/targets/pkg.js),
+      # never the update feed, so the latest-mac.yml it just published says nothing
+      # about the OS floor. A macOS 12 client still on an Electron 43 build is then
+      # offered a Ventura-only release, installs it, and is left with an app macOS
+      # refuses to open - see issue #3280.
+      #
+      # electron-updater already has the guard and only needs the value: AppUpdater
+      # `checkIfUpdateSupported` drops a release whose feed declares a
+      # `minimumSystemVersion` above `os.release()`, before `update-available` fires,
+      # so nothing downloads. On macOS `os.release()` is the Darwin kernel version,
+      # which is why the script translates 13.0 to 22.0.0 rather than copying it.
+      - name: Stamp the macOS update feed with the OS floor
+        id: stamp
+        working-directory: apps/desktop
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/stamp-update-feed-min-os.js dist/latest-mac.yml
+          # Read the value back out of the file rather than recomputing it, so the
+          # publish job checks what was actually written.
+          VALUE=$(sed -n 's/^minimumSystemVersion: //p' dist/latest-mac.yml)
+          if [ -z "$VALUE" ]; then
+            echo "::error::latest-mac.yml has no minimumSystemVersion after stamping."
+            exit 1
+          fi
+          echo "min_system_version=${VALUE}" >> "$GITHUB_OUTPUT"
+
+      # On a tag the build step ran `--publish always`, so the UNSTAMPED feed is
+      # already attached to the release. That release is still a draft and invisible
+      # to clients until the publish job flips it, so this overwrite is the only
+      # version of the feed anyone ever resolves. On workflow_dispatch nothing has
+      # been published yet and the stamped file reaches the release through the
+      # artifact uploaded below.
+      - name: Replace the published feed with the stamped one
+        if: github.event_name == 'push'
+        working-directory: apps/desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "$TAG" dist/latest-mac.yml --repo "$GITHUB_REPOSITORY" --clobber
 
       - name: Upload signed macOS artifacts
         if: always()
@@ -388,6 +432,31 @@ jobs:
           echo "::error::No completed Supply Chain run for ${SHA} after 25 minutes; refusing to publish the release."
           exit 1
 
+      # `gh release upload --clobber` deletes the existing asset before uploading the
+      # replacement, so a failed upload leaves the draft with no feed at all - which
+      # would break updates for everyone rather than only the clients below the floor.
+      # Nothing downstream would notice, because the flip to public does not read the
+      # assets. Check the feed the release actually carries before making it visible.
+      - name: The draft must carry the stamped macOS feed
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          EXPECTED: ${{ needs.macos.outputs.min_system_version }}
+        run: |
+          set -euo pipefail
+          if [ -z "$EXPECTED" ]; then
+            echo "::error::The macOS job reported no OS floor, so the feed cannot be checked."
+            exit 1
+          fi
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern latest-mac.yml --dir feed
+          ACTUAL=$(sed -n 's/^minimumSystemVersion: //p' feed/latest-mac.yml)
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::latest-mac.yml on ${TAG} declares minimumSystemVersion '${ACTUAL}', expected '${EXPECTED}'."
+            exit 1
+          fi
+          echo "latest-mac.yml on ${TAG} declares minimumSystemVersion ${ACTUAL}."
+
       - name: Publish the release
         shell: bash
         env:
@@ -430,6 +499,11 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
+      # No equivalent of the publish job's minimumSystemVersion guard here, and that
+      # is deliberate: the tag below is not valid semver, so electron-updater's
+      # GitHub provider never resolves this release and no client is offered it.
+      # If the prefix is ever changed to a resolvable tag, this job needs the same
+      # guard the publish job has - the reason it is safe to omit is the tag name.
       - name: Create draft GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
