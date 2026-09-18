@@ -18,6 +18,7 @@ import {
   toStripeMinorUnits,
 } from "src/utils/stripe-minor-units";
 import { markInvoiceTreatmentItemsSettled } from "./settlement";
+import { STRIPE_PINNED_API_VERSION } from "src/config/stripe-api-version";
 
 type PaymentLineSummary = {
   id: string;
@@ -1038,7 +1039,7 @@ const getStripeClient = (): StripeCheckoutSessionClient => {
   }
 
   stripeClient = new Stripe(apiKey, {
-    apiVersion: "2026-07-29.dahlia" as Stripe.LatestApiVersion,
+    apiVersion: STRIPE_PINNED_API_VERSION,
   }) as unknown as StripeCheckoutSessionClient;
 
   return stripeClient;
