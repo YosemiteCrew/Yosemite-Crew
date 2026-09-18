@@ -117,21 +117,126 @@ export type ListDueCareRemindersOptions = {
 };
 
 /**
- * Open care reminders for the parent's companions, soonest due first.
+ * One page of open reminders for these companions, in due-date order.
  *
- * Ordering is `(dueDate, id)` ascending, not newest-first. Overdue items have
+ * Ordering is `(dueDate, id)` ascending, not newest-first. Overdue items carry
  * the earliest due dates, so they sort to the top on the reminder's own
- * schedule - which is the distinction the issue asks for, and it is drawn from
- * `dueDate` rather than from `status`/`sentAt`, so a reminder nobody managed to
- * deliver still reads as overdue.
+ * schedule - which is the distinction #2705 asks for.
  *
- * `overdue` is a strict instant comparison against one `now` captured for the
- * whole page, so two rows either side of the request cannot disagree about what
- * time it is. It is an INSTANT, not a local calendar day: a reminder due at
- * midnight UTC flips to overdue at midnight UTC, which is the previous evening
- * for a caller west of it. `dueDate` is returned in full so the client renders
- * the local-day wording from the device's own zone - deliberately not computed
- * here, where the caller's zone is not known.
+ * The next page is an exclusive comparison in the `where`, not Prisma's
+ * `cursor` + `skip: 1`. The pair looks equivalent and is not: `skip` is an
+ * OFFSET on the filtered result, so once the cursor row leaves the filter -
+ * which happens here the moment the practice cancels a reminder or marks it
+ * responded - the OFFSET eats a legitimate row instead, and `hasMore: false`
+ * then claims the list was complete. This form is exclusive by construction.
+ *
+ * The cursor is a position, never an access grant: `patientIds` is rebuilt
+ * from the parent's links on every page by the caller, so a cursor lifted from
+ * another parent's response moves the window and widens nothing.
+ *
+ * Splitting happens here rather than after mapping, so the cursor is the last
+ * row the query returned for this page rather than the last row that survived
+ * the mapping. A row dropped as unmappable would otherwise be handed back as
+ * the next page's starting point and re-dropped forever.
+ */
+const readOpenReminderPage = async (
+  patientIds: string[],
+  limit: number,
+  cursor?: CareReminderCursor,
+) => {
+  const rows = await prisma.careReminder.findMany({
+    where: {
+      patientId: { in: patientIds },
+      status: { in: OPEN_REMINDER_STATUSES },
+      ...(cursor
+        ? {
+            OR: [
+              { dueDate: { gt: cursor.dueDate } },
+              { dueDate: cursor.dueDate, id: { gt: cursor.id } },
+            ],
+          }
+        : {}),
+    },
+    select: {
+      id: true,
+      patientId: true,
+      organisationId: true,
+      reminderType: true,
+      customMessage: true,
+      dueDate: true,
+      status: true,
+      sentAt: true,
+      // `notes` and `createdBy` are deliberately absent. Neither reaches the
+      // parent on the send path: `notes` is the practice's own working text
+      // and `createdBy` is a staff id.
+    },
+    orderBy: [{ dueDate: "asc" }, { id: "asc" }],
+    take: limit + 1,
+  });
+
+  return splitPage(rows, limit, (row) =>
+    encodeCareReminderCursor({ dueDate: row.dueDate, id: row.id }),
+  );
+};
+
+type OpenReminderRow = Awaited<
+  ReturnType<typeof readOpenReminderPage>
+>["items"][number];
+
+/**
+ * Companion names for the rows on this page.
+ *
+ * A second read rather than an `include`, because `CareReminder` has no
+ * relation to `Patient`. Deduplicated first: two reminders on one animal must
+ * not ask twice.
+ */
+const loadCompanionNames = async (
+  rows: OpenReminderRow[],
+): Promise<Map<string, string>> => {
+  const patients = await prisma.patient.findMany({
+    where: { id: { in: [...new Set(rows.map((row) => row.patientId))] } },
+    select: { id: true, name: true },
+  });
+  return new Map(patients.map((patient) => [patient.id, patient.name]));
+};
+
+/**
+ * `overdue` is a strict instant comparison against a `now` captured once for
+ * the whole page, so two rows either side of the request cannot disagree about
+ * what time it is.
+ *
+ * It is an INSTANT, not a local calendar day: a reminder due at midnight UTC
+ * flips to overdue at midnight UTC, which is the previous evening for a caller
+ * west of it. `dueDate` goes out in full so the client renders the local-day
+ * wording from the device's own zone - deliberately not computed here, where
+ * the caller's zone is not known.
+ *
+ * Drawn from `dueDate` rather than from `status`/`sentAt`, so a reminder nobody
+ * managed to deliver still reads as overdue.
+ */
+const toMobileCareReminder = (
+  row: OpenReminderRow,
+  patientName: string,
+  now: Date,
+): MobileCareReminder => ({
+  id: row.id,
+  patientId: row.patientId,
+  patientName,
+  organisationId: row.organisationId,
+  reminderType: row.reminderType,
+  message: buildCareReminderMessage({
+    customMessage: row.customMessage,
+    patientName,
+    reminderType: row.reminderType,
+  }),
+  dueDate: row.dueDate.toISOString(),
+  overdue: row.dueDate.getTime() < now.getTime(),
+  status: row.status,
+  sentAt: row.sentAt?.toISOString(),
+});
+
+/**
+ * Open care reminders for the parent's companions, soonest due first.
  *
  * `CareReminderOptOut` is NOT consulted, and that is the product decision the
  * issue asked to be made on purpose rather than by accident. An opt-out is an
@@ -161,72 +266,16 @@ export const listDueCareRemindersForParent = async (
     return empty;
   }
 
-  /*
-   * The next page is an exclusive comparison in the `where`, not Prisma's
-   * `cursor` + `skip: 1`. The pair looks equivalent and is not: `skip` is an
-   * OFFSET on the filtered result, so once the cursor row leaves the filter -
-   * which happens here the moment the practice cancels a reminder or marks it
-   * responded - the OFFSET eats a legitimate row instead, and `hasMore: false`
-   * then claims the list was complete. This form is exclusive by construction.
-   *
-   * The cursor is a position, never an access grant: `patientId: { in: ... }`
-   * is rebuilt from the parent's links on every page, so a cursor lifted from
-   * another parent's response moves the window and widens nothing.
-   */
-  const rows = await prisma.careReminder.findMany({
-    where: {
-      patientId: { in: patientIds },
-      status: { in: OPEN_REMINDER_STATUSES },
-      ...(options.cursor
-        ? {
-            OR: [
-              { dueDate: { gt: options.cursor.dueDate } },
-              {
-                dueDate: options.cursor.dueDate,
-                id: { gt: options.cursor.id },
-              },
-            ],
-          }
-        : {}),
-    },
-    select: {
-      id: true,
-      patientId: true,
-      organisationId: true,
-      reminderType: true,
-      customMessage: true,
-      dueDate: true,
-      status: true,
-      sentAt: true,
-    },
-    orderBy: [{ dueDate: "asc" }, { id: "asc" }],
-    take: limit + 1,
-  });
-
-  /*
-   * Split before mapping, so the cursor is the last row the query returned for
-   * this page rather than the last row that survived the mapping below. A row
-   * dropped as unmappable would otherwise be handed back as the next page's
-   * starting point and re-dropped forever.
-   */
-  const { items, nextCursor, hasMore } = splitPage(rows, limit, (row) =>
-    encodeCareReminderCursor({ dueDate: row.dueDate, id: row.id }),
+  const { items, nextCursor, hasMore } = await readOpenReminderPage(
+    patientIds,
+    limit,
+    options.cursor,
   );
   if (items.length === 0) {
     return { ...empty, nextCursor, hasMore };
   }
 
-  /*
-   * `CareReminder` has no relation to `Patient`, so the name is a second read
-   * rather than an `include`. It is bounded by the parent's own links, not by
-   * the page, because two reminders on one animal must not ask twice.
-   */
-  const patients = await prisma.patient.findMany({
-    where: { id: { in: [...new Set(items.map((row) => row.patientId))] } },
-    select: { id: true, name: true },
-  });
-  const nameByPatient = new Map(patients.map((p) => [p.id, p.name]));
-
+  const nameByPatient = await loadCompanionNames(items);
   const now = options.now ?? new Date();
 
   const reminders = items.flatMap((row) => {
@@ -237,28 +286,7 @@ export const listDueCareRemindersForParent = async (
     if (patientName === undefined) {
       return [];
     }
-
-    return [
-      {
-        id: row.id,
-        patientId: row.patientId,
-        patientName,
-        organisationId: row.organisationId,
-        reminderType: row.reminderType,
-        message: buildCareReminderMessage({
-          customMessage: row.customMessage,
-          patientName,
-          reminderType: row.reminderType,
-        }),
-        dueDate: row.dueDate.toISOString(),
-        overdue: row.dueDate.getTime() < now.getTime(),
-        status: row.status,
-        sentAt: row.sentAt?.toISOString(),
-        // `notes` and `createdBy` are deliberately absent. Neither reaches the
-        // parent on the send path: `notes` is the practice's own working text
-        // and `createdBy` is a staff id.
-      },
-    ];
+    return [toMobileCareReminder(row, patientName, now)];
   });
 
   return { reminders, nextCursor, hasMore, limit };
