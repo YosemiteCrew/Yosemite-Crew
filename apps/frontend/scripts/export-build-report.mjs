@@ -1,18 +1,35 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const MANIFEST_PATH = path.resolve('.next/app-build-manifest.json');
+const NEXT_DIR = path.resolve('.next');
+const APP_BUILD_MANIFEST_PATH = path.join(NEXT_DIR, 'app-build-manifest.json');
+const SERVER_APP_DIR = path.join(NEXT_DIR, 'server', 'app');
 const OUTPUT_DIR = path.resolve('artifacts');
 const OUTPUT_JSON_PATH = path.join(OUTPUT_DIR, 'build-route-report.json');
 const OUTPUT_MARKDOWN_PATH = path.join(OUTPUT_DIR, 'build-route-report.md');
 
+// Two sources, because `app-build-manifest.json` is a webpack-era artefact that
+// Next 16 removed (issue #3266). The fallback is the prerendered documents,
+// whose `<script src>` tags are emitted by the renderer rather than the bundler
+// and so survive the change.
+//
+// Repointing at `build-manifest.json` is NOT a third option: its `pages` keys
+// are pages-router only (`/_app`, `/_error`), none of which ends in `/page`, so
+// the filter yields nothing and the script writes an empty report and exits 0 -
+// a loud failure replaced by a silent one. When neither source is present this
+// script throws instead, and the source it did use is recorded in the report.
+const SOURCE_APP_BUILD_MANIFEST = 'app-build-manifest';
+const SOURCE_PRERENDERED_DOCUMENTS = 'prerendered-documents';
+
 const normalizeRoute = (route) => route.replace(/^app\//, '/').replace(/\/page$/, '') || '/';
+
+const formatKiB = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;
 
 const sumChunkSizes = async (chunkPaths) => {
   const sizes = await Promise.all(
     chunkPaths.map(async (chunkPath) => {
       const normalizedPath = chunkPath.startsWith('/') ? chunkPath.slice(1) : chunkPath;
-      const filePath = path.resolve('.next', normalizedPath);
+      const filePath = path.resolve(NEXT_DIR, normalizedPath);
       const contents = await readFile(filePath);
       return contents.byteLength;
     })
@@ -21,36 +38,138 @@ const sumChunkSizes = async (chunkPaths) => {
   return sizes.reduce((total, size) => total + size, 0);
 };
 
-const formatKiB = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;
+const readJsonIfPresent = async (filePath) => {
+  try {
+    return JSON.parse(await readFile(filePath, 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return null;
+    }
 
-const main = async () => {
-  const manifest = JSON.parse(await readFile(MANIFEST_PATH, 'utf8'));
-  const pages = manifest.pages ?? {};
+    throw error;
+  }
+};
 
-  const routes = await Promise.all(
-    Object.entries(pages)
-      .filter(([route]) => route.endsWith('/page'))
-      .map(async ([route, chunks]) => {
-        const jsChunks = chunks.filter((chunkPath) => chunkPath.endsWith('.js'));
-        const totalBytes = await sumChunkSizes(jsChunks);
-        return {
-          route: normalizeRoute(route),
-          jsChunkCount: jsChunks.length,
-          totalBytes,
-          totalKiB: Number((totalBytes / 1024).toFixed(1)),
-        };
-      })
+const walkHtml = async (dir) => {
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return [];
+    }
+
+    throw error;
+  }
+
+  const found = await Promise.all(
+    entries.map(async (entry) => {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        return walkHtml(fullPath);
+      }
+
+      return entry.isFile() && entry.name.endsWith('.html') ? [fullPath] : [];
+    })
   );
 
-  const sortedRoutes = routes.sort((left, right) => right.totalBytes - left.totalBytes);
+  return found.flat();
+};
+
+const fromAppBuildManifest = async () => {
+  const manifest = await readJsonIfPresent(APP_BUILD_MANIFEST_PATH);
+  if (!manifest) {
+    return null;
+  }
+
+  const entries = Object.entries(manifest.pages ?? {}).filter(([route]) => route.endsWith('/page'));
+  if (!entries.length) {
+    return null;
+  }
+
+  const routes = await Promise.all(
+    entries.map(async ([route, chunks]) => {
+      const jsChunks = chunks.filter((chunkPath) => chunkPath.endsWith('.js'));
+      return {
+        route: normalizeRoute(route),
+        jsChunkCount: jsChunks.length,
+        totalBytes: await sumChunkSizes(jsChunks),
+      };
+    })
+  );
+
+  return { source: SOURCE_APP_BUILD_MANIFEST, routes };
+};
+
+const SCRIPT_SRC_PATTERN = /<script[^>]*\ssrc="([^"]+)"/gi;
+
+/**
+ * Dynamic segments reach the HTML percent-encoded (`%5B%5B...slug%5D%5D`) while
+ * the file on disk keeps its literal brackets, so the src has to be decoded
+ * before it can be read as a path.
+ */
+const toAssetPath = (src) => {
+  const [, assetPath] = src.split('/_next/');
+  return assetPath ? decodeURIComponent(assetPath) : undefined;
+};
+
+const routeFromDocument = (documentPath) => {
+  const relative = path.relative(SERVER_APP_DIR, documentPath).replaceAll(path.sep, '/');
+  const withoutExtension = relative.slice(0, -'.html'.length).replace(/(^|\/)index$/, '');
+  return normalizeRoute(withoutExtension ? `/${withoutExtension}` : '');
+};
+
+const fromPrerenderedDocuments = async () => {
+  const documents = await walkHtml(SERVER_APP_DIR);
+  if (!documents.length) {
+    return null;
+  }
+
+  const routes = await Promise.all(
+    documents.map(async (documentPath) => {
+      const html = await readFile(documentPath, 'utf8');
+      const jsChunks = [...html.matchAll(SCRIPT_SRC_PATTERN)]
+        .map(([, src]) => toAssetPath(src))
+        .filter((assetPath) => assetPath?.endsWith('.js'));
+      const unique = [...new Set(jsChunks)];
+
+      return {
+        route: routeFromDocument(documentPath),
+        jsChunkCount: unique.length,
+        totalBytes: await sumChunkSizes(unique),
+      };
+    })
+  );
+
+  return { source: SOURCE_PRERENDERED_DOCUMENTS, routes };
+};
+
+const main = async () => {
+  const report = (await fromAppBuildManifest()) ?? (await fromPrerenderedDocuments());
+  if (!report) {
+    throw new Error(
+      `No route source found. Looked for ${path.relative(process.cwd(), APP_BUILD_MANIFEST_PATH)} (removed in Next 16) and prerendered documents under ${path.relative(process.cwd(), SERVER_APP_DIR)}. Run a production build first; do not repoint this at build-manifest.json, which is pages-router only and would report zero routes as a success.`
+    );
+  }
+
+  const sortedRoutes = report.routes
+    .map((route) => ({ ...route, totalKiB: Number((route.totalBytes / 1024).toFixed(1)) }))
+    .sort((left, right) => right.totalBytes - left.totalBytes);
+
   await mkdir(OUTPUT_DIR, { recursive: true });
   await writeFile(
     OUTPUT_JSON_PATH,
-    JSON.stringify({ generatedAt: new Date().toISOString(), routes: sortedRoutes }, null, 2)
+    JSON.stringify(
+      { generatedAt: new Date().toISOString(), source: report.source, routes: sortedRoutes },
+      null,
+      2
+    )
   );
 
   const markdownLines = [
     '# Frontend Build Route Report',
+    '',
+    `Source: \`${report.source}\` (${sortedRoutes.length} routes)`,
     '',
     '| Route | JS chunks | Total JS |',
     '| --- | ---: | ---: |',
@@ -61,7 +180,9 @@ const main = async () => {
   ];
   await writeFile(OUTPUT_MARKDOWN_PATH, markdownLines.join('\n'));
 
-  console.log(`Wrote route build reports to ${path.relative(process.cwd(), OUTPUT_DIR)}`);
+  console.log(
+    `Wrote route build reports for ${sortedRoutes.length} routes from ${report.source} to ${path.relative(process.cwd(), OUTPUT_DIR)}`
+  );
 };
 
 main().catch((error) => {
