@@ -7,13 +7,19 @@ const { flipFuses, FuseVersion, FuseV1Options } = require('@electron/fuses');
 
 const getExecutablePath = (context) => {
   const productFilename = context.packager.appInfo.productFilename;
-  if (context.electronPlatformName === 'darwin') {
+  if (context.electronPlatformName === 'darwin' || context.electronPlatformName === 'mas') {
     return path.join(context.appOutDir, `${productFilename}.app`);
   }
   if (context.electronPlatformName === 'win32') {
     return path.join(context.appOutDir, `${productFilename}.exe`);
   }
-  return path.join(context.appOutDir, productFilename);
+  // Linux. electron-builder renames the unpacked binary to the Linux packager's
+  // `executableName`, which defaults from the package `name`, NOT from `productName` -
+  // see ElectronFramework.beforeCopyExtraFiles and LinuxPackager's constructor. That
+  // makes it a different string from `productFilename`, so reading productFilename here
+  // pointed at a file the packer never wrote and @electron/fuses aborted the build with
+  // ENOENT. This mirrors app-builder-lib's own PlatformPackager.addElectronFuses.
+  return path.join(context.appOutDir, context.packager.executableName);
 };
 
 const patchMacInfoPlist = (context) => {
