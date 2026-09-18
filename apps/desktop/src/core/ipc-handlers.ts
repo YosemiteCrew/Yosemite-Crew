@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain, net, shell } from 'electron';
 import { createIpcRegistry } from './ipc';
+import type { RetryContents } from '../shell/offline-retry';
 import { classifyNavigation, deepLinkToUrl, type getDesktopConfig } from './navigation-policy';
 import { openExternal, secureWebPreferences } from '../shell/window-config';
 import { applyThemeToWebContents, DEFAULT_ACCENT_COLOR } from '../ui/theming';
@@ -51,6 +52,11 @@ export interface IpcServices {
   mainWindow: BrowserWindow | null;
   activeContents: () => Electron.WebContents | null;
   loadStartUrl: () => void;
+  // Reload the page whose load failed, in the webContents that failed it.
+  retryOfflineLoad: (sender: RetryContents) => void;
+  // The page a given webContents last failed to load, or the start URL when it
+  // has not failed one (the welcome screen's "open in browser").
+  offlineTargetFor: (sender: RetryContents) => string;
   enterTabMode: (url: string) => void;
   // Leave tab mode and return to the welcome screen (used when the last tab is
   // closed).
@@ -239,12 +245,16 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     logger: services.logger,
   });
 
-  registry.handle('yc:reload', async () => {
-    services.loadStartUrl();
+  // The offline page's "Try again", its countdown and its `online` listener all
+  // land here, and all three can fire long after the user has moved to another
+  // tab. Act on the SENDER, never on the active tab, and reload the page that
+  // failed rather than the start URL.
+  registry.handle('yc:reload', async (event) => {
+    services.retryOfflineLoad(event.sender);
     return { ok: true };
   });
-  registry.handle('yc:open-in-browser', async () => {
-    await openExternal(services.config.startUrl.href);
+  registry.handle('yc:open-in-browser', async (event) => {
+    await openExternal(services.offlineTargetFor(event.sender));
     return { ok: true };
   });
   registry.handle('yc:start-signin', async () => {

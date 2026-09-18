@@ -100,6 +100,30 @@ const evaluateYcDesktop = async <T>(page: Page, method: string, ...args: unknown
   }
 };
 
+type PaneBounds = { x: number; y: number; width: number; height: number };
+
+// The window's mounted child views, read from the main process. A content pane
+// that is still in `contentView.children` is still drawn and still takes input,
+// whatever the shell's own split state says.
+const mountedContentPanes = async (
+  app: ElectronApplication,
+  chromeStripHeight = 40
+): Promise<PaneBounds[]> => {
+  const bounds = await app.evaluate(({ BrowserWindow }) => {
+    const win = BrowserWindow.getAllWindows()[0];
+    if (!win) return [] as PaneBounds[];
+    return win.contentView.children.map((child) => child.getBounds());
+  });
+  // Everything below the tab strip is a content pane.
+  return bounds.filter((b) => b.y >= chromeStripHeight);
+};
+
+const contentWidth = (app: ElectronApplication): Promise<number> =>
+  app.evaluate(({ BrowserWindow }) => {
+    const win = BrowserWindow.getAllWindows()[0];
+    return win ? win.getContentBounds().width : 0;
+  });
+
 const waitForTabCount = async (page: Page, count: number, timeout = 5000): Promise<void> => {
   await expect
     .poll(
@@ -202,6 +226,41 @@ test.describe('tab E2E', () => {
 
     const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
     expect(state.tabs![2].id).toBe(originalId);
+  });
+
+  // #3287: closing the split only cleared the shell's splitId. The right-hand
+  // view stayed mounted above the primary, so it kept covering half the window
+  // and swallowing the clicks meant for the active tab.
+  test('closing split view gives the whole content area back to the active tab', async () => {
+    await evaluateYcDesktop(page, 'newTab', `${pimsServer.origin}/labs`);
+    await waitForTabCount(page, 2);
+    const full = await contentWidth(app!);
+    expect(full).toBeGreaterThan(0);
+
+    await evaluateYcDesktop(page, 'executeCommand', 'tab:toggle-split');
+    await expect
+      .poll(async () => (await mountedContentPanes(app!)).length, {
+        message: 'Timed out waiting for the split to open',
+      })
+      .toBe(2);
+
+    const split = await mountedContentPanes(app!);
+    const left = split.find((b) => b.x === 0)!;
+    const right = split.find((b) => b.x > 0)!;
+    expect(left.width).toBeLessThan(full);
+    expect(left.x + left.width).toBe(right.x);
+    expect(right.x + right.width).toBe(full);
+
+    await evaluateYcDesktop(page, 'executeCommand', 'tab:toggle-split');
+    await expect
+      .poll(async () => (await mountedContentPanes(app!)).length, {
+        message: 'The closed split view is still mounted over the active tab',
+      })
+      .toBe(1);
+
+    const [only] = await mountedContentPanes(app!);
+    expect(only.x).toBe(0);
+    expect(only.width).toBe(full);
   });
 
   test('pins and unpins a tab', async () => {
