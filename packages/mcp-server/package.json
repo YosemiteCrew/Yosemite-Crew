@@ -29,7 +29,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.26.0",
     "axios": "^1.19.0",
-    "zod": "^4.4.0"
+    "zod": "4.6.0"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

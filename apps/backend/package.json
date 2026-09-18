@@ -67,7 +67,7 @@
     "uuid": "14.0.2",
     "validator": "^13.15.35",
     "winston": "^3.17.0",
-    "zod": "^4.5.4"
+    "zod": "4.6.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
