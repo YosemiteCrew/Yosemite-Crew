@@ -12,6 +12,7 @@ import {
   type InvoiceAccessScope,
 } from "./finance/payment";
 import { FinanceSubscriptionService } from "./finance/subscription";
+import { ProviderReceiptService } from "./finance/provider-receipt";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
 
@@ -104,6 +105,73 @@ const retrieveBookingCharge = async (
   return getStripeClient().charges.retrieve(pi.latest_charge, undefined, {
     ...(connectedAccountId ? { stripeAccount: connectedAccountId } : {}),
   });
+};
+
+/**
+ * Record a captured payment in the provider receipt journal (#3170).
+ *
+ * Called before anything that can fail and again at each exit that learns
+ * more, because the exits are the point: five of them charge the card and mint
+ * no invoice, and `Payment` and `PaymentAttempt` both require an `invoiceId`,
+ * so until now each of those wrote a log line and nothing durable.
+ *
+ * The amount is what the provider says it received. `amount_received` is set
+ * on a succeeded intent; the fall back to `amount` exists so a receipt carries
+ * a real figure rather than a zero if it ever is not, and says which it used.
+ */
+const journalCapture = async (
+  pi: Stripe.PaymentIntent,
+  connectedAccountId: string | undefined,
+  known: {
+    organisationId?: string | null;
+    invoiceId?: string | null;
+    appointmentId?: string | null;
+    reason: string;
+  },
+) => {
+  try {
+    // A money figure with no stated currency is not a figure. Stripe sends
+    // both on a succeeded intent, so this is a malformed event rather than a
+    // shape to accommodate - and recording an amount under a guessed currency
+    // would put a wrong number in a financial journal, which is worse than a
+    // logged gap.
+    const currency = typeof pi.currency === "string" ? pi.currency : null;
+    const received = currency === null ? null : resolveCapturedAmount(pi, null);
+    const amount =
+      received ??
+      (currency !== null && typeof pi.amount === "number"
+        ? fromStripeMinorUnits(pi.amount, currency)
+        : null);
+
+    if (currency === null || amount === null) {
+      logger.error(
+        `Captured payment ${pi.id} states no amount and currency this journal can record; not journalled`,
+      );
+      return null;
+    }
+
+    return await ProviderReceiptService.journalCapture({
+      provider: "STRIPE",
+      merchantAccountRef: connectedAccountId ?? null,
+      paymentRef: pi.id,
+      amount,
+      currency,
+      capturedAt: new Date((pi.created ?? Date.now() / 1000) * 1000),
+      organisationId: known.organisationId ?? null,
+      invoiceId: known.invoiceId ?? null,
+      appointmentId: known.appointmentId ?? null,
+      reason:
+        received === null
+          ? `${known.reason} (provider reported no captured amount; intent amount journalled)`
+          : known.reason,
+    });
+  } catch (error) {
+    // The journal must never be the reason a webhook answers non-2xx: that
+    // buys an endless Stripe retry of an event that cannot succeed, and the
+    // capture has already happened either way.
+    logger.error(`Could not journal captured payment ${pi.id}`, error);
+    return null;
+  }
 };
 
 /** The invoice already bound to this intent, if this delivery is a replay. */
@@ -818,6 +886,18 @@ export const StripeService = {
     connectedAccountId?: string,
   ) {
     const type = pi.metadata?.type;
+
+    // Journalled FIRST, before any lookup that can throw and before any
+    // branch that can return early, so the money is recorded whatever the
+    // rest of this handler does with it. The paths below call it again with
+    // what they learn; it is keyed on the intent, so a second call attributes
+    // the same row rather than writing another.
+    await journalCapture(pi, connectedAccountId, {
+      reason: type
+        ? `captured for ${type}; attribution pending`
+        : "captured with no metadata.type; cannot be routed",
+    });
+
     if (!type) {
       logger.error("payment_intent.succeeded missing metadata.type");
       return;
@@ -872,6 +952,12 @@ export const StripeService = {
       pi.id,
     );
     if (claimedInvoiceId) {
+      await journalCapture(pi, connectedAccountId, {
+        organisationId: appointment.organisationId,
+        appointmentId,
+        invoiceId: claimedInvoiceId,
+        reason: "applied to the appointment's open invoice",
+      });
       await settleAppointmentBookingInvoice({
         invoiceId: claimedInvoiceId,
         appointmentId,
@@ -884,6 +970,12 @@ export const StripeService = {
 
     const serviceId = extractAppointmentTypeId(appointment.appointmentType);
     if (!serviceId) {
+      await journalCapture(pi, connectedAccountId, {
+        organisationId: appointment.organisationId,
+        appointmentId,
+        reason:
+          "captured; the appointment's appointmentType carries no service id, so no invoice was minted",
+      });
       logger.error(
         `Booking payment ${pi.id} succeeded for appointment ${appointmentId}, whose appointmentType carries no service id; no invoice minted`,
       );
@@ -897,6 +989,11 @@ export const StripeService = {
       // Reachable: deleting a speciality hard-deletes its services, and a
       // payment can be in flight across that (3DS, a resumed checkout, a
       // delayed payment method). The card is charged either way.
+      await journalCapture(pi, connectedAccountId, {
+        organisationId: appointment.organisationId,
+        appointmentId,
+        reason: `captured; service ${serviceId} no longer exists, so no invoice was minted`,
+      });
       logger.error(
         `Booking payment ${pi.id} succeeded for appointment ${appointmentId}, but service ${serviceId} no longer exists; no invoice minted`,
       );
@@ -913,7 +1010,26 @@ export const StripeService = {
       service,
       pi,
     });
-    if (!mintedInvoiceId) return;
+    if (!mintedInvoiceId) {
+      // Either this delivery lost a race and the winner settles, or a second
+      // legitimate intent collided with the one-invoice-per-appointment index.
+      // The second case is the representational gap this journal exists for:
+      // the card is charged and no invoice of its own can hold it.
+      await journalCapture(pi, connectedAccountId, {
+        organisationId: appointment.organisationId,
+        appointmentId,
+        reason:
+          "captured; no invoice could be minted for this intent (lost race, or a second intent on an appointment that already has an invoice)",
+      });
+      return;
+    }
+
+    await journalCapture(pi, connectedAccountId, {
+      organisationId: appointment.organisationId,
+      appointmentId,
+      invoiceId: mintedInvoiceId,
+      reason: "applied to the invoice minted for this intent",
+    });
 
     await settleAppointmentBookingInvoice({
       invoiceId: mintedInvoiceId,
@@ -978,6 +1094,9 @@ export const StripeService = {
       // The charge is captured and no invoice was found to mark PAID, so the
       // books show it outstanding. ALREADY_PAID and IGNORED below are genuine
       // replays; this is not one.
+      await journalCapture(pi, connectedAccountId, {
+        reason: `captured; invoice ${invoiceId} named in the intent metadata could not be found`,
+      });
       logger.error(
         `Payment intent ${pi.id} succeeded but invoice ${invoiceId} from its metadata could not be found; the charge is captured and nothing was marked paid`,
       );
