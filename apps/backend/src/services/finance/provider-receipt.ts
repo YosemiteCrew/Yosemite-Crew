@@ -80,7 +80,19 @@ export const initialReceiptStatus = (input: {
 };
 
 /**
- * Fill in an UNATTRIBUTED receipt once a later call knows who it belongs to.
+ * The states that record money already given back.
+ *
+ * Attribution must never overwrite one. They answer what happened to the
+ * capture, which is a different question from whose it was, and the second
+ * answer arriving later is not a reason to forget the first.
+ */
+const REVERSED_STATUSES: readonly PrismaProviderReceiptStatus[] = [
+  "PARTIALLY_REFUNDED",
+  "REFUNDED",
+];
+
+/**
+ * Fill in a receipt whose owner is still unknown, once a later call knows it.
  *
  * The identity of a receipt is immutable - provider, merchant account and
  * payment reference are the key and are never rewritten. What this fills in is
@@ -88,24 +100,44 @@ export const initialReceiptStatus = (input: {
  * written FIRST, before any lookup that could throw, so that no capture
  * depends on the rest of the handler succeeding.
  *
+ * The gate is the missing ORGANISATION, not the UNATTRIBUTED status. Those
+ * were the same predicate until a refund could move a receipt to
+ * PARTIALLY_REFUNDED: gating on the status then meant a partially refunded
+ * capture whose owner was never resolved could never be attributed at all, and
+ * its residual would sit in the reconciliation queue with no organisation
+ * forever. A receipt an operator has already acted on still cannot be
+ * rewritten, because acting on one gives it an organisation.
+ *
  * Deliberately narrow:
- *   - it only ever moves a receipt OUT of UNATTRIBUTED, so a receipt an
- *     operator has already acted on cannot be rewritten by a redelivery;
- *   - the status predicate is in the WHERE, not checked and then written, so a
- *     concurrent redelivery cannot both pass the check and both write;
+ *   - both halves of the state it decided from are in the WHERE - no owner,
+ *     and the exact status that was read - so this is a compare-and-set and
+ *     not a check followed by a write. Two concurrent redeliveries cannot both
+ *     pass it, and a refund landing in between cannot have its status
+ *     overwritten by a decision taken before it existed;
  *   - it posts no credit anywhere. This is a journal.
  */
-const attributeIfStillUnattributed = async (
-  existing: { id: string; status: PrismaProviderReceiptStatus },
+const attributeIfOwnerStillUnknown = async (
+  existing: {
+    id: string;
+    status: PrismaProviderReceiptStatus;
+    organisationId: string | null;
+  },
   input: JournalCaptureInput,
 ): Promise<PrismaProviderReceiptStatus> => {
-  if (existing.status !== "UNATTRIBUTED" || !input.organisationId) {
+  if (existing.organisationId !== null || !input.organisationId) {
     return existing.status;
   }
 
-  const status = initialReceiptStatus(input);
+  const status = REVERSED_STATUSES.includes(existing.status)
+    ? existing.status
+    : initialReceiptStatus(input);
+
   const updated = await prisma.providerReceipt.updateMany({
-    where: { id: existing.id, status: "UNATTRIBUTED" },
+    where: {
+      id: existing.id,
+      organisationId: null,
+      status: existing.status,
+    },
     data: {
       organisationId: input.organisationId,
       invoiceId: input.invoiceId ?? null,
@@ -118,10 +150,10 @@ const attributeIfStillUnattributed = async (
 
   if (updated.count === 1) return status;
 
-  // count 0 means the row left UNATTRIBUTED between the read and the write, so
-  // neither the status we intended nor the one we read is the stored one. The
-  // caller is told what a receipt IS, never what a lost race hoped it would be,
-  // so the only honest answer is a fresh read.
+  // count 0 means the row moved between the read and the write, so neither the
+  // status we intended nor the one we read is the stored one. The caller is
+  // told what a receipt IS, never what a lost race hoped it would be, so the
+  // only honest answer is a fresh read.
   const persisted = await prisma.providerReceipt.findUnique({
     where: { id: existing.id },
     select: { status: true },
@@ -235,7 +267,7 @@ export const ProviderReceiptService = {
 
       const existing = await prisma.providerReceipt.findUnique({
         where: { provider_merchantAccountRef_paymentRef: key },
-        select: { id: true, status: true },
+        select: { id: true, status: true, organisationId: true },
       });
       if (!existing) {
         // A unique violation whose row cannot then be read is not a replay. It
@@ -247,7 +279,7 @@ export const ProviderReceiptService = {
         return null;
       }
 
-      const attributed = await attributeIfStillUnattributed(existing, input);
+      const attributed = await attributeIfOwnerStillUnknown(existing, input);
       logger.info(
         `Captured payment ${input.paymentRef} on ${merchantAccountRef} was already journalled as receipt ${existing.id}`,
       );
