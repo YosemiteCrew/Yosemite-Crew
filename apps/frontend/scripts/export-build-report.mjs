@@ -1,8 +1,14 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const MANIFEST_PATH = path.resolve('.next/app-build-manifest.json');
-const OUTPUT_DIR = path.resolve('artifacts');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
+const BUILD_MANIFEST_PATH = path.resolve(PROJECT_ROOT, '.next/build-manifest.json');
+const APP_BUILD_MANIFEST_PATH = path.resolve(PROJECT_ROOT, '.next/app-build-manifest.json');
+const OUTPUT_DIR = path.resolve(PROJECT_ROOT, 'artifacts');
 const OUTPUT_JSON_PATH = path.join(OUTPUT_DIR, 'build-route-report.json');
 const OUTPUT_MARKDOWN_PATH = path.join(OUTPUT_DIR, 'build-route-report.md');
 
@@ -12,7 +18,7 @@ const sumChunkSizes = async (chunkPaths) => {
   const sizes = await Promise.all(
     chunkPaths.map(async (chunkPath) => {
       const normalizedPath = chunkPath.startsWith('/') ? chunkPath.slice(1) : chunkPath;
-      const filePath = path.resolve('.next', normalizedPath);
+      const filePath = path.resolve(PROJECT_ROOT, '.next', normalizedPath);
       const contents = await readFile(filePath);
       return contents.byteLength;
     })
@@ -23,8 +29,32 @@ const sumChunkSizes = async (chunkPaths) => {
 
 const formatKiB = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;
 
+const loadManifest = async () => {
+  try {
+    const content = await readFile(BUILD_MANIFEST_PATH, 'utf8');
+    const manifest = JSON.parse(content);
+    return { manifest, source: 'build-manifest.json' };
+  } catch {
+    try {
+      const content = await readFile(APP_BUILD_MANIFEST_PATH, 'utf8');
+      const manifest = JSON.parse(content);
+      return { manifest, source: 'app-build-manifest.json' };
+    } catch {
+      return null;
+    }
+  }
+};
+
 const main = async () => {
-  const manifest = JSON.parse(await readFile(MANIFEST_PATH, 'utf8'));
+  const loaded = await loadManifest();
+  if (!loaded) {
+    throw new Error(
+      'Cannot generate route build report: neither build-manifest.json nor app-build-manifest.json found. ' +
+        'Run a production build first. Next 16+ (Turbopack) uses build-manifest.json; Next 15 and earlier use app-build-manifest.json.'
+    );
+  }
+
+  const { manifest, source } = loaded;
   const pages = manifest.pages ?? {};
 
   const routes = await Promise.all(
@@ -46,11 +76,13 @@ const main = async () => {
   await mkdir(OUTPUT_DIR, { recursive: true });
   await writeFile(
     OUTPUT_JSON_PATH,
-    JSON.stringify({ generatedAt: new Date().toISOString(), routes: sortedRoutes }, null, 2)
+    JSON.stringify({ generatedAt: new Date().toISOString(), source, routes: sortedRoutes }, null, 2)
   );
 
   const markdownLines = [
     '# Frontend Build Route Report',
+    '',
+    `Source: ${source}`,
     '',
     '| Route | JS chunks | Total JS |',
     '| --- | ---: | ---: |',
@@ -61,7 +93,9 @@ const main = async () => {
   ];
   await writeFile(OUTPUT_MARKDOWN_PATH, markdownLines.join('\n'));
 
-  console.log(`Wrote route build reports to ${path.relative(process.cwd(), OUTPUT_DIR)}`);
+  console.log(
+    `Wrote route build reports to ${path.relative(process.cwd(), OUTPUT_DIR)} (source: ${source})`
+  );
 };
 
 main().catch((error) => {
