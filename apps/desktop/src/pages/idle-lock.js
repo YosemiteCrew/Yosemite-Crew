@@ -2,9 +2,20 @@
 
 (function () {
   const yc = globalThis.ycDesktop;
+  const card = document.getElementById('lockCard');
   const unlockBtn = document.getElementById('unlock');
   const passwordBtn = document.getElementById('usePassword');
   const statusEl = document.getElementById('lockStatus');
+
+  // A modal card: the rest of the page is inert and keyboard focus starts on
+  // Unlock, so Enter or Space unlocks without reaching for the pointer. Escape
+  // would dismiss the card and leave a lock screen with nothing on it to unlock
+  // with. Cancelling the keydown stops that at the source, without relying on
+  // the dialog's cancel event, which the browser may make uncancelable.
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') event.preventDefault();
+  });
+  card.showModal();
 
   // The page never authenticates on its own: doing so would open a second OS
   // prompt unrelated to the one the main process is awaiting, so a success here

@@ -19,6 +19,7 @@ describe('createKeyboardShortcutManager', () => {
       focusedWebContents: jest.fn(() => null),
       openPalette: jest.fn(),
       navigate: jest.fn(),
+      isLocked: jest.fn(() => false),
       logger: { debug: jest.fn(), warn: jest.fn() },
       ...overrides,
     };
@@ -90,6 +91,30 @@ describe('createKeyboardShortcutManager', () => {
       }
     }
 
+    expect(deps.navigate).toHaveBeenCalled();
+  });
+
+  test('no shortcut acts while the idle lock is up, and all do again after', () => {
+    let locked = true;
+    const wc = { send: jest.fn(), isDestroyed: () => false };
+    const deps = makeDeps({
+      isLocked: () => locked,
+      focusedWebContents: jest.fn(() => wc),
+    });
+    const mgr = createKeyboardShortcutManager(deps);
+    mgr.register();
+    const fireAll = (): void => {
+      for (const [, handler] of deps.globalShortcut.register.mock.calls) handler();
+    };
+
+    fireAll();
+    expect(deps.openPalette).not.toHaveBeenCalled();
+    expect(deps.navigate).not.toHaveBeenCalled();
+    expect(deps.focusedWebContents).not.toHaveBeenCalled();
+
+    locked = false;
+    fireAll();
+    expect(deps.openPalette).toHaveBeenCalled();
     expect(deps.navigate).toHaveBeenCalled();
   });
 

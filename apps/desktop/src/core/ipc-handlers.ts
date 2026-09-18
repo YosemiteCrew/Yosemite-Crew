@@ -773,17 +773,11 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     };
     tabViewHost.setBounds(id, contentBounds);
     services.attachedTabId = id;
-    // Keep the tab-bar chrome view on TOP of the content view. Input is routed to
-    // the topmost sibling WebContentsView, so the content view we just added would
-    // otherwise capture every click/hover meant for the tabs and the
-    // new-tab/search/close controls. A bare addChildView on an already-attached
-    // view does not reliably re-order it, so remove then re-add to force the
-    // chrome strip back to the top of the stack.
-    const chrome = services.tabChromeView;
-    if (chrome && !chrome.webContents.isDestroyed()) {
-      services.mainWindow.contentView.removeChildView(chrome);
-      services.mainWindow.contentView.addChildView(chrome);
-    }
+    // The content view we just added is now topmost, and input is routed to the
+    // topmost sibling WebContentsView. The shared layout pass puts the tab-bar
+    // chrome back on top of it and then the idle-lock overlay on top of that, so
+    // a tab attached while the app is locked still lands under the lock.
+    services.layoutTabChrome();
   };
 
   const detachActiveTabView = (): void => {
