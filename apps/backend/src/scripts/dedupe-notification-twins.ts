@@ -15,7 +15,7 @@
  *
  *   - the winner keeps its place in the list, so the owner's history reads
  *     exactly one notification for one push;
- *   - `isSeen` is carried forward - if any twin was seen or archived, the
+ *   - `isSeen` is carried forward - if any unarchived twin was seen, the
  *     winner is marked seen, so a badge is not left standing on a notification
  *     the owner already dealt with;
  *   - each loser is ARCHIVED (stamped `archivedAt`), never deleted: per the
@@ -146,10 +146,17 @@ export const main = async () => {
   console.log(`${groups.length} duplicate notification groups found`);
   console.log(`${twinCount} twin rows to archive`);
 
+  /**
+   * Row ids and the `NotificationType` enum only. `userId` names one person,
+   * and `title`/`body` are free text written for an owner to read - neither
+   * belongs in an operator log, and free text carrying a newline could forge a
+   * line of it. The ids are the audit handle: look the row up when you need
+   * its content. Pinned by "prints no personal data in the group list" in
+   * apps/backend/test/scripts/dedupe-notification-twins.test.ts.
+   */
   for (const group of groups.slice(0, 25)) {
     console.log(
-      `  user ${group.userId}: "${group.title}" (${group.type}) ` +
-        `${group.winnerId} <- ${group.loserIds.join(", ")}`,
+      `  ${group.type}: ${group.winnerId} <- ${group.loserIds.join(", ")}`,
     );
   }
   if (groups.length > 25) {

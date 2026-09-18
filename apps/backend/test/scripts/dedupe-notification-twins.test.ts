@@ -249,6 +249,50 @@ describe("main", () => {
     }
   });
 
+  it("prints no personal data in the group list", async () => {
+    const OWNER_ID = "owner-4d1f7c2e";
+    const OWNER_TITLE = "Rex bloodwork on the 3rd";
+    const OWNER_BODY = "Bring the previous results.";
+    const twin = (id: string, createdAt: Date) =>
+      row({
+        id,
+        createdAt,
+        userId: OWNER_ID,
+        title: OWNER_TITLE,
+        body: OWNER_BODY,
+      });
+    mocked.notification.findMany.mockResolvedValue([
+      twin("twin-a", new Date("2026-09-01T10:00:00.000Z")),
+      twin("twin-b", new Date("2026-09-01T10:00:01.000Z")),
+    ]);
+    const log = jest.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      process.argv = ["node", "dedupe-notification-twins.ts"];
+      await main();
+      const output = log.mock.calls.map((c) => String(c[0])).join("\n");
+
+      // Canary, and deliberately format-independent: every not.toContain
+      // below also passes on a group list that printed nothing, which is a
+      // different defect with a different cause. Matching the whole rendered
+      // line here instead would make THIS assertion fail first on a leak, and
+      // the leak would be reported as a missing line.
+      expect(output).toContain("twin-a <- twin-b");
+
+      // The reason the line is shaped that way: userId names one person, and
+      // title/body are free text an owner reads. A newline inside either would
+      // also let notification content forge a line of the operator log.
+      expect(output).not.toContain(OWNER_ID);
+      expect(output).not.toContain(OWNER_TITLE);
+      expect(output).not.toContain(OWNER_BODY);
+
+      // The enum is not owner-written, and it is what makes the line worth
+      // printing at all.
+      expect(output).toContain("APPOINTMENT");
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it("truncates the printed group list to the first 25", async () => {
     const base = new Date("2026-09-01T10:00:00.000Z").getTime();
     const rows = Array.from({ length: 26 }, (_, i) => [
