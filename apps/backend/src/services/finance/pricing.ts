@@ -1,3 +1,10 @@
+import {
+  fromLedgerMinorUnits,
+  quantizeMoney,
+  resolveLedgerExponent,
+  toLedgerMinorUnits,
+} from "./currency";
+
 export type DiscountType = "PERCENTAGE" | "FIXED_AMOUNT";
 
 export type TaxBehavior = "INCLUSIVE" | "EXCLUSIVE";
@@ -19,6 +26,13 @@ export type InvoicePricingInput = {
   lines: InvoicePricingLineInput[];
   taxRatePercent?: number | null;
   invoiceDiscount?: InvoiceDiscountInput | null;
+  /**
+   * Posted precision comes from this currency. Omitted, every amount is
+   * quantized at the legacy two decimals, which is wrong for a zero- or
+   * three-decimal currency; an unsupported code is rejected rather than
+   * priced at another currency's precision.
+   */
+  currency?: string | null;
 };
 
 export type InvoicePricingLineBreakdown = {
@@ -42,6 +56,15 @@ export type InvoicePricingBreakdown = {
 
 const MONEY_SCALE = 100;
 
+/**
+ * Rounds at two decimals regardless of currency, on the float scaled by a
+ * hundred. Left exactly as it was: the payment, tax and appointment callers
+ * this slice does not cover round by it, and `creditNoteService` on the
+ * frontend carries a copy that states it matches this one. Invoice pricing
+ * rounds by `quantizeMoney` at the invoice currency's own precision instead,
+ * which is exact and disagrees with this function wherever scaling the float
+ * lands the tie on the wrong side (8.165 posts as 8.17 there, 8.16 here).
+ */
 export const roundMoney = (value: number): number =>
   Math.round((value + Number.EPSILON) * MONEY_SCALE) / MONEY_SCALE;
 
@@ -69,6 +92,7 @@ const calculateLineDiscount = (
   grossAmount: number,
   discountType: DiscountType | null | undefined,
   discountValue: number | null | undefined,
+  exponent: number,
 ): number => {
   const normalizedValue = normalizePositiveNumber(discountValue);
   if (!normalizedValue) {
@@ -76,12 +100,13 @@ const calculateLineDiscount = (
   }
 
   if (discountType === "FIXED_AMOUNT") {
-    return roundMoney(Math.min(normalizedValue, grossAmount));
+    return quantizeMoney(Math.min(normalizedValue, grossAmount), exponent);
   }
 
   if (discountType === "PERCENTAGE") {
-    return roundMoney(
+    return quantizeMoney(
       Math.min(grossAmount, grossAmount * (normalizedValue / 100)),
+      exponent,
     );
   }
 
@@ -91,6 +116,7 @@ const calculateLineDiscount = (
 const calculateInvoiceDiscount = (
   invoiceDiscount: InvoiceDiscountInput | null | undefined,
   baseAmount: number,
+  exponent: number,
 ): number => {
   if (!invoiceDiscount) {
     return 0;
@@ -102,12 +128,13 @@ const calculateInvoiceDiscount = (
   }
 
   if (invoiceDiscount.type === "FIXED_AMOUNT") {
-    return roundMoney(Math.min(normalizedValue, baseAmount));
+    return quantizeMoney(Math.min(normalizedValue, baseAmount), exponent);
   }
 
   if (invoiceDiscount.type === "PERCENTAGE") {
-    return roundMoney(
+    return quantizeMoney(
       Math.min(baseAmount, baseAmount * (normalizedValue / 100)),
+      exponent,
     );
   }
 
@@ -117,13 +144,14 @@ const calculateInvoiceDiscount = (
 const allocateInvoiceDiscountAcrossLines = (
   lineBases: number[],
   invoiceDiscountTotal: number,
+  exponent: number,
 ): number[] => {
   const totalBaseCents = lineBases.reduce(
-    (sum, amount) => sum + Math.round(roundMoney(amount) * MONEY_SCALE),
+    (sum, amount) => sum + toLedgerMinorUnits(amount, exponent),
     0,
   );
   const totalDiscountCents = Math.min(
-    Math.round(roundMoney(invoiceDiscountTotal) * MONEY_SCALE),
+    toLedgerMinorUnits(invoiceDiscountTotal, exponent),
     totalBaseCents,
   );
 
@@ -132,7 +160,7 @@ const allocateInvoiceDiscountAcrossLines = (
   }
 
   const allocations = lineBases.map((amount) => {
-    const cents = Math.round(roundMoney(amount) * MONEY_SCALE);
+    const cents = toLedgerMinorUnits(amount, exponent);
     return Math.floor((cents * totalDiscountCents) / totalBaseCents);
   });
 
@@ -140,7 +168,7 @@ const allocateInvoiceDiscountAcrossLines = (
   let remainder = totalDiscountCents - allocatedCents;
 
   for (let index = 0; remainder > 0 && index < allocations.length; index += 1) {
-    const lineCents = Math.round(roundMoney(lineBases[index]) * MONEY_SCALE);
+    const lineCents = toLedgerMinorUnits(lineBases[index], exponent);
     if (allocations[index] >= lineCents) {
       continue;
     }
@@ -159,7 +187,7 @@ const allocateInvoiceDiscountAcrossLines = (
     }
   }
 
-  return allocations.map((amount) => amount / MONEY_SCALE);
+  return allocations.map((amount) => fromLedgerMinorUnits(amount, exponent));
 };
 
 /**
@@ -182,6 +210,8 @@ export const calculateInvoiceDiscountPercentOfBase = (
 export const calculateInvoicePricing = (
   input: InvoicePricingInput,
 ): InvoicePricingBreakdown => {
+  const exponent = resolveLedgerExponent(input.currency);
+  const quantize = (value: number): number => quantizeMoney(value, exponent);
   const taxRatePercent = normalizePositiveNumber(input.taxRatePercent);
 
   let subtotal = 0;
@@ -192,16 +222,17 @@ export const calculateInvoicePricing = (
   const linesBeforeInvoiceDiscount = input.lines.map((line) => {
     const quantity = normalizePositiveNumber(line.quantity);
     const unitAmount = normalizePositiveNumber(line.unitAmount);
-    const grossAmount = roundMoney(quantity * unitAmount);
+    const grossAmount = quantize(quantity * unitAmount);
     const lineDiscountAmount = calculateLineDiscount(
       grossAmount,
       line.discountType,
       line.discountValue,
+      exponent,
     );
-    const netAmount = roundMoney(grossAmount - lineDiscountAmount);
+    const netAmount = quantize(grossAmount - lineDiscountAmount);
 
-    subtotal = roundMoney(subtotal + grossAmount);
-    lineDiscountTotal = roundMoney(lineDiscountTotal + lineDiscountAmount);
+    subtotal = quantize(subtotal + grossAmount);
+    lineDiscountTotal = quantize(lineDiscountTotal + lineDiscountAmount);
 
     return {
       grossAmount,
@@ -211,39 +242,41 @@ export const calculateInvoicePricing = (
     };
   });
 
-  const amountBeforeInvoiceDiscount = roundMoney(
+  const amountBeforeInvoiceDiscount = quantize(
     linesBeforeInvoiceDiscount.reduce((sum, line) => sum + line.netAmount, 0),
   );
   const invoiceDiscountTotal = calculateInvoiceDiscount(
     input.invoiceDiscount,
     amountBeforeInvoiceDiscount,
+    exponent,
   );
 
   const invoiceDiscountAllocations = allocateInvoiceDiscountAcrossLines(
     linesBeforeInvoiceDiscount.map((line) => line.netAmount),
     invoiceDiscountTotal,
+    exponent,
   );
 
   const lines = linesBeforeInvoiceDiscount.map((line, index) => {
     const invoiceDiscountAmount = invoiceDiscountAllocations[index] ?? 0;
-    const discountedAmount = roundMoney(line.netAmount - invoiceDiscountAmount);
+    const discountedAmount = quantize(line.netAmount - invoiceDiscountAmount);
     const taxableAmount =
       line.taxBehavior === "INCLUSIVE" && taxRatePercent > 0
-        ? roundMoney(discountedAmount / (1 + taxRatePercent / 100))
+        ? quantize(discountedAmount / (1 + taxRatePercent / 100))
         : discountedAmount;
 
     const taxAmount =
       line.taxBehavior === "INCLUSIVE" && taxRatePercent > 0
-        ? roundMoney(discountedAmount - taxableAmount)
-        : roundMoney(taxableAmount * (taxRatePercent / 100));
+        ? quantize(discountedAmount - taxableAmount)
+        : quantize(taxableAmount * (taxRatePercent / 100));
 
     const totalAmount =
       line.taxBehavior === "INCLUSIVE"
         ? discountedAmount
-        : roundMoney(discountedAmount + taxAmount);
+        : quantize(discountedAmount + taxAmount);
 
-    taxableSubtotal = roundMoney(taxableSubtotal + taxableAmount);
-    taxTotal = roundMoney(taxTotal + taxAmount);
+    taxableSubtotal = quantize(taxableSubtotal + taxableAmount);
+    taxTotal = quantize(taxTotal + taxAmount);
 
     return {
       grossAmount: line.grossAmount,
@@ -255,7 +288,7 @@ export const calculateInvoicePricing = (
     };
   });
 
-  const totalAmount = roundMoney(taxableSubtotal + taxTotal);
+  const totalAmount = quantize(taxableSubtotal + taxTotal);
 
   return {
     subtotal,
