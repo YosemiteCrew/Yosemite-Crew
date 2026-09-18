@@ -109,13 +109,25 @@ const REFACTOR_2696_MERGED_AT = Date.parse("2026-09-05T12:46:40Z");
  * So it is deliberately tight, and `rowsLeftUngrouped` below exists to make
  * the cost of that choice visible on the dry run instead of silent.
  *
- * RESIDUAL, stated rather than buried: two distinct events with identical text
- * inside two seconds are indistinguishable from one fan-out, and this script
- * will collapse them. Nothing on the row can separate them - there is no event
- * id, and `updatedAt`, `enabled` and the uuid all carry no ordering. What is
- * left is containment, not detection: the window is as tight as the mechanism
- * allows, losers are archived and never deleted, and dry run is the default so
- * the plan is read before it is written.
+ * RESIDUAL, stated rather than buried, and stated as the code implements it -
+ * the operator's go/no-go rests on this paragraph, so it must not describe a
+ * tighter rule than the one that runs.
+ *
+ * This is NOT a pairwise two-second window. Clustering is single-linkage on
+ * ADJACENT rows, so what two distinct events need in order to stay apart is two
+ * seconds between the LAST row of one and the FIRST row of the next. Each
+ * event's own fan-out eats into that: the separation needed between two event
+ * starts is two seconds PLUS the first event's own fan-out span, so the more
+ * device tokens an owner has, the less real separation two distinct events need
+ * before they chain. And a cluster's TOTAL span is not bounded at all - eight
+ * rows each 1.9s after the last are one cluster spanning 13.3s.
+ *
+ * Nothing on the row separates the two cases: there is no event id, and
+ * `updatedAt`, `enabled` and the uuid all carry no ordering. So what is left is
+ * containment, not detection - the window is as tight as the mechanism allows,
+ * every group line prints its row count and its span so an implausible cluster
+ * is visible on the dry run, losers are archived and never deleted, and dry run
+ * is the default so the plan is read before it is written.
  */
 const FAN_OUT_ADJACENT_GAP_MS = 2 * 1000;
 
@@ -128,6 +140,15 @@ export interface DedupeNotificationGroup {
   loserIds: string[];
   /** True when any member of THIS CLUSTER (winner or loser) was already seen. */
   anySeen: boolean;
+  /**
+   * Earliest to latest row of this cluster. Printed because single linkage
+   * chains: the constant bounds the gap between ADJACENT rows and says nothing
+   * about the total, so a cluster can be much wider than one fan-out and there
+   * is no refusal that would catch it (see FAN_OUT_ADJACENT_GAP_MS). Row count
+   * and span together are what let an operator recognise a cluster too big or
+   * too wide to be one push before passing --apply.
+   */
+  spanMs: number;
 }
 
 export interface DedupeNotificationPlan {
@@ -159,9 +180,25 @@ const groupKey = (row: {
  * Single linkage, so a cluster CHAINS: rows each within one gap of the next
  * join one cluster however long the chain runs. That is deliberate, because a
  * fan-out is exactly a chain - one row per device token, each a round trip
- * after the last - and a user's token count is not bounded by anything this
- * script can read. Capping the total span instead would re-introduce the
- * whole-run guard this replaced, on a smaller scale.
+ * after the last. Capping a cluster's total span instead would re-introduce the
+ * whole-run guard this replaced, on a smaller scale, and it does not even give
+ * the right answer: greedy-capping two two-device events at two seconds (rows
+ * at 0, 0.3, 1.8, 2.1) splits after the third row, which archives the second
+ * event's first row into the first event's cluster.
+ *
+ * A SIZE bound - refuse a cluster larger than the owner's device count - was
+ * considered and declined. Not because the data is unreadable: `DeviceToken`
+ * (`schema.prisma:3845`) is indexed on `userId` and the count is cheap. Because
+ * the readable count is TODAY's and the historical one is unrecoverable.
+ * `removeToken` hard-deletes (`deviceToken.service.ts:51-53`), and that delete
+ * plus one upsert are the only two writes to the table, so a token retired
+ * since the pre-#2696 era leaves no trace. Today's count is therefore neither
+ * an upper nor a lower bound on how many rows one old push wrote: refusing
+ * above it drops real fan-outs for every owner who has changed device since -
+ * the same under-collapse that made the whole-span guard useless - and buys
+ * nothing for an owner who has since added devices. The size is printed instead
+ * of enforced, which puts the same signal in front of the operator without
+ * making an unsound refusal out of it.
  */
 const clusterByAdjacentGap = <T extends { createdAt: Date }>(
   sorted: readonly T[],
@@ -244,6 +281,9 @@ export const planNotificationDedupe =
           // different push's winner seen in August.
           anySeen: cluster.some((row) => row.isSeen),
           loserIds: cluster.slice(1).map((row) => row.id),
+          spanMs:
+            cluster[cluster.length - 1].createdAt.getTime() -
+            cluster[0].createdAt.getTime(),
         });
       }
     }
@@ -277,7 +317,8 @@ export const main = async () => {
    */
   for (const group of groups.slice(0, 25)) {
     console.log(
-      `  ${group.type}: ${group.winnerId} <- ${group.loserIds.join(", ")}`,
+      `  ${group.type}: ${group.winnerId} <- ${group.loserIds.join(", ")}` +
+        ` (${group.loserIds.length + 1} rows over ${group.spanMs}ms)`,
     );
   }
   if (groups.length > 25) {

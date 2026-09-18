@@ -63,6 +63,7 @@ describe("planNotificationDedupe", () => {
         winnerId: "n1",
         loserIds: ["n2"],
         anySeen: false,
+        spanMs: 1000,
       },
     ]);
   });
@@ -159,6 +160,50 @@ describe("planNotificationDedupe", () => {
     expect(groups.map((g) => [g.winnerId, g.loserIds] as const)).toEqual([
       ["d1", ["d2", "d3"]],
     ]);
+  });
+
+  // KNOWN LIMITATION, pinned rather than left latent, and the case the script
+  // actually exists for. Single linkage decides on the gap from one event's
+  // LAST row to the next event's FIRST row, so two distinct sends that each
+  // fanned out chain at a separation a pairwise reading of
+  // FAN_OUT_ADJACENT_GAP_MS would keep apart. Event A writes at 0 and 0.3s,
+  // event B at 1.8 and 2.1s; the deciding gap is A's last to B's first, 1.5s,
+  // under the constant. The right answer is two clusters and two archived.
+  // Nothing on the row can separate the cases, so what the operator gets is the
+  // row count and span on the dry-run line. See the RESIDUAL paragraph, which
+  // this test is the executable half of.
+  it("chains two fanned-out events whose rows nearly touch (known limitation)", async () => {
+    mocked.notification.findMany.mockResolvedValue([
+      row({ id: "evtA-dev1", createdAt: new Date("2026-09-01T10:00:00.000Z") }),
+      row({ id: "evtA-dev2", createdAt: new Date("2026-09-01T10:00:00.300Z") }),
+      row({ id: "evtB-dev1", createdAt: new Date("2026-09-01T10:00:01.800Z") }),
+      row({ id: "evtB-dev2", createdAt: new Date("2026-09-01T10:00:02.100Z") }),
+    ]);
+
+    const { groups } = await planNotificationDedupe();
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].loserIds).toEqual(["evtA-dev2", "evtB-dev1", "evtB-dev2"]);
+    // Wider than the constant that produced it - the only signal there is.
+    expect(groups[0].spanMs).toBe(2100);
+  });
+
+  it("leaves a cluster's total span unbounded", async () => {
+    const start = Date.parse("2026-09-01T10:00:00.000Z");
+    mocked.notification.findMany.mockResolvedValue(
+      Array.from({ length: 8 }, (_, i) =>
+        row({ id: `d${i}`, createdAt: new Date(start + i * 1900) }),
+      ),
+    );
+
+    const { groups } = await planNotificationDedupe();
+
+    // Every adjacent gap is 1.9s, under the constant, so all eight chain and
+    // the cluster ends up 13.3s wide - nearly seven times the constant. The
+    // constant bounds adjacent gaps and says nothing about the total.
+    expect(groups).toHaveLength(1);
+    expect(groups[0].loserIds).toHaveLength(7);
+    expect(groups[0].spanMs).toBe(13300);
   });
 
   it("collapses each fan-out separately when the same text recurs", async () => {
@@ -411,6 +456,10 @@ describe("main", () => {
       expect(output).toMatch(
         /1 rows share a key with another row but sit outside any fan-out window/,
       );
+      // Row count and span per group. With single linkage the constant bounds
+      // only ADJACENT gaps, so this line is what shows an operator a cluster
+      // too big or too wide to have been one push.
+      expect(output).toContain("(2 rows over 200ms)");
     } finally {
       log.mockRestore();
     }
