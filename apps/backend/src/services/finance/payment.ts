@@ -770,6 +770,20 @@ const buildCheckoutSessionLineItems = (params: {
     invoice.totalAmount -
       (typeof invoice.taxTotal === "number" ? invoice.taxTotal : 0),
   );
+  // Read `!==` as "the items do not reconstruct the total", which now includes
+  // the two roundings disagreeing on a tie: invoice pricing posts the total by
+  // quantizing exact integers (8.165 -> 8.17) and this sum reads the raw line
+  // snapshot through `roundMoney`, which rounds the scaled float the other way
+  // (8.165 -> 8.16). That selects the balance line, and the balance line is the
+  // branch that charges what is owed: itemising this invoice submits a per-UNIT
+  // 816 against the 817 it was posted at, because a per-unit amount Stripe
+  // multiplies by the quantity cannot reconstruct a rounded line total. That
+  // shortfall is older than the quantizer and is NOT confined to a tie - two of
+  // the same line sums to 16.33 on both roundings, so this comparison passes
+  // and the itemised session charges 1632 against a 1633 invoice. Giving the
+  // itemised branch the ledger quantizer is the payment slice of #3153; until
+  // then a tie is charged exactly, as one line. Pinned in
+  // finance.payment.test.ts.
   const useBalanceLine =
     summary.paid > 0 ||
     summary.credited > 0 ||

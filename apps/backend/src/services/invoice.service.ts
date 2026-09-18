@@ -19,6 +19,7 @@ import {
   roundMoney,
   type InvoiceDiscountInput as PricingInvoiceDiscountInput,
 } from "./finance/pricing";
+import { isLedgerCurrencySupported } from "./finance/currency";
 import { FinanceDiscountSettingsService } from "./finance/discount-settings";
 import {
   DEFAULT_TAX_BEHAVIOR,
@@ -672,6 +673,11 @@ const resolveInvoiceTotals = async (
     })),
     taxRatePercent: taxPercent,
     invoiceDiscount,
+    // Only currencies the ledger registry can price exactly are handed over.
+    // An org billing in one of the codes it refuses keeps the two decimals it
+    // is priced at today rather than losing invoicing the day this ships;
+    // giving those codes a decided minor unit is what removes this guard.
+    currency: isLedgerCurrencySupported(currency) ? currency : undefined,
   });
 
   if (skipTaxCalculation) {
