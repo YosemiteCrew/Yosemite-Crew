@@ -44,6 +44,17 @@ router.put(
   FinanceController.updateDiscountSettings,
 );
 
+// Read-only, so `billing:view:any` rather than an edit permission. An
+// unattributed capture has to be visible before anyone can decide what to do
+// with it, and nothing on this route changes a receipt.
+router.get(
+  "/organisation/:organisationId/provider-receipts",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:view:any"),
+  FinanceController.listProviderReceipts,
+);
+
 router.get(
   "/organisation/:organisationId/subscription/seat-sync-plan",
   requireWebAuth,
