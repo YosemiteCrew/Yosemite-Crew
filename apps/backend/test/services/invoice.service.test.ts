@@ -359,6 +359,84 @@ describe("InvoiceService", () => {
     expect(getOrgBillingCurrency).toHaveBeenCalledWith(organisationId);
   });
 
+  const invoiceCreateDataFor = (currency: string) => {
+    (getOrgBillingCurrency as jest.Mock).mockResolvedValue(currency);
+    (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+      id: appointmentId,
+      organisationId,
+      patient: { id: patientId, parent: { id: parentId } },
+      companion: { id: patientId, parent: { id: parentId } },
+    });
+    (prisma.invoice.create as jest.Mock).mockResolvedValue({
+      id: `inv_${currency}`,
+      appointmentId,
+      organisationId,
+      patientId,
+      parentId,
+      currency,
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      items: [],
+      subtotal: 0,
+      discountTotal: 0,
+      invoiceDiscountType: null,
+      invoiceDiscountValue: null,
+      invoiceDiscountTotal: 0,
+      taxTotal: 0,
+      taxPercent: 0,
+      totalAmount: 0,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  };
+
+  it("posts a zero-decimal organisation currency in whole units", async () => {
+    invoiceCreateDataFor("jpy");
+
+    await InvoiceService.createDraftForAppointment({
+      appointmentId,
+      parentId,
+      organisationId,
+      patientId,
+      items: [{ description: "Consult", quantity: 3, unitPrice: 1200.5 }],
+      paymentCollectionMethod: "PAYMENT_LINK",
+    });
+
+    // 3 x 1200.5 is 3601.5, which is what two decimals would have persisted.
+    expect(prisma.invoice.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          currency: "jpy",
+          subtotal: 3602,
+          totalAmount: 3602,
+        }),
+      }),
+    );
+  });
+
+  it("keeps pricing an organisation currency the ledger cannot post exactly", async () => {
+    // HUF is refused by the ledger registry because ICU's display digits and
+    // ISO 4217's minor unit disagree. Refusing to price it at all would take
+    // invoicing away from those orgs, so they keep today's two decimals.
+    invoiceCreateDataFor("huf");
+
+    await InvoiceService.createDraftForAppointment({
+      appointmentId,
+      parentId,
+      organisationId,
+      patientId,
+      items: [{ description: "Consult", quantity: 3, unitPrice: 0.335 }],
+      paymentCollectionMethod: "PAYMENT_LINK",
+    });
+
+    expect(prisma.invoice.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ currency: "huf", totalAmount: 1.01 }),
+      }),
+    );
+  });
+
   it("uses the organisation currency (not a hardcoded usd) for a non-US org", async () => {
     (getOrgBillingCurrency as jest.Mock).mockResolvedValue("gbp");
     (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({

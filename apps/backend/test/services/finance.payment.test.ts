@@ -2450,6 +2450,164 @@ describe("FinancePaymentService", () => {
     );
   });
 
+  // Invoice pricing quantizes at the ledger currency's precision and rounds a
+  // tie away from zero, while the stored line snapshot carries the raw product
+  // and this comparison reads it through `roundMoney`, which rounds the scaled
+  // float and takes 8.165 to 8.16. A tie therefore makes the item sum differ
+  // from the pre-tax invoice total and selects the balance line.
+  //
+  // Pinned rather than removed, because the balance line is the branch that
+  // charges what is owed: itemising this invoice submits
+  // `roundMoney(8.165) * 100` = 816, one cent short of the 817 the invoice was
+  // posted at. Making the itemised branch able to represent a rounded line
+  // total is the payment slice of #3153, not this one; the test below holds
+  // the half of that shortfall which predates the quantizer.
+  it("charges the balance line at the posted total when a tie splits the two roundings", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_tie",
+      // What `calculateInvoicePricing` posts for a single 8.165 line: the tie
+      // rounds away from zero on the exact integer, not on the scaled float.
+      totalAmount: 8.17,
+      taxTotal: 0,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      items: [
+        {
+          name: "Consult",
+          description: "Consult",
+          unitPrice: 8.165,
+          quantity: 1,
+          total: 8.165,
+        },
+      ],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_tie",
+    });
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_tie",
+      url: "https://checkout",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_tie",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_tie",
+    });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice("inv_tie");
+
+    const [sessionArgs] = stripeClient.checkout.sessions.create.mock
+      .calls[0] as [
+      {
+        line_items: Array<{
+          price_data: { unit_amount: number; product_data: { name: string } };
+        }>;
+        automatic_tax: { enabled: boolean };
+      },
+    ];
+    expect(sessionArgs.line_items).toHaveLength(1);
+    expect(sessionArgs.line_items[0].price_data.product_data.name).toBe(
+      "Outstanding balance for invoice inv_tie",
+    );
+    // 817, not the 816 the itemised branch would have submitted.
+    expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(817);
+    // The invoice carries no tax, so switching automatic tax off here would
+    // charge a pre-tax amount: the balance line keeps Stripe calculating it.
+    expect(sessionArgs.automatic_tax).toEqual({ enabled: true });
+  });
+
+  // The same shortfall without a tie, and older than the quantizer: Stripe is
+  // given a per-UNIT amount and multiplies it by the quantity, so a line whose
+  // unit price is not representable at the currency's precision loses the
+  // remainder once per unit. Two 8.165 units sum to 16.33 under BOTH roundings,
+  // so the comparison above finds nothing wrong and the session is itemised at
+  // 2 x 816 = 1632 against a 1633 invoice, which then settles as paid in full.
+  // Characterisation, not an endorsement - this asserts today's behaviour so
+  // that the payment slice of #3153 has to change a test to change it.
+  it("under-submits an itemised line whose unit price is not representable", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_unit_short",
+      totalAmount: 16.33,
+      taxTotal: 0,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      items: [
+        {
+          name: "Consult",
+          description: "Consult",
+          unitPrice: 8.165,
+          quantity: 2,
+          total: 16.33,
+        },
+      ],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_unit_short",
+    });
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_unit_short",
+      url: "https://checkout",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_unit_short",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_unit_short",
+    });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice(
+      "inv_unit_short",
+    );
+
+    const [sessionArgs] = stripeClient.checkout.sessions.create.mock
+      .calls[0] as [
+      {
+        line_items: Array<{
+          price_data: { unit_amount: number; product_data: { name: string } };
+          quantity: number;
+        }>;
+      },
+    ];
+    // Itemised, so the tie branch is not what produces this one.
+    expect(sessionArgs.line_items[0].price_data.product_data.name).toBe(
+      "Consult",
+    );
+    expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(816);
+    expect(sessionArgs.line_items[0].quantity).toBe(2);
+    const submitted =
+      sessionArgs.line_items[0].price_data.unit_amount *
+      sessionArgs.line_items[0].quantity;
+    expect(submitted).toBe(1632);
+    expect(submitted).toBeLessThan(1633);
+  });
+
   it("refunds a manual invoice payment without calling Stripe", async () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_manual_refund",
