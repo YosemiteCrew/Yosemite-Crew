@@ -153,6 +153,7 @@
     "linux": {
       "icon": "resources/icon.png",
       "category": "Office",
+      "executableName": "yosemite-crew-pims",
       "target": [
         {
           "target": "AppImage",
