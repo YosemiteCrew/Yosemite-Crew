@@ -72,6 +72,11 @@ export interface YcDesktop {
   windowClose: () => void;
   idleUnlock: (mode: 'biometric' | 'password') => void;
   onIdleUnlockFailed: (callback: () => void) => () => void;
+  // The host platform, as `process.platform` names it ('darwin', 'win32',
+  // 'linux'). The local pages need it to label keyboard shortcuts and the
+  // system file manager, and a renderer's user agent cannot tell Windows from
+  // Linux reliably. A plain value, not a channel: it never changes at runtime.
+  platform: string;
 }
 
 const api: YcDesktop = {
@@ -166,6 +171,7 @@ const api: YcDesktop = {
     ipcRenderer.on('yc:idle-unlock-failed', handler);
     return () => ipcRenderer.removeListener('yc:idle-unlock-failed', handler);
   },
+  platform: process.platform,
 };
 
 contextBridge.exposeInMainWorld('ycDesktop', api);
