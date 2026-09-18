@@ -642,6 +642,29 @@ describe("ControlledSubstanceLogService.update", () => {
     );
   });
 
+  // The reason is free text from the request and can carry patient detail. It
+  // belongs on the entry, behind the amendment marker, and the audit event does
+  // not need a second independent copy of it.
+  it("keeps the amendment reason out of the audit metadata", async () => {
+    mockLedgerLoad(linkedDispenseEntry);
+    mockUpdate.mockResolvedValue(linkedDispenseEntry);
+
+    await ControlledSubstanceLogService.update("cs-dispense-1", "org-1", {
+      administeredBy: "vet-9",
+      correctionReason: "given to Bella by Dr Reyes at 14:05",
+    });
+
+    expect(mockAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.not.objectContaining({ reason: expect.anything() }),
+      }),
+    );
+    // ...and it is still on the entry, so the reason is recorded, not dropped.
+    expect(mockUpdate.mock.calls[0][0].data.notes).toContain(
+      "given to Bella by Dr Reyes at 14:05",
+    );
+  });
+
   it("rejects a patch that makes administered exceed the stored drawn amount", async () => {
     mockLedgerLoad(baseEntry);
     await expect(
