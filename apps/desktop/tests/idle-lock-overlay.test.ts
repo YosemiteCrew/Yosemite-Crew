@@ -121,7 +121,7 @@ describe('idle lock focus', () => {
     overlay.hide();
     expect(tab.focus).toHaveBeenCalledTimes(1);
     expect(deps.unmount.mock.invocationCallOrder[0]).toBeLessThan(
-      tab.focus.mock.invocationCallOrder[0]
+      tab.focus.mock.invocationCallOrder[0]!
     );
   });
 
