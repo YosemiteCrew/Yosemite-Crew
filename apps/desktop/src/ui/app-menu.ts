@@ -90,7 +90,14 @@ export const createAppMenu = (actions: MenuActions): void => {
               { role: 'hideOthers' as const },
               { role: 'unhide' as const },
               { type: 'separator' as const },
-              { label: tr('menu.quit'), click: () => app.quit() },
+              // Not `role: 'quit'` — the role would replace the translated
+              // label with the system one. Declaring the accelerator keeps
+              // tr('menu.quit') and still shows ⌘Q beside the item.
+              {
+                label: tr('menu.quit'),
+                accelerator: 'Cmd+Q',
+                click: () => app.quit(),
+              },
             ],
           },
         ]
