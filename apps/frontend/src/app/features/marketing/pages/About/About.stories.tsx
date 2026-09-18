@@ -330,11 +330,11 @@ export const Default: Story = {
       await expect(avatar).toHaveAttribute('alt', '');
     }
 
-    /* The live roster is appended below the founding pair, never a replacement for
-       it. Both grids exist independently and both must be populated. */
+    /* The live roster is appended below the named core team, never a replacement for
+       it. Both grids exist independently and both must be populated. A contributor who
+       has left the core team can still appear in the live GitHub roster above. */
     await expect(labelsOf(crewCardsIn(gridAt(canvasElement, CORE_TEAM_GRID)))).toEqual([
       'Ankit Upadhyay, Founder and contributor, on LinkedIn',
-      'Harshvardhan Parmar, Contributor, on LinkedIn',
     ]);
 
     /* Four tracks at laptop width, so three contributors leave the fourth slot empty

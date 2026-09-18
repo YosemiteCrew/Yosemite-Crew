@@ -693,14 +693,6 @@ const CORE_TEAM: CrewMember[] = [
     slotId: 'crew-ankit',
     delay: 0,
   },
-  {
-    name: 'Harshvardhan Parmar',
-    role: 'Contributor',
-    href: 'https://www.linkedin.com/in/harshvardhan-parmar/',
-    avatarSrc: 'https://d2il6osz49gpup.cloudfront.net/aboutus-page/harshvardhan-profile_pic.png',
-    slotId: 'crew-harshvardhan',
-    delay: 80,
-  },
 ];
 
 function ProfileCard({
