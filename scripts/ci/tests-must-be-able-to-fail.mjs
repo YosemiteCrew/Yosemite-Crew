@@ -292,6 +292,22 @@ const discoverableIn = (ws, absolutePaths) => {
 };
 
 /**
+ * The suite total in a jest `--json` report, or null if it does not state one.
+ *
+ * Fail closed. The caller compares this to the number of files it handed jest,
+ * so anything that is not a number has to become "the gate does not know how
+ * many suites ran" - a shortfall - rather than a value that happens to differ.
+ */
+export const suiteCountOf = (json) => {
+  try {
+    const report = JSON.parse(json);
+    return typeof report.numTotalTestSuites === 'number' ? report.numTotalTestSuites : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * The jest report's name inside its own directory. A constant, deliberately.
  *
  * It used to be `tests-must-be-able-to-fail-${ws}-${pid}.json` under tmpdir,
@@ -309,19 +325,27 @@ const discoverableIn = (ws, absolutePaths) => {
  */
 const REPORT_FILENAME = 'report.json';
 
-/** Where this run's jest report is written, inside its own directory. */
-export const reportPathIn = (dir) => join(dir, REPORT_FILENAME);
-
 /**
- * Runs `fn` against a private report directory and removes it afterwards.
+ * Runs `runJest` against a private report file and returns the suite total.
  *
- * Private because `mkdtempSync` creates it; ours because nothing else knows the
- * name; gone afterwards whether `fn` returned or threw.
+ * The directory is private because `mkdtempSync` creates it, ours because
+ * nothing else knows the name, and gone afterwards whether the run returned or
+ * threw.
+ *
+ * The path is built and read in the same scope on purpose. It is a literal
+ * name under a directory this function just created, so nothing reaches the
+ * read from a parameter: there is no input to confine, and therefore no
+ * sanitiser to get wrong. A run that wrote nothing readable falls through to
+ * null, which the caller turns into a shortfall rather than a pass.
  */
-export const withReportDir = (fn) => {
+export const withJestReport = (runJest) => {
   const dir = mkdtempSync(join(tmpdir(), 'tests-must-be-able-to-fail-'));
   try {
-    return fn(dir);
+    const report = join(dir, REPORT_FILENAME);
+    runJest(report);
+    return suiteCountOf(readFileSync(report, 'utf8'));
+  } catch {
+    return null;
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -342,25 +366,6 @@ export const resolveInside = (dir, candidate) => {
     throw new Error(`refusing a path that is not inside ${dir}: ${candidate}`);
   }
   return target;
-};
-
-/**
- * The suite total jest recorded, or null if it recorded nothing readable.
- *
- * Takes the DIRECTORY, not the path. The name is a literal, so the only thing
- * that varies is the directory `mkdtempSync` just created - there is no
- * caller-supplied component to confine.
- */
-export const suitesRunFrom = (reportDir) => {
-  try {
-    const report = JSON.parse(readFileSync(join(reportDir, REPORT_FILENAME), 'utf8'));
-    return typeof report.numTotalTestSuites === 'number' ? report.numTotalTestSuites : null;
-  } catch {
-    // Fail closed. A missing or unparseable report is "the gate does not know
-    // how many suites ran", which the caller turns into a shortfall rather
-    // than into the permissive verdict.
-    return null;
-  }
 };
 
 /**
@@ -396,8 +401,7 @@ const runChangedTests = (byWorkspace, repoRoot) => {
     // The count was the only visible symptom of a path that never ran, and
     // nothing reconciled it: `running 4 changed test file(s)` and jest's
     // `Test Suites: 2 passed` sat four lines apart and disagreed.
-    const ran = withReportDir((reportDir) => {
-      const report = reportPathIn(reportDir);
+    const ran = withJestReport((report) => {
       try {
         jest(
           ws,
@@ -409,7 +413,6 @@ const runChangedTests = (byWorkspace, repoRoot) => {
       } catch {
         allPassed = false;
       }
-      return suitesRunFrom(reportDir);
     });
     if (ran !== runnable.length && !suiteShortfall) {
       suiteShortfall = { workspace: ws, expected: runnable.length, ran };
