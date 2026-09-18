@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import {
@@ -12,8 +12,9 @@ import {
   isTestFile,
   verdict,
   categorizeSourceFiles,
-  reportPathFor,
-  isInside,
+  reportPathIn,
+  absolutePathsIn,
+  resolveInside,
   suitesRunFrom,
   withReportDir,
 } from './tests-must-be-able-to-fail.mjs';
@@ -352,52 +353,42 @@ test('the helper-only verdict is not excused by the label either', () => {
   assert.equal(r.ok, false, 'the label excuses a PASSING base run, not an unverifiable one');
 });
 
-test('the report path stays inside its directory for every workspace this gate runs', () => {
-  // `@yosemite-crew/desktop` is a real workspace name and it carries a slash.
-  // Interpolated raw, it named a directory nobody had created, so jest's
-  // --outputFile write threw and no desktop run could ever be reconciled.
+test('the report name is a literal, so no workspace name can reach the path', () => {
+  // The name used to interpolate the workspace, and one real workspace name
+  // carries a slash - it pointed at a directory nobody had created, jest's
+  // --outputFile write threw, and no desktop run could ever be reconciled.
   const dir = '/tmp/some-report-dir';
-  for (const ws of ['frontend', 'backend', 'mobileAppYC', '@yosemite-crew/desktop']) {
-    const path = reportPathFor(ws, dir);
-    assert.equal(dirname(path), dir, ws);
-    assert.equal(isInside(dir, path), true, ws);
+  assert.equal(dirname(reportPathIn(dir)), dir);
+  assert.equal(basename(reportPathIn(dir)).includes('/'), false);
+  assert.equal(reportPathIn(dir), reportPathIn(dir));
+});
+
+test('resolveInside accepts what is inside and refuses what is not', () => {
+  // The changed-file list reaches this from `git diff`. Without the refusal a
+  // path naming something above the repository root would be resolved and run.
+  assert.equal(resolveInside('/tmp/d', 'report.json'), '/tmp/d/report.json');
+  assert.equal(resolveInside('/tmp/d', 'a/b.json'), '/tmp/d/a/b.json');
+  assert.equal(resolveInside('/tmp/d', '/tmp/d/report.json'), '/tmp/d/report.json');
+  for (const outside of ['..', '../report.json', '/etc/passwd', 'a/../../b', '.']) {
+    assert.throws(() => resolveInside('/tmp/d', outside), /not inside/, outside);
   }
 });
 
-test('a workspace name that tries to climb out cannot', () => {
-  const dir = '/tmp/some-report-dir';
-  for (const hostile of ['../../etc/passwd', '..', '/etc/passwd', 'a/../../b']) {
-    assert.equal(dirname(reportPathFor(hostile, dir)), dir, hostile);
-    assert.equal(isInside(dir, reportPathFor(hostile, dir)), true, hostile);
-  }
-});
-
-test('isInside rejects what it is meant to reject', () => {
-  // Without these the containment guard would be satisfied by anything and
-  // the read it protects would be unbounded.
-  assert.equal(isInside('/tmp/d', '/tmp/d/report.json'), true);
-  assert.equal(isInside('/tmp/d', 'report.json'), true);
-  assert.equal(isInside('/tmp/d', '/tmp/d'), false); // the directory is not a report
-  assert.equal(isInside('/tmp/d', '../report.json'), false);
-  assert.equal(isInside('/tmp/d', '/etc/passwd'), false);
-  assert.equal(isInside('/tmp/d', '/tmp/dd/report.json'), false);
-});
-
-test('a readable report outside the run directory is not read', () => {
-  // Fail closed, not open: the caller turns null into a shortfall, so a report
-  // the gate did not write can never supply the suite count it trusts.
+test('a report read comes only from the run directory the gate created', () => {
+  // Fail closed, not open: the caller turns null into a shortfall, so a
+  // directory holding no report of ours can never supply a suite count.
   const dir = mkdtempSync(join(tmpdir(), 'tests-must-be-able-to-fail-test-'));
-  const outside = join(tmpdir(), `outside-${process.pid}.json`);
+  const decoy = mkdtempSync(join(tmpdir(), 'tests-must-be-able-to-fail-test-'));
   try {
-    writeFileSync(join(dir, 'frontend.json'), JSON.stringify({ numTotalTestSuites: 2 }));
-    writeFileSync(outside, JSON.stringify({ numTotalTestSuites: 99 }));
-    // The control: the same read succeeds when the report is where we put it.
-    assert.equal(suitesRunFrom(join(dir, 'frontend.json'), dir), 2);
-    assert.equal(suitesRunFrom(outside, dir), null);
-    assert.equal(suitesRunFrom(join(dir, '../..', outside), dir), null);
+    writeFileSync(reportPathIn(dir), JSON.stringify({ numTotalTestSuites: 2 }));
+    // Same basename, wrong directory: a run that looked at the wrong one would
+    // read 99 and reconcile against it.
+    writeFileSync(reportPathIn(decoy), JSON.stringify({ numTotalTestSuites: 99 }));
+    assert.equal(suitesRunFrom(dir), 2);
+    assert.equal(suitesRunFrom(join(dir, 'nothing-here')), null);
   } finally {
     rmSync(dir, { recursive: true, force: true });
-    rmSync(outside, { force: true });
+    rmSync(decoy, { recursive: true, force: true });
   }
 });
 
@@ -406,10 +397,10 @@ test('the report directory is private, is not the shared tmpdir, and is removed'
   const returned = withReportDir((dir) => {
     seen = dir;
     assert.notEqual(dir, tmpdir(), 'writing reports straight into the shared tmpdir');
-    assert.equal(isInside(tmpdir(), dir), true);
+    assert.equal(dirname(dir), resolve(tmpdir()));
     assert.equal(existsSync(dir), true);
     // Non-empty, so a cleanup that is not recursive leaves the directory behind.
-    writeFileSync(join(dir, 'frontend.json'), '{}');
+    writeFileSync(reportPathIn(dir), '{}');
     return 'value';
   });
   assert.equal(returned, 'value');
@@ -426,7 +417,7 @@ test('the report directory is removed even when the run throws', () => {
   assert.throws(() =>
     withReportDir((dir) => {
       seen = dir;
-      writeFileSync(join(dir, 'frontend.json'), '{}');
+      writeFileSync(reportPathIn(dir), '{}');
       throw new Error('jest exploded');
     })
   );
@@ -439,8 +430,8 @@ test('a report that does not state a suite count fails closed', () => {
   // rather than by decision.
   const dir = mkdtempSync(join(tmpdir(), 'tests-must-be-able-to-fail-test-'));
   const write = (body) => {
-    writeFileSync(join(dir, 'frontend.json'), body);
-    return suitesRunFrom(join(dir, 'frontend.json'), dir);
+    writeFileSync(reportPathIn(dir), body);
+    return suitesRunFrom(dir);
   };
   try {
     assert.equal(write(JSON.stringify({ numTotalTestSuites: 3 })), 3);
@@ -449,5 +440,17 @@ test('a report that does not state a suite count fails closed', () => {
     assert.equal(write('not json'), null);
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('changed paths are made absolute and confined to the repository', () => {
+  const root = '/tmp/some-repo-root';
+  assert.deepEqual(absolutePathsIn(root, ['apps/frontend/a.test.tsx', 'apps/backend/b.test.ts']), [
+    '/tmp/some-repo-root/apps/frontend/a.test.tsx',
+    '/tmp/some-repo-root/apps/backend/b.test.ts',
+  ]);
+  // A path naming something above the root is refused, not resolved and run.
+  for (const outside of ['../elsewhere/a.test.ts', '/etc/passwd', 'apps/../../a.test.ts']) {
+    assert.throws(() => absolutePathsIn(root, [outside]), /not inside/, outside);
   }
 });
