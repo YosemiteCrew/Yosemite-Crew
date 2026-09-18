@@ -681,6 +681,23 @@ describe("ControlledSubstanceLogService.reverseDispenseEntry", () => {
     );
   });
 
+  // `update` (a correction) and `delete` (a void) each append a FULL reversal
+  // carrying this same marker and no stock event. Counting one of those reads
+  // the entire draw as already restored, so a later release moves the stock and
+  // writes nothing at all in the register - the divergence the cap exists to
+  // prevent, arriving by the cap itself.
+  it("counts only the reversals a release wrote, not a correction's or a void's", async () => {
+    await reverse(2);
+
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          sourceEventId: { not: null },
+        }),
+      }),
+    );
+  });
+
   it("returns null without querying reversals when no dispense entry exists", async () => {
     mockFindFirst.mockResolvedValue(null);
 
