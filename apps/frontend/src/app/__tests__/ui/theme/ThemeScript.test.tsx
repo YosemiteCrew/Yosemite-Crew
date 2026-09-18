@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { renderServerComponent } from '@/app/__tests__/support/renderServerComponent';
 
 const mockGet = jest.fn();
 jest.mock('next/headers', () => ({
@@ -14,7 +14,7 @@ describe('ThemeScript', () => {
 
   it('tags the pre-paint script with the request nonce from x-nonce', async () => {
     mockGet.mockReturnValue('nonce-abc123');
-    const { container } = render(await ThemeScript());
+    const { container } = renderServerComponent(await ThemeScript());
     const script = container.querySelector('script');
     expect(mockGet).toHaveBeenCalledWith('x-nonce');
     expect(script).not.toBeNull();
@@ -25,7 +25,7 @@ describe('ThemeScript', () => {
 
   it('renders the script without a nonce when the header is absent', async () => {
     mockGet.mockReturnValue(null);
-    const { container } = render(await ThemeScript());
+    const { container } = renderServerComponent(await ThemeScript());
     const script = container.querySelector('script');
     expect(script).not.toBeNull();
     expect(script?.getAttribute('nonce')).toBeNull();
