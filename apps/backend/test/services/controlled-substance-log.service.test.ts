@@ -55,6 +55,21 @@ const baseEntry = {
   updatedAt: new Date(),
 };
 
+// What the dispense path writes: the register half of a stock movement, carrying
+// the consumption event and batch it came from. `baseEntry` is the hand-entered
+// shape, which stores no linkage.
+const linkedDispenseEntry = {
+  ...baseEntry,
+  id: "cs-dispense-1",
+  amountDrawn: 6,
+  amountAdministered: 6,
+  amountWasted: 0,
+  balanceBefore: 10,
+  balanceAfter: 4,
+  sourceEventId: "event-dispense-1",
+  inventoryBatchId: "batch-1",
+};
+
 // assertRecord loads the entry itself; the append-only guard queries for an
 // existing reversal of it, which is the only lookup filtered on notes.
 const mockLedgerLoad = (record: unknown, reversal: unknown = null) => {
@@ -401,6 +416,42 @@ describe("ControlledSubstanceLogService.update", () => {
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
+  // The dispense wrote this row and the stock movement together, so a ledger-only
+  // correction would move the register and leave the cabinet where it was. Notes
+  // are the most innocuous patch there is and it is still refused: the correction
+  // appends a REPLACEMENT entry that cannot carry the stock linkage - the model's
+  // @@unique([sourceEventId, inventoryBatchId]) forbids a second row on the pair -
+  // so the replacement is invisible to the release that later cancels the draw.
+  it("rejects correcting an entry that records a stock movement", async () => {
+    mockLedgerLoad(linkedDispenseEntry);
+    await expect(
+      ControlledSubstanceLogService.update("cs-1", "org-1", {
+        notes: "witness misspelled",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message:
+        "This entry records a stock movement and cannot be voided or corrected directly; return or void the dispense instead.",
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(mockAudit).not.toHaveBeenCalled();
+  });
+
+  // Pins the ordering: the caller is told it is on the wrong path, not that its
+  // arithmetic is wrong on a row it may not amend at all.
+  it("refuses a stock-linked correction before checking the quantities", async () => {
+    mockLedgerLoad(linkedDispenseEntry);
+    await expect(
+      ControlledSubstanceLogService.update("cs-1", "org-1", {
+        amountAdministered: 100,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message:
+        "This entry records a stock movement and cannot be voided or corrected directly; return or void the dispense instead.",
+    });
+  });
+
   it("rejects a patch that makes administered exceed the stored drawn amount", async () => {
     mockLedgerLoad(baseEntry);
     await expect(
@@ -524,6 +575,73 @@ describe("ControlledSubstanceLogService.delete", () => {
     expect(mockAudit).toHaveBeenCalledWith(
       expect.objectContaining({ patientId: "", actorId: null }),
     );
+  });
+
+  // The void writes no stock movement, so voiding the register half of a dispense
+  // leaves the register saying the drug is back and the cabinet saying it is out.
+  // A later release of that stock then reads the entry as never restored and
+  // credits the whole draw back a second time.
+  it("rejects voiding an entry that records a stock movement", async () => {
+    mockLedgerLoad(linkedDispenseEntry);
+    await expect(
+      ControlledSubstanceLogService.delete("cs-dispense-1", "org-1"),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message:
+        "This entry records a stock movement and cannot be voided or corrected directly; return or void the dispense instead.",
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(mockAudit).not.toHaveBeenCalled();
+  });
+
+  // A release's own reversal is machine-written too and carries the release event,
+  // so the same guard stops a void from flipping a credit back into a debit. This
+  // is why the guard keys on the linkage rather than on the sign of the draw.
+  it("rejects voiding the reversal row a release wrote", async () => {
+    mockLedgerLoad({
+      ...linkedDispenseEntry,
+      id: "cs-release-rev",
+      amountDrawn: -6,
+      amountAdministered: -6,
+      balanceBefore: 4,
+      balanceAfter: 10,
+      notes: "[reversal:cs-dispense-1]",
+      sourceEventId: "event-release-1",
+    });
+    await expect(
+      ControlledSubstanceLogService.delete("cs-release-rev", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  // The must-not-over-block arm: a hand-entered entry stores an explicit null and
+  // stays voidable. Without it the guard could be written as a presence check on
+  // the key and nothing would notice.
+  it("still voids a hand-entered entry whose stock linkage is null", async () => {
+    mockLedgerLoad({
+      ...baseEntry,
+      sourceEventId: null,
+      inventoryBatchId: null,
+    });
+    mockCreate.mockResolvedValue(reversalEntry);
+
+    await expect(
+      ControlledSubstanceLogService.delete("cs-1", "org-1"),
+    ).resolves.toMatchObject({ id: "cs-1-rev" });
+    expect(mockCreate).toHaveBeenCalled();
+  });
+
+  // Ordering: a partly released dispense is refused as stock-linked rather than
+  // told to "correct the replacement entry instead", advice that is wrong twice
+  // over - there is no replacement, and correcting is refused as well.
+  it("refuses a stock-linked void before the already-reversed check", async () => {
+    mockLedgerLoad(linkedDispenseEntry, { id: "cs-dispense-1-rev" });
+    await expect(
+      ControlledSubstanceLogService.delete("cs-dispense-1", "org-1"),
+    ).rejects.toMatchObject({
+      message:
+        "This entry records a stock movement and cannot be voided or corrected directly; return or void the dispense instead.",
+    });
   });
 
   it("rejects voiding an entry that has already been reversed", async () => {
