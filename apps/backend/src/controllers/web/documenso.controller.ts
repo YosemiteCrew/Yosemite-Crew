@@ -287,7 +287,9 @@ async function handlePassportRecordEvent(
         signingStatus: "IN_PROGRESS",
       },
     },
-    data: { status: "SIGNED", signedAt },
+    // The counter moves with the status (#3144), so a workspace session that
+    // read this artifact before the signature cannot claim a write after it.
+    data: { status: "SIGNED", signedAt, version: { increment: 1 } },
   });
   // Already handled, or revoked in flight: ack the webhook, notify nobody.
   if (claimed.count === 0) return true;

@@ -837,7 +837,8 @@ const propagateSigningCompletionToLinkedRecord = async (
   if (existing.clinicalArtifactId) {
     return client.clinicalArtifact.update({
       where: { id: existing.clinicalArtifactId },
-      data: { status: "SIGNED", signedBy, signedAt },
+      // See the artifact's `version` column (#3144): signing is a generation.
+      data: { status: "SIGNED", signedBy, signedAt, version: { increment: 1 } },
       select: { appointmentId: true, caseId: true, encounterId: true },
     });
   }

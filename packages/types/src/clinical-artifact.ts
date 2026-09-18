@@ -6,6 +6,7 @@ import type {
   Extension,
   Immunization,
   MedicationRequest,
+  Meta,
   Observation,
   Procedure,
   Reference,
@@ -177,6 +178,10 @@ export type SoapNoteRecord = {
     signedBy: string | null;
     signedAt: Date | null;
     summary: string | null;
+    // Optimistic-concurrency generation of the artifact (#3144). Optional like
+    // `patientId` above: it is carried by the projections that read the whole
+    // row, and a projection that omits it simply publishes no `meta.versionId`.
+    version?: number;
     createdAt: Date;
     updatedAt: Date;
   };
@@ -728,9 +733,20 @@ const recordBundle = <T extends { artifact: { id: string } }>(
   })),
 });
 
+/**
+ * Publish the artifact's generation as `meta.versionId` (#3144).
+ *
+ * Only the four editable kinds carry it: `versionId` exists so a client can
+ * name the generation it is writing over, and the remaining kinds have no
+ * update path to name one on.
+ */
+const artifactMeta = (artifact: { version?: number }): Meta | undefined =>
+  artifact.version === undefined ? undefined : { versionId: String(artifact.version) };
+
 const soapNoteToComposition = (record: SoapNoteRecord): Composition => ({
   resourceType: 'Composition',
   id: record.artifact.id,
+  meta: artifactMeta(record.artifact),
   status: toStatus(record.artifact.status),
   type: toCodeableConcept('SOAP_NOTE', 'SOAP note'),
   title: record.artifact.summary ?? 'SOAP note',
@@ -820,6 +836,7 @@ const prescriptionMedicationConcept = (record: PrescriptionRecord) => {
 const prescriptionToMedicationRequest = (record: PrescriptionRecord): MedicationRequest => ({
   resourceType: 'MedicationRequest',
   id: record.artifact.id,
+  meta: artifactMeta(record.artifact),
   status: toTaskStatus(record.artifact.status),
   intent: 'order',
   // The medication the prescription is for, coded when the clinician picked a
@@ -894,6 +911,7 @@ const medicationRequestToPrescriptionInput = (
 const dischargeSummaryToComposition = (record: DischargeSummaryRecord): Composition => ({
   resourceType: 'Composition',
   id: record.artifact.id,
+  meta: artifactMeta(record.artifact),
   status: toStatus(record.artifact.status),
   type: toCodeableConcept('DISCHARGE_SUMMARY', 'Discharge summary'),
   title: record.artifact.summary ?? 'Discharge summary',
@@ -1063,6 +1081,7 @@ const vitalRecordToObservation = (record: VitalRecordRecord): Observation => {
   return {
     resourceType: 'Observation',
     id: record.artifact.id,
+    meta: artifactMeta(record.artifact),
     status: toStatus(record.artifact.status),
     code: toCodeableConcept('VITAL_RECORD', 'Vital record'),
     subject: patientReference(record.artifact),
