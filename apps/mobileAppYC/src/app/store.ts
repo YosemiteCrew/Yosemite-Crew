@@ -61,6 +61,11 @@ import formsReducer from '@/features/forms/formsSlice';
 import preferencesReducer from '@/features/preferences/preferencesSlice';
 import {assistantReducer} from '@/features/assistant';
 import {
+  appLockReducer,
+  appLockStatusReducer,
+  initialAppLockSettings,
+} from '@/features/appLock/appLockSlice';
+import {
   parasiteRiskReducer,
   type ParasiteRiskState,
 } from '@/features/parasiteRisk';
@@ -192,6 +197,17 @@ const migrateV8ToV9 = (state: any) => {
   }
 };
 
+const migrateV9ToV10 = (state: any) => {
+  console.log(
+    '[Redux Persist] Migrating from v9 to v10 - adding app lock settings',
+  );
+  // App lock is off until the user turns it on, so an upgrade starts with it
+  // off. Whether the app is locked right now is never saved (appLockStatus).
+  if (!state.appLock) {
+    state.appLock = {...initialAppLockSettings};
+  }
+};
+
 const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
   1: migrateV1ToV2,
   2: migrateV2ToV3,
@@ -201,9 +217,10 @@ const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
   6: migrateV6ToV7,
   7: migrateV7ToV8,
   8: migrateV8ToV9,
+  9: migrateV9ToV10,
 };
 
-const PERSIST_VERSION = 9;
+const PERSIST_VERSION = 10;
 
 type PersistedParasiteRiskState = Omit<
   ParasiteRiskState,
@@ -266,6 +283,7 @@ const persistConfig = {
     'forms',
     'preferences',
     'parasiteRisk',
+    'appLock',
   ],
   migrate: (state: any) => {
     const from = state?._persist?.version;
@@ -305,6 +323,11 @@ const rootReducer = combineReducers({
   // it out of storage also keeps pet health chatter off disk.
   assistant: assistantReducer,
   parasiteRisk: parasiteRiskReducer,
+  appLock: appLockReducer,
+  // Deliberately absent from `whitelist`: whether the app is locked, covered
+  // or waiting on the OS prompt is never saved, so every cold start begins
+  // locked.
+  appLockStatus: appLockStatusReducer,
 });
 
 // The state type is pinned explicitly: with `transforms` present, redux-persist's

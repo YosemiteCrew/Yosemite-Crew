@@ -847,5 +847,11 @@
         "prevention": "Routine worming at a frequency matched to the pet's lifestyle, plus prompt cleanup of faeces. Your vet will advise on how often."
       }
     }
+  },
+  "appLock": {
+    "prompt": {
+      "title": "Unlock Yosemite Crew",
+      "cancel": "Cancel"
+    }
   }
 }
