@@ -11,9 +11,17 @@ const NEXT_STATIC_CHUNKS_DIR = path.resolve('.next/static/chunks');
 // lower the budget to match rather than banking the headroom - a budget that
 // sits far above reality passes everything and warns about nothing, which is
 // what these did before.
+//
+// The shared ceiling was re-ratcheted once, from 195 KiB to 225 KiB, when
+// react-dom 19.3.0 grew the framework chunk from 189,786 B to 219,031 B
+// (+28.6 KiB). That growth is upstream and entirely inside the framework chunk,
+// so there is no application code to trim and no way to hold the old ceiling
+// while taking the release. 225 KiB is +5.2% on the new measured maximum, the
+// same arithmetic the other three were derived with. See issue #3263 for the
+// measurement. Re-tighten it when the framework chunk legitimately drops.
 const JS_BUDGET_BYTES = 375 * 1024;
 const LARGE_ASYNC_CHUNK_BUDGET_BYTES = 1190 * 1024;
-const SHARED_CHUNK_BUDGET_BYTES = 195 * 1024;
+const SHARED_CHUNK_BUDGET_BYTES = 225 * 1024;
 const POLYFILLS_BUDGET_BYTES = 120 * 1024;
 
 const formatKiB = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;
