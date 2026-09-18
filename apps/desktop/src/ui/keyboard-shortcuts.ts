@@ -52,6 +52,9 @@ interface ShortcutHandlerDeps {
   focusedWebContents: () => WebContents | null;
   openPalette: () => void;
   navigate: (url: string) => void;
+  // True while the idle lock is up. These are OS-wide shortcuts, so they fire
+  // even with the lock page focused; none of them may reach the workspace.
+  isLocked: () => boolean;
   logger: {
     debug: (event: string, data?: unknown) => void;
     warn: (event: string, data?: unknown) => void;
@@ -72,6 +75,7 @@ export const createKeyboardShortcutManager = (
   const register = (): void => {
     for (const shortcut of SHORTCUTS) {
       const ok = deps.globalShortcut.register(shortcut.accelerator, () => {
+        if (deps.isLocked()) return;
         deps.logger.debug('shortcut_triggered', {
           id: shortcut.id,
           accelerator: shortcut.accelerator,
