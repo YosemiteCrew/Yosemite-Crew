@@ -913,7 +913,16 @@
         csOverlay.style.display = 'none';
         send('tabSearch', false);
       };
+      const toggleCheatsheet = () => {
+        if (csOverlay.style.display === 'block') {
+          closeCheatsheet();
+          return;
+        }
+        if (searchOpen) closeSearch();
+        openCheatsheet();
+      };
       globalThis.__ycOpenCheatsheet = openCheatsheet;
+      globalThis.__ycToggleCheatsheet = toggleCheatsheet;
       csOverlay.addEventListener('click', (e) => {
         if (e.target === csOverlay) closeCheatsheet();
       });
@@ -925,12 +934,7 @@
         }
         if ((e.metaKey || e.ctrlKey) && e.key === '/' && !e.shiftKey) {
           e.preventDefault();
-          if (csOverlay.style.display === 'block') {
-            closeCheatsheet();
-          } else {
-            if (searchOpen) closeSearch();
-            openCheatsheet();
-          }
+          toggleCheatsheet();
         }
       });
 

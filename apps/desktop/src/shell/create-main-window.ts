@@ -71,6 +71,7 @@ export interface CreateMainWindowDeps {
   closeActiveTab: () => void;
   reopenClosedTab: () => void;
   openTabSearch: () => void;
+  showCheatsheet: () => void;
   verifyAuditTrail: () => void;
   exportCsDailyLog: () => void;
   showDeaStatus: () => void;
@@ -391,6 +392,7 @@ export const createMainWindow = async (
     closeActiveTab: deps.closeActiveTab,
     reopenClosedTab: deps.reopenClosedTab,
     openTabSearch: deps.openTabSearch,
+    showCheatsheet: deps.showCheatsheet,
     loadStartUrl: deps.loadStartUrl,
     activeContents: deps.activeContents,
     setTabOrientation: (mode) => deps.setTabOrientation(mode),

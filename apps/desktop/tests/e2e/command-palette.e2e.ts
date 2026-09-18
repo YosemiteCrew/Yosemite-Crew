@@ -110,6 +110,27 @@ test.describe('command-palette E2E', () => {
     userDataDir = undefined;
   });
 
+  test('the app takes no keys from the rest of the machine while it is not in front', async () => {
+    // Playwright's Electron app never becomes the frontmost application, so this
+    // is the unfocused half of the scoping: `win.focus()` leaves isFocused()
+    // false here, and the focused half is covered by the unit tests over
+    // createKeyboardShortcutManager. What this pins is that the app no longer
+    // holds its accelerators for the whole session regardless of focus.
+    const state = await app!.evaluate(({ app: electronApp, BrowserWindow, globalShortcut }) => ({
+      focusHandlers: electronApp.listenerCount('browser-window-focus'),
+      blurHandlers: electronApp.listenerCount('browser-window-blur'),
+      focused: BrowserWindow.getFocusedWindow() !== null,
+      heldAccelerators: ['CommandOrControl+K', 'CommandOrControl+Alt+T'].filter((accelerator) =>
+        globalShortcut.isRegistered(accelerator)
+      ),
+    }));
+
+    expect(state.focused).toBe(false);
+    expect(state.heldAccelerators).toEqual([]);
+    expect(state.focusHandlers).toBeGreaterThan(0);
+    expect(state.blurHandlers).toBeGreaterThan(0);
+  });
+
   test('Cmd+K opens palette window', async () => {
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     await page.keyboard.press(`${MOD}+K`);

@@ -16,16 +16,19 @@ const sc = (accelerator: string, id: string, label: string, description: string)
   description,
 });
 
+// These fire ahead of the application menu, so every accelerator here has to
+// stay clear of one: the menu and the tab strip own Mod and Mod+Shift, and the
+// app's own actions live in the Mod+Alt namespace. Mod+Alt+I is left alone
+// because it is Toggle Developer Tools on macOS.
 export const SHORTCUTS: ShortcutDef[] = [
   sc('CommandOrControl+K', 'open-palette', 'Command Palette', 'Open command palette'),
-  sc('CommandOrControl+P', 'open-palette', 'Quick Switch', 'Quick switch between recent items'),
-  sc('CommandOrControl+Shift+N', 'new-patient', 'New patient', 'Create a new patient record'),
-  sc('CommandOrControl+Shift+A', 'appointments', 'Appointments', 'Go to appointments'),
-  sc('CommandOrControl+Shift+S', 'search', 'Search patients', 'Search for patients'),
-  sc('CommandOrControl+Shift+E', 'check-in', 'Check in patient', 'Walk-in check-in'),
-  sc('CommandOrControl+Shift+I', 'inbox', 'Inbox', 'Open inbox'),
-  sc('CommandOrControl+Shift+B', 'billing', 'Billing', 'Go to billing'),
-  sc('CommandOrControl+Shift+T', 'new-appointment', 'New appointment', 'Book a new appointment'),
+  sc('CommandOrControl+Alt+N', 'new-patient', 'New patient', 'Create a new patient record'),
+  sc('CommandOrControl+Alt+A', 'appointments', 'Appointments', 'Go to appointments'),
+  sc('CommandOrControl+Alt+S', 'search', 'Search patients', 'Search for patients'),
+  sc('CommandOrControl+Alt+E', 'check-in', 'Check in patient', 'Walk-in check-in'),
+  sc('CommandOrControl+Alt+M', 'inbox', 'Inbox', 'Open inbox'),
+  sc('CommandOrControl+Alt+B', 'billing', 'Billing', 'Go to billing'),
+  sc('CommandOrControl+Alt+T', 'new-appointment', 'New appointment', 'Book a new appointment'),
 ];
 
 export type ShortcutId = (typeof SHORTCUTS)[number]['id'];
@@ -52,6 +55,12 @@ interface ShortcutHandlerDeps {
   focusedWebContents: () => WebContents | null;
   openPalette: () => void;
   navigate: (url: string) => void;
+  onWindowFocus: (cb: () => void) => void;
+  onWindowBlur: (cb: () => void) => void;
+  hasFocusedWindow: () => boolean;
+  // Blur arrives before the focus of the window taking over, so the decision to
+  // release the keys is deferred a tick. Injectable so tests need no timers.
+  defer?: (cb: () => void) => void;
   logger: {
     debug: (event: string, data?: unknown) => void;
     warn: (event: string, data?: unknown) => void;
@@ -62,6 +71,8 @@ export interface KeyboardShortcutManager {
   register: () => void;
   unregister: () => void;
   getRegistered: () => ShortcutId[];
+  start: () => void;
+  stop: () => void;
 }
 
 export const createKeyboardShortcutManager = (
@@ -70,6 +81,10 @@ export const createKeyboardShortcutManager = (
   const registered: ShortcutId[] = [];
 
   const register = (): void => {
+    // Focus can be handed back while the keys are still held; re-registering
+    // would double every entry in `registered` and leak the accelerators.
+    if (registered.length > 0) return;
+
     for (const shortcut of SHORTCUTS) {
       const ok = deps.globalShortcut.register(shortcut.accelerator, () => {
         deps.logger.debug('shortcut_triggered', {
@@ -118,5 +133,18 @@ export const createKeyboardShortcutManager = (
 
   const getRegistered = (): ShortcutId[] => [...registered];
 
-  return { register, unregister, getRegistered };
+  // The keys belong to this app, not to the machine: they are taken while one of
+  // our windows has focus and handed straight back when it loses it.
+  const start = (): void => {
+    const defer = deps.defer ?? ((cb: () => void) => setImmediate(cb));
+    deps.onWindowFocus(register);
+    deps.onWindowBlur(() => {
+      defer(() => {
+        if (!deps.hasFocusedWindow()) unregister();
+      });
+    });
+    if (deps.hasFocusedWindow()) register();
+  };
+
+  return { register, unregister, getRegistered, start, stop: unregister };
 };
