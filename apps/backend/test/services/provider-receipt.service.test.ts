@@ -301,15 +301,37 @@ describe("attribution on a later delivery", () => {
     expect(mockedPrisma.providerReceipt.updateMany).not.toHaveBeenCalled();
   });
 
-  it("reports the stored state when a concurrent delivery won the attribution", async () => {
-    // count 0 means the row left UNATTRIBUTED between the read and the write.
-    // Reporting the status we intended would be reporting a state that is not
-    // stored.
+  it("re-reads the row when a concurrent delivery won the attribution", async () => {
+    // count 0 means the row left UNATTRIBUTED between the read and the write,
+    // so NEITHER the status we intended nor the one we first read is the one
+    // that is stored. The winner attributed and allocated it; reporting the
+    // UNATTRIBUTED we happen to be holding would be just as wrong as reporting
+    // the status we wanted.
     mockedPrisma.providerReceipt.create.mockRejectedValue(uniqueViolation());
-    mockedPrisma.providerReceipt.findUnique.mockResolvedValue({
-      id: "receipt-1",
-      status: "UNATTRIBUTED",
+    mockedPrisma.providerReceipt.findUnique
+      .mockResolvedValueOnce({ id: "receipt-1", status: "UNATTRIBUTED" })
+      .mockResolvedValueOnce({ status: "ALLOCATED" });
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 0 });
+
+    const result = await ProviderReceiptService.journalCapture(
+      capture({ organisationId: "org-1" }),
+    );
+
+    expect(result?.status).toBe("ALLOCATED");
+    expect(mockedPrisma.providerReceipt.findUnique).toHaveBeenLastCalledWith({
+      where: { id: "receipt-1" },
+      select: { status: true },
     });
+  });
+
+  it("does not invent a status when the lost race leaves nothing to re-read", async () => {
+    // A row that cannot be read back at all is a different failure from losing
+    // the race, and it must not be answered with a guess: the last state this
+    // delivery actually observed is the only thing it can honestly report.
+    mockedPrisma.providerReceipt.create.mockRejectedValue(uniqueViolation());
+    mockedPrisma.providerReceipt.findUnique
+      .mockResolvedValueOnce({ id: "receipt-1", status: "UNATTRIBUTED" })
+      .mockResolvedValueOnce(null);
     mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 0 });
 
     const result = await ProviderReceiptService.journalCapture(
