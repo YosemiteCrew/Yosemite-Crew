@@ -1,13 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { basename, dirname, resolve } from 'node:path';
+import { existsSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import {
   classify,
   groupTestsByWorkspace,
+  selectDiscoverable,
   workspaceOf,
   isCheckableSource,
   isTestFile,
   verdict,
   categorizeSourceFiles,
+  absolutePathsIn,
+  resolveInside,
+  suiteCountOf,
+  withJestReport,
 } from './tests-must-be-able-to-fail.mjs';
 
 test("recognises this repository's test conventions", () => {
@@ -213,4 +221,224 @@ test('categorizeSourceFiles: every file lands in exactly one category', () => {
   );
   const seen = [...result.added, ...result.deleted, ...result.modified].sort();
   assert.deepEqual(seen, [...files].sort());
+});
+
+test('keeps only the changed paths jest will actually discover', () => {
+  // The two reasons a handed-over path contributes no suite have to be told
+  // apart: a support helper legitimately holds no tests, a path jest never
+  // saw is a bug. Only the first may be subtracted silently.
+  const discovered = [
+    '/repo/apps/frontend/src/app/__tests__/(routes)/signin/page.test.tsx',
+    '/repo/apps/frontend/src/app/__tests__/ui/Button.test.tsx',
+  ];
+  const kept = selectDiscoverable(
+    [
+      '/repo/apps/frontend/src/app/__tests__/(routes)/signin/page.test.tsx',
+      '/repo/apps/frontend/src/app/__tests__/support/renderServerComponent.tsx',
+      '/repo/apps/frontend/src/app/__tests__/ui/Button.test.tsx',
+    ],
+    discovered
+  );
+  assert.deepEqual(kept, [
+    '/repo/apps/frontend/src/app/__tests__/(routes)/signin/page.test.tsx',
+    '/repo/apps/frontend/src/app/__tests__/ui/Button.test.tsx',
+  ]);
+});
+
+test('a route-group path is compared literally, not as a pattern', () => {
+  // #3264: handed to jest positionally, `(routes)` is a capture group, so the
+  // path matched `.../routes/...` - a DIFFERENT directory that also exists in
+  // this repository - and the real suite never ran. Set membership cannot do
+  // that: the two paths are simply unequal.
+  const kept = selectDiscoverable(
+    ['/repo/apps/frontend/src/app/__tests__/(routes)/signin/page.test.tsx'],
+    ['/repo/apps/frontend/src/app/__tests__/routes/signin/page.test.tsx']
+  );
+  assert.deepEqual(
+    kept,
+    [],
+    'a route-group path must not be satisfied by its unparenthesised twin'
+  );
+});
+
+test('selectDiscoverable returns nothing when jest discovered nothing', () => {
+  assert.deepEqual(selectDiscoverable(['/repo/a.test.ts'], []), []);
+});
+
+test('THE #3264 CASE: a suite that did not run is not read as one that passed', () => {
+  // `testsPassedAgainstBase: false` is the branch that PASSES the gate. A
+  // shortfall has to outrank it, or a path that silently never ran decides
+  // the verdict - which is what this whole file exists to prevent.
+  const r = verdict({
+    source: ['a.ts'],
+    tests: ['apps/frontend/src/app/__tests__/(routes)/signin/page.test.tsx'],
+    testsPassedAgainstBase: false,
+    suiteShortfall: { workspace: 'frontend', expected: 4, ran: 2 },
+  });
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /4 runnable test file\(s\) were handed to jest in frontend/);
+  assert.match(r.reason, /2 test suite\(s\) ran/);
+});
+
+test('a shortfall is not excused by the no-behaviour-change label', () => {
+  const r = verdict({
+    source: ['a.ts'],
+    tests: ['a.test.ts'],
+    testsPassedAgainstBase: true,
+    suiteShortfall: { workspace: 'backend', expected: 3, ran: 1 },
+    allowUnchangedBehaviour: true,
+  });
+  assert.equal(r.ok, false, 'the label excuses a passing base run, not an unexecuted one');
+  assert.match(r.reason, /not\nsomething the no-behaviour-change label covers/);
+});
+
+test('an unreadable jest report is reported as a shortfall, not as a pass', () => {
+  // suitesRunFrom returns null when the JSON is missing or unparseable, which
+  // must fail closed: "the gate does not know how many suites ran".
+  const r = verdict({
+    source: ['a.ts'],
+    tests: ['a.test.ts'],
+    testsPassedAgainstBase: false,
+    suiteShortfall: { workspace: 'frontend', expected: 2, ran: null },
+  });
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /no suite count came back/);
+});
+
+test('no shortfall leaves the existing verdicts untouched', () => {
+  // The new branch must be inert when every handed-over path ran.
+  assert.equal(
+    verdict({
+      source: ['a.ts'],
+      tests: ['a.test.ts'],
+      testsPassedAgainstBase: false,
+      suiteShortfall: null,
+    }).ok,
+    true
+  );
+  assert.equal(
+    verdict({
+      source: ['a.ts'],
+      tests: ['a.test.ts'],
+      testsPassedAgainstBase: true,
+      suiteShortfall: null,
+    }).ok,
+    false
+  );
+});
+
+test('a branch whose only test change is a helper proves nothing', () => {
+  // The helper legitimately holds no test, so jest exits 0 having run nothing
+  // and `allPassed` stays vacuously true. Reading that as "the tests survived
+  // their own revert" is the false green --passWithNoTests used to hand out.
+  const r = verdict({
+    source: ['a.ts'],
+    tests: ['apps/frontend/src/app/__tests__/support/renderServerComponent.tsx'],
+    testsPassedAgainstBase: null,
+    nothingRunnable: 'no-tests-in-changed-tests',
+  });
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /nothing was executed against the/);
+});
+
+test('the helper-only verdict is not excused by the label either', () => {
+  const r = verdict({
+    source: ['a.ts'],
+    tests: ['apps/frontend/src/app/__tests__/support/renderServerComponent.tsx'],
+    testsPassedAgainstBase: null,
+    nothingRunnable: 'no-tests-in-changed-tests',
+    allowUnchangedBehaviour: true,
+  });
+  assert.equal(r.ok, false, 'the label excuses a PASSING base run, not an unverifiable one');
+});
+
+test('the report path is a literal name under the directory just created', () => {
+  // The name used to interpolate the workspace, and one real workspace name
+  // carries a slash - it pointed at a directory nobody had created, jest's
+  // --outputFile write threw, and no desktop run could ever be reconciled.
+  const seen = [];
+  for (const ws of ['frontend', 'backend', 'mobileAppYC', '@yosemite-crew/desktop']) {
+    withJestReport((report) => {
+      seen.push(report);
+      assert.equal(basename(report).includes('/'), false, ws);
+      assert.equal(existsSync(dirname(report)), true, ws);
+      assert.equal(dirname(dirname(report)), resolve(tmpdir()), ws);
+    });
+  }
+  assert.equal(
+    new Set(seen.map((p) => basename(p))).size,
+    1,
+    'the report name varies with the workspace'
+  );
+  assert.equal(new Set(seen.map((p) => dirname(p))).size, 4, 'two runs shared a report directory');
+});
+
+test('resolveInside accepts what is inside and refuses what is not', () => {
+  // The changed-file list reaches this from `git diff`. Without the refusal a
+  // path naming something above the repository root would be resolved and run.
+  assert.equal(resolveInside('/tmp/d', 'report.json'), '/tmp/d/report.json');
+  assert.equal(resolveInside('/tmp/d', 'a/b.json'), '/tmp/d/a/b.json');
+  assert.equal(resolveInside('/tmp/d', '/tmp/d/report.json'), '/tmp/d/report.json');
+  for (const outside of ['..', '../report.json', '/etc/passwd', 'a/../../b', '.']) {
+    assert.throws(() => resolveInside('/tmp/d', outside), /not inside/, outside);
+  }
+});
+
+test('the suite total comes from the report the run just wrote', () => {
+  assert.equal(
+    withJestReport((report) => writeFileSync(report, JSON.stringify({ numTotalTestSuites: 2 }))),
+    2
+  );
+  // Fail closed, not open: a run that wrote nothing is "the gate does not know
+  // how many suites ran", which the caller turns into a shortfall.
+  assert.equal(
+    withJestReport(() => {}),
+    null
+  );
+});
+
+test('the report directory is private, is not the shared tmpdir, and is removed', () => {
+  let seen;
+  withJestReport((report) => {
+    seen = dirname(report);
+    assert.notEqual(seen, resolve(tmpdir()), 'writing reports straight into the shared tmpdir');
+    assert.equal(existsSync(seen), true);
+    // Non-empty, so a cleanup that is not recursive leaves the directory behind.
+    writeFileSync(report, '{}');
+  });
+  assert.equal(existsSync(seen), false, 'report directory outlived the run');
+});
+
+test('the report directory is removed even when the run throws', () => {
+  let seen;
+  const ran = withJestReport((report) => {
+    seen = dirname(report);
+    writeFileSync(report, '{}');
+    throw new Error('jest exploded');
+  });
+  assert.equal(ran, null);
+  assert.equal(existsSync(seen), false);
+});
+
+test('a report that does not state a suite count fails closed', () => {
+  // The caller compares this to the number of files it handed jest, so any
+  // non-number reaching it would be an inequality read as a shortfall by luck
+  // rather than by decision.
+  assert.equal(suiteCountOf(JSON.stringify({ numTotalTestSuites: 3 })), 3);
+  assert.equal(suiteCountOf(JSON.stringify({ numTotalTestSuites: '3' })), null);
+  assert.equal(suiteCountOf(JSON.stringify({})), null);
+  assert.equal(suiteCountOf('not json'), null);
+  assert.equal(suiteCountOf(''), null);
+});
+
+test('changed paths are made absolute and confined to the repository', () => {
+  const root = '/tmp/some-repo-root';
+  assert.deepEqual(absolutePathsIn(root, ['apps/frontend/a.test.tsx', 'apps/backend/b.test.ts']), [
+    '/tmp/some-repo-root/apps/frontend/a.test.tsx',
+    '/tmp/some-repo-root/apps/backend/b.test.ts',
+  ]);
+  // A path naming something above the root is refused, not resolved and run.
+  for (const outside of ['../elsewhere/a.test.ts', '/etc/passwd', 'apps/../../a.test.ts']) {
+    assert.throws(() => absolutePathsIn(root, [outside]), /not inside/, outside);
+  }
 });
