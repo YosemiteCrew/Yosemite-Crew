@@ -85,7 +85,13 @@ const mockLedgerLoad = (record: unknown, reversal: unknown = null) => {
   );
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  // `clearAllMocks` clears calls but not implementations, so a value one test
+  // sets here would otherwise still be the answer several describes later. The
+  // amendment path reads this lookup too, so it has to start empty every time.
+  mockFindMany.mockResolvedValue([]);
+});
 
 describe("ControlledSubstanceLogService.create", () => {
   it("creates a log entry with waste and witness", async () => {
@@ -597,6 +603,163 @@ describe("ControlledSubstanceLogService.update", () => {
         "Amount administered plus amount wasted cannot exceed amount drawn.",
     });
     expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  // A release takes its restored amount out of administered on its own row, so
+  // an amendment that also leaves it out subtracts the return twice and the
+  // register ends up showing more given back than was ever given. Closure passes
+  // on this tuple - 1 + 5 is the full 6 drawn - so this arm can only be caught
+  // by the floor, and the 5 witnessed waste it claims is the drug that went back
+  // to the cabinet.
+  it("refuses an amendment below what a release has already returned", async () => {
+    mockLedgerLoad(linkedDispenseEntry);
+    mockFindMany.mockResolvedValue([{ amountDrawn: -2 }]);
+
+    await expect(
+      ControlledSubstanceLogService.update("cs-dispense-1", "org-1", {
+        amountAdministered: 1,
+        amountWasted: 5,
+        wastedWitness: "nurse-2",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message:
+        "Amount administered cannot be below the 2 a release has already returned to stock.",
+    });
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  // The must-not-over-block arm for the floor: the same 2-unit release, and the
+  // gross tuple the register expects beside it.
+  it("accepts an amendment that closes the draw with a release on the register", async () => {
+    mockLedgerLoad(linkedDispenseEntry);
+    mockFindMany.mockResolvedValue([{ amountDrawn: -2 }]);
+    mockUpdate.mockResolvedValue(linkedDispenseEntry);
+
+    await ControlledSubstanceLogService.update("cs-dispense-1", "org-1", {
+      amountAdministered: 5,
+      amountWasted: 1,
+      wastedWitness: "nurse-2",
+    });
+
+    expect(mockUpdate).toHaveBeenCalled();
+  });
+
+  // Closure is measured against the whole draw whether or not part of it has
+  // come back, so a caller entering the clinical truth net of the return is
+  // short by exactly the returned amount. The message has to say so, or the
+  // figure it is asking for looks like an invention.
+  it("names the returned amount when a release is what closure is missing", async () => {
+    mockLedgerLoad(linkedDispenseEntry);
+    mockFindMany.mockResolvedValue([{ amountDrawn: -2 }]);
+
+    await expect(
+      ControlledSubstanceLogService.update("cs-dispense-1", "org-1", {
+        amountAdministered: 3,
+        amountWasted: 1,
+        wastedWitness: "nurse-2",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message:
+        "Amount administered plus amount wasted must account for the full amount drawn." +
+        " 2 of it has been returned to stock and is credited back by the release's own entry, so it still counts here.",
+    });
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  // The register is read as a chain, so what has to hold is the net across every
+  // row the entry ends up with - not the dispense row on its own. A clinician
+  // who gives 3, wastes 1 and returns 2 of a 6-unit draw can do those in either
+  // order, and both have to land on the same register.
+  describe("a partial return and an amendment, in either order", () => {
+    const amendment = {
+      amountAdministered: 5,
+      amountWasted: 1,
+      wastedWitness: "nurse-2",
+      correctionReason: "1 wasted witnessed, 2 back to the cabinet",
+    };
+
+    const release = () =>
+      ControlledSubstanceLogService.reverseDispenseEntry(prisma, {
+        organisationId: "org-1",
+        sourceEventId: "event-dispense-1",
+        inventoryBatchId: "batch-1",
+        reversalEventId: "event-release-1",
+        amount: 2,
+      });
+
+    type QuantityRow = {
+      amountDrawn: number;
+      amountAdministered: number;
+      amountWasted: number;
+    };
+
+    const netAcross = (rows: QuantityRow[]) =>
+      rows.reduce(
+        (total, row) => ({
+          amountDrawn: total.amountDrawn + row.amountDrawn,
+          amountAdministered: total.amountAdministered + row.amountAdministered,
+          amountWasted: total.amountWasted + row.amountWasted,
+        }),
+        { amountDrawn: 0, amountAdministered: 0, amountWasted: 0 },
+      );
+
+    // The amended row keeps the draw the stock movement gave it; only the
+    // clinical columns come from the patch.
+    const amendedRow = (data: QuantityRow): QuantityRow => ({
+      amountDrawn: linkedDispenseEntry.amountDrawn,
+      amountAdministered: data.amountAdministered,
+      amountWasted: data.amountWasted,
+    });
+
+    // 3 into the patient, 1 witnessed waste, 2 back in the cabinet.
+    const theRegister = {
+      amountDrawn: 4,
+      amountAdministered: 3,
+      amountWasted: 1,
+    };
+
+    it("nets to the same register when the release comes first", async () => {
+      mockLedgerLoad(linkedDispenseEntry);
+      mockCreate.mockResolvedValue({ id: "cs-reversal-1" });
+      await release();
+      const reversal = mockCreate.mock.calls[0][0].data;
+      // The instrument: an actual reversal row, not an empty one that would net
+      // to the dispense on its own.
+      expect(reversal.amountDrawn).toBe(-2);
+
+      mockFindMany.mockResolvedValue([{ amountDrawn: reversal.amountDrawn }]);
+      mockUpdate.mockResolvedValue(linkedDispenseEntry);
+      await ControlledSubstanceLogService.update(
+        "cs-dispense-1",
+        "org-1",
+        amendment,
+      );
+      const amended = mockUpdate.mock.calls[0][0].data;
+
+      expect(netAcross([amendedRow(amended), reversal])).toEqual(theRegister);
+    });
+
+    it("nets to the same register when the amendment comes first", async () => {
+      mockLedgerLoad(linkedDispenseEntry);
+      mockUpdate.mockResolvedValue(linkedDispenseEntry);
+      await ControlledSubstanceLogService.update(
+        "cs-dispense-1",
+        "org-1",
+        amendment,
+      );
+      const amended = mockUpdate.mock.calls[0][0].data;
+      expect(amended.amountAdministered).toBe(5);
+
+      // The row the release reads is now the amended one.
+      mockLedgerLoad({ ...linkedDispenseEntry, ...amended });
+      mockCreate.mockResolvedValue({ id: "cs-reversal-1" });
+      await release();
+      const reversal = mockCreate.mock.calls[0][0].data;
+
+      expect(netAcross([amendedRow(amended), reversal])).toEqual(theRegister);
+    });
   });
 
   // The must-not-over-reach arm: a hand-entered entry has no linkage and keeps
