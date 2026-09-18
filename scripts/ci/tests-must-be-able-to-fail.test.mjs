@@ -100,6 +100,10 @@ test('routes a changed test to the workspace that can run it', () => {
   assert.equal(workspaceOf('apps/frontend/src/app/__tests__/x.test.ts'), 'frontend');
   assert.equal(workspaceOf('scripts/ci/foo.test.mjs'), undefined);
   assert.equal(workspaceOf('apps/mobileAppYC/__tests__/x.test.ts'), 'mobileAppYC');
+  // Scoped package, so the filter argument is not the directory name. While this
+  // was missing, every desktop test change reported "outside a known workspace"
+  // and the gate failed a PR that had in fact proved its change.
+  assert.equal(workspaceOf('apps/desktop/tests/window-config.test.ts'), '@yosemite-crew/desktop');
 });
 
 test('groups tests per workspace and drops what this gate cannot run', () => {
@@ -109,12 +113,19 @@ test('groups tests per workspace and drops what this gate cannot run', () => {
     'apps/frontend/src/app/__tests__/c.test.ts',
     'apps/frontend/e2e/d.spec.ts',
     'apps/mobileAppYC/__tests__/f.test.ts',
+    'apps/desktop/tests/g.test.ts',
     'scripts/ci/e.test.mjs',
   ]);
-  assert.deepEqual([...grouped.keys()].sort(), ['backend', 'frontend', 'mobileAppYC']);
+  assert.deepEqual([...grouped.keys()].sort(), [
+    '@yosemite-crew/desktop',
+    'backend',
+    'frontend',
+    'mobileAppYC',
+  ]);
   assert.equal(grouped.get('frontend').length, 2, 'e2e specs must not be run by this gate');
   assert.equal(grouped.get('backend').length, 1);
   assert.equal(grouped.get('mobileAppYC').length, 1);
+  assert.equal(grouped.get('@yosemite-crew/desktop').length, 1);
 });
 
 test('a PR with only e2e test changes is not treated as proven', () => {
