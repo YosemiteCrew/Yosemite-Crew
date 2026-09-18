@@ -61,6 +61,13 @@ const baseEntry = {
 const linkedDispenseEntry = {
   ...baseEntry,
   id: "cs-dispense-1",
+  // Exactly what `recordControlledSubstanceDispense` writes: the whole draw
+  // counted as administered, nothing wasted, and no patient, clinician or waste
+  // witness - none of which a stock movement knows. A fixture that carried them
+  // could not exercise the fields the amendment path exists to fill in.
+  patientId: null,
+  administeredBy: null,
+  wastedWitness: null,
   amountDrawn: 6,
   amountAdministered: 6,
   amountWasted: 0,
@@ -416,40 +423,223 @@ describe("ControlledSubstanceLogService.update", () => {
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
-  // The dispense wrote this row and the stock movement together, so a ledger-only
-  // correction would move the register and leave the cabinet where it was. Notes
-  // are the most innocuous patch there is and it is still refused: the correction
-  // appends a REPLACEMENT entry that cannot carry the stock linkage - the model's
-  // @@unique([sourceEventId, inventoryBatchId]) forbids a second row on the pair -
-  // so the replacement is invisible to the release that later cancels the draw.
-  it("rejects correcting an entry that records a stock movement", async () => {
+  // The dispense wrote this row and the stock movement together, so it cannot be
+  // corrected by void-and-replace: the reversal would say the whole draw came
+  // back while the stock is still out, and the replacement could not carry the
+  // linkage anyway - the model's @@unique([sourceEventId, inventoryBatchId])
+  // forbids a second row on the pair - so the release that later cancels the
+  // draw would never see it. The facts the dispense could not know are amended
+  // on the row itself instead, and nothing is appended.
+  it("amends a stock-linked entry in place rather than appending a correction", async () => {
     mockLedgerLoad(linkedDispenseEntry);
-    await expect(
-      ControlledSubstanceLogService.update("cs-1", "org-1", {
-        notes: "witness misspelled",
-      }),
-    ).rejects.toMatchObject({
-      statusCode: 409,
-      message:
-        "This entry records a stock movement and cannot be voided or corrected directly; return or void the dispense instead.",
+    mockUpdate.mockResolvedValue({
+      ...linkedDispenseEntry,
+      patientId: "pat-9",
+      amountAdministered: 4,
+      amountWasted: 2,
+      wastedWitness: "nurse-2",
+      administeredBy: "vet-9",
     });
+
+    await expect(
+      ControlledSubstanceLogService.update("cs-dispense-1", "org-1", {
+        patientId: "pat-9",
+        amountAdministered: 4,
+        amountWasted: 2,
+        wastedWitness: "nurse-2",
+        administeredBy: "vet-9",
+        correctionReason: "witnessed waste recorded at the cabinet",
+      }),
+    ).resolves.toMatchObject({ amountAdministered: 4, amountWasted: 2 });
+
     expect(mockCreate).not.toHaveBeenCalled();
-    expect(mockAudit).not.toHaveBeenCalled();
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "cs-dispense-1" },
+        data: expect.objectContaining({
+          patientId: "pat-9",
+          amountAdministered: 4,
+          amountWasted: 2,
+          wastedWitness: "nurse-2",
+          administeredBy: "vet-9",
+        }),
+      }),
+    );
+    // The stock side is not in the patch at all, so nothing can drift into it.
+    const { data } = mockUpdate.mock.calls[0][0];
+    expect(Object.keys(data).sort()).toEqual([
+      "administeredBy",
+      "amountAdministered",
+      "amountWasted",
+      "notes",
+      "patientId",
+      "wastedWitness",
+    ]);
   });
 
-  // Pins the ordering: the caller is told it is on the wrong path, not that its
-  // arithmetic is wrong on a row it may not amend at all.
-  it("refuses a stock-linked correction before checking the quantities", async () => {
+  // An amendment is not a silent edit: the register still shows what the row
+  // said before, behind a marker, which is what replaces the struck-through line
+  // a paper register would carry.
+  it("carries the values an amendment replaces into the entry's notes", async () => {
+    mockLedgerLoad(linkedDispenseEntry);
+    mockUpdate.mockResolvedValue(linkedDispenseEntry);
+
+    await ControlledSubstanceLogService.update("cs-dispense-1", "org-1", {
+      amountAdministered: 4,
+      amountWasted: 2,
+      wastedWitness: "nurse-2",
+      correctionReason: "2ml wasted",
+    });
+
+    const { data } = mockUpdate.mock.calls[0][0];
+    expect(data.notes).toBe(
+      "[amendment:cs-dispense-1] 2ml wasted was amountAdministered=6 amountWasted=0 wastedWitness=none",
+    );
+  });
+
+  // `assertQuantitiesReconcile` only stops a draw being over-spent; it passes a
+  // draw left short. Amendment is the path that lowers administered, so without
+  // this the 2ml the clinician did not give simply stops being accounted for.
+  it("rejects an amendment that leaves part of the draw unaccounted for", async () => {
     mockLedgerLoad(linkedDispenseEntry);
     await expect(
-      ControlledSubstanceLogService.update("cs-1", "org-1", {
-        amountAdministered: 100,
+      ControlledSubstanceLogService.update("cs-dispense-1", "org-1", {
+        amountAdministered: 4,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message:
+        "Amount administered plus amount wasted must account for the full amount drawn.",
+    });
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  // The must-not-over-block arm for the closure check: an amendment that touches
+  // no quantity leaves the dispense's own tuple, which already closes.
+  it("accepts an amendment that changes no quantity", async () => {
+    mockLedgerLoad(linkedDispenseEntry);
+    mockUpdate.mockResolvedValue({
+      ...linkedDispenseEntry,
+      patientId: "pat-9",
+    });
+
+    await expect(
+      ControlledSubstanceLogService.update("cs-dispense-1", "org-1", {
+        patientId: "pat-9",
+      }),
+    ).resolves.toMatchObject({ patientId: "pat-9" });
+    expect(mockUpdate).toHaveBeenCalled();
+  });
+
+  // Nothing in the backend requires a waste witness, and this does not start
+  // requiring one everywhere. It requires one where the waste is created: the
+  // amendment turns a machine row claiming no waste into one that records some.
+  it("rejects an amendment that records waste with no witness", async () => {
+    mockLedgerLoad({ ...linkedDispenseEntry, wastedWitness: null });
+    await expect(
+      ControlledSubstanceLogService.update("cs-dispense-1", "org-1", {
+        amountAdministered: 4,
+        amountWasted: 2,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message:
+        "Recording waste on a controlled substance entry requires a waste witness.",
+    });
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  // The must-not-over-block arm: a witness already on the row satisfies it, so
+  // the check reads the resulting entry rather than only the patch.
+  it("accepts recorded waste when the entry already carries a witness", async () => {
+    mockLedgerLoad({ ...linkedDispenseEntry, wastedWitness: "nurse-1" });
+    mockUpdate.mockResolvedValue(linkedDispenseEntry);
+
+    await ControlledSubstanceLogService.update("cs-dispense-1", "org-1", {
+      amountAdministered: 4,
+      amountWasted: 2,
+    });
+    expect(mockUpdate).toHaveBeenCalled();
+  });
+
+  // Freezing `amountDrawn` is what makes the amendment safe - `reverseDispenseEntry`
+  // caps a later release on it - so a caller reaching for it is refused by name
+  // rather than quietly ignored.
+  it("refuses to change the columns a stock movement owns", async () => {
+    mockLedgerLoad(linkedDispenseEntry);
+    await expect(
+      ControlledSubstanceLogService.update("cs-dispense-1", "org-1", {
+        amountDrawn: 100,
+        balanceAfter: 0,
+        lotNumber: "KET-2026-002",
       }),
     ).rejects.toMatchObject({
       statusCode: 409,
       message:
-        "This entry records a stock movement and cannot be voided or corrected directly; return or void the dispense instead.",
+        "This entry records a stock movement; amountDrawn, balanceAfter, lotNumber cannot be changed from the register. Return or void the dispense instead.",
     });
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  // The amended quantities are read against the draw the cabinet actually gave
+  // out, not against anything the caller supplied.
+  it("rejects an amendment that gives out more than the dispense drew", async () => {
+    mockLedgerLoad(linkedDispenseEntry);
+    await expect(
+      ControlledSubstanceLogService.update("cs-dispense-1", "org-1", {
+        amountAdministered: 5,
+        amountWasted: 2,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message:
+        "Amount administered plus amount wasted cannot exceed amount drawn.",
+    });
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  // The must-not-over-reach arm: a hand-entered entry has no linkage and keeps
+  // the append-only correction. Without it the branch could be written to amend
+  // every entry in place and nothing here would notice.
+  it("still corrects a hand-entered entry by appending, not in place", async () => {
+    mockLedgerLoad(baseEntry);
+    mockCreate
+      .mockResolvedValueOnce(reversalEntry)
+      .mockResolvedValueOnce({ ...baseEntry, id: "cs-1-fix" });
+
+    await expect(
+      ControlledSubstanceLogService.update("cs-1", "org-1", {
+        amountAdministered: 4,
+      }),
+    ).resolves.toMatchObject({ id: "cs-1-fix" });
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("records the amendment on the audit trail as its own action", async () => {
+    mockLedgerLoad(linkedDispenseEntry);
+    mockUpdate.mockResolvedValue({
+      ...linkedDispenseEntry,
+      patientId: "pat-9",
+    });
+
+    await ControlledSubstanceLogService.update("cs-dispense-1", "org-1", {
+      patientId: "pat-9",
+      correctedBy: "vet-7",
+    });
+
+    expect(mockAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        patientId: "pat-9",
+        actorId: "vet-7",
+        metadata: expect.objectContaining({
+          action: "AMENDMENT",
+          amendedEntryId: "cs-dispense-1",
+          sourceEventId: "event-dispense-1",
+        }),
+      }),
+    );
   });
 
   it("rejects a patch that makes administered exceed the stored drawn amount", async () => {
@@ -588,7 +778,7 @@ describe("ControlledSubstanceLogService.delete", () => {
     ).rejects.toMatchObject({
       statusCode: 409,
       message:
-        "This entry records a stock movement and cannot be voided or corrected directly; return or void the dispense instead.",
+        "This entry records a stock movement and cannot be voided directly; return or void the dispense instead. Its patient, administration and waste details can still be amended.",
     });
     expect(mockCreate).not.toHaveBeenCalled();
     expect(mockAudit).not.toHaveBeenCalled();
@@ -633,14 +823,15 @@ describe("ControlledSubstanceLogService.delete", () => {
 
   // Ordering: a partly released dispense is refused as stock-linked rather than
   // told to "correct the replacement entry instead", advice that is wrong twice
-  // over - there is no replacement, and correcting is refused as well.
+  // over - there is no replacement, and the correction path amends this row in
+  // place rather than producing one.
   it("refuses a stock-linked void before the already-reversed check", async () => {
     mockLedgerLoad(linkedDispenseEntry, { id: "cs-dispense-1-rev" });
     await expect(
       ControlledSubstanceLogService.delete("cs-dispense-1", "org-1"),
     ).rejects.toMatchObject({
       message:
-        "This entry records a stock movement and cannot be voided or corrected directly; return or void the dispense instead.",
+        "This entry records a stock movement and cannot be voided directly; return or void the dispense instead. Its patient, administration and waste details can still be amended.",
     });
   });
 

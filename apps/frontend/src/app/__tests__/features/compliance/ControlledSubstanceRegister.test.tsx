@@ -24,6 +24,7 @@ const makeEntry = (overrides: Partial<ControlledSubstanceLog>): ControlledSubsta
   balanceAfter: 18,
   administeredBy: 'Dr. Reyes',
   notes: 'Sedation.',
+  sourceEventId: null,
   createdAt: '2026-09-03T14:31:00.000Z',
   updatedAt: '2026-09-03T14:31:00.000Z',
   ...overrides,

@@ -29,6 +29,14 @@ export interface ControlledSubstanceLog {
   balanceAfter: number | null;
   administeredBy: string | null;
   notes: string | null;
+  /**
+   * Set only on entries a dispense or release wrote. Such an entry cannot be
+   * voided, and a correction of it amends the patient, administration and waste
+   * details on the row rather than appending a replacement - so a client that
+   * offers those actions has to be able to tell the two kinds of row apart
+   * before the request rather than from the error it comes back with.
+   */
+  sourceEventId: string | null;
   createdAt: string;
   updatedAt: string;
 }
