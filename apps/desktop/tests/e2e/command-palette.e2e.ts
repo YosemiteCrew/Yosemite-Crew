@@ -68,14 +68,17 @@ const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
 const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): Promise<T> =>
   page.evaluate(
     ({ m, a }: { m: string; a: unknown[] }) => {
-      const yc = (window as Record<string, unknown>).ycDesktop as Record<string, unknown>;
+      const yc = (window as unknown as Record<string, unknown>).ycDesktop as Record<
+        string,
+        unknown
+      >;
       if (yc && typeof yc === 'object' && typeof yc[m] === 'function') {
         return (yc[m] as (...args: unknown[]) => unknown)(...a);
       }
       return null;
     },
     { m: method, a: args }
-  );
+  ) as Promise<T>;
 
 const waitForPaletteReady = async (page: Page, timeout = 5000): Promise<void> => {
   await expect
@@ -142,7 +145,7 @@ test.describe('command-palette E2E', () => {
     const result = await evaluateYcDesktop<{ ok: boolean }>(
       page,
       'executeCommand',
-      actions.actions[0].id
+      actions.actions[0]!.id
     );
     expect(result.ok).toBe(true);
   });
@@ -183,7 +186,7 @@ test.describe('command-palette E2E', () => {
     }>(page, 'getPaletteActions');
     expect(actions.ok).toBe(true);
     if (actions.actions.length > 0) {
-      await evaluateYcDesktop(page, 'executeCommand', actions.actions[0].id);
+      await evaluateYcDesktop(page, 'executeCommand', actions.actions[0]!.id);
     }
     const recents1 = await evaluateYcDesktop<{
       ok: boolean;

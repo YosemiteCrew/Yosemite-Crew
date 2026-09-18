@@ -97,7 +97,7 @@ describe('createOfflineStore', () => {
 
     const canines = store.query('patients', { species: 'Canine' });
     expect(canines).toHaveLength(1);
-    expect(canines[0].id).toBe('p1');
+    expect(canines[0]!.id).toBe('p1');
   });
 
   test('getDirtyRows returns only dirty rows', async () => {
@@ -109,7 +109,7 @@ describe('createOfflineStore', () => {
 
     const dirty = store.getDirtyRows('patients');
     expect(dirty).toHaveLength(1);
-    expect(dirty[0].id).toBe('p2');
+    expect(dirty[0]!.id).toBe('p2');
   });
 
   test('getDirtyCount returns count', async () => {

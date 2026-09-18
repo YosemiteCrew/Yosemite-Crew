@@ -125,8 +125,8 @@ describe('createSecondaryDisplayManager', () => {
 
     const displays = mgr.getDisplays();
     expect(displays).toHaveLength(1);
-    expect(displays[0].config.role).toBe('whiteboard');
-    expect(displays[0].status).toBe('open');
+    expect(displays[0]!.config.role).toBe('whiteboard');
+    expect(displays[0]!.status).toBe('open');
   });
 
   test('handles no secondary display available', () => {

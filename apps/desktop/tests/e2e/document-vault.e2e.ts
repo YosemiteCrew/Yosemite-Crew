@@ -84,14 +84,17 @@ const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
 const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): Promise<T> =>
   page.evaluate(
     ({ m, a }: { m: string; a: unknown[] }) => {
-      const yc = (window as Record<string, unknown>).ycDesktop as Record<string, unknown>;
+      const yc = (window as unknown as Record<string, unknown>).ycDesktop as Record<
+        string,
+        unknown
+      >;
       if (yc && typeof yc === 'object' && typeof yc[m] === 'function') {
         return (yc[m] as (...args: unknown[]) => unknown)(...a);
       }
       return null;
     },
     { m: method, a: args }
-  );
+  ) as Promise<T>;
 
 // Give downloads a save path up front.
 //
@@ -234,7 +237,7 @@ test.describe('document-vault E2E', () => {
     const deleteRes = await evaluateYcDesktop<{ ok: boolean }>(
       page,
       'vaultDelete',
-      listRes1.documents[0].id
+      listRes1.documents[0]!.id
     );
     expect(deleteRes.ok).toBe(true);
 

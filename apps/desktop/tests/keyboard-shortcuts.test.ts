@@ -40,7 +40,9 @@ describe('createKeyboardShortcutManager', () => {
 
   test('does not register shortcuts that fail', () => {
     const deps = makeDeps();
-    deps.globalShortcut.register = jest.fn(() => false);
+    deps.globalShortcut.register = jest.fn<boolean, [accelerator: string, callback: () => void]>(
+      () => false
+    );
     const mgr = createKeyboardShortcutManager(deps);
     mgr.register();
 
@@ -65,7 +67,7 @@ describe('createKeyboardShortcutManager', () => {
 
     const paletteShortcut = SHORTCUTS.find((s) => s.id === 'open-palette')!;
     const registerCall = deps.globalShortcut.register.mock.calls.find(
-      (c: string[]) => c[0] === paletteShortcut.accelerator
+      (c) => c[0] === paletteShortcut.accelerator
     );
     if (registerCall) {
       registerCall[1]();
@@ -83,7 +85,7 @@ describe('createKeyboardShortcutManager', () => {
     );
     for (const sc of navShortcuts) {
       const registerCall = deps.globalShortcut.register.mock.calls.find(
-        (c: string[]) => c[0] === sc.accelerator
+        (c) => c[0] === sc.accelerator
       );
       if (registerCall) {
         registerCall[1]();
@@ -94,7 +96,7 @@ describe('createKeyboardShortcutManager', () => {
   });
 
   describe('shortcut without url falls through to webContents path', () => {
-    let origUrl: string | null;
+    let origUrl: string | null | undefined;
 
     beforeEach(() => {
       origUrl = shortcutActionUrl['new-patient'];
@@ -103,7 +105,7 @@ describe('createKeyboardShortcutManager', () => {
     });
 
     afterEach(() => {
-      (shortcutActionUrl as Record<string, string | null>)['new-patient'] = origUrl;
+      (shortcutActionUrl as Record<string, string | null | undefined>)['new-patient'] = origUrl;
     });
 
     it('sends shortcut to webContents when focused and not destroyed', () => {
@@ -116,7 +118,7 @@ describe('createKeyboardShortcutManager', () => {
       mgr.register();
 
       const call = deps.globalShortcut.register.mock.calls.find(
-        (c: string[]) => c[0] === SHORTCUTS.find((s) => s.id === 'new-patient')!.accelerator
+        (c) => c[0] === SHORTCUTS.find((s) => s.id === 'new-patient')!.accelerator
       );
       if (call) call[1]();
 
@@ -133,7 +135,7 @@ describe('createKeyboardShortcutManager', () => {
       mgr.register();
 
       const call = deps.globalShortcut.register.mock.calls.find(
-        (c: string[]) => c[0] === SHORTCUTS.find((s) => s.id === 'new-patient')!.accelerator
+        (c) => c[0] === SHORTCUTS.find((s) => s.id === 'new-patient')!.accelerator
       );
       if (call) call[1]();
 
@@ -146,7 +148,7 @@ describe('createKeyboardShortcutManager', () => {
       mgr.register();
 
       const call = deps.globalShortcut.register.mock.calls.find(
-        (c: string[]) => c[0] === SHORTCUTS.find((s) => s.id === 'new-patient')!.accelerator
+        (c) => c[0] === SHORTCUTS.find((s) => s.id === 'new-patient')!.accelerator
       );
       if (call) call[1]();
 

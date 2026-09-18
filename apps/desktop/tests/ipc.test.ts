@@ -149,12 +149,12 @@ describe('IPC validation', () => {
     const received: unknown[][] = [];
     registry.on('yc:window-drag-by', (_event, args) => received.push([...args]));
 
-    registered['yc:window-drag-by'](sender(localFileUrl), 4, 2);
+    registered['yc:window-drag-by']!(sender(localFileUrl), 4, 2);
     expect(received).toEqual([[4, 2]]);
 
-    registered['yc:window-drag-by'](sender('https://evil.example.com'), 9999, 9999);
+    registered['yc:window-drag-by']!(sender('https://evil.example.com'), 9999, 9999);
     expect(received).toEqual([[4, 2]]);
-    expect(warnings[0].event).toBe('ipc_request_rejected');
+    expect(warnings[0]!.event).toBe('ipc_request_rejected');
   });
 
   test('wraps handlers with validation and converts failures to safe responses', async () => {
@@ -176,20 +176,20 @@ describe('IPC validation', () => {
     });
 
     registry.handle('yc:reload', async () => ({ ok: true }));
-    await expect(registered['yc:reload'](sender(localFileUrl))).resolves.toEqual({ ok: true });
-    await expect(registered['yc:reload'](sender(localFileUrl), 'bad')).resolves.toEqual({
+    await expect(registered['yc:reload']!(sender(localFileUrl))).resolves.toEqual({ ok: true });
+    await expect(registered['yc:reload']!(sender(localFileUrl), 'bad')).resolves.toEqual({
       ok: false,
       error: 'unexpected-args',
     });
-    expect(warnings[0].event).toBe('ipc_request_rejected');
+    expect(warnings[0]!.event).toBe('ipc_request_rejected');
 
     registry.handle('yc:open-in-browser', async () => {
       throw new Error('boom');
     });
-    await expect(registered['yc:open-in-browser'](sender(localFileUrl))).resolves.toEqual({
+    await expect(registered['yc:open-in-browser']!(sender(localFileUrl))).resolves.toEqual({
       ok: false,
       error: 'handler-failed',
     });
-    expect(errors[0].event).toBe('ipc_handler_failed');
+    expect(errors[0]!.event).toBe('ipc_handler_failed');
   });
 });
