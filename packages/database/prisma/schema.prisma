@@ -7012,3 +7012,72 @@ model ParasiteRiskSubscription {
   @@index([parentId])
   @@index([latBucket, lonBucket])
 }
+
+/// Why a captured payment cannot be stored as a Payment or a PaymentAttempt:
+/// both require an invoiceId, so nothing can be recorded until an invoice
+/// exists. The appointment-booking webhook has five exits where the card has
+/// already been charged and no invoice can be minted - the appointment is
+/// gone, its appointmentType carries no service id, the service was hard-
+/// deleted with its speciality, a second legitimate intent collides with the
+/// one-invoice-per-appointment index, or the invoice named in the intent's
+/// metadata cannot be found. Every one of those wrote a log line and nothing
+/// else. (#3170)
+enum ProviderReceiptStatus {
+  /// Captured, but the organisation it belongs to could not be resolved.
+  UNATTRIBUTED
+  /// Attributed to an organisation, not yet applied to anything.
+  UNALLOCATED
+  /// Applied in full to an invoice.
+  ALLOCATED
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+/// The ingestion journal for captured provider payments.
+///
+/// One row per captured payment, keyed by the provider's own reference so a
+/// redelivered webhook lands on the row it already wrote. Deliberately holds
+/// NO foreign key it could be blocked on: a missing invoice, a deleted
+/// appointment and an unresolvable organisation all still produce a row.
+///
+/// This is a journal, not a ledger. It never posts an account credit - that
+/// belongs to the canonical account receipt in #3163, which links to this row
+/// 1:1. Writing here twice must never mean crediting twice.
+model ProviderReceipt {
+  id                 String                @id @default(uuid())
+  provider           PaymentProvider
+  /// The connected merchant account the money landed in. Two organisations
+  /// using distinct accounts stay isolated even if a provider reference were
+  /// ever reused. Platform-account captures carry the PLATFORM sentinel rather
+  /// than NULL, because NULLs stay distinct in a Postgres unique index and
+  /// would let the same reference be journalled twice.
+  merchantAccountRef String
+  /// The provider's own reference for the capture - a Stripe PaymentIntent id.
+  paymentRef         String
+  /// Nullable on purpose. An UNATTRIBUTED receipt is the whole point: the money
+  /// is recorded first and attributed afterwards.
+  organisationId     String?
+  /// Set only where the ingesting path already knew it. Never guessed.
+  invoiceId          String?
+  appointmentId      String?
+  amount             Float
+  currency           String
+  capturedAt         DateTime
+  status             ProviderReceiptStatus @default(UNATTRIBUTED)
+  /// Why this receipt is in its current state, in the words of the path that
+  /// wrote it. Read by a human doing reconciliation; never parsed.
+  reason             String?
+  rawProviderPayload Json?
+  /// Bumped on every state change so an allocation can be made conditional on
+  /// the state it was read from (#3170 delivery 2).
+  version            Int                   @default(0)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  @@unique([provider, merchantAccountRef, paymentRef])
+  @@index([organisationId])
+  @@index([status])
+  @@index([invoiceId])
+  @@index([appointmentId])
+  @@index([capturedAt])
+}
