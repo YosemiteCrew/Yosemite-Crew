@@ -16,3 +16,6 @@ gem 'benchmark'
 gem 'mutex_m'
 
 gem 'json', '>= 2.19.8'
+
+# Probe only: added without regenerating Gemfile.lock, to prove the gate fails.
+gem 'rake'
