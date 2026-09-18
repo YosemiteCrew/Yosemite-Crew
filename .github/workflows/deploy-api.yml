@@ -176,7 +176,9 @@ jobs:
           else
             echo "host=63.179.216.42"                       >> "$GITHUB_OUTPUT"
             echo "repo=/home/ubuntu/fix/Yosemite-Crew"      >> "$GITHUB_OUTPUT"
-            echo "pm2=1"                                    >> "$GITHUB_OUTPUT"
+            # By name, like production: `pm2 resurrect` (the boot unit) renumbers
+            # processes from 0, so a numeric id stops matching after a reboot.
+            echo "pm2=yosemite-temp"                        >> "$GITHUB_OUTPUT"
             echo "default_ref=dev"                          >> "$GITHUB_OUTPUT"
             # Deliberately empty: dev is where work arrives before promotion, so
             # constraining it would defeat the point of having a dev host.
