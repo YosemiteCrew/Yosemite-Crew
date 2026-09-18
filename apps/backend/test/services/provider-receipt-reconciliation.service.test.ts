@@ -46,6 +46,7 @@ const row = (overrides: Record<string, unknown> = {}) => ({
   capturedAt: new Date("2026-09-18T10:00:00.000Z"),
   status: "UNALLOCATED" as const,
   reason: null,
+  refundedAmount: 0,
   version: 0,
   createdAt: new Date("2026-09-18T10:00:01.000Z"),
   ...overrides,
@@ -206,6 +207,18 @@ describe("ProviderReceiptService.listForReconciliation", () => {
     const [{ select }] = mockedPrisma.providerReceipt.findMany.mock.calls[0];
     expect(select).not.toHaveProperty("rawProviderPayload");
     expect(select).toMatchObject({ id: true, amount: true, status: true });
+  });
+
+  it("returns the refunded figure, without which the row has no residual", async () => {
+    // The issue's oracle is captured = applied + unapplied + refunded. A
+    // PARTIALLY_REFUNDED status says money went back but not how much, so the
+    // operator cannot see what is left to reconcile without this column.
+    await ProviderReceiptService.listForReconciliation({
+      organisationId: "org-a",
+    });
+
+    const [{ select }] = mockedPrisma.providerReceipt.findMany.mock.calls[0];
+    expect(select).toMatchObject({ refundedAmount: true });
   });
 
   it("filters by the states the caller asked for and nothing else", async () => {
