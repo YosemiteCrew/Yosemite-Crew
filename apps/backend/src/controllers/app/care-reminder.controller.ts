@@ -1,39 +1,10 @@
 import { Request, Response } from "express";
-import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import {
   MobileCareReminderService,
   parseCareReminderCursor,
 } from "src/services/mobile-care-reminder.service";
-import { resolveVerifiedUserId } from "src/utils/request";
 import logger from "src/utils/logger";
-
-/**
- * Resolves the caller to the parent their companions hang off.
- *
- * Returns null and sends the response, so callers must return without writing
- * again. Kept next to the handler for the same reason the prescription
- * controller keeps its own: every owner-facing read has to do this, and doing
- * it inline is how one of them ends up not doing it.
- */
-const resolveParentId = async (
-  req: Request,
-  res: Response,
-): Promise<string | null> => {
-  const authUserId = resolveVerifiedUserId(req);
-  if (!authUserId) {
-    res.status(401).json({ message: "Not authenticated: userId is missing." });
-    return null;
-  }
-
-  const authUser = await AuthUserMobileService.getByProviderUserId(authUserId);
-  const parentId = authUser?.parentId?.toString();
-  if (!parentId) {
-    res.status(404).json({ message: "User not found." });
-    return null;
-  }
-
-  return parentId;
-};
+import { resolveParentId } from "src/controllers/app/shared/owner-controller.helpers";
 
 export const MobileCareReminderController = {
   listDueReminders: async (req: Request, res: Response) => {
