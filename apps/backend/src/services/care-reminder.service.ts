@@ -15,6 +15,10 @@ import {
   assertPatientOrgMembership,
   assertPatientsOrgMembership,
 } from "./shared/patient-org-membership";
+import {
+  CARE_TYPE_LABELS,
+  buildCareReminderMessage,
+} from "./shared/care-reminder-message";
 
 export class CareReminderError extends Error {
   constructor(
@@ -36,15 +40,6 @@ type ReminderType =
 
 type ReminderStatus =
   "PENDING" | "SENT" | "RESPONDED" | "EXPIRED" | "CANCELLED";
-
-const CARE_TYPE_LABELS: Record<ReminderType, string> = {
-  VACCINATION_BOOSTER: "a vaccination booster",
-  ANNUAL_CHECKUP: "an annual health check",
-  PARASITE_TREATMENT: "parasite treatment",
-  DENTAL_CLEANING: "a dental cleaning",
-  FOLLOW_UP: "a follow-up appointment",
-  CUSTOM: "a scheduled care appointment",
-};
 
 export interface CreateCareReminderParams {
   organisationId: string;
@@ -187,9 +182,13 @@ const dispatchNotification = async (
   ownerEmail: string | null,
 ) => {
   const typeLabel = CARE_TYPE_LABELS[reminder.reminderType] ?? "care";
-  const body =
-    reminder.customMessage ??
-    `${patientName} is due for ${typeLabel}. Please book an appointment at your earliest convenience.`;
+  // Shared with the in-app due list so the two never drift - see
+  // `shared/care-reminder-message`.
+  const body = buildCareReminderMessage({
+    customMessage: reminder.customMessage,
+    patientName,
+    reminderType: reminder.reminderType,
+  });
 
   const { suppression, unsubscribeUrl } = await resolveDeliveryPlan(
     reminder,
