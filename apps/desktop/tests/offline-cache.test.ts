@@ -359,7 +359,7 @@ describe('createOfflineCache', () => {
     const cache = createOfflineCache(dir, { encryptString, decryptString });
     const entries = cache.entries();
     expect(entries).toHaveLength(1);
-    expect(entries[0].url).toBe('https://example.com/valid');
+    expect(entries[0]!.url).toBe('https://example.com/valid');
   });
 
   test('multiple set calls on different URLs both persist across instances', () => {
@@ -527,8 +527,8 @@ describe('createOfflineCache', () => {
     const cache = createOfflineCache(dir, { encryptString, decryptString });
     const entries = cache.entries();
     expect(entries).toHaveLength(2);
-    expect(entries[0].url).toBe('https://example.com/valid');
-    expect(entries[1].url).toBe('https://example.com/str-body');
+    expect(entries[0]!.url).toBe('https://example.com/valid');
+    expect(entries[1]!.url).toBe('https://example.com/str-body');
   });
 
   test('load filters out entries with non-string url', () => {
