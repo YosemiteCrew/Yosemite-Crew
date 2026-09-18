@@ -2968,6 +2968,13 @@ model ClinicalArtifact {
   signedBy          String?
   signedAt          DateTime?
   summary           String?
+  // Optimistic-concurrency counter for the whole artifact (#3144). Every write
+  // that changes this row's own status/summary/signature increments it exactly
+  // once, so a caller that read v3 can claim the write with `version: 3` in the
+  // WHERE and lose harmlessly when another session already moved it to v4.
+  // Subtype tables (SoapNote, Prescription, ...) have no counter of their own:
+  // they are only ever written inside the artifact's transaction.
+  version           Int                    @default(1)
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
 

@@ -972,4 +972,39 @@ describe("clinicalArtifactFhirMapper", () => {
       });
     });
   });
+
+  describe("artifact version (#3144)", () => {
+    // Deliberately not 1, and different from `templateVersion` above, so a
+    // mapper reading the wrong counter cannot coincide with the right one.
+    const ARTIFACT_VERSION = 7;
+
+    const withVersion = <T extends { artifact: object }>(record: T) => ({
+      ...record,
+      artifact: { ...record.artifact, version: ARTIFACT_VERSION },
+    });
+
+    it("publishes the artifact generation as meta.versionId on a SOAP composition", () => {
+      expect(
+        clinicalArtifactFhirMapper.soapNoteToComposition(
+          withVersion(soapRecord),
+        ).meta,
+      ).toEqual({ versionId: "7" });
+    });
+
+    it("publishes it on a prescription as well", () => {
+      expect(
+        clinicalArtifactFhirMapper.prescriptionToMedicationRequest(
+          withVersion(prescriptionRecord),
+        ).meta,
+      ).toEqual({ versionId: "7" });
+    });
+
+    it("omits meta entirely for a projection that does not carry the version", () => {
+      // An absent generation must not be published as a real one - a client
+      // would then send a precondition it never read.
+      expect(
+        clinicalArtifactFhirMapper.soapNoteToComposition(soapRecord).meta,
+      ).toBeUndefined();
+    });
+  });
 });
