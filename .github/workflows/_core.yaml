@@ -40,7 +40,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # No `ref:` on purpose. The default for a pull_request event is the
+          # merge commit GitHub computes for refs/pull/N/merge - the tree that
+          # would exist on the base branch if this pull request merged now. The
+          # previous `pull_request.head.sha` override judged the branch tip
+          # instead, so a pull request that predates a change to what a gate
+          # READS (a tsconfig include, an eslint ignore list, a coverage
+          # threshold) was green against a tree nobody was about to merge, and
+          # the push run on dev was the first thing to see the real answer. See
+          # issue #3316; #3315 is the instance that cost a red dev.
+          #
+          # This keeps `compute-base-sha.sh` exactly right rather than disturbing
+          # it: on a pull_request the base is `pull_request.base.sha`, the base
+          # branch tip at the time of the event, which is the merge commit's
+          # first parent - so `git diff $BASE_SHA HEAD` is still precisely the
+          # change this pull request makes and nothing else.
+          #
           # Detection diffs against a base commit, so the full history must be
           # present. A shallow clone makes every base unreachable, which the
           # resolver reports as run_all - correct, but it would run everything
@@ -192,7 +207,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # No `ref:` - this job judges the merged tree, not the branch tip.
+          # See the Checkout step of the detect job above for why.
           persist-credentials: false
 
       - name: Setup
@@ -290,7 +306,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # No `ref:` - this job judges the merged tree, not the branch tip.
+          # See the Checkout step of the detect job above for why.
           persist-credentials: false
 
       - name: Setup
