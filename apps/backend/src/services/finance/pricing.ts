@@ -1,5 +1,4 @@
 import {
-  DEFAULT_LEDGER_EXPONENT,
   fromLedgerMinorUnits,
   quantizeMoney,
   resolveLedgerExponent,
@@ -55,13 +54,19 @@ export type InvoicePricingBreakdown = {
   lines: InvoicePricingLineBreakdown[];
 };
 
+const MONEY_SCALE = 100;
+
 /**
- * Rounds at the legacy two decimals regardless of currency. Retained for the
- * callers that have not yet been given a currency to round by; new work inside
- * this module rounds at the posted precision of the invoice's own currency.
+ * Rounds at two decimals regardless of currency, on the float scaled by a
+ * hundred. Left exactly as it was: the payment, tax and appointment callers
+ * this slice does not cover round by it, and `creditNoteService` on the
+ * frontend carries a copy that states it matches this one. Invoice pricing
+ * rounds by `quantizeMoney` at the invoice currency's own precision instead,
+ * which is exact and disagrees with this function wherever scaling the float
+ * lands the tie on the wrong side (8.165 posts as 8.17 there, 8.16 here).
  */
 export const roundMoney = (value: number): number =>
-  quantizeMoney(value, DEFAULT_LEDGER_EXPONENT);
+  Math.round((value + Number.EPSILON) * MONEY_SCALE) / MONEY_SCALE;
 
 export const getNetPaymentAmount = (payment: {
   amount: number;

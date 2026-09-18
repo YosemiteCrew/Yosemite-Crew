@@ -3,12 +3,26 @@ import {
   calculateInvoicePricing,
   roundMoney,
 } from "../../src/services/finance/pricing";
-import { UnsupportedLedgerCurrencyError } from "../../src/services/finance/currency";
+import {
+  UnsupportedLedgerCurrencyError,
+  quantizeMoney,
+} from "../../src/services/finance/currency";
 
 describe("finance/pricing", () => {
   it("rounds money deterministically", () => {
     expect(roundMoney(10.004)).toBe(10);
     expect(roundMoney(10.005)).toBe(10.01);
+  });
+
+  it("disagrees with the exact quantizer where scaling the float loses a tie", () => {
+    // Pins the divergence rather than assuming there is none: 8.165 * 100 is
+    // 816.4999999999999 in binary and the epsilon nudge does not reach the
+    // tie, so this function posts 8.16 where invoice pricing now posts 8.17.
+    // Any caller moved onto the exact quantizer changes by this much.
+    expect(roundMoney(8.165)).toBe(8.16);
+    expect(quantizeMoney(8.165, 2)).toBe(8.17);
+    expect(roundMoney(-10.005)).toBe(-10);
+    expect(quantizeMoney(-10.005, 2)).toBe(-10.01);
   });
 
   describe("calculateInvoiceDiscountPercentOfBase", () => {

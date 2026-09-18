@@ -56,13 +56,17 @@ export const AMBIGUOUS_LEDGER_CURRENCIES: ReadonlySet<string> = new Set([
 export const LEDGER_CURRENCY_EXPONENTS: ReadonlyMap<string, number> = new Map(
   [...ICU_CURRENCY_CODES]
     .filter((code) => !AMBIGUOUS_LEDGER_CURRENCIES.has(code))
-    .map((code) => [
+    .map((code): [string, number | undefined] => [
       code,
       new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: code,
       }).resolvedOptions().maximumFractionDigits,
-    ]),
+    ])
+    // A runtime that reports no fraction digits for a currency has not told
+    // us its precision, which is not the same as telling us it has none.
+    // Leave it out and let it be refused rather than posted at a guess.
+    .filter((entry): entry is [string, number] => entry[1] !== undefined),
 );
 
 /** The legacy precision every amount was posted at before this registry. */
