@@ -6,7 +6,7 @@ type StampModule = {
   MAC_FEED_NAME: RegExp;
   darwinFloorFor: (macosFloor: unknown) => string;
   macFloorFrom: (pkg: unknown) => string;
-  feedInsideDist: (packageRoot: string, feedPath: string) => string;
+  feedInsideDist: (feedPath: string) => string;
   main: (argv: string[], deps?: Record<string, unknown>) => number;
   stampFeed: (contents: string, darwinFloor: string) => string;
 };
@@ -100,33 +100,31 @@ describe('stampFeed', () => {
   });
 });
 
-const PACKAGE_ROOT = path.resolve('/fake/desktop');
-const DIST_FEED = path.join(PACKAGE_ROOT, 'dist', 'latest-mac.yml');
+// The containment root is fixed in the script, so the test derives the same
+// boundary the same way rather than relocating it: this file sits in
+// apps/desktop/tests, so its parent is the package the script guards.
+const DIST_FEED = path.join(__dirname, '..', 'dist', 'latest-mac.yml');
 
 describe('feedInsideDist', () => {
   it('resolves a package-relative feed path against the package, not the cwd', () => {
-    expect(stamp.feedInsideDist(PACKAGE_ROOT, 'dist/latest-mac.yml')).toBe(DIST_FEED);
-    expect(stamp.feedInsideDist(PACKAGE_ROOT, DIST_FEED)).toBe(DIST_FEED);
+    expect(stamp.feedInsideDist('dist/latest-mac.yml')).toBe(DIST_FEED);
+    expect(stamp.feedInsideDist(DIST_FEED)).toBe(DIST_FEED);
   });
 
   it('refuses a path that climbs out of dist', () => {
     // The name guard only checks the last segment, so this passes it.
-    expect(() => stamp.feedInsideDist(PACKAGE_ROOT, '../../../etc/latest-mac.yml')).toThrow(
-      /outside/
-    );
-    expect(() => stamp.feedInsideDist(PACKAGE_ROOT, 'dist/../latest-mac.yml')).toThrow(/outside/);
+    expect(() => stamp.feedInsideDist('../../../etc/latest-mac.yml')).toThrow(/outside/);
+    expect(() => stamp.feedInsideDist('dist/../latest-mac.yml')).toThrow(/outside/);
   });
 
   it('refuses an absolute path elsewhere on the filesystem', () => {
-    expect(() => stamp.feedInsideDist(PACKAGE_ROOT, '/tmp/latest-mac.yml')).toThrow(/outside/);
+    expect(() => stamp.feedInsideDist('/tmp/latest-mac.yml')).toThrow(/outside/);
   });
 
   it('refuses a subdirectory of dist', () => {
     // electron-builder writes the feed at the top of dist; anything nested is
     // somewhere this script was not pointed at.
-    expect(() => stamp.feedInsideDist(PACKAGE_ROOT, 'dist/nested/latest-mac.yml')).toThrow(
-      /outside/
-    );
+    expect(() => stamp.feedInsideDist('dist/nested/latest-mac.yml')).toThrow(/outside/);
   });
 });
 
@@ -136,12 +134,10 @@ describe('main', () => {
     const logged: string[] = [];
     const errored: string[] = [];
     const deps = {
-      packageRoot: PACKAGE_ROOT,
-      packageJsonPath: '/fake/package.json',
+      // The floor arrives as data, not as a path to read, so the expected
+      // 22.0.0 below stays pinned when the packaged floor is next raised.
+      pkg: { build: { mac: { minimumSystemVersion: '13.0' } } },
       readFileSync: (target: string) => {
-        if (target === '/fake/package.json') {
-          return JSON.stringify({ build: { mac: { minimumSystemVersion: '13.0' } } });
-        }
         if (contents === null) {
           throw new Error(`ENOENT: no such file or directory, open '${target}'`);
         }
@@ -194,6 +190,14 @@ describe('main', () => {
     expect(stamp.main(['node', 'script', '../../../etc/latest-mac.yml'], h.deps)).toBe(1);
     expect(h.written).toHaveLength(0);
     expect(h.errored.join('\n')).toMatch(/outside/);
+  });
+
+  it('fails when the packaged floor is missing rather than stamping nothing', () => {
+    const h = harness(FEED);
+    const deps = { ...h.deps, pkg: { build: { mac: {} } } };
+    expect(stamp.main(['node', 'script', 'dist/latest-mac.yml'], deps)).toBe(1);
+    expect(h.written).toHaveLength(0);
+    expect(h.errored.join('\n')).toMatch(/is not set/);
   });
 
   it('reports usage when given no path', () => {

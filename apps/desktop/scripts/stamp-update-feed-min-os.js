@@ -3,6 +3,15 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+// Fixed, not injectable. `distRoot` is the boundary the containment check below
+// is measured against, and a boundary a caller can relocate does not deny what
+// the check exists to deny - so it is a property of this file and nothing else.
+// The manifest is required rather than read so the floor never arrives as a path
+// at all.
+const appRoot = path.resolve(__dirname, '..');
+const distRoot = path.join(appRoot, 'dist');
+const appPackageJson = require('../package.json');
+
 // Writes the macOS floor into the auto-update feed so electron-updater refuses a
 // release the running Mac cannot open.
 //
@@ -111,14 +120,13 @@ const stampFeed = (contents, darwinFloor) => {
  * The absolute path of a feed inside the package's own `dist`, or a throw.
  *
  * The name guard covers only the last segment, so `../../../etc/latest-mac.yml`
- * satisfies it and the read went wherever argv pointed. Resolving against the
- * package root rather than `process.cwd()` keeps the answer independent of the
- * directory the script was invoked from, so `dist/latest-mac.yml` means the same
- * file whether the release step or a test calls it.
+ * satisfies it and the read would follow argv wherever it pointed. Resolving
+ * against `appRoot` rather than `process.cwd()` keeps the answer independent of
+ * the directory the script was invoked from, so `dist/latest-mac.yml` means the
+ * same file whether the release step or a test calls it.
  */
-const feedInsideDist = (packageRoot, feedPath) => {
-  const distRoot = path.join(packageRoot, 'dist');
-  const resolved = path.resolve(packageRoot, feedPath);
+const feedInsideDist = (feedPath) => {
+  const resolved = path.resolve(appRoot, feedPath);
   if (path.dirname(resolved) !== distRoot) {
     throw new Error(
       `${feedPath} resolves to ${resolved}, which is outside ${distRoot}. This only stamps ` +
@@ -133,8 +141,7 @@ const main = (argv, deps = {}) => {
   const writeFile = deps.writeFileSync ?? fs.writeFileSync;
   const log = deps.log ?? console.log;
   const error = deps.error ?? console.error;
-  const packageRoot = path.resolve(deps.packageRoot ?? path.join(__dirname, '..'));
-  const packageJsonPath = deps.packageJsonPath ?? path.join(packageRoot, 'package.json');
+  const pkg = deps.pkg ?? appPackageJson;
 
   const feedPath = argv[2];
   if (!feedPath) {
@@ -149,8 +156,8 @@ const main = (argv, deps = {}) => {
           'version, which is only meaningful in latest-mac.yml.'
       );
     }
-    const target = feedInsideDist(packageRoot, feedPath);
-    const darwinFloor = darwinFloorFor(macFloorFrom(JSON.parse(readFile(packageJsonPath, 'utf8'))));
+    const target = feedInsideDist(feedPath);
+    const darwinFloor = darwinFloorFor(macFloorFrom(pkg));
     const stamped = stampFeed(readFile(target, 'utf8'), darwinFloor);
     writeFile(target, stamped);
     log(`[stamp-update-feed-min-os] ${target}: ${KEY}: ${darwinFloor}`);
