@@ -156,17 +156,43 @@ const pageCount = (
 const keysReceived = (app: ElectronApplication, url: string): Promise<number> =>
   pageCount(app, url, 'keys');
 
+const click = (): Electron.MouseInputEvent[] => [
+  { type: 'mouseDown', x: 1, y: 1, button: 'left', clickCount: 1 },
+  { type: 'mouseUp', x: 1, y: 1, button: 'left', clickCount: 1 },
+];
+
+// A view that was attached moments ago drops pointer input until it has been
+// laid out and painted: a mousedown has to be hit-tested against the view's
+// compositor data, and there is none yet. A keystroke needs no hit test and
+// lands throughout. So the click pressKey uses as its marker is more fragile
+// than the keystroke it is there to guard, and on a slow machine it loses that
+// race — which is what made this spec flaky on a tab opened under the lock.
+//
+// Bring the pointer path up before trusting the marker: send clicks, not keys,
+// until one is counted. Clicks only, so the key counts this guards are left
+// alone; and a real failure to deliver still fails, it is not waited away.
+const waitForPointerInput = async (app: ElectronApplication, url: string): Promise<void> => {
+  const clicks = await pageCount(app, url, 'clicks');
+  await expect
+    .poll(
+      async () => {
+        await sendInput(app, url, click());
+        return pageCount(app, url, 'clicks');
+      },
+      { timeout: 20_000, message: `no pointer input ever reached ${url}` }
+    )
+    .toBeGreaterThan(clicks);
+};
+
 // Press a key on a tab page and wait until the page has handled it, so a count
 // read afterwards is final. Input to one web contents is handled in order, and
 // the lock holds keys only, so a click sent right after the key is a marker:
-// once the page has seen the click, it has seen (or never got) the key.
+// once the page has seen the click, it has seen (or never got) the key. The
+// page must already be taking pointer input for that to hold — see
+// waitForPointerInput, which every freshly attached view goes through first.
 const pressKey = async (app: ElectronApplication, url: string, keyCode: string): Promise<void> => {
   const clicks = await pageCount(app, url, 'clicks');
-  await sendInput(app, url, [
-    ...keyPress(keyCode),
-    { type: 'mouseDown', x: 1, y: 1, button: 'left', clickCount: 1 },
-    { type: 'mouseUp', x: 1, y: 1, button: 'left', clickCount: 1 },
-  ]);
+  await sendInput(app, url, [...keyPress(keyCode), ...click()]);
   await expect.poll(() => pageCount(app, url, 'clicks')).toBe(clicks + 1);
 };
 
@@ -256,6 +282,7 @@ test.describe('idle lock', () => {
     const opened = await callShell<{ ok: boolean }>(shell, 'newTab', `${server.origin}/opened`);
     expect(opened.ok).toBe(true);
     await expect.poll(() => keysReceived(app!, `${server.origin}/opened`)).toBe(0);
+    await waitForPointerInput(app, `${server.origin}/opened`);
     await pressKey(app, `${server.origin}/opened`, 'A');
     expect(await keysReceived(app, `${server.origin}/opened`)).toBe(0);
     expect(await topmostView(app)).toContain(LOCK_PAGE);
@@ -264,6 +291,8 @@ test.describe('idle lock', () => {
     const tabs = await callShell<{ tabs: Array<{ id: string; url: string }> }>(shell, 'getTabs');
     const first = tabs.tabs.find((t) => t.url === firstTab);
     expect((await callShell<{ ok: boolean }>(shell, 'activateTab', first!.id)).ok).toBe(true);
+    // Switching tabs re-attaches the view, so its pointer path starts over.
+    await waitForPointerInput(app, firstTab);
     await pressKey(app, firstTab, 'A');
     expect(await keysReceived(app, firstTab)).toBe(0);
     expect(await topmostView(app)).toContain(LOCK_PAGE);
