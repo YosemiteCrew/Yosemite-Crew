@@ -86,10 +86,10 @@ export const initialReceiptStatus = (input: {
  * capture, which is a different question from whose it was, and the second
  * answer arriving later is not a reason to forget the first.
  */
-const REVERSED_STATUSES: readonly PrismaProviderReceiptStatus[] = [
+const REVERSED_STATUSES: ReadonlySet<PrismaProviderReceiptStatus> = new Set([
   "PARTIALLY_REFUNDED",
   "REFUNDED",
-];
+]);
 
 /**
  * How many times the compare-and-set is attempted before giving up.
@@ -148,7 +148,7 @@ const attributeIfOwnerStillUnknown = async (
   while (observed.organisationId === null && attempts < ATTRIBUTION_ATTEMPTS) {
     attempts += 1;
 
-    const status = REVERSED_STATUSES.includes(observed.status)
+    const status = REVERSED_STATUSES.has(observed.status)
       ? observed.status
       : initialReceiptStatus(input);
 
