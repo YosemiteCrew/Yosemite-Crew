@@ -154,6 +154,7 @@ describe("ProviderReceiptService.journalCapture", () => {
     mockedPrisma.providerReceipt.findUnique.mockResolvedValue({
       id: "receipt-existing",
       status: "UNALLOCATED",
+      organisationId: "org-1",
     });
 
     const result = await ProviderReceiptService.journalCapture(capture());
@@ -182,6 +183,7 @@ describe("ProviderReceiptService.journalCapture", () => {
     mockedPrisma.providerReceipt.findUnique.mockResolvedValue({
       id: "receipt-existing",
       status: "UNATTRIBUTED",
+      organisationId: null,
     });
 
     await ProviderReceiptService.journalCapture(
@@ -244,6 +246,7 @@ describe("attribution on a later delivery", () => {
     mockedPrisma.providerReceipt.findUnique.mockResolvedValue({
       id: "receipt-1",
       status: "UNATTRIBUTED",
+      organisationId: null,
     });
     mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 1 });
 
@@ -264,7 +267,11 @@ describe("attribution on a later delivery", () => {
       mockedPrisma.providerReceipt.updateMany.mock.calls[0];
     // The status predicate is in the WHERE and not merely checked beforehand,
     // so two concurrent redeliveries cannot both pass it and both write.
-    expect(where).toEqual({ id: "receipt-1", status: "UNATTRIBUTED" });
+    expect(where).toEqual({
+      id: "receipt-1",
+      organisationId: null,
+      status: "UNATTRIBUTED",
+    });
     expect(data).toMatchObject({
       organisationId: "org-1",
       invoiceId: "inv-1",
@@ -273,12 +280,66 @@ describe("attribution on a later delivery", () => {
     });
   });
 
-  it("does not rewrite a receipt that has already left UNATTRIBUTED", async () => {
-    // Identity is immutable and an operator may already have acted on it.
+  it("attributes a receipt whose money has already been given back", async () => {
+    /*
+     * The regression this gate was rewritten for. While the predicate was the
+     * UNATTRIBUTED status, a refund moving a receipt to PARTIALLY_REFUNDED
+     * locked attribution out for good: the residual would sit in the
+     * reconciliation queue with no organisation and no way to acquire one.
+     * Whose the capture was and what happened to it are different questions.
+     */
+    mockedPrisma.providerReceipt.create.mockRejectedValue(uniqueViolation());
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValue({
+      id: "receipt-1",
+      status: "PARTIALLY_REFUNDED",
+      organisationId: null,
+    });
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 1 });
+
+    const result = await ProviderReceiptService.journalCapture(
+      capture({ organisationId: "org-1", invoiceId: "inv-1" }),
+    );
+
+    const [{ where, data }] =
+      mockedPrisma.providerReceipt.updateMany.mock.calls[0];
+    expect(where).toEqual({
+      id: "receipt-1",
+      organisationId: null,
+      status: "PARTIALLY_REFUNDED",
+    });
+    expect(data).toMatchObject({ organisationId: "org-1" });
+    // ALLOCATED is what initialReceiptStatus would say for an organisation
+    // with an invoice, and writing it here would erase the refund.
+    expect(data.status).toBe("PARTIALLY_REFUNDED");
+    expect(result?.status).toBe("PARTIALLY_REFUNDED");
+  });
+
+  it("does not erase a fully refunded state when it attributes", async () => {
+    mockedPrisma.providerReceipt.create.mockRejectedValue(uniqueViolation());
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValue({
+      id: "receipt-1",
+      status: "REFUNDED",
+      organisationId: null,
+    });
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 1 });
+
+    const result = await ProviderReceiptService.journalCapture(
+      capture({ organisationId: "org-1" }),
+    );
+
+    const [{ data }] = mockedPrisma.providerReceipt.updateMany.mock.calls[0];
+    expect(data.status).toBe("REFUNDED");
+    expect(result?.status).toBe("REFUNDED");
+  });
+
+  it("does not rewrite a receipt whose owner is already known", async () => {
+    // Identity is immutable and an operator may already have acted on it -
+    // and acting on one is what gives it an organisation.
     mockedPrisma.providerReceipt.create.mockRejectedValue(uniqueViolation());
     mockedPrisma.providerReceipt.findUnique.mockResolvedValue({
       id: "receipt-1",
       status: "ALLOCATED",
+      organisationId: "org-1",
     });
 
     const result = await ProviderReceiptService.journalCapture(
@@ -294,6 +355,7 @@ describe("attribution on a later delivery", () => {
     mockedPrisma.providerReceipt.findUnique.mockResolvedValue({
       id: "receipt-1",
       status: "UNATTRIBUTED",
+      organisationId: null,
     });
 
     const result = await ProviderReceiptService.journalCapture(capture());
@@ -310,7 +372,11 @@ describe("attribution on a later delivery", () => {
     // the status we wanted.
     mockedPrisma.providerReceipt.create.mockRejectedValue(uniqueViolation());
     mockedPrisma.providerReceipt.findUnique
-      .mockResolvedValueOnce({ id: "receipt-1", status: "UNATTRIBUTED" })
+      .mockResolvedValueOnce({
+        id: "receipt-1",
+        status: "UNATTRIBUTED",
+        organisationId: null,
+      })
       .mockResolvedValueOnce({ status: "ALLOCATED" });
     mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 0 });
 
@@ -331,7 +397,11 @@ describe("attribution on a later delivery", () => {
     // delivery actually observed is the only thing it can honestly report.
     mockedPrisma.providerReceipt.create.mockRejectedValue(uniqueViolation());
     mockedPrisma.providerReceipt.findUnique
-      .mockResolvedValueOnce({ id: "receipt-1", status: "UNATTRIBUTED" })
+      .mockResolvedValueOnce({
+        id: "receipt-1",
+        status: "UNATTRIBUTED",
+        organisationId: null,
+      })
       .mockResolvedValueOnce(null);
     mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 0 });
 
