@@ -3850,10 +3850,15 @@ describe("InventoryConsumptionService", () => {
     // rolls back, and these assertions would see nothing.
     let txCsCreate: jest.Mock;
     let txCsFindFirst: jest.Mock;
+    // A release also reads the reversals that already exist for the entry it is
+    // cancelling, so that lookup has to be on the transaction client too - the
+    // amount it may still restore depends on it.
+    let txCsFindMany: jest.Mock;
 
     const useDistinctTransactionClient = () => {
       txCsCreate = jest.fn().mockResolvedValue({ id: "cs-log-created" });
       txCsFindFirst = jest.fn().mockResolvedValue(null);
+      txCsFindMany = jest.fn().mockResolvedValue([]);
       mockedPrisma.$transaction.mockImplementation(
         async (callback: unknown) => {
           if (typeof callback === "function") {
@@ -3862,6 +3867,7 @@ describe("InventoryConsumptionService", () => {
               controlledSubstanceLog: {
                 create: txCsCreate,
                 findFirst: txCsFindFirst,
+                findMany: txCsFindMany,
               },
             });
           }
@@ -4132,6 +4138,85 @@ describe("InventoryConsumptionService", () => {
             amountAdministered: -2,
             balanceBefore: 4,
             balanceAfter: 6,
+          }),
+        }),
+      );
+    });
+
+    // The second release of one dispense is the case the first one cannot
+    // cover: both rows are derived from the same entry, so a reversal that
+    // reads only that entry opens the second row at the dispense's closing
+    // balance again and the register reads 4 -> 6 and 4 -> 5 instead of
+    // 4 -> 6 and 6 -> 7.
+    it("opens a second partial release where the first one closed", async () => {
+      mockedPrisma.inventoryStockMovement.findMany.mockResolvedValueOnce([
+        {
+          id: "movement-cs-1",
+          itemId: "item-cs-1",
+          batchId: "batch-cs-1",
+          change: -6,
+          reason: "PRESCRIPTION_DISPENSE",
+          referenceId: "rx-cs-1",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ]);
+      mockedPrisma.inventoryItem.findFirst.mockResolvedValue({
+        ...controlledItem,
+        onHand: 6,
+      });
+      mockedPrisma.inventoryBatch.findMany.mockResolvedValueOnce([
+        { id: "batch-cs-1", quantity: 6, allocated: 0, lotNumber: "LOT-1" },
+      ]);
+      mockedPrisma.inventoryConsumptionEvent.findFirst.mockResolvedValueOnce({
+        id: "event-cs-1",
+      });
+      txCsFindFirst.mockResolvedValueOnce({
+        id: "cs-log-1",
+        organisationId: "org-1",
+        patientId: null,
+        encounterId: null,
+        loggedAt: new Date("2026-01-01T00:00:00.000Z"),
+        drug: "Ketamine 100mg/ml",
+        deaSchedule: "III",
+        lotNumber: "LOT-1",
+        strength: null,
+        unit: "ML",
+        amountDrawn: 6,
+        amountAdministered: 6,
+        amountWasted: 0,
+        wastedWitness: null,
+        balanceBefore: 10,
+        balanceAfter: 4,
+        administeredBy: null,
+        notes: null,
+        sourceEventId: "event-cs-1",
+        inventoryBatchId: "batch-cs-1",
+      });
+      // The 2 units an earlier release already put back.
+      txCsFindMany.mockResolvedValueOnce([{ amountDrawn: -2 }]);
+      mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+        id: "event-cs-release-3",
+      });
+
+      await InventoryConsumptionService.releasePrescription({
+        organisationId: "org-1",
+        prescriptionId: "rx-cs-1",
+        medications: [
+          {
+            inventoryItemId: "item-cs-1",
+            quantity: 1,
+            sourceLineKey: "line-1",
+          },
+        ],
+      });
+
+      expect(txCsCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            amountDrawn: -1,
+            amountAdministered: -1,
+            balanceBefore: 6,
+            balanceAfter: 7,
           }),
         }),
       );
