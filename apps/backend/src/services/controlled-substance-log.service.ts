@@ -285,15 +285,19 @@ const assertOnlyAmendable = (params: UpdateCsLogParams) => {
   // `correctedBy` and `correctionReason` describe the amendment rather than the
   // entry, so they are never part of the frozen set.
   const describes = new Set(["correctedBy", "correctionReason"]);
-  const frozen = Object.keys(params).filter(
-    (field) =>
-      params[field as keyof UpdateCsLogParams] !== undefined &&
-      !amendable.has(field) &&
-      !describes.has(field),
-  );
+  // Named in a stable order, so the message a caller sees does not depend on the
+  // order the keys happened to arrive in.
+  const frozen = Object.keys(params)
+    .filter(
+      (field) =>
+        params[field as keyof UpdateCsLogParams] !== undefined &&
+        !amendable.has(field) &&
+        !describes.has(field),
+    )
+    .sort((left, right) => left.localeCompare(right));
   if (frozen.length === 0) return;
   throw new ControlledSubstanceLogError(
-    `This entry records a stock movement; ${frozen.sort().join(", ")} cannot be changed from the register. Return or void the dispense instead.`,
+    `This entry records a stock movement; ${frozen.join(", ")} cannot be changed from the register. Return or void the dispense instead.`,
     409,
   );
 };
@@ -306,11 +310,18 @@ const describeReplaced = (
   params: UpdateCsLogParams,
 ): string | null => {
   const replaced = AMENDABLE_ON_STOCK_LINKED.filter(
-    (field) => field !== "notes",
+    (field): field is Exclude<AmendableField, "notes"> => field !== "notes",
   )
-    .filter((field) => params[field] !== undefined)
-    .filter((field) => params[field] !== existing[field])
-    .map((field: AmendableField) => `${field}=${existing[field] ?? "none"}`);
+    // `null` on the record and `undefined` in the patch both mean "not set", so
+    // normalise before comparing - otherwise clearing a column that was already
+    // empty would read as a change worth recording.
+    .map((field) => ({
+      field,
+      was: existing[field] ?? undefined,
+      now: params[field],
+    }))
+    .filter(({ was, now }) => now !== undefined && now !== was)
+    .map(({ field, was }) => `${field}=${was ?? "none"}`);
   return replaced.length > 0 ? `was ${replaced.join(" ")}` : null;
 };
 
