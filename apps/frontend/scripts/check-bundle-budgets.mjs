@@ -5,12 +5,17 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PROJECT_ROOT = process.env.NEXT_BUILD_DIR
-  ? path.resolve(process.env.NEXT_BUILD_DIR)
-  : path.resolve(__dirname, '..', '..');
-const NEXT_STATIC_CHUNKS_DIR = path.resolve(PROJECT_ROOT, '.next/static/chunks');
-const BUILD_MANIFEST_PATH = path.resolve(PROJECT_ROOT, '.next/build-manifest.json');
-const SERVER_DIR = path.resolve(PROJECT_ROOT, '.next/server');
+const findNextDir = () => {
+  if (process.env.NEXT_BUILD_DIR) {
+    return path.resolve(process.env.NEXT_BUILD_DIR);
+  }
+  const cwd = process.cwd();
+  return path.resolve(cwd, '.next');
+};
+const PROJECT_ROOT = findNextDir();
+const NEXT_STATIC_CHUNKS_DIR = path.resolve(PROJECT_ROOT, 'static/chunks');
+const BUILD_MANIFEST_PATH = path.resolve(PROJECT_ROOT, 'build-manifest.json');
+const SERVER_DIR = path.resolve(PROJECT_ROOT, 'server');
 
 // Budgets are ratcheted to roughly 5% above the largest chunk in each category
 // at the time of writing, so growth is caught while normal churn is not. The

@@ -60,7 +60,7 @@ const run = (
     const stdout = execFileSync('node', [SCRIPT], {
       cwd: workdir,
       encoding: 'utf8',
-      env: { ...process.env, NEXT_BUILD_DIR: workdir },
+      env: { ...process.env, NEXT_BUILD_DIR: path.join(workdir, '.next') },
     });
     return { code: 0, output: stdout };
   } catch (error) {

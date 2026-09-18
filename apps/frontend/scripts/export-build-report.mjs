@@ -5,9 +5,16 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
-const BUILD_MANIFEST_PATH = path.resolve(PROJECT_ROOT, '.next/build-manifest.json');
-const APP_BUILD_MANIFEST_PATH = path.resolve(PROJECT_ROOT, '.next/app-build-manifest.json');
+const findNextDir = () => {
+  if (process.env.NEXT_BUILD_DIR) {
+    return path.resolve(process.env.NEXT_BUILD_DIR);
+  }
+  const cwd = process.cwd();
+  return path.resolve(cwd, '.next');
+};
+const PROJECT_ROOT = findNextDir();
+const BUILD_MANIFEST_PATH = path.resolve(PROJECT_ROOT, 'build-manifest.json');
+const APP_BUILD_MANIFEST_PATH = path.resolve(PROJECT_ROOT, 'app-build-manifest.json');
 const OUTPUT_DIR = path.resolve(PROJECT_ROOT, 'artifacts');
 const OUTPUT_JSON_PATH = path.join(OUTPUT_DIR, 'build-route-report.json');
 const OUTPUT_MARKDOWN_PATH = path.join(OUTPUT_DIR, 'build-route-report.md');
@@ -18,7 +25,7 @@ const sumChunkSizes = async (chunkPaths) => {
   const sizes = await Promise.all(
     chunkPaths.map(async (chunkPath) => {
       const normalizedPath = chunkPath.startsWith('/') ? chunkPath.slice(1) : chunkPath;
-      const filePath = path.resolve(PROJECT_ROOT, '.next', normalizedPath);
+      const filePath = path.resolve(PROJECT_ROOT, normalizedPath);
       const contents = await readFile(filePath);
       return contents.byteLength;
     })
