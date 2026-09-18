@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   app,
   BrowserWindow,
@@ -112,6 +113,8 @@ import {
   buildContextMenu,
 } from './shell/window-config';
 import { createMainWindow } from './shell/create-main-window';
+import { layoutContentPanes as applyContentPaneLayout } from './ui/content-panes';
+import { createOfflineRetryTargets } from './shell/offline-retry';
 
 // Apply managed/MDM config first: fill any env var an admin set via managed
 // preferences that isn't already explicitly set, so navigation-policy, updater,
@@ -184,6 +187,10 @@ const VERTICAL_TAB_WIDTH = 240;
 let tabOrientation: 'horizontal' | 'vertical' = 'horizontal';
 let attachedTabId: string | null = null;
 let splitId: string | null = null;
+// The tab currently mounted as the right-hand split pane. Tracked separately
+// from splitId because every path that closes the split clears splitId first,
+// leaving the still-mounted pane otherwise unidentifiable to the layout pass.
+let mountedSplitId: string | null = null;
 let saveSession = (): void => {};
 
 // The app menu captures these references before the real status-dialog service
@@ -302,44 +309,6 @@ const activeContents = (): WebContents | null => {
 
 type TabBounds = { width: number; height: number };
 
-const tabContentPaneWidth = (
-  pane: 'full' | 'left' | 'right',
-  full: number,
-  half: number
-): number => {
-  if (pane === 'full') return full;
-  if (pane === 'left') return half;
-  return full - half;
-};
-
-const setTabViewBounds = (
-  tvh: NonNullable<typeof tabViewHost>,
-  id: string,
-  pane: 'full' | 'left' | 'right',
-  b: TabBounds,
-  isVertical: boolean
-): void => {
-  if (isVertical) {
-    const cw = Math.max(0, b.width - VERTICAL_TAB_WIDTH);
-    const half = Math.floor(cw / 2);
-    tvh.setBounds(id, {
-      x: VERTICAL_TAB_WIDTH + (pane === 'right' ? half : 0),
-      y: 0,
-      width: tabContentPaneWidth(pane, cw, half),
-      height: b.height,
-    });
-    return;
-  }
-  const ch = Math.max(0, b.height - CHROME_STRIP_HEIGHT);
-  const half = Math.floor(b.width / 2);
-  tvh.setBounds(id, {
-    x: pane === 'right' ? half : 0,
-    y: CHROME_STRIP_HEIGHT,
-    width: tabContentPaneWidth(pane, b.width, half),
-    height: ch,
-  });
-};
-
 const layoutChromeStrip = (b: TabBounds, isVertical: boolean): void => {
   if (!tabChromeView) return;
   if (isVertical) {
@@ -362,16 +331,17 @@ const layoutChromeStrip = (b: TabBounds, isVertical: boolean): void => {
 const layoutContentPanes = (b: TabBounds, isVertical: boolean): void => {
   const tvh = tabViewHost;
   if (!attachedTabId || !tvh || !mainWindow) return;
-  const hasSplit = Boolean(splitId && tvh.get(splitId) && splitId !== attachedTabId);
-  // In split view the primary tab takes the LEFT half (not the full width) so
-  // the two views sit side by side instead of the split overlaying the primary.
-  setTabViewBounds(tvh, attachedTabId, hasSplit ? 'left' : 'full', b, isVertical);
-  if (!hasSplit) return;
-  setTabViewBounds(tvh, splitId!, 'right', b, isVertical);
-  const av = tvh.get(attachedTabId);
-  const sv = tvh.get(splitId!);
-  if (av) mainWindow.contentView.addChildView(av);
-  if (sv) mainWindow.contentView.addChildView(sv);
+  mountedSplitId = applyContentPaneLayout({
+    host: tvh,
+    surface: mainWindow.contentView,
+    attachedTabId,
+    splitId,
+    mountedSplitId,
+    bounds: b,
+    isVertical,
+    chromeStripHeight: CHROME_STRIP_HEIGHT,
+    verticalTabWidth: VERTICAL_TAB_WIDTH,
+  });
 };
 
 // Always keep the tab-bar chrome view topmost in z-order. Input is routed to
@@ -530,6 +500,7 @@ const exitTabMode = (): void => {
   tabMode = false;
   attachedTabId = null;
   splitId = null;
+  mountedSplitId = null;
   saveSession();
   if (mainWindow && !mainWindow.isDestroyed()) {
     void mainWindow.webContents
@@ -621,6 +592,12 @@ const openTabSearch = (): void => {
     .catch((error) => logger.warn('tab_search_js_failed', { error }));
 };
 
+const offlineRetryTargets = createOfflineRetryTargets({
+  config,
+  logger,
+  offlinePageUrl: pathToFileURL(localPage('offline')).href,
+});
+
 const loadStartUrl = (): void => {
   if (tabMode && !activeContents()) return;
   const wc = activeContents();
@@ -630,10 +607,14 @@ const loadStartUrl = (): void => {
   }
 };
 
-const showOfflinePage = (reason: string): void => {
+const showOfflinePage = (reason: string, failedUrl?: string): void => {
   const wc = activeContents();
   if (!wc) return;
-  logger.warn('offline_page_shown', { reason });
+  // Record the page that failed against this webContents BEFORE the offline
+  // page replaces it, so "Try again" reloads that page in this tab rather than
+  // the start URL in whichever tab happens to be active when it fires.
+  const target = offlineRetryTargets.remember(wc, failedUrl);
+  logger.warn('offline_page_shown', { reason, target });
   void wc.loadFile(localPage('offline'), { query: { reason: reason || '' } });
 };
 
@@ -1749,6 +1730,8 @@ if (gotSingleInstanceLock) {
         onNavigate: handleMainNavigation,
         onWindowOpen: handleWindowOpen,
         loadStartUrl,
+        retryOfflineLoad: offlineRetryTargets.retry,
+        offlineTargetFor: offlineRetryTargets.targetFor,
         enterTabMode,
         exitTabMode,
         runCommandAction,
@@ -2027,6 +2010,7 @@ if (gotSingleInstanceLock) {
           tabMode = false;
           attachedTabId = null;
           splitId = null;
+          mountedSplitId = null;
           tabChromeView = null;
           enterTabMode(output.enterTabModeUrl);
           // The reopened window is created hidden and shown async, so the
