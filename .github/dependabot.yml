@@ -191,6 +191,25 @@ updates:
       # toolchain across two ESLint majors.
       - dependency-name: 'eslint'
         update-types: ['version-update:semver-major']
+      # react and react-test-renderer are held at the version React Native's
+      # bundled renderer is built against (#3325). react-native 0.81.6 declares
+      # `peerDependencies.react: ^19.1.4`, so a minor bump to 19.3.0 satisfies
+      # the range and nothing refuses it - but React's runtime guard compares
+      # `react` and `react-native-renderer` for an EXACT match, and the renderer
+      # RN 0.81.6 ships is built on 19.1.4. The iOS release app installed,
+      # launched and then terminated before its first screen with
+      # "Incompatible React versions", which no CI stage could see: jest never
+      # mounts through the native renderer, the peer range is not violated so
+      # the install is clean, and the release workflow builds and uploads the
+      # app without launching it.
+      #
+      # Scoped to minor and major so patches keep flowing. It lifts when React
+      # Native itself ships a renderer built on a newer React - raise react here
+      # in the same change as the react-native bump, never ahead of it.
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
+      - dependency-name: 'react-test-renderer'
+        update-types: ['version-update:semver-major', 'version-update:semver-minor']
       # next is held on 15.x while the Next 16 adoption is decided (#3266).
       #
       # The two instrument failures that used to sit in front of that decision
