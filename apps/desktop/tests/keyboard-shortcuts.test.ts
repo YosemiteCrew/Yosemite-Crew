@@ -7,6 +7,10 @@ import {
 describe('createKeyboardShortcutManager', () => {
   const makeDeps = (overrides: Record<string, unknown> = {}) => {
     const handlers: Record<string, () => void> = {};
+    const windowEvents: { focus: Array<() => void>; blur: Array<() => void> } = {
+      focus: [],
+      blur: [],
+    };
     return {
       globalShortcut: {
         register: jest.fn((accelerator: string, callback: () => void) => {
@@ -19,8 +23,13 @@ describe('createKeyboardShortcutManager', () => {
       focusedWebContents: jest.fn(() => null),
       openPalette: jest.fn(),
       navigate: jest.fn(),
+      onWindowFocus: jest.fn((cb: () => void) => windowEvents.focus.push(cb)),
+      onWindowBlur: jest.fn((cb: () => void) => windowEvents.blur.push(cb)),
+      hasFocusedWindow: jest.fn(() => true),
+      defer: jest.fn((cb: () => void) => cb()),
       isLocked: jest.fn(() => false),
       logger: { debug: jest.fn(), warn: jest.fn() },
+      windowEvents,
       ...overrides,
     };
   };
@@ -179,5 +188,137 @@ describe('createKeyboardShortcutManager', () => {
 
       expect(deps.logger.debug).toHaveBeenCalled();
     });
+  });
+});
+
+describe('shortcuts are held only while one of our windows has focus', () => {
+  const makeDeps = (overrides: Record<string, unknown> = {}) => {
+    const windowEvents: { focus: Array<() => void>; blur: Array<() => void> } = {
+      focus: [],
+      blur: [],
+    };
+    return {
+      globalShortcut: {
+        register: jest.fn(() => true),
+        unregister: jest.fn(),
+        unregisterAll: jest.fn(),
+      },
+      focusedWebContents: jest.fn(() => null),
+      openPalette: jest.fn(),
+      navigate: jest.fn(),
+      onWindowFocus: jest.fn((cb: () => void) => windowEvents.focus.push(cb)),
+      onWindowBlur: jest.fn((cb: () => void) => windowEvents.blur.push(cb)),
+      hasFocusedWindow: jest.fn(() => true),
+      defer: jest.fn((cb: () => void) => cb()),
+      isLocked: jest.fn(() => false),
+      logger: { debug: jest.fn(), warn: jest.fn() },
+      windowEvents,
+      ...overrides,
+    };
+  };
+  const fire = (deps: ReturnType<typeof makeDeps>, event: 'focus' | 'blur'): void => {
+    for (const cb of deps.windowEvents[event]) cb();
+  };
+
+  test('start() takes the keys when a window is already focused', () => {
+    const deps = makeDeps();
+    const mgr = createKeyboardShortcutManager(deps);
+    mgr.start();
+
+    expect(deps.globalShortcut.register).toHaveBeenCalledTimes(SHORTCUTS.length);
+    expect(mgr.getRegistered()).toHaveLength(SHORTCUTS.length);
+  });
+
+  test('start() leaves the keys alone when no window is focused, and takes them on focus', () => {
+    const deps = makeDeps({ hasFocusedWindow: jest.fn(() => false) });
+    const mgr = createKeyboardShortcutManager(deps);
+    mgr.start();
+
+    expect(deps.globalShortcut.register).not.toHaveBeenCalled();
+    expect(mgr.getRegistered()).toHaveLength(0);
+
+    fire(deps, 'focus');
+    expect(mgr.getRegistered()).toHaveLength(SHORTCUTS.length);
+  });
+
+  test('blur releases the keys back to the rest of the machine', () => {
+    const hasFocusedWindow = jest.fn(() => true);
+    const deps = makeDeps({ hasFocusedWindow });
+    const mgr = createKeyboardShortcutManager(deps);
+    mgr.start();
+    expect(mgr.getRegistered()).toHaveLength(SHORTCUTS.length);
+
+    hasFocusedWindow.mockReturnValue(false);
+    fire(deps, 'blur');
+
+    expect(deps.globalShortcut.unregister).toHaveBeenCalledTimes(SHORTCUTS.length);
+    expect(mgr.getRegistered()).toHaveLength(0);
+  });
+
+  test('moving between our own windows keeps the keys registered', () => {
+    const deps = makeDeps();
+    const mgr = createKeyboardShortcutManager(deps);
+    mgr.start();
+
+    // hasFocusedWindow still true: the settings window took focus, not another app.
+    fire(deps, 'blur');
+
+    expect(deps.globalShortcut.unregister).not.toHaveBeenCalled();
+    expect(mgr.getRegistered()).toHaveLength(SHORTCUTS.length);
+  });
+
+  test('the blur decision is deferred, not taken while focus is still moving', () => {
+    const pending: Array<() => void> = [];
+    const hasFocusedWindow = jest.fn(() => true);
+    const deps = makeDeps({
+      hasFocusedWindow,
+      defer: jest.fn((cb: () => void) => pending.push(cb)),
+    });
+    const mgr = createKeyboardShortcutManager(deps);
+    mgr.start();
+
+    hasFocusedWindow.mockReturnValue(false);
+    fire(deps, 'blur');
+    expect(deps.globalShortcut.unregister).not.toHaveBeenCalled();
+
+    // The window taking over gets focus before the deferred check runs.
+    hasFocusedWindow.mockReturnValue(true);
+    for (const cb of pending) cb();
+    expect(deps.globalShortcut.unregister).not.toHaveBeenCalled();
+    expect(mgr.getRegistered()).toHaveLength(SHORTCUTS.length);
+  });
+
+  test('a second focus does not register the same accelerators twice', () => {
+    const deps = makeDeps();
+    const mgr = createKeyboardShortcutManager(deps);
+    mgr.start();
+    fire(deps, 'focus');
+
+    expect(deps.globalShortcut.register).toHaveBeenCalledTimes(SHORTCUTS.length);
+    expect(mgr.getRegistered()).toHaveLength(SHORTCUTS.length);
+  });
+
+  test('stop() releases every key it holds', () => {
+    const deps = makeDeps();
+    const mgr = createKeyboardShortcutManager(deps);
+    mgr.start();
+    mgr.stop();
+
+    expect(deps.globalShortcut.unregister).toHaveBeenCalledTimes(SHORTCUTS.length);
+    expect(mgr.getRegistered()).toHaveLength(0);
+  });
+
+  test('the real defer runs the check on a later tick', async () => {
+    const hasFocusedWindow = jest.fn(() => true);
+    const deps = makeDeps({ hasFocusedWindow, defer: undefined });
+    const mgr = createKeyboardShortcutManager(deps);
+    mgr.start();
+
+    hasFocusedWindow.mockReturnValue(false);
+    fire(deps, 'blur');
+    expect(deps.globalShortcut.unregister).not.toHaveBeenCalled();
+
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(mgr.getRegistered()).toHaveLength(0);
   });
 });

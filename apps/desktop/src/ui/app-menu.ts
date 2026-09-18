@@ -38,6 +38,7 @@ export interface MenuActions {
   showPrintStatus: () => void;
   startTelehealth: (intent?: Record<string, unknown>) => string;
   telehealthProviderName: string;
+  showCheatsheet: () => void;
   exportDiagnostics: (window: Electron.BrowserWindow | null) => void;
   mainWindow: Electron.BrowserWindow | null;
   helpLinks: ReadonlyArray<{ label: string; url: string }>;
@@ -53,7 +54,7 @@ export interface MenuActions {
 
 const tr = (key: MessageKey): string => translateMessage(key, app.getLocale());
 
-export const createAppMenu = (actions: MenuActions): void => {
+export const buildMenuTemplate = (actions: MenuActions): MenuItemConstructorOptions[] => {
   const isMac = process.platform === 'darwin';
 
   // Forward a shortcut id to the focused tab's renderer. Find / Find Next /
@@ -306,6 +307,12 @@ export const createAppMenu = (actions: MenuActions): void => {
       role: 'help',
       submenu: [
         {
+          label: 'Keyboard Shortcuts',
+          accelerator: 'CmdOrCtrl+/',
+          click: actions.showCheatsheet,
+        },
+        { type: 'separator' as const },
+        {
           label: tr('menu.checkForUpdates'),
           click: () => actions.checkForUpdates(),
         },
@@ -341,5 +348,9 @@ export const createAppMenu = (actions: MenuActions): void => {
       return held;
     });
 
-  Menu.setApplicationMenu(Menu.buildFromTemplate(holdWhileLocked(template)));
+  return holdWhileLocked(template);
+};
+
+export const createAppMenu = (actions: MenuActions): void => {
+  Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate(actions)));
 };
