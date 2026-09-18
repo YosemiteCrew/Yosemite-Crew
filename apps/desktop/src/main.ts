@@ -42,6 +42,7 @@ import {
   createKeyboardShortcutManager,
   type KeyboardShortcutManager,
 } from './ui/keyboard-shortcuts';
+import { createWindowInputHandler } from './ui/window-shortcuts';
 import {
   idleLockMinutesFromEnv,
   resolveIdleLockMinutes,
@@ -628,14 +629,25 @@ const setTabSearch = (open: boolean): void => {
   layoutTabChrome();
 };
 
+// Call one of the tab-chrome page's own entry points, if the page is there.
+const runTabChromeGlobal = (name: string, failEvent: string): void => {
+  if (!tabChromeView || tabChromeView.webContents.isDestroyed()) return;
+  void tabChromeView.webContents
+    .executeJavaScript(`window.${name} && window.${name}()`)
+    .catch((error) => logger.warn(failEvent, { error }));
+};
+
 // Open the Figma-style tab search panel (from the menu/shortcut).
 const openTabSearch = (): void => {
   if (!tabChromeView || tabChromeView.webContents.isDestroyed()) return;
   setTabSearch(true);
-  void tabChromeView.webContents
-    .executeJavaScript('window.__ycOpenTabSearch && window.__ycOpenTabSearch()')
-    .catch((error) => logger.warn('tab_search_js_failed', { error }));
+  runTabChromeGlobal('__ycOpenTabSearch', 'tab_search_js_failed');
 };
+
+// Help > Keyboard Shortcuts. The page owns the overlay's open/closed state, so
+// the toggle lives there and this only asks for it.
+const showCheatsheet = (): void =>
+  runTabChromeGlobal('__ycToggleCheatsheet', 'cheatsheet_js_failed');
 
 const offlineRetryTargets = createOfflineRetryTargets({
   config,
@@ -1607,7 +1619,18 @@ if (gotSingleInstanceLock) {
     callback(false);
   });
 
+  // Mod+1..9 has no menu item and the tab strip only sees it while the strip has
+  // focus, so the window handles it for every view it hosts.
+  const handleWindowInput = createWindowInputHandler({
+    activateTabByIndex: (index) => {
+      const tab = tabManager?.getState().tabs[index];
+      if (tab) switchToTab(tab.id);
+    },
+    isMac: process.platform === 'darwin',
+  });
+
   app.on('web-contents-created', (_event, contents) => {
+    contents.on('before-input-event', handleWindowInput);
     contents.setWindowOpenHandler(({ url }) => handleWindowOpen(url));
     // Apply navigation policy to any popup this webContents opens, so an allowed
     // in-app popup cannot redirect in-place to an external/blocked URL and remain
@@ -1667,6 +1690,7 @@ if (gotSingleInstanceLock) {
     closeActiveTab,
     reopenClosedTab,
     openTabSearch,
+    showCheatsheet,
     verifyAuditTrail: statusDlg.verifyAuditTrail,
     exportCsDailyLog: statusDlg.exportCsDailyLog,
     showDeaStatus: statusDlg.showDeaStatus,
@@ -1987,10 +2011,17 @@ if (gotSingleInstanceLock) {
         focusedWebContents: () => mainWindow?.webContents ?? null,
         openPalette: openCommandPalette,
         navigate: navigateToDeepLink,
+        onWindowFocus: (cb) => {
+          app.on('browser-window-focus', cb);
+        },
+        onWindowBlur: (cb) => {
+          app.on('browser-window-blur', cb);
+        },
+        hasFocusedWindow: () => BrowserWindow.getFocusedWindow() !== null,
         isLocked: idleLockOverlay.isVisible,
         logger,
       });
-      keyboardShortcutManager.register();
+      keyboardShortcutManager.start();
       if (mainWindow) setupIdleLock(mainWindow.webContents.session);
       const link = deepLinkFromArgv(process.argv);
       if (link) handleDeepLink(link);
@@ -2057,7 +2088,7 @@ if (gotSingleInstanceLock) {
         .flush()
         .catch((err) => logger.warn('offline_cache_flush_failed', { error: String(err) }));
     }
-    keyboardShortcutManager?.unregister();
+    keyboardShortcutManager?.stop();
     globalShortcut.unregisterAll();
     // Reset the rollback tracker on clean exit so the next launch doesn't
     // inherit stale crash counts from a healthy session.

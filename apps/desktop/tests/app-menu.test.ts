@@ -79,6 +79,7 @@ const makeActions = (overrides: Partial<MenuActions> = {}): MenuActions => {
     showPrintStatus: jest.fn(),
     startTelehealth: jest.fn(() => 'url'),
     telehealthProviderName: 'Start Telehealth (GetStream)',
+    showCheatsheet: jest.fn(),
     exportDiagnostics: jest.fn(),
     mainWindow: {} as never,
     helpLinks: [{ label: 'Docs', url: 'https://docs.example.com' }],
@@ -116,6 +117,7 @@ describe('createAppMenu', () => {
     expect(actions.exportDiagnostics).toHaveBeenCalledWith(actions.mainWindow);
     expect(openExternal).toHaveBeenCalledWith('https://docs.example.com');
     expect(actions.checkForUpdates).toHaveBeenCalled();
+    expect(actions.showCheatsheet).toHaveBeenCalled();
   });
 
   test('builds the Windows/Linux variant and wires its clicks', () => {

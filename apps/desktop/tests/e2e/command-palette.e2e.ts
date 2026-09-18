@@ -113,6 +113,51 @@ test.describe('command-palette E2E', () => {
     userDataDir = undefined;
   });
 
+  test('the app holds its accelerators exactly while one of its windows has focus', async () => {
+    // Asserted as an invariant rather than as one fixed state, because the two
+    // environments this runs in disagree: a CI runner launches the app in front,
+    // and locally Playwright's Electron app never becomes frontmost (win.focus()
+    // leaves isFocused() false). Each environment exercises the side it can
+    // reach, and neither is asserted into a state it cannot get to.
+    const OWN_ACCELERATORS = ['CommandOrControl+Alt+T', 'CommandOrControl+K'];
+    const readState = () =>
+      app!.evaluate(({ app: electronApp, BrowserWindow, globalShortcut }) => ({
+        focusHandlers: electronApp.listenerCount('browser-window-focus'),
+        blurHandlers: electronApp.listenerCount('browser-window-blur'),
+        focused: BrowserWindow.getFocusedWindow() !== null,
+        held: ['CommandOrControl+Alt+T', 'CommandOrControl+K'].filter((accelerator) =>
+          globalShortcut.isRegistered(accelerator)
+        ),
+      }));
+    const setFocus = (wanted: boolean) =>
+      app!.evaluate(async ({ BrowserWindow }, want) => {
+        const win = BrowserWindow.getAllWindows()[0];
+        if (!win) throw new Error('the app has no window');
+        if (want) win.focus();
+        else win.blur();
+        // The release is decided a tick after blur, so let that tick run.
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }, wanted);
+
+    const initial = await readState();
+    expect(initial.focusHandlers).toBeGreaterThan(0);
+    expect(initial.blurHandlers).toBeGreaterThan(0);
+    expect(initial.held.sort()).toEqual(initial.focused ? OWN_ACCELERATORS : []);
+
+    if (!initial.focused) return;
+
+    // Only where the app can be in front: driving focus away must hand the keys
+    // back, and taking it again must re-arm them. A runner that refuses to yield
+    // focus is not asserted against - the precondition simply did not hold.
+    await setFocus(false);
+    const blurred = await readState();
+    if (!blurred.focused) expect(blurred.held).toEqual([]);
+
+    await setFocus(true);
+    const refocused = await readState();
+    if (refocused.focused) expect(refocused.held.sort()).toEqual(OWN_ACCELERATORS);
+  });
+
   test('Cmd+K opens palette window', async () => {
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     await page.keyboard.press(`${MOD}+K`);
