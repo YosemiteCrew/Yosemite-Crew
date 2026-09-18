@@ -131,6 +131,22 @@ describe("ProviderReceiptService.listForReconciliation", () => {
     expect(mockedLogger.error).toHaveBeenCalled();
   });
 
+  it("strips CR and LF from the organisation id before logging it", async () => {
+    // The id reaches this log from the request, so a value carrying a newline
+    // could forge a second entry in the log this error is read from. The
+    // neighbouring assertion only checks that the error fired, so it cannot
+    // tell a sanitised message from an unsanitised one.
+    mockedPrisma.organization.count.mockResolvedValue(2);
+
+    await ProviderReceiptService.listForReconciliation({
+      organisationId: "org-a\r\nERROR forged entry",
+    });
+
+    const [message] = mockedLogger.error.mock.calls[0] as [string];
+    expect(message).not.toMatch(/[\n\r]/);
+    expect(message).toContain("org-aERROR forged entry");
+  });
+
   it("counts the claimants of the account it is about to trust", async () => {
     await ProviderReceiptService.listForReconciliation({
       organisationId: "org-a",
