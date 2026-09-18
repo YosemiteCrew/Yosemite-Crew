@@ -252,7 +252,12 @@ describe("DocumensoWebhookController", () => {
             signingStatus: "IN_PROGRESS",
           },
         }),
-        data: expect.objectContaining({ status: "SIGNED" }),
+        // The status move carries the artifact's generation with it (#3144),
+        // so a workspace draft read before the signature loses its claim.
+        data: expect.objectContaining({
+          status: "SIGNED",
+          version: { increment: 1 },
+        }),
       }),
     );
     // THE CASE THIS GATE EXISTS FOR: signedPdfUrl existed on the schema but was

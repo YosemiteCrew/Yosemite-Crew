@@ -377,6 +377,7 @@ describe("ClinicalArtifactService", () => {
     signedBy: null,
     signedAt: null,
     summary: null,
+    version: 1,
     createdAt: D1,
     updatedAt: D1,
     ...overrides,
@@ -825,6 +826,7 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: null,
@@ -1359,6 +1361,7 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: "appt-1",
@@ -1447,6 +1450,7 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: "appt-1",
@@ -1562,6 +1566,7 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: "appt-1",
@@ -1658,6 +1663,7 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: "appt-1",
@@ -2025,6 +2031,7 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: null,
@@ -2097,7 +2104,7 @@ describe("ClinicalArtifactService", () => {
 
     expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: artifactId },
+        where: { id: artifactId, organisationId, version: 1 },
       }),
     );
     expect(mockedPrisma.soapNote.update).toHaveBeenCalledWith(
@@ -2124,6 +2131,7 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: null,
@@ -2170,6 +2178,7 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         kind: "SOAP_NOTE",
@@ -2214,6 +2223,7 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: null,
@@ -2291,6 +2301,7 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: null,
@@ -2369,6 +2380,7 @@ describe("ClinicalArtifactService", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       items: [],
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: null,
@@ -2415,6 +2427,7 @@ describe("ClinicalArtifactService", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       items: [],
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: null,
@@ -2492,7 +2505,8 @@ describe("ClinicalArtifactService", () => {
     );
     expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { status: "VOID" },
+        where: { id: artifactId, organisationId, version: 1 },
+        data: { status: "VOID", summary: null, version: { increment: 1 } },
       }),
     );
   });
@@ -2509,6 +2523,7 @@ describe("ClinicalArtifactService", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       items: [],
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: null,
@@ -2550,6 +2565,7 @@ describe("ClinicalArtifactService", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       items: [],
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: "appt-1",
@@ -2613,8 +2629,8 @@ describe("ClinicalArtifactService", () => {
       },
     );
     expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith({
-      where: { id: artifactId },
-      data: { status: "VOID" },
+      where: { id: artifactId, organisationId, version: 1 },
+      data: { status: "VOID", summary: null, version: { increment: 1 } },
     });
     expect(result.artifact.status).toBe("VOID");
   });
@@ -2631,6 +2647,7 @@ describe("ClinicalArtifactService", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       items: [],
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: null,
@@ -2694,6 +2711,7 @@ describe("ClinicalArtifactService", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       items: [],
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: "appt-1",
@@ -2746,6 +2764,7 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId,
         appointmentId: "appt-1",
@@ -2857,6 +2876,7 @@ describe("ClinicalArtifactService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       artifact: {
+        version: 1,
         id: artifactId,
         organisationId: "other-org",
         appointmentId: null,
@@ -3442,8 +3462,12 @@ describe("ClinicalArtifactService", () => {
       );
 
       expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith({
-        where: { id: artifactId },
-        data: { status: "IN_PROGRESS", summary: "Updated" },
+        where: { id: artifactId, organisationId, version: 1 },
+        data: {
+          status: "IN_PROGRESS",
+          summary: "Updated",
+          version: { increment: 1 },
+        },
       });
       expect(mockedPrisma.vitalRecord.update).toHaveBeenCalledWith({
         where: { id: "vital-1" },
@@ -3484,8 +3508,12 @@ describe("ClinicalArtifactService", () => {
       );
 
       expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith({
-        where: { id: artifactId },
-        data: { status: "DRAFT", summary: null },
+        where: { id: artifactId, organisationId, version: 1 },
+        data: {
+          status: "DRAFT",
+          summary: null,
+          version: { increment: 1 },
+        },
       });
       expect(mockedPrisma.vitalRecord.update).toHaveBeenCalledWith({
         where: { id: "vital-1" },
@@ -3609,8 +3637,12 @@ describe("ClinicalArtifactService", () => {
       );
 
       expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith({
-        where: { id: artifactId },
-        data: { status: "IN_PROGRESS", summary: null },
+        where: { id: artifactId, organisationId, version: 1 },
+        data: {
+          status: "IN_PROGRESS",
+          summary: null,
+          version: { increment: 1 },
+        },
       });
       expect(result.artifact.status).toBe("IN_PROGRESS");
     });
@@ -3625,8 +3657,12 @@ describe("ClinicalArtifactService", () => {
       );
 
       expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith({
-        where: { id: artifactId },
-        data: { status: "COMPLETED", summary: null },
+        where: { id: artifactId, organisationId, version: 1 },
+        data: {
+          status: "COMPLETED",
+          summary: null,
+          version: { increment: 1 },
+        },
       });
       expect(result.artifact.status).toBe("COMPLETED");
     });
@@ -3929,8 +3965,8 @@ describe("ClinicalArtifactService", () => {
       );
 
       expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith({
-        where: { id: artifactId },
-        data: { status, summary: null },
+        where: { id: artifactId, organisationId, version: 1 },
+        data: { status, summary: null, version: { increment: 1 } },
       });
       expect(result.artifact.status).toBe(status);
     });
@@ -4108,8 +4144,12 @@ describe("ClinicalArtifactService", () => {
       );
 
       expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith({
-        where: { id: artifactId },
-        data: { status: "DRAFT", summary: null },
+        where: { id: artifactId, organisationId, version: 1 },
+        data: {
+          status: "DRAFT",
+          summary: null,
+          version: { increment: 1 },
+        },
       });
       expect(mockedPrisma.soapNote.update).toHaveBeenCalledWith({
         where: { id: soapNoteId },
@@ -4862,6 +4902,7 @@ describe("ClinicalArtifactService.listPrescriptionsForEncounter hydration", () =
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
         updatedAt: new Date("2026-01-01T00:00:00.000Z"),
         artifact: {
+          version: 1,
           id: "artifact-1",
           organisationId: "org-1",
           encounterId: "enc-1",
@@ -4930,6 +4971,7 @@ describe("ClinicalArtifactService.listPrescriptionsForEncounter hydration", () =
       signedBy: "vet-1",
       signedAt: when,
       summary: null,
+      version: 1,
       createdAt: when,
       updatedAt: when,
     };
