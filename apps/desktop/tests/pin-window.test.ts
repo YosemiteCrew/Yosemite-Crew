@@ -58,7 +58,7 @@ describe('createPinWindowManager', () => {
     expect(second).toBe(first);
     expect(wins.size).toBe(1);
     const win = [...wins.values()][0];
-    expect(win.focusCount).toBe(1);
+    expect(win!.focusCount).toBe(1);
   });
 
   it('closes a pin by id and reports unknown ids', () => {
@@ -66,7 +66,7 @@ describe('createPinWindowManager', () => {
     const id = mgr.pin('https://app/x') as string;
     expect(mgr.close('missing')).toBe(false);
     expect(mgr.close(id)).toBe(true);
-    expect([...wins.values()][0].closed).toBe(true);
+    expect([...wins.values()][0]!.closed).toBe(true);
     expect(mgr.list()).toEqual([]);
     expect(mgr.close(id)).toBe(false);
   });
@@ -108,7 +108,10 @@ describe('pinWindowBounds', () => {
   });
 
   it('respects a non-zero display origin', () => {
-    const b = pinWindowBounds({ x: 100, y: 50, width: 1000, height: 800 }, { width: 400, height: 600 });
+    const b = pinWindowBounds(
+      { x: 100, y: 50, width: 1000, height: 800 },
+      { width: 400, height: 600 }
+    );
     expect(b.x).toBe(100 + 1000 - 400 - 24);
     expect(b.y).toBe(50 + 24);
   });

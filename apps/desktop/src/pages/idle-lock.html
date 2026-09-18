@@ -25,7 +25,7 @@
     </div>
     <div class="lock-scrim" aria-hidden="true"></div>
 
-    <dialog class="lock-card" open aria-label="App locked">
+    <dialog class="lock-card" id="lockCard" aria-label="App locked">
       <span class="lock-icon">
         <svg
           viewBox="0 0 24 24"
@@ -46,7 +46,7 @@
       <h1>Locked</h1>
       <p>Locked after inactivity. Patient data stays encrypted while the app is locked.</p>
 
-      <button class="unlock" id="unlock" type="button">
+      <button class="unlock" id="unlock" type="button" autofocus>
         <svg
           viewBox="0 0 24 24"
           fill="none"

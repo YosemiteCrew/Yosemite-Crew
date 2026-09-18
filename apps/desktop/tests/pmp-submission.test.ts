@@ -70,7 +70,7 @@ describe('createPmpSubmissionService', () => {
 
     expect(svc.markFailed(sub.id, 'Rejected')).toBe(true);
     expect(svc.getFailed()).toHaveLength(1);
-    expect(svc.getFailed()[0].error).toBe('Rejected');
+    expect(svc.getFailed()[0]!.error).toBe('Rejected');
   });
 
   test('markSubmitted returns false for unknown id', () => {

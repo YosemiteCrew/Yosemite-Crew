@@ -42,8 +42,8 @@ describe('structured logger', () => {
     logger.info('test_event', { apiKey: 'secret', value: 1 });
 
     expect(writes).toHaveLength(1);
-    expect(writes[0].event).toBe('test_event');
-    expect(writes[0].data.apiKey).toBe('[redacted]');
+    expect(writes[0]!.event).toBe('test_event');
+    expect(writes[0]!.data.apiKey).toBe('[redacted]');
   });
 
   test('logs to stdout with level-specific console writers', () => {
@@ -63,9 +63,9 @@ describe('structured logger', () => {
     expect(logSpy).toHaveBeenCalledTimes(2);
     expect(warnSpy).toHaveBeenCalledTimes(1);
     expect(errorSpy).toHaveBeenCalledTimes(1);
-    expect(String(logSpy.mock.calls[0][0])).toContain('DEBUG');
-    expect(String(warnSpy.mock.calls[0][0])).toContain('WARN');
-    expect(String(errorSpy.mock.calls[0][0])).toContain('ERROR');
+    expect(String(logSpy.mock.calls[0]![0])).toContain('DEBUG');
+    expect(String(warnSpy.mock.calls[0]![0])).toContain('WARN');
+    expect(String(errorSpy.mock.calls[0]![0])).toContain('ERROR');
 
     logSpy.mockRestore();
     warnSpy.mockRestore();

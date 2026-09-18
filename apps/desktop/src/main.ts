@@ -290,10 +290,6 @@ const localPage = (page: DesktopPage): string => path.join(__dirname, 'pages', `
 // In tab mode, navigation/content targets the active tab's WebContents; before
 // tab mode (welcome/loading) it targets the base window contents.
 let tabChromeView: WebContentsView | null = null;
-// Layout hook registered by setupIdleLock so the layout pass can keep the lock
-// overlay full-window and topmost. Deliberately a callback, not the view: the
-// per-lock WebContentsView stays owned by the overlay's own closure.
-let relayoutLockOverlay: (() => void) | null = null;
 // Registered by setupIdleLock so the lock page's buttons reach the unlock
 // lifecycle that actually owns the lock. Null until an idle lock is armed.
 let requestIdleUnlock: ((mode: 'biometric' | 'password') => void) | null = null;
@@ -307,6 +303,55 @@ const activeContents = (): WebContents | null => {
   }
   return mainWindow && !mainWindow.isDestroyed() ? mainWindow.webContents : null;
 };
+
+// In-app lock screen shown over the workspace while biometric unlock is
+// pending, so patient data isn't visible behind the OS prompt. A full-window
+// WebContentsView added last (top-most) covers the tab chrome and content.
+// setupIdleLock drives show/hide. The overlay itself exists from startup
+// because every web contents registers with it at creation (see
+// web-contents-created), including the window and tabs that predate the lock.
+let lockOverlayView: WebContentsView | null = null;
+
+// Size the overlay to the window and re-add it so it sits above the chrome.
+// Every layout pass ends here, including the one that moves a lock onto a
+// reopened window. Taking a view out of its window can take keyboard focus with
+// it, so the lock page is handed focus again afterwards.
+const layoutLockOverlay = (): void => {
+  const win = mainWindow;
+  const view = lockOverlayView;
+  if (!win || win.isDestroyed() || !view || view.webContents.isDestroyed()) return;
+  const b = win.getContentBounds();
+  view.setBounds({ x: 0, y: 0, width: b.width, height: b.height });
+  win.contentView.removeChildView(view);
+  win.contentView.addChildView(view);
+  idleLockOverlay.refocus();
+};
+
+const idleLockOverlay = createIdleLockOverlay({
+  mount: () => {
+    const win = mainWindow;
+    if (!win || win.isDestroyed()) return null;
+    const view = new WebContentsView({
+      webPreferences: secureWebPreferences(path.join(__dirname, 'preload.js')),
+    });
+    lockOverlayView = view;
+    win.contentView.addChildView(view);
+    // Sizes and raises it; every later layout pass does the same.
+    layoutLockOverlay();
+    applyThemeModeToWc(view.webContents, (settingsStore?.load() || DEFAULT_SETTINGS).theme);
+    void view.webContents.loadFile(localPage('idle-lock'));
+    return view.webContents;
+  },
+  unmount: () => {
+    const view = lockOverlayView;
+    lockOverlayView = null;
+    if (!view) return;
+    const win = mainWindow;
+    if (win && !win.isDestroyed()) win.contentView.removeChildView(view);
+    if (!view.webContents.isDestroyed()) view.webContents.close();
+  },
+  workspace: activeContents,
+});
 
 type TabBounds = { width: number; height: number };
 
@@ -368,7 +413,7 @@ const layoutTabChrome = (): void => {
   // Last: raiseTabChrome re-adds the chrome on every layout, so a resize while
   // the biometric prompt is pending would otherwise leave a stale-sized overlay
   // with the tab strip - and the newly exposed workspace - live on top of it.
-  relayoutLockOverlay?.();
+  layoutLockOverlay();
 };
 
 // Switch the window into multi-tab mode: mount the tab-bar chrome view and the
@@ -1161,6 +1206,9 @@ const pinCurrentPage = (): void => {
 };
 
 const runCommandAction = async (id: string): Promise<void> => {
+  // The palette and the tray quick actions both land here. None of them may act
+  // on (or pin a window of) the workspace behind the idle lock.
+  if (idleLockOverlay.isVisible()) return;
   const action = BUILTIN_ACTIONS.find((a) => a.id === id);
   if (!action) {
     logger.warn('command_action_unknown', { id });
@@ -1254,48 +1302,6 @@ const setupIdleLock = (ses: Session): void => {
   // the timer's attempt is still pending.
   let unlockInFlight = false;
 
-  // In-app lock screen shown over the workspace while biometric unlock is
-  // pending, so patient data isn't visible behind the OS prompt. A full-window
-  // WebContentsView added last (top-most) covers the tab chrome and content.
-  let lockOverlayView: WebContentsView | null = null;
-
-  // Size the overlay to the window and re-add it so it sits above the chrome.
-  // Registered as the module-level layout hook while this lock is set up.
-  const layoutLockOverlay = (): void => {
-    const win = mainWindow;
-    const view = lockOverlayView;
-    if (!win || win.isDestroyed() || !view || view.webContents.isDestroyed()) return;
-    const b = win.getContentBounds();
-    view.setBounds({ x: 0, y: 0, width: b.width, height: b.height });
-    win.contentView.removeChildView(view);
-    win.contentView.addChildView(view);
-  };
-  relayoutLockOverlay = layoutLockOverlay;
-
-  const lockOverlay = createIdleLockOverlay({
-    mount: () => {
-      const win = mainWindow;
-      if (!win || win.isDestroyed()) return;
-      const view = new WebContentsView({
-        webPreferences: secureWebPreferences(path.join(__dirname, 'preload.js')),
-      });
-      lockOverlayView = view;
-      win.contentView.addChildView(view);
-      // Sizes and raises it; every later layout pass does the same.
-      layoutLockOverlay();
-      applyThemeModeToWc(view.webContents, (settingsStore?.load() || DEFAULT_SETTINGS).theme);
-      void view.webContents.loadFile(localPage('idle-lock'));
-    },
-    unmount: () => {
-      const view = lockOverlayView;
-      lockOverlayView = null;
-      if (!view) return;
-      const win = mainWindow;
-      if (win && !win.isDestroyed()) win.contentView.removeChildView(view);
-      if (!view.webContents.isDestroyed()) view.webContents.close();
-    },
-  });
-
   // Drop the session and return to the sign-in page. This is what "Use password
   // instead" means here: the PIMS owns the password, so the fallback is to sign
   // in again. Also where an unlock lands when biometrics are unavailable.
@@ -1341,7 +1347,7 @@ const setupIdleLock = (ses: Session): void => {
           return;
         }
         locked = false;
-        lockOverlay.hide();
+        idleLockOverlay.hide();
         logger.info('biometric_unlock_success');
       })
       .catch(notifyUnlockFailed)
@@ -1352,7 +1358,7 @@ const setupIdleLock = (ses: Session): void => {
 
   requestIdleUnlock = (mode) => {
     // Only meaningful while the lock screen is actually up.
-    if (!lockOverlay.isVisible()) return;
+    if (!idleLockOverlay.isVisible()) return;
     if (mode === 'password') {
       logger.info('idle_lock_password_fallback');
       // The overlay comes down only AFTER the sign-out has landed. Hiding it
@@ -1362,7 +1368,7 @@ const setupIdleLock = (ses: Session): void => {
       unlockInFlight = true;
       void signOutToStartUrl().finally(() => {
         locked = false;
-        lockOverlay.hide();
+        idleLockOverlay.hide();
         unlockInFlight = false;
       });
       return;
@@ -1382,7 +1388,7 @@ const setupIdleLock = (ses: Session): void => {
       const settings = settingsStore?.load();
       if (bio && bio.isAvailable() && settings?.biometricLockEnabled) {
         bio.lock();
-        lockOverlay.show();
+        idleLockOverlay.show();
         logger.info('biometric_lock_engaged');
         attemptBiometricUnlock();
       } else {
@@ -1390,7 +1396,7 @@ const setupIdleLock = (ses: Session): void => {
       }
       // Activity alone must not clear the lock while the lock screen is still
       // up - only a real unlock does that.
-    } else if (locked && idleMs < 1000 && !lockOverlay.isVisible()) {
+    } else if (locked && idleMs < 1000 && !idleLockOverlay.isVisible()) {
       locked = false;
     }
   }, 30_000);
@@ -1641,6 +1647,7 @@ if (gotSingleInstanceLock) {
       const menu = buildContextMenu(params, contents);
       if (menu) menu.popup();
     });
+    idleLockOverlay.holdInput(contents);
   });
 
   app.on('second-instance', (_event, argv) => {
@@ -1665,6 +1672,7 @@ if (gotSingleInstanceLock) {
     activeContents,
     enterTabMode,
     layoutTabChrome,
+    isLocked: idleLockOverlay.isVisible,
     loadStartUrl,
     showOfflinePage,
     consumePendingDeepLink,
@@ -2010,6 +2018,7 @@ if (gotSingleInstanceLock) {
           app.on('browser-window-blur', cb);
         },
         hasFocusedWindow: () => BrowserWindow.getFocusedWindow() !== null,
+        isLocked: idleLockOverlay.isVisible,
         logger,
       });
       keyboardShortcutManager.start();
@@ -2031,6 +2040,10 @@ if (gotSingleInstanceLock) {
         tabViewHost = output.tabViewHost;
         saveSession = output.saveSession;
         coldStartWatchdog = output.coldStartWatchdog;
+        // A lock that was up when the old window closed is still up: cover the
+        // new window now, whatever it opens on. Entering tab mode below would
+        // re-raise it too, but a signed-out reopen never gets that far.
+        layoutLockOverlay();
         if (output.enterTabModeUrl) {
           // Closing the window (red button) never resets the module tab-mode
           // state — only closing the last tab does (exitTabMode). So after a

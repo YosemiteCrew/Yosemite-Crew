@@ -90,8 +90,8 @@ describe('createLabelPrintService', () => {
 
     const results = await svc.printLabels(labels);
     expect(results).toHaveLength(2);
-    expect(results[0].success).toBe(true);
-    expect(results[0].label.type).toBe('cage-card');
+    expect(results[0]!.success).toBe(true);
+    expect(results[0]!.label.type).toBe('cage-card');
   });
 
   test('getSupportedLabelTypes returns supported types', () => {

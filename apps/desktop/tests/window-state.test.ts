@@ -174,8 +174,13 @@ describe('manageWindow', () => {
       webContents: { getZoomLevel: () => 1 },
     });
 
-    manageWindow(win as never, { save: (s) => saved.push(s) });
-    listeners.close();
+    manageWindow(win as never, {
+      save: (s) => {
+        saved.push(s);
+        return true;
+      },
+    });
+    listeners.close!();
 
     expect(saved).toHaveLength(1);
     expect(saved[0]).toEqual({
@@ -194,13 +199,22 @@ describe('manageWindow', () => {
       const saved: Array<{ width: number }> = [];
       const { win, listeners } = makeWindow({});
 
-      manageWindow(win as never, { save: (s) => saved.push(s as { width: number }) }, 400);
-      listeners.resize();
-      listeners.move();
+      manageWindow(
+        win as never,
+        {
+          save: (s) => {
+            saved.push(s as { width: number });
+            return true;
+          },
+        },
+        400
+      );
+      listeners.resize!();
+      listeners.move!();
       expect(saved).toHaveLength(0);
       jest.advanceTimersByTime(400);
       expect(saved).toHaveLength(1);
-      expect(saved[0].width).toBe(1100);
+      expect(saved[0]!.width).toBe(1100);
     } finally {
       jest.useRealTimers();
     }
@@ -209,8 +223,13 @@ describe('manageWindow', () => {
   test('does not persist when the window is already destroyed', () => {
     const saved: unknown[] = [];
     const { win, listeners } = makeWindow({ isDestroyed: () => true });
-    manageWindow(win as never, { save: (s) => saved.push(s) });
-    listeners.close();
+    manageWindow(win as never, {
+      save: (s) => {
+        saved.push(s);
+        return true;
+      },
+    });
+    listeners.close!();
     expect(saved).toHaveLength(0);
   });
 
@@ -224,8 +243,13 @@ describe('manageWindow', () => {
         },
       },
     });
-    manageWindow(win as never, { save: (s) => saved.push(s) });
-    listeners.close();
+    manageWindow(win as never, {
+      save: (s) => {
+        saved.push(s);
+        return true;
+      },
+    });
+    listeners.close!();
     expect(saved[0]).toEqual({
       x: 1,
       y: 2,

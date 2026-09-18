@@ -7,7 +7,10 @@ import {
 describe('createKeyboardShortcutManager', () => {
   const makeDeps = (overrides: Record<string, unknown> = {}) => {
     const handlers: Record<string, () => void> = {};
-    const windowEvents: Record<string, Array<() => void>> = { focus: [], blur: [] };
+    const windowEvents: { focus: Array<() => void>; blur: Array<() => void> } = {
+      focus: [],
+      blur: [],
+    };
     return {
       globalShortcut: {
         register: jest.fn((accelerator: string, callback: () => void) => {
@@ -24,6 +27,7 @@ describe('createKeyboardShortcutManager', () => {
       onWindowBlur: jest.fn((cb: () => void) => windowEvents.blur.push(cb)),
       hasFocusedWindow: jest.fn(() => true),
       defer: jest.fn((cb: () => void) => cb()),
+      isLocked: jest.fn(() => false),
       logger: { debug: jest.fn(), warn: jest.fn() },
       windowEvents,
       ...overrides,
@@ -46,7 +50,9 @@ describe('createKeyboardShortcutManager', () => {
 
   test('does not register shortcuts that fail', () => {
     const deps = makeDeps();
-    deps.globalShortcut.register = jest.fn(() => false);
+    deps.globalShortcut.register = jest.fn<boolean, [accelerator: string, callback: () => void]>(
+      () => false
+    );
     const mgr = createKeyboardShortcutManager(deps);
     mgr.register();
 
@@ -71,7 +77,7 @@ describe('createKeyboardShortcutManager', () => {
 
     const paletteShortcut = SHORTCUTS.find((s) => s.id === 'open-palette')!;
     const registerCall = deps.globalShortcut.register.mock.calls.find(
-      (c: string[]) => c[0] === paletteShortcut.accelerator
+      (c) => c[0] === paletteShortcut.accelerator
     );
     if (registerCall) {
       registerCall[1]();
@@ -89,7 +95,7 @@ describe('createKeyboardShortcutManager', () => {
     );
     for (const sc of navShortcuts) {
       const registerCall = deps.globalShortcut.register.mock.calls.find(
-        (c: string[]) => c[0] === sc.accelerator
+        (c) => c[0] === sc.accelerator
       );
       if (registerCall) {
         registerCall[1]();
@@ -99,8 +105,32 @@ describe('createKeyboardShortcutManager', () => {
     expect(deps.navigate).toHaveBeenCalled();
   });
 
+  test('no shortcut acts while the idle lock is up, and all do again after', () => {
+    let locked = true;
+    const wc = { send: jest.fn(), isDestroyed: () => false };
+    const deps = makeDeps({
+      isLocked: () => locked,
+      focusedWebContents: jest.fn(() => wc),
+    });
+    const mgr = createKeyboardShortcutManager(deps);
+    mgr.register();
+    const fireAll = (): void => {
+      for (const [, handler] of deps.globalShortcut.register.mock.calls) handler();
+    };
+
+    fireAll();
+    expect(deps.openPalette).not.toHaveBeenCalled();
+    expect(deps.navigate).not.toHaveBeenCalled();
+    expect(deps.focusedWebContents).not.toHaveBeenCalled();
+
+    locked = false;
+    fireAll();
+    expect(deps.openPalette).toHaveBeenCalled();
+    expect(deps.navigate).toHaveBeenCalled();
+  });
+
   describe('shortcut without url falls through to webContents path', () => {
-    let origUrl: string | null;
+    let origUrl: string | null | undefined;
 
     beforeEach(() => {
       origUrl = shortcutActionUrl['new-patient'];
@@ -109,7 +139,7 @@ describe('createKeyboardShortcutManager', () => {
     });
 
     afterEach(() => {
-      (shortcutActionUrl as Record<string, string | null>)['new-patient'] = origUrl;
+      (shortcutActionUrl as Record<string, string | null | undefined>)['new-patient'] = origUrl;
     });
 
     it('sends shortcut to webContents when focused and not destroyed', () => {
@@ -122,7 +152,7 @@ describe('createKeyboardShortcutManager', () => {
       mgr.register();
 
       const call = deps.globalShortcut.register.mock.calls.find(
-        (c: string[]) => c[0] === SHORTCUTS.find((s) => s.id === 'new-patient')!.accelerator
+        (c) => c[0] === SHORTCUTS.find((s) => s.id === 'new-patient')!.accelerator
       );
       if (call) call[1]();
 
@@ -139,7 +169,7 @@ describe('createKeyboardShortcutManager', () => {
       mgr.register();
 
       const call = deps.globalShortcut.register.mock.calls.find(
-        (c: string[]) => c[0] === SHORTCUTS.find((s) => s.id === 'new-patient')!.accelerator
+        (c) => c[0] === SHORTCUTS.find((s) => s.id === 'new-patient')!.accelerator
       );
       if (call) call[1]();
 
@@ -152,7 +182,7 @@ describe('createKeyboardShortcutManager', () => {
       mgr.register();
 
       const call = deps.globalShortcut.register.mock.calls.find(
-        (c: string[]) => c[0] === SHORTCUTS.find((s) => s.id === 'new-patient')!.accelerator
+        (c) => c[0] === SHORTCUTS.find((s) => s.id === 'new-patient')!.accelerator
       );
       if (call) call[1]();
 
@@ -163,7 +193,10 @@ describe('createKeyboardShortcutManager', () => {
 
 describe('shortcuts are held only while one of our windows has focus', () => {
   const makeDeps = (overrides: Record<string, unknown> = {}) => {
-    const windowEvents: Record<string, Array<() => void>> = { focus: [], blur: [] };
+    const windowEvents: { focus: Array<() => void>; blur: Array<() => void> } = {
+      focus: [],
+      blur: [],
+    };
     return {
       globalShortcut: {
         register: jest.fn(() => true),
@@ -177,6 +210,7 @@ describe('shortcuts are held only while one of our windows has focus', () => {
       onWindowBlur: jest.fn((cb: () => void) => windowEvents.blur.push(cb)),
       hasFocusedWindow: jest.fn(() => true),
       defer: jest.fn((cb: () => void) => cb()),
+      isLocked: jest.fn(() => false),
       logger: { debug: jest.fn(), warn: jest.fn() },
       windowEvents,
       ...overrides,

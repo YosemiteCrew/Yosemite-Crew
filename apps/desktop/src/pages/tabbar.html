@@ -747,11 +747,8 @@
         send('activateTab', state.tabs[next].id);
       };
 
-      const activateByNumber = (key) => {
-        const idx = Number.parseInt(key, 10) - 1;
-        if (idx < state.tabs.length) send('activateTab', state.tabs[idx].id);
-      };
-
+      // Mod+1..9 is deliberately absent: the main process claims it for every view
+      // through before-input-event, so a copy here would be unreachable.
       document.addEventListener('keydown', (e) => {
         // All tab shortcuts require the platform modifier; bail early otherwise so
         // each branch below stays flat (keeps cognitive complexity low).
@@ -769,9 +766,6 @@
         } else if (key === 'Tab') {
           e.preventDefault();
           cycleActiveTab(e.shiftKey);
-        } else if (key >= '1' && key <= '9') {
-          e.preventDefault();
-          activateByNumber(key);
         }
       });
 

@@ -285,14 +285,14 @@ describe('a degraded window stays attributable after the keychain recovers', () 
     mem.files.set(logPath, JSON.stringify(stored) + '\n');
 
     const s2 = await createAuditLog(DEGRADED_DIR, { ...deps, hmacKey });
-    expect(s2.query().at(0)!.keyId).toBeUndefined();
+    expect(s2.query()[0]!.keyId).toBeUndefined();
     // Valid, not otherKey - a stamp-less entry is not evidence of a key change.
     expect(s2.verifyAll()).toEqual({ valid: 1, tampered: 0, otherKey: 0 });
     /* Only the provenance claims are asserted here. Rewriting the file by hand
        is the only way to synthesise a pre-keyId entry, and that legitimately
        trips the store's watermark ("the log has been replaced") - which is its
        tamper detection working, and nothing to do with keyId. */
-    expect(s2.verify(s2.query().at(0)!)).toBe(true);
+    expect(s2.verify(s2.query()[0]!)).toBe(true);
   });
 
   test('relabelling only the keyId is itself detected', async () => {
@@ -324,7 +324,7 @@ describe('a degraded window stays attributable after the keychain recovers', () 
     /* The entry AS STORED now carries a stamp the signature does not cover, so
        recomputing it fails. That is what proves keyId is inside the payload
        rather than sitting beside it. */
-    const stored = s2.query().at(0)!;
+    const stored = s2.query()[0]!;
     expect(stored.keyId).not.toBe(original);
     expect(s2.verify(stored)).toBe(false);
     expect(s2.verifyChain()).toBe(false);
