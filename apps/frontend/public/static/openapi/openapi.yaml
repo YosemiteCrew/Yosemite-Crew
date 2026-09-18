@@ -7820,6 +7820,217 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/finance/organisation/{organisationId}/provider-receipts':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/finance/organisation/{organisationId}/provider-receipts'
+      operationId: get_v1_finance_organisation_organisationId_provider_receipts
+      description: "The payment reconciliation queue for one organisation (#3170). Every captured provider payment is journalled before it is attributed, including the ones no invoice could be minted for; this is the list an operator works through. Scope is the organisation's own receipts plus the unattributed captures that landed in the connected merchant account it owns - the account is read from the organisation record, never from the request. A platform-account capture with no organisation appears in no queue, because that sentinel is shared by every tenant."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: 'Receipt states to include; repeat the parameter for more than one. Omitted means every state. An unknown state is answered 400 rather than ignored.'
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - UNATTRIBUTED
+                - UNALLOCATED
+                - ALLOCATED
+                - PARTIALLY_REFUNDED
+                - REFUNDED
+        - name: capturedFrom
+          in: query
+          required: false
+          description: "Inclusive lower bound on capturedAt. ISO 8601 with an explicit offset - a bare date is answered 400, because a window read at the operator's local midnight and applied against a UTC capturedAt moves the boundary by hours."
+          schema:
+            type: string
+            format: date-time
+        - name: capturedTo
+          in: query
+          required: false
+          description: Inclusive upper bound on capturedAt, same format rule as capturedFrom.
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          description: 'Page size, clamped server-side rather than rejected (default 50, max 50). A non-numeric or sub-1 value yields the default. The value actually applied comes back in meta.limit.'
+          schema:
+            type: integer
+        - name: cursor
+          in: query
+          required: false
+          description: "Opaque cursor from the previous response's meta.nextCursor. A malformed cursor is answered 400 rather than ignored."
+          schema:
+            type: string
+      responses:
+        200:
+          description: One page of the reconciliation queue
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - error
+                properties:
+                  data:
+                    type: array
+                    description: 'Receipts ordered by when they were journalled, newest first. Not by capturedAt: that comes from the provider, can arrive out of order, and can be recovered from a refund event long afterwards, so it would shuffle rows between pages.'
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - provider
+                        - merchantAccountRef
+                        - paymentRef
+                        - organisationId
+                        - invoiceId
+                        - appointmentId
+                        - amount
+                        - currency
+                        - capturedAt
+                        - status
+                        - reason
+                        - refundedAmount
+                        - version
+                        - createdAt
+                      properties:
+                        id:
+                          type: string
+                        provider:
+                          type: string
+                          description: The payment provider the capture came from.
+                        merchantAccountRef:
+                          type: string
+                          description: The connected account the money landed in. Platform captures carry the PLATFORM sentinel rather than null, because nulls stay distinct in a unique index and would let one reference be journalled twice.
+                        paymentRef:
+                          type: string
+                          description: The provider's own reference for the capture. Operational data for authorised staff.
+                        organisationId:
+                          type: string
+                          nullable: true
+                          description: Null on an UNATTRIBUTED receipt. That is the point of the journal - the money is recorded first and attributed afterwards, never guessed.
+                        invoiceId:
+                          type: string
+                          nullable: true
+                          description: Set only where the ingesting path already knew it. A refund does not clear it; it is the historical record of where the money went.
+                        appointmentId:
+                          type: string
+                          nullable: true
+                        amount:
+                          type: number
+                          description: What the provider says it received, in major units of `currency`.
+                        currency:
+                          type: string
+                        capturedAt:
+                          type: string
+                          format: date-time
+                        status:
+                          type: string
+                          enum:
+                            - UNATTRIBUTED
+                            - UNALLOCATED
+                            - ALLOCATED
+                            - PARTIALLY_REFUNDED
+                            - REFUNDED
+                          description: 'Attribution and allocation are separate facts: no organisation is UNATTRIBUTED, an organisation with nothing applied is UNALLOCATED, and an invoice the ingesting path knew about is ALLOCATED.'
+                        reason:
+                          type: string
+                          nullable: true
+                          description: Why the receipt is in its current state, in the words of the path that wrote it. Read by a human; never parsed.
+                        refundedAmount:
+                          type: number
+                          description: 'What the provider says it has given back on this capture, cumulative over every refund against it - not the delta of one refund event. `amount` minus this is the residual still to reconcile.'
+                        version:
+                          type: integer
+                          description: Bumped on every state change, so a later allocation can be made conditional on the state it was read from.
+                        createdAt:
+                          type: string
+                          format: date-time
+                          description: When the capture was journalled. This is the sort key.
+                  meta:
+                    type: object
+                    required:
+                      - nextCursor
+                      - hasMore
+                      - limit
+                    properties:
+                      nextCursor:
+                        type: string
+                        nullable: true
+                        description: Position of the last row on this page; pass it back as `cursor`. Null when there is no further page.
+                      hasMore:
+                        type: boolean
+                        description: Whether another page exists. Never infer this from data.length - a row can leave the filter between pages.
+                      limit:
+                        type: integer
+                        description: The page size actually applied, which is not always the one requested.
+                  error:
+                    nullable: true
+        400:
+          description: An unknown state, a date without an offset, or a malformed cursor
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        401:
+          description: No staff session presented
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        403:
+          description: The caller has no active membership of this organisation, or holds no billing:view:any permission in it
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
   /v1/inventory/items:
     post:
       tags:

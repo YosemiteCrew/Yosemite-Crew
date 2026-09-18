@@ -13,6 +13,11 @@ import {
   FinanceDiscountSettingsError,
   FinanceDiscountSettingsService,
 } from "src/services/finance/discount-settings";
+import {
+  ProviderReceiptService,
+  RECONCILIATION_STATUSES,
+} from "src/services/finance/provider-receipt";
+import { parseKeysetCursor } from "src/services/shared/pagination";
 import { StripeController } from "src/controllers/web/stripe.controller";
 import { StripeService } from "src/services/stripe.service";
 import {
@@ -232,6 +237,35 @@ const ListInvoicesQuerySchema = z.object({
   appointmentId: z.string().trim().min(1).optional(),
   parentId: z.string().trim().min(1).optional(),
   patientId: z.string().trim().min(1).optional(),
+});
+
+/**
+ * The reconciliation queue's filters.
+ *
+ * `status` is accepted once or repeated, because that is what Express hands
+ * over for `?status=A&status=B` and a queue is worked by state. The enum comes
+ * from the model, so a state added to the schema cannot be silently rejected
+ * here as unknown.
+ *
+ * The dates are ISO 8601 with an offset, not bare dates. A reconciliation
+ * window read in the operator's local midnight and applied against a UTC
+ * `capturedAt` moves the boundary by hours, so the caller states the instant
+ * and there is nothing to infer from a device timezone.
+ *
+ * `limit` is a string here and clamped in the service rather than rejected:
+ * the bound is the service's to own, and a caller asking for more gets a
+ * bounded page and the `limit` it actually got back in `meta`.
+ */
+const ProviderReceiptQuerySchema = z.object({
+  status: z
+    .union([
+      z.enum(RECONCILIATION_STATUSES),
+      z.array(z.enum(RECONCILIATION_STATUSES)),
+    ])
+    .optional(),
+  capturedFrom: z.iso.datetime({ offset: true }).optional(),
+  capturedTo: z.iso.datetime({ offset: true }).optional(),
+  limit: z.string().optional(),
 });
 
 const normalizeProvider = (value?: string) =>
@@ -1697,5 +1731,90 @@ export const FinanceController = {
       req as Request<Record<string, string>, unknown, Buffer>,
       res,
     );
+  },
+
+  /**
+   * The reconciliation queue for the authorized organisation (#3170).
+   *
+   * Read-only, so it is behind `billing:view:any` rather than an edit
+   * permission: an operator has to be able to SEE an unattributed capture
+   * before anyone can decide what to do with it, and nothing here changes a
+   * receipt.
+   *
+   * The organisation comes from `resolveAuthorizedOrganisationId`, never from
+   * the query, so a caller cannot name another tenant's organisation in the
+   * path and read its money.
+   */
+  async listProviderReceipts(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
+      const query = ProviderReceiptQuerySchema.safeParse(req.query);
+      if (!query.success) {
+        /*
+         * The offending value is not echoed. It is caller-controlled, a raw
+         * CR/LF in it forges a second log line, and the message already tells
+         * the only party who can act on it what to send instead.
+         */
+        return res.status(400).json({
+          message:
+            "Invalid reconciliation filter. Check status, capturedFrom, capturedTo and limit.",
+        });
+      }
+
+      /*
+       * Rejected up front rather than passed through. A malformed cursor is a
+       * caller mistake, and answering 400 here is what lets every failure from
+       * the query itself be reported honestly as a 500 - inferring "bad
+       * cursor" from a thrown error would report a database outage as the
+       * caller's fault.
+       */
+      const cursor = parseKeysetCursor(req.query.cursor);
+      if (cursor === null) {
+        return res.status(400).json({
+          message:
+            "Unknown or malformed cursor. Use nextCursor from the previous response.",
+        });
+      }
+
+      const statuses = query.data.status;
+      const page = await ProviderReceiptService.listForReconciliation({
+        organisationId,
+        ...(statuses?.length
+          ? { statuses: Array.isArray(statuses) ? statuses : [statuses] }
+          : {}),
+        ...(query.data.capturedFrom
+          ? { capturedFrom: new Date(query.data.capturedFrom) }
+          : {}),
+        ...(query.data.capturedTo
+          ? { capturedTo: new Date(query.data.capturedTo) }
+          : {}),
+        ...(cursor ? { cursor } : {}),
+        limit: query.data.limit,
+      });
+
+      /*
+       * The three fields beside the rows are what stops this being a silently
+       * truncated list: a client that ignores them sees a short page, and one
+       * that reads them can tell the end of the data from the end of a page.
+       */
+      return res.status(200).json({
+        data: page.receipts,
+        meta: {
+          nextCursor: page.nextCursor,
+          hasMore: page.hasMore,
+          limit: page.limit,
+        },
+        error: null,
+      });
+    } catch (error) {
+      logger.error("Error listing provider receipts for reconciliation", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
   },
 };
