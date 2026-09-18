@@ -13,7 +13,6 @@ jest.mock("src/utils/logger", () => ({
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
-    $executeRaw: jest.fn(),
     $transaction: jest.fn(),
     // The release path takes an advisory lock before it reads the balances
     // that authorise the release, so every release test needs this.
@@ -68,7 +67,6 @@ jest.mock("src/config/prisma", () => ({
 }));
 
 type MockedPrisma = typeof prisma & {
-  $executeRaw: jest.Mock;
   $transaction: jest.Mock;
   $executeRaw: jest.Mock;
   inventoryConsumptionRule: {
