@@ -324,14 +324,37 @@ describe('preload bridge', () => {
     });
   });
 
+  describe('platform', () => {
+    test('reports the host platform as a plain value', () => {
+      // The local pages label keyboard shortcuts and the system file manager
+      // from this, and a renderer's user agent cannot tell Windows from Linux.
+      expect(mockExposed.ycDesktop.platform).toBe(process.platform);
+      expect(typeof mockExposed.ycDesktop.platform).toBe('string');
+    });
+  });
+
   describe('api surface integrity', () => {
-    test('every method on YcDesktop is a function', () => {
+    // `platform` is the one value on the bridge; everything else is a call.
+    const VALUE_KEYS: (keyof YcDesktop)[] = ['platform'];
+
+    test('every member of YcDesktop except the platform value is a function', () => {
       const api = mockExposed.ycDesktop;
       const keys: (keyof YcDesktop)[] = Object.keys(
         api as Record<string, unknown>
       ) as (keyof YcDesktop)[];
-      keys.forEach((key) => {
+      const methods = keys.filter((key) => !VALUE_KEYS.includes(key));
+      // The filter must remove exactly the value keys and leave a set to check,
+      // or this assertion passes on nothing.
+      expect(methods).toHaveLength(keys.length - VALUE_KEYS.length);
+      expect(methods.length).toBeGreaterThan(0);
+      methods.forEach((key) => {
         expect(typeof api[key]).toBe('function');
+      });
+    });
+
+    test('the value keys really are on the bridge', () => {
+      VALUE_KEYS.forEach((key) => {
+        expect(mockExposed.ycDesktop).toHaveProperty(key);
       });
     });
   });
