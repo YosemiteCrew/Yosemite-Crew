@@ -33,6 +33,9 @@ struct NextAppointmentIntent: AppIntent {
   )
   /// Answered entirely from the snapshot, so Siri never has to open the app.
   static var openAppWhenRun: Bool = false
+  /// Answers are the owner's pet data, so the device must be unlocked first.
+  /// Set explicitly because the AppIntents default is `.alwaysAllowed`.
+  static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
   @Parameter(title: "Pet")
   var pet: PetEntity?
@@ -79,6 +82,7 @@ struct VaccinationStatusIntent: AppIntent {
     "Says whether a pet's vaccinations are up to date or due."
   )
   static var openAppWhenRun: Bool = false
+  static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
   @Parameter(title: "Pet")
   var pet: PetEntity?
@@ -124,6 +128,7 @@ struct UpcomingTasksIntent: AppIntent {
     "Lists the care tasks due for a pet."
   )
   static var openAppWhenRun: Bool = false
+  static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
   @Parameter(title: "Pet")
   var pet: PetEntity?
