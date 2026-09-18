@@ -248,6 +248,47 @@ const reconciliationScope = (
 };
 
 /**
+ * The connected account this organisation is the only claimant of.
+ *
+ * Read here rather than taken from the caller: it decides which unattributed
+ * captures are in scope, so a request-supplied value would let anyone name
+ * another tenant's merchant account and read their unattributed money.
+ *
+ * `Organization.stripeAccountId` carries no unique constraint, so "the
+ * organisation that owns this account" is an assumption about the data rather
+ * than something the database enforces. Two rows sharing an account would put
+ * each organisation's unattributed captures in the other's queue - the exact
+ * cross-tenant read the second scope arm exists to make safe. So the claim is
+ * checked rather than assumed, and an ambiguous account is dropped: those
+ * receipts stay out of BOTH queues until someone resolves the duplicate, which
+ * is the failure that loses nothing.
+ *
+ * Loud when it fires. A shared connected account is a data defect, and a queue
+ * quietly missing rows is worse to debug than one that said why.
+ */
+const exclusiveMerchantAccount = async (
+  organisationId: string,
+): Promise<string | null> => {
+  const organisation = await prisma.organization.findUnique({
+    where: { id: organisationId },
+    select: { stripeAccountId: true },
+  });
+
+  const merchantAccountRef = organisation?.stripeAccountId ?? null;
+  if (!merchantAccountRef) return null;
+
+  const claimants = await prisma.organization.count({
+    where: { stripeAccountId: merchantAccountRef },
+  });
+  if (claimants === 1) return merchantAccountRef;
+
+  logger.error(
+    `Connected merchant account of organisation ${organisationId} is claimed by ${claimants} organisations; its unattributed captures are withheld from every reconciliation queue`,
+  );
+  return null;
+};
+
+/**
  * The exclusive `(createdAt, id)` comparison that continues a page.
  *
  * Written out rather than done with Prisma's `cursor` + `skip: 1`, because
@@ -375,16 +416,9 @@ export const ProviderReceiptService = {
   ): Promise<ListReconciliationResult> {
     const limit = clampPageSize(input.limit, RECONCILIATION_PAGE_SIZE);
 
-    /*
-     * The organisation's own connected account, read here rather than taken
-     * from the caller. It decides which unattributed captures are in scope, so
-     * a request-supplied value would let any caller name another tenant's
-     * merchant account and read their unattributed money.
-     */
-    const organisation = await prisma.organization.findUnique({
-      where: { id: input.organisationId },
-      select: { stripeAccountId: true },
-    });
+    const merchantAccountRef = await exclusiveMerchantAccount(
+      input.organisationId,
+    );
 
     const capturedAt =
       input.capturedFrom || input.capturedTo
@@ -397,10 +431,7 @@ export const ProviderReceiptService = {
     const where: Prisma.ProviderReceiptWhereInput = {
       AND: [
         {
-          OR: reconciliationScope(
-            input.organisationId,
-            organisation?.stripeAccountId ?? null,
-          ),
+          OR: reconciliationScope(input.organisationId, merchantAccountRef),
         },
         ...(input.statuses?.length
           ? [{ status: { in: [...input.statuses] } }]

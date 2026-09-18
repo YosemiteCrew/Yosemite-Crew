@@ -5,6 +5,7 @@ import {
 } from "../../src/services/finance/provider-receipt";
 import { encodeKeysetCursor } from "../../src/services/shared/pagination";
 import { prisma } from "src/config/prisma";
+import logger from "src/utils/logger";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -16,6 +17,7 @@ jest.mock("src/config/prisma", () => ({
     },
     organization: {
       findUnique: jest.fn(),
+      count: jest.fn(),
     },
   },
 }));
@@ -27,8 +29,9 @@ jest.mock("src/utils/logger", () => ({
 
 const mockedPrisma = prisma as unknown as {
   providerReceipt: { findMany: jest.Mock };
-  organization: { findUnique: jest.Mock };
+  organization: { findUnique: jest.Mock; count: jest.Mock };
 };
+const mockedLogger = logger as unknown as { error: jest.Mock };
 
 const row = (overrides: Record<string, unknown> = {}) => ({
   id: "11111111-1111-4111-8111-111111111111",
@@ -57,6 +60,7 @@ beforeEach(() => {
   mockedPrisma.organization.findUnique.mockResolvedValue({
     stripeAccountId: "acct_org_a",
   });
+  mockedPrisma.organization.count.mockResolvedValue(1);
   mockedPrisma.providerReceipt.findMany.mockResolvedValue([]);
 });
 
@@ -107,6 +111,48 @@ describe("ProviderReceiptService.listForReconciliation", () => {
       organisationId: null,
       merchantAccountRef: "acct_org_a",
     });
+  });
+
+  it("withholds an ambiguous connected account from every queue", async () => {
+    // Organization.stripeAccountId carries no unique constraint, so "the
+    // organisation that owns this account" is an assumption about the data and
+    // not something the database enforces. Two rows sharing one account would
+    // put each organisation's unattributed captures in the other's queue -
+    // exactly the cross-tenant read the second scope arm exists to make safe.
+    mockedPrisma.organization.count.mockResolvedValue(2);
+
+    await ProviderReceiptService.listForReconciliation({
+      organisationId: "org-a",
+    });
+
+    const [{ where }] = mockedPrisma.providerReceipt.findMany.mock.calls[0];
+    expect(scopeOf(where).OR).toEqual([{ organisationId: "org-a" }]);
+    expect(mockedLogger.error).toHaveBeenCalled();
+  });
+
+  it("counts the claimants of the account it is about to trust", async () => {
+    await ProviderReceiptService.listForReconciliation({
+      organisationId: "org-a",
+    });
+
+    const [{ where }] = mockedPrisma.organization.count.mock.calls[0];
+    expect(where).toEqual({ stripeAccountId: "acct_org_a" });
+  });
+
+  it("does not ask who claims an account when there is none to claim", async () => {
+    // A count over `stripeAccountId: null` would match every organisation that
+    // has not connected one, so the arm would be dropped for a reason that has
+    // nothing to do with ambiguity.
+    mockedPrisma.organization.findUnique.mockResolvedValue({
+      stripeAccountId: null,
+    });
+
+    await ProviderReceiptService.listForReconciliation({
+      organisationId: "org-a",
+    });
+
+    expect(mockedPrisma.organization.count).not.toHaveBeenCalled();
+    expect(mockedLogger.error).not.toHaveBeenCalled();
   });
 
   it("never scopes an unattributed platform capture to a tenant", async () => {
