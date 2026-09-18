@@ -357,7 +357,7 @@ const exclusiveMerchantAccount = async (
   if (claimants === 1) return merchantAccountRef;
 
   logger.error(
-    `Connected merchant account of organisation ${organisationId} is claimed by ${claimants} organisations; its unattributed captures are withheld from every reconciliation queue`,
+    `Connected merchant account of organisation ${organisationId.replace(/[\n\r]/g, "")} is claimed by ${claimants} organisations; its unattributed captures are withheld from every reconciliation queue`,
   );
   return null;
 };
