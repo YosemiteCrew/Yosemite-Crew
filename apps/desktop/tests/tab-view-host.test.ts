@@ -115,7 +115,7 @@ describe('TabViewHost', () => {
       host.create('tab_1', 'https://example.com');
       const bounds = { x: 0, y: 40, width: 800, height: 560 };
       host.attach('tab_1', bounds);
-      const view = host.get('tab_1') as { setBounds: jest.Mock };
+      const view = host.get('tab_1') as unknown as { setBounds: jest.Mock };
       expect(view.setBounds).toHaveBeenCalledWith(bounds);
     });
 
@@ -123,7 +123,7 @@ describe('TabViewHost', () => {
       const host = createHost();
       host.create('tab_1', 'https://example.com');
       host.detach('tab_1');
-      const view = host.get('tab_1') as { setBounds: jest.Mock };
+      const view = host.get('tab_1') as unknown as { setBounds: jest.Mock };
       expect(view.setBounds).toHaveBeenCalledWith({
         x: 0,
         y: 0,
@@ -222,7 +222,7 @@ describe('TabViewHost', () => {
       const onUpdate = jest.fn();
       const host = createHost({ onUpdate });
       const view = host.create('tab_1', 'https://example.com');
-      view.webContents.isAudioMuted.mockReturnValue(false);
+      (view.webContents.isAudioMuted as jest.Mock).mockReturnValue(false);
       const result = host.toggleMute('tab_1');
       expect(result).toBe(true);
       expect(view.webContents.setAudioMuted).toHaveBeenCalledWith(true);
@@ -233,7 +233,7 @@ describe('TabViewHost', () => {
       const onUpdate = jest.fn();
       const host = createHost({ onUpdate });
       const view = host.create('tab_1', 'https://example.com');
-      view.webContents.isAudioMuted.mockReturnValue(true);
+      (view.webContents.isAudioMuted as jest.Mock).mockReturnValue(true);
       host.toggleMute('tab_1');
       expect(view.webContents.setAudioMuted).toHaveBeenCalledWith(false);
       expect(onUpdate).toHaveBeenCalledWith('tab_1', { muted: false });

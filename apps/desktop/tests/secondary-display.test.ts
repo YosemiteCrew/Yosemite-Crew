@@ -1,4 +1,5 @@
 import { createSecondaryDisplayManager, generateWhiteboardHtml } from '../src/ui/secondary-display';
+import type { DisplayInfo } from '../src/ui/secondary-display';
 
 describe('createSecondaryDisplayManager', () => {
   let windowIds: string[] = [];

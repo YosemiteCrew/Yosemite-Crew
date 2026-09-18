@@ -1,4 +1,4 @@
-const shellOpenExternal = jest.fn(() => Promise.resolve());
+const shellOpenExternal = jest.fn<Promise<void>, unknown[]>(() => Promise.resolve());
 const showErrorBox = jest.fn();
 const clipboardWriteText = jest.fn();
 const loggerError = jest.fn();
