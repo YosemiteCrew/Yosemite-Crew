@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import { DocumensoService } from "./documenso.service";
@@ -178,6 +179,50 @@ const loadPassportArtifactForPatient = async <T extends object>(params: {
   await assertArtifactBelongsToPatient(artifact.encounterId, params.patientId);
 
   return artifact;
+};
+
+/**
+ * Claim a passport artifact at the generation that was read (#3144).
+ *
+ * These three transitions decide the next status in JS from a status they read
+ * earlier, then wrote by id alone - so a revocation committing inside that
+ * window was flipped straight back to SIGNED by an attestation that had never
+ * seen it, and `sendForSignature` holds the window open across a Documenso
+ * round trip. Naming the generation in the WHERE makes the loser write nothing.
+ *
+ * `version` arrives as `unknown` because `loadPassportArtifactForPatient`
+ * erases its projection's type; prisma DROPS an `undefined` filter rather than
+ * matching no row, so a caller whose `select` forgot the column would write
+ * unconditionally and silently. Refuse instead of widening.
+ */
+const claimPassportArtifact = async (
+  artifactId: string,
+  version: unknown,
+  data: Prisma.ClinicalArtifactUpdateInput,
+): Promise<void> => {
+  if (!Number.isInteger(version)) {
+    throw new PetClinicalRecordError(
+      "Clinical record was loaded without its version.",
+      500,
+    );
+  }
+  try {
+    await prisma.clinicalArtifact.update({
+      where: { id: artifactId, version: version as number },
+      data: { ...data, version: { increment: 1 } },
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      throw new PetClinicalRecordError(
+        "This clinical record changed while the action was in flight. Reload it and try again.",
+        409,
+      );
+    }
+    throw error;
+  }
 };
 
 /**
@@ -596,7 +641,7 @@ export const PetClinicalRecordService = {
       artifactId,
       patientId,
       organisationId,
-      select: { id: true, status: true },
+      select: { id: true, status: true, version: true },
     });
     assertArtifactNotRevoked(artifact.status, "re-attested");
     if (artifact.status === "SIGNED") {
@@ -616,19 +661,15 @@ export const PetClinicalRecordService = {
       signingStatus: "SIGNED",
       signedAt,
     };
-    await prisma.clinicalArtifact.update({
-      where: { id: artifactId },
-      data: {
-        status: "SIGNED",
-        signedBy: actor.id ?? null,
-        signedAt,
-        // A signature is a generation of the artifact (#3144): a workspace draft
-        // still holding the pre-signature version now loses its claim instead of
-        // writing content onto a signed record.
-        version: { increment: 1 },
-        attestation: {
-          upsert: { create: attestationData, update: attestationData },
-        },
+    // A signature is a generation of the artifact (#3144): a workspace draft
+    // holding the pre-signature version loses its claim, and so does this
+    // attestation if a revocation landed since the status above was read.
+    await claimPassportArtifact(artifactId, artifact.version, {
+      status: "SIGNED",
+      signedBy: actor.id ?? null,
+      signedAt,
+      attestation: {
+        upsert: { create: attestationData, update: attestationData },
       },
     });
     await audit(
@@ -657,20 +698,17 @@ export const PetClinicalRecordService = {
       artifactId,
       patientId,
       organisationId,
-      select: { id: true, status: true },
+      select: { id: true, status: true, version: true },
     });
-    await prisma.clinicalArtifact.update({
-      where: { id: artifactId },
-      data: {
-        status: "VOID",
-        // See `attestRecord`: a revocation is a new generation (#3144).
-        version: { increment: 1 },
-        attestation: {
-          update: {
-            signingStatus: "REVOKED",
-            revokedAt: new Date(),
-            revokedReason: params.reason ?? null,
-          },
+    // See `attestRecord`: a revocation is a new generation, and it claims the
+    // one it read so it cannot undo a signature it never saw (#3144).
+    await claimPassportArtifact(artifactId, artifact.version, {
+      status: "VOID",
+      attestation: {
+        update: {
+          signingStatus: "REVOKED",
+          revokedAt: new Date(),
+          revokedReason: params.reason ?? null,
         },
       },
     });
@@ -789,16 +827,12 @@ export const PetClinicalRecordService = {
     // would mail the vet a live request whose DOCUMENT_COMPLETED is dropped,
     // stranding the record in DRAFT forever. This order leaves a recoverable
     // IN_PROGRESS record whose id is known and safe to re-distribute.
-    await prisma.clinicalArtifact.update({
-      where: { id: artifactId },
-      data: {
-        status: "IN_PROGRESS",
-        // See `attestRecord`: sending the record for signature is a new
-        // generation (#3144).
-        version: { increment: 1 },
-        attestation: {
-          upsert: { create: attestationData, update: attestationData },
-        },
+    // See `attestRecord`: a new generation, claimed against the one read before
+    // the Documenso round trip above (#3144).
+    await claimPassportArtifact(artifactId, artifact.version, {
+      status: "IN_PROGRESS",
+      attestation: {
+        upsert: { create: attestationData, update: attestationData },
       },
     });
     await DocumensoService.distributeDocument({
