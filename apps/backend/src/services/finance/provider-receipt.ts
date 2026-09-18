@@ -116,6 +116,19 @@ const REVERSED_STATUSES: readonly PrismaProviderReceiptStatus[] = [
  *     overwritten by a decision taken before it existed;
  *   - it posts no credit anywhere. This is a journal.
  */
+/**
+ * How many times the compare-and-set is attempted before giving up.
+ *
+ * Bounded rather than a spin. A lost CAS used to have one cause - another
+ * delivery attributed the receipt, which leaves nothing to do - and now has a
+ * second: a refund changed the status under a swap that was only ever about
+ * the owner, which would silently drop an attribution this delivery was
+ * holding. A refund contributes at most two status transitions
+ * (PARTIALLY_REFUNDED, then REFUNDED), so a second attempt closes the ordinary
+ * case, and a journal write on a webhook has no business retrying forever.
+ */
+const ATTRIBUTION_ATTEMPTS = 2;
+
 const attributeIfOwnerStillUnknown = async (
   existing: {
     id: string;
@@ -124,41 +137,64 @@ const attributeIfOwnerStillUnknown = async (
   },
   input: JournalCaptureInput,
 ): Promise<PrismaProviderReceiptStatus> => {
-  if (existing.organisationId !== null || !input.organisationId) {
-    return existing.status;
+  if (!input.organisationId) return existing.status;
+
+  let observed: {
+    status: PrismaProviderReceiptStatus;
+    organisationId: string | null;
+  } = existing;
+
+  let attempts = 0;
+  while (observed.organisationId === null && attempts < ATTRIBUTION_ATTEMPTS) {
+    attempts += 1;
+
+    const status = REVERSED_STATUSES.includes(observed.status)
+      ? observed.status
+      : initialReceiptStatus(input);
+
+    const updated = await prisma.providerReceipt.updateMany({
+      where: {
+        id: existing.id,
+        organisationId: null,
+        status: observed.status,
+      },
+      data: {
+        organisationId: input.organisationId,
+        invoiceId: input.invoiceId ?? null,
+        appointmentId: input.appointmentId ?? null,
+        reason: input.reason ?? null,
+        status,
+        version: { increment: 1 },
+      },
+    });
+
+    if (updated.count === 1) return status;
+
+    // count 0 means the row moved between the read and the write, so neither
+    // the status we intended nor the one we read is the stored one. The caller
+    // is told what a receipt IS, never what a lost race hoped it would be, so
+    // the next decision is taken from a fresh read.
+    const persisted = await prisma.providerReceipt.findUnique({
+      where: { id: existing.id },
+      select: { status: true, organisationId: true },
+    });
+    if (!persisted) return observed.status;
+    observed = persisted;
   }
 
-  const status = REVERSED_STATUSES.includes(existing.status)
-    ? existing.status
-    : initialReceiptStatus(input);
+  // Someone else supplied the owner. That is the outcome, not a failure, and
+  // it is the ordinary way this loop ends - warning here would invent an alarm
+  // on a normal race.
+  if (observed.organisationId !== null) return observed.status;
 
-  const updated = await prisma.providerReceipt.updateMany({
-    where: {
-      id: existing.id,
-      organisationId: null,
-      status: existing.status,
-    },
-    data: {
-      organisationId: input.organisationId,
-      invoiceId: input.invoiceId ?? null,
-      appointmentId: input.appointmentId ?? null,
-      reason: input.reason ?? null,
-      status,
-      version: { increment: 1 },
-    },
-  });
-
-  if (updated.count === 1) return status;
-
-  // count 0 means the row moved between the read and the write, so neither the
-  // status we intended nor the one we read is the stored one. The caller is
-  // told what a receipt IS, never what a lost race hoped it would be, so the
-  // only honest answer is a fresh read.
-  const persisted = await prisma.providerReceipt.findUnique({
-    where: { id: existing.id },
-    select: { status: true },
-  });
-  return persisted?.status ?? existing.status;
+  // Still nobody's after every attempt. Loud, because this delivery knew the
+  // owner and the stored receipt does not: the residual stays in the
+  // reconciliation queue unattributed until another delivery or an operator
+  // resolves it.
+  logger.warn(
+    `Receipt ${existing.id} lost the attribution race ${ATTRIBUTION_ATTEMPTS} times and is still unattributed`,
+  );
+  return observed.status;
 };
 
 export type RecordRefundInput = {
