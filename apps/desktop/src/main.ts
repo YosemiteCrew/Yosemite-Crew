@@ -316,10 +316,17 @@ let lockOverlayView: WebContentsView | null = null;
 // Every layout pass ends here, including the one that moves a lock onto a
 // reopened window. Taking a view out of its window can take keyboard focus with
 // it, so the lock page is handed focus again afterwards.
+//
+// Every other view in the window (tab bar, tabs, split pane) is hidden while
+// the lock is up, so nothing can show through the lock page or be reached
+// behind it, and shown again by the first pass after unlock.
 const layoutLockOverlay = (): void => {
   const win = mainWindow;
+  if (!win || win.isDestroyed()) return;
   const view = lockOverlayView;
-  if (!win || win.isDestroyed() || !view || view.webContents.isDestroyed()) return;
+  const locked = idleLockOverlay.isVisible();
+  for (const child of win.contentView.children) child.setVisible(!locked || child === view);
+  if (!view || view.webContents.isDestroyed()) return;
   const b = win.getContentBounds();
   view.setBounds({ x: 0, y: 0, width: b.width, height: b.height });
   win.contentView.removeChildView(view);
@@ -329,14 +336,13 @@ const layoutLockOverlay = (): void => {
 
 const idleLockOverlay = createIdleLockOverlay({
   mount: () => {
-    const win = mainWindow;
-    if (!win || win.isDestroyed()) return null;
     const view = new WebContentsView({
       webPreferences: secureWebPreferences(path.join(__dirname, 'preload.js')),
     });
     lockOverlayView = view;
-    win.contentView.addChildView(view);
-    // Sizes and raises it; every later layout pass does the same.
+    // Attaches, sizes and raises it; every later layout pass does the same. With
+    // no window open (macOS keeps running after the last one closes) the view
+    // waits here, and the next window's first layout pass picks it up.
     layoutLockOverlay();
     applyThemeModeToWc(view.webContents, (settingsStore?.load() || DEFAULT_SETTINGS).theme);
     void view.webContents.loadFile(localPage('idle-lock'));
@@ -349,6 +355,7 @@ const idleLockOverlay = createIdleLockOverlay({
     const win = mainWindow;
     if (win && !win.isDestroyed()) win.contentView.removeChildView(view);
     if (!view.webContents.isDestroyed()) view.webContents.close();
+    layoutLockOverlay();
   },
   workspace: activeContents,
 });
@@ -681,6 +688,21 @@ const focusMainWindow = (): void => {
   mainWindow.focus();
 };
 
+// Every route that opens an in-app URL from outside the page - deep links, a
+// second launch (and so the Windows Jump List), the local API, the keyboard
+// shortcuts, and a link that waited for the window - navigates through here.
+// With no workspace yet, or while the idle lock is up, it waits instead (the
+// latest one only) and opens once there is a workspace and the lock is lifted.
+const openInWorkspace = (href: string): void => {
+  const wc = activeContents();
+  if (!wc || idleLockOverlay.isVisible()) {
+    pendingDeepLink = href;
+    return;
+  }
+  wc.loadURL(href).catch((error) => logger.warn('deep_link_load_failed', { error }));
+  focusMainWindow();
+};
+
 const handleDeepLink = (rawUrl: string): void => {
   const href = deepLinkToUrl(rawUrl, config);
   if (!href) {
@@ -689,20 +711,14 @@ const handleDeepLink = (rawUrl: string): void => {
   }
 
   logger.info('deep_link_opened', { href });
-  const wc = activeContents();
-  if (wc) {
-    void wc.loadURL(href);
-    focusMainWindow();
-  } else {
-    pendingDeepLink = href;
-  }
+  openInWorkspace(href);
 };
 
 const consumePendingDeepLink = (): void => {
-  if (!pendingDeepLink || !mainWindow || mainWindow.isDestroyed()) return;
   const href = pendingDeepLink;
+  if (!href || !mainWindow || mainWindow.isDestroyed()) return;
   pendingDeepLink = null;
-  void activeContents()?.loadURL(href);
+  openInWorkspace(href);
 };
 
 const vaultCompletedDownload = (item: Electron.DownloadItem): void => {
@@ -1082,13 +1098,8 @@ const openVaultWindow = (): void => {
 
 const navigateToDeepLink = (ycUrl: string): void => {
   const href = deepLinkToUrl(ycUrl, config);
-  const wc = activeContents();
-  if (href && wc) {
-    void wc.loadURL(href);
-    focusMainWindow();
-  } else {
-    logger.warn('deep_link_navigation_failed', { url: ycUrl });
-  }
+  if (href) openInWorkspace(href);
+  else logger.warn('deep_link_navigation_failed', { url: ycUrl });
 };
 
 // Single source of truth for executing a command-palette action by id. Used by
@@ -1349,6 +1360,8 @@ const setupIdleLock = (ses: Session): void => {
         locked = false;
         idleLockOverlay.hide();
         logger.info('biometric_unlock_success');
+        // A deep link that arrived during the lock opens now.
+        consumePendingDeepLink();
       })
       .catch(notifyUnlockFailed)
       .finally(() => {
@@ -1366,8 +1379,12 @@ const setupIdleLock = (ses: Session): void => {
       // the locked machine for as long as clearing cookies and navigating took.
       if (unlockInFlight) return;
       unlockInFlight = true;
+      // A sign-out leaves nothing for the held windows or a deep link that
+      // arrived during the lock to come back to.
       void signOutToStartUrl().finally(() => {
         locked = false;
+        pendingDeepLink = null;
+        idleLockOverlay.closeWindows();
         idleLockOverlay.hide();
         unlockInFlight = false;
       });
@@ -1392,6 +1409,8 @@ const setupIdleLock = (ses: Session): void => {
         logger.info('biometric_lock_engaged');
         attemptBiometricUnlock();
       } else {
+        // No lock screen on this path: the other windows go with the session.
+        idleLockOverlay.closeWindows();
         void signOutToStartUrl();
       }
       // Activity alone must not clear the lock while the lock screen is still
@@ -1565,17 +1584,8 @@ const maybeStartLocalApi = (): void => {
     logger,
     getSettings: () => (settingsStore?.load() || {}) as Record<string, unknown>,
     handleNavigate: (url: string) => {
-      if (!mainWindow || mainWindow.isDestroyed()) return;
       const href = deepLinkToUrl(url, config);
-      if (!href) return;
-      // In tab mode the visible page is a WebContentsView, so loading into the
-      // main window's webContents would be invisible. Target the active tab's
-      // contents (activeContents falls back to the main window outside tab mode).
-      const wc = activeContents();
-      if (!wc) return;
-      wc.loadURL(href).catch((err) => {
-        logger.warn('navigate_deep_link_failed', { error: String(err) });
-      });
+      if (href) openInWorkspace(href);
     },
   });
   const startedApi = localApi;
@@ -1623,6 +1633,8 @@ if (gotSingleInstanceLock) {
   // focus, so the window handles it for every view it hosts.
   const handleWindowInput = createWindowInputHandler({
     activateTabByIndex: (index) => {
+      // The lock page takes keys too, and the tabs behind it stay as they are.
+      if (idleLockOverlay.isVisible()) return;
       const tab = tabManager?.getState().tabs[index];
       if (tab) switchToTab(tab.id);
     },
@@ -1704,6 +1716,24 @@ if (gotSingleInstanceLock) {
     showPrintStatus: statusDlg.showPrintStatus,
     startTelehealth,
     exportDiagnostics: statusDlg.exportDiagnostics,
+  });
+
+  // createMainWindow constructs its BrowserWindow synchronously, before its
+  // first await, so this is true exactly while the workspace window is built.
+  let creatingMainWindow = false;
+  const openMainWindow = (): ReturnType<typeof createMainWindow> => {
+    creatingMainWindow = true;
+    try {
+      return createMainWindow(buildMainWindowOptions());
+    } finally {
+      creatingMainWindow = false;
+    }
+  };
+
+  // Every window but the workspace window (the one the lock covers) is hidden
+  // while the lock is up.
+  app.on('browser-window-created', (_event, win) => {
+    if (!creatingMainWindow) idleLockOverlay.holdWindow(win);
   });
 
   void app.whenReady().then(
@@ -1883,7 +1913,7 @@ if (gotSingleInstanceLock) {
         saveSession,
         coldStartWatchdog,
         enterTabModeUrl: pendingTabModeUrl,
-      } = await createMainWindow(buildMainWindowOptions()));
+      } = await openMainWindow());
       // enterTabMode reads the module window/tab globals assigned just above, so
       // it must run here (not inside createMainWindow) to actually take effect.
       if (pendingTabModeUrl) {
@@ -2033,8 +2063,10 @@ if (gotSingleInstanceLock) {
   );
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      void createMainWindow(buildMainWindowOptions()).then((output) => {
+    // Windows the lock has hidden do not count: with the workspace window
+    // closed mid-lock, the Dock click must bring back the window the lock is on.
+    if (BrowserWindow.getAllWindows().every((w) => idleLockOverlay.isHiding(w))) {
+      void openMainWindow().then((output) => {
         mainWindow = output.mainWindow;
         tabManager = output.tabManager;
         tabViewHost = output.tabViewHost;
