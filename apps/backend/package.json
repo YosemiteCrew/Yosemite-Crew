@@ -33,7 +33,7 @@
     "@yosemite-crew/auth": "workspace:^",
     "@yosemite-crew/database": "workspace:^",
     "@yosemite-crew/lib": "workspace:^",
-    "adm-zip": "^0.6.0",
+    "adm-zip": "^0.6.1",
     "aws-sdk": "2.1693.0",
     "axios": "^1.20.0",
     "body-parser": "2.3.0",
@@ -67,7 +67,7 @@
     "uuid": "14.0.2",
     "validator": "^13.15.35",
     "winston": "^3.17.0",
-    "zod": "^4.6.1"
+    "zod": "^4.6.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
