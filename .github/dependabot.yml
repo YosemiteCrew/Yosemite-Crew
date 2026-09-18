@@ -191,22 +191,36 @@ updates:
       # toolchain across two ESLint majors.
       - dependency-name: 'eslint'
         update-types: ['version-update:semver-major']
-      # next is held on 15.x while the Next 16 adoption is decided (#3266). Two
-      # things break before any app code is touched, and neither is fixable by
-      # adjusting a budget number on the dependabot PR:
-      #   - Next 16 makes Turbopack the default production bundler, and
-      #     apps/frontend/scripts/check-bundle-budgets.mjs classifies chunks by
-      #     webpack filename shape. Under Turbopack all four patterns match
-      #     nothing, so every chunk falls through to the 375 KiB page budget and
-      #     the shared, polyfills and async ceilings silently guard zero chunks.
-      #     Measured on the real CI artifacts: 3/1/124 chunks in those
-      #     categories on 15.5.24, 0/0/0 on 16.3.4, all 297 in the fallback.
-      #   - Next 16 removed .next/app-build-manifest.json, which
-      #     apps/frontend/scripts/export-build-report.mjs reads with no
-      #     fallback, so the step after the budget check exits 1 under EITHER
-      #     bundler. Repointing it at build-manifest.json is not the fix - that
-      #     file is pages-router only and makes the script write an empty
-      #     report and exit 0.
+      # next is held on 15.x while the Next 16 adoption is decided (#3266).
+      #
+      # The two instrument failures that used to sit in front of that decision
+      # are fixed on dev and are no longer reasons to hold:
+      #   - check-bundle-budgets.mjs classified chunks by webpack filename
+      #     shape, so under Turbopack all four patterns matched nothing and
+      #     three of the four ceilings guarded zero chunks. It now classifies
+      #     from build-manifest.json and the prerendered documents, which both
+      #     bundlers emit, and throws instead of falling back to a default
+      #     bucket when a source is missing.
+      #   - export-build-report.mjs read .next/app-build-manifest.json, which
+      #     Next 16 removed, with no existence check. It now falls back to the
+      #     prerendered documents and fails loudly when neither source is
+      #     present. Repointing it at build-manifest.json is still not an
+      #     option - that file is pages-router only and makes the script write
+      #     an empty report and exit 0.
+      #
+      # What is left is the decision itself, which is above a dependabot PR and
+      # is not fixable by adjusting a budget number on one: whether to adopt
+      # Turbopack as the production bundler, and whether to accept ~3% more
+      # first-load JS to take Next 16 at all.
+      #
+      # Measured on a local 16.3.4 Turbopack build of dev at 89eedeaca with the
+      # fixed gate: the classification works - 1/5/42/249 across
+      # polyfills/shared/page/async rather than 0/0/0/297 - and the bump then
+      # fails honestly on three chunks, not one. 1462.6 KiB lazy against the
+      # 1190 KiB async ceiling, 453.8 KiB first-load against 290 KiB (it also
+      # exceeded the previous 375 KiB page ceiling), and a 222.7 KiB entry chunk
+      # against 178 KiB, where dev's largest entry chunk is 169.7 KiB. Those are
+      # the numbers the decision has to be made against.
       # There is no security pressure to take the major: no published next
       # advisory has a vulnerable range containing 15.5.24, and 15.x still
       # receives patches through this config.
