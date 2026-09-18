@@ -24,6 +24,7 @@ import {
 } from "src/utils/stripe-minor-units";
 import { recomputeOrganizationVerification } from "./organization-verification.service";
 import { Prisma } from "@prisma/client";
+import { STRIPE_PINNED_API_VERSION } from "src/config/stripe-api-version";
 
 let stripeClient: Stripe | null = null;
 
@@ -60,7 +61,7 @@ const getStripeClient = () => {
   if (!apiKey) throw new Error("STRIPE_SECRET_KEY is not configured");
 
   stripeClient = new Stripe(apiKey, {
-    apiVersion: "2026-07-29.dahlia" as Stripe.LatestApiVersion,
+    apiVersion: STRIPE_PINNED_API_VERSION,
   });
   return stripeClient;
 };
