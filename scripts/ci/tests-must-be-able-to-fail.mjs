@@ -69,11 +69,21 @@ export const isCheckableSource = (file) => {
  * The first version ran `pnpm --filter frontend` unconditionally, so a PR whose
  * only test change was in apps/backend ran nothing and the gate reported a pass
  * it had not earned.
+ *
+ * The value is the `pnpm --filter` argument, which is the package name and not
+ * the directory. Those coincide for three of the four workspaces; desktop's
+ * package is scoped, and leaving it out of this map is what made every desktop
+ * test change read as "outside a known workspace" and fail the gate.
  */
 export const workspaceOf = (file) => {
   const match = /^apps\/([^/]+)\//.exec(file);
   if (!match) return undefined;
-  return { frontend: 'frontend', backend: 'backend', mobileAppYC: 'mobileAppYC' }[match[1]];
+  return {
+    frontend: 'frontend',
+    backend: 'backend',
+    mobileAppYC: 'mobileAppYC',
+    desktop: '@yosemite-crew/desktop',
+  }[match[1]];
 };
 
 /** Groups test paths by the workspace whose runner can execute them. */

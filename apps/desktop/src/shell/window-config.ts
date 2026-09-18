@@ -90,6 +90,18 @@ export const openExternal = async (url: URL | string | undefined): Promise<void>
   }
 };
 
+// Electron 44 rearchitected `clipboard` onto the W3C API, so `writeText` returns a
+// promise where it used to return `undefined`. `await` reads the same on both, and it
+// is what keeps a failed write - a clipboard another process is holding, typically -
+// from escaping the menu handler as an unhandled rejection.
+export const copyLink = async (url: string): Promise<void> => {
+  try {
+    await clipboard.writeText(url);
+  } catch (error) {
+    _logger.error('copy_link_failed', { href: url, error });
+  }
+};
+
 export const secureWebPreferences = (
   preload?: string
 ): Electron.BrowserWindowConstructorOptions['webPreferences'] => ({
@@ -228,7 +240,7 @@ export const buildContextMenu = (
     menu.append(
       new MenuItem({
         label: 'Copy Link',
-        click: () => clipboard.writeText(linkURL),
+        click: () => void copyLink(linkURL),
       })
     );
     menu.append(new MenuItem({ type: 'separator' }));
