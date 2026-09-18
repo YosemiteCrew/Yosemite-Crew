@@ -176,44 +176,68 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
   // state persists when the app is torn down programmatically, not a test we
   // have decided to stop caring about. Marked so the other 43 can gate the
   // suite instead of one environment-specific failure holding them hostage.
-  test.fixme('persists window state across relaunches', async () => {
+  // TEMPORARY DIAGNOSTIC for #2252 - reverted before review. Records the display
+  // geometry, the window's reported state on both launches and the state file
+  // written between them, which is the single data point the issue asks for:
+  // it separates "never written" from "written but not read" from "read and
+  // then constrained by a 1024x768 runner display".
+  //
+  // Deliberately assertion-free: a red leg here would stop the run before the
+  // second launch, and the second launch is the measurement.
+  test('DIAGNOSTIC 2252 window state across relaunches', async () => {
     const profileDir = userDataDir as string;
 
-    // setBounds is applied by the window server asynchronously, so emitting
-    // 'close' in the same tick made the app's handler read - and persist - the
-    // OLD bounds. CI then restored 1024 and the assertion blamed persistence for
-    // what was really a race in the test. Wait for the resize to land first.
-    await app?.evaluate(async ({ BrowserWindow }) => {
+    const probe = async (instance: ElectronApplication, label: string) => {
+      const data = await instance.evaluate(({ BrowserWindow, screen }) => {
+        const win = BrowserWindow.getAllWindows()[0];
+        return {
+          workArea: screen.getPrimaryDisplay().workArea,
+          displaySize: screen.getPrimaryDisplay().size,
+          scaleFactor: screen.getPrimaryDisplay().scaleFactor,
+          displayCount: screen.getAllDisplays().length,
+          bounds: win?.getBounds(),
+          normalBounds: win?.getNormalBounds(),
+          contentBounds: win?.getContentBounds(),
+          isMaximized: win?.isMaximized(),
+          isFullScreen: win?.isFullScreen(),
+          minimumSize: win?.getMinimumSize(),
+          resizable: win?.isResizable(),
+        };
+      });
+      console.log(`2252 ${label} ${JSON.stringify(data)}`);
+      return data;
+    };
+
+    await probe(app as ElectronApplication, 'launch1-as-created');
+
+    const resize = await app?.evaluate(async ({ BrowserWindow }) => {
       const win = BrowserWindow.getAllWindows()[0];
       if (!win) throw new Error('no window to resize');
       win.setBounds({ x: 42, y: 48, width: 1180, height: 820 });
-
       const deadline = Date.now() + 5000;
       while (win.getBounds().width !== 1180 && Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
-      if (win.getBounds().width !== 1180) {
-        throw new Error(`window never resized: width is ${win.getBounds().width}`);
-      }
-
-      // Let the resize handler's own debounced persist run (400ms in
-      // window-state.ts) rather than emitting a synthetic 'close'. The synthetic
-      // event fired the save, but on CI the state still came back as defaults,
-      // and driving the real code path removes the guesswork about what else
-      // that emit set in motion during shutdown.
+      // Outlast the 400ms debounced persist in window-state.ts so the file on
+      // disk reflects this resize rather than the bounds before it.
       await new Promise((resolve) => setTimeout(resolve, 1200));
+      return { reached: win.getBounds().width, bounds: win.getBounds() };
     });
+    console.log(`2252 resize-result ${JSON.stringify(resize)}`);
+
+    await probe(app as ElectronApplication, 'launch1-after-resize');
     await app?.close();
     app = undefined;
+
+    const statePath = path.join(profileDir, 'window-state.json');
+    console.log(
+      `2252 state-file ${fs.existsSync(statePath) ? fs.readFileSync(statePath, 'utf8') : 'ABSENT'}`
+    );
+    console.log(`2252 profile-entries ${JSON.stringify(fs.readdirSync(profileDir))}`);
 
     const relaunched = await launchPackagedApp(pimsServer.origin, docServer.origin, profileDir);
     app = relaunched.app;
     userDataDir = relaunched.userDataDir;
-
-    const bounds = await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()[0]?.getBounds()
-    );
-    expect(bounds?.width).toBe(1180);
-    expect(bounds?.height).toBe(820);
+    await probe(relaunched.app, 'launch2-restored');
   });
 });
