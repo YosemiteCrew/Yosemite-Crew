@@ -2378,6 +2378,145 @@ paths:
                       - Available
                       - Off-Duty
                       - Unavailable
+  /v1/care-reminders/mobile/due:
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: GET /v1/care-reminders/mobile/due
+      operationId: get_v1_care_reminders_mobile_due
+      description: "Open care reminders for the signed-in parent's companions, soonest due first (#2705). Scope comes from the parent's own ACTIVE companion links, never from the cursor. Only PENDING and SENT reminders are returned - RESPONDED, CANCELLED and EXPIRED are not outstanding. CareReminderOptOut is deliberately not consulted: an opt-out objects to being contacted, and this list is a pull the owner opened."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: 'Page size, clamped server-side rather than rejected (default 20, max 100). A non-numeric or sub-1 value yields the default. The value actually applied comes back as `limit`.'
+          schema:
+            type: integer
+        - name: cursor
+          in: query
+          required: false
+          description: "Opaque cursor from the previous response's nextCursor. A malformed cursor is answered 400 rather than ignored."
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - reminders
+                  - nextCursor
+                  - hasMore
+                  - limit
+                properties:
+                  reminders:
+                    type: array
+                    description: "One page of open reminders, ordered by (dueDate, id) ascending, so overdue items sort to the top on the reminder's own schedule."
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - patientId
+                        - patientName
+                        - organisationId
+                        - reminderType
+                        - message
+                        - dueDate
+                        - overdue
+                        - status
+                      properties:
+                        id:
+                          type: string
+                        patientId:
+                          type: string
+                        patientName:
+                          type: string
+                        organisationId:
+                          type: string
+                        reminderType:
+                          type: string
+                          enum:
+                            - VACCINATION_BOOSTER
+                            - ANNUAL_CHECKUP
+                            - PARASITE_TREATMENT
+                            - DENTAL_CLEANING
+                            - FOLLOW_UP
+                            - CUSTOM
+                        message:
+                          type: string
+                          description: The same sentence the push and the email carried. The practice's internal `notes` and `createdBy` are never included.
+                        dueDate:
+                          type: string
+                          format: date-time
+                          description: Sent in full so the client renders local-day wording from the device's own zone; no calendar-day rounding happens server-side.
+                        overdue:
+                          type: boolean
+                          description: 'Strictly `dueDate < now`, against a `now` captured once for the whole page. Drawn from dueDate, not from status/sentAt, so an undelivered reminder still reads as overdue.'
+                        status:
+                          type: string
+                          enum:
+                            - PENDING
+                            - SENT
+                        sentAt:
+                          type: string
+                          format: date-time
+                          description: When the reminder was sent. Absent on a PENDING reminder.
+                  nextCursor:
+                    type: string
+                    nullable: true
+                    description: Position of the last row on this page; pass it back as `cursor`. Null when there is no further page.
+                  hasMore:
+                    type: boolean
+                    description: Whether another page exists. Never infer this from reminders.length - a row can be dropped during mapping.
+                  limit:
+                    type: integer
+                    description: The page size actually applied, which is not always the one requested.
+        400:
+          description: Unknown or malformed cursor
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        401:
+          description: No valid pet-parent session, or the session carries no user id
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        404:
+          description: The authenticated user is not linked to a parent record
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
   /v1/chat/mobile/token:
     post:
       tags:
