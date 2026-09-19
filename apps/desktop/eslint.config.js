@@ -77,10 +77,10 @@ module.exports = [
     },
   },
   {
-    // platform-labels.js is loaded twice over: as a page script by the local
-    // pages, and as a CommonJS module by its unit tests. The CommonJS export is
-    // behind a `typeof module` guard, so both globals are legitimately in play.
-    files: ['src/pages/platform-labels.js'],
+    // These are loaded twice over: as page scripts by the local pages, and as
+    // CommonJS modules by their unit tests. The CommonJS export is behind a
+    // `typeof module` guard, so both globals are legitimately in play.
+    files: ['src/pages/platform-labels.js', 'src/pages/window-caption.js'],
     languageOptions: {
       globals: {
         ...globals.browser,
