@@ -1,0 +1,151 @@
+name: Override Advisories
+
+# scripts/ci/check-override-advisories.mjs answers "does a pnpm override pin a
+# version that still has an advisory". It has never had a caller.
+#
+# It cannot be a pull-request gate, and that is deliberate: it needs the registry
+# (`pnpm audit`), and check-override-drift.mjs says so where it explains why IT
+# can be a hard gate and this one cannot. A registry timeout on a required check
+# is a flaky security check, which gets routed around.
+#
+# What was missing is the other half. The script's own `--strict` flag exists,
+# in its words, "so a scheduled security job can opt into fail-closed" - and that
+# job was never written, so the check ran only when somebody typed it by hand.
+# Reviewing PR #3344 meant running it manually to find out that dev was carrying
+# two stale pins. Nightly, off the critical path, fail-closed, is the shape this
+# check was designed for.
+on:
+  schedule:
+    # After the nightly Sonar analysis and the TLS check, before European hours.
+    - cron: '40 6 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: override-advisories-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  check:
+    name: Check override pins against advisories
+    # A fork has its own overrides and no business filing issues here.
+    if: github.repository_owner == 'YosemiteCrew'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # A full install, because the check imports `semver` - the same resolver
+      # pnpm uses - to decide whether an override key covers a vulnerable copy.
+      # An earlier revision hand-rolled that comparator to stay dependency-free
+      # and review found eight defects in it, every one a silent false negative.
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Check override pins
+        id: check
+        run: |
+          set +e
+          node scripts/ci/check-override-advisories.mjs --strict 2>&1 \
+            | tee override-report.txt
+          status="${PIPESTATUS[0]}"
+          set -e
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit "${status}"
+
+      - name: Open or update the tracking issue
+        # Runs on failure only. The job still fails afterwards - the issue is the
+        # notification, not a way to swallow the red.
+        if: failure()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CHECK_STATUS: ${{ steps.check.outputs.status }}
+        with:
+          script: |
+            const fs = require('fs');
+            let report = '';
+            try {
+              report = fs.readFileSync('override-report.txt', 'utf8').trim();
+            } catch {}
+
+            // Exit 1 and exit 2 are different incidents and must not share a
+            // title. 1 means an override is pinning something vulnerable, which
+            // is a security finding. 2 means --strict refused to pass without
+            // advisory data, which says nothing at all about the overrides and
+            // is a tooling problem. Filing the second as the first is how a
+            // registry outage gets triaged as a vulnerability.
+            //
+            // The step output is the discriminator rather than the report text,
+            // because the exit code is what the script actually decided. An
+            // empty output means the step died before it could set one, which
+            // is also tooling.
+            const status = process.env.CHECK_STATUS;
+            const isFinding = status === '1';
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            const marker = isFinding
+              ? '<!-- override-advisories-tracker -->'
+              : '<!-- override-advisories-tooling -->';
+            const title = isFinding
+              ? 'A pnpm override pins a version with an open advisory'
+              : 'Override advisory check could not run';
+            const labels = isFinding ? ['security'] : ['CI/CD'];
+
+            const body = isFinding
+              ? [
+                  marker,
+                  '',
+                  'The nightly override advisory check reported a finding:',
+                  '',
+                  '```',
+                  report || '(no output captured)',
+                  '```',
+                  '',
+                  'An override beats every manifest, so dependabot cannot clear this on',
+                  'its own: raising a manifest leaves the override pinning resolution',
+                  'straight back to the vulnerable version. Edit the `pnpm.overrides`',
+                  'block in the root `package.json`, or - if the pin is deliberate -',
+                  'record it in `scripts/ci/override-advisory-baseline.json` with the',
+                  'reason.',
+                  '',
+                  `Run: ${run}`,
+                ].join('\n')
+              : [
+                  marker,
+                  '',
+                  `The nightly override advisory check exited ${status || '(unknown)'} **without**`,
+                  'reaching a verdict on any override, so this says nothing about whether',
+                  'a pin is vulnerable. Exit 2 is `--strict` refusing to pass while the',
+                  'advisory data was unreachable; anything else is a failure before that',
+                  'point. Read the job log for the real cause.',
+                  '',
+                  '```',
+                  report || '(no output captured)',
+                  '```',
+                  '',
+                  `Run: ${run}`,
+                ].join('\n');
+
+            const existing = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open in:body "${marker}"`,
+            });
+            if (existing.data.total_count > 0) {
+              const number = existing.data.items[0].number;
+              await github.rest.issues.createComment({ ...context.repo, issue_number: number, body });
+              core.info(`commented on existing issue #${number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                ...context.repo,
+                title,
+                body,
+                labels,
+              });
+              core.info(`opened issue #${created.data.number}`);
+            }
