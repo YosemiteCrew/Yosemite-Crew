@@ -176,3 +176,42 @@ jobs:
               });
               core.info(`opened issue #${created.data.number}`);
             }
+
+      - name: Close the tracking issue on success
+        # Runs on success only. If a prior run filed an issue and this run is green,
+        # close it with a short comment so the issue records why it closed.
+        if: success()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          BRANCH: ${{ matrix.branch }}
+        with:
+          script: |
+            const branch = process.env.BRANCH;
+            // Both finding and tooling markers must be checked - a tooling failure
+            // that later passes should close its own issue too.
+            const markers = [
+              `<!-- override-advisories-tracker-${branch} -->`,
+              `<!-- override-advisories-tooling-${branch} -->`
+            ];
+
+            for (const marker of markers) {
+              const existing = await github.rest.search.issuesAndPullRequests({
+                q: `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open in:body "${marker}"`,
+              });
+              if (existing.data.total_count > 0) {
+                const number = existing.data.items[0].number;
+                const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+                await github.rest.issues.createComment({
+                  ...context.repo,
+                  issue_number: number,
+                  body: `The nightly override advisory check passed on \`${branch}\` (run ${run}). Closing this tracking issue.`
+                });
+                await github.rest.issues.update({
+                  ...context.repo,
+                  issue_number: number,
+                  state: 'closed',
+                  state_reason: 'completed'
+                });
+                core.info(`closed issue #${number}`);
+              }
+            }
