@@ -44,27 +44,42 @@ const makeContents = () => {
   return contents satisfies LockContents;
 };
 
-// A BrowserWindow stand-in that tracks whether it is on screen. reveal() is
-// anything outside the lock showing it: a show() call ('show'), picking it from
-// the Window menu ('focus'), or restoring it from the Dock ('restore').
-const makeWindow = ({ minimized = false } = {}) => {
+// A BrowserWindow stand-in that tracks whether it is on screen, reporting it
+// the way Electron does: a minimized window is not visible. Its own show(),
+// focus() and the like put it on screen with no event at all, as they do on
+// macOS while the display sleeps; `native` keeps those originals, since the
+// lock replaces them on a window it holds. reveal() is something outside the
+// app showing it, with the event that follows: 'show', 'focus', or 'restore'
+// from the Dock.
+const makeWindow = ({ minimized = false, shown = true } = {}) => {
   const listeners: Record<string, Array<() => void>> = {};
   const emit = (event: string) => {
     for (const listener of listeners[event] ?? []) listener();
   };
-  let onScreen = true;
+  let onScreen = shown;
   let isMinimized = minimized;
   let destroyed = false;
+  const putOnScreen = () => {
+    onScreen = true;
+  };
+  const native = {
+    show: jest.fn(putOnScreen),
+    showInactive: jest.fn(putOnScreen),
+    focus: jest.fn(putOnScreen),
+    restore: jest.fn(() => {
+      onScreen = true;
+      isMinimized = false;
+    }),
+  };
   const win = {
+    ...native,
+    native,
     isDestroyed: () => destroyed,
     isMinimized: () => isMinimized,
+    isVisible: () => onScreen && !isMinimized,
     // Hiding a minimized window leaves it minimized, as Electron reports it.
     hide: jest.fn(() => {
       onScreen = false;
-    }),
-    showInactive: jest.fn(() => {
-      onScreen = true;
-      emit('show');
     }),
     minimize: jest.fn(() => {
       isMinimized = true;
@@ -78,9 +93,7 @@ const makeWindow = ({ minimized = false } = {}) => {
       (listeners[event] ??= []).push(listener);
     }),
     // How a new window's constructor shows it: no event at all.
-    appear: () => {
-      onScreen = true;
-    },
+    appear: putOnScreen,
     reveal: (event: 'show' | 'focus' | 'restore' = 'show') => {
       onScreen = true;
       if (event === 'restore') isMinimized = false;
@@ -293,7 +306,7 @@ describe('idle lock windows', () => {
 
     overlay.hide();
     expect(pinned.onScreen()).toBe(true);
-    expect(pinned.showInactive).toHaveBeenCalledTimes(1);
+    expect(pinned.native.showInactive).toHaveBeenCalledTimes(1);
     expect(pinned.minimize).not.toHaveBeenCalled();
     expect(overlay.isHiding(pinned)).toBe(false);
   });
@@ -305,7 +318,7 @@ describe('idle lock windows', () => {
     overlay.holdWindow(pinned);
     overlay.show();
     overlay.hide();
-    expect(pinned.showInactive.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(pinned.native.showInactive.mock.invocationCallOrder[0]).toBeLessThan(
       tab.focus.mock.invocationCallOrder[0]!
     );
   });
@@ -329,7 +342,7 @@ describe('idle lock windows', () => {
     const { deps } = makeDeps();
     const overlay = createIdleLockOverlay(deps);
     overlay.show();
-    const patient = makeWindow();
+    const patient = makeWindow({ shown: false });
     // Registered from browser-window-created, inside the constructor, which
     // goes on to show the window.
     overlay.holdWindow(patient);
@@ -353,10 +366,54 @@ describe('idle lock windows', () => {
       expect(prefs.hide).toHaveBeenCalledTimes(2);
       // Still restored once, as it was before the lock (not minimized).
       overlay.hide();
-      expect(prefs.showInactive).toHaveBeenCalledTimes(1);
+      expect(prefs.native.showInactive).toHaveBeenCalledTimes(1);
       expect(prefs.minimize).not.toHaveBeenCalled();
     }
   );
+
+  test.each(['show', 'showInactive', 'focus', 'restore'] as const)(
+    'a window the app brings forward during the lock (%s) stays hidden, with no event needed',
+    (call) => {
+      const { deps } = makeDeps();
+      const overlay = createIdleLockOverlay(deps);
+      const prefs = makeWindow();
+      overlay.holdWindow(prefs);
+      overlay.show();
+      prefs[call]();
+      expect(prefs.native[call]).not.toHaveBeenCalled();
+      expect(prefs.onScreen()).toBe(false);
+      overlay.hide();
+      expect(prefs.onScreen()).toBe(true);
+      expect(prefs.minimize).not.toHaveBeenCalled();
+    }
+  );
+
+  test('a window never shown when the lock engages is left alone, and unlock does not show it', () => {
+    const { deps } = makeDeps();
+    const overlay = createIdleLockOverlay(deps);
+    const palette = makeWindow({ shown: false });
+    overlay.holdWindow(palette);
+    overlay.show();
+    expect(palette.hide).not.toHaveBeenCalled();
+    // Still one the lock keeps off the screen, so a Dock click reopens the workspace.
+    expect(overlay.isHiding(palette)).toBe(true);
+    overlay.hide();
+    expect(palette.native.showInactive).not.toHaveBeenCalled();
+    expect(palette.onScreen()).toBe(false);
+    expect(overlay.isHiding(palette)).toBe(false);
+  });
+
+  test('a window first shown during the lock stays hidden, and appears on unlock', () => {
+    const { deps } = makeDeps();
+    const overlay = createIdleLockOverlay(deps);
+    const late = makeWindow({ shown: false });
+    overlay.holdWindow(late);
+    overlay.show();
+    late.show();
+    expect(late.onScreen()).toBe(false);
+    overlay.hide();
+    expect(late.onScreen()).toBe(true);
+  });
 
   test('windows are left alone while unlocked', async () => {
     const { deps } = makeDeps();
@@ -371,6 +428,13 @@ describe('idle lock windows', () => {
     await Promise.resolve();
     expect(pinned.hide).toHaveBeenCalledTimes(1);
     expect(pinned.onScreen()).toBe(true);
+    // The app's own calls go through as they are.
+    pinned.minimize();
+    pinned.restore();
+    pinned.focus();
+    expect(pinned.native.restore).toHaveBeenCalledTimes(1);
+    expect(pinned.native.focus).toHaveBeenCalledTimes(1);
+    expect(pinned.isMinimized()).toBe(false);
   });
 
   test('a window closed during the lock is not brought back', () => {
@@ -383,10 +447,13 @@ describe('idle lock windows', () => {
     overlay.show();
     closed.closeNow();
     gone.destroyQuietly();
+    // Asking a destroyed window to show itself does not reach it.
+    gone.show();
+    expect(gone.hide).toHaveBeenCalledTimes(1);
     expect(overlay.isHiding(closed)).toBe(false);
     overlay.hide();
-    expect(closed.showInactive).not.toHaveBeenCalled();
-    expect(gone.showInactive).not.toHaveBeenCalled();
+    expect(closed.native.showInactive).not.toHaveBeenCalled();
+    expect(gone.native.showInactive).not.toHaveBeenCalled();
 
     // Nor hidden by, or counted in, a later lock.
     overlay.show();
@@ -421,7 +488,7 @@ describe('idle lock windows', () => {
     expect(overlay.isHiding(hidden)).toBe(false);
 
     overlay.hide();
-    expect(hidden.showInactive).not.toHaveBeenCalled();
+    expect(hidden.native.showInactive).not.toHaveBeenCalled();
     // And a later lock has nothing left to hide.
     overlay.show();
     expect(hidden.hide).toHaveBeenCalledTimes(1);
