@@ -17,7 +17,6 @@ import {
 import { resolveVerifiedUserId } from "src/utils/request";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { type ContactType, type ContactStatus } from "src/models/contect-us";
-import { SuperadminContactService } from "src/services/superadmin-contact.service";
 import logger from "src/utils/logger";
 
 // Verified session only. The previous form let the client-supplied `x-user-id`
@@ -184,12 +183,11 @@ export const ContactController = {
         attachments,
       };
 
+      // The mirror forward is queued by createWebRequest in the same insert,
+      // and drained by the superadmin-contact-forward job. Nothing is sent on
+      // the request path, so the panel being down or unconfigured can neither
+      // fail nor delay the visitor's submission.
       const doc = await ContactService.createWebRequest(payload);
-
-      // Mirror the stored submission into the SuperAdmin panel's CRM.
-      // Fire-and-forget: the panel being down or unconfigured must never
-      // fail the visitor's submission - our database already holds it.
-      void SuperadminContactService.forwardWebContact(payload);
 
       const id = doc.id;
       res.status(201).json({ id });
