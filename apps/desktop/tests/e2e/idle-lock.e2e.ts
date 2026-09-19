@@ -58,13 +58,15 @@ type LaunchOptions = {
   startPath?: string;
   // Off: the lock signs out instead of showing the lock screen.
   biometric?: boolean;
+  // Off: the app stays on its welcome screen, with no tabs.
+  signIn?: boolean;
   env?: Record<string, string>;
 };
 
 const launchLockableApp = async (
   origin: string,
   profileDir: string,
-  { startPath = '/signin', biometric = true, env = {} }: LaunchOptions = {}
+  { startPath = '/signin', biometric = true, signIn = true, env = {} }: LaunchOptions = {}
 ): Promise<{ app: ElectronApplication; shell: Page }> => {
   fs.writeFileSync(
     path.join(profileDir, 'settings.json'),
@@ -86,7 +88,7 @@ const launchLockableApp = async (
       ...env,
     },
   });
-  const { shell } = await openPimsTab(app, origin);
+  const shell = signIn ? (await openPimsTab(app, origin)).shell : await app.firstWindow();
   // Touch ID looks present, and the machine looks busy until a spec calls
   // goIdle. The prompt never settles on its own: a spec passes or cancels it
   // (see answerTouchId).
@@ -358,6 +360,13 @@ const loadsSince = (app: ElectronApplication, mark: number): Promise<string[]> =
     mark
   );
 
+// The same, for pages from `origin` only: not the app's own bundled pages.
+const pimsLoadsSince = async (
+  app: ElectronApplication,
+  mark: number,
+  origin: string
+): Promise<string[]> => (await loadsSince(app, mark)).filter((url) => url.startsWith(origin));
+
 // Run the recorded global shortcuts (all of them, or the one for
 // `accelerator`) as the OS does when the chord is pressed. Returns how many ran.
 const fireShortcuts = (app: ElectronApplication, accelerator?: string): Promise<number> =>
@@ -452,6 +461,87 @@ const openOtherWindows = async (
   expect((await callShell<{ ok: boolean }>(shell, 'detachTab', tab.id)).ok).toBe(true);
   await inPage(app, tabUrl, `window.open(${JSON.stringify(`${origin}/popup`)})`);
   await expect.poll(async () => (await otherWindows(app)).length).toBe(6);
+};
+
+// Open two patient pages side by side, one in the active tab and one in the
+// split pane.
+const openSplitView = async (app: ElectronApplication, shell: Page, origin: string) => {
+  const rex = `${origin}/patient-rex`;
+  const bella = `${origin}/patient-bella`;
+  const bellaTab = await callShell<{ ok: boolean; id: string }>(shell, 'newTab', bella);
+  expect((await callShell<{ ok: boolean }>(shell, 'newTab', rex)).ok).toBe(true);
+  expect((await callShell<{ ok: boolean }>(shell, 'setSplitTab', bellaTab.id)).ok).toBe(true);
+  await expect.poll(() => keysReceived(app, bella)).toBe(0);
+  await expect.poll(() => keysReceived(app, rex)).toBe(0);
+  expect(await activeTabUrl(shell)).toBe(rex);
+};
+
+// The ids of every web contents showing a page from `origin`, in any window.
+const pimsContents = (app: ElectronApplication, origin: string): Promise<number[]> =>
+  app.evaluate(
+    ({ webContents }, from) =>
+      webContents
+        .getAllWebContents()
+        .filter((w) => w.getURL().startsWith(from))
+        .map((w) => w.id),
+    origin
+  );
+
+// Which of the web contents `ids` still exist.
+const stillAlive = (app: ElectronApplication, ids: number[]): Promise<number[]> =>
+  app.evaluate(
+    ({ webContents }, all) => all.filter((id) => webContents.fromId(id) !== undefined),
+    ids
+  );
+
+type Uncovered = {
+  // The document the workspace window's own page had committed.
+  page: string;
+  // The web contents of every other view in the window.
+  views: number[];
+};
+
+// From now on, note what the workspace window holds each time the lock page is
+// taken out of it; read with uncovered(). Layout passes take it out and put it
+// back on top too, so the last note is the one the lock coming down left, and
+// the ones before it show what each layout pass on the way saw.
+const recordUncovering = (app: ElectronApplication): Promise<void> =>
+  app.evaluate(({ BrowserWindow }, lockPage) => {
+    const notes: Uncovered[] = [];
+    (globalThis as Record<string, unknown>).__uncovered = notes;
+    const win = BrowserWindow.getAllWindows().find((w) => w.contentView.children.length > 0)!;
+    const surface = win.contentView;
+    const contentsOf = (view: Electron.View) =>
+      (view as unknown as { webContents?: Electron.WebContents }).webContents;
+    const removeChildView = surface.removeChildView.bind(surface);
+    surface.removeChildView = (view) => {
+      if (contentsOf(view)?.getURL().includes(lockPage)) {
+        notes.push({
+          page: win.webContents.mainFrame.url,
+          views: surface.children
+            .filter((child) => child !== view)
+            .map((child) => {
+              const wc = contentsOf(child);
+              return wc && !wc.isDestroyed() ? wc.id : -1;
+            }),
+        });
+      }
+      removeChildView(view);
+    };
+  }, LOCK_PAGE);
+
+const uncovered = (app: ElectronApplication): Promise<Uncovered[]> =>
+  app.evaluate(() => (globalThis as Record<string, unknown>).__uncovered as Uncovered[]);
+
+// Cancel the pending Touch ID prompt, then press the lock page's other button,
+// and wait for the lock page to go.
+const signOutFromLock = async (app: ElectronApplication, lockPage: Page): Promise<void> => {
+  await answerTouchId(app, false);
+  await expect
+    .poll(() => lockPage.evaluate(() => document.getElementById('lockStatus')?.textContent))
+    .toBe('Could not verify. Try again.');
+  await lockPage.click('#usePassword');
+  await expect.poll(() => app.windows().some((p) => p.url().includes(LOCK_PAGE))).toBe(false);
 };
 
 // The local API writes its bearer token once it is listening.
@@ -634,6 +724,10 @@ test.describe('idle lock', () => {
     await expect
       .poll(async () => (await otherWindows(app!)).find((w) => w.id === vaultId)?.minimized)
       .toBe(true);
+    // And one made but not shown yet, as the command palette is until it is ready.
+    const neverShown = await app.evaluate(
+      ({ BrowserWindow }) => new BrowserWindow({ show: false, title: 'not shown yet' }).id
+    );
 
     await waitForLock(app);
     const shown = async () => (await otherWindows(app!)).filter((w) => w.visible);
@@ -643,24 +737,43 @@ test.describe('idle lock', () => {
     // Nor does restoring the minimized one from the Dock bring it back.
     await app.evaluate(({ BrowserWindow }, id) => BrowserWindow.fromId(id)!.restore(), vaultId);
     await expect.poll(shown).toEqual([]);
+    // Nor the app bringing any of them forward, whether or not the window then
+    // tells anyone it is showing (it does not while the display sleeps).
+    await app.evaluate(({ BrowserWindow }, skip) => {
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (win.contentView.children.length > 0 || win.id === skip) continue;
+        win.show();
+        win.showInactive();
+        win.focus();
+        win.restore();
+      }
+    }, neverShown);
+    expect(await shown()).toEqual([]);
 
     // One opened during the lock is hidden at once, whether the app opens it or
-    // a page does.
+    // a page does, and so is one first shown during the lock.
     expect((await callShell<{ ok: boolean }>(shell, 'openPatientWindow', 'p-2', 'Bella')).ok).toBe(
       true
     );
     await inPage(app, tabUrl, `window.open(${JSON.stringify(`${server.origin}/popup-2`)})`);
-    await expect.poll(async () => (await otherWindows(app!)).length).toBe(8);
+    await app.evaluate(({ BrowserWindow }) =>
+      new BrowserWindow({ show: false, title: 'shown during the lock' }).show()
+    );
+    await expect.poll(async () => (await otherWindows(app!)).length).toBe(10);
     await expect.poll(shown).toEqual([]);
 
-    // Unlock: every window is back as it was, the minimized one minimized.
+    // Unlock: every window is back as it was, the minimized one minimized and
+    // the one never shown still not shown.
     await unlockWithTouchId(app);
     await expect.poll(() => app!.windows().some((p) => p.url().includes(LOCK_PAGE))).toBe(false);
     await expect
       .poll(async () =>
-        (await otherWindows(app!)).map((w) => (w.id === vaultId ? w.minimized : w.visible))
+        (await otherWindows(app!)).map((w) => {
+          if (w.id === vaultId) return w.minimized;
+          return w.id === neverShown ? !w.visible : w.visible;
+        })
       )
-      .toEqual(Array(8).fill(true));
+      .toEqual(Array(10).fill(true));
   });
 
   test('shortcuts and deep links do not reach the workspace while locked', async () => {
@@ -745,7 +858,7 @@ test.describe('idle lock', () => {
     expect(await activeTabUrl(shell)).toBe(secondUrl);
   });
 
-  test('a lock that ends in sign-out closes the other windows and drops a waiting link', async () => {
+  test('a lock that ends in sign-out leaves nothing of the old session behind', async () => {
     test.setTimeout(150_000);
     server = await startPimsServer();
     const launched = await launchLockableApp(server.origin, profileDir, {
@@ -756,6 +869,7 @@ test.describe('idle lock', () => {
     const tabUrl = `${server.origin}/dashboard`;
     await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
     await openOtherWindows(app, shell, server.origin, tabUrl);
+    await openSplitView(app, shell, server.origin);
 
     const lockPage = await waitForLock(app);
     expect((await callShell<{ ok: boolean }>(shell, 'openPatientWindow', 'p-2', 'Bella')).ok).toBe(
@@ -769,22 +883,73 @@ test.describe('idle lock', () => {
         'yosemitecrew://appointments/new'
       );
     });
+    // Every page of the session: three tabs (one in the split pane), a pinned
+    // page, two patient windows, a detached tab and a popup.
+    await expect.poll(async () => (await pimsContents(app!, server.origin)).length).toBe(8);
+    const oldPages = await pimsContents(app, server.origin);
 
-    // The Touch ID prompt is cancelled, then the lock page's other button.
-    await answerTouchId(app, false);
-    await expect
-      .poll(() => lockPage.evaluate(() => document.getElementById('lockStatus')?.textContent))
-      .toBe('Could not verify. Try again.');
-    await lockPage.click('#usePassword');
-    await expect.poll(() => app!.windows().some((p) => p.url().includes(LOCK_PAGE))).toBe(false);
+    await recordUncovering(app);
+    await signOutFromLock(app, lockPage);
+
+    // When the lock came down, the window held only views made after the
+    // sign-out, over the welcome page; nor was an old one left in it at any
+    // layout pass on the way.
+    const notes = await uncovered(app);
+    expect(notes[notes.length - 1]).toEqual({
+      page: expect.stringMatching(/welcome\.html$/),
+      views: [expect.any(Number), expect.any(Number)],
+    });
+    expect(notes.flatMap((n) => n.views).filter((id) => oldPages.includes(id))).toEqual([]);
+    // Every window but the workspace is closed, and every old page is gone.
     expect(await windowStates(app)).toEqual([expect.objectContaining({ workspace: true })]);
-    // The sign-out's own navigation, and not the link: nor does the link turn
-    // up on the next load that would have picked it up.
+    await expect.poll(() => stillAlive(app!, oldPages)).toEqual([]);
+    // One tab, on the start URL, with nothing to reopen and no split pane.
+    const tabs = await callShell<{ tabs: Array<{ url: string }>; closedStack: unknown[] }>(
+      shell,
+      'getTabs'
+    );
+    expect(tabs.tabs.map((t) => t.url)).toEqual([tabUrl]);
+    expect(tabs.closedStack).toEqual([]);
+    await expect
+      .poll(async () => (await workspaceViews(app!)).map((v) => v.visible))
+      .toEqual([true, true]);
+    // Nor are the old tabs saved for the next launch.
+    const saved = fs.readFileSync(path.join(profileDir, 'tab-session.json'), 'utf8');
+    expect(saved).not.toContain('patient-');
+    // The sign-out's own loads, and not the link: nor does the link turn up on
+    // the next load that would have picked it up.
     await reloadWorkspacePage(app);
-    expect(await loadsSince(app, mark)).toEqual([tabUrl]);
+    expect(await pimsLoadsSince(app, mark, server.origin)).toEqual([tabUrl]);
   });
 
-  test('without the lock screen, the idle sign-out closes the other windows', async () => {
+  test('a sign-out from the lock replaces a page open outside the tabs first', async () => {
+    test.setTimeout(120_000);
+    server = await startPimsServer();
+    const launched = await launchLockableApp(server.origin, profileDir, { signIn: false });
+    app = launched.app;
+    // On the welcome screen, a deep link opens its page in the window itself.
+    const record = `${server.origin}/patients/rex`;
+    await app.evaluate(({ app: electronApp }) => {
+      electronApp.emit(
+        'open-url',
+        { preventDefault: () => undefined },
+        'yosemitecrew://patients/rex'
+      );
+    });
+    await expect.poll(() => keysReceived(app!, record)).toBe(0);
+
+    const lockPage = await waitForLock(app);
+    await recordUncovering(app);
+    await signOutFromLock(app, lockPage);
+    const notes = await uncovered(app);
+    expect(notes[notes.length - 1]).toEqual({
+      page: expect.stringMatching(/welcome\.html$/),
+      views: [expect.any(Number), expect.any(Number)],
+    });
+    expect(await pimsContents(app, record)).toEqual([]);
+  });
+
+  test('without the lock screen, the idle sign-out leaves nothing of the old session', async () => {
     test.setTimeout(120_000);
     server = await startPimsServer();
     const launched = await launchLockableApp(server.origin, profileDir, {
@@ -796,16 +961,28 @@ test.describe('idle lock', () => {
     const tabUrl = `${server.origin}/dashboard`;
     await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
     await openOtherWindows(app, shell, server.origin, tabUrl);
+    await openSplitView(app, shell, server.origin);
+    await expect.poll(async () => (await pimsContents(app!, server.origin)).length).toBe(7);
+    const oldPages = await pimsContents(app, server.origin);
     const mark = await loadMark(app);
 
     await goIdle(app);
     await expect
-      .poll(() => loadsSince(app!, mark), {
+      .poll(() => pimsLoadsSince(app!, mark, server.origin), {
         timeout: 45_000,
         message: 'the idle sign-out never ran',
       })
       .toEqual([tabUrl]);
     expect(await windowStates(app)).toEqual([expect.objectContaining({ workspace: true })]);
+    await expect.poll(() => stillAlive(app!, oldPages)).toEqual([]);
+    // The shell page is the window's own page, which the sign-out reloads: the
+    // poll rides out that reload.
+    await expect
+      .poll(async () => {
+        const { tabs } = await callShell<{ tabs: Array<{ url: string }> }>(shell, 'getTabs');
+        return tabs.map((t) => t.url);
+      })
+      .toEqual([tabUrl]);
   });
 
   test('a lock that engages with no window open covers the window reopened from the Dock', async () => {
@@ -819,8 +996,13 @@ test.describe('idle lock', () => {
     const tabUrl = `${server.origin}/dashboard`;
     await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
     // A pinned window stays open, so the app has a window - one the lock hides.
+    // It pins a page of its own, so the tab is the only web contents at tabUrl.
+    const pinnedUrl = `${server.origin}/pinned`;
+    const toPin = await callShell<{ ok: boolean; id: string }>(shell, 'newTab', pinnedUrl);
+    await expect.poll(() => keysReceived(app!, pinnedUrl)).toBe(0);
     await callShell(shell, 'executeCommand', 'pin-current');
     await expect.poll(async () => (await otherWindows(app!)).length).toBe(1);
+    expect((await callShell<{ ok: boolean }>(shell, 'closeTab', toPin.id)).ok).toBe(true);
 
     await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()
@@ -851,8 +1033,9 @@ test.describe('idle lock', () => {
       .toContain(LOCK_PAGE);
     expect(await focusedSince(app, beforeReopen, LOCK_PAGE)).toBe(true);
     await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
-    await pressKey(app, tabUrl, 'A');
-    expect(await keysReceived(app, tabUrl)).toBe(0);
+    // This tab was first attached under the lock, so it has never been painted
+    // and takes no pointer input for pressKey's marker: check the hold itself.
+    expect(await keyHeld(app, tabUrl)).toBe(true);
     await expect
       .poll(async () => (await workspaceViews(app!)).map((v) => v.visible))
       .toEqual([false, false, true]);
@@ -860,6 +1043,7 @@ test.describe('idle lock', () => {
     await unlockWithTouchId(app);
     await expect.poll(() => app!.windows().some((p) => p.url().includes(LOCK_PAGE))).toBe(false);
     await expect.poll(async () => (await otherWindows(app!))[0]?.visible).toBe(true);
+    await waitForPointerInput(app, tabUrl);
     await pressKey(app, tabUrl, 'A');
     expect(await keysReceived(app, tabUrl)).toBe(1);
   });
