@@ -172,7 +172,8 @@
       "@humanfs/node": "0.16.8",
       "decode-uri-component": "0.5.0",
       "cosmiconfig>typescript": "5.9.3",
-      "cosmiconfig-typescript-loader>typescript": "5.9.3"
+      "cosmiconfig-typescript-loader>typescript": "5.9.3",
+      "@noble/hashes@1": "2.4.0"
     },
     "patchedDependencies": {
       "react-native@0.81.6": "patches/react-native@0.81.6.patch",
