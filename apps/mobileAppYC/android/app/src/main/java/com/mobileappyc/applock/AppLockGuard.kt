@@ -62,13 +62,13 @@ object AppLockGuard : Application.ActivityLifecycleCallbacks {
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /**
-     * Applies the saved flag to the recents thumbnail. Runs for every activity
-     * as it is created, so it survives MainActivity being recreated for a
-     * locale or font-size change.
+     * Keeps app content out of the recents thumbnail for everyone, whether or
+     * not app lock is on. Runs for every activity as it is created, so it
+     * survives MainActivity being recreated for a locale or font-size change.
      */
     fun applyRecentsPolicy(activity: Activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            activity.setRecentsScreenshotEnabled(!isEnabled(activity))
+            activity.setRecentsScreenshotEnabled(false)
         }
     }
 

@@ -197,6 +197,10 @@ export const availability = ({
       return unavailable('androidVersion');
     }
     if (apiLevel < 30) {
+      // Below API 30 only a Class 3 biometric can open the key, and Android
+      // does not report the device credential, so hasPasscode reads false even
+      // with a PIN set. Android only lets a Class 3 biometric be enrolled
+      // behind a secure lock screen, so hasStrongBiometrics also proves one.
       return hasStrongBiometrics
         ? {available: true}
         : unavailable('noStrongBiometrics');

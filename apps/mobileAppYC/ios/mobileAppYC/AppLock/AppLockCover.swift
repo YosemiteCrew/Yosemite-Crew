@@ -2,14 +2,19 @@ import UIKit
 
 /// The native side of app lock on iOS.
 ///
-/// When the privacy flag is on, a cover built from BootSplash.storyboard goes
-/// up in its own window as soon as the app resigns active, so the app switcher
-/// snapshot shows only the cover.
+/// A cover built from BootSplash.storyboard, in its own window, keeps app
+/// content out of the app switcher snapshot:
+/// - For everyone, it goes up when the app enters the background, before iOS
+///   takes the snapshot.
+/// - With app lock on (the privacy flag), it goes up earlier, as soon as the
+///   app resigns active.
 ///
 /// How it comes down depends on where the app went:
-/// - Back from the background: it stays up until JavaScript reports that its
-///   own cover or lock screen has drawn, so there is never a frame of content
-///   between the two.
+/// - Back from the background with app lock on: it stays up until JavaScript
+///   reports that its own cover or lock screen has drawn, so there is never a
+///   frame of content between the two.
+/// - Back from the background with app lock off: it comes down as soon as the
+///   app is active again, because no lock screen will be drawn.
 /// - Back from inactive only (the Face ID sheet, Control Center, Notification
 ///   Center, a system alert or a call banner): it comes down as soon as the
 ///   app is active again. iOS took no snapshot and the app never left the
@@ -41,9 +46,16 @@ final class AppLockCover {
     }
   }
 
-  /// Called from `applicationWillResignActive`, before iOS takes its snapshot.
+  /// Called from `applicationWillResignActive`: with app lock on, cover early.
   func showIfEnabled() {
-    guard isPrivacyEnabled, coverWindow == nil else {
+    guard isPrivacyEnabled else {
+      return
+    }
+    show()
+  }
+
+  private func show() {
+    guard coverWindow == nil else {
       return
     }
     let window = makeWindow()
@@ -58,15 +70,19 @@ final class AppLockCover {
     backgroundedSinceShown = false
   }
 
-  /// Called from `applicationDidEnterBackground`.
+  /// Called from `applicationDidEnterBackground`, before iOS takes the app
+  /// switcher snapshot. Covers the app for everyone, whether or not app lock
+  /// is on.
   func didEnterBackground() {
+    show()
     backgroundedSinceShown = true
   }
 
-  /// Called from `applicationDidBecomeActive`. After a trip to the background
-  /// the cover waits for `coverRendered()`; otherwise it comes down now.
+  /// Called from `applicationDidBecomeActive`. With app lock on, after a trip
+  /// to the background the cover waits for `coverRendered()`; in every other
+  /// case it comes down now.
   func didBecomeActive() {
-    if !backgroundedSinceShown {
+    if !backgroundedSinceShown || !isPrivacyEnabled {
       hide()
     }
   }
