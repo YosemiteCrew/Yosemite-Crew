@@ -15,6 +15,9 @@
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		8CDF7234D58144ABAB092E35 /* SFProText-regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 28621C890A9E481DB0D9B6D6 /* SFProText-regular.ttf */; };
+		A55200000000000000000002 /* AppLockCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55200000000000000000001 /* AppLockCover.swift */; };
+		A55200000000000000000004 /* AppLockBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55200000000000000000003 /* AppLockBridge.swift */; };
+		A55200000000000000000006 /* AppLockBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = A55200000000000000000005 /* AppLockBridge.m */; };
 		A55100000000000000000002 /* AssistantSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55100000000000000000001 /* AssistantSnapshot.swift */; };
 		A55100000000000000000004 /* AssistantSnapshotBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55100000000000000000003 /* AssistantSnapshotBridge.swift */; };
 		A55100000000000000000006 /* AssistantSnapshotBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = A55100000000000000000005 /* AssistantSnapshotBridge.m */; };
@@ -53,6 +56,9 @@
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = mobileAppYC/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		98A6482CD9DBA0E9DD9F36C6 /* Pods-mobileAppYC.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-mobileAppYC.debug.xcconfig"; path = "Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC.debug.xcconfig"; sourceTree = "<group>"; };
 		99B0C6F9F5B3EE5251D91C71 /* libPods-mobileAppYC.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-mobileAppYC.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A55200000000000000000001 /* AppLockCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockCover.swift; sourceTree = "<group>"; };
+		A55200000000000000000003 /* AppLockBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockBridge.swift; sourceTree = "<group>"; };
+		A55200000000000000000005 /* AppLockBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppLockBridge.m; sourceTree = "<group>"; };
 		A55100000000000000000001 /* AssistantSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantSnapshot.swift; sourceTree = "<group>"; };
 		A55100000000000000000003 /* AssistantSnapshotBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantSnapshotBridge.swift; sourceTree = "<group>"; };
 		A55100000000000000000005 /* AssistantSnapshotBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AssistantSnapshotBridge.m; sourceTree = "<group>"; };
@@ -109,6 +115,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				A55100000000000000000015 /* Assistant */,
+				A55200000000000000000007 /* AppLock */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
@@ -171,6 +178,16 @@
 				A55100000000000000000016 /* Intents */,
 			);
 			path = mobileAppYC/Assistant;
+			sourceTree = "<group>";
+		};
+		A55200000000000000000007 /* AppLock */ = {
+			isa = PBXGroup;
+			children = (
+				A55200000000000000000001 /* AppLockCover.swift */,
+				A55200000000000000000003 /* AppLockBridge.swift */,
+				A55200000000000000000005 /* AppLockBridge.m */,
+			);
+			path = mobileAppYC/AppLock;
 			sourceTree = "<group>";
 		};
 		A55100000000000000000016 /* Intents */ = {
@@ -372,6 +389,9 @@
 				A55100000000000000000002 /* AssistantSnapshot.swift in Sources */,
 				A55100000000000000000004 /* AssistantSnapshotBridge.swift in Sources */,
 				A55100000000000000000006 /* AssistantSnapshotBridge.m in Sources */,
+				A55200000000000000000002 /* AppLockCover.swift in Sources */,
+				A55200000000000000000004 /* AppLockBridge.swift in Sources */,
+				A55200000000000000000006 /* AppLockBridge.m in Sources */,
 				A55100000000000000000008 /* OnDeviceModelBridge.swift in Sources */,
 				A5510000000000000000000A /* OnDeviceModelBridge.m in Sources */,
 				A5510000000000000000000C /* PetEntity.swift in Sources */,

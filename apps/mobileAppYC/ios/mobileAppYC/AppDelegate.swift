@@ -72,6 +72,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
     return false
   }
+
+  // App lock on: cover the app as soon as it resigns active.
+  func applicationWillResignActive(_ application: UIApplication) {
+    AppLockCover.shared.showIfEnabled()
+  }
+
+  // Everyone: cover the app before iOS snapshots it for the app switcher.
+  func applicationDidEnterBackground(_ application: UIApplication) {
+    AppLockCover.shared.didEnterBackground()
+  }
+
+  // A Face ID sheet or Control Center makes the app inactive without sending
+  // it to the background. The cover then comes down here, not from JS.
+  func applicationDidBecomeActive(_ application: UIApplication) {
+    AppLockCover.shared.didBecomeActive()
+  }
 }
 
 class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
