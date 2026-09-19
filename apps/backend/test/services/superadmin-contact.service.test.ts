@@ -495,6 +495,18 @@ describe("SuperadminContactService", () => {
         60,
       );
     });
+
+    it("caps a far-future value at the backoff ceiling", () => {
+      // A panel answering with a day would otherwise park that row for a day.
+      // An hour is the same ceiling the backoff already uses, and a still-
+      // limiting panel just says 429 again.
+      expect(parseRetryAfterSeconds("86400", NOW)).toBe(3600);
+      expect(parseRetryAfterSeconds("Sun, 20 Sep 2026 12:00:00 GMT", NOW)).toBe(
+        3600,
+      );
+      // Anything under the ceiling is still honoured exactly.
+      expect(parseRetryAfterSeconds("3599", NOW)).toBe(3599);
+    });
   });
 
   describe("backoffMs", () => {
