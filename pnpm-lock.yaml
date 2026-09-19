@@ -117,7 +117,7 @@ overrides:
   engine.io: 6.6.7
   dompurify: 3.4.14
   sharp: 0.35.4
-  adm-zip: 0.6.0
+  adm-zip: 0.6.1
   http-proxy-middleware: 2.0.10
   cosmiconfig>typescript: 5.9.3
   cosmiconfig-typescript-loader>typescript: 5.9.3
@@ -202,8 +202,8 @@ importers:
         specifier: workspace:^
         version: link:../../packages/lib
       adm-zip:
-        specifier: 0.6.0
-        version: 0.6.0
+        specifier: 0.6.1
+        version: 0.6.1
       aws-sdk:
         specifier: 2.1693.0
         version: 2.1693.0
@@ -1061,8 +1061,8 @@ importers:
         specifier: ^26.2.0
         version: 26.2.0
       adm-zip:
-        specifier: 0.6.0
-        version: 0.6.0
+        specifier: 0.6.1
+        version: 0.6.1
       tar:
         specifier: 7.5.22
         version: 7.5.22
@@ -14694,8 +14694,8 @@ packages:
     engines: {node: '>= 16.0.0'}
     dev: false
 
-  /adm-zip@0.6.0:
-    resolution: {integrity: sha512-XleryMhbuksdKtofnWZ9Sk+4CUTbms4Mb/EU32SZwToAyZ5RgVos/ki8n+yr0LWHOGKuakbXTuuYNHLQjhddgg==}
+  /adm-zip@0.6.1:
+    resolution: {integrity: sha512-Xwrja8nx9e5o2N1my4DsKCeKpdrnACyr1wtbPxBDgGzKzKyE9kRtBFA8mWldI+RVlD7CBZNWY/wQ2+ydwOR6kQ==}
     engines: {node: '>=14.0'}
 
   /agent-base@6.0.2:
