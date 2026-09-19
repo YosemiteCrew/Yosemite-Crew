@@ -752,42 +752,88 @@ const buildCheckoutSessionLineItems = (params: {
 }) => {
   const { invoice, items, summary, invoiceCurrency } = params;
 
-  const discountedItemSum = roundMoney(
-    items.reduce((sum: number, item) => {
-      const typed = item as CheckoutLineItemSource;
-      if (typeof typed.total === "number") {
-        return sum + typed.total;
-      }
-      const unitPrice =
-        typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
-      const quantity = typeof typed.quantity === "number" ? typed.quantity : 0;
-      const discountPercent =
-        typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
-      return sum + unitPrice * quantity * (1 - discountPercent / 100);
-    }, 0),
-  );
   const preTaxInvoiceTotal = roundMoney(
     invoice.totalAmount -
       (typeof invoice.taxTotal === "number" ? invoice.taxTotal : 0),
   );
-  // Read `!==` as "the items do not reconstruct the total", which now includes
-  // the two roundings disagreeing on a tie: invoice pricing posts the total by
-  // quantizing exact integers (8.165 -> 8.17) and this sum reads the raw line
-  // snapshot through `roundMoney`, which rounds the scaled float the other way
-  // (8.165 -> 8.16). That selects the balance line, and the balance line is the
-  // branch that charges what is owed: itemising this invoice submits a per-UNIT
-  // 816 against the 817 it was posted at, because a per-unit amount Stripe
-  // multiplies by the quantity cannot reconstruct a rounded line total. That
-  // shortfall is older than the quantizer and is NOT confined to a tie - two of
-  // the same line sums to 16.33 on both roundings, so this comparison passes
-  // and the itemised session charges 1632 against a 1633 invoice. Giving the
-  // itemised branch the ledger quantizer is the payment slice of #3153; until
-  // then a tie is charged exactly, as one line. Pinned in
+
+  // Build the itemised lines BEFORE deciding whether to use them, so the guard
+  // below weighs the money this session would actually collect rather than a
+  // second formula for it. The two used to be computed independently and agreed
+  // only by coincidence: the guard summed posted line totals while the session
+  // submitted a per-UNIT amount Stripe multiplies by the quantity, so a unit
+  // price the currency cannot represent lost its remainder once per unit and
+  // the guard saw nothing wrong (#3305). Two 8.165 units sum to 16.33 under
+  // either rounding, so the comparison passed, the session charged 1632 against
+  // a 1633 invoice, and the checkout-completed handler settled it as paid.
+  const itemisedLineItems = items.map((item) => {
+    const typed = item as CheckoutLineItemSource;
+    const unitPrice = typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
+    const quantity =
+      typeof typed.quantity === "number" && typed.quantity > 0
+        ? typed.quantity
+        : 1;
+    const discountPercent =
+      typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
+    // What the line must collect: the stored snapshot total the invoice was
+    // totalled from, falling back to the product when there is no snapshot.
+    const lineAmount = toStripeMinorUnits(
+      roundMoney(
+        typeof typed.total === "number"
+          ? typed.total
+          : unitPrice * quantity * (1 - discountPercent / 100),
+      ),
+      invoiceCurrency,
+    );
+    const unitAmount = toStripeMinorUnits(
+      roundMoney(unitPrice * (1 - discountPercent / 100)),
+      invoiceCurrency,
+    );
+    // Keep Stripe's per-unit presentation ("2 x $30.00") wherever the units
+    // genuinely add up to the posted total, which is every unit price the
+    // currency can represent. Where they cannot, the line collapses to a single
+    // unit at its posted total and carries the quantity in its description
+    // instead. A checkout that prints one unit is a presentation loss; one that
+    // collects less than the invoice says is owed is a silent shortfall.
+    const unitsReconstructLine = unitAmount * quantity === lineAmount;
+    const name = typed.name ?? typed.description ?? "Service";
+    return {
+      price_data: {
+        currency: invoiceCurrency,
+        product_data: {
+          name,
+          // A collapsed line prints as one unit, so the quantity moves into the
+          // description or the checkout stops saying how many were bought. It
+          // replaces the line's own description rather than appending to it,
+          // because `name` is always present and a conditional prefix would add
+          // a branch whose empty arm nothing ever reaches.
+          description: unitsReconstructLine
+            ? (typed.description ?? undefined)
+            : `${quantity} x ${name}`,
+        },
+        unit_amount: unitsReconstructLine ? unitAmount : lineAmount,
+      },
+      quantity: unitsReconstructLine ? quantity : 1,
+    };
+  });
+
+  const itemisedTotal = itemisedLineItems.reduce(
+    (sum, line) => sum + line.price_data.unit_amount * line.quantity,
+    0,
+  );
+  // Read `!==` as "the itemised lines do not collect the pre-tax total". It is
+  // compared in minor units, which is both the unit Stripe is given and an
+  // exact integer comparison - the amounts either side of the previous `!==`
+  // were floats. A tie still lands here, because invoice pricing posts the
+  // total by quantizing exact integers (8.165 -> 8.17) while these lines round
+  // the scaled float the other way (8.165 -> 8.16); that selects the balance
+  // line, which charges what is owed. Giving the itemised branch the ledger
+  // quantizer is the payment slice of #3153, not this one. Pinned in
   // finance.payment.test.ts.
   const useBalanceLine =
     summary.paid > 0 ||
     summary.credited > 0 ||
-    discountedItemSum !== preTaxInvoiceTotal;
+    itemisedTotal !== toStripeMinorUnits(preTaxInvoiceTotal, invoiceCurrency);
 
   // Disabling automatic tax is only safe when the balance we are about to charge
   // ALREADY includes tax. An invoice whose tax was never calculated - drafts are
@@ -823,31 +869,7 @@ const buildCheckoutSessionLineItems = (params: {
   return {
     useBalanceLine,
     disableAutomaticTax,
-    lineItems: items.map((item) => {
-      const typed = item as CheckoutLineItemSource;
-      const unitPrice =
-        typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
-      const discountPercent =
-        typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
-      const effectiveUnitAmount = toStripeMinorUnits(
-        roundMoney(unitPrice * (1 - discountPercent / 100)),
-        invoiceCurrency,
-      );
-      return {
-        price_data: {
-          currency: invoiceCurrency,
-          product_data: {
-            name: typed.name ?? typed.description ?? "Service",
-            description: typed.description ?? undefined,
-          },
-          unit_amount: effectiveUnitAmount,
-        },
-        quantity:
-          typeof typed.quantity === "number" && typed.quantity > 0
-            ? typed.quantity
-            : 1,
-      };
-    }),
+    lineItems: itemisedLineItems,
   };
 };
 
