@@ -22,6 +22,7 @@ const pageAssets = [
   'vault.css',
   'vault.js',
   'platform-labels.js',
+  'window-caption.js',
   'whats-new.html',
   'whats-new.css',
   'whats-new.js',
