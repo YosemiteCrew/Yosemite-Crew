@@ -250,12 +250,34 @@ model ContactRequest {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
+  superadminForward SuperadminContactForward?
+
   @@index([type])
   @@index([status])
   @@index([userId])
   @@index([organisationId])
   @@index([patientId])
   @@index([parentId])
+}
+
+/// One queued forward of a public contact submission into the SuperAdmin CRM.
+/// Keyed by the submission, so a submission can never be queued twice. The body
+/// is not stored here: it is rebuilt from the ContactRequest row at send time,
+/// so the personal data exists once rather than twice.
+model SuperadminContactForward {
+  contactRequestId String         @id
+  contactRequest   ContactRequest @relation(fields: [contactRequestId], references: [id], onDelete: Cascade)
+  attempts         Int            @default(0)
+  nextAttemptAt    DateTime       @default(now())
+  lastAttemptAt    DateTime?
+  /// HTTP status of the last attempt; null after a timeout or network error.
+  lastStatus       Int?
+  deliveredAt      DateTime?
+  /// Refused permanently (400 or 409). Not retried.
+  failedAt         DateTime?
+  createdAt        DateTime       @default(now())
+
+  @@index([deliveredAt, failedAt, nextAttemptAt])
 }
 
 model IntegrationAccount {

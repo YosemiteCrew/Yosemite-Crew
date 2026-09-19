@@ -144,6 +144,10 @@ export const ContactService = {
         dsarDetails,
         attachments,
         status: "OPEN",
+        // Queued in the same insert as the submission, so the two commit
+        // together or not at all. Written whether or not the mirror is
+        // configured: unconfigured means queued, not lost.
+        superadminForward: { create: {} },
       },
     });
   },
