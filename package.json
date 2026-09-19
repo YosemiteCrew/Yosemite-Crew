@@ -156,7 +156,7 @@
       "engine.io": "6.6.7",
       "dompurify": "3.4.14",
       "sharp": "0.35.4",
-      "adm-zip": "0.6.0",
+      "adm-zip": "0.6.1",
       "http-proxy-middleware": "2.0.10",
       "cosmiconfig>typescript": "5.9.3",
       "cosmiconfig-typescript-loader>typescript": "5.9.3",
