@@ -17,10 +17,14 @@ test('reads the version the renderer was built against', () => {
   assert.equal(rendererExpectation(bundle('19.1.4')), '19.1.4');
 });
 
-// Scoping is what makes the answer trustworthy: unscoped, this fixture offers
-// two candidates and the function has no way to tell which one guards react.
-test('ignores an unrelated version comparison elsewhere in the bundle', () => {
-  assert.equal(rendererExpectation(bundle('19.1.4')), '19.1.4');
+// Scoping is what makes the answer trustworthy, and the decoy has to sit where
+// an unscoped read would reach it: BEFORE the throw and further back than the
+// window. The comparison inside `bundle` is after the throw, so every reading
+// scoped or not - agrees about it, and a fixture both readings agree on
+// discriminates nothing.
+test('ignores a version comparison further back than the window', () => {
+  const far = 'if ("18.3.1" !== legacyVersion) fallback();' + ';'.repeat(500);
+  assert.equal(rendererExpectation(far + bundle('19.1.4')), '19.1.4');
 });
 
 // An ambiguous read is the dangerous outcome, not a missing one: picking either
