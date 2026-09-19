@@ -2720,6 +2720,90 @@ describe("FinancePaymentService", () => {
     expect(submitted).toBe(5750);
   });
 
+  // The line snapshot is what the invoice was totalled from, and it is the
+  // caller's number: `buildInvoiceLineSnapshots` writes `item.total ?? quantity
+  // x unitPrice - percentDiscount`, so a supplied total passes through whatever
+  // it says. Recomputing the product here instead of reading that snapshot
+  // agrees with it for every percentage-discounted line, which is why the
+  // existing rows cannot tell the two apart - this one sets a total the product
+  // does not reproduce (a flat 5.00 off two 10.00 units) so that substituting
+  // the product is visible. Without it, a line discount that is not a
+  // percentage would silently drop itemisation and no test would fail.
+  it("submits the posted line total rather than recomputing it from the unit price", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_posted_total",
+      totalAmount: 15,
+      taxTotal: 0,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      items: [
+        {
+          name: "Consult",
+          description: "Consult",
+          unitPrice: 10,
+          quantity: 2,
+          total: 15,
+        },
+      ],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_posted_total",
+    });
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_posted_total",
+      url: "https://checkout",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_posted_total",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_posted_total",
+    });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice(
+      "inv_posted_total",
+    );
+
+    const [sessionArgs] = stripeClient.checkout.sessions.create.mock
+      .calls[0] as [
+      {
+        line_items: Array<{
+          price_data: {
+            unit_amount: number;
+            product_data: { name: string; description?: string };
+          };
+          quantity: number;
+        }>;
+      },
+    ];
+    // The line's own name, not "Outstanding balance for invoice ...": reading
+    // the product instead would put 2000 against a 1500 invoice, the guard
+    // would find the mismatch and fall back to the balance line. That line also
+    // charges 1500 at quantity 1, so the name is what separates the two.
+    expect(sessionArgs.line_items).toHaveLength(1);
+    expect(sessionArgs.line_items[0].price_data.product_data.name).toBe(
+      "Consult",
+    );
+    expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(1500);
+    expect(sessionArgs.line_items[0].quantity).toBe(1);
+    expect(sessionArgs.line_items[0].price_data.product_data.description).toBe(
+      "2 x Consult",
+    );
+  });
+
   it("refunds a manual invoice payment without calling Stripe", async () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_manual_refund",
