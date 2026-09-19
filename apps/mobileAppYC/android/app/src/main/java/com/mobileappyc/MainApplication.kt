@@ -14,6 +14,8 @@ import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
+import com.mobileappyc.applock.AppLockGuard
+import com.mobileappyc.applock.AppLockPackage
 import com.mobileappyc.assistant.AssistantPackage
 
 class MainApplication : Application(), ReactApplication {
@@ -25,6 +27,7 @@ class MainApplication : Application(), ReactApplication {
               // Packages that cannot be autolinked yet can be added manually here, for example:
               // add(MyReactNativePackage())
               add(AssistantPackage())
+              add(AppLockPackage())
             }
 
         override fun getJSMainModuleName(): String = "index"
@@ -40,6 +43,10 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+
+    // App lock: saved privacy flag, recents thumbnail and return-after-timeout.
+    // Inert until the user turns app lock on.
+    AppLockGuard.install(this, MainActivity::class.java)
 
     // Initialize Facebook SDK
     FacebookSdk.sdkInitialize(applicationContext)
