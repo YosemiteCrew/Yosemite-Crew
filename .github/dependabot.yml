@@ -2,6 +2,27 @@
 # target-branch below only aims the PRs at dev. Any change here must land on
 # main to take effect, so keep the copies on dev and main byte-identical
 # (see PR #2079, which fixed a month of silently inert config changes).
+#
+# NOTE: because every block below sets target-branch, NOTHING in this file
+# governs dependabot SECURITY updates. The options reference makes the carve-out
+# explicit - the settings that would otherwise shape a security PR apply
+# "except where target-branch is used" - and it voids the block as a unit, so
+# ignore, cooldown, groups, labels and commit-message are all inapplicable.
+# Security updates instead go to main with dependabot's defaults and remediate
+# whatever the lock files report as vulnerable.
+#
+# This is measured here, not inferred: every npm security PR since target-branch
+# landed (#1873, #2005, #2020, #2067) carries the default `javascript` label and
+# a `chore(deps)`/`chore(deps-dev)`/`ci(deps)` headline, while version-update PRs
+# from the same window carry this file's `dependencies` label and `chore(repo)`
+# prefix. #1873 is decisive on its own: a fixed prefix cannot emit the
+# `chore(deps-dev)` variant at all.
+#
+# So an ignore entry below is a statement about weekly version updates ONLY. It
+# is not a freeze, and it must never be relied on as one - an advisory against a
+# held package will still produce a PR, against main, with no cooldown. Where a
+# hold has to survive that path it needs an enforcing check outside this file
+# (#3345).
 version: 2
 updates:
   - package-ecosystem: npm
@@ -96,10 +117,13 @@ updates:
       # far scores below the 50 minimum (1.413.x scored 31/100 on #2088 and
       # #2096). Re-bump deliberately once the Socket score recovers.
       #
-      # An entry with no update-types ignores EVERY update, security ones
-      # included, and this is a production frontend dependency - so dependabot
-      # will not open a remediation PR if an advisory lands against it. The
-      # compensating control is the supply-chain scan
+      # An entry with no update-types ignores every update TYPE, but it is still
+      # only a version-update rule: per the note at the top of this file, an
+      # advisory against posthog-js does still open a remediation PR, against
+      # main - and it is likely to land red on the React Doctor gate for the same
+      # Socket score that froze the package, so it needs a deliberate decision
+      # rather than a merge. The standing compensating control is the
+      # supply-chain scan
       # (scripts/security/supply-chain.sh), which greps the SBOM of what is
       # actually installed and fails the merge gate on a critical finding
       # regardless of what dependabot is or is not proposing. If that scan
@@ -224,12 +248,21 @@ updates:
       # updatable while react is held is the one configuration that guarantees
       # the pair drifts apart.
       #
-      # Ignore rules apply to dependabot SECURITY updates too, so a react
-      # advisory will not arrive as a PR while these entries stand. Accepted:
-      # the mobile app cannot take a react bump without a react-native bump
-      # anyway, and both lifts are deliberate manual changes - raise react with
-      # the react-native bump for mobile, and raise react and react-dom together
-      # in one PR for the frontend.
+      # These entries do NOT stop a react advisory arriving as a PR. Per the
+      # note at the top of this file, target-branch voids the whole block for
+      # security updates, so a react CVE still opens a bump - against main, with
+      # no cooldown - and the entries here are silent on that path. This is the
+      # hold whose bypass matters most, because the failure it guards against is
+      # invisible to every gate: the version compare above is a runtime throw in
+      # the release app, jest never mounts through the native renderer, and an
+      # exact-pinned bump is a clean install. Tracked in #3345; until an
+      # enforcing check lands, a react or react-dom bump from any source has to
+      # be checked by hand against the renderer literal before it merges.
+      #
+      # The manual policy is unchanged: the mobile app cannot take a react bump
+      # without a react-native bump anyway, and both lifts are deliberate -
+      # raise react with the react-native bump for mobile, and raise react and
+      # react-dom together in one PR for the frontend.
       - dependency-name: 'react'
       - dependency-name: 'react-dom'
       # next is held on 15.x while the Next 16 adoption is decided (#3266).
