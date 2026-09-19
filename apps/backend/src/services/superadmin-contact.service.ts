@@ -19,6 +19,9 @@ const DEFAULT_RETRY_AFTER_SECONDS = 60;
 /** Backoff ceiling. A wrong key or a panel outage drains by itself once fixed. */
 const MAX_BACKOFF_MINUTES = 60;
 
+/** The same ceiling applied to a panel-supplied Retry-After. */
+const MAX_RETRY_AFTER_SECONDS = MAX_BACKOFF_MINUTES * 60;
+
 const MINUTE_MS = 60_000;
 
 export type DrainSummary = {
@@ -72,6 +75,11 @@ const readComplaintContext = (
  * Retry-After is seconds or an HTTP date. Anything we cannot read becomes the
  * default: a malformed header must not translate into "retry immediately",
  * which is what a NaN would do once added to a timestamp.
+ *
+ * Capped at the backoff ceiling, so a panel answering `Retry-After: 86400`
+ * parks the row for an hour rather than a day. Honouring the larger value buys
+ * nothing: if the panel is still limiting us an hour later it says so again,
+ * and the tick breaks on 429, so the cost of asking is one request.
  */
 export const parseRetryAfterSeconds = (
   header: string | null,
@@ -79,11 +87,14 @@ export const parseRetryAfterSeconds = (
 ): number => {
   if (!header) return DEFAULT_RETRY_AFTER_SECONDS;
   const trimmed = header.trim();
-  if (/^\d+$/.test(trimmed)) return Number(trimmed);
+  if (/^\d+$/.test(trimmed)) {
+    return Math.min(Number(trimmed), MAX_RETRY_AFTER_SECONDS);
+  }
   const asDate = Date.parse(trimmed);
   if (Number.isNaN(asDate)) return DEFAULT_RETRY_AFTER_SECONDS;
   const seconds = Math.ceil((asDate - now.getTime()) / 1000);
-  return seconds > 0 ? seconds : DEFAULT_RETRY_AFTER_SECONDS;
+  if (seconds <= 0) return DEFAULT_RETRY_AFTER_SECONDS;
+  return Math.min(seconds, MAX_RETRY_AFTER_SECONDS);
 };
 
 /**
