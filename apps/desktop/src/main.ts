@@ -17,6 +17,8 @@ import {
   globalShortcut,
   safeStorage,
   screen,
+  session,
+  webContents,
   WebContentsView,
   systemPreferences,
   type Tray,
@@ -113,7 +115,7 @@ import {
   handleMainNavigation,
   buildContextMenu,
 } from './shell/window-config';
-import { createMainWindow } from './shell/create-main-window';
+import { createMainWindow, TAB_SESSION_FILE } from './shell/create-main-window';
 import { layoutContentPanes as applyContentPaneLayout } from './ui/content-panes';
 import { createOfflineRetryTargets } from './shell/offline-retry';
 
@@ -242,6 +244,30 @@ const persistAuthHint = (signedIn: boolean): void => {
   }
 };
 
+// Signing out, as far as the shell goes: the session cookies are cleared, and
+// written to disk at once so a crash cannot bring them back, and the next
+// launch opens on the welcome screen.
+const clearSession = (ses: Session): Promise<void> =>
+  ses
+    .clearStorageData({ storages: ['cookies'] })
+    .then(() => ses.cookies.flushStore())
+    .catch(() => undefined)
+    .then(() => persistAuthHint(false));
+
+// Written when the idle lock engages and removed when it ends. Found at launch,
+// it means the last run ended with the lock up and never signed out (a crash,
+// a kill, a power cut), so this one signs out before it opens anything.
+const lockMarkerPath = (): string => path.join(app.getPath('userData'), 'idle-locked');
+
+const setLockMarker = (locked: boolean): void => {
+  try {
+    if (locked) fs.writeFileSync(lockMarkerPath(), '', { flush: true });
+    else fs.rmSync(lockMarkerPath(), { force: true });
+  } catch (error) {
+    logger.warn('idle_lock_marker_failed', { error });
+  }
+};
+
 const notifySignedIn = (): void => {
   try {
     if (Notification.isSupported()) {
@@ -358,6 +384,8 @@ const idleLockOverlay = createIdleLockOverlay({
     layoutLockOverlay();
   },
   workspace: activeContents,
+  window: () => mainWindow,
+  allContents: () => webContents.getAllWebContents(),
 });
 
 type TabBounds = { width: number; height: number };
@@ -982,26 +1010,17 @@ const refreshPrinters = (): void => {
 
 // Localized native string (follows the OS locale; catalogs in utils/i18n.ts).
 // Telehealth is GetStream-only. PIMS owns call creation and tokens; desktop
-// opens the appointment telehealth intent inside the trusted shell.
+// opens the appointment telehealth intent inside the trusted shell, the way it
+// opens any other link (so it too waits for the idle lock).
 const startTelehealth = (intent: TelehealthLaunchIntent = {}): string => {
   const href = buildTelehealthUrl(config.startUrl.href, intent);
-  const wc = activeContents();
   logger.info('telehealth_started', {
     provider: STREAM_TELEHEALTH_PROVIDER.id,
     hasAppointmentId: Boolean(intent.appointmentId),
     hasCallId: Boolean(intent.callId),
   });
 
-  if (wc) {
-    void wc.loadURL(href);
-    focusMainWindow();
-  } else if (mainWindow && !mainWindow.isDestroyed()) {
-    newTab(href);
-    focusMainWindow();
-  } else {
-    pendingDeepLink = href;
-  }
-
+  openInWorkspace(href);
   return href;
 };
 
@@ -1313,6 +1332,9 @@ const openCommandPalette = (): void => {
   void commandPaletteWindow.loadFile(localPage('command-palette'));
 };
 
+// How long a quit while locked waits for the sign-out.
+const QUIT_SIGN_OUT_TIMEOUT_MS = 3000;
+
 // Opt-in idle auto-lock (YC_DESKTOP_IDLE_LOCK_MINUTES). On lock, clears the
 // session and returns to sign-in so a fresh login is required.
 // When biometric lock is available and enabled, locks biometric instead of
@@ -1340,14 +1362,7 @@ const setupIdleLock = (ses: Session): void => {
    * restartWorkspace), so a caller that is uncovering the workspace can wait
    * for it before taking the lock page down.
    */
-  const signOutToStartUrl = (): Promise<void> =>
-    ses
-      .clearStorageData({ storages: ['cookies'] })
-      .catch(() => undefined)
-      .then(() => {
-        persistAuthHint(false);
-        return restartWorkspace();
-      });
+  const signOutToStartUrl = (): Promise<void> => clearSession(ses).then(restartWorkspace);
 
   // Tell the lock page the prompt was refused so it can stop saying "Verifying".
   // Success needs no message: the overlay is removed outright.
@@ -1375,6 +1390,7 @@ const setupIdleLock = (ses: Session): void => {
         }
         locked = false;
         idleLockOverlay.hide();
+        setLockMarker(false);
         logger.info('biometric_unlock_success');
         // A deep link that arrived during the lock opens now.
         consumePendingDeepLink();
@@ -1403,6 +1419,7 @@ const setupIdleLock = (ses: Session): void => {
         pendingDeepLink = null;
         idleLockOverlay.closeWindows();
         idleLockOverlay.hide();
+        setLockMarker(false);
         unlockInFlight = false;
       });
       return;
@@ -1421,6 +1438,7 @@ const setupIdleLock = (ses: Session): void => {
       const bio = biometricLock;
       const settings = settingsStore?.load();
       if (bio && bio.isAvailable() && settings?.biometricLockEnabled) {
+        setLockMarker(true);
         bio.lock();
         idleLockOverlay.show();
         logger.info('biometric_lock_engaged');
@@ -1436,6 +1454,34 @@ const setupIdleLock = (ses: Session): void => {
       locked = false;
     }
   }, 30_000);
+
+  // Quitting while locked, by any route (Cmd+Q, the Dock, the last window
+  // closing on Windows and Linux, SIGTERM: all come through before-quit),
+  // signs out: the lock itself does not outlive the app, so the next launch
+  // would open signed in with no lock. The quit waits for the sign-out, but
+  // only so long; the lock marker covers one that does not finish.
+  let quitSignOut: 'none' | 'running' | 'done' = 'none';
+  app.on('before-quit', (event) => {
+    if (!idleLockOverlay.isVisible()) return;
+    if (quitSignOut === 'done') {
+      // Let this quit through; one that is cancelled signs out again.
+      quitSignOut = 'none';
+      return;
+    }
+    event.preventDefault();
+    if (quitSignOut === 'running') return;
+    quitSignOut = 'running';
+    logger.info('idle_lock_quit_sign_out');
+    tabManager?.clear();
+    saveSession();
+    void Promise.race([
+      clearSession(ses).then(() => setLockMarker(false)),
+      new Promise((resolve) => setTimeout(resolve, QUIT_SIGN_OUT_TIMEOUT_MS)),
+    ]).then(() => {
+      quitSignOut = 'done';
+      app.quit();
+    });
+  });
 };
 
 // exportDiagnostics extracted to src/ui/status-dialogs.ts
@@ -1782,6 +1828,14 @@ if (gotSingleInstanceLock) {
       const initialSettings = settingsStore.load();
       applySettings(initialSettings);
       signedInBefore = loadSignedInHint();
+      // The last run ended with the idle lock up and never signed out: sign out
+      // now, old tabs included, before the window opens on any of it.
+      if (fs.existsSync(lockMarkerPath())) {
+        logger.warn('idle_lock_found_at_launch');
+        await clearSession(session.fromPartition(config.appPartition));
+        fs.rmSync(path.join(app.getPath('userData'), TAB_SESSION_FILE), { force: true });
+        setLockMarker(false);
+      }
       // Seed in-memory auth state from the hint so we don't re-notify "signed in"
       // on every launch when the session is already active.
       authState = signedInBefore ? 'signed-in' : 'signed-out';
@@ -2080,6 +2134,12 @@ if (gotSingleInstanceLock) {
   );
 
   app.on('activate', () => {
+    // The workspace window the lock took out of the Dock comes back, under the
+    // lock page (laid out again: views attached while hidden have not painted).
+    if (idleLockOverlay.uncover()) {
+      layoutLockOverlay();
+      return;
+    }
     // Windows the lock has hidden do not count: with the workspace window
     // closed mid-lock, the Dock click must bring back the window the lock is on.
     if (BrowserWindow.getAllWindows().every((w) => idleLockOverlay.isHiding(w))) {
@@ -2104,6 +2164,9 @@ if (gotSingleInstanceLock) {
           attachedTabId = null;
           splitId = null;
           mountedSplitId = null;
+          if (tabChromeView && !tabChromeView.webContents.isDestroyed()) {
+            tabChromeView.webContents.close();
+          }
           tabChromeView = null;
           enterTabMode(output.enterTabModeUrl);
           // The reopened window is created hidden and shown async, so the
