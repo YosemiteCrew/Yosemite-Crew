@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import {
   classify,
   groupTestsByWorkspace,
+  scriptTestsOf,
   selectDiscoverable,
   workspaceOf,
   isCheckableSource,
@@ -139,6 +140,65 @@ test('groups tests per workspace and drops what this gate cannot run', () => {
 test('a PR with only e2e test changes is not treated as proven', () => {
   const grouped = groupTestsByWorkspace(['apps/frontend/e2e/route-sweep.spec.ts']);
   assert.equal(grouped.size, 0, 'nothing runnable means no evidence, not a pass');
+  assert.equal(
+    scriptTestsOf(['apps/frontend/e2e/route-sweep.spec.ts']).length,
+    0,
+    'the root runner must not claim an e2e spec either'
+  );
+});
+
+test('routes a root-script test to the runner that can execute it', () => {
+  assert.deepEqual(
+    scriptTestsOf([
+      'scripts/mobile/check-react-renderer-pin.test.mjs',
+      'scripts/ci/forbidden-terms.test.mjs',
+      'scripts/security/supply-chain.test.mjs',
+    ]),
+    [
+      'scripts/mobile/check-react-renderer-pin.test.mjs',
+      'scripts/ci/forbidden-terms.test.mjs',
+      'scripts/security/supply-chain.test.mjs',
+    ]
+  );
+});
+
+test('the root runner claims only what node --test can load', () => {
+  // A workspace test belongs to jest, the source file beside a script test is
+  // not a test, and node's runner cannot load TypeScript - handing it one
+  // would produce a load error, which this gate reads as evidence that the
+  // test depends on the reverted change.
+  assert.deepEqual(
+    scriptTestsOf([
+      'apps/frontend/src/app/__tests__/x.test.ts',
+      'scripts/mobile/check-react-renderer-pin.mjs',
+      'scripts/mobile/thing.test.ts',
+      'scripts/ci/__tests__/helper.ts',
+    ]),
+    []
+  );
+});
+
+test('THE #3349 CASE: a scripts-only test change is runnable, not "outside a known workspace"', () => {
+  // The gate knew four jest workspaces, all under apps/, and nothing about the
+  // root `test:scripts` runner. So a branch adding scripts/mobile/x.mjs with
+  // its own passing scripts/mobile/x.test.mjs grouped to zero workspaces, took
+  // the e2e-only branch, and was rejected for tests the gate never tried to
+  // run. This is the conjunction main() branches on.
+  const changed = [
+    'scripts/mobile/check-react-renderer-pin.test.mjs',
+    'scripts/ci/tests-must-be-able-to-fail.test.mjs',
+  ];
+  assert.equal(groupTestsByWorkspace(changed).size, 0, 'no jest workspace owns these');
+  assert.equal(scriptTestsOf(changed).length, 2, 'but the root runner does');
+
+  // And the verdict such a run can now reach, which it could not before.
+  const r = verdict({
+    source: ['scripts/mobile/check-react-renderer-pin.mjs'],
+    tests: changed,
+    testsPassedAgainstBase: false,
+  });
+  assert.equal(r.ok, true);
+  assert.match(r.reason, /fail without the source change/);
 });
 
 test('nothing runnable is NOT read as proof', () => {

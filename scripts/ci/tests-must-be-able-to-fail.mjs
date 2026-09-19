@@ -102,6 +102,25 @@ export const groupTestsByWorkspace = (tests) => {
   return out;
 };
 
+/**
+ * The changed tests the repository ROOT runner executes.
+ *
+ * `scripts/` is not a pnpm workspace and has no jest config, so every test
+ * under it fell through `workspaceOf` and the gate reported "outside a known
+ * workspace" - the verdict that refuses to judge the branch at all. That is
+ * how #3349 failed while its own tests ran green: the root `test:scripts`
+ * script runs them with `node --test`, and nothing here knew that runner
+ * existed. The same blind spot as the desktop workspace, one level further
+ * out.
+ *
+ * `.test.mjs` rather than the wider `isTestFile`, because that is what the
+ * root runner globs and what node's runner can execute - a `.test.ts` under
+ * `scripts/` would be handed to a runner that cannot load it, and a path that
+ * errors on load is indistinguishable here from the import failure this gate
+ * reads as evidence.
+ */
+export const scriptTestsOf = (tests) => tests.filter((t) => /^scripts\/.+\.test\.mjs$/.test(t));
+
 export const classify = (files) => ({
   source: files.filter(isCheckableSource),
   tests: files.filter(isTestFile),
@@ -421,6 +440,38 @@ const runChangedTests = (byWorkspace, repoRoot) => {
   return { allPassed, suiteShortfall, ranAnything };
 };
 
+/**
+ * Runs the changed root-script tests against the reverted source.
+ *
+ * Judged on exit status alone, deliberately without the per-file suite
+ * reconciliation the jest path carries. None of node's file reporters
+ * attribute a test to the file it came from - `--test-reporter=junit` emits
+ * bare `<testcase name="t1">` with no file - so the reconciliation cannot be
+ * built without driving the runner programmatically, and it is not needed
+ * here because the unreconciled reading fails CLOSED:
+ *
+ *   a changed `.test.mjs` that holds no test exits 0, which this returns as
+ *   `true` - "the tests passed against the base" - the verdict that REJECTS
+ *   the branch.
+ *
+ * The jest shortfall check exists because on that side the same gap read as a
+ * pass. Do not "make this symmetrical" by inverting the empty case.
+ *
+ * Paths are absolute; node's runner takes literal paths, never patterns, so
+ * the `--runTestsByPath` problem on the jest side has no counterpart.
+ */
+const runChangedScriptTests = (absolutePaths) => {
+  console.log(
+    `running ${absolutePaths.length} changed test file(s) under scripts/ against the base`
+  );
+  try {
+    execFileSync('node', ['--test', ...absolutePaths], { stdio: 'inherit' });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const main = () => {
   const args = process.argv.slice(2);
   const get = (flag, fallback) => {
@@ -503,22 +554,28 @@ const main = () => {
     }
 
     const byWorkspace = groupTestsByWorkspace(runnableTests);
+    const scriptTests = scriptTestsOf(runnableTests);
     try {
       if (runnableTests.length === 0) {
         console.log('every changed test file was deleted by this branch; nothing left to run');
         nothingRunnable = 'all-tests-deleted';
-      } else if (byWorkspace.size === 0) {
+      } else if (byWorkspace.size === 0 && scriptTests.length === 0) {
         console.log('no runnable unit tests changed (e2e only, or outside a known workspace)');
         nothingRunnable = 'e2e-only';
       } else {
         const run = runChangedTests(byWorkspace, repoRoot);
         suiteShortfall = run.suiteShortfall;
+        // Both runners must pass for the branch to be judged "the tests
+        // survive their own revert"; one failing anywhere proves they do not.
+        const scriptsPassed =
+          scriptTests.length === 0 || runChangedScriptTests(absolutePathsIn(repoRoot, scriptTests));
+        const ranAnything = run.ranAnything || scriptTests.length > 0;
         // `allPassed` starts true and nothing ran to falsify it, so reading it
         // as "the tests survived their own revert" would be the vacuous pass
         // `--passWithNoTests` used to hand out for a branch whose only test
         // change is a `__tests__/support/` helper.
-        testsPassedAgainstBase = run.ranAnything ? run.allPassed : null;
-        if (!run.ranAnything) nothingRunnable = 'no-tests-in-changed-tests';
+        testsPassedAgainstBase = ranAnything ? run.allPassed && scriptsPassed : null;
+        if (!ranAnything) nothingRunnable = 'no-tests-in-changed-tests';
       }
     } finally {
       // Always put the branch back, including when the run threw. Mirror the
