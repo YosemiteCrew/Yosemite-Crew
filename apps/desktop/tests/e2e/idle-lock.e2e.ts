@@ -1,12 +1,14 @@
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test';
 import electronPath from 'electron';
 import { _electron as electron } from '@playwright/test';
+import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { openPimsTab } from './welcome';
 import { clickMenuItem } from './menu';
+import { SHORTCUTS } from '../../src/ui/keyboard-shortcuts';
 
 // The in-app lock screen only mounts on the biometric path, and biometric
 // unlock is macOS-only (Touch ID), so there is nothing to drive elsewhere.
@@ -17,10 +19,13 @@ const ELECTRON_EXECUTABLE = electronPath as unknown as string;
 const LOCK_PAGE = 'idle-lock.html';
 
 // Each page counts the keydowns and mousedowns it receives, so a spec can tell
-// whether a keystroke sent at it arrived (see pressKey).
+// whether a keystroke sent at it arrived (see pressKey). Every response sets a
+// session cookie, as the PIMS does once someone signs in.
+const SESSION_COOKIE = 'yc_e2e_session';
 const startPimsServer = async (): Promise<{ origin: string; close: () => void }> => {
   const server = http.createServer((_req, res) => {
     res.setHeader('content-type', 'text/html; charset=utf-8');
+    res.setHeader('set-cookie', `${SESSION_COOKIE}=signed-in; Max-Age=86400; Path=/`);
     res.end(
       '<!doctype html><html><head><meta charset="utf-8"><title>PIMS</title></head><body>' +
         '<h1>PIMS App</h1>' +
@@ -36,19 +41,54 @@ const startPimsServer = async (): Promise<{ origin: string; close: () => void }>
   return { origin: `http://127.0.0.1:${address.port}`, close: () => server.close() };
 };
 
+// Loaded ahead of the app (-r): keeps every callback the app hands to
+// globalShortcut.register, so a spec can run one the way the OS does when its
+// chord is pressed. Playwright cannot press an OS-wide shortcut. It also leaves
+// a file in the profile once a quit has gone ahead (will-quit), which a spec
+// can still read after the app is gone.
+const QUIT_WENT_AHEAD = 'e2e-will-quit';
+const SHORTCUT_RECORDER = `'use strict';
+const electron = require('electron');
+electron.app.on('will-quit', () => {
+  const dir = process.env.YC_DESKTOP_USER_DATA_DIR;
+  require('fs').writeFileSync(require('path').join(dir, '${QUIT_WENT_AHEAD}'), '');
+});
+electron.app.once('ready', () => {
+  const { globalShortcut } = electron;
+  const register = globalShortcut.register.bind(globalShortcut);
+  const shortcuts = new Map();
+  globalThis.__shortcuts = shortcuts;
+  globalShortcut.register = (accelerator, callback) => {
+    shortcuts.set(accelerator, callback);
+    return register(accelerator, callback);
+  };
+});
+`;
+
+type LaunchOptions = {
+  startPath?: string;
+  // Off: the lock signs out instead of showing the lock screen.
+  biometric?: boolean;
+  // Off: the app stays on its welcome screen, with no tabs.
+  signIn?: boolean;
+  env?: Record<string, string>;
+};
+
 const launchLockableApp = async (
   origin: string,
   profileDir: string,
-  startPath = '/signin'
+  { startPath = '/signin', biometric = true, signIn = true, env = {} }: LaunchOptions = {}
 ): Promise<{ app: ElectronApplication; shell: Page }> => {
   fs.writeFileSync(
     path.join(profileDir, 'settings.json'),
-    JSON.stringify({ biometricLockEnabled: true })
+    JSON.stringify({ biometricLockEnabled: biometric })
   );
+  const recorder = path.join(profileDir, 'record-shortcuts.js');
+  fs.writeFileSync(recorder, SHORTCUT_RECORDER);
   const app = await electron.launch({
     executablePath: ELECTRON_EXECUTABLE,
     // No Keychain prompt on the machine running the suite.
-    args: [APP_ROOT, '--use-mock-keychain'],
+    args: ['-r', recorder, APP_ROOT, '--use-mock-keychain'],
     env: {
       ...process.env,
       YC_DESKTOP_START_URL: `${origin}${startPath}`,
@@ -56,42 +96,68 @@ const launchLockableApp = async (
       YC_DESKTOP_DISABLE_UPDATES: '1',
       YC_DESKTOP_USER_DATA_DIR: profileDir,
       YC_DESKTOP_IDLE_LOCK_MINUTES: '1',
+      ...env,
     },
   });
-  const { shell } = await openPimsTab(app, origin);
-  // Make the machine look idle and Touch ID look present. The prompt never
-  // settles on its own: a spec unlocks by resolving it (see unlockWithTouchId).
+  const shell = signIn ? (await openPimsTab(app, origin)).shell : await app.firstWindow();
+  // Touch ID looks present, and the machine looks busy until a spec calls
+  // goIdle. The prompt never settles on its own: a spec passes or cancels it
+  // (see answerTouchId).
   //
-  // Also record every web contents the app focuses. A test-launched app is not
-  // allowed to become the active macOS app, so its window is never key and
-  // isFocused() stays false whatever the app does; which contents the app hands
-  // focus to is the part the app controls.
+  // Also record every web contents the app focuses, and every URL it loads
+  // into one. A test-launched app is not allowed to become the active macOS
+  // app, so its window is never key and isFocused() stays false whatever the
+  // app does; which contents the app hands focus to is the part the app
+  // controls.
   await app.evaluate(({ powerMonitor, systemPreferences, webContents }) => {
     const g = globalThis as Record<string, unknown>;
-    const touch: Array<() => void> = [];
+    const touch: Array<(ok: boolean) => void> = [];
     const focused: number[] = [];
+    const loads: string[] = [];
     g.__touch = touch;
     g.__focused = focused;
-    Object.assign(powerMonitor, { getSystemIdleTime: () => 3600 });
+    g.__loads = loads;
+    g.__idleSeconds = 0;
+    Object.assign(powerMonitor, { getSystemIdleTime: () => g.__idleSeconds });
     Object.assign(systemPreferences, {
       canPromptTouchID: () => true,
-      promptTouchID: () => new Promise<void>((resolve) => touch.push(resolve)),
+      promptTouchID: () =>
+        new Promise<void>((resolve, reject) =>
+          touch.push((ok) => (ok ? resolve() : reject(new Error('cancelled'))))
+        ),
     });
-    let proto = Object.getPrototypeOf(webContents.getAllWebContents()[0]);
-    while (proto && !Object.prototype.hasOwnProperty.call(proto, 'focus')) {
-      proto = Object.getPrototypeOf(proto);
-    }
-    const focus = proto.focus as (this: Electron.WebContents) => void;
-    proto.focus = function (this: Electron.WebContents) {
+    const protoWith = (name: string) => {
+      let proto = Object.getPrototypeOf(webContents.getAllWebContents()[0]);
+      while (proto && !Object.prototype.hasOwnProperty.call(proto, name)) {
+        proto = Object.getPrototypeOf(proto);
+      }
+      return proto;
+    };
+    const focusProto = protoWith('focus');
+    const focus = focusProto.focus as (this: Electron.WebContents) => void;
+    focusProto.focus = function (this: Electron.WebContents) {
       focused.push(this.id);
       return focus.call(this);
+    };
+    const loadProto = protoWith('loadURL');
+    const loadURL = loadProto.loadURL as (this: Electron.WebContents, url: string) => unknown;
+    loadProto.loadURL = function (this: Electron.WebContents, url: string, ...rest: unknown[]) {
+      loads.push(url);
+      return (loadURL as (...a: unknown[]) => unknown).call(this, url, ...rest);
     };
   });
   return { app, shell };
 };
 
+// Make the machine look idle; the lock engages on the next idle check.
+const goIdle = (app: ElectronApplication): Promise<void> =>
+  app.evaluate(() => {
+    (globalThis as Record<string, unknown>).__idleSeconds = 3600;
+  });
+
 // The idle check runs every 30 seconds, so the first lock can take that long.
 const waitForLock = async (app: ElectronApplication): Promise<Page> => {
+  await goIdle(app);
   let lockPage: Page | undefined;
   await expect
     .poll(() => (lockPage = app.windows().find((p) => p.url().includes(LOCK_PAGE))) ?? null, {
@@ -104,13 +170,16 @@ const waitForLock = async (app: ElectronApplication): Promise<Page> => {
   return page;
 };
 
-const unlockWithTouchId = (app: ElectronApplication): Promise<void> =>
-  app.evaluate(() => {
-    const touch = (globalThis as Record<string, unknown>).__touch as Array<() => void>;
-    const resolve = touch.shift();
-    if (!resolve) throw new Error('no Touch ID prompt is pending');
-    resolve();
-  });
+// Settle the pending Touch ID prompt: pass it, or cancel it.
+const answerTouchId = (app: ElectronApplication, ok: boolean): Promise<void> =>
+  app.evaluate((_electron, pass) => {
+    const touch = (globalThis as Record<string, unknown>).__touch as Array<(ok: boolean) => void>;
+    const answer = touch.shift();
+    if (!answer) throw new Error('no Touch ID prompt is pending');
+    answer(pass);
+  }, ok);
+
+const unlockWithTouchId = (app: ElectronApplication): Promise<void> => answerTouchId(app, true);
 
 // Native input to the web contents at `url` (or the lock page). This goes
 // through the same before-input-event path as a real keyboard; Playwright's
@@ -189,11 +258,61 @@ const waitForPointerInput = async (app: ElectronApplication, url: string): Promi
 // the lock holds keys only, so a click sent right after the key is a marker:
 // once the page has seen the click, it has seen (or never got) the key. The
 // page must already be taking pointer input for that to hold — see
-// waitForPointerInput, which every freshly attached view goes through first.
+// waitForPointerInput, which every freshly attached view goes through first. A
+// view first attached under the lock is never painted, so it never takes
+// pointer input at all; keyHeld checks the hold on that one instead.
 const pressKey = async (app: ElectronApplication, url: string, keyCode: string): Promise<void> => {
   const clicks = await pageCount(app, url, 'clicks');
   await sendInput(app, url, [...keyPress(keyCode), ...click()]);
   await expect.poll(() => pageCount(app, url, 'clicks')).toBe(clicks + 1);
+};
+
+// Whether the app drops a key press aimed at the web contents at `url` before
+// it reaches the page, by running the app's own before-input-event handling the
+// way a real key press does. For a page that has never been on screen: input
+// sent to one is not delivered at all, so pressKey's marker click never lands.
+const keyHeld = (app: ElectronApplication, url: string): Promise<boolean> =>
+  app.evaluate(({ webContents }, target) => {
+    const wc = webContents.getAllWebContents().find((w) => w.getURL() === target);
+    if (!wc) throw new Error(`no web contents at ${target}`);
+    let held = false;
+    const event = {
+      preventDefault: () => {
+        held = true;
+      },
+    };
+    wc.emit('before-input-event', event, { type: 'keyDown', key: 'a', code: 'KeyA' });
+    return held;
+  }, url);
+
+// Press Mod+<digit> natively on the web contents at `url` (macOS: Command) and
+// wait until the app's own key handling has seen it. Listeners run in order, so
+// once this one has, the app's handlers registered before it have run too.
+const pressTabDigit = (app: ElectronApplication, url: string, digit: string): Promise<void> =>
+  app.evaluate(
+    ({ webContents }, { url: target, digit: key }) =>
+      new Promise<void>((resolve) => {
+        const wc = webContents.getAllWebContents().find((w) => w.getURL().includes(target));
+        if (!wc) throw new Error(`no web contents at ${target}`);
+        const seen = (_event: Electron.Event, input: Electron.Input): void => {
+          if (input.type !== 'keyDown' || input.key !== key) return;
+          wc.off('before-input-event', seen);
+          resolve();
+        };
+        wc.on('before-input-event', seen);
+        const modifiers: Array<'meta'> = ['meta'];
+        wc.sendInputEvent({ type: 'keyDown', keyCode: key, modifiers });
+        wc.sendInputEvent({ type: 'keyUp', keyCode: key, modifiers });
+      }),
+    { url, digit }
+  );
+
+const activeTabUrl = async (shell: Page): Promise<string | undefined> => {
+  const { tabs, activeId } = await callShell<{
+    tabs: Array<{ id: string; url: string }>;
+    activeId: string | null;
+  }>(shell, 'getTabs');
+  return tabs.find((t) => t.id === activeId)?.url;
 };
 
 // How many focus calls the app has made so far; pass it to focusedSince.
@@ -241,6 +360,375 @@ const callShell = <T>(shell: Page, method: string, ...args: unknown[]): Promise<
     { m: method, a: args }
   ) as Promise<T>;
 
+// How many URLs the app has loaded into a web contents so far; pass it to
+// loadsSince.
+const loadMark = (app: ElectronApplication): Promise<number> =>
+  app.evaluate(() => ((globalThis as Record<string, unknown>).__loads as string[]).length);
+
+const loadsSince = (app: ElectronApplication, mark: number): Promise<string[]> =>
+  app.evaluate(
+    (_electron, from) => ((globalThis as Record<string, unknown>).__loads as string[]).slice(from),
+    mark
+  );
+
+// The same, for pages from `origin` only: not the app's own bundled pages.
+const pimsLoadsSince = async (
+  app: ElectronApplication,
+  mark: number,
+  origin: string
+): Promise<string[]> => (await loadsSince(app, mark)).filter((url) => url.startsWith(origin));
+
+// Run the recorded global shortcuts (all of them, or the one for
+// `accelerator`) as the OS does when the chord is pressed. Returns how many ran.
+const fireShortcuts = (app: ElectronApplication, accelerator?: string): Promise<number> =>
+  app.evaluate((_electron, only) => {
+    const shortcuts = (globalThis as Record<string, unknown>).__shortcuts as Map<
+      string,
+      () => void
+    >;
+    let fired = 0;
+    for (const [chord, callback] of shortcuts) {
+      if (only && chord !== only) continue;
+      callback();
+      fired++;
+    }
+    return fired;
+  }, accelerator);
+
+type WindowState = {
+  id: number;
+  title: string;
+  // The workspace window: the one with the tab bar, tabs and lock views in it.
+  workspace: boolean;
+  visible: boolean;
+  minimized: boolean;
+};
+
+const windowStates = (app: ElectronApplication): Promise<WindowState[]> =>
+  app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows().map((w) => ({
+      id: w.id,
+      title: w.getTitle(),
+      workspace: w.contentView.children.length > 0,
+      visible: w.isVisible(),
+      minimized: w.isMinimized(),
+    }))
+  );
+
+const otherWindows = async (app: ElectronApplication): Promise<WindowState[]> =>
+  (await windowStates(app)).filter((w) => !w.workspace);
+
+// The views in the workspace window, top last, and whether each is shown.
+const workspaceViews = (
+  app: ElectronApplication
+): Promise<Array<{ url: string; visible: boolean }>> =>
+  app.evaluate(({ BrowserWindow }) => {
+    const win = BrowserWindow.getAllWindows().find((w) => w.contentView.children.length > 0);
+    return (win?.contentView.children ?? []).map((v) => ({
+      url: (v as { webContents?: { getURL(): string } }).webContents?.getURL() ?? '',
+      visible: v.getVisible(),
+    }));
+  });
+
+// Run `script` in the page at `url`, as that page would.
+const inPage = (app: ElectronApplication, url: string, script: string): Promise<void> =>
+  app.evaluate(
+    async ({ webContents }, { url: target, script: code }) => {
+      const wc = webContents.getAllWebContents().find((w) => w.getURL() === target);
+      if (!wc) throw new Error(`no web contents at ${target}`);
+      await wc.executeJavaScript(`void (() => { ${code}; })()`, true);
+    },
+    { url, script }
+  );
+
+// Reload the workspace window's own page and wait for it to finish: the load
+// that picks up a deep link which was waiting for the window.
+const reloadWorkspacePage = (app: ElectronApplication): Promise<void> =>
+  app.evaluate(
+    ({ BrowserWindow }) =>
+      new Promise<void>((resolve) => {
+        const win = BrowserWindow.getAllWindows().find((w) => w.contentView.children.length > 0);
+        win!.webContents.once('did-finish-load', () => resolve());
+        win!.webContents.reload();
+      })
+  );
+
+// Open one window of every kind the app has besides the workspace: a pinned
+// reference window, Preferences, the document vault, a patient window, a
+// detached tab, and a popup a PIMS page opens.
+const openOtherWindows = async (
+  app: ElectronApplication,
+  shell: Page,
+  origin: string,
+  tabUrl: string
+): Promise<void> => {
+  await callShell(shell, 'executeCommand', 'pin-current');
+  await clickMenuItem(app, 'Preferences…');
+  await clickMenuItem(app, 'Document Vault Browser…');
+  expect((await callShell<{ ok: boolean }>(shell, 'openPatientWindow', 'p-1', 'Rex')).ok).toBe(
+    true
+  );
+  const tab = await callShell<{ ok: boolean; id: string }>(shell, 'newTab', `${origin}/detached`);
+  expect((await callShell<{ ok: boolean }>(shell, 'detachTab', tab.id)).ok).toBe(true);
+  await inPage(app, tabUrl, `window.open(${JSON.stringify(`${origin}/popup`)})`);
+  await expect.poll(async () => (await otherWindows(app)).length).toBe(6);
+};
+
+// Open two patient pages side by side, one in the active tab and one in the
+// split pane.
+const openSplitView = async (app: ElectronApplication, shell: Page, origin: string) => {
+  const rex = `${origin}/patient-rex`;
+  const bella = `${origin}/patient-bella`;
+  const bellaTab = await callShell<{ ok: boolean; id: string }>(shell, 'newTab', bella);
+  expect((await callShell<{ ok: boolean }>(shell, 'newTab', rex)).ok).toBe(true);
+  expect((await callShell<{ ok: boolean }>(shell, 'setSplitTab', bellaTab.id)).ok).toBe(true);
+  await expect.poll(() => keysReceived(app, bella)).toBe(0);
+  await expect.poll(() => keysReceived(app, rex)).toBe(0);
+  expect(await activeTabUrl(shell)).toBe(rex);
+};
+
+// The ids of every web contents showing a page from `origin`, in any window.
+const pimsContents = (app: ElectronApplication, origin: string): Promise<number[]> =>
+  app.evaluate(
+    ({ webContents }, from) =>
+      webContents
+        .getAllWebContents()
+        .filter((w) => w.getURL().startsWith(from))
+        .map((w) => w.id),
+    origin
+  );
+
+// Which of the web contents `ids` still exist.
+const stillAlive = (app: ElectronApplication, ids: number[]): Promise<number[]> =>
+  app.evaluate(
+    ({ webContents }, all) => all.filter((id) => webContents.fromId(id) !== undefined),
+    ids
+  );
+
+type Uncovered = {
+  // The document the workspace window's own page had committed.
+  page: string;
+  // The web contents of every other view in the window.
+  views: number[];
+};
+
+// From now on, note what the workspace window holds each time the lock page is
+// taken out of it; read with uncovered(). Layout passes take it out and put it
+// back on top too, so the last note is the one the lock coming down left, and
+// the ones before it show what each layout pass on the way saw.
+const recordUncovering = (app: ElectronApplication): Promise<void> =>
+  app.evaluate(({ BrowserWindow }, lockPage) => {
+    const notes: Uncovered[] = [];
+    (globalThis as Record<string, unknown>).__uncovered = notes;
+    const win = BrowserWindow.getAllWindows().find((w) => w.contentView.children.length > 0)!;
+    const surface = win.contentView;
+    const contentsOf = (view: Electron.View) =>
+      (view as unknown as { webContents?: Electron.WebContents }).webContents;
+    const removeChildView = surface.removeChildView.bind(surface);
+    surface.removeChildView = (view) => {
+      if (contentsOf(view)?.getURL().includes(lockPage)) {
+        notes.push({
+          page: win.webContents.mainFrame.url,
+          views: surface.children
+            .filter((child) => child !== view)
+            .map((child) => {
+              const wc = contentsOf(child);
+              return wc && !wc.isDestroyed() ? wc.id : -1;
+            }),
+        });
+      }
+      removeChildView(view);
+    };
+  }, LOCK_PAGE);
+
+const uncovered = (app: ElectronApplication): Promise<Uncovered[]> =>
+  app.evaluate(() => (globalThis as Record<string, unknown>).__uncovered as Uncovered[]);
+
+// Cancel the pending Touch ID prompt, then press the lock page's other button,
+// and wait for the lock page to go.
+const signOutFromLock = async (app: ElectronApplication, lockPage: Page): Promise<void> => {
+  await answerTouchId(app, false);
+  await expect
+    .poll(() => lockPage.evaluate(() => document.getElementById('lockStatus')?.textContent))
+    .toBe('Could not verify. Try again.');
+  await lockPage.click('#usePassword');
+  await expect.poll(() => app.windows().some((p) => p.url().includes(LOCK_PAGE))).toBe(false);
+};
+
+// The window's id with the macOS window server (CGWindowID).
+const windowServerId = (app: ElectronApplication, id: number): Promise<number> =>
+  app.evaluate(
+    ({ BrowserWindow }, which) =>
+      Number(BrowserWindow.fromId(which)!.getMediaSourceId().split(':')[1]),
+    id
+  );
+
+type WindowServerState = { id: number; onScreen: boolean; alpha: number };
+
+// Runs in osascript (JavaScript for Automation): reads the window server's own
+// list of windows (CGWindowListCopyWindowInfo) in a loop, and prints each state
+// the windows `ids` of process `pid` are in, whenever one changes. Needs no
+// permission: bounds, alpha and on-screen are public.
+const WINDOW_SERVER_WATCH = `ObjC.import('CoreGraphics');
+function run(argv) {
+  const pid = Number(argv[0]);
+  const ids = argv[1].split(',').map(Number);
+  const out = $.NSFileHandle.fileHandleWithStandardOutput;
+  const last = {};
+  for (;;) {
+    const list = ObjC.deepUnwrap(ObjC.castRefToObject(
+      $.CGWindowListCopyWindowInfo($.kCGWindowListOptionAll, $.kCGNullWindowID))) || [];
+    for (const w of list) {
+      if (w.kCGWindowOwnerPID !== pid || !ids.includes(w.kCGWindowNumber)) continue;
+      const state = JSON.stringify({
+        id: w.kCGWindowNumber, onScreen: Boolean(w.kCGWindowIsOnscreen), alpha: w.kCGWindowAlpha,
+      });
+      if (last[w.kCGWindowNumber] === state) continue;
+      last[w.kCGWindowNumber] = state;
+      out.writeData($(state + '\\n').dataUsingEncoding($.NSUTF8StringEncoding));
+    }
+    delay(0.005);
+  }
+}`;
+
+// Watch what the window server does with the windows `ids` (window-server ids)
+// until stop(), which returns every state each was in. Resolves once each has
+// been seen at least once.
+const watchWindowServer = async (
+  app: ElectronApplication,
+  ids: number[]
+): Promise<{ stop: () => Promise<WindowServerState[]> }> => {
+  const watcher = spawn('osascript', [
+    '-l',
+    'JavaScript',
+    '-e',
+    WINDOW_SERVER_WATCH,
+    String(app.process().pid),
+    ids.join(','),
+  ]);
+  let out = '';
+  watcher.stdout.on('data', (chunk: Buffer) => (out += chunk.toString()));
+  const states = (): WindowServerState[] =>
+    out
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as WindowServerState);
+  await expect
+    .poll(() => new Set(states().map((s) => s.id)).size, { message: 'window server not read' })
+    .toBe(ids.length);
+  return {
+    stop: async () => {
+      const exited = new Promise((resolve) => watcher.once('exit', resolve));
+      watcher.kill();
+      await exited;
+      return states();
+    },
+  };
+};
+
+// The names of the items in the Dock, read through Accessibility: a minimized
+// window is an item named after the window's title. Null where this process is
+// not allowed to read them.
+const dockItems = (): string[] | null => {
+  try {
+    return execFileSync(
+      'osascript',
+      [
+        '-e',
+        'tell application "System Events" to get the name of every UI element of list 1 of process "Dock"',
+      ],
+      { timeout: 20_000 }
+    )
+      .toString()
+      .trim()
+      .split(', ');
+  } catch {
+    return null;
+  }
+};
+
+// Whether `check` comes true within `ms`.
+const within = async (ms: number, check: () => boolean): Promise<boolean> => {
+  const end = Date.now() + ms;
+  while (!check()) {
+    if (Date.now() > end) return false;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return true;
+};
+
+// Give the window `id` a title of its own, so its Dock item can be told apart.
+const nameWindow = (app: ElectronApplication, id: number, title: string): Promise<void> =>
+  app.evaluate(
+    ({ BrowserWindow }, { which, name }) => {
+      const win = BrowserWindow.fromId(which)!;
+      win.on('page-title-updated', (event) => event.preventDefault());
+      win.setTitle(name);
+    },
+    { which: id, name: title }
+  );
+
+type DockState = { minimized: boolean; visible: boolean; opacity: number };
+
+const dockStates = (app: ElectronApplication, ids: number[]): Promise<DockState[]> =>
+  app.evaluate(
+    ({ BrowserWindow }, which) =>
+      which.map((id) => {
+        const win = BrowserWindow.fromId(id)!;
+        return {
+          minimized: win.isMinimized(),
+          visible: win.isVisible(),
+          opacity: win.getOpacity(),
+        };
+      }),
+    ids
+  );
+
+// Wait up to `timeout` for the app's process (taken while the app was up) to
+// end; whether it did.
+const exited = (proc: ChildProcess, timeout: number): Promise<boolean> => {
+  if (proc.exitCode !== null || proc.signalCode !== null) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(false), timeout);
+    proc.once('exit', () => {
+      clearTimeout(timer);
+      resolve(true);
+    });
+  });
+};
+
+// The session cookies the app holds, as the workspace window's session has them.
+const sessionCookies = (app: ElectronApplication): Promise<string[]> =>
+  app.evaluate(async ({ BrowserWindow }, name) => {
+    const cookies = await BrowserWindow.getAllWindows()[0]!.webContents.session.cookies.get({
+      name,
+    });
+    return cookies.map((c) => `${c.name}=${c.value}`);
+  }, SESSION_COOKIE);
+
+const profileFile = (profileDir: string, name: string): string | null => {
+  try {
+    return fs.readFileSync(path.join(profileDir, name), 'utf8');
+  } catch {
+    return null;
+  }
+};
+
+// The local API writes its bearer token once it is listening.
+const localApiNavigate = async (profileDir: string, url: string): Promise<number> => {
+  const tokenFile = path.join(profileDir, 'local-api-token');
+  await expect.poll(() => fs.existsSync(tokenFile)).toBe(true);
+  const res = await fetch('http://127.0.0.1:18799/api/navigate', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${fs.readFileSync(tokenFile, 'utf8')}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ url }),
+  });
+  return res.status;
+};
+
 test.describe('idle lock', () => {
   let app: ElectronApplication | undefined;
   let server: { origin: string; close: () => void };
@@ -274,18 +762,28 @@ test.describe('idle lock', () => {
       await lockPage.evaluate(() => document.getElementById('lockCard')?.matches(':modal'))
     ).toBe(true);
 
+    // Everything under the lock page is hidden, not just covered.
+    const views = await workspaceViews(app);
+    expect(views.length).toBeGreaterThan(2);
+    expect(views[views.length - 1]).toEqual({
+      url: expect.stringContaining(LOCK_PAGE),
+      visible: true,
+    });
+    expect(views.slice(0, -1).filter((v) => v.visible)).toEqual([]);
+
     // A keystroke aimed at the tab underneath never arrives.
     await pressKey(app, firstTab, 'A');
     expect(await keysReceived(app, firstTab)).toBe(0);
 
-    // A tab opened during the lock is held too, and lands under the overlay.
-    const opened = await callShell<{ ok: boolean }>(shell, 'newTab', `${server.origin}/opened`);
+    // A tab opened during the lock is held too, and is hidden under the overlay
+    // from the start.
+    const openedUrl = `${server.origin}/opened`;
+    const opened = await callShell<{ ok: boolean }>(shell, 'newTab', openedUrl);
     expect(opened.ok).toBe(true);
-    await expect.poll(() => keysReceived(app!, `${server.origin}/opened`)).toBe(0);
-    await waitForPointerInput(app, `${server.origin}/opened`);
-    await pressKey(app, `${server.origin}/opened`, 'A');
-    expect(await keysReceived(app, `${server.origin}/opened`)).toBe(0);
+    await expect.poll(() => keysReceived(app!, openedUrl)).toBe(0);
+    expect(await keyHeld(app, openedUrl)).toBe(true);
     expect(await topmostView(app)).toContain(LOCK_PAGE);
+    expect((await workspaceViews(app)).find((v) => v.url === openedUrl)?.visible).toBe(false);
 
     // So is a tab switched to during the lock.
     const tabs = await callShell<{ tabs: Array<{ id: string; url: string }> }>(shell, 'getTabs');
@@ -342,13 +840,698 @@ test.describe('idle lock', () => {
       await lockPage.evaluate(() => document.getElementById('lockCard')?.hasAttribute('open'))
     ).toBe(true);
 
-    // Unlock: the overlay goes, the active tab has focus and takes keys again.
+    // A lock page whose renderer dies is replaced by a new one, on top and
+    // focused, and the tab is still held. The page is told its renderer is gone
+    // rather than having it killed: once any renderer has really crashed, the
+    // app no longer exits on quit, and the next test's launch is left behind
+    // macOS's "reopen windows?" prompt.
+    const lockPages = () =>
+      app!.evaluate(
+        ({ webContents }, page) =>
+          webContents
+            .getAllWebContents()
+            .filter((w) => w.getURL().includes(page))
+            .map((w) => w.id),
+        LOCK_PAGE
+      );
+    const [crashed] = await lockPages();
+    const beforeCrash = await focusMark(app);
+    await app.evaluate(({ webContents }, id) => {
+      webContents.fromId(id)!.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 });
+    }, crashed!);
+    await expect.poll(lockPages).toEqual([expect.any(Number)]);
+    expect(await lockPages()).not.toEqual([crashed]);
+    expect(await topmostView(app)).toContain(LOCK_PAGE);
+    expect(await focusedSince(app, beforeCrash, LOCK_PAGE)).toBe(true);
+    await pressKey(app, firstTab, 'A');
+    expect(await keysReceived(app, firstTab)).toBe(0);
+
+    // Unlock: the overlay goes, the active tab has focus and takes keys again,
+    // and everything the lock hid is shown again.
     const beforeUnlock = await focusMark(app);
     await unlockWithTouchId(app);
     await expect.poll(() => app!.windows().some((p) => p.url().includes(LOCK_PAGE))).toBe(false);
     expect(await focusedSince(app, beforeUnlock, firstTab)).toBe(true);
     await pressKey(app, firstTab, 'A');
     expect(await keysReceived(app, firstTab)).toBe(1);
+    expect((await workspaceViews(app)).filter((v) => !v.visible)).toEqual([]);
+  });
+
+  test('every other window is hidden while locked, and comes back on unlock', async () => {
+    test.setTimeout(150_000);
+    server = await startPimsServer();
+    const launched = await launchLockableApp(server.origin, profileDir, {
+      startPath: '/dashboard',
+    });
+    app = launched.app;
+    const { shell } = launched;
+    const tabUrl = `${server.origin}/dashboard`;
+    await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
+    await openOtherWindows(app, shell, server.origin, tabUrl);
+    // One of them is minimized to the Dock.
+    const vaultId = (await otherWindows(app)).find((w) => w.title.startsWith('Document Vault'))!.id;
+    await app.evaluate(({ BrowserWindow }, id) => BrowserWindow.fromId(id)!.minimize(), vaultId);
+    await expect
+      .poll(async () => (await otherWindows(app!)).find((w) => w.id === vaultId)?.minimized)
+      .toBe(true);
+    // And one made but not shown yet, as the command palette is until it is ready.
+    const neverShown = await app.evaluate(
+      ({ BrowserWindow }) => new BrowserWindow({ show: false, title: 'not shown yet' }).id
+    );
+
+    await waitForLock(app);
+    const shown = async () => (await otherWindows(app!)).filter((w) => w.visible);
+    expect(await shown()).toEqual([]);
+    // The workspace window stays up, under the lock.
+    expect((await windowStates(app)).find((w) => w.workspace)?.visible).toBe(true);
+    // Nor does restoring the minimized one from the Dock bring it back.
+    await app.evaluate(({ BrowserWindow }, id) => BrowserWindow.fromId(id)!.restore(), vaultId);
+    await expect.poll(shown).toEqual([]);
+    // Nor the app bringing any of them forward, whether or not the window then
+    // tells anyone it is showing (it does not while the display sleeps).
+    await app.evaluate(({ BrowserWindow }, skip) => {
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (win.contentView.children.length > 0 || win.id === skip) continue;
+        win.show();
+        win.showInactive();
+        win.focus();
+        win.restore();
+      }
+    }, neverShown);
+    expect(await shown()).toEqual([]);
+
+    // One opened during the lock is hidden at once, whether the app opens it or
+    // a page does, and so is one first shown during the lock.
+    expect((await callShell<{ ok: boolean }>(shell, 'openPatientWindow', 'p-2', 'Bella')).ok).toBe(
+      true
+    );
+    await inPage(app, tabUrl, `window.open(${JSON.stringify(`${server.origin}/popup-2`)})`);
+    await app.evaluate(({ BrowserWindow }) =>
+      new BrowserWindow({ show: false, title: 'shown during the lock' }).show()
+    );
+    await expect.poll(async () => (await otherWindows(app!)).length).toBe(10);
+    await expect.poll(shown).toEqual([]);
+
+    // Unlock: every window is back as it was, the minimized one minimized and
+    // the one never shown still not shown.
+    await unlockWithTouchId(app);
+    await expect.poll(() => app!.windows().some((p) => p.url().includes(LOCK_PAGE))).toBe(false);
+    await expect
+      .poll(async () =>
+        (await otherWindows(app!)).map((w) => {
+          if (w.id === vaultId) return w.minimized;
+          return w.id === neverShown ? !w.visible : w.visible;
+        })
+      )
+      .toEqual(Array(10).fill(true));
+  });
+
+  test('minimized windows leave the Dock while locked, never seen, and come back on unlock', async () => {
+    test.setTimeout(150_000);
+    server = await startPimsServer();
+    const launched = await launchLockableApp(server.origin, profileDir, {
+      startPath: '/dashboard',
+    });
+    app = launched.app;
+    const { shell } = launched;
+    const tabUrl = `${server.origin}/dashboard`;
+    await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
+    // A pinned window, and the workspace window itself, both minimized to the
+    // Dock, each with a name its Dock item can be found by.
+    await callShell(shell, 'executeCommand', 'pin-current');
+    await expect.poll(async () => (await otherWindows(app!)).length).toBe(1);
+    const pinned = (await otherWindows(app))[0]!.id;
+    const workspace = (await windowStates(app)).find((w) => w.workspace)!.id;
+    const names = ['YC E2E pinned', 'YC E2E workspace'];
+    await nameWindow(app, pinned, names[0]!);
+    await nameWindow(app, workspace, names[1]!);
+    // The workspace window shows itself if it is not on screen 3 seconds after
+    // it opens (a start-up fallback), which would undo the minimize.
+    await new Promise((resolve) => setTimeout(resolve, 3500));
+    await app.evaluate(
+      ({ BrowserWindow }, ids) => {
+        for (const id of ids) BrowserWindow.fromId(id)!.minimize();
+      },
+      [pinned, workspace]
+    );
+    await expect
+      .poll(async () => (await dockStates(app!, [pinned, workspace])).map((w) => w.minimized))
+      .toEqual([true, true]);
+    const docked = () => (dockItems() ?? []).filter((item) => names.includes(item)).sort();
+    // The Dock lists each as an item of its own, unless it cannot be read here
+    // or is set to minimize windows into the app's icon: then that check is off.
+    const dockLists = await within(10_000, () => docked().length === names.length);
+    console.log(`Dock items ${dockLists ? 'checked' : 'not listed here: that check is skipped'}`);
+
+    // Watch the window server from before the lock to after it has settled.
+    const serverIds = [await windowServerId(app, pinned), await windowServerId(app, workspace)];
+    const watch = await watchWindowServer(app, serverIds);
+    await waitForLock(app);
+    // Both leave the Dock: no longer minimized, hidden, and opaque again.
+    await expect
+      .poll(() => dockStates(app!, [pinned, workspace]))
+      .toEqual([
+        { minimized: false, visible: false, opacity: 1 },
+        { minimized: false, visible: false, opacity: 1 },
+      ]);
+    const states = await watch.stop();
+    // The window server never had either on screen and not fully transparent.
+    expect(states.filter((w) => w.onScreen && w.alpha > 0)).toEqual([]);
+    if (dockLists) await expect.poll(docked).toEqual([]);
+
+    // A click on the app's Dock icon brings the workspace window back, and what
+    // it shows is the lock page, focused, over hidden views. The pinned window
+    // stays hidden.
+    const beforeClick = await focusMark(app);
+    await app.evaluate(({ app: electronApp }) => electronApp.emit('activate'));
+    await expect
+      .poll(async () => (await dockStates(app!, [workspace, pinned])).map((w) => w.visible))
+      .toEqual([true, false]);
+    expect(await topmostView(app)).toContain(LOCK_PAGE);
+    expect(await focusedSince(app, beforeClick, LOCK_PAGE)).toBe(true);
+    const views = await workspaceViews(app);
+    expect(views.slice(0, -1).filter((v) => v.visible)).toEqual([]);
+
+    // Unlock: the pinned window goes back to the Dock; the workspace window,
+    // brought back by the click, stays up.
+    await unlockWithTouchId(app);
+    await expect.poll(() => app!.windows().some((p) => p.url().includes(LOCK_PAGE))).toBe(false);
+    await expect
+      .poll(async () => (await dockStates(app!, [pinned, workspace])).map((w) => w.minimized))
+      .toEqual([true, false]);
+    if (dockLists) await expect.poll(docked).toEqual([names[0]]);
+  });
+
+  test('a minimized workspace window goes back to the Dock on unlock, and works once restored', async () => {
+    test.setTimeout(150_000);
+    server = await startPimsServer();
+    const launched = await launchLockableApp(server.origin, profileDir, {
+      startPath: '/dashboard',
+    });
+    app = launched.app;
+    const tabUrl = `${server.origin}/dashboard`;
+    await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
+    const workspace = (await windowStates(app)).find((w) => w.workspace)!.id;
+    // Past the workspace window's start-up fallback (see above).
+    await new Promise((resolve) => setTimeout(resolve, 3500));
+    await app.evaluate(({ BrowserWindow }, id) => BrowserWindow.fromId(id)!.minimize(), workspace);
+    await expect.poll(async () => (await dockStates(app!, [workspace]))[0]!.minimized).toBe(true);
+
+    await waitForLock(app);
+    await expect
+      .poll(() => dockStates(app!, [workspace]))
+      .toEqual([{ minimized: false, visible: false, opacity: 1 }]);
+    // Unlocked with no click on the Dock: back in the Dock, as it was.
+    await unlockWithTouchId(app);
+    await expect.poll(() => app!.windows().some((p) => p.url().includes(LOCK_PAGE))).toBe(false);
+    await expect
+      .poll(() => dockStates(app!, [workspace]))
+      .toEqual([{ minimized: true, visible: false, opacity: 1 }]);
+    // Restored, it shows the tab and the tab takes input.
+    await app.evaluate(({ BrowserWindow }, id) => BrowserWindow.fromId(id)!.restore(), workspace);
+    await expect.poll(async () => (await dockStates(app!, [workspace]))[0]!.visible).toBe(true);
+    expect((await workspaceViews(app)).map((v) => v.visible)).toEqual([true, true]);
+    await waitForPointerInput(app, tabUrl);
+    await pressKey(app, tabUrl, 'A');
+    expect(await keysReceived(app, tabUrl)).toBe(1);
+  });
+
+  test('DevTools are closed when the lock engages, and cannot be opened until unlock', async () => {
+    test.setTimeout(120_000);
+    server = await startPimsServer();
+    const launched = await launchLockableApp(server.origin, profileDir, {
+      startPath: '/dashboard',
+    });
+    app = launched.app;
+    const tabUrl = `${server.origin}/dashboard`;
+    await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
+    // DevTools in a window of their own (not a BrowserWindow), as "Undock"
+    // leaves them. They open asynchronously, so every 'devtools-opened' and
+    // 'devtools-closed' the tab reports is recorded.
+    await app.evaluate(({ webContents }, url) => {
+      const tab = webContents.getAllWebContents().find((w) => w.getURL() === url)!;
+      const events: string[] = [];
+      (globalThis as Record<string, unknown>).__devtools = events;
+      tab.on('devtools-opened', () => events.push('opened'));
+      tab.on('devtools-closed', () => events.push('closed'));
+    }, tabUrl);
+    const openDevTools = () =>
+      app!.evaluate(({ webContents }, url) => {
+        webContents
+          .getAllWebContents()
+          .find((w) => w.getURL() === url)!
+          .openDevTools({ mode: 'detach' });
+      }, tabUrl);
+    const devtools = () =>
+      app!.evaluate(({ webContents }, url) => {
+        const events = (globalThis as Record<string, unknown>).__devtools as string[];
+        return {
+          open: webContents
+            .getAllWebContents()
+            .find((w) => w.getURL() === url)!
+            .isDevToolsOpened(),
+          opened: events.filter((e) => e === 'opened').length,
+          closed: events.filter((e) => e === 'closed').length,
+        };
+      }, tabUrl);
+    await openDevTools();
+    await expect.poll(devtools).toEqual({ open: true, opened: 1, closed: 0 });
+
+    await waitForLock(app);
+    await expect.poll(devtools).toEqual({ open: false, opened: 1, closed: 1 });
+    // Opened while locked, they close again as soon as they have opened.
+    await openDevTools();
+    await expect.poll(devtools).toEqual({ open: false, opened: 2, closed: 2 });
+
+    // Nor does unlock bring them back.
+    await unlockWithTouchId(app);
+    await expect.poll(() => app!.windows().some((p) => p.url().includes(LOCK_PAGE))).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect(await devtools()).toEqual({ open: false, opened: 2, closed: 2 });
+  });
+
+  // Cmd+Q (the menu item it is the shortcut of), and SIGTERM, which Electron
+  // turns into a quit.
+  const QUIT_ROUTES = [
+    ['Cmd+Q', (a: ElectronApplication) => clickMenuItem(a, 'Quit Yosemite Crew PIMS')],
+    ['SIGTERM', async (a: ElectronApplication) => void a.process().kill('SIGTERM')],
+  ] as const;
+  for (const [route, quit] of QUIT_ROUTES) {
+    test(`quitting while locked (${route}) signs out: the next launch opens on the welcome screen`, async () => {
+      test.setTimeout(150_000);
+      server = await startPimsServer();
+      const launched = await launchLockableApp(server.origin, profileDir, {
+        startPath: '/dashboard',
+      });
+      app = launched.app;
+      const tabUrl = `${server.origin}/dashboard`;
+      await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
+      // Signed in: the session cookie is kept, on disk too, and so is the tab.
+      expect(await sessionCookies(app)).toEqual([`${SESSION_COOKIE}=signed-in`]);
+      await app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]!.webContents.session.cookies.flushStore()
+      );
+      expect(JSON.parse(profileFile(profileDir, 'auth-hint.json')!)).toEqual({ signedIn: true });
+
+      await waitForLock(app);
+      expect(profileFile(profileDir, 'idle-locked')).not.toBeNull();
+      const proc = app.process();
+      await quit(app).catch(() => undefined);
+      // Signed out on the way out, and the lock marker gone with it: the sign-out
+      // finished, and then the quit went ahead.
+      await expect.poll(() => profileFile(profileDir, QUIT_WENT_AHEAD)).not.toBeNull();
+      expect(profileFile(profileDir, 'idle-locked')).toBeNull();
+      expect(JSON.parse(profileFile(profileDir, 'auth-hint.json')!)).toEqual({ signedIn: false });
+      expect(profileFile(profileDir, 'tab-session.json')).not.toContain('/dashboard');
+      expect(await exited(proc, 30_000)).toBe(true);
+
+      // The next launch opens on the welcome screen, with no session and no tab.
+      const relaunched = await launchLockableApp(server.origin, profileDir, { signIn: false });
+      app = relaunched.app;
+      await relaunched.shell.waitForLoadState('load');
+      expect(relaunched.shell.url()).toMatch(/welcome\.html$/);
+      expect(await sessionCookies(app)).toEqual([]);
+      expect(await pimsContents(app, server.origin)).toEqual([]);
+    });
+  }
+
+  test('a sign-out that does not finish does not keep the app from quitting', async () => {
+    test.setTimeout(150_000);
+    server = await startPimsServer();
+    const launched = await launchLockableApp(server.origin, profileDir, {
+      startPath: '/dashboard',
+    });
+    app = launched.app;
+    const tabUrl = `${server.origin}/dashboard`;
+    await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0]!.webContents.session.cookies.flushStore()
+    );
+    await waitForLock(app);
+    // Clearing the session never settles.
+    await app.evaluate(({ BrowserWindow }) => {
+      const proto = Object.getPrototypeOf(BrowserWindow.getAllWindows()[0]!.webContents.session);
+      proto.clearStorageData = () => new Promise(() => undefined);
+    });
+    const proc = app.process();
+    const quitAt = Date.now();
+    await clickMenuItem(app, 'Quit Yosemite Crew PIMS').catch(() => undefined);
+    // The quit goes ahead all the same, a few seconds later, and leaves the lock
+    // marker for the next launch.
+    await expect
+      .poll(() => profileFile(profileDir, QUIT_WENT_AHEAD), { timeout: 15_000 })
+      .not.toBeNull();
+    expect(Date.now() - quitAt).toBeGreaterThan(2_000);
+    expect(profileFile(profileDir, 'idle-locked')).not.toBeNull();
+    expect(await exited(proc, 30_000)).toBe(true);
+
+    // Which signs out before anything opens.
+    const relaunched = await launchLockableApp(server.origin, profileDir, { signIn: false });
+    app = relaunched.app;
+    await relaunched.shell.waitForLoadState('load');
+    expect(relaunched.shell.url()).toMatch(/welcome\.html$/);
+    expect(await sessionCookies(app)).toEqual([]);
+    expect(profileFile(profileDir, 'idle-locked')).toBeNull();
+  });
+
+  test('a lock the app never quit from is a sign-out on the next launch', async () => {
+    test.setTimeout(150_000);
+    server = await startPimsServer();
+    const launched = await launchLockableApp(server.origin, profileDir, {
+      startPath: '/dashboard',
+    });
+    app = launched.app;
+    const tabUrl = `${server.origin}/dashboard`;
+    await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0]!.webContents.session.cookies.flushStore()
+    );
+    await waitForLock(app);
+    const proc = app.process();
+    // Killed with the lock up: nothing of the app runs after this.
+    proc.kill('SIGKILL');
+    expect(await exited(proc, 30_000)).toBe(true);
+    expect(JSON.parse(profileFile(profileDir, 'auth-hint.json')!)).toEqual({ signedIn: true });
+    expect(profileFile(profileDir, 'tab-session.json')).toContain('/dashboard');
+
+    const relaunched = await launchLockableApp(server.origin, profileDir, { signIn: false });
+    app = relaunched.app;
+    await relaunched.shell.waitForLoadState('load');
+    expect(relaunched.shell.url()).toMatch(/welcome\.html$/);
+    expect(await sessionCookies(app)).toEqual([]);
+    expect(await pimsContents(app, server.origin)).toEqual([]);
+    expect(JSON.parse(profileFile(profileDir, 'auth-hint.json')!)).toEqual({ signedIn: false });
+    expect(profileFile(profileDir, 'tab-session.json') ?? '').not.toContain('/dashboard');
+    expect(profileFile(profileDir, 'idle-locked')).toBeNull();
+  });
+
+  test('shortcuts and deep links do not reach the workspace while locked', async () => {
+    test.setTimeout(120_000);
+    server = await startPimsServer();
+    const launched = await launchLockableApp(server.origin, profileDir, {
+      startPath: '/dashboard',
+      env: { YC_DESKTOP_LOCAL_API: '1' },
+    });
+    app = launched.app;
+    const { shell } = launched;
+    const tabUrl = `${server.origin}/dashboard`;
+    const secondUrl = `${server.origin}/second`;
+    await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
+    // A second tab, so Mod+2 has somewhere to go; the first is active again.
+    const second = await callShell<{ ok: boolean }>(shell, 'newTab', secondUrl);
+    expect(second.ok).toBe(true);
+    await expect.poll(() => keysReceived(app!, secondUrl)).toBe(0);
+    const { tabs } = await callShell<{ tabs: Array<{ id: string; url: string }> }>(
+      shell,
+      'getTabs'
+    );
+    const first = tabs.find((t) => t.url === tabUrl)!;
+    expect((await callShell<{ ok: boolean }>(shell, 'activateTab', first.id)).ok).toBe(true);
+    // The global shortcuts are taken while one of the app's windows has focus.
+    // A test-launched app never gets focus, so hand it the event it would get.
+    await app.evaluate(({ app: electronApp, BrowserWindow }) => {
+      const win = BrowserWindow.getAllWindows().find((w) => w.contentView.children.length > 0);
+      electronApp.emit('browser-window-focus', {}, win);
+    });
+
+    await waitForLock(app);
+    const windows = () =>
+      app!.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length);
+    const windowsBefore = await windows();
+    const tabsBefore = await tabCount(shell);
+    const mark = await loadMark(app);
+
+    // Every global shortcut, run as the OS runs it on its chord: no palette,
+    // no tab, no navigation - not even one saved for after unlock.
+    expect(await fireShortcuts(app)).toBe(SHORTCUTS.length);
+    expect(await windows()).toBe(windowsBefore);
+    expect(await tabCount(shell)).toBe(tabsBefore);
+    expect(await loadsSince(app, mark)).toEqual([]);
+
+    // Nor does Mod+2, which the lock page (focused, and exempt from the key
+    // hold) receives like any other key.
+    await pressTabDigit(app, LOCK_PAGE, '2');
+    expect(await activeTabUrl(shell)).toBe(tabUrl);
+
+    // Deep links wait: a macOS open-url, a second launch (how a Windows Jump
+    // List task arrives), the local API, and a telehealth call started from a
+    // page.
+    await app.evaluate(({ app: electronApp }) => {
+      electronApp.emit(
+        'open-url',
+        { preventDefault: () => undefined },
+        'yosemitecrew://appointments/new'
+      );
+      electronApp.emit('second-instance', {}, ['electron', 'yosemitecrew://finance'], '/');
+    });
+    expect(await localApiNavigate(profileDir, 'yosemitecrew://chat')).toBe(200);
+    const telehealth = await callShell<{ ok: boolean; href: string }>(shell, 'startTelehealth', {
+      appointmentId: 'appt-1',
+    });
+    expect(telehealth.ok).toBe(true);
+    // So does one the window's own page picks up when it finishes loading.
+    await reloadWorkspacePage(app);
+    expect(await loadsSince(app, mark)).toEqual([]);
+    await pressKey(app, tabUrl, 'A');
+    expect(await keysReceived(app, tabUrl)).toBe(0);
+
+    // Unlock: the latest link opens, and nothing else.
+    await unlockWithTouchId(app);
+    await expect.poll(() => app!.windows().some((p) => p.url().includes(LOCK_PAGE))).toBe(false);
+    await expect.poll(() => loadsSince(app!, mark)).toEqual([telehealth.href]);
+
+    // The shortcuts work again, Mod+2 included.
+    const appointments = SHORTCUTS.find((s) => s.id === 'appointments')!.accelerator;
+    expect(await fireShortcuts(app, appointments)).toBe(1);
+    expect(await loadsSince(app, mark)).toEqual([telehealth.href, `${server.origin}/appointments`]);
+    await expect.poll(() => keysReceived(app!, `${server.origin}/appointments`)).toBe(0);
+    await pressTabDigit(app, `${server.origin}/appointments`, '2');
+    expect(await activeTabUrl(shell)).toBe(secondUrl);
+  });
+
+  test('a lock that ends in sign-out leaves nothing of the old session behind', async () => {
+    test.setTimeout(150_000);
+    server = await startPimsServer();
+    const launched = await launchLockableApp(server.origin, profileDir, {
+      startPath: '/dashboard',
+    });
+    app = launched.app;
+    const { shell } = launched;
+    const tabUrl = `${server.origin}/dashboard`;
+    await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
+    await openOtherWindows(app, shell, server.origin, tabUrl);
+    await openSplitView(app, shell, server.origin);
+
+    const lockPage = await waitForLock(app);
+    expect((await callShell<{ ok: boolean }>(shell, 'openPatientWindow', 'p-2', 'Bella')).ok).toBe(
+      true
+    );
+    const mark = await loadMark(app);
+    await app.evaluate(({ app: electronApp }) => {
+      electronApp.emit(
+        'open-url',
+        { preventDefault: () => undefined },
+        'yosemitecrew://appointments/new'
+      );
+    });
+    // Every page of the session: three tabs (one in the split pane), a pinned
+    // page, two patient windows, a detached tab and a popup.
+    await expect.poll(async () => (await pimsContents(app!, server.origin)).length).toBe(8);
+    const oldPages = await pimsContents(app, server.origin);
+
+    await recordUncovering(app);
+    await signOutFromLock(app, lockPage);
+
+    // When the lock came down, the window held only views made after the
+    // sign-out, over the welcome page; nor was an old one left in it at any
+    // layout pass on the way.
+    const notes = await uncovered(app);
+    expect(notes[notes.length - 1]).toEqual({
+      page: expect.stringMatching(/welcome\.html$/),
+      views: [expect.any(Number), expect.any(Number)],
+    });
+    expect(notes.flatMap((n) => n.views).filter((id) => oldPages.includes(id))).toEqual([]);
+    // Every window but the workspace is closed, and every old page is gone.
+    expect(await windowStates(app)).toEqual([expect.objectContaining({ workspace: true })]);
+    await expect.poll(() => stillAlive(app!, oldPages)).toEqual([]);
+    // One tab, on the start URL, with nothing to reopen and no split pane.
+    const tabs = await callShell<{ tabs: Array<{ url: string }>; closedStack: unknown[] }>(
+      shell,
+      'getTabs'
+    );
+    expect(tabs.tabs.map((t) => t.url)).toEqual([tabUrl]);
+    expect(tabs.closedStack).toEqual([]);
+    await expect
+      .poll(async () => (await workspaceViews(app!)).map((v) => v.visible))
+      .toEqual([true, true]);
+    // Nor are the old tabs saved for the next launch.
+    const saved = fs.readFileSync(path.join(profileDir, 'tab-session.json'), 'utf8');
+    expect(saved).not.toContain('patient-');
+    // The sign-out's own loads, and not the link: nor does the link turn up on
+    // the next load that would have picked it up.
+    await reloadWorkspacePage(app);
+    expect(await pimsLoadsSince(app, mark, server.origin)).toEqual([tabUrl]);
+  });
+
+  test('a sign-out from the lock replaces a page open outside the tabs first', async () => {
+    test.setTimeout(120_000);
+    server = await startPimsServer();
+    const launched = await launchLockableApp(server.origin, profileDir, { signIn: false });
+    app = launched.app;
+    // On the welcome screen, a deep link opens its page in the window itself.
+    const record = `${server.origin}/patients/rex`;
+    await app.evaluate(({ app: electronApp }) => {
+      electronApp.emit(
+        'open-url',
+        { preventDefault: () => undefined },
+        'yosemitecrew://patients/rex'
+      );
+    });
+    await expect.poll(() => keysReceived(app!, record)).toBe(0);
+
+    const lockPage = await waitForLock(app);
+    await recordUncovering(app);
+    await signOutFromLock(app, lockPage);
+    const notes = await uncovered(app);
+    expect(notes[notes.length - 1]).toEqual({
+      page: expect.stringMatching(/welcome\.html$/),
+      views: [expect.any(Number), expect.any(Number)],
+    });
+    expect(await pimsContents(app, record)).toEqual([]);
+  });
+
+  test('without the lock screen, the idle sign-out leaves nothing of the old session', async () => {
+    test.setTimeout(120_000);
+    server = await startPimsServer();
+    const launched = await launchLockableApp(server.origin, profileDir, {
+      startPath: '/dashboard',
+      biometric: false,
+    });
+    app = launched.app;
+    const { shell } = launched;
+    const tabUrl = `${server.origin}/dashboard`;
+    await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
+    await openOtherWindows(app, shell, server.origin, tabUrl);
+    await openSplitView(app, shell, server.origin);
+    await expect.poll(async () => (await pimsContents(app!, server.origin)).length).toBe(7);
+    const oldPages = await pimsContents(app, server.origin);
+    const mark = await loadMark(app);
+
+    await goIdle(app);
+    await expect
+      .poll(() => pimsLoadsSince(app!, mark, server.origin), {
+        timeout: 45_000,
+        message: 'the idle sign-out never ran',
+      })
+      .toEqual([tabUrl]);
+    expect(await windowStates(app)).toEqual([expect.objectContaining({ workspace: true })]);
+    await expect.poll(() => stillAlive(app!, oldPages)).toEqual([]);
+    // The shell page is the window's own page, which the sign-out reloads: the
+    // poll rides out that reload.
+    await expect
+      .poll(async () => {
+        const { tabs } = await callShell<{ tabs: Array<{ url: string }> }>(shell, 'getTabs');
+        return tabs.map((t) => t.url);
+      })
+      .toEqual([tabUrl]);
+  });
+
+  test('a lock that engages with no window open covers the window reopened from the Dock', async () => {
+    test.setTimeout(150_000);
+    server = await startPimsServer();
+    const launched = await launchLockableApp(server.origin, profileDir, {
+      startPath: '/dashboard',
+    });
+    app = launched.app;
+    const { shell } = launched;
+    const tabUrl = `${server.origin}/dashboard`;
+    await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
+    // A pinned window stays open, so the app has a window - one the lock hides.
+    // It pins a page of its own, so the tab is the only web contents at tabUrl.
+    const pinnedUrl = `${server.origin}/pinned`;
+    const toPin = await callShell<{ ok: boolean; id: string }>(shell, 'newTab', pinnedUrl);
+    await expect.poll(() => keysReceived(app!, pinnedUrl)).toBe(0);
+    await callShell(shell, 'executeCommand', 'pin-current');
+    await expect.poll(async () => (await otherWindows(app!)).length).toBe(1);
+    expect((await callShell<{ ok: boolean }>(shell, 'closeTab', toPin.id)).ok).toBe(true);
+
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((w) => w.contentView.children.length > 0)
+        ?.close()
+    );
+    await expect.poll(async () => (await windowStates(app!)).length).toBe(1);
+    // With no window to put it in, the lock shows as its Touch ID prompt.
+    await goIdle(app);
+    await expect
+      .poll(
+        () => app!.evaluate(() => ((globalThis as Record<string, unknown>).__touch as []).length),
+        {
+          timeout: 45_000,
+          message: 'the idle lock never engaged',
+        }
+      )
+      .toBe(1);
+    expect((await otherWindows(app))[0]).toEqual(
+      expect.objectContaining({ visible: false, minimized: false })
+    );
+
+    // Clicking the Dock icon reopens the workspace window, under the lock.
+    const beforeReopen = await focusMark(app);
+    await app.evaluate(({ app: electronApp }) => electronApp.emit('activate'));
+    await expect
+      .poll(() => topmostView(app!), { message: 'the reopened window is not under the lock' })
+      .toContain(LOCK_PAGE);
+    expect(await focusedSince(app, beforeReopen, LOCK_PAGE)).toBe(true);
+    await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
+    // This tab was first attached under the lock, so it has never been painted
+    // and takes no pointer input for pressKey's marker: check the hold itself.
+    expect(await keyHeld(app, tabUrl)).toBe(true);
+    await expect
+      .poll(async () => (await workspaceViews(app!)).map((v) => v.visible))
+      .toEqual([false, false, true]);
+
+    await unlockWithTouchId(app);
+    await expect.poll(() => app!.windows().some((p) => p.url().includes(LOCK_PAGE))).toBe(false);
+    await expect.poll(async () => (await otherWindows(app!))[0]?.visible).toBe(true);
+    await waitForPointerInput(app, tabUrl);
+    await pressKey(app, tabUrl, 'A');
+    expect(await keysReceived(app, tabUrl)).toBe(1);
+  });
+
+  test('a sign-out leaves nothing behind of a workspace window closed during the lock', async () => {
+    test.setTimeout(150_000);
+    server = await startPimsServer();
+    const launched = await launchLockableApp(server.origin, profileDir, {
+      startPath: '/dashboard',
+    });
+    app = launched.app;
+    const { shell } = launched;
+    const tabUrl = `${server.origin}/dashboard`;
+    const rex = `${server.origin}/patient-rex`;
+    await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
+    expect((await callShell<{ ok: boolean }>(shell, 'newTab', rex)).ok).toBe(true);
+    await expect.poll(() => keysReceived(app!, rex)).toBe(0);
+    const oldPages = await pimsContents(app, server.origin);
+    expect(oldPages).toHaveLength(2);
+
+    // The workspace window is closed under the lock, and reopened from the Dock.
+    const lockPage = await waitForLock(app);
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.close());
+    await expect
+      .poll(() => app!.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length))
+      .toBe(0);
+    await app.evaluate(({ app: electronApp }) => electronApp.emit('activate'));
+    await expect.poll(() => topmostView(app!)).toContain(LOCK_PAGE);
+
+    // The closed window's tabs went with it, and the sign-out leaves no old page.
+    await expect.poll(() => stillAlive(app!, oldPages)).toEqual([]);
+    await signOutFromLock(app, lockPage);
+    await expect
+      .poll(async () =>
+        (await pimsContents(app!, server.origin)).filter((id) => oldPages.includes(id))
+      )
+      .toEqual([]);
   });
 
   // Signed in, the reopened window rebuilds the tabs; signed out (the tab is on
@@ -360,7 +1543,7 @@ test.describe('idle lock', () => {
     test(`a window reopened while locked is covered by the lock (${session})`, async () => {
       test.setTimeout(120_000);
       server = await startPimsServer();
-      const launched = await launchLockableApp(server.origin, profileDir, startPath);
+      const launched = await launchLockableApp(server.origin, profileDir, { startPath });
       app = launched.app;
 
       await waitForLock(app);

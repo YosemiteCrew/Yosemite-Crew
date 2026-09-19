@@ -27,6 +27,9 @@ import {
 } from './window-config';
 import { desktopLocalPage, desktopPreloadPath, desktopResourcePath } from './paths';
 
+// The open tabs, saved for the next launch (in userData).
+export const TAB_SESSION_FILE = 'tab-session.json';
+
 export interface CreateMainWindowDeps {
   config: DesktopConfig;
   logger: DesktopLogger;
@@ -136,7 +139,7 @@ export const createMainWindow = async (
   deps.configureOfflineServe(ses);
   manageWindow(mainWindow as unknown as Parameters<typeof manageWindow>[0], deps.windowStateStore);
 
-  const sp = path.join(app.getPath('userData'), 'tab-session.json');
+  const sp = path.join(app.getPath('userData'), TAB_SESSION_FILE);
   let tabManager = createTabManager();
   const loadSession = (): void => {
     try {
@@ -248,6 +251,10 @@ export const createMainWindow = async (
   }
 
   const mw = mainWindow;
+  // A tab view outlives the window it was in. Closing the window (macOS keeps
+  // the app running) takes its tabs with it; a reopened window builds new ones
+  // from the saved tabs.
+  mw.on('closed', () => tabViewHost.destroyAll());
   mw.on('resize', () => {
     if (mw.isDestroyed()) return;
     deps.layoutTabChrome();

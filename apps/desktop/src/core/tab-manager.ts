@@ -29,6 +29,8 @@ export interface TabManager {
   pin(id: string, pinned: boolean): boolean;
   duplicate(id: string): string | null;
   reopenClosed(): string | null;
+  // Forget every tab, open or recently closed, e.g. on sign-out.
+  clear(): void;
   updateMeta(
     id: string,
     meta: Partial<
@@ -194,6 +196,12 @@ export const createTabManager = (initial?: TabSummary[]): TabManager => {
       tabs.push(restored);
       activeId = restored.id;
       return restored.id;
+    },
+
+    clear(): void {
+      tabs = [];
+      activeId = null;
+      closedStack.length = 0;
     },
 
     updateMeta(

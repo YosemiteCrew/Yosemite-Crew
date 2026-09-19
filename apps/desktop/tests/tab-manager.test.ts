@@ -216,6 +216,21 @@ describe('TabManager', () => {
     });
   });
 
+  describe('clear', () => {
+    it('forgets open and recently closed tabs, and persists none', () => {
+      const closed = tm.create('https://example.com/patient-rex');
+      tm.create('https://example.com/patient-bella');
+      tm.close(closed);
+      tm.clear();
+      expect(tm.getState()).toEqual({ tabs: [], activeId: null, closedStack: [] });
+      expect(tm.reopenClosed()).toBeNull();
+      expect(JSON.parse(tm.persist())).toEqual({ tabs: [], activeId: null });
+      // And it keeps working afterwards.
+      const id = tm.create('https://example.com/signin');
+      expect(tm.getState().activeId).toBe(id);
+    });
+  });
+
   describe('updateMeta', () => {
     it('updates tab metadata', () => {
       const id = tm.create('https://example.com');

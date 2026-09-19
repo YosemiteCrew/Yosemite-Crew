@@ -10,8 +10,16 @@ type Item = {
 let lastTemplate: Item[] = [];
 
 const quit = jest.fn();
+let mockPackaged = false;
 jest.mock('electron', () => ({
-  app: { name: 'Yosemite Crew PIMS', getLocale: () => 'en', quit: () => quit() },
+  app: {
+    name: 'Yosemite Crew PIMS',
+    getLocale: () => 'en',
+    quit: () => quit(),
+    get isPackaged() {
+      return mockPackaged;
+    },
+  },
   Menu: {
     buildFromTemplate: (tpl: Item[]) => {
       lastTemplate = tpl;
@@ -106,6 +114,9 @@ const makeActions = (overrides: Partial<MenuActions> = {}): MenuActions => {
 describe('createAppMenu', () => {
   const original = process.platform;
   afterAll(() => Object.defineProperty(process, 'platform', { value: original }));
+  afterEach(() => {
+    mockPackaged = false;
+  });
 
   const run = (platform: string, overrides: Partial<MenuActions> = {}) => {
     Object.defineProperty(process, 'platform', { value: platform });
@@ -198,6 +209,34 @@ describe('createAppMenu', () => {
     quit.mockClear();
     item?.click?.();
     expect(quit).toHaveBeenCalledTimes(1);
+  });
+
+  const DEVTOOLS_KEYS = ['Alt+Cmd+I', 'Ctrl+Shift+I'];
+  const devtoolsItems = () =>
+    collect().filter(
+      (i) =>
+        /developer tools/i.test(i.label ?? '') ||
+        DEVTOOLS_KEYS.includes(i.accelerator ?? '') ||
+        /devtools/i.test(i.role ?? '')
+    );
+
+  test.each(['darwin', 'win32'])('a development build has Toggle Developer Tools (%s)', (os) => {
+    const actions = run(os);
+    const [item, ...more] = devtoolsItems();
+    expect(more).toEqual([]);
+    expect(item?.accelerator).toBe(os === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I');
+    item?.click?.();
+    expect(
+      (actions.activeContents() as unknown as { toggleDevTools: jest.Mock }).toggleDevTools
+    ).toHaveBeenCalledTimes(1);
+  });
+
+  test.each(['darwin', 'win32'])('a packaged build has no DevTools item or shortcut (%s)', (os) => {
+    mockPackaged = true;
+    run(os);
+    expect(devtoolsItems()).toEqual([]);
+    // The rest of the View menu is still there.
+    expect(collect().some((i) => i.label === 'Toggle Vertical Tabs')).toBe(true);
   });
 
   test('Cmd+Q is declared once on macOS and never on Windows/Linux', () => {
