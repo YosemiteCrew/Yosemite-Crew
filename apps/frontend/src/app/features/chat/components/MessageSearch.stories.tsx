@@ -213,7 +213,8 @@ export const Open: Story = {
     await expect(getComputedStyle(backdrop).zIndex).toBe('10');
     await expect(getComputedStyle(panel).zIndex).toBe('20');
 
-    // `autoFocus` means the caret is already in the field - no second click.
+    // Opening puts the caret in the field - no second click. Focused from an
+    // effect rather than `autoFocus`, which is why this is polled.
     await waitFor(() => {
       expect(document.activeElement).toBe(field);
     });
