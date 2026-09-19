@@ -96,6 +96,31 @@ jobs:
       - name: Test the CI and security scripts
         run: pnpm run test:scripts
 
+      # react-native's renderer compares React.version against a literal baked
+      # into its bundle and throws at startup when they differ, so a PATCH bump
+      # of react terminates the release app before its first screen. Nothing
+      # else sees it: the peer range is satisfied, jest never mounts through the
+      # native renderer, and the release workflow builds and uploads without
+      # launching.
+      #
+      # .github/dependabot.yml holds react for that reason, but an ignore entry
+      # is a version-update rule only - every block there sets target-branch,
+      # which carves security updates out of the block as a unit - so an
+      # advisory can still open the bump, and a hand-written change was never
+      # covered at all (#3345). This check does not care how the bump arrives.
+      #
+      # Here rather than in the mobile matrix leg for the same reason as the
+      # colour gate below: the matrix only runs for workspaces the diff touched,
+      # and this job is the one every event reaches. It needs no extra setup -
+      # the install above already populates apps/mobileAppYC/node_modules, which
+      # is where both the renderer bundle and the resolved react version live.
+      #
+      # Exit 2 means the check could not run - a missing bundle, or a guard it
+      # can no longer locate unambiguously - and fails the job for the same
+      # reason exit 1 does. Both paths annotate with ::error:: themselves.
+      - name: Check react against the version react-native's renderer expects
+        run: node scripts/mobile/check-react-renderer-pin.mjs
+
       # Here rather than in the frontend matrix job on purpose: the matrix only
       # runs for workspaces the diff touched, and a colour literal arrives in
       # exactly the change that looks too small to be a frontend change. This
