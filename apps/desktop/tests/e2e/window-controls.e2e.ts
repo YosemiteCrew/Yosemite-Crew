@@ -151,6 +151,10 @@ test.describe('window controls', () => {
   });
 
   test('dragging a maximised window restores it under the pointer', async () => {
+    test.skip(
+      process.platform === 'darwin',
+      'macOS uses native title bar; self-drawn caption/drag not shown'
+    );
     const tabBar = tabBarPage(app);
     const spacer = tabBar.locator('.drag-spacer');
     const box = await spacer.boundingBox();
