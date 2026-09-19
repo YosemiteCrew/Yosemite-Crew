@@ -30,3 +30,14 @@ CREATE INDEX "SuperadminContactForward_deliveredAt_failedAt_nextAttemptAt_idx" O
 
 -- AddForeignKey
 ALTER TABLE "SuperadminContactForward" ADD CONSTRAINT "SuperadminContactForward_contactRequestId_fkey" FOREIGN KEY ("contactRequestId") REFERENCES "ContactRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- deployed-code-survives: "SuperadminContactForward" is created a few lines
+--   above in this same migration, so no deployed query names the table and the
+--   enable takes rows away from no existing reader. Its only readers and
+--   writers are the nested create and the drain job shipping in this same PR,
+--   which connect as the owning role and bypass RLS, matching every other
+--   ENABLE ROW LEVEL SECURITY in this migration set.
+-- Deny direct Supabase PostgREST access; the API connects as the owning role.
+-- This table keys rows by ContactRequest.id, so leaving it readable would leak
+-- the id of every public contact submission to the anon key.
+ALTER TABLE "SuperadminContactForward" ENABLE ROW LEVEL SECURITY;
