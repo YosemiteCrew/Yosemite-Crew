@@ -540,12 +540,17 @@ const newTab = (url?: string): void => {
 
 // Closing the last remaining tab leaves tab mode entirely and returns to the
 // welcome (sign-in) screen, instead of stranding the user on the hidden loading
-// page beneath an empty tab bar.
-const exitTabMode = (): void => {
-  if (tabChromeView) {
-    if (mainWindow && !mainWindow.isDestroyed() && !tabChromeView.webContents.isDestroyed()) {
-      mainWindow.contentView.removeChildView(tabChromeView);
+// page beneath an empty tab bar. Every view but the lock page comes out of the
+// window: the tab bar and whatever tab views are still in it, a split pane
+// included. Resolves once the welcome page has loaded.
+const exitTabMode = (): Promise<void> => {
+  const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
+  if (win) {
+    for (const child of win.contentView.children) {
+      if (child !== lockOverlayView) win.contentView.removeChildView(child);
     }
+  }
+  if (tabChromeView) {
     if (!tabChromeView.webContents.isDestroyed()) tabChromeView.webContents.close();
     tabChromeView = null;
   }
@@ -555,11 +560,23 @@ const exitTabMode = (): void => {
   splitId = null;
   mountedSplitId = null;
   saveSession();
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    void mainWindow.webContents
-      .loadFile(localPage('welcome'))
-      .catch((error) => logger.warn('welcome_reload_failed', { error }));
-  }
+  if (!win) return Promise.resolve();
+  return win.webContents
+    .loadFile(localPage('welcome'))
+    .catch((error) => logger.warn('welcome_reload_failed', { error }));
+};
+
+// A sign-out starts the workspace over. The tab views (the split pane among
+// them), the tab bar and the saved tabs go with the old session, the window's
+// own page goes back to the welcome page, and one new tab opens the start URL.
+// None of the new views has painted anything yet, so there is no old page left
+// for the window to show while the start URL loads. Resolves once the welcome
+// page has replaced whatever the window's own page was showing.
+const restartWorkspace = (): Promise<void> => {
+  tabManager?.clear();
+  const welcome = exitTabMode();
+  enterTabMode(config.startUrl.href);
+  return welcome;
 };
 
 const closeActiveTab = (): void => {
@@ -590,7 +607,7 @@ const closeActiveTab = (): void => {
     saveSession();
     return;
   }
-  exitTabMode();
+  void exitTabMode();
 };
 
 const reopenClosedTab = (): void => {
@@ -1317,12 +1334,11 @@ const setupIdleLock = (ses: Session): void => {
   // instead" means here: the PIMS owns the password, so the fallback is to sign
   // in again. Also where an unlock lands when biometrics are unavailable.
   /**
-   * Clear the session and return to the start URL.
+   * Clear the session and start the workspace over on the start URL.
    *
-   * Returns the promise so a caller that is uncovering the workspace can wait
-   * for it: the tab contents stay rendered until the navigation lands, so
-   * hiding the lock overlay first leaves the previous page - patient records
-   * included - on screen for the duration.
+   * Resolves once nothing of the old session is left in the window (see
+   * restartWorkspace), so a caller that is uncovering the workspace can wait
+   * for it before taking the lock page down.
    */
   const signOutToStartUrl = (): Promise<void> =>
     ses
@@ -1330,7 +1346,7 @@ const setupIdleLock = (ses: Session): void => {
       .catch(() => undefined)
       .then(() => {
         persistAuthHint(false);
-        loadStartUrl();
+        return restartWorkspace();
       });
 
   // Tell the lock page the prompt was refused so it can stop saying "Verifying".
@@ -1374,9 +1390,10 @@ const setupIdleLock = (ses: Session): void => {
     if (!idleLockOverlay.isVisible()) return;
     if (mode === 'password') {
       logger.info('idle_lock_password_fallback');
-      // The overlay comes down only AFTER the sign-out has landed. Hiding it
-      // first exposed the still-rendered workspace to whoever is standing at
-      // the locked machine for as long as clearing cookies and navigating took.
+      // The overlay comes down only AFTER the sign-out has cleared the session
+      // and the workspace (see signOutToStartUrl). Hiding it first exposed the
+      // still-rendered workspace to whoever is standing at the locked machine
+      // for as long as clearing cookies and navigating took.
       if (unlockInFlight) return;
       unlockInFlight = true;
       // A sign-out leaves nothing for the held windows or a deep link that

@@ -24,12 +24,20 @@ export interface LockContents {
 export interface LockWindow {
   isDestroyed(): boolean;
   isMinimized(): boolean;
+  isVisible(): boolean;
   hide(): void;
+  show(): void;
   showInactive(): void;
+  focus(): void;
+  restore(): void;
   minimize(): void;
   destroy(): void;
   on(event: 'show' | 'focus' | 'restore' | 'closed', listener: () => void): unknown;
 }
+
+// The calls that bring a window onto the screen. The lock answers them itself on
+// every window it holds.
+const BRING_FORWARD = ['show', 'showInactive', 'focus', 'restore'] as const;
 
 export interface IdleLockOverlay {
   // Mount the lock overlay over the workspace and focus it. No-op if already visible.
@@ -48,11 +56,13 @@ export interface IdleLockOverlay {
   holdInput: (contents: LockContents) => void;
   // Keep `win` hidden while the lock is up: registered on every window other
   // than the one the lock covers (pinned pages, patient and detached-tab
-  // windows, popups, Preferences, the vault), at creation. One open when the
-  // lock engages is hidden then, one created or shown during the lock is
-  // hidden at once, and all of them come back on unlock.
+  // windows, popups, Preferences, the vault), at creation. One on screen or in
+  // the Dock when the lock engages is hidden then, one created or shown during
+  // the lock is hidden at once, and all of them come back on unlock. One that
+  // was never shown stays that way.
   holdWindow: (win: LockWindow) => void;
-  // Whether `win` is one the lock is keeping hidden right now.
+  // Whether `win` is one the lock is keeping off the screen right now: while
+  // the lock is up, that is every window it holds.
   isHiding: (win: LockWindow) => boolean;
   // Close every held window for good, e.g. when the lock ends in a sign-out
   // and there is nothing for them to come back to.
@@ -83,13 +93,19 @@ export const createIdleLockOverlay = (deps: IdleLockOverlayDeps): IdleLockOverla
   let lockPage: LockContents | null = null;
   let remounts = 0;
   const windows = new Set<LockWindow>();
-  // The windows the lock has put away, and whether each was minimized.
+  // The windows unlock brings back, and whether each was minimized.
   const stowed = new Map<LockWindow, boolean>();
 
-  const stow = (win: LockWindow): void => {
-    if (!visible || win.isDestroyed()) return;
+  const putAway = (win: LockWindow): void => {
     if (!stowed.has(win)) stowed.set(win, win.isMinimized());
     win.hide();
+  };
+
+  // Put `win` away if it is on screen or in the Dock (a minimized window is not
+  // visible). One that is neither was never shown, and is left out of unlock.
+  const stow = (win: LockWindow): void => {
+    if (!visible || win.isDestroyed()) return;
+    if (stowed.has(win) || win.isVisible() || win.isMinimized()) putAway(win);
   };
 
   const mountLockPage = (): void => {
@@ -140,8 +156,19 @@ export const createIdleLockOverlay = (deps: IdleLockOverlayDeps): IdleLockOverla
         windows.delete(win);
         stowed.delete(win);
       });
-      // Whatever brings it back mid-lock (a show() call, picking it from the
-      // Window menu, restoring it from the Dock), it goes straight back.
+      // The app bringing it forward mid-lock (show(), focus() and the like)
+      // leaves it off the screen, and marks it to come back on unlock. The call
+      // is answered here, not by undoing it on the window's 'show' or 'focus'
+      // event: macOS does not send those while the display sleeps.
+      for (const name of BRING_FORWARD) {
+        const bringForward = win[name].bind(win);
+        win[name] = (): void => {
+          if (!visible) bringForward();
+          else if (!win.isDestroyed()) putAway(win);
+        };
+      }
+      // Whatever else brings it back mid-lock (the user restoring it from the
+      // Dock, say), it goes straight back.
       const restow = (): void => stow(win);
       win.on('show', restow);
       win.on('focus', restow);
@@ -151,7 +178,7 @@ export const createIdleLockOverlay = (deps: IdleLockOverlayDeps): IdleLockOverla
       // that constructor (and the code that called it) is done.
       queueMicrotask(restow);
     },
-    isHiding: (win: LockWindow): boolean => stowed.has(win),
+    isHiding: (win: LockWindow): boolean => visible && windows.has(win),
     closeWindows: (): void => {
       // destroy(), not close(): a page's beforeunload cannot keep one open.
       for (const win of windows) if (!win.isDestroyed()) win.destroy();
