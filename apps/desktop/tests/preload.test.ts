@@ -237,6 +237,25 @@ describe('preload bridge', () => {
     });
   });
 
+  describe('onWindowMaximizedChanged', () => {
+    test('passes the state through and unsubscribes on cleanup', () => {
+      const callback = jest.fn();
+      const cleanup = mockExposed.ycDesktop!.onWindowMaximizedChanged(callback);
+
+      const handler = mockListeners['yc:window-maximized'];
+      expect(handler).toBeDefined();
+
+      handler!({}, true);
+      expect(callback).toHaveBeenCalledWith(true);
+      handler!({}, false);
+      expect(callback).toHaveBeenCalledWith(false);
+      expect(callback).toHaveBeenCalledTimes(2);
+
+      cleanup();
+      expect(mockListeners['yc:window-maximized']).toBeUndefined();
+    });
+  });
+
   describe('newTab with no args', () => {
     test('invokes yc:tab-new with undefined', async () => {
       mockInvoked.length = 0;

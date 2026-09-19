@@ -32,6 +32,7 @@ import { createLogger, type DesktopLogger } from './utils/logger';
 import {
   clampPositionToWorkArea,
   createWindowStateStore,
+  restorePositionUnderCursor,
   type WindowStateStore,
 } from './core/window-state';
 import { checkForUpdatesManually } from './lifecycle/updater';
@@ -440,9 +441,14 @@ const enterTabMode = (initialUrl: string): void => {
           )
           .catch((error) => logger.warn('tabbar_orientation_js_failed', { error }));
       }
+      // Seed the caption button: the window may already be maximised (restored
+      // session state, or a relaunch into a snapped position) before any
+      // maximize event fires.
+      sendWindowMaximizedState();
     })
     .catch((error) => logger.warn('tabbar_load_failed', { error }));
   mainWindow.contentView.addChildView(tabChromeView);
+  wireWindowStateBroadcast(mainWindow);
 
   let tabs = tabManager.getState().tabs;
   if (tabs.length === 0) {
@@ -1497,7 +1503,26 @@ const promptTouchID = async (reason: string): Promise<boolean> => {
 
 const moveMainWindowBy = (dx: number, dy: number): void => {
   const win = mainWindow;
-  if (!win || win.isDestroyed() || win.isMaximized() || win.isFullScreen()) return;
+  // Full screen is a mode, not a size: there is nothing to drag out of it.
+  if (!win || win.isDestroyed() || win.isFullScreen()) return;
+  // A native title bar restores a maximised window under the pointer on the
+  // first drag movement and moves it from there. The delta that got us here is
+  // already spent positioning the restored window, so this pointermove ends
+  // with the restore and the next one moves normally.
+  if (win.isMaximized()) {
+    const maximized = win.getBounds();
+    const cursor = screen.getCursorScreenPoint();
+    win.unmaximize();
+    const [restoredWidth = 0, restoredHeight = 0] = win.getSize();
+    const size = { width: restoredWidth, height: restoredHeight };
+    const restored = clampPositionToWorkArea(
+      restorePositionUnderCursor(maximized, size, cursor),
+      size,
+      screen.getAllDisplays()
+    );
+    win.setPosition(restored.x, restored.y);
+    return;
+  }
   const [x = 0, y = 0] = win.getPosition();
   const [width = 0, height = 0] = win.getSize();
   const next = clampPositionToWorkArea(
@@ -1519,8 +1544,39 @@ const minimizeMainWindow = (): void => {
 const toggleMaximizeMainWindow = (): void => {
   const win = mainWindow;
   if (!win || win.isDestroyed()) return;
-  if (win.isMaximized()) win.unmaximize();
+  // The tab bar shows one Restore button for both states, so it has to undo
+  // whichever one the window is in.
+  if (win.isFullScreen()) win.setFullScreen(false);
+  else if (win.isMaximized()) win.unmaximize();
   else win.maximize();
+};
+
+// The tab bar draws its own Maximize/Restore button, so it has to be told the
+// window state - including when the change came from snapping, the app menu or
+// a title-bar double-click rather than from that button.
+const sendWindowMaximizedState = (): void => {
+  const view = tabChromeView;
+  const win = mainWindow;
+  if (!view || view.webContents.isDestroyed() || !win || win.isDestroyed()) return;
+  view.webContents.send('yc:window-maximized', win.isMaximized() || win.isFullScreen());
+};
+
+// Wired once per window, not once per enterTabMode: closing the last tab drops
+// back to Welcome (exitTabMode) and opening one enters tab mode again on the
+// same window, which would otherwise stack a second set of listeners.
+let windowStateBroadcastWindow: BrowserWindow | null = null;
+const wireWindowStateBroadcast = (win: BrowserWindow): void => {
+  if (windowStateBroadcastWindow === win) return;
+  windowStateBroadcastWindow = win;
+  // Listed one by one rather than looped: BrowserWindow.on is a union of
+  // per-event overloads, so a loop variable does not resolve to any of them.
+  win.on('maximize', sendWindowMaximizedState);
+  win.on('unmaximize', sendWindowMaximizedState);
+  win.on('enter-full-screen', sendWindowMaximizedState);
+  win.on('leave-full-screen', sendWindowMaximizedState);
+  win.once('closed', () => {
+    if (windowStateBroadcastWindow === win) windowStateBroadcastWindow = null;
+  });
 };
 
 const closeMainWindow = (): void => {
