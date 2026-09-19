@@ -2530,15 +2530,18 @@ describe("FinancePaymentService", () => {
     expect(sessionArgs.automatic_tax).toEqual({ enabled: true });
   });
 
-  // The same shortfall without a tie, and older than the quantizer: Stripe is
-  // given a per-UNIT amount and multiplies it by the quantity, so a line whose
-  // unit price is not representable at the currency's precision loses the
-  // remainder once per unit. Two 8.165 units sum to 16.33 under BOTH roundings,
-  // so the comparison above finds nothing wrong and the session is itemised at
-  // 2 x 816 = 1632 against a 1633 invoice, which then settles as paid in full.
-  // Characterisation, not an endorsement - this asserts today's behaviour so
-  // that the payment slice of #3153 has to change a test to change it.
-  it("under-submits an itemised line whose unit price is not representable", async () => {
+  // #3305. Stripe multiplies a per-UNIT amount by the quantity, so a line whose
+  // unit price is not representable at the currency's precision used to lose
+  // the remainder once per unit: two 8.165 units sum to 16.33 under BOTH
+  // roundings, so the pre-tax guard found nothing wrong and the session was
+  // itemised at 2 x 816 = 1632 against a 1633 invoice, which then settled as
+  // paid in full. Such a line is now submitted as a single unit at its posted
+  // total, and the guard weighs the amounts the session will actually send.
+  //
+  // Two items, because the second carries no description: a collapsed line has
+  // to say how many units it stands for whether or not the invoice line
+  // described itself.
+  it("collects the posted line total when a unit price is not representable", async () => {
     const stripeClient = {
       checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
@@ -2547,7 +2550,7 @@ describe("FinancePaymentService", () => {
     __setFinanceStripeClientForTests(stripeClient);
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_unit_short",
-      totalAmount: 16.33,
+      totalAmount: 32.66,
       taxTotal: 0,
       currency: "usd",
       status: "AWAITING_PAYMENT",
@@ -2557,6 +2560,12 @@ describe("FinancePaymentService", () => {
         {
           name: "Consult",
           description: "Consult",
+          unitPrice: 8.165,
+          quantity: 2,
+          total: 16.33,
+        },
+        {
+          name: "Lab",
           unitPrice: 8.165,
           quantity: 2,
           total: 16.33,
@@ -2590,22 +2599,125 @@ describe("FinancePaymentService", () => {
       .calls[0] as [
       {
         line_items: Array<{
-          price_data: { unit_amount: number; product_data: { name: string } };
+          price_data: {
+            unit_amount: number;
+            product_data: { name: string; description?: string };
+          };
           quantity: number;
         }>;
       },
     ];
-    // Itemised, so the tie branch is not what produces this one.
+    // Itemised, not the balance line: the shortfall this pins is the one the
+    // guard used to wave through, so a balance line here would pass for the
+    // wrong reason.
+    expect(sessionArgs.line_items).toHaveLength(2);
     expect(sessionArgs.line_items[0].price_data.product_data.name).toBe(
       "Consult",
     );
-    expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(816);
-    expect(sessionArgs.line_items[0].quantity).toBe(2);
-    const submitted =
-      sessionArgs.line_items[0].price_data.unit_amount *
-      sessionArgs.line_items[0].quantity;
-    expect(submitted).toBe(1632);
-    expect(submitted).toBeLessThan(1633);
+    expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(1633);
+    expect(sessionArgs.line_items[0].quantity).toBe(1);
+    expect(sessionArgs.line_items[0].price_data.product_data.description).toBe(
+      "2 x Consult",
+    );
+    expect(sessionArgs.line_items[1].price_data.unit_amount).toBe(1633);
+    expect(sessionArgs.line_items[1].quantity).toBe(1);
+    expect(sessionArgs.line_items[1].price_data.product_data.description).toBe(
+      "2 x Lab",
+    );
+    const submitted = sessionArgs.line_items.reduce(
+      (sum, line) => sum + line.price_data.unit_amount * line.quantity,
+      0,
+    );
+    // 3266, the posted total, where the per-unit submission collected 3264.
+    expect(submitted).toBe(3266);
+  });
+
+  // The other side of the same branch: a unit price the currency CAN represent
+  // keeps Stripe's per-unit presentation, so the checkout still reads "3 x
+  // $12.50" rather than one collapsed line. Without this, the fix above could
+  // be implemented by collapsing every line and no test would notice.
+  it("keeps the per-unit presentation when the units reconstruct the line total", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_units_ok",
+      totalAmount: 57.5,
+      taxTotal: 0,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      items: [
+        {
+          name: "Vaccine",
+          description: "Vaccine",
+          unitPrice: 12.5,
+          quantity: 3,
+          total: 37.5,
+        },
+        // No description, so this one also pins that a line which keeps its
+        // units keeps an absent description absent rather than inventing one.
+        {
+          name: "Boarding",
+          unitPrice: 10,
+          quantity: 2,
+          total: 20,
+        },
+      ],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_units_ok",
+    });
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_units_ok",
+      url: "https://checkout",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_units_ok",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_units_ok",
+    });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice("inv_units_ok");
+
+    const [sessionArgs] = stripeClient.checkout.sessions.create.mock
+      .calls[0] as [
+      {
+        line_items: Array<{
+          price_data: {
+            unit_amount: number;
+            product_data: { name: string; description?: string };
+          };
+          quantity: number;
+        }>;
+      },
+    ];
+    expect(sessionArgs.line_items).toHaveLength(2);
+    expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(1250);
+    expect(sessionArgs.line_items[0].quantity).toBe(3);
+    expect(sessionArgs.line_items[0].price_data.product_data.description).toBe(
+      "Vaccine",
+    );
+    expect(sessionArgs.line_items[1].price_data.unit_amount).toBe(1000);
+    expect(sessionArgs.line_items[1].quantity).toBe(2);
+    expect(
+      sessionArgs.line_items[1].price_data.product_data.description,
+    ).toBeUndefined();
+    const submitted = sessionArgs.line_items.reduce(
+      (sum, line) => sum + line.price_data.unit_amount * line.quantity,
+      0,
+    );
+    expect(submitted).toBe(5750);
   });
 
   it("refunds a manual invoice payment without calling Stripe", async () => {
