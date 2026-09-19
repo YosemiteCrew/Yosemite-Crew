@@ -11,23 +11,35 @@ type InputListener = (event: { preventDefault: () => void }) => void;
 
 // A web contents stand-in: records focus() and lets a test fire
 // before-input-event the way Electron does for a key press, and
-// render-process-gone the way it does when the renderer dies.
+// render-process-gone the way it does when the renderer dies. Its DevTools
+// open and close as Electron's do, with 'devtools-opened' on opening.
 const makeContents = () => {
   const listeners: InputListener[] = [];
   const gone: Array<() => void> = [];
+  const devtoolsOpened: Array<() => void> = [];
   let destroyed = false;
+  let devtools = false;
   const contents = {
     focus: jest.fn(),
     isDestroyed: () => destroyed,
     on: jest.fn(
       (
-        event: 'before-input-event' | 'render-process-gone',
+        event: 'before-input-event' | 'render-process-gone' | 'devtools-opened',
         listener: InputListener | (() => void)
       ) => {
         if (event === 'render-process-gone') gone.push(listener as () => void);
+        else if (event === 'devtools-opened') devtoolsOpened.push(listener as () => void);
         else listeners.push(listener);
       }
     ),
+    isDevToolsOpened: () => devtools,
+    closeDevTools: jest.fn(() => {
+      devtools = false;
+    }),
+    openDevTools: () => {
+      devtools = true;
+      for (const listener of devtoolsOpened) listener();
+    },
     destroy: () => {
       destroyed = true;
     },
@@ -51,24 +63,40 @@ const makeContents = () => {
 // lock replaces them on a window it holds. reveal() is something outside the
 // app showing it, with the event that follows: 'show', 'focus', or 'restore'
 // from the Dock.
+//
+// It also keeps what a person at the screen could have seen: `seen` turns true
+// whenever it is on screen, not minimized, and not fully transparent. restore()
+// on a minimized window takes it out of the Dock and puts it on screen at once,
+// as the window server does; its 'restore' event comes later, from
+// finishRestore(), as macOS sends it once the animation is over.
 const makeWindow = ({ minimized = false, shown = true } = {}) => {
   const listeners: Record<string, Array<() => void>> = {};
+  const once: Record<string, Array<() => void>> = {};
   const emit = (event: string) => {
     for (const listener of listeners[event] ?? []) listener();
+    const pending = once[event] ?? [];
+    once[event] = [];
+    for (const listener of pending) listener();
   };
   let onScreen = shown;
   let isMinimized = minimized;
   let destroyed = false;
+  let opacity = 1;
+  let seen = false;
+  const look = () => {
+    if (onScreen && !isMinimized && opacity > 0) seen = true;
+  };
   const putOnScreen = () => {
     onScreen = true;
+    look();
   };
   const native = {
     show: jest.fn(putOnScreen),
     showInactive: jest.fn(putOnScreen),
     focus: jest.fn(putOnScreen),
     restore: jest.fn(() => {
-      onScreen = true;
       isMinimized = false;
+      putOnScreen();
     }),
   };
   const win = {
@@ -77,13 +105,22 @@ const makeWindow = ({ minimized = false, shown = true } = {}) => {
     isDestroyed: () => destroyed,
     isMinimized: () => isMinimized,
     isVisible: () => onScreen && !isMinimized,
-    // Hiding a minimized window leaves it minimized, as Electron reports it.
+    // Hiding a minimized window leaves it minimized, as Electron reports it,
+    // and on macOS in the Dock.
     hide: jest.fn(() => {
       onScreen = false;
     }),
     minimize: jest.fn(() => {
       isMinimized = true;
     }),
+    setOpacity: jest.fn((value: number) => {
+      opacity = value;
+      look();
+    }),
+    once: jest.fn((event: 'restore', listener: () => void) => {
+      (once[event] ??= []).push(listener);
+    }),
+    finishRestore: () => emit('restore'),
     destroy: jest.fn(() => {
       destroyed = true;
       onScreen = false;
@@ -95,8 +132,8 @@ const makeWindow = ({ minimized = false, shown = true } = {}) => {
     // How a new window's constructor shows it: no event at all.
     appear: putOnScreen,
     reveal: (event: 'show' | 'focus' | 'restore' = 'show') => {
-      onScreen = true;
       if (event === 'restore') isMinimized = false;
+      putOnScreen();
       emit(event);
     },
     // Closed by the user or the page: gone without the lock's involvement.
@@ -110,8 +147,21 @@ const makeWindow = ({ minimized = false, shown = true } = {}) => {
       destroyed = true;
     },
     onScreen: () => onScreen,
+    opacity: () => opacity,
+    // Whether it has been visible since the last forget().
+    seen: () => seen,
+    forget: () => {
+      seen = false;
+    },
   };
   return win satisfies LockWindow;
+};
+
+// Run the tests of the enclosing describe as if on `platform`.
+const onPlatform = (platform: NodeJS.Platform): void => {
+  const original = process.platform;
+  beforeEach(() => Object.defineProperty(process, 'platform', { value: platform }));
+  afterEach(() => Object.defineProperty(process, 'platform', { value: original }));
 };
 
 const makeDeps = () => {
@@ -124,6 +174,8 @@ const makeDeps = () => {
       mount: jest.fn((): LockContents => lockPage),
       unmount: jest.fn(),
       workspace: jest.fn((): LockContents | null => tab),
+      window: jest.fn((): LockWindow | null => null),
+      allContents: jest.fn((): LockContents[] => [lockPage, tab]),
     },
   };
 };
@@ -323,19 +375,165 @@ describe('idle lock windows', () => {
     );
   });
 
-  test('a window minimized when the lock engages is hidden, and comes back minimized', () => {
-    const { deps } = makeDeps();
-    const overlay = createIdleLockOverlay(deps);
-    const docked = makeWindow({ minimized: true });
-    overlay.holdWindow(docked);
-    overlay.show();
-    expect(docked.hide).toHaveBeenCalledTimes(1);
-    // Restored from the Dock mid-lock, it goes straight back.
-    docked.reveal('restore');
-    expect(docked.onScreen()).toBe(false);
-    overlay.hide();
-    expect(docked.minimize).toHaveBeenCalledTimes(1);
-    expect(docked.isMinimized()).toBe(true);
+  describe('on Windows and Linux', () => {
+    onPlatform('linux');
+
+    test('a window minimized when the lock engages is hidden, and comes back minimized', () => {
+      const { deps } = makeDeps();
+      const overlay = createIdleLockOverlay(deps);
+      const docked = makeWindow({ minimized: true });
+      overlay.holdWindow(docked);
+      overlay.show();
+      // Hidden, it is out of the taskbar: nothing more is needed.
+      expect(docked.hide).toHaveBeenCalledTimes(1);
+      expect(docked.native.restore).not.toHaveBeenCalled();
+      expect(docked.setOpacity).not.toHaveBeenCalled();
+      // Restored mid-lock, it goes straight back.
+      docked.reveal('restore');
+      expect(docked.onScreen()).toBe(false);
+      overlay.hide();
+      expect(docked.minimize).toHaveBeenCalledTimes(1);
+      expect(docked.isMinimized()).toBe(true);
+    });
+
+    test('a minimized workspace window is left as it is', () => {
+      const { deps } = makeDeps();
+      const workspace = makeWindow({ minimized: true });
+      deps.window.mockReturnValue(workspace);
+      const overlay = createIdleLockOverlay(deps);
+      overlay.show();
+      expect(workspace.hide).not.toHaveBeenCalled();
+      expect(workspace.native.restore).not.toHaveBeenCalled();
+      expect(overlay.uncover()).toBe(false);
+      overlay.hide();
+      expect(workspace.isMinimized()).toBe(true);
+      expect(workspace.minimize).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('on macOS', () => {
+    onPlatform('darwin');
+
+    test('a window minimized when the lock engages leaves the Dock unseen, and comes back minimized', () => {
+      const { deps } = makeDeps();
+      const overlay = createIdleLockOverlay(deps);
+      const docked = makeWindow({ minimized: true });
+      overlay.holdWindow(docked);
+      overlay.show();
+      // Out of the Dock: restored, but fully transparent.
+      expect(docked.isMinimized()).toBe(false);
+      expect(docked.native.restore).toHaveBeenCalledTimes(1);
+      expect(docked.seen()).toBe(false);
+      // Hidden once macOS has it back, and only then opaque again.
+      docked.finishRestore();
+      expect(docked.onScreen()).toBe(false);
+      expect(docked.opacity()).toBe(1);
+      expect(docked.seen()).toBe(false);
+      // Nothing the app does brings it back meanwhile.
+      docked.restore();
+      docked.show();
+      expect(docked.seen()).toBe(false);
+
+      overlay.hide();
+      expect(docked.minimize).toHaveBeenCalledTimes(1);
+      expect(docked.isMinimized()).toBe(true);
+      expect(docked.opacity()).toBe(1);
+    });
+
+    test('a window whose restore is still under way at unlock is not hidden by it', () => {
+      const { deps } = makeDeps();
+      const overlay = createIdleLockOverlay(deps);
+      const docked = makeWindow({ minimized: true });
+      overlay.holdWindow(docked);
+      overlay.show();
+      overlay.hide();
+      expect(docked.opacity()).toBe(1);
+      docked.finishRestore();
+      expect(docked.hide).not.toHaveBeenCalled();
+      expect(docked.isMinimized()).toBe(true);
+      expect(docked.opacity()).toBe(1);
+    });
+
+    test('a minimized workspace window leaves the Dock unseen, and comes back minimized', () => {
+      const { deps, tab } = makeDeps();
+      const workspace = makeWindow({ minimized: true });
+      deps.window.mockReturnValue(workspace);
+      const overlay = createIdleLockOverlay(deps);
+      overlay.show();
+      expect(workspace.isMinimized()).toBe(false);
+      expect(workspace.native.restore).toHaveBeenCalledTimes(1);
+      workspace.finishRestore();
+      expect(workspace.onScreen()).toBe(false);
+      expect(workspace.opacity()).toBe(1);
+      expect(workspace.seen()).toBe(false);
+
+      overlay.hide();
+      expect(workspace.minimize).toHaveBeenCalledTimes(1);
+      expect(workspace.isMinimized()).toBe(true);
+      // Focusing the tab would put the window back on screen.
+      expect(tab.focus).not.toHaveBeenCalled();
+    });
+
+    test('a Dock click while locked brings the workspace window back, under the lock', () => {
+      const { deps, tab } = makeDeps();
+      const workspace = makeWindow({ minimized: true });
+      deps.window.mockReturnValue(workspace);
+      const overlay = createIdleLockOverlay(deps);
+      overlay.show();
+      workspace.finishRestore();
+      expect(deps.mount).toHaveBeenCalledTimes(1);
+
+      expect(overlay.uncover()).toBe(true);
+      expect(workspace.native.show).toHaveBeenCalledTimes(1);
+      expect(workspace.onScreen()).toBe(true);
+      expect(workspace.opacity()).toBe(1);
+      expect(overlay.isVisible()).toBe(true);
+      // Once is enough.
+      expect(overlay.uncover()).toBe(false);
+      expect(workspace.native.show).toHaveBeenCalledTimes(1);
+      // The person who brought it back keeps it on screen after unlock, with
+      // the workspace focused.
+      overlay.hide();
+      expect(workspace.minimize).not.toHaveBeenCalled();
+      expect(tab.focus).toHaveBeenCalledTimes(1);
+    });
+
+    test('a Dock click before its restore is over keeps the workspace window up', () => {
+      const { deps } = makeDeps();
+      const workspace = makeWindow({ minimized: true });
+      deps.window.mockReturnValue(workspace);
+      const overlay = createIdleLockOverlay(deps);
+      overlay.show();
+      expect(overlay.uncover()).toBe(true);
+      workspace.finishRestore();
+      expect(workspace.hide).not.toHaveBeenCalled();
+      expect(workspace.onScreen()).toBe(true);
+    });
+
+    test('uncover() does nothing unlocked, or for a workspace the lock did not take out', () => {
+      const { deps } = makeDeps();
+      const workspace = makeWindow();
+      const overlay = createIdleLockOverlay(deps);
+      expect(overlay.uncover()).toBe(false);
+
+      // Locked with no window open.
+      overlay.show();
+      expect(overlay.uncover()).toBe(false);
+      overlay.hide();
+
+      // Locked over a window on screen: it stays up, under the lock page.
+      deps.window.mockReturnValue(workspace);
+      overlay.show();
+      expect(workspace.hide).not.toHaveBeenCalled();
+      expect(overlay.uncover()).toBe(false);
+      expect(workspace.native.show).not.toHaveBeenCalled();
+      overlay.hide();
+
+      // Gone by the time of the click.
+      workspace.destroyQuietly();
+      overlay.show();
+      expect(overlay.uncover()).toBe(false);
+    });
   });
 
   test('a window opened during the lock is hidden once its constructor is done', async () => {
@@ -501,6 +699,41 @@ describe('idle lock windows', () => {
     overlay.holdWindow(prefs);
     overlay.closeWindows();
     expect(prefs.destroy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('idle lock DevTools', () => {
+  test('the lock closes DevTools wherever they are open, and unlock does not reopen them', () => {
+    const { deps, lockPage, tab } = makeDeps();
+    const popup = makeContents();
+    const gone = makeContents();
+    deps.allContents.mockReturnValue([lockPage, tab, popup, gone]);
+    const overlay = createIdleLockOverlay(deps);
+    tab.openDevTools();
+    gone.openDevTools();
+    gone.destroy();
+
+    overlay.show();
+    expect(tab.closeDevTools).toHaveBeenCalledTimes(1);
+    expect(tab.isDevToolsOpened()).toBe(false);
+    expect(popup.closeDevTools).not.toHaveBeenCalled();
+    expect(gone.closeDevTools).not.toHaveBeenCalled();
+
+    overlay.hide();
+    expect(tab.isDevToolsOpened()).toBe(false);
+  });
+
+  test('DevTools opened during the lock close at once; unlocked they stay open', () => {
+    const { deps, tab } = makeDeps();
+    const overlay = createIdleLockOverlay(deps);
+    overlay.holdInput(tab);
+    overlay.show();
+    tab.openDevTools();
+    expect(tab.isDevToolsOpened()).toBe(false);
+
+    overlay.hide();
+    tab.openDevTools();
+    expect(tab.isDevToolsOpened()).toBe(true);
   });
 });
 
