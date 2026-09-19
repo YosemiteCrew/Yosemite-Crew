@@ -36,7 +36,7 @@
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@types/adm-zip": "^0.5.8",
-    "adm-zip": "^0.6.0",
+    "adm-zip": "^0.6.1",
     "tar": "^7.5.22",
     "tsx": "^4.23.12",
     "typescript": "5.0.4"
