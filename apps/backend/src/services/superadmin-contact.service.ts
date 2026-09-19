@@ -214,7 +214,7 @@ const sendOne = async (
   key: string,
   now: Date,
 ): Promise<SendOutcome> => {
-  let response: Response | null = null;
+  let response: Response;
   try {
     response = await fetch(url, {
       method: "POST",
