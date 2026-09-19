@@ -28,7 +28,7 @@ permissions: {}
 
 jobs:
   check:
-    name: Check override pins against advisories
+    name: Check override pins (${{ matrix.branch }})
     # A fork has its own overrides and no business filing issues here.
     if: github.repository_owner == 'YosemiteCrew'
     runs-on: ubuntu-latest
@@ -36,10 +36,30 @@ jobs:
     permissions:
       contents: read
       issues: write
+    strategy:
+      # main failing must not cancel dev. Without this the run reports on one
+      # branch and says nothing at all about the other, which is the same silent
+      # hole this workflow exists to close.
+      fail-fast: false
+      matrix:
+        # Both branches, because they are different trees with different
+        # overrides and they answer differently. A schedule fires only from the
+        # default branch and `actions/checkout` with no `ref` takes the
+        # triggering ref, so the obvious workflow audits main and never sees dev
+        # - it would not have caught the two stale pins on dev that #3344 fixed.
+        #
+        # Auditing only dev is wrong in the other direction. main drifts on its
+        # own: dependabot SECURITY updates open against the default branch
+        # regardless of `target-branch` (see promotion-guard.yml), and #2954
+        # exists because main had accumulated stale-pinned advisories that dev
+        # did not have. Each branch also carries its own acceptance baseline, so
+        # each is checked against the acceptances recorded for it.
+        branch: [main, dev]
     steps:
-      - name: Checkout
+      - name: Checkout ${{ matrix.branch }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ matrix.branch }}
           persist-credentials: false
 
       # A full install, because the check imports `semver` - the same resolver
@@ -67,6 +87,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           CHECK_STATUS: ${{ steps.check.outputs.status }}
+          BRANCH: ${{ matrix.branch }}
         with:
           script: |
             const fs = require('fs');
@@ -87,22 +108,28 @@ jobs:
             // empty output means the step died before it could set one, which
             // is also tooling.
             const status = process.env.CHECK_STATUS;
+            const branch = process.env.BRANCH;
             const isFinding = status === '1';
             const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
+            // The branch belongs in the marker, not only in the body. main and
+            // dev carry different overrides and different acceptances, so they
+            // produce different findings - a shared marker would file one, then
+            // comment the other branch's report onto it and read as a single
+            // drifting problem.
             const marker = isFinding
-              ? '<!-- override-advisories-tracker -->'
-              : '<!-- override-advisories-tooling -->';
+              ? `<!-- override-advisories-tracker-${branch} -->`
+              : `<!-- override-advisories-tooling-${branch} -->`;
             const title = isFinding
-              ? 'A pnpm override pins a version with an open advisory'
-              : 'Override advisory check could not run';
+              ? `A pnpm override on ${branch} pins a version with an open advisory`
+              : `Override advisory check could not run on ${branch}`;
             const labels = isFinding ? ['security'] : ['CI/CD'];
 
             const body = isFinding
               ? [
                   marker,
                   '',
-                  'The nightly override advisory check reported a finding:',
+                  `The nightly override advisory check reported a finding on \`${branch}\`:`,
                   '',
                   '```',
                   report || '(no output captured)',
@@ -111,20 +138,20 @@ jobs:
                   'An override beats every manifest, so dependabot cannot clear this on',
                   'its own: raising a manifest leaves the override pinning resolution',
                   'straight back to the vulnerable version. Edit the `pnpm.overrides`',
-                  'block in the root `package.json`, or - if the pin is deliberate -',
-                  'record it in `scripts/ci/override-advisory-baseline.json` with the',
-                  'reason.',
+                  `block in the root \`package.json\` on \`${branch}\`, or - if the pin is`,
+                  'deliberate - record it in `scripts/ci/override-advisory-baseline.json`',
+                  'with the reason.',
                   '',
                   `Run: ${run}`,
                 ].join('\n')
               : [
                   marker,
                   '',
-                  `The nightly override advisory check exited ${status || '(unknown)'} **without**`,
-                  'reaching a verdict on any override, so this says nothing about whether',
-                  'a pin is vulnerable. Exit 2 is `--strict` refusing to pass while the',
-                  'advisory data was unreachable; anything else is a failure before that',
-                  'point. Read the job log for the real cause.',
+                  `The nightly override advisory check exited ${status || '(unknown)'} on \`${branch}\``,
+                  '**without** reaching a verdict on any override, so this says nothing',
+                  'about whether a pin is vulnerable. Exit 2 is `--strict` refusing to',
+                  'pass while the advisory data was unreachable; anything else is a',
+                  'failure before that point. Read the job log for the real cause.',
                   '',
                   '```',
                   report || '(no output captured)',
