@@ -2,6 +2,7 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
+import { CONTACT_MESSAGE_MAX_LENGTH } from '@yosemite-crew/types';
 
 expect.extend(toHaveNoViolations);
 
@@ -184,6 +185,69 @@ describe('AccessibilityReportPage', () => {
     expect(callArgs.message).toContain('https://app.example.com/appointments');
     expect(callArgs.message).toContain('Severity: Very difficult to use');
     expect(callArgs.message).toContain('Cannot tab to the submit button.');
+  });
+
+  /* #3361: the field the visitor fills is not the message that is sent - the
+     description is wrapped in a header, and the SuperAdmin intake's limit
+     applies to the whole of it. Asserting the bound through a submission
+     rather than against a recomputed number is what makes this fail if the
+     header stops being charged for. */
+  it('bounds the description so a full-length report is exactly at the mirror limit', async () => {
+    postDataMock.mockResolvedValue({});
+
+    render(<AccessibilityReportPage />);
+
+    const description = screen.getByLabelText(/Describe the barrier/i);
+    const budget = Number(description.getAttribute('maxlength'));
+    expect(budget).toBeGreaterThan(0);
+    expect(budget).toBeLessThan(CONTACT_MESSAGE_MAX_LENGTH);
+
+    fireEvent.change(screen.getByLabelText(/Your name/i), { target: { value: 'Ada' } });
+    fireEvent.change(screen.getByLabelText(/Email address/i), {
+      target: { value: 'ada@example.com' },
+    });
+    fireEvent.change(description, { target: { value: 'a'.repeat(budget) } });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit report' }));
+
+    await waitFor(() => {
+      expect(postDataMock).toHaveBeenCalled();
+    });
+    expect(postDataMock.mock.calls[0][1].message).toHaveLength(CONTACT_MESSAGE_MAX_LENGTH);
+  });
+
+  /* maxLength stops new typing; it does not shorten text that was already in
+     the field when the page URL grew, so the submit path has to refuse too. */
+  it('refuses a report whose message exceeds the limit rather than posting it', async () => {
+    render(<AccessibilityReportPage />);
+
+    const description = screen.getByLabelText(/Describe the barrier/i);
+    const budget = Number(description.getAttribute('maxlength'));
+
+    fireEvent.change(screen.getByLabelText(/Your name/i), { target: { value: 'Ada' } });
+    fireEvent.change(screen.getByLabelText(/Email address/i), {
+      target: { value: 'ada@example.com' },
+    });
+    fireEvent.change(description, { target: { value: 'a'.repeat(budget + 1) } });
+    await act(async () => {
+      fireEvent.submit(screen.getByRole('button', { name: 'Submit report' }).closest('form')!);
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Your report is too long/i).length).toBeGreaterThan(0);
+    });
+    expect(postDataMock).not.toHaveBeenCalled();
+  });
+
+  it('tells the visitor how much of the description they have used', () => {
+    render(<AccessibilityReportPage />);
+
+    const description = screen.getByLabelText(/Describe the barrier/i);
+    const budget = Number(description.getAttribute('maxlength'));
+    const counter = screen.getByText(`0 of ${budget} characters`);
+    expect(description.getAttribute('aria-describedby')).toContain(counter.id);
+
+    fireEvent.change(description, { target: { value: 'four' } });
+    expect(screen.getByText(`4 of ${budget} characters`)).toBeInTheDocument();
   });
 
   it('shows submit error when API call fails', async () => {

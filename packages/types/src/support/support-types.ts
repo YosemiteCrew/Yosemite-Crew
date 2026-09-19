@@ -1,29 +1,35 @@
+/**
+ * Longest `message` the SuperAdmin panel's CRM intake accepts.
+ *
+ * The mirror is a one-way POST: a longer submission is stored here, refused by
+ * the intake with 400, and - because 400 is permanent - never retried, so it
+ * would be visible in this product and absent from the CRM. Both public contact
+ * forms and `createWebRequest` bound the field at this number so a submission
+ * that is accepted here can always be delivered there.
+ */
+export const CONTACT_MESSAGE_MAX_LENGTH = 5000;
+
 // Ticket Status
 export type TicketStatus =
-  | "New Ticket"
-  | "In Progress"
-  | "Waiting"
-  | "Escalated"
-  | "Reopened"
-  | "Closed";
+  'New Ticket' | 'In Progress' | 'Waiting' | 'Escalated' | 'Reopened' | 'Closed';
 
 // Ticket Category
 export type TicketCategory =
-  | "General Enquiry"
-  | "Technical"
-  | "Billing"
-  | "Data Service Access Request"
-  | "Complaint"
-  | "Feature Request";
+  | 'General Enquiry'
+  | 'Technical'
+  | 'Billing'
+  | 'Data Service Access Request'
+  | 'Complaint'
+  | 'Feature Request';
 
 // Ticket Platform
-export type TicketPlatform = "Email" | "Discord" | "Phone" | "Web Form";
+export type TicketPlatform = 'Email' | 'Discord' | 'Phone' | 'Web Form';
 
 // User Type
-export type UserType = "Registered" | "Not Registered" | "Guest";
+export type UserType = 'Registered' | 'Not Registered' | 'Guest';
 
 // User Status
-export type UserStatus = "Active" | "Inactive" | "Pending" | "Suspended";
+export type UserStatus = 'Active' | 'Inactive' | 'Pending' | 'Suspended';
 
 export interface CreateSupportTicket {
   ticketId?: string;
@@ -37,8 +43,8 @@ export interface CreateSupportTicket {
   attachments?: string[];
   status?: TicketStatus;
   assignedTo?: string;
-  priority?: "Low" | "Medium" | "High" | "Critical";
-  createdBy: "Admin" | "User" | "Guest" | "Professional";
+  priority?: 'Low' | 'Medium' | 'High' | 'Critical';
+  createdBy: 'Admin' | 'User' | 'Guest' | 'Professional';
   resolvedAt?: Date;
   notes?: string[];
 }
@@ -68,24 +74,24 @@ interface FhirAttachment {
 }
 
 export interface FhirSupportTicket {
-  resourceType: "request-support"; // Could also be "Communication"
+  resourceType: 'request-support'; // Could also be "Communication"
   id?: string;
   meta?: FhirMeta;
 
   identifier?: { system?: string; value: string }[];
 
   status:
-    | "requested"
-    | "in-progress"
-    | "on-hold"
-    | "completed"
-    | "cancelled"
-    | "entered-in-error"
-    | "rejected";
+    | 'requested'
+    | 'in-progress'
+    | 'on-hold'
+    | 'completed'
+    | 'cancelled'
+    | 'entered-in-error'
+    | 'rejected';
 
-  intent: "order" | "plan" | "proposal" | "filler-order";
+  intent: 'order' | 'plan' | 'proposal' | 'filler-order';
 
-  priority?: "routine" | "urgent" | "asap" | "stat";
+  priority?: 'routine' | 'urgent' | 'asap' | 'stat';
 
   code?: {
     coding: { system: string; code: string; display: string }[];

@@ -6,6 +6,7 @@ import {
   DsraDetails,
 } from "../models/contect-us";
 import { Prisma } from "@prisma/client";
+import { CONTACT_MESSAGE_MAX_LENGTH } from "@yosemite-crew/types";
 import { prisma } from "../config/prisma";
 
 export class ContactServiceError extends Error {
@@ -116,6 +117,17 @@ export const ContactService = {
     }
     if (!input.message?.trim()) {
       throw new ContactServiceError("message is required", 400);
+    }
+    /* #3361: the stored message is what the mirror POSTs verbatim, and the
+       panel's intake refuses a longer one with a permanent 400. Refusing here
+       keeps the submission out of the database rather than accepting one that
+       can never reach the CRM. The bound is on the trimmed text because that is
+       what is stored and forwarded. */
+    if (input.message.trim().length > CONTACT_MESSAGE_MAX_LENGTH) {
+      throw new ContactServiceError(
+        `message must be ${CONTACT_MESSAGE_MAX_LENGTH} characters or fewer`,
+        400,
+      );
     }
     if (!input.fullName?.trim()) {
       throw new ContactServiceError("fullName is required", 400);
