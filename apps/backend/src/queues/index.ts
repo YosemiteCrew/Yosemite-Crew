@@ -7,6 +7,7 @@ import { registerLabStatusScheduler } from "./lab-status.scheduler";
 import { registerLabResultsScheduler } from "./lab-results.scheduler";
 import { registerVaccineReminderScheduler } from "./vaccine.scheduler";
 import { registerPublicBookingSchedulers } from "./public-booking.scheduler";
+import { registerSuperadminContactScheduler } from "./superadmin-contact.scheduler";
 import { AppointmentQueue } from "./appointment.queue";
 import { IdexxReferenceQueue } from "./idexx-reference.queue";
 import { LabResultsQueue } from "./lab-results.queue";
@@ -15,6 +16,7 @@ import { TaskScheduleQueue } from "./task-schedule.queue";
 import { TaskRecurrenceQueue, TaskReminderQueue } from "./task.queues";
 import { VaccineReminderQueue } from "./vaccine.queues";
 import { PublicBookingQueue } from "./public-booking.queue";
+import { SuperadminContactQueue } from "./superadmin-contact.queue";
 import {
   pruneLegacyRepeatablesAcross,
   SchedulerCapableQueue,
@@ -30,6 +32,7 @@ export const scheduledQueues = [
   TaskReminderQueue,
   VaccineReminderQueue,
   PublicBookingQueue,
+  SuperadminContactQueue,
 ] as unknown as SchedulerCapableQueue[];
 import "./ap-delivery.queue";
 import "./ap-inbox.queue";
@@ -48,5 +51,6 @@ export async function initQueues() {
   await registerLabResultsScheduler();
   await registerVaccineReminderScheduler();
   await registerPublicBookingSchedulers();
+  await registerSuperadminContactScheduler();
   logger.info("📬 BullMQ queues initialized");
 }

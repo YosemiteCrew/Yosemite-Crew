@@ -4,7 +4,6 @@ import {
   ContactServiceError,
 } from "../../src/services/contact-us.service";
 import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
-import { SuperadminContactService } from "../../src/services/superadmin-contact.service";
 import {
   ATTACHMENT_MIME_TYPES,
   generatePresignedUrl,
@@ -24,12 +23,6 @@ jest.mock("../../src/services/contact-us.service", () => {
     },
   };
 });
-
-jest.mock("../../src/services/superadmin-contact.service", () => ({
-  SuperadminContactService: {
-    forwardWebContact: jest.fn(),
-  },
-}));
 
 jest.mock("../../src/services/authUserMobile.service", () => ({
   AuthUserMobileService: {
@@ -203,9 +196,6 @@ describe("ContactController", () => {
   });
 
   describe("createWeb", () => {
-    const mockedForward =
-      SuperadminContactService.forwardWebContact as jest.Mock;
-
     it("discards a submission that filled the honeypot, without storing or forwarding it", async () => {
       /* The site form renders `website` hidden from people and from assistive
          technology, so a non-empty value means a form-filling bot (#2645). */
@@ -224,7 +214,6 @@ describe("ContactController", () => {
       await ContactController.createWeb(req as any, res as any);
 
       expect(mockedContactService.createWebRequest).not.toHaveBeenCalled();
-      expect(mockedForward).not.toHaveBeenCalled();
       /* 201 with a plausible id, deliberately: a bot that learns which
          submissions were dropped stops filling the field and the run continues
          undetected. */
@@ -275,8 +264,6 @@ describe("ContactController", () => {
 
       const stored = mockedContactService.createWebRequest.mock.calls[0][0];
       expect(stored).not.toHaveProperty("website");
-      const forwarded = mockedForward.mock.calls[0][0];
-      expect(forwarded).not.toHaveProperty("website");
     });
 
     it("creates a web contact request", async () => {
@@ -311,7 +298,12 @@ describe("ContactController", () => {
       expect(res.json).toHaveBeenCalledWith({ id: "contact-web-1" });
     });
 
-    it("mirrors the submission to the SuperAdmin panel", async () => {
+    /* The mirror forward is queued inside createWebRequest, in the same insert
+       as the submission (#3329), and drained by a background job. The
+       controller sends nothing, so the visitor's 201 cannot be delayed or
+       failed by the panel, and a submission whose write failed has no forward
+       row to drain. The queuing itself is pinned in the service suite. */
+    it("responds without awaiting any panel call", async () => {
       mockedContactService.createWebRequest.mockResolvedValueOnce({
         id: "contact-web-2",
       });
@@ -327,31 +319,9 @@ describe("ContactController", () => {
 
       await ContactController.createWeb({ body } as any, res as any);
 
-      expect(mockedForward).toHaveBeenCalledWith(expect.objectContaining(body));
-    });
-
-    it("does not mirror a submission that was never stored", async () => {
-      mockedContactService.createWebRequest.mockRejectedValueOnce(
-        new ContactServiceError("invalid", 422),
-      );
-      const res = createResponse();
-
-      await ContactController.createWeb(
-        {
-          body: {
-            type: "GENERAL_ENQUIRY",
-            source: "PMS_WEB",
-            message: "Help",
-            email: "web@user.com",
-          },
-        } as any,
-        res as any,
-      );
-
-      // Our database is the source of truth: if the write failed there is
-      // nothing to mirror, and forwarding anyway would put a record in the
-      // panel that exists nowhere else.
-      expect(mockedForward).not.toHaveBeenCalled();
+      expect(mockedContactService.createWebRequest).toHaveBeenCalledTimes(1);
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({ id: "contact-web-2" });
     });
 
     it("handles ContactServiceError responses", async () => {
