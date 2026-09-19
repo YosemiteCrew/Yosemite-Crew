@@ -95,6 +95,10 @@ test.describe('window controls', () => {
   });
 
   test('the tab bar is told when the window is maximised and when it is restored', async () => {
+    test.skip(
+      process.platform === 'darwin',
+      'macOS hides self-drawn caption; onWindowMaximizedChanged only wired when shown'
+    );
     const tabBar = tabBarPage(app);
     await tabBar.evaluate(() => {
       const scope = globalThis as unknown as {
@@ -139,6 +143,10 @@ test.describe('window controls', () => {
   });
 
   test('double-clicking the empty title-bar area toggles maximise', async () => {
+    test.skip(
+      process.platform === 'darwin',
+      'macOS uses native title bar; self-drawn caption/drag not shown'
+    );
     const tabBar = tabBarPage(app);
     const spacer = tabBar.locator('.drag-spacer');
     await expect(spacer).toBeVisible();
