@@ -207,6 +207,48 @@ describe('status dialogs — happy paths', () => {
     expect(detail).toContain('signing key could not be read');
   });
 
+  test('verifyAuditTrail reports previous-key entries separately, and not as tampering', () => {
+    const deps = makeDeps({
+      auditLog: {
+        // Entries signed while the keychain was unreadable. They cannot be
+        // re-checked, but they are not evidence of tampering (#2553), so they
+        // get their own line and must not turn the dialog into an alarm.
+        verifyAll: () => ({ valid: 7, tampered: 0, otherKey: 4 }),
+        verifyChain: () => true,
+        size: () => 11,
+        getIntegrity: () => ({
+          ok: true,
+          reason: null,
+          quarantinePath: null,
+          recordsLoaded: 11,
+          watermarkCount: 11,
+          tornTail: false,
+          signingKey: 'persisted' as const,
+        }),
+      } as never,
+    });
+    createStatusDialogService(deps).verifyAuditTrail();
+
+    const call = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0];
+    expect(call.detail).toContain('Signed with a previous key: 4');
+    expect(call.detail).toContain('not evidence of tampering');
+    // The count stays out of Tampered, and out of the problem verdict: a clean
+    // log with previous-key entries is still a clean log.
+    expect(call.detail).toContain('Tampered: 0');
+    expect(call.detail).not.toContain('Tampered: 4');
+    expect(call.message).toBe('Audit Trail Integrity');
+    expect(call.type).toBe('info');
+  });
+
+  test('verifyAuditTrail says nothing about previous keys when there are none', () => {
+    const deps = makeDeps();
+    createStatusDialogService(deps).verifyAuditTrail();
+
+    const detail = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0].detail as string;
+    expect(detail).toContain('Valid signatures: 3');
+    expect(detail).not.toContain('Signed with a previous key');
+  });
+
   test('verifyAuditTrail uses warning dialog when integrity check fails', () => {
     const deps = makeDeps({
       auditLog: {
