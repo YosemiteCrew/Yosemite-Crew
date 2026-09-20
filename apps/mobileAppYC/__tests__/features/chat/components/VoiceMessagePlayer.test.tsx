@@ -150,9 +150,9 @@ describe('VoiceMessagePlayer', () => {
     );
 
     pressPlayPauseButton();
-    await waitFor(() => expect(Sound.startPlayer).toHaveBeenCalled());
-
-    expect(getByLabelText('Pause')).toBeTruthy();
+    // `startPlayer` is called before it is awaited, so waiting on the mock can
+    // settle while the button is still the loading spinner. Wait on the label.
+    await waitFor(() => expect(getByLabelText('Pause')).toBeTruthy());
   });
 
   it('resumes playing when button is pressed while paused (and position > 0)', async () => {
