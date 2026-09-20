@@ -58,6 +58,12 @@ const layout = (over: LayoutOverrides = {}) => {
 };
 
 describe('contentPaneBounds', () => {
+  // Pinned separately from the gap assertions below: those state the width as a
+  // literal, so setting the constant to 0 cannot satisfy them by definition.
+  test('the divider is one pixel wide', () => {
+    expect(SPLIT_DIVIDER_WIDTH).toBe(1);
+  });
+
   test('a full pane fills the content area below the chrome strip', () => {
     expect(contentPaneBounds('full', { width: 1280, height: 800 }, false, CHROME, RAIL)).toEqual({
       x: 0,
@@ -74,7 +80,7 @@ describe('contentPaneBounds', () => {
     const b = { width: 1025, height: 700 };
     const left = contentPaneBounds('left', b, false, CHROME, RAIL);
     const right = contentPaneBounds('right', b, false, CHROME, RAIL);
-    expect(right.x - (left.x + left.width)).toBe(SPLIT_DIVIDER_WIDTH);
+    expect(right.x - (left.x + left.width)).toBe(1);
     expect(right.x + right.width).toBe(b.width);
   });
 
@@ -87,7 +93,7 @@ describe('contentPaneBounds', () => {
     const b = { width: 1280, height: 800 };
     const left = contentPaneBounds('left', b, true, CHROME, RAIL);
     const right = contentPaneBounds('right', b, true, CHROME, RAIL);
-    expect(right.x - (left.x + left.width)).toBe(SPLIT_DIVIDER_WIDTH);
+    expect(right.x - (left.x + left.width)).toBe(1);
     expect(left.x).toBe(RAIL);
   });
 
