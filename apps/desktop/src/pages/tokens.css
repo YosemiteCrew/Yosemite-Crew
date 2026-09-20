@@ -77,7 +77,9 @@
   --pink: #ff90d4;
 
   /* ── Status ── */
-  --success: #008f5d;
+  /* 4.87:1 on --screen (#f7f3ec). The previous #008f5d measured 3.73:1,
+     below AA for the 12px Preferences save confirmation - issue #3298. */
+  --success: #007a4f;
   --warn: #f59e0b;
   --warn-text: #b45309;
   --danger: #ea3729;
@@ -346,7 +348,7 @@
   --cta-text: #ffffff;
   --blue-text: #1657c9;
   --blue-soft: #e6f2ff;
-  --success: #008f5d;
+  --success: #007a4f;
   --warn-text: #b45309;
   --danger-text: #c2261a;
   --danger-bg: rgba(234, 55, 41, 0.09);

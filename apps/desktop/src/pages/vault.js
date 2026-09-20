@@ -3,10 +3,14 @@
   const yc = globalThis.ycDesktop;
   if (!yc) return;
 
+  const view = globalThis.ycVaultView;
+
   let docs = [];
   let filtered = [];
   let selectedId = null;
   let loadTimer = null;
+  // The element that opened the preview, so closing it can put focus back.
+  let previewOpener = null;
 
   const el = function (id) {
     return document.getElementById(id);
@@ -19,6 +23,9 @@
   const docList = el('docList');
   const loadingMsg = el('loadingMsg');
   const emptyMsg = el('emptyMsg');
+  const noResultsMsg = el('noResultsMsg');
+  const noResultsTitle = el('noResultsTitle');
+  const clearSearch = el('clearSearch');
   const dropZone = el('dropZone');
   const previewPanel = el('previewPanel');
   const previewTitle = el('previewTitle');
@@ -54,17 +61,8 @@
     });
   };
 
-  const fileIcon = function (mime) {
-    if (mime.startsWith('image/')) return '\u{1F5BC}';
-    if (/^text\/|^application\/(json|xml|javascript)/.test(mime)) return '\u{1F4DD}';
-    if (/pdf/.test(mime)) return '\u{1F4D1}';
-    if (/spreadsheet|excel|csv/.test(mime)) return '\u{1F4CA}';
-    return '\u{1F4C4}';
-  };
-
-  const isImage = function (mime) {
-    return mime.startsWith('image/');
-  };
+  const fileIcon = view.fileIcon;
+  const isImage = view.isImage;
 
   const loadStats = function () {
     /*
@@ -220,7 +218,22 @@
     docList.innerHTML = '';
     docList.appendChild(frag);
     loadingMsg.style.display = 'none';
-    emptyMsg.style.display = list.length === 0 ? 'flex' : 'none';
+    showPlaceholder(list.length);
+  };
+
+  /*
+   * An empty list has two causes and they need different words. The page used
+   * to show the empty-vault message for both, so a search that matched nothing
+   * announced "No documents in the vault" while the header beside it still read
+   * "4 documents" and the search count read "0/4" (issue #3297).
+   */
+  const showPlaceholder = function (matchCount) {
+    const which = view.listPlaceholder(matchCount, docs.length);
+    emptyMsg.style.display = which === 'empty-vault' ? 'flex' : 'none';
+    noResultsMsg.style.display = which === 'no-results' ? 'flex' : 'none';
+    if (which === 'no-results') {
+      noResultsTitle.textContent = view.noResultsTitle(searchInput.value);
+    }
   };
 
   // Throttled load
@@ -244,9 +257,29 @@
     });
   };
 
+  /*
+   * `.selected` used to be applied only by renderList, so the row of the
+   * document being previewed lit up on the NEXT render and not when the preview
+   * opened (issue #3297). Both entry points now move the mark themselves.
+   */
+  const markSelectedRow = function (id) {
+    for (const row of docList.children) {
+      const isSelected = row.dataset.id === id;
+      row.classList.toggle('selected', isSelected);
+      if (isSelected) row.setAttribute('aria-current', 'true');
+      else row.removeAttribute('aria-current');
+    }
+  };
+
   const openPreview = function (id) {
+    previewOpener = document.activeElement;
     selectedId = id;
     previewPanel.classList.add('open');
+    // `width: 0` hid the panel visually and left its four buttons in the tab
+    // order as invisible focus stops that still acted on the last previewed
+    // document. `inert` is what actually removes them (issue #3297).
+    previewPanel.removeAttribute('inert');
+    markSelectedRow(id);
     previewBody.scrollTop = 0;
     previewTitle.textContent = 'Loading…';
     previewImg.style.display = 'none';
@@ -307,6 +340,8 @@
       });
     }
 
+    previewClose.focus();
+
     previewExport.onclick = function () {
       exportDoc(id);
     };
@@ -320,8 +355,14 @@
 
   const closePreview = function () {
     previewPanel.classList.remove('open');
+    // Before restoring focus: `inert` blurs whatever inside the panel holds it,
+    // so focusing the opener afterwards is what decides where focus lands.
+    previewPanel.setAttribute('inert', '');
     selectedId = null;
+    markSelectedRow(null);
     previewImg.src = '';
+    if (previewOpener && document.contains(previewOpener)) previewOpener.focus();
+    previewOpener = null;
   };
 
   const exportDoc = function (id) {
@@ -401,6 +442,11 @@
 
   // ── Search ──
   searchInput.addEventListener('input', filterDocs);
+  clearSearch.addEventListener('click', function () {
+    searchInput.value = '';
+    filterDocs();
+    searchInput.focus();
+  });
 
   // ── Preview close ──
   previewClose.addEventListener('click', closePreview);

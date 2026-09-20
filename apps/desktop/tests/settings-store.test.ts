@@ -7,6 +7,7 @@ import {
   isUpdateChannel,
   isThemeMode,
   isTelehealthProviderSetting,
+  rejectedSettingKeys,
   DEFAULT_SETTINGS,
   type DesktopSettings,
 } from '../src/utils/settings-store';
@@ -193,5 +194,77 @@ describe('createSettingsStore', () => {
   test('filePath property returns the path', () => {
     const store = createSettingsStore('/tmp/test-settings.json');
     expect(store.filePath).toBe('/tmp/test-settings.json');
+  });
+});
+
+/*
+ * `\d{2}:\d{2}` was the whole Do Not Disturb rule, so "25:99" was stored and
+ * shown back as a window no hour falls inside (issue #3298).
+ */
+describe('Do Not Disturb times are clock times, not just the shape of one', () => {
+  test.each(['25:99', '24:00', '23:60', '99:99', '2:00', '22:0', '22:', '2', '1a:00'])(
+    '%s is refused, leaving the default in place',
+    (value) => {
+      expect(normalizeSettings({ dndStart: value }).dndStart).toBe(DEFAULT_SETTINGS.dndStart);
+      expect(rejectedSettingKeys({ dndStart: value })).toEqual(['dndStart']);
+    }
+  );
+
+  test.each(['00:00', '09:05', '13:30', '19:59', '23:59'])('%s is stored as typed', (value) => {
+    expect(normalizeSettings({ dndStart: value }).dndStart).toBe(value);
+    expect(normalizeSettings({ dndEnd: value }).dndEnd).toBe(value);
+    expect(rejectedSettingKeys({ dndStart: value, dndEnd: value })).toEqual([]);
+  });
+});
+
+describe('rejectedSettingKeys', () => {
+  test('reports every refused key, and only the keys that were sent', () => {
+    const rejected = rejectedSettingKeys({ dndStart: '25:00', theme: 'dark', dndEnd: 'nope' });
+    expect([...rejected].sort()).toEqual(['dndEnd', 'dndStart']);
+  });
+
+  /*
+   * The reason this reads the validators rather than diffing stored against
+   * requested: two fields are adapted rather than refused, and a diff would
+   * report both as rejected and put a false error under a control the user
+   * never touched.
+   */
+  test('a value the store adapts rather than refuses is not reported', () => {
+    expect(normalizeSettings({ fontScale: 1.13 }).fontScale).toBe(1.25);
+    expect(normalizeSettings({ idleLockMinutes: 9999 }).idleLockMinutes).toBe(1440);
+    expect(rejectedSettingKeys({ fontScale: 1.13, idleLockMinutes: 9999 })).toEqual([]);
+  });
+
+  test('a key nobody persists is not reported as rejected', () => {
+    // Naming it "rejected" would put a field the user cannot see, and cannot
+    // correct, into the page's error message.
+    expect(rejectedSettingKeys({ notASetting: 'x' })).toEqual([]);
+  });
+
+  test('a non-object carries no keys at all', () => {
+    expect(rejectedSettingKeys(null)).toEqual([]);
+    expect(rejectedSettingKeys('theme')).toEqual([]);
+    expect(rejectedSettingKeys([])).toEqual([]);
+  });
+
+  test('every persisted key is reachable, so no field can be silently unreportable', () => {
+    // The canary for the loop above: a key list that stopped matching the
+    // validators would make every case here pass by finding nothing.
+    const everyKeyRefused = rejectedSettingKeys({
+      updateChannel: null,
+      idleLockMinutes: null,
+      telemetryOptIn: null,
+      theme: null,
+      openAtLogin: null,
+      notificationsEnabled: null,
+      dndStart: null,
+      dndEnd: null,
+      biometricLockEnabled: null,
+      accentColor: null,
+      fontScale: null,
+      telehealthProvider: null,
+      lastSeenVersion: null,
+    });
+    expect(everyKeyRefused).toHaveLength(Object.keys(DEFAULT_SETTINGS).length);
   });
 });

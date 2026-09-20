@@ -1,4 +1,8 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import {
+  LOCAL_PAGE_BACKGROUND,
+  localPageBackgroundColor,
   isValidAccentColor,
   isValidFontScale,
   clampFontScale,
@@ -117,5 +121,42 @@ describe('applyThemeToWebContents', () => {
       1
     );
     expect(key).toBeNull();
+  });
+});
+
+describe('localPageBackgroundColor', () => {
+  test('selects by theme', () => {
+    expect(localPageBackgroundColor(true)).toBe(LOCAL_PAGE_BACKGROUND.dark);
+    expect(localPageBackgroundColor(false)).toBe(LOCAL_PAGE_BACKGROUND.light);
+  });
+
+  test('the two themes are different colours', () => {
+    // Without this, setting both constants to the same value would still pass
+    // the agreement check below for whichever theme it matched.
+    expect(LOCAL_PAGE_BACKGROUND.light).not.toBe(LOCAL_PAGE_BACKGROUND.dark);
+  });
+
+  /*
+   * The point of the constant is that Electron paints the same colour the page
+   * is about to paint, so a window no longer flashes white before its first
+   * frame (issue #3298). That only holds while it agrees with `--screen` in
+   * tokens.css, which this reads rather than restates.
+   */
+  test('agrees with the --screen the local pages paint', () => {
+    const tokensPath = path.join(__dirname, '..', 'src', 'pages', 'tokens.css');
+    const tokens = fs.readFileSync(tokensPath, 'utf8');
+    const declared = [...tokens.matchAll(/^\s*--screen:\s*(#[0-9a-fA-F]{3,8});/gm)].map((m) =>
+      m[1]!.toLowerCase()
+    );
+
+    // Canary: zero matches would make the set comparison below vacuous in
+    // exactly the case where it is wrong - a renamed token, a moved file.
+    expect(declared.length).toBeGreaterThan(0);
+
+    // `:root` is the light theme and is declared first; the dark blocks follow.
+    expect(declared[0]).toBe(LOCAL_PAGE_BACKGROUND.light);
+    expect(new Set(declared)).toEqual(
+      new Set([LOCAL_PAGE_BACKGROUND.light, LOCAL_PAGE_BACKGROUND.dark])
+    );
   });
 });
