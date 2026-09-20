@@ -206,7 +206,14 @@ const settleAutoScroll = async (canvasElement: HTMLElement) => {
 
 const openTaskPopover = async (chip: HTMLElement): Promise<HTMLElement> => {
   const box = chip.getBoundingClientRect();
-  fireEvent.mouseEnter(chip, {
+  /* `mouseOver`, not `mouseEnter`. TaskMarker uses React's `onMouseEnter`, which
+     React synthesizes from the native `mouseout`/`mouseover` pair it delegates at
+     the root - native `mouseenter` is not one of its dependencies and does not
+     bubble, so it opened nothing. In jsdom the equivalent Jest test passes, so this
+     only ever failed in a real browser, which is where stories run. The popover is
+     positioned from the coordinates on the event and they carry through unchanged:
+     React builds the synthetic enter event from this `mouseover`. */
+  fireEvent.mouseOver(chip, {
     clientX: box.left + box.width / 2,
     clientY: box.top + box.height / 2,
   });

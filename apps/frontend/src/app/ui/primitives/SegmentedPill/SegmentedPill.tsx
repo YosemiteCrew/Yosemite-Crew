@@ -10,8 +10,9 @@ export type SegmentedPillOption<T extends string> = {
  * - `sm` 5px 13px / 11.5px — settings preference pills and the phone controls.
  * - `md` 5px 14px / 12px — dashboard, specialities and chat controls.
  * - `lg` 6px 15px / 12.5px — main tab controls (inventory catalog, appointments).
+ * - `toolbar` 7px 16px / 12px — task-board scope controls.
  */
-export type SegmentedPillSize = 'sm' | 'md' | 'lg';
+export type SegmentedPillSize = 'sm' | 'md' | 'lg' | 'toolbar';
 
 type SegmentedPillProps<T extends string> = {
   options: ReadonlyArray<SegmentedPillOption<T>>;
@@ -28,6 +29,7 @@ const SEGMENT_SIZE: Record<SegmentedPillSize, string> = {
   sm: 'px-[13px] py-[5px] text-[11.5px]',
   md: 'px-[14px] py-[5px] text-[12px]',
   lg: 'px-[15px] py-[6px] text-[12.5px]',
+  toolbar: 'px-4 py-[7px] text-[12px]',
 };
 
 // Equal-width segments share the track, so the design drops the horizontal
@@ -36,6 +38,7 @@ const SEGMENT_SIZE_FULL_WIDTH: Record<SegmentedPillSize, string> = {
   sm: 'flex-1 text-center py-[5px] text-[11.5px]',
   md: 'flex-1 text-center py-[6px] text-[12px]',
   lg: 'flex-1 text-center py-[6px] text-[12.5px]',
+  toolbar: 'flex-1 text-center py-[7px] text-[12px]',
 };
 
 type SegmentStyleArgs = {

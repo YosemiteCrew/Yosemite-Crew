@@ -8,10 +8,6 @@ jest.mock('react-icons/fa6', () => ({
   FaCaretDown: () => <span data-testid="icon-caret" />,
 }));
 
-jest.mock('react-icons/io', () => ({
-  IoIosWarning: () => <span data-testid="icon-warning" />,
-}));
-
 expect.extend(toHaveNoViolations);
 
 describe('LabelDropdown', () => {
@@ -19,6 +15,23 @@ describe('LabelDropdown', () => {
     { label: 'Canine', value: 'dog' },
     { label: 'Feline', value: 'cat' },
   ];
+
+  describe('hideLabel', () => {
+    it('drops the stacked label but keeps it on the trigger for assistive tech', () => {
+      render(<LabelDropdown placeholder="Room" options={options} onSelect={jest.fn()} hideLabel />);
+      /* Omitted, not hidden with CSS: a hidden element keeps the same text in
+         the accessibility tree and reappears the moment the selector that hides
+         it stops matching - which is how the meta bar's label got duplicated. */
+      const labels = screen.queryAllByText('Room').filter((node) => node.tagName !== 'BUTTON');
+      expect(labels).toHaveLength(0);
+      expect(screen.getByRole('button', { name: 'Room' })).toBeInTheDocument();
+    });
+
+    it('still renders the stacked label by default', () => {
+      render(<LabelDropdown placeholder="Room" options={options} onSelect={jest.fn()} />);
+      expect(screen.getAllByText('Room').some((node) => node.tagName === 'SPAN')).toBe(true);
+    });
+  });
 
   it('renders placeholder and error when no selection', () => {
     render(
@@ -31,8 +44,10 @@ describe('LabelDropdown', () => {
     );
 
     expect(screen.getByRole('button', { name: /Species/i })).toBeInTheDocument();
-    expect(screen.getByText('Required')).toBeInTheDocument();
-    expect(screen.getByTestId('icon-warning')).toBeInTheDocument();
+    const trigger = screen.getByRole('button', { name: /Species/i });
+    const error = screen.getByRole('alert');
+    expect(error).toHaveTextContent('Required');
+    expect(trigger).toHaveAttribute('aria-describedby', error.id);
   });
 
   it('opens and selects an option', () => {
@@ -231,7 +246,10 @@ describe('LabelDropdown', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Species/i }));
 
-    expect(screen.getByText('No options')).toBeInTheDocument();
+    // The same sentence the other two dropdown primitives use. This one said
+    // "No options" while MultiSelectDropdown and Dropdown said "No options
+    // available", so the same empty menu read two ways depending on the field.
+    expect(screen.getByText('No options available')).toBeInTheDocument();
   });
 
   it('renders inline options when portal is disabled', () => {
@@ -343,6 +361,28 @@ describe('LabelDropdown', () => {
     expect(screen.getByText('Package')).toBeInTheDocument();
     // Non-badged option renders only its label.
     expect(screen.getByText('Consultation')).toBeInTheDocument();
+  });
+
+  it('exposes listbox/option ARIA roles with aria-selected on the panel', () => {
+    render(
+      <LabelDropdown
+        placeholder="Species"
+        options={options}
+        defaultOption="cat"
+        onSelect={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Species/i }));
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    const options_ = screen.getAllByRole('option');
+    expect(options_).toHaveLength(2);
+
+    const canine = screen.getByRole('option', { name: 'Canine' });
+    const feline = screen.getByRole('option', { name: 'Feline' });
+    expect(canine).toHaveAttribute('aria-selected', 'false');
+    expect(feline).toHaveAttribute('aria-selected', 'true');
   });
 
   it('has no axe accessibility violations', async () => {

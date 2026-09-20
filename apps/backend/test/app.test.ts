@@ -1,7 +1,7 @@
-import { IncomingMessage, ServerResponse } from "node:http";
-import type { Socket } from "node:net";
+import { createServer, IncomingMessage, ServerResponse } from "node:http";
+import type { AddressInfo, Socket } from "node:net";
 import { PassThrough } from "node:stream";
-import type { RequestHandler } from "express";
+import type { ErrorRequestHandler, Express, RequestHandler } from "express";
 
 const mockRegisterRoutes = jest.fn();
 const mockStripeWebhook = jest.fn();
@@ -71,6 +71,12 @@ jest.mock("../src/config/auth-hooks", () => ({
 }));
 
 import { createApp } from "../src/app";
+import {
+  EXPECTED_CONTROLS,
+  getControlReports,
+  hasFailedControl,
+  resetControlsForTest,
+} from "../src/config/startup-controls";
 
 type Layer = {
   route?: {
@@ -107,7 +113,6 @@ async function request(
   (socket as PassThrough & { remoteAddress?: string }).remoteAddress =
     "127.0.0.1";
   const requestSocket = socket as unknown as Socket;
-
   const req = new IncomingMessage(requestSocket);
   req.method = method;
   req.url = path;
@@ -116,7 +121,6 @@ async function request(
   );
   req.socket = requestSocket;
   req.connection = requestSocket;
-
   const res = new ServerResponse(req);
   res.assignSocket(requestSocket);
 
@@ -132,13 +136,15 @@ async function request(
         handle: (request: IncomingMessage, response: ServerResponse) => void;
       }
     ).handle(req, res);
+    req.push(null);
   });
 
   const raw = Buffer.concat(rawChunks).toString("utf8");
   const separator = "\r\n\r\n";
   const splitIndex = raw.indexOf(separator);
   const headerText = splitIndex >= 0 ? raw.slice(0, splitIndex) : raw;
-  const body = splitIndex >= 0 ? raw.slice(splitIndex + separator.length) : "";
+  const responseBody =
+    splitIndex >= 0 ? raw.slice(splitIndex + separator.length) : "";
   const headerLines = headerText.split("\r\n");
   const headersMap: Record<string, string> = {};
 
@@ -153,9 +159,31 @@ async function request(
   return {
     statusCode: res.statusCode,
     headers: headersMap,
-    body,
+    body: responseBody,
     getHeader: (name: string) => headersMap[name.toLowerCase()],
   };
+}
+
+async function withHttpServer<T>(
+  app: ReturnType<typeof createApp>,
+  run: (origin: string) => Promise<T>,
+): Promise<T> {
+  const server = createServer(app);
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+  const address = server.address() as AddressInfo;
+  try {
+    return await run(`http://127.0.0.1:${address.port}`);
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
 }
 
 describe("createApp", () => {
@@ -258,6 +286,44 @@ describe("createApp", () => {
     );
     expect(response.getHeader("access-control-allow-credentials")).toBe("true");
   });
+
+  // #2752: without a final application-level error handler, an error that
+  // escapes a route falls through to Express's own default handler, which
+  // answers with an HTML page instead of the JSON shape every other error
+  // path in this app uses.
+  it("returns a JSON error, not Express's default HTML page, when a route throws", async () => {
+    mockRegisterRoutes.mockImplementationOnce((app: Express) => {
+      app.get("/test-unhandled-throw", () => {
+        throw new Error("boom");
+      });
+    });
+
+    const app = createApp();
+    const response = await request(app, { path: "/test-unhandled-throw" });
+    const body = JSON.parse(response.body) as { message: string };
+
+    expect(response.statusCode).toBe(500);
+    expect(response.getHeader("content-type")).toContain("application/json");
+    expect(body).toEqual({ message: "Internal server error." });
+  });
+
+  it("delegates unhandled errors after the response headers were sent", () => {
+    const app = createApp();
+    const stack = ((app as unknown as { _router: { stack: Layer[] } })._router
+      .stack ?? []) as Layer[];
+    const errorHandler = stack.at(-1)?.handle as unknown as ErrorRequestHandler;
+    const error = new Error("boom after headers");
+    const next = jest.fn();
+
+    errorHandler(
+      error,
+      {} as Parameters<ErrorRequestHandler>[1],
+      { headersSent: true } as Parameters<ErrorRequestHandler>[2],
+      next,
+    );
+
+    expect(next).toHaveBeenCalledWith(error);
+  });
 });
 
 describe("createApp auth wiring", () => {
@@ -271,6 +337,7 @@ describe("createApp auth wiring", () => {
     "SUPERTOKENS_DISABLED",
     "SUPERTOKENS_CONNECTION_URI",
     "AUTH_API_DOMAIN",
+    "AUTH_API_BASE_PATH",
     "AUTH_WEBSITE_DOMAIN",
   ];
 
@@ -317,5 +384,352 @@ describe("createApp auth wiring", () => {
 
     expect(mockInitSuperTokens).not.toHaveBeenCalled();
     expect(mockSetAuthService).toHaveBeenCalledWith(null);
+  });
+
+  const signUpBody = (email: string) => ({
+    formFields: [
+      { id: "email", value: email },
+      { id: "password", value: "synthetic-test-value" },
+      { id: "turnstileToken", value: "verified-token" },
+    ],
+  });
+
+  const postSignUp = async (
+    origin: string,
+    path: string,
+    email: string,
+    forwardedFor?: string,
+  ) => {
+    const response = await fetch(`${origin}${path}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: authEnv.AUTH_WEBSITE_DOMAIN,
+        ...(forwardedFor ? { "x-forwarded-for": forwardedFor } : {}),
+      },
+      body: JSON.stringify(signUpBody(email)),
+    });
+    return {
+      statusCode: response.status,
+      body: await response.text(),
+      allowedOrigin: response.headers.get("access-control-allow-origin"),
+      allowsCredentials: response.headers.get(
+        "access-control-allow-credentials",
+      ),
+    };
+  };
+
+  const mountSignUpPassThrough = () => {
+    mockRegisterSuperTokensBeforeRoutes.mockImplementationOnce(
+      (app: Express) => {
+        const authBasePath = process.env.AUTH_API_BASE_PATH ?? "/auth";
+        app.post(
+          [`${authBasePath}/signup`, `${authBasePath}/:tenantId/signup`],
+          (_req, res) => {
+            res.status(204).end();
+          },
+        );
+      },
+    );
+  };
+
+  it("refuses the sixth signup from one IP within the signup window", async () => {
+    Object.assign(process.env, authEnv);
+    mountSignUpPassThrough();
+    const app = createApp();
+    const stack = ((app as unknown as { _router: { stack: Layer[] } })._router
+      .stack ?? []) as Layer[];
+    const signupLayers = stack.filter(
+      (layer) =>
+        Array.isArray(layer.route?.path) &&
+        layer.route.path.includes("/auth/signup"),
+    );
+    const signupJsonParserIndex = signupLayers[0]?.route?.stack.findIndex(
+      (layer) => layer.handle.name === "jsonParser",
+    );
+
+    expect(signupJsonParserIndex).toBeGreaterThanOrEqual(0);
+    expect(signupLayers).toHaveLength(2);
+
+    const responses = await withHttpServer(app, async (origin) => {
+      const attempts = [];
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        attempts.push(
+          await postSignUp(
+            origin,
+            "/auth/signup",
+            `clinic@domain-${attempt}.example`,
+          ),
+        );
+      }
+      return attempts;
+    });
+
+    expect(
+      responses.slice(0, 5).every((response) => response.statusCode === 204),
+    ).toBe(true);
+    expect(responses[5].statusCode).toBe(200);
+    expect(responses[5].allowedOrigin).toBe(authEnv.AUTH_WEBSITE_DOMAIN);
+    expect(responses[5].allowsCredentials).toBe("true");
+    expect(JSON.parse(responses[5].body)).toEqual({
+      status: "SIGN_UP_NOT_ALLOWED",
+      reason: "Too many signup attempts. Please try again later.",
+    });
+  });
+
+  it("refuses the sixth signup for one email domain across different IPs", async () => {
+    Object.assign(process.env, authEnv);
+    mountSignUpPassThrough();
+    const app = createApp();
+
+    const { responses, otherDomain } = await withHttpServer(
+      app,
+      async (origin) => {
+        const attempts = [];
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          attempts.push(
+            await postSignUp(
+              origin,
+              "/auth/public/signup",
+              `clinic-${attempt}@${attempt % 2 === 0 ? "gmail.com" : "googlemail.com"}`,
+              `192.0.2.${attempt + 1}`,
+            ),
+          );
+        }
+        return {
+          responses: attempts,
+          otherDomain: await postSignUp(
+            origin,
+            "/auth/public/signup",
+            "owner@different.example",
+            "192.0.2.99",
+          ),
+        };
+      },
+    );
+
+    expect(
+      responses.slice(0, 5).every((response) => response.statusCode === 204),
+    ).toBe(true);
+    expect(responses[5].statusCode).toBe(200);
+    expect(otherDomain.statusCode).toBe(204);
+  });
+
+  it("applies signup rate limits at the configured auth base path", async () => {
+    Object.assign(process.env, authEnv, { AUTH_API_BASE_PATH: "/identity" });
+    mountSignUpPassThrough();
+    const app = createApp();
+
+    const responses = await withHttpServer(app, async (origin) => {
+      const attempts = [];
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        attempts.push(
+          await postSignUp(
+            origin,
+            "/identity/signup",
+            `clinic@domain-${attempt}.example`,
+          ),
+        );
+      }
+      return attempts;
+    });
+
+    expect(
+      responses.slice(0, 5).map((response) => response.statusCode),
+    ).toEqual([204, 204, 204, 204, 204]);
+    expect(responses[5].statusCode).toBe(200);
+  });
+});
+
+// #2750: a missing auth variable disabled the whole SuperTokens stack with no
+// log line, no throw and no control report - so "somebody turned auth off" and
+// "a deploy lost a variable" were the same observable process from outside.
+describe("createApp reports the authentication control", () => {
+  const authEnv = {
+    SUPERTOKENS_CONNECTION_URI: "https://core.example.test",
+    AUTH_API_DOMAIN: "https://api.example.test",
+    AUTH_WEBSITE_DOMAIN: "https://web.example.test",
+  };
+  const envKeys = [
+    "SUPERTOKENS_DISABLED",
+    "SUPERTOKENS_CONNECTION_URI",
+    "AUTH_API_DOMAIN",
+    "AUTH_WEBSITE_DOMAIN",
+  ];
+  const saved: Record<string, string | undefined> = {};
+
+  const authControl = () =>
+    getControlReports().find((report) => report.name === "authentication");
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    resetControlsForTest();
+    for (const key of envKeys) {
+      saved[key] = process.env[key];
+      delete process.env[key];
+    }
+  });
+
+  afterEach(() => {
+    resetControlsForTest();
+    for (const key of envKeys) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+  });
+
+  it("records applied when the auth env is complete", () => {
+    Object.assign(process.env, authEnv);
+
+    createApp();
+
+    expect(authControl()).toMatchObject({ state: "applied" });
+    expect(authControl()).not.toHaveProperty("detail");
+    expect(hasFailedControl()).toBe(false);
+  });
+
+  it("records skipped, not failed, when auth is deliberately turned off", () => {
+    Object.assign(process.env, authEnv);
+    process.env.SUPERTOKENS_DISABLED = "true";
+
+    createApp();
+
+    expect(authControl()).toMatchObject({
+      state: "skipped",
+      detail: "disabled by configuration",
+    });
+    // A kill switch somebody threw is a deployment fact, not an incident: if it
+    // paged, people would learn to ignore this endpoint.
+    expect(hasFailedControl()).toBe(false);
+  });
+
+  it("records failed when the auth env is incomplete", () => {
+    Object.assign(process.env, authEnv);
+    delete process.env.AUTH_WEBSITE_DOMAIN;
+
+    createApp();
+
+    expect(authControl()).toMatchObject({
+      state: "failed",
+      detail: "auth env incomplete",
+    });
+    expect(hasFailedControl()).toBe(true);
+  });
+
+  // The distinction the issue is about: the two unmounted boots must not read
+  // the same. Both skip the SuperTokens wiring; only one of them is a fault.
+  it("distinguishes the deliberate boot from the accidental one", () => {
+    Object.assign(process.env, authEnv);
+    process.env.SUPERTOKENS_DISABLED = "1";
+    createApp();
+    const deliberate = authControl()?.state;
+
+    resetControlsForTest();
+    jest.clearAllMocks();
+    delete process.env.SUPERTOKENS_DISABLED;
+    delete process.env.AUTH_API_DOMAIN;
+    createApp();
+    const accidental = authControl()?.state;
+
+    expect(mockRegisterSuperTokensBeforeRoutes).not.toHaveBeenCalled();
+    expect(deliberate).toBe("skipped");
+    expect(accidental).toBe("failed");
+    expect(deliberate).not.toBe(accidental);
+  });
+
+  // Precedence, and it is the case that could mask an accident: the kill switch
+  // wins over an incomplete env, so a boot that is BOTH still reports the
+  // deliberate state. That is the right way round - somebody asked for this
+  // process - but it is worth pinning rather than leaving to the read order.
+  it("reports skipped when auth is switched off and the env is incomplete too", () => {
+    process.env.SUPERTOKENS_DISABLED = "true";
+
+    createApp();
+
+    expect(authControl()).toMatchObject({
+      state: "skipped",
+      detail: "disabled by configuration",
+    });
+    expect(hasFailedControl()).toBe(false);
+  });
+
+  // /health/controls is unauthenticated by design, so the detail must never say
+  // which variable is missing - that is a map of the deployment to anyone.
+  it("never names the missing variable in the reported detail", () => {
+    Object.assign(process.env, authEnv);
+    delete process.env.SUPERTOKENS_CONNECTION_URI;
+
+    createApp();
+
+    const detail = authControl()?.detail ?? "";
+    for (const key of envKeys) {
+      expect(detail).not.toContain(key);
+    }
+    expect(detail).toBe("auth env incomplete");
+  });
+
+  it("degrades /health/controls but not /health when auth did not mount", async () => {
+    Object.assign(process.env, authEnv);
+    delete process.env.AUTH_WEBSITE_DOMAIN;
+
+    const app = createApp();
+
+    const liveness = await request(app, { path: "/health" });
+    const controls = await request(app, { path: "/health/controls" });
+    const body = JSON.parse(controls.body) as {
+      status: string;
+      controls: Array<{ name: string; state: string; detail?: string }>;
+      expected: string[];
+    };
+
+    // Liveness is unchanged on purpose: the process is up, the control is not.
+    expect(liveness.statusCode).toBe(200);
+    expect(controls.statusCode).toBe(503);
+    expect(body.status).toBe("degraded");
+    // Sent on the degraded response too: a reader comparing the two lists needs
+    // it most exactly when something is wrong.
+    expect(body.expected).toEqual([...EXPECTED_CONTROLS]);
+    expect(body.controls).toContainEqual(
+      expect.objectContaining({
+        name: "authentication",
+        state: "failed",
+        detail: "auth env incomplete",
+      }),
+    );
+  });
+
+  it("keeps /health/controls green when auth mounted", async () => {
+    Object.assign(process.env, authEnv);
+
+    const app = createApp();
+
+    const controls = await request(app, { path: "/health/controls" });
+    const body = JSON.parse(controls.body) as {
+      status: string;
+      controls: Array<{ name: string; state: string }>;
+      expected: string[];
+    };
+
+    expect(controls.statusCode).toBe(200);
+    expect(body.status).toBe("ok");
+    expect(body.controls).toContainEqual(
+      expect.objectContaining({ name: "authentication", state: "applied" }),
+    );
+    expect(body.expected).toEqual([...EXPECTED_CONTROLS]);
+  });
+
+  // #2758: the deploy gate ships when a named control is absent, because a
+  // rollback deploys a bundle that never recorded it. This key is what lets the
+  // gate tell that apart from a bundle that should have recorded it and did
+  // not - so its ABSENCE is the version marker, and it must not be conditional
+  // on state, on configuration, or on anything else.
+  it("declares the controls it registers on every boot, including an auth-less one", async () => {
+    const app = createApp();
+
+    const controls = await request(app, { path: "/health/controls" });
+    const body = JSON.parse(controls.body) as { expected: string[] };
+
+    expect(body.expected).toEqual([...EXPECTED_CONTROLS]);
+    expect(body.expected).toContain("authentication");
   });
 });

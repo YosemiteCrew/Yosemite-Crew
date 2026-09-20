@@ -449,7 +449,7 @@ describe('GoogleSearchDropDown Component', () => {
       await Promise.resolve();
     });
 
-    const suggestion = await screen.findByRole('button', { name: /123 Test St/ });
+    const suggestion = await screen.findByRole('option', { name: /123 Test St/ });
     fireEvent.mouseDown(suggestion);
 
     await waitFor(() => expect(mockSetFormData).toHaveBeenCalled());
@@ -550,7 +550,7 @@ describe('GoogleSearchDropDown Component', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(await screen.findByRole('button', { name: /Result/ })).toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: /Result/ })).toBeInTheDocument();
 
     // Click outside
     fireEvent.mouseDown(screen.getByTestId('outside'));
@@ -706,7 +706,7 @@ describe('GoogleSearchDropDown Component', () => {
       await Promise.resolve();
     });
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('option')).not.toBeInTheDocument();
   });
 
   it('sends an empty API key header when the env var is absent', async () => {
@@ -779,7 +779,7 @@ describe('GoogleSearchDropDown Component', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    const button = await screen.findByRole('button');
+    const button = await screen.findByRole('option');
     await act(async () => {
       fireEvent.mouseDown(button);
     });
@@ -992,15 +992,15 @@ describe('GoogleSearchDropDown Component', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(await screen.findByRole('button', { name: /Result/ })).toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: /Result/ })).toBeInTheDocument();
 
     // Blur closes the dropdown but keeps predictions in state.
     fireEvent.blur(input);
-    expect(screen.queryByRole('button', { name: /Result/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Result/ })).not.toBeInTheDocument();
 
     // Refocus should reopen because predictions.length > 0.
     fireEvent.focus(input);
-    expect(await screen.findByRole('button', { name: /Result/ })).toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: /Result/ })).toBeInTheDocument();
   });
 
   it('selects a prediction via pointerdown as well as mousedown', async () => {
@@ -1046,7 +1046,7 @@ describe('GoogleSearchDropDown Component', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    const button = await screen.findByRole('button', { name: /Pointer Place/ });
+    const button = await screen.findByRole('option', { name: /Pointer Place/ });
     await act(async () => {
       fireEvent.pointerDown(button);
     });
@@ -1058,6 +1058,116 @@ describe('GoogleSearchDropDown Component', () => {
       })
     );
     process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = savedKey;
+  });
+
+  // --- 8. Keyboard navigation ---
+
+  it('ArrowDown moves the highlighted prediction', async () => {
+    await openWithSuggestions([
+      {
+        placePrediction: {
+          placeId: 'p_first',
+          structuredFormat: { mainText: { text: 'First Place' } },
+        },
+      },
+      {
+        placePrediction: {
+          placeId: 'p_second',
+          structuredFormat: { mainText: { text: 'Second Place' } },
+        },
+      },
+    ]);
+
+    const input = screen.getByRole('textbox');
+    const firstOption = await screen.findByRole('option', { name: /First Place/ });
+    const secondOption = screen.getByRole('option', { name: /Second Place/ });
+
+    // Opening the list highlights the first prediction by default.
+    expect(firstOption).toHaveAttribute('aria-selected', 'true');
+    expect(secondOption).toHaveAttribute('aria-selected', 'false');
+    expect(input).toHaveAttribute('aria-activedescendant', firstOption.id);
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+
+    expect(firstOption).toHaveAttribute('aria-selected', 'false');
+    expect(secondOption).toHaveAttribute('aria-selected', 'true');
+    expect(input).toHaveAttribute('aria-activedescendant', secondOption.id);
+  });
+
+  it('Enter selects the highlighted prediction', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        suggestions: [
+          {
+            placePrediction: {
+              placeId: 'p_enter',
+              structuredFormat: { mainText: { text: 'Enter Place' } },
+            },
+          },
+        ],
+      }),
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 'p_enter', displayName: { text: 'Enter Place' } }),
+    });
+
+    render(
+      <ControlledGoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        initialValue=""
+        onChange={mockOnChange}
+        setFormData={mockSetFormData}
+      />
+    );
+
+    const input = screen.getByRole('textbox');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'Ent' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await screen.findByRole('option', { name: /Enter Place/ });
+
+    await act(async () => {
+      fireEvent.keyDown(input, { key: 'Enter' });
+    });
+
+    // Enter picked the highlighted (only) prediction — same effect a click would have.
+    expect(mockSetFormData).toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('places/p_enter'),
+      expect.objectContaining({ method: 'GET' })
+    );
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('Escape closes the dropdown without selecting', async () => {
+    await openWithSuggestions([
+      {
+        placePrediction: {
+          placeId: 'p_esc',
+          structuredFormat: { mainText: { text: 'Escape Place' } },
+        },
+      },
+    ]);
+
+    const input = screen.getByRole('textbox');
+    await screen.findByRole('option', { name: /Escape Place/ });
+    const callsBeforeEscape = mockOnChange.mock.calls.length;
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    // Escape must not select: no place-details GET, no extra onChange beyond typing.
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockOnChange).toHaveBeenCalledTimes(callsBeforeEscape);
   });
 
   it('renders safely when value is nullish', () => {

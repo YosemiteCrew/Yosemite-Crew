@@ -14,9 +14,9 @@ import {
 const StatusEnum = z.enum(["ACTIVE", "COMPLETED", "CANCELLED"]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  surgicalProcedureId: z.string().uuid().optional(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
+  surgicalProcedureId: z.uuid().optional(),
   painScore: z.number().int().min(0).max(10).optional(),
   analgesiaProtocol: z.string().max(2000).optional(),
   woundCareInstructions: z.string().max(5000).optional(),
@@ -24,15 +24,15 @@ const CreateBodySchema = z.object({
   dietaryNotes: z.string().max(2000).optional(),
   fluidTherapyNotes: z.string().max(2000).optional(),
   monitoringParams: z.string().max(2000).optional(),
-  firstReviewAt: z.string().datetime().optional(),
-  nextReviewAt: z.string().datetime().optional(),
+  firstReviewAt: z.iso.datetime().optional(),
+  nextReviewAt: z.iso.datetime().optional(),
   notes: z.string().max(2000).optional(),
 });
 
 const ReviewBodySchema = z.object({
   painScore: z.number().int().min(0).max(10).optional(),
   reviewNotes: z.string().min(1).max(5000),
-  nextReviewAt: z.string().datetime().optional(),
+  nextReviewAt: z.iso.datetime().optional(),
   status: StatusEnum.optional(),
 });
 
@@ -43,8 +43,8 @@ const UpdateBodySchema = z.object({
   dietaryNotes: z.string().max(2000).optional(),
   fluidTherapyNotes: z.string().max(2000).optional(),
   monitoringParams: z.string().max(2000).optional(),
-  firstReviewAt: z.string().datetime().optional(),
-  nextReviewAt: z.string().datetime().optional(),
+  firstReviewAt: z.iso.datetime().optional(),
+  nextReviewAt: z.iso.datetime().optional(),
   notes: z.string().max(2000).optional(),
   status: StatusEnum.optional(),
 });

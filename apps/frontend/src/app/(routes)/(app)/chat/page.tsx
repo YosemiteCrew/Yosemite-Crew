@@ -18,6 +18,7 @@ import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import './page.css';
 
+// no-story: thin Next.js route wrapper (guards + deep-link state only); real content is ChatContainer, already storied
 const ChatContainer = dynamic(
   () =>
     import('@/app/features/chat/components/ChatContainer').then((m) => ({

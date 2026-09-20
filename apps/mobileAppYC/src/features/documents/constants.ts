@@ -9,7 +9,6 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     description: 'Certificates, insurance',
     icon: Images.adminIcon,
     iconTint: 'avatarVioletBg',
-    isSynced: false,
     fileCount: 0,
     subcategories: [
       {
@@ -27,7 +26,6 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     description: 'Passport, prescriptions, labs, vaccinations',
     icon: Images.healthIconCategory,
     iconTint: 'blueSoft',
-    isSynced: true,
     fileCount: 0,
     subcategories: [
       {id: S.PASSPORT, label: 'Passport', fileCount: 0},
@@ -48,7 +46,6 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     description: 'Grooming, dental, skin care',
     icon: Images.hygieneIcon,
     iconTint: 'pinkGlow',
-    isSynced: true,
     fileCount: 0,
     subcategories: [
       {id: S.BATHING, label: 'Bathing', fileCount: 0},
@@ -71,7 +68,6 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     description: 'Nutrition plans',
     icon: Images.dietaryIcon,
     iconTint: 'avatarGreenBg',
-    isSynced: false,
     fileCount: 0,
     subcategories: [
       {id: S.NUTRITION_PLANS, label: 'Nutrition plans', fileCount: 0},
@@ -83,7 +79,6 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     description: 'Weight logs, behaviour notes, photos',
     icon: Images.othersIconCategory,
     iconTint: 'avatarAmberBg',
-    isSynced: false,
     fileCount: 0,
     subcategories: [
       {

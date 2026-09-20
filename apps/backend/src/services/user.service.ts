@@ -4,9 +4,12 @@ import { User } from "@yosemite-crew/types";
 import { getAuthService } from "@yosemite-crew/auth";
 import { OrganizationService } from "./organization.service";
 import { UserOrganizationService } from "./user-organization.service";
+import { DeveloperBillingService } from "./developer-billing.service";
 import { prisma } from "src/config/prisma";
-
-const SUPERTOKENS_PROVIDER = "supertokens";
+import {
+  practitionerReferenceFilter,
+  resolveCanonicalUserId,
+} from "./shared/staff-identity";
 
 export class UserServiceError extends Error {
   constructor(
@@ -97,28 +100,6 @@ const sanitizeUserAttributes = (payload: User) => {
     email: email.toLowerCase(),
     isActive,
   };
-};
-
-const resolveCanonicalUserId = async (
-  userId: string,
-): Promise<string | null> => {
-  const existing = await prisma.user.findFirst({
-    where: { userId },
-    select: { userId: true },
-  });
-  if (existing) {
-    return existing.userId ?? userId;
-  }
-
-  const identity = await prisma.authIdentity.findFirst({
-    where: {
-      provider: SUPERTOKENS_PROVIDER,
-      providerUserId: userId,
-    },
-    select: { appUserId: true },
-  });
-
-  return identity?.appUserId ?? null;
 };
 
 type UserDomain = {
@@ -271,15 +252,9 @@ export const UserService = {
     // Querying only the supplied alias found no mappings, so deletion removed no
     // organisation roles and reported success while the still-authenticated
     // session kept every permission those mappings grant.
-    const practitionerIds = [
-      ...new Set([userId, resolvedUserId].filter(Boolean)),
-    ];
     const mappings = await prisma.userOrganization.findMany({
       where: {
-        OR: practitionerIds.flatMap((practitionerId) => [
-          { practitionerReference: practitionerId },
-          { practitionerReference: `Practitioner/${practitionerId}` },
-        ]),
+        OR: practitionerReferenceFilter([userId, resolvedUserId]),
       },
       select: { id: true, roleCode: true, organizationReference: true },
     });
@@ -298,6 +273,18 @@ export const UserService = {
     for (const mapping of mappings) {
       await UserOrganizationService.deleteById(mapping.id);
     }
+
+    // The developer's API keys, subscription and usage counters are keyed on
+    // the user, not on an organisation, so removing organisation memberships
+    // above leaves them behind. The subscription in particular keeps billing:
+    // cancel it before the account stops existing.
+    await DeveloperBillingService.cancelForOwner(resolvedUserId);
+    await prisma.developerApiKey.deleteMany({
+      where: { ownerUserId: resolvedUserId },
+    });
+    await prisma.developerApiUsage.deleteMany({
+      where: { ownerUserId: resolvedUserId },
+    });
 
     await Promise.all([
       prisma.userProfile.deleteMany({ where: { userId: resolvedUserId } }),

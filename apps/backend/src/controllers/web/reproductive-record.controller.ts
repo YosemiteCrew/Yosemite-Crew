@@ -26,19 +26,19 @@ const PregnancyStatusEnum = z.enum([
 ]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
+  patientId: z.uuid(),
   reproductiveStatus: ReproductiveStatusEnum,
-  lastHeatDate: z.string().datetime().optional(),
-  nextHeatExpected: z.string().datetime().optional(),
-  matingDate: z.string().datetime().optional(),
-  sireId: z.string().uuid().optional(),
+  lastHeatDate: z.iso.datetime().optional(),
+  nextHeatExpected: z.iso.datetime().optional(),
+  matingDate: z.iso.datetime().optional(),
+  sireId: z.uuid().optional(),
   sireName: z.string().max(300).optional(),
   pregnancyStatus: PregnancyStatusEnum.optional(),
-  pregnancyConfirmedAt: z.string().datetime().optional(),
-  expectedWhelp: z.string().datetime().optional(),
+  pregnancyConfirmedAt: z.iso.datetime().optional(),
+  expectedWhelp: z.iso.datetime().optional(),
   litterSizeUltrasound: z.number().int().min(0).optional(),
   litterSizeXray: z.number().int().min(0).optional(),
-  actualWhelp: z.string().datetime().optional(),
+  actualWhelp: z.iso.datetime().optional(),
   litterSizeBorn: z.number().int().min(0).optional(),
   litterSizeAlive: z.number().int().min(0).optional(),
   notes: z.string().max(3000).optional(),
@@ -47,7 +47,7 @@ const CreateBodySchema = z.object({
 const UpdateBodySchema = CreateBodySchema.omit({ patientId: true }).partial();
 
 const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
+  patientId: z.uuid().optional(),
   reproductiveStatus: ReproductiveStatusEnum.optional(),
 });
 

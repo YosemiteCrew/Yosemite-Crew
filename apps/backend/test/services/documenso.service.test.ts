@@ -25,7 +25,7 @@ jest.mock("../../src/utils/logger", () => ({
   },
 }));
 
-const mockCreateV0 = jest.fn();
+const mockCreate = jest.fn();
 const mockDistribute = jest.fn();
 const mockGet = jest.fn();
 
@@ -33,7 +33,7 @@ jest.mock("@documenso/sdk-typescript", () => {
   return {
     Documenso: jest.fn().mockImplementation(() => ({
       documents: {
-        createV0: mockCreateV0,
+        create: mockCreate,
         distribute: mockDistribute,
         get: mockGet,
       },
@@ -54,9 +54,6 @@ jest.mock("@documenso/sdk-typescript/models/errors/index.js", () => {
   return { DocumensoError: MockDocumensoError, __esModule: true };
 });
 
-// Set up global fetch mock
-globalThis.fetch = jest.fn();
-
 // --- HELPER TO TEST LOAD-TIME ENV VARIABLES ---
 function getModule(envOverrides: Record<string, string>) {
   let mod: any;
@@ -74,7 +71,6 @@ function getModule(envOverrides: Record<string, string>) {
 describe("DocumensoService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (globalThis.fetch as jest.Mock).mockResolvedValue({ ok: true });
   });
 
   describe("Configuration & Environment Variable Errors", () => {
@@ -130,7 +126,7 @@ describe("DocumensoService", () => {
       });
       await Service.downloadSignedDocument({ documentId: 1 });
       expect(logger.error).toHaveBeenCalledWith(
-        "An unexpected error occurred:",
+        "Documenso signed-document download failed",
         expect.objectContaining({ message: "DOCUMENSO_API_KEY is not set" }),
       );
     });
@@ -183,34 +179,36 @@ describe("DocumensoService", () => {
 
     describe("createDocument", () => {
       it("creates a document successfully and falls back to signerEmail for name", async () => {
-        mockCreateV0.mockResolvedValueOnce({
-          document: { id: "doc_1" },
-          uploadUrl: "http://upload",
+        mockCreate.mockResolvedValueOnce({ id: 1, envelopeId: "env_1" });
+        mockGet.mockResolvedValueOnce({
+          id: 1,
+          recipients: [{ id: 11, token: "synthetic-recipient-token" }],
         });
         const result = await DocumensoService.createDocument({
           pdf: Buffer.from("test"),
           signerEmail: "test@test.com",
         });
 
-        expect(result).toEqual({ id: "doc_1" });
-        expect(mockCreateV0).toHaveBeenCalledWith(
+        expect(result.recipients[0].token).toBe("synthetic-recipient-token");
+        expect(mockCreate).toHaveBeenCalledWith(
           expect.objectContaining({
-            recipients: expect.arrayContaining([
-              expect.objectContaining({ name: "test@test.com" }),
-            ]),
+            payload: expect.objectContaining({
+              recipients: expect.arrayContaining([
+                expect.objectContaining({ name: "test@test.com" }),
+              ]),
+            }),
+            file: {
+              fileName: "document.pdf",
+              content: expect.any(Uint8Array),
+            },
           }),
         );
-        expect(globalThis.fetch).toHaveBeenCalledWith(
-          "http://upload",
-          expect.any(Object),
-        );
+        expect(mockGet).toHaveBeenCalledWith({ documentId: 1 });
       });
 
       it("uses provided signerName and caches Documenso Client", async () => {
-        mockCreateV0.mockResolvedValue({
-          document: { id: "doc_2" },
-          uploadUrl: "http://upload",
-        });
+        mockCreate.mockResolvedValue({ id: 2, envelopeId: "env_2" });
+        mockGet.mockResolvedValue({ id: 2, recipients: [] });
 
         // 1st Call - Misses cache, sets cache
         await DocumensoService.createDocument({
@@ -228,21 +226,21 @@ describe("DocumensoService", () => {
           apiKey: "cache_key_1",
         });
 
-        expect(result).toEqual({ id: "doc_2" });
-        expect(mockCreateV0).toHaveBeenCalledWith(
+        expect(result).toEqual({ id: 2, recipients: [] });
+        expect(mockCreate).toHaveBeenCalledWith(
           expect.objectContaining({
-            recipients: expect.arrayContaining([
-              expect.objectContaining({ name: "John Doe" }),
-            ]),
+            payload: expect.objectContaining({
+              recipients: expect.arrayContaining([
+                expect.objectContaining({ name: "John Doe" }),
+              ]),
+            }),
           }),
         );
       });
 
       it("sends the signature field on-page so the signer can reach it", async () => {
-        mockCreateV0.mockResolvedValueOnce({
-          document: { id: "doc_sig" },
-          uploadUrl: "http://upload",
-        });
+        mockCreate.mockResolvedValueOnce({ id: 3, envelopeId: "env_3" });
+        mockGet.mockResolvedValueOnce({ id: 3, recipients: [] });
 
         await DocumensoService.createDocument({
           pdf: Buffer.from("test"),
@@ -256,18 +254,20 @@ describe("DocumensoService", () => {
           },
         });
 
-        const arg = mockCreateV0.mock.calls.at(-1)?.[0] as {
-          recipients: Array<{
-            fields: Array<{
-              type: string;
-              pageX: number;
-              pageY: number;
-              width: number;
-              height: number;
+        const arg = mockCreate.mock.calls.at(-1)?.[0] as {
+          payload: {
+            recipients: Array<{
+              fields: Array<{
+                type: string;
+                pageX: number;
+                pageY: number;
+                width: number;
+                height: number;
+              }>;
             }>;
-          }>;
+          };
         };
-        const field = arg.recipients[0].fields[0];
+        const field = arg.payload.recipients[0].fields[0];
         expect(field.type).toBe("SIGNATURE");
         // Documenso uses 0–100 page percentages. PDF points (>100) placed the
         // field off-page where the signer could not reach it — the historical
@@ -286,49 +286,29 @@ describe("DocumensoService", () => {
       });
 
       it("falls back to an on-page default placement when none is provided", async () => {
-        mockCreateV0.mockResolvedValueOnce({
-          document: { id: "doc_def" },
-          uploadUrl: "http://upload",
-        });
+        mockCreate.mockResolvedValueOnce({ id: 4, envelopeId: "env_4" });
+        mockGet.mockResolvedValueOnce({ id: 4, recipients: [] });
 
         await DocumensoService.createDocument({
           pdf: Buffer.from("test"),
           signerEmail: "test@test.com",
         });
 
-        const arg = mockCreateV0.mock.calls.at(-1)?.[0] as {
-          recipients: Array<{
-            fields: Array<{ pageX: number; pageY: number; height: number }>;
-          }>;
+        const arg = mockCreate.mock.calls.at(-1)?.[0] as {
+          payload: {
+            recipients: Array<{
+              fields: Array<{ pageX: number; pageY: number; height: number }>;
+            }>;
+          };
         };
-        const field = arg.recipients[0].fields[0];
+        const field = arg.payload.recipients[0].fields[0];
         expect(field.pageX).toBeLessThanOrEqual(100);
         expect(field.pageY).toBeLessThanOrEqual(100);
         expect(field.pageY + field.height).toBeLessThanOrEqual(100);
       });
 
-      it("throws when uploadPdfBuffer fetch fails (!response.ok)", async () => {
-        (globalThis.fetch as jest.Mock).mockResolvedValueOnce({
-          ok: false,
-          status: 502,
-        });
-        mockCreateV0.mockResolvedValueOnce({
-          document: {},
-          uploadUrl: "http://upload",
-        });
-
-        await DocumensoService.createDocument({
-          pdf: Buffer.from(""),
-          signerEmail: "a@a.com",
-        });
-        expect(logger.error).toHaveBeenCalledWith(
-          "An unexpected error occurred:",
-          expect.objectContaining({ message: "Upload failed: 502" }),
-        );
-      });
-
       it("handles DocumensoError", async () => {
-        mockCreateV0.mockRejectedValueOnce(
+        mockCreate.mockRejectedValueOnce(
           new (DocumensoError as any)("API Failed", 400, "Bad Request"),
         );
         await DocumensoService.createDocument({
@@ -339,6 +319,27 @@ describe("DocumensoService", () => {
         expect(logger.error).toHaveBeenCalledWith("API error:", "API Failed");
         expect(logger.error).toHaveBeenCalledWith("Status code:", 400);
         expect(logger.error).toHaveBeenCalledWith("Body:", "Bad Request");
+      });
+
+      it("handles a failed lookup after the document is created", async () => {
+        mockCreate.mockResolvedValueOnce({ id: 5, envelopeId: "env_5" });
+        mockGet.mockRejectedValueOnce(
+          new (DocumensoError as any)("Lookup failed", 503, "Unavailable"),
+        );
+
+        const result = await DocumensoService.createDocument({
+          pdf: Buffer.from("test"),
+          signerEmail: "test@test.com",
+        });
+
+        expect(result).toBeUndefined();
+        expect(mockGet).toHaveBeenCalledWith({ documentId: 5 });
+        expect(logger.error).toHaveBeenCalledWith(
+          "API error:",
+          "Lookup failed",
+        );
+        expect(logger.error).toHaveBeenCalledWith("Status code:", 503);
+        expect(logger.error).toHaveBeenCalledWith("Body:", "Unavailable");
       });
     });
 
@@ -448,8 +449,43 @@ describe("DocumensoService", () => {
         );
         await DocumensoService.downloadSignedDocument({ documentId: 1 });
         expect(logger.error).toHaveBeenCalledWith(
-          "An unexpected error occurred:",
-          expect.any(Error),
+          "Documenso signed-document download failed",
+          expect.objectContaining({ message: "Download failed" }),
+        );
+      });
+
+      /*
+       * The property, not the wording. Axios hangs the outbound request off the
+       * error as `config`, so logging the error object writes
+       * `config.headers.Authorization` - the Documenso API key - into the log.
+       * The logger does not redact it: production is `json()`, which serialises
+       * the whole meta, and the development field list replaces `req`, `res`,
+       * `request` and `response` but not `config`, because it exists to keep log
+       * lines small rather than to redact.
+       *
+       * So this asserts on the SERIALISED arguments rather than on their shape:
+       * a future change that logs the raw error again reddens here whatever it
+       * calls the message.
+       */
+      it("never writes the API key into the log when the download fails", async () => {
+        const apiKeyValue = "documenso-api-key-placeholder";
+        (axios.get as jest.Mock).mockRejectedValueOnce(
+          Object.assign(new Error("Download failed"), {
+            isAxiosError: true,
+            config: {
+              url: "http://valid.com/document/1/download-beta",
+              headers: { Authorization: apiKeyValue },
+            },
+            response: { status: 502 },
+          }),
+        );
+
+        await DocumensoService.downloadSignedDocument({ documentId: 1 });
+
+        const logged = (logger.error as jest.Mock).mock.calls.at(-1);
+        expect(JSON.stringify(logged)).not.toContain(apiKeyValue);
+        expect(logged?.[1]).toEqual(
+          expect.objectContaining({ message: "Download failed", status: 502 }),
         );
       });
     });
@@ -527,8 +563,38 @@ describe("DocumensoService", () => {
           DocumensoService.generateExternalRedirectUrl({} as any),
         ).rejects.toThrow("Network Err");
         expect(logger.error).toHaveBeenCalledWith(
-          "Documenso external auth error:",
-          axError,
+          "Documenso external auth error",
+          expect.objectContaining({ message: "Network Err" }),
+        );
+      });
+
+      /*
+       * The same property on the other call site, where the credential is in
+       * the request BODY rather than a header - axios attaches that to the
+       * error as `config.data`, so the shape of the leak differs and the fix
+       * and the check do not.
+       */
+      it("never writes the external auth secret into the log when the call fails", async () => {
+        const secretValue = "external-auth-secret-placeholder";
+        (axios.post as jest.Mock).mockRejectedValueOnce(
+          Object.assign(new Error("Network Err"), {
+            isAxiosError: true,
+            config: {
+              url: "http://valid.com/api/auth/external/generate-token",
+              data: JSON.stringify({ externalSecret: secretValue }),
+            },
+            response: { status: 500 },
+          }),
+        );
+
+        await expect(
+          DocumensoService.generateExternalRedirectUrl({} as any),
+        ).rejects.toThrow("Network Err");
+
+        const logged = (logger.error as jest.Mock).mock.calls.at(-1);
+        expect(JSON.stringify(logged)).not.toContain(secretValue);
+        expect(logged?.[1]).toEqual(
+          expect.objectContaining({ message: "Network Err", status: 500 }),
         );
       });
     });

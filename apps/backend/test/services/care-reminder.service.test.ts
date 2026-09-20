@@ -6,6 +6,7 @@ import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "src/services/audit-trail.service";
 import { NotificationService } from "src/services/notification.service";
 import { sendEmail } from "src/utils/email";
+import { buildCareReminderMessage } from "src/services/shared/care-reminder-message";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -305,6 +306,24 @@ describe("CareReminderService.send", () => {
     const body = (sendEmail as jest.Mock).mock.calls[0][0].htmlBody as string;
     expect(body).toContain("/v1/reminder-preferences/unsubscribe");
     expect(body).toContain("Stop receiving care reminders");
+  });
+
+  it("carries the same sentence the in-app due list shows", async () => {
+    // The wording lives in `shared/care-reminder-message` because #2705 added
+    // a pull surface for these rows: an owner who missed the push finds the
+    // reminder in the app, and two descriptions of one reminder is the bug
+    // that guards against. Asserting against the builder, not against a copy
+    // of the string, is what makes changing one side alone fail here.
+    await CareReminderService.send("reminder-1", "org-1");
+    const body = (sendEmail as jest.Mock).mock.calls[0][0].htmlBody as string;
+
+    expect(body).toContain(
+      buildCareReminderMessage({
+        customMessage: null,
+        patientName: "Buddy",
+        reminderType: "VACCINATION_BOOSTER",
+      }),
+    );
   });
 
   it("suppresses the email when the recipient opted out of email, but still pushes", async () => {

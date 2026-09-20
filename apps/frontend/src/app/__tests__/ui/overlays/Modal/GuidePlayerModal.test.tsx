@@ -91,7 +91,12 @@ describe('GuidePlayerModal', () => {
     );
     expect(screen.getByText('Appointments')).toBeInTheDocument();
     expect(screen.getByText('Run a visit end to end')).toBeInTheDocument();
-    expect(screen.getByText('3:07 / 5:18')).toBeInTheDocument();
+    // The player is a real <video>, so the elapsed/total readout belongs to the
+    // browser's controls rather than to a module literal. What this asserts is
+    // that the guide's own media is what got mounted.
+    const player = document.querySelector('video');
+    expect(player).toHaveAttribute('poster', guide.thumbnailUrl);
+    expect(player?.querySelector('source')).toHaveAttribute('src', guide.videoUrl);
     expect(screen.getByText(/invoice & payment 4:12/)).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /Next: Invoices, deposits and payouts/ })
@@ -226,7 +231,7 @@ describe('GuidePlayerModal', () => {
     expect(screen.queryByRole('button', { name: 'Copied' })).not.toBeInTheDocument();
   });
 
-  it('renders a guide without chapters or progress at 0:00', () => {
+  it('mounts the guide media and omits chapters when it has none', () => {
     render(
       <GuidePlayerModal
         showModal
@@ -236,7 +241,10 @@ describe('GuidePlayerModal', () => {
         onNext={jest.fn()}
       />
     );
-    expect(screen.getByText('0:00 / 5:18')).toBeInTheDocument();
+    const player = document.querySelector('video');
+    expect(player?.querySelector('source')).toHaveAttribute('src', nextGuide.videoUrl);
+    // No scrubber readout to assert: the guide carries no progress, and progress
+    // was never a property of the guide in the first place.
     expect(screen.queryByText(/Chapters:/)).not.toBeInTheDocument();
   });
 

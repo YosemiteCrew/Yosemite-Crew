@@ -121,6 +121,7 @@ describe("ClinicalArtifactService clinical records", () => {
     signedBy: null,
     signedAt: null,
     summary: null,
+    version: 1,
     createdAt: now,
     updatedAt: now,
     ...overrides,

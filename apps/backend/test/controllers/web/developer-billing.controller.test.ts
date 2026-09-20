@@ -49,7 +49,7 @@ const buildRes = (): Response => {
 
 const buildReq = (
   over: {
-    organisationId?: string;
+    userId?: string;
     body?: unknown;
     headers?: Record<string, string>;
   } = {},
@@ -58,23 +58,23 @@ const buildReq = (
     body: over.body ?? {},
     params: {},
     headers: over.headers ?? {},
-    organisationId: over.organisationId,
+    userId: over.userId,
   }) as unknown as Request;
 
 describe("DeveloperBillingController.getSubscription", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("400 without organisationId", async () => {
+  it("401 without a verified user", async () => {
     const res = buildRes();
     await DeveloperBillingController.getSubscription(buildReq(), res);
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(401);
   });
 
   it("200 with data envelope", async () => {
     svc.getSubscription.mockResolvedValue({ id: "s", plan: "free" });
     const res = buildRes();
     await DeveloperBillingController.getSubscription(
-      buildReq({ organisationId: "o" }),
+      buildReq({ userId: "u" }),
       res,
     );
     expect(res.json).toHaveBeenCalledWith({ data: { id: "s", plan: "free" } });
@@ -84,7 +84,7 @@ describe("DeveloperBillingController.getSubscription", () => {
     svc.getSubscription.mockRejectedValue(new Error("boom"));
     const res = buildRes();
     await DeveloperBillingController.getSubscription(
-      buildReq({ organisationId: "o" }),
+      buildReq({ userId: "u" }),
       res,
     );
     expect(res.status).toHaveBeenCalledWith(500);
@@ -94,17 +94,17 @@ describe("DeveloperBillingController.getSubscription", () => {
 describe("DeveloperBillingController.createCheckout", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("400 without organisationId", async () => {
+  it("401 without a verified user", async () => {
     const res = buildRes();
     await DeveloperBillingController.createCheckout(buildReq(), res);
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(401);
   });
 
   it("400 when successUrl is missing", async () => {
     const res = buildRes();
     await DeveloperBillingController.createCheckout(
       buildReq({
-        organisationId: "o",
+        userId: "u",
         body: { cancelUrl: "https://b.com" },
       }),
       res,
@@ -117,7 +117,7 @@ describe("DeveloperBillingController.createCheckout", () => {
     const res = buildRes();
     await DeveloperBillingController.createCheckout(
       buildReq({
-        organisationId: "o",
+        userId: "u",
         body: { successUrl: "not-a-url", cancelUrl: "https://b.com" },
       }),
       res,
@@ -132,7 +132,7 @@ describe("DeveloperBillingController.createCheckout", () => {
     const res = buildRes();
     await DeveloperBillingController.createCheckout(
       buildReq({
-        organisationId: "o",
+        userId: "u",
         body: {
           successUrl: "https://app.com/success",
           cancelUrl: "https://app.com/cancel",
@@ -153,7 +153,7 @@ describe("DeveloperBillingController.createCheckout", () => {
     const res = buildRes();
     await DeveloperBillingController.createCheckout(
       buildReq({
-        organisationId: "o",
+        userId: "u",
         body: {
           successUrl: "https://app.com/success",
           cancelUrl: "https://app.com/cancel",
@@ -168,16 +168,16 @@ describe("DeveloperBillingController.createCheckout", () => {
 describe("DeveloperBillingController.createPortal", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("400 without organisationId", async () => {
+  it("401 without a verified user", async () => {
     const res = buildRes();
     await DeveloperBillingController.createPortal(buildReq(), res);
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(401);
   });
 
   it("400 without returnUrl", async () => {
     const res = buildRes();
     await DeveloperBillingController.createPortal(
-      buildReq({ organisationId: "o", body: {} }),
+      buildReq({ userId: "u", body: {} }),
       res,
     );
     expect(res.status).toHaveBeenCalledWith(400);
@@ -188,7 +188,7 @@ describe("DeveloperBillingController.createPortal", () => {
     const res = buildRes();
     await DeveloperBillingController.createPortal(
       buildReq({
-        organisationId: "o",
+        userId: "u",
         body: { returnUrl: "https://app.com/billing" },
       }),
       res,
@@ -206,7 +206,7 @@ describe("DeveloperBillingController.createPortal", () => {
     const res = buildRes();
     await DeveloperBillingController.createPortal(
       buildReq({
-        organisationId: "o",
+        userId: "u",
         body: { returnUrl: "https://app.com/billing" },
       }),
       res,

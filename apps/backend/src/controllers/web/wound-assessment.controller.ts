@@ -37,9 +37,9 @@ const HealingStatusEnum = z.enum([
 ]);
 
 const RecordBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  surgicalProcedureId: z.string().uuid().optional(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
+  surgicalProcedureId: z.uuid().optional(),
   woundType: WoundTypeEnum,
   location: z.string().min(1).max(500),
   lengthCm: z.number().min(0).optional(),
@@ -55,14 +55,14 @@ const RecordBodySchema = z.object({
   periwoundSkin: z.string().max(500).optional(),
   dressing: z.string().max(500).optional(),
   dressingChangeFreq: z.string().max(200).optional(),
-  assessedAt: z.string().datetime(),
+  assessedAt: z.iso.datetime(),
   notes: z.string().max(2000).optional(),
 });
 
 const ListQuerySchema = patientScopeQuery.extend({
-  surgicalProcedureId: z.string().uuid().optional(),
-  from: z.string().datetime().optional(),
-  to: z.string().datetime().optional(),
+  surgicalProcedureId: z.uuid().optional(),
+  from: z.iso.datetime().optional(),
+  to: z.iso.datetime().optional(),
 });
 
 const AssessmentParamsSchema = orgParams.extend({ assessmentId: uuid() });

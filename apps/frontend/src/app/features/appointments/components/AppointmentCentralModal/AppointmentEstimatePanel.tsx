@@ -8,6 +8,10 @@ type AppointmentEstimatePanelProps = {
 };
 
 const FONT = 'var(--font-satoshi), sans-serif';
+// Money reads "$143.00" - sign, no space, two decimals. An empty slot is an em
+// dash, never a "$ 00.00" placeholder that looks like a real total of zero.
+const EMPTY_VALUE = '—';
+const formatUsd = (value: number) => `$${value.toFixed(2)}`;
 const NEUTRAL_900 = 'var(--color-neutral-900)';
 
 const label14M: React.CSSProperties = {
@@ -36,9 +40,9 @@ const AppointmentEstimatePanel = ({
   const estimate = computeEstimate(cost);
   const currencyLabel = currency ?? 'USD';
 
-  const costDisplay = costNum > 0 ? `$ ${costNum.toFixed(2)}` : '-';
-  const discountDisplay = discountNum > 0 ? `$${discountNum.toFixed(2)}` : '-';
-  const estimateDisplay = estimate > 0 ? `$ ${estimate.toFixed(2)}` : '$ 00.00';
+  const costDisplay = costNum > 0 ? formatUsd(costNum) : EMPTY_VALUE;
+  const discountDisplay = discountNum > 0 ? formatUsd(discountNum) : EMPTY_VALUE;
+  const estimateDisplay = estimate > 0 ? formatUsd(estimate) : EMPTY_VALUE;
   const estimateIsReal = estimate > 0;
 
   return (

@@ -7,6 +7,7 @@
  * that shows up later as one story failing to render, far from its cause.
  */
 import config from '../../../../.storybook/main';
+import NextScript from '../../../../.storybook/mocks/nextScript';
 
 type AliasEntry = { find: string | RegExp; replacement: string };
 
@@ -50,12 +51,31 @@ describe('.storybook viteFinal alias handling', () => {
     const bare = out.findIndex((f) => f === '/^@\\//');
 
     expect(bare).toBeGreaterThan(-1);
-    for (const specific of ['features', 'ui', 'lib', 'constants']) {
+    for (const specific of ['features', 'ui', 'lib', 'constants', 'mediaSources']) {
       expect(out.findIndex((f) => f.includes(specific))).toBeLessThan(bare);
     }
   });
 
+  it('aliases the media sources module to the Storybook-only override - #2853', () => {
+    const out = run(undefined);
+    const entry = out.find((a) => String(a.find) === '/^@\\/app\\/constants\\/mediaSources$/');
+
+    // Exact match only: a prefix match here would also catch a hypothetical
+    // `@/app/constants/mediaSources/x` import and point it at a file that
+    // does not exist.
+    expect(entry).toBeDefined();
+    expect(entry?.replacement.endsWith('mocks/mediaSources.ts')).toBe(true);
+  });
+
+  it('replaces next/script with the no-op Storybook implementation', () => {
+    const out = run(undefined);
+    const entry = out.find((a) => String(a.find) === '/^next\\/script$/');
+
+    expect(entry?.replacement.endsWith('mocks/nextScript.tsx')).toBe(true);
+    expect(NextScript()).toBeNull();
+  });
+
   it('copes with no inherited aliases at all', () => {
-    expect(run(undefined).length).toBe(5);
+    expect(run(undefined).length).toBe(7);
   });
 });

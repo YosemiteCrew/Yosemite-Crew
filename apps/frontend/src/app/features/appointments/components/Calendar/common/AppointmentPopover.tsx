@@ -133,7 +133,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
   const roomDisplay = getAppointmentRoomDisplay(appointment, encountersById, roomUnitsById);
   const canOpenWorkspace = canEnterAppointmentWorkspace(appointment.status);
   const primaryActionLabel =
-    appointment.status === 'UPCOMING' ? 'Start Appointment' : 'View Appointment';
+    appointment.status === 'UPCOMING' ? 'Start appointment' : 'View appointment';
   const openWorkspace = (intent?: AppointmentViewIntent) => {
     if (!appointment.id) return;
     /* v8 ignore next 4 -- unreachable: both openWorkspace callers (WorkspaceQuickActions and the primary action button) are only rendered when canOpenWorkspace is true, and both read the same render's value */
@@ -185,7 +185,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
         <PopoverDetail label="Service" value={appointment.appointmentType?.name || '-'} />
         <PopoverDetail label="Date" value={formatAppointmentDate(appointment)} />
         <PopoverDetail label={roomDisplay.label} value={roomDisplay.value} />
-        <PopoverDetail label="Client Name" value={getOwnerFirstName(companion.parent) || '-'} />
+        <PopoverDetail label="Client name" value={getOwnerFirstName(companion.parent) || '-'} />
         <PopoverDetail label="Reason" value={appointment.concern || '-'} scrollValue />
         <PopoverDetail label={paymentTitle} value={paymentValue} emphasized />
       </div>

@@ -111,7 +111,7 @@ describe('cardStyles', () => {
           fontSize: 18,
           fontWeight: '500',
           lineHeight: 21.6,
-          fontFamily: 'ClashGrotesk-Medium',
+          fontFamily: 'Satoshi-Medium',
           letterSpacing: -0.18,
           color: mockTheme.colors.secondary,
         }),
@@ -123,7 +123,7 @@ describe('cardStyles', () => {
           fontSize: 18,
           fontWeight: '500',
           lineHeight: 27,
-          fontFamily: 'ClashDisplay-Medium',
+          fontFamily: 'Satoshi-Medium',
           color: mockTheme.colors.secondary,
         }),
       );

@@ -399,7 +399,14 @@ describe('ViewAppointmentScreen', () => {
           photo: 'http://biz.jpg',
         },
       ],
-      services: [{id: 'srv-1', name: 'Checkup', specialty: 'Vet'}],
+      services: [
+        {
+          id: 'srv-1',
+          name: 'Checkup',
+          specialty: 'Vet',
+          description: 'Bring the current medication packaging.',
+        },
+      ],
       employees: [{id: 'emp-1', name: 'Dr. Smith'}],
     },
     companion: {
@@ -915,6 +922,9 @@ describe('ViewAppointmentScreen', () => {
 
     it('renders full appointment details', () => {
       renderScreen();
+      expect(AppointmentSlice.fetchAppointmentById).toHaveBeenCalledWith({
+        appointmentId: mockAptId,
+      });
       expect(screen.getAllByText('Appointment Details')).toHaveLength(2);
       expect(screen.getAllByText('Test Vet').length).toBeGreaterThan(0);
       expect(screen.getByText('Checkup')).toBeTruthy();
@@ -922,6 +932,29 @@ describe('ViewAppointmentScreen', () => {
       expect(screen.getByText('Vaccine Record')).toBeTruthy();
       expect(screen.getByText('File1.pdf')).toBeTruthy();
       expect(screen.getByText('123 Test St')).toBeTruthy();
+      expect(screen.getByText('Before your visit')).toBeTruthy();
+      expect(
+        screen.getByText('Bring the current medication packaging.'),
+      ).toBeTruthy();
+      expect(screen.getByText('Instructions from Test Vet')).toBeTruthy();
+      expect(screen.getByText('Assigned paperwork')).toBeTruthy();
+      expect(
+        screen.getByText('No paperwork is assigned for this appointment.'),
+      ).toBeTruthy();
+    });
+
+    it('labels missing preparation instructions as unavailable', () => {
+      const state = clone(defaultState);
+      state.businesses.services[0].description = '   ';
+
+      renderScreen(state);
+
+      expect(
+        screen.getByText(
+          'Preparation instructions are unavailable. Contact the practice if you need guidance before this visit.',
+        ),
+      ).toBeTruthy();
+      expect(screen.queryByText('Instructions from Test Vet')).toBeNull();
     });
 
     it('shows a loading state and fetches when the appointment is missing', () => {

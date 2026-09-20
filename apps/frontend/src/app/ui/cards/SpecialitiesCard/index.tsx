@@ -5,28 +5,39 @@ import { Secondary } from '@/app/ui/primitives/Buttons';
 
 type SpecialitiesCardProps = {
   speciality: SpecialityWeb;
-  handleViewSpeciality: any;
+  handleViewSpeciality: (speciality: SpecialityWeb) => void;
+  serviceLabel?: string;
+  headLabel?: string;
 };
 
-const SpecialitiesCard = ({ speciality, handleViewSpeciality }: SpecialitiesCardProps) => {
+const SpecialitiesCard = ({
+  speciality,
+  handleViewSpeciality,
+  serviceLabel,
+  headLabel,
+}: SpecialitiesCardProps) => {
   return (
-    <div className="w-full h-full rounded-2xl border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] p-3 flex flex-col justify-between gap-2 cursor-pointer">
+    <div className="w-full h-full yc-card-surface yc-card-surface--tile p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-1">
         <div className="text-body-3-emphasis text-text-primary">{speciality.name}</div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Services:</div>
         <div className="text-caption-1 text-text-primary">
-          {getServiceNames(speciality.services)}
+          {serviceLabel ?? (getServiceNames(speciality.services) || '0')}
         </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Assigned team members:</div>
-        <div className="text-caption-1 text-text-primary">{speciality.teamMemberIds?.length}</div>
+        <div className="text-caption-1 text-text-primary">
+          {speciality.teamMemberIds?.length ?? 0}
+        </div>
       </div>
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Head:</div>
-        <div className="text-caption-1 text-text-primary">{speciality.headName}</div>
+        <div className="text-caption-1 text-text-primary">
+          {headLabel ?? speciality.headName ?? '—'}
+        </div>
       </div>
       <div className="flex gap-3 w-full">
         <Secondary

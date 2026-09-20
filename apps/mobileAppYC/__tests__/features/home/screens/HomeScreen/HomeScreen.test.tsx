@@ -541,6 +541,16 @@ describe('HomeScreen', () => {
           allIds: [],
           hydratedCompanions: {c1: true},
         },
+        parasiteRisk: {
+          location: null,
+          reading: null,
+          recentLocations: [],
+          subscriptions: [],
+          loading: false,
+          subscriptionsLoading: false,
+          error: null,
+          disclaimerAcknowledged: false,
+        },
         ...stateOverrides,
       },
       middleware: getDefaultMiddleware =>
@@ -601,7 +611,8 @@ describe('HomeScreen', () => {
   describe('deriveHomeGreetingName', () => {
     it('handles names correctly', () => {
       expect(deriveHomeGreetingName('  Jane  ').displayName).toBe('Jane');
-      expect(deriveHomeGreetingName(null).resolvedName).toBe('Sky');
+      // A missing name greets neutrally rather than borrowing a fixture name.
+      expect(deriveHomeGreetingName(null).resolvedName).toBe('there');
       expect(deriveHomeGreetingName('Christopherrr').displayName).toBe(
         'Christopherrr',
       );
@@ -737,7 +748,7 @@ describe('HomeScreen', () => {
         </Provider>,
       );
 
-      expect(getByText('Hello, Sky')).toBeTruthy();
+      expect(getByText('Hello, there')).toBeTruthy();
     });
 
     // #2368's disguise on Home: an empty companion list rendered "Add your

@@ -11,6 +11,9 @@ import { sendEmail } from "src/utils/email";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    // The array form runs the batched queries and returns their results in
+    // order, which is all the list path needs from a transaction here.
+    $transaction: jest.fn((operations) => Promise.all(operations)),
     organization: { findUnique: jest.fn(), update: jest.fn() },
     bookingSlugReservation: { findUnique: jest.fn() },
     productItem: { findMany: jest.fn(), count: jest.fn() },
@@ -38,6 +41,7 @@ jest.mock("src/utils/logger", () => ({
 }));
 
 const pm = prisma as unknown as {
+  $transaction: jest.Mock;
   organization: { findUnique: jest.Mock; update: jest.Mock };
   bookingSlugReservation: { findUnique: jest.Mock };
   productItem: { findMany: jest.Mock; count: jest.Mock };
@@ -67,7 +71,6 @@ const publishedOrg = (over: Record<string, unknown> = {}) => ({
     serviceIds: [SERVICE_ID],
     bookingWindowDays: 28,
     bufferMinutes: 10,
-    autoConfirm: false,
     welcomeMessage: "Book a visit.",
     replyToEmail: "front@example.com",
   },
@@ -226,7 +229,6 @@ describe("public-booking.service", () => {
             serviceIds: [],
             bookingWindowDays: 28,
             bufferMinutes: 10,
-            autoConfirm: false,
             welcomeMessage: null,
             replyToEmail: null,
           },
@@ -303,7 +305,6 @@ describe("public-booking.service", () => {
             serviceIds: [SERVICE_ID],
             bookingWindowDays: 9999,
             bufferMinutes: 10,
-            autoConfirm: true,
             welcomeMessage: null,
             replyToEmail: null,
           },
@@ -313,7 +314,27 @@ describe("public-booking.service", () => {
       const practice =
         await PublicBookingService.getPractice("park-veterinary");
       expect(practice.bookingWindowDays).toBe(180);
-      expect(practice.requiresConfirmation).toBe(false);
+    });
+
+    it("always reports staff confirmation and ignores the retired setting", async () => {
+      pm.organization.findUnique.mockResolvedValue(
+        publishedOrg({
+          bookingSettings: {
+            serviceIds: [SERVICE_ID],
+            bookingWindowDays: 28,
+            bufferMinutes: 10,
+            autoConfirm: true,
+            welcomeMessage: null,
+            replyToEmail: null,
+          },
+        }),
+      );
+
+      const practice =
+        await PublicBookingService.getPractice("park-veterinary");
+      expect(practice.requiresConfirmation).toBe(true);
+      const select = pm.organization.findUnique.mock.calls[0][0].select;
+      expect(select.bookingSettings.select).not.toHaveProperty("autoConfirm");
     });
   });
 
@@ -333,6 +354,43 @@ describe("public-booking.service", () => {
         { startTime: "09:00", endTime: "09:30" },
       ]);
       expect(JSON.stringify(result)).not.toContain("staff-1");
+    });
+
+    it("passes the practice's configured buffer to the slot generator", async () => {
+      await PublicBookingService.getSlots(
+        "park-veterinary",
+        SERVICE_ID,
+        tomorrow(),
+      );
+
+      // The 4th argument is the buffer, read from bookingSettings (10 in the
+      // fixture). Without the wiring it defaults to 0 and public slots tile back
+      // to back regardless of the "Buffer between visits" setting.
+      expect(slotsMock).toHaveBeenCalledWith(
+        SERVICE_ID,
+        "org-1",
+        expect.any(Date),
+        10,
+      );
+    });
+
+    it("passes a zero buffer when the practice has no settings row", async () => {
+      pm.organization.findUnique.mockResolvedValue(
+        publishedOrg({ bookingSettings: null }),
+      );
+
+      await PublicBookingService.getSlots(
+        "park-veterinary",
+        SERVICE_ID,
+        tomorrow(),
+      );
+
+      expect(slotsMock).toHaveBeenCalledWith(
+        SERVICE_ID,
+        "org-1",
+        expect.any(Date),
+        0,
+      );
     });
 
     it("refuses a date beyond the practice's booking window", async () => {
@@ -412,7 +470,6 @@ describe("public-booking.service", () => {
             serviceIds: [],
             bookingWindowDays: 28,
             bufferMinutes: 10,
-            autoConfirm: false,
             welcomeMessage: null,
             replyToEmail: null,
           },
@@ -533,7 +590,6 @@ describe("public-booking.service", () => {
             serviceIds: [],
             bookingWindowDays: 28,
             bufferMinutes: 10,
-            autoConfirm: false,
             welcomeMessage: null,
             replyToEmail: null,
           },
@@ -691,17 +747,59 @@ describe("public-booking.service", () => {
   });
 
   describe("practice queue", () => {
-    it("never lists unconfirmed requests", async () => {
+    it("queries actionable and history separately so history cannot hide actionable", async () => {
       pm.publicBookingRequest.findMany.mockResolvedValue([]);
 
       await PublicBookingRequestService.listForOrganisation("org-1");
 
-      const where = pm.publicBookingRequest.findMany.mock.calls[0][0].where;
-      expect(where.status).toEqual({ in: ["CONFIRMED", "DECLINED", "BOOKED"] });
-      expect(where.organizationId).toBe("org-1");
+      // Two queries, not one shared capped page: a past-dated backlog of
+      // BOOKED/DECLINED can never push a future CONFIRMED request off the end.
+      expect(pm.publicBookingRequest.findMany).toHaveBeenCalledTimes(2);
+      const [actionableCall, historyCall] =
+        pm.publicBookingRequest.findMany.mock.calls;
+
+      expect(actionableCall[0].where).toEqual({
+        organizationId: "org-1",
+        status: "CONFIRMED",
+      });
+      expect(actionableCall[0].take).toBe(200);
+
+      expect(historyCall[0].where).toEqual({
+        organizationId: "org-1",
+        status: { in: ["BOOKED", "DECLINED"] },
+      });
+      // History is context, so it gets a smaller slice than actionable.
+      expect(historyCall[0].take).toBe(50);
     });
 
-    it("honours an explicit status filter", async () => {
+    it("reads both buckets in one RepeatableRead snapshot", async () => {
+      pm.publicBookingRequest.findMany.mockResolvedValue([]);
+
+      await PublicBookingRequestService.listForOrganisation("org-1");
+
+      // A status change committed between two independent reads could duplicate
+      // a row's id across the buckets or drop it; a single snapshot cannot.
+      expect(pm.$transaction).toHaveBeenCalledTimes(1);
+      expect(pm.$transaction.mock.calls[0][1]).toEqual({
+        isolationLevel: "RepeatableRead",
+      });
+    });
+
+    it("returns actionable requests ahead of history", async () => {
+      pm.publicBookingRequest.findMany
+        .mockResolvedValueOnce([{ id: "c1", status: "CONFIRMED" }])
+        .mockResolvedValueOnce([
+          { id: "b1", status: "BOOKED" },
+          { id: "d1", status: "DECLINED" },
+        ]);
+
+      const result =
+        await PublicBookingRequestService.listForOrganisation("org-1");
+
+      expect(result.map((request) => request.id)).toEqual(["c1", "b1", "d1"]);
+    });
+
+    it("honours an explicit status filter with a single query", async () => {
       pm.publicBookingRequest.findMany.mockResolvedValue([]);
 
       await PublicBookingRequestService.listForOrganisation(
@@ -709,6 +807,7 @@ describe("public-booking.service", () => {
         "DECLINED",
       );
 
+      expect(pm.publicBookingRequest.findMany).toHaveBeenCalledTimes(1);
       expect(
         pm.publicBookingRequest.findMany.mock.calls[0][0].where.status,
       ).toBe("DECLINED");

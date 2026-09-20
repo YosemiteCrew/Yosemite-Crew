@@ -6,8 +6,20 @@ import {
 import RNCalendarEvents from 'react-native-calendar-events';
 import {Alert, Linking, Platform} from 'react-native';
 import type {Task} from '../../../../src/features/tasks/types';
+import {parseISODate} from '../../../../src/shared/utils/dateHelpers';
 
 // --- Mocks ---
+
+// Wraps the REAL parseISODate by default (so every other test in this file
+// keeps exercising true local-safe parsing); only the regression test below
+// overrides it, to prove createSingleDosageEvent builds its event date from
+// parseISODate's return value rather than re-parsing task.date itself.
+jest.mock('../../../../src/shared/utils/dateHelpers', () => ({
+  ...jest.requireActual('../../../../src/shared/utils/dateHelpers'),
+  parseISODate: jest.fn(
+    jest.requireActual('../../../../src/shared/utils/dateHelpers').parseISODate,
+  ),
+}));
 
 jest.mock('react-native-calendar-events', () => ({
   checkPermissions: jest.fn(),
@@ -433,6 +445,69 @@ describe('calendarSyncService', () => {
         expect.stringContaining('Invalid dosage time'),
         'invalid-time',
       );
+    });
+
+    it('rejects a malformed dosage date without creating an event', async () => {
+      const badDateTask = {
+        ...baseTask,
+        date: 'not-a-date',
+        details: {
+          medicineName: 'Drug',
+          dosages: [{id: 'd1', label: 'Morning', time: '08:00'}],
+        },
+      } as any;
+
+      const result = await createCalendarEventForTask(badDateTask);
+
+      expect(RNCalendarEvents.saveEvent).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid dosage date'),
+        'not-a-date',
+      );
+    });
+
+    describe('keeps the dosage on the selected local calendar day (not a UTC-instant reparse)', () => {
+      // A real device-timezone simulation would need the process's own TZ to
+      // change mid-run; this Jest environment does not honor that (Date
+      // keeps reading the runner's real system zone regardless of
+      // process.env.TZ). So this proves the fix a different, deterministic
+      // way: parseISODate is mocked to return a distinctive sentinel date,
+      // and the event's date/month/year must come from THAT return value,
+      // not from re-deriving them out of the raw 'YYYY-MM-DD' string the way
+      // `new Date(task.date)` (UTC-instant parsing) used to.
+      afterEach(() => {
+        (parseISODate as jest.Mock).mockImplementation(
+          jest.requireActual('../../../../src/shared/utils/dateHelpers')
+            .parseISODate,
+        );
+      });
+
+      it("builds the event date from parseISODate's return value, not by re-parsing task.date", async () => {
+        const sentinel = new Date(2099, 0, 1); // Jan 1, 2099 -- unrelated to task.date
+        (parseISODate as jest.Mock).mockReturnValue(sentinel);
+
+        const dosageTask = {
+          ...baseTask,
+          date: '2026-09-15',
+          details: {
+            medicineName: 'Advil',
+            dosages: [{id: 'd1', label: 'Morning', time: '08:00'}],
+          },
+        } as any;
+
+        await createCalendarEventForTask(dosageTask);
+
+        expect(parseISODate).toHaveBeenCalledWith('2026-09-15');
+
+        const [, options] = (RNCalendarEvents.saveEvent as jest.Mock).mock
+          .calls[0];
+        const startDate = new Date(options.startDate);
+        expect(startDate.getFullYear()).toBe(2099);
+        expect(startDate.getMonth()).toBe(0);
+        expect(startDate.getDate()).toBe(1);
+        expect(startDate.getHours()).toBe(8);
+      });
     });
 
     it('parses an ISO datetime dosage time', async () => {

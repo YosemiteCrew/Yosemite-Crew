@@ -1,6 +1,7 @@
 import { createAuditLog } from '../src/compliance/audit-log';
 import { createControlledSubstanceLogbook } from '../src/compliance/controlled-substance';
 import { generateDeaReport, formatDeaReport } from '../src/compliance/dea-report';
+import { fsSeam } from './helpers/fs-seam';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -10,15 +11,16 @@ describe('generateDeaReport', () => {
   let mockFs: Record<string, string> = {};
 
   const makeDeps = (nowVal = 1000) => ({
-    readFileSync: jest.fn((filePath: string) => {
-      if (mockFs[filePath] !== undefined) return mockFs[filePath];
+    readFileSync: fsSeam((filePath: string) => {
+      const contents = mockFs[filePath];
+      if (contents !== undefined) return contents;
       throw new Error('ENOENT');
     }),
-    writeFileSync: jest.fn((filePath: string, data: string) => {
+    writeFileSync: fsSeam((filePath: string, data: string) => {
       mockFs[filePath] = data;
     }),
     mkdirSync: jest.fn(),
-    existsSync: jest.fn((filePath: string) => mockFs[filePath] !== undefined),
+    existsSync: fsSeam((filePath: string) => mockFs[filePath] !== undefined),
     now: jest.fn(() => nowVal),
   });
 
@@ -95,12 +97,12 @@ describe('generateDeaReport', () => {
     expect(report.totalDrugs).toBe(1);
 
     const ketamine = report.drugs[0];
-    expect(ketamine.received).toBe(100);
-    expect(ketamine.dispensed).toBe(30);
-    expect(ketamine.wasted).toBe(5);
-    expect(ketamine.administered).toBe(2);
-    expect(ketamine.endingInventory).toBe(63);
-    expect(ketamine.transactions).toHaveLength(4);
+    expect(ketamine!.received).toBe(100);
+    expect(ketamine!.dispensed).toBe(30);
+    expect(ketamine!.wasted).toBe(5);
+    expect(ketamine!.administered).toBe(2);
+    expect(ketamine!.endingInventory).toBe(63);
+    expect(ketamine!.transactions).toHaveLength(4);
   });
 
   test('handles transfer transactions with positive and negative quantities', async () => {

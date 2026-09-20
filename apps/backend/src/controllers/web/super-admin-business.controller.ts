@@ -27,7 +27,7 @@ const updateBusinessSchema = z
 
     if (provided.length !== 1) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: "Exactly one status field is required.",
       });
     }
@@ -116,6 +116,42 @@ export const SuperAdminBusinessController = {
         500,
         "SUPER_ADMIN_BUSINESS_GET_FAILED",
         "Unable to load business.",
+      );
+    }
+  },
+
+  listMembers: async (req: Request, res: Response) => {
+    const parsed = businessIdSchema.safeParse(req.params);
+    if (!parsed.success) {
+      invalidIdResponse(res);
+      return;
+    }
+
+    try {
+      const members = await SuperAdminBusinessService.listBusinessMembers(
+        parsed.data.id,
+      );
+      if (!members) {
+        respondWithError(res, 404, "BUSINESS_NOT_FOUND", "Business not found");
+        return;
+      }
+
+      res.status(200).json({ members });
+    } catch (error) {
+      if (
+        handleServiceError(
+          error,
+          res,
+          "Failed to list super-admin business members",
+        )
+      ) {
+        return;
+      }
+      respondWithError(
+        res,
+        500,
+        "SUPER_ADMIN_BUSINESS_MEMBERS_FAILED",
+        "Unable to list business members.",
       );
     }
   },

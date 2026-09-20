@@ -52,29 +52,32 @@ export const PillSelector: React.FC<PillSelectorProps> = ({
 
   const scrollToSelected = React.useCallback(() => {
     if (!autoScroll || selectedIndex === -1) {
-      return;
+      return undefined;
     }
 
-    setTimeout(() => {
-      if (flatListRef.current) {
-        flatListRef.current.scrollToIndex({
-          index: selectedIndex,
-          viewPosition: 0.5,
-          animated: true,
-        });
-        setTimeout(() => {
-          flatListRef.current?.scrollToIndex({
-            index: selectedIndex,
-            viewPosition: 0.5,
-            animated: true,
-          });
-        }, 300);
-      }
-    }, 100);
+    const scroll = () => {
+      flatListRef.current?.scrollToIndex({
+        index: selectedIndex,
+        viewPosition: 0.5,
+        animated: true,
+      });
+    };
+    // Both timers are scheduled up front (not nested) so a superseded
+    // selection can cancel both from the effect cleanup below - a selection
+    // change while the first is still pending used to leave it uncancelled,
+    // so it fired against the new selection's stale index and visibly
+    // snapped the pill strip back to an option the user had already moved
+    // off of.
+    const initialTimer = setTimeout(scroll, 100);
+    const retryTimer = setTimeout(scroll, 400);
+    return () => {
+      clearTimeout(initialTimer);
+      clearTimeout(retryTimer);
+    };
   }, [autoScroll, selectedIndex]);
 
   React.useEffect(() => {
-    scrollToSelected();
+    return scrollToSelected();
   }, [scrollToSelected]);
 
   const getItemLayout = React.useCallback(

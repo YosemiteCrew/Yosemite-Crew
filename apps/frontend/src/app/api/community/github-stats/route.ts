@@ -70,6 +70,98 @@ const githubFetch = (url: string) =>
     cache: 'no-store',
   });
 
+/**
+ * The stats branch is refreshed by the daily `repo-stats` workflow, and when that
+ * workflow stops running `summary.json` does not start failing - it keeps being
+ * served with a 200 and a valid integer. That makes the clone count the one metric
+ * on this route that can fail without looking like a failure: stars, contributors
+ * and releases all go null and render as a placeholder, while a frozen clone total
+ * renders exactly like a live one. In August 2026 the workflow's token lost the
+ * traffic-API permission and the number sat unchanged for thirteen days, cached at
+ * the CDN as healthy the whole time.
+ *
+ * The report already stamps itself, so the check needs no credential, no extra
+ * request and no new workflow. Past the threshold the count is dropped to null,
+ * which is the same degraded state a failed lookup already produces and which the
+ * marketing surfaces already render as a loading placeholder.
+ *
+ * Three days rather than one: the workflow runs daily, so this tolerates two missed
+ * runs before calling the number stale.
+ */
+const SUMMARY_MAX_AGE_MS = 72 * 60 * 60 * 1000;
+
+/**
+ * How far ahead of this server a report may be stamped and still count as fresh.
+ * The stamp is written by a GitHub runner and read here, and the two clocks are
+ * not synchronised, so a report generated seconds ago can carry a timestamp a
+ * little in the future. Small enough that it cannot rescue a stale report.
+ */
+const SUMMARY_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
+/**
+ * `generated_at_utc` is written as `2026-08-24 23:06 UTC`, which is NOT ISO 8601 -
+ * so `Date.parse` accepting it is a V8 choice, not a language guarantee. Parsing it
+ * explicitly avoids depending on that, and every rejected form counts as STALE.
+ *
+ * Failing closed is the whole point. If an unreadable stamp produced NaN and were
+ * compared numerically, `NaN < threshold` is false, the count would be published as
+ * fresh forever, and the check would certify a frozen number as live - which is the
+ * exact defect it exists to catch.
+ *
+ * The month, hour and minute bounds are here rather than left to `Date.UTC`, which
+ * rolls a month of `13` forward into the next year. The pattern cannot bound the DAY,
+ * though - 31 is legal in some months and not others - so `summaryGeneratedAt` reads
+ * the components back afterwards. Both roads lead to a date later than the one
+ * written, which is the direction that reads as fresh, so neither is left open.
+ */
+const SUMMARY_STAMP =
+  /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])[ T]([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?\s*(?:UTC|Z)$/;
+
+const summaryGeneratedAt = (summary: unknown): number | null => {
+  if (!summary || typeof summary !== 'object') return null;
+  const stamp = (summary as { generated_at_utc?: unknown }).generated_at_utc;
+  if (typeof stamp !== 'string') return null;
+  const parts = SUMMARY_STAMP.exec(stamp.trim());
+  if (!parts) return null;
+  const year = Number(parts[1]);
+  const month = Number(parts[2]);
+  const day = Number(parts[3]);
+  const at = Date.UTC(
+    year,
+    month - 1,
+    day,
+    Number(parts[4]),
+    Number(parts[5]),
+    parts[6] ? Number(parts[6]) : 0
+  );
+  // The pattern bounds the day to 1-31 for every month, which it cannot do per
+  // month, so `2026-04-31` and `2026-02-30` still reach `Date.UTC` - and it
+  // rolls them FORWARD, towards fresh. Read the components back and reject
+  // anything that moved, which is the only check that knows how long a month is.
+  const roundTrip = new Date(at);
+  if (
+    roundTrip.getUTCFullYear() !== year ||
+    roundTrip.getUTCMonth() !== month - 1 ||
+    roundTrip.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return at;
+};
+
+/** True only for a report that stamps itself and is inside the freshness window. */
+const isSummaryFresh = (summary: unknown, now: number): boolean => {
+  const generatedAt = summaryGeneratedAt(summary);
+  if (generatedAt === null) return false;
+  const age = now - generatedAt;
+  // Two-sided, and the lower bound is the load-bearing half. A stamp dated in
+  // the future makes `age` negative, so a one-sided `age < MAX_AGE` calls it
+  // fresh - permanently, and for any value the report carries. That is reachable
+  // without malformed input at all: a year typo in the generator, or this
+  // server's clock running behind the runner that wrote the stamp.
+  return age >= -SUMMARY_CLOCK_SKEW_MS && age < SUMMARY_MAX_AGE_MS;
+};
+
 const readRepositoryClonesTotal = (summary: unknown): number | null => {
   if (!summary || typeof summary !== 'object') return null;
   const data = summary as {
@@ -102,11 +194,15 @@ const fetchStars = async (): Promise<Pick<GithubStatsResponse, 'stars' | 'starsF
   }
 };
 
-const fetchRepositoryClones = async (): Promise<string | null> => {
+const fetchRepositoryClones = async (now: number): Promise<string | null> => {
   try {
     const res = await githubFetch(REPO_STATS_SUMMARY);
     if (!res.ok) return null;
-    const total = readRepositoryClonesTotal(await res.json());
+    const summary = await res.json();
+    // A stale report is dropped rather than published: the surfaces that render
+    // this advertise a live number, and a wrong live number is worse than none.
+    if (!isSummaryFresh(summary, now)) return null;
+    const total = readRepositoryClonesTotal(summary);
     return total === null ? null : total.toLocaleString('en-US');
   } catch {
     return null;
@@ -134,9 +230,12 @@ export async function GET(request: Request): Promise<NextResponse> {
   const rejected = rejectUnexpectedParams(request, {});
   if (rejected) return rejected;
 
+  // One instant for the whole response, so the freshness verdict cannot straddle
+  // the threshold mid-request.
+  const now = Date.now();
   const [starCounts, repositoryClones, contributors] = await Promise.all([
     fetchStars(),
-    fetchRepositoryClones(),
+    fetchRepositoryClones(now),
     fetchContributors(),
   ]);
 

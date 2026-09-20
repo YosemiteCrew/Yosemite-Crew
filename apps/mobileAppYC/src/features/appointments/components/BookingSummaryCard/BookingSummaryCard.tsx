@@ -183,7 +183,7 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['1'],
     },
     title: {
-      ...theme.typography.h6Clash,
+      ...theme.typography.h6,
       color: theme.colors.secondary,
     },
     titleRow: {

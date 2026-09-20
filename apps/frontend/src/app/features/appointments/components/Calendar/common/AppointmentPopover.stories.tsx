@@ -323,7 +323,7 @@ export const Upcoming: Story = {
       ['Service', 'Dental consultation'],
       ['Date', longDateOf(APPOINTMENT)],
       ['Room', 'Consult 2'],
-      ['Client Name', 'Maya'],
+      ['Client name', 'Maya'],
       ['Reason', 'Post-op recheck of the left carpus, plus a nail trim if she tolerates it'],
       // No invoice, and the status is not the legacy NO_PAYMENT, so the panel
       // asserts an upcoming appointment has already been paid for.
@@ -368,7 +368,7 @@ export const Upcoming: Story = {
       'Reschedule appointment',
       'Assign room',
       'Medical Records',
-      'Start Appointment',
+      'Start appointment',
     ]);
   },
   parameters: {
@@ -410,7 +410,7 @@ export const Requested: Story = {
       'Service',
       'Date',
       'Room',
-      'Client Name',
+      'Client name',
       'Reason',
       'Paid',
     ]);
@@ -515,7 +515,7 @@ export const AmountDue: Story = {
       'Finance summary',
       'Lab tests',
       'Medical Records',
-      'View Appointment',
+      'View appointment',
     ]);
     await expect(within(panel).getByText('Completed')).toBeVisible();
   },
@@ -527,7 +527,7 @@ export const AmountDue: Story = {
           'that makes the payment default visible: the same panel says "Paid / Paid" when no ' +
           'invoice exists and "Amount Due / $184" when one does, so the absence of billing data ' +
           'presents as good news rather than as missing data.\n\n' +
-          'The primary action also rewords itself - "View Appointment" rather than "Start ' +
+          'The primary action also rewords itself - "View appointment" rather than "Start ' +
           'Appointment" - and the button is the same width either way, so the shorter label sits ' +
           'in a fixed `w-50` box.',
       },
@@ -544,7 +544,7 @@ export const ReadOnly: Story = {
     /* The same list as the first story with exactly three entries removed, which
        is the only way to see that the permission does not gate the panel
        uniformly. Reschedule and Assign room drop out of the rail, the status
-       trigger stops being a button - and 'Start Appointment' is still last,
+       trigger stops being a button - and 'Start appointment' is still last,
        because entering the clinical workspace is not gated on
        `canEditAppointments` at all. */
     await expect(buttonNames(panel)).toEqual([
@@ -553,7 +553,7 @@ export const ReadOnly: Story = {
       'Finance summary',
       'Lab tests',
       'Medical Records',
-      'Start Appointment',
+      'Start appointment',
     ]);
 
     // The status is still readable, as a badge rather than a dropdown.
@@ -666,7 +666,7 @@ export const ExitsClosePanel: Story = {
        a second exit reachable in one story. */
     await expect(openPanel(canvasElement)).not.toBeNull();
 
-    await userEvent.click(within(panel).getByRole('button', { name: 'Start Appointment' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Start appointment' }));
     await expect(args.onClose).toHaveBeenCalledTimes(2);
   },
   parameters: {

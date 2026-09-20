@@ -44,7 +44,7 @@ describe('createControlledSubstanceLogbook', () => {
 
     const auditEntry = auditLog.query({ resourceType: 'controlled-substance' });
     expect(auditEntry).toHaveLength(1);
-    expect(auditEntry[0].action).toBe('cs:dispense');
+    expect(auditEntry[0]!.action).toBe('cs:dispense');
   });
 
   test('signs the cs transaction id into the audit entry without tampering it', async () => {
@@ -71,9 +71,9 @@ describe('createControlledSubstanceLogbook', () => {
     const [auditEntry] = auditLog.query({
       resourceType: 'controlled-substance',
     });
-    expect(auditEntry.details.csTransactionId).toBe(tx.id);
-    expect(auditLog.verify(auditEntry)).toBe(true);
-    expect(auditLog.verifyAll()).toEqual({ valid: 1, tampered: 0 });
+    expect(auditEntry!.details.csTransactionId).toBe(tx.id);
+    expect(auditLog.verify(auditEntry!)).toBe(true);
+    expect(auditLog.verifyAll()).toEqual({ valid: 1, tampered: 0, otherKey: 0 });
   });
 
   test('getTransactions returns all transactions', async () => {
@@ -222,10 +222,10 @@ describe('createControlledSubstanceLogbook', () => {
 
     const inventory = logbook.getInventory('Ketamine');
     expect(inventory).toHaveLength(1);
-    expect(inventory[0].totalReceived).toBe(100);
-    expect(inventory[0].totalDispensed).toBe(30);
-    expect(inventory[0].totalWasted).toBe(5);
-    expect(inventory[0].currentBalance).toBe(65);
+    expect(inventory[0]!.totalReceived).toBe(100);
+    expect(inventory[0]!.totalDispensed).toBe(30);
+    expect(inventory[0]!.totalWasted).toBe(5);
+    expect(inventory[0]!.currentBalance).toBe(65);
   });
 
   test('getDailyLog returns transactions for a given date', async () => {
@@ -273,8 +273,8 @@ describe('createControlledSubstanceLogbook', () => {
 
     const trail = logbook.getAuditTrail();
     expect(trail).toHaveLength(1);
-    expect(trail[0].action).toBe('cs:receive');
-    expect(trail[0].resourceType).toBe('controlled-substance');
+    expect(trail[0]!.action).toBe('cs:receive');
+    expect(trail[0]!.resourceType).toBe('controlled-substance');
   });
 
   test('size returns correct count', async () => {

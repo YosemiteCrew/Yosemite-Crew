@@ -68,6 +68,15 @@ and they would select it as the newest version and then fail on the missing
 "release published too long ago" cutoff never starts on one - so a wait for `release`
 environment approval cannot burn the window.
 
+The macOS job stamps `minimumSystemVersion` into `latest-mac.yml` before the release
+goes public, translating `build.mac.minimumSystemVersion` into the Darwin kernel version
+electron-updater compares against `os.release()` (macOS 13 becomes `22.0.0`). Clients
+below the floor then see the release as not applicable instead of downloading a build
+their OS will refuse to open. electron-builder has no setting for this - it writes that
+key into `Info.plist` and nowhere else. Raising the floor to a macOS major the script has
+no recorded kernel version for fails the release run rather than guessing; add the row
+from the matching `actions/runner-images` image manifest.
+
 Only a clean `X.Y.Z` release takes GitHub's repo-wide **Latest** badge. The stable
 channel resolves `/releases/latest`, so a stable desktop release has to hold it or
 stable clients keep resolving another product's tag; a `-beta.N` release must not take

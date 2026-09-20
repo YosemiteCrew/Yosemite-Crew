@@ -27,32 +27,32 @@ const ReminderStatusEnum = z.enum([
 ]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
+  patientId: z.uuid(),
   reminderType: ReminderTypeEnum,
   customMessage: z.string().max(1000).optional(),
-  dueDate: z.string().datetime(),
-  sendAt: z.string().datetime().optional(),
+  dueDate: z.iso.datetime(),
+  sendAt: z.iso.datetime().optional(),
   notes: z.string().max(2000).optional(),
 });
 
 const BulkCreateBodySchema = z.object({
-  patientIds: z.array(z.string().uuid()).min(1).max(200),
+  patientIds: z.array(z.uuid()).min(1).max(200),
   reminderType: ReminderTypeEnum,
   customMessage: z.string().max(1000).optional(),
-  dueDate: z.string().datetime(),
-  sendAt: z.string().datetime().optional(),
+  dueDate: z.iso.datetime(),
+  sendAt: z.iso.datetime().optional(),
 });
 
 const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
+  patientId: z.uuid().optional(),
   status: ReminderStatusEnum.optional(),
   reminderType: ReminderTypeEnum.optional(),
-  dueBefore: z.string().datetime().optional(),
-  dueAfter: z.string().datetime().optional(),
+  dueBefore: z.iso.datetime().optional(),
+  dueAfter: z.iso.datetime().optional(),
 });
 
 const MarkRespondedBodySchema = z.object({
-  appointmentId: z.string().uuid().optional(),
+  appointmentId: z.uuid().optional(),
 });
 
 const ReminderParamsSchema = orgParams.extend({ reminderId: uuid() });

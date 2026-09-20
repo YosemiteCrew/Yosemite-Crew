@@ -14,7 +14,7 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { useCurrencyForPrimaryOrg, useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
 import { computeFinanceMetrics } from '@/app/lib/financeMetrics';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoneyPrecise, sharedCurrency } from '@/app/lib/money';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
@@ -95,6 +95,10 @@ const Finance = () => {
     });
   }, [invoices, activeStatus, query]);
   const financeMetrics = useMemo(() => computeFinanceMetrics(invoices), [invoices]);
+  // The header sums across every invoice, so it carries a currency only when
+  // they all agree - otherwise "$48,797 outstanding" sits above cards reading
+  // GBP.
+  const metricsCurrency = useMemo(() => sharedCurrency(invoices, currency), [invoices, currency]);
 
   const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
     activeView: 'list',
@@ -132,15 +136,44 @@ const Finance = () => {
       <MobileSearchBar placeholder="Search invoices" />
       <PermissionGate allOf={[PERMISSIONS.BILLING_VIEW_ANY]} fallback={<Fallback />}>
         {isPhone ? (
-          <PhoneInvoiceList
-            filteredList={filteredList}
-            statusOptions={InvoiceStatusFilters}
-            activeStatus={activeStatus}
-            setActiveStatus={setActiveStatus}
-            metrics={financeMetrics}
-            currency={currency}
-            onViewInvoice={openInvoice}
-          />
+          <div className="flex flex-col gap-3">
+            {/*
+              The desktop header's Estimates and Discounts links live in the
+              !isPhone branch. Without a phone equivalent there is no route to
+              /finance/estimates anywhere in the app on a phone, so the screen
+              would only be reachable by typing the URL.
+            */}
+            <div className="flex items-center justify-end gap-2">
+              <Secondary
+                href="/finance/estimates"
+                text="Estimates"
+                size="compact"
+                ariaLabel="View estimates"
+              />
+              <Secondary
+                href="/finance/discounts"
+                text="Discounts"
+                size="compact"
+                ariaLabel="Manage discounts"
+              />
+              <Secondary
+                href="/finance/insurance-claims"
+                text="Insurance"
+                size="compact"
+                ariaLabel="View insurance claims"
+              />
+            </div>
+            <PhoneInvoiceList
+              filteredList={filteredList}
+              statusOptions={InvoiceStatusFilters}
+              activeStatus={activeStatus}
+              setActiveStatus={setActiveStatus}
+              metrics={financeMetrics}
+              metricsCurrency={metricsCurrency}
+              currency={currency}
+              onViewInvoice={openInvoice}
+            />
+          </div>
         ) : (
           <div className={wrapperClassName}>
             <div className="flex items-center justify-between w-full flex-wrap gap-2">
@@ -164,25 +197,44 @@ const Finance = () => {
                   </GlassTooltip>
                 </div>
                 <p className="text-[13.5px] text-text-secondary">
-                  {`${formatMoney(financeMetrics.collectedThisWeek, currency)} collected this week · ${formatMoney(
+                  {`${formatMoneyPrecise(financeMetrics.collectedThisWeek, metricsCurrency)} collected this week · ${formatMoneyPrecise(
                     financeMetrics.outstanding,
-                    currency
+                    metricsCurrency
                   )} outstanding`}
                 </p>
               </div>
-              <div className="flex items-center gap-2 flex-wrap justify-end">
+              {/*
+                Two rows, not one: the status filter is a different control
+                (a mutually-exclusive toggle over the visible rows) than the
+                page-level navigation and the Stripe indicator next to it, and
+                stacking them keeps a filter chip from sitting shoulder to
+                shoulder with a full-height nav button and a status pill.
+              */}
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <Secondary
+                    href="/finance/estimates"
+                    text="Estimates"
+                    ariaLabel="View estimates"
+                  />
+                  <Secondary
+                    href="/finance/discounts"
+                    text="Discounts"
+                    ariaLabel="Manage discounts"
+                  />
+                  <Secondary
+                    href="/finance/insurance-claims"
+                    text="Insurance"
+                    ariaLabel="View insurance claims"
+                  />
+                  <StripeStatusPill />
+                </div>
                 <InvoiceStatusFilterPills
                   options={InvoiceStatusFilters}
                   activeStatus={activeStatus}
                   setActiveStatus={setActiveStatus}
                   className="flex-wrap justify-end"
                 />
-                <Secondary
-                  href="/finance/discounts"
-                  text="Discounts"
-                  ariaLabel="Manage discounts"
-                />
-                <StripeStatusPill />
               </div>
             </div>
             <div ref={plannerSectionRef} className={plannerSectionClassName}>

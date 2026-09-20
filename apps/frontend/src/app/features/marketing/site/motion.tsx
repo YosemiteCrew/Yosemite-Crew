@@ -37,7 +37,7 @@ const HERO_SCRIM_STYLE: CSSProperties = {
   zIndex: 1,
   pointerEvents: 'none',
   background:
-    'linear-gradient(180deg, rgba(239,232,220,0.66) 0%, rgba(239,232,220,0.54) 40%, rgba(239,232,220,0.22) 64%, rgba(239,232,220,0.04) 92%, rgba(239,232,220,0) 100%)',
+    'linear-gradient(180deg, color-mix(in srgb, var(--page) 66%, transparent) 0%, color-mix(in srgb, var(--page) 54%, transparent) 40%, color-mix(in srgb, var(--page) 22%, transparent) 64%, color-mix(in srgb, var(--page) 4%, transparent) 92%, color-mix(in srgb, var(--page) 0%, transparent) 100%)',
 };
 
 /** Static base for the scroll-progress bar; width is applied inline from scroll state. */
@@ -411,7 +411,17 @@ export function CountUp({ value, className, style }: Readonly<CountUpProps>) {
           }
         });
       },
-      { threshold: 0.35 }
+      {
+        threshold: 0.35,
+        // Same fix as Reveal's observer: without extending the root upward, a
+        // jump straight past this element (the End key, a scrollbar drag, or
+        // navigating in already scrolled) never crosses the threshold, so no
+        // callback ever fires, inView stays false forever, and the count-up
+        // freezes at its initial value even after the real number arrives -
+        // `display` is only ever written by the effect below, which is gated
+        // on inView.
+        rootMargin: '100000px 0px 0px 0px',
+      }
     );
     io.observe(node);
     return () => io.disconnect();

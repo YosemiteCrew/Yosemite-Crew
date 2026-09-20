@@ -43,10 +43,10 @@ const meta = {
           'and never looks at `maxDiscount` at all, so with a cost of $120 and a max discount of ' +
           '$15 the panel shows $120 twice. And **`currency` moves the label only**: it is ' +
           'interpolated into `Cost (USD):` while all three amounts are hard-coded to a dollar ' +
-          'sign, so a EUR appointment reads `Cost (EUR): $ 89.50`.\n\n' +
-          'Every slot branches on `> 0` rather than on presence, which is why there are three ' +
-          'different ways of saying "nothing": the cost falls to `-`, the discount falls to `-`, ' +
-          'and the estimate falls to a tertiary-ink `$ 00.00` placeholder rather than a dash. ' +
+          'sign, so a EUR appointment reads `Cost (EUR): $89.50`.\n\n' +
+          'Every slot branches on `> 0` rather than on presence, and each falls to an em dash ' +
+          "when nothing is costed; the estimate's dash sits in tertiary ink so an empty slot " +
+          'never reads as a live total. Money prints as `$143.00` - sign, no space. ' +
           'Both money props are typed `unknown` because they arrive off an API record, so the ' +
           'coercion story below is the real input shape, not a contrived one.',
       },
@@ -76,19 +76,17 @@ export const Default: Story = {
     await expect(canvas.getByText('Cost (USD):')).toBeInTheDocument();
     await expect(canvas.getByText('Max discount:')).toBeInTheDocument();
 
-    /* The two amounts are formatted differently and always have been: the cost
-       carries a space after the sign, the discount does not. Pinned because it
-       is invisible in review and a "tidy-up" that unifies them is a UI change
-       nobody asked for. */
+    /* Both amounts print in the one shape the design system allows: sign, no
+       space, two decimals. A "$ 15.00" here is the drift this pins against. */
     await expect(canvas.getByText('$15.00')).toBeInTheDocument();
 
     /* The estimate does NOT subtract the discount - `computeEstimate` only ever
        sees `cost`. So the same figure appears twice, and finding it once would
        mean somebody had quietly made the estimate net. */
-    await expect(canvas.getAllByText('$ 120.00')).toHaveLength(2);
+    await expect(canvas.getAllByText('$120.00')).toHaveLength(2);
 
     const value = estimateValue(canvasElement);
-    await expect(value).toHaveTextContent('$ 120.00');
+    await expect(value).toHaveTextContent('$120.00');
     // A live estimate is the 24px blue figure, not the tertiary placeholder ink.
     await expect(globalThis.getComputedStyle(value).fontSize).toBe('24px');
     await expect(globalThis.getComputedStyle(value).color).toBe(
@@ -110,14 +108,14 @@ export const NothingCosted: Story = {
   name: 'Nothing costed yet',
   args: { cost: 0, maxDiscount: 0 },
   play: async ({ canvasElement }) => {
-    // Both left-hand slots fall to a dash...
-    await expect(within(canvasElement).getAllByText('-')).toHaveLength(2);
+    // All three slots fall to an em dash - the estimate included. A "$ 00.00"
+    // placeholder in the live blue reads as a real total of zero.
+    await expect(within(canvasElement).getAllByText('—')).toHaveLength(3);
 
-    // ...but the estimate falls to a placeholder amount instead, which is why it
-    // needs the tertiary ink: `$ 00.00` in the live blue reads as a real total
-    // of zero rather than as an empty field.
+    // The estimate's dash keeps the tertiary ink so an empty slot never looks
+    // like a live figure.
     const value = estimateValue(canvasElement);
-    await expect(value).toHaveTextContent('$ 00.00');
+    await expect(value).toHaveTextContent('—');
     const ink = globalThis.getComputedStyle(value).color;
     const ground = value.parentElement as Element;
     await expect(ink).toBe(resolveColorToken(ground, '--color-text-tertiary'));
@@ -135,7 +133,7 @@ export const NonUsdCurrency: Story = {
        euro appointment prices itself in dollars. Asserted rather than fixed:
        changing the symbol is a product decision, and until it is made this is
        the behaviour a snapshot should hold still. */
-    await expect(canvas.getAllByText('$ 89.50')).toHaveLength(2);
+    await expect(canvas.getAllByText('$89.50')).toHaveLength(2);
   },
 };
 
@@ -147,9 +145,9 @@ export const CoercedInput: Story = {
     /* A numeric STRING is what the appointment record actually carries, and it
        has to format like a number. `Number(cost) || 0` is doing that work; drop
        the coercion and the panel prints the raw string with no decimals. */
-    await expect(canvas.getAllByText('$ 240.50')).toHaveLength(2);
+    await expect(canvas.getAllByText('$240.50')).toHaveLength(2);
     // Junk degrades to the dash rather than to "$NaN".
-    await expect(canvas.getByText('-')).toBeInTheDocument();
+    await expect(canvas.getByText('—')).toBeInTheDocument();
     await expect(canvasElement.textContent).not.toMatch(/NaN/);
   },
 };

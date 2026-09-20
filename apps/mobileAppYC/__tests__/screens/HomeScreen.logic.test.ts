@@ -2,16 +2,17 @@ import {deriveHomeGreetingName} from '@/features/home/screens/HomeScreen/HomeScr
 
 describe('deriveHomeGreetingName', () => {
   it('uses trimmed name when provided', () => {
+    // 'Sky' here is the supplied name, not the fallback - it must survive.
     const r = deriveHomeGreetingName('  Sky  ');
     expect(r.resolvedName).toBe('Sky');
     expect(r.displayName).toBe('Sky');
   });
 
-  it('falls back to Sky when blank', () => {
+  it('greets neutrally when blank, rather than borrowing a name', () => {
     const r1 = deriveHomeGreetingName('   ');
     const r2 = deriveHomeGreetingName(undefined);
-    expect(r1.resolvedName).toBe('Sky');
-    expect(r2.resolvedName).toBe('Sky');
+    expect(r1.resolvedName).toBe('there');
+    expect(r2.resolvedName).toBe('there');
   });
 
   it('truncates very long names to 13 chars + ellipsis', () => {

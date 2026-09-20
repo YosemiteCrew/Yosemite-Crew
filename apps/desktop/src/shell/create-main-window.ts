@@ -46,10 +46,12 @@ export interface CreateMainWindowDeps {
   activeContents: () => Electron.WebContents | null;
   enterTabMode: (url: string) => void;
   layoutTabChrome: () => void;
+  // True while the idle lock is up: the menu and window gestures stand down.
+  isLocked: () => boolean;
 
   // Navigation
   loadStartUrl: () => void;
-  showOfflinePage: (reason: string) => void;
+  showOfflinePage: (reason: string, failedUrl?: string) => void;
   consumePendingDeepLink: () => void;
   trackAuthNavigation: (rawUrl: string) => void;
 
@@ -71,6 +73,7 @@ export interface CreateMainWindowDeps {
   closeActiveTab: () => void;
   reopenClosedTab: () => void;
   openTabSearch: () => void;
+  showCheatsheet: () => void;
   verifyAuditTrail: () => void;
   exportCsDailyLog: () => void;
   showDeaStatus: () => void;
@@ -120,7 +123,10 @@ export const createMainWindow = async (
     icon: desktopResourcePath('icon.png'),
     autoHideMenuBar: process.platform !== 'darwin',
     titleBarStyle: process.platform === 'darwin' ? 'hidden' : undefined,
-    trafficLightPosition: process.platform === 'darwin' ? { x: 12, y: 10 } : undefined,
+    // Centred on the 40px tab strip (CHROME_STRIP_HEIGHT in main.ts): macOS
+    // draws the traffic lights 14px tall, so (40 - 14) / 2 = 13 puts them on
+    // the tab labels' centre line instead of 3px above it.
+    trafficLightPosition: process.platform === 'darwin' ? { x: 12, y: 13 } : undefined,
     ...(process.platform === 'darwin' ? {} : { frame: false }),
     webPreferences: secureWebPreferences(desktopPreloadPath()),
   });
@@ -230,7 +236,7 @@ export const createMainWindow = async (
       // Only take over the screen when the failed tab is the visible one;
       // a background tab failing shouldn't replace what the user is viewing.
       if (id === deps.attachedTabId()) {
-        deps.showOfflinePage(info.error || `Could not reach ${info.url}`);
+        deps.showOfflinePage(info.error || `Could not reach ${info.url}`, info.url);
       }
     },
     getZoom: (id) => {
@@ -297,7 +303,8 @@ export const createMainWindow = async (
         }
       }
       deps.showOfflinePage(
-        errorDescription || `Could not reach ${validatedUrl || deps.config.startUrl.href}`
+        errorDescription || `Could not reach ${validatedUrl || deps.config.startUrl.href}`,
+        validatedUrl
       );
     }
   );
@@ -364,6 +371,7 @@ export const createMainWindow = async (
   });
 
   mainWindow.on('swipe', (_event, direction) => {
+    if (deps.isLocked()) return;
     const wc = deps.activeContents();
     if (!wc) return;
     if (direction === 'left') wc.navigationHistory.goForward();
@@ -390,6 +398,7 @@ export const createMainWindow = async (
     closeActiveTab: deps.closeActiveTab,
     reopenClosedTab: deps.reopenClosedTab,
     openTabSearch: deps.openTabSearch,
+    showCheatsheet: deps.showCheatsheet,
     loadStartUrl: deps.loadStartUrl,
     activeContents: deps.activeContents,
     setTabOrientation: (mode) => deps.setTabOrientation(mode),
@@ -399,6 +408,7 @@ export const createMainWindow = async (
     tabMode: deps.tabMode,
     attachedTabId: deps.attachedTabId,
     tabManager,
+    isLocked: deps.isLocked,
     verifyAuditTrail: deps.verifyAuditTrail,
     exportCsDailyLog: deps.exportCsDailyLog,
     showDeaStatus: deps.showDeaStatus,

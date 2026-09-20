@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   app,
   BrowserWindow,
@@ -31,6 +32,7 @@ import { createLogger, type DesktopLogger } from './utils/logger';
 import {
   clampPositionToWorkArea,
   createWindowStateStore,
+  restorePositionUnderCursor,
   type WindowStateStore,
 } from './core/window-state';
 import { checkForUpdatesManually } from './lifecycle/updater';
@@ -41,6 +43,7 @@ import {
   createKeyboardShortcutManager,
   type KeyboardShortcutManager,
 } from './ui/keyboard-shortcuts';
+import { createWindowInputHandler } from './ui/window-shortcuts';
 import {
   idleLockMinutesFromEnv,
   resolveIdleLockMinutes,
@@ -112,6 +115,8 @@ import {
   buildContextMenu,
 } from './shell/window-config';
 import { createMainWindow } from './shell/create-main-window';
+import { layoutContentPanes as applyContentPaneLayout } from './ui/content-panes';
+import { createOfflineRetryTargets } from './shell/offline-retry';
 
 // Apply managed/MDM config first: fill any env var an admin set via managed
 // preferences that isn't already explicitly set, so navigation-policy, updater,
@@ -184,6 +189,10 @@ const VERTICAL_TAB_WIDTH = 240;
 let tabOrientation: 'horizontal' | 'vertical' = 'horizontal';
 let attachedTabId: string | null = null;
 let splitId: string | null = null;
+// The tab currently mounted as the right-hand split pane. Tracked separately
+// from splitId because every path that closes the split clears splitId first,
+// leaving the still-mounted pane otherwise unidentifiable to the layout pass.
+let mountedSplitId: string | null = null;
 let saveSession = (): void => {};
 
 // The app menu captures these references before the real status-dialog service
@@ -282,10 +291,6 @@ const localPage = (page: DesktopPage): string => path.join(__dirname, 'pages', `
 // In tab mode, navigation/content targets the active tab's WebContents; before
 // tab mode (welcome/loading) it targets the base window contents.
 let tabChromeView: WebContentsView | null = null;
-// Layout hook registered by setupIdleLock so the layout pass can keep the lock
-// overlay full-window and topmost. Deliberately a callback, not the view: the
-// per-lock WebContentsView stays owned by the overlay's own closure.
-let relayoutLockOverlay: (() => void) | null = null;
 // Registered by setupIdleLock so the lock page's buttons reach the unlock
 // lifecycle that actually owns the lock. Null until an idle lock is armed.
 let requestIdleUnlock: ((mode: 'biometric' | 'password') => void) | null = null;
@@ -300,45 +305,56 @@ const activeContents = (): WebContents | null => {
   return mainWindow && !mainWindow.isDestroyed() ? mainWindow.webContents : null;
 };
 
-type TabBounds = { width: number; height: number };
+// In-app lock screen shown over the workspace while biometric unlock is
+// pending, so patient data isn't visible behind the OS prompt. A full-window
+// WebContentsView added last (top-most) covers the tab chrome and content.
+// setupIdleLock drives show/hide. The overlay itself exists from startup
+// because every web contents registers with it at creation (see
+// web-contents-created), including the window and tabs that predate the lock.
+let lockOverlayView: WebContentsView | null = null;
 
-const tabContentPaneWidth = (
-  pane: 'full' | 'left' | 'right',
-  full: number,
-  half: number
-): number => {
-  if (pane === 'full') return full;
-  if (pane === 'left') return half;
-  return full - half;
+// Size the overlay to the window and re-add it so it sits above the chrome.
+// Every layout pass ends here, including the one that moves a lock onto a
+// reopened window. Taking a view out of its window can take keyboard focus with
+// it, so the lock page is handed focus again afterwards.
+const layoutLockOverlay = (): void => {
+  const win = mainWindow;
+  const view = lockOverlayView;
+  if (!win || win.isDestroyed() || !view || view.webContents.isDestroyed()) return;
+  const b = win.getContentBounds();
+  view.setBounds({ x: 0, y: 0, width: b.width, height: b.height });
+  win.contentView.removeChildView(view);
+  win.contentView.addChildView(view);
+  idleLockOverlay.refocus();
 };
 
-const setTabViewBounds = (
-  tvh: NonNullable<typeof tabViewHost>,
-  id: string,
-  pane: 'full' | 'left' | 'right',
-  b: TabBounds,
-  isVertical: boolean
-): void => {
-  if (isVertical) {
-    const cw = Math.max(0, b.width - VERTICAL_TAB_WIDTH);
-    const half = Math.floor(cw / 2);
-    tvh.setBounds(id, {
-      x: VERTICAL_TAB_WIDTH + (pane === 'right' ? half : 0),
-      y: 0,
-      width: tabContentPaneWidth(pane, cw, half),
-      height: b.height,
+const idleLockOverlay = createIdleLockOverlay({
+  mount: () => {
+    const win = mainWindow;
+    if (!win || win.isDestroyed()) return null;
+    const view = new WebContentsView({
+      webPreferences: secureWebPreferences(path.join(__dirname, 'preload.js')),
     });
-    return;
-  }
-  const ch = Math.max(0, b.height - CHROME_STRIP_HEIGHT);
-  const half = Math.floor(b.width / 2);
-  tvh.setBounds(id, {
-    x: pane === 'right' ? half : 0,
-    y: CHROME_STRIP_HEIGHT,
-    width: tabContentPaneWidth(pane, b.width, half),
-    height: ch,
-  });
-};
+    lockOverlayView = view;
+    win.contentView.addChildView(view);
+    // Sizes and raises it; every later layout pass does the same.
+    layoutLockOverlay();
+    applyThemeModeToWc(view.webContents, (settingsStore?.load() || DEFAULT_SETTINGS).theme);
+    void view.webContents.loadFile(localPage('idle-lock'));
+    return view.webContents;
+  },
+  unmount: () => {
+    const view = lockOverlayView;
+    lockOverlayView = null;
+    if (!view) return;
+    const win = mainWindow;
+    if (win && !win.isDestroyed()) win.contentView.removeChildView(view);
+    if (!view.webContents.isDestroyed()) view.webContents.close();
+  },
+  workspace: activeContents,
+});
+
+type TabBounds = { width: number; height: number };
 
 const layoutChromeStrip = (b: TabBounds, isVertical: boolean): void => {
   if (!tabChromeView) return;
@@ -362,16 +378,17 @@ const layoutChromeStrip = (b: TabBounds, isVertical: boolean): void => {
 const layoutContentPanes = (b: TabBounds, isVertical: boolean): void => {
   const tvh = tabViewHost;
   if (!attachedTabId || !tvh || !mainWindow) return;
-  const hasSplit = Boolean(splitId && tvh.get(splitId) && splitId !== attachedTabId);
-  // In split view the primary tab takes the LEFT half (not the full width) so
-  // the two views sit side by side instead of the split overlaying the primary.
-  setTabViewBounds(tvh, attachedTabId, hasSplit ? 'left' : 'full', b, isVertical);
-  if (!hasSplit) return;
-  setTabViewBounds(tvh, splitId!, 'right', b, isVertical);
-  const av = tvh.get(attachedTabId);
-  const sv = tvh.get(splitId!);
-  if (av) mainWindow.contentView.addChildView(av);
-  if (sv) mainWindow.contentView.addChildView(sv);
+  mountedSplitId = applyContentPaneLayout({
+    host: tvh,
+    surface: mainWindow.contentView,
+    attachedTabId,
+    splitId,
+    mountedSplitId,
+    bounds: b,
+    isVertical,
+    chromeStripHeight: CHROME_STRIP_HEIGHT,
+    verticalTabWidth: VERTICAL_TAB_WIDTH,
+  });
 };
 
 // Always keep the tab-bar chrome view topmost in z-order. Input is routed to
@@ -397,7 +414,7 @@ const layoutTabChrome = (): void => {
   // Last: raiseTabChrome re-adds the chrome on every layout, so a resize while
   // the biometric prompt is pending would otherwise leave a stale-sized overlay
   // with the tab strip - and the newly exposed workspace - live on top of it.
-  relayoutLockOverlay?.();
+  layoutLockOverlay();
 };
 
 // Switch the window into multi-tab mode: mount the tab-bar chrome view and the
@@ -424,9 +441,14 @@ const enterTabMode = (initialUrl: string): void => {
           )
           .catch((error) => logger.warn('tabbar_orientation_js_failed', { error }));
       }
+      // Seed the caption button: the window may already be maximised (restored
+      // session state, or a relaunch into a snapped position) before any
+      // maximize event fires.
+      sendWindowMaximizedState();
     })
     .catch((error) => logger.warn('tabbar_load_failed', { error }));
   mainWindow.contentView.addChildView(tabChromeView);
+  wireWindowStateBroadcast(mainWindow);
 
   let tabs = tabManager.getState().tabs;
   if (tabs.length === 0) {
@@ -530,6 +552,7 @@ const exitTabMode = (): void => {
   tabMode = false;
   attachedTabId = null;
   splitId = null;
+  mountedSplitId = null;
   saveSession();
   if (mainWindow && !mainWindow.isDestroyed()) {
     void mainWindow.webContents
@@ -612,14 +635,31 @@ const setTabSearch = (open: boolean): void => {
   layoutTabChrome();
 };
 
+// Call one of the tab-chrome page's own entry points, if the page is there.
+const runTabChromeGlobal = (name: string, failEvent: string): void => {
+  if (!tabChromeView || tabChromeView.webContents.isDestroyed()) return;
+  void tabChromeView.webContents
+    .executeJavaScript(`window.${name} && window.${name}()`)
+    .catch((error) => logger.warn(failEvent, { error }));
+};
+
 // Open the Figma-style tab search panel (from the menu/shortcut).
 const openTabSearch = (): void => {
   if (!tabChromeView || tabChromeView.webContents.isDestroyed()) return;
   setTabSearch(true);
-  void tabChromeView.webContents
-    .executeJavaScript('window.__ycOpenTabSearch && window.__ycOpenTabSearch()')
-    .catch((error) => logger.warn('tab_search_js_failed', { error }));
+  runTabChromeGlobal('__ycOpenTabSearch', 'tab_search_js_failed');
 };
+
+// Help > Keyboard Shortcuts. The page owns the overlay's open/closed state, so
+// the toggle lives there and this only asks for it.
+const showCheatsheet = (): void =>
+  runTabChromeGlobal('__ycToggleCheatsheet', 'cheatsheet_js_failed');
+
+const offlineRetryTargets = createOfflineRetryTargets({
+  config,
+  logger,
+  offlinePageUrl: pathToFileURL(localPage('offline')).href,
+});
 
 const loadStartUrl = (): void => {
   if (tabMode && !activeContents()) return;
@@ -630,10 +670,14 @@ const loadStartUrl = (): void => {
   }
 };
 
-const showOfflinePage = (reason: string): void => {
+const showOfflinePage = (reason: string, failedUrl?: string): void => {
   const wc = activeContents();
   if (!wc) return;
-  logger.warn('offline_page_shown', { reason });
+  // Record the page that failed against this webContents BEFORE the offline
+  // page replaces it, so "Try again" reloads that page in this tab rather than
+  // the start URL in whichever tab happens to be active when it fires.
+  const target = offlineRetryTargets.remember(wc, failedUrl);
+  logger.warn('offline_page_shown', { reason, target });
   void wc.loadFile(localPage('offline'), { query: { reason: reason || '' } });
 };
 
@@ -1168,6 +1212,9 @@ const pinCurrentPage = (): void => {
 };
 
 const runCommandAction = async (id: string): Promise<void> => {
+  // The palette and the tray quick actions both land here. None of them may act
+  // on (or pin a window of) the workspace behind the idle lock.
+  if (idleLockOverlay.isVisible()) return;
   const action = BUILTIN_ACTIONS.find((a) => a.id === id);
   if (!action) {
     logger.warn('command_action_unknown', { id });
@@ -1261,48 +1308,6 @@ const setupIdleLock = (ses: Session): void => {
   // the timer's attempt is still pending.
   let unlockInFlight = false;
 
-  // In-app lock screen shown over the workspace while biometric unlock is
-  // pending, so patient data isn't visible behind the OS prompt. A full-window
-  // WebContentsView added last (top-most) covers the tab chrome and content.
-  let lockOverlayView: WebContentsView | null = null;
-
-  // Size the overlay to the window and re-add it so it sits above the chrome.
-  // Registered as the module-level layout hook while this lock is set up.
-  const layoutLockOverlay = (): void => {
-    const win = mainWindow;
-    const view = lockOverlayView;
-    if (!win || win.isDestroyed() || !view || view.webContents.isDestroyed()) return;
-    const b = win.getContentBounds();
-    view.setBounds({ x: 0, y: 0, width: b.width, height: b.height });
-    win.contentView.removeChildView(view);
-    win.contentView.addChildView(view);
-  };
-  relayoutLockOverlay = layoutLockOverlay;
-
-  const lockOverlay = createIdleLockOverlay({
-    mount: () => {
-      const win = mainWindow;
-      if (!win || win.isDestroyed()) return;
-      const view = new WebContentsView({
-        webPreferences: secureWebPreferences(path.join(__dirname, 'preload.js')),
-      });
-      lockOverlayView = view;
-      win.contentView.addChildView(view);
-      // Sizes and raises it; every later layout pass does the same.
-      layoutLockOverlay();
-      applyThemeModeToWc(view.webContents, (settingsStore?.load() || DEFAULT_SETTINGS).theme);
-      void view.webContents.loadFile(localPage('idle-lock'));
-    },
-    unmount: () => {
-      const view = lockOverlayView;
-      lockOverlayView = null;
-      if (!view) return;
-      const win = mainWindow;
-      if (win && !win.isDestroyed()) win.contentView.removeChildView(view);
-      if (!view.webContents.isDestroyed()) view.webContents.close();
-    },
-  });
-
   // Drop the session and return to the sign-in page. This is what "Use password
   // instead" means here: the PIMS owns the password, so the fallback is to sign
   // in again. Also where an unlock lands when biometrics are unavailable.
@@ -1348,7 +1353,7 @@ const setupIdleLock = (ses: Session): void => {
           return;
         }
         locked = false;
-        lockOverlay.hide();
+        idleLockOverlay.hide();
         logger.info('biometric_unlock_success');
       })
       .catch(notifyUnlockFailed)
@@ -1359,7 +1364,7 @@ const setupIdleLock = (ses: Session): void => {
 
   requestIdleUnlock = (mode) => {
     // Only meaningful while the lock screen is actually up.
-    if (!lockOverlay.isVisible()) return;
+    if (!idleLockOverlay.isVisible()) return;
     if (mode === 'password') {
       logger.info('idle_lock_password_fallback');
       // The overlay comes down only AFTER the sign-out has landed. Hiding it
@@ -1369,7 +1374,7 @@ const setupIdleLock = (ses: Session): void => {
       unlockInFlight = true;
       void signOutToStartUrl().finally(() => {
         locked = false;
-        lockOverlay.hide();
+        idleLockOverlay.hide();
         unlockInFlight = false;
       });
       return;
@@ -1389,7 +1394,7 @@ const setupIdleLock = (ses: Session): void => {
       const settings = settingsStore?.load();
       if (bio && bio.isAvailable() && settings?.biometricLockEnabled) {
         bio.lock();
-        lockOverlay.show();
+        idleLockOverlay.show();
         logger.info('biometric_lock_engaged');
         attemptBiometricUnlock();
       } else {
@@ -1397,7 +1402,7 @@ const setupIdleLock = (ses: Session): void => {
       }
       // Activity alone must not clear the lock while the lock screen is still
       // up - only a real unlock does that.
-    } else if (locked && idleMs < 1000 && !lockOverlay.isVisible()) {
+    } else if (locked && idleMs < 1000 && !idleLockOverlay.isVisible()) {
       locked = false;
     }
   }, 30_000);
@@ -1498,7 +1503,26 @@ const promptTouchID = async (reason: string): Promise<boolean> => {
 
 const moveMainWindowBy = (dx: number, dy: number): void => {
   const win = mainWindow;
-  if (!win || win.isDestroyed() || win.isMaximized() || win.isFullScreen()) return;
+  // Full screen is a mode, not a size: there is nothing to drag out of it.
+  if (!win || win.isDestroyed() || win.isFullScreen()) return;
+  // A native title bar restores a maximised window under the pointer on the
+  // first drag movement and moves it from there. The delta that got us here is
+  // already spent positioning the restored window, so this pointermove ends
+  // with the restore and the next one moves normally.
+  if (win.isMaximized()) {
+    const maximized = win.getBounds();
+    const cursor = screen.getCursorScreenPoint();
+    win.unmaximize();
+    const [restoredWidth = 0, restoredHeight = 0] = win.getSize();
+    const size = { width: restoredWidth, height: restoredHeight };
+    const restored = clampPositionToWorkArea(
+      restorePositionUnderCursor(maximized, size, cursor),
+      size,
+      screen.getAllDisplays()
+    );
+    win.setPosition(restored.x, restored.y);
+    return;
+  }
   const [x = 0, y = 0] = win.getPosition();
   const [width = 0, height = 0] = win.getSize();
   const next = clampPositionToWorkArea(
@@ -1520,8 +1544,39 @@ const minimizeMainWindow = (): void => {
 const toggleMaximizeMainWindow = (): void => {
   const win = mainWindow;
   if (!win || win.isDestroyed()) return;
-  if (win.isMaximized()) win.unmaximize();
+  // The tab bar shows one Restore button for both states, so it has to undo
+  // whichever one the window is in.
+  if (win.isFullScreen()) win.setFullScreen(false);
+  else if (win.isMaximized()) win.unmaximize();
   else win.maximize();
+};
+
+// The tab bar draws its own Maximize/Restore button, so it has to be told the
+// window state - including when the change came from snapping, the app menu or
+// a title-bar double-click rather than from that button.
+const sendWindowMaximizedState = (): void => {
+  const view = tabChromeView;
+  const win = mainWindow;
+  if (!view || view.webContents.isDestroyed() || !win || win.isDestroyed()) return;
+  view.webContents.send('yc:window-maximized', win.isMaximized() || win.isFullScreen());
+};
+
+// Wired once per window, not once per enterTabMode: closing the last tab drops
+// back to Welcome (exitTabMode) and opening one enters tab mode again on the
+// same window, which would otherwise stack a second set of listeners.
+let windowStateBroadcastWindow: BrowserWindow | null = null;
+const wireWindowStateBroadcast = (win: BrowserWindow): void => {
+  if (windowStateBroadcastWindow === win) return;
+  windowStateBroadcastWindow = win;
+  // Listed one by one rather than looped: BrowserWindow.on is a union of
+  // per-event overloads, so a loop variable does not resolve to any of them.
+  win.on('maximize', sendWindowMaximizedState);
+  win.on('unmaximize', sendWindowMaximizedState);
+  win.on('enter-full-screen', sendWindowMaximizedState);
+  win.on('leave-full-screen', sendWindowMaximizedState);
+  win.once('closed', () => {
+    if (windowStateBroadcastWindow === win) windowStateBroadcastWindow = null;
+  });
 };
 
 const closeMainWindow = (): void => {
@@ -1620,7 +1675,18 @@ if (gotSingleInstanceLock) {
     callback(false);
   });
 
+  // Mod+1..9 has no menu item and the tab strip only sees it while the strip has
+  // focus, so the window handles it for every view it hosts.
+  const handleWindowInput = createWindowInputHandler({
+    activateTabByIndex: (index) => {
+      const tab = tabManager?.getState().tabs[index];
+      if (tab) switchToTab(tab.id);
+    },
+    isMac: process.platform === 'darwin',
+  });
+
   app.on('web-contents-created', (_event, contents) => {
+    contents.on('before-input-event', handleWindowInput);
     contents.setWindowOpenHandler(({ url }) => handleWindowOpen(url));
     // Apply navigation policy to any popup this webContents opens, so an allowed
     // in-app popup cannot redirect in-place to an external/blocked URL and remain
@@ -1637,6 +1703,7 @@ if (gotSingleInstanceLock) {
       const menu = buildContextMenu(params, contents);
       if (menu) menu.popup();
     });
+    idleLockOverlay.holdInput(contents);
   });
 
   app.on('second-instance', (_event, argv) => {
@@ -1661,6 +1728,7 @@ if (gotSingleInstanceLock) {
     activeContents,
     enterTabMode,
     layoutTabChrome,
+    isLocked: idleLockOverlay.isVisible,
     loadStartUrl,
     showOfflinePage,
     consumePendingDeepLink,
@@ -1678,6 +1746,7 @@ if (gotSingleInstanceLock) {
     closeActiveTab,
     reopenClosedTab,
     openTabSearch,
+    showCheatsheet,
     verifyAuditTrail: statusDlg.verifyAuditTrail,
     exportCsDailyLog: statusDlg.exportCsDailyLog,
     showDeaStatus: statusDlg.showDeaStatus,
@@ -1749,6 +1818,8 @@ if (gotSingleInstanceLock) {
         onNavigate: handleMainNavigation,
         onWindowOpen: handleWindowOpen,
         loadStartUrl,
+        retryOfflineLoad: offlineRetryTargets.retry,
+        offlineTargetFor: offlineRetryTargets.targetFor,
         enterTabMode,
         exitTabMode,
         runCommandAction,
@@ -1996,9 +2067,17 @@ if (gotSingleInstanceLock) {
         focusedWebContents: () => mainWindow?.webContents ?? null,
         openPalette: openCommandPalette,
         navigate: navigateToDeepLink,
+        onWindowFocus: (cb) => {
+          app.on('browser-window-focus', cb);
+        },
+        onWindowBlur: (cb) => {
+          app.on('browser-window-blur', cb);
+        },
+        hasFocusedWindow: () => BrowserWindow.getFocusedWindow() !== null,
+        isLocked: idleLockOverlay.isVisible,
         logger,
       });
-      keyboardShortcutManager.register();
+      keyboardShortcutManager.start();
       if (mainWindow) setupIdleLock(mainWindow.webContents.session);
       const link = deepLinkFromArgv(process.argv);
       if (link) handleDeepLink(link);
@@ -2017,6 +2096,10 @@ if (gotSingleInstanceLock) {
         tabViewHost = output.tabViewHost;
         saveSession = output.saveSession;
         coldStartWatchdog = output.coldStartWatchdog;
+        // A lock that was up when the old window closed is still up: cover the
+        // new window now, whatever it opens on. Entering tab mode below would
+        // re-raise it too, but a signed-out reopen never gets that far.
+        layoutLockOverlay();
         if (output.enterTabModeUrl) {
           // Closing the window (red button) never resets the module tab-mode
           // state — only closing the last tab does (exitTabMode). So after a
@@ -2027,6 +2110,7 @@ if (gotSingleInstanceLock) {
           tabMode = false;
           attachedTabId = null;
           splitId = null;
+          mountedSplitId = null;
           tabChromeView = null;
           enterTabMode(output.enterTabModeUrl);
           // The reopened window is created hidden and shown async, so the
@@ -2060,7 +2144,7 @@ if (gotSingleInstanceLock) {
         .flush()
         .catch((err) => logger.warn('offline_cache_flush_failed', { error: String(err) }));
     }
-    keyboardShortcutManager?.unregister();
+    keyboardShortcutManager?.stop();
     globalShortcut.unregisterAll();
     // Reset the rollback tracker on clean exit so the next launch doesn't
     // inherit stale crash counts from a healthy session.

@@ -4,12 +4,12 @@ describe('createJumpList', () => {
   test('creates a taskbar jump list template', () => {
     const jumpList = createJumpList('Yosemite Crew PIMS.exe');
 
-    expect(jumpList[0].items).toHaveLength(2);
-    expect(jumpList[0].items[0]).toMatchObject({
+    expect(jumpList[0]!.items).toHaveLength(2);
+    expect(jumpList[0]!.items[0]).toMatchObject({
       title: 'Open Yosemite Crew PIMS',
       args: '',
     });
-    expect(jumpList[0].items[1]).toMatchObject({
+    expect(jumpList[0]!.items[1]).toMatchObject({
       title: 'Check for Updates',
       args: '--check-for-updates',
     });

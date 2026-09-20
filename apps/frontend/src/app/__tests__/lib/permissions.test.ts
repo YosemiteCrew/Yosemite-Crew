@@ -52,4 +52,30 @@ describe('permissions', () => {
     expect(ROLE_PERMISSIONS.OWNER).toContain(PERMISSIONS.INTEGRATIONS_EDIT_ANY);
     expect(ROLE_PERMISSIONS.RECEPTIONIST).not.toContain(PERMISSIONS.INTEGRATIONS_EDIT_ANY);
   });
+
+  it('keeps controlled-drug register defaults least-privileged', () => {
+    for (const role of ['OWNER', 'ADMIN', 'SUPERVISOR'] as const) {
+      expect(ROLE_PERMISSIONS[role]).toEqual(
+        expect.arrayContaining([
+          PERMISSIONS.CONTROLLED_DRUG_REGISTER_READ,
+          PERMISSIONS.CONTROLLED_DRUG_REGISTER_RECORD,
+          PERMISSIONS.CONTROLLED_DRUG_REGISTER_CORRECT,
+        ])
+      );
+    }
+    expect(ROLE_PERMISSIONS.VETERINARIAN).toEqual(
+      expect.arrayContaining([
+        PERMISSIONS.CONTROLLED_DRUG_REGISTER_READ,
+        PERMISSIONS.CONTROLLED_DRUG_REGISTER_RECORD,
+      ])
+    );
+    expect(ROLE_PERMISSIONS.VETERINARIAN).not.toContain(
+      PERMISSIONS.CONTROLLED_DRUG_REGISTER_CORRECT
+    );
+    expect(ROLE_PERMISSIONS.TECHNICIAN).toContain(PERMISSIONS.CONTROLLED_DRUG_REGISTER_READ);
+    expect(ROLE_PERMISSIONS.TECHNICIAN).not.toContain(PERMISSIONS.CONTROLLED_DRUG_REGISTER_RECORD);
+    for (const role of ['ASSISTANT', 'RECEPTIONIST'] as const) {
+      expect(ROLE_PERMISSIONS[role]).not.toContain(PERMISSIONS.CONTROLLED_DRUG_REGISTER_READ);
+    }
+  });
 });

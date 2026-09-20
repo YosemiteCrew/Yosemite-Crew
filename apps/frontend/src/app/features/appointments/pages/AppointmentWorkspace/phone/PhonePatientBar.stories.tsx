@@ -84,8 +84,10 @@ const meta = {
           'component had.\n\n' +
           'The phone variant is not a smaller copy of the desktop one. It drops the pulsing green ' +
           'dot and the "In room" / "Over booked slot" words entirely and shows the bare elapsed ' +
-          'time at 10px with `px-[9px] py-[5px]`, because the bar has roughly 70px to spare next ' +
-          'to a truncating name. It also strips a leading `00:` so an under-an-hour visit reads ' +
+          'time at 10px with `px-[9px] py-[5px]`. Since issue 2790 it rides at the right end of ' +
+          'signalment line rather than beside the name, which is what let the name and the ' +
+          'status pill stop competing for one 197px row. It also strips a leading `00:` so an ' +
+          'under-an-hour visit reads ' +
           '`MM:SS` rather than `00:MM:SS`.\n\n' +
           'The over-booked pill is the one worth reviewing: `warning-100` fill, `warning-300` ' +
           'border, `warning-900` label. The 900 step is deliberate - the 700 step measured 2.77:1 ' +
@@ -211,8 +213,9 @@ export const NotStarted: Story = {
       description: {
         story:
           'No start timestamp at all, which is what an appointment that has not been checked in ' +
-          'still looks like. The words rather than digits are why this state is the widest of the ' +
-          'three, so it is the one that squeezes the name beside it.',
+          'still looks like. The words rather than digits make this the widest of the three ' +
+          'states, which is what it used to cost the name - the timer shared the name row ' +
+          'until issue 2790 moved it down to the signalment line.',
       },
     },
   },
@@ -264,8 +267,22 @@ export const WithAllergy: Story = {
   render: (args) => <TimerBar {...args} startedMinutesAgo={20} bookedEndMinutesAgo={-10} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const allergy = canvas.getByText('Allergy: Penicillin');
-    const signalment = allergy.parentElement as HTMLElement;
+    /* Neither binding may be the string this story asserts about. `WithAllergy`
+       previously took the paragraph from `getByText('Allergy: Penicillin')`, so
+       changing `args.allergy` killed the lookup and the three assertions that are
+       NOT about the allergy text - the ellipsis, the ink difference and the weight -
+       stopped running rather than failing. The tail is bound by a prefix instead,
+       which survives a change to the allergy itself.
+
+       If you mutate `args.allergy` to check that this still holds, the mutation
+       must NOT be a superstring of the shipped value. `toContain` below is
+       satisfied by one, so `Penicillinxx` - the string in the margin table two
+       stories down, which is the one to hand - leaves this story green whether
+       the assertions ran or never ran at all. `Amoxicillin` fails on the
+       comparison instead of the lookup, which is the answer the mutation was
+       asked for. */
+    const signalment = canvas.getByTestId('patient-signalment');
+    const allergy = within(signalment).getByText(/^Allergy: /);
 
     /* The tail is a span inside the same truncating paragraph as the signalment, so
        it is the FIRST thing lost when the name is long - and the only thing marking
@@ -285,6 +302,94 @@ export const WithAllergy: Story = {
           '`--danger-text` at 700. The whole line is one `truncate` paragraph at 10.5px, so on a ' +
           'long signalment the allergy is what disappears - which is worth seeing before deciding ' +
           'it belongs there.',
+      },
+    },
+  },
+};
+
+/** The width the name+pill row had while the timer still shared it (#2790). */
+const PRE_FIX_NAME_ROW_WIDTH = 197;
+
+export const NameKeepsItsRoom: Story = {
+  name: 'Long name beside a wide pill',
+  /* The allergy is set here rather than inherited, because the guard's second
+     assertion is about the signalment and the meta args have no allergy tail.
+     Without it this story measured `Beagle - 9 yr - 12.4 kg` in a 184px box with
+     92px of room to spare, while asserting that the line the component documents
+     as the first thing lost is safe. `WithAllergy` does not cover it either: it
+     asserts the tail is in `textContent` and that the paragraph CAN ellipsize,
+     neither of which is a measurement.
+
+     EVERY WIDTH BELOW IS 375px, which is what `.storybook/test-runner.ts` maps
+     `mobile` to - not the 390px the issue was investigated at. A margin quoted
+     without its viewport is unusable here; the same fixture reads 6.4px at 375
+     and 21.4px at 390, and only the first is the one CI exercises.
+
+     `scrollWidth` cannot give that margin. It reports the BOX, not the text,
+     whenever the text fits, so it saturates at 184/184 and stops varying while
+     there is still room. Measured instead as the paragraph's right edge minus
+     the tail span's, which keeps moving:
+
+       Allergy: Penicilli      184/184    12.3px
+       Allergy: Penicillin     184/184     6.4px   <- shipped
+       Allergy: Penicillinx    184/184     1.4px
+       Allergy: Penicillinxx   188/184    -3.7px   clips
+
+     Four strings, one identical scrollWidth pair, four different margins.
+
+     So the fixture sits 6.4px - two characters - from the edge, which is close
+     enough that the margin is worth guarding rather than assuming.
+
+     `signalment` is bound by `data-testid` and deliberately NOT by its own text.
+     It was previously bound with `getByText('Allergy: Penicillin').parentElement`,
+     which made the string its own selector: lengthening the allergy killed the
+     lookup one statement before any width was read, so the clip assertion below
+     reported `Unable to find an element` and could never fire on a content
+     change. Bound by the testid, `Penicillinxx` fails on `expected 188 <= 184` -
+     the measurement rather than the lookup. */
+  args: { allergy: 'Penicillin' },
+  render: (args) => <TimerBar {...args} startedMinutesAgo={20} bookedEndMinutesAgo={-10} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const name = canvas.getByText('Poppy Hartmann');
+    const pill = canvas.getByRole('button', { name: /in progress/i });
+    const signalment = canvas.getByTestId('patient-signalment');
+
+    /* The control, and the reason this story is not a tautology. `truncate` makes
+       a clipped element report scrollWidth > clientWidth, so the assertions below
+       pass for free on any name short enough to fit. This one first proves the
+       fixture still over-subscribes the row the bug lived in - a shorter name, or
+       a pill whose label got shorter, silently turns the rest into a test of
+       nothing. */
+    await expect(name.scrollWidth + pill.getBoundingClientRect().width).toBeGreaterThan(
+      PRE_FIX_NAME_ROW_WIDTH
+    );
+
+    // Neither line pays for it. Checked before the structural assertion below, so
+    // that reverting the layout is caught by the measurement rather than only by
+    // the arrangement that happens to produce it today.
+    await expect(name.scrollWidth).toBeLessThanOrEqual(name.clientWidth);
+    await expect(signalment.scrollWidth).toBeLessThanOrEqual(signalment.clientWidth);
+
+    // The structural fact the fix rests on: the timer is on the signalment line.
+    await expect(signalment.parentElement).toContainElement(timerPill(canvasElement));
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The regression guard for issue 2790. "Poppy Hartmann" needs 114px and the `IN PROGRESS` ' +
+          'pill takes 111px; while the timer sat beside them the pair had 197px to share, and ' +
+          'the name - the only one of the two carrying `truncate` - absorbed the whole 34px ' +
+          'shortfall. Nothing here asserts a pixel count, so a type-ramp or copy change moves ' +
+          'the numbers without failing the story; what it asserts is that the name and the ' +
+          'signalment both survive whatever the numbers become. It runs with the allergy tail ' +
+          'present because that is the longest signalment the component ships, and the ' +
+          'candidate this fix was chosen over cost that tail 98px. Its limit: the tail has ' +
+          '6.4px of room at the 375px the test runner uses - two characters - and that margin ' +
+          'is inherited, not established here, so an allergy longer than the fixture still ' +
+          'clips and this story will not see it. Every margin in this file is quoted at 375px; ' +
+          'the same fixture reads 21.4px at the 390px the issue was investigated at.',
       },
     },
   },

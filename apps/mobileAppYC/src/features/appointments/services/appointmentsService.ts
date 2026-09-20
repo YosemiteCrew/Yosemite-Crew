@@ -809,11 +809,20 @@ const mapInvoiceFromApi = (
     raw.createdAt ??
     raw.paymentIntent?.createdAt ??
     raw.date;
-  const dueTill = invoiceCreatedAt
-    ? new Date(
-        new Date(invoiceCreatedAt).getTime() + 24 * 60 * 60 * 1000,
-      ).toISOString()
-    : raw.dueDate;
+  /*
+   * The due date is whatever the API sends, and nothing when it sends none.
+   *
+   * This used to be `invoiceCreatedAt ? createdAt + 24h : raw.dueDate` - the
+   * branches inverted, so a real server value was only ever reached when the
+   * creation date was unknown. In practice it was always the invented one:
+   * there is no due date on an invoice anywhere in the system. The only
+   * `dueDate` column in schema.prisma belongs to CareReminder, and no finance
+   * route emits one. So the screen showed every pet owner a payment deadline of
+   * "24 hours after the invoice", complete with a line about late payment
+   * risking rescheduling or cancellation, that nothing in the product enforces
+   * or even records.
+   */
+  const dueTill = raw.dueDate;
 
   const receiptUrl =
     extensions.find(

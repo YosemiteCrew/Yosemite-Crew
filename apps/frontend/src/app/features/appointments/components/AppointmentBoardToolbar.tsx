@@ -41,11 +41,14 @@ const AppointmentBoardToolbar = ({
   <div className="shrink-0 border-b border-card-border bg-neutral-0 px-3 py-2">
     <div className="flex w-full items-center gap-4">
       <div className="flex shrink-0 items-center gap-2 text-body-4-emphasis text-text-primary">
+        {/* rounded-full! overrides Datepicker's default field shape (rounded-xl) so
+            this icon button matches Back/Next's pill shape beside it */}
         <GlassTooltip content="Select date" side="bottom">
           <Datepicker
             currentDate={currentDate}
             setCurrentDate={setCurrentDate}
             placeholder="Select Date"
+            className="rounded-full!"
           />
         </GlassTooltip>
         <div className="flex items-center gap-2">

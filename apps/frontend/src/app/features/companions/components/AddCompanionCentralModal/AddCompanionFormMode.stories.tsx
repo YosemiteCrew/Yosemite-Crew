@@ -109,9 +109,13 @@ const meta = {
           'it opens on `mouseenter`/`focusin` listeners attached in an effect - there is no prop ' +
           'that reveals it. It carries the only legal-consent copy in the flow.\n\n' +
           'The alert rows are worth watching while both of those move: each is a fieldset with an ' +
-          'explicit `gridTemplateColumns: "1fr 160px 48px"`. A malformed template there is exactly ' +
-          'the bug that shipped on the task popover - the browser drops the declaration and the ' +
-          'three children collapse into one column, which still looks deliberate.',
+          'explicit `gridTemplateColumns: "minmax(0, 1fr) 160px 48px"`. A malformed template ' +
+          'there is exactly the bug that shipped on the task popover - the browser drops the ' +
+          'declaration and the three children collapse into one column, which still looks ' +
+          'deliberate. The `minmax(0, ...)` is load-bearing too: written as a bare `1fr` the ' +
+          "label column inherited the grid item's automatic minimum size and floored at the " +
+          "browser's default <input> width, so the row could not squeeze and pushed 18px past a " +
+          '390px phone instead.',
       },
     },
   },
@@ -377,9 +381,66 @@ export const PhoneSheet: Story = {
       description: {
         story:
           'The `sheet` variant drops the `mx-auto max-w-[760px]` wrapper for a plain `w-full`, ' +
-          'because the phone bottom sheet already owns the width and the sticky footer. At 375 the ' +
-          'alert fieldset is the pressure point: its `1fr 160px 48px` template leaves the label ' +
-          'input under 130px wide.',
+          'because the phone bottom sheet already owns the width and the sticky footer. Step one ' +
+          'of the create wizard has no alert row - for that pressure point see the narrow-frame ' +
+          'story below, which is where the template actually had to be fixed.',
+      },
+    },
+  },
+};
+
+export const AlertRowNarrow: Story = {
+  name: 'Alert row in a 390px frame',
+  decorators: [
+    /* A 390px CONTAINER, not the mobile viewport global - that global is applied by
+       the manager to the preview iframe and is inert for a runner loading iframe.html
+       directly. It also does not matter here: this row is sized by its grid template,
+       not by a media query, so a box reproduces it exactly. */
+    (Story) => (
+      <div data-frame="" style={{ width: 390 }}>
+        <Story />
+      </div>
+    ),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const label = canvas.getByRole('textbox', { name: /Diabetic/ });
+    const fieldset = label.closest('fieldset') as HTMLElement;
+    const frame = canvasElement.querySelector('[data-frame]') as HTMLElement;
+
+    /* The label column really squeezes. A bare `1fr` has an `auto` min track sizing
+       function, which turns on the grid item's automatic minimum size, and the item
+       here wraps an <input> whose intrinsic width is the browser's default `size`
+       (~168px). So the row floored at 392px - 168 label + 160 priority + 48 button +
+       two 8px gaps - and overflowed a 390px screen by 18px rather than narrowing,
+       which is the one thing a `1fr` column is supposed to be able to do. */
+    await expect(label.getBoundingClientRect().width).toBeLessThan(168);
+
+    // Priority and the add button keep their fixed tracks; only the label gives way.
+    const [, priority, add] = [...fieldset.children].filter(
+      (child) => child.tagName !== 'LEGEND'
+    ) as HTMLElement[];
+    await expect(Math.round(priority.getBoundingClientRect().width)).toBe(160);
+    await expect(Math.round(add.getBoundingClientRect().width)).toBe(48);
+
+    // And the row fits. Nothing here sits in a scroller, so this reads as it looks.
+    await expect(fieldset.getBoundingClientRect().right).toBeLessThanOrEqual(
+      frame.getBoundingClientRect().right
+    );
+  },
+  parameters: {
+    /* `fullscreen`, so the 390px frame below IS 390px. Under the file's `padded`
+       layout the canvas adds 16px a side and the frame lands at 406 - a story about
+       fitting a phone that does not itself fit one. It has to live in this object:
+       a second `parameters` key on the same story silently replaces the first, and
+       the layout would go missing with nothing to show for it. */
+    layout: 'fullscreen',
+    docs: {
+      description: {
+        story:
+          'The companion alert row at phone width. Label, priority and the add button ' +
+          'share one grid: the two right-hand tracks are fixed at 160px and 48px, so ' +
+          'every pixel the screen does not have has to come out of the label.',
       },
     },
   },

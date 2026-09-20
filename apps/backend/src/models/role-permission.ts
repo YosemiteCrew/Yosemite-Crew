@@ -34,6 +34,10 @@ export type Permission =
   // Inventory
   | "inventory:view:any"
   | "inventory:edit:any"
+  // Controlled-drug register (organisation-level, append-only ledger)
+  | "controlled-drug-register:read"
+  | "controlled-drug-register:record"
+  | "controlled-drug-register:correct"
   // Forms / Consents / Reports
   | "forms:view:any"
   | "forms:edit:any"
@@ -114,6 +118,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "inventory:view:any",
     "inventory:edit:any",
+    "controlled-drug-register:read",
+    "controlled-drug-register:record",
+    "controlled-drug-register:correct",
 
     "forms:view:any",
     "forms:edit:any",
@@ -182,6 +189,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "inventory:view:any",
     "inventory:edit:any",
+    "controlled-drug-register:read",
+    "controlled-drug-register:record",
+    "controlled-drug-register:correct",
 
     "forms:view:any",
     "forms:edit:any",
@@ -247,6 +257,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "inventory:view:any",
     "inventory:edit:any",
+    "controlled-drug-register:read",
+    "controlled-drug-register:record",
+    "controlled-drug-register:correct",
 
     "forms:view:any",
     "forms:edit:any",
@@ -305,6 +318,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "inventory:view:any",
     "inventory:edit:any",
+    "controlled-drug-register:read",
+    "controlled-drug-register:record",
 
     "forms:view:any",
     "forms:edit:any",
@@ -358,6 +373,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     "inventory:view:any",
     "inventory:edit:any",
+    "controlled-drug-register:read",
 
     "forms:view:any",
     "forms:edit:any",

@@ -2,7 +2,7 @@ import { type ComponentProps, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { fn } from 'storybook/test';
 
-import { AppointmentLabels, statusLabel } from '../../constants/status';
+import { AllFilterOption, AppointmentLabels, statusLabel } from '../../constants/status';
 import StatusOptionButtons, { type StatusOptionButtonsOption } from './StatusOptionButtons';
 
 /**
@@ -12,18 +12,16 @@ import StatusOptionButtons, { type StatusOptionButtonsOption } from './StatusOpt
 type FilterOption = StatusOptionButtonsOption & { text: string };
 
 /**
- * The neutral "all" row takes plain primary ink; each real status keeps its own
- * `--status-*-text` token so the row reads as the status it filters to.
+ * Each row takes its own `text` token - the neutral "all" row resolves to plain
+ * primary ink through `--color-pill-all-text`, each real status to its own
+ * `--status-*-text`, so the row reads as the status it filters to.
  */
-const getTextColor = (option: FilterOption): string =>
-  option.key === 'ALL' ? 'var(--color-text-primary)' : option.text;
+const getTextColor = (option: FilterOption): string => option.text;
 
-const ALL_OPTION = statusLabel('All', 'ALL', 'color-badge-blue', 'var(--color-primary-500)');
-
-const APPOINTMENT_OPTIONS: FilterOption[] = [ALL_OPTION, ...AppointmentLabels];
+const APPOINTMENT_OPTIONS: FilterOption[] = [AllFilterOption, ...AppointmentLabels];
 
 const STOCK_HEALTH_OPTIONS: FilterOption[] = [
-  ALL_OPTION,
+  AllFilterOption,
   statusLabel('Healthy', 'HEALTHY', 'color-pill-success'),
   statusLabel('Low stock', 'LOW_STOCK', 'color-pill-progress'),
   statusLabel('Expiring soon', 'EXPIRING_SOON', 'color-pill-info'),

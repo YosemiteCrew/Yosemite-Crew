@@ -61,7 +61,7 @@ span.cell-overflow-count {
 }
 .invoice-table-fixed {
   table-layout: fixed;
-  min-width: 1244px; /* 96+200+180+150+90+70+80+180+110+88 */
+  min-width: 1324px; /* 112+200+180+150+104+96+104+180+110+88 */
 }
 .companions-table-fixed {
   table-layout: fixed;
@@ -70,6 +70,10 @@ span.cell-overflow-count {
 .inventory-turnover-table-fixed {
   table-layout: fixed;
   min-width: 1238px; /* 160+110+172+152+128+144+108+124+140 */
+}
+.inventory-table-fixed {
+  table-layout: fixed;
+  min-width: 1380px; /* 300+170+128+52+104+88+88+88+88+78+100+96 */
 }
 .invoice-compact-fixed {
   table-layout: fixed;
@@ -84,7 +88,8 @@ span.cell-overflow-count {
 .invoice-table-fixed thead th:nth-child(6),
 .invoice-table-fixed thead th:nth-child(7),
 .invoice-compact-fixed thead th:nth-child(3),
-.inventory-turnover-table-fixed thead th:nth-child(n + 3):nth-child(-n + 8) {
+.inventory-turnover-table-fixed thead th:nth-child(n + 3):nth-child(-n + 8),
+.inventory-table-fixed thead th:nth-child(n + 6):nth-child(-n + 10) {
   text-align: right;
 }
 /* Allow fixed-layout tables to scroll horizontally when the viewport is
@@ -278,15 +283,23 @@ span.cell-overflow-count {
    with tabular figures (`cell-figure`), the emphasised figures - Invoice # and
    Total - are bold ink (`cell-strong` / `cell-figure-strong`), and the secondary
    Services / Payment columns are muted ink (`cell-muted`). */
+/* Money never breaks mid-number. The base rule sets `overflow-wrap: anywhere`,
+   which is right for names and descriptions and wrong here: once figures carry
+   their minor units, "AED 12.00" is long enough to wrap in a narrow column and
+   would render as two lines of digits. */
 .appointment-profile-title.cell-figure {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: normal;
+  white-space: nowrap;
 }
 .appointment-profile-title.cell-figure-strong {
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   color: var(--ink);
+  overflow-wrap: normal;
+  white-space: nowrap;
 }
 .appointment-profile-title.cell-strong {
   font-weight: 700;
@@ -385,4 +398,10 @@ span.cell-overflow-count {
 }
 .appointment-row-emergency > td:first-child {
   box-shadow: inset 3px 0 0 0 var(--danger);
+}
+/* Expired inventory rows get the same faint wash as an emergency appointment
+   row, without the leading accent bar — expiry is a stock-health fact about
+   the row, not an event needing the same first-glance urgency treatment. */
+.inventory-row-expired > td {
+  background: var(--danger-bg-faint);
 }

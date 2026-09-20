@@ -125,6 +125,16 @@ const FormInfo = ({
     }),
     [activeForm]
   );
+  const usageServiceOptions = React.useMemo(() => {
+    const knownIds = new Set(serviceOptions.map((option) => option.value));
+    const unavailable = [] as { label: string; value: string }[];
+    for (const serviceId of activeForm.services ?? []) {
+      if (!knownIds.has(serviceId)) {
+        unavailable.push({ label: 'Unavailable service', value: serviceId });
+      }
+    }
+    return [...serviceOptions, ...unavailable];
+  }, [activeForm.services, serviceOptions]);
   const detailsData = React.useMemo(
     () => ({
       ...activeForm,
@@ -321,7 +331,7 @@ const FormInfo = ({
               title="Usage & visibility"
               fields={[
                 ...UsageFields.slice(0, 1),
-                { ...UsageFields[1], options: serviceOptions },
+                { ...UsageFields[1], options: usageServiceOptions },
                 ...UsageFields.slice(2),
               ]}
               data={usageData}

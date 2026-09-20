@@ -94,6 +94,25 @@ describe('FormDesc', () => {
     expect(screen.getByLabelText<HTMLTextAreaElement>('Biography').value).toBe('');
   });
 
+  test('uses the label as a placeholder and exposes hint and disabled states', () => {
+    render(
+      <FormDesc
+        intype="text"
+        inname="bio"
+        inlabel="Biography"
+        value=""
+        onChange={jest.fn()}
+        hint="Keep it concise."
+        disabled
+      />
+    );
+
+    const textarea = screen.getByLabelText<HTMLTextAreaElement>('Biography');
+    expect(textarea).toHaveAttribute('placeholder', 'Biography');
+    expect(textarea).toHaveAttribute('aria-describedby', screen.getByText('Keep it concise.').id);
+    expect(textarea).toBeDisabled();
+  });
+
   test('renders the static top label tied to the textarea', () => {
     render(
       <FormDesc intype="text" inname="bio" inlabel="Biography" value="" onChange={jest.fn()} />

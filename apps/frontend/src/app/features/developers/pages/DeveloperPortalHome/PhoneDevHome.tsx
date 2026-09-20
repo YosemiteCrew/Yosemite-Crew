@@ -3,16 +3,8 @@ import React from 'react';
 import Link from 'next/link';
 import { Icon } from '@/app/ui/icons/Icon';
 
-import type { ActivityEntry } from '@/app/features/developers/pages/DeveloperPortalHome/DeveloperPortalHome';
-
 import './PhoneDevHome.css';
 import { usePlatformStatus } from '@/app/hooks/usePlatformStatus';
-
-type PlatformMetric = {
-  label: string;
-  value: string;
-  accent?: boolean;
-};
 
 type NavTile = {
   href: string;
@@ -21,39 +13,34 @@ type NavTile = {
   meta: string;
 };
 
-const PLATFORM_METRICS: PlatformMetric[] = [
-  { label: 'Requests · 24h', value: '4,182' },
-  { label: 'P95', value: '212 ms' },
-  { label: 'Errors', value: '0.2%', accent: true },
-];
-
 const NAV_TILES: NavTile[] = [
   {
     href: '/developers/api-keys',
     icon: 'ion:key-outline',
     title: 'API keys',
-    meta: '2 active · 1 sandbox',
+    meta: 'Create and revoke keys',
   },
   {
-    href: '/developers/plugins',
-    icon: 'ion:extension-puzzle-outline',
-    title: 'Plugins',
-    meta: '1 published · 1 in review',
+    href: '/developers/billing',
+    icon: 'ion:card-outline',
+    title: 'Billing',
+    meta: 'Plan and API usage',
   },
 ];
 
 type PhoneDevHomeProps = {
   displayName: string;
-  recentActivity: ActivityEntry[];
 };
 
 /**
  * Bespoke phone (<768px) layout for the developer home, matching the design's
- * "Phone dev home" frame. Presentation only: it reuses the live display name and
- * the same recent-activity data as the desktop layout so there is one source of
- * truth for the request log.
+ * "Phone dev home" frame. Presentation only, over the live display name.
+ *
+ * The plugin-in-review block and the request log were removed alongside their
+ * desktop counterparts: there is no plugin model and no request log behind
+ * them, so both were fixed strings dressed as account state.
  */
-const PhoneDevHome = ({ displayName, recentActivity }: PhoneDevHomeProps) => {
+const PhoneDevHome = ({ displayName }: PhoneDevHomeProps) => {
   const platformStatus = usePlatformStatus();
   return (
     <div className="dev-ph">
@@ -70,16 +57,12 @@ const PhoneDevHome = ({ displayName, recentActivity }: PhoneDevHomeProps) => {
             {platformStatus.label}
           </span>
         </div>
-        <dl className="dev-ph-metrics">
-          {PLATFORM_METRICS.map((metric) => (
-            <div key={metric.label} className="dev-ph-metric">
-              <dt className="dev-ph-metric-label">{metric.label}</dt>
-              <dd className={`dev-ph-metric-value${metric.accent ? ' accent' : ''}`}>
-                {metric.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
+        {/*
+          The request/P95/error grid was three fixed strings - and its request
+          count (4,182) did not even agree with the desktop card's (4,218).
+          Nothing measures any of them. The live pill above is real: it comes
+          from usePlatformStatus.
+        */}
       </section>
 
       <div className="dev-ph-tiles">
@@ -93,32 +76,6 @@ const PhoneDevHome = ({ displayName, recentActivity }: PhoneDevHomeProps) => {
           </Link>
         ))}
       </div>
-
-      <section className="dev-ph-review" aria-label="Plugin in review">
-        <div className="dev-ph-review-head">
-          <span className="dev-ph-review-name">Anesthesia monitor sync</span>
-          <span className="dev-ph-review-badge">In review</span>
-        </div>
-        <p className="dev-ph-review-desc">
-          Submitted 04 Jul · review usually takes 2–3 working days. We&apos;ll email you when
-          it&apos;s ready.
-        </p>
-        <span className="dev-ph-progress" aria-hidden="true">
-          <span className="dev-ph-progress-fill" style={{ width: '55%' }} />
-        </span>
-      </section>
-
-      <span className="dev-ph-section-label">Recent requests</span>
-      <ul className="dev-ph-log">
-        {recentActivity.map((entry) => (
-          <li key={`${entry.method}-${entry.path}`} className="dev-ph-log-row">
-            <span className={`dev-ph-log-status ${entry.ok ? 'ok' : 'err'}`}>{entry.status}</span>
-            <span className="dev-ph-log-path">
-              {entry.method} {entry.path}
-            </span>
-          </li>
-        ))}
-      </ul>
 
       <p className="dev-ph-note">
         <Icon

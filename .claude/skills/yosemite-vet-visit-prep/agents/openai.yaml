@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Yosemite Crew Vet Visit Preparation'
+  short_description: 'Organize concerns and questions for a vet visit'
+  default_prompt: 'Use $yosemite-vet-visit-prep to organize my observations, reported medications, and questions into a brief for my veterinarian.'

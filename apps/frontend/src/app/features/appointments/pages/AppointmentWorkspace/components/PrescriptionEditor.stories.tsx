@@ -152,6 +152,7 @@ const meta = {
     items,
     catalogItems: CATALOG,
     templateItems: TEMPLATES,
+    currency: 'USD',
     readOnly: false,
     onAddItem: fn(),
     onApplyTemplate: fn(),
@@ -286,7 +287,7 @@ export const ReadOnlyHidesSearch: Story = {
       canvas.queryByRole('searchbox', { name: 'Search medicines or prescription templates' })
     ).toBeNull();
     // Print survives, since a finalised prescription still gets its labels.
-    await expect(canvas.getByRole('button', { name: 'Print Labels' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Print labels' })).toBeInTheDocument();
   },
   parameters: {
     docs: {

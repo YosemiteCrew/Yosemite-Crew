@@ -13,8 +13,8 @@ jest.mock('@/app/ui/primitives/Icons/Close', () => ({
   ),
 }));
 
-jest.mock('react-icons/io', () => ({
-  IoIosWarning: () => <span data-testid="warning-icon" />,
+jest.mock('react-icons/io5', () => ({
+  IoWarning: () => <span data-testid="warning-icon" />,
 }));
 
 describe('Warning', () => {

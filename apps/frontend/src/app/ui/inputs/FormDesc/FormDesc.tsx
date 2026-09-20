@@ -1,5 +1,7 @@
 import React, { useId } from 'react';
-import { IoIosWarning } from 'react-icons/io';
+
+import Field from '@/app/ui/Field';
+import { Textarea } from '@/app/ui/Input';
 
 type FormDescProps = {
   intype: string;
@@ -7,11 +9,17 @@ type FormDescProps = {
   value: string;
   inlabel: string;
   readonly?: boolean;
+  disabled?: boolean;
+  hint?: string;
+  placeholder?: string;
+  required?: boolean;
   onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
   onFocus?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
   error?: string;
   className?: string;
+  /** When set, bounds the field and shows the visitor how much they have used. */
+  maxLength?: number;
 };
 
 const FormDesc = ({
@@ -22,47 +30,55 @@ const FormDesc = ({
   onBlur,
   onFocus,
   readonly,
+  disabled,
+  hint,
+  placeholder,
+  required = true,
   error,
   className,
+  maxLength,
 }: Readonly<FormDescProps>) => {
   const uid = useId();
-  return (
-    <div className="w-full">
-      <label
-        htmlFor={uid}
-        className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]"
-      >
-        {inlabel}
-      </label>
-      <textarea
-        name={inname}
-        id={uid}
-        value={value ?? ''}
-        onChange={onChange}
-        onBlur={onBlur}
-        onFocus={onFocus}
-        autoComplete="off"
-        readOnly={readonly}
-        required
-        aria-label={inlabel}
-        className={`
-          min-h-[72px] w-full rounded-[12px] border-[1.5px] bg-[var(--field-bg)]
-          px-[14px] py-[12px] text-[14px] leading-[1.5] text-[var(--ink-body)] outline-none transition-colors
-          placeholder:text-[var(--ink-faint)]
-          disabled:cursor-not-allowed disabled:opacity-60
-          ${error ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!'}
-          focus:border-[var(--blue)]! focus:shadow-[0_0_0_3px_var(--glow-b10)]
-          ${className ?? ''}
-        `}
-      />
+  const messageId = error || hint ? `${uid}-message` : undefined;
+  const countId = maxLength === undefined ? undefined : `${uid}-count`;
+  /* Described rather than announced: a live region on a per-keystroke counter
+     reads the whole number out again on every character typed. */
+  const describedBy = [messageId, countId].filter(Boolean).join(' ') || undefined;
 
-      {error && (
-        <div className="mt-1.5 flex items-center gap-1 text-caption-2 text-text-error">
-          <IoIosWarning className="text-text-error" size={14} />
-          <span>{error}</span>
-        </div>
-      )}
-    </div>
+  return (
+    <Field
+      htmlFor={uid}
+      label={inlabel}
+      hint={hint}
+      error={error}
+      messageId={messageId}
+      disabled={disabled}
+    >
+      <>
+        <Textarea
+          name={inname}
+          id={uid}
+          value={value ?? ''}
+          placeholder={placeholder ?? inlabel}
+          onChange={onChange}
+          onBlur={onBlur}
+          onFocus={onFocus}
+          autoComplete="off"
+          readOnly={readonly}
+          required={required}
+          disabled={disabled}
+          error={Boolean(error)}
+          maxLength={maxLength}
+          aria-describedby={describedBy}
+          className={className}
+        />
+        {countId && (
+          <span id={countId} className="self-end text-xs text-[var(--ink-muted)]">
+            {`${(value ?? '').length} of ${maxLength} characters`}
+          </span>
+        )}
+      </>
+    </Field>
   );
 };
 

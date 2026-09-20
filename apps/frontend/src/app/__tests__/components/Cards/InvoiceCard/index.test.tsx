@@ -57,18 +57,22 @@ describe('InvoiceCard Component', () => {
     // Companion + parent
     expect(screen.getByText('Buddy')).toBeInTheDocument();
     expect(screen.getByText('Jamie')).toBeInTheDocument();
+    expect(screen.getByLabelText('Invoice reference #INV-1001')).toHaveTextContent('#INV-1001');
 
     // Service
     expect(screen.getByText('Grooming')).toBeInTheDocument();
 
-    // Date
+    // The date row names its field. It used to read just "Date", which is what
+    // the desktop table called its APPOINTMENT date column, so one invoice
+    // showed two different dates under one word depending on window width.
+    expect(screen.getByText('Invoice date:')).toBeInTheDocument();
     expect(formatDateLabel).toHaveBeenCalledWith(mockInvoice.createdAt);
     expect(screen.getByText('Jan 01, 2023')).toBeInTheDocument();
 
     // Financials
-    expect(screen.getByText('$100')).toBeInTheDocument(); // Subtotal
-    expect(screen.getByText('$10')).toBeInTheDocument(); // Tax
-    expect(screen.getByText('$110')).toBeInTheDocument(); // Total
+    expect(screen.getByText('$100.00')).toBeInTheDocument(); // Subtotal
+    expect(screen.getByText('$10.00')).toBeInTheDocument(); // Tax
+    expect(screen.getByText('$110.00')).toBeInTheDocument(); // Total
     expect(screen.getByText('Paid in cash')).toBeInTheDocument();
   });
 
@@ -83,8 +87,17 @@ describe('InvoiceCard Component', () => {
 
     render(<InvoiceCard invoice={emptyInvoice} handleViewInvoice={mockHandleView} />);
 
+    expect(screen.getByLabelText('Invoice reference #INV-1001')).toHaveTextContent('#INV-1001');
     const dashes = screen.getAllByText('-');
     expect(dashes.length).toBeGreaterThan(0);
+  });
+
+  it('labels a missing invoice reference as unavailable', () => {
+    const referenceLessInvoice = { ...mockInvoice, id: undefined } as any;
+
+    render(<InvoiceCard invoice={referenceLessInvoice} handleViewInvoice={mockHandleView} />);
+
+    expect(screen.getByLabelText('Invoice reference unavailable')).toHaveTextContent('-');
   });
 
   it('falls back to zero when the invoice carries no tax total', () => {
@@ -94,9 +107,9 @@ describe('InvoiceCard Component', () => {
     render(<InvoiceCard invoice={untaxedInvoice} handleViewInvoice={mockHandleView} />);
 
     // Both the (absent) discount and the (absent) tax render as $0.
-    expect(screen.getAllByText('$0')).toHaveLength(2);
-    expect(screen.getByText('$100')).toBeInTheDocument(); // Subtotal unaffected
-    expect(screen.getByText('$110')).toBeInTheDocument(); // Total unaffected
+    expect(screen.getAllByText('$0.00')).toHaveLength(2);
+    expect(screen.getByText('$100.00')).toBeInTheDocument(); // Subtotal unaffected
+    expect(screen.getByText('$110.00')).toBeInTheDocument(); // Total unaffected
   });
 
   // --- 3. Status Rendering ---

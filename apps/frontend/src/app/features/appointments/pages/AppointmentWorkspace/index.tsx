@@ -50,6 +50,7 @@ import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import Datepicker from '@/app/ui/inputs/Datepicker';
 import Timepicker from '@/app/ui/inputs/Timepicker';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { Textarea } from '@/app/ui/Input';
 import QuickActionsModal from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/QuickActionsModal';
 import WorkspaceActionRail from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceActionRail';
 import PhoneWorkspaceShell from '@/app/features/appointments/pages/AppointmentWorkspace/phone/PhoneWorkspaceShell';
@@ -336,7 +337,7 @@ export const DischargeDateTimeModal = ({
             </p>
             <label className="flex flex-col gap-1 text-caption-2 text-text-secondary">
               {'Override reason (required)'}
-              <textarea
+              <Textarea
                 value={overrideReason}
                 onChange={(event) => setOverrideReason(event.target.value)}
                 rows={2}
@@ -1600,6 +1601,7 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           encounterId={appointment.encounterId}
           authorId={actor.id}
           encounter={operationalEncounter}
+          companionSpecies={companion.species}
           ensureEncounterId={ensureEncounterId}
           onOpenInvoice={() => handleStepChange('INVOICE')}
         />

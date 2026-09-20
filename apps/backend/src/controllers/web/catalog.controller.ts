@@ -8,7 +8,7 @@ import {
   CatalogServiceError,
   type CatalogProductUpsertInput,
 } from "src/services/catalog.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import { resolveAuthorizedOrganisationId } from "src/middlewares/authorized-organisation";
 import {
   calendarPrefillBaseSchema,
   parseTristateFlag,
@@ -41,7 +41,7 @@ const healthcareServiceSchema = z
   .object({
     resourceType: z.literal("HealthcareService"),
   })
-  .passthrough();
+  .loose();
 
 const resolveSchema = z.object({
   productItemId: z.string().trim().min(1),
@@ -163,7 +163,7 @@ const specialityMutationSchema = z.object({
   name: z.string().trim().min(1).optional(),
   headUserId: z.string().trim().min(1).nullable().optional(),
   headName: z.string().trim().min(1).nullable().optional(),
-  headProfilePicUrl: z.string().trim().url().nullable().optional(),
+  headProfilePicUrl: z.string().trim().pipe(z.url()).nullable().optional(),
   teamMemberIds: z.array(z.string().trim().min(1)).optional(),
 });
 
@@ -241,41 +241,6 @@ const handleError = (res: Response, error: unknown, defaultMessage: string) => {
 
   logger.error(defaultMessage, error);
   return res.status(500).json({ message: defaultMessage });
-};
-
-const stripOrganisationPrefix = (value?: string) =>
-  value?.replace(/^Organization\//, "");
-
-/**
- * Resolve the organisation the RBAC layer actually authorized for this request.
- *
- * Client-supplied organisation identifiers (query, body, FHIR Parameters) are
- * only ever used to detect a mismatch: `withOrgPermissions` may have authorized
- * a different organisation than the one named in the payload, so honouring the
- * payload would let a caller act outside the organisation they were checked
- * against. Responds and returns `undefined` when the request cannot proceed.
- */
-const resolveAuthorizedOrganisationId = (
-  req: Request,
-  res: Response,
-  provided?: string,
-): string | undefined => {
-  const authorized = (req as OrgRequest).organisationId;
-
-  if (!authorized) {
-    res.status(400).json({ message: "Organisation identifier is required." });
-    return undefined;
-  }
-
-  const requested = stripOrganisationPrefix(provided);
-  if (requested && requested !== authorized) {
-    res.status(403).json({
-      message: "Organisation does not match the authorized organisation.",
-    });
-    return undefined;
-  }
-
-  return authorized;
 };
 
 const parseKinds = (value?: string) => {
@@ -407,7 +372,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid payload. Expected FHIR HealthcareService resource.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -430,7 +395,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid payload. Expected FHIR HealthcareService resource.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -509,7 +474,7 @@ export const CatalogController = {
       if (!queryResult.success) {
         return res.status(400).json({
           message: "Invalid catalog list query.",
-          errors: queryResult.error.flatten(),
+          errors: z.flattenError(queryResult.error),
         });
       }
 
@@ -558,7 +523,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid speciality catalog query.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -582,7 +547,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid catalog resolve payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -610,7 +575,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid FHIR Parameters payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -649,7 +614,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid FHIR Parameters payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -703,7 +668,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid organisation catalog summary query.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -734,7 +699,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid specialities list query.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -759,7 +724,7 @@ export const CatalogController = {
           message: "Invalid speciality payload.",
           errors: parsed.success
             ? { fieldErrors: { name: ["Name is required."] } }
-            : parsed.error.flatten(),
+            : z.flattenError(parsed.error),
         });
       }
 
@@ -787,7 +752,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid speciality payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -870,7 +835,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid services list query.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -915,7 +880,7 @@ export const CatalogController = {
                   ...(parsed.data.kind ? {} : { kind: ["Kind is required."] }),
                 },
               }
-            : parsed.error.flatten(),
+            : z.flattenError(parsed.error),
         });
       }
 
@@ -941,7 +906,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid service payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -1019,7 +984,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid packages list query.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -1056,7 +1021,7 @@ export const CatalogController = {
           message: "Invalid package payload.",
           errors: parsed.success
             ? { fieldErrors: { name: ["Name is required."] } }
-            : parsed.error.flatten(),
+            : z.flattenError(parsed.error),
         });
       }
 
@@ -1083,7 +1048,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid package payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -1161,7 +1126,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid catalog search query.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -1224,7 +1189,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid catalog nearby search query.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -1254,7 +1219,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid catalog bookable slots payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 
@@ -1289,7 +1254,7 @@ export const CatalogController = {
       if (!parsed.success) {
         return res.status(400).json({
           message: "Invalid catalog calendar prefill payload.",
-          errors: parsed.error.flatten(),
+          errors: z.flattenError(parsed.error),
         });
       }
 

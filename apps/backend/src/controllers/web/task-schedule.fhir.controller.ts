@@ -16,7 +16,7 @@ import { resolveVerifiedUserId } from "src/utils/request";
 
 const parametersSchema = z
   .object({ resourceType: z.literal("Parameters") })
-  .passthrough();
+  .loose();
 
 const handleError = createFhirErrorHandler({
   isServiceError: (error): error is TaskWorkflowServiceError =>

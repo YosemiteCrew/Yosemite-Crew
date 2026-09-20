@@ -77,6 +77,31 @@ describe('PreferenceGroup', () => {
     // The trailing space from the template literal is trimmed away.
     expect(container.querySelector('section')?.className.endsWith(' ')).toBe(false);
   });
+
+  it('renders an action next to the title when provided, alongside a scope chip', () => {
+    render(
+      <PreferenceGroup
+        title="Your organizations"
+        scope="personal"
+        action={<a href="/create-org">New organization</a>}
+      >
+        <span>x</span>
+      </PreferenceGroup>
+    );
+
+    expect(screen.getByRole('link', { name: 'New organization' })).toBeInTheDocument();
+    expect(screen.getByText('Only you')).toBeInTheDocument();
+  });
+
+  it('omits the title-row action slot when none is provided', () => {
+    render(
+      <PreferenceGroup title="Group">
+        <span>x</span>
+      </PreferenceGroup>
+    );
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
 });
 
 describe('PreferenceRow', () => {

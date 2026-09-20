@@ -1,6 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  IoChevronDownOutline,
   IoCopyOutline,
   IoLockClosedOutline,
   IoPrintOutline,
@@ -11,7 +10,12 @@ import SearchResultsDropdown from '@/app/features/appointments/pages/Appointment
 import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import Search from '@/app/ui/inputs/Search';
+import {
+  suggestMedications,
+  type MedicationSuggestion,
+} from '@/app/features/appointments/services/clinicalTermsService';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import type { DropdownOption } from '@/app/hooks/useDropdown';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
@@ -37,12 +41,20 @@ type PrescriptionEditorProps = {
   catalogItems?: Omit<PrescriptionItem, 'id'>[];
   templateItems?: PrescriptionTemplateOption[];
   readOnly: boolean;
+  /**
+   * Patient species, forwarded to the ATCvet search. Immunologicals are the only
+   * species-specific codes, so this keeps a small-animal patient from being
+   * offered farm or avian vaccines; every general substance still appears.
+   */
+  companionSpecies?: string;
   deleteLocked?: boolean;
   onAddItem: (item: Omit<PrescriptionItem, 'id'>) => void;
   onApplyTemplate?: (template: PrescriptionTemplateOption) => void;
   onUpdateItem: (id: string, patch: Partial<PrescriptionItem>) => void;
   onRemoveItem: (id: string) => void;
   onPrint: () => void;
+  /** The encounter's currency; prices must agree with the total beside them. */
+  currency: string;
 };
 
 const FULFILLMENT_LABELS: Record<PrescriptionFulfillment, string> = {
@@ -51,10 +63,17 @@ const FULFILLMENT_LABELS: Record<PrescriptionFulfillment, string> = {
 };
 
 const FULFILLMENT_OPTIONS = Object.keys(FULFILLMENT_LABELS) as PrescriptionFulfillment[];
+const FULFILLMENT_DROPDOWN_OPTIONS = FULFILLMENT_OPTIONS.map((option) => ({
+  label: FULFILLMENT_LABELS[option],
+  value: option,
+}));
 const EMPTY_CATALOG_ITEMS: Omit<PrescriptionItem, 'id'>[] = [];
 const EMPTY_TEMPLATE_ITEMS: PrescriptionTemplateOption[] = [];
 
-const formatCents = (cents: number): string => formatMoney(cents / 100, 'USD');
+/* The encounter's own currency, not a literal 'USD'. The running total in the
+   summary column beside these rows uses `encounter.currency`, so a sterling
+   clinic read dollar line items adding up to a pound total on one screen. */
+const formatCents = (cents: number, currency: string): string => formatMoney(cents / 100, currency);
 
 const copyValue = (value?: string) => {
   if (!value || !globalThis.navigator?.clipboard) return;
@@ -77,8 +96,16 @@ const toOptions = (values: string[], current?: string): DropdownOption[] => {
 };
 
 /**
- * Compact fulfillment pill dropdown (In-house fulfilled / Prescription only),
- * styled like the workspace status pills with a small caret.
+ * A line that came from the ATCvet classification rather than the practice's own
+ * stock: coded, but with nothing to dispense against.
+ */
+const isClassificationOnly = (item: PrescriptionItem) =>
+  Boolean(item.atcCode) && !item.inventoryItemId && !item.sku;
+
+/**
+ * Fulfillment dropdown (In-house fulfilled / Prescription only), using the
+ * shared design-system Dropdown so it matches the rest of the app instead of
+ * a browser-native <select>.
  */
 const FulfillmentDropdown = ({
   value,
@@ -88,34 +115,15 @@ const FulfillmentDropdown = ({
   value: PrescriptionFulfillment;
   disabled: boolean;
   onChange: (value: PrescriptionFulfillment) => void;
-}) => {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="relative">
-      <select
-        aria-label="Fulfillment"
-        disabled={disabled}
-        value={value}
-        onChange={(e) => onChange(e.target.value as PrescriptionFulfillment)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        className="flex appearance-none items-center gap-1 rounded-2xl border border-neutral-500 bg-neutral-0 py-1.5 pr-10 pl-4 text-[14px] leading-[120%] font-medium text-neutral-900 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {FULFILLMENT_OPTIONS.map((option) => (
-          <option key={option} value={option}>
-            {FULFILLMENT_LABELS[option]}
-          </option>
-        ))}
-      </select>
-      <IoChevronDownOutline
-        size={16}
-        aria-hidden="true"
-        className={`pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 transition-transform ${open ? 'rotate-180' : ''}`}
-      />
-    </div>
-  );
-};
+}) => (
+  <Dropdown
+    placeholder="Fulfillment"
+    value={value}
+    disabled={disabled}
+    onChange={(v) => onChange(v as PrescriptionFulfillment)}
+    options={FULFILLMENT_DROPDOWN_OPTIONS}
+  />
+);
 
 /** Small neutral pill that surfaces an inventory-owned fact (read-only). */
 const FactChip = ({ label, value }: { label: string; value?: string }) => {
@@ -222,6 +230,7 @@ const PrescriptionRow = ({
   deleteLocked,
   onUpdateItem,
   onRemoveItem,
+  currency,
 }: {
   item: PrescriptionItem;
   index: number;
@@ -229,6 +238,7 @@ const PrescriptionRow = ({
   deleteLocked: boolean;
   onUpdateItem: (id: string, patch: Partial<PrescriptionItem>) => void;
   onRemoveItem: (id: string) => void;
+  currency: string;
 }) => {
   // Billed/paid items are locked: fields render read-only and there is no delete.
   const isBilled = Boolean(item.billed);
@@ -274,7 +284,11 @@ const PrescriptionRow = ({
           )}
           <FulfillmentDropdown
             value={item.fulfillment}
-            disabled={rowReadOnly}
+            // A line picked from the classification has no inventory item, SKU or
+            // batch behind it, so "in-house" would finalize into a dispense request
+            // against stock that does not exist. Such a line stays prescription-only
+            // until it is linked to real stock.
+            disabled={rowReadOnly || isClassificationOnly(item)}
             onChange={(fulfillment) => onUpdateItem(item.id, { fulfillment })}
           />
           {isBilled ? null : (
@@ -384,11 +398,73 @@ const PrescriptionRow = ({
           />
         </div>
         <span className="shrink-0 self-start text-body-3-emphasis font-bold text-text-primary">
-          {item.priceCents == null ? '-' : formatCents(item.priceCents)}
+          {item.priceCents == null ? '-' : formatCents(item.priceCents, currency)}
         </span>
       </div>
     </li>
   );
+};
+
+/** Stable empty array, so an unchanged "no results" does not re-render consumers. */
+const EMPTY_SUGGESTIONS: MedicationSuggestion[] = [];
+
+const ATCVET_MIN_QUERY = 3;
+const ATCVET_DEBOUNCE_MS = 250;
+// Enough to show a substance's several therapeutic codes (ibuprofen has three)
+// without the classification burying the practice's own catalogue above it.
+const ATCVET_LIMIT = 10;
+
+/**
+ * ATCvet substances for the medicine search box, so a clinician can prescribe a
+ * substance the practice does not stock. Deliberately a longer minimum and a
+ * smaller page than the inventory match: this is the fallback below the
+ * practice's own catalogue, not the primary way to prescribe.
+ */
+const useAtcvetSuggestions = (query: string, readOnly: boolean, species?: string) => {
+  // Results are stored WITH the query that produced them, and rendered only
+  // while that query is still what is typed. That makes both staleness rules
+  // structural rather than bookkeeping: a page for an older query is never
+  // shown, whether it arrives late or is simply left over from the last
+  // keystroke - and nothing has to be cleared synchronously as the query
+  // changes, which React forbids inside an effect.
+  const [page, setPage] = useState<{ query: string; items: MedicationSuggestion[] }>({
+    query: '',
+    items: [],
+  });
+
+  const trimmed = query.trim();
+  const skip = readOnly || trimmed.length < ATCVET_MIN_QUERY;
+
+  useEffect(() => {
+    if (skip) return;
+    // Cancelled on cleanup so a request whose query has already been superseded
+    // cannot publish its page. Keying the page by query alone was not enough: a
+    // slow earlier request completing last would overwrite the newer page, and
+    // the render guard would then hide BOTH - the older page for not matching,
+    // and the newer one because it had been replaced.
+    let cancelled = false;
+    const publish = (items: MedicationSuggestion[]) => {
+      if (!cancelled) setPage({ query: trimmed, items });
+    };
+    const timer = setTimeout(() => {
+      suggestMedications({
+        q: trimmed,
+        limit: ATCVET_LIMIT,
+        ...(species ? { species } : {}),
+      })
+        .then(publish)
+        .catch((error) => {
+          console.error('Unable to suggest medications:', error);
+          publish([]);
+        });
+    }, ATCVET_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [trimmed, skip, species]);
+
+  return skip || page.query !== trimmed ? EMPTY_SUGGESTIONS : page.items;
 };
 
 const PrescriptionEditor = ({
@@ -397,14 +473,17 @@ const PrescriptionEditor = ({
   templateItems = EMPTY_TEMPLATE_ITEMS,
   readOnly,
   deleteLocked = readOnly,
+  companionSpecies,
   onAddItem,
   onApplyTemplate,
   onUpdateItem,
   onRemoveItem,
   onPrint,
+  currency,
 }: PrescriptionEditorProps) => {
   const [search, setSearch] = useState('');
   const searchRef = React.useRef<HTMLDivElement>(null);
+  const substances = useAtcvetSuggestions(search, readOnly, companionSpecies);
 
   const matches = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -424,7 +503,8 @@ const PrescriptionEditor = ({
     return templateItems.filter((template) => template.name.toLowerCase().includes(query));
   }, [search, templateItems]);
 
-  const hasSearchMatches = matches.length > 0 || templateMatches.length > 0;
+  const hasSearchMatches =
+    matches.length > 0 || templateMatches.length > 0 || substances.length > 0;
 
   return (
     <div className="flex flex-col gap-3">
@@ -433,7 +513,7 @@ const PrescriptionEditor = ({
       <div className="relative z-50 flex items-center justify-end gap-3">
         <CircleIconButton
           icon={<IoPrintOutline aria-hidden="true" />}
-          label="Print Labels"
+          label="Print labels"
           onClick={onPrint}
         />
         {!readOnly && (
@@ -485,6 +565,41 @@ const PrescriptionEditor = ({
                     }}
                   />
                 ))}
+                {substances.map((substance) => (
+                  <WorkspaceSearchResultRow
+                    key={substance.atcCode}
+                    name={substance.label}
+                    badge={
+                      <span className="rounded-2xl bg-neutral-100 px-2 py-0.5 text-caption-2 font-medium text-text-secondary">
+                        ATCvet
+                      </span>
+                    }
+                    // The class path is what makes a substance interpretable:
+                    // "doxycycline" alone does not say systemic antibacterial.
+                    origin={[
+                      substance.atcCode,
+                      ...substance.path.slice(1).map((level) => level.label),
+                    ].join(' · ')}
+                    meta={
+                      substance.antibacterial ? (
+                        <span className="rounded-2xl bg-warning-100 px-2 py-0.5 text-caption-2 font-medium text-text-secondary">
+                          Antibacterial
+                        </span>
+                      ) : undefined
+                    }
+                    onSelect={() => {
+                      onAddItem({
+                        medicineName: substance.label,
+                        atcCode: substance.atcCode,
+                        // A substance picked from the classification is not
+                        // stock, so it cannot be dispensed in-house: it is
+                        // written for the owner to have filled elsewhere.
+                        fulfillment: 'PRESCRIPTION_ONLY',
+                      });
+                      setSearch('');
+                    }}
+                  />
+                ))}
               </ul>
             </SearchResultsDropdown>
           </div>
@@ -504,6 +619,7 @@ const PrescriptionEditor = ({
           <ul className="flex flex-col gap-3">
             {items.map((item, index) => (
               <PrescriptionRow
+                currency={currency}
                 key={item.id}
                 item={item}
                 index={index}

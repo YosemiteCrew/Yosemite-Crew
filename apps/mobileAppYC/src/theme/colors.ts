@@ -88,6 +88,21 @@ const palette = {
   violet: ['#7C3AED', '#C4B5FD'],
   violetSurface: ['#EDE9FE', 'rgba(139, 92, 246, 0.18)'],
 
+  // --- Risk scale ---
+  // A four-step sequential ramp for the parasite risk tiers. Kept separate
+  // from the status tokens because this is an ordered scale, not a set of
+  // independent states, and because it needs a fourth step beyond danger.
+  // Tier is never signalled by colour alone: every surface pairs these with a
+  // written tier label.
+  riskLow: ['#0F7A57', '#3FBF90'],
+  riskLowSurface: ['rgba(15, 122, 87, 0.12)', 'rgba(63, 191, 144, 0.16)'],
+  riskModerate: ['#8A5700', '#E9B949'],
+  riskModerateSurface: ['rgba(138, 87, 0, 0.12)', 'rgba(233, 185, 73, 0.18)'],
+  riskHigh: ['#A33F00', '#F08A3C'],
+  riskHighSurface: ['rgba(163, 63, 0, 0.12)', 'rgba(240, 138, 60, 0.18)'],
+  riskExtreme: ['#A61B1B', '#F0625A'],
+  riskExtremeSurface: ['rgba(166, 27, 27, 0.12)', 'rgba(240, 98, 90, 0.18)'],
+
   // --- Surfaces ---
   page: ['#EFE8DC', '#201C18'],
   band: ['#E8E0D2', '#2A2216'],
@@ -177,6 +192,16 @@ const palette = {
   // warm and keeps ink legible (light / dark). More see-through than glassPill.
   glassSurface: ['rgba(247, 243, 236, 0.55)', 'rgba(41, 35, 28, 0.6)'],
   glassSurfaceStrong: ['rgba(247, 243, 236, 0.72)', 'rgba(41, 35, 28, 0.74)'],
+  /**
+   * Frost tint for the floating tab bar's native glass.
+   *
+   * The bar used `whiteOverlay70` here, which is a literal rather than a
+   * surface - the same 70% white in both themes. On espresso that painted a
+   * cream bar across the bottom of every dark screen, with the ink tokens
+   * underneath it still picked for a dark ground. The light value below is the
+   * one it already had, so light mode is unchanged.
+   */
+  glassBarTint: ['rgba(255, 255, 255, 0.7)', 'rgba(41, 35, 28, 0.7)'],
 
   // --- Fixed / overlays ---
   white: ['#FFFFFF', '#FFFFFF'],

@@ -115,7 +115,7 @@ const meta = {
       description: {
         component:
           'The account-deletion affordance at the foot of Settings: a `--danger-border` row and ' +
-          'a "Delete…" button.\n\n' +
+          'a "Delete profile" button.\n\n' +
           'The button is a fork, not an opener. Before anything is shown it asks whether this ' +
           'person still OWNS any organisation, and an owner is refused outright with a warning ' +
           'toast naming the clinics - deleting them would leave a clinic with no owner and no ' +
@@ -153,7 +153,7 @@ export const Resting: Story = {
        passes "#", so it must be a button: an anchor here would be a destructive
        action that a screen reader announces as a link and that middle-click opens
        in a new tab. */
-    const trigger = canvas.getByRole('button', { name: 'Delete…' });
+    const trigger = canvas.getByRole('button', { name: 'Delete profile' });
     await expect(trigger.tagName).toBe('BUTTON');
 
     // Nothing is open until it is clicked.
@@ -165,7 +165,7 @@ export const NotAnOwner: Story = {
   name: 'Not an owner: the confirmation opens',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Delete…' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Delete profile' }));
 
     const dialog = await openDialog();
     const panel = within(dialog);
@@ -209,7 +209,7 @@ export const StillAnOwner: Story = {
   }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Delete…' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Delete profile' }));
 
     /* The refusal names the clinics rather than saying "you own some
        organisations", so the person knows exactly what to hand over. Both
@@ -236,7 +236,7 @@ export const MissingUserId: Story = {
   }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Delete…' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Delete profile' }));
 
     const dialog = await openDialog();
     const panel = within(dialog);
@@ -268,7 +268,7 @@ export const Phone: Story = {
   globals: { viewport: { value: 'mobile', isRotated: false } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const trigger = canvas.getByRole('button', { name: 'Delete…' });
+    const trigger = canvas.getByRole('button', { name: 'Delete profile' });
 
     /* The row is a single non-wrapping flex line: label block, then the pill. At
        375 the description is the longest string in it, so this is where the pill

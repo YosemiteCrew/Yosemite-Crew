@@ -161,7 +161,7 @@ const createStyles = (theme: any) =>
       position: 'relative',
     },
     title: {
-      ...theme.typography.h5Clash23,
+      ...theme.typography.h3,
       color: theme.colors.secondary,
       textAlign: 'center',
     },

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, fn, waitFor, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import InventoryPhoneCatalog from './InventoryPhoneCatalog';
 import type { InventoryFiltersState, InventoryItem } from './types';
@@ -305,6 +305,46 @@ export const NoRestockPermission: Story = {
   },
 };
 
+export const LowFilterSelected: Story = {
+  name: 'The Low filter, on',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // Resolved before any waitFor: the probe mutates the DOM.
+    const cancelledInk = resolveTokenColor('--status-cancelled-text');
+    const cancelledFill = resolveTokenColor('--status-cancelled-bg');
+
+    const low = canvas.getByRole('button', { name: 'Low (2)' });
+    const idle = getComputedStyle(low);
+    await expect(idle.backgroundColor).toBe(cancelledFill);
+    await expect(idle.fontWeight).toBe('600');
+
+    await userEvent.click(low);
+    await expect(low).toHaveAttribute('aria-pressed', 'true');
+
+    /* The whole point of the finding: selected used to differ from idle ONLY by
+       `shadow-[0_1px_3px_var(--sh08)]`, so these two reads were the same colour
+       and the same weight and the assertions below would both have failed. The
+       shadow is still there as a secondary cue, but the fill and the weight now
+       carry the state - the same currency the All and category pills use. */
+    await waitFor(async () => {
+      await expect(getComputedStyle(low).backgroundColor).toBe(cancelledInk);
+    });
+    await expect(getComputedStyle(low).fontWeight).toBe('700');
+    await expect(getComputedStyle(low).boxShadow).not.toBe('none');
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The one filter that changes what the list contains, in both states. Measured as ' +
+          'computed colour and weight rather than by class name: the defect this pins was a ' +
+          'selected state made entirely of a 1px-offset, 3px-blur shadow on an already-tinted ' +
+          'pill, which a "the pill rendered" check would never notice.',
+      },
+    },
+  },
+};
+
 export const Loading: Story = {
   name: 'Loading',
   args: { filteredInventory: [], loading: true },
@@ -337,15 +377,26 @@ export const Empty: Story = {
   args: { filteredInventory: [], loading: false },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText('Looks like a quiet day… for now.')).toBeInTheDocument();
+    /* Derived from the same noun the inventory table uses, so the phone
+       catalogue and the table no longer disagree. This surface hardcoded the
+       table's old "Looks like a quiet day… for now." by hand and was left behind
+       when the table moved on. */
+    const title = canvas.getByText('No items yet');
+    await expect(title).toBeInTheDocument();
+    await expect(canvas.queryByText('Looks like a quiet day… for now.')).not.toBeInTheDocument();
     await expect(canvas.queryByText('Loading inventory…')).not.toBeInTheDocument();
     await expect(canvas.queryAllByRole('button', { name: /^View / })).toHaveLength(0);
 
-    // The empty state is a bordered card, not bare copy - which is what distinguishes
-    // it visually from the loader above.
-    const card = canvas.getByText('Looks like a quiet day… for now.');
-    await expect(getComputedStyle(card).borderTopWidth).toBe('1px');
-    await expect(getComputedStyle(card).borderRadius).toBe('16px');
+    /* The empty state is a bordered card, not bare copy - which is what
+       distinguishes it visually from the loader above. Walked up from the copy
+       rather than matched on a class name, so a restyle that keeps the card
+       still passes and one that drops the card still fails. */
+    let card: HTMLElement | null = title;
+    while (card && getComputedStyle(card).borderTopWidth !== '1px') {
+      card = card.parentElement;
+    }
+    await expect(card).not.toBeNull();
+    await expect(getComputedStyle(card as HTMLElement).borderRadius).toBe('16px');
 
     await expect(canvas.getByRole('button', { name: 'Low (2)' })).toBeInTheDocument();
   },

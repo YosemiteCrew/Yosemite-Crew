@@ -4,6 +4,7 @@ import { MarketingShell } from '@/app/features/marketing/site';
 import PrivacyPolicy from '@/app/features/legal/pages/PrivacyPolicy';
 import BackToSignup from '@/app/features/legal/components/BackToSignup';
 
+// no-story: thin Next.js route wrapper; real content is PrivacyPolicy, already storied
 export const metadata: Metadata = {
   title: 'Privacy policy · Yosemite Crew',
   description:

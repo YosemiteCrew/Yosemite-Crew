@@ -60,8 +60,8 @@ const meta = {
           'place by a "Confirm revoke" / "Cancel" pair inside the same `dev-danger-actions` ' +
           'span, so the row silently changes width and the original button is gone from the ' +
           'DOM. "Rotate now" does the same thing inside a sentence - it is an inline link in ' +
-          '"Signing secret rotated 14 days ago. Rotate now", and arming it swaps that one word ' +
-          'for two words, reflowing the sentence.\n\n' +
+          '"No webhook signing secret exists yet. Rotate now", and arming it swaps that one ' +
+          'word for two words, reflowing the sentence.\n\n' +
           'The two flags are independent `useState` booleans with no coordination, so both can ' +
           'be armed at once - and then the page carries two buttons labelled exactly "Cancel", ' +
           'one in each column, with nothing in either accessible name to say which is which. ' +
@@ -210,11 +210,11 @@ export const ConfirmRotateArmed: Story = {
     /* The swap happens INSIDE a sentence, so the surrounding copy has to still
        read correctly around two buttons instead of one. Reading the whole card's
        text is the only way to see that; querying the buttons alone would not
-       catch a sentence that now says "rotated 14 days ago. Confirm rotate Cancel"
+       catch a sentence that now says "exists yet. Confirm rotate Cancel"
        with no separator. */
     const card = canvasElement.querySelector('.dev-secret-card');
     if (!card) throw new Error('The signing-secret card did not render.');
-    await expect(card.textContent).toContain('Signing secret rotated 14 days ago.');
+    await expect(card.textContent).toContain('No webhook signing secret exists yet.');
     await expect(card.textContent).toContain('Confirm rotate');
   },
   parameters: {

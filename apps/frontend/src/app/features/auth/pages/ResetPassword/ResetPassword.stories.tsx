@@ -10,6 +10,7 @@ import ResetPassword from './ResetPassword';
    stacked actions below are unstyled anchors and the "danger badge, heading, copy,
    two buttons" shape this story exists to review is not what gets drawn. */
 import '../../../marketing/site/marketing.css';
+import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/useGithubStats';
 
 /**
  * Says what it is in the value itself, so the secret scanners never have to
@@ -32,14 +33,14 @@ const NEW_PASSWORD = 'EXAMPLE_NOT_A_CREDENTIAL_1aA!';
  * to a fixed number instead of one that differs between two Chromatic runs.
  */
 const seedGithubStats = () => {
-  setJsonStorageItem('session', 'yc_marketing_stats_v2', {
+  setJsonStorageItem('session', STATS_CACHE_KEY, {
     stars: '2.4k',
     starsFull: '2,431',
     repositoryClones: '67,134',
     contributors: '38',
     discord: '1,204',
   });
-  setStorageItem('session', 'yc_marketing_stats_ts_v2', String(Date.now()));
+  setStorageItem('session', STATS_TS_KEY, String(Date.now()));
 };
 
 /**

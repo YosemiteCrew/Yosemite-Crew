@@ -16,7 +16,7 @@ import { z } from "zod";
 import { TemplateKind, TemplateScope, TemplateStatus } from "@prisma/client";
 
 const templateKindQuerySchema = z.union([
-  z.nativeEnum(TemplateKind),
+  z.enum(TemplateKind),
   z.enum([
     "SOAP_NOTE",
     "VITAL_RECORD",
@@ -43,8 +43,8 @@ const TASK_TEMPLATE_KINDS = ["TASK_TEMPLATE", "CARE_PATHWAY"] as const;
 
 const listQuerySchema = z.object({
   kind: templateKindQuerySchema.optional(),
-  status: z.nativeEnum(TemplateStatus).optional(),
-  scope: z.nativeEnum(TemplateScope).optional(),
+  status: z.enum(TemplateStatus).optional(),
+  scope: z.enum(TemplateScope).optional(),
   search: z.string().trim().optional(),
 });
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useId, useState, type CSSProperties } from 'react';
-import { TicketCategory } from '@yosemite-crew/types';
+import { CONTACT_MESSAGE_MAX_LENGTH, TicketCategory } from '@yosemite-crew/types';
 import { isEmail } from 'validator';
 import axios from 'axios';
 import {
@@ -22,6 +22,8 @@ import {
 } from '@/app/features/marketing/site';
 import { postData } from '@/app/services/axios';
 import { makeOptions } from '@/app/lib/options';
+import { Textarea } from '@/app/ui/Input';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 
 const NEWSREADER = 'var(--font-newsreader)';
 const EASE = 'cubic-bezier(0.16,1,0.3,1)';
@@ -64,6 +66,10 @@ type ContactPayload = {
   fullName: string;
   email: string;
   source: 'PMS_WEB';
+  /* Honeypot (#2645). Always sent, always empty from a real submission. The API
+     discards anything non-empty; the SuperAdmin panel has expected this field
+     all along and the site simply never rendered one. */
+  website: string;
   phone?: string;
   dsarDetails?: {
     requesterType: DsraRequesterType;
@@ -143,9 +149,17 @@ const fieldGroup: CSSProperties = { display: 'flex', flexDirection: 'column', ga
 const groupBlock: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 16 };
 
 const errorLine: CSSProperties = {
-  color: 'var(--color-danger-600, #d53225)',
+  color: 'var(--color-danger-600)',
   fontSize: 14,
   marginTop: 4,
+  letterSpacing: '-0.01em',
+};
+
+const counterLine: CSSProperties = {
+  color: 'var(--ink-muted)',
+  fontSize: 13,
+  marginTop: 4,
+  textAlign: 'right',
   letterSpacing: '-0.01em',
 };
 
@@ -267,7 +281,7 @@ const VISUALLY_HIDDEN_INPUT_STYLE: CSSProperties = {
 };
 
 const requiredMark = (
-  <span aria-hidden="true" style={{ color: '#d53225' }}>
+  <span aria-hidden="true" style={{ color: 'var(--color-danger-700)' }}>
     {' '}
     *
   </span>
@@ -420,6 +434,11 @@ interface TextAreaFieldProps {
   error?: string;
 }
 
+/* Every use of this field is the contact `message`, which the SuperAdmin
+   mirror forwards verbatim and its intake refuses past
+   CONTACT_MESSAGE_MAX_LENGTH, so the bound lives here rather than at each call
+   site. The count is described rather than announced: a live region on a
+   per-keystroke counter reads the whole number out on every character. */
 function TextAreaField({
   label,
   ariaLabel,
@@ -431,6 +450,7 @@ function TextAreaField({
   error,
 }: Readonly<TextAreaFieldProps>) {
   const fieldId = useId();
+  const counterId = `${fieldId}-count`;
   const style: CSSProperties = {
     resize: 'vertical',
     minHeight: minHeight ?? 116,
@@ -442,15 +462,20 @@ function TextAreaField({
         {label}
         {required ? requiredMark : null}
       </label>
-      <textarea
+      <Textarea
         id={fieldId}
         className="yc-field"
         style={style}
         value={value}
         aria-label={ariaLabel}
         placeholder={placeholder}
+        maxLength={CONTACT_MESSAGE_MAX_LENGTH}
+        aria-describedby={counterId}
         onChange={(e) => onChange(e.target.value)}
       />
+      <div id={counterId} style={counterLine}>
+        {`${value.length} of ${CONTACT_MESSAGE_MAX_LENGTH} characters`}
+      </div>
       {error ? <div style={errorLine}>{error}</div> : null}
     </div>
   );
@@ -460,6 +485,7 @@ function TextAreaField({
 
 type ContactFormValues = {
   selectedQueryType: TicketCategory;
+  website: string;
   fullName: string;
   email: string;
   phone: string;
@@ -474,6 +500,7 @@ type ContactFormValues = {
 
 type ContactFormSetters = {
   setSelectedQueryType: React.Dispatch<React.SetStateAction<TicketCategory>>;
+  setWebsite: React.Dispatch<React.SetStateAction<string>>;
   setFullName: React.Dispatch<React.SetStateAction<string>>;
   setEmail: React.Dispatch<React.SetStateAction<string>>;
   setPhone: React.Dispatch<React.SetStateAction<string>>;
@@ -555,6 +582,7 @@ const buildPayload = (values: ContactFormValues): ContactPayload => {
     fullName: values.fullName.trim(),
     email: values.email.trim(),
     source: 'PMS_WEB',
+    website: values.website,
   };
 
   if (values.phone.trim()) payload.phone = values.phone.trim();
@@ -661,8 +689,8 @@ function ContactHero() {
       >
         <ChannelCard
           href="mailto:support@yosemitecrew.com"
-          iconBg="rgba(37,123,237,0.10)"
-          iconBorder="rgba(37,123,237,0.18)"
+          iconBg="color-mix(in srgb, var(--blue) 10%, transparent)"
+          iconBorder="color-mix(in srgb, var(--blue) 18%, transparent)"
           iconColor="var(--blue)"
           icon={<IoAtOutline aria-hidden="true" style={{ fontSize: 22 }} />}
           kicker="Email"
@@ -670,8 +698,8 @@ function ContactHero() {
         />
         <ChannelCard
           href="tel:+4915227763275"
-          iconBg="rgba(0,143,93,0.10)"
-          iconBorder="rgba(0,143,93,0.18)"
+          iconBg="color-mix(in srgb, var(--success) 10%, transparent)"
+          iconBorder="color-mix(in srgb, var(--success) 18%, transparent)"
           iconColor="var(--success)"
           icon={<IoCallOutline aria-hidden="true" style={{ fontSize: 20 }} />}
           kicker="Phone"
@@ -680,6 +708,8 @@ function ContactHero() {
         <ChannelCard
           href={DISCORD_INVITE_URL}
           external
+          // Discord's own brand blurple (#5865F2) - not a design-system colour, so
+          // it stays a literal rather than being pointed at an unrelated token.
           iconBg="rgba(88,101,242,0.12)"
           iconBorder="rgba(88,101,242,0.22)"
           iconColor="#5865F2"
@@ -946,7 +976,7 @@ function SubmitError({ message }: Readonly<{ message: string }>) {
         alignItems: 'center',
         gap: 8,
         fontSize: 14,
-        color: '#d53225',
+        color: 'var(--color-danger-700)',
         letterSpacing: '-0.01em',
       }}
     >
@@ -1010,27 +1040,13 @@ function DsarFields({ values, setters, errors, confirm, submit }: Readonly<DsarF
         onSelect={setters.setSubselectedRequest}
       />
 
-      <div style={groupBlock}>
-        <label className="yc-lbl" htmlFor="dsar-area">
-          Under the rights of which law are you making this request?
-          {requiredMark}
-        </label>
-        <select
-          id="dsar-area"
-          className="yc-field"
-          data-testid="dynamic-select"
-          aria-label="Under the rights of which law are you making this request?"
-          value={values.area}
-          onChange={(e) => setters.setArea(e.target.value)}
-        >
-          <option value="">Select one</option>
-          {areaOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Dropdown
+        placeholder="Under the rights of which law are you making this request?"
+        value={values.area}
+        onChange={setters.setArea}
+        options={areaOptions}
+        emptyLabel="Select one"
+      />
 
       <div style={groupBlock}>
         <div style={groupHeading}>You are submitting this request to</div>
@@ -1170,7 +1186,7 @@ const SUCCESS_ICON_STYLE: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'rgba(0,143,93,0.12)',
+  background: 'color-mix(in srgb, var(--success) 12%, transparent)',
   color: 'var(--success)',
 };
 
@@ -1246,6 +1262,30 @@ function ContactForm({ values, setters, errors, confirm, submit }: Readonly<Cont
   return (
     <div style={{ animation: `ycHeroUp 1s ${EASE} 0.4s both` }}>
       <form action={handleFormAction} style={FORM_STYLE}>
+        {/*
+          Honeypot (#2645). Hidden from sighted users by position rather than
+          `display: none`, because a bot that skips undisplayed inputs is exactly
+          the one worth catching, and hidden from assistive technology by
+          aria-hidden plus tabIndex={-1} so no real person can reach it by
+          keyboard or hear it announced. autoComplete="off" keeps a browser's own
+          autofill from filling it on a genuine visitor's behalf, which would
+          otherwise discard their message.
+        */}
+        <div
+          aria-hidden="true"
+          className="absolute left-[-9999px] top-auto h-px w-px overflow-hidden"
+        >
+          <label htmlFor="contact-website">Website</label>
+          <input
+            id="contact-website"
+            name="website"
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={values.website}
+            onChange={(e) => setters.setWebsite(e.target.value)}
+          />
+        </div>
         {/* type selector */}
         <ContactTypeSelector
           selectedQueryType={selectedQueryType}
@@ -1323,9 +1363,15 @@ const ContactusPage = () => {
   // Complaint specific fields
   const [complaintLink, setComplaintLink] = useState<string>('');
   const [complaintImage, setComplaintImage] = useState<File | null>(null);
+  /* Honeypot (#2645). Kept in React state like any other field so the value a
+     bot types is what actually reaches the API - reading it off the DOM at
+     submit time would miss a bot that sets the property rather than the
+     attribute. */
+  const [website, setWebsite] = useState<string>('');
 
   const formValues: ContactFormValues = {
     selectedQueryType,
+    website,
     fullName,
     email,
     phone,
@@ -1340,6 +1386,7 @@ const ContactusPage = () => {
 
   const setters: ContactFormSetters = {
     setSelectedQueryType,
+    setWebsite,
     setFullName,
     setEmail,
     setPhone,
@@ -1369,6 +1416,7 @@ const ContactusPage = () => {
     setComplaintLink('');
     setComplaintImage(null);
     setSelectedQueryType('General Enquiry');
+    setWebsite('');
     setErrors({});
   };
 

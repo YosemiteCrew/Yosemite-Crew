@@ -130,7 +130,7 @@ export const BasicDetails: Story = {
   name: 'Open on Basic Details',
   play: async () => {
     const drawer = panel();
-    await expect(drawer.getByRole('heading', { name: 'Add product' })).toBeInTheDocument();
+    await expect(drawer.getByRole('heading', { name: 'New product' })).toBeInTheDocument();
     // The strip carries all six sections even though only one is mounted.
     await expect(drawer.getAllByRole('tab')).toHaveLength(6);
     await expect(drawer.getByRole('tab', { name: 'Basic Details' })).toHaveAttribute(

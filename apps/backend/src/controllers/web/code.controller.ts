@@ -7,6 +7,7 @@ import {
   type ClinicalSpecies,
 } from "src/services/clinical-terms.service";
 import { z } from "zod";
+import { AtcvetService } from "src/services/atcvet.service";
 
 const parseBoolean = (value: unknown): boolean | undefined => {
   if (value === undefined) return undefined;
@@ -24,6 +25,27 @@ const ClinicalSpeciesSchema = z.enum([
   "AVIAN",
 ]);
 
+const MedicationsSuggestQuerySchema = z.object({
+  q: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value || undefined),
+  // The anatomical main group, e.g. QJ. Two characters, Q plus a letter.
+  group: z
+    .string()
+    .trim()
+    .regex(/^[Qq][A-Za-z]$/, "Invalid ATCvet group.")
+    .optional()
+    .transform((value) => value?.toUpperCase()),
+  species: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value || undefined),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+});
+
 const TermsSuggestQuerySchema = z.object({
   q: z
     .string()
@@ -39,6 +61,9 @@ const TermsSuggestQuerySchema = z.object({
       "Procedure",
     ])
     .optional(),
+  // Only terms carrying a usable crosswalk to this vocabulary. A practice that
+  // works in SNOMED wants a list it can actually code in SNOMED.
+  vocabulary: z.enum(["VENOM", "SNOMED"]).optional(),
   species: z
     .union([z.string(), z.array(z.string())])
     .optional()
@@ -115,6 +140,31 @@ export const CodeController = {
     }
   },
 
+  async suggestMedications(req: Request, res: Response) {
+    try {
+      const queryResult = MedicationsSuggestQuerySchema.safeParse(req.query);
+
+      if (!queryResult.success) {
+        return res.status(400).json({
+          message: "Invalid medication suggestion query.",
+          error: z.flattenError(queryResult.error),
+        });
+      }
+
+      const items = await AtcvetService.suggestMedications(queryResult.data);
+
+      return res.status(200).json({ items });
+    } catch (error) {
+      if (error instanceof CodeServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      logger.error("Failed to suggest medications", error);
+      return res
+        .status(500)
+        .json({ message: "Failed to suggest medications." });
+    }
+  },
+
   async suggestTerms(req: Request, res: Response) {
     try {
       const queryResult = TermsSuggestQuerySchema.safeParse(req.query);
@@ -122,17 +172,18 @@ export const CodeController = {
       if (!queryResult.success) {
         return res.status(400).json({
           message: "Invalid term suggestion query.",
-          error: queryResult.error.flatten(),
+          error: z.flattenError(queryResult.error),
         });
       }
 
-      const { q, domain, species, limit } = queryResult.data;
+      const { q, domain, species, limit, vocabulary } = queryResult.data;
 
       const items = await ClinicalTermsService.suggestTerms({
         q,
         domain,
         species,
         limit,
+        vocabulary,
       });
 
       return res.status(200).json({ items });

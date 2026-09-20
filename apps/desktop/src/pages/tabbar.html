@@ -260,7 +260,8 @@
           id="search-tabs-btn"
           class="tab-action-btn"
           aria-label="Search tabs"
-          title="Search tabs (Shift+Cmd+Y)"
+          data-shortcut-title="Search tabs"
+          data-shortcut="Mod+Shift+Y"
         >
           ⌕
         </button>
@@ -268,7 +269,8 @@
           id="new-tab-btn"
           class="tab-action-btn"
           aria-label="New tab"
-          title="New tab (Cmd+T)"
+          data-shortcut-title="New tab"
+          data-shortcut="Mod+T"
         >
           +
         </button>
@@ -276,11 +278,15 @@
       </div>
       <div id="win-caption" class="win-caption">
         <button id="win-min" class="win-btn" type="button" aria-label="Minimize" title="Minimize">
-          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8" /></svg>
+          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5h8" /></svg>
         </button>
         <button id="win-max" class="win-btn" type="button" aria-label="Maximize" title="Maximize">
-          <svg viewBox="0 0 12 12" aria-hidden="true">
+          <svg data-glyph="maximize" viewBox="0 0 12 12" aria-hidden="true">
             <rect x="2.5" y="2.5" width="7" height="7" />
+          </svg>
+          <svg data-glyph="restore" viewBox="0 0 12 12" aria-hidden="true" hidden>
+            <rect x="2.5" y="4.5" width="5" height="5" />
+            <path d="M4.5 4.5V2.5h5v5h-2" />
           </svg>
         </button>
         <button
@@ -323,64 +329,80 @@
           <div class="cs-group">
             <div class="cs-group-title">Tabs</div>
             <div class="cs-row">
-              <span class="cs-key">⌘T</span><span class="cs-desc">New tab</span>
+              <span class="cs-key" data-shortcut="Mod+T"></span><span class="cs-desc">New tab</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘W</span><span class="cs-desc">Close tab</span>
+              <span class="cs-key" data-shortcut="Mod+W"></span
+              ><span class="cs-desc">Close tab</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘⇧T</span><span class="cs-desc">Reopen closed tab</span>
+              <span class="cs-key" data-shortcut="Mod+Shift+T"></span
+              ><span class="cs-desc">Reopen closed tab</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘⇧Y</span><span class="cs-desc">Search tabs</span>
+              <span class="cs-key" data-shortcut="Mod+Shift+Y"></span
+              ><span class="cs-desc">Search tabs</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘1-9</span><span class="cs-desc">Jump to tab</span>
+              <span class="cs-key" data-shortcut="Mod+1-9"></span
+              ><span class="cs-desc">Jump to tab</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘⇧E</span><span class="cs-desc">Toggle vertical tabs</span>
+              <span class="cs-key" data-shortcut="Mod+Shift+E"></span
+              ><span class="cs-desc">Toggle vertical tabs</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘⇧\</span><span class="cs-desc">Split view</span>
+              <span class="cs-key" data-shortcut="Mod+Shift+\"></span
+              ><span class="cs-desc">Split view</span>
             </div>
           </div>
           <div class="cs-group">
             <div class="cs-group-title">Navigation</div>
             <div class="cs-row">
-              <span class="cs-key">⌘⇧H</span><span class="cs-desc">Home</span>
+              <span class="cs-key" data-shortcut="Mod+Shift+H"></span
+              ><span class="cs-desc">Home</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘⇧B</span><span class="cs-desc">Open in browser</span>
+              <span class="cs-key" data-shortcut="Mod+Shift+B"></span
+              ><span class="cs-desc">Open in browser</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘K</span><span class="cs-desc">Command palette</span>
+              <span class="cs-key" data-shortcut="Mod+K"></span
+              ><span class="cs-desc">Command palette</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘F</span><span class="cs-desc">Find in page</span>
+              <span class="cs-key" data-shortcut="Mod+F"></span
+              ><span class="cs-desc">Find in page</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘G</span><span class="cs-desc">Find next</span>
+              <span class="cs-key" data-shortcut="Mod+G"></span
+              ><span class="cs-desc">Find next</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘⇧G</span><span class="cs-desc">Find previous</span>
+              <span class="cs-key" data-shortcut="Mod+Shift+G"></span
+              ><span class="cs-desc">Find previous</span>
             </div>
           </div>
           <div class="cs-group">
             <div class="cs-group-title">Window</div>
             <div class="cs-row">
-              <span class="cs-key">⌘P</span><span class="cs-desc">Print</span>
+              <span class="cs-key" data-shortcut="Mod+P"></span><span class="cs-desc">Print</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘,</span><span class="cs-desc">Preferences</span>
+              <span class="cs-key" data-shortcut="Mod+,"></span
+              ><span class="cs-desc">Preferences</span>
             </div>
             <div class="cs-row">
-              <span class="cs-key">⌘/</span><span class="cs-desc">Keyboard shortcuts</span>
+              <span class="cs-key" data-shortcut="Mod+/"></span
+              ><span class="cs-desc">Keyboard shortcuts</span>
             </div>
           </div>
         </div>
       </dialog>
     </div>
 
+    <script src="platform-labels.js"></script>
+    <script src="window-caption.js"></script>
     <script>
       const tabStrip = document.getElementById('tab-strip');
       const newTabBtn = document.getElementById('new-tab-btn');
@@ -391,9 +413,28 @@
       let dragSrcId = null;
       let dragDropped = false;
 
+      // One reading of the host for every platform-dependent label and layout
+      // decision on this page: the preload's value when it is there, the user
+      // agent only as a fallback.
+      const platform = ycPlatformLabels.detectPlatform(yc, navigator.userAgent);
+      const isMac = platform === 'darwin';
+
       // Leave room for the macOS traffic-light buttons so tabs don't sit under them.
-      if (navigator.userAgent.includes('Macintosh')) {
+      if (isMac) {
         document.getElementById('tabbar').style.paddingLeft = '78px';
+      }
+
+      // Windows and Linux have neither the Command key nor its glyph, so the
+      // tab-bar tooltips and the cheat sheet are written as neutral
+      // accelerators in the markup and named for the host here.
+      for (const el of document.querySelectorAll('[data-shortcut]')) {
+        const prefix = el.dataset.shortcutTitle;
+        if (prefix) {
+          const named = ycPlatformLabels.shortcut(el.dataset.shortcut, platform, 'name');
+          el.title = prefix + ' (' + named + ')';
+        } else {
+          el.textContent = ycPlatformLabels.shortcut(el.dataset.shortcut, platform, 'symbol');
+        }
       }
 
       const send = (method, ...args) => {
@@ -436,6 +477,13 @@
         };
         dragSpacer.addEventListener('pointerup', endDrag);
         dragSpacer.addEventListener('pointercancel', endDrag);
+      }
+
+      // Native title bars toggle maximise on a double-click of their empty
+      // area. The pointer-drag above swallows the two clicks, so this has to be
+      // its own listener rather than a count inside endDrag.
+      if (dragSpacer) {
+        dragSpacer.addEventListener('dblclick', () => send('windowToggleMaximize'));
       }
 
       const hideContextMenu = () => {
@@ -711,11 +759,8 @@
         send('activateTab', state.tabs[next].id);
       };
 
-      const activateByNumber = (key) => {
-        const idx = Number.parseInt(key, 10) - 1;
-        if (idx < state.tabs.length) send('activateTab', state.tabs[idx].id);
-      };
-
+      // Mod+1..9 is deliberately absent: the main process claims it for every view
+      // through before-input-event, so a copy here would be unreachable.
       document.addEventListener('keydown', (e) => {
         // All tab shortcuts require the platform modifier; bail early otherwise so
         // each branch below stays flat (keeps cognitive complexity low).
@@ -733,9 +778,6 @@
         } else if (key === 'Tab') {
           e.preventDefault();
           cycleActiveTab(e.shiftKey);
-        } else if (key >= '1' && key <= '9') {
-          e.preventDefault();
-          activateByNumber(key);
         }
       });
 
@@ -877,7 +919,16 @@
         csOverlay.style.display = 'none';
         send('tabSearch', false);
       };
+      const toggleCheatsheet = () => {
+        if (csOverlay.style.display === 'block') {
+          closeCheatsheet();
+          return;
+        }
+        if (searchOpen) closeSearch();
+        openCheatsheet();
+      };
       globalThis.__ycOpenCheatsheet = openCheatsheet;
+      globalThis.__ycToggleCheatsheet = toggleCheatsheet;
       csOverlay.addEventListener('click', (e) => {
         if (e.target === csOverlay) closeCheatsheet();
       });
@@ -889,18 +940,13 @@
         }
         if ((e.metaKey || e.ctrlKey) && e.key === '/' && !e.shiftKey) {
           e.preventDefault();
-          if (csOverlay.style.display === 'block') {
-            closeCheatsheet();
-          } else {
-            if (searchOpen) closeSearch();
-            openCheatsheet();
-          }
+          toggleCheatsheet();
         }
       });
 
       // Windows / Linux frameless window: surface caption controls (macOS uses
       // native traffic lights). Fire-and-forget to the main process.
-      if (!navigator.userAgent.includes('Macintosh')) {
+      if (!isMac) {
         const cap = document.getElementById('win-caption');
         if (cap) cap.style.display = 'flex';
         const minBtn = document.getElementById('win-min');
@@ -909,6 +955,22 @@
         if (minBtn) minBtn.addEventListener('click', () => send('windowMinimize'));
         if (maxBtn) maxBtn.addEventListener('click', () => send('windowToggleMaximize'));
         if (closeBtn) closeBtn.addEventListener('click', () => send('windowClose'));
+
+        // The window can also be maximised by snapping, by the double-click
+        // above or from the app menu, so the button follows main's state
+        // rather than the last click here.
+        const applyMaxState = (isMaximized) => {
+          if (!maxBtn) return;
+          const spec = ycWindowCaption.maximizeButton(isMaximized);
+          maxBtn.setAttribute('aria-label', spec.label);
+          maxBtn.title = spec.label;
+          for (const glyph of maxBtn.querySelectorAll('svg[data-glyph]')) {
+            glyph.hidden = glyph.dataset.glyph !== spec.glyph;
+          }
+        };
+        if (yc && typeof yc.onWindowMaximizedChanged === 'function') {
+          yc.onWindowMaximizedChanged(applyMaxState);
+        }
       }
 
       poll();

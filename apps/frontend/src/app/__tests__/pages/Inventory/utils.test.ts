@@ -86,6 +86,10 @@ describe('Inventory Utils', () => {
       expect(formatDisplayDate(dateStr)).toBe('Oct 5, 2023');
     });
 
+    it('keeps a midnight UTC calendar date on the same displayed day', () => {
+      expect(formatDisplayDate('2026-03-01T00:00:00.000Z')).toBe('Mar 1, 2026');
+    });
+
     it('formats Slash separated dates (dd/mm/yyyy) correctly', () => {
       const dateStr = '05/10/2023'; // 5th Oct
       expect(formatDisplayDate(dateStr)).toBe('Oct 5, 2023');
@@ -145,8 +149,17 @@ describe('Inventory Utils', () => {
       expect(result).toEqual({
         onHand: undefined,
         allocated: 5,
-        available: -5, // 0 - 5
+        // 0 - 5 = -5, floored to 0: "available" is a quantity someone can
+        // still take, so it never reads as negative even when allocation
+        // over-commits the on-hand count.
+        available: 0,
       });
+    });
+
+    it('floors available at zero when allocated exceeds on-hand', () => {
+      const batches: BatchValues[] = [{ quantity: '10', allocated: '25' } as BatchValues];
+      const result = calculateBatchTotals(batches);
+      expect(result).toEqual({ onHand: 10, allocated: 25, available: 0 });
     });
 
     it('ignores undefined values in summation', () => {
@@ -227,12 +240,14 @@ describe('Inventory Utils', () => {
       });
       // default
       expect(getStatusBadgeStyle('Unknown')).toEqual({
-        color: 'var(--color-badge-blue-text)',
-        backgroundColor: 'var(--color-badge-blue-bg)',
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
       });
       expect(getStatusBadgeStyle()).toEqual({
-        color: 'var(--color-badge-blue-text)',
-        backgroundColor: 'var(--color-badge-blue-bg)',
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
       });
     });
   });
@@ -633,6 +648,25 @@ describe('Inventory Utils', () => {
         expect(payload?.expiryDate).toBe('2026-01-01T05:30:00.000Z');
       });
 
+      it('rejects impossible calendar dates instead of rolling them forward', () => {
+        const batch = {
+          ...mockInventoryItem.batches![1],
+          manufactureDate: '2025-02-29',
+          expiryDate: '31/02/2026',
+          nextRefillDate: '2026-13-01',
+        };
+        const payload = buildBatchPayload(batch);
+
+        expect(payload).not.toHaveProperty('manufactureDate');
+        expect(payload).not.toHaveProperty('expiryDate');
+        expect(payload).not.toHaveProperty('minShelfLifeAlertDate');
+      });
+
+      it('accepts leap day as a calendar date', () => {
+        const batch = { ...mockInventoryItem.batches![1], expiryDate: '2028-02-29' };
+        expect(buildBatchPayload(batch)?.expiryDate).toBe('2028-02-29T00:00:00.000Z');
+      });
+
       it('preserves per-batch expiry warning and barcode fields', () => {
         const batch = {
           ...mockInventoryItem.batches![0],
@@ -695,6 +729,38 @@ describe('Inventory Utils', () => {
     });
 
     describe('buildInventoryPayload', () => {
+      it('sends null for a blank price rather than saving it as a real zero', () => {
+        /* This is the bug the display fix could not reach. A blank price used to
+           coerce to 0 and be SAVED as 0, so the item really was priced at
+           nothing and no amount of formatting could show otherwise. null tells
+           the API to clear the field: its update path writes `value ?? null`,
+           and its create path maps null back to undefined and omits it. */
+        const blankPriced = {
+          ...mockInventoryItem,
+          pricing: { ...mockInventoryItem.pricing, purchaseCost: '', selling: '   ' },
+          stock: { ...mockInventoryItem.stock, reorderLevel: '' },
+        };
+
+        const payload = buildInventoryPayload(blankPriced, 'org-1', 'VETERINARY' as BusinessType);
+
+        expect(payload.unitCost).toBeNull();
+        expect(payload.sellingPrice).toBeNull();
+        expect(payload.reorderLevel).toBeNull();
+      });
+
+      it('still sends a real zero as zero', () => {
+        // A free sample is priced at 0 and must be stored as 0, not cleared.
+        const freeItem = {
+          ...mockInventoryItem,
+          pricing: { ...mockInventoryItem.pricing, purchaseCost: '0', selling: '0' },
+        };
+
+        const payload = buildInventoryPayload(freeItem, 'org-1', 'VETERINARY' as BusinessType);
+
+        expect(payload.unitCost).toBe(0);
+        expect(payload.sellingPrice).toBe(0);
+      });
+
       it('constructs full payload correctly', () => {
         const payload = buildInventoryPayload(
           mockInventoryItem,
@@ -989,6 +1055,12 @@ describe('inventory metric helpers', () => {
     expect(getAvailableStock(metricItem({ stock: { current: 7 } } as never))).toBe(7);
   });
 
+  it('floors available stock at zero instead of showing a negative count', () => {
+    expect(getAvailableStock(metricItem({ stock: { current: 0, allocated: 10 } } as never))).toBe(
+      0
+    );
+  });
+
   it('computes profit, margin, and markup with divide-by-zero guards', () => {
     expect(getGrossProfitPerUnit(metricItem())).toBe(12);
     expect(getGrossProfitPerUnit(metricItem({ pricing: {} } as never))).toBeUndefined();
@@ -1009,11 +1081,30 @@ describe('inventory metric helpers', () => {
     expect(getStockValue(metricItem({ pricing: { selling: 20 } } as never))).toBeUndefined();
   });
 
+  it('has no stock value when the count or the cost is blank', () => {
+    // Not 0: an uncounted or unpriced item's stock value is unknown, and
+    // reporting zero claimed the practice was holding nothing of value.
+    expect(getStockValue(metricItem({ stock: { current: '' } } as never))).toBeUndefined();
+    expect(getStockValue(metricItem({ pricing: { purchaseCost: '' } } as never))).toBeUndefined();
+  });
+
   it('formats currency values with USD fallback for unknown codes', () => {
     expect(formatCurrencyValue(1200)).toBe('$1,200');
     expect(formatCurrencyValue(19.5, 'EUR')).toBe('€19.50');
     expect(formatCurrencyValue(10, 'NOT_A_CODE')).toBe('$10');
     expect(formatCurrencyValue(undefined)).toBe('—');
+  });
+
+  it('treats a blank price as unpriced rather than as zero', () => {
+    /* The API maps a missing unitCost/sellingPrice through toStringSafe, so it
+       arrives here as '' — and Number('') is 0. Every blank case below printed
+       "$0", telling the clinic an item was free when in truth nobody had priced
+       it. A real zero must still print, so that case is pinned too. */
+    expect(formatCurrencyValue('')).toBe('—');
+    expect(formatCurrencyValue('   ')).toBe('—');
+    expect(formatCurrencyValue(null as unknown as undefined)).toBe('—');
+    expect(formatCurrencyValue(0)).toBe('$0');
+    expect(formatCurrencyValue('0')).toBe('$0');
   });
 
   it('formats percent values and dashes for non-finite input', () => {

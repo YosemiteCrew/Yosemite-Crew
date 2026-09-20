@@ -458,8 +458,8 @@ describe('TreatmentStep', () => {
     // Each row shows the line price at the right end and a Refill field.
     expect(screen.getByText('$165')).toBeInTheDocument();
     expect(screen.getAllByLabelText('Refills').length).toBeGreaterThan(0);
-    // Fulfillment is a pill dropdown (not checkboxes), defaulting to the value.
-    expect(screen.getAllByRole('combobox', { name: /fulfillment/i }).length).toBeGreaterThan(0);
+    // Fulfillment is a shared Dropdown (not checkboxes), defaulting to the value.
+    expect(screen.getAllByRole('button', { name: /fulfillment/i }).length).toBeGreaterThan(0);
     expect(screen.getAllByText('In-house fulfilled').length).toBeGreaterThan(0);
     // The old "Medication" tag no longer appears on the cards.
     expect(screen.queryByText('Medication')).not.toBeInTheDocument();
@@ -489,7 +489,7 @@ describe('TreatmentStep', () => {
 
     // The locked state is surfaced, and the row's controls are read-only.
     expect(screen.getByText('Finalized')).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /fulfillment/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /fulfillment/i })).toBeDisabled();
   });
 
   it('does not block Save Treatment on a finalized row missing a now-required field', async () => {
@@ -661,10 +661,9 @@ describe('TreatmentStep', () => {
     );
     expect(savePrescriptionArtifact).not.toHaveBeenCalled();
 
-    // Fulfillment is a compact pill dropdown: open it, then pick the option.
-    fireEvent.change(screen.getAllByRole('combobox', { name: /fulfillment/i })[0], {
-      target: { value: 'PRESCRIPTION_ONLY' },
-    });
+    // Fulfillment is a shared Dropdown: open it, then pick the option.
+    fireEvent.click(screen.getAllByRole('button', { name: /fulfillment/i })[0]);
+    fireEvent.click(screen.getByRole('option', { name: 'Prescription only' }));
     expect(
       useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription[0].fulfillment
     ).toBe('PRESCRIPTION_ONLY');
@@ -899,7 +898,7 @@ describe('TreatmentStep', () => {
     // Qty is a plain input; Frequency is the shared (room/unit-style) LabelDropdown.
     fireEvent.change(screen.getAllByLabelText('Qty')[0], { target: { value: '20' } });
     fireEvent.click(screen.getAllByRole('button', { name: /^Frequency/ })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Every 12 hours' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Every 12 hours' }));
     expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.prescription[0].qty).toBe(
       '20'
     );
@@ -1402,7 +1401,7 @@ describe('TreatmentStep', () => {
 
     // Reassigning persists via updateTask.
     fireEvent.click(screen.getAllByRole('button', { name: /assigned to/i })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Dr. Tim Apple' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Dr. Tim Apple' }));
     await waitFor(() => expect(updateTask).toHaveBeenCalled());
   });
 
@@ -1458,7 +1457,7 @@ describe('TreatmentStep', () => {
       />
     );
 
-    // The bottom "Print Labels" button shares the label-print handler.
+    // The bottom "Print labels" button shares the label-print handler.
     const buttons = screen.getAllByRole('button', { name: /print labels/i });
     fireEvent.click(buttons[buttons.length - 1]);
     await waitFor(() => expect(fetchPrescriptionLabelPdf).toHaveBeenCalledWith(ORG, 'rx-1'));

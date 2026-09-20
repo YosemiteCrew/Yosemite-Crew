@@ -16,9 +16,9 @@ const meta = {
     docs: {
       description: {
         component:
-          'Time-of-day field built on react-datepicker. Labelled 46px trigger (13px radius, ' +
-          '1.5px hairline border, --field-bg fill, 13.5px value) with a clock icon; opens a ' +
-          'time-only list. `value`/`onChange` use "HH:mm" strings.',
+          'Time-of-day field built on react-datepicker. The labelled 40px canonical trigger ' +
+          'always shows a value or placeholder and opens a time-only list. `value`/`onChange` ' +
+          'use "HH:mm" strings.',
       },
     },
   },

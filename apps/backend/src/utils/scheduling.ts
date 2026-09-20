@@ -183,6 +183,7 @@ export const resolveOrganisationTimezone = async (params: {
 export const utcClockTimeToTimezoneClock = (
   utcTime: string,
   timezone: string,
+  referenceDate: Date,
 ): PreferredTimeZoneClock => {
   const match = UTC_CLOCK_TIME_REGEX.exec(utcTime);
   if (!match) {
@@ -190,9 +191,27 @@ export const utcClockTimeToTimezoneClock = (
   }
 
   const targetDate = new Date(
-    Date.UTC(1970, 0, 1, Number(match[1]), Number(match[2]), 0, 0),
+    Date.UTC(
+      referenceDate.getUTCFullYear(),
+      referenceDate.getUTCMonth(),
+      referenceDate.getUTCDate(),
+      Number(match[1]),
+      Number(match[2]),
+      0,
+      0,
+    ),
   );
-  const baseDate = new Date(Date.UTC(1970, 0, 1, 0, 0, 0, 0));
+  const baseDate = new Date(
+    Date.UTC(
+      referenceDate.getUTCFullYear(),
+      referenceDate.getUTCMonth(),
+      referenceDate.getUTCDate(),
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
 
   const baseParts = parseDatePartsForTimeZone(baseDate, timezone);
   const targetParts = parseDatePartsForTimeZone(targetDate, timezone);
@@ -213,16 +232,19 @@ export const utcClockTimeToTimezoneClock = (
 
 export const normalizeSlotForSelectedDay = (params: {
   timezone: string;
+  referenceDate: Date;
   utcDateShift: number;
   slot: TimeSlotLike;
 }) => {
   const startClock = utcClockTimeToTimezoneClock(
     params.slot.startTime,
     params.timezone,
+    params.referenceDate,
   );
   const endClock = utcClockTimeToTimezoneClock(
     params.slot.endTime,
     params.timezone,
+    params.referenceDate,
   );
 
   const startAbsoluteMinute =
@@ -254,14 +276,19 @@ export const buildBookableWindowsForVets = async <
   vetIds: string[];
   durationMinutes: number;
   referenceDate: Date;
+  bufferMinutes?: number;
   slotCache?: Map<string, Promise<BookableWindowResult<TSlot>>>;
   getBookableSlotsForDate: (
     organisationId: string,
     vetId: string,
     durationMinutes: number,
     referenceDate: Date,
+    bufferMinutes: number,
   ) => Promise<BookableWindowResult<TSlot>>;
 }): Promise<BookableWindowSet<TSlot>> => {
+  // Empty gap between visits by default: callers that do not set a buffer (the
+  // signed-in scheduling paths) tile back to back exactly as before.
+  const bufferMinutes = Math.max(0, params.bufferMinutes ?? 0);
   if (params.vetIds.length === 0) {
     return {
       date: dayjs(params.referenceDate).utc().format("YYYY-MM-DD"),
@@ -277,6 +304,7 @@ export const buildBookableWindowsForVets = async <
       params.organisationId,
       vetId,
       params.durationMinutes,
+      bufferMinutes,
       dayjs(params.referenceDate).utc().format("YYYY-MM-DD"),
     ].join("|");
 
@@ -288,6 +316,7 @@ export const buildBookableWindowsForVets = async <
         vetId,
         params.durationMinutes,
         params.referenceDate,
+        bufferMinutes,
       );
 
     if (!cachedResult && params.slotCache) {
@@ -383,6 +412,7 @@ const collectCalendarPrefillSlotMatches = (params: {
   matchId: string;
   windows: Array<TimeSlotLike & { vetIds?: string[] }>;
   timezone: string;
+  referenceDate: Date;
   utcDateShift: number;
   minuteOfDay: number;
   leadId?: string;
@@ -396,6 +426,7 @@ const collectCalendarPrefillSlotMatches = (params: {
 
     const meta = normalizeSlotForSelectedDay({
       timezone: params.timezone,
+      referenceDate: params.referenceDate,
       utcDateShift: params.utcDateShift,
       slot,
     });
@@ -458,6 +489,7 @@ export const buildCalendarPrefillMatches = async <
           matchId: context.matchId,
           windows: result.windows,
           timezone: params.timezone,
+          referenceDate,
           utcDateShift,
           minuteOfDay: params.minuteOfDay,
           leadId,

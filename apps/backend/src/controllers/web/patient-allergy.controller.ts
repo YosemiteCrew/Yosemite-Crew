@@ -6,6 +6,8 @@ import {
 import {
   createClinicalHandlers,
   orgParams,
+  patientScopeBody,
+  patientScopeQuery,
   uuid,
 } from "src/controllers/web/shared/clinical-controller.helpers";
 
@@ -18,14 +20,13 @@ const AllergySeverityEnum = z.enum([
 ]);
 const AllergyStatusEnum = z.enum(["ACTIVE", "RESOLVED", "UNCONFIRMED"]);
 
-const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
+const CreateBodySchema = patientScopeBody.omit({ encounterId: true }).extend({
   allergen: z.string().min(1).max(200),
   allergyType: AllergyTypeEnum,
   severity: AllergySeverityEnum,
   reaction: z.string().max(1000).optional(),
   status: AllergyStatusEnum.optional(),
-  onsetDate: z.string().datetime().optional(),
+  onsetDate: z.iso.datetime().optional(),
   notes: z.string().max(2000).optional(),
 });
 
@@ -35,17 +36,16 @@ const UpdateBodySchema = z.object({
   severity: AllergySeverityEnum.optional(),
   reaction: z.string().max(1000).optional(),
   status: AllergyStatusEnum.optional(),
-  onsetDate: z.string().datetime().optional(),
-  resolvedDate: z.string().datetime().optional(),
+  onsetDate: z.iso.datetime().optional(),
+  resolvedDate: z.iso.datetime().optional(),
   notes: z.string().max(2000).optional(),
 });
 
 const ResolveBodySchema = z.object({
-  resolvedDate: z.string().datetime().optional(),
+  resolvedDate: z.iso.datetime().optional(),
 });
 
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
+const ListQuerySchema = patientScopeQuery.omit({ encounterId: true }).extend({
   status: AllergyStatusEnum.optional(),
   allergyType: AllergyTypeEnum.optional(),
 });

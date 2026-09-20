@@ -10,6 +10,7 @@ import { expect, waitFor, within } from 'storybook/test';
    too. The assertions below fail loudly if this import ever goes. */
 import '@/app/features/marketing/site/marketing.css';
 import { About } from './About';
+import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/useGithubStats';
 
 /* ------------------------------------------------------------------ fixtures */
 
@@ -78,8 +79,6 @@ const NON_HUMAN_PAYLOAD = CONTRIBUTOR_PAYLOAD.filter(
 const GITHUB_API_HOST = 'api.github.com';
 const CONTRIBUTORS_PATH = '/contributors';
 const COMMUNITY_API_PATH = '/api/community/';
-const STATS_CACHE_KEY = 'yc_marketing_stats_v2';
-const STATS_TS_KEY = 'yc_marketing_stats_ts_v2';
 
 const CACHED_STATS = {
   stars: '2.4k',
@@ -331,11 +330,11 @@ export const Default: Story = {
       await expect(avatar).toHaveAttribute('alt', '');
     }
 
-    /* The live roster is appended below the founding pair, never a replacement for
-       it. Both grids exist independently and both must be populated. */
+    /* The live roster is appended below the named core team, never a replacement for
+       it. Both grids exist independently and both must be populated. A contributor who
+       has left the core team can still appear in the live GitHub roster above. */
     await expect(labelsOf(crewCardsIn(gridAt(canvasElement, CORE_TEAM_GRID)))).toEqual([
       'Ankit Upadhyay, Founder and contributor, on LinkedIn',
-      'Harshvardhan Parmar, Contributor, on LinkedIn',
     ]);
 
     /* Four tracks at laptop width, so three contributors leave the fourth slot empty

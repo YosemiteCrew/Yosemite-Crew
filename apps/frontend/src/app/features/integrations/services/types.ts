@@ -64,6 +64,23 @@ export type CreateLabOrderPayload = {
   ivls?: string[];
 };
 
+/**
+ * Recorded when the breed sent to the provider is not the companion's recorded
+ * breed, because the provider's vocabulary has no counterpart for it.
+ *
+ * This is a clinical claim about the animal: the requisition that reached the
+ * lab says the patient is, for example, a canine catch-all rather than the
+ * specific breed on the record. Produced by `resolveIdexxBreedCode` and stored
+ * on the order; the shape mirrors `LabBreedSubstitution` in
+ * `apps/backend/src/labs/types.ts`.
+ */
+export type LabBreedSubstitution = {
+  requestedBreedCode: string | null;
+  usedBreedCode: string;
+  usedTargetCode: string;
+  reason: 'UNCODED_BREED' | 'UNMAPPED_BREED' | 'MISMATCHED_BREED';
+};
+
 export type LabOrder = {
   _id: string;
   organisationId: string;
@@ -83,6 +100,8 @@ export type LabOrder = {
   notes?: string | null;
   specimenCollectionDate?: string | null;
   externalStatus?: string | null;
+  /** Set only when the transmitted breed differs from the companion's. */
+  breedSubstitution?: LabBreedSubstitution | null;
   createdAt?: string;
   updatedAt?: string;
 };

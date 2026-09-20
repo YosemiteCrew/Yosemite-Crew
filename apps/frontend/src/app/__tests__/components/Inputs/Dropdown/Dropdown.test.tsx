@@ -71,7 +71,10 @@ describe('Dropdown Component', () => {
   it('renders correctly with placeholder', () => {
     render(<Dropdown placeholder="Select Item" value="" onChange={mockOnChange} />);
 
+    // The label above keeps the caller's string; the trigger shows an
+    // instruction rather than an empty box, and never repeats the label.
     expect(screen.getByText('Select Item')).toBeInTheDocument();
+    expect(screen.getByText('Select an option')).toBeInTheDocument();
     expect(screen.queryByTestId('IoChevronDown')).toBeInTheDocument();
   });
 
@@ -101,8 +104,10 @@ describe('Dropdown Component', () => {
       />
     );
 
-    expect(screen.getByText('Field is required')).toBeInTheDocument();
-    expect(screen.getByTestId('icon-error')).toBeInTheDocument();
+    const trigger = screen.getByRole('button', { name: 'Select Item' });
+    const error = screen.getByRole('alert');
+    expect(error).toHaveTextContent('Field is required');
+    expect(trigger).toHaveAttribute('aria-describedby', error.id);
   });
 
   it('renders disabled state correctly', () => {
@@ -523,6 +528,28 @@ describe('Dropdown Component', () => {
     const optionA = screen.getByText('A');
     const container = optionA.parentElement;
     expect(container).toHaveClass('custom-class-test');
+  });
+
+  it('exposes listbox/option ARIA roles with aria-selected on the panel', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value="Option B"
+        onChange={mockOnChange}
+        options={['Option A', 'Option B']}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    const options = screen.getAllByRole('option');
+    expect(options).toHaveLength(2);
+
+    const optionA = screen.getByRole('option', { name: 'Option A' });
+    const optionB = screen.getByRole('option', { name: 'Option B' });
+    expect(optionA).toHaveAttribute('aria-selected', 'false');
+    expect(optionB).toHaveAttribute('aria-selected', 'true');
   });
 
   it('has no axe accessibility violations', async () => {

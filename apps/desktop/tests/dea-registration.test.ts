@@ -71,7 +71,7 @@ describe('createDeaRegistrationTracker', () => {
 
     const expiring = tracker.getExpiringSoon(30);
     expect(expiring).toHaveLength(1);
-    expect(expiring[0].deaNumber).toBe('DEA-001');
+    expect(expiring[0]!.deaNumber).toBe('DEA-001');
   });
 
   test('getOverdue finds expired registrations', () => {
@@ -91,7 +91,7 @@ describe('createDeaRegistrationTracker', () => {
 
     const overdue = tracker.getOverdue();
     expect(overdue).toHaveLength(1);
-    expect(overdue[0].deaNumber).toBe('DEA-001');
+    expect(overdue[0]!.deaNumber).toBe('DEA-001');
   });
 
   test('setCheckInterval and getCheckInterval work', () => {

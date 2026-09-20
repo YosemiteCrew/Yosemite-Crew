@@ -321,6 +321,146 @@ describe("TaskWorkflowService", () => {
     );
   });
 
+  it("honors a raw recurrence selection and its end offset through the full instance submit path (#3194, #3195)", async () => {
+    mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+      id: "instance-1",
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+      caseId: null,
+      encounterId: null,
+      templateId: "template-1",
+      templateVersion: 3,
+      authorId: "creator-1",
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T08:00:00.000Z"),
+      data: {
+        sections: [
+          {
+            id: "definition",
+            data: {
+              taskKind: "MEDICATION",
+              category: "Medication",
+              name: "Evening medicine",
+            },
+          },
+          { id: "assignment", data: { defaultRole: "EMPLOYEE_TASK" } },
+          {
+            id: "timing",
+            data: {
+              dueOffsetMinutes: 30,
+              // The blueprint hands over its raw select value, not an
+              // already-normalized {type, ...} object.
+              recurrence: { type: "DAILY", defaultEndOffsetDays: 2 },
+            },
+          },
+        ],
+      },
+      template: {
+        id: "template-1",
+        kind: "TASK_TEMPLATE",
+        ownership: "ORG_TEMPLATE",
+      },
+      taskSchedule: null,
+    });
+    mockedPrisma.taskSchedule.create.mockResolvedValueOnce({
+      id: "schedule-1",
+      templateInstanceId: "instance-1",
+      templateId: "template-1",
+      templateVersion: 3,
+      templateKind: "TASK_TEMPLATE",
+      organisationId: "org-1",
+      createdBy: "creator-1",
+      status: "COMPLETED",
+      materializedSeeds: [],
+      generatedTaskIds: null,
+    });
+    mockedPrisma.taskSchedule.update.mockResolvedValueOnce({
+      id: "schedule-1",
+      templateInstanceId: "instance-1",
+      templateId: "template-1",
+      templateVersion: 3,
+      templateKind: "TASK_TEMPLATE",
+      organisationId: "org-1",
+      createdBy: "creator-1",
+      status: "COMPLETED",
+      materializedSeeds: [],
+      generatedTaskIds: ["task-1"],
+    });
+    mockedTaskService.createFromWorkflowSeed.mockResolvedValueOnce({
+      id: "task-1",
+    });
+
+    await TaskWorkflowService.launchFromTemplateInstance(
+      "instance-1",
+      "org-1",
+      { actorId: "creator-1", canEditAny: true },
+      { client: prisma, notify: false },
+    );
+
+    expect(mockedTaskService.createFromWorkflowSeed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recurrence: expect.objectContaining({
+          type: "DAILY",
+          isMaster: true,
+          endDate: new Date("2026-01-03T09:30:00.000Z"),
+        }),
+      }),
+      expect.anything(),
+    );
+  });
+
+  it("fails the whole submit before creating any task when the template recurrence is invalid (#3195)", async () => {
+    mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
+      id: "instance-1",
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+      caseId: null,
+      encounterId: null,
+      templateId: "template-1",
+      templateVersion: 3,
+      authorId: "creator-1",
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T08:00:00.000Z"),
+      data: {
+        sections: [
+          {
+            id: "definition",
+            data: {
+              taskKind: "MEDICATION",
+              category: "Medication",
+              name: "Evening medicine",
+            },
+          },
+          { id: "assignment", data: { defaultRole: "EMPLOYEE_TASK" } },
+          {
+            id: "timing",
+            data: { dueOffsetMinutes: 30, recurrence: "CUSTOM" },
+          },
+        ],
+      },
+      template: {
+        id: "template-1",
+        kind: "TASK_TEMPLATE",
+        ownership: "ORG_TEMPLATE",
+      },
+      taskSchedule: null,
+    });
+
+    await expect(
+      TaskWorkflowService.launchFromTemplateInstance(
+        "instance-1",
+        "org-1",
+        { actorId: "creator-1", canEditAny: true },
+        { client: prisma, notify: false },
+      ),
+    ).rejects.toThrow(/cron/i);
+
+    expect(mockedTaskService.createFromWorkflowSeed).not.toHaveBeenCalled();
+    expect(mockedPrisma.taskSchedule.create).not.toHaveBeenCalled();
+  });
+
   it("rejects care pathway launches outside an inpatient context", async () => {
     mockedPrisma.templateInstance.findUnique.mockResolvedValueOnce({
       id: "instance-inpatient",

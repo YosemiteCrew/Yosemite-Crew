@@ -6,12 +6,14 @@ import {
 import {buildCdnUrlFromKey} from '@/shared/utils/cdnHelpers';
 import {resolveObservationToolIdSync} from '@/features/observationalTools/services/observationToolService';
 import type {
+  HealthSubcategory,
   Task,
   TaskAttachment,
   TaskBackendCategory,
   TaskStatus,
   TaskStatusApi,
   RecurrenceType,
+  TaskRecurrenceScope,
   TaskFormData,
 } from '@/features/tasks/types';
 import {
@@ -24,6 +26,7 @@ export interface TaskDraftPayload {
   companionId: string;
   patientId?: string;
   category: TaskBackendCategory;
+  subcategory?: HealthSubcategory;
   name: string;
   description?: string;
   dueAt: string;
@@ -141,14 +144,20 @@ const mapBackendCategoryToUi = (category?: string): Task['category'] => {
   }
 };
 
+// Materialized children explicitly set `isMaster: false` and must not project.
+// Older recurring tasks can omit the flag, so only `false` collapses to once.
 const mapRecurrenceToFrequency = (recurrence?: {
   type?: RecurrenceType;
+  isMaster?: boolean;
 }): Task['frequency'] => {
+  if (recurrence?.isMaster === false) return 'once';
   switch (recurrence?.type) {
     case 'DAILY':
       return 'daily';
     case 'WEEKLY':
       return 'weekly';
+    case 'MONTHLY':
+      return 'monthly';
     case 'CUSTOM':
       return 'daily';
     default:
@@ -163,7 +172,7 @@ const mapFrequencyToRecurrence = (
   const freq = frequency.toString().toLowerCase();
   if (freq === 'daily' || freq === 'every-day') return 'DAILY';
   if (freq === 'weekly') return 'WEEKLY';
-  if (freq === 'monthly') return 'WEEKLY'; // Note: Backend RecurrenceType doesn't have MONTHLY, using WEEKLY as placeholder
+  if (freq === 'monthly') return 'MONTHLY';
   if (freq === 'once') return 'ONCE';
   return 'ONCE';
 };
@@ -224,6 +233,17 @@ const formatDoseTime = (value?: string | null): string | undefined => {
   return undefined;
 };
 
+const HEALTH_SUBCATEGORIES: readonly HealthSubcategory[] = [
+  'vaccination',
+  'parasite-prevention',
+  'chronic-conditions',
+];
+
+// The backend column is a free-form string, so anything the local union does
+// not model collapses to 'none' rather than being cast through.
+const normalizeSubcategory = (value: unknown): HealthSubcategory | 'none' =>
+  HEALTH_SUBCATEGORIES.find(known => known === value) ?? 'none';
+
 export const mapApiTaskToTask = (apiTask: any): Task => {
   const id = apiTask?._id ?? apiTask?.id ?? `task-${Date.now()}`;
   const dueAt = apiTask?.dueAt ?? apiTask?.due_at;
@@ -246,7 +266,7 @@ export const mapApiTaskToTask = (apiTask: any): Task => {
       apiTask?.companionId ?? apiTask?.patientId ?? apiTask?.companion_id ?? '',
     backendCategory: apiTask?.category,
     category: mapBackendCategoryToUi(apiTask?.category),
-    subcategory: 'none',
+    subcategory: normalizeSubcategory(apiTask?.subcategory),
     title: apiTask?.name ?? apiTask?.title ?? 'Task',
     name: apiTask?.name,
     description: apiTask?.description,
@@ -421,6 +441,7 @@ export const buildTaskDraftFromForm = ({
     companionId,
     patientId: companionId,
     category,
+    subcategory: formData.subcategory ?? undefined,
     name: formData.title || formData.description || 'Task',
     description: formData.description || undefined,
     dueAt,
@@ -510,18 +531,36 @@ export const taskApi = {
     return mapApiTaskToTask(response.data);
   },
 
-  async update(taskId: string, updates: Partial<TaskDraftPayload>) {
+  async update(
+    taskId: string,
+    updates: Partial<TaskDraftPayload>,
+    scope?: TaskRecurrenceScope,
+  ) {
     const {accessToken} = await ensureAccessToken();
     const response = await apiClient.patch(
       `/v1/task/mobile/${taskId}`,
       updates,
       {
+        params: scope ? {scope} : undefined,
         headers: {
           ...withAuthHeaders(accessToken),
         },
       },
     );
     return mapApiTaskToTask(response.data);
+  },
+
+  // Recurrence-scope aware cancel. THIS cancels only this occurrence; ALL
+  // cancels the whole series via the backend's series cancel operation -
+  // this is never a client-side loop over individual rows.
+  async remove(taskId: string, scope?: TaskRecurrenceScope) {
+    const {accessToken} = await ensureAccessToken();
+    await apiClient.delete(`/v1/task/mobile/${taskId}`, {
+      params: scope ? {scope} : undefined,
+      headers: {
+        ...withAuthHeaders(accessToken),
+      },
+    });
   },
 
   async changeStatus(taskId: string, status: TaskStatusApi, completion?: any) {

@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Yosemite Crew Data Migration Audit'
+  short_description: 'Read-only checks for records and migration gaps'
+  default_prompt: 'Use $yosemite-data-migration-audit to inspect these exports and identify reconciliation gaps before we accept an import.'

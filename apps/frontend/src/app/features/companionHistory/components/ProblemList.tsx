@@ -1,0 +1,288 @@
+'use client';
+import React, { useMemo, useState } from 'react';
+import clsx from 'clsx';
+import { IoCheckmarkOutline, IoMedkitOutline } from 'react-icons/io5';
+import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
+import {
+  ClinicalListEmpty,
+  ClinicalListError,
+  ClinicalListHeader,
+  ClinicalListLoadingRows,
+  cardClass,
+  controlClass,
+  fieldLabelClass,
+  formatDate,
+  metaClass,
+  rowClass,
+  titleClass,
+} from '@/app/features/companionHistory/components/ClinicalListChrome';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { Textarea } from '@/app/ui/Input';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
+import type {
+  PatientProblem,
+  ProblemSeverity,
+  ProblemStatus,
+} from '@/app/features/companionHistory/services/patientProblemService';
+
+/** The values the create form emits. `onsetDate` is a raw `YYYY-MM-DD` (or ''). */
+export type ProblemFormValues = {
+  name: string;
+  notes: string;
+  severity: ProblemSeverity | '';
+  onsetDate: string;
+};
+
+export type ProblemListProps = {
+  problems: PatientProblem[];
+  loading?: boolean;
+  error?: string | null;
+  /** Gates the add/resolve controls. Mirrors the backend `appointments:edit` gate. */
+  canEdit?: boolean;
+  /** Fired when the create form is submitted. Returns true once the record is saved. */
+  onCreate?: (values: ProblemFormValues) => Promise<boolean> | boolean;
+  /** Fired when an active problem's resolve action is clicked. */
+  onResolve?: (problem: PatientProblem) => void;
+  /** Disables the create form's submit while a create is in flight. */
+  creating?: boolean;
+  /** Id of the problem currently being resolved, so its row shows a pending state. */
+  resolvingId?: string | null;
+};
+
+const STATUS_LABEL: Record<ProblemStatus, string> = {
+  ACTIVE: 'Active',
+  INACTIVE: 'Inactive',
+  RESOLVED: 'Resolved',
+};
+
+const STATUS_TONE: Record<ProblemStatus, StatusTone> = {
+  ACTIVE: 'warning',
+  INACTIVE: 'neutral',
+  RESOLVED: 'success',
+};
+
+const SEVERITY_LABEL: Record<ProblemSeverity, string> = {
+  MILD: 'Mild',
+  MODERATE: 'Moderate',
+  SEVERE: 'Severe',
+};
+
+const SEVERITY_TONE: Record<ProblemSeverity, StatusTone> = {
+  MILD: 'info',
+  MODERATE: 'warning',
+  SEVERE: 'danger',
+};
+
+const SEVERITY_OPTIONS: ProblemSeverity[] = ['MILD', 'MODERATE', 'SEVERE'];
+
+const SEVERITY_DROPDOWN_OPTIONS = [
+  { label: 'No severity', value: '' },
+  ...SEVERITY_OPTIONS.map((s) => ({ label: SEVERITY_LABEL[s], value: s })),
+];
+
+const ProblemRow = ({
+  problem,
+  canEdit,
+  onResolve,
+  resolving,
+}: {
+  problem: PatientProblem;
+  canEdit: boolean;
+  onResolve?: (problem: PatientProblem) => void;
+  resolving: boolean;
+}) => {
+  const onset = formatDate(problem.onsetDate);
+  const resolved = formatDate(problem.resolvedDate);
+  const isActive = problem.status === 'ACTIVE';
+  return (
+    <li className={rowClass}>
+      <span className="min-w-0">
+        <span className={clsx(titleClass, 'block truncate')}>{problem.name}</span>
+        <span className={clsx(metaClass, 'mt-0.5 block')}>
+          {onset ? `Onset ${onset}` : 'Onset not recorded'}
+          {problem.code ? ` · ${problem.code}` : ''}
+        </span>
+        {problem.notes ? (
+          <span className={clsx(metaClass, 'mt-1 block line-clamp-2 text-[var(--ink-muted)]')}>
+            {problem.notes}
+          </span>
+        ) : null}
+      </span>
+      <span className="flex shrink-0 flex-col items-end gap-2">
+        <span className="flex flex-wrap items-center justify-end gap-1.5">
+          {problem.severity ? (
+            <StatusPill
+              label={SEVERITY_LABEL[problem.severity]}
+              tone={SEVERITY_TONE[problem.severity]}
+            />
+          ) : null}
+          <StatusPill label={STATUS_LABEL[problem.status]} tone={STATUS_TONE[problem.status]} />
+        </span>
+        {isActive && canEdit ? (
+          <Secondary
+            size="compact"
+            text={resolving ? 'Resolving…' : 'Resolve'}
+            icon={<IoCheckmarkOutline size={15} aria-hidden="true" />}
+            isDisabled={resolving}
+            onClick={() => onResolve?.(problem)}
+            ariaLabel={`Resolve ${problem.name}`}
+          />
+        ) : null}
+        {problem.status === 'RESOLVED' && resolved ? (
+          <span className={metaClass}>Resolved {resolved}</span>
+        ) : null}
+      </span>
+    </li>
+  );
+};
+
+const emptyForm: ProblemFormValues = { name: '', notes: '', severity: '', onsetDate: '' };
+
+const CreateProblemForm = ({
+  creating,
+  onCreate,
+  onCancel,
+}: {
+  creating: boolean;
+  onCreate?: NonNullable<ProblemListProps['onCreate']>;
+  onCancel: () => void;
+}) => {
+  const [values, setValues] = useState<ProblemFormValues>(emptyForm);
+  const trimmedName = values.name.trim();
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!trimmedName || creating) return;
+    const ok = await onCreate?.({ ...values, name: trimmedName });
+    if (ok) {
+      setValues(emptyForm);
+      onCancel();
+    }
+  };
+
+  return (
+    <form
+      className="flex flex-col gap-3 border-b border-[var(--divider)] bg-[var(--inset)] px-4 py-4"
+      onSubmit={handleSubmit}
+    >
+      <label className="flex flex-col gap-1">
+        <span className={fieldLabelClass}>Problem title</span>
+        <input
+          className={controlClass}
+          value={values.name}
+          onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))}
+          placeholder="e.g. Chronic kidney disease"
+          maxLength={300}
+          required
+        />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className={fieldLabelClass}>Description</span>
+        <Textarea
+          className={clsx(controlClass, 'min-h-16 resize-y')}
+          value={values.notes}
+          onChange={(e) => setValues((v) => ({ ...v, notes: e.target.value }))}
+          placeholder="Clinical notes (optional)"
+          maxLength={2000}
+        />
+      </label>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Dropdown
+          placeholder="Severity"
+          value={values.severity}
+          onChange={(v) => setValues((prev) => ({ ...prev, severity: v as ProblemSeverity | '' }))}
+          options={SEVERITY_DROPDOWN_OPTIONS}
+        />
+        <label className="flex flex-col gap-1">
+          <span className={fieldLabelClass}>Onset date</span>
+          <input
+            type="date"
+            className={controlClass}
+            value={values.onsetDate}
+            onChange={(e) => setValues((v) => ({ ...v, onsetDate: e.target.value }))}
+          />
+        </label>
+      </div>
+      <div className="flex items-center justify-end gap-2">
+        <Secondary size="compact" text="Cancel" onClick={onCancel} />
+        <Primary
+          size="compact"
+          type="submit"
+          text="Save problem"
+          isDisabled={!trimmedName || creating}
+        />
+      </div>
+    </form>
+  );
+};
+
+/**
+ * Presentational clinical problem-list panel. Renders the problems the caller
+ * supplies and surfaces create/resolve intents through callbacks; it never
+ * fetches. The container (`ProblemListPanel`) owns loading, error and data.
+ */
+const ProblemList = ({
+  problems,
+  loading = false,
+  error = null,
+  canEdit = false,
+  onCreate,
+  onResolve,
+  creating = false,
+  resolvingId = null,
+}: ProblemListProps) => {
+  const [showForm, setShowForm] = useState(false);
+  const activeCount = useMemo(
+    () => problems.filter((p) => p.status === 'ACTIVE').length,
+    [problems]
+  );
+
+  const body = (() => {
+    if (loading) return <ClinicalListLoadingRows />;
+    if (error) return <ClinicalListError error={error} />;
+    if (problems.length === 0)
+      return <ClinicalListEmpty message="No problems recorded for this patient yet." />;
+    return (
+      <ul className="divide-y divide-[var(--divider)]">
+        {problems.map((problem) => (
+          <ProblemRow
+            key={problem.id}
+            problem={problem}
+            canEdit={canEdit}
+            onResolve={onResolve}
+            resolving={resolvingId === problem.id}
+          />
+        ))}
+      </ul>
+    );
+  })();
+
+  return (
+    <section className={cardClass} aria-labelledby="problem-list-heading">
+      <ClinicalListHeader
+        icon={<IoMedkitOutline size={18} />}
+        headingId="problem-list-heading"
+        title="Problem list"
+        activeCount={activeCount}
+        loading={loading}
+        error={error}
+        canEdit={canEdit}
+        showForm={showForm}
+        onToggle={() => setShowForm((s) => !s)}
+        addLabel="Add problem"
+      />
+
+      {showForm && canEdit ? (
+        <CreateProblemForm
+          creating={creating}
+          onCreate={onCreate}
+          onCancel={() => setShowForm(false)}
+        />
+      ) : null}
+
+      {body}
+    </section>
+  );
+};
+
+export default ProblemList;

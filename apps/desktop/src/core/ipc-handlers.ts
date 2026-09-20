@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain, net, shell } from 'electron';
 import { createIpcRegistry } from './ipc';
+import type { RetryContents } from '../shell/offline-retry';
 import { classifyNavigation, deepLinkToUrl, type getDesktopConfig } from './navigation-policy';
 import { openExternal, secureWebPreferences } from '../shell/window-config';
 import { applyThemeToWebContents, DEFAULT_ACCENT_COLOR } from '../ui/theming';
@@ -51,6 +52,11 @@ export interface IpcServices {
   mainWindow: BrowserWindow | null;
   activeContents: () => Electron.WebContents | null;
   loadStartUrl: () => void;
+  // Reload the page whose load failed, in the webContents that failed it.
+  retryOfflineLoad: (sender: RetryContents) => void;
+  // The page a given webContents last failed to load, or the start URL when it
+  // has not failed one (the welcome screen's "open in browser").
+  offlineTargetFor: (sender: RetryContents) => string;
   enterTabMode: (url: string) => void;
   // Leave tab mode and return to the welcome screen (used when the last tab is
   // closed).
@@ -239,12 +245,16 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     logger: services.logger,
   });
 
-  registry.handle('yc:reload', async () => {
-    services.loadStartUrl();
+  // The offline page's "Try again", its countdown and its `online` listener all
+  // land here, and all three can fire long after the user has moved to another
+  // tab. Act on the SENDER, never on the active tab, and reload the page that
+  // failed rather than the start URL.
+  registry.handle('yc:reload', async (event) => {
+    services.retryOfflineLoad(event.sender);
     return { ok: true };
   });
-  registry.handle('yc:open-in-browser', async () => {
-    await openExternal(services.config.startUrl.href);
+  registry.handle('yc:open-in-browser', async (event) => {
+    await openExternal(services.offlineTargetFor(event.sender));
     return { ok: true };
   });
   registry.handle('yc:start-signin', async () => {
@@ -594,7 +604,19 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
 
   registry.handle('yc:vault-stats', async () => {
     if (!services.documentVault) return { ok: false, error: 'vault-not-ready' };
-    return { ok: true, stats: services.documentVault.getStats() };
+    /*
+     * `encryptionAvailable` rides along with the stats so the vault window can
+     * state the real encryption status instead of asserting one. It used to
+     * print a green "OS keychain" pill unconditionally, on the reasoning that
+     * safeStorage is usually present on macOS - but the Linux AppImage and deb
+     * builds depend on a keyring, and when it is missing the vault refuses every
+     * write (ENCRYPTION_UNAVAILABLE) while the badge still read green.
+     */
+    return {
+      ok: true,
+      stats: services.documentVault.getStats(),
+      encryptionAvailable: services.documentVault.encryptionAvailable,
+    };
   });
 
   registry.handle('yc:vault-save-buffer', async (_event, args) => {
@@ -751,17 +773,11 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     };
     tabViewHost.setBounds(id, contentBounds);
     services.attachedTabId = id;
-    // Keep the tab-bar chrome view on TOP of the content view. Input is routed to
-    // the topmost sibling WebContentsView, so the content view we just added would
-    // otherwise capture every click/hover meant for the tabs and the
-    // new-tab/search/close controls. A bare addChildView on an already-attached
-    // view does not reliably re-order it, so remove then re-add to force the
-    // chrome strip back to the top of the stack.
-    const chrome = services.tabChromeView;
-    if (chrome && !chrome.webContents.isDestroyed()) {
-      services.mainWindow.contentView.removeChildView(chrome);
-      services.mainWindow.contentView.addChildView(chrome);
-    }
+    // The content view we just added is now topmost, and input is routed to the
+    // topmost sibling WebContentsView. The shared layout pass puts the tab-bar
+    // chrome back on top of it and then the idle-lock overlay on top of that, so
+    // a tab attached while the app is locked still lands under the lock.
+    services.layoutTabChrome();
   };
 
   const detachActiveTabView = (): void => {

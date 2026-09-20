@@ -12,7 +12,6 @@ module.exports = {
     "<rootDir>/src/**/*.ts",
     "!<rootDir>/src/**/*.d.ts",
     "!<rootDir>/src/controllers/merck/merck-response.ts",
-    "!<rootDir>/src/controllers/web/documenso.controller.ts",
     "!<rootDir>/src/controllers/web/organisation-invite.controller.ts",
     "!<rootDir>/src/controllers/web/organisation-room.controller.ts",
     "!<rootDir>/src/middlewares/auth.ts",
@@ -31,7 +30,8 @@ module.exports = {
   ...(collectingCoverage ? { workerIdleMemoryLimit: "512MB" } : {}),
   setupFilesAfterEnv: ["<rootDir>/test/jest.setup.ts"],
   moduleNameMapper: {
-    "^@yosemite-crew/database$": "<rootDir>/../../packages/database/src/client.ts",
+    "^@yosemite-crew/database$":
+      "<rootDir>/../../packages/database/src/client.ts",
     "^@yosemite-crew/lib$": "<rootDir>/../../packages/lib/src/index.ts",
     "^@yosemite-crew/(.*)$": "<rootDir>/../../packages/$1/src",
     "^(\\.{1,2}/.*)\\.js$": "$1",
@@ -46,10 +46,7 @@ module.exports = {
         isolatedModules: true,
       },
     ],
-    // jwks-rsa 4 depends on jose 6, which is ESM-only ("type": "module", no
-    // require condition). This backend is CommonJS, so Jest cannot parse it and
-    // every suite that transitively reaches the auth stack fails on
-    // `Unexpected token 'export'`. Transpile it for the test run only; the
+    // Transpile ESM-only dependencies for Jest's CommonJS runtime. The
     // application build is unaffected because tsc never touches node_modules.
     "^.+\\.m?js$": [
       "ts-jest",
@@ -65,10 +62,17 @@ module.exports = {
       },
     ],
   },
-  // Everything in node_modules stays untransformed except jose. The alternation
-  // covers both segments of the pnpm layout: the store directory
-  // (node_modules/.pnpm/jose@6.2.8/) and the link inside it
-  // (.../node_modules/jose/), so neither position matches and the files are
+  // Everything in node_modules stays untransformed except jose, raw-body and
+  // uuid. The alternation covers both segments of the pnpm layout: the store
+  // directory (node_modules/.pnpm/jose@6.2.8/) and the links inside it
+  // (.../node_modules/jose/), so neither position matches and those files are
   // handed to the transform above.
-  transformIgnorePatterns: ["node_modules/(?!\\.pnpm/jose@|jose/)"],
+  //
+  // uuid joined the list at 14.0.2: it publishes `"type": "module"` with a
+  // `node` export condition pointing at ESM, and there is no CommonJS build
+  // left to fall back to, so every suite that reaches src/middlewares/upload.ts
+  // died on `Must use import to load ES Module` before running a single case.
+  transformIgnorePatterns: [
+    "node_modules/(?!\\.pnpm/(?:jose|raw-body|uuid)@|(?:jose|raw-body|uuid)/)",
+  ],
 };

@@ -21,7 +21,7 @@ export interface TabManagerState {
   closedStack: TabSummary[];
 }
 
-interface TabManager {
+export interface TabManager {
   create(url: string, opts?: Partial<Pick<TabSummary, 'pinned' | 'title'>>): string;
   close(id: string): boolean;
   activate(id: string): boolean;

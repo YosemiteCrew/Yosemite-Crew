@@ -1429,9 +1429,10 @@ describe('<InvoiceStep /> component', () => {
       openSpy.mockRestore();
     });
 
-    it('falls back to a print window and escapes invoice HTML', async () => {
+    it('builds the fallback print document with text-only invoice values', async () => {
+      const printableDocument = document.implementation.createHTMLDocument();
       const printWindow = {
-        document: { head: { innerHTML: '' }, body: { innerHTML: '' } },
+        document: printableDocument,
         focus: jest.fn(),
         print: jest.fn(),
       };
@@ -1447,9 +1448,34 @@ describe('<InvoiceStep /> component', () => {
       );
 
       expect(printWindow.print).toHaveBeenCalled();
-      expect(printWindow.document.body.innerHTML).toContain(
-        'Rabies &lt;vaccine&gt; &amp; &quot;shot&quot;'
+      expect(printableDocument.body.textContent).toContain('Rabies <vaccine> & "shot"');
+      expect(printableDocument.body.querySelector('vaccine')).toBeNull();
+      openSpy.mockRestore();
+    });
+
+    // The printed invoice used `new Date(createdAt).toLocaleString()` (device
+    // locale and zone, numeric, with seconds) while the row it was printed from
+    // used a local en-US formatter with no timeZone, so the handed-over document
+    // never matched the screen. Both now go through formatDateTimeLocal, which
+    // pins the preferred timezone (Europe/Berlin by default, hence 01:00 AM for
+    // a midnight-UTC invoice).
+    it('prints the same date string the invoice row shows', async () => {
+      const printableDocument = document.implementation.createHTMLDocument();
+      const printWindow = {
+        document: printableDocument,
+        focus: jest.fn(),
+        print: jest.fn(),
+      };
+      const openSpy = jest.spyOn(window, 'open').mockReturnValue(printWindow as never);
+      renderInvoiceStep({ pastInvoices: [settledInvoice()] });
+
+      expect(await screen.findByText('Jan 1, 2026, 01:00 AM')).toBeInTheDocument();
+
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'Download invoice inv-doc' })
       );
+
+      expect(printableDocument.body.textContent).toContain('Date: Jan 1, 2026, 01:00 AM');
       openSpy.mockRestore();
     });
 

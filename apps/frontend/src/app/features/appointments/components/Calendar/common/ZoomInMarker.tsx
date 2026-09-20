@@ -1,5 +1,6 @@
 import React from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { Appointment } from '@yosemite-crew/types';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
@@ -116,16 +117,23 @@ const ZoomInMarker = ({
       >
         {showImage && (
           <div className="flex-none">
-            <Image
+            <AvatarImage
               src={getSafeImageUrl(
                 getAppointmentCompanionPhotoUrl(ev.companion),
                 (ev.companion ?? ev.patient).species.toLowerCase() as ImageType
               )}
-              height={imgSize}
-              width={imgSize}
+              size={imgSize}
               className="rounded-full border border-white/60 object-cover"
               style={{ width: imgSize, height: imgSize }}
               alt=""
+              fallback={
+                <CompanionAvatar
+                  name={(ev.companion ?? ev.patient).name}
+                  seed={(ev.companion ?? ev.patient).id}
+                  size={imgSize}
+                  textClassName="text-[11px]"
+                />
+              }
             />
           </div>
         )}

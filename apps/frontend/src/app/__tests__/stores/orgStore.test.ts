@@ -248,6 +248,43 @@ describe('Organization Store', () => {
       expect(useOrgStore.getState().primaryOrgId).toBe('org-1'); // Fallback to first available
     });
 
+    it('restores the last active org from storage when primaryOrgId was wiped but the org is still in the list', () => {
+      // Mirrors what a transient auth-check failure does: axios.ts's 401
+      // handler treats a failed session *check* the same as a real logout and
+      // wipes primaryOrgId to null, even though the user never signed out.
+      const store = useOrgStore.getState();
+      store.setOrgs([mockOrg1, mockOrg2]);
+      store.setPrimaryOrg('org-2');
+
+      useOrgStore.setState({ primaryOrgId: null });
+
+      store.setOrgs([mockOrg1, mockOrg2], { keepPrimaryIfPresent: true });
+
+      expect(useOrgStore.getState().primaryOrgId).toBe('org-2');
+    });
+
+    it('falls back to the first org when the last active org is no longer in the new list', () => {
+      const store = useOrgStore.getState();
+      store.setOrgs([mockOrg1, mockOrg2]);
+      store.setPrimaryOrg('org-2');
+
+      useOrgStore.setState({ primaryOrgId: null });
+
+      // A different user's org list (or org-2 was removed) - org-2 isn't in it.
+      store.setOrgs([mockOrg1], { keepPrimaryIfPresent: true });
+
+      expect(useOrgStore.getState().primaryOrgId).toBe('org-1');
+    });
+
+    it('falls back to the first org when there is no stored last-active org at all', () => {
+      const store = useOrgStore.getState();
+      localStorage.clear();
+
+      store.setOrgs([mockOrg1, mockOrg2], { keepPrimaryIfPresent: true });
+
+      expect(useOrgStore.getState().primaryOrgId).toBe('org-1');
+    });
+
     it('updates primary org when the current primary is removed', () => {
       const store = useOrgStore.getState();
       store.setOrgs([mockOrg1, mockOrg2]);

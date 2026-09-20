@@ -48,8 +48,12 @@ import {
 // ─── UI mocks ─────────────────────────────────────────────────────────────────
 
 const mockNotify = jest.fn();
+const mockConfirm = jest.fn();
 jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: () => ({ notify: mockNotify }),
+}));
+jest.mock('@/app/ui/overlays/Modal/ConfirmModal', () => ({
+  useConfirm: () => ({ confirm: mockConfirm, confirmDialog: null }),
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
@@ -130,6 +134,7 @@ function setupMocks() {
 beforeEach(() => {
   jest.resetAllMocks();
   mockNotify.mockClear();
+  mockConfirm.mockResolvedValue(true);
   setupMocks();
 });
 
@@ -186,6 +191,20 @@ describe('FederationSection', () => {
       render(<FederationSection />);
       await waitFor(() => screen.getByText('Not set'));
       expect(screen.getByPlaceholderText('Paste license token...')).toBeInTheDocument();
+    });
+
+    it('gives the token input an accessible name, not just a placeholder', async () => {
+      // A placeholder alone isn't an accessible label - it disappears once typed into
+      // and isn't reliably announced as a persistent label by assistive tech.
+      // getByLabelText only resolves through a real aria-label/aria-labelledby/htmlFor
+      // association, so this fails if the label is ever removed.
+      (getActorSettings as jest.Mock).mockResolvedValue({
+        ...mockActor,
+        licenseTokenStatus: 'none',
+      });
+      render(<FederationSection />);
+      await waitFor(() => screen.getByText('Not set'));
+      expect(screen.getByLabelText('Federation license token')).toBeInTheDocument();
     });
 
     it('shows token input when licenseTokenStatus is invalid', async () => {
@@ -301,6 +320,13 @@ describe('FederationSection', () => {
       await waitFor(() =>
         expect(followRemoteActor).toHaveBeenCalledWith('https://other.example/ap/organizations/xyz')
       );
+    });
+
+    it('gives the follow-actor input an accessible name, not just a placeholder', async () => {
+      (listFollowing as jest.Mock).mockResolvedValue([]);
+      render(<FederationSection />);
+      await waitFor(() => screen.getByText('Not following any instances yet.'));
+      expect(screen.getByLabelText('Remote organisation URI to follow')).toBeInTheDocument();
     });
   });
 
@@ -472,8 +498,12 @@ describe('FederationSection', () => {
       expect(screen.getByRole('button', { name: 'Broadcast emergency' })).toBeDisabled();
     });
 
-    it('calls announceEmergency when broadcast button clicked', async () => {
+    it('requires confirmation before broadcasting an emergency', async () => {
       (announceEmergency as jest.Mock).mockResolvedValueOnce(undefined);
+      let resolveConfirmation!: (approved: boolean) => void;
+      mockConfirm.mockImplementationOnce(
+        () => new Promise<boolean>((resolve) => (resolveConfirmation = resolve))
+      );
       render(<FederationSection />);
       await waitFor(() => screen.getByText('Emergency broadcast'));
 
@@ -485,6 +515,10 @@ describe('FederationSection', () => {
       });
 
       fireEvent.click(screen.getByRole('button', { name: 'Broadcast emergency' }));
+
+      await waitFor(() => expect(mockConfirm).toHaveBeenCalled());
+      expect(announceEmergency).not.toHaveBeenCalled();
+      await act(async () => resolveConfirmation(true));
 
       await waitFor(() =>
         expect(announceEmergency).toHaveBeenCalledWith('All staff alert', 'EMERGENCY')

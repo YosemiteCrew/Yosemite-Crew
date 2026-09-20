@@ -334,7 +334,7 @@ describe('Finance page', () => {
     render(<ProtectedFinance />);
 
     expect(screen.getByText(/collected this week/)).toHaveTextContent(
-      '$4,820 collected this week · $214 outstanding'
+      '$4,820.00 collected this week · $214.00 outstanding'
     );
   });
   it('links to the Discounts page from the finance header controls', () => {
@@ -345,5 +345,19 @@ describe('Finance page', () => {
       'href',
       '/finance/discounts'
     );
+  });
+
+  it('stacks page actions above the status filter, not beside it', () => {
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+    render(<ProtectedFinance />);
+
+    const discountsLink = screen.getByRole('link', { name: 'Manage discounts' });
+    const statusPills = screen.getByTestId('status-pills');
+
+    // Document order, not just presence: the nav/Stripe row must come before
+    // the filter row, otherwise they render as one mixed row again.
+    expect(
+      discountsLink.compareDocumentPosition(statusPills) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 });

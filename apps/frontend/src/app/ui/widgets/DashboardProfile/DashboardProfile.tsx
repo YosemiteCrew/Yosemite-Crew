@@ -1,12 +1,16 @@
 'use client';
 import React, { useState } from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import { IoTimeOutline } from 'react-icons/io5';
 
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
 import { useAuthStore } from '@/app/stores/authStore';
 import { getSafeImageUrl } from '@/app/lib/urls';
+import {
+  avatarAccentFor,
+  initialsOf,
+} from '@/app/features/organization/pages/Organization/Sections/orgDisplay';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
@@ -34,12 +38,18 @@ const DashboardProfile = () => {
             Welcome back,
           </span>
           <span className="flex items-center gap-[9px]">
-            <Image
+            <AvatarImage
               src={getSafeImageUrl(profile?.personalDetails?.profilePictureUrl, 'person')}
               alt=""
-              height={38}
-              width={38}
+              size={38}
               className="max-h-[38px] min-w-[38px] rounded-full object-cover"
+              fallback={
+                <span
+                  className={`flex size-[38px] flex-none items-center justify-center rounded-full text-[13px] font-bold ${avatarAccentFor(attributes?.sub || fullName)}`}
+                >
+                  {initialsOf(fullName)}
+                </span>
+              }
             />
             <span className="font-newsreader text-[27px] tracking-[-0.015em] text-[var(--ink)]">
               {fullName}

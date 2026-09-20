@@ -22,14 +22,10 @@ describe('AddTask Component', () => {
 
   it('renders the main page title', () => {
     render(<AddTask />);
-    // The component renders "Add task" twice: once as a header, once in the Accordion
-    // We specifically check for the header container class or just existence
-    const titles = screen.getAllByText('Add task');
-    expect(titles.length).toBeGreaterThanOrEqual(1);
-
-    // Check for the specific header div class if strictness is needed
-    const header = document.querySelector('.font-satoshi');
-    expect(header).toHaveTextContent('Add task');
+    // The panel title names the panel and its section names the section; they
+    // used to be the same words, so the drawer read "Add task" twice.
+    expect(screen.getByRole('heading', { name: 'New task' })).toBeInTheDocument();
+    expect(screen.queryByText('Add task')).not.toBeInTheDocument();
   });
 
   it('renders the Accordion component', () => {
@@ -43,7 +39,7 @@ describe('AddTask Component', () => {
     render(<AddTask />);
 
     // Verify Title Prop
-    expect(screen.getByTestId('accordion-title')).toHaveTextContent('Add task');
+    expect(screen.getByTestId('accordion-title')).toHaveTextContent('Task details');
 
     // Verify defaultOpen Prop (should be true)
     expect(screen.getByTestId('accordion-default-open')).toHaveTextContent('true');

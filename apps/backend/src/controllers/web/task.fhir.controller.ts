@@ -10,7 +10,7 @@ import type { OrgRequest } from "src/middlewares/rbac";
 
 const taskResourceSchema = z
   .object({ resourceType: z.literal("Task") })
-  .passthrough();
+  .loose();
 
 const listQuerySchema = z.object({
   status: z.union([z.string(), z.array(z.string())]).optional(),

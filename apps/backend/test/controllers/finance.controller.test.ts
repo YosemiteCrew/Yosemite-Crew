@@ -14,6 +14,8 @@ import {
   AppointmentPrismaServiceError,
 } from "../../src/services/appointment.prisma.service";
 import { StripeService } from "../../src/services/stripe.service";
+import { ProviderReceiptService } from "../../src/services/finance/provider-receipt";
+import { encodeKeysetCursor } from "../../src/services/shared/pagination";
 import { Request, Response } from "express";
 
 jest.mock("../../src/services/finance/payment", () => ({
@@ -126,6 +128,22 @@ jest.mock("../../src/services/appointment.prisma.service", () => ({
   },
 }));
 
+jest.mock("../../src/services/finance/provider-receipt", () => ({
+  __esModule: true,
+  ProviderReceiptService: {
+    listForReconciliation: jest.fn(),
+  },
+  // The real list, not a stand-in: the query schema is built from it at module
+  // scope, so a shortened one here would let a filter pass in the test that
+  // the running controller rejects.
+  RECONCILIATION_STATUSES: [
+    "UNATTRIBUTED",
+    "UNALLOCATED",
+    "ALLOCATED",
+    "PARTIALLY_REFUNDED",
+    "REFUNDED",
+  ],
+}));
 jest.mock("src/utils/logger", () => ({
   __esModule: true,
   default: {
@@ -551,6 +569,7 @@ describe("FinanceController", () => {
           },
         ],
       },
+      organisationId: "org_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -867,6 +886,7 @@ describe("FinanceController", () => {
 
     const req = {
       query: { organisationId: "org_1" },
+      organisationId: "org_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -907,6 +927,7 @@ describe("FinanceController", () => {
         providerSubscriptionId: "sub_1",
         quantity: 3,
       },
+      organisationId: "org_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -936,6 +957,7 @@ describe("FinanceController", () => {
         subscriptionId: "sub_1",
         featureKey: "appointments",
       },
+      organisationId: "org_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -1363,5 +1385,194 @@ describe("FinanceController", () => {
     expect(
       InvoiceService.markAppointmentReadyForBilling,
     ).not.toHaveBeenCalled();
+  });
+});
+
+describe("FinanceController.listProviderReceipts", () => {
+  const buildRes = () =>
+    ({
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    }) as unknown as Response;
+
+  const buildReq = (overrides: Record<string, unknown> = {}) =>
+    ({
+      params: { organisationId: "org_1" },
+      query: {},
+      organisationId: "org_1",
+      ...overrides,
+    }) as unknown as Request;
+
+  const emptyPage = {
+    receipts: [],
+    nextCursor: null,
+    hasMore: false,
+    limit: 50,
+  };
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    (
+      ProviderReceiptService.listForReconciliation as jest.Mock
+    ).mockResolvedValue(emptyPage);
+  });
+
+  it("scopes the queue to the authorized organisation, not the path", async () => {
+    // The path segment is caller-controlled. Taking the organisation from it
+    // would let anyone with the permission in their own org read another
+    // tenant's captured money.
+    const req = buildReq({
+      params: { organisationId: "org_victim" },
+      organisationId: "org_attacker",
+    });
+    const res = buildRes();
+
+    await FinanceController.listProviderReceipts(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(ProviderReceiptService.listForReconciliation).not.toHaveBeenCalled();
+  });
+
+  it("returns the page with the fields that say it is not silently truncated", async () => {
+    (
+      ProviderReceiptService.listForReconciliation as jest.Mock
+    ).mockResolvedValue({
+      receipts: [{ id: "receipt-1" }],
+      nextCursor: "cursor-2",
+      hasMore: true,
+      limit: 50,
+    });
+    const res = buildRes();
+
+    await FinanceController.listProviderReceipts(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      data: [{ id: "receipt-1" }],
+      meta: { nextCursor: "cursor-2", hasMore: true, limit: 50 },
+      error: null,
+    });
+  });
+
+  it("passes a single status through as a one-element filter", async () => {
+    const res = buildRes();
+
+    await FinanceController.listProviderReceipts(
+      buildReq({ query: { status: "UNATTRIBUTED" } }),
+      res,
+    );
+
+    expect(ProviderReceiptService.listForReconciliation).toHaveBeenCalledWith(
+      expect.objectContaining({ statuses: ["UNATTRIBUTED"] }),
+    );
+  });
+
+  it("passes a repeated status through as the set the caller asked for", async () => {
+    const res = buildRes();
+
+    await FinanceController.listProviderReceipts(
+      buildReq({ query: { status: ["UNATTRIBUTED", "PARTIALLY_REFUNDED"] } }),
+      res,
+    );
+
+    expect(ProviderReceiptService.listForReconciliation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statuses: ["UNATTRIBUTED", "PARTIALLY_REFUNDED"],
+      }),
+    );
+  });
+
+  it("rejects a state that is not one of the model's", async () => {
+    const res = buildRes();
+
+    await FinanceController.listProviderReceipts(
+      buildReq({ query: { status: "SETTLED" } }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(ProviderReceiptService.listForReconciliation).not.toHaveBeenCalled();
+  });
+
+  it("requires the capture window to state its offset", async () => {
+    // A bare date read at the operator's local midnight and applied against a
+    // UTC capturedAt moves the boundary by hours, which silently includes or
+    // drops a day's money from a reconciliation.
+    const res = buildRes();
+
+    await FinanceController.listProviderReceipts(
+      buildReq({ query: { capturedFrom: "2026-09-01" } }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(ProviderReceiptService.listForReconciliation).not.toHaveBeenCalled();
+  });
+
+  it("turns an offset-bearing window into the instants the service filters on", async () => {
+    const res = buildRes();
+
+    await FinanceController.listProviderReceipts(
+      buildReq({
+        query: {
+          capturedFrom: "2026-09-01T00:00:00.000Z",
+          capturedTo: "2026-09-30T23:59:59.000Z",
+        },
+      }),
+      res,
+    );
+
+    expect(ProviderReceiptService.listForReconciliation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        capturedFrom: new Date("2026-09-01T00:00:00.000Z"),
+        capturedTo: new Date("2026-09-30T23:59:59.000Z"),
+      }),
+    );
+  });
+
+  it("answers 400 for a malformed cursor rather than letting the query throw", async () => {
+    // Inferring "bad cursor" from a thrown error would report a database
+    // outage as the caller's fault. Checking the shape up front is what keeps
+    // every failure from the query itself honestly a 500.
+    const res = buildRes();
+
+    await FinanceController.listProviderReceipts(
+      buildReq({ query: { cursor: "not-a-cursor" } }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(ProviderReceiptService.listForReconciliation).not.toHaveBeenCalled();
+  });
+
+  it("carries a usable cursor through to the service", async () => {
+    const cursor = {
+      createdAt: new Date("2026-09-18T10:00:01.000Z"),
+      id: "11111111-1111-4111-8111-111111111111",
+    };
+    const res = buildRes();
+
+    await FinanceController.listProviderReceipts(
+      buildReq({ query: { cursor: encodeKeysetCursor(cursor) } }),
+      res,
+    );
+
+    expect(ProviderReceiptService.listForReconciliation).toHaveBeenCalledWith(
+      expect.objectContaining({ cursor }),
+    );
+  });
+
+  it("does not report a service failure as the caller's mistake", async () => {
+    (
+      ProviderReceiptService.listForReconciliation as jest.Mock
+    ).mockRejectedValue(new Error("connection reset"));
+    const res = buildRes();
+
+    await FinanceController.listProviderReceipts(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Internal server error",
+    });
   });
 });

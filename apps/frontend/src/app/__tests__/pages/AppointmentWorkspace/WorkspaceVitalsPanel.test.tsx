@@ -32,6 +32,27 @@ const observation: ObservationRecord = {
 };
 
 describe('WorkspaceVitalsPanel', () => {
+  it('renders a metric vital in the scale it was recorded in', () => {
+    // The panel used to stamp '°F' and 'lbs' on whatever numbers it was given, so a
+    // Celsius reading of 38.5 was displayed as 38.5 °F on the clinician's rail.
+    render(
+      <WorkspaceVitalsPanel
+        vitals={[
+          makeVitals({ weightLbs: undefined, tempF: undefined, weightKg: 27.3, tempC: 38.5 }),
+        ]}
+        observations={[]}
+        onRecordVitals={jest.fn()}
+        onOpenObservations={jest.fn()}
+      />
+    );
+
+    const panel = screen.getByRole('region', { name: 'Vitals' });
+    expect(within(panel).getByText('38.5 °C')).toBeInTheDocument();
+    expect(within(panel).getByText('27.3 kg')).toBeInTheDocument();
+    expect(within(panel).queryByText('38.5 °F')).not.toBeInTheDocument();
+    expect(within(panel).queryByText('27.3 lbs')).not.toBeInTheDocument();
+  });
+
   it('renders the latest vitals with app units and the recorded-by stamp', () => {
     const older = makeVitals({ id: 'old', weightLbs: 10, recordedAt: '2026-07-09T07:00:00.000Z' });
     const newer = makeVitals({

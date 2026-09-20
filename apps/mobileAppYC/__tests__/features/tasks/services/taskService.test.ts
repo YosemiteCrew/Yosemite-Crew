@@ -178,6 +178,38 @@ describe('taskService', () => {
       expect(result.calendarProvider).toBe('GOOGLE');
     });
 
+    it('preserves the subcategory the API returned', () => {
+      expect(
+        mapApiTaskToTask({
+          category: 'CUSTOM',
+          subcategory: 'parasite-prevention',
+        }).subcategory,
+      ).toBe('parasite-prevention');
+      expect(
+        mapApiTaskToTask({category: 'CUSTOM', subcategory: 'vaccination'})
+          .subcategory,
+      ).toBe('vaccination');
+      expect(
+        mapApiTaskToTask({
+          category: 'CUSTOM',
+          subcategory: 'chronic-conditions',
+        }).subcategory,
+      ).toBe('chronic-conditions');
+    });
+
+    it('falls back to none when the subcategory is absent or unknown', () => {
+      expect(mapApiTaskToTask({category: 'CUSTOM'}).subcategory).toBe('none');
+      expect(
+        mapApiTaskToTask({category: 'CUSTOM', subcategory: null}).subcategory,
+      ).toBe('none');
+      // The backend column is free-form, so values the local union does not
+      // model must not leak through as a subcategory.
+      expect(
+        mapApiTaskToTask({category: 'CUSTOM', subcategory: 'checkup'})
+          .subcategory,
+      ).toBe('none');
+    });
+
     it('maps Categories correctly', () => {
       expect(mapApiTaskToTask({category: 'HYGIENE'}).category).toBe('hygiene');
       expect(mapApiTaskToTask({category: 'DIET'}).category).toBe('dietary');
@@ -190,17 +222,42 @@ describe('taskService', () => {
       expect(mapApiTaskToTask({category: 'UNKNOWN'}).category).toBe('custom');
     });
 
-    it('maps Recurrence correctly', () => {
-      expect(mapApiTaskToTask({recurrence: {type: 'DAILY'}}).frequency).toBe(
-        'daily',
-      );
-      expect(mapApiTaskToTask({recurrence: {type: 'WEEKLY'}}).frequency).toBe(
-        'weekly',
-      );
-      expect(mapApiTaskToTask({recurrence: {type: 'CUSTOM'}}).frequency).toBe(
-        'daily',
-      );
+    it('maps a recurring master task to its series frequency', () => {
+      expect(
+        mapApiTaskToTask({recurrence: {type: 'DAILY', isMaster: true}})
+          .frequency,
+      ).toBe('daily');
+      expect(
+        mapApiTaskToTask({recurrence: {type: 'WEEKLY', isMaster: true}})
+          .frequency,
+      ).toBe('weekly');
+      expect(
+        mapApiTaskToTask({recurrence: {type: 'MONTHLY', isMaster: true}})
+          .frequency,
+      ).toBe('monthly');
+      expect(
+        mapApiTaskToTask({recurrence: {type: 'CUSTOM', isMaster: true}})
+          .frequency,
+      ).toBe('daily');
       expect(mapApiTaskToTask({recurrence: null}).frequency).toBe('once');
+    });
+
+    it('maps a materialized child occurrence to "once" regardless of the series type it belongs to', () => {
+      // Regression for #3210: a materialized child copies its master's
+      // `type` verbatim (for reference) but is `isMaster: false`. If its
+      // frequency were derived from `type` alone, the mobile calendar would
+      // independently re-project it as its own series on top of the
+      // master's projection, duplicating every future occurrence.
+      expect(
+        mapApiTaskToTask({
+          recurrence: {type: 'WEEKLY', isMaster: false, masterTaskId: 'm1'},
+        }).frequency,
+      ).toBe('once');
+      expect(
+        mapApiTaskToTask({
+          recurrence: {type: 'DAILY', isMaster: false, masterTaskId: 'm1'},
+        }).frequency,
+      ).toBe('once');
     });
 
     it('maps Reminders correctly', () => {
@@ -399,6 +456,28 @@ describe('taskService', () => {
       expect(payload.reminder).toBeNull();
     });
 
+    it('sends the selected subcategory so the server can return it', () => {
+      const payload = buildTaskDraftFromForm({
+        formData: {
+          ...baseForm,
+          category: 'health',
+          subcategory: 'parasite-prevention',
+        } as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      expect(payload.subcategory).toBe('parasite-prevention');
+    });
+
+    it('omits the subcategory when the form has none', () => {
+      const payload = buildTaskDraftFromForm({
+        formData: {...baseForm, subcategory: null} as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      expect(payload.subcategory).toBeUndefined();
+    });
+
     it('maps Reminder options correctly', () => {
       const form = {
         ...baseForm,
@@ -489,11 +568,45 @@ describe('taskService', () => {
 
       checkFreq('daily', 'DAILY');
       checkFreq('weekly', 'WEEKLY');
-      checkFreq('monthly', 'WEEKLY'); // Falls back to WEEKLY per code logic
+      checkFreq('monthly', 'MONTHLY');
       checkFreq('once', 'ONCE');
       checkFreq(undefined, 'ONCE');
       checkFreq('every-day', 'DAILY');
       checkFreq('something-else', 'ONCE');
+    });
+
+    it('round-trips Monthly through draft build and response mapping', () => {
+      const draft = buildTaskDraftFromForm({
+        formData: {
+          ...baseForm,
+          frequency: 'monthly',
+        } as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      expect(draft.recurrence?.type).toBe('MONTHLY');
+
+      const roundTripped = mapApiTaskToTask({
+        recurrence: {type: draft.recurrence?.type, isMaster: true},
+      });
+
+      expect(roundTripped.frequency).toBe('monthly');
+    });
+
+    it('prioritizes Monthly medication frequency over the general frequency for the recurrence engine', () => {
+      const draft = buildTaskDraftFromForm({
+        formData: {
+          ...baseForm,
+          healthTaskType: 'give-medication',
+          frequency: 'weekly',
+          medicationFrequency: 'monthly',
+        } as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      // The value that drives TaskRecurrenceEngine cadence must be MONTHLY,
+      // not the unrelated general `frequency` field.
+      expect(draft.recurrence?.type).toBe('MONTHLY');
     });
 
     it('falls back across task date, title, description, category, and time fields', () => {

@@ -8,6 +8,7 @@ import {
   bookingRequestsApi,
   type BookingRequest,
 } from '@/app/features/organization/services/bookingRequestsApiService';
+import { formatDateTimeLocal } from '@/app/lib/date';
 
 /**
  * Confirmed booking requests from the public page.
@@ -22,21 +23,31 @@ import {
  * does not create anything.
  */
 
-const formatWhen = (iso: string) => {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime())
-    ? iso
-    : `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      })}`;
-};
+/**
+ * Was `toLocaleDateString()` + `toLocaleTimeString([], …)`: a bare numeric date
+ * in the DEVICE timezone, so this panel read "03/09/2026 22:05" on an en-GB
+ * browser and "9/3/2026 10:05 PM" on an en-US one - the only numeric date in the
+ * PMS, ambiguous against the "Sep 3, 2026" every other surface prints, and
+ * different between the SSR pass and the browser. `formatDateTimeLocal` pins the
+ * month name and `getPreferredTimeZone()`. The iso fallback is kept: an
+ * unparseable stamp still shows as given rather than as "Not available".
+ */
+const formatWhen = (iso: string) => formatDateTimeLocal(iso, iso);
 
 const STATUS_LABEL: Record<BookingRequest['status'], string> = {
   CONFIRMED: 'Awaiting you',
   BOOKED: 'Booked',
   DECLINED: 'Declined',
 };
+
+/* Named rather than inlined in the .then: three nested arrows inside the
+   promise chain tripped sonarjs/no-nested-functions, and the mapping reads
+   better with a name anyway. */
+const applyStatus = <T extends { id: string; status: string }>(
+  requests: T[],
+  id: string,
+  status: T['status']
+): T[] => requests.map((request) => (request.id === id ? { ...request, status } : request));
 
 const BookingRequests = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
@@ -75,11 +86,7 @@ const BookingRequests = () => {
     setBusyId(id);
     bookingRequestsApi
       .setStatus(primaryOrgId, id, status)
-      .then(() => {
-        setRequests((current) =>
-          current.map((request) => (request.id === id ? { ...request, status } : request))
-        );
-      })
+      .then(() => setRequests((current) => applyStatus(current, id, status)))
       .catch(() =>
         notify('error', {
           title: 'Could not update the request',

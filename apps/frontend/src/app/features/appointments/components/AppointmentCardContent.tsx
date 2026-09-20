@@ -1,5 +1,6 @@
 import React from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { Appointment } from '@yosemite-crew/types';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
@@ -46,16 +47,23 @@ export const AppointmentCompanionHeader = ({ appointment }: AppointmentCardConte
     {(() => {
       const companion = getAppointmentCompanion(appointment);
       return (
-        <Image
+        <AvatarImage
           alt=""
           src={getSafeImageUrl(
             getAppointmentCompanionPhotoUrl(companion),
             companion.species as ImageType
           )}
-          height={40}
-          width={40}
+          size={40}
           priority
           className="size-10 rounded-full object-cover"
+          fallback={
+            <CompanionAvatar
+              name={companion.name}
+              seed={companion.id}
+              size={40}
+              textClassName="text-[18px]"
+            />
+          }
         />
       );
     })()}

@@ -25,7 +25,7 @@ const UpdateChecklistSchema = z.object({
   status: StatusEnum.optional(),
   conductedBy: z.string().optional(),
   notes: z.string().optional(),
-  completedAt: z.string().datetime().optional(),
+  completedAt: z.iso.datetime().optional(),
 });
 
 const CheckItemSchema = z.object({
@@ -38,7 +38,7 @@ export const surgicalChecklistController = {
     const { organisationId } = req.params;
     const parsed = CreateChecklistSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
+      res.status(400).json({ error: z.flattenError(parsed.error) });
       return;
     }
     try {
@@ -88,7 +88,7 @@ export const surgicalChecklistController = {
     const { organisationId, checklistId } = req.params;
     const parsed = UpdateChecklistSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
+      res.status(400).json({ error: z.flattenError(parsed.error) });
       return;
     }
     const { completedAt, ...rest } = parsed.data;
@@ -112,7 +112,7 @@ export const surgicalChecklistController = {
     const { organisationId, checklistId, itemId } = req.params;
     const parsed = CheckItemSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
+      res.status(400).json({ error: z.flattenError(parsed.error) });
       return;
     }
     try {

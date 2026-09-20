@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { Icon } from '@/app/ui/icons/Icon';
 import {
   IoCloudOfflineOutline,
@@ -32,7 +32,9 @@ import {
   AuthPasswordField,
   AuthSubmitButton,
   AuthAltNote,
+  FieldError,
 } from '@/app/features/auth/pages/authForm';
+import { signInErrorMessage } from '@/app/features/auth/lib/signInErrorMessage';
 
 type SignInProps = {
   redirectPath?: string;
@@ -153,9 +155,38 @@ const SignInForm = ({
     email?: string;
     pError?: string;
   }>({});
+  // A toast disappears on its own and is easy to miss; a rate-limit or other
+  // sign-in failure also gets this persistent inline message, which stays
+  // until the user edits a field or retries (see handleSignIn/onChange below).
+  const [formError, setFormError] = useState<string | undefined>(undefined);
 
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // redirectToSignIn (services/axios.ts) tags this on when an expired/invalid
+  // session bounces someone here mid-use - without it, landing back on sign-in
+  // looks identical to just navigating here, with nothing telling the user why.
+  // showErrorTost isn't memoized by useErrorTost, so a ref guards against
+  // re-firing the toast every time this effect re-runs on a fresh reference.
+  const hasShownSessionExpiredToast = useRef(false);
+  useEffect(() => {
+    if (hasShownSessionExpiredToast.current) return;
+    if (searchParams?.get('reason') !== 'session-expired') return;
+    hasShownSessionExpiredToast.current = true;
+    showErrorTost({
+      message: 'Please sign in again to continue.',
+      errortext: 'You were signed out',
+      iconElement: (
+        <Icon
+          icon="solar:danger-triangle-bold"
+          width="20"
+          height="20"
+          color="var(--color-danger-600)"
+        />
+      ),
+      className: 'errofoundbg',
+    });
+  }, [searchParams, showErrorTost]);
 
   const handleCodeResendonError = async () => {
     try {
@@ -183,6 +214,7 @@ const SignInForm = ({
 
   const handleSignIn = async (e: React.SyntheticEvent) => {
     e.preventDefault();
+    setFormError(undefined);
 
     const errors: { email?: string; pError?: string } = {};
     const normalizedEmail = normalizeEmail(email);
@@ -239,8 +271,10 @@ const SignInForm = ({
       if (error?.code === 'UserNotConfirmedException') {
         await handleCodeResendonError();
       } else {
+        const message = signInErrorMessage(error);
+        setFormError(message);
         showErrorTost({
-          message: error.message || `Sign in failed`,
+          message,
           errortext: 'Error',
           iconElement: (
             <Icon
@@ -267,13 +301,17 @@ const SignInForm = ({
         isDeveloper ? (
           <>
             Pick up where you{' '}
-            <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#5ce1e6' }}>left off.</em>
+            <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--cyan)' }}>
+              left off.
+            </em>
           </>
         ) : (
           <>
             Pick up where your{' '}
-            <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#8fb6f5' }}>clinic</em> left
-            off.
+            <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--color-accent-dark)' }}>
+              clinic
+            </em>{' '}
+            left off.
           </>
         )
       }
@@ -330,6 +368,7 @@ const SignInForm = ({
             onChange={(value) => {
               setEmail(value);
               setInputErrors((prev) => ({ ...prev, email: undefined }));
+              setFormError(undefined);
             }}
           />
           <AuthPasswordField
@@ -344,6 +383,7 @@ const SignInForm = ({
             onChange={(value) => {
               setPassword(value);
               setInputErrors((prev) => ({ ...prev, pError: undefined }));
+              setFormError(undefined);
             }}
             showPassword={showPassword}
             onToggleShowPassword={() => setShowPassword((prev) => !prev)}
@@ -362,6 +402,7 @@ const SignInForm = ({
             }
           />
           <AuthSubmitButton idle="Sign in" busy="Signing in..." isSubmitting={isSubmitting} />
+          <FieldError id="signin-form-error" message={formError} />
         </AuthForm>
         {isDeveloper ? (
           <GithubSignInButton note="GitHub is available for developer accounts." />

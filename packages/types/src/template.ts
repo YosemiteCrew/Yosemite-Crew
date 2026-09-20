@@ -20,12 +20,7 @@ import {
 
 export type TemplateStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 export type TemplateScope =
-  | 'ORGANISATION'
-  | 'SPECIALITY'
-  | 'SERVICE'
-  | 'APPOINTMENT_KIND'
-  | 'INPATIENT'
-  | 'OUTPATIENT';
+  'ORGANISATION' | 'SPECIALITY' | 'SERVICE' | 'APPOINTMENT_KIND' | 'INPATIENT' | 'OUTPATIENT';
 export type TemplateOwnershipType = 'YC_LIBRARY' | 'ORG_TEMPLATE' | 'USER_TEMPLATE';
 export type TemplateSource = 'YC_LIBRARY' | 'ORGANISATION' | 'USER';
 export type TemplateContractKind =
@@ -45,6 +40,7 @@ export type TemplateStorageKind =
   | 'VITAL_RECORD'
   | 'PRESCRIPTION'
   | 'DISCHARGE_SUMMARY'
+  | 'CONSENT'
   | TemplateLegacyKind;
 
 export type TemplateFieldType =
@@ -499,8 +495,6 @@ export const toLegacyTemplateKind = (kind: TemplateKind): TemplateStorageKind =>
       return 'TASK_TEMPLATE';
     case 'INPATIENT_SCHEDULE':
       return 'CARE_PATHWAY';
-    case 'CONSENT':
-      return 'FORM';
     default:
       return kind;
   }
@@ -1364,8 +1358,7 @@ const questionnaireToTemplateInput = (
   const form = fromFHIRQuestionnaire(questionnaire);
   const kind =
     (getStringExtension(questionnaire.extension, TEMPLATE_KIND_EXTENSION_URL) as
-      | TemplateStorageKind
-      | undefined) ??
+      TemplateStorageKind | undefined) ??
     (questionnaire.code?.[0]?.code as TemplateStorageKind | undefined) ??
     defaults?.kind ??
     'FORM';
@@ -1380,8 +1373,7 @@ const questionnaireToTemplateInput = (
       defaults?.ownerUserId,
     ownership:
       (getStringExtension(questionnaire.extension, TEMPLATE_OWNERSHIP_EXTENSION_URL) as
-        | TemplateOwnershipType
-        | undefined) ??
+        TemplateOwnershipType | undefined) ??
       defaults?.ownership ??
       'ORG_TEMPLATE',
     kind: normalizedKind,
@@ -1389,8 +1381,7 @@ const questionnaireToTemplateInput = (
     description: questionnaire.description ?? undefined,
     scope:
       (getStringExtension(questionnaire.extension, TEMPLATE_SCOPE_EXTENSION_URL) as
-        | TemplateScope
-        | undefined) ??
+        TemplateScope | undefined) ??
       defaults?.scope ??
       'ORGANISATION',
     rules: undefined,
@@ -1420,8 +1411,7 @@ const planDefinitionToTemplateInput = (
 ): TemplateUpsertInput => {
   const kind =
     (getStringExtension(planDefinition.extension, TEMPLATE_KIND_EXTENSION_URL) as
-      | TemplateStorageKind
-      | undefined) ??
+      TemplateStorageKind | undefined) ??
     (planDefinition.type?.coding?.[0]?.code as TemplateStorageKind | undefined) ??
     defaults?.kind ??
     'TASK_ASSIGNMENT';
@@ -1436,8 +1426,7 @@ const planDefinitionToTemplateInput = (
       defaults?.ownerUserId,
     ownership:
       (getStringExtension(planDefinition.extension, TEMPLATE_OWNERSHIP_EXTENSION_URL) as
-        | TemplateOwnershipType
-        | undefined) ??
+        TemplateOwnershipType | undefined) ??
       defaults?.ownership ??
       'ORG_TEMPLATE',
     kind: normalizedKind,
@@ -1445,8 +1434,7 @@ const planDefinitionToTemplateInput = (
     description: planDefinition.description ?? undefined,
     scope:
       (getStringExtension(planDefinition.extension, TEMPLATE_SCOPE_EXTENSION_URL) as
-        | TemplateScope
-        | undefined) ??
+        TemplateScope | undefined) ??
       defaults?.scope ??
       'ORGANISATION',
     rules: undefined,

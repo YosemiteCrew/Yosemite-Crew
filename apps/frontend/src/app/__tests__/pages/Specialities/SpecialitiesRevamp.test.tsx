@@ -148,10 +148,10 @@ describe('SpecialitiesRevamp', () => {
     expect(screen.queryByTestId('add-speciality-modal')).not.toBeInTheDocument();
   });
 
-  it('opens AddSpecialityModal when "Add speciality" button in header is clicked', () => {
+  it('opens AddSpecialityModal when "New speciality" button in header is clicked', () => {
     render(<SpecialitiesRevamp />);
     // The header button (first one rendered)
-    const addButtons = screen.getAllByRole('button', { name: 'Add speciality' });
+    const addButtons = screen.getAllByRole('button', { name: 'New speciality' });
     fireEvent.click(addButtons[0]);
     expect(screen.getByTestId('add-speciality-modal')).toBeInTheDocument();
   });
@@ -197,7 +197,7 @@ describe('SpecialitiesRevamp', () => {
       })
     );
     render(<SpecialitiesRevamp />);
-    const addButtons = screen.getAllByRole('button', { name: 'Add speciality' });
+    const addButtons = screen.getAllByRole('button', { name: 'New speciality' });
     // Header button + empty-state button = 2
     expect(addButtons.length).toBeGreaterThanOrEqual(2);
     // Clicking the empty-state button also opens the modal
@@ -219,8 +219,8 @@ describe('SpecialitiesRevamp', () => {
     render(<SpecialitiesRevamp />);
     // The no-result message is shown but no secondary add button
     expect(screen.getByText(/No specialities match "something"/)).toBeInTheDocument();
-    // There should still be the header "Add speciality" button (only 1)
-    expect(screen.getAllByRole('button', { name: 'Add speciality' })).toHaveLength(1);
+    // There should still be the header "New speciality" button (only 1)
+    expect(screen.getAllByRole('button', { name: 'New speciality' })).toHaveLength(1);
   });
 
   // --- Section 4: missing org ---
@@ -290,6 +290,6 @@ describe('SpecialitiesRevamp', () => {
     // getSpecialitiesEmptyMessage: status === 'loading' branch
     expect(screen.getByText('Loading specialities...')).toBeInTheDocument();
     // `status !== 'loading'` false → only the header add button remains
-    expect(screen.getAllByRole('button', { name: 'Add speciality' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'New speciality' })).toHaveLength(1);
   });
 });

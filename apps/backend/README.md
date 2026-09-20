@@ -27,6 +27,8 @@ pnpm --filter backend run dev
 
 `LOCAL_DEVELOPMENT=true` switches on local-only behaviour: it opens CORS to `localhost:3000` (`src/app.ts`) and mounts the local-only MFA debug endpoint `POST /v1/auth/mfa/totp/debug/create-device`, which creates a TOTP device without the full enrolment flow. Both are keyed on this flag rather than on `NODE_ENV`, so a deployed tier running `NODE_ENV=development` never gets them. Set it only for a local run.
 
+Copy `.env.example` before starting. Its database variables target the application database, not the database used by a self-hosted SuperTokens core; Redis is required, while Stream chat credentials may stay blank unless you are working on chat.
+
 ## Running tests
 
 ```bash
@@ -45,7 +47,7 @@ pnpm --filter backend run start
 
 `Dockerfile` builds the production API image; `Dockerfile.test` builds the image used for test runs.
 
-The repo-root `docker-compose.yml` is stale — it builds only `website` and `api` from `apps/website/Dockerfile` and `apps/api/Dockerfile`, neither of which exists, and it provisions no database or Redis. Do not use it to bring up local dependencies; provision PostgreSQL and Redis yourself.
+The repository does not currently provide a Docker Compose setup. Provision PostgreSQL and Redis separately when running the API locally.
 
 ## Parent & Companion Linking
 

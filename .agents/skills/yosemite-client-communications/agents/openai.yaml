@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Yosemite Crew Client Communications'
+  short_description: 'Clear, careful veterinary client messages'
+  default_prompt: 'Use $yosemite-client-communications to draft a clear client message from these confirmed facts and approved instructions.'

@@ -14,6 +14,32 @@
  * This deliberately does not stop the boot. A Stream outage should not take the
  * API down - it should be VISIBLE.
  */
+/**
+ * The controls this process registers before it answers on its port.
+ *
+ * Reported alongside the reports themselves, because a response that lists only
+ * what WAS recorded cannot distinguish "this bundle is too old to record X"
+ * from "this bundle registers X and did not". Those are the same bytes, and the
+ * deploy gate has to ship on the first and stop on the second: absence of this
+ * key is what marks an older bundle, so it must never be conditional.
+ *
+ * A MANIFEST rather than a declare() call beside each recordControl. Putting the
+ * declaration next to the recording makes them impossible to drift apart - and
+ * also makes the declaration vanish exactly when the code path is skipped,
+ * which is the case a deploy gate most needs to see. The cost is that this list
+ * can go stale, and a name left here after its control is deleted would block
+ * every deploy forever, so test/config/expected-controls.test.ts boots the app
+ * in each configuration and asserts the recorded set covers this one.
+ *
+ * Anything added here must be recorded BEFORE app.listen - see that same file.
+ */
+export const EXPECTED_CONTROLS = [
+  "authentication",
+  "stream-upload-policy",
+] as const;
+
+export const getExpectedControls = (): string[] => [...EXPECTED_CONTROLS];
+
 export type ControlState = "applied" | "failed" | "skipped";
 
 export type ControlReport = {

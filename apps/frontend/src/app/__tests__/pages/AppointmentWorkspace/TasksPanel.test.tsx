@@ -216,7 +216,7 @@ describe('TasksPanel — guard + load', () => {
   it('renders nothing when the appointment has no encounter', () => {
     mockEncountersById = {};
     renderPanel();
-    expect(screen.queryByRole('button', { name: 'New Task' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New task' })).not.toBeInTheDocument();
   });
 
   it('loads workspace tasks on mount', async () => {
@@ -242,10 +242,10 @@ describe('TasksPanel — guard + load', () => {
     await settle();
   });
 
-  it('shows the empty state and a New Task button when there are no tasks', () => {
+  it('shows the empty state and a New task button when there are no tasks', () => {
     renderPanel();
     expect(screen.getByText('No tasks yet.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'New Task' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New task' })).toBeInTheDocument();
   });
 });
 
@@ -446,7 +446,7 @@ describe('TasksPanel — new/edit form', () => {
   it('opens a new employee task form and creates via handleCreate', async () => {
     renderPanel();
 
-    fireEvent.click(screen.getByRole('button', { name: 'New Task' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New task' }));
     expect(screen.getByText('New task')).toBeInTheDocument();
     expect(screen.getByTestId('task-form-fields')).toHaveAttribute('data-hidetemplate', 'false');
 
@@ -459,7 +459,7 @@ describe('TasksPanel — new/edit form', () => {
 
     // Back returns to the task list.
     fireEvent.click(screen.getByRole('button', { name: 'Back to tasks' }));
-    expect(screen.getByRole('button', { name: 'New Task' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New task' })).toBeInTheDocument();
     await settle();
 
     const call = (useTaskForm as jest.Mock).mock.calls[0][0];
@@ -476,7 +476,7 @@ describe('TasksPanel — new/edit form', () => {
   it('seeds a new employee task with patientId from the companion id', async () => {
     renderPanel();
 
-    fireEvent.click(screen.getByRole('button', { name: 'New Task' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New task' }));
     expect(screen.getByText('New task')).toBeInTheDocument();
     await settle();
 
@@ -493,7 +493,7 @@ describe('TasksPanel — new/edit form', () => {
     renderPanel();
 
     fireEvent.click(screen.getByRole('button', { name: 'Parent task' }));
-    fireEvent.click(screen.getByRole('button', { name: 'New Task' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New task' }));
     expect(screen.getByText('New task')).toBeInTheDocument();
     await settle();
 
@@ -509,7 +509,7 @@ describe('TasksPanel — new/edit form', () => {
     mockTaskForm.isLoading = true;
     renderPanel();
 
-    fireEvent.click(screen.getByRole('button', { name: 'New Task' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New task' }));
     expect(screen.getByText('Form invalid')).toBeInTheDocument();
     const save = screen.getByRole('button', { name: 'Saving…' });
     expect(save).toBeDisabled();
@@ -532,7 +532,7 @@ describe('TasksPanel — new/edit form', () => {
     );
     // onSaved closes the form back to the list.
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'New Task' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'New task' })).toBeInTheDocument()
     );
     await settle();
 
@@ -695,7 +695,7 @@ describe('TasksPanel — locally-generated rows + focus', () => {
     renderPanel();
 
     expect(screen.queryByText('Edit task')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'New Task' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New task' })).toBeInTheDocument();
     expect(mockSetFocusTaskId).toHaveBeenCalledWith(null);
   });
 });

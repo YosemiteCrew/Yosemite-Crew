@@ -5,11 +5,14 @@ import {
   buildPreferredTimeZoneDayInstant,
   formatDateInPreferredTimeZone,
   formatUtcClockTimeLabel,
+  getBrowserLocalDateForPreferredCalendarDay,
   getDateKeyInPreferredTimeZone,
   getDatePartsInPreferredTimeZone,
   getHourInPreferredTimeZone,
   getMinutesSinceStartOfDayInPreferredTimeZone,
   getPreciseMinutesSinceStartOfDayInPreferredTimeZone,
+  getStartOfDayInPreferredTimeZone,
+  getStartOfNextDayInPreferredTimeZone,
   getPreferredTimeZone,
   getTimezoneOptions,
   getTimezoneSyncModeForOrg,
@@ -147,6 +150,65 @@ describe('timezone utils', () => {
     const instant = buildPreferredTimeZoneDayInstant(2026, 7, 7);
     expect(getDateKeyInPreferredTimeZone(instant)).toBe('2026-07-07');
     expect(getDatePartsInPreferredTimeZone(instant).hour).toBe(12);
+  });
+
+  it('getStartOfDayInPreferredTimeZone returns local midnight of the same calendar day', () => {
+    setPreferredTimeZone('America/Los_Angeles');
+    const noon = buildPreferredTimeZoneDayInstant(2026, 7, 7);
+    const start = getStartOfDayInPreferredTimeZone(noon);
+    expect(getDatePartsInPreferredTimeZone(start)).toEqual({
+      year: 2026,
+      month: 7,
+      day: 7,
+      hour: 0,
+      minute: 0,
+    });
+  });
+
+  it('getStartOfNextDayInPreferredTimeZone returns the following midnight and crosses a month boundary', () => {
+    setPreferredTimeZone('America/Los_Angeles');
+    const lastDayOfMonth = buildPreferredTimeZoneDayInstant(2026, 1, 31);
+    const nextDayStart = getStartOfNextDayInPreferredTimeZone(lastDayOfMonth);
+    expect(getDatePartsInPreferredTimeZone(nextDayStart)).toEqual({
+      year: 2026,
+      month: 2,
+      day: 1,
+      hour: 0,
+      minute: 0,
+    });
+  });
+
+  it('getStartOfNextDayInPreferredTimeZone is an exclusive upper bound for the day, even in +12/+13', () => {
+    setPreferredTimeZone('Pacific/Auckland');
+    const noon = buildPreferredTimeZoneDayInstant(2026, 7, 7);
+    const nextStart = getStartOfNextDayInPreferredTimeZone(noon);
+    expect(isOnPreferredTimeZoneCalendarDay(new Date(nextStart.getTime() - 1), noon)).toBe(true);
+    expect(isOnPreferredTimeZoneCalendarDay(nextStart, noon)).toBe(false);
+  });
+
+  it('getBrowserLocalDateForPreferredCalendarDay maps to browser-local components matching the clinic day', () => {
+    // A zone at least six hours west of whatever zone the test host runs in, so
+    // the clinic's local noon reads as a different calendar day in the host's own
+    // local time - exactly the gap this function has to close. Mirrors the
+    // pickZoneWestOfHost convention used by the week-calendar timezone suites.
+    const reference = new Date(2026, 6, 7);
+    const hostOffset = -reference.getTimezoneOffset();
+    const zoneOffsetMinutes = (timeZone: string): number => {
+      const utc = new Date(reference.toLocaleString('en-US', { timeZone: 'UTC' }));
+      const zoned = new Date(reference.toLocaleString('en-US', { timeZone }));
+      return Math.round((zoned.getTime() - utc.getTime()) / 60_000);
+    };
+    const zone = ['Pacific/Pago_Pago', 'America/Los_Angeles', 'America/Sao_Paulo'].find(
+      (candidate) => zoneOffsetMinutes(candidate) <= hostOffset - 360
+    );
+    if (!zone) throw new Error('No candidate timezone is far enough west of the test host.');
+    setPreferredTimeZone(zone);
+
+    const noon = buildPreferredTimeZoneDayInstant(2026, 7, 7);
+    const browserLocal = getBrowserLocalDateForPreferredCalendarDay(noon);
+    expect(browserLocal.getFullYear()).toBe(2026);
+    expect(browserLocal.getMonth()).toBe(6);
+    expect(browserLocal.getDate()).toBe(7);
   });
 
   it('getSystemTimeZone returns a valid timezone string', () => {

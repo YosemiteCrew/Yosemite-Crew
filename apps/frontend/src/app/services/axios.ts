@@ -150,11 +150,21 @@ const shouldRedirectToSignIn = () => {
   return !pathname.startsWith('/signin');
 };
 
+// `reason=session-expired` is read by SignIn to show a "you were signed out"
+// notice - without it, a session lapsing mid-use looks identical to just
+// landing on the sign-in page, with no indication anything happened. A pure,
+// exported helper so the URL it builds is unit-testable directly - jsdom's
+// window.location.replace is not a configurable property in every environment,
+// so asserting against a mocked call site is not reliable.
+export const buildSignInRedirectUrl = (currentRoute: string): string => {
+  const next = encodeURIComponent(currentRoute);
+  return `/signin?next=${next}&reason=session-expired`;
+};
+
 const redirectToSignIn = () => {
   if (!shouldRedirectToSignIn()) return;
-  const next = encodeURIComponent(getCurrentRoute());
   try {
-    globalThis.window.location.replace(`/signin?next=${next}`);
+    globalThis.window.location.replace(buildSignInRedirectUrl(getCurrentRoute()));
   } catch (error) {
     logger.warn('Failed to redirect to sign in after auth loss', error);
   }

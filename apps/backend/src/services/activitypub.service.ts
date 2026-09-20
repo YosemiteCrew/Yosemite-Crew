@@ -42,6 +42,7 @@ import {
   guardedHttpsAgent,
 } from "src/utils/ap-url-guard";
 import { ApDeliveryQueue } from "src/queues/ap-delivery.queue";
+import { apAuthorityBase } from "src/services/ap-authority";
 
 // ─── Actor management ─────────────────────────────────────────────────────────
 
@@ -985,12 +986,6 @@ export interface DirectoryClinic {
   handle: string;
 }
 
-function directoryAuthorityBase(): string {
-  return (
-    process.env.AP_LICENSE_AUTHORITY_URL ?? "https://api.yosemitecrew.com"
-  ).replace(/\/$/, "");
-}
-
 const DIRECTORY_CACHE_TTL_MS = 60_000;
 const directoryCache = new Map<string, CachedPromise<DirectoryClinic[]>>();
 const DIRECTORY_CACHE_OPTIONS = { maxEntries: 8, pruneIntervalMs: 60_000 };
@@ -1038,7 +1033,7 @@ export async function setDirectoryListing(
   // accepts. Writing locally first would leave the settings toggle claiming the
   // clinic is listed whenever the authority is unreachable, which is the one
   // state a user cannot diagnose or correct from the UI.
-  const res = await fetch(`${directoryAuthorityBase()}/api/directory/listing`, {
+  const res = await fetch(`${apAuthorityBase()}/api/directory/listing`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${actor.licenseToken}`,
@@ -1092,7 +1087,7 @@ export async function listDirectory(
       orgId,
       DIRECTORY_CACHE_TTL_MS,
       async () => {
-        const res = await fetch(`${directoryAuthorityBase()}/api/directory`, {
+        const res = await fetch(`${apAuthorityBase()}/api/directory`, {
           headers: {
             ...(licenseToken
               ? { Authorization: `Bearer ${licenseToken}` }

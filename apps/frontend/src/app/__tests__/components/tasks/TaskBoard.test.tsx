@@ -103,20 +103,6 @@ jest.mock('@/app/stores/authStore', () => ({
   useAuthStore: (selector: any) => selector({ attributes: mockAuthAttributes }),
 }));
 
-jest.mock('@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle', () => ({
-  __esModule: true,
-  default: ({ onChange }: any) => (
-    <div>
-      <button type="button" onClick={() => onChange(false)}>
-        all-tasks
-      </button>
-      <button type="button" onClick={() => onChange(true)}>
-        my-tasks
-      </button>
-    </div>
-  ),
-}));
-
 jest.mock('@/app/ui/primitives/GlassTooltip/GlassTooltip', () => ({
   __esModule: true,
   default: ({ content, children }: any) => <div data-testid={`tooltip-${content}`}>{children}</div>,
@@ -587,10 +573,13 @@ describe('TaskBoard', () => {
     );
     // identity.name branch: resolveMemberName('unnamed') === '-' → identity.name 'Display Only'.
     expect(screen.getByText('Display Only')).toBeInTheDocument();
-    // resolved truthy: unknown id 'ghost' shows raw id.
+    // resolved truthy and genuinely meaningful ('ghost' is what resolveMemberName
+    // itself returned, not a raw id slipping through unresolved) - shown as-is.
     expect(screen.getByText('ghost')).toBeInTheDocument();
-    // resolved '-' + no identity → raw id 'lost'.
-    expect(screen.getByText('lost')).toBeInTheDocument();
+    // resolved '-' + no identity + no team-map entry for 'lost': must read as
+    // unknown, never as the raw id it failed to resolve. getMetaAssigneeName
+    // blanks a '-' name entirely, so the regression guard is the id's absence.
+    expect(screen.queryByText('lost')).not.toBeInTheDocument();
   });
 
   it('adds a task from the Pending column quick-add affordance', () => {
@@ -632,11 +621,16 @@ describe('TaskBoard', () => {
     expect(screen.getByText('Task One')).toBeInTheDocument();
     expect(screen.getByText('Task Two')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('my-tasks'));
+    /* The real SegmentedPill, not a stub. The stub that used to stand here
+       rendered its own "all-tasks"/"my-tasks" buttons and dropped `allLabel` and
+       `mineLabel` entirely, so it could not see that the board named the wide
+       scope "All tasks" while the list view of the same page named it "Team".
+       Both read TASK_SCOPE_OPTIONS now. */
+    fireEvent.click(screen.getByRole('button', { name: 'My tasks' }));
     expect(screen.getByText('Task One')).toBeInTheDocument();
     expect(screen.queryByText('Task Two')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('all-tasks'));
+    fireEvent.click(screen.getByRole('button', { name: 'Team' }));
     expect(screen.getByText('Task Two')).toBeInTheDocument();
   });
 
@@ -975,7 +969,7 @@ describe('TaskBoard', () => {
         },
       ] as any,
     });
-    fireEvent.click(screen.getByText('my-tasks'));
+    fireEvent.click(screen.getByRole('button', { name: 'My tasks' }));
     expect(screen.getByText('Mine')).toBeInTheDocument();
     expect(screen.queryByText('Theirs')).not.toBeInTheDocument();
   });

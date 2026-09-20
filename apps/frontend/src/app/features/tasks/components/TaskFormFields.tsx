@@ -6,7 +6,7 @@ import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import Timepicker from '@/app/ui/inputs/Timepicker';
 import { Option } from '@/app/features/companions/types/companion';
 import { Task, TaskKindOptions, TaskPriorityOptions } from '@/app/features/tasks/types/task';
-import TaskAssigneeChips from '@/app/features/tasks/components/TaskAssigneeChips';
+import TaskAssigneeSelect from '@/app/features/tasks/components/TaskAssigneeSelect';
 import { TaskFormErrors } from '@/app/lib/taskForm';
 import {
   offsetToReminderValue,
@@ -113,8 +113,8 @@ const TaskFormFields = ({
     />
   ) : null;
 
-  const assignToChips = assigneeChips ? (
-    <TaskAssigneeChips
+  const assigneeSelectField = assigneeChips ? (
+    <TaskAssigneeSelect
       teamOptions={teamOptions}
       parentOptions={parentOptions}
       audience={formData.audience}
@@ -274,7 +274,7 @@ const TaskFormFields = ({
         {templateField}
         {taskField}
         {categoryField}
-        {assignToChips}
+        {assigneeSelectField}
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
           {dueField}
           {timeField}

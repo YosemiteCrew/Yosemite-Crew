@@ -52,7 +52,8 @@ interface TabLayout {
 
 export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const {state, navigation} = props;
-  const {theme} = useTheme();
+  const {theme, isDark} = useTheme();
+  const glassScheme = isDark ? 'dark' : 'light';
   const dispatch = useDispatch<AppDispatch>();
   const companions = useSelector((s: RootState) => s.companion.companions);
   const selectedCompanionIdFromState = useSelector(
@@ -188,7 +189,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
             // navActive, an ink picked for this pale wash; tinting with solid
             // blue put dark blue on blue and measured 1.52:1.
             tintColor={theme.colors.navActiveBg}
-            colorScheme="light"
+            colorScheme={glassScheme}
             interactive
           />
         ) : (
@@ -272,8 +273,8 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
             {...(useGlass
               ? {
                   effect: 'clear' as const,
-                  tintColor: theme.colors.whiteOverlay70,
-                  colorScheme: 'light' as const,
+                  tintColor: theme.colors.glassBarTint,
+                  colorScheme: glassScheme,
                   interactive: false,
                 }
               : {})}>
@@ -281,7 +282,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
               <>
                 <BlurView
                   style={StyleSheet.absoluteFill}
-                  blurType="light"
+                  blurType={glassScheme}
                   blurAmount={22}
                   reducedTransparencyFallbackColor={theme.colors.glassPill}
                 />

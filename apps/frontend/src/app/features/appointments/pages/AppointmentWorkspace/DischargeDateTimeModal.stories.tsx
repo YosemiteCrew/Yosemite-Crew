@@ -309,7 +309,7 @@ const meta = {
           'Measured: light 6.23 / 6.05 / 11.6, dark 5.49 / **4.69** / 9.20. The field label in ' +
           'dark is the pairing with no headroom left.\n\n' +
           'The tint itself is checked by hue lean rather than by contrast against the dialog, ' +
-          'because in light `#fdebea` on `#f7f3ec` is 1.04:1 on purpose - a "these are different ' +
+          'because in light the danger tint on `--screen` is 1.04:1 on purpose - a "these are different ' +
           'colours" assertion would pass on a token that had drifted to within one digit of the ' +
           'surface.\n\n' +
           'Two behaviours are also only reachable from a play function. `isSaving` locks the ' +
@@ -403,7 +403,7 @@ export const GateBlocked: Story = {
         story:
           'The branch nothing had drawn. A `rounded-2xl bg-danger-100 p-3` panel slides in above ' +
           "the pickers with the backend's own sentence, a two-row textarea and a relabelled " +
-          'confirm. In light the tint is a flat `#fdebea` and the sentence is `#a6271d` on it, ' +
+          'confirm. In light the tint is flat and the sentence uses `--danger-text` on it, ' +
           'measured here at 6.23:1. The play function types a reason, so the field ink is checked ' +
           'against real text rather than against a placeholder, and the confirm is asserted to ' +
           'flip from disabled to enabled on the first non-blank character.',
@@ -422,8 +422,8 @@ export const GateBlockedDark: Story = {
       description: {
         story:
           'The same measurements against a ground that no longer exists as a single colour. ' +
-          '`--color-danger-100` flips from `#fdebea` to `rgba(234, 55, 41, 0.18)`, so the panel ' +
-          "is red at 18% over the dialog's `#2f271e` - `rgb(81, 42, 32)` once composited. " +
+          '`--color-danger-100` flips from a flat tint to a translucent one, so the panel ' +
+          'is red at 18% over the dialog ground once composited. ' +
           'Against it the sentence reads 5.49:1, the field label 4.69:1 and the typed text ' +
           '9.20:1. The label is the one with no headroom left, which is exactly the pairing a ' +
           'token sweep would break silently.',

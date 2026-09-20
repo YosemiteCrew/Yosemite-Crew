@@ -114,6 +114,30 @@ describe('TaskMonthDateSelector', () => {
     expect(onMonthChange).toHaveBeenCalledWith(getNextMonth(CURRENT_MONTH));
   });
 
+  it('advances from January 31 to February, not March', () => {
+    const jan31 = new Date(2025, 0, 31);
+    renderSelector({currentMonth: jan31, selectedDate: jan31});
+    const pressables = screen.UNSAFE_getAllByType(PressableType);
+    fireEvent.press(pressables[1]); // right arrow / next month
+
+    expect(onMonthChange).toHaveBeenCalledTimes(1);
+    const result: Date = onMonthChange.mock.calls[0][0];
+    expect(result.getFullYear()).toBe(2025);
+    expect(result.getMonth()).toBe(1); // February
+  });
+
+  it('goes back from March 31 to February, not remaining in March', () => {
+    const mar31 = new Date(2025, 2, 31);
+    renderSelector({currentMonth: mar31, selectedDate: mar31});
+    const pressables = screen.UNSAFE_getAllByType(PressableType);
+    fireEvent.press(pressables[0]); // left arrow / previous month
+
+    expect(onMonthChange).toHaveBeenCalledTimes(1);
+    const result: Date = onMonthChange.mock.calls[0][0];
+    expect(result.getFullYear()).toBe(2025);
+    expect(result.getMonth()).toBe(1); // February
+  });
+
   it('calls onDateSelect when a current-month date is pressed', () => {
     renderSelector();
     const weekDates = getMonthDates(CURRENT_MONTH, SELECTED_DATE);
@@ -258,5 +282,33 @@ describe('TaskMonthDateSelector', () => {
       unmount();
       jest.runAllTimers();
     }).not.toThrow();
+  });
+
+  it('cancels a pending scroll when the selected date changes before its timers fire', () => {
+    const {rerender} = renderSelector();
+    // Reselect before either of the first date's pending timers (100ms/400ms)
+    // fires.
+    rerender(
+      <TaskMonthDateSelector
+        currentMonth={CURRENT_MONTH}
+        selectedDate={new Date(2025, 5, 16)}
+        datesWithTasks={new Set<string>()}
+        onDateSelect={onDateSelect}
+        onMonthChange={onMonthChange}
+        theme={mockTheme}
+      />,
+    );
+
+    jest.runAllTimers();
+
+    // Every call must target June 16 (index 15) - a call targeting June 15
+    // (index 14) would mean the superseded timers fired anyway and snapped
+    // the strip back to the date the user already moved off of.
+    expect(mockScrollToIndex).toHaveBeenCalledTimes(2);
+    for (const call of mockScrollToIndex.mock.calls) {
+      expect(call[0]).toEqual(
+        expect.objectContaining({index: 15, viewPosition: 0.5, animated: true}),
+      );
+    }
   });
 });

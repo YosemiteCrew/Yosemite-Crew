@@ -305,7 +305,12 @@ const BillRow = ({
     <li className={`${ROW_GRID} text-body-4 text-text-primary ${hasDiscountMeta ? 'pb-2' : ''}`}>
       <TextCell className="min-w-0">
         <span className="inline-flex min-w-0 items-center gap-1">
-          <span className="truncate">{item.name}</span>
+          {/* The billed item name clips in this column - on dev "Anal Gland
+              Expression" renders 150px of text in an 88px box. It is what the
+              client is being charged for, so it needs to be readable. */}
+          <span className="truncate" title={item.name}>
+            {item.name}
+          </span>
           <PackageBreakdownTooltip item={item} currency={currency} />
           {incomplete && (
             <InfoTooltipIcon
@@ -527,16 +532,16 @@ const TotalsFooter = ({
         </label>
         <FooterAmountRow label="Total Deposit" value={money(depositCents)} />
         <FooterAmountRow
-          label="Invoice Amount"
+          label="Invoice amount"
           value={money(totals.estimatedTotalCents)}
           valueStyle={{ color: PRIMARY_TEXT }}
         />
-        <FooterAmountRow label="Remaining Deposit" value={money(totals.remainingDepositCents)} />
+        <FooterAmountRow label="Remaining deposit" value={money(totals.remainingDepositCents)} />
       </div>
 
       <div className="flex h-full items-center justify-center py-1 lg:py-0">
         <div className="text-center">
-          <p style={FOOTER_LABEL_STYLE}>Total Amount</p>
+          <p style={FOOTER_LABEL_STYLE}>Total amount</p>
           <p className="text-right" style={FOOTER_TOTAL_VALUE_STYLE}>
             {money(totals.estimatedTotalCents)}
           </p>
