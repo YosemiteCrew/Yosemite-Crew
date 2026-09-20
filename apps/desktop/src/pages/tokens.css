@@ -62,7 +62,7 @@
   --ink-body: #302f2e;
   --ink-soft: #423f3c;
   --ink-muted: #5c5956;
-  --ink-faint: #8f8984;
+  --ink-faint: #66635f;
   --ink-faint2: #a9a39e;
 
   /* ── Brand / accents ── */
@@ -72,7 +72,7 @@
   --cta-hover: #1d1c1b;
   --cta-text: #ffffff;
   --blue: #257bed;
-  --blue-text: #257bed;
+  --blue-text: #1657c9;
   --blue-soft: #e6f2ff;
   --pink: #ff90d4;
 
@@ -134,7 +134,12 @@
   /* ── Typography ── */
   --font-satoshi:
     'Satoshi Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Newsreader', Georgia, 'Times New Roman', Times, serif;
+  /* Georgia leads because it is what actually renders. Newsreader led this list
+     but is not shipped: the only @font-face here is Satoshi, resources/fonts
+     holds only the Satoshi files, and every page's CSP is font-src file:, so
+     there is no source for it. Naming it first made the token describe a face
+     the app cannot load. Shipping Newsreader is a separate, visual change. */
+  --font-display: Georgia, 'Times New Roman', Times, serif;
 
   /* ── Radii / shadows / motion ── */
   --radius-sm: 8px;
@@ -165,7 +170,7 @@
     color-scheme: dark;
     --page: #201c18;
     --band: #2a2216;
-    --inset: #302820;
+    --inset: #3c332a;
     --screen: #2f271e;
     --screen-2: #221d17;
     --surface-soft: #2a2216;
@@ -179,7 +184,7 @@
     --ink-body: #e6ddd0;
     --ink-soft: #cabfb0;
     --ink-muted: #a89e90;
-    --ink-faint: #9d9285;
+    --ink-faint: #aba093;
     --ink-faint2: #8b8173;
     --nav-active: #8fb6f5;
     --nav-active-bg: rgba(143, 182, 245, 0.13);
@@ -242,7 +247,7 @@
   color-scheme: dark;
   --page: #201c18;
   --band: #2a2216;
-  --inset: #302820;
+  --inset: #3c332a;
   --screen: #2f271e;
   --screen-2: #221d17;
   --surface-soft: #2a2216;
@@ -256,7 +261,7 @@
   --ink-body: #e6ddd0;
   --ink-soft: #cabfb0;
   --ink-muted: #a89e90;
-  --ink-faint: #9d9285;
+  --ink-faint: #aba093;
   --ink-faint2: #8b8173;
   --nav-active: #8fb6f5;
   --nav-active-bg: rgba(143, 182, 245, 0.13);
@@ -332,14 +337,14 @@
   --ink-body: #302f2e;
   --ink-soft: #423f3c;
   --ink-muted: #5c5956;
-  --ink-faint: #8f8984;
+  --ink-faint: #66635f;
   --ink-faint2: #a9a39e;
   --nav-active: #1657c9;
   --nav-active-bg: rgba(37, 123, 237, 0.11);
   --cta: #302f2e;
   --cta-hover: #1d1c1b;
   --cta-text: #ffffff;
-  --blue-text: #257bed;
+  --blue-text: #1657c9;
   --blue-soft: #e6f2ff;
   --success: #008f5d;
   --warn-text: #b45309;
