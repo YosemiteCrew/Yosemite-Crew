@@ -18,6 +18,8 @@ type FormDescProps = {
   onFocus?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
   error?: string;
   className?: string;
+  /** When set, bounds the field and shows the visitor how much they have used. */
+  maxLength?: number;
 };
 
 const FormDesc = ({
@@ -34,9 +36,14 @@ const FormDesc = ({
   required = true,
   error,
   className,
+  maxLength,
 }: Readonly<FormDescProps>) => {
   const uid = useId();
   const messageId = error || hint ? `${uid}-message` : undefined;
+  const countId = maxLength === undefined ? undefined : `${uid}-count`;
+  /* Described rather than announced: a live region on a per-keystroke counter
+     reads the whole number out again on every character typed. */
+  const describedBy = [messageId, countId].filter(Boolean).join(' ') || undefined;
 
   return (
     <Field
@@ -47,22 +54,30 @@ const FormDesc = ({
       messageId={messageId}
       disabled={disabled}
     >
-      <Textarea
-        name={inname}
-        id={uid}
-        value={value ?? ''}
-        placeholder={placeholder ?? inlabel}
-        onChange={onChange}
-        onBlur={onBlur}
-        onFocus={onFocus}
-        autoComplete="off"
-        readOnly={readonly}
-        required={required}
-        disabled={disabled}
-        error={Boolean(error)}
-        aria-describedby={messageId}
-        className={className}
-      />
+      <>
+        <Textarea
+          name={inname}
+          id={uid}
+          value={value ?? ''}
+          placeholder={placeholder ?? inlabel}
+          onChange={onChange}
+          onBlur={onBlur}
+          onFocus={onFocus}
+          autoComplete="off"
+          readOnly={readonly}
+          required={required}
+          disabled={disabled}
+          error={Boolean(error)}
+          maxLength={maxLength}
+          aria-describedby={describedBy}
+          className={className}
+        />
+        {countId && (
+          <span id={countId} className="self-end text-xs text-[var(--ink-muted)]">
+            {`${(value ?? '').length} of ${maxLength} characters`}
+          </span>
+        )}
+      </>
     </Field>
   );
 };

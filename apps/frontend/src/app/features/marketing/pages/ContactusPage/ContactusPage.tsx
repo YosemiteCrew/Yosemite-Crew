@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useId, useState, type CSSProperties } from 'react';
-import { TicketCategory } from '@yosemite-crew/types';
+import { CONTACT_MESSAGE_MAX_LENGTH, TicketCategory } from '@yosemite-crew/types';
 import { isEmail } from 'validator';
 import axios from 'axios';
 import {
@@ -152,6 +152,14 @@ const errorLine: CSSProperties = {
   color: 'var(--color-danger-600)',
   fontSize: 14,
   marginTop: 4,
+  letterSpacing: '-0.01em',
+};
+
+const counterLine: CSSProperties = {
+  color: 'var(--ink-muted)',
+  fontSize: 13,
+  marginTop: 4,
+  textAlign: 'right',
   letterSpacing: '-0.01em',
 };
 
@@ -426,6 +434,11 @@ interface TextAreaFieldProps {
   error?: string;
 }
 
+/* Every use of this field is the contact `message`, which the SuperAdmin
+   mirror forwards verbatim and its intake refuses past
+   CONTACT_MESSAGE_MAX_LENGTH, so the bound lives here rather than at each call
+   site. The count is described rather than announced: a live region on a
+   per-keystroke counter reads the whole number out on every character. */
 function TextAreaField({
   label,
   ariaLabel,
@@ -437,6 +450,7 @@ function TextAreaField({
   error,
 }: Readonly<TextAreaFieldProps>) {
   const fieldId = useId();
+  const counterId = `${fieldId}-count`;
   const style: CSSProperties = {
     resize: 'vertical',
     minHeight: minHeight ?? 116,
@@ -455,8 +469,13 @@ function TextAreaField({
         value={value}
         aria-label={ariaLabel}
         placeholder={placeholder}
+        maxLength={CONTACT_MESSAGE_MAX_LENGTH}
+        aria-describedby={counterId}
         onChange={(e) => onChange(e.target.value)}
       />
+      <div id={counterId} style={counterLine}>
+        {`${value.length} of ${CONTACT_MESSAGE_MAX_LENGTH} characters`}
+      </div>
       {error ? <div style={errorLine}>{error}</div> : null}
     </div>
   );

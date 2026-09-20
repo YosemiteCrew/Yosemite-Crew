@@ -20,6 +20,7 @@ type FormInputProps = {
   error?: string;
   className?: string;
   tabIndex?: number;
+  maxLength?: number;
 };
 
 const FormInput = ({
@@ -39,6 +40,7 @@ const FormInput = ({
   error,
   className,
   tabIndex,
+  maxLength,
 }: Readonly<FormInputProps>) => {
   const uid = useId();
   const messageId = error || hint ? `${uid}-message` : undefined;
@@ -71,6 +73,7 @@ const FormInput = ({
         required={required}
         disabled={disabled}
         tabIndex={tabIndex}
+        maxLength={maxLength}
         error={Boolean(error)}
         aria-describedby={messageId}
         onFocus={onFocus}
