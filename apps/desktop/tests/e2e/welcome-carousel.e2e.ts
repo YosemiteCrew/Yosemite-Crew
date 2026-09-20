@@ -27,6 +27,33 @@ const visibleSlide = (page: Page): Promise<number> =>
   page.evaluate(() =>
     Array.from(document.querySelectorAll('.slide')).findIndex((s) => !(s as HTMLElement).inert)
   );
+
+// The two transient holds, read off the page rather than assumed. Every spec
+// below says which hold it is exercising and asserts the other one is not also
+// in force, because any one of them alone keeps the slides still and a spec
+// that does not check cannot tell which one it measured.
+const holds = (page: Page): Promise<{ hovering: boolean; focusWithin: boolean }> =>
+  page.evaluate(() => {
+    const carousel = document.getElementById('carousel')!;
+    // `:hover` matches the ancestors of the hovered element too, so this is
+    // exactly the condition welcome.js tracks from mouseenter/mouseleave.
+    return {
+      hovering: carousel.matches(':hover'),
+      focusWithin: carousel.contains(document.activeElement),
+    };
+  });
+
+// Put the pointer somewhere the carousel is not, and take focus out of it.
+// A CI runner starts with the OS cursor wherever it left it - Windows parks it
+// mid-screen - and Chromium hovers whatever the new window puts under it, with
+// no mouse movement needed. That hover held the carousel for the whole run: it
+// is why the control spec failed on windows-latest and passed on macos-latest,
+// and it means the three holding specs were each satisfied by a hover rather
+// than by the thing they name.
+const releaseHolds = async (page: Page): Promise<void> => {
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+};
 const ELECTRON_EXECUTABLE = electronPath as unknown as string;
 
 // `fakeClock` swaps the page's timers for Playwright's controllable clock, so
@@ -62,6 +89,7 @@ const launchWelcome = async (
     await page.waitForLoadState('domcontentloaded');
   }
   await page.waitForSelector('.dot');
+  await releaseHolds(page);
   return { app, page, userDataDir };
 };
 
@@ -134,6 +162,12 @@ test.describe('welcome carousel', () => {
     await expect(toggle).toHaveAttribute('aria-label', 'Play slideshow');
     await expect(toggle).toHaveAttribute('aria-pressed', 'true');
 
+    // The click left the pointer on the toggle and the focus in it, and the
+    // toggle is inside #carousel - so without this the hover and focus holds
+    // would keep the slides still whether or not the press did anything.
+    await releaseHolds(page);
+    expect(await holds(page)).toEqual({ hovering: false, focusWithin: false });
+
     // Paused means paused: the slide must still be the one the user left it on
     // well after the 4s interval that used to advance it unconditionally.
     const before = await visibleSlide(page);
@@ -150,6 +184,8 @@ test.describe('welcome carousel', () => {
     // Hovering already did this; a keyboard user on the dots had no equivalent
     // and watched their target move out from under them every four seconds.
     await page.locator('.dot').first().focus();
+    expect(await holds(page)).toEqual({ hovering: false, focusWithin: true });
+
     const before = await visibleSlide(page);
     await page.clock.runFor(THREE_INTERVALS);
     expect(await visibleSlide(page)).toBe(before);
@@ -168,6 +204,7 @@ test.describe('welcome carousel', () => {
     await expect
       .poll(() => page.evaluate(() => document.getElementById('carousel-toggle')!.hidden))
       .toBe(true);
+    expect(await holds(page)).toEqual({ hovering: false, focusWithin: false });
 
     const before = await visibleSlide(page);
     await page.clock.runFor(THREE_INTERVALS);
@@ -183,8 +220,24 @@ test.describe('welcome carousel', () => {
     userDataDir = launched.userDataDir;
     const { page } = launched;
 
+    expect(await holds(page)).toEqual({ hovering: false, focusWithin: false });
+
+    // Prove the driven clock fires this page's timers before reading the
+    // carousel: if it did not, this spec and the three above would all report
+    // "the slide did not move" and none of them would be measuring anything.
+    await page.evaluate(() => {
+      const w = globalThis as unknown as { ycTicks: number };
+      w.ycTicks = 0;
+      setInterval(() => {
+        w.ycTicks += 1;
+      }, 4000);
+    });
+
     const before = await visibleSlide(page);
     await page.clock.runFor(THREE_INTERVALS);
+    expect(
+      await page.evaluate(() => (globalThis as unknown as { ycTicks: number }).ycTicks)
+    ).toBeGreaterThanOrEqual(3);
     expect(await visibleSlide(page)).not.toBe(before);
   });
 });
