@@ -375,9 +375,25 @@ const layoutChromeStrip = (b: TabBounds, isVertical: boolean): void => {
   });
 };
 
+// The split panes leave a 1px gutter between them (SPLIT_DIVIDER_WIDTH); what
+// shows through is the window content view's own background, so it has to be
+// the hairline colour rather than the window's white, or the divider is
+// invisible against a white page. These are --hairline from tokens.css.
+const SPLIT_DIVIDER_COLOR = { light: '#e5dccf', dark: '#40362b' };
+
+const applySplitDividerColor = (): void => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  // nativeTheme.themeSource already follows the user's theme setting, so this
+  // needs no settings read and is cheap enough to run on every layout pass.
+  mainWindow.contentView.setBackgroundColor(
+    nativeTheme.shouldUseDarkColors ? SPLIT_DIVIDER_COLOR.dark : SPLIT_DIVIDER_COLOR.light
+  );
+};
+
 const layoutContentPanes = (b: TabBounds, isVertical: boolean): void => {
   const tvh = tabViewHost;
   if (!attachedTabId || !tvh || !mainWindow) return;
+  applySplitDividerColor();
   mountedSplitId = applyContentPaneLayout({
     host: tvh,
     surface: mainWindow.contentView,
@@ -607,11 +623,8 @@ const reopenClosedTab = (): void => {
 // Expand/collapse the chrome view for the search overlay and keep it on top.
 const setSplitTab = (id: string | null): void => {
   splitId = id;
-  if (tabChromeView && !tabChromeView.webContents.isDestroyed()) {
-    void tabChromeView.webContents
-      .executeJavaScript(`window.__ycSplitId = ${JSON.stringify(id)}`)
-      .catch((error) => logger.warn('split_id_js_failed', { error }));
-  }
+  // The tab bar reads the split tab from the polled `yc:tabs-get` state, which
+  // is always current; the old window.__ycSplitId injection was never read.
   layoutTabChrome();
 };
 

@@ -826,6 +826,16 @@ describe('ipc-handlers — happy paths', () => {
     expect(services.exitTabMode).toHaveBeenCalled();
   });
 
+  // #3301: the tab bar marks the tab mounted in the right-hand pane, so the
+  // split tab has to travel with the rest of the tab state.
+  test('yc:tabs-get reports the split tab alongside the active one', async () => {
+    const services = makeServices();
+    const call = register(services);
+    expect(await call('yc:tabs-get')).toMatchObject({ ok: true, splitId: null });
+    services.splitId = 't2';
+    expect(await call('yc:tabs-get')).toMatchObject({ ok: true, splitId: 't2' });
+  });
+
   test('yc:tab-close clears split state when the split tab is closed', async () => {
     const services = makeServices();
     const call = register(services);

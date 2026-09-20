@@ -313,6 +313,7 @@ describe('TabViewHost', () => {
       expect(onUpdate).toHaveBeenCalledWith('tab_1', {
         loading: true,
         error: null,
+        offline: false,
       });
     });
 
@@ -339,13 +340,55 @@ describe('TabViewHost', () => {
       expect(view.webContents.setZoomFactor).not.toHaveBeenCalled();
     });
 
-    it('did-fail-load calls onUpdate with error', () => {
+    it('did-fail-load calls onUpdate with error for a non-network failure', () => {
       const onUpdate = jest.fn();
       createHost({ onUpdate }).create('tab_1', 'https://example.com');
-      viewEventHandlers['did-fail-load']!(undefined, -3, 'ERR_CONNECTION_REFUSED');
+      viewEventHandlers['did-fail-load']!(undefined, -201, 'ERR_CERT_DATE_INVALID');
       expect(onUpdate).toHaveBeenCalledWith('tab_1', {
-        error: 'ERR_CONNECTION_REFUSED',
+        error: 'ERR_CERT_DATE_INVALID',
+        offline: false,
         loading: false,
+      });
+    });
+
+    // The tab bar draws the red error badge whenever `error` is set, so a tab
+    // that had only lost its connection claimed the page was broken while the
+    // page itself said "You're offline".
+    it('did-fail-load marks a network failure offline instead of errored', () => {
+      const onUpdate = jest.fn();
+      createHost({ onUpdate }).create('tab_1', 'https://example.com');
+      viewEventHandlers['did-fail-load']!(undefined, -106, 'ERR_INTERNET_DISCONNECTED');
+      expect(onUpdate).toHaveBeenCalledWith('tab_1', {
+        error: null,
+        offline: true,
+        loading: false,
+      });
+    });
+
+    it.each([
+      [-102, 'ERR_CONNECTION_REFUSED'],
+      [-105, 'ERR_NAME_NOT_RESOLVED'],
+    ])('did-fail-load treats %i as offline', (code, description) => {
+      const onUpdate = jest.fn();
+      createHost({ onUpdate }).create('tab_1', 'https://example.com');
+      viewEventHandlers['did-fail-load']!(undefined, code, description);
+      expect(onUpdate).toHaveBeenCalledWith('tab_1', {
+        error: null,
+        offline: true,
+        loading: false,
+      });
+    });
+
+    it('a reload clears the offline flag as well as the error', () => {
+      const onUpdate = jest.fn();
+      createHost({ onUpdate }).create('tab_1', 'https://example.com');
+      viewEventHandlers['did-fail-load']!(undefined, -106, 'ERR_INTERNET_DISCONNECTED');
+      onUpdate.mockClear();
+      viewEventHandlers['did-start-loading']!();
+      expect(onUpdate).toHaveBeenCalledWith('tab_1', {
+        loading: true,
+        error: null,
+        offline: false,
       });
     });
 

@@ -37,9 +37,15 @@ export interface ContentPaneLayout {
   verticalTabWidth: number;
 }
 
+// The two panes met edge to edge, so nothing marked where one view ended and
+// the next began. The left pane gives up its last pixel column and the window's
+// own background shows through as a hairline gutter; the right pane keeps its
+// origin so the split stays centred.
+export const SPLIT_DIVIDER_WIDTH = 1;
+
 export const contentPaneWidth = (pane: ContentPane, full: number, half: number): number => {
   if (pane === 'full') return full;
-  if (pane === 'left') return half;
+  if (pane === 'left') return Math.max(0, half - SPLIT_DIVIDER_WIDTH);
   return full - half;
 };
 
