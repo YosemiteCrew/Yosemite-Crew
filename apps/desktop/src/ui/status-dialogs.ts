@@ -77,7 +77,9 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
     const verified = events.filter((e) => e.witnessPinVerified).length;
     const unverified = events.length - verified;
     const line = `Witness-verified waste events: ${verified}`;
-    return unverified > 0 ? `${line}\nWaste events WITHOUT a verified witness: ${unverified}` : line;
+    return unverified > 0
+      ? `${line}\nWaste events WITHOUT a verified witness: ${unverified}`
+      : line;
   };
 
   // A daily log or biennial report built from a register that lost records is
@@ -99,6 +101,21 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
       detail,
       buttons: ['OK'],
     });
+  };
+
+  const warningDialog = (message: string, detail: string): void => {
+    void dialog.showMessageBox({
+      type: 'warning',
+      message,
+      detail,
+      buttons: ['OK'],
+    });
+  };
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1048576).toFixed(1)} MB`;
   };
 
   return {
@@ -123,10 +140,15 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
       const quarantine = integrity.quarantinePath
         ? `\nDamaged log preserved at: ${integrity.quarantinePath}`
         : '';
-      infoDialog(
-        'Audit Trail Integrity',
-        `Total entries: ${deps.auditLog.size()}\n${signatureLines}\nHash chain intact: ${chainIntact ? 'yes' : 'NO'}${problem}${quarantine}`
-      );
+      const hasProblem =
+        !integrity.ok || !chainIntact || (integrity.signingKey !== 'session-only' && tampered > 0);
+      const message = hasProblem ? 'Audit trail problem found' : 'Audit Trail Integrity';
+      const detail = `Total entries: ${deps.auditLog.size()}\n${signatureLines}\nHash chain intact: ${chainIntact ? 'yes' : 'NO'}${problem}${quarantine}`;
+      if (hasProblem) {
+        warningDialog(message, detail);
+      } else {
+        infoDialog(message, detail);
+      }
     },
 
     exportCsDailyLog: (): void => {
@@ -135,17 +157,32 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
         return;
       }
       const result = deps.csExport.exportDailyLog();
+      const warning = registerWarning();
       if (!result) {
-        infoDialog(
-          'Controlled-Substance Export',
-          `No controlled-substance transactions to export for today.${registerWarning()}`
-        );
+        if (warning) {
+          warningDialog(
+            'Controlled-Substance Export',
+            `No controlled-substance transactions to export for today.${warning}`
+          );
+        } else {
+          infoDialog(
+            'Controlled-Substance Export',
+            'No controlled-substance transactions to export for today.'
+          );
+        }
         return;
       }
-      infoDialog(
-        'Controlled-Substance Export',
-        `Exported ${result.rowCount} row(s) to:\n${result.filePath}${registerWarning()}`
-      );
+      if (warning) {
+        warningDialog(
+          'Controlled-Substance Export',
+          `Exported ${result.rowCount} row(s) to:\n${result.filePath}${warning}`
+        );
+      } else {
+        infoDialog(
+          'Controlled-Substance Export',
+          `Exported ${result.rowCount} row(s) to:\n${result.filePath}`
+        );
+      }
     },
 
     showDeaStatus: (): void => {
@@ -224,7 +261,7 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
           format: selectedFormat.name,
         });
         const warning = registerWarning();
-        if (warning) infoDialog('DEA Report', `Saved to:\n${result}${warning}`);
+        if (warning) warningDialog('DEA Report', `Saved to:\n${result}${warning}`);
       } catch (error) {
         deps.logger.error('dea_report_save_failed', { error });
         dialog.showErrorBox('DEA Report', 'Failed to save the report.');
@@ -250,10 +287,14 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
         return;
       }
       const stats = deps.documentVault.getStats();
+      const encryptionAvailable = deps.safeStorage.isEncryptionAvailable();
+      const encryptionStatus = encryptionAvailable
+        ? 'OS keychain'
+        : 'unavailable. New documents cannot be stored. Documents saved earlier stay encrypted.';
       infoDialog(
         'Document Vault',
-        `Stored documents: ${stats.count}\nTotal size: ${Math.round(stats.totalSizeBytes / 1024)} KB\n` +
-          `Encryption: ${deps.safeStorage.isEncryptionAvailable() ? 'OS keychain (safeStorage)' : 'unavailable (plaintext fallback)'}`
+        `Stored documents: ${stats.count}\nTotal size: ${formatBytes(stats.totalSizeBytes)}\n` +
+          `Encryption: ${encryptionStatus}`
       );
     },
 

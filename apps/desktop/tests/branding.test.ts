@@ -5,7 +5,7 @@ describe('aboutPanelOptions', () => {
     const options = aboutPanelOptions('1.2.3', 2026);
     expect(options.applicationName).toBe('Yosemite Crew PIMS');
     expect(options.applicationVersion).toBe('1.2.3');
-    expect(options.version).toBe('1.2.3');
+    expect(options.version).toBe('');
     expect(options.copyright).toBe('© 2026 Yosemite Crew');
     expect(options.website).toBe('https://yosemitecrew.com');
   });
