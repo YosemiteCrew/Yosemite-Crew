@@ -218,15 +218,15 @@
         margin: 0 6px;
         transition: background 0.3s;
       }
-      #sync-badge.synced {
+      /* One rule per SyncState in src/sync/sync-status.ts. `idle` is the healthy
+         state and MUST stay here: an unstyled class draws no dot at all, which
+         is how the "everything is synced" signal went missing. */
+      #sync-badge.idle {
         background: var(--color-success-bright);
-      }
-      #sync-badge.syncing {
-        background: var(--color-warning-600);
-        animation: sync-pulse 1.2s ease-in-out infinite;
       }
       #sync-badge.pending {
         background: var(--color-warning-600);
+        animation: sync-pulse 1.2s ease-in-out infinite;
       }
       #sync-badge.offline {
         background: var(--color-danger-600);
@@ -263,7 +263,21 @@
           data-shortcut-title="Search tabs"
           data-shortcut="Mod+Shift+Y"
         >
-          ⌕
+          <!-- Satoshi has no glyph for U+2315, so the character the button used
+               fell back to a ~7px system one. Same SVG as vault.html and
+               command-palette.html. -->
+          <svg
+            class="tab-action-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.2-3.2" />
+          </svg>
         </button>
         <button
           id="new-tab-btn"
@@ -274,7 +288,13 @@
         >
           +
         </button>
-        <div id="sync-badge" class="not-ready" title="Sync status"></div>
+        <div
+          id="sync-badge"
+          class="not-ready"
+          role="status"
+          title="Initializing"
+          aria-label="Sync: Initializing"
+        ></div>
       </div>
       <div id="win-caption" class="win-caption">
         <button id="win-min" class="win-btn" type="button" aria-label="Minimize" title="Minimize">
@@ -402,6 +422,7 @@
     </div>
 
     <script src="platform-labels.js"></script>
+    <script src="tab-indicators.js"></script>
     <script src="window-caption.js"></script>
     <script>
       const tabStrip = document.getElementById('tab-strip');
@@ -409,7 +430,7 @@
       const contextMenu = document.getElementById('context-menu');
       const yc = globalThis.ycDesktop;
 
-      const state = { tabs: [], activeId: null, closedStack: [] };
+      const state = { tabs: [], activeId: null, splitId: null, closedStack: [] };
       let dragSrcId = null;
       let dragDropped = false;
 
@@ -590,15 +611,33 @@
         });
       };
 
+      // Drawn rather than set as text: the app font has no glyph for the page
+      // and warning characters, which is how the search button ended up as a
+      // 7px system fallback.
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      const buildPageIcon = () => {
+        const svg = document.createElementNS(SVG_NS, 'svg');
+        svg.setAttribute('class', 'tab-page-icon');
+        svg.setAttribute('viewBox', '0 0 16 16');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '1.4');
+        svg.setAttribute('stroke-linejoin', 'round');
+        svg.setAttribute('aria-hidden', 'true');
+        const page = document.createElementNS(SVG_NS, 'path');
+        page.setAttribute('d', 'M3.5 2.5h6l3 3v8h-9z');
+        const fold = document.createElementNS(SVG_NS, 'path');
+        fold.setAttribute('d', 'M9.5 2.5v3h3');
+        svg.appendChild(page);
+        svg.appendChild(fold);
+        return svg;
+      };
+
       const buildTabInner = (tab) => {
         const inner = document.createElement('div');
         inner.className = 'tab-inner';
 
-        if (tab.loading) {
-          const spinner = document.createElement('span');
-          spinner.className = 'tab-spinner';
-          inner.appendChild(spinner);
-        } else if (tab.favicon) {
+        const buildFavicon = () => {
           const img = document.createElement('img');
           img.className = 'tab-favicon';
           img.src = tab.favicon;
@@ -606,18 +645,54 @@
           img.onerror = () => {
             img.style.display = 'none';
           };
-          inner.appendChild(img);
+          return img;
+        };
+
+        const buildSpinner = () => {
+          const spinner = document.createElement('span');
+          spinner.className = 'tab-spinner';
+          return spinner;
+        };
+
+        // A pinned tab is 48px wide, so the label only ever rendered as "Ap…"
+        // or a bare ellipsis. It shows one glyph instead; the full title stays
+        // in the tooltip and the tab's accessible name.
+        if (tab.pinned) {
+          const glyph = ycTabIndicators.pinnedGlyph(tab);
+          if (tab.loading) {
+            inner.appendChild(buildSpinner());
+          } else if (glyph.kind === 'favicon') {
+            inner.appendChild(buildFavicon());
+          } else if (glyph.kind === 'monogram') {
+            const mono = document.createElement('span');
+            mono.className = 'tab-monogram';
+            mono.textContent = glyph.text;
+            mono.setAttribute('aria-hidden', 'true');
+            inner.appendChild(mono);
+          } else {
+            inner.appendChild(buildPageIcon());
+          }
+        } else {
+          if (tab.loading) {
+            inner.appendChild(buildSpinner());
+          } else if (tab.favicon) {
+            inner.appendChild(buildFavicon());
+          }
+
+          const label = document.createElement('span');
+          label.className = 'tab-label';
+          label.textContent = tab.title;
+          inner.appendChild(label);
         }
 
-        const label = document.createElement('span');
-        label.className = 'tab-label';
-        label.textContent = tab.title;
-        inner.appendChild(label);
-
-        if (tab.error || tab.offline) {
+        const badgeView = ycTabIndicators.tabBadge(tab);
+        if (badgeView) {
           const badge = document.createElement('span');
-          badge.className = 'tab-badge ' + (tab.error ? 'tab-badge--error' : 'tab-badge--offline');
-          badge.textContent = tab.error ? '!' : '\u26A0';
+          badge.className = badgeView.className;
+          badge.textContent = badgeView.text;
+          badge.title = badgeView.title;
+          badge.setAttribute('role', 'img');
+          badge.setAttribute('aria-label', badgeView.label);
           inner.appendChild(badge);
         }
 
@@ -664,12 +739,19 @@
         div.className =
           'tab' +
           (tab.id === state.activeId ? ' tab--active' : '') +
-          (tab.pinned ? ' tab--pinned' : '');
+          (tab.pinned ? ' tab--pinned' : '') +
+          (tab.id === state.splitId ? ' tab--split' : '');
         div.setAttribute('role', 'tab');
         div.setAttribute('aria-selected', String(tab.id === state.activeId));
         div.dataset.tabId = tab.id;
         div.setAttribute('draggable', 'true');
         div.title = tab.title;
+        // A pinned tab renders no text, and the split tab's only other marker
+        // is a colour, so both need the name spelled out.
+        div.setAttribute(
+          'aria-label',
+          tab.id === state.splitId ? tab.title + ' (split view)' : tab.title
+        );
 
         wireTabDrag(div, tab);
 
@@ -703,6 +785,7 @@
         state.tabs = newState.tabs || [];
         state.activeId = newState.activeId;
         state.closedStack = newState.closedStack || [];
+        state.splitId = newState.splitId || null;
         if (newState.orientation) {
           document.getElementById('tabbar').dataset.orientation = newState.orientation;
         }
@@ -719,18 +802,10 @@
           if (!res || !res.status) return;
           const badge = document.getElementById('sync-badge');
           if (!badge) return;
-          const s = res.status.state || 'not-ready';
-          badge.className = s;
-          const labels = {
-            synced: 'Synced',
-            syncing: 'Syncing…',
-            pending: 'Pending changes',
-            offline: 'Offline',
-            error: 'Sync error',
-            'not-ready': 'Initializing',
-            blocked: 'Waiting for endpoint',
-          };
-          badge.title = labels[s] || s;
+          const view = ycTabIndicators.syncBadge(res.status.state || 'not-ready');
+          badge.className = view.className;
+          badge.title = view.label;
+          badge.setAttribute('aria-label', view.ariaLabel);
         } catch {
           /* ignore sync poll errors */
         }

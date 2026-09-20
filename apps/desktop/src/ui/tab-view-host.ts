@@ -8,6 +8,7 @@ import {
   type WindowOpenHandlerResponse,
 } from 'electron';
 import type { DesktopLogger } from '../utils/logger';
+import { loadFailureMeta } from './load-error';
 
 interface TabMetaUpdate {
   url?: string;
@@ -124,7 +125,7 @@ export const createTabViewHost = (deps: TabViewHostDeps): TabViewHost => {
 
       view.webContents.on('did-start-loading', () => {
         deps.logger.debug('tab_start_loading', { id });
-        deps.onUpdate?.(id, { loading: true, error: null });
+        deps.onUpdate?.(id, { loading: true, error: null, offline: false });
       });
 
       view.webContents.on('did-stop-loading', () => {
@@ -141,7 +142,10 @@ export const createTabViewHost = (deps: TabViewHostDeps): TabViewHost => {
         'did-fail-load',
         (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
           deps.logger.warn('tab_fail_load', { id, error: errorDescription });
-          deps.onUpdate?.(id, { error: errorDescription, loading: false });
+          // A lost connection gets the offline badge and a page error the red
+          // error badge; setting `error` for both is what made every offline
+          // tab claim the page was broken.
+          deps.onUpdate?.(id, { ...loadFailureMeta(errorCode, errorDescription), loading: false });
           // errorCode -3 is ERR_ABORTED, fired on intentional redirect/cancel
           // (e.g. an external link handed off by the nav policy) — not a real
           // failure. Only surface genuine main-frame load failures.
