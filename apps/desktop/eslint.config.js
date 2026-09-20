@@ -80,7 +80,12 @@ module.exports = [
     // These are loaded twice over: as page scripts by the local pages, and as
     // CommonJS modules by their unit tests. The CommonJS export is behind a
     // `typeof module` guard, so both globals are legitimately in play.
-    files: ['src/pages/platform-labels.js', 'src/pages/window-caption.js'],
+    files: [
+      'src/pages/platform-labels.js',
+      'src/pages/window-caption.js',
+      'src/pages/tabbar-a11y.js',
+      'src/pages/tab-strip-diff.js',
+    ],
     languageOptions: {
       globals: {
         ...globals.browser,
