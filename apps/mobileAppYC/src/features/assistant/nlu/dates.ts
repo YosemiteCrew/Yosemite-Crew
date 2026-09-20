@@ -111,15 +111,46 @@ const parseMeridiemTime = (normalized: string): ClockTime | null => {
   return {hour: (rawHour % 12) + (match[3] === 'pm' ? 12 : 0), minute};
 };
 
-/** "20:30" - a bare 24-hour reading. */
+/**
+ * Units that mark a dotted number as a measured dose, not a clock reading.
+ *
+ * "0.25 ml" and "1.25 mg" are among the commonest things an owner says here,
+ * and in this domain a dot is a decimal point far more often than it is a
+ * clock separator. The fraction only has to land in 00-59 to read as valid
+ * minutes, which .25, .30 and .50 all do - so the dose became the hour and
+ * "give Max 0.25 ml tomorrow" scheduled the reminder for twenty-five past
+ * midnight instead of the 09:00 default. That is the mis-scheduled dose this
+ * module's header exists to prevent.
+ *
+ * The guard is not limited to the dot form, because a colon reading followed
+ * by a unit ("8:30 ml") is not something anyone says - narrowing it would add
+ * a branch no utterance can tell apart. The trailing `\b` is what keeps a
+ * real time from being skipped: in "at 20.30 go out", `g` is not followed by
+ * a boundary, so "go" is not the unit `g`.
+ */
+const DOSE_UNIT_AFTER =
+  /^\s*(?:ml|mls|l|mg|mcg|ug|g|kg|cc|iu|units?|tabs?|tablets?|caps?|capsules?|drops?|pills?|sachets?|scoops?|puffs?|sprays?)\b/;
+
+/**
+ * "20:30" - a bare 24-hour reading, and "20.30" where the dot separates.
+ *
+ * Every candidate is read rather than only the first, so a dose that is
+ * skipped does not hide a time said after it ("give 0.25 ml at 20.30"), and
+ * an unreadable one does not either ("0.75 ml" has no valid minute).
+ */
 const parse24HourTime = (normalized: string): ClockTime | null => {
-  const match = /\b(\d{1,2})\s*[:.]\s*(\d{2})\b/.exec(normalized);
-  if (!match) {
-    return null;
+  for (const match of normalized.matchAll(/\b(\d{1,2})\s*[:.]\s*(\d{2})\b/g)) {
+    const [whole, rawHour, rawMinute] = match;
+    if (DOSE_UNIT_AFTER.test(normalized.slice(match.index + whole.length))) {
+      continue;
+    }
+    const hour = Number(rawHour);
+    const minute = Number(rawMinute);
+    if (hour < 24 && minute < 60) {
+      return {hour, minute};
+    }
   }
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  return hour < 24 && minute < 60 ? {hour, minute} : null;
+  return null;
 };
 
 /**
