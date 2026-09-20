@@ -7,7 +7,7 @@
  * message with the channel action context's jumpToMessage. Debounced 300ms.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useChannelStateContext, useChannelActionContext } from 'stream-chat-react';
 import type { MessageResponse } from 'stream-chat';
 import { IoClose, IoSearchOutline } from 'react-icons/io5';
@@ -24,6 +24,7 @@ export function MessageSearch() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MessageResponse[]>([]);
   const [searching, setSearching] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const trimmed = query.trim();
   const searchKey = open && trimmed && channel ? trimmed : null;
@@ -63,6 +64,14 @@ export function MessageSearch() {
     };
   }, [trimmed, open, channel]);
 
+  // Focus the field when the panel opens. `autoFocus` did this declaratively
+  // and is indistinguishable from focusing on page load, which is the
+  // accessibility problem it is flagged for; this only fires on the render
+  // where the user has just opened the panel themselves.
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
+
   const hasQuery = trimmed.length > 0;
 
   return (
@@ -93,7 +102,7 @@ export function MessageSearch() {
             <div className="flex min-h-12 items-center gap-2 rounded-full border border-[var(--hairline)] bg-[var(--field-bg)] px-4 py-2.5 transition-colors focus-within:border-[var(--blue)]">
               <IoSearchOutline className="h-4 w-4 shrink-0 text-input-text-placeholder" />
               <input
-                autoFocus
+                ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search in conversation…"
