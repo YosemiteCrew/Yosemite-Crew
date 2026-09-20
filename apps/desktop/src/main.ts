@@ -627,10 +627,19 @@ const setTabOrientation = (mode: 'horizontal' | 'vertical'): void => {
   layoutTabChrome();
 };
 
+// Both tab-bar overlays live in the chrome view. Raising the view is not
+// enough on its own: the overlays are modal dialogs, and showModal() can only
+// move focus inside its own document, so opening one from the menu used to
+// leave a caret blinking in the search field while the keystrokes went to the
+// page underneath. Closing hands the keyboard back rather than stranding it in
+// a 40px strip with nothing focusable in it.
 const setTabSearch = (open: boolean): void => {
   tabSearchOpen = open;
   if (open && tabChromeView && mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.contentView.addChildView(tabChromeView); // raise above content
+    tabChromeView.webContents.focus();
+  } else if (!open) {
+    activeContents()?.focus();
   }
   layoutTabChrome();
 };
