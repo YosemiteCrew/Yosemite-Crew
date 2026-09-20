@@ -30,7 +30,7 @@
   };
 
   const muteLabel = function (tab) {
-    return (tab && tab.muted ? 'Unmute ' : 'Mute ') + tabName(tab);
+    return (tab?.muted ? 'Unmute ' : 'Mute ') + tabName(tab);
   };
 
   // Roving tabindex: exactly one tab is in the document's tab order, so Tab
@@ -57,7 +57,7 @@
 
   const keyAction = function (key, orientation) {
     const arrows = ARROWS[orientation === 'vertical' ? 'vertical' : 'horizontal'];
-    if (Object.prototype.hasOwnProperty.call(arrows, key)) return arrows[key];
+    if (Object.hasOwn(arrows, key)) return arrows[key];
     if (key === 'Home') return 'first';
     if (key === 'End') return 'last';
     if (key === 'Enter' || key === ' ' || key === 'Spacebar') return 'activate';
