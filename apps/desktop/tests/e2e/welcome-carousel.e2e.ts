@@ -18,10 +18,31 @@ import path from 'node:path';
 // a PIMS tab once startSignin runs, which these specs deliberately never do.
 
 const APP_ROOT = path.resolve(__dirname, '..', '..');
+
+// Comfortably more than the 4s carousel interval that carousel-autoplay.js
+// declares, so "it did not advance" is a claim about three missed ticks.
+const THREE_INTERVALS = 12_000;
+
+const visibleSlide = (page: Page): Promise<number> =>
+  page.evaluate(() =>
+    Array.from(document.querySelectorAll('.slide')).findIndex((s) => !(s as HTMLElement).inert)
+  );
 const ELECTRON_EXECUTABLE = electronPath as unknown as string;
 
+// `fakeClock` swaps the page's timers for Playwright's controllable clock, so
+// a spec can say "four autoplay intervals passed" instead of sleeping through
+// them. That matters for more than speed: three of these specs assert a
+// NON-event - the slide did not change - and a fixed sleep can only ever say it
+// did not change within the sleep. Driving the clock makes the amount of time
+// that passed exact, and the last spec is the control that proves the driven
+// clock really does fire the autoplay interval, so the other three are not
+// passing simply because nothing is running.
+//
+// The clock has to be installed before the page's scripts run, and the welcome
+// screen is already loaded by the time the app hands us a window, so the page
+// is reloaded under it.
 const launchWelcome = async (
-  extraEnv: Record<string, string> = {}
+  options: { fakeClock?: boolean } = {}
 ): Promise<{ app: ElectronApplication; page: Page; userDataDir: string }> => {
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yc-e2e-welcome-'));
   const app = await electron.launch({
@@ -31,11 +52,15 @@ const launchWelcome = async (
       ...process.env,
       YC_DESKTOP_DISABLE_UPDATES: '1',
       YC_DESKTOP_USER_DATA_DIR: userDataDir,
-      ...extraEnv,
     },
   });
   const page = await app.firstWindow();
   await page.waitForLoadState('domcontentloaded');
+  if (options.fakeClock) {
+    await page.clock.install();
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+  }
   await page.waitForSelector('.dot');
   return { app, page, userDataDir };
 };
@@ -95,7 +120,7 @@ test.describe('welcome carousel', () => {
   });
 
   test('the pause control stops the carousel and names the action it will do next', async () => {
-    const launched = await launchWelcome();
+    const launched = await launchWelcome({ fakeClock: true });
     app = launched.app;
     userDataDir = launched.userDataDir;
     const { page } = launched;
@@ -111,18 +136,13 @@ test.describe('welcome carousel', () => {
 
     // Paused means paused: the slide must still be the one the user left it on
     // well after the 4s interval that used to advance it unconditionally.
-    const before = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('.slide')).findIndex((s) => !(s as HTMLElement).inert)
-    );
-    await page.waitForTimeout(5000);
-    const after = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('.slide')).findIndex((s) => !(s as HTMLElement).inert)
-    );
-    expect(after).toBe(before);
+    const before = await visibleSlide(page);
+    await page.clock.runFor(THREE_INTERVALS);
+    expect(await visibleSlide(page)).toBe(before);
   });
 
   test('keyboard focus inside the carousel holds the slide still', async () => {
-    const launched = await launchWelcome();
+    const launched = await launchWelcome({ fakeClock: true });
     app = launched.app;
     userDataDir = launched.userDataDir;
     const { page } = launched;
@@ -130,18 +150,13 @@ test.describe('welcome carousel', () => {
     // Hovering already did this; a keyboard user on the dots had no equivalent
     // and watched their target move out from under them every four seconds.
     await page.locator('.dot').first().focus();
-    const before = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('.slide')).findIndex((s) => !(s as HTMLElement).inert)
-    );
-    await page.waitForTimeout(5000);
-    const after = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('.slide')).findIndex((s) => !(s as HTMLElement).inert)
-    );
-    expect(after).toBe(before);
+    const before = await visibleSlide(page);
+    await page.clock.runFor(THREE_INTERVALS);
+    expect(await visibleSlide(page)).toBe(before);
   });
 
   test('reduced motion stops the slides, not only the sliding animation', async () => {
-    const launched = await launchWelcome();
+    const launched = await launchWelcome({ fakeClock: true });
     app = launched.app;
     userDataDir = launched.userDataDir;
     const { page } = launched;
@@ -154,38 +169,22 @@ test.describe('welcome carousel', () => {
       .poll(() => page.evaluate(() => document.getElementById('carousel-toggle')!.hidden))
       .toBe(true);
 
-    const before = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('.slide')).findIndex((s) => !(s as HTMLElement).inert)
-    );
-    await page.waitForTimeout(5000);
-    const after = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('.slide')).findIndex((s) => !(s as HTMLElement).inert)
-    );
-    expect(after).toBe(before);
+    const before = await visibleSlide(page);
+    await page.clock.runFor(THREE_INTERVALS);
+    expect(await visibleSlide(page)).toBe(before);
   });
 
   test('the carousel advances on its own when nothing is holding it', async () => {
-    // The negative control for the four specs above: if autoplay were broken
-    // outright rather than correctly suspended, every one of them would pass
-    // for the wrong reason.
-    const launched = await launchWelcome();
+    // The control for the three specs above, and for the driven clock itself:
+    // if autoplay were broken outright, or if runFor did not fire the page's
+    // interval, each of them would pass for the wrong reason.
+    const launched = await launchWelcome({ fakeClock: true });
     app = launched.app;
     userDataDir = launched.userDataDir;
     const { page } = launched;
 
-    const before = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('.slide')).findIndex((s) => !(s as HTMLElement).inert)
-    );
-    await expect
-      .poll(
-        () =>
-          page.evaluate(() =>
-            Array.from(document.querySelectorAll('.slide')).findIndex(
-              (s) => !(s as HTMLElement).inert
-            )
-          ),
-        { timeout: 12_000, message: 'the carousel never advanced by itself' }
-      )
-      .not.toBe(before);
+    const before = await visibleSlide(page);
+    await page.clock.runFor(THREE_INTERVALS);
+    expect(await visibleSlide(page)).not.toBe(before);
   });
 });

@@ -32,7 +32,7 @@
   // only partly in the label leaves it plain.
   const highlightLabel = function (label, query) {
     const text = String(label == null ? '' : label);
-    if (!query || !query.trim()) return escapeHtml(text);
+    if (!query?.trim()) return escapeHtml(text);
     const q = query.toLowerCase().trim();
     const lower = text.toLowerCase();
 
@@ -69,7 +69,7 @@
   // announced by aria-activedescendant; this covers the two things that have no
   // element to point at - how many rows appeared, and the empty states.
   const resultsAnnouncement = function (count, query) {
-    const q = query && query.trim() ? query.trim() : '';
+    const q = query?.trim() ? query.trim() : '';
     if (count > 0) return count === 1 ? '1 result' : count + ' results';
     if (q) return 'No results for "' + q + '"';
     return 'Type to search commands';

@@ -31,7 +31,7 @@
   // is nothing to pause, so the control is hidden rather than left as a button
   // that does not change what the user sees.
   const controlIsUseful = function (state) {
-    return !(state || {}).reduceMotion;
+    return !state?.reduceMotion;
   };
 
   const nextIndex = function (index, total) {
