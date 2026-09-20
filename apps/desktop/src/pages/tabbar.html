@@ -16,6 +16,15 @@
       #cheatsheet-dialog::backdrop {
         background: var(--sh28);
       }
+      /* Restores the UA's own `dialog:not([open]) { display: none }`. An author
+         rule outranks the UA stylesheet whatever the specificity, so the
+         `display: flex` each panel needs while open was keeping BOTH of them
+         painted permanently once they stopped being wrapped in a hidden div.
+         Measured: with this rule removed, the shortcut list and the search box
+         are both on screen with nothing open. */
+      dialog:not([open]) {
+        display: none;
+      }
       .ts-panel {
         position: fixed;
         top: 8px;
@@ -361,7 +370,7 @@
         />
       </div>
       <div id="ts-list" class="ts-list" role="listbox" aria-label="Matching tabs"></div>
-      <div id="ts-status" class="sr-only" role="status" aria-live="polite"></div>
+      <output id="ts-status" class="sr-only" aria-live="polite"></output>
     </dialog>
 
     <dialog id="cheatsheet-dialog" class="cs-panel" aria-label="Keyboard shortcuts">
@@ -680,15 +689,7 @@
         return inner;
       };
 
-      const updateTabInner = (inner, tab) => {
-        const spinner = inner.children[0];
-        const favicon = inner.children[1];
-        const label = inner.children[2];
-        const badge = inner.children[3];
-        const audio = inner.children[4];
-
-        spinner.hidden = !tab.loading;
-
+      const updateFaviconSlot = (favicon, tab) => {
         const url =
           !tab.loading && tab.favicon && !failedFavicons.has(tab.favicon) ? tab.favicon : '';
         if (favicon.dataset.url !== url) {
@@ -697,28 +698,37 @@
           if (url) favicon.src = url;
         }
         favicon.hidden = !url;
+      };
 
+      const updateBadgeSlot = (badge, tab) => {
+        let kind = '';
+        if (tab.error) kind = 'error';
+        else if (tab.offline) kind = 'offline';
+        badge.hidden = !kind;
+        if (!kind) return;
+        badge.className = 'tab-badge tab-badge--' + kind;
+        badge.textContent = kind === 'error' ? '!' : '\u26A0';
+      };
+
+      const updateAudioSlot = (audio, tab) => {
+        audio.hidden = !tab.audible;
+        if (!tab.audible) return;
+        const muteName = ycTabbarA11y.muteLabel(tab);
+        audio.className = 'tab-audio' + (tab.muted ? ' tab-audio--muted' : '');
+        audio.textContent = tab.muted ? '\uD83D\uDD07' : '\uD83D\uDD0A';
+        audio.title = muteName;
+        audio.setAttribute('aria-label', muteName);
+        audio.setAttribute('aria-pressed', String(Boolean(tab.muted)));
+      };
+
+      const updateTabInner = (inner, tab) => {
+        const [spinner, favicon, label, badge, audio] = inner.children;
+        spinner.hidden = !tab.loading;
+        updateFaviconSlot(favicon, tab);
         const title = tab.title || '';
         if (label.textContent !== title) label.textContent = title;
-
-        let badgeKind = '';
-        if (tab.error) badgeKind = 'error';
-        else if (tab.offline) badgeKind = 'offline';
-        badge.hidden = !badgeKind;
-        if (badgeKind) {
-          badge.className = 'tab-badge tab-badge--' + badgeKind;
-          badge.textContent = badgeKind === 'error' ? '!' : '\u26A0';
-        }
-
-        audio.hidden = !tab.audible;
-        if (tab.audible) {
-          const muteName = ycTabbarA11y.muteLabel(tab);
-          audio.className = 'tab-audio' + (tab.muted ? ' tab-audio--muted' : '');
-          audio.textContent = tab.muted ? '\uD83D\uDD07' : '\uD83D\uDD0A';
-          audio.title = muteName;
-          audio.setAttribute('aria-label', muteName);
-          audio.setAttribute('aria-pressed', String(Boolean(tab.muted)));
-        }
+        updateBadgeSlot(badge, tab);
+        updateAudioSlot(audio, tab);
       };
 
       const wireTabHoverPreview = (div, tab) => {

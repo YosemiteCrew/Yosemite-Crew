@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { openPimsTab } from './welcome';
 import { clickMenuItem } from './menu';
+import { recordFocusCalls, focusMark, focusedSince } from './focus-probe';
 
 type TestServer = {
   origin: string;
@@ -63,6 +64,7 @@ const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
     },
   });
   const pages = await openPimsTab(app, pimsOrigin);
+  await recordFocusCalls(app);
   return { app, page: pages.shell, tab: pages.tab, userDataDir: profileDir };
 };
 
@@ -175,17 +177,6 @@ const chromeEval = <T>(app: ElectronApplication, js: string): Promise<T> =>
     return chrome.executeJavaScript(source);
   }, js) as Promise<T>;
 
-// Whether the OS keyboard is pointed at the tab chrome. A caret drawn in the
-// search field is not the same thing: the page can focus its own input while
-// the keystrokes still go to the content view underneath.
-const chromeIsFocused = (app: ElectronApplication): Promise<boolean> =>
-  app.evaluate(({ webContents }) => {
-    const chrome = webContents
-      .getAllWebContents()
-      .find((wc) => wc.getURL().includes('tabbar.html') && !wc.isDestroyed());
-    return Boolean(chrome && chrome.isFocused());
-  });
-
 // A key pressed at the tab chrome through the window's input pipeline, the way
 // a keyboard delivers it - not a synthetic DOM event, which would skip focus.
 const pressChromeKey = async (app: ElectronApplication, keyCode: string): Promise<void> => {
@@ -199,6 +190,19 @@ const pressChromeKey = async (app: ElectronApplication, keyCode: string): Promis
     chrome.sendInputEvent({ type: 'char', keyCode: code });
     chrome.sendInputEvent({ type: 'keyUp', keyCode: code });
   }, keyCode);
+};
+
+// The strip re-reads the tab state on a 1s poll, so the main process agreeing
+// there are N tabs says nothing about what the strip has drawn. Any spec that
+// changes the tab count must wait for the strip too, or it asserts against the
+// previous render - which is how two of these passed on macOS and failed on
+// Windows, where the poll lands later relative to the assertions.
+const waitForStripTabs = async (app: ElectronApplication, count: number): Promise<void> => {
+  await expect
+    .poll(() => chromeEval<number>(app, "document.querySelectorAll('#tab-strip .tab').length"), {
+      message: `the tab strip never drew ${count} tabs`,
+    })
+    .toBe(count);
 };
 
 const cheatsheetOpen = (app: ElectronApplication): Promise<boolean> =>
@@ -581,26 +585,25 @@ test.describe('tab E2E', () => {
   test('exactly one tab is in the tab order, and it is the active one', async () => {
     await evaluateYcDesktop(page, 'newTab');
     await waitForTabCount(page, 2);
+    await waitForStripTabs(app!, 2);
+    const activeId = (await evaluateYcDesktop<TabResult>(page, 'getTabs')).activeId;
+    // Both halves as one predicate: joining the ids of every tab carrying a
+    // tabindex of 0 equals the active id only when there is exactly one such
+    // tab and it is the active one. Two tab stops would read "id1,id2".
     await expect
       .poll(() =>
-        chromeEval<number>(
+        chromeEval<string>(
           app!,
-          "[...document.querySelectorAll('#tab-strip .tab')].filter((el) => el.tabIndex === 0).length"
+          "[...document.querySelectorAll('#tab-strip .tab')].filter((el) => el.tabIndex === 0).map((el) => el.dataset.tabId).join(',')"
         )
       )
-      .toBe(1);
-    const activeId = (await evaluateYcDesktop<TabResult>(page, 'getTabs')).activeId;
-    expect(
-      await chromeEval<string>(
-        app!,
-        'document.querySelector(\'#tab-strip .tab[tabindex="0"]\').dataset.tabId'
-      )
-    ).toBe(activeId);
+      .toBe(activeId);
   });
 
   test('an arrow key moves focus along the strip, and Enter activates the tab it lands on', async () => {
     await evaluateYcDesktop(page, 'newTab');
     await waitForTabCount(page, 2);
+    await waitForStripTabs(app!, 2);
     const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
     const first = state.tabs![0]!.id;
     expect(state.activeId).not.toBe(first);
@@ -628,6 +631,7 @@ test.describe('tab E2E', () => {
   test('Delete on a focused tab closes it', async () => {
     await evaluateYcDesktop(page, 'newTab');
     await waitForTabCount(page, 2);
+    await waitForStripTabs(app!, 2);
     await chromeEval(app!, 'document.querySelector(\'#tab-strip .tab[tabindex="0"]\').focus()');
     await pressChromeKey(app!, 'Delete');
     await waitForTabCount(page, 1);
@@ -636,20 +640,26 @@ test.describe('tab E2E', () => {
   test('the strip keeps its elements across a poll, so focus in it survives', async () => {
     await evaluateYcDesktop(page, 'newTab');
     await waitForTabCount(page, 2);
-    // Stamp the live elements, focus one, then wait out more than one poll
-    // (the strip re-reads the tab state every 1000ms).
+    await waitForStripTabs(app!, 2);
+    // Stamp the live elements and focus one, then force a real update by
+    // opening a third tab. Waiting on the strip reaching three tabs is a
+    // condition only a poll can satisfy, so it stands in for a fixed sleep -
+    // and it is the stronger claim: identity survives an update, not just an
+    // idle tick.
     await chromeEval(
       app!,
       "[...document.querySelectorAll('#tab-strip .tab')].forEach((el, i) => { el.dataset.stamp = 'e2e-' + i; });" +
         'document.querySelector(\'#tab-strip .tab[tabindex="0"]\').focus();'
     );
-    await page.waitForTimeout(2500);
+    await evaluateYcDesktop(page, 'newTab');
+    await waitForStripTabs(app!, 3);
+
     expect(
       await chromeEval<string>(
         app!,
-        "[...document.querySelectorAll('#tab-strip .tab')].map((el) => el.dataset.stamp).join(',')"
+        "[...document.querySelectorAll('#tab-strip .tab')].map((el) => el.dataset.stamp || 'new').join(',')"
       )
-    ).toBe('e2e-0,e2e-1');
+    ).toBe('e2e-0,e2e-1,new');
     expect(await chromeEval<string>(app!, "document.activeElement.getAttribute('role')")).toBe(
       'tab'
     );
@@ -670,21 +680,26 @@ test.describe('tab E2E', () => {
 
   test('tab search opened from the menu receives the keyboard, and hands it back', async () => {
     await waitForTabCount(page, 1);
+    const beforeOpen = await focusMark(app!);
     await clickMenuItem(app!, 'Search Tabs…');
 
     await expect
       .poll(() => chromeEval<boolean>(app!, "document.getElementById('tab-search-dialog').open"))
       .toBe(true);
-    // Both halves matter: the panel is modal in its own document AND the OS
-    // keyboard points at the view it lives in.
+    // Two separate claims. In-document: showModal put the caret in the filter.
+    // Across views: the app handed the keyboard to the view the panel lives in,
+    // which is the half a page cannot do for itself and the half that was
+    // missing - the caret blinked while the keystrokes went to the page below.
     await expect.poll(() => chromeEval<string>(app!, 'document.activeElement.id')).toBe('ts-input');
-    await expect.poll(() => chromeIsFocused(app!)).toBe(true);
+    await expect.poll(() => focusedSince(app!, beforeOpen, 'tabbar.html')).toBe(true);
 
+    const beforeClose = await focusMark(app!);
     await pressChromeKey(app!, 'Escape');
     await expect
       .poll(() => chromeEval<boolean>(app!, "document.getElementById('tab-search-dialog').open"))
       .toBe(false);
-    await expect.poll(() => chromeIsFocused(app!)).toBe(false);
+    // ...and hands it back, rather than stranding it in a 40px strip.
+    await expect.poll(() => focusedSince(app!, beforeClose, pimsServer.origin)).toBe(true);
   });
 
   test('tab search announces its result count, including no matches', async () => {
