@@ -121,8 +121,13 @@ export type SoapTemplate = {
 export type Vitals = {
   id: string;
   code: string;
+  // Temperature and weight are recorded on two scales; the key states which one
+  // this reading is in. Exactly one of each pair is populated - see
+  // `lib/vitalsUnits`, which resolves the key from the template's declared unit.
   weightLbs?: number;
+  weightKg?: number;
   tempF?: number;
+  tempC?: number;
   heartRateBpm?: number;
   respRateBpm?: number;
   crtSec?: string;
@@ -254,6 +259,13 @@ export type PrescriptionItem = {
   brand?: string;
   /** Generic / composition name from inventory (e.g. "Paracetamol 650"). */
   genericName?: string;
+  /**
+   * ATCvet substance code. Inherited from the inventory item when prescribing
+   * from stock, or set directly when the clinician picks a substance from the
+   * classification. Exported as a FHIR coding so the prescription is readable
+   * outside Yosemite Crew.
+   */
+  atcCode?: string;
   /** Inventory SKU, shown as a small reference chip. */
   sku?: string;
   /** Concentration value from inventory (e.g. "650"). */

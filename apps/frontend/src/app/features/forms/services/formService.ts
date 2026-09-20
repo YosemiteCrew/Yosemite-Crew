@@ -41,7 +41,7 @@ const mergeFormRows = (legacyForms: FormsProps[], templateForms: FormsProps[]) =
 };
 
 export const loadForms = async (force = false) => {
-  const { setLoading, setForms, setError, loading, lastFetchedByOrgId, setLastFetched } =
+  const { setLoading, setForms, setError, setLastFetched, loading, lastFetchedByOrgId } =
     useFormsStore.getState();
 
   let orgId = useOrgStore.getState().primaryOrgId;
@@ -66,6 +66,7 @@ export const loadForms = async (force = false) => {
       templateResult.status === 'fulfilled' ? templateResult.value.map(mapTemplateToUI) : [];
     const forms = mergeFormRows(legacyForms, templateForms);
     setForms(forms, orgId);
+    setLastFetched(orgId, new Date().toISOString());
     return forms;
   } catch (err) {
     const message = axios.isAxiosError(err)
@@ -75,9 +76,6 @@ export const loadForms = async (force = false) => {
     throw err;
   } finally {
     setLoading(false);
-    if (orgId) {
-      setLastFetched(orgId, new Date().toISOString());
-    }
   }
 };
 

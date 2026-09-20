@@ -39,6 +39,11 @@ const coerceString = (value: unknown): string | null => {
 const coerceStringOrEmpty = (value: unknown): string =>
   coerceString(value) ?? "";
 
+const coerceNonBlankString = (value: unknown): string | null => {
+  const coerced = coerceString(value);
+  return coerced?.trim() ? coerced : null;
+};
+
 /**
  * `organisationId` is the tenant key that lab-result reads authorize on, so it is taken from
  * the LabOrder we placed rather than from the provider's response, which is outside our
@@ -178,6 +183,8 @@ type ResultOrderContext = {
   appointmentId: string | null;
   createdByUserId: string | null;
   patientId: string | null;
+  labOrderId: string | null;
+  unmappedStatus: boolean;
 };
 
 const syncLabOrderFromResult = async (
@@ -188,6 +195,8 @@ const syncLabOrderFromResult = async (
     appointmentId: null,
     createdByUserId: null,
     patientId: null,
+    labOrderId: null,
+    unmappedStatus: false,
   };
 
   const orderId = coerceString(result.orderId);
@@ -197,6 +206,7 @@ const syncLabOrderFromResult = async (
     where: { idexxOrderId: orderId },
   });
 
+  context.labOrderId = order?.id ?? null;
   context.organisationId = order?.organisationId ?? null;
   context.appointmentId = order?.appointmentId ?? null;
   context.createdByUserId = order?.createdByUserId ?? null;
@@ -212,6 +222,15 @@ const syncLabOrderFromResult = async (
           externalStatus: coerceString(result.status),
           responsePayload: toJsonInput(result),
         },
+      });
+    } else {
+      context.unmappedStatus = true;
+      logger.warn("IDEXX result status did not map to a LabOrder status", {
+        resultId: coerceString(result.resultId),
+        orderId,
+        status: coerceString(result.status),
+        statusDetail: coerceString(result.statusDetail),
+        modality: coerceString(result.modality),
       });
     }
   }
@@ -286,14 +305,152 @@ const maybeCreateResultArtifacts = async (
   }
 };
 
+/**
+ * Why a result was held. A plain string rather than a Prisma enum so a new
+ * reason needs no migration; every value in use is named here.
+ */
+export const QUARANTINE_REASON_UNMAPPED_STATUS = "UNMAPPED_RESULT_STATUS";
+export const QUARANTINE_REASON_MISSING_RESULT_ID = "MISSING_RESULT_ID";
+
+type QuarantineReason =
+  | typeof QUARANTINE_REASON_UNMAPPED_STATUS
+  | typeof QUARANTINE_REASON_MISSING_RESULT_ID;
+
+type UnapplicableResult = {
+  result: IdexxResult;
+  context: ResultOrderContext;
+  reason: QuarantineReason;
+};
+
+/**
+ * Record a result that could not be applied safely, so the rest of its batch
+ * can be confirmed.
+ *
+ * IDEXX confirms a BATCH, and `pollLatest` builds ONE client from
+ * `IDEXX_GLOBAL_USERNAME` with `organisationId` derived per result. So refusing
+ * to confirm a batch containing an unapplicable row does not hold up one
+ * clinic's queue - it holds up every clinic's, indefinitely, because the
+ * unconfirmed batch is re-fetched on the next poll and meets the same row
+ * again.
+ *
+ * Writing the row here is what makes confirming the rest safe. The provider
+ * payload is held in a queryable place for investigation or replay rather than
+ * depending on the batch being re-sent forever.
+ *
+ * `create`, not `upsert`: this table has no unique key on purpose (see the
+ * model comment), because collapsing two rows onto a key is exactly the silent
+ * loss it exists to prevent.
+ *
+ * NOT `async`, and not `await`ed. A `PrismaPromise` is lazy - the write does not
+ * run until `$transaction` runs it - so returning the unexecuted operation IS
+ * the atomicity, not a tidiness choice.
+ *
+ * Making this `async` fires every write eagerly, outside the transaction, and
+ * hands `$transaction` an array of already-running plain Promises. No test here
+ * can catch that: a mocked `create` is eager either way, so the array
+ * `$transaction` receives looks identical. What catches it is `tsc` - Prisma
+ * brands `PrismaPromise` with `[Symbol.toStringTag]`, so a plain Promise is a
+ * type error at the call site.
+ *
+ * Which means a cast on that call would remove the only gate holding this
+ * property, with every test still green. If you meet a type error there, it is
+ * telling you the writes stopped being atomic.
+ */
+const quarantineOperation = (
+  batchId: string,
+  result: IdexxResult,
+  context: ResultOrderContext,
+  reason: QuarantineReason,
+) =>
+  prisma.labResultQuarantine.create({
+    data: {
+      provider: "IDEXX",
+      batchId,
+      // Null rather than "" when the provider sent nothing usable: an absent id
+      // is worth seeing as absent.
+      resultId: coerceNonBlankString(result.resultId),
+      orderId: coerceString(result.orderId),
+      labOrderId: context.labOrderId,
+      organisationId: context.organisationId,
+      reason,
+      externalStatus: coerceString(result.status),
+      statusDetail: coerceString(result.statusDetail),
+      modality: coerceString(result.modality),
+      payload: toJsonInput(result),
+    },
+  });
+
+/**
+ * Hold every result in this batch that could not be applied safely.
+ *
+ * Answers the only question the caller has: is this batch now safe to confirm.
+ * False means nothing is holding the skipped transition, so confirming would
+ * lose it - fall back to leaving the batch for the next poll. That stalls
+ * ingestion for every organisation, which is bad, and still better than
+ * confirming a batch whose skipped transition is recorded nowhere at all.
+ */
+const quarantineUnapplicable = async (
+  batchId: string,
+  unapplicable: UnapplicableResult[],
+): Promise<boolean> => {
+  if (unapplicable.length === 0) return true;
+
+  try {
+    // One transaction, not a loop of writes. A loop that fails part-way leaves
+    // the earlier rows committed, returns false, and the batch is correctly
+    // left unconfirmed - so the next poll re-fetches the same batch and writes
+    // those rows AGAIN, once per poll, unbounded while the failure persists.
+    // That inflates `total`, which is the single number an operator uses to
+    // judge how bad this is. All-or-nothing also makes the fallback exactly the
+    // previous behaviour rather than the previous behaviour plus orphans.
+    //
+    // This costs the no-unique-key decision nothing: that is about two distinct
+    // rows in one batch, this is about one row written twice across polls.
+    await prisma.$transaction(
+      unapplicable.map(({ result, context, reason }) =>
+        quarantineOperation(batchId, result, context, reason),
+      ),
+    );
+  } catch (err) {
+    logger.error(
+      "IDEXX batch left unconfirmed: could not quarantine an unapplicable result",
+      { batchId, err },
+    );
+    return false;
+  }
+
+  logger.error(
+    "IDEXX results quarantined: one or more results could not be applied",
+    { batchId, quarantined: unapplicable.length },
+  );
+  return true;
+};
+
 const processIdexxResult = async (
   client: IdexxResultsClient,
   result: IdexxResult,
-) => {
+): Promise<{
+  context: ResultOrderContext;
+  quarantineReason: QuarantineReason | null;
+}> => {
   const context = await syncLabOrderFromResult(result);
-  const resultId = coerceStringOrEmpty(result.resultId);
+  const resultId = coerceNonBlankString(result.resultId);
+  if (!resultId) {
+    logger.warn("IDEXX result quarantined: missing result id", {
+      orderId: coerceString(result.orderId),
+      organisationId: context.organisationId,
+    });
+    return { context, quarantineReason: QUARANTINE_REASON_MISSING_RESULT_ID };
+  }
+
   await upsertLabResult(result, resultId, context.organisationId);
   await maybeCreateResultArtifacts(client, result, resultId, context);
+  return {
+    context,
+    quarantineReason: context.unmappedStatus
+      ? QUARANTINE_REASON_UNMAPPED_STATUS
+      : null,
+  };
 };
 
 const recordBatchSyncState = async (
@@ -345,8 +502,23 @@ export const IdexxResultsService = {
         break;
       }
 
+      const unapplicable: UnapplicableResult[] = [];
       for (const result of results as IdexxResult[]) {
-        await processIdexxResult(client, result);
+        const { context, quarantineReason } = await processIdexxResult(
+          client,
+          result,
+        );
+        if (quarantineReason) {
+          unapplicable.push({ result, context, reason: quarantineReason });
+        }
+      }
+
+      // Confirming tells IDEXX the batch was consumed and stops it being re-sent, so the
+      // transition we skipped must be held somewhere we control BEFORE the batch is
+      // confirmed - otherwise it is lost for good, which is the failure #2699 exists to
+      // stop. Quarantine first, confirm second, and stop here if the first did not happen.
+      if (!(await quarantineUnapplicable(batchId, unapplicable))) {
+        break;
       }
 
       await client.confirmLatestBatch(batchId);

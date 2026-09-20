@@ -412,13 +412,13 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     const { hook } = renderStep({ modality: 'REFERENCE_LAB' });
 
     fireEvent.change(screen.getByLabelText('Order notes'), { target: { value: 'Fasted sample' } });
-    fireEvent.change(screen.getByLabelText('Collection Date'), { target: { value: '2026-06-03' } });
+    fireEvent.change(screen.getByLabelText('Collection date'), { target: { value: '2026-06-03' } });
     fireEvent.click(screen.getByRole('button', { name: /veterinarian: dr\. tim apple/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Sarah Mitchell' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Sarah Mitchell' }));
     fireEvent.click(screen.getByRole('button', { name: /technician: sarah mitchell/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Dr. Tim Apple' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Dr. Tim Apple' }));
     fireEvent.click(screen.getByRole('button', { name: /test type: reference lab/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'In-house' }));
+    fireEvent.click(screen.getByRole('option', { name: 'In-house' }));
 
     expect(hook.setNotes).toHaveBeenCalledWith('Fasted sample');
     expect(hook.setSpecimenCollectionDate).toHaveBeenCalledWith('2026-06-03');
@@ -445,7 +445,7 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     const { hook } = renderStep({ pendingTest: makeTest({ code: 'SA250' }) });
 
     const confirmation = screen.getByTestId('pending-test-confirmation');
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Add to Queue' }));
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Add to queue' }));
     expect(hook.confirmPendingTest).toHaveBeenCalledTimes(1);
 
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }));
@@ -457,6 +457,24 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
 
     expect(screen.getByText(/Order notes:/)).toBeInTheDocument();
     expect(screen.getByText(/Fasted patient/)).toBeInTheDocument();
+  });
+
+  it('wraps the saved order notes instead of truncating the tail on a clipped line (#2790)', () => {
+    const notes =
+      'Fasted sample, collected from the left jugular. Please combine with the pre-med ' +
+      'dose and hold the results for the afternoon consult.';
+    renderStep({ appointmentOrders: [makeOrder({ notes })] });
+
+    // The note span previously sat on `truncate` (`white-space:nowrap` +
+    // `overflow:hidden` + ellipsis), which emptied the tail out of reach at
+    // phone width - the only access to it was the `title` hover, and a phone
+    // has no hover. `break-words` lets the free-text note flow to the lines it
+    // needs. jsdom does not lay out text, so the wrap contract is pinned via
+    // the classes the way the storybook play pins it via scrollWidth.
+    const label = screen.getByText('Order notes:');
+    const note = label.parentElement as HTMLElement;
+    expect(note.className).toMatch(/break-words/);
+    expect(note.className).not.toMatch(/truncate/);
   });
 
   it('disables create when no tests are queued and renders the empty queue message', () => {

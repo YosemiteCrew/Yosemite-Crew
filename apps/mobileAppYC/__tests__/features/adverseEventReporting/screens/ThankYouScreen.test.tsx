@@ -218,8 +218,16 @@ describe('ThankYouScreen', () => {
     // Covers lines 119-122 (productFiles handling)
     expect(mockSetProductInfo).toHaveBeenCalled();
     expect(showSuccessAlert).toHaveBeenCalledWith(
-      'Report submitted',
+      'Report saved',
       expect.stringContaining('manufacturer'),
+    );
+    // The report is stored with `destinations`, never transmitted, so the
+    // confirmation must not claim it was. `stringContaining('manufacturer')`
+    // alone passed the old copy - "We sent your report to the manufacturer" -
+    // which is why this asserts the absence too.
+    expect(showSuccessAlert).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringMatching(/\bwe sent\b|\bsent to\b|\bforwarded\b/i),
     );
     expect(mockResetDraft).toHaveBeenCalled();
     expect(mockParentNavigate).toHaveBeenCalledWith('Home');
@@ -243,8 +251,12 @@ describe('ThankYouScreen', () => {
 
     await waitFor(() => {
       expect(showSuccessAlert).toHaveBeenCalledWith(
-        'Report submitted',
-        expect.stringContaining('hospital'),
+        'Report saved',
+        expect.stringContaining('vet practice'),
+      );
+      expect(showSuccessAlert).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.stringMatching(/\bwe sent\b|\bsent to\b|\bforwarded\b/i),
       );
     });
 

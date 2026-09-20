@@ -44,6 +44,7 @@ const MARKER_ROUTER_MODULES = [
   "chat.router",
   "notification.router",
   "contact-us.router",
+  "consent.router",
   "account-withdrawal.router",
   "organisation-document.router",
   "adverse-event.router",

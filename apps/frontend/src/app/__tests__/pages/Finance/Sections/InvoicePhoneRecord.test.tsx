@@ -11,6 +11,20 @@ jest.mock('next/image', () => ({
 
 jest.mock('@/app/lib/money', () => ({
   formatMoney: (amount: number) => `€${amount}`,
+  recordCurrency: (record: { currency?: string | null } | null | undefined, fallback: string) =>
+    record?.currency ?? fallback,
+  formatMoneyPrecise: (amount: number, currency: string) =>
+    `${currency} ${Number(amount).toFixed(2)}`,
+  sharedCurrency: (records: ReadonlyArray<{ currency?: string | null }>, fallback: string) => {
+    let shared: string | null = null;
+    for (const record of records) {
+      const own = record.currency;
+      if (typeof own !== 'string' || !own.trim()) continue;
+      if (shared === null) shared = own.trim();
+      else if (shared !== own.trim()) return fallback;
+    }
+    return shared ?? fallback;
+  },
 }));
 
 jest.mock('@/app/lib/forms', () => ({
@@ -72,7 +86,6 @@ const baseProps = {
   statusLabel: 'Paid',
   statusStyle: {},
   payerName: 'Lena Hartmann',
-  payerEmail: 'lena@x.com',
   onClose: jest.fn(),
   onOpenAppointment: jest.fn(),
 };
@@ -99,7 +112,7 @@ describe('InvoicePhoneRecord', () => {
     expect(screen.getByText('Nobivac Rabies')).toBeInTheDocument();
     expect(screen.getByText('Tax 8.1%')).toBeInTheDocument();
     expect(screen.getByText('Total')).toBeInTheDocument();
-    expect(screen.getByText('€86.2')).toBeInTheDocument();
+    expect(screen.getByText('EUR 86.20')).toBeInTheDocument();
   });
 
   it('renders the empty items note when there are no items', () => {
@@ -113,10 +126,10 @@ describe('InvoicePhoneRecord', () => {
 
     rerender(<InvoicePhoneRecord {...baseProps} invoice={{ ...baseInvoice, discountTotal: 5 }} />);
     expect(screen.getByText('Discount')).toBeInTheDocument();
-    expect(screen.getByText('-€5')).toBeInTheDocument();
+    expect(screen.getByText('-EUR 5.00')).toBeInTheDocument();
   });
 
-  it('renders the payment ledger, receipt link and finalized note when settled', () => {
+  it('renders the payment ledger and receipt link when settled', () => {
     render(<InvoicePhoneRecord {...baseProps} />);
 
     expect(screen.getByText('Payment recorded')).toBeInTheDocument();
@@ -125,7 +138,9 @@ describe('InvoicePhoneRecord', () => {
       'href',
       'https://receipt'
     );
-    expect(screen.getByText('Receipt sent to lena@x.com')).toBeInTheDocument();
+    // Same as the desktop ledger: an address on file is not proof of delivery.
+    expect(screen.queryByText(/Receipt sent to/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/lena@x.com/)).not.toBeInTheDocument();
   });
 
   it('labels the payment row by the channel the payment came through', () => {
@@ -241,11 +256,6 @@ describe('InvoicePhoneRecord', () => {
     );
     expect(screen.getByText('Payment recorded')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Receipt' })).not.toBeInTheDocument();
-  });
-
-  it('omits the finalized note when there is no payer email', () => {
-    render(<InvoicePhoneRecord {...baseProps} payerEmail="" />);
-    expect(screen.queryByText(/Receipt sent to/)).not.toBeInTheDocument();
   });
 
   it('renders only the Open appointment button when there is no PDF', () => {

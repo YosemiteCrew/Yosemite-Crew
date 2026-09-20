@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Yosemite Crew OpenAPI</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <redoc spec-url="/static/openapi/openapi.yaml"></redoc>
+    <!--
+      Pinned to an exact version rather than `latest`: an unpinned CDN bundle
+      changes under us with no review.
+
+      Deliberately NO `integrity`/`crossorigin`. cdn.redoc.ly does not send an
+      `access-control-allow-origin` header - checked with `curl -I` - and a
+      browser only enforces `integrity` on a cross-origin script when the
+      request is CORS-enabled. Adding the pair would make the browser BLOCK the
+      script outright and render this page empty with no visible error, which
+      is worse than no SRI.
+
+      To get integrity here, the bundle has to be vendored into public/ and
+      served same-origin. Worth doing; it is a separate change from retiring
+      Docusaurus.
+    -->
+    <script src="https://cdn.redoc.ly/redoc/v2.5.0/bundles/redoc.standalone.js"></script>
+  </body>
+</html>

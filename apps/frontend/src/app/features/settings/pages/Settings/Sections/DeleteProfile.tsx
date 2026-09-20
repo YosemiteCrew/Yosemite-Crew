@@ -94,7 +94,9 @@ const DeleteProfile = () => {
         <Secondary
           danger
           href="#"
-          text="Delete…"
+          // A trailing ellipsis on a button is not the convention here; the
+          // control names what it deletes, as the organization one now does.
+          text="Delete profile"
           onClick={handleOpenDelete}
           className="min-h-0! h-[34px]! px-[15px]! text-[12px]! font-bold!"
         />

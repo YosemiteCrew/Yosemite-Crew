@@ -12,8 +12,13 @@ import Stripe from "stripe";
 import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
 import { FinanceEventService } from "./events";
-import { roundMoney } from "./pricing";
+import { getNetPaymentAmount, roundMoney } from "./pricing";
+import {
+  fromStripeMinorUnits,
+  toStripeMinorUnits,
+} from "src/utils/stripe-minor-units";
 import { markInvoiceTreatmentItemsSettled } from "./settlement";
+import { STRIPE_PINNED_API_VERSION } from "src/config/stripe-api-version";
 
 type PaymentLineSummary = {
   id: string;
@@ -70,6 +75,7 @@ type StripeCheckoutSessionClient = {
       id: string;
       status: string;
       amount: number;
+      currency: string;
     }>;
   };
 };
@@ -208,8 +214,17 @@ export const getInvoiceFinancialSummary = async (
 ): Promise<InvoiceFinancialSummary> => {
   const [payments, creditNotes] = await Promise.all([
     prisma.payment.findMany({
-      where: { invoiceId, status: "SUCCEEDED" },
-      select: { amount: true },
+      where: {
+        invoiceId,
+        status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED", "REFUNDED"] },
+      },
+      select: {
+        amount: true,
+        refunds: {
+          where: { status: "SUCCEEDED" },
+          select: { amount: true, status: true },
+        },
+      },
     }),
     prisma.creditNote.findMany({
       where: { invoiceId, status: "ISSUED" },
@@ -218,7 +233,7 @@ export const getInvoiceFinancialSummary = async (
   ]);
 
   const paid = roundMoney(
-    payments.reduce((sum, payment) => sum + payment.amount, 0),
+    payments.reduce((sum, payment) => sum + getNetPaymentAmount(payment), 0),
   );
   const credited = roundMoney(
     creditNotes.reduce((sum, creditNote) => sum + creditNote.amount, 0),
@@ -513,6 +528,19 @@ export const resolveStripeConnectedAccountId = async (params: {
   return resolveOrganisationStripeAccountId(invoice?.organisationId);
 };
 
+/**
+ * Whether a Stripe expiry failure means the session is already closed.
+ *
+ * `StripeInvalidRequestError` is what Stripe returns for a session that is not
+ * in the open state - already expired, or completed by the client. That is a
+ * terminal condition: the link cannot collect anything further, so there is
+ * nothing to expire. Every other error type leaves the session's state unknown.
+ */
+const isTerminalSessionError = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  (error as { type?: unknown }).type === "StripeInvalidRequestError";
+
 const expireCheckoutSessionAtProvider = async (params: {
   invoiceId: string;
   sessionId: string;
@@ -532,13 +560,30 @@ const expireCheckoutSessionAtProvider = async (params: {
       toStripeAccountOptions(connectedAccountId),
     );
   } catch (error) {
-    // Stripe rejects expiry for sessions it already expired or completed; the
-    // local attempt is cancelled either way and the webhook rejects late pays.
-    logger.warn("Failed to expire stale Stripe checkout session", {
+    // Stripe rejects expiry for a session that is not open - one it has already
+    // expired, or one the client completed. Either way the link cannot collect
+    // again, so there is nothing left to expire and the caller may proceed.
+    if (isTerminalSessionError(error)) {
+      logger.warn("Stripe checkout session was already closed", {
+        invoiceId: params.invoiceId,
+        sessionId: params.sessionId,
+        error,
+      });
+      return;
+    }
+
+    // Anything else - a network fault, a 5xx, a rate limit, bad credentials -
+    // means we do not know that the link is dead, and it very likely is not.
+    // Swallowing here would let the caller reduce what is owed, cancel the
+    // local attempt, and leave a live link collecting the pre-credit amount:
+    // exactly the case this expiry exists to prevent. Fail instead, so the
+    // caller aborts before writing anything.
+    logger.error("Could not expire Stripe checkout session", {
       invoiceId: params.invoiceId,
       sessionId: params.sessionId,
       error,
     });
+    throw error;
   }
 };
 
@@ -692,41 +737,6 @@ type CheckoutLineItemSource = {
   discountPercent?: number;
 };
 
-/**
- * Currencies Stripe treats as ZERO-DECIMAL: the API takes the amount in the
- * currency's own units, not in hundredths.
- *
- * Multiplying by 100 unconditionally overcharges every one of them by 100x -
- * a 1,000 JPY invoice would be submitted as 100,000 JPY. The currency became
- * configurable per invoice, so this is no longer hypothetical.
- *
- * https://docs.stripe.com/currencies#zero-decimal
- */
-const ZERO_DECIMAL_CURRENCIES = new Set([
-  "bif",
-  "clp",
-  "djf",
-  "gnf",
-  "jpy",
-  "kmf",
-  "krw",
-  "mga",
-  "pyg",
-  "rwf",
-  "ugx",
-  "vnd",
-  "vuv",
-  "xaf",
-  "xof",
-  "xpf",
-]);
-
-/** An amount in the smallest unit Stripe accepts for `currency`. */
-const toStripeMinorUnits = (amount: number, currency: string): number =>
-  ZERO_DECIMAL_CURRENCIES.has(currency.trim().toLowerCase())
-    ? Math.round(amount)
-    : Math.round(amount * 100);
-
 // Charge the full bill as itemised, pre-tax lines (letting Stripe apply tax)
 // UNLESS we must charge a remaining/adjusted balance instead: when a prior
 // payment or credit has been applied, or when an invoice-level adjustment makes
@@ -742,28 +752,88 @@ const buildCheckoutSessionLineItems = (params: {
 }) => {
   const { invoice, items, summary, invoiceCurrency } = params;
 
-  const discountedItemSum = roundMoney(
-    items.reduce((sum: number, item) => {
-      const typed = item as CheckoutLineItemSource;
-      if (typeof typed.total === "number") {
-        return sum + typed.total;
-      }
-      const unitPrice =
-        typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
-      const quantity = typeof typed.quantity === "number" ? typed.quantity : 0;
-      const discountPercent =
-        typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
-      return sum + unitPrice * quantity * (1 - discountPercent / 100);
-    }, 0),
-  );
   const preTaxInvoiceTotal = roundMoney(
     invoice.totalAmount -
       (typeof invoice.taxTotal === "number" ? invoice.taxTotal : 0),
   );
+
+  // Build the itemised lines BEFORE deciding whether to use them, so the guard
+  // below weighs the money this session would actually collect rather than a
+  // second formula for it. The two used to be computed independently and agreed
+  // only by coincidence: the guard summed posted line totals while the session
+  // submitted a per-UNIT amount Stripe multiplies by the quantity, so a unit
+  // price the currency cannot represent lost its remainder once per unit and
+  // the guard saw nothing wrong (#3305). Two 8.165 units sum to 16.33 under
+  // either rounding, so the comparison passed, the session charged 1632 against
+  // a 1633 invoice, and the checkout-completed handler settled it as paid.
+  const itemisedLineItems = items.map((item) => {
+    const typed = item as CheckoutLineItemSource;
+    const unitPrice = typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
+    const quantity =
+      typeof typed.quantity === "number" && typed.quantity > 0
+        ? typed.quantity
+        : 1;
+    const discountPercent =
+      typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
+    // What the line must collect: the stored snapshot total the invoice was
+    // totalled from, falling back to the product when there is no snapshot.
+    const lineAmount = toStripeMinorUnits(
+      roundMoney(
+        typeof typed.total === "number"
+          ? typed.total
+          : unitPrice * quantity * (1 - discountPercent / 100),
+      ),
+      invoiceCurrency,
+    );
+    const unitAmount = toStripeMinorUnits(
+      roundMoney(unitPrice * (1 - discountPercent / 100)),
+      invoiceCurrency,
+    );
+    // Keep Stripe's per-unit presentation ("2 x $30.00") wherever the units
+    // genuinely add up to the posted total, which is every unit price the
+    // currency can represent. Where they cannot, the line collapses to a single
+    // unit at its posted total and carries the quantity in its description
+    // instead. A checkout that prints one unit is a presentation loss; one that
+    // collects less than the invoice says is owed is a silent shortfall.
+    const unitsReconstructLine = unitAmount * quantity === lineAmount;
+    const name = typed.name ?? typed.description ?? "Service";
+    return {
+      price_data: {
+        currency: invoiceCurrency,
+        product_data: {
+          name,
+          // A collapsed line prints as one unit, so the quantity moves into the
+          // description or the checkout stops saying how many were bought. It
+          // replaces the line's own description rather than appending to it,
+          // because `name` is always present and a conditional prefix would add
+          // a branch whose empty arm nothing ever reaches.
+          description: unitsReconstructLine
+            ? (typed.description ?? undefined)
+            : `${quantity} x ${name}`,
+        },
+        unit_amount: unitsReconstructLine ? unitAmount : lineAmount,
+      },
+      quantity: unitsReconstructLine ? quantity : 1,
+    };
+  });
+
+  const itemisedTotal = itemisedLineItems.reduce(
+    (sum, line) => sum + line.price_data.unit_amount * line.quantity,
+    0,
+  );
+  // Read `!==` as "the itemised lines do not collect the pre-tax total". It is
+  // compared in minor units, which is both the unit Stripe is given and an
+  // exact integer comparison - the amounts either side of the previous `!==`
+  // were floats. A tie still lands here, because invoice pricing posts the
+  // total by quantizing exact integers (8.165 -> 8.17) while these lines round
+  // the scaled float the other way (8.165 -> 8.16); that selects the balance
+  // line, which charges what is owed. Giving the itemised branch the ledger
+  // quantizer is the payment slice of #3153, not this one. Pinned in
+  // finance.payment.test.ts.
   const useBalanceLine =
     summary.paid > 0 ||
     summary.credited > 0 ||
-    discountedItemSum !== preTaxInvoiceTotal;
+    itemisedTotal !== toStripeMinorUnits(preTaxInvoiceTotal, invoiceCurrency);
 
   // Disabling automatic tax is only safe when the balance we are about to charge
   // ALREADY includes tax. An invoice whose tax was never calculated - drafts are
@@ -799,31 +869,7 @@ const buildCheckoutSessionLineItems = (params: {
   return {
     useBalanceLine,
     disableAutomaticTax,
-    lineItems: items.map((item) => {
-      const typed = item as CheckoutLineItemSource;
-      const unitPrice =
-        typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
-      const discountPercent =
-        typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
-      const effectiveUnitAmount = toStripeMinorUnits(
-        roundMoney(unitPrice * (1 - discountPercent / 100)),
-        invoiceCurrency,
-      );
-      return {
-        price_data: {
-          currency: invoiceCurrency,
-          product_data: {
-            name: typed.name ?? typed.description ?? "Service",
-            description: typed.description ?? undefined,
-          },
-          unit_amount: effectiveUnitAmount,
-        },
-        quantity:
-          typeof typed.quantity === "number" && typed.quantity > 0
-            ? typed.quantity
-            : 1,
-      };
-    }),
+    lineItems: itemisedLineItems,
   };
 };
 
@@ -886,7 +932,18 @@ const buildDepositLineItem = (params: {
 
 // A PAYMENT_LINK invoice switching to an in-app PaymentIntent must first
 // retire its open Checkout Sessions so the same balance cannot be paid twice.
-const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
+/**
+ * Expire every open Stripe checkout session for an invoice at the provider,
+ * then cancel the local attempts.
+ *
+ * Exported because cancelling the local row alone is not enough: a link already
+ * in the client's hands keeps resolving at Stripe and still charges the old
+ * amount, and the local attempt is by then CANCELED so the webhook has no open
+ * attempt to reconcile against. Provider expiry failures are logged and
+ * swallowed - Stripe rejects expiry for sessions it has already expired or
+ * completed, and the local cancel stands either way.
+ */
+export const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
   const staleSessionAttempts = await prisma.paymentAttempt.findMany({
     where: {
       invoiceId,
@@ -910,11 +967,17 @@ const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
     });
   }
 
+  // The same status predicate the select above uses. Without it this rewrote
+  // EVERY Stripe checkout attempt on the invoice, including SUCCEEDED ones -
+  // destroying the record of a payment that actually completed. The original
+  // caller guards the invoice to AWAITING_PAYMENT/PENDING so it never bit
+  // there, but issueCreditNote deliberately allows crediting a paid invoice.
   await prisma.paymentAttempt.updateMany({
     where: {
       invoiceId,
       provider: "STRIPE",
       providerCheckoutSessionId: { not: null },
+      status: { notIn: ["CANCELED", "FAILED", "SUCCEEDED"] },
     },
     data: {
       status: "CANCELED",
@@ -1012,7 +1075,7 @@ const getStripeClient = (): StripeCheckoutSessionClient => {
   }
 
   stripeClient = new Stripe(apiKey, {
-    apiVersion: "2026-01-28.clover",
+    apiVersion: STRIPE_PINNED_API_VERSION,
   }) as unknown as StripeCheckoutSessionClient;
 
   return stripeClient;
@@ -1484,7 +1547,9 @@ export const FinancePaymentService = {
 
       providerRefundId = refund.id;
       refundStatus = refund.status;
-      amountRefunded = roundMoney(refund.amount / 100);
+      amountRefunded = roundMoney(
+        fromStripeMinorUnits(refund.amount, refund.currency),
+      );
     }
 
     const refund = await prisma.refund.create({

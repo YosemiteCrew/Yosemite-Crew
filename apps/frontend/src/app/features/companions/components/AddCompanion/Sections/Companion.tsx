@@ -512,7 +512,7 @@ const useCompanionContent = ({
                       intype="text"
                       inname="weight"
                       value={formData.insurance?.policyNumber || ''}
-                      inlabel="Policy Number"
+                      inlabel="Policy number"
                       onChange={(e) =>
                         setFormData({
                           ...formData,

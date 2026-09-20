@@ -4,6 +4,7 @@ import {
   DocumensoExternalRole,
   DocumensoService,
 } from "src/services/documenso.service";
+import { AuditTrailService } from "src/services/audit-trail.service";
 import { FormAssignmentService } from "src/services/form-assignment.service";
 import { completePersistedRenderedDocumentSigning } from "src/services/rendered-document.service";
 import { notifyOwnerOfPassportUpdate } from "src/services/pet-clinical-records.service";
@@ -17,8 +18,20 @@ import { Prisma } from "@prisma/client";
 interface DocumensoWebhookBody {
   event?: string;
   payload?: {
-    id?: string | number;
+    id?: string | number | null;
   };
+}
+
+// timingSafeEqual throws on a length mismatch, which would surface a
+// malformed signature as a 500 instead of the 401 it is.
+function isMatchingSignature(expected: string, provided: string): boolean {
+  const expectedBuf = Buffer.from(expected);
+  const providedBuf = Buffer.from(provided);
+  if (expectedBuf.length !== providedBuf.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(expectedBuf, providedBuf);
 }
 
 function verifySignature(
@@ -31,22 +44,26 @@ function verifySignature(
     .update(payload)
     .digest("hex");
 
-  const expectedBuf = Buffer.from(expected);
-  const providedBuf = Buffer.from(signature);
-  // timingSafeEqual throws on a length mismatch, which would surface a
-  // malformed signature as a 500 instead of the 401 it is.
-  if (expectedBuf.length !== providedBuf.length) {
-    return false;
+  return isMatchingSignature(expected, signature);
+}
+
+function isDocumensoWebhookBody(body: unknown): body is DocumensoWebhookBody {
+  return typeof body === "object" && body !== null && !Array.isArray(body);
+}
+
+function parseWebhookBody(rawBody: Buffer): DocumensoWebhookBody | null {
+  try {
+    const body = JSON.parse(rawBody.toString("utf8")) as unknown;
+    return isDocumensoWebhookBody(body) ? body : null;
+  } catch {
+    return null;
   }
-
-  return crypto.timingSafeEqual(expectedBuf, providedBuf);
 }
 
-function parseWebhookBody(rawBody: Buffer) {
-  return JSON.parse(rawBody.toString("utf8")) as DocumensoWebhookBody;
-}
-
-function parseWebhookEvent(body: DocumensoWebhookBody) {
+function parseWebhookEvent(body: DocumensoWebhookBody | null) {
+  if (!body) {
+    return null;
+  }
   const eventType = body.event;
   const documentId = body.payload?.id;
 
@@ -247,7 +264,11 @@ async function handlePassportRecordEvent(
       supersededById: null,
       artifact: { status: { not: "VOID" } },
     },
-    select: { id: true, artifactId: true },
+    select: {
+      id: true,
+      artifactId: true,
+      artifact: { select: { organisationId: true, kind: true } },
+    },
   });
   if (!attestation) return false;
   const signedAt = new Date();
@@ -266,14 +287,37 @@ async function handlePassportRecordEvent(
         signingStatus: "IN_PROGRESS",
       },
     },
-    data: { status: "SIGNED", signedAt },
+    // The counter moves with the status (#3144), so a workspace session that
+    // read this artifact before the signature cannot claim a write after it.
+    data: { status: "SIGNED", signedAt, version: { increment: 1 } },
   });
   // Already handled, or revoked in flight: ack the webhook, notify nobody.
   if (claimed.count === 0) return true;
 
+  // Best-effort: a download failure must not block flipping the artifact to
+  // SIGNED (the state the passport actually reads) - it only leaves
+  // signedPdfUrl unset, same as before this fetch existed.
+  const apiKey = await DocumensoService.resolveOrganisationApiKey(
+    attestation.artifact.organisationId,
+  );
+  const signedPdf = apiKey
+    ? await DocumensoService.downloadSignedDocument({
+        documentId: Number.parseInt(documentId, 10),
+        apiKey,
+      })
+    : undefined;
+
   const artifact = await prisma.clinicalArtifact.update({
     where: { id: attestation.artifactId },
-    data: { attestation: { update: { signingStatus: "SIGNED", signedAt } } },
+    data: {
+      attestation: {
+        update: {
+          signingStatus: "SIGNED",
+          signedAt,
+          signedPdfUrl: signedPdf?.downloadUrl,
+        },
+      },
+    },
     select: { encounterId: true },
   });
   // Tell the owner their passport gained a verified record (best-effort).
@@ -282,7 +326,22 @@ async function handlePassportRecordEvent(
       where: { id: artifact.encounterId },
       select: { patientId: true },
     });
-    if (encounter) await notifyOwnerOfPassportUpdate(encounter.patientId);
+    if (encounter) {
+      await notifyOwnerOfPassportUpdate(encounter.patientId);
+      await AuditTrailService.recordSafely({
+        organisationId: attestation.artifact.organisationId,
+        patientId: encounter.patientId,
+        eventType: "DOCUMENT_UPDATED",
+        actorType: "SYSTEM",
+        entityType: "DOCUMENT",
+        entityId: attestation.artifactId,
+        metadata: {
+          clinicalArtifactId: attestation.artifactId,
+          kind: attestation.artifact.kind,
+          documensoDocumentId: documentId,
+        },
+      });
+    }
   }
   return true;
 }
@@ -466,9 +525,7 @@ export const DocumensoKeyController = {
         .update(payload)
         .digest("hex");
 
-      if (
-        !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
-      ) {
+      if (!isMatchingSignature(expected, signature)) {
         logger.warn("Documenso key webhook signature invalid");
         return res.status(401).json({ message: "Invalid signature." });
       }

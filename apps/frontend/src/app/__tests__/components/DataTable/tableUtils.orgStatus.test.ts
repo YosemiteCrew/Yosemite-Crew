@@ -25,8 +25,8 @@ describe('getOrganizationStatusStyle', () => {
 
   it('returns the default style for an unknown status', () => {
     expect(getOrganizationStatusStyle('Unknown')).toEqual({
-      color: 'var(--color-neutral-0)',
-      backgroundColor: 'var(--color-badge-blue-bg)',
+      color: 'var(--color-pill-neutral-text)',
+      backgroundColor: 'var(--color-pill-neutral-bg)',
     });
   });
 });

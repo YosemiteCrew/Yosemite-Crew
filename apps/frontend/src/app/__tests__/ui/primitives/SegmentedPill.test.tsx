@@ -39,6 +39,7 @@ describe('SegmentedPill', () => {
   it.each([
     ['md' as const, ['px-[14px]', 'py-[5px]', 'text-[12px]']],
     ['lg' as const, ['px-[15px]', 'py-[6px]', 'text-[12.5px]']],
+    ['toolbar' as const, ['px-4', 'py-[7px]', 'text-[12px]']],
   ])('applies the %s segment size', (size, expectedClasses) => {
     render(
       <SegmentedPill

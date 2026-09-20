@@ -10,9 +10,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Floating-label text input used throughout all forms. ' +
-          'Label animates up on focus or when a value is present. ' +
-          'Supports error display with icon.',
+          'Compatibility API for the canonical Field and Input primitives. ' +
+          'Uses a static label above the 40px control and one shared help/error slot.',
       },
     },
   },

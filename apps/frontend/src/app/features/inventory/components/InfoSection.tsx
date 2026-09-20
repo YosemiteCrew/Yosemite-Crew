@@ -22,16 +22,16 @@ const makeStockFooter =
     const allocated = Number(formValues['allocated'] ?? 0);
     const available = Math.max(0, current - allocated);
     return (
-      <div className="flex flex-wrap items-center gap-4 px-2 text-body-4 text-text-primary">
+      <div className="flex flex-wrap items-center gap-4 px-2 text-[13px] text-[var(--ink-muted)]">
         <div className="flex items-center gap-2">
           <span>On hand stock :</span>
-          <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
+          <span className="rounded-full bg-[var(--inset)] px-2 py-[1px] text-[12.5px] font-bold tabular-nums text-[var(--ink)]">
             {String(current)}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <span>Available stock (dispensable) :</span>
-          <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
+          <span className="rounded-full bg-[var(--inset)] px-2 py-[1px] text-[12.5px] font-bold tabular-nums text-[var(--ink)]">
             {String(available)}
           </span>
         </div>
@@ -231,8 +231,6 @@ const InfoSection: React.FC<InfoSectionProps> = ({
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      <div className="font-satoshi text-black-text text-[23px] font-medium">{sectionTitle}</div>
-
       {accordionFields.length > 0 && (
         <EditableAccordion
           title={sectionTitle}

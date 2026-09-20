@@ -10,6 +10,7 @@ const mockTaskApi = {
   list: jest.fn(),
   create: jest.fn(),
   update: jest.fn(),
+  remove: jest.fn(),
   changeStatus: jest.fn(),
 };
 
@@ -63,6 +64,7 @@ describe('features/tasks/thunks', () => {
     mockTaskApi.list.mockResolvedValue([]);
     mockTaskApi.create.mockResolvedValue(createMockTask());
     mockTaskApi.update.mockResolvedValue(createMockTask());
+    mockTaskApi.remove.mockResolvedValue(undefined);
     mockTaskApi.changeStatus.mockResolvedValue(createMockTask());
   });
 
@@ -83,39 +85,47 @@ describe('features/tasks/thunks', () => {
     beforeEach(() => {
       // Mock getState to return proper state for condition checks
       mockGetState.mockReturnValue({
-        tasks: { loading: false }
+        tasks: {loading: false},
       });
     });
 
     it('success: returns data with empty tasks list', async () => {
       mockTaskApi.list.mockResolvedValue([]);
-      const result = await callThunk(fetchTasksForCompanion, { companionId: '1' });
+      const result = await callThunk(fetchTasksForCompanion, {
+        companionId: '1',
+      });
       expect(result.type).toBe('tasks/fetchTasksForCompanion/fulfilled');
-      expect(result.payload).toEqual({ companionId: '1', tasks: [] });
-      expect(mockTaskApi.list).toHaveBeenCalledWith({ companionId: '1' });
+      expect(result.payload).toEqual({companionId: '1', tasks: []});
+      expect(mockTaskApi.list).toHaveBeenCalledWith({companionId: '1'});
     });
 
     it('success: returns data with tasks', async () => {
       const mockTasks = [
-        createMockTask({ id: 'task-1', companionId: '1' }),
-        createMockTask({ id: 'task-2', companionId: '1' }),
+        createMockTask({id: 'task-1', companionId: '1'}),
+        createMockTask({id: 'task-2', companionId: '1'}),
       ];
       mockTaskApi.list.mockResolvedValue(mockTasks);
-      const result = await callThunk(fetchTasksForCompanion, { companionId: '1' });
+      const result = await callThunk(fetchTasksForCompanion, {
+        companionId: '1',
+      });
       expect(result.type).toBe('tasks/fetchTasksForCompanion/fulfilled');
-      expect(result.payload).toEqual({ companionId: '1', tasks: mockTasks });
+      expect(result.payload).toEqual({companionId: '1', tasks: mockTasks});
     });
 
     it('failure: handles Error object', async () => {
       mockTaskApi.list.mockRejectedValue(new Error('Fetch Failed'));
-      const result = await callThunk(fetchTasksForCompanion, { companionId: '1' });
+      const result = await callThunk(fetchTasksForCompanion, {
+        companionId: '1',
+      });
       expect(result.type).toBe('tasks/fetchTasksForCompanion/rejected');
       expect(result.payload).toBe('Fetch Failed');
     });
 
     it('failure: handles non-Error object (fallback message)', async () => {
       mockTaskApi.list.mockRejectedValue('Unknown String Error');
-      const result = await callThunk(fetchTasksForCompanion, { companionId: '1' });
+      const result = await callThunk(fetchTasksForCompanion, {
+        companionId: '1',
+      });
       expect(result.type).toBe('tasks/fetchTasksForCompanion/rejected');
       expect(result.payload).toBe('Failed to fetch tasks');
     });
@@ -187,26 +197,90 @@ describe('features/tasks/thunks', () => {
 
       const result = await callThunk(updateTask, {
         taskId: '1',
-        updates: { name: 'New Title' },
+        updates: {name: 'New Title'},
       });
 
       expect(result.type).toBe('tasks/updateTask/fulfilled');
       expect(result.payload).toEqual(mockUpdatedTask);
-      expect(mockTaskApi.update).toHaveBeenCalledWith('1', { name: 'New Title' });
+      // No scope argument defaults to THIS - the common single-occurrence case.
+      expect(mockTaskApi.update).toHaveBeenCalledWith(
+        '1',
+        {name: 'New Title'},
+        'THIS',
+      );
     });
 
     it('failure: handles Error object', async () => {
       mockTaskApi.update.mockRejectedValue(new Error('Update Failed'));
-      const result = await callThunk(updateTask, { taskId: '1', updates: {} });
+      const result = await callThunk(updateTask, {taskId: '1', updates: {}});
       expect(result.type).toBe('tasks/updateTask/rejected');
       expect(result.payload).toBe('Update Failed');
     });
 
     it('failure: handles non-Error object', async () => {
       mockTaskApi.update.mockRejectedValue('String Error');
-      const result = await callThunk(updateTask, { taskId: '1', updates: {} });
+      const result = await callThunk(updateTask, {taskId: '1', updates: {}});
       expect(result.type).toBe('tasks/updateTask/rejected');
       expect(result.payload).toBe('Failed to update task');
+    });
+
+    // The companion refresh bypasses dispatch(fetchTasksForCompanion(...))
+    // entirely (that thunk's own `condition` would refuse to run while this
+    // same updateTask/deleteTask call is still in flight - see thunks.ts) and
+    // instead calls the API directly, then dispatches the plain `.fulfilled`
+    // action. So "did it refresh" is read off `taskApi.list`, not off what
+    // was dispatched.
+    const dispatchedCompanionRefresh = () =>
+      mockDispatch.mock.calls.some(
+        call => call[0]?.type === 'tasks/fetchTasksForCompanion/fulfilled',
+      );
+
+    it('passes an explicit THIS scope through to the API call unchanged', async () => {
+      await callThunk(updateTask, {
+        taskId: '1',
+        updates: {name: 'New Title'},
+        scope: 'THIS',
+        companionId: 'c1',
+      });
+      expect(mockTaskApi.update).toHaveBeenCalledWith(
+        '1',
+        {name: 'New Title'},
+        'THIS',
+      );
+      // A single-occurrence write never needs a companion-wide refresh.
+      expect(mockTaskApi.list).not.toHaveBeenCalled();
+      expect(dispatchedCompanionRefresh()).toBe(false);
+    });
+
+    it('passes an explicit ALL scope through and refreshes the companion afterward', async () => {
+      await callThunk(updateTask, {
+        taskId: '1',
+        updates: {name: 'New Title'},
+        scope: 'ALL',
+        companionId: 'c1',
+      });
+      expect(mockTaskApi.update).toHaveBeenCalledWith(
+        '1',
+        {name: 'New Title'},
+        'ALL',
+      );
+      expect(mockTaskApi.list).toHaveBeenCalledWith({companionId: 'c1'});
+      expect(dispatchedCompanionRefresh()).toBe(true);
+    });
+
+    it('does not surface a save failure when only the post-ALL companion refresh rejects', async () => {
+      mockTaskApi.list.mockRejectedValue(new Error('refresh failed'));
+
+      const result = await callThunk(updateTask, {
+        taskId: '1',
+        updates: {name: 'New Title'},
+        scope: 'ALL',
+        companionId: 'c1',
+      });
+
+      // The scoped write itself already succeeded server-side; a stale cache
+      // is recoverable and must not be reported as "unable to save".
+      expect(result.type).toBe('tasks/updateTask/fulfilled');
     });
   });
 
@@ -214,32 +288,74 @@ describe('features/tasks/thunks', () => {
   // 4. deleteTask
   // ===========================================================================
   describe('deleteTask', () => {
-    it('success: returns cancelled task', async () => {
-      const mockCancelledTask = createMockTask({
-        id: '1',
+    it('success: cancels via the scope-aware endpoint, defaulting to THIS', async () => {
+      const result = await callThunk(deleteTask, {
+        taskId: '1',
         companionId: 'c1',
-        status: 'CANCELLED',
       });
-      mockTaskApi.changeStatus.mockResolvedValue(mockCancelledTask);
-
-      const result = await callThunk(deleteTask, { taskId: '1', companionId: 'c1' });
       expect(result.type).toBe('tasks/deleteTask/fulfilled');
-      expect(result.payload).toEqual(mockCancelledTask);
-      expect(mockTaskApi.changeStatus).toHaveBeenCalledWith('1', 'CANCELLED');
+      expect(mockTaskApi.remove).toHaveBeenCalledWith('1', 'THIS');
     });
 
     it('failure: handles Error object', async () => {
-      mockTaskApi.changeStatus.mockRejectedValue(new Error('Delete Failed'));
-      const result = await callThunk(deleteTask, { taskId: '1', companionId: 'c1' });
+      mockTaskApi.remove.mockRejectedValue(new Error('Delete Failed'));
+      const result = await callThunk(deleteTask, {
+        taskId: '1',
+        companionId: 'c1',
+      });
       expect(result.type).toBe('tasks/deleteTask/rejected');
       expect(result.payload).toBe('Delete Failed');
     });
 
     it('failure: handles non-Error object', async () => {
-      mockTaskApi.changeStatus.mockRejectedValue('String Error');
-      const result = await callThunk(deleteTask, { taskId: '1', companionId: 'c1' });
+      mockTaskApi.remove.mockRejectedValue('String Error');
+      const result = await callThunk(deleteTask, {
+        taskId: '1',
+        companionId: 'c1',
+      });
       expect(result.type).toBe('tasks/deleteTask/rejected');
       expect(result.payload).toBe('Failed to delete task');
+    });
+
+    const dispatchedCompanionRefresh = () =>
+      mockDispatch.mock.calls.some(
+        call => call[0]?.type === 'tasks/fetchTasksForCompanion/fulfilled',
+      );
+
+    it('passes an explicit THIS scope through without a companion refresh', async () => {
+      await callThunk(deleteTask, {
+        taskId: '1',
+        companionId: 'c1',
+        scope: 'THIS',
+      });
+      expect(mockTaskApi.remove).toHaveBeenCalledWith('1', 'THIS');
+      expect(mockTaskApi.list).not.toHaveBeenCalled();
+      expect(dispatchedCompanionRefresh()).toBe(false);
+    });
+
+    it('passes an explicit ALL scope through and refreshes the companion afterward', async () => {
+      await callThunk(deleteTask, {
+        taskId: '1',
+        companionId: 'c1',
+        scope: 'ALL',
+      });
+      expect(mockTaskApi.remove).toHaveBeenCalledWith('1', 'ALL');
+      expect(mockTaskApi.list).toHaveBeenCalledWith({companionId: 'c1'});
+      expect(dispatchedCompanionRefresh()).toBe(true);
+    });
+
+    it('does not surface a delete failure when only the post-ALL companion refresh rejects', async () => {
+      mockTaskApi.list.mockRejectedValue(new Error('refresh failed'));
+
+      const result = await callThunk(deleteTask, {
+        taskId: '1',
+        companionId: 'c1',
+        scope: 'ALL',
+      });
+
+      // The cancel itself already persisted server-side; a stale cache is
+      // recoverable and must not be reported as "unable to delete".
+      expect(result.type).toBe('tasks/deleteTask/fulfilled');
     });
   });
 
@@ -263,7 +379,11 @@ describe('features/tasks/thunks', () => {
 
       expect(result.type).toBe('tasks/markTaskStatus/fulfilled');
       expect(result.payload).toEqual(mockCompletedTask);
-      expect(mockTaskApi.changeStatus).toHaveBeenCalledWith('1', 'COMPLETED', undefined);
+      expect(mockTaskApi.changeStatus).toHaveBeenCalledWith(
+        '1',
+        'COMPLETED',
+        undefined,
+      );
     });
 
     it('success: pending status', async () => {
@@ -274,11 +394,18 @@ describe('features/tasks/thunks', () => {
       });
       mockTaskApi.changeStatus.mockResolvedValue(mockPendingTask);
 
-      const result = await callThunk(markTaskStatus, { taskId: '1', status: 'pending' });
+      const result = await callThunk(markTaskStatus, {
+        taskId: '1',
+        status: 'pending',
+      });
 
       expect(result.type).toBe('tasks/markTaskStatus/fulfilled');
       expect(result.payload).toEqual(mockPendingTask);
-      expect(mockTaskApi.changeStatus).toHaveBeenCalledWith('1', 'PENDING', undefined);
+      expect(mockTaskApi.changeStatus).toHaveBeenCalledWith(
+        '1',
+        'PENDING',
+        undefined,
+      );
     });
 
     it('success: in_progress status', async () => {
@@ -288,15 +415,22 @@ describe('features/tasks/thunks', () => {
       });
       mockTaskApi.changeStatus.mockResolvedValue(mockInProgressTask);
 
-      const result = await callThunk(markTaskStatus, { taskId: '1', status: 'in_progress' });
+      const result = await callThunk(markTaskStatus, {
+        taskId: '1',
+        status: 'in_progress',
+      });
 
       expect(result.type).toBe('tasks/markTaskStatus/fulfilled');
       expect(result.payload).toEqual(mockInProgressTask);
-      expect(mockTaskApi.changeStatus).toHaveBeenCalledWith('1', 'IN_PROGRESS', undefined);
+      expect(mockTaskApi.changeStatus).toHaveBeenCalledWith(
+        '1',
+        'IN_PROGRESS',
+        undefined,
+      );
     });
 
     it('success: passes completion data when provided', async () => {
-      const completionData = { notes: 'Task completed successfully' };
+      const completionData = {notes: 'Task completed successfully'};
       const mockCompletedTask = createMockTask({
         id: '1',
         status: 'COMPLETED',
@@ -312,19 +446,29 @@ describe('features/tasks/thunks', () => {
 
       expect(result.type).toBe('tasks/markTaskStatus/fulfilled');
       expect(result.payload).toEqual(mockCompletedTask);
-      expect(mockTaskApi.changeStatus).toHaveBeenCalledWith('1', 'COMPLETED', completionData);
+      expect(mockTaskApi.changeStatus).toHaveBeenCalledWith(
+        '1',
+        'COMPLETED',
+        completionData,
+      );
     });
 
     it('failure: handles Error object', async () => {
       mockTaskApi.changeStatus.mockRejectedValue(new Error('Status Failed'));
-      const result = await callThunk(markTaskStatus, { taskId: '1', status: 'completed' });
+      const result = await callThunk(markTaskStatus, {
+        taskId: '1',
+        status: 'completed',
+      });
       expect(result.type).toBe('tasks/markTaskStatus/rejected');
       expect(result.payload).toBe('Status Failed');
     });
 
     it('failure: handles non-Error object', async () => {
       mockTaskApi.changeStatus.mockRejectedValue('String Error');
-      const result = await callThunk(markTaskStatus, { taskId: '1', status: 'completed' });
+      const result = await callThunk(markTaskStatus, {
+        taskId: '1',
+        status: 'completed',
+      });
       expect(result.type).toBe('tasks/markTaskStatus/rejected');
       expect(result.payload).toBe('Failed to update task status');
     });

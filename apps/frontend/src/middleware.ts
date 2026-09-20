@@ -23,11 +23,13 @@ const STRICT_CSP_PATH_PREFIXES = [
   '/book-onboarding',
   '/chat',
   '/companions',
+  '/controlled-substances',
   '/create-org',
   '/dashboard',
   '/developers/api-keys',
   '/developers/billing',
   '/developers/documentation',
+  '/developers/form-draft-import',
   '/developers/home',
   '/developers/plugins',
   '/developers/settings',
@@ -40,6 +42,7 @@ const STRICT_CSP_PATH_PREFIXES = [
   '/guides',
   '/integrations',
   '/inventory',
+  '/migration-audit',
   '/network',
   '/organization',
   '/organizations',
@@ -153,6 +156,6 @@ export const config = {
   // with "can't recognize the exported `config` field". The rule is turned off
   // for this file in sonar-project.properties.
   matcher: [
-    '/((?!(?:api|_next|fonts|images|assets|dev-docs|static)(?:/|$)|.*\\.(?:ico|png|jpg|jpeg|gif|svg|webp|woff2?|ttf|eot|css|js|map|json|txt|xml|csv|yaml|html|webmanifest)$).*)',
+    '/((?!(?:api|_next|fonts|images|assets|captions|dev-docs|static)(?:/|$)|.*\\.(?:ico|png|jpg|jpeg|gif|svg|webp|woff2?|ttf|eot|css|js|map|json|txt|xml|csv|yaml|html|webmanifest|vtt)$).*)',
   ],
 };

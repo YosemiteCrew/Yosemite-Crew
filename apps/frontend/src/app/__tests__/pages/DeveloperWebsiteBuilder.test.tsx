@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
@@ -47,5 +49,41 @@ describe('DeveloperWebsiteBuilder page', () => {
     const { container } = render(<DeveloperWebsiteBuilder />);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
+  });
+});
+
+describe('promo panel reads ink from the fixed --spot-ink/--color-cyan tokens', () => {
+  // .dev-wb-promo is painted from --spot, which stays dark in both themes.
+  // Its badge tint, title, body and step markers must come from
+  // --spot-ink/--color-cyan (fixed the same way), not the flipping --ink -
+  // otherwise light mode collapses toward 1:1 contrast, the same class of
+  // bug fixed on DeveloperPortalHome (#2967), DeveloperPlugins (#2974) and
+  // DeveloperSettings (#2978).
+  const css = readFileSync(
+    join(
+      process.cwd(),
+      'src/app/features/developers/pages/DeveloperWebsiteBuilder/DeveloperWebsiteBuilder.css'
+    ),
+    'utf8'
+  );
+
+  it('does not hardcode the promo panel copy as a frozen cream or cyan literal', () => {
+    expect(css).not.toMatch(/\.dev-wb-promo-title\s*{[^}]*color:\s*#f4efe6/);
+    expect(css).not.toMatch(/\.dev-wb-promo-body\s*{[^}]*rgba\(\s*244,\s*239,\s*230/);
+    expect(css).not.toMatch(/\.dev-wb-step-label\s*{[^}]*color:\s*#f4efe6/);
+    expect(css).not.toMatch(/\.dev-wb-badge\s*{[^}]*rgba\(\s*92,\s*225,\s*230/);
+    expect(css).not.toMatch(/\.dev-wb-step-num\s*{[^}]*rgba\(\s*92,\s*225,\s*230/);
+  });
+
+  it('routes the promo panel copy through --spot-ink and the tints through --color-cyan', () => {
+    expect(css).toMatch(/\.dev-wb-promo-title\s*{[^}]*color:\s*var\(--spot-ink\)/);
+    expect(css).toMatch(/\.dev-wb-promo-body\s*{[^}]*color-mix\(in srgb, var\(--spot-ink\) 60%/);
+    expect(css).toMatch(/\.dev-wb-step-label\s*{[^}]*color:\s*var\(--spot-ink\)/);
+    expect(css).toMatch(
+      /\.dev-wb-badge\s*{[^}]*background:\s*color-mix\(in srgb, var\(--color-cyan\) 12%/
+    );
+    expect(css).toMatch(
+      /\.dev-wb-step-num\s*{[^}]*background:\s*color-mix\(in srgb, var\(--color-cyan\) 16%/
+    );
   });
 });

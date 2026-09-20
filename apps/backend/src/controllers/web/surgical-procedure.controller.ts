@@ -20,16 +20,16 @@ const AnesthesiaEnum = z.enum([
 ]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
   procedureName: z.string().min(1).max(300),
   surgeon: z.string().max(200).optional(),
   assistants: z.array(z.string().max(200)).optional(),
   anesthesiaType: AnesthesiaEnum.optional(),
   anesthesiaAgent: z.string().max(200).optional(),
   anesthesiaDoseMs: z.number().positive().optional(),
-  startedAt: z.string().datetime().optional(),
-  endedAt: z.string().datetime().optional(),
+  startedAt: z.iso.datetime().optional(),
+  endedAt: z.iso.datetime().optional(),
   durationMinutes: z.number().int().positive().optional(),
   outcome: OutcomeEnum.optional(),
   complications: z.string().max(2000).optional(),

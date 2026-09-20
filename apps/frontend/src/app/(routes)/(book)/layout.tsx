@@ -22,6 +22,7 @@ import { PRE_PAINT_SCRIPT } from '@/app/ui/theme/prePaintScript';
  * depends on that last one - every line that reached for --ink-faint now uses
  * --ink-muted - so a browser without :has() loses nothing.
  */
+// no-story: pure structural wrapper (pre-paint theme script + a display:contents scoping div); no visual content of its own
 export default function BookLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <>

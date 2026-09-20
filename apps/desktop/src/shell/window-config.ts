@@ -28,6 +28,11 @@ export const DEEP_LINK_SCHEME = 'yosemitecrew';
 
 const ALLOWED_EXTERNAL_SCHEMES = new Set(['https:', 'http:', 'mailto:']);
 
+// Electron's permission vocabulary is 46 names in 44.1.1 (both the request and the
+// check union). Everything not listed here is denied, so a name added by a future
+// Chromium, 'geolocation-approximate' being the current example, fails closed until it
+// is granted deliberately. tests/window-config.test.ts pins these five against a
+// literal so an edit to this control cannot pass as an accident.
 export const permittedPermissions = new Set([
   'clipboard-read',
   'display-capture',
@@ -87,6 +92,18 @@ export const openExternal = async (url: URL | string | undefined): Promise<void>
   } catch (error) {
     _logger.error('external_link_failed', { href, error });
     dialog.showErrorBox('Unable to open link', href);
+  }
+};
+
+// Electron 44 rearchitected `clipboard` onto the W3C API, so `writeText` returns a
+// promise where it used to return `undefined`. `await` reads the same on both, and it
+// is what keeps a failed write - a clipboard another process is holding, typically -
+// from escaping the menu handler as an unhandled rejection.
+export const copyLink = async (url: string): Promise<void> => {
+  try {
+    await clipboard.writeText(url);
+  } catch (error) {
+    _logger.error('copy_link_failed', { href: url, error });
   }
 };
 
@@ -177,8 +194,14 @@ export const configureSessionPermissions = (ses: Session): void => {
     callback(granted);
   });
 
-  ses.setPermissionCheckHandler((_webContents, permission, requestingOrigin) => {
-    const decision = classifyNavigation(requestingOrigin || '', getConfig());
+  ses.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+    // An empty requestingOrigin used to fall through classifyNavigation's base-URL
+    // resolution and come back as the start URL, i.e. internal. Fall back to the
+    // web contents' own URL the way the request handler does, and deny when the
+    // check cannot be attributed to any origin at all.
+    const origin = requestingOrigin || webContents?.getURL() || '';
+    if (!origin) return false;
+    const decision = classifyNavigation(origin, getConfig());
     return decision.disposition === 'internal' && permittedPermissions.has(permission);
   });
 };
@@ -228,7 +251,7 @@ export const buildContextMenu = (
     menu.append(
       new MenuItem({
         label: 'Copy Link',
-        click: () => clipboard.writeText(linkURL),
+        click: () => void copyLink(linkURL),
       })
     );
     menu.append(new MenuItem({ type: 'separator' }));

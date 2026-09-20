@@ -6,7 +6,6 @@ import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 
 jest.mock('react-icons/io', () => ({
   IoIosSearch: () => <span data-testid="icon-search" />,
-  IoIosWarning: () => <span data-testid="icon-warning" />,
 }));
 
 expect.extend(toHaveNoViolations);
@@ -108,8 +107,11 @@ describe('SearchDropdown', () => {
       />
     );
 
-    expect(screen.getByText('Required')).toBeInTheDocument();
-    expect(screen.getByTestId('icon-warning')).toBeInTheDocument();
+    const input = screen.getByRole('textbox', { name: 'Search' });
+    const error = screen.getByRole('alert');
+    expect(error).toHaveTextContent('Required');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAttribute('aria-describedby', error.id);
   });
 
   it('supports home, escape, and loading-more states', () => {

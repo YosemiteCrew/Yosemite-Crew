@@ -4,6 +4,7 @@ import {
   fetchBusinessPlaceDetails,
   fetchBusinessesBySearch,
   MissingApiKeyError,
+  REGION_PRIMARY_TYPES,
 } from '@/shared/services/maps/googlePlaces';
 import {GOOGLE_PLACES_CONFIG} from '@/config/variables';
 
@@ -124,6 +125,34 @@ describe('Google Places Service', () => {
         primaryText: 'Just Text', // Fallback to text.text
         secondaryText: undefined,
       });
+    });
+
+    it('restricts to street-level types when the caller asks for nothing else', async () => {
+      mockFetchSuccess({});
+      // How every address-entry caller (e.g. useAddressAutocomplete) calls it.
+      await fetchPlaceSuggestions({query: 'Main', location: null});
+
+      const body = JSON.parse(
+        (globalThis.fetch as jest.Mock).mock.calls[0][1].body,
+      );
+      expect(body.includedPrimaryTypes).toEqual([
+        'street_address',
+        'premise',
+        'route',
+      ]);
+    });
+
+    it('sends the primary types the caller asked for', async () => {
+      mockFetchSuccess({});
+      await fetchPlaceSuggestions({
+        query: 'Brisbane',
+        includedPrimaryTypes: REGION_PRIMARY_TYPES,
+      });
+
+      const body = JSON.parse(
+        (globalThis.fetch as jest.Mock).mock.calls[0][1].body,
+      );
+      expect(body.includedPrimaryTypes).toEqual(['(regions)']);
     });
 
     it('handles location bias correctly', async () => {

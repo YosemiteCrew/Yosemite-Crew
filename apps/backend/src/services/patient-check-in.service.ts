@@ -1,5 +1,9 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
+import {
+  AppointmentPrismaService,
+  AppointmentPrismaServiceError,
+} from "./appointment.prisma.service";
 import type { Prisma } from "@prisma/client";
 
 export class PatientCheckInError extends Error {
@@ -65,6 +69,128 @@ const assertCheckIn = async (id: string, organisationId: string) => {
   return record;
 };
 
+/**
+ * The front desk's arrival and the schedule's own CHECKED_IN status are two
+ * independent state machines (PatientCheckIn.status vs Appointment.status)
+ * that happened to grow the same vocabulary without ever being wired
+ * together: checking a patient in here never touched the linked appointment,
+ * so the Board kept showing "Upcoming" for a patient the front desk already
+ * had as arrived. This is the one write that closes that gap - reusing
+ * `checkInAppointment` (not a raw status write) so the encounter it creates
+ * on arrival still gets created.
+ *
+ * Deliberately best-effort: an appointment already CHECKED_IN or further
+ * along (IN_PROGRESS, COMPLETED, ...) throws on the transition, and a
+ * walk-in's appointmentId can point at a REQUESTED or CANCELLED appointment
+ * that was never confirmed - none of those should block the front desk from
+ * recording that someone physically arrived.
+ */
+const syncAppointmentOnArrival = async (
+  appointmentId: string | undefined,
+  organisationId: string,
+): Promise<void> => {
+  if (!appointmentId) return;
+  try {
+    await AppointmentPrismaService.checkInAppointment(
+      appointmentId,
+      organisationId,
+    );
+  } catch (err) {
+    if (err instanceof AppointmentPrismaServiceError) return;
+    throw err;
+  }
+};
+
+/**
+ * Front desk's "current room" and the schedule's own Appointment.room are
+ * the same fact tracked in two places: reassigning a room at check-in never
+ * touched the appointment, so the Board kept showing whatever room the
+ * appointment was booked into even after the patient moved. Best-effort for
+ * the same reason as syncAppointmentOnArrival - a check-in isn't always
+ * linked to an appointment, and a stale/terminal appointment shouldn't block
+ * the front desk from recording a room move.
+ */
+const syncAppointmentRoom = async (
+  appointmentId: string | undefined,
+  organisationId: string,
+  roomId: string,
+): Promise<void> => {
+  if (!appointmentId) return;
+  const room = await prisma.organisationRoom.findFirst({
+    where: { id: roomId, organisationId },
+    select: { id: true, name: true },
+  });
+  if (!room) return;
+  try {
+    await AppointmentPrismaService.updateAppointmentRoom(
+      appointmentId,
+      organisationId,
+      room,
+    );
+  } catch (err) {
+    if (err instanceof AppointmentPrismaServiceError) return;
+    throw err;
+  }
+};
+
+/**
+ * Same gap as `syncAppointmentOnArrival`, for the other end of a visit:
+ * completing a check-in here never told the linked Appointment, so the
+ * Calendar kept showing "Checked in" for a visit the front desk had already
+ * closed out. Best-effort for the same reason - a check-in isn't always
+ * linked to an appointment, and one that's stale or already terminal
+ * shouldn't block the front desk from closing its own record.
+ */
+const syncAppointmentOnComplete = async (
+  appointmentId: string | undefined,
+  organisationId: string,
+): Promise<void> => {
+  if (!appointmentId) return;
+  try {
+    await AppointmentPrismaService.completeAppointment(
+      appointmentId,
+      organisationId,
+    );
+  } catch (err) {
+    if (err instanceof AppointmentPrismaServiceError) return;
+    throw err;
+  }
+};
+
+/** Same gap as `syncAppointmentOnComplete`, for cancelling a check-in. */
+const syncAppointmentOnCancel = async (
+  appointmentId: string | undefined,
+  organisationId: string,
+): Promise<void> => {
+  if (!appointmentId) return;
+  try {
+    await AppointmentPrismaService.cancelAppointment(
+      appointmentId,
+      organisationId,
+    );
+  } catch (err) {
+    if (err instanceof AppointmentPrismaServiceError) return;
+    throw err;
+  }
+};
+
+/** Same gap as `syncAppointmentOnComplete`, for marking a check-in no-show. */
+const syncAppointmentOnNoShow = async (
+  appointmentId: string | undefined,
+  organisationId: string,
+): Promise<void> => {
+  if (!appointmentId) return;
+  try {
+    await AppointmentPrismaService.markAppointmentNoShow(
+      appointmentId,
+      organisationId,
+    );
+  } catch (err) {
+    if (err instanceof AppointmentPrismaServiceError) return;
+    throw err;
+  }
+};
+
 export const PatientCheckInService = {
   async create(params: CreateCheckInParams) {
     const record = await prisma.patientCheckIn.create({
@@ -83,6 +209,8 @@ export const PatientCheckInService = {
       },
       select: checkInSelect,
     });
+
+    await syncAppointmentOnArrival(params.appointmentId, params.organisationId);
 
     await AuditTrailService.recordSafely({
       organisationId: params.organisationId,
@@ -183,11 +311,18 @@ export const PatientCheckInService = {
         409,
       );
     }
-    return prisma.patientCheckIn.update({
+    const record = await prisma.patientCheckIn.update({
       where: { id },
       data: { status: "COMPLETED" },
       select: checkInSelect,
     });
+
+    await syncAppointmentOnComplete(
+      existing.appointmentId ?? undefined,
+      organisationId,
+    );
+
+    return record;
   },
 
   async cancel(id: string, organisationId: string) {
@@ -198,11 +333,18 @@ export const PatientCheckInService = {
         409,
       );
     }
-    return prisma.patientCheckIn.update({
+    const record = await prisma.patientCheckIn.update({
       where: { id },
       data: { status: "CANCELLED" },
       select: checkInSelect,
     });
+
+    await syncAppointmentOnCancel(
+      existing.appointmentId ?? undefined,
+      organisationId,
+    );
+
+    return record;
   },
 
   async markNoShow(id: string, organisationId: string) {
@@ -213,19 +355,34 @@ export const PatientCheckInService = {
         409,
       );
     }
-    return prisma.patientCheckIn.update({
+    const record = await prisma.patientCheckIn.update({
       where: { id },
       data: { status: "NO_SHOW" },
       select: checkInSelect,
     });
+
+    await syncAppointmentOnNoShow(
+      existing.appointmentId ?? undefined,
+      organisationId,
+    );
+
+    return record;
   },
 
   async assignRoom(id: string, organisationId: string, roomId: string) {
-    await assertCheckIn(id, organisationId);
-    return prisma.patientCheckIn.update({
+    const existing = await assertCheckIn(id, organisationId);
+    const record = await prisma.patientCheckIn.update({
       where: { id },
       data: { assignedRoomId: roomId },
       select: checkInSelect,
     });
+
+    await syncAppointmentRoom(
+      existing.appointmentId ?? undefined,
+      organisationId,
+      roomId,
+    );
+
+    return record;
   },
 };

@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
@@ -7,6 +9,7 @@ import { useAuthStore } from '@/app/stores/authStore';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
+import { DEFAULT_SIGN_IN_ERROR } from '@/app/features/auth/lib/signInErrorMessage';
 
 // --- Mocks ---
 
@@ -447,6 +450,99 @@ describe('SignIn Page', () => {
     );
   });
 
+  // --- Persistent inline sign-in error (in addition to the toast above) ---
+
+  it('shows a persistent inline error alongside the toast on sign-in failure', async () => {
+    mockSignIn.mockRejectedValue(new Error('Invalid credentials'));
+
+    render(<SignIn />);
+
+    fireEvent.change(getEmailInput(), { target: { value: 'test@example.com' } });
+    fireEvent.change(getPasswordInput(), { target: { value: 'pass123' } });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Invalid credentials');
+  });
+
+  it('shows the rate-limit message inline, not just as a toast', async () => {
+    mockSignIn.mockRejectedValue({ response: { status: 429 } });
+
+    render(<SignIn />);
+
+    fireEvent.change(getEmailInput(), { target: { value: 'test@example.com' } });
+    fireEvent.change(getPasswordInput(), { target: { value: 'pass123' } });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    expect(
+      screen.getByText(
+        'Too many requests right now. Your sign in was accepted - please wait a minute and try again.'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the inline error visible until the user edits a field', async () => {
+    mockSignIn.mockRejectedValue(new Error('Invalid credentials'));
+
+    render(<SignIn />);
+
+    fireEvent.change(getEmailInput(), { target: { value: 'test@example.com' } });
+    fireEvent.change(getPasswordInput(), { target: { value: 'pass123' } });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    expect(screen.getByText('Invalid credentials')).toBeInTheDocument();
+
+    fireEvent.change(getPasswordInput(), { target: { value: 'pass1234' } });
+
+    expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument();
+  });
+
+  it('clears the previous inline error as soon as a retry is submitted', async () => {
+    mockSignIn.mockRejectedValueOnce(new Error('Invalid credentials'));
+    mockSignIn.mockResolvedValueOnce({});
+
+    render(<SignIn />);
+
+    fireEvent.change(getEmailInput(), { target: { value: 'test@example.com' } });
+    fireEvent.change(getPasswordInput(), { target: { value: 'pass123' } });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+    expect(screen.getByText('Invalid credentials')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    expect(screen.queryByText('Invalid credentials')).not.toBeInTheDocument();
+  });
+
+  it('does not show an inline error for the unconfirmed-account flow', async () => {
+    const error = { code: 'UserNotConfirmedException' };
+    mockSignIn.mockRejectedValue(error);
+    mockResendCode.mockResolvedValue(true);
+
+    render(<SignIn />);
+
+    fireEvent.change(getEmailInput(), { target: { value: 'unconfirmed@test.com' } });
+    fireEvent.change(getPasswordInput(), { target: { value: 'pass123' } });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('handles UserNotConfirmedException by resending code and showing modal', async () => {
     const error = { code: 'UserNotConfirmedException' };
     mockSignIn.mockRejectedValue(error);
@@ -519,7 +615,7 @@ describe('SignIn Page', () => {
     });
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Sign in failed' })
+      expect.objectContaining({ message: DEFAULT_SIGN_IN_ERROR })
     );
   });
 
@@ -562,6 +658,24 @@ describe('SignIn Page', () => {
     render(<SignIn />);
 
     expect(getEmailInput()).toHaveValue('');
+  });
+
+  it('tells the user they were signed out when redirected here with reason=session-expired', () => {
+    (useSearchParams as jest.Mock).mockReturnValue(
+      new URLSearchParams({ next: '/dashboard', reason: 'session-expired' })
+    );
+
+    render(<SignIn />);
+
+    expect(mockShowErrorTost).toHaveBeenCalledWith(
+      expect.objectContaining({ errortext: 'You were signed out' })
+    );
+  });
+
+  it('says nothing when there is no reason param - a plain visit is not a sign-out', () => {
+    render(<SignIn />);
+
+    expect(mockShowErrorTost).not.toHaveBeenCalled();
   });
 
   it('honors a safe next query param as the post-auth redirect', async () => {
@@ -633,5 +747,25 @@ describe('SignIn Page', () => {
     const { container } = render(<SignIn />);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
+  });
+});
+
+describe('auth-brand headline reads the fixed accent-dark token', () => {
+  // AuthShell's brand panel is painted with a literal, permanently-dark
+  // gradient (never a token), so the "clinic" emphasis must stay pinned to a
+  // fixed-dark-tuned ink rather than the flipping --blue-text - otherwise
+  // light mode would put --blue-text's near-black light value on the
+  // permanently-dark hero.
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/auth/pages/SignIn/SignIn.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode the emphasis colour as a frozen literal', () => {
+    expect(source).not.toContain("color: '#8fb6f5'");
+  });
+
+  it('routes the emphasis colour through --color-accent-dark', () => {
+    expect(source).toContain("color: 'var(--color-accent-dark)'");
   });
 });

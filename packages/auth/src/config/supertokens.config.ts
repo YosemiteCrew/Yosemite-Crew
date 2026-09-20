@@ -29,6 +29,15 @@ function requireEnv(name: string): string {
 }
 
 const SUPERTOKENS_API_KEY_FIELD = 'apiKey' as const;
+const TURNSTILE_SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+const TURNSTILE_ACTION = 'business_signup';
+const TURNSTILE_TOKEN_FIELD = 'turnstileToken';
+const TURNSTILE_FIELD_ERROR = 'Complete bot verification before creating an account.';
+const TURNSTILE_SIGNUP_ERROR = 'We could not verify this signup. Please refresh and try again.';
+
+function isValidTurnstileToken(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= 2048;
+}
 
 // Keys this package stores on SuperTokens' userContext to carry login-flow
 // facts from the recipe overrides into session creation and MFA policy.
@@ -63,6 +72,71 @@ if (
 }
 
 type MutableContext = Record<string, unknown>;
+
+function canonicalizeEmail(email: string): string {
+  const trimmed = email.trim();
+  const separator = trimmed.lastIndexOf('@');
+  if (separator < 1) return trimmed;
+
+  const local = trimmed.slice(0, separator);
+  const domain = trimmed.slice(separator + 1).toLowerCase();
+  if (domain !== 'gmail.com' && domain !== 'googlemail.com') {
+    return `${local}@${domain}`;
+  }
+
+  return `${local.toLowerCase().split('+')[0].replaceAll('.', '')}@gmail.com`;
+}
+
+function canonicalizeEmailFields<T extends { formFields: { id: string; value: unknown }[] }>(
+  input: T
+): T {
+  return {
+    ...input,
+    formFields: input.formFields.map((field) =>
+      field.id === 'email' && typeof field.value === 'string'
+        ? { ...field, value: canonicalizeEmail(field.value) }
+        : field
+    ),
+  } as T;
+}
+
+function readEmailField(input: {
+  formFields: { id: string; value: unknown }[];
+}): string | undefined {
+  const value = input.formFields.find((field) => field.id === 'email')?.value;
+  return typeof value === 'string' ? value : undefined;
+}
+
+async function verifyTurnstile(input: {
+  token: string;
+  secret: string;
+  hostname: string;
+  remoteIp?: string;
+}): Promise<boolean> {
+  try {
+    const body = new URLSearchParams({ secret: input.secret, response: input.token });
+    if (input.remoteIp) body.set('remoteip', input.remoteIp);
+    const response = await fetch(TURNSTILE_SITEVERIFY_URL, {
+      method: 'POST',
+      body,
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return false;
+    const result = (await response.json()) as {
+      success?: boolean;
+      action?: string;
+      hostname?: string;
+    };
+    return (
+      result.success === true &&
+      result.action === TURNSTILE_ACTION &&
+      result.hostname === input.hostname
+    );
+  } catch (error) {
+    console.error('[auth] Turnstile verification failed', error);
+    return false;
+  }
+}
 
 function defaultProfileForMethod(method: LoginMethod): AuthProfile {
   // Staff sign in with email+password; every other first factor (email OTP,
@@ -107,6 +181,52 @@ async function reportUserCreated(input: {
     // Identity bookkeeping must never block a successful sign-up; the mapping
     // row is recoverable from provider data.
     console.error('[auth] onUserCreated hook failed', err);
+  }
+}
+
+/**
+ * Two independent disable signals, deliberately both checked.
+ *
+ * `disabledAt` in SuperTokens user metadata is written by the SuperAdmin panel,
+ * which is not in this repository - so this codebase can neither confirm nor
+ * rule out that it is still set. `isSignInBlocked` asks the host about the
+ * state this repository does own (an organisation whose isActive was cleared
+ * through PATCH /businesses/:id). Reading only one of them would leave the
+ * other disable button doing nothing.
+ *
+ * Both answers are collapsed into WRONG_CREDENTIALS_ERROR by the callers: a
+ * disabled account must not be distinguishable from a wrong password, or the
+ * sign-in form becomes an oracle for which accounts exist and are suspended.
+ */
+async function isSignInDenied(input: {
+  appUserId: string;
+  providerUserId: string;
+  email?: string;
+  loginMethod: LoginMethod;
+}): Promise<boolean> {
+  try {
+    const { metadata } = await UserMetadata.getUserMetadata(input.appUserId);
+    if (typeof metadata.disabledAt === 'number') {
+      return true;
+    }
+  } catch (err) {
+    // Metadata is advisory here; the host check below is the authoritative one.
+    console.error('[auth] disabled-account metadata lookup failed', err);
+  }
+
+  const hook = getAuthHooks().isSignInBlocked;
+  if (!hook) {
+    return false;
+  }
+  try {
+    return await hook(input);
+  } catch (err) {
+    // Fail OPEN, unlike the rest of today's fail-closed choices, and the
+    // asymmetry is deliberate: a database blip must not lock every user out of
+    // the product, and the account state it would have reported is still
+    // enforced on every authorised request afterwards.
+    console.error('[auth] isSignInBlocked hook failed', err);
+    return false;
   }
 }
 
@@ -270,6 +390,10 @@ export function getSuperTokensConfig(): TypeInput {
   const supertokensApiKey = process.env.SUPERTOKENS_API_KEY;
   const smtpSettings = getSmtpSettings();
   const thirdPartyProviders = buildThirdPartyProviders();
+  const appInfo = getAuthAppInfo();
+  const turnstileSecret = process.env.TURNSTILE_SECRET_KEY?.trim();
+  const turnstileRequired = process.env.NODE_ENV === 'production' || Boolean(turnstileSecret);
+  const turnstileHostname = new URL(requireEnv('AUTH_WEBSITE_DOMAIN')).hostname;
 
   const firstFactors = [
     MultiFactorAuth.FactorIds.EMAILPASSWORD,
@@ -283,13 +407,112 @@ export function getSuperTokensConfig(): TypeInput {
       connectionURI: requireEnv('SUPERTOKENS_CONNECTION_URI'),
       ...(supertokensApiKey ? { [SUPERTOKENS_API_KEY_FIELD]: supertokensApiKey } : undefined),
     },
-    appInfo: getAuthAppInfo(),
+    appInfo,
     recipeList: [
       EmailPassword.init({
+        signUpFeature: {
+          formFields: [
+            {
+              id: TURNSTILE_TOKEN_FIELD,
+              optional: true,
+              validate: async (value) =>
+                isValidTurnstileToken(value) ? undefined : TURNSTILE_FIELD_ERROR,
+            },
+          ],
+        },
         emailDelivery: {
           service: new SMTPService({ smtpSettings }),
         },
         override: {
+          apis: (original) => {
+            const signUpPOST = original.signUpPOST;
+            const signInPOST = original.signInPOST;
+            const generatePasswordResetTokenPOST = original.generatePasswordResetTokenPOST;
+            const emailExistsGET = original.emailExistsGET;
+
+            return {
+              ...original,
+              signUpPOST:
+                signUpPOST === undefined
+                  ? undefined
+                  : async (input) => {
+                      const normalizedInput = canonicalizeEmailFields(input);
+                      if (turnstileRequired) {
+                        const token = input.formFields.find(
+                          (field) => field.id === TURNSTILE_TOKEN_FIELD
+                        )?.value;
+                        const remoteIp = (input.options.req.original as { ip?: string }).ip;
+                        if (
+                          !turnstileSecret ||
+                          !isValidTurnstileToken(token) ||
+                          !(await verifyTurnstile({
+                            token,
+                            secret: turnstileSecret,
+                            hostname: turnstileHostname,
+                            remoteIp,
+                          }))
+                        ) {
+                          return { status: 'SIGN_UP_NOT_ALLOWED', reason: TURNSTILE_SIGNUP_ERROR };
+                        }
+                      }
+                      return signUpPOST(normalizedInput);
+                    },
+              signInPOST:
+                signInPOST === undefined
+                  ? undefined
+                  : async (input) => {
+                      const result = await signInPOST(input);
+                      const email = readEmailField(input);
+                      if (result.status !== 'WRONG_CREDENTIALS_ERROR' || email === undefined) {
+                        return result;
+                      }
+                      const canonicalEmail = canonicalizeEmail(email);
+                      if (canonicalEmail === email || emailExistsGET === undefined) return result;
+                      const exactAccount = await emailExistsGET({
+                        email,
+                        tenantId: input.tenantId,
+                        options: input.options,
+                        userContext: input.userContext,
+                      });
+                      return exactAccount.status !== 'OK' || exactAccount.exists
+                        ? result
+                        : signInPOST(canonicalizeEmailFields(input));
+                    },
+              generatePasswordResetTokenPOST:
+                generatePasswordResetTokenPOST === undefined
+                  ? undefined
+                  : async (input) => {
+                      const email = readEmailField(input);
+                      if (email === undefined || emailExistsGET === undefined) {
+                        return generatePasswordResetTokenPOST(input);
+                      }
+                      const canonicalEmail = canonicalizeEmail(email);
+                      if (canonicalEmail === email) {
+                        return generatePasswordResetTokenPOST(input);
+                      }
+                      const exactAccount = await emailExistsGET({
+                        email,
+                        tenantId: input.tenantId,
+                        options: input.options,
+                        userContext: input.userContext,
+                      });
+                      return exactAccount.status !== 'OK' || exactAccount.exists
+                        ? generatePasswordResetTokenPOST(input)
+                        : generatePasswordResetTokenPOST(canonicalizeEmailFields(input));
+                    },
+              emailExistsGET:
+                emailExistsGET === undefined
+                  ? undefined
+                  : async (input) => {
+                      const result = await emailExistsGET(input);
+                      if (result.status !== 'OK' || result.exists) return result;
+                      const canonicalEmail = canonicalizeEmail(input.email);
+                      return canonicalEmail === input.email
+                        ? result
+                        : emailExistsGET({ ...input, email: canonicalEmail });
+                    },
+            };
+          },
           functions: (original) => ({
             ...original,
             signUp: async (input) => {
@@ -311,7 +534,18 @@ export function getSuperTokensConfig(): TypeInput {
               const ctx = input.userContext as MutableContext;
               ctx[CTX_LOGIN_METHOD] = 'emailpassword';
               ctx[CTX_EMAIL] = input.email;
-              return original.signIn(input);
+              const result = await original.signIn(input);
+              if (result.status !== 'OK') {
+                return result;
+              }
+
+              const denied = await isSignInDenied({
+                appUserId: result.user.id,
+                providerUserId: result.recipeUserId.getAsString(),
+                email: input.email,
+                loginMethod: 'emailpassword',
+              });
+              return denied ? { status: 'WRONG_CREDENTIALS_ERROR' } : result;
             },
           }),
         },
@@ -411,6 +645,21 @@ export function getSuperTokensConfig(): TypeInput {
                     loginMethod: 'otp-email',
                   });
                 }
+
+                // A correct code for a disabled account still must not produce
+                // a session. RESTART_FLOW_ERROR is the only refusal this recipe
+                // offers that carries no attempt counters, so it does not tell
+                // the caller whether the code itself was right.
+                if (
+                  await isSignInDenied({
+                    appUserId: result.user.id,
+                    providerUserId: result.recipeUserId.getAsString(),
+                    email,
+                    loginMethod: 'otp-email',
+                  })
+                ) {
+                  return { status: 'RESTART_FLOW_ERROR' };
+                }
               }
               return result;
             },
@@ -430,13 +679,32 @@ export function getSuperTokensConfig(): TypeInput {
                     ctx[CTX_LOGIN_METHOD] = loginMethod;
                     ctx[CTX_EMAIL] = input.email;
                     const result = await original.signInUp(input);
-                    if (result.status === 'OK' && result.createdNewRecipeUser) {
-                      await reportUserCreated({
-                        appUserId: result.user.id,
-                        providerUserId: result.recipeUserId.getAsString(),
-                        email: input.email,
-                        loginMethod,
-                      });
+                    if (result.status === 'OK') {
+                      if (result.createdNewRecipeUser) {
+                        await reportUserCreated({
+                          appUserId: result.user.id,
+                          providerUserId: result.recipeUserId.getAsString(),
+                          email: input.email,
+                          loginMethod,
+                        });
+                      }
+
+                      // The provider vouched for the identity; the account is
+                      // still disabled. The reason string is deliberately
+                      // generic - it reaches the client.
+                      if (
+                        await isSignInDenied({
+                          appUserId: result.user.id,
+                          providerUserId: result.recipeUserId.getAsString(),
+                          email: input.email,
+                          loginMethod,
+                        })
+                      ) {
+                        return {
+                          status: 'SIGN_IN_UP_NOT_ALLOWED',
+                          reason: 'Sign in is not available for this account.',
+                        };
+                      }
                     }
                     return result;
                   },

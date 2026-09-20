@@ -24,6 +24,16 @@ const mockPrisma = {
   occupancy: {
     deleteMany: jest.fn(),
   },
+  developerSubscription: {
+    findUnique: jest.fn(),
+    deleteMany: jest.fn(),
+  },
+  developerApiKey: {
+    deleteMany: jest.fn(),
+  },
+  developerApiUsage: {
+    deleteMany: jest.fn(),
+  },
 };
 
 jest.mock("src/config/prisma", () => ({
@@ -36,6 +46,14 @@ const mockGetAuthService = jest.fn();
 jest.mock("@yosemite-crew/auth", () => ({
   ...jest.requireActual("@yosemite-crew/auth"),
   getAuthService: () => mockGetAuthService(),
+}));
+
+const mockCancelForOwner = jest.fn();
+
+jest.mock("src/services/developer-billing.service", () => ({
+  DeveloperBillingService: {
+    cancelForOwner: (...args: unknown[]) => mockCancelForOwner(...args),
+  },
 }));
 
 const mockOrganizationDeleteById = jest.fn();
@@ -364,6 +382,25 @@ describe("UserService", () => {
     ).rejects.toMatchObject({
       message: "User not found.",
       statusCode: 404,
+    });
+  });
+
+  it("cancels the developer subscription and clears developer rows on deletion", async () => {
+    // The subscription is keyed on the user, so removing organisation
+    // memberships leaves it renewing. Deleting the account must stop the
+    // charge, not just sign the person out.
+    mockPrisma.user.findFirst.mockResolvedValue({ id: "row-1" });
+    mockPrisma.userOrganization.findMany.mockResolvedValue([]);
+    mockPrisma.user.updateMany.mockResolvedValue({ count: 1 });
+
+    await UserService.deleteById("user-123");
+
+    expect(mockCancelForOwner).toHaveBeenCalledWith("user-123");
+    expect(mockPrisma.developerApiKey.deleteMany).toHaveBeenCalledWith({
+      where: { ownerUserId: "user-123" },
+    });
+    expect(mockPrisma.developerApiUsage.deleteMany).toHaveBeenCalledWith({
+      where: { ownerUserId: "user-123" },
     });
   });
 

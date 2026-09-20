@@ -107,14 +107,17 @@ const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
 const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): Promise<T> =>
   page.evaluate(
     ({ m, a }: { m: string; a: unknown[] }) => {
-      const yc = (window as Record<string, unknown>).ycDesktop as Record<string, unknown>;
+      const yc = (window as unknown as Record<string, unknown>).ycDesktop as Record<
+        string,
+        unknown
+      >;
       if (yc && typeof yc === 'object' && typeof yc[m] === 'function') {
         return (yc[m] as (...args: unknown[]) => unknown)(...a);
       }
       return null;
     },
     { m: method, a: args }
-  );
+  ) as Promise<T>;
 
 const navigateViaMain = async (app: ElectronApplication, url: string): Promise<void> => {
   await app.evaluate(async ({ BrowserWindow }, u) => {
@@ -220,11 +223,12 @@ test.describe('offline-cache E2E', () => {
     }
 
     const response: unknown = await page.evaluate(() =>
-      (window as Record<string, unknown>).ycDesktop &&
-      typeof (window as Record<string, unknown>).ycDesktop === 'object'
-        ? ((window as Record<string, unknown>).ycDesktop as Record<string, unknown>).getCachedUrls
+      (window as unknown as Record<string, unknown>).ycDesktop &&
+      typeof (window as unknown as Record<string, unknown>).ycDesktop === 'object'
+        ? ((window as unknown as Record<string, unknown>).ycDesktop as Record<string, unknown>)
+            .getCachedUrls
           ? (
-              (window as Record<string, unknown>).ycDesktop as {
+              (window as unknown as Record<string, unknown>).ycDesktop as {
                 getCachedUrls: () => Promise<unknown>;
               }
             ).getCachedUrls()
@@ -251,10 +255,10 @@ test.describe('offline-cache E2E', () => {
     const readCachedContent = (): Promise<unknown> =>
       page.evaluate(
         (url) =>
-          (window as Record<string, unknown>).ycDesktop &&
-          typeof (window as Record<string, unknown>).ycDesktop === 'object'
+          (window as unknown as Record<string, unknown>).ycDesktop &&
+          typeof (window as unknown as Record<string, unknown>).ycDesktop === 'object'
             ? (
-                (window as Record<string, unknown>).ycDesktop as {
+                (window as unknown as Record<string, unknown>).ycDesktop as {
                   getCachedContent: (u: string) => Promise<unknown>;
                 }
               ).getCachedContent(url)

@@ -514,7 +514,7 @@ const meta = {
           '`title`. `selectedProvider` therefore never changes, and nothing below the pills reads ' +
           'it - the IDEXX section renders unconditionally.\n\n' +
           '**Queueing here needs two steps.** Picking a search result only STAGES the test in a ' +
-          'confirmation card; "Add to Queue" is what puts it in the queue (bug #1973). The ' +
+          'confirmation card; "Add to queue" is what puts it in the queue (bug #1973). The ' +
           'appointment-drawer panel at `Appointments/LabTests` queues on pick, so the same hook ' +
           'behaves differently in the two surfaces.\n\n' +
           'Every IDEXX endpoint is answered by an axios adapter stub, and the PDFs are locally ' +
@@ -656,7 +656,7 @@ export const QueueingATest: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Create Lab Order' })).toBeDisabled();
 
-    await userEvent.click(within(pending).getByRole('button', { name: 'Add to Queue' }));
+    await userEvent.click(within(pending).getByRole('button', { name: 'Add to queue' }));
 
     /* Now it is a queue card, and only now can an order be placed. The card
        carries the code and the price the clinician is committing to. */
@@ -967,11 +967,19 @@ export const ServiceError: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    // The message carries the status and the backend's own text rather than a
-    // generic apology.
-    await expect(
-      await canvas.findByText('Unable to load appointment lab orders. (404): Not Found')
-    ).toBeInTheDocument();
+    /* The message carries the status and the backend's own text rather than a
+       generic apology.
+
+       Two copies, and that is deliberate: the section renders the error at the
+       top and again beside the Create Lab Order button, because the order is
+       placed several screens below the heading and the top copy alone would be
+       off-screen at the moment it appears. `findByText` throws on multiple
+       matches, which is what failed here - the assertion, not the component. The
+       count is asserted so that losing either copy is still caught. */
+    const messages = await canvas.findAllByText(
+      'Unable to load appointment lab orders. (404): Not Found'
+    );
+    await expect(messages).toHaveLength(2);
 
     /* A failed listing must not take the ordering form down with it: a clinician
        can still place the order they came here to place. The tables fall back to
@@ -1019,5 +1027,51 @@ export const Phone: Story = {
     await expect(Math.round(table.getBoundingClientRect().width)).toBeGreaterThanOrEqual(620);
     await expect(scroller.getBoundingClientRect().width).toBeLessThan(375);
     await expect(scroller.scrollWidth).toBeGreaterThan(scroller.clientWidth);
+  },
+};
+
+export const OrderNotesOnPhone: Story = {
+  name: 'Phone (375) - order notes wrap',
+  globals: { viewport: { value: 'mobile', isRotated: false } },
+  /* Same pinned-column pattern as `Phone`: the viewport global reads through the
+     manager, which headless `iframe.html` renders skip, so the 375px column has
+     to be pinned inside the story itself for the measurement to be the phone
+     measurement wherever it runs. */
+  decorators: [
+    (Story) => (
+      <div className="w-[375px] bg-[var(--screen)] p-3">
+        <Story />
+      </div>
+    ),
+  ],
+  beforeEach: seed({
+    ...BASE,
+    orders: [
+      {
+        ...SUBMITTED_ORDER,
+        notes:
+          'Fasted sample, collected from the left jugular. Please combine with the pre-med ' +
+          'dose and hold the results for the afternoon consult.',
+      },
+    ],
+  }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByTitle('Submitted');
+    const orders = sectionOf(canvas, 'Order Status');
+
+    /* Order notes are free-text clinical content that previously sat on a
+       `truncate` row reachable only by a `title` hover - which a phone does not
+       have (#2790). On the stacked mobile layout the note column is full width,
+       so it now WRAPS to the lines it needs rather than clipping. `scrollWidth
+       > clientWidth` is the failure shape of `truncate`; this assertion is the
+       guard.
+       The measured element is the note SPAN (binding the strong's parent) and
+       not the `Order notes:` label itself, which is short and could never clip;
+       a guard over the label would pass for free whether the note wraps or was
+       dropped. */
+    const label = orders.getByText('Order notes:');
+    const note = label.parentElement as HTMLElement;
+    await expect(note.scrollWidth).toBeLessThanOrEqual(note.clientWidth);
   },
 };

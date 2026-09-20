@@ -90,6 +90,77 @@ describe('SoapCodedTermPicker', () => {
     expect(onChange).toHaveBeenCalledWith([{ ycCode: 'YC-001111', label: 'Diarrhoea' }]);
   });
 
+  it('shows each vocabulary crosswalk in the dropdown and carries them onto the pick', async () => {
+    const onChange = jest.fn();
+    suggestMock.mockResolvedValue([
+      {
+        ...VOMITING,
+        codings: [
+          { system: 'VENOM', code: '21868', equivalence: 'EQUIVALENT' },
+          { system: 'SNOMED', code: '422400008', equivalence: 'NARROWER' },
+        ],
+      },
+    ]);
+    render(<SoapCodedTermPicker sectionLabel="Subjective" selected={[]} onChange={onChange} />);
+
+    typeQuery('vom');
+    // The row states both crosswalks, and marks the inexact one as narrower so a
+    // broader/narrower match is never read as the same concept.
+    await waitFor(() => expect(screen.getByText(/VeNom 21868/)).toBeInTheDocument());
+    expect(screen.getByText(/SNOMED 422400008 \(narrower\)/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Vomiting'));
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({
+        ycCode: 'YC-005423',
+        codings: [
+          { system: 'VENOM', code: '21868', equivalence: 'EQUIVALENT' },
+          { system: 'SNOMED', code: '422400008', equivalence: 'NARROWER' },
+        ],
+      }),
+    ]);
+  });
+
+  it('falls back to the raw system name for an unknown vocabulary', () => {
+    render(
+      <SoapCodedTermPicker
+        sectionLabel="Plan"
+        selected={[{ ycCode: 'YC-1', label: 'X', codings: [{ system: 'LOINC', code: '1234-5' }] }]}
+        onChange={jest.fn()}
+      />
+    );
+    // No short label is known for LOINC, so the system name is shown verbatim
+    // rather than dropped — an unlabelled code is worse than an unstyled one.
+    expect(screen.getByText('LOINC 1234-5')).toBeInTheDocument();
+  });
+
+  it('renders crosswalk badges on a selected chip', () => {
+    render(
+      <SoapCodedTermPicker
+        sectionLabel="Assessment"
+        selected={[
+          {
+            ycCode: 'YC-1',
+            label: 'Gastritis',
+            codings: [{ system: 'VENOM', code: '891', equivalence: 'EQUIVALENT' }],
+          },
+        ]}
+        onChange={jest.fn()}
+      />
+    );
+    expect(screen.getByText('VeNom 891')).toBeInTheDocument();
+  });
+
+  it('omits the codings key entirely for an unmapped term', async () => {
+    const onChange = jest.fn();
+    suggestMock.mockResolvedValue([{ ...VOMITING, codings: [] }]);
+    render(<SoapCodedTermPicker sectionLabel="Subjective" selected={[]} onChange={onChange} />);
+    typeQuery('vom');
+    await waitFor(() => expect(screen.getByText('Vomiting')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Vomiting'));
+    expect(onChange.mock.calls[0][0][0]).not.toHaveProperty('codings');
+  });
+
   it('does not query below the minimum length', () => {
     render(<SoapCodedTermPicker sectionLabel="Plan" selected={[]} onChange={jest.fn()} />);
     typeQuery('v');
@@ -186,5 +257,170 @@ describe('SoapCodedTermPicker', () => {
     await waitFor(() => expect(screen.getByText('Vomiting')).toBeInTheDocument());
     typeQuery('');
     await waitFor(() => expect(screen.queryByText('Vomiting')).not.toBeInTheDocument());
+  });
+});
+
+describe('SoapCodedTermPicker vocabulary scope', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    suggestMock.mockReset();
+    suggestMock.mockResolvedValue([VOMITING]);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const lastCall = () => suggestMock.mock.calls.at(-1)?.[0] ?? {};
+
+  it('asks for every vocabulary until a scope is picked', async () => {
+    render(
+      <SoapCodedTermPicker
+        sectionLabel="Subjective"
+        domain="PresentingComplaint"
+        selected={[]}
+        onChange={jest.fn()}
+      />
+    );
+    typeQuery('vom');
+    await waitFor(() => expect(suggestMock).toHaveBeenCalled());
+    // No `vocabulary` key at all, rather than an explicit "ALL" the API
+    // would have to know about.
+    expect(lastCall()).not.toHaveProperty('vocabulary');
+  });
+
+  it('re-queries in the picked vocabulary and marks the control checked', async () => {
+    render(
+      <SoapCodedTermPicker
+        sectionLabel="Subjective"
+        domain="PresentingComplaint"
+        selected={[]}
+        onChange={jest.fn()}
+      />
+    );
+    typeQuery('vom');
+    await waitFor(() => expect(suggestMock).toHaveBeenCalled());
+
+    const snomed = screen.getByRole('radio', { name: 'SNOMED' });
+    await act(async () => {
+      fireEvent.click(snomed);
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+
+    /* The scope is part of the query, not a filter over what came back: a term
+       with no SNOMED counterpart must never be fetched and then hidden, or the
+       result count silently disagrees with the limit. */
+    expect(lastCall()).toMatchObject({ q: 'vom', vocabulary: 'SNOMED' });
+    expect(snomed).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('drops the filter again when the scope goes back to All', async () => {
+    render(
+      <SoapCodedTermPicker
+        sectionLabel="Subjective"
+        domain="PresentingComplaint"
+        selected={[]}
+        onChange={jest.fn()}
+      />
+    );
+    typeQuery('vom');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('radio', { name: 'VeNom' }));
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    expect(lastCall()).toMatchObject({ vocabulary: 'VENOM' });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('radio', { name: 'All' }));
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    expect(lastCall()).not.toHaveProperty('vocabulary');
+  });
+});
+
+describe('SoapCodedTermPicker scoped empty state', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    suggestMock.mockReset();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const renderPicker = () =>
+    render(
+      <SoapCodedTermPicker
+        sectionLabel="Subjective"
+        domain="PresentingComplaint"
+        selected={[]}
+        onChange={jest.fn()}
+      />
+    );
+
+  const pickScope = async (name: string) => {
+    await act(async () => {
+      fireEvent.click(screen.getByRole('radio', { name }));
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+  };
+
+  it('explains an empty result under a scope, and offers to widen it', async () => {
+    suggestMock.mockResolvedValue([]);
+    renderPicker();
+    typeQuery('zzz');
+    await pickScope('SNOMED');
+
+    /* Without this the dropdown simply does not open, which reads as "search is
+       broken" rather than "no term in this vocabulary matches" - the one case
+       the scope control makes common. */
+    expect(screen.getByText(/No term with a SNOMED code matches/)).toBeInTheDocument();
+
+    suggestMock.mockResolvedValue([VOMITING]);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Search all vocabularies' }));
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('aria-checked', 'true');
+    expect(suggestMock.mock.calls.at(-1)?.[0]).not.toHaveProperty('vocabulary');
+  });
+
+  it('stays quiet when an unscoped search finds nothing', async () => {
+    suggestMock.mockResolvedValue([]);
+    renderPicker();
+    typeQuery('zzz');
+
+    /* Prove the notice CAN appear for this very response first. Asserting
+       absence straight after typing passes whether or not the scope is
+       checked, because the response has not landed yet - the assertion is
+       then measuring nothing. */
+    await pickScope('SNOMED');
+    expect(screen.getByText(/No term with a SNOMED code matches/)).toBeInTheDocument();
+
+    // Same empty response, no scope: an unscoped miss is just a query with no
+    // matches, and the closed dropdown says that well enough.
+    await pickScope('All');
+    expect(screen.queryByText(/No term with a/)).not.toBeInTheDocument();
+  });
+
+  it('does not blame the vocabulary when the request fails', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    suggestMock.mockRejectedValue(new Error('network'));
+    renderPicker();
+    typeQuery('vom');
+    await pickScope('VeNom');
+    expect(screen.queryByText(/No term with a/)).not.toBeInTheDocument();
+    consoleError.mockRestore();
   });
 });

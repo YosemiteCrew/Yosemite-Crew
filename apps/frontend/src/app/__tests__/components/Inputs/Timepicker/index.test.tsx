@@ -47,7 +47,7 @@ describe('Timepicker', () => {
   it('renders trigger with label', () => {
     render(<Timepicker value="" onChange={jest.fn()} label="Due time" />);
 
-    expect(screen.getByLabelText('Due time')).toBeInTheDocument();
+    expect(screen.getByLabelText('Due time')).toHaveTextContent('Due time');
   });
 
   it('shows the selected value and an error message', () => {

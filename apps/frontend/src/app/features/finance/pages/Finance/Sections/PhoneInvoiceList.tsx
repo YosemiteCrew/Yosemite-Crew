@@ -1,10 +1,12 @@
 'use client';
+import { NoDataMessage } from '@/app/ui/tables/common';
 import React, { useMemo } from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { StatusOption } from '@/app/features/companions/pages/Companions/types';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoneyPrecise, recordCurrency } from '@/app/lib/money';
 import { formatDateLabel } from '@/app/lib/forms';
 import { toTitle } from '@/app/lib/validators';
 import {
@@ -14,12 +16,13 @@ import {
   getParentNameFromAppointments,
 } from '@/app/lib/invoice';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
-import { getInvoiceStatusTone } from '@/app/ui/tables/tableUtils';
+import { emptyStateCopy, getInvoiceStatusTone } from '@/app/ui/tables/tableUtils';
 import { getInvoiceOutstanding, type FinanceMetrics } from '@/app/lib/financeMetrics';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { getAppointmentCompanion, getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
 import InvoiceStatusFilterPills from '@/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import { useCompanionStore } from '@/app/stores/companionStore';
 
 type PhoneInvoiceListProps = {
   filteredList: Invoice[];
@@ -28,6 +31,14 @@ type PhoneInvoiceListProps = {
   setActiveStatus: (value: string) => void;
   metrics: FinanceMetrics;
   currency: string;
+  /**
+   * The currency for the KPI totals.
+   *
+   * Separate from `currency` because `metrics` is computed over EVERY invoice
+   * while `filteredList` is the visible subset - deriving it here would label a
+   * total with the currency of a different set of invoices to the one it sums.
+   */
+  metricsCurrency: string;
   onViewInvoice: (invoice: Invoice) => void;
 };
 
@@ -42,7 +53,8 @@ const buildOwnerAndCompanion = (parentName: string, companionName: string): stri
 
 const buildFootnote = (invoice: Invoice, currency: string): string => {
   const deposit = invoice.depositCollectedAmount ?? 0;
-  if (deposit > 0) return `Deposit ${formatMoney(deposit, currency)} applied`;
+  if (deposit > 0)
+    return `Deposit ${formatMoneyPrecise(deposit, recordCurrency(invoice, currency))} applied`;
   if (getInvoiceOutstanding(invoice) === 0) {
     const method = getInvoicePaymentMethodLabel(invoice);
     if (method && method !== '-') return method;
@@ -105,12 +117,19 @@ const PhoneInvoiceCard = ({
       </span>
       <span className="flex items-center gap-2.5">
         <span className="flex size-[30px] shrink-0 overflow-hidden rounded-full bg-card-hover">
-          <Image
+          <AvatarImage
             src={avatarSrc}
             alt=""
-            width={30}
-            height={30}
+            size={30}
             className="size-[30px] rounded-full object-cover"
+            fallback={
+              <CompanionAvatar
+                name={companion?.name}
+                seed={companion?.id}
+                size={30}
+                textClassName="text-[13px]"
+              />
+            }
           />
         </span>
         <span
@@ -120,7 +139,7 @@ const PhoneInvoiceCard = ({
           {identityLine || 'Unlinked invoice'}
         </span>
         <span className="shrink-0 text-[14px] font-bold tabular-nums text-[var(--ink)]">
-          {formatMoney(invoice.totalAmount ?? 0, currency)}
+          {formatMoneyPrecise(invoice.totalAmount ?? 0, recordCurrency(invoice, currency))}
         </span>
       </span>
       {footnote && <span className="text-[11px] text-[var(--ink-faint)]">{footnote}</span>}
@@ -143,23 +162,34 @@ const PhoneInvoiceList = ({
   setActiveStatus,
   metrics,
   currency,
+  metricsCurrency,
   onViewInvoice,
 }: PhoneInvoiceListProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
+  const companionsById = useCompanionStore((state) => state.companionsById);
 
   const cards = useMemo(
     () =>
       filteredList.map((invoice) => {
         const appointment = getAppointmentByIdFromList(appointments, invoice.appointmentId);
         const parentName = getParentNameFromAppointments(appointments, invoice.appointmentId);
-        const companionName = getCompanionNameFromAppointments(appointments, invoice.appointmentId);
+        // An invoice converted from an estimate carries patientId and no
+        // appointmentId, so the appointment lookup finds nothing and the card
+        // would read "Unlinked invoice" for a perfectly well known patient.
+        const fromAppointments = getCompanionNameFromAppointments(
+          appointments,
+          invoice.appointmentId
+        );
+        const fromPatient = invoice.patientId ? companionsById[invoice.patientId]?.name : undefined;
+        const companionName =
+          fromAppointments === '-' && fromPatient ? fromPatient : fromAppointments;
         return {
           invoice,
           appointment,
           ownerAndCompanion: buildOwnerAndCompanion(parentName, companionName),
         };
       }),
-    [filteredList, appointments]
+    [filteredList, appointments, companionsById]
   );
 
   return (
@@ -170,7 +200,7 @@ const PhoneInvoiceList = ({
         >
           <span className="block text-[10.5px] text-[var(--ink-faint)]">Collected · wk</span>
           <span className="block text-[18px] font-bold tabular-nums tracking-[-0.03em] text-[var(--ink)]">
-            {formatMoney(metrics.collectedThisWeek, currency)}
+            {formatMoneyPrecise(metrics.collectedThisWeek, metricsCurrency)}
           </span>
         </div>
         <div
@@ -178,7 +208,7 @@ const PhoneInvoiceList = ({
         >
           <span className="block text-[10.5px] text-[var(--ink-faint)]">Outstanding</span>
           <span className="block text-[18px] font-bold tabular-nums tracking-[-0.03em] text-[var(--warn-text)]">
-            {formatMoney(metrics.outstanding, currency)}
+            {formatMoneyPrecise(metrics.outstanding, metricsCurrency)}
           </span>
         </div>
       </div>
@@ -188,17 +218,22 @@ const PhoneInvoiceList = ({
           options={statusOptions}
           activeStatus={activeStatus}
           setActiveStatus={setActiveStatus}
-          size="md"
           className="px-0.5"
         />
       </div>
 
       {filteredList.length === 0 ? (
-        <output
-          className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary"
-          aria-live="polite"
-        >
-          No invoices match the current filters.
+        /* Same derived copy as InvoiceTable's three bands. This said "No
+           invoices match the current filters." while the tables said "No
+           invoices yet", and because Finance/index.tsx branches on `isPhone`
+           the two never render together - so a clinic with zero invoices was
+           told on a phone that its filters hid them and on a laptop that it had
+           none. Fixing InvoiceTable's own phone band was not enough: that band
+           is unreachable on a real phone, where THIS component is what renders.
+           The `output`/`aria-live` wrapper stays; it is the one announced empty
+           state on the finance screen. */
+        <output className="w-full" aria-live="polite">
+          <NoDataMessage {...emptyStateCopy('invoices')} />
         </output>
       ) : (
         <div className="flex flex-col gap-2.5">

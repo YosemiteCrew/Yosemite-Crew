@@ -1,8 +1,10 @@
 'use client';
 
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { QRCodeSVG } from 'qrcode.react';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+import { getMonogram } from '@/app/features/companions/pages/Companions/companionsDirectory';
 import { formatDisplayDate } from '@/app/lib/date';
 import { passportSexLabel } from '@yosemite-crew/types';
 import type { PetPassportDTO } from '@yosemite-crew/types';
@@ -133,7 +135,7 @@ const BrandMark = ({ size }: { size: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
     <path
       d="M12 21s-7.5-4.6-10-9.2C.6 9 1.5 5.5 4.6 4.6 6.7 4 8.8 4.9 10 6.6c.4.5.7 1 .9 1.4.2-.4.5-.9.9-1.4C13.2 4.9 15.3 4 17.4 4.6c3.1.9 4 4.4 2.6 7.2C19.5 16.4 12 21 12 21z"
-      fill="#257bed"
+      fill="var(--blue)"
     />
   </svg>
 );
@@ -207,12 +209,19 @@ const WalletPassPreview = ({ passport, variant }: WalletPassPreviewProps) => {
                     .join(' · ')}
                 </span>
               </span>
-              <Image
+              <AvatarImage
                 alt={identity.name}
                 src={photo}
-                width={56}
-                height={56}
+                size={56}
                 className="size-14 flex-none rounded-full object-cover"
+                fallback={
+                  <CompanionAvatar
+                    name={identity.name}
+                    size={56}
+                    textClassName="text-[24px]"
+                    alt={identity.name}
+                  />
+                }
               />
             </div>
             <div className="self-center">
@@ -277,12 +286,24 @@ const WalletPassPreview = ({ passport, variant }: WalletPassPreviewProps) => {
               {identity.name}
             </span>
           </span>
-          <Image
+          <AvatarImage
             alt={identity.name}
             src={photo}
-            width={60}
-            height={60}
+            size={60}
             className="size-[60px] flex-none rounded-[12px] object-cover"
+            fallback={
+              /* The round warm-bone disc would read as a foreign element on the
+                 Apple pass, so the fallback keeps the pass's own square slot and
+                 tokens - it is the same "never an empty box" rule, drawn to this
+                 surface. */
+              <span
+                className="flex size-[60px] flex-none items-center justify-center rounded-[12px] font-newsreader text-[26px]"
+                style={{ border: '1px solid var(--phl)', color: 'var(--pfg)' }}
+              >
+                <span aria-hidden="true">{getMonogram(identity.name)}</span>
+                <span className="sr-only">{identity.name}</span>
+              </span>
+            }
           />
         </div>
         <div className="flex justify-between gap-3">

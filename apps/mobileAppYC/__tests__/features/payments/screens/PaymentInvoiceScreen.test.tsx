@@ -765,13 +765,20 @@ describe('PaymentInvoiceScreen', () => {
     });
   });
 
-  it('falls back to the stated due date when the due date is invalid', () => {
+  it('states no payment deadline, because invoices do not carry one', () => {
+    /*
+     * The screen used to compute "due" as the invoice date plus a hardcoded 24
+     * hours and render it both as a "Due till" row and as "Payment is due by X.
+     * Late or failed payments may result in rescheduling or cancellation".
+     * Nothing backs that: the only `dueDate` column in schema.prisma belongs to
+     * CareReminder, and no finance route emits one for an invoice.
+     */
     const state = createSafeState({
       appointments: {
         invoices: {
           'apt-1': {
             ...mockInvoiceData,
-            dueDate: 'not-a-real-date',
+            dueDate: undefined,
           },
         },
       },
@@ -780,9 +787,25 @@ describe('PaymentInvoiceScreen', () => {
 
     render(<PaymentInvoiceScreen />);
 
+    expect(screen.queryByText(/Payment is due by/)).toBeNull();
+    expect(screen.queryByText(/Due till/)).toBeNull();
+    // The rest of the terms line survives - it makes no dated claim.
     expect(
-      screen.getByText(/Payment is due by the stated due date/),
+      screen.getByText(/Late or failed payments may result in rescheduling/),
     ).toBeTruthy();
+  });
+
+  it('shows a Due till row only when the API actually sends a due date', () => {
+    const state = createSafeState({
+      appointments: {
+        invoices: {'apt-1': {...mockInvoiceData, dueDate: '2025-12-04'}},
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+
+    render(<PaymentInvoiceScreen />);
+
+    expect(screen.getByText(/Due till/)).toBeTruthy();
   });
 
   it('fetches a payment intent when payment is pending and the existing intent is incomplete', async () => {

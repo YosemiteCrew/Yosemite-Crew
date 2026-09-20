@@ -155,7 +155,7 @@ const RowActionMenu = ({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => changeOpen(!open)}
-        className={`flex size-7 items-center justify-center rounded-[9px] transition-colors ${
+        className={`flex size-7 items-center justify-center rounded-full transition-colors ${
           open
             ? 'bg-[var(--nav-active-bg)] text-[var(--nav-active)]'
             : 'text-[var(--ink-faint)] hover:bg-[var(--surface-soft)] hover:text-text-primary'

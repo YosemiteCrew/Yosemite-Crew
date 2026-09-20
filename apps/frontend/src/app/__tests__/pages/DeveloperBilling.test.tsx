@@ -109,11 +109,15 @@ describe('DeveloperBilling page', () => {
     expect(meta.textContent).toMatch(/Metered billing/);
   });
 
-  it('shows billing period dates when on Pro', async () => {
+  /* Pins the ISO period, not just "some 2026". The row printed
+     `toLocaleDateString` ("6/1/2026" here, "01/06/2026" on an en-GB machine)
+     while the API keys table one screen over printed ISO; /2026/ passed either
+     way. Both screens are ISO now. */
+  it('shows the billing period as ISO dates when on Pro', async () => {
     getSubscriptionMock.mockResolvedValue(proSub);
     render(<DeveloperBilling />);
     const meta = await screen.findByTestId('billing-plan-meta');
-    expect(meta.textContent).toMatch(/2026/);
+    expect(meta.textContent).toContain('2026-06-01 – 2026-07-01');
   });
 
   it('shows Manage billing button when on Pro', async () => {

@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import InvoiceDetailHeader from '@/app/features/finance/pages/Finance/Sections/InvoiceDetailHeader';
 import { Appointment, Invoice } from '@yosemite-crew/types';
+import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 
 expect.extend(toHaveNoViolations);
 
@@ -40,6 +41,13 @@ jest.mock('@/app/lib/urls', () => ({
 jest.mock('@/app/lib/appointments', () => ({
   getAppointmentCompanion: () => ({ name: 'Poppy', species: 'dog', parent: { name: 'Lena' } }),
   getAppointmentCompanionPhotoUrl: () => '',
+}));
+
+/* Defaults to false so every existing test keeps measuring the desktop tree.
+   The phone tests below flip it explicitly. */
+jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
+  __esModule: true,
+  default: jest.fn(() => false),
 }));
 
 jest.mock('@/app/lib/companionName', () => ({
@@ -206,5 +214,79 @@ describe('InvoiceDetailHeader', () => {
     );
 
     expect(screen.queryByRole('link', { name: /PDF/ })).not.toBeInTheDocument();
+  });
+
+  describe('on a phone', () => {
+    const asPhone = () => (useIsPhone as jest.Mock).mockReturnValue(true);
+    afterEach(() => (useIsPhone as jest.Mock).mockReturnValue(false));
+
+    /* At 390px the header row is 342px and the desktop actions ask for 334 of it,
+       so the invoice number rendered at width 0 - present, 26px tall, showing
+       nothing. The row keeps the identity and the close button; the status moves
+       under the title and the navigation controls take a row of their own.
+       Asserted structurally rather than by class name: a class assertion passes
+       forever, which is the whole reason the defect survived. */
+    it('moves the status under the title, beside the subtitle', () => {
+      asPhone();
+      render(
+        <InvoiceDetailHeader
+          titleId="title"
+          invoice={makeInvoice({ pdfUrl: 'https://cdn.test/inv.pdf' })}
+          appointment={appointment}
+          statusLabel="Paid"
+          statusStyle={statusStyle}
+          onClose={jest.fn()}
+        />
+      );
+
+      const status = screen.getByText('Paid');
+      // The subtitle and the status share a parent, which is what "under the
+      // title" means structurally - on desktop the status sits in `actions` and
+      // has no subtitle beside it.
+      expect(status.parentElement?.textContent).toContain('rabies booster');
+    });
+
+    it('gives the navigation controls a row of their own, away from the status', () => {
+      asPhone();
+      render(
+        <InvoiceDetailHeader
+          titleId="title"
+          invoice={makeInvoice({ pdfUrl: 'https://cdn.test/inv.pdf' })}
+          appointment={appointment}
+          statusLabel="Paid"
+          statusStyle={statusStyle}
+          onClose={jest.fn()}
+          onOpenAppointment={jest.fn()}
+        />
+      );
+
+      const link = screen.getByRole('link', { name: /Download invoice/ });
+      const open = screen.getByRole('button', { name: 'Open appointment' });
+      const heading = screen.getByRole('heading', { name: '#2038' });
+
+      // Both controls, in one container, and that container is not the header.
+      expect(link.parentElement).toBe(open.parentElement);
+      expect(link.parentElement?.contains(heading)).toBe(false);
+      expect(link.parentElement?.contains(screen.getByText('Paid'))).toBe(false);
+    });
+
+    it('renders no extra row when there is nothing to put in it', () => {
+      asPhone();
+      const { container } = render(
+        <InvoiceDetailHeader
+          titleId="title"
+          invoice={makeInvoice({})}
+          appointment={undefined}
+          statusLabel="Paid"
+          statusStyle={statusStyle}
+          onClose={jest.fn()}
+        />
+      );
+
+      expect(screen.queryByRole('link', { name: /Download invoice/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Open appointment' })).not.toBeInTheDocument();
+      // The header is returned bare rather than wrapped in an empty column.
+      expect(container.firstElementChild?.contains(screen.getByRole('heading'))).toBe(true);
+    });
   });
 });

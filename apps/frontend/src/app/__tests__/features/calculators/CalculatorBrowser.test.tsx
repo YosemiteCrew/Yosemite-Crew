@@ -33,7 +33,7 @@ describe('CalculatorBrowser', () => {
     render(<CalculatorBrowser />);
 
     await user.click(screen.getByRole('button', { name: /Calculator: Fluid rate/ }));
-    await user.click(await screen.findByRole('button', { name: 'Constant rate infusion' }));
+    await user.click(await screen.findByRole('option', { name: 'Constant rate infusion' }));
 
     expect(screen.getByText(/How much drug to add to a fluid bag/i)).toBeInTheDocument();
   });

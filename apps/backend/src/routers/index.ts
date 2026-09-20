@@ -14,6 +14,7 @@ import coParentInviteRouter from "./coparentInvite.router";
 import parentCompanionRouter from "./parent-companion.router";
 import companionOrganisationRouter from "./companion-organisation.router";
 import docuemntRouter from "./document.router";
+import migrationAuditRouter from "./migration-audit.router";
 import serviceRouter from "./service.router";
 import appointmentRouter from "./appointment.router";
 import stripeRouter from "./stripe.router";
@@ -23,6 +24,7 @@ import ratingRouter from "./organisationRating.router";
 import invoiceRouter from "./invoice.router";
 import formRouter from "./form.router";
 import formAssignmentRouter from "./form-assignment.router";
+import formDraftImportRouter from "./formDraftImport.router";
 import templateRouter from "./template.router";
 import templateFhirRouter from "./template.fhir.router";
 import renderedDocumentFhirRouter from "./rendered-document.fhir.router";
@@ -32,7 +34,9 @@ import expenseRouter from "./expense.router";
 import deviceTokenRouter from "./deviceToken.router";
 import chatRouter from "./chat.router";
 import notificationRouter from "./notification.router";
+import mobilePrescriptionRouter from "./mobile-prescription.router";
 import contactRouter from "./contact-us.router";
+import consentRouter from "./consent.router";
 import accountWithdrawalRouter from "./account-withdrawal.router";
 import { OrganizationDocumentController } from "src/controllers/web/organisation-document.controller";
 import organisationDocumentRouter from "./organisation-document.router";
@@ -53,6 +57,7 @@ import codeRouter from "./code.router";
 import labOrderRouter from "./lab-order.router";
 import labResultRouter from "./lab-result.router";
 import companionHistoryRouter from "./companion-history.router";
+import parasiteRiskRouter from "./parasite-risk.router";
 import authRouter from "./auth.router";
 import superAdminRouter from "./super-admin.router";
 import catalogRouter from "./catalog.router";
@@ -72,6 +77,7 @@ import waitlistRouter from "./waitlist.router";
 import referralLetterRouter from "./referral-letter.router";
 import insuranceClaimRouter from "./insurance-claim.router";
 import careReminderRouter from "./care-reminder.router";
+import mobileCareReminderRouter from "./mobile-care-reminder.router";
 import patientProblemRouter from "./patient-problem.router";
 import patientAllergyRouter from "./patient-allergy.router";
 import marRouter from "./mar.router";
@@ -135,6 +141,7 @@ import marketingRouter from "./marketing.router";
 import activityPubRouter from "./activitypub.router";
 import developerApiKeyRouter from "./developer-api-key.router";
 import developerBillingRouter from "./developer-billing.router";
+import developerDataRouter from "./developer-data.router";
 import developerUsageRouter from "./developer-usage.router";
 
 export function registerRoutes(app: Express) {
@@ -155,6 +162,7 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/parent-companion`, parentCompanionRouter);
   app.use(`/v1/companion-organisation`, companionOrganisationRouter);
   app.use(`/v1/document`, docuemntRouter);
+  app.use(`/v1/migration-audit`, migrationAuditRouter);
   app.use(`/fhir/v1/service`, serviceRouter);
   app.use(`/fhir/v1/healthcare-service`, healthcareServiceRouter);
   app.use(`/fhir/v1/appointment`, appointmentRouter);
@@ -167,6 +175,7 @@ export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/invoice`, invoiceRouter);
   app.use(`/fhir/v1/form`, formRouter);
   app.use(`/v1/forms`, formAssignmentRouter);
+  app.use(`/v1/form-draft-imports`, formDraftImportRouter);
   app.use(`/fhir/v1/template`, templateFhirRouter);
   app.use(`/fhir/v1/rendered-document`, renderedDocumentFhirRouter);
   app.use(`/fhir/v1/task`, taskFhirRouter);
@@ -180,7 +189,9 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/device-token`, deviceTokenRouter);
   app.use(`/v1/chat`, chatRouter);
   app.use(`/v1/notification`, notificationRouter);
+  app.use(`/v1/prescription`, mobilePrescriptionRouter);
   app.use(`/v1/contact-us`, contactRouter);
+  app.use(`/v1/consent`, consentRouter);
   app.use(`/v1/account-withdrawal`, accountWithdrawalRouter);
   app.get(
     `/v1/legal-document/:type`,
@@ -210,6 +221,7 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, referralLetterRouter);
   app.use(`/v1`, insuranceClaimRouter);
   app.use(`/v1`, careReminderRouter);
+  app.use(`/v1/care-reminders`, mobileCareReminderRouter);
   app.use(`/v1`, patientProblemRouter);
   app.use(`/v1`, patientAllergyRouter);
   app.use(`/v1`, marRouter);
@@ -267,10 +279,19 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, patientFlagRouter);
   app.use(`/v1`, inventoryCountRouter);
   app.use(`/v1`, clinicNoteRouter);
+  app.use(`/v1/parasite-risk`, parasiteRiskRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/developers/api-keys`, developerApiKeyRouter);
   app.use(`/v1/developers/billing`, developerBillingRouter);
   app.use(`/v1/developers/usage`, developerUsageRouter);
+
+  /*
+   * The API-key data plane. Singular `/v1/developer` on purpose: the plural
+   * routes above are the session-authenticated management plane, and keeping
+   * the two mount points distinct is what stops a session reaching key-only
+   * routes or a key reaching the billing surface.
+   */
+  app.use(`/v1/developer`, developerDataRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);
   app.use(`/v1/marketing`, marketingRouter);

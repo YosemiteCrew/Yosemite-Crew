@@ -74,6 +74,19 @@ describe('BottomSheet', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('hides the backdrop from the accessibility tree, so "Close" names one control', () => {
+    const { backdrop, closeBtn } = renderSheet();
+
+    /* The backdrop used to be a <button aria-label="Close">, which put a second
+       control under that name next to the chrome's close chip: a screen reader
+       announced two identical "Close" buttons, one of them an invisible
+       full-bleed sheet. It is decoration now - not merely renamed, but out of
+       the tree entirely, so no role query can reach it. */
+    expect(backdrop).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.queryAllByRole('button')).not.toContain(backdrop);
+    expect(screen.getAllByRole('button', { name: 'Close' })).toEqual([closeBtn]);
+  });
+
   it('closes when the close button is clicked', () => {
     const { closeBtn, onClose } = renderSheet();
     fireEvent.click(closeBtn);

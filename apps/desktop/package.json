@@ -29,25 +29,25 @@
   "dependencies": {
     "archiver": "7.0.1",
     "electron-updater": "^6.8.9",
-    "sql.js": "^1.14.1"
+    "sql.js": "^1.14.2"
   },
   "devDependencies": {
     "@electron/fuses": "^2.1.3",
     "@electron/notarize": "^3.1.1",
     "@eslint/js": "^9.21.0",
-    "@playwright/test": "1.62.1",
+    "@playwright/test": "1.63.0",
     "@types/archiver": "^6",
     "@types/jest": "^30.0.0",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.5.1",
     "@types/sql.js": "^1.4.11",
-    "@typescript-eslint/eslint-plugin": "^8.67.0",
-    "@typescript-eslint/parser": "^8.67.0",
-    "electron": "^43.4.0",
+    "@typescript-eslint/eslint-plugin": "^8.70.0",
+    "@typescript-eslint/parser": "^8.70.0",
+    "electron": "^44.3.0",
     "electron-builder": "^26.0.12",
-    "globals": "^17.10.0",
-    "jest": "^30.4.2",
+    "globals": "^17.12.0",
+    "jest": "^30.5.1",
     "ts-jest": "^29.4.12",
-    "typescript": "^6.0.3"
+    "typescript": "^5.9.3"
   },
   "build": {
     "appId": "com.yosemitecrew.pims",
@@ -99,6 +99,7 @@
     ],
     "mac": {
       "category": "public.app-category.business",
+      "minimumSystemVersion": "13.0",
       "icon": "resources/icon.icns",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
@@ -153,6 +154,7 @@
     "linux": {
       "icon": "resources/icon.png",
       "category": "Office",
+      "executableName": "yosemite-crew-pims",
       "target": [
         {
           "target": "AppImage",

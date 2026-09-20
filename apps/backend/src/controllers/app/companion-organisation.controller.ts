@@ -9,6 +9,7 @@ import { type OrganizationMongo } from "src/models/organization";
 import { prisma } from "src/config/prisma";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
+import { resolveAuthorizedOrganisationId } from "src/middlewares/authorized-organisation";
 
 type OrganisationType = OrganizationMongo["type"];
 
@@ -264,11 +265,19 @@ export const CompanionOrganisationController = {
         ...invitePayload,
       });
 
-      // You can trigger email sending here
-      // await EmailService.sendOrganisationInvite(...)
-
+      /*
+       * "Invite sent successfully" was not true. `sendInvite` writes a PENDING
+       * patientOrganisation row with a generated token and stores the address in
+       * `invitedViaEmail`, and nothing reads that column to dispatch anything -
+       * the commented-out `EmailService.sendOrganisationInvite(...)` that used
+       * to sit here was the whole delivery mechanism. A parent inviting their
+       * clinic was told it had been sent, and no message ever left the system.
+       *
+       * Delivery is tracked separately; until it exists this reports what
+       * actually happened rather than what the endpoint is named after.
+       */
       return res.status(201).json({
-        message: "Invite sent successfully",
+        message: "Invite created",
       });
     } catch (error) {
       if (error instanceof CompanionOrganisationServiceError) {
@@ -320,9 +329,16 @@ export const CompanionOrganisationController = {
         });
       }
 
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        payload.organisationId,
+      );
+      if (!organisationId) return;
+
       const updated = await CompanionOrganisationService.acceptInvite({
         token: payload.token,
-        organisationId: payload.organisationId,
+        organisationId,
       });
 
       return res.status(200).json(updated);
@@ -344,9 +360,16 @@ export const CompanionOrganisationController = {
         });
       }
 
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        payload.organisationId,
+      );
+      if (!organisationId) return;
+
       await CompanionOrganisationService.rejectInvite({
         token: payload.token,
-        organisationId: payload.organisationId,
+        organisationId,
       });
 
       return res.status(200).json({ message: "Invite rejected successfully." });

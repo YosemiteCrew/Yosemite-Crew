@@ -93,11 +93,6 @@ jest.mock('@/app/hooks/useBilling', () => ({
   useCurrencyForPrimaryOrg: () => 'USD',
 }));
 
-const mockFormatMoney = jest.fn((amount: number, _currency?: string) => `$ ${amount.toFixed(2)}`);
-jest.mock('@/app/lib/money', () => ({
-  formatMoney: (amount: number, currency?: string) => mockFormatMoney(amount, currency),
-}));
-
 jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
   __esModule: true,
   default: ({ children, setShowModal }: { children: React.ReactNode; setShowModal: any }) => (
@@ -236,7 +231,8 @@ describe('ArchiveTab', () => {
     render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
     expect(screen.getByText('Blood Panel')).toBeInTheDocument();
     expect(screen.getByText('Lab / Diagnostics')).toBeInTheDocument();
-    expect(screen.getByText('$ 50.00')).toBeInTheDocument();
+    // real formatMoney(50, 'USD') -> '$50': whole units, maximumFractionDigits 0
+    expect(screen.getByText('$50')).toBeInTheDocument();
     expect(screen.getByText('BP01')).toBeInTheDocument();
   });
 
@@ -435,13 +431,16 @@ describe('ArchiveTab', () => {
   it('prefers the service currency over the primary org currency', () => {
     mockServices = [archivedService({ currency: 'EUR' })];
     render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
-    expect(mockFormatMoney).toHaveBeenCalledWith(50, 'EUR');
+    // the euro symbol, not the org's dollar: pins svc.currency winning AND the rendered symbol
+    expect(screen.getByText('€50')).toBeInTheDocument();
+    expect(screen.queryByText('$50')).not.toBeInTheDocument();
   });
 
   it('falls back to the primary org currency when the service has none', () => {
     mockServices = [archivedService()];
     render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
-    expect(mockFormatMoney).toHaveBeenCalledWith(50, 'USD');
+    // useCurrencyForPrimaryOrg -> 'USD', so the dollar symbol from real formatMoney
+    expect(screen.getByText('$50')).toBeInTheDocument();
   });
 
   it('notifies with the api message when restoring a service fails', async () => {

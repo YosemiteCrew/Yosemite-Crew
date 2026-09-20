@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import { Team } from '@/app/features/organization/types/team';
 import { useAuthStore } from '@/app/stores/authStore';
 import React from 'react';
@@ -47,23 +47,21 @@ const UserLabels = ({ team, columnsStyle }: UserLabels) => {
             key={user._id || user.practionerId || name}
             className="flex items-center justify-center gap-2 px-2"
           >
-            {user.image ? (
-              <Image
-                src={user.image}
-                alt={name}
-                width={30}
-                height={30}
-                className="size-[30px] shrink-0 rounded-full object-cover"
-              />
-            ) : (
-              <span
-                aria-hidden="true"
-                className="flex size-[30px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
-                style={AVATAR_PALETTES[idx % AVATAR_PALETTES.length]}
-              >
-                {initialsOf(name)}
-              </span>
-            )}
+            <AvatarImage
+              src={user.image}
+              alt={name}
+              size={30}
+              className="size-[30px] shrink-0 rounded-full object-cover"
+              fallback={
+                <span
+                  aria-hidden="true"
+                  className="flex size-[30px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+                  style={AVATAR_PALETTES[idx % AVATAR_PALETTES.length]}
+                >
+                  {initialsOf(name)}
+                </span>
+              }
+            />
             <div className="min-w-0">
               <div
                 // --blue-text, not --color-primary-700. The 700 step is a brand FILL

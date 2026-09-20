@@ -11,13 +11,15 @@ import BookingRequests from './BookingRequests';
 const ORG_ID = 'org-storybook-booking';
 
 /**
- * Local times, built field by field. `formatWhen` renders with
- * `toLocaleDateString`/`toLocaleTimeString`, so a UTC literal would slide by the
- * runner's offset and put a story's row on a different day depending on where it
- * is opened. Nothing below asserts the formatted stamp for the same reason.
+ * UTC literals, built field by field. `formatWhen` now goes through
+ * `formatDateTimeLocal`, which pins `getPreferredTimeZone()` - Europe/Berlin with
+ * nothing saved - so a fixed instant renders the same stamp wherever the story is
+ * opened and the List story can assert it. Under the old
+ * `toLocaleDateString`/`toLocaleTimeString` pair these had to be device-local
+ * dates and no story could assert the stamp at all.
  */
 const at = (day: number, hour: number, minute: number) =>
-  new Date(2026, 8, day, hour, minute).toISOString();
+  new Date(Date.UTC(2026, 8, day, hour, minute)).toISOString();
 
 const request = (over: Partial<BookingRequest> & Pick<BookingRequest, 'id'>): BookingRequest => ({
   serviceName: 'Vaccination',
@@ -250,9 +252,12 @@ export const List: Story = {
       canvas.getByText('Limping on the left hind leg since Sunday.')
     ).toBeInTheDocument();
 
-    // Duration lives in the same node as the local time stamp, which is why only
-    // its tail is asserted.
-    await expect(canvas.getByText(/· 45 min$/)).toBeInTheDocument();
+    /* The stamp, asserted whole. `at(2, 14, 0)` is 14:00Z, which is 4:00 PM in the
+       preferred zone (Europe/Berlin, CEST) - a month name and a 12-hour clock,
+       matching every other date in the PMS. This line used to print
+       "02/09/2026 16:00" or "9/2/2026 4:00 PM" depending on the reader's browser
+       locale, in whatever zone their laptop was set to. */
+    await expect(canvas.getByText('Sep 2, 2026, 04:00 PM · 45 min')).toBeInTheDocument();
   },
 };
 

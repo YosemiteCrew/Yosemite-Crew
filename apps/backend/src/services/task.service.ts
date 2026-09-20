@@ -27,7 +27,8 @@ export type TaskAudience = "EMPLOYEE_TASK" | "PARENT_TASK";
 export type TaskSource = "YC_LIBRARY" | "ORG_TEMPLATE" | "CUSTOM";
 export type TaskStatus = PrismaTaskStatus;
 export type TaskPriority = PrismaTaskPriority;
-export type TaskRecurrenceType = "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+export type TaskRecurrenceType =
+  "ONCE" | "DAILY" | "WEEKLY" | "MONTHLY" | "CUSTOM";
 
 export type MedicationDoseInput = {
   time?: string;
@@ -1996,6 +1997,39 @@ export const TaskService = {
             }),
           },
         });
+      }
+
+      if (normalizedScope === "ALL") {
+        // The recurrence engine no longer infers "stop the series" from the
+        // master row's own occurrence status (cancelling only occurrence #1
+        // must not end the series - see task.recurrence.engine.ts), so an
+        // explicit series-wide cancel has to end it via recurrence.endDate
+        // instead, the same mechanism THIS_AND_FOLLOWING already uses.
+        const masterRow = await tx.task.findUnique({
+          where: { id: seriesMasterId },
+        });
+        if (masterRow) {
+          await tx.task.update({
+            where: { id: seriesMasterId },
+            data: {
+              recurrence: mergeRecurrence(masterRow.recurrence, {
+                type:
+                  (
+                    masterRow.recurrence as {
+                      type?: TaskRecurrenceType;
+                    } | null
+                  )?.type ?? "ONCE",
+                endDate: new Date(),
+                cronExpression:
+                  (
+                    masterRow.recurrence as {
+                      cronExpression?: string | null;
+                    } | null
+                  )?.cronExpression ?? null,
+              }),
+            },
+          });
+        }
       }
     });
   },

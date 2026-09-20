@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { renderToString } from 'react-dom/server';
 import { hydrateRoot } from 'react-dom/client';
 import { render, screen, act, renderHook, fireEvent } from '@testing-library/react';
@@ -153,6 +155,25 @@ class BatchedIO {
       this as unknown as IntersectionObserver
     );
   }
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [] as IntersectionObserverEntry[];
+  }
+}
+
+/**
+ * Captures the options every observer was constructed with, without acting on
+ * them - used to pin the rootMargin extension itself rather than simulate the
+ * geometry it guards against (the other mocks above never model geometry at
+ * all; they fire whatever they're told to).
+ */
+class OptionsCapturingIO {
+  static readonly optionsByCall: (IntersectionObserverInit | undefined)[] = [];
+  constructor(_cb: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+    OptionsCapturingIO.optionsByCall.push(options);
+  }
+  observe() {}
   unobserve() {}
   disconnect() {}
   takeRecords() {
@@ -378,6 +399,29 @@ describe('motion primitives', () => {
     }
   });
 
+  it('CountUp extends its observer root upward like Reveal, so a jump past it still fires', () => {
+    // A jump straight past an element (End key, scrollbar drag, or navigating in
+    // already scrolled) moves it from below the viewport to above it without ever
+    // crossing a threshold, so no callback is delivered at all. Without the same
+    // rootMargin extension Reveal uses, CountUp's `inView` would stay false
+    // forever and the number would freeze at its initial placeholder even after
+    // the real value arrives - `display` is only ever written by the effect
+    // gated on `inView`.
+    OptionsCapturingIO.optionsByCall.length = 0;
+    (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver =
+      OptionsCapturingIO;
+    render(<CountUp value="67,134" />);
+    render(
+      <Reveal>
+        <span>reveal probe</span>
+      </Reveal>
+    );
+    expect(OptionsCapturingIO.optionsByCall).toHaveLength(2);
+    for (const options of OptionsCapturingIO.optionsByCall) {
+      expect(options?.rootMargin).toBe('100000px 0px 0px 0px');
+    }
+  });
+
   it('Reveal forwards data attrs and leaves reduced motion to the stylesheet', () => {
     setReducedMotion(true);
     render(
@@ -467,6 +511,22 @@ describe('motion primitives', () => {
     // The scrim carries data-hero-scrim so it flips to the dark gradient in dark mode
     // instead of washing the hero to a muddy mid-tone.
     expect(container.querySelector('[data-hero-scrim]')).toBeInTheDocument();
+  });
+
+  it('keeps the dark-mode hero video at the same visibility as light mode', () => {
+    // Both were opacity: 0.3 / brightness: 0.8 in light. The original dark-mode
+    // pass (2026-07-07, part of a ~500-literal theming sweep with no stated
+    // rationale for this rule) cut dark to opacity 0.16 / brightness 0.5 - live
+    // verification showed this reduced the video to indistinct colour blobs,
+    // losing the actual animal imagery the hero exists to show. The scrim
+    // above already carries its own per-theme contrast treatment for the
+    // overlaid text, so the video itself does not need a second, harsher cut.
+    const css = readFileSync(join(process.cwd(), 'src/app/globals.css'), 'utf8');
+    const match = css.match(/html\[data-theme='dark'\]\s*\[data-hero-video\]\s*{([^}]*)}/);
+    expect(match).not.toBeNull();
+    const rule = match![1];
+    expect(rule).toMatch(/opacity:\s*0\.3\s*!important/);
+    expect(rule).toMatch(/brightness\(0\.8\)\s*!important/);
   });
 
   it('HeroVideo renders nothing under reduced motion', () => {
@@ -567,5 +627,22 @@ describe('motion primitives', () => {
     const spot = screen.getByText('spot').parentElement as HTMLElement;
     fireEvent.mouseMove(spot);
     fireEvent.mouseLeave(spot);
+  });
+});
+
+describe('the shared hero scrim routes its fade through --page, not a frozen literal', () => {
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/site/motion.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode HERO_SCRIM_STYLE as a frozen page-background literal', () => {
+    expect(source).not.toContain('rgba(239,232,220');
+  });
+
+  it('routes all five HERO_SCRIM_STYLE gradient stops through --page via color-mix', () => {
+    const occurrences =
+      source.match(/color-mix\(in srgb, var\(--page\) \d+%, transparent\)/g) ?? [];
+    expect(occurrences).toHaveLength(5);
   });
 });

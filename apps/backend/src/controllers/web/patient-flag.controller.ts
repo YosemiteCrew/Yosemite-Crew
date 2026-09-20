@@ -47,7 +47,7 @@ export const PatientFlagController = {
   create: async (req: Request, res: Response) => {
     const parsed = CreateFlagSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.flatten() });
+      return res.status(400).json({ error: z.flattenError(parsed.error) });
     }
     try {
       const flag = await PatientFlagService.create({
@@ -99,7 +99,7 @@ export const PatientFlagController = {
   update: async (req: Request, res: Response) => {
     const parsed = UpdateFlagSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: parsed.error.flatten() });
+      return res.status(400).json({ error: z.flattenError(parsed.error) });
     }
     try {
       const flag = await PatientFlagService.update(

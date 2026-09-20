@@ -1,13 +1,26 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { NextConfig } from 'next';
+import { readHeadSha, resolveBuildSha } from './src/buildInfo';
 import { securityHeaders } from './src/securityHeaders';
 
-// Static HTML under /public (e.g. /dev-docs/openapi-ui.html) is skipped by the
+// Static HTML under /public (e.g. /static/openapi/viewer.html) is skipped by the
 // edge middleware, which only applies the nonce CSP to app document routes.
 // Without this, those pages ship with no Content-Security-Policy and any
 // third-party script they load (Redoc's CDN bundle) runs as first-party
 // JavaScript with access to same-origin localStorage tokens. Restore a strict,
 // tightly allow-listed CSP for the docs surface here.
-const DEV_DOCS_CSP = [
+/*
+ * The OpenAPI viewer is a standalone HTML page that loads Redoc from a CDN, so
+ * it needs `script-src` to allow that host - the app's default policy does not,
+ * and a blocked script renders the page empty with no visible error.
+ *
+ * Scoped to exactly that one directory. It was previously scoped to
+ * /dev-docs/:path*, which covered the whole Docusaurus mirror; now that the
+ * documentation is rendered by the app under the normal strict policy, only
+ * the viewer needs the exception.
+ */
+const OPENAPI_VIEWER_CSP = [
   "default-src 'self'",
   "script-src 'self' https://cdn.redoc.ly",
   "worker-src 'self' blob:",
@@ -32,7 +45,39 @@ const REVALIDATING_CACHE_CONTROL = 'public, max-age=86400, stale-while-revalidat
 
 const cacheControl = (value: string) => [{ key: 'Cache-Control', value }];
 
+// Captured here because `next build` is the only step that runs inside the
+// Amplify build container's clone, and the build spec that would otherwise do
+// it lives in the Amplify console rather than this repository. Read from the
+// files rather than by running `git`, so the build spawns nothing and does not
+// depend on what `PATH` resolves to inside the container.
+const REPO_GIT_DIR = join(__dirname, '..', '..', '.git');
+
+const readFileOrNull = (path: string): string | null => {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    return null;
+  }
+};
+
+// Passed explicitly rather than handing over the whole environment: this
+// repository's `ProcessEnv` declares its known keys and `AWS_COMMIT_ID` is
+// Amplify's, not ours. Naming it here is also the only place a reader can see
+// which variable this consumes.
+const build = resolveBuildSha({ AWS_COMMIT_ID: process.env.AWS_COMMIT_ID }, () =>
+  readHeadSha(REPO_GIT_DIR, readFileOrNull)
+);
+
 const nextConfig: NextConfig = {
+  // Both keys are always inlined, including when there is no sha. Omitting
+  // BUILD_SHA leaves `process.env.BUILD_SHA` a *runtime* lookup in the route
+  // while BUILD_SHA_SOURCE is a build-time constant, so a BUILD_SHA set on the
+  // Amplify branch would be answered next to `source: "unavailable"` - two
+  // fields from two mechanisms, free to disagree, and an environment value
+  // reaching `buildSha` without the shape check every other source gets.
+  // Empty is the "no sha" value; the route normalises it back to null so it
+  // cannot render as a populated-looking blank.
+  env: { BUILD_SHA: build.sha ?? '', BUILD_SHA_SOURCE: build.source },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'd2il6osz49gpup.cloudfront.net' },
@@ -65,6 +110,31 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
   // Do not advertise the framework/version in responses (X-Powered-By).
   poweredByHeader: false,
+  /*
+   * The documentation moved to /docs, rendered natively by the app. These
+   * preserve every URL the Docusaurus site published: an open-source
+   * project's docs are linked from outside the repo, and those links are not
+   * ours to break.
+   *
+   * Verified against the shipped sitemap - all 53 published URLs resolve, 52
+   * onto a real corpus page and one special case. The corpus slugs are
+   * byte-identical to the Docusaurus slugs, which is why `:path*` maps
+   * one-to-one with no lookup table.
+   *
+   * `permanent: true`, unlike the interim `.html` redirect this replaces:
+   * that one was deliberately temporary because a better fix existed. This
+   * move is final, so the 308 and its SEO signal are what we want.
+   */
+  async redirects() {
+    return [
+      // Docusaurus's plugin-generated results page. There is no equivalent -
+      // search is inline in the docs header now - so it lands on the index.
+      { source: '/dev-docs/search', destination: '/docs', permanent: true },
+      { source: '/dev-docs', destination: '/docs', permanent: true },
+      { source: '/dev-docs/:path*', destination: '/docs/:path*', permanent: true },
+    ];
+  },
+
   async headers() {
     return [
       {
@@ -72,8 +142,11 @@ const nextConfig: NextConfig = {
         headers: securityHeaders,
       },
       {
-        source: '/dev-docs/:path*',
-        headers: [...securityHeaders, { key: 'Content-Security-Policy', value: DEV_DOCS_CSP }],
+        source: '/static/openapi/:path*',
+        headers: [
+          ...securityHeaders,
+          { key: 'Content-Security-Policy', value: OPENAPI_VIEWER_CSP },
+        ],
       },
       {
         source: '/fonts/:path*',

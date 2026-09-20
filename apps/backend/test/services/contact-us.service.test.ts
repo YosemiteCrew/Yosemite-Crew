@@ -1,3 +1,4 @@
+import { CONTACT_MESSAGE_MAX_LENGTH } from "@yosemite-crew/types";
 import {
   ContactService,
   ContactServiceError,
@@ -164,6 +165,55 @@ describe("ContactService", () => {
       ).rejects.toThrow("email is required");
     });
 
+    /* #3361: the panel's intake refuses a longer message with a permanent 400,
+       so a submission accepted here would be stored and never delivered. The
+       assertion that prisma was not called is the point - the row must not
+       exist, not merely fail to forward. */
+    it("refuses a message longer than the mirror's limit without writing a row", async () => {
+      await expect(
+        ContactService.createWebRequest({
+          ...baseWebInput,
+          message: "a".repeat(CONTACT_MESSAGE_MAX_LENGTH + 1),
+        }),
+      ).rejects.toThrow(
+        `message must be ${CONTACT_MESSAGE_MAX_LENGTH} characters or fewer`,
+      );
+      expect(prisma.contactRequest.create).not.toHaveBeenCalled();
+    });
+
+    it("answers 400 rather than 500 for an over-long message", async () => {
+      await expect(
+        ContactService.createWebRequest({
+          ...baseWebInput,
+          message: "a".repeat(CONTACT_MESSAGE_MAX_LENGTH + 1),
+        }),
+      ).rejects.toMatchObject({ statusCode: 400 });
+    });
+
+    /* The boundary is inclusive, and it is the trimmed text that is measured
+       because that is what is stored and forwarded. */
+    it("accepts a message of exactly the limit, and one that only exceeds it untrimmed", async () => {
+      (prisma.contactRequest.create as jest.Mock).mockResolvedValue({
+        id: "web-limit",
+      });
+
+      const atLimit = "a".repeat(CONTACT_MESSAGE_MAX_LENGTH);
+      await expect(
+        ContactService.createWebRequest({ ...baseWebInput, message: atLimit }),
+      ).resolves.toEqual(expect.objectContaining({ id: "web-limit" }));
+
+      await expect(
+        ContactService.createWebRequest({
+          ...baseWebInput,
+          message: `  ${atLimit}  `,
+        }),
+      ).resolves.toEqual(expect.objectContaining({ id: "web-limit" }));
+
+      const stored = (prisma.contactRequest.create as jest.Mock).mock
+        .calls[1][0] as { data: { message: string } };
+      expect(stored.data.message).toHaveLength(CONTACT_MESSAGE_MAX_LENGTH);
+    });
+
     it("should set subject from type and create the request via prisma", async () => {
       (prisma.contactRequest.create as jest.Mock).mockResolvedValue({
         id: "web-1",
@@ -189,6 +239,43 @@ describe("ContactService", () => {
       expect(result).toEqual(
         expect.objectContaining({ id: "web-1", subject: "GENERAL_ENQUIRY" }),
       );
+    });
+
+    /* #3329: the mirror forward is queued by this same insert rather than sent
+       off the request path, so a submission and its forward commit together.
+       Dropping the nested create is how history goes missing silently - the
+       submission still stores, nothing errors, and the CRM never hears. */
+    it("queues the SuperAdmin forward in the same insert as the submission", async () => {
+      (prisma.contactRequest.create as jest.Mock).mockResolvedValue({
+        id: "web-2",
+      });
+
+      await ContactService.createWebRequest(baseWebInput);
+
+      const args = (prisma.contactRequest.create as jest.Mock).mock
+        .calls[0][0] as { data: Record<string, unknown> };
+      expect(args.data.superadminForward).toEqual({ create: {} });
+    });
+
+    /* The mobile path is authenticated and is not mirrored. It writes no
+       complaintContext, which is also what the #3330 backfill selects on, so
+       the two paths have to stay distinguishable. */
+    it("does not queue a forward for the authenticated non-web path", async () => {
+      (prisma.contactRequest.create as jest.Mock).mockResolvedValue({
+        id: "app-1",
+      });
+
+      await ContactService.createRequest({
+        type: "GENERAL_ENQUIRY",
+        source: "PMS_APP",
+        subject: "Help",
+        message: "Need help",
+      } as any);
+
+      const args = (prisma.contactRequest.create as jest.Mock).mock
+        .calls[0][0] as { data: Record<string, unknown> };
+      expect(args.data.superadminForward).toBeUndefined();
+      expect(args.data.complaintContext).toBeUndefined();
     });
   });
 

@@ -200,6 +200,144 @@ describe("LabOrderController", () => {
       );
       expect(statusMock).toHaveBeenCalledWith(200);
     });
+
+    it("reads the filters off the query string on a GET", async () => {
+      /* The picker sends a GET, and this handler is registered for GET as well
+         as POST. It used to read only req.body, so query/limit/page arrived
+         undefined and the service returned an unfiltered alphabetical first
+         page - typing "SDMA" found nothing while "ACTH" worked purely because
+         it sorts early (#2485). */
+      req.body = {};
+      req.query = { query: "SDMA", limit: "10", page: "3" };
+      (mockedLabOrderService.listProviderTests as any).mockResolvedValue({
+        tests: [],
+      } as any);
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(mockedLabOrderService.listProviderTests).toHaveBeenCalledWith(
+        "idexx",
+        { query: "SDMA", limit: 10, page: 3, codes: undefined },
+      );
+    });
+
+    it("prefers the body over the query string when both carry a value", async () => {
+      req.body = { query: "body-wins", limit: 5 };
+      req.query = { query: "ignored", limit: "99" };
+      (mockedLabOrderService.listProviderTests as any).mockResolvedValue({
+        tests: [],
+      } as any);
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(mockedLabOrderService.listProviderTests).toHaveBeenCalledWith(
+        "idexx",
+        { query: "body-wins", limit: 5, page: undefined, codes: undefined },
+      );
+    });
+
+    it("falls back rather than passing a non-numeric limit through", async () => {
+      /* Number("abc") is NaN, which would reach the service and fail its
+         `> 0` test in a way that silently reinstates the default. Rejected
+         here so the service sees `undefined` and applies its own default. */
+      req.body = {};
+      req.query = { limit: "abc", page: "" };
+      (mockedLabOrderService.listProviderTests as any).mockResolvedValue({
+        tests: [],
+      } as any);
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(mockedLabOrderService.listProviderTests).toHaveBeenCalledWith(
+        "idexx",
+        {
+          query: undefined,
+          limit: undefined,
+          page: undefined,
+          codes: undefined,
+        },
+      );
+    });
+
+    it("rejects fractional pagination rather than passing it to Prisma", async () => {
+      /* skip/take reach Prisma, which requires integers, so ?limit=2.5 turned
+         into a 500 instead of falling back to the default. The service's own
+         `> 0` guard passes a fraction straight through. */
+      req.body = {};
+      req.query = { limit: "2.5", page: "1.5" };
+      (mockedLabOrderService.listProviderTests as any).mockResolvedValue({
+        tests: [],
+      } as any);
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(mockedLabOrderService.listProviderTests).toHaveBeenCalledWith(
+        "idexx",
+        expect.objectContaining({ limit: undefined, page: undefined }),
+      );
+    });
+
+    it("applies the same integer requirement to a body", async () => {
+      // `{ limit: 2.5 }` is a number, so the strict body path would otherwise
+      // have handed Prisma the same fraction.
+      req.body = { limit: 2.5, page: 0 };
+      req.query = {};
+      (mockedLabOrderService.listProviderTests as any).mockResolvedValue({
+        tests: [],
+      } as any);
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(mockedLabOrderService.listProviderTests).toHaveBeenCalledWith(
+        "idexx",
+        expect.objectContaining({ limit: undefined, page: undefined }),
+      );
+    });
+
+    it("still accepts whole-number pagination from either source", async () => {
+      req.body = {};
+      req.query = { limit: "25", page: "2" };
+      (mockedLabOrderService.listProviderTests as any).mockResolvedValue({
+        tests: [],
+      } as any);
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(mockedLabOrderService.listProviderTests).toHaveBeenCalledWith(
+        "idexx",
+        expect.objectContaining({ limit: 25, page: 2 }),
+      );
+    });
+
+    it("accepts codes as a comma-separated string on a GET", async () => {
+      req.body = {};
+      req.query = { codes: "A, B ,,C" };
+      (mockedLabOrderService.listProviderTests as any).mockResolvedValue({
+        tests: [],
+      } as any);
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(mockedLabOrderService.listProviderTests).toHaveBeenCalledWith(
+        "idexx",
+        expect.objectContaining({ codes: ["A", "B", "C"] }),
+      );
+    });
+
+    it("ignores a blank query rather than filtering on an empty string", async () => {
+      req.body = {};
+      req.query = { query: "   " };
+      (mockedLabOrderService.listProviderTests as any).mockResolvedValue({
+        tests: [],
+      } as any);
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(mockedLabOrderService.listProviderTests).toHaveBeenCalledWith(
+        "idexx",
+        expect.objectContaining({ query: undefined }),
+      );
+    });
   });
 
   describe("createIdexxOrder", () => {

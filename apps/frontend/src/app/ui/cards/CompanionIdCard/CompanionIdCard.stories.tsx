@@ -82,7 +82,7 @@ const meta = {
         component:
           'The companion card as it is handed to someone outside the practice: an avatar/name/species ' +
           'header, the alert pills, and a two-column list of the twelve identity, medical, insurance ' +
-          'and owner-contact rows.\n\n' +
+          'and pet-parent contact rows.\n\n' +
           'It had never been drawn because neither consumer can render it synchronously. The public ' +
           'route `/card/[token]` resolves a share token before it has a card at all, and ' +
           '`ShareCompanionCardModal` fetches on open - so in both places the whole card body is ' +
@@ -132,7 +132,10 @@ export const StaffCard: Story = {
        "Insured", so both of those cells are a function of the DTO rather than a
        copy of it. */
     await expect(valueFor(canvas.getByText('Blood group'))).toBe('DEA 1.1 negative');
-    await expect(valueFor(canvas.getByText('Owner'))).toBe('Sky Doe');
+    /* "Pet parent", not "Owner": this card is opened from the companion record,
+       which labelled the same person "Client". The term is the one
+       companionTerminology.ts protects from the org's noun rewrite. */
+    await expect(valueFor(canvas.getByText('Pet parent'))).toBe('Sky Doe');
 
     /* The date is run through `formatDisplayDate`, so the exact layout belongs to
        the formatter and is not what this story is pinning. The year IS the data,
@@ -176,9 +179,9 @@ export const PublicCard: Story = {
 
     /* Named one by one rather than inferred from the count: a redaction bug that
        dropped the microchip row and kept the owner phone would also leave two. */
-    await expect(canvas.queryByText('Owner')).not.toBeInTheDocument();
-    await expect(canvas.queryByText('Owner phone')).not.toBeInTheDocument();
-    await expect(canvas.queryByText('Owner email')).not.toBeInTheDocument();
+    await expect(canvas.queryByText('Pet parent')).not.toBeInTheDocument();
+    await expect(canvas.queryByText('Pet parent phone')).not.toBeInTheDocument();
+    await expect(canvas.queryByText('Pet parent email')).not.toBeInTheDocument();
     await expect(canvas.queryByText('Insurance')).not.toBeInTheDocument();
     await expect(canvas.queryByText('Blood group')).not.toBeInTheDocument();
     await expect(canvas.queryByText('Passport')).not.toBeInTheDocument();
@@ -247,7 +250,7 @@ export const PhoneWidth: Story = {
     );
 
     // Label and value share a row rather than stacking: same top edge.
-    const label = canvas.getByText('Owner email');
+    const label = canvas.getByText('Pet parent email');
     await expect(Math.round(label.getBoundingClientRect().top)).toBe(
       Math.round(email.getBoundingClientRect().top)
     );

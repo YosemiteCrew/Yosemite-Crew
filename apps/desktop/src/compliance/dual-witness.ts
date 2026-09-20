@@ -22,6 +22,16 @@ export interface WasteEvent {
 }
 
 export interface DualWitnessLog {
+  /**
+   * A stricter waste-recording variant that is NOT the live policy: no IPC
+   * channel or menu action calls it. The live path is the `yc:cs-record`
+   * handler in core/ipc-handlers.ts, which records the waste through the
+   * controlled-substance logbook even when the witness PIN did not verify (with
+   * `witnessPinVerified: false`), and that is deliberate - refusing unverified
+   * waste would silently drop every record and make the DEA biennial report in
+   * dea-report.ts overstate ending inventory. Read the definition's comment
+   * before assuming the rejection below is in force anywhere.
+   */
   recordWaste: (
     event: Omit<WasteEvent, 'id' | 'timestamp' | 'csTransactionId' | 'witnessPinVerified'> & {
       witnessPin: string;
@@ -120,6 +130,13 @@ export const createDualWitnessLog = (deps: DualWitnessDeps): DualWitnessLog => {
     return verifyPinHash(pin, account.pinHash);
   };
 
+  // NOT wired to any live path (see the DualWitnessLog interface comment). This
+  // is the stricter alternative to the shipping policy: it declines to write a
+  // controlled-substance transaction when the witness PIN did not verify, where
+  // the live yc:cs-record handler writes it with witnessPinVerified: false. The
+  // live, lenient policy is the intended one; this stays as the tested
+  // reference for what a reject-on-unverified path would look like, should a
+  // witness-enrolment flow ever make refusal safe.
   const recordWaste = (
     input: { witnessPin: string } & Omit<
       WasteEvent,
@@ -219,7 +236,9 @@ export const createDualWitnessLog = (deps: DualWitnessDeps): DualWitnessLog => {
   const getWasteEvents = (drugName?: string): WasteEvent[] => {
     const txs = drugName ? deps.logbook.getByDrug(drugName) : deps.logbook.getTransactions();
     const isVerified = verifiedFromAuditTrail();
-    return txs.filter((tx) => tx.action === 'waste').map((tx) => txToWasteEvent(tx, isVerified(tx)));
+    return txs
+      .filter((tx) => tx.action === 'waste')
+      .map((tx) => txToWasteEvent(tx, isVerified(tx)));
   };
 
   const getVerifiedWasteEvents = (drugName?: string): WasteEvent[] =>

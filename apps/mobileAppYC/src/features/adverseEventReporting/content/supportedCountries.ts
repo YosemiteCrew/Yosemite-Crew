@@ -19,40 +19,82 @@ const resolveMeta = (name: string, code: string) => {
   };
 };
 
-type RawSupportedCountryTuple = [name: string, code: string, iso3: string, authorityName: string];
+type RawSupportedCountryTuple = [
+  name: string,
+  code: string,
+  iso3: string,
+  authorityName: string,
+];
 
 const RAW_SUPPORTED_COUNTRIES: RawSupportedCountryTuple[] = [
   ['United States', 'US', 'USA', 'FDA – Center for Veterinary Medicine (CVM)'],
   ['Canada', 'CA', 'CAN', 'Health Canada – Veterinary Drugs Directorate (VDD)'],
   ['United Kingdom', 'GB', 'GBR', 'Veterinary Medicines Directorate (VMD)'],
-  ['Ireland', 'IE', 'IRL', 'Health Products Regulatory Authority (HPRA) – Veterinary Sciences'],
-  ['France', 'FR', 'FRA', 'ANMV (Anses) – Département inspection, surveillance et pharmacovigilance'],
+  [
+    'Ireland',
+    'IE',
+    'IRL',
+    'Health Products Regulatory Authority (HPRA) – Veterinary Sciences',
+  ],
+  [
+    'France',
+    'FR',
+    'FRA',
+    'ANMV (Anses) – Département inspection, surveillance et pharmacovigilance',
+  ],
   [
     'Germany',
     'DE',
     'DEU',
-    'BVL – Federal Office of Consumer Protection and Food Safety (Pharmacovigilance)',
+    'BVL – Federal Office of Consumer Protection and Food Safety (vaccines and biologicals: Paul-Ehrlich-Institut)',
   ],
   ['Spain', 'ES', 'ESP', 'AEMPS – Veterinary Pharmacovigilance'],
   [
     'Italy',
     'IT',
     'ITA',
-    'Ministero della Salute – Direzione Generale della Sanità Animale e dei Farmaci Veterinari (Ufficio 4) / ISS Vet Med Lab',
+    'Ministero della Salute – Direzione Generale della Sanità Animale e dei Farmaci Veterinari (DGSAF), Ufficio 4',
   ],
-  ['Netherlands', 'NL', 'NLD', 'CBG/MEB – Veterinary Medicinal Products Unit (VMPU)'],
+  [
+    'Netherlands',
+    'NL',
+    'NLD',
+    'CBG/MEB – Veterinary Medicinal Products Unit (VMPU)',
+  ],
   ['Sweden', 'SE', 'SWE', 'Läkemedelsverket (Swedish Medical Products Agency)'],
   ['Denmark', 'DK', 'DNK', 'Danish Medicines Agency (Lægemiddelstyrelsen)'],
-  ['Australia', 'AU', 'AUS', 'APVMA – Adverse Experience Reporting Program (AERP)'],
-  ['New Zealand', 'NZ', 'NZL', 'Ministry for Primary Industries (MPI) – ACVM Adverse Events'],
+  [
+    'Australia',
+    'AU',
+    'AUS',
+    'APVMA – Adverse Experience Reporting Program (AERP)',
+  ],
+  [
+    'New Zealand',
+    'NZ',
+    'NZL',
+    'Ministry for Primary Industries (MPI) – ACVM Adverse Events',
+  ],
   ['Japan', 'JP', 'JPN', 'National Veterinary Assay Laboratory (NVAL), MAFF'],
-  ['South Korea', 'KR', 'KOR', 'Animal and Plant Quarantine Agency (QIA)'],
+  ['South Korea', 'KR', 'KOR', 'Animal and Plant Quarantine Agency (APQA)'],
   ['Singapore', 'SG', 'SGP', 'NParks – Animal & Veterinary Service (AVS)'],
-  ['Argentina', 'AR', 'ARG', 'SENASA – Dirección de Productos Veterinarios (DPV)'],
-  ['Mexico', 'MX', 'MEX', 'COFEPRIS (general) / SENASICA (veterinary products)'],
+  [
+    'Argentina',
+    'AR',
+    'ARG',
+    'SENASA – Dirección de Productos Veterinarios (DPV)',
+  ],
+  [
+    'Mexico',
+    'MX',
+    'MEX',
+    'COFEPRIS (general) / SENASICA (veterinary products)',
+  ],
 ];
 
-const withCountryMeta = (entry: RawSupportedCountryTuple): SupportedAdverseEventCountry => {
+const withCountryMeta = (
+  entry: RawSupportedCountryTuple,
+): SupportedAdverseEventCountry => {
   const [name, code, iso3, authorityName] = entry;
   const meta = resolveMeta(name, code);
   return {

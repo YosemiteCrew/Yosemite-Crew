@@ -1,5 +1,6 @@
 import React from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
@@ -102,17 +103,24 @@ const TimedEventMarker = ({ ev, yScale, zoomMode, ...interaction }: TimedEventMa
               </div>
             </div>
             <div className="flex-none self-center">
-              <Image
+              <AvatarImage
                 src={getSafeImageUrl(
                   getAppointmentCompanionPhotoUrl(ev.companion),
                   (ev.companion ?? ev.patient).species.toLowerCase() as ImageType
                 )}
-                height={26}
-                width={26}
+                size={26}
                 priority
                 className="rounded-full border border-white/60 object-cover"
                 style={{ width: 26, height: 26 }}
                 alt=""
+                fallback={
+                  <CompanionAvatar
+                    name={(ev.companion ?? ev.patient).name}
+                    seed={(ev.companion ?? ev.patient).id}
+                    size={26}
+                    textClassName="text-[12px]"
+                  />
+                }
               />
             </div>
           </>

@@ -19,9 +19,14 @@ type ServicesPackagesEditorProps = {
   onAddItem: (item: Omit<LineItem, 'id'>) => void;
   onUpdateItem: (id: string, patch: Partial<LineItem>) => void;
   onRemoveItem: (id: string) => void;
+  /** The encounter's currency; line items must agree with the total beside them. */
+  currency: string;
 };
 
-const formatCents = (cents: number): string => formatMoney(cents / 100, 'USD');
+/* The encounter's own currency, not a literal 'USD'. The running total in the
+   summary column beside these rows uses `encounter.currency`, so a sterling
+   clinic read dollar line items adding up to a pound total on one screen. */
+const formatCents = (cents: number, currency: string): string => formatMoney(cents / 100, currency);
 
 const discountCentsFromPercent = (grossCents: number, percent: number): number =>
   Math.min(grossCents, Math.round((grossCents * percent) / 100));
@@ -54,7 +59,7 @@ const ColumnHeadings = () => (
  * Inline, nested package breakdown. Rows reuse the parent column template so they
  * line up under the same headings — the breakdown itself has no repeated headers.
  */
-const PackageBreakdown = ({ rows }: { rows: LineItemBreakdown[] }) => (
+const PackageBreakdown = ({ rows, currency }: { rows: LineItemBreakdown[]; currency: string }) => (
   <div className="mt-3">
     <SectionContainer title="Breakdown" nested className="bg-neutral-0">
       <ul className="flex flex-col">
@@ -66,7 +71,7 @@ const PackageBreakdown = ({ rows }: { rows: LineItemBreakdown[] }) => (
             <span>{row.name}</span>
             <span className="text-text-secondary">x{row.qty}</span>
             <span className="hidden text-text-secondary sm:block">{row.instructions ?? '-'}</span>
-            <span className="pl-6 font-medium">{formatCents(row.amountCents)}</span>
+            <span className="pl-6 font-medium">{formatCents(row.amountCents, currency)}</span>
             <span aria-hidden="true" className="hidden sm:block" />
           </li>
         ))}
@@ -120,6 +125,7 @@ const ServicesPackagesEditor = ({
   onAddItem,
   onUpdateItem,
   onRemoveItem,
+  currency,
 }: ServicesPackagesEditorProps) => {
   const [search, setSearch] = useState('');
   const [expandedPackageId, setExpandedPackageId] = useState<string | null>(null);
@@ -219,7 +225,7 @@ const ServicesPackagesEditor = ({
                           onClick={() => copyValue(item.instructions)}
                         />
                       </span>
-                      <span className="font-medium">{formatCents(item.amountCents)}</span>
+                      <span className="font-medium">{formatCents(item.amountCents, currency)}</span>
                       <div className="flex justify-end gap-2">
                         {item.kind === 'PACKAGE' && (
                           <CircleIconButton
@@ -250,7 +256,9 @@ const ServicesPackagesEditor = ({
                         )}
                       </div>
                     </div>
-                    {expanded && breakdown.length > 0 && <PackageBreakdown rows={breakdown} />}
+                    {expanded && breakdown.length > 0 && (
+                      <PackageBreakdown rows={breakdown} currency={currency} />
+                    )}
                   </li>
                 );
               })}

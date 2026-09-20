@@ -1,0 +1,15 @@
+WEBVTT
+
+NOTE
+The guide films have no narration. They are screen recordings whose steps are
+written into the picture, over a background music bed that carries no
+information. This is what a captioner writes for speech-free media: name the
+non-speech audio, say there is no speech, and get out of the way rather than
+sitting over the video for the whole runtime.
+
+Served from our own origin because the app's CSP is `media-src 'self'` plus the
+CDN hosts. The previous `data:text/vtt,WEBVTT` was refused on every play.
+
+1
+00:00:00.000 --> 00:00:04.000
+[soft background music — no narration; each step appears on screen]

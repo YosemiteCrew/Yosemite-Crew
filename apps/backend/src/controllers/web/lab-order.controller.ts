@@ -125,6 +125,16 @@ export const LabOrderController = {
       if (!base) return;
       const { provider } = base;
 
+      /*
+        This handler is registered for GET and POST on the same path. It read
+        only `req.body`, so every GET - which is what the picker sends - arrived
+        with query, limit and page undefined and fell through to an unfiltered
+        alphabetical first page of 50. Typing "SDMA" returned nothing, because
+        the client then filtered client-side over rows that never contained it.
+
+        Query-string values are always strings, so a `typeof === "number"` test
+        can never pass for a GET; the numbers are coerced rather than type-tested.
+      */
       const body = req.body as
         | {
             query?: string;
@@ -133,12 +143,57 @@ export const LabOrderController = {
             codes?: string[];
           }
         | undefined;
-      const query = typeof body?.query === "string" ? body.query : undefined;
-      const limit = typeof body?.limit === "number" ? body.limit : undefined;
-      const page = typeof body?.page === "number" ? body.page : undefined;
-      const codesParam = Array.isArray(body?.codes)
-        ? body?.codes.join(",")
-        : undefined;
+      const search = req.query as {
+        query?: unknown;
+        limit?: unknown;
+        page?: unknown;
+        codes?: unknown;
+      };
+
+      /* The body keeps its strict typing - a POST sending `limit: "10"` is a
+         malformed request and is dropped, which an existing test pins. Only the
+         query string is coerced, because there every value is a string by
+         definition. */
+      const queryString = (value: unknown): string | undefined =>
+        typeof value === "string" && value.trim() ? value : undefined;
+
+      /**
+       * Pagination has to be a positive integer, not merely a finite number.
+       * `skip`/`take` reach Prisma, which rejects a fractional value, so
+       * `?limit=2.5` turned into a 500 instead of falling back to the default -
+       * the service's own `> 0` guard passes a fraction straight through.
+       * Applied to the body too: `{ limit: 2.5 }` is a number and would have
+       * taken the same path.
+       */
+      const positiveInteger = (value: number): number | undefined =>
+        Number.isSafeInteger(value) && value > 0 ? value : undefined;
+
+      const paginationValue = (value: unknown): number | undefined => {
+        if (typeof value === "number") return positiveInteger(value);
+        if (typeof value !== "string" || !value.trim()) return undefined;
+        return positiveInteger(Number(value));
+      };
+
+      const query =
+        typeof body?.query === "string"
+          ? body.query
+          : queryString(search.query);
+      /* The body stays strict about type - a POST sending `limit: "10"` is
+         malformed and is dropped, which an existing test pins - but both paths
+         share the same integer requirement. */
+      const limit = paginationValue(
+        typeof body?.limit === "number" ? body.limit : search.limit,
+      );
+      const page = paginationValue(
+        typeof body?.page === "number" ? body.page : search.page,
+      );
+
+      /* POST sends codes as an array; a GET sends a comma-separated string, and
+         express hands back an array when the param is repeated. */
+      const rawCodes = Array.isArray(body?.codes) ? body?.codes : search.codes;
+      const codesParam = Array.isArray(rawCodes)
+        ? rawCodes.join(",")
+        : queryString(rawCodes);
       const codes = codesParam
         ? codesParam
             .split(",")
@@ -148,8 +203,8 @@ export const LabOrderController = {
 
       const tests = await LabOrderService.listProviderTests(provider, {
         query,
-        limit: Number.isFinite(limit) ? limit : undefined,
-        page: Number.isFinite(page) ? page : undefined,
+        limit,
+        page,
         codes,
       });
 

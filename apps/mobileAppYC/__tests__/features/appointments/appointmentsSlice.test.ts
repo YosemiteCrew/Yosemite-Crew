@@ -354,13 +354,15 @@ describe('appointmentsSlice', () => {
         new Error('Load failed'),
       );
 
-      const store = createTestStore();
+      const store = createTestStore({items: [mockAppointment]});
       const result = await store.dispatch(
         fetchAppointmentById({appointmentId: 'appt-1'}),
       );
 
       expect(result.type).toBe('appointments/fetchById/rejected');
       expect(result.payload).toBe('Load failed');
+      expect((store.getState() as any).appointments.items).toEqual([]);
+      expect((store.getState() as any).appointments.error).toBe('Load failed');
     });
 
     it('rejects with fallback message for non-Error', async () => {

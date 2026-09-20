@@ -9,6 +9,12 @@ type TitleCalendarProps = {
   activeView: string;
   setActiveView: React.Dispatch<React.SetStateAction<string>>;
   showAdd: boolean;
+  /**
+   * Label of the header's create action, in the product's "New <thing>" form
+   * ("New appointment", "New task"). Each page names its own noun; the widget
+   * cannot derive it from the plural `title`.
+   */
+  addLabel?: string;
   actionBeforeAdd?: React.ReactNode;
   viewOptions?: Array<'calendar' | 'board' | 'list'>;
 };
@@ -32,6 +38,7 @@ const TitleCalendar = ({
   activeView,
   setActiveView,
   showAdd,
+  addLabel = 'New',
   actionBeforeAdd,
   viewOptions = ['calendar', 'board', 'list'],
 }: TitleCalendarProps) => {
@@ -52,7 +59,7 @@ const TitleCalendar = ({
       <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2.5 sm:w-auto">
         {actionBeforeAdd}
         {showAdd && (
-          <Primary href="#" text="Add" onClick={() => setAddPopup(true)} className="px-7" />
+          <Primary href="#" text={addLabel} onClick={() => setAddPopup(true)} className="px-7" />
         )}
         <fieldset
           aria-label={`${title} view`}

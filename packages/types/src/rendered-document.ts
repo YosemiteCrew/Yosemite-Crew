@@ -13,11 +13,7 @@ export type RenderedDocumentKind =
   | 'INVOICE';
 
 export type RenderedDocumentSourceKind =
-  | 'TEMPLATE_INSTANCE'
-  | 'CLINICAL_ARTIFACT'
-  | 'FORM_SUBMISSION'
-  | 'TASK_SCHEDULE'
-  | 'INVOICE';
+  'TEMPLATE_INSTANCE' | 'CLINICAL_ARTIFACT' | 'FORM_SUBMISSION' | 'TASK_SCHEDULE' | 'INVOICE';
 
 export type RenderedDocumentStatus = 'DRAFT' | 'SIGNED';
 export type DocumentSignatureSignerType = 'PMS_USER' | 'PARENT' | 'SYSTEM';
@@ -62,6 +58,12 @@ export type RenderedDocumentSigning = {
   signerEmail?: string | null;
   signerName?: string | null;
   signingUrl?: string | null;
+  /**
+   * Carried from the sign-initiation request through to completion: the
+   * webhook that later finalises signing has no other way to recover what
+   * the signer typed, since Documenso itself is only asked for a PDF.
+   */
+  signatureText?: string | null;
   pdf?: {
     url?: string | null;
   } | null;

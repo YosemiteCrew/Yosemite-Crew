@@ -11,11 +11,15 @@ const AppointmentScopeToggle = ({
   disabled = false,
   onChange,
 }: AppointmentScopeToggleProps) => {
-  // Design toggle-switch recipe: 40x24 track (2.5px inset), 19px knob with a soft drop shadow.
-  // On = --blue track + white knob; off = --divider track + --screen knob.
-  // Label follows ink-body (on) / ink-muted (off).
+  // Design toggle-switch recipe: 40x24 track (3px inset), 18px knob with a soft
+  // drop shadow. On = --blue track; off = --divider track. Label follows
+  // ink-body (on) / ink-muted (off).
+  /* Fixed white, not --screen. The design system's `.switch::after` is `#fff`,
+     and --screen flips with the theme: in espresso the off knob was #2f271e on a
+     #3a3128 track, a contrast of 1.15, so the knob simply vanished and an
+     unchecked switch read as a disabled empty capsule. */
   const trackClass = showMineOnly ? 'bg-[var(--blue)]' : 'bg-[var(--divider)]';
-  const knobClass = showMineOnly ? 'translate-x-4 bg-white' : 'translate-x-0 bg-[var(--screen)]';
+  const knobClass = showMineOnly ? 'translate-x-4 bg-white' : 'translate-x-0 bg-white';
 
   return (
     <button
@@ -30,10 +34,13 @@ const AppointmentScopeToggle = ({
     >
       <span
         aria-hidden="true"
-        className={`relative block h-6 w-10 shrink-0 rounded-full p-[2.5px] transition-colors ${trackClass}`}
+        /* 3px inset and an 18px knob, the design system's `.switch`. The track
+           was already 40x24 but the knob was 19px at a 2.5px inset, so this one
+           control sat half a pixel off the shared recipe on every screen. */
+        className={`relative block h-6 w-10 shrink-0 rounded-full p-[3px] transition-colors ${trackClass}`}
       >
         <span
-          className={`block size-[19px] rounded-full shadow-[0_1px_3px_var(--sh22)] transition-transform duration-200 ${knobClass}`}
+          className={`block size-[18px] rounded-full shadow-[0_1px_3px_var(--sh22)] transition-transform duration-200 ${knobClass}`}
         />
       </span>
       <span

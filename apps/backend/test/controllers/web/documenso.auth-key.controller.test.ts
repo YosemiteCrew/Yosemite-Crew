@@ -647,6 +647,24 @@ describe("Documenso controllers", () => {
       expect(statusMock).toHaveBeenCalledWith(401);
     });
 
+    // #2742: a signature of a different length than expected used to throw
+    // inside timingSafeEqual and surface as a 500 rather than the 401 a
+    // malformed-but-rejected signature should be.
+    it("returns 401, not 500, when the signature has a different length than expected", async () => {
+      req.params = { orgId: "org-1" };
+      req.body = { apiToken: "token-1" };
+      req.headers = { "x-documenso-signature": "too-short" };
+
+      await DocumensoKeyController.storeApiKey(
+        req as Request<{ orgId: string }>,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Invalid signature." });
+      expect(statusMock).not.toHaveBeenCalledWith(500);
+    });
+
     it("returns 400 when apiToken is missing", async () => {
       req.params = { orgId: "org-1" };
       req.body = {};

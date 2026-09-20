@@ -1,9 +1,12 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import AppointmentAvatar from '@/app/features/appointments/components/AppointmentCentralModal/AppointmentAvatar';
 
 jest.mock('next/image', () => {
-  const MockImage = ({ src, alt }: { src: string; alt: string }) => <img src={src} alt={alt} />;
+  // Forwards `onError` so the dead-photo path is reachable from the test.
+  const MockImage = ({ src, alt, onError }: { src: string; alt: string; onError?: () => void }) => (
+    <img src={src} alt={alt} onError={onError} />
+  );
   MockImage.displayName = 'Image';
   return MockImage;
 });
@@ -22,6 +25,18 @@ describe('AppointmentAvatar', () => {
       'src',
       'blob:https://example.com/photo.jpg'
     );
+  });
+
+  // Design rule: the initials fallback is mandatory, never an empty circle. A
+  // photo whose URL stopped resolving must degrade to the initials disc.
+  it('falls back to the initials when the photo fails to load', () => {
+    render(<AppointmentAvatar name="John Doe" photoUrl="https://example.com/gone.jpg" />);
+    expect(screen.queryByText('JD')).not.toBeInTheDocument();
+
+    fireEvent.error(screen.getByAltText('John Doe'));
+
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByText('JD')).toBeInTheDocument();
   });
 
   it('renders initials fallback when no photoUrl', () => {

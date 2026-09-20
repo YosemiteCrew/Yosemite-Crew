@@ -73,6 +73,48 @@ describe("AvailabilityService", () => {
       const windows = generateBookableWindows("2026-03-09", slots, 30);
       expect(windows).toHaveLength(0);
     });
+
+    it("spaces windows by the buffer without lengthening the visit", () => {
+      const slots = [
+        { startTime: "09:00", endTime: "11:00", isAvailable: true },
+      ];
+      // 30-minute visits with a 15-minute buffer: each visit stays 30 minutes,
+      // the next one starts 15 minutes after the previous ends, and the last
+      // visit may end exactly at the slot boundary with no trailing buffer.
+      const windows = generateBookableWindows("2026-03-09", slots, 30, 15);
+
+      expect(windows).toEqual([
+        { startTime: "09:00", endTime: "09:30", isAvailable: true },
+        { startTime: "09:45", endTime: "10:15", isAvailable: true },
+        { startTime: "10:30", endTime: "11:00", isAvailable: true },
+      ]);
+    });
+
+    it("tiles back to back when the buffer is zero", () => {
+      const slots = [
+        { startTime: "09:00", endTime: "10:00", isAvailable: true },
+      ];
+      // Guard on the guard: an explicit zero buffer must reproduce the
+      // no-argument tiling exactly, so the buffer thread cannot regress the
+      // signed-in scheduling paths that never pass one.
+      expect(generateBookableWindows("2026-03-09", slots, 30, 0)).toEqual(
+        generateBookableWindows("2026-03-09", slots, 30),
+      );
+    });
+
+    it("drops a trailing visit that no longer fits once the buffer shifts it", () => {
+      const slots = [
+        { startTime: "09:00", endTime: "10:00", isAvailable: true },
+      ];
+      // Back to back this is two 30-minute windows. A 15-minute buffer pushes
+      // the second start to 09:45, whose visit would end at 10:15, past the
+      // slot - so only the first window survives.
+      const windows = generateBookableWindows("2026-03-09", slots, 30, 15);
+
+      expect(windows).toEqual([
+        { startTime: "09:00", endTime: "09:30", isAvailable: true },
+      ]);
+    });
   });
 
   describe("Base Availability", () => {
@@ -464,6 +506,31 @@ describe("AvailabilityService", () => {
         isAvailable: true,
       });
     });
+
+    it("bounds the occupancy query to this week's Sunday, not next Monday (#3141)", async () => {
+      // Monday 2026-09-14 through Sunday 2026-09-20 is the queried week.
+      const refDate = new Date("2026-09-14T12:00:00Z");
+      baseSpy.mockResolvedValue([
+        {
+          dayOfWeek: "MONDAY",
+          slots: [{ startTime: "10:00", endTime: "10:30" }],
+        },
+      ]);
+      overrideSpy.mockResolvedValue(null);
+      (prisma.occupancy.findMany as jest.Mock).mockResolvedValue([]);
+
+      await AvailabilityService.getWeeklyFinalAvailability(
+        "org1",
+        "u1",
+        refDate,
+      );
+
+      const query = (prisma.occupancy.findMany as jest.Mock).mock.calls[0][0];
+      const weekEnd: Date = query.where.startTime.lte;
+      // A weekEnd that spills into 2026-09-21 (next Monday) would pull that
+      // day's occupancies into this week's same-named Monday bucket.
+      expect(weekEnd.toISOString()).toBe("2026-09-20T23:59:59.999Z");
+    });
   });
 
   describe("getFinalAvailabilityForDate", () => {
@@ -731,6 +798,24 @@ describe("AvailabilityService", () => {
 
       expect(statuses.size).toBe(0);
       expect(prisma.baseAvailability.findMany).not.toHaveBeenCalled();
+    });
+
+    it("bounds the weekly occupancy query to this week's Sunday, not next Monday (#3141)", async () => {
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValue([]);
+      (
+        prisma.weeklyAvailabilityOverride.findMany as jest.Mock
+      ).mockResolvedValue([]);
+      (prisma.occupancy.findMany as jest.Mock).mockResolvedValue([]);
+
+      await AvailabilityService.getCurrentStatusBulk(ORG, ["u-1"]);
+
+      // NOW is Wednesday 2026-03-11, so its Monday-anchored week ends Sunday
+      // 2026-03-15. The first occupancy.findMany call is the weekly-window
+      // read (see the Promise.all order in getCurrentStatusBulk).
+      const weekQuery = (prisma.occupancy.findMany as jest.Mock).mock
+        .calls[0][0];
+      const weekEnd: Date = weekQuery.where.startTime.lte;
+      expect(weekEnd.toISOString()).toBe("2026-03-15T23:59:59.999Z");
     });
   });
 });

@@ -33,7 +33,7 @@ const CreateSchema = z.object({
 
 const IssueSchema = z.object({
   issuedBy: z.string().min(1),
-  expiresAt: z.string().datetime().optional(),
+  expiresAt: z.iso.datetime().optional(),
   clinicalFindings: z.string().optional(),
   restrictions: z.string().optional(),
   notes: z.string().optional(),

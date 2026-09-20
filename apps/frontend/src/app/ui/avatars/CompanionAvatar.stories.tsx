@@ -1,6 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import { expect, within } from 'storybook/test';
 
 import CompanionAvatar from './CompanionAvatar';
+
+/**
+ * `.invalid` is reserved (RFC 2606) and never resolves, so the request fails at
+ * DNS: the one broken-photo URL that stays broken without a stub and pulls no
+ * CDN bytes into a snapshot.
+ */
+const DEAD_PHOTO = 'https://example.invalid/missing.png';
 
 const meta = {
   title: 'Avatars/CompanionAvatar',
@@ -14,9 +22,11 @@ const meta = {
           'add-companion modal. It shows the real photo when the companion has one, and otherwise a ' +
           'Newsreader monogram on a tinted disc — never a stock species photo, which would read as a ' +
           'real picture of that animal. The disc colour is picked deterministically from `seed` (or the ' +
-          'name), so a companion keeps the same colour everywhere. The photo branch is left out of ' +
-          'these stories on purpose: `getSafeImageUrl` only accepts an https source, so any photo ' +
-          'story would pull a remote CDN image into every snapshot.',
+          'name), so a companion keeps the same colour everywhere. The happy photo branch is left out ' +
+          'of these stories on purpose: `getSafeImageUrl` only accepts an https source, so a working ' +
+          'photo story would pull a remote CDN image into every snapshot. The one photo story here is ' +
+          'the broken one - a URL that no longer resolves degrades to the monogram via `AvatarImage`, ' +
+          'never to an empty circle.',
       },
     },
   },
@@ -76,4 +86,25 @@ export const Sizes: Story = {
 export const MissingName: Story = {
   name: 'Missing name',
   args: { name: null, alt: 'Companion' },
+};
+
+/**
+ * The companion has a photo on record but its URL no longer resolves (a deleted
+ * S3 object). `next/image` errors and the monogram takes its place - the exact
+ * state the design rule forbids as an empty circle. Proven here rather than in
+ * Jest alone because only a real browser fires the `<img>` error.
+ */
+export const BrokenPhoto: Story = {
+  name: 'Broken photo',
+  args: { photoUrl: DEAD_PHOTO, speciesType: 'Dog', alt: 'Bella' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // The swap happens after the browser gives up on the request, so it is
+    // awaited rather than read synchronously.
+    const monogram = await canvas.findByText('B', {}, { timeout: 8000 });
+    await expect(monogram).toBeVisible();
+    await expect(canvas.queryByRole('img')).toBeNull();
+    // The sr-only name still rides the disc, so a reader announces the companion.
+    await expect(canvas.getByText('Bella')).toHaveClass('sr-only');
+  },
 };

@@ -1,7 +1,20 @@
-import express from "express";
+import express, {
+  ErrorRequestHandler,
+  type Request,
+  type Response,
+} from "express";
 import rateLimit from "express-rate-limit";
+import {
+  resolveRateLimitMax,
+  resolveRateLimitWindowMs,
+} from "src/utils/rate-limit-config";
 import fileUpload from "express-fileupload";
-import { getControlReports, hasFailedControl } from "./config/startup-controls";
+import {
+  getControlReports,
+  getExpectedControls,
+  hasFailedControl,
+  recordControl,
+} from "./config/startup-controls";
 import { registerRoutes } from "./routers";
 import { StripeController } from "./controllers/web/stripe.controller";
 import { FinanceController } from "./controllers/app/finance.controller";
@@ -23,25 +36,83 @@ import {
   validateAuthConfig,
 } from "@yosemite-crew/auth";
 import { authHooks } from "./config/auth-hooks";
+import logger from "./utils/logger";
 
-function isSuperTokensEnabled(): boolean {
+/**
+ * Three states, not two.
+ *
+ * `disabled` and `incomplete` both leave every /auth route a 404 while /health
+ * still answers 200, so from outside they are the same process - one of them
+ * deliberate, the other a deploy that lost a variable. The boolean this used to
+ * return computed the distinction and then threw it away.
+ */
+type AuthGate = "enabled" | "disabled" | "incomplete";
+const SIGNUP_RATE_LIMIT_REASON =
+  "Too many signup attempts. Please try again later.";
+
+function signupRateLimitResponse(_req: Request, res: Response) {
+  res
+    .status(200)
+    .json({ status: "SIGN_UP_NOT_ALLOWED", reason: SIGNUP_RATE_LIMIT_REASON });
+}
+
+function signupEmailDomain(req: Request): string {
+  const body = req.body as unknown;
+  if (
+    !body ||
+    typeof body !== "object" ||
+    !("formFields" in body) ||
+    !Array.isArray(body.formFields)
+  ) {
+    return "invalid";
+  }
+  const email = body.formFields.find(
+    (field: unknown): field is { id: "email"; value?: unknown } =>
+      Boolean(
+        field &&
+        typeof field === "object" &&
+        (field as { id?: unknown }).id === "email",
+      ),
+  )?.value;
+  if (typeof email !== "string") return "invalid";
+  const domain = email.trim().toLowerCase().split("@").at(-1);
+  return domain === "googlemail.com" ? "gmail.com" : domain || "invalid";
+}
+
+function readAuthGate(): AuthGate {
   const disabled =
     process.env.SUPERTOKENS_DISABLED === "true" ||
     process.env.SUPERTOKENS_DISABLED === "1";
 
-  if (disabled) return false;
+  if (disabled) return "disabled";
 
-  return Boolean(
-    process.env.SUPERTOKENS_CONNECTION_URI &&
+  return process.env.SUPERTOKENS_CONNECTION_URI &&
     process.env.AUTH_API_DOMAIN &&
-    process.env.AUTH_WEBSITE_DOMAIN,
-  );
+    process.env.AUTH_WEBSITE_DOMAIN
+    ? "enabled"
+    : "incomplete";
 }
+
+// Last resort: any error that reaches here escaped every route's own
+// try/catch (and, when auth is on, SuperTokens' own handler too). Without
+// this, Express falls back to its default handler, which answers with an
+// HTML page instead of the JSON shape every other error path in this app
+// uses - the caller can't tell "the server broke" from "the server isn't
+// there" (#2752).
+const handleUnhandledError: ErrorRequestHandler = (err, _req, res, next) => {
+  logger.error("Unhandled application error:", err);
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+  res.status(500).json({ message: "Internal server error." });
+};
 
 export function createApp() {
   const app = express();
 
-  const superTokensEnabled = isSuperTokensEnabled();
+  const authGate = readAuthGate();
+  const superTokensEnabled = authGate === "enabled";
   if (superTokensEnabled) {
     // Fail fast at startup on invalid auth config (epic #1672 acceptance).
     const authConfig = readAuthConfig();
@@ -49,28 +120,77 @@ export function createApp() {
 
     initSuperTokens(authHooks);
     setAuthService(new AuthService(createAuthProvider(authConfig)));
+    const authBasePath = process.env.AUTH_API_BASE_PATH ?? "/auth";
+    const signupPaths = [
+      `${authBasePath}/signup`,
+      `${authBasePath}/:tenantId/signup`,
+    ];
+    const signupCors = cors({
+      origin: process.env.AUTH_WEBSITE_DOMAIN,
+      credentials: true,
+    });
 
     // The provider's own auth routes (sign-in/up, OTP, refresh) are mounted
     // before the global limiter, so give them a dedicated - stricter - one:
     // they are the brute-force / enumeration surface.
+    const signupIpLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 5,
+      standardHeaders: true,
+      legacyHeaders: false,
+      handler: signupRateLimitResponse,
+    });
+    const signupDomainLimiter = rateLimit({
+      windowMs: 60 * 60 * 1000,
+      max: 5,
+      standardHeaders: true,
+      legacyHeaders: false,
+      keyGenerator: signupEmailDomain,
+      handler: signupRateLimitResponse,
+    });
+    app.post(
+      signupPaths,
+      signupCors,
+      express.json({ limit: "16kb" }),
+      signupIpLimiter,
+      signupDomainLimiter,
+    );
+
     const authLimiter = rateLimit({
       windowMs: 15 * 60 * 1000,
       max: 100,
       standardHeaders: true,
       legacyHeaders: false,
     });
-    app.use("/auth", authLimiter);
+    app.use(authBasePath, authLimiter);
 
     registerSuperTokensBeforeRoutes(app);
+    recordControl("authentication", "applied");
   } else {
     setAuthService(null);
+    // Turning auth off is a deployment fact; booting without the env it needs
+    // is an incident nobody asked for. `failed` is what /health/controls
+    // surfaces as degraded, so a monitor sees an auth-less deploy immediately.
+    //
+    // The detail never names the missing variable: this endpoint is
+    // unauthenticated by design (see startup-controls.ts), and "incomplete" is
+    // already enough to act on.
+    if (authGate === "disabled") {
+      recordControl("authentication", "skipped", "disabled by configuration");
+    } else {
+      recordControl("authentication", "failed", "auth env incomplete");
+    }
   }
   app.use(helmet());
   app.disable("x-powered-by");
 
+  // Ceiling defaults to what production runs today; an environment that needs
+  // headroom sets RATE_LIMIT_MAX. Deliberately NOT an account allowlist - see
+  // utils/rate-limit-config for why that was rejected. The /auth limiter above
+  // is untouched: it guards the brute-force surface and stays at 100.
   const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 500,
+    windowMs: resolveRateLimitWindowMs(process.env.RATE_LIMIT_WINDOW_MS),
+    max: resolveRateLimitMax(process.env.RATE_LIMIT_MAX),
     standardHeaders: true,
     legacyHeaders: false,
   });
@@ -213,11 +333,17 @@ export function createApp() {
     return res.status(degraded ? 503 : 200).json({
       status: degraded ? "degraded" : "ok",
       controls: getControlReports(),
+      // What this bundle registers, always sent. A reader comparing the two
+      // lists can tell a control that is missing from one that never existed
+      // in this version - the absence of this key is the version marker, so it
+      // must not depend on anything.
+      expected: getExpectedControls(),
     });
   });
 
   if (superTokensEnabled) {
     registerSuperTokensErrorHandler(app);
   }
+  app.use(handleUnhandledError);
   return app;
 }

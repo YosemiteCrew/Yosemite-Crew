@@ -98,7 +98,7 @@ router.get(
 router.patch(
   "/pms/:organisationId/:appointmentId/accept",
   requireWebAuth,
-  withOrgPermissions(),
+  withAppointmentOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.acceptRequested,
 );
@@ -107,7 +107,7 @@ router.patch(
 router.patch(
   "/pms/:organisationId/:appointmentId/reject",
   requireWebAuth,
-  withOrgPermissions(),
+  withAppointmentOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.rejectRequested,
 );
@@ -116,7 +116,7 @@ router.patch(
 router.patch(
   "/pms/:organisationId/:appointmentId/cancel",
   requireWebAuth,
-  withOrgPermissions(),
+  withAppointmentOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.cancelFromPMS,
 );

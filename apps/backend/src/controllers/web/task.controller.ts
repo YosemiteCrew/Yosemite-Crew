@@ -386,7 +386,12 @@ export const TaskController = {
 
   // Update Task
   updateTask: async (
-    req: Request<{ taskId: string }, unknown, TaskUpdateInput>,
+    req: Request<
+      { taskId: string },
+      unknown,
+      TaskUpdateInput,
+      { scope?: string }
+    >,
     res: Response,
   ) => {
     try {
@@ -400,9 +405,42 @@ export const TaskController = {
       }
 
       const parentId = authUser.parentId.toString();
+      const scope = parseRecurrenceScope(req.query?.scope) ?? "THIS";
 
-      const task = await TaskService.updateTask(taskId, req.body, parentId);
+      const task = await TaskService.updateTask(
+        taskId,
+        req.body,
+        parentId,
+        scope,
+      );
       res.json(task);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
+  // Delete Task (mobile) - recurrence-scope aware cancel. Mirrors
+  // deleteTaskPMS, resolved through the mobile parent account the same way
+  // updateTask/changeStatus already do.
+  deleteTask: async (
+    req: Request<{ taskId: string }, unknown, unknown, { scope?: string }>,
+    res: Response,
+  ) => {
+    try {
+      const actorId = resolveUserId(req);
+      const taskId = req.params.taskId;
+
+      const authUser = await AuthUserMobileService.getByProviderUserId(actorId);
+
+      if (!authUser?.parentId) {
+        return res.status(403).json({ message: "Parent account not found" });
+      }
+
+      const parentId = authUser.parentId.toString();
+      const scope = parseRecurrenceScope(req.query.scope) ?? "THIS";
+
+      await TaskService.deleteTask(taskId, parentId, scope);
+      res.status(204).json({});
     } catch (error) {
       handleError(error, res);
     }

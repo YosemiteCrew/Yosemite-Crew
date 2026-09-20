@@ -9,6 +9,7 @@ import type {TaskCategory} from '@/features/tasks/types';
 import type {ObservationalToolBookingContext} from '@/features/observationalTools/types';
 import type {OrganisationDocumentCategory} from '@/features/legal/services/organisationDocumentService';
 import type {MerckEntry, MerckLanguage} from '@/features/merck/types';
+import type {ParasiteId} from '@/features/parasiteRisk/types';
 
 type BottomTabScreenProps<
   ParamList extends ParamListBase,
@@ -54,6 +55,9 @@ export type HomeStackParamList = {
   AddCoParent: undefined;
   EditCoParent: {coParentId: string};
   CoParentProfile: {coParentId: string};
+  Assistant: undefined;
+  ParasiteRisk: undefined;
+  ParasiteDetail: {parasiteId: ParasiteId};
 };
 
 export type LinkedBusinessStackParamList = {

@@ -18,10 +18,36 @@ describe('StaffField', () => {
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 
+  it('notches the label into the border rather than painting a patch behind it', () => {
+    render(<StaffField label="Assigned Lead" name="Dr. Tim Apple" />);
+    const label = screen.getByText('Assigned Lead');
+
+    // A real legend inside a fieldset: the browser cuts the border where the text
+    // sits, so the field is correct on any surface.
+    expect(label.tagName).toBe('LEGEND');
+    expect(label.closest('fieldset')).not.toBeNull();
+
+    /* And it must paint NOTHING. The old implementation filled `--screen` behind
+       the label to fake the gap, which only lined up when the field sat directly
+       on the page; on the workspace meta bar it sits on a card, where that patch
+       showed as a pale rectangle laid over the border. Any background here is
+       that bug returning. */
+    expect(label.style.background).toBe('');
+    expect(label.style.backgroundColor).toBe('');
+  });
+
+  it('never paints --screen behind a floating label', () => {
+    // The original bug in one line: `body` paints `--page`, so a label painting
+    // `--screen` sits on a ground it does not match, in either theme. Nothing in
+    // this component may reintroduce that token as a label fill.
+    const { container } = render(<StaffField label="Assigned Lead" name="Dr. Tim Apple" />);
+    expect(container.innerHTML).not.toContain('var(--screen)');
+  });
+
   it('fills the field surface with the theme field background so it does not wash out', () => {
     render(<StaffField label="Assigned Lead" name="Dr. Tim Apple" />);
-    // The shell is the label span's parent box; it carries the filled surface.
-    const shell = screen.getByText('Assigned Lead').parentElement as HTMLElement;
+    // The shell is the fieldset the legend sits in; it carries the filled surface.
+    const shell = screen.getByText('Assigned Lead').closest('fieldset') as HTMLElement;
     expect(shell).toHaveStyle({ background: 'var(--field-bg)' });
     expect(shell).toHaveStyle({ borderColor: 'var(--hairline)' });
   });

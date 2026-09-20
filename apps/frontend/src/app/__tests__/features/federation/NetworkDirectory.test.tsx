@@ -25,12 +25,19 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
     text,
     onClick,
     isDisabled,
+    size,
   }: {
     text: string;
     onClick: () => void;
     isDisabled?: boolean;
+    size?: string;
   }) => (
-    <button type="button" onClick={onClick} disabled={isDisabled ?? false}>
+    <button type="button" onClick={onClick} disabled={isDisabled ?? false} data-size={size}>
+      {text}
+    </button>
+  ),
+  Secondary: ({ text, onClick }: { text: string; onClick?: () => void }) => (
+    <button type="button" onClick={onClick}>
       {text}
     </button>
   ),
@@ -93,6 +100,25 @@ describe('NetworkDirectory', () => {
     expect(screen.getAllByRole('button', { name: 'Follow' })).toHaveLength(2);
   });
 
+  it('keeps long identifiers readable and gives Follow a phone-sized target', async () => {
+    const longClinic: APDirectoryClinic = {
+      ...clinicA,
+      orgName: 'Veterinary Referral and Emergency Centre of the Northern Highlands',
+      handle: '@northern-highlands-referral-reception@veterinary-referral.example',
+      instanceHost: 'veterinary-referral-and-emergency-centre.example',
+    };
+    (listDirectory as jest.Mock).mockResolvedValue({ clinics: [longClinic], unavailable: false });
+
+    render(<NetworkDirectory />);
+
+    const name = await screen.findByText(longClinic.orgName);
+    expect(name).toHaveClass('break-words');
+    expect(name).not.toHaveClass('truncate');
+    expect(screen.getByText(longClinic.handle)).toHaveClass('[overflow-wrap:anywhere]');
+    expect(screen.getByText(longClinic.instanceHost)).toHaveClass('[overflow-wrap:anywhere]');
+    expect(screen.getByRole('button', { name: 'Follow' })).toHaveAttribute('data-size', 'large');
+  });
+
   it('notifies error when the directory fails to load', async () => {
     (listDirectory as jest.Mock).mockRejectedValueOnce(new Error('boom'));
     render(<NetworkDirectory />);
@@ -130,6 +156,24 @@ describe('NetworkDirectory', () => {
       await screen.findByText('No clinics are listed in the directory yet.')
     ).toBeInTheDocument();
     expect(screen.queryByText(/directory is unavailable/i)).not.toBeInTheDocument();
+  });
+
+  it('offers a Retry that reloads the directory after an outage', async () => {
+    (listDirectory as jest.Mock).mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce({
+      clinics: [
+        {
+          actorUri: 'https://a.example/ap/organizations/a',
+          orgName: 'Alpha Vet Clinic',
+          handle: '@alpha-vet',
+          instanceHost: 'a.example',
+        },
+      ],
+    });
+    render(<NetworkDirectory />);
+    expect(await screen.findByText(/directory is unavailable/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('Alpha Vet Clinic')).toBeInTheDocument();
+    expect(listDirectory).toHaveBeenCalledTimes(2);
   });
 
   it('follows a clinic and notifies success', async () => {

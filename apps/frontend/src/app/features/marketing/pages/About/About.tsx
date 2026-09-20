@@ -172,7 +172,7 @@ const CTA_GHOST_STYLE: CSSProperties = {
   alignItems: 'center',
   gap: '10px',
   background: 'transparent',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
   fontSize: '17px',
   fontWeight: 500,
   letterSpacing: '-0.02em',
@@ -299,7 +299,7 @@ function Origin() {
               aspectRatio: '3 / 2',
               borderRadius: '28px',
               overflow: 'hidden',
-              background: 'rgba(239,232,220,0.06)',
+              background: 'color-mix(in srgb, var(--page) 6%, transparent)',
             }}
           >
             <Image
@@ -323,7 +323,7 @@ function Origin() {
             padding: 'clamp(40px, 6vw, 72px) 0 clamp(88px, 12vw, 170px)',
           }}
         >
-          <Reveal delay={0} style={{ ...eyebrowStyle, color: '#8f8984' }}>
+          <Reveal delay={0} style={{ ...eyebrowStyle, color: 'var(--ink-faint)' }}>
             Where this started
           </Reveal>
           <Reveal
@@ -335,7 +335,7 @@ function Origin() {
               fontWeight: 500,
               lineHeight: 1.42,
               letterSpacing: '-0.03em',
-              color: '#eae2d5',
+              color: 'var(--spot-ink)',
               textWrap: 'pretty',
             }}
           >
@@ -352,7 +352,7 @@ function Origin() {
               fontSize: 'clamp(18px, 2.1vw, 22px)',
               lineHeight: 1.6,
               letterSpacing: '-0.02em',
-              color: '#a9a39e',
+              color: 'var(--spot-ink-faint)',
               textWrap: 'pretty',
             }}
           >
@@ -364,7 +364,7 @@ function Origin() {
                 fontStyle: 'italic',
                 fontWeight: 500,
                 letterSpacing: '-0.01em',
-                color: '#eae2d5',
+                color: 'var(--spot-ink)',
               }}
             >
               He died because the clinic couldn&apos;t see him.
@@ -692,14 +692,6 @@ const CORE_TEAM: CrewMember[] = [
     avatarSrc: 'https://d2il6osz49gpup.cloudfront.net/aboutus-page/Ankit_profile.png',
     slotId: 'crew-ankit',
     delay: 0,
-  },
-  {
-    name: 'Harshvardhan Parmar',
-    role: 'Contributor',
-    href: 'https://www.linkedin.com/in/harshvardhan-parmar/',
-    avatarSrc: 'https://d2il6osz49gpup.cloudfront.net/aboutus-page/harshvardhan-profile_pic.png',
-    slotId: 'crew-harshvardhan',
-    delay: 80,
   },
 ];
 
@@ -1143,7 +1135,7 @@ function ClosingCta() {
                 fontWeight: 500,
                 lineHeight: 1.06,
                 letterSpacing: '-0.055em',
-                color: '#eae2d5',
+                color: 'var(--spot-ink)',
                 textWrap: 'balance',
               }}
             >
@@ -1159,7 +1151,7 @@ function ClosingCta() {
               fontSize: '18px',
               lineHeight: 1.65,
               letterSpacing: '-0.02em',
-              color: '#a9a39e',
+              color: 'var(--spot-ink-faint)',
               textWrap: 'pretty',
             }}
           >

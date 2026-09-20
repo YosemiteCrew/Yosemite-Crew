@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 
 import VerifyEmail from '@/app/features/auth/pages/VerifyEmail/VerifyEmail';
 
+// no-story: thin Next.js route wrapper; real content is VerifyEmail, already storied
 export const metadata: Metadata = {
   title: 'Verify Email — Yosemite Crew',
   description: 'Verify your Yosemite Crew account email address.',

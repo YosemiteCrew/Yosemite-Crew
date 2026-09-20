@@ -194,10 +194,30 @@ const reverseAppointmentReadyForBillingViaAppointmentRoute = async (
   return unwrapFinanceData(res.data);
 };
 
+/**
+ * The single-invoice read nests its payload.
+ *
+ * `InvoiceService.getById` returns `{ organistion, invoice }` (the misspelling
+ * is the API's), and the finance envelope wraps that whole object - so
+ * `unwrapFinanceData` yields the pair, not the invoice. Reading fields straight
+ * off it produced an invoice with no id and a zero total, and it is the only
+ * read that carries `settlementSummary`, so the nesting has to be undone here.
+ *
+ * A real invoice never has an `invoice` property of its own, which is what
+ * makes that key a safe discriminator.
+ */
+const unwrapNestedInvoice = (value: any): any => {
+  if (value && typeof value === 'object' && typeof value.invoice === 'object' && value.invoice) {
+    return value.invoice;
+  }
+  return value;
+};
+
 const normalizeFinanceInvoice = (
-  invoice: any,
+  payload: any,
   fallbackOrganisationId?: string
 ): NormalizedFinanceInvoice => {
+  const invoice = unwrapNestedInvoice(payload);
   if (invoice?.resourceType === 'Invoice') {
     return normalizeInvoiceForFrontend(invoice, fallbackOrganisationId);
   }
@@ -250,6 +270,13 @@ const normalizeFinanceInvoice = (
     renderedDocumentId: invoice?.renderedDocumentId,
     invoiceDocumentId: invoice?.invoiceDocumentId,
     payments: invoice?.payments,
+    // The backend returns creditNotes on every invoice read and settlementSummary
+    // on the single-invoice read. Both were being dropped here, which left the
+    // credit ledger invisible and made getInvoiceOutstanding's preferred branch
+    // (settlementSummary.balance) unreachable, so it always fell back to
+    // total-minus-deposit. See #2595 for the list-endpoint half of that.
+    creditNotes: Array.isArray(invoice?.creditNotes) ? invoice.creditNotes : undefined,
+    settlementSummary: invoice?.settlementSummary,
     metadata: invoice?.metadata,
     paidAt: invoice?.paidAt ? new Date(invoice.paidAt) : undefined,
     createdAt,

@@ -137,27 +137,44 @@ const Settings = () => {
           the labels pointed away from the truth. Scope is the axis that changes
           whether a click is safe, so it is the axis the page is built on. */}
       <SettingsBand title="Personal" description="Settings for you, not for the clinic.">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5 items-start">
-          <Personal
-            onEditProfile={() => setProfileOpen(true)}
-            onEditHours={() => setHoursOpen(true)}
-          />
+        {/* A shared-row grid sizes both columns of a row to the taller cell, so a
+            short card (This browser) next to a tall one (Your organizations)
+            left a dangling gap under the short card instead of the next card
+            flowing up to fill it. CSS multi-column reflows content into
+            whichever column is shortest, closing that gap - the same fix
+            Availability.tsx already uses for its two-up day list. Below xl it
+            collapses to one column, same as before. */}
+        <div className="w-full columns-1 xl:columns-2 [column-gap:0.875rem]">
+          <div className="mb-3.5 break-inside-avoid">
+            <Personal
+              onEditProfile={() => setProfileOpen(true)}
+              onEditHours={() => setHoursOpen(true)}
+            />
+          </div>
 
           {/* Every control here writes the per-user profile via patchUserProfile,
               so it follows the account to any device. Appearance does NOT — it is
               deliberately in its own group below. */}
-          <PreferenceGroup title="Your preferences" scope="personal">
-            <DefaultOpenScreenPreference />
-            <TimezonePreference />
-            <CompanionTerminologyPreference />
-          </PreferenceGroup>
+          <div className="mb-3.5 break-inside-avoid">
+            <PreferenceGroup title="Your preferences" scope="personal">
+              <DefaultOpenScreenPreference />
+              <TimezonePreference />
+              <CompanionTerminologyPreference />
+            </PreferenceGroup>
+          </div>
 
-          <PreferenceGroup title="This browser" scope="device">
-            <AppearancePreference />
-          </PreferenceGroup>
+          <div className="mb-3.5 break-inside-avoid">
+            <PreferenceGroup title="This browser" scope="device">
+              <AppearancePreference />
+            </PreferenceGroup>
+          </div>
 
-          <YourOrganizations />
-          <DeleteProfile />
+          <div className="mb-3.5 break-inside-avoid">
+            <YourOrganizations />
+          </div>
+          <div className="mb-3.5 break-inside-avoid">
+            <DeleteProfile />
+          </div>
         </div>
       </SettingsBand>
 

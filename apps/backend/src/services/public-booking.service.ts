@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import customParseFormat from "dayjs/plugin/customParseFormat.js";
+import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { CatalogService } from "./catalog.service";
 import { resolveBookingPageUrl } from "./booking-page.service";
@@ -125,7 +126,6 @@ type ResolvedPractice = {
     serviceIds: string[];
     bookingWindowDays: number;
     bufferMinutes: number;
-    autoConfirm: boolean;
     welcomeMessage: string | null;
     replyToEmail: string | null;
   } | null;
@@ -159,7 +159,6 @@ export const resolveSlug = async (
           serviceIds: true,
           bookingWindowDays: true,
           bufferMinutes: true,
-          autoConfirm: true,
           welcomeMessage: true,
           replyToEmail: true,
         },
@@ -282,7 +281,7 @@ export const PublicBookingService = {
         practice.settings?.bookingWindowDays ?? 28,
         MAX_BOOKING_WINDOW_DAYS,
       ),
-      requiresConfirmation: !practice.settings?.autoConfirm,
+      requiresConfirmation: true,
       services: offersNothing(practice)
         ? []
         : await loadPublicServices(practice),
@@ -326,10 +325,17 @@ export const PublicBookingService = {
     // answer as asking for one that does not exist.
     if (!service) throw notFound();
 
+    // "Buffer between visits" is a public-booking setting: it spaces the offered
+    // slots so anonymous requests cannot be booked back to back. It applies only
+    // here - the signed-in scheduling paths call getBookableSlotsService without
+    // it and keep tiling with no gap.
+    const bufferMinutes = Math.max(0, practice.settings?.bufferMinutes ?? 0);
+
     const result = await CatalogService.getBookableSlotsService(
       serviceId,
       practice.organizationId,
       date.toDate(),
+      bufferMinutes,
     );
 
     return {
@@ -480,6 +486,28 @@ const practiceNotificationEmail = (request: StoredRequest) => {
     ].join("\n"),
   };
 };
+
+/** One page of requests. History gets a smaller slice: it is context, not work. */
+const REQUEST_PAGE_SIZE = 200;
+const HISTORY_PAGE_SIZE = 50;
+
+/** The fields the practice queue and its history rows both render. */
+const BOOKING_REQUEST_SELECT = {
+  id: true,
+  serviceName: true,
+  requestedStart: true,
+  requestedEnd: true,
+  durationMinutes: true,
+  ownerName: true,
+  ownerEmail: true,
+  ownerPhone: true,
+  petName: true,
+  petSpecies: true,
+  concern: true,
+  status: true,
+  confirmedAt: true,
+  createdAt: true,
+} as const;
 
 export const PublicBookingRequestService = {
   /**
@@ -662,30 +690,52 @@ export const PublicBookingRequestService = {
       "organisationId",
     );
 
-    return prisma.publicBookingRequest.findMany({
-      where: {
-        organizationId: safeOrganisationId,
-        status: status ?? { in: ["CONFIRMED", "DECLINED", "BOOKED"] },
-      },
-      orderBy: { requestedStart: "asc" },
-      take: 200,
-      select: {
-        id: true,
-        serviceName: true,
-        requestedStart: true,
-        requestedEnd: true,
-        durationMinutes: true,
-        ownerName: true,
-        ownerEmail: true,
-        ownerPhone: true,
-        petName: true,
-        petSpecies: true,
-        concern: true,
-        status: true,
-        confirmedAt: true,
-        createdAt: true,
-      },
-    });
+    // An explicit status is one capped page of that single status.
+    if (status) {
+      return prisma.publicBookingRequest.findMany({
+        where: { organizationId: safeOrganisationId, status },
+        orderBy: { requestedStart: "asc" },
+        take: REQUEST_PAGE_SIZE,
+        select: BOOKING_REQUEST_SELECT,
+      });
+    }
+
+    // Default view: actionable requests must never be crowded out of the page by
+    // history. CONFIRMED is the only status the practice acts on; BOOKED and
+    // DECLINED are already dealt with. A single `requestedStart`-ordered page
+    // capped at 200 let past-dated history sort to the front and push future
+    // actionable requests off the end. Querying the two sets separately makes
+    // that impossible - every actionable request up to the cap is returned,
+    // followed by a bounded, most-recent slice of history for context.
+    // Both reads must see one snapshot. Run separately (outside a transaction),
+    // a status change committed between them - a colleague marking a request
+    // booked - could let the actionable query still return a row that the
+    // history query also returns under its new status, putting a duplicate id
+    // in the merged list (the queue renders by id), or drop it from both.
+    // RepeatableRead pins a single snapshot for the pair; it is read-only, so it
+    // cannot hit a serialization failure.
+    const [actionable, history] = await prisma.$transaction(
+      [
+        prisma.publicBookingRequest.findMany({
+          where: { organizationId: safeOrganisationId, status: "CONFIRMED" },
+          orderBy: { requestedStart: "asc" },
+          take: REQUEST_PAGE_SIZE,
+          select: BOOKING_REQUEST_SELECT,
+        }),
+        prisma.publicBookingRequest.findMany({
+          where: {
+            organizationId: safeOrganisationId,
+            status: { in: ["BOOKED", "DECLINED"] },
+          },
+          orderBy: { requestedStart: "desc" },
+          take: HISTORY_PAGE_SIZE,
+          select: BOOKING_REQUEST_SELECT,
+        }),
+      ],
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+
+    return [...actionable, ...history];
   },
 
   /**

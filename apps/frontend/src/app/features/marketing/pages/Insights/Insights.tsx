@@ -164,7 +164,7 @@ function Heartbeat({ weeks }: Readonly<{ weeks: number[] | null }>) {
               minWidth: 2,
               height: `${height}%`,
               borderRadius: '2px 2px 1px 1px',
-              background: 'linear-gradient(180deg,#5ce1e6,#257bed)',
+              background: 'linear-gradient(180deg,var(--cyan),var(--blue))',
               transformOrigin: 'bottom',
               animation: isLast ? 'ycBeat 1.8s ease-in-out infinite' : undefined,
             }}
@@ -184,7 +184,7 @@ function MiniStat({ value, label }: Readonly<{ value: string; label: string }>) 
           fontSize: 26,
           fontWeight: 500,
           letterSpacing: '-0.03em',
-          color: '#f4efe6',
+          color: 'var(--spot-ink)',
         }}
       >
         {value}
@@ -336,7 +336,7 @@ function ConsoleLastCommit({ lastCommit }: Readonly<{ lastCommit: RepoCommit | u
   return (
     <div style={CONSOLE_COMMIT_BOX_STYLE}>
       <IoGitCommitOutline
-        style={{ fontSize: 16, color: '#5ce1e6', flex: 'none' }}
+        style={{ fontSize: 16, color: 'var(--cyan)', flex: 'none' }}
         aria-hidden="true"
       />
       <span
@@ -675,7 +675,7 @@ const MANIFESTO_LINE_STYLE: CSSProperties = {
   fontWeight: 500,
   lineHeight: 1.34,
   letterSpacing: '-0.035em',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
   textWrap: 'pretty',
 };
 
@@ -708,7 +708,7 @@ function Manifesto() {
                 fontStyle: 'italic',
                 fontWeight: 500,
                 letterSpacing: '-0.01em',
-                color: '#5ce1e6',
+                color: 'var(--cyan)',
               }}
             >
               If you build in the open, it should not stop at the code.
@@ -840,7 +840,7 @@ function LatestReleaseCard() {
           }}
         >
           <span style={RELEASE_LABEL_STYLE}>
-            <IoPricetagOutline style={{ fontSize: 15, color: '#5ce1e6' }} aria-hidden="true" />
+            <IoPricetagOutline style={{ fontSize: 15, color: 'var(--cyan)' }} aria-hidden="true" />
             Latest release
           </span>
           <IoArrowForwardOutline style={{ fontSize: 16, color: '#8a8074' }} aria-hidden="true" />
@@ -852,7 +852,7 @@ function LatestReleaseCard() {
               fontSize: 'clamp(30px, 4vw, 44px)',
               fontWeight: 500,
               letterSpacing: '-0.03em',
-              color: '#f4efe6',
+              color: 'var(--spot-ink)',
             }}
           >
             {release.tag ?? 'Loading...'}
@@ -1366,7 +1366,7 @@ const FINAL_CTA_HEADING_STYLE: CSSProperties = {
   fontWeight: 500,
   lineHeight: 1.06,
   letterSpacing: '-0.055em',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
   textWrap: 'balance',
 };
 
@@ -1388,7 +1388,7 @@ const FINAL_CTA_GHOST_STYLE: CSSProperties = {
   justifyContent: 'center',
   gap: 10,
   background: 'transparent',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
   fontSize: 17,
   fontWeight: 500,
   letterSpacing: '-0.02em',
@@ -1421,7 +1421,7 @@ function FinalCta() {
                   fontFamily: SERIF,
                   fontStyle: 'italic',
                   fontWeight: 500,
-                  color: '#82afec',
+                  color: 'var(--spot-blue)',
                 }}
               >
                 Then read the code.

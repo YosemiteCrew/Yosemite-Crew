@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import type { ApiKeyEnvironment } from '@/app/services/developerApiKeys';
 
 export interface NewApiKeyInput {
@@ -9,6 +10,11 @@ export interface NewApiKeyInput {
   environment: ApiKeyEnvironment;
   scopes?: string[];
 }
+
+const ENVIRONMENT_DROPDOWN_OPTIONS = [
+  { label: 'Live', value: 'live' },
+  { label: 'Test', value: 'test' },
+];
 
 /**
  * Owns its own field state.
@@ -30,7 +36,7 @@ const CreateKeyForm = ({
   const [environment, setEnvironment] = useState<ApiKeyEnvironment>('live');
   const [scopesInput, setScopesInput] = useState('');
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = (event: React.SubmitEvent) => {
     event.preventDefault();
     if (!name.trim() || creating) return;
 
@@ -61,18 +67,12 @@ const CreateKeyForm = ({
         placeholder="e.g. Production server"
         maxLength={100}
       />
-      <label className="text-body-3 text-text-primary" htmlFor="apiKeyEnv">
-        Environment
-      </label>
-      <select
-        id="apiKeyEnv"
-        className="DevApiKeys-input"
+      <Dropdown
+        placeholder="Environment"
         value={environment}
-        onChange={(event) => setEnvironment(event.target.value as ApiKeyEnvironment)}
-      >
-        <option value="live">Live</option>
-        <option value="test">Test</option>
-      </select>
+        onChange={(value) => setEnvironment(value as ApiKeyEnvironment)}
+        options={ENVIRONMENT_DROPDOWN_OPTIONS}
+      />
       <label className="text-body-3 text-text-primary" htmlFor="apiKeyScopes">
         Scopes (optional, comma-separated)
       </label>
@@ -81,8 +81,27 @@ const CreateKeyForm = ({
         className="DevApiKeys-input"
         value={scopesInput}
         onChange={(event) => setScopesInput(event.target.value)}
-        placeholder="appointments:read, inventory:read"
+        placeholder="appointments:read"
+        aria-describedby="apiKeyScopesHelp"
       />
+      {/*
+        This copy has to track what `requireScope` is actually mounted on, or it
+        becomes the thing it was written to prevent - a field that looks like an
+        access control and is not. It is now mounted: the `/v1/developer`
+        appointment routes require `appointments:read`. Everything else a
+        developer types is still recorded and gates nothing, so the sentence
+        names the one scope that works rather than implying a taxonomy.
+
+        A key created before this shipped carries no scopes and will be refused
+        by those routes, which is the correct outcome: nothing could have been
+        calling them, because they did not exist.
+      */}
+      <p id="apiKeyScopesHelp" className="text-caption-2 text-text-tertiary">
+        Enforced where an endpoint exists to enforce them: a key needs{' '}
+        <code>appointments:read</code> to call the appointment endpoints under{' '}
+        <code>/v1/developer</code>. Any other scope you enter is recorded on the key but does not
+        gate anything yet.
+      </p>
       <div className="DevApiKeys-formActions">
         <Primary
           text={creating ? 'Creating…' : 'Create'}

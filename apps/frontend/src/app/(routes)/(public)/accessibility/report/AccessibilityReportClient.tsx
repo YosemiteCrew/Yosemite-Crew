@@ -3,6 +3,7 @@
 import React, { useId, useState } from 'react';
 import Link from 'next/link';
 import axios from 'axios';
+import { CONTACT_MESSAGE_MAX_LENGTH } from '@yosemite-crew/types';
 import { postData } from '@/app/services/axios';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
@@ -31,6 +32,10 @@ const SEVERITY_OPTIONS = [
   { value: 'unknown', label: 'Not sure' },
 ];
 
+/* Long enough for any real address; here so a pasted URL cannot eat the whole
+   message budget and leave the description field with nothing to spend. */
+const PAGE_URL_MAX_LENGTH = 2048;
+
 const EMPTY_FORM: FormState = {
   name: '',
   email: '',
@@ -38,6 +43,30 @@ const EMPTY_FORM: FormState = {
   severity: 'unknown',
   description: '',
 };
+
+/* The visitor writes a description; what is submitted - and what the SuperAdmin
+   mirror forwards - is the description wrapped in this header. The intake's
+   limit applies to the whole of it, so the header has to be built in one place
+   and charged against the same budget. */
+function buildReportMessage(form: FormState): string {
+  const severityLabel =
+    SEVERITY_OPTIONS.find((o) => o.value === form.severity)?.label ?? form.severity;
+  return [
+    'Accessibility barrier report',
+    `Page / URL: ${form.pageUrl || 'not specified'}`,
+    `Severity: ${severityLabel}`,
+    '',
+    form.description.trim(),
+  ].join('\n');
+}
+
+/** What is left of the message budget once the header is paid for. */
+function descriptionBudget(form: FormState): number {
+  return Math.max(
+    0,
+    CONTACT_MESSAGE_MAX_LENGTH - buildReportMessage({ ...form, description: '' }).length
+  );
+}
 
 function validate(form: FormState): FieldErrors {
   const errs: FieldErrors = {};
@@ -47,7 +76,15 @@ function validate(form: FormState): FieldErrors {
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@.]+$/.test(form.email)) {
     errs.email = 'Enter a valid email address.';
   }
-  if (!form.description.trim()) errs.description = 'Please describe the barrier you encountered.';
+  if (!form.description.trim()) {
+    errs.description = 'Please describe the barrier you encountered.';
+  } else if (buildReportMessage(form).length > CONTACT_MESSAGE_MAX_LENGTH) {
+    /* Reachable even with the field bounded: maxLength stops new typing, it does
+       not shorten a description that was already there when the page URL grew. */
+    errs.description = `Your report is too long. Please shorten the description to ${descriptionBudget(
+      form
+    )} characters or fewer.`;
+  }
   return errs;
 }
 
@@ -84,15 +121,7 @@ export default function AccessibilityReportClient() {
     setErrors({});
     setSubmitting(true);
     try {
-      const severityLabel =
-        SEVERITY_OPTIONS.find((o) => o.value === form.severity)?.label ?? form.severity;
-      const message = [
-        'Accessibility barrier report',
-        `Page / URL: ${form.pageUrl || 'not specified'}`,
-        `Severity: ${severityLabel}`,
-        '',
-        form.description.trim(),
-      ].join('\n');
+      const message = buildReportMessage(form);
 
       await postData('/v1/contact-us/contact-web', {
         type: 'COMPLAINT',
@@ -223,6 +252,7 @@ export default function AccessibilityReportClient() {
             inlabel="Page or URL where you encountered the barrier"
             value={form.pageUrl}
             onChange={set('pageUrl')}
+            maxLength={PAGE_URL_MAX_LENGTH}
           />
 
           <LabelDropdown
@@ -247,6 +277,7 @@ export default function AccessibilityReportClient() {
               value={form.description}
               onChange={set('description')}
               error={errors.description}
+              maxLength={descriptionBudget(form)}
               className="min-h-30 resize-y"
             />
           </div>

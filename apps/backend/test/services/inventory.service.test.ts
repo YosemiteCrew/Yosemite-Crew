@@ -20,6 +20,7 @@ import {
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    $transaction: jest.fn(),
     organizationBilling: {
       findUnique: jest.fn(),
     },
@@ -82,6 +83,10 @@ jest.mock("../../src/services/inventory.catalog", () => ({
 describe("Inventory service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      async (callback: unknown) =>
+        typeof callback === "function" ? callback(prisma) : undefined,
+    );
     (prisma.organizationBilling.findUnique as jest.Mock).mockResolvedValue({
       currency: "usd",
     });
@@ -127,7 +132,7 @@ describe("Inventory service", () => {
       category: "Consumables",
       businessType: "HOSPITAL",
       initialOnHand: 2,
-      allocated: 6,
+      allocated: 3,
       initialAllocated: 2,
       stockUnitType: "bottle",
       unitOfMeasure: "mg",
@@ -302,6 +307,7 @@ describe("Inventory service", () => {
       category: "Consumables",
       businessType: "HOSPITAL",
       itemType: "NON_MEDICAL",
+      onHand: 7,
       allocated: 2,
     });
     (prisma.inventoryItem.update as jest.Mock).mockResolvedValueOnce({
@@ -956,6 +962,58 @@ describe("Inventory service", () => {
     ).rejects.toThrow("Not enough unallocated stock");
   });
 
+  // Regression for a live dev bug: an item showed On Hand 7 / Available -8
+  // because `allocated` is a plain writable field on create and edit with no
+  // check against on-hand stock, unlike the allocateStock/releaseAllocatedStock
+  // pair above. Available (onHand - allocated) must never go negative.
+  it("rejects creating an item whose allocated stock exceeds on-hand stock", async () => {
+    await expect(
+      InventoryService.createItem({
+        organisationId: "org-1",
+        name: "Itraconazole 100 mg",
+        category: "Medicine",
+        businessType: "HOSPITAL",
+        initialOnHand: 7,
+        allocated: 15,
+      }),
+    ).rejects.toThrow("allocated cannot exceed on-hand stock");
+    expect(prisma.inventoryItem.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects creating an item whose batch quantities can't cover the requested allocation", async () => {
+    await expect(
+      InventoryService.createItem({
+        organisationId: "org-1",
+        name: "Itraconazole 100 mg",
+        category: "Medicine",
+        businessType: "HOSPITAL",
+        allocated: 15,
+        batches: [{ quantity: 7 }],
+      }),
+    ).rejects.toThrow("allocated cannot exceed on-hand stock");
+  });
+
+  it("rejects updating an item's allocated stock above its current on-hand stock", async () => {
+    (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "item-1",
+      organisationId: "org-1",
+      category: "Medicine",
+      businessType: "HOSPITAL",
+      itemType: "MEDICAL",
+      genericName: "Itraconazole",
+      strength: "100 mg",
+      dosageForm: "Capsule",
+      routeOfAdministration: "Oral",
+      onHand: 7,
+      allocated: 0,
+    });
+
+    await expect(
+      InventoryService.updateItem("item-1", { allocated: 15 }, "org-1"),
+    ).rejects.toThrow("allocated cannot exceed on-hand stock");
+    expect(prisma.inventoryItem.update).not.toHaveBeenCalled();
+  });
+
   it("rejects invalid vendor and meta-field inputs", async () => {
     await expect(
       InventoryVendorService.createVendor({
@@ -1256,6 +1314,11 @@ describe("Inventory service guards, helpers, and branch paths", () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      async (callback: unknown) =>
+        typeof callback === "function" ? callback(prisma) : undefined,
+    );
 
     mockOf(calculateInventoryStockStatus).mockReturnValue("In stock");
     mockOf(calculatePricingMetrics).mockReturnValue({
@@ -2577,11 +2640,68 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       );
 
       expect(mockOf(prisma.inventoryBatch.update).mock.calls).toEqual([
-        [{ where: { id: "first" }, data: { quantity: 0 } }],
-        [{ where: { id: "second" }, data: { quantity: 3 } }],
+        [{ where: { id: "first" }, data: { quantity: { decrement: 4 } } }],
+        [{ where: { id: "second" }, data: { quantity: { decrement: 2 } } }],
       ]);
       expect(updated.onHand).toBe(10);
       expect(updated._id).toBe("item-1");
+    });
+
+    it("logs a stock movement for every batch it drains", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 10 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany)
+        .mockResolvedValueOnce([
+          batchRow({ id: "batch-a", quantity: 4 }),
+          batchRow({ id: "batch-b", quantity: 6 }),
+        ])
+        .mockResolvedValueOnce([
+          batchRow({ id: "batch-a", quantity: 0 }),
+          batchRow({ id: "batch-b", quantity: 4 }),
+        ]);
+      mockOf(prisma.inventoryItem.update).mockResolvedValue(
+        itemRow({ onHand: 4 }),
+      );
+
+      await InventoryService.consumeStock(
+        {
+          itemId: "item-1",
+          quantity: 6,
+          reason: "APPOINTMENT_USAGE",
+          referenceId: "appt-1",
+        },
+        "org-1",
+      );
+
+      expect(mockOf(prisma.inventoryStockMovement.create).mock.calls).toEqual([
+        [
+          {
+            data: {
+              itemId: "item-1",
+              batchId: "batch-a",
+              change: -4,
+              reason: "APPOINTMENT_USAGE",
+              referenceId: "appt-1",
+              userId: undefined,
+              createdAt: expect.any(Date),
+            },
+          },
+        ],
+        [
+          {
+            data: {
+              itemId: "item-1",
+              batchId: "batch-b",
+              change: -2,
+              reason: "APPOINTMENT_USAGE",
+              referenceId: "appt-1",
+              userId: undefined,
+              createdAt: expect.any(Date),
+            },
+          },
+        ],
+      ]);
     });
   });
 
@@ -2781,7 +2901,7 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       expect(prisma.inventoryStockMovement.create).not.toHaveBeenCalled();
     });
 
-    it("draws down batches in expiry order and logs one movement per batch", async () => {
+    it("draws down batches atomically in expiry order and logs one movement per drawn batch", async () => {
       mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
         itemRow({ onHand: null }),
       );
@@ -2803,14 +2923,18 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         organisationId: "org-1",
       });
 
+      /*
+       * `decrement`, not a literal quantity: a concurrent draw-down on the
+       * same batch is applied by the database rather than lost. The empty
+       * batch is skipped entirely instead of being rewritten to 0.
+       */
       expect(mockOf(prisma.inventoryBatch.update).mock.calls).toEqual([
-        [{ where: { id: "unknown" }, data: { quantity: 0 } }],
-        [{ where: { id: "first" }, data: { quantity: 0 } }],
-        [{ where: { id: "second" }, data: { quantity: 3 } }],
+        [{ where: { id: "first" }, data: { quantity: { decrement: 4 } } }],
+        [{ where: { id: "second" }, data: { quantity: { decrement: 2 } } }],
       ]);
-      expect(prisma.inventoryStockMovement.create).toHaveBeenCalledTimes(3);
+      expect(prisma.inventoryStockMovement.create).toHaveBeenCalledTimes(2);
       expect(
-        mockOf(prisma.inventoryStockMovement.create).mock.calls[2][0].data,
+        mockOf(prisma.inventoryStockMovement.create).mock.calls[1][0].data,
       ).toMatchObject({
         itemId: "item-1",
         batchId: "second",
@@ -2821,7 +2945,32 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       expect(result._id).toBe("item-1");
     });
 
-    it("refuses to draw down more stock than the batches hold", async () => {
+    it("reads batches in a deterministic order and runs the whole adjustment in one transaction", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 5 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany).mockResolvedValue([
+        batchRow({ id: "only", quantity: 5 }),
+      ]);
+      mockOf(prisma.inventoryItem.update).mockResolvedValue(
+        itemRow({ onHand: 3 }),
+      );
+
+      await InventoryAdjustmentService.adjustStock({
+        itemId: "item-1",
+        newOnHand: 3,
+        reason: "SHRINKAGE",
+        organisationId: "org-1",
+      });
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(mockOf(prisma.inventoryBatch.findMany).mock.calls[0][0]).toEqual({
+        where: { itemId: "item-1" },
+        orderBy: [{ expiryDate: "asc" }, { id: "asc" }],
+      });
+    });
+
+    it("refuses to draw down more stock than the batches hold without consuming any of it", async () => {
       mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
         itemRow({ onHand: 10 }),
       );
@@ -2840,6 +2989,15 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         message: "Insufficient stock for adjustment",
         statusCode: 400,
       });
+
+      /*
+       * The shortfall is refused before the first write. The old code emptied
+       * every batch it walked and only then threw, so the rejected adjustment
+       * still destroyed the stock it had already drawn.
+       */
+      expect(prisma.inventoryBatch.update).not.toHaveBeenCalled();
+      expect(prisma.inventoryStockMovement.create).not.toHaveBeenCalled();
+      expect(prisma.inventoryItem.update).not.toHaveBeenCalled();
     });
 
     it("creates a top-up batch and a positive movement when stock increases", async () => {
@@ -3206,6 +3364,16 @@ describe("Inventory service guards, helpers, and branch paths", () => {
       const days = (threshold.getTime() - Date.now()) / 86_400_000;
       expect(days).toBeGreaterThan(6.5);
       expect(days).toBeLessThan(7.5);
+    });
+
+    it("starts the expiry window now so expired batches stay out", async () => {
+      const before = Date.now();
+      InventoryAlertService.getExpiringItems("org-1", 30);
+
+      const expiryRange = mockOf(prisma.inventoryBatch.findMany).mock
+        .calls[0][0].where.expiryDate as { gte: Date; lte: Date };
+      expect(expiryRange.gte.getTime()).toBeGreaterThanOrEqual(before);
+      expect(expiryRange.gte.getTime()).toBeLessThanOrEqual(Date.now());
     });
 
     it("honours an explicit day count", async () => {

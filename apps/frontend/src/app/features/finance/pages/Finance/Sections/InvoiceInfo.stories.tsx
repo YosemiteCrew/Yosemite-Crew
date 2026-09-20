@@ -281,7 +281,16 @@ export const Paid: Story = {
     await expect(payments.getByText('Paid in the pet-parent app')).toBeInTheDocument();
     await expect(payments.getByText('$114')).toBeInTheDocument();
     await expect(payments.getByRole('link', { name: 'Receipt' })).toBeInTheDocument();
-    await expect(panel.getByText('Receipt sent to sky.doe@example.com')).toBeInTheDocument();
+
+    /* And NO "Receipt sent to ..." line, even though a payer email is on file.
+       It was removed in #2609 because it was never evidence of anything: nothing
+       in the product emails an invoice receipt, `receipt_email` is never set on
+       the PaymentIntent, and the invoice carries no delivery state - so it also
+       appeared for cash and pay-at-clinic settlements, where no receipt exists
+       at all. The Stripe link asserted above is the real signal. This story kept
+       asserting the deleted line; it now asserts the decision, as the
+       awaiting-payment story below already does. */
+    await expect(panel.queryByText(/^Receipt sent to /)).not.toBeInTheDocument();
 
     // Billed-to is composed from the stored parent, not from the appointment.
     const billedTo = within(section(dialog, 'Billed to') as HTMLElement);

@@ -1,6 +1,7 @@
 import { createAuditLog } from '../src/compliance/audit-log';
 import { createControlledSubstanceLogbook } from '../src/compliance/controlled-substance';
 import { createDualWitnessLog } from '../src/compliance/dual-witness';
+import { fsSeam } from './helpers/fs-seam';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -10,15 +11,16 @@ describe('createDualWitnessLog', () => {
   let mockFs: Record<string, string> = {};
 
   const makeDeps = (nowVal = 1000) => ({
-    readFileSync: jest.fn((filePath: string) => {
-      if (mockFs[filePath] !== undefined) return mockFs[filePath];
+    readFileSync: fsSeam((filePath: string) => {
+      const contents = mockFs[filePath];
+      if (contents !== undefined) return contents;
       throw new Error('ENOENT');
     }),
-    writeFileSync: jest.fn((filePath: string, data: string) => {
+    writeFileSync: fsSeam((filePath: string, data: string) => {
       mockFs[filePath] = data;
     }),
     mkdirSync: jest.fn(),
-    existsSync: jest.fn((filePath: string) => mockFs[filePath] !== undefined),
+    existsSync: fsSeam((filePath: string) => mockFs[filePath] !== undefined),
     now: jest.fn(() => nowVal),
   });
 
@@ -141,10 +143,10 @@ describe('createDualWitnessLog', () => {
 
     const events = dwLog.getWasteEvents('Ketamine');
     expect(events).toHaveLength(1);
-    expect(events[0].drugName).toBe('Ketamine');
+    expect(events[0]!.drugName).toBe('Ketamine');
     // csTransactionId must reference the CS transaction id, not the audit-entry id.
-    expect(events[0].csTransactionId).toBe(events[0].id);
-    expect(events[0].csTransactionId).toMatch(/^cs-/);
+    expect(events[0]!.csTransactionId).toBe(events[0]!.id);
+    expect(events[0]!.csTransactionId).toMatch(/^cs-/);
   });
 
   test('getWasteEvents without drugName returns all waste events', async () => {
@@ -236,11 +238,11 @@ describe('createDualWitnessLog', () => {
 
     const witness1Events = dwLog.getWasteByWitness('witness-1');
     expect(witness1Events).toHaveLength(1);
-    expect(witness1Events[0].drugName).toBe('Ketamine');
+    expect(witness1Events[0]!.drugName).toBe('Ketamine');
 
     const witness2Events = dwLog.getWasteByWitness('witness-2');
     expect(witness2Events).toHaveLength(1);
-    expect(witness2Events[0].drugName).toBe('Diazepam');
+    expect(witness2Events[0]!.drugName).toBe('Diazepam');
   });
 
   test('getWasteByWitness returns empty for unknown witness', async () => {
@@ -315,9 +317,9 @@ describe('createDualWitnessLog', () => {
 
     const events = dwLog.getWasteEvents();
     expect(events).toHaveLength(1);
-    expect(events[0].witnessId).toBe('');
-    expect(events[0].witnessName).toBe('');
-    expect(events[0].reason).toBe('');
+    expect(events[0]!.witnessId).toBe('');
+    expect(events[0]!.witnessName).toBe('');
+    expect(events[0]!.reason).toBe('');
   });
 
   test('getWasteByWitness falls back to empty strings for missing witness fields', async () => {
@@ -350,8 +352,8 @@ describe('createDualWitnessLog', () => {
 
     const byWitness = dwLog.getWasteByWitness('');
     expect(byWitness).toHaveLength(1);
-    expect(byWitness[0].witnessId).toBe('');
-    expect(byWitness[0].witnessName).toBe('');
-    expect(byWitness[0].reason).toBe('');
+    expect(byWitness[0]!.witnessId).toBe('');
+    expect(byWitness[0]!.witnessName).toBe('');
+    expect(byWitness[0]!.reason).toBe('');
   });
 });

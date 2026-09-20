@@ -107,7 +107,7 @@ export const Default: Story = {
     // Synced outranks the uploader fields, and pmsVisible adds the second pill.
     await expect(
       Array.from(target.querySelectorAll('.yc-status-pill')).map((pill) => pill.textContent)
-    ).toEqual(['Synced', 'PMS visible']);
+    ).toEqual(['Synced', 'PIMS visible']);
 
     /* The tile is a fixed 38px square in the design and `flex-none`, so it must
        not shrink when the title crowds it (see the long-content story). */

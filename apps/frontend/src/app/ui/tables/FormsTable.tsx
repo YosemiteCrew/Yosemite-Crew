@@ -16,6 +16,7 @@ import { Organisation } from '@yosemite-crew/types';
 import { getFormsStatusTone } from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
+import { NoDataMessage } from '@/app/ui/tables/common';
 
 type Column<T> = {
   label: string;
@@ -183,7 +184,7 @@ const FormsTable = ({
             type="button"
             onClick={() => handleViewForm(item)}
             aria-label={`View form ${item.name}`}
-            className="flex size-7 cursor-pointer items-center justify-center rounded-[9px] transition-colors hover:bg-[var(--surface-soft)]"
+            className="flex size-7 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-soft)]"
             style={{ color: 'var(--ink-faint)' }}
           >
             <IoEllipsisHorizontal size={16} aria-hidden="true" />
@@ -247,6 +248,11 @@ const FormsTable = ({
             pagination
             pageSize={10}
             itemNoun="templates"
+            /* The `xl:hidden` card branch below says what a template is FOR -
+               "Templates you build appear here, ready to link to a service" -
+               where the derived line only says they will appear. Same widget,
+               so both branches get the useful sentence. */
+            emptySubtitle="Templates you build appear here, ready to link to a service."
           />
         )}
       </div>
@@ -261,9 +267,10 @@ const FormsTable = ({
           }
           if (filteredList.length === 0) {
             return (
-              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-                No data available
-              </div>
+              <NoDataMessage
+                title="No templates yet"
+                subtitle="Templates you build appear here, ready to link to a service."
+              />
             );
           }
           return filteredList.map((form, index) => (

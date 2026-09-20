@@ -50,17 +50,24 @@ const DayToggle = ({
     />
     <span
       aria-hidden="true"
-      className="pointer-events-none block h-[22px] w-9 rounded-full border transition-colors duration-150"
+      /* 40x24, the design system's `.switch`. This was 36x22 with a 16px knob,
+         one of six sizes the same control shipped at. Geometry only: the
+         control stays a real checkbox inside its label rather than becoming a
+         button, so it keeps native form semantics. */
+      className="pointer-events-none block h-6 w-10 rounded-full border transition-colors duration-150"
       style={{
         background: checked ? 'var(--blue)' : 'var(--band)',
         borderColor: checked ? 'var(--blue)' : 'var(--divider)',
       }}
     >
       <span
-        className="absolute top-[3px] size-4 rounded-full transition-all duration-150"
+        className="absolute top-[3px] size-[18px] rounded-full transition-all duration-150"
         style={{
-          left: checked ? '17px' : '3px',
-          background: checked ? '#ffffff' : 'var(--screen)',
+          left: checked ? '19px' : '3px',
+          /* Fixed white in both states: --screen flips with the theme, so the
+             off knob was #2f271e on a #3a3128 track in espresso, a contrast of
+             1.15, and simply vanished. */
+          background: '#ffffff',
           boxShadow: '0 1px 2px var(--sh08)',
         }}
       />
@@ -68,7 +75,15 @@ const DayToggle = ({
   </label>
 );
 
-/** 28px outlined circle action — the design's add-range / copy-to-other-days chrome. */
+/**
+ * 28px outlined circle action — the design's add-range / copy-to-other-days chrome.
+ *
+ * Border and ink are classes, not an inline style: an inline style outranks a
+ * hover class, so this declared `transition-colors` over a colour that could
+ * never change and the add-range circle gave no pointer feedback at all. The
+ * hover pair is Accordion's `iconButtonClass` recipe, which every other
+ * circular icon button in the product already carries.
+ */
 const CircleAction = ({
   label,
   onClick,
@@ -83,8 +98,7 @@ const CircleAction = ({
     aria-label={label}
     title={label}
     onClick={onClick}
-    className="flex size-7 shrink-0 items-center justify-center rounded-full border transition-colors"
-    style={{ borderColor: 'var(--hairline)', color: 'var(--ink-faint)' }}
+    className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-[var(--hairline)] text-[var(--ink-faint)] transition-colors hover:border-[var(--hairline-hover)] hover:text-[var(--ink)]"
   >
     {children}
   </button>

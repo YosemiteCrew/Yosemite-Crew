@@ -32,9 +32,15 @@ pnpm exec playwright install
 Files:
 
 - `apps/frontend/playwright.config.ts`
+- `apps/frontend/e2e/support/auth.ts`, `apps/frontend/e2e/support/pageInvariants.ts` — shared helpers
 - `apps/frontend/e2e/smoke.spec.ts`
 - `apps/frontend/e2e/a11y.spec.ts`
+- `apps/frontend/e2e/pageInvariants.spec.ts`
+- `apps/frontend/e2e/routeSweepExtractors.spec.ts`
+- `apps/frontend/e2e/route-sweep.spec.ts` (`route-sweep-baseline.json` is its checked-in baseline)
 - `apps/frontend/e2e/auth-flow.spec.ts`
+- `apps/frontend/e2e/developer-portal.spec.ts`
+- `apps/frontend/e2e/public-booking-setup.spec.ts`
 
 Scripts (see `apps/frontend/package.json` for the full list, including `e2e:ci:*` variants):
 
@@ -105,8 +111,14 @@ describe('Login flow', () => {
 });
 ```
 
-## Recommended flow in CI
+## What actually runs in CI (`.github/workflows/frontend-e2e.yml`)
 
 1. Unit tests first (`jest`) for fast feedback.
-2. Web E2E (Playwright) on each PR.
-3. Mobile E2E (Detox) on merge/nightly (heavier runtime).
+2. On every PR: the `playwright-public` job only - `smoke.spec.ts`, `a11y.spec.ts`,
+   `pageInvariants.spec.ts`, `routeSweepExtractors.spec.ts`.
+3. The `playwright-auth` job (`auth-flow.spec.ts`, `developer-portal.spec.ts`,
+   `public-booking-setup.spec.ts`, `route-sweep.spec.ts`) is gated
+   `if: github.event_name != 'pull_request'` behind the protected `e2e` GitHub
+   environment, deliberately so PR-controlled code never sees the `YC_E2E_*`
+   credentials. It runs on push to `main`/`dev`, not on PRs.
+4. Mobile E2E (Detox) runs locally only - there is no Detox CI workflow.

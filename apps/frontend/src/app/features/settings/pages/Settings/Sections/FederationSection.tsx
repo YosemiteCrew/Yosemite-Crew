@@ -2,7 +2,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNotify } from '@/app/hooks/useNotify';
 import { Primary } from '@/app/ui/primitives/Buttons';
+import { Textarea } from '@/app/ui/Input';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
+import { useConfirm } from '@/app/ui/overlays/Modal/ConfirmModal';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
+import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
 import type {
   APActorSettings,
   APFollower,
@@ -41,6 +45,12 @@ const URGENCY_COLORS: Record<APReferralUrgency, string> = {
   EMERGENCY: 'text-danger-600',
 };
 
+const URGENCY_DROPDOWN_OPTIONS = [
+  { label: URGENCY_LABELS.ROUTINE, value: 'ROUTINE' },
+  { label: URGENCY_LABELS.URGENT, value: 'URGENT' },
+  { label: URGENCY_LABELS.EMERGENCY, value: 'EMERGENCY' },
+];
+
 // Federation states map onto the app's shared pill tones rather than carrying
 // their own colours. The original panel hardcoded Tailwind's default palette,
 // which predates the warm-bone redesign: those greys are cool against a warm
@@ -68,15 +78,6 @@ const getListRenderState = (loading: boolean, isEmpty: boolean): ListRenderState
   if (isEmpty) return 'empty';
   return 'ready';
 };
-
-const SectionCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="border border-card-border rounded-2xl">
-    <div className="px-6 py-3 border-b border-b-card-border">
-      <div className="text-body-3 text-text-primary">{title}</div>
-    </div>
-    <div className="px-6 py-5 flex flex-col gap-4">{children}</div>
-  </div>
-);
 
 const StateBadge = ({ state }: { state: string }) => (
   <StatusPill
@@ -186,6 +187,7 @@ const LicenseTokenCard = ({
             value={token}
             onChange={(e) => setToken(e.target.value)}
             placeholder="Paste license token..."
+            aria-label="Federation license token"
             className="flex-1 text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary font-mono"
           />
           <Primary
@@ -388,6 +390,7 @@ const FollowingCard = () => {
           value={actorUri}
           onChange={(e) => setActorUri(e.target.value)}
           placeholder="https://other-clinic.example/ap/organizations/abc"
+          aria-label="Remote organisation URI to follow"
           className="flex-1 text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary"
         />
         <Primary
@@ -648,19 +651,12 @@ const ReferralFormFields = ({
       onChange={(v) => updateSummary('age', v)}
     />
     <div>
-      <label htmlFor="referral-urgency" className={FIELD_LABEL_CLS}>
-        Urgency
-      </label>
-      <select
-        id="referral-urgency"
-        className={REFERRAL_INPUT_CLS}
-        value={form.urgency}
-        onChange={(e) => update('urgency', e.target.value as APReferralUrgency)}
-      >
-        <option value="ROUTINE">Routine</option>
-        <option value="URGENT">Urgent</option>
-        <option value="EMERGENCY">Emergency</option>
-      </select>
+      <Dropdown
+        placeholder="Urgency"
+        value={form.urgency ?? 'ROUTINE'}
+        onChange={(v) => update('urgency', v as APReferralUrgency)}
+        options={URGENCY_DROPDOWN_OPTIONS}
+      />
     </div>
     <ReferralField
       id="referral-chief-complaint"
@@ -674,7 +670,7 @@ const ReferralFormFields = ({
       <label htmlFor="referral-clinical-context" className={FIELD_LABEL_CLS}>
         Clinical context
       </label>
-      <textarea
+      <Textarea
         id="referral-clinical-context"
         className={`${REFERRAL_INPUT_CLS} resize-none`}
         rows={3}
@@ -726,11 +722,21 @@ const SendReferralCard = () => {
 
 const EmergencyCard = () => {
   const { notify } = useNotify();
+  const { confirm, confirmDialog } = useConfirm();
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleAnnounce = async () => {
     if (!content.trim()) return;
+    if (
+      !(await confirm({
+        title: 'Broadcast emergency?',
+        body: 'This sends this emergency notice to every approved federation follower.',
+        confirmLabel: 'Broadcast emergency',
+        tone: 'danger',
+      }))
+    )
+      return;
     setSubmitting(true);
     try {
       await announceEmergency(content.trim(), 'EMERGENCY');
@@ -747,28 +753,31 @@ const EmergencyCard = () => {
   };
 
   return (
-    <SectionCard title="Emergency broadcast">
-      <div className={TEXT_MUTED}>
-        Announces an emergency to all approved followers across the federation network.
-      </div>
-      <textarea
-        className="w-full text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-        rows={3}
-        placeholder="Describe the emergency or critical notice..."
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-      />
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={handleAnnounce}
-          disabled={submitting || !content.trim()}
-          className="px-4 py-2 rounded-xl text-body-4 font-medium bg-danger-600 text-white hover:bg-danger-700 disabled:opacity-40 transition-colors"
-        >
-          {submitting ? 'Sending...' : 'Broadcast emergency'}
-        </button>
-      </div>
-    </SectionCard>
+    <>
+      {confirmDialog}
+      <SectionCard title="Emergency broadcast">
+        <div className={TEXT_MUTED}>
+          Announces an emergency to all approved followers across the federation network.
+        </div>
+        <Textarea
+          className="w-full text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+          rows={3}
+          placeholder="Describe the emergency or critical notice..."
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+        />
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={handleAnnounce}
+            disabled={submitting || !content.trim()}
+            className="px-4 py-2 rounded-xl text-body-4 font-medium bg-danger-600 text-white hover:bg-danger-700 disabled:opacity-40 transition-colors"
+          >
+            {submitting ? 'Sending...' : 'Broadcast emergency'}
+          </button>
+        </div>
+      </SectionCard>
+    </>
   );
 };
 
@@ -777,9 +786,13 @@ const FederationSection = () => {
   const [actor, setActor] = useState<APActorSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /* Returns the chain rather than dropping it: the mount effect awaits this, and
+     the license and directory cards pass it as their `onUpdated` refresh. Without
+     the return it resolved to `undefined`, so every one of those awaits completed
+     immediately and nothing actually waited for the reload. */
   const loadActor = useCallback(() => {
     setLoading(true);
-    getActorSettings()
+    return getActorSettings()
       .then((data) => setActor(data))
       .catch(() => {
         notify('error', {
@@ -831,7 +844,7 @@ const FederationSection = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-[14px]">
       <ActorInfoCard actor={actor} />
       <LicenseTokenCard status={actor.licenseTokenStatus} onUpdated={loadActor} />
       <DirectoryListingCard
@@ -839,7 +852,7 @@ const FederationSection = () => {
         directoryListed={actor.directoryListed}
         onUpdated={loadActor}
       />
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-[14px] xl:grid-cols-2">
         <FollowersCard />
         <FollowingCard />
       </div>

@@ -1,10 +1,11 @@
 'use client';
 import React from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { Appointment, Invoice } from '@yosemite-crew/types';
-import { IoCheckmarkCircle, IoClose, IoDownloadOutline, IoOpenOutline } from 'react-icons/io5';
+import { IoClose, IoDownloadOutline, IoOpenOutline } from 'react-icons/io5';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoneyPrecise } from '@/app/lib/money';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import { getInvoiceNumberLabel } from '@/app/lib/invoice';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
@@ -22,7 +23,6 @@ type InvoicePhoneRecordProps = {
   statusStyle?: React.CSSProperties;
   statusTone?: StatusTone;
   payerName?: string;
-  payerEmail?: string;
   onClose: () => void;
   onOpenAppointment?: () => void;
 };
@@ -76,7 +76,6 @@ const InvoicePhoneRecord = ({
   statusStyle,
   statusTone,
   payerName,
-  payerEmail,
   onClose,
   onOpenAppointment,
 }: InvoicePhoneRecordProps) => {
@@ -93,7 +92,6 @@ const InvoicePhoneRecord = ({
   const settled = isSettledInvoice(invoice);
   const caption = buildLedgerCaption(invoice, payerName);
   const { Icon: ChannelIcon, title: channelTitle } = getLedgerChannel(invoice);
-  const email = payerEmail?.trim();
   const pdfUrl = invoice.pdfUrl;
   const receiptUrl = invoice.stripeReceiptUrl;
 
@@ -103,12 +101,19 @@ const InvoicePhoneRecord = ({
       <div className="flex items-center justify-between gap-2 pt-1">
         <span className="flex items-center gap-2.5 min-w-0">
           <span className="flex size-9 shrink-0 overflow-hidden rounded-full bg-card-hover">
-            <Image
+            <AvatarImage
               src={avatarSrc}
               alt=""
-              width={36}
-              height={36}
+              size={36}
               className="size-9 rounded-full object-cover"
+              fallback={
+                <CompanionAvatar
+                  name={companion?.name}
+                  seed={companion?.id}
+                  size={36}
+                  textClassName="text-[16px]"
+                />
+              }
             />
           </span>
           <span className="flex flex-col min-w-0">
@@ -161,7 +166,7 @@ const InvoicePhoneRecord = ({
                 {item.name}
               </span>
               <span className="shrink-0 font-bold tabular-nums">
-                {formatMoney(item.total ?? 0, currency)}
+                {formatMoneyPrecise(item.total ?? 0, currency)}
               </span>
             </div>
           ))
@@ -169,19 +174,21 @@ const InvoicePhoneRecord = ({
         {discount > 0 && (
           <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 border-t border-[var(--hairline)] bg-[var(--screen-2)] text-[12.5px] text-[var(--ink-muted)]">
             <span>Discount</span>
-            <span className="font-semibold tabular-nums">-{formatMoney(discount, currency)}</span>
+            <span className="font-semibold tabular-nums">
+              -{formatMoneyPrecise(discount, currency)}
+            </span>
           </div>
         )}
         <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 border-t border-[var(--hairline)] bg-[var(--screen-2)] text-[12.5px] text-[var(--ink-muted)]">
           <span>{taxLabel}</span>
           <span className="font-semibold tabular-nums">
-            {formatMoney(invoice.taxTotal ?? 0, currency)}
+            {formatMoneyPrecise(invoice.taxTotal ?? 0, currency)}
           </span>
         </div>
         <div className="flex items-baseline justify-between gap-3 px-3.5 py-3 border-t border-[var(--hairline)]">
           <span className="text-[12.5px] font-bold text-[var(--ink)]">Total</span>
           <span className="text-[20px] font-bold tracking-[-0.03em] tabular-nums text-[var(--ink)]">
-            {formatMoney(invoice.totalAmount ?? 0, currency)}
+            {formatMoneyPrecise(invoice.totalAmount ?? 0, currency)}
           </span>
         </div>
       </div>
@@ -211,15 +218,8 @@ const InvoicePhoneRecord = ({
         </div>
       )}
 
-      {/* Finalized note */}
-      {settled && email && (
-        <span className="flex items-center gap-2 rounded-xl bg-[var(--inset)] px-3 py-2.5 text-[11px] text-[var(--ink-muted)]">
-          <IoCheckmarkCircle size={13} aria-hidden="true" style={{ color: 'var(--success)' }} />
-          <span className="truncate" title={`Receipt sent to ${email}`}>
-            Receipt sent to {email}
-          </span>
-        </span>
-      )}
+      {/* No "Receipt sent to ..." note - see InvoicePaymentLedger for why the
+          presence of a payer email is not evidence a receipt was delivered. */}
 
       {/* Actions */}
       {(pdfUrl || (appointment && onOpenAppointment)) && (

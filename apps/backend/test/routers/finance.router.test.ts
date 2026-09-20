@@ -36,6 +36,7 @@ const requirePermission = jest.fn(() => requirePermissionMiddleware);
 const FinanceController = {
   webhook: jest.fn(),
   getDiscountSettings: jest.fn(),
+  listProviderReceipts: jest.fn(),
   updateDiscountSettings: jest.fn(),
   listInvoices: jest.fn(),
   createInvoice: jest.fn(),
@@ -118,6 +119,23 @@ const findRoute = (path: string, method: string) => {
 };
 
 describe("finance.router", () => {
+  it("puts the reconciliation queue behind web auth, org scope and a permission", () => {
+    // Read-only, so the permission is the billing VIEW one. The route carries
+    // unattributed captures, which have no organisation of their own - the org
+    // middleware is what keeps one tenant's queue out of another's.
+    const route = findRoute(
+      "/organisation/:organisationId/provider-receipts",
+      "get",
+    );
+    const handlers = route?.stack.map((layer) => layer.handle);
+
+    expect(handlers).toContain(FinanceController.listProviderReceipts);
+    expect(handlers).toContain(requireWebAuth);
+    expect(handlers).toContain(withOrgPermissionsMiddleware);
+    expect(handlers).toContain(requirePermissionMiddleware);
+    expect(requirePermission).toHaveBeenCalledWith("billing:view:any");
+  });
+
   it("routes payment and refund endpoints through finance handlers", () => {
     const sessionRoute = findRoute(
       "/invoices/:invoiceId/payments/sessions",

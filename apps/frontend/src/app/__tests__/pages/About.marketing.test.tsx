@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
@@ -140,12 +142,11 @@ describe('About (marketing)', () => {
     expect(ankit).toHaveAttribute('target', '_blank');
     expect(ankit).toHaveAttribute('rel', 'noopener noreferrer');
 
+    // Departed members are no longer listed in the core team. They can still appear in the live
+    // GitHub contributor roster below, which comes from GitHub, not from this list.
     expect(
-      screen.getByRole('link', {
-        name: /Harshvardhan Parmar, Contributor, on LinkedIn/i,
-      })
-    ).toHaveAttribute('href', 'https://www.linkedin.com/in/harshvardhan-parmar/');
-    // Departed members are no longer listed in the core team.
+      screen.queryByRole('link', { name: /Harshvardhan Parmar, Contributor, on LinkedIn/i })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('link', { name: /Sneha, Contributor, on LinkedIn/i })
     ).not.toBeInTheDocument();
@@ -163,7 +164,7 @@ describe('About (marketing)', () => {
       container.querySelector(
         'img[src="https://d2il6osz49gpup.cloudfront.net/aboutus-page/harshvardhan-profile_pic.png"]'
       )
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
   });
 
   test('renders the live github contributor roster with matching card styling', () => {
@@ -233,5 +234,20 @@ describe('About (marketing)', () => {
       'href',
       '/contact-us'
     );
+  });
+});
+
+describe('the origin-photo frame background routes through --page, not a frozen literal', () => {
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/marketing/pages/About/About.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode it as a frozen page-background literal', () => {
+    expect(source).not.toContain('rgba(239,232,220');
+  });
+
+  it('routes it through --page via color-mix', () => {
+    expect(source).toContain("background: 'color-mix(in srgb, var(--page) 6%, transparent)'");
   });
 });

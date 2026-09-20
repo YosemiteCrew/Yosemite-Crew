@@ -215,7 +215,7 @@ describe('TaskFormFields', () => {
     expect(withoutRecurrence.recurrence.endDate).toBeInstanceOf(Date);
   });
 
-  it('renders the "Assign to" chip row in the new-task (assigneeChips) layout', () => {
+  it('renders the grouped "Assign to" dropdown in the new-task (assigneeChips) layout', () => {
     const onSelectTeam = jest.fn();
     const onSelectParent = jest.fn();
     render(
@@ -238,14 +238,17 @@ describe('TaskFormFields', () => {
       />
     );
 
-    // The audience Type dropdown is gone; the chip row is present instead.
+    // The audience Type dropdown is gone; the grouped assignee dropdown is
+    // present instead - one trigger, not one control per assignee.
     expect(screen.queryByText('Type')).not.toBeInTheDocument();
     expect(screen.getByText('Assign to')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Dr Brunner/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Assign to' }));
+    fireEvent.click(screen.getByText('Dr Brunner'));
     expect(onSelectTeam).toHaveBeenCalledWith(expect.objectContaining({ value: 'u1' }));
 
-    fireEvent.click(screen.getByRole('button', { name: /Pet parent · Amelia/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Assign to' }));
+    fireEvent.click(screen.getByText('Amelia'));
     expect(onSelectParent).toHaveBeenCalledWith(expect.objectContaining({ value: 'p1' }));
 
     // Core fields still render and stay wired.

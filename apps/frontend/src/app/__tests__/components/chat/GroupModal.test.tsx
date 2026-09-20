@@ -199,6 +199,18 @@ describe('GroupModal', () => {
       expect(screen.getByText('Delete Group')).toBeInTheDocument();
     });
 
+    it('renders the owner badge on shared StatusPill geometry, not a hand-rolled near-miss', () => {
+      setup(editProps());
+      const badge = screen.getByText('Owner');
+      // StatusPill's canonical micro-badge type: 10px/700, +0.08em, tagged with its
+      // own marker class - the near-miss this replaced used 9.5px/+0.06em instead.
+      expect(badge.className).toContain('yc-status-pill');
+      expect(badge.className).toContain('text-[10px]');
+      expect(badge.className).toContain('tracking-[0.08em]');
+      expect(badge.className).not.toContain('text-[9.5px]');
+      expect(badge.className).not.toContain('tracking-[0.06em]');
+    });
+
     it('falls back to a generic header when the group has no title yet', () => {
       setup(editProps({ placeholder: '   ' }));
       expect(screen.getByText('Group chat · group')).toBeInTheDocument();

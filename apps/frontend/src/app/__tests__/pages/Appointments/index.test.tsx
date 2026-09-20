@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 
 import ProtectedAppointments from '@/app/features/appointments/pages/Appointments';
 import { PHONE_PRIMARY_ACTION_EVENT } from '@/app/ui/layout/PhoneShell/phoneShellConfig';
+import { getDateKeyInPreferredTimeZone, setPreferredTimeZone } from '@/app/lib/timezone';
 
 jest.mock('next/dynamic', () => ({
   __esModule: true,
@@ -62,6 +63,22 @@ const boardSpy = jest.fn();
 const addAppointmentSpy = jest.fn();
 const appointmentInfoSpy = jest.fn();
 const overviewModalSpy = jest.fn();
+const bookWaitlistEntryMock = jest.fn().mockResolvedValue(undefined);
+const notifyMock = jest.fn();
+let waitlistEntry = {
+  id: 'wait-1',
+  patientId: 'c1',
+  preferredLeadId: 'vet-1',
+  earliestDate: '2026-09-08T09:30:00.000Z',
+};
+
+jest.mock('@/app/features/appointments/services/waitlistService', () => ({
+  bookWaitlistEntry: (...args: unknown[]) => bookWaitlistEntryMock(...args),
+}));
+
+jest.mock('@/app/hooks/useNotify', () => ({
+  useNotify: () => ({ notify: notifyMock }),
+}));
 
 jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   __esModule: true,
@@ -165,6 +182,16 @@ jest.mock('@/app/features/appointments/components/AppointmentBoard', () => (prop
   return <div data-testid="appointment-board" />;
 });
 
+jest.mock('@/app/features/appointments/components/Waitlist/WaitlistPanel', () => (props: any) => (
+  <button
+    type="button"
+    data-testid="waitlist-book"
+    onClick={() => props.onBookAppointment(waitlistEntry)}
+  >
+    Book waiting patient
+  </button>
+));
+
 jest.mock('@/app/ui/tables/Appointments', () => (props: any) => {
   tableSpy(props);
   return <div data-testid="appointments-table" />;
@@ -206,6 +233,12 @@ jest.mock(
   }
 );
 
+// The check-in board panel fetches on mount; stub it so its data-fetching never
+// runs in this suite (jest.setup throws on any unexpected console.error).
+jest.mock('@/app/features/appointments/components/FrontDeskBoard/FrontDeskBoardPanel', () => () => (
+  <div data-testid="check-in-board-panel" />
+));
+
 describe('Appointments page', () => {
   const renderAppointments = async () => {
     await act(async () => {
@@ -216,6 +249,14 @@ describe('Appointments page', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    window.localStorage.clear();
+    setPreferredTimeZone('UTC');
+    waitlistEntry = {
+      id: 'wait-1',
+      patientId: 'c1',
+      preferredLeadId: 'vet-1',
+      earliestDate: '2026-09-08T09:30:00.000Z',
+    };
     useAppointmentStoreMock.mockImplementation((selector: any) =>
       selector({ status: 'succeeded' })
     );
@@ -285,6 +326,145 @@ describe('Appointments page', () => {
         appointments: [expect.objectContaining({ id: 'a1' })],
       })
     );
+  });
+
+  it('keeps front-desk arrival workflow separate from the appointment board and opens waitlist booking prefilled', async () => {
+    await renderAppointments();
+
+    expect(screen.queryByTestId('check-in-board-panel')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Front desk/ }));
+    expect(await screen.findByTestId('check-in-board-panel')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Waitlist/ }));
+    fireEvent.click(await screen.findByTestId('waitlist-book'));
+
+    expect(addAppointmentSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        showModal: true,
+        initialCompanionId: 'c1',
+        prefill: expect.objectContaining({ leadId: 'vet-1' }),
+      })
+    );
+
+    await act(async () => {
+      await addAppointmentSpy.mock.calls
+        .at(-1)?.[0]
+        .onAppointmentCreated({ id: 'appt-created-1', patient: { id: 'c1' } });
+    });
+    expect(bookWaitlistEntryMock).toHaveBeenCalledWith('org-1', 'wait-1', 'appt-created-1');
+  });
+
+  it('clamps an elapsed waitlist earliest date to today before opening the appointment form', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-09-09T12:00:00.000Z'));
+    waitlistEntry = { ...waitlistEntry, earliestDate: '2026-09-08T09:30:00.000Z' };
+
+    await renderAppointments();
+    fireEvent.click(screen.getByRole('button', { name: /Waitlist/ }));
+    fireEvent.click(await screen.findByTestId('waitlist-book'));
+
+    const prefill = addAppointmentSpy.mock.calls.at(-1)?.[0].prefill;
+    expect(getDateKeyInPreferredTimeZone(prefill.date)).toBe('2026-09-09');
+
+    jest.useRealTimers();
+  });
+
+  it('uses the waitlist calendar day in the clinic timezone, not its UTC instant', async () => {
+    setPreferredTimeZone('America/Los_Angeles');
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-09-07T19:00:00.000Z'));
+    waitlistEntry = { ...waitlistEntry, earliestDate: '2026-09-08T00:00:00.000Z' };
+
+    await renderAppointments();
+    fireEvent.click(screen.getByRole('button', { name: /Waitlist/ }));
+    fireEvent.click(await screen.findByTestId('waitlist-book'));
+
+    const prefill = addAppointmentSpy.mock.calls.at(-1)?.[0].prefill;
+    expect(getDateKeyInPreferredTimeZone(prefill.date)).toBe('2026-09-08');
+
+    jest.useRealTimers();
+  });
+
+  it('keeps a created appointment successful when waitlist reconciliation fails', async () => {
+    bookWaitlistEntryMock.mockRejectedValueOnce(new Error('stale waitlist entry'));
+    await renderAppointments();
+
+    fireEvent.click(screen.getByRole('button', { name: /Waitlist/ }));
+    fireEvent.click(await screen.findByTestId('waitlist-book'));
+
+    await expect(
+      act(async () => {
+        await addAppointmentSpy.mock.calls
+          .at(-1)?.[0]
+          .onAppointmentCreated({ id: 'appt-created-1', patient: { id: 'c1' } });
+      })
+    ).resolves.toBeUndefined();
+    expect(notifyMock).toHaveBeenCalledWith('warning', {
+      title: 'Appointment booked',
+      text: 'The waitlist could not be updated. Refresh it before booking this patient again.',
+    });
+  });
+
+  it('does not mark a waitlist entry booked when the appointment uses another patient', async () => {
+    await renderAppointments();
+
+    fireEvent.click(screen.getByRole('button', { name: /Waitlist/ }));
+    fireEvent.click(await screen.findByTestId('waitlist-book'));
+    await act(async () => {
+      await addAppointmentSpy.mock.calls
+        .at(-1)?.[0]
+        .onAppointmentCreated({ id: 'appt-created-2', patient: { id: 'c2' } });
+    });
+
+    expect(bookWaitlistEntryMock).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith('warning', {
+      title: 'Waitlist not updated',
+      text: 'The appointment was created for a different patient. Review the waitlist before booking this patient again.',
+    });
+  });
+
+  it('does not mark a waitlist entry booked when the created appointment has no id', async () => {
+    await renderAppointments();
+
+    fireEvent.click(screen.getByRole('button', { name: /Waitlist/ }));
+    fireEvent.click(await screen.findByTestId('waitlist-book'));
+    await act(async () => {
+      await addAppointmentSpy.mock.calls
+        .at(-1)?.[0]
+        .onAppointmentCreated({ patient: { id: 'c1' } });
+    });
+
+    expect(bookWaitlistEntryMock).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith('warning', {
+      title: 'Waitlist not updated',
+      text: 'The appointment could not be confirmed. Review the waitlist before booking this patient again.',
+    });
+  });
+
+  it('does not retain a dismissed waitlist booking for a later calendar-slot appointment', async () => {
+    await renderAppointments();
+
+    fireEvent.click(screen.getByRole('button', { name: /Waitlist/ }));
+    fireEvent.click(await screen.findByTestId('waitlist-book'));
+    act(() => {
+      addAppointmentSpy.mock.calls.at(-1)?.[0].setShowModal(false);
+    });
+
+    act(() => {
+      calendarSpy.mock.calls.at(-1)?.[0].onCreateFromCalendarSlot({
+        date: new Date('2026-09-10T09:00:00.000Z'),
+        minuteOfDay: 540,
+      });
+    });
+
+    expect(addAppointmentSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ initialCompanionId: undefined })
+    );
+    await act(async () => {
+      await addAppointmentSpy.mock.calls
+        .at(-1)?.[0]
+        .onAppointmentCreated({ patient: { id: 'c1' } });
+    });
+    expect(bookWaitlistEntryMock).not.toHaveBeenCalled();
   });
 
   it('opens add appointment modal from the list filters row', async () => {
@@ -1171,5 +1351,87 @@ describe('Appointments page', () => {
     });
 
     expect(appointmentInfoSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: false }));
+  });
+
+  describe('appointment date URL persistence', () => {
+    it('hydrates the initial date from the ?date= query param', async () => {
+      useSearchParamsMock.mockReturnValue({
+        get: (key: string) => (key === 'date' ? '2026-09-20' : null),
+      });
+
+      await renderAppointments();
+
+      const calendarProps = calendarSpy.mock.calls[0][0];
+      expect(getDateKeyInPreferredTimeZone(calendarProps.currentDate)).toBe('2026-09-20');
+    });
+
+    it('falls back to today when there is no ?date= query param', async () => {
+      await renderAppointments();
+
+      const calendarProps = calendarSpy.mock.calls[0][0];
+      expect(getDateKeyInPreferredTimeZone(calendarProps.currentDate)).toBe(
+        getDateKeyInPreferredTimeZone(new Date())
+      );
+    });
+
+    it('ignores a malformed ?date= query param and falls back to today', async () => {
+      useSearchParamsMock.mockReturnValue({
+        get: (key: string) => (key === 'date' ? 'not-a-date' : null),
+      });
+
+      await renderAppointments();
+
+      const calendarProps = calendarSpy.mock.calls[0][0];
+      expect(getDateKeyInPreferredTimeZone(calendarProps.currentDate)).toBe(
+        getDateKeyInPreferredTimeZone(new Date())
+      );
+    });
+
+    it('does not touch the URL on initial render', async () => {
+      await renderAppointments();
+
+      expect(routerPushMock).not.toHaveBeenCalled();
+    });
+
+    it('pushes the new date to the URL when the calendar changes the current date', async () => {
+      await renderAppointments();
+
+      const calendarProps = calendarSpy.mock.calls[0][0];
+      const newDate = new Date('2025-06-15T00:00:00.000Z');
+
+      await act(async () => {
+        calendarProps.setCurrentDate(newDate);
+        await Promise.resolve();
+      });
+
+      expect(routerPushMock).toHaveBeenCalledWith(
+        expect.stringContaining('date=2025-06-15'),
+        expect.objectContaining({ scroll: false })
+      );
+    });
+
+    it('updates the current date when the ?date= query param changes externally (e.g. back/forward)', async () => {
+      // A single stable object whose `get` reads the live `dateParam` value -
+      // matching real useSearchParams(), which keeps one referentially stable
+      // object per URL rather than a fresh one on every read.
+      let dateParam: string | null = null;
+      useSearchParamsMock.mockReturnValue({
+        get: (key: string) => (key === 'date' ? dateParam : null),
+      });
+
+      const { rerender } = render(<ProtectedAppointments />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      dateParam = '2026-11-05';
+      await act(async () => {
+        rerender(<ProtectedAppointments />);
+        await Promise.resolve();
+      });
+
+      const lastCalendarProps = calendarSpy.mock.calls.at(-1)?.[0];
+      expect(getDateKeyInPreferredTimeZone(lastCalendarProps.currentDate)).toBe('2026-11-05');
+    });
   });
 });

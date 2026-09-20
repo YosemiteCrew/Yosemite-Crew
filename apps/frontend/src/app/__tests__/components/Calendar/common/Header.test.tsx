@@ -30,8 +30,10 @@ describe('Header Component', () => {
     jest.clearAllMocks();
   });
 
+  // The presence badge now sits beside the FilterChip button (inside the
+  // wrapping div), not inside the button itself, so search from the parent.
   const getEmergencyDot = (button: HTMLElement) =>
-    Array.from(button.querySelectorAll('span')).find((span) =>
+    Array.from((button.parentElement ?? button).querySelectorAll('span')).find((span) =>
       span.className.includes('size-2.5')
     ) as HTMLElement;
 
@@ -176,13 +178,17 @@ describe('Header Component', () => {
     );
 
     // Design recipe: rounded-full pill, no icon glyph, danger tokens, transparent when inactive.
+    // FilterChip's own primitive geometry/tone (design: Filters card) delivers these
+    // via classes rather than an inline style at rest.
     const inactivePill = screen.getByRole('button', { name: 'Emergencies' });
     expect(inactivePill).toHaveClass('rounded-full!');
     expect(inactivePill).not.toHaveClass('h-12');
     expect(inactivePill.querySelector('svg')).toBeNull();
-    expect(inactivePill.getAttribute('style')).toContain('background-color: transparent');
-    expect(inactivePill.getAttribute('style')).toContain('border-color: var(--danger-border)');
-    expect(inactivePill.getAttribute('style')).toContain('color: var(--danger-text)');
+    expect(inactivePill).toHaveClass(
+      'bg-transparent',
+      'border-[var(--danger-border)]!',
+      'text-[var(--danger-text)]!'
+    );
     // Top-right presence dot uses --danger with a --screen outline.
     const inactiveDot = getEmergencyDot(inactivePill);
     expect(inactiveDot.getAttribute('style')).toContain('background-color: var(--danger)');
@@ -270,13 +276,14 @@ describe('Header Component', () => {
     );
 
     // Active non-emergency pill takes the shared --chip-selected-* ink fill at
-    // 700. The neutral surface tokens it used before sat within 1.1:1 of the
-    // page, so weight was the only thing marking the selection.
+    // 700, via FilterChip's neutral tone. The neutral surface tokens it used
+    // before sat within 1.1:1 of the page, so weight was the only thing
+    // marking the selection.
     const allPillActive = screen.getByRole('button', { name: 'All' });
     expect(allPillActive).toHaveClass(
       'bg-[var(--chip-selected-bg)]',
       'font-bold',
-      'text-[var(--chip-selected-ink)]'
+      'text-[var(--chip-selected-ink)]!'
     );
     expect(allPillActive).not.toHaveClass('bg-[var(--inset)]');
 
@@ -296,11 +303,14 @@ describe('Header Component', () => {
       />
     );
 
-    // Inactive non-emergency pill falls back to a bare --hairline outline with
-    // --ink-muted 600 type.
+    // Inactive non-emergency pill falls back to FilterChip's bare --hairline
+    // outline with --ink-muted 600 type.
     const allPillInactive = screen.getByRole('button', { name: 'All' });
-    expect(allPillInactive).toHaveClass('text-[var(--ink-muted)]', 'font-semibold');
-    expect(allPillInactive).toHaveStyle({ borderColor: 'var(--hairline)' });
+    expect(allPillInactive).toHaveClass(
+      'text-[var(--ink-muted)]',
+      'font-semibold',
+      'border-[var(--hairline)]!'
+    );
 
     // Active emergency pill draws its label colour from the inline style (white on
     // danger-800), so it no longer carries the AA-failing `text-danger-500!` class.

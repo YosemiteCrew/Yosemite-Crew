@@ -151,6 +151,11 @@ describe('Inventory page inner components', () => {
         setFilterOpen={setFilterOpen}
         setFilters={setFilters}
         setSortMode={setSortMode}
+        lowStockCount={0}
+        expiringSoonCount={0}
+        isNeedsRestockActive={false}
+        isExpiringSoonActive={false}
+        onToggleQuickFilter={jest.fn()}
       />
     );
 
@@ -204,6 +209,11 @@ describe('Inventory page inner components', () => {
       dispensaryStatusFilter: 'ALL' as const,
       setDispensaryStatusFilter: jest.fn(),
       setDispensarySearch: jest.fn(),
+      lowStockCount: 0,
+      expiringSoonCount: 0,
+      isNeedsRestockActive: false,
+      isExpiringSoonActive: false,
+      onToggleQuickFilter: jest.fn(),
     };
 
     const { rerender } = render(<ActiveFilterBar activeView="inventory" {...sharedProps} />);
@@ -224,7 +234,6 @@ describe('Inventory page inner components', () => {
     const setInfoInitialSection = jest.fn();
     const setActiveDispensaryRecord = jest.fn();
     const setDispensaryModalOpen = jest.fn();
-    const setActiveView = jest.fn();
     const onRestock = jest.fn();
     const onViewHistory = jest.fn();
     const onDispense = jest.fn();
@@ -234,7 +243,6 @@ describe('Inventory page inner components', () => {
         activeView="analytics"
         turnover={[]}
         inventory={[]}
-        setActiveView={setActiveView}
         turnoverFilters={{ status: 'ALL', category: 'all' }}
         setTurnoverFilters={setTurnoverFilters}
         turnoverCategoryOptions={['Medicine']}
@@ -260,7 +268,6 @@ describe('Inventory page inner components', () => {
         activeView="inventory"
         turnover={[]}
         inventory={[]}
-        setActiveView={setActiveView}
         turnoverFilters={{ status: 'ALL', category: 'all' }}
         setTurnoverFilters={setTurnoverFilters}
         turnoverCategoryOptions={['Medicine']}
@@ -291,7 +298,6 @@ describe('Inventory page inner components', () => {
         activeView="turnover"
         turnover={[]}
         inventory={[]}
-        setActiveView={setActiveView}
         turnoverFilters={{ status: 'ALL', category: 'all' }}
         setTurnoverFilters={setTurnoverFilters}
         turnoverCategoryOptions={['Medicine']}

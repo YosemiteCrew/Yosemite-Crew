@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -12,6 +12,7 @@ import {
   IoChevronForwardOutline,
   IoCubeOutline,
   IoExtensionPuzzleOutline,
+  IoFlaskOutline,
   IoGitNetworkOutline,
   IoGlobeOutline,
   IoGridOutline,
@@ -39,7 +40,7 @@ import { useIsTabletRail } from './useIsTabletRail';
 
 import './Sidebar.css';
 import { usePlatformStatus } from '@/app/hooks/usePlatformStatus';
-import { isLocalGuardBypassEnabled } from '@/app/lib/localGuardBypass';
+import { useLocalGuardBypass } from '@/app/lib/localGuardBypass';
 
 const ROUTE_ICONS: Record<string, IconType> = {
   Dashboard: IoGridOutline,
@@ -50,10 +51,12 @@ const ROUTE_ICONS: Record<string, IconType> = {
   Finance: IoWalletOutline,
   Companions: IoPaw,
   Inventory: IoCubeOutline,
+  'Controlled drug register': IoFlaskOutline,
   Integrations: IoGitNetworkOutline,
   Network: IoGlobeOutline,
   Templates: IoBookOutline,
   'API Keys': IoKeyOutline,
+  'Form Draft Import': IoBookOutline,
   Billing: IoWalletOutline,
   'Website - Builder': IoGlobeOutline,
   Plugins: IoExtensionPuzzleOutline,
@@ -64,12 +67,15 @@ const APP_ROUTE_GROUPS = [
   { label: 'Overview', routeNames: ['Dashboard'] },
   { label: 'Schedule & Work', routeNames: ['Appointments', 'Tasks', 'Chat'] },
   { label: 'Clients & Records', routeNames: ['Companions', 'Templates'] },
-  { label: 'Business', routeNames: ['Finance', 'Inventory'] },
+  { label: 'Business', routeNames: ['Finance', 'Inventory', 'Controlled drug register'] },
   { label: 'Administration', routeNames: ['Organization', 'Integrations', 'Network'] },
 ] as const;
 
 const DEV_ROUTE_GROUPS = [
-  { label: 'Developer', routeNames: ['Dashboard', 'API Keys', 'Billing', 'Website - Builder'] },
+  {
+    label: 'Developer',
+    routeNames: ['Dashboard', 'API Keys', 'Form Draft Import', 'Billing', 'Website - Builder'],
+  },
   { label: 'Platform', routeNames: ['Plugins', 'Documentation'] },
 ] as const;
 
@@ -91,7 +97,22 @@ const Sidebar = () => {
   useLoadSpecialitiesForPrimaryOrg();
   const pathname = usePathname();
   const router = useRouter();
-  const [prefersCollapsed, setPrefersCollapsed] = useState(() => isSidebarCollapsedByDefault());
+  // Starts `false` during SSR and the first client render (matching
+  // useIsTabletRail below) - isSidebarCollapsedByDefault() reads
+  // localStorage/window.innerWidth, which aren't available on the server, so
+  // seeding the initial state from it directly caused the client's first
+  // hydration pass to diverge from the server-rendered markup for any
+  // returning user with a stored "collapsed" preference or a <1280px
+  // viewport. Corrected post-mount instead, same as the tablet check, and
+  // re-checked on resize so the viewport fallback in isSidebarCollapsedByDefault
+  // (used only while no explicit preference is stored) stays live.
+  const [prefersCollapsed, setPrefersCollapsed] = useState(false);
+  useEffect(() => {
+    const update = () => setPrefersCollapsed(isSidebarCollapsedByDefault());
+    update();
+    globalThis.window?.addEventListener('resize', update);
+    return () => globalThis.window?.removeEventListener('resize', update);
+  }, []);
   // Tablet is always the icon rail, so it overrides a stored desktop preference
   // (which would otherwise render the 224px sidebar after a desktop -> tablet resize).
   const isTabletRail = useIsTabletRail();
@@ -135,7 +156,7 @@ const Sidebar = () => {
   // Skip the org-data loading gate on localhost with NEXT_PUBLIC_DISABLE_AUTH_GUARD so
   // the nav renders for UI/styling work without a session. The shared helper
   // enforces the localhost part, which a direct env read did not.
-  const authGuardDisabled = isLocalGuardBypassEnabled();
+  const authGuardDisabled = useLocalGuardBypass();
   const isInitialLoading = orgStatus !== 'loaded' && !authGuardDisabled;
   const currentRole = membership?.roleDisplay ?? membership?.roleCode;
   const authenticatedLogoHref = isDevPortal

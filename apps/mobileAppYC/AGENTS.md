@@ -9,6 +9,7 @@ Inherits all root `AGENTS.md` rules. This file adds mobile-specific rules.
 - [Mobile app README](./README.md) - local setup, environment/credential configuration, and release versioning for the React Native app. Start here if you have not built the app yet.
 - [App Store Submission Guide](../../docs/guide/mobile-app-submission-guide.md) - full reference for pre-submission checklist, Android/iOS build steps, store submission workflow, version reference, and post-approval README updates.
 - [Liquid glass UI guide](./guides/liquidGlassDoc.md) - how the iOS 26 "liquid glass" material (the `@callstack/liquid-glass` library) is used; the `forceLiquidGlassBorder` flags below toggle its behaviour.
+- [Pet care assistant guide](./guides/assistantDoc.md) - how the Siri App Intents, the Android shortcuts, the offline snapshot and the on-device model fit together, and how to add a new assistant action.
 
 ---
 

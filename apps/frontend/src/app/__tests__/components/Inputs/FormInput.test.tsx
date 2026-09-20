@@ -39,7 +39,7 @@ describe('FormInput', () => {
     const label = screen.getByText('Prefilled value');
     // Static top label (not a floating overlay) tied to the field via htmlFor.
     expect(label.tagName).toBe('LABEL');
-    expect(label).toHaveClass('text-[12.5px]', 'font-semibold');
+    expect(label).toHaveClass('text-sm', 'font-medium', 'text-[var(--ink-body)]');
     const input = screen.getByLabelText('Prefilled value');
     expect(label).toHaveAttribute('for', input.getAttribute('id') ?? '');
   });

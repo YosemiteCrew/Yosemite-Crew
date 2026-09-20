@@ -57,11 +57,10 @@ export type TaskTemplateInstanceData = {
   dueOffsetMinutes?: number;
   defaultMedication?: TaskSeedMedication;
   defaultObservationToolId?: string;
-  defaultRecurrence?: {
-    type: RecurrenceType;
-    customCron?: string;
-    defaultEndOffsetDays?: number;
-  };
+  // Raw, untrusted workflow value: a select string ("DAILY"), an
+  // already-object-shaped recurrence, or absent. Validated by
+  // normalizeRecurrenceInput before use.
+  defaultRecurrence?: unknown;
   defaultReminderOffsetMinutes?: number;
   syncWithCalendar?: boolean;
 };
@@ -80,11 +79,8 @@ export type CarePathwayTaskBlock = {
   additionalNotes?: string;
   medication?: TaskSeedMedication;
   observationToolId?: string;
-  recurrence?: {
-    type: RecurrenceType;
-    customCron?: string;
-    endAfterDays?: number;
-  };
+  // Raw, untrusted workflow value: see TaskTemplateInstanceData.defaultRecurrence.
+  recurrence?: unknown;
 };
 
 export type CarePathwayInstanceData = {
@@ -213,24 +209,112 @@ const clampToShiftWindows = (
   return setUtcTime(dueAt, nextWindow.window.start);
 };
 
-const buildRecurrence = (
-  recurrence:
-    | CarePathwayTaskBlock["recurrence"]
-    | TaskTemplateInstanceData["defaultRecurrence"],
-  endDate?: Date,
-) => {
-  if (!recurrence) return undefined;
-  return {
-    type: recurrence.type,
-    isMaster: true,
-    masterTaskId: undefined,
-    cronExpression: recurrence.customCron ?? undefined,
-    endDate,
-  };
-};
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+const RECURRENCE_TYPES: readonly RecurrenceType[] = [
+  "ONCE",
+  "DAILY",
+  "WEEKLY",
+  "CUSTOM",
+];
+
+const isRecurrenceType = (value: unknown): value is RecurrenceType =>
+  typeof value === "string" &&
+  (RECURRENCE_TYPES as readonly string[]).includes(value);
+
+const describeInvalidValue = (value: unknown): string => {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value) ?? "undefined";
+  } catch {
+    return "[unserializable value]";
+  }
+};
+
+const toEndOffsetDays = (value: unknown): number | undefined => {
+  if (value === undefined || value === null) return undefined;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(
+      `Invalid recurrence end offset: must be a finite, non-negative number of days; received ${describeInvalidValue(value)}`,
+    );
+  }
+  return parsed;
+};
+
+/**
+ * Single validated adapter for every recurrence shape a workflow template can
+ * hand us: a bare select string ("ONCE"/"DAILY"/"WEEKLY"/"CUSTOM" - the raw
+ * blueprint value) or an already object-shaped recurrence
+ * ({type, customCron, defaultEndOffsetDays | endAfterDays}). Never silently
+ * downgrades an unrecognised value to a one-time task - it throws instead, so
+ * a bad template fails before any task is created.
+ */
+const normalizeRecurrenceInput = (
+  raw: unknown,
+):
+  | { type: RecurrenceType; customCron?: string; endOffsetDays?: number }
+  | undefined => {
+  if (raw === undefined || raw === null) return undefined;
+
+  if (typeof raw === "string") {
+    if (!isRecurrenceType(raw)) {
+      throw new Error(`Invalid recurrence selection: ${raw}`);
+    }
+    if (raw === "CUSTOM") {
+      throw new Error("Custom recurrence requires a cron expression");
+    }
+    return { type: raw };
+  }
+
+  if (isRecord(raw)) {
+    if (!isRecurrenceType(raw.type)) {
+      throw new Error(
+        `Invalid recurrence type: ${describeInvalidValue(raw.type)}`,
+      );
+    }
+    const customCron =
+      typeof raw.customCron === "string" && raw.customCron.trim()
+        ? raw.customCron
+        : undefined;
+    if (raw.type === "CUSTOM" && !customCron) {
+      throw new Error("Custom recurrence requires a cron expression");
+    }
+    return {
+      type: raw.type,
+      customCron,
+      endOffsetDays: toEndOffsetDays(
+        raw.defaultEndOffsetDays ?? raw.endAfterDays,
+      ),
+    };
+  }
+
+  throw new Error("Invalid recurrence value");
+};
+
+const buildRecurrence = (recurrence: unknown, dueAt: Date) => {
+  const normalized = normalizeRecurrenceInput(recurrence);
+  if (!normalized) return undefined;
+  return {
+    type: normalized.type,
+    isMaster: true,
+    masterTaskId: undefined,
+    cronExpression: normalized.customCron,
+    // Bound is the occurrence's own due time plus the configured number of
+    // calendar days, inclusive - a zero-day offset covers this occurrence and
+    // no later one (see TaskRecurrenceEngine.getNextOccurrence's
+    // `next.isAfter(endDate)` check).
+    endDate:
+      normalized.endOffsetDays === undefined
+        ? undefined
+        : new Date(
+            dueAt.getTime() + normalized.endOffsetDays * 24 * 60 * 60 * 1000,
+          ),
+  };
+};
 
 const getSectionById = (snapshot: unknown, sectionId: string) => {
   if (!isRecord(snapshot) || !Array.isArray(snapshot.sections))
@@ -370,8 +454,7 @@ const parseTaskTemplateInstanceData = (
       (getWorkflowValue(snapshot, "defaultObservationToolId", [
         "assignment",
       ]) as string | undefined) ?? undefined,
-    defaultRecurrence: getWorkflowValue(snapshot, "recurrence", ["timing"]) as
-      TaskTemplateInstanceData["defaultRecurrence"] | undefined,
+    defaultRecurrence: getWorkflowValue(snapshot, "recurrence", ["timing"]),
     defaultReminderOffsetMinutes:
       typeof getWorkflowValue(snapshot, "defaultReminderOffsetMinutes", [
         "timing",
@@ -417,18 +500,7 @@ const parseCarePathwayInstanceData = (
           TaskWorkflowSeed["medication"] | undefined,
         observationToolId:
           (block.observationToolId as string | undefined) ?? undefined,
-        recurrence: isRecord(block.recurrence)
-          ? {
-              type:
-                (block.recurrence.type as RecurrenceType | undefined) ?? "ONCE",
-              customCron:
-                (block.recurrence.customCron as string | undefined) ??
-                undefined,
-              endAfterDays:
-                (block.recurrence.endAfterDays as number | undefined) ??
-                undefined,
-            }
-          : undefined,
+        recurrence: block.recurrence,
       }))
     : [];
 
@@ -622,7 +694,7 @@ const buildCarePathwaySeed = (
     observationToolId: block.observationToolId,
     dueAt,
     timezone: context.timezone,
-    recurrence: buildRecurrence(block.recurrence),
+    recurrence: buildRecurrence(block.recurrence, dueAt),
     reminder:
       block.reminderOffsetMinutes === undefined
         ? undefined
@@ -642,37 +714,41 @@ export const materializeTaskTemplateSeed = (
       assignedRole?: TaskAudience,
     ) => string;
   },
-): TaskWorkflowSeed => ({
-  source: context.source ?? "ORG_TEMPLATE",
-  templateId: context.templateId,
-  organisationId: context.organisationId,
-  appointmentId: context.appointmentId,
-  patientId: context.patientId,
-  createdBy: context.createdBy,
-  assignedBy: context.assignedBy,
-  assignedTo: context.resolveAssignee(
-    data.defaultRole,
-    data.defaultAssigneeRole,
-  ),
-  audience: data.defaultRole,
-  category: data.category,
-  name: data.name,
-  description: data.description,
-  medication: data.defaultMedication,
-  observationToolId: data.defaultObservationToolId,
-  dueAt:
-    context.dueAt ?? toDateFromOffset(context.anchorAt, data.dueOffsetMinutes),
-  timezone: context.timezone,
-  recurrence: buildRecurrence(data.defaultRecurrence),
-  reminder:
-    data.defaultReminderOffsetMinutes === undefined
-      ? undefined
-      : {
-          enabled: true,
-          offsetMinutes: data.defaultReminderOffsetMinutes,
-        },
-  syncWithCalendar: data.syncWithCalendar,
-});
+): TaskWorkflowSeed => {
+  const dueAt =
+    context.dueAt ?? toDateFromOffset(context.anchorAt, data.dueOffsetMinutes);
+
+  return {
+    source: context.source ?? "ORG_TEMPLATE",
+    templateId: context.templateId,
+    organisationId: context.organisationId,
+    appointmentId: context.appointmentId,
+    patientId: context.patientId,
+    createdBy: context.createdBy,
+    assignedBy: context.assignedBy,
+    assignedTo: context.resolveAssignee(
+      data.defaultRole,
+      data.defaultAssigneeRole,
+    ),
+    audience: data.defaultRole,
+    category: data.category,
+    name: data.name,
+    description: data.description,
+    medication: data.defaultMedication,
+    observationToolId: data.defaultObservationToolId,
+    dueAt,
+    timezone: context.timezone,
+    recurrence: buildRecurrence(data.defaultRecurrence, dueAt),
+    reminder:
+      data.defaultReminderOffsetMinutes === undefined
+        ? undefined
+        : {
+            enabled: true,
+            offsetMinutes: data.defaultReminderOffsetMinutes,
+          },
+    syncWithCalendar: data.syncWithCalendar,
+  };
+};
 
 export const materializeCarePathwaySeeds = (
   data: CarePathwayInstanceData,

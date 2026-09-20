@@ -1,5 +1,9 @@
 import type { AuthHooks } from "@yosemite-crew/auth";
 import { prisma } from "src/config/prisma";
+import {
+  practitionerReferenceFilter,
+  resolveCanonicalUserId,
+} from "src/services/shared/staff-identity";
 import logger from "src/utils/logger";
 
 // Application-side hooks for the auth boundary. They give the provider layer
@@ -25,6 +29,83 @@ export const authHooks: AuthHooks = {
     }
     // Unknown method: defer to the package default.
     return Promise.resolve(undefined);
+  },
+
+  /**
+   * Refuse sign-in for a user whose every organisation has been disabled.
+   *
+   * The signal is `Organization.isActive`, which is what `PATCH /businesses/:id`
+   * (SuperAdminBusinessService.updateBusiness) actually writes. Before this,
+   * nothing in the sign-in path read it: `require-active-account.ts` checks
+   * `User.isActive`, a different flag written by the user soft-delete, and only
+   * on developer routes.
+   *
+   * Three deliberate choices:
+   *
+   * - No membership at all means NOT blocked. Pet parents have no
+   *   `userOrganization` row, and an empty list must not be read as "belongs to
+   *   nothing, therefore disabled" or every mobile user loses their account.
+   * - Blocked only when EVERY organisation is inactive. Someone who works at a
+   *   disabled practice and an active one still has a job; per-organisation
+   *   authorisation decides what they can reach once they are in.
+   * - `isVerified` is NOT consulted. Every business is unverified before review,
+   *   so blocking on it would lock out each new practice awaiting approval - a
+   *   pending business is not a disabled one, and the schema cannot tell a
+   *   rejected business from one nobody has looked at yet.
+   */
+  async isSignInBlocked({ appUserId, providerUserId }) {
+    const suppliedIds = [appUserId, providerUserId]
+      .map((id) => id?.trim())
+      .filter((id): id is string => !!id);
+    if (suppliedIds.length === 0) {
+      return false;
+    }
+
+    // Both id spaces and both reference forms, via the shared filter.
+    //
+    // This is the one place where a missed membership row is DANGEROUS rather
+    // than merely lossy. `memberships.length === 0` is read below as "pet
+    // parent, not staff, not blocked", so any query that fails to find a
+    // staff user's rows silently un-enforces the disable for them - and the
+    // two states are indistinguishable by construction, so nothing logs.
+    //
+    // Nothing has resolved these ids yet, unlike every authorised request,
+    // which goes through `resolveAppUserId` before RBAC reads a membership.
+    // `appUserId` is the raw SuperTokens `result.user.id` and
+    // `providerUserId` the recipe user id; they differ once accounts are
+    // linked, and `authIdentity` is keyed on the second. A migrated staff
+    // account stores its rows under the legacy app user id either of them
+    // maps to, and `practitionerReference` may carry either form.
+    const canonicalIds = await Promise.all(
+      suppliedIds.map((id) => resolveCanonicalUserId(id)),
+    );
+
+    const memberships = await prisma.userOrganization.findMany({
+      where: {
+        active: true,
+        OR: practitionerReferenceFilter([...suppliedIds, ...canonicalIds]),
+      },
+      select: { organizationReference: true },
+    });
+    if (memberships.length === 0) {
+      return false;
+    }
+
+    // Mappings are stored either bare or as a FHIR `Organization/<id>`
+    // reference, exactly as `rbac.ts` and `OrganisationService.listForUser`
+    // match them.
+    const organisationIds = [
+      ...new Set(
+        memberships.map((row) =>
+          row.organizationReference.replace(/^Organization\//, ""),
+        ),
+      ),
+    ];
+
+    const activeCount = await prisma.organization.count({
+      where: { id: { in: organisationIds }, isActive: true },
+    });
+    return activeCount === 0;
   },
 
   async onUserCreated({

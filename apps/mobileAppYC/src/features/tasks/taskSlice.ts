@@ -127,9 +127,19 @@ const tasksSlice = createSlice({
       .addCase(updateTask.fulfilled, (state, action) => {
         state.loading = false;
         const updatedTask = action.payload;
-        const index = state.items.findIndex(item => item.id === updatedTask.id);
-        if (index !== -1) {
-          state.items[index] = updatedTask;
+        const scope = action.meta.arg.scope ?? 'THIS';
+        // A THIS-scoped write is fully described by the single row the
+        // server returned. A wider scope can touch rows this response never
+        // named - the thunk already refreshed the whole companion for that
+        // case, so patching just this one row here would be redundant at
+        // best and stale at worst.
+        if (scope === 'THIS') {
+          const index = state.items.findIndex(
+            item => item.id === updatedTask.id,
+          );
+          if (index !== -1) {
+            state.items[index] = updatedTask;
+          }
         }
       })
       .addCase(updateTask.rejected, (state, action) => {
@@ -144,10 +154,15 @@ const tasksSlice = createSlice({
       })
       .addCase(deleteTask.fulfilled, (state, action) => {
         state.loading = false;
-        const deletedTask = action.payload;
-        const idx = state.items.findIndex(item => item.id === deletedTask.id);
-        if (idx !== -1) {
-          state.items[idx] = deletedTask;
+        const {taskId, scope = 'THIS'} = action.meta.arg;
+        // The cancel endpoint returns no body (204), so there is no updated
+        // row to spread in - mark it cancelled locally. Wider scopes are
+        // covered by the thunk's own companion refresh, same as above.
+        if (scope === 'THIS') {
+          const idx = state.items.findIndex(item => item.id === taskId);
+          if (idx !== -1) {
+            state.items[idx] = {...state.items[idx], status: 'CANCELLED'};
+          }
         }
       })
       .addCase(deleteTask.rejected, (state, action) => {

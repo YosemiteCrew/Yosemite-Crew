@@ -72,6 +72,7 @@ const formularySelect = {
   organisationId: true,
   drugName: true,
   genericName: true,
+  atcCode: true,
   category: true,
   manufacturer: true,
   concentration: true,

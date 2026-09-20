@@ -1,5 +1,6 @@
 import React from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { IoIosArrowBack } from 'react-icons/io';
 import { IoAddOutline, IoFlash } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
@@ -111,14 +112,41 @@ const WorkspaceHeader = ({
         >
           <IoIosArrowBack size={22} aria-hidden="true" />
         </button>
-        <Image
+        <AvatarImage
           src={getSafeImageUrl(photoUrl, resolveImageType(speciesType))}
           alt={companionName}
-          width={44}
-          height={44}
+          size={44}
           className="size-11 shrink-0 rounded-full object-cover"
+          fallback={
+            <CompanionAvatar
+              name={companionName}
+              size={44}
+              textClassName="text-[19px]"
+              alt={companionName}
+            />
+          }
         />
-        <div className="flex min-w-0 shrink-0 flex-col gap-0.5">
+        {/* `shrink-0` here sized this column to its widest line, which is the
+            meta line, so the `truncate` below could never fire and the column
+            simply grew over the action cluster instead - measured at 768px with
+            a realistic breed, "34.6 kg" rendered underneath the visit timer. It
+            never scrolled the page, so nothing gave the collision away.
+
+            The column now yields and the meta line spends whatever is left
+            before ellipsing. Breed, sex, age and weight all repeat in the
+            companion panel, so that line is the right thing to spend.
+
+            The name row is not pinned by a `min-width`: pinning it needs the
+            meta line to contribute nothing to intrinsic sizing, and the trick
+            that does that (`w-0 min-w-full`) zeroes the max-content
+            contribution too, so the column stops growing and the line stays
+            clipped at 168px even on a 1512px screen. Measured instead: this
+            header only renders at 768px and up (`useIsPhone` hands anything
+            narrower to `PhoneWorkspaceShell`), and the tightest reachable
+            state - inpatient, ready to admit, a 373px action cluster - still
+            leaves the column 219px against a 168px name row. The story below
+            pins that margin so a longer label cannot spend it silently. */}
+        <div className="flex min-w-0 flex-col gap-0.5">
           <div className="flex items-center gap-2">
             <h1
               className="shrink-0 font-satoshi text-[17px] font-bold leading-[120%] tracking-[-0.02em]"

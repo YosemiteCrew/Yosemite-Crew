@@ -1,6 +1,6 @@
 import React from 'react';
 import { InvoiceItem } from '@yosemite-crew/types';
-import { formatMoney } from '@/app/lib/money';
+import { formatMoneyPrecise } from '@/app/lib/money';
 import TableHead from '@/app/ui/tables/TableHead';
 
 type InvoiceBilledItemsProps = {
@@ -45,10 +45,10 @@ const InvoiceBilledItems = ({ items, currency }: InvoiceBilledItemsProps) => {
               </span>
               <span className="tabular-nums">{item.quantity}</span>
               <span className="text-right tabular-nums">
-                {formatMoney(item.unitPrice ?? 0, currency)}
+                {formatMoneyPrecise(item.unitPrice ?? 0, currency)}
               </span>
               <span className="text-right tabular-nums font-bold">
-                {formatMoney(item.total ?? 0, currency)}
+                {formatMoneyPrecise(item.total ?? 0, currency)}
               </span>
             </div>
           ))

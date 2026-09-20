@@ -13,8 +13,8 @@ describe('createTrayMenuTemplate', () => {
     const deps = makeDeps(true);
     const menu = createTrayMenuTemplate(deps);
 
-    expect(menu[0].label).toBe('Hide Yosemite Crew PIMS');
-    menu[0].click?.();
+    expect(menu[0]!.label).toBe('Hide Yosemite Crew PIMS');
+    menu[0]!.click?.();
     expect(deps.hide).toHaveBeenCalledTimes(1);
     expect(deps.show).not.toHaveBeenCalled();
   });
@@ -23,8 +23,8 @@ describe('createTrayMenuTemplate', () => {
     const deps = makeDeps(false);
     const menu = createTrayMenuTemplate(deps);
 
-    expect(menu[0].label).toBe('Show Yosemite Crew PIMS');
-    menu[0].click?.();
+    expect(menu[0]!.label).toBe('Show Yosemite Crew PIMS');
+    menu[0]!.click?.();
     expect(deps.show).toHaveBeenCalledTimes(1);
     expect(deps.hide).not.toHaveBeenCalled();
   });

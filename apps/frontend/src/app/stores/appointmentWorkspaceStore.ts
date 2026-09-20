@@ -708,23 +708,44 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
       stepStatus: { ...enc.stepStatus, DIAGNOSTICS: 'IN_PROGRESS' },
     })),
 
+  /* `viewOnly` is set by `markDischarged`, and a discharged encounter must not
+     gain, lose or re-price billable services. The editor already hides its search
+     and locks its rows when `readOnly` is passed, but that is a UI gate on one
+     call site - this makes the store itself refuse, so a future caller cannot
+     mutate a closed encounter by going straight to the action.
+
+     Safe against hydration: the bootstrap merges services through
+     `preferNonEmpty(patch.services, enc.services)` in the encounter patch, never
+     through these three, so loading a discharged appointment still fills in. */
   addLineItem: (appointmentId, item) =>
-    patchEnc(set, appointmentId, (enc) => ({
-      ...enc,
-      services: [...enc.services, { ...item, id: nextId('li') }],
-    })),
+    patchEnc(set, appointmentId, (enc) =>
+      enc.viewOnly
+        ? enc
+        : {
+            ...enc,
+            services: [...enc.services, { ...item, id: nextId('li') }],
+          }
+    ),
 
   updateLineItem: (appointmentId, id, patch) =>
-    patchEnc(set, appointmentId, (enc) => ({
-      ...enc,
-      services: enc.services.map((s) => (s.id === id ? { ...s, ...patch } : s)),
-    })),
+    patchEnc(set, appointmentId, (enc) =>
+      enc.viewOnly
+        ? enc
+        : {
+            ...enc,
+            services: enc.services.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+          }
+    ),
 
   removeLineItem: (appointmentId, id) =>
-    patchEnc(set, appointmentId, (enc) => ({
-      ...enc,
-      services: enc.services.filter((s) => s.id !== id),
-    })),
+    patchEnc(set, appointmentId, (enc) =>
+      enc.viewOnly
+        ? enc
+        : {
+            ...enc,
+            services: enc.services.filter((s) => s.id !== id),
+          }
+    ),
 
   addPrescription: (appointmentId, item, persistedId) =>
     patchEnc(set, appointmentId, (enc) => ({

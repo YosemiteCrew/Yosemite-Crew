@@ -10,9 +10,30 @@ import SignUp from './SignUp';
    story draws user-agent inputs and unstyled buttons, and the 940px rule that drops
    the brand panel never applies. Relative, matching the other marketing stories. */
 import '../../../marketing/site/marketing.css';
+import { STATS_CACHE_KEY, STATS_TS_KEY } from '@/app/features/marketing/site/useGithubStats';
 
 const CLINIC_ROLE = 'A veterinary clinic, practice, or hospital';
 const DEVELOPER_ROLE = 'A developer';
+const TURNSTILE_STORY_SITE_KEY = 'storybook-test-site-key';
+let lastTurnstileToken = '';
+
+const installTurnstileStub = () => {
+  const storyWindow = globalThis.window as Window & { turnstile?: unknown };
+  const previousTurnstile = storyWindow.turnstile;
+  storyWindow.turnstile = {
+    render: (_container: HTMLElement, options: { callback: (token: string) => void }) => {
+      const token = 'storybook-test-token';
+      lastTurnstileToken = token;
+      options.callback(token);
+      return 'storybook-widget';
+    },
+    reset: () => undefined,
+    remove: () => undefined,
+  };
+  return () => {
+    storyWindow.turnstile = previousTurnstile;
+  };
+};
 
 /**
  * Seeds the marketing-stats session cache that the auth brand panel reads through
@@ -22,14 +43,14 @@ const DEVELOPER_ROLE = 'A developer';
  * to a fixed number instead of one that differs between two Chromatic runs.
  */
 const seedGithubStats = () => {
-  setJsonStorageItem('session', 'yc_marketing_stats_v2', {
+  setJsonStorageItem('session', STATS_CACHE_KEY, {
     stars: '2.4k',
     starsFull: '2,431',
     repositoryClones: '67,134',
     contributors: '38',
     discord: '1,204',
   });
-  setStorageItem('session', 'yc_marketing_stats_ts_v2', String(Date.now()));
+  setStorageItem('session', STATS_TS_KEY, String(Date.now()));
 };
 
 /**
@@ -47,6 +68,7 @@ const clearSignUpDraft = () => {
 const meta = {
   title: 'Auth/SignUp',
   component: SignUp,
+  args: { turnstileSiteKey: TURNSTILE_STORY_SITE_KEY },
   parameters: {
     layout: 'fullscreen',
     /* Stops the preview decorator stamping a SECOND `data-yc-app` around the
@@ -83,8 +105,11 @@ const meta = {
   },
   tags: ['autodocs'],
   beforeEach: () => {
+    lastTurnstileToken = '';
+    const restoreTurnstile = installTurnstileStub();
     seedGithubStats();
     clearSignUpDraft();
+    return restoreTurnstile;
   },
 } satisfies Meta<typeof SignUp>;
 
@@ -96,8 +121,11 @@ export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    const role = canvas.getByRole('combobox', { name: 'I am' });
-    await expect(role).toHaveValue(CLINIC_ROLE);
+    await waitFor(() => expect(lastTurnstileToken).toBe('storybook-test-token'));
+
+    const role = canvas.getByRole('button', { name: `I am: ${CLINIC_ROLE}` });
+    await expect(role).toHaveTextContent(CLINIC_ROLE);
+    await expect(role).toHaveAttribute('aria-haspopup', 'listbox');
 
     // The brand panel is the only h2 on the page; the two h1s are the page heading
     // and the preview decorator's sr-only landmark title, so read this by level.
@@ -200,7 +228,12 @@ export const DeveloperPane: Story = {
       'See the whole animal.'
     );
 
-    await userEvent.selectOptions(canvas.getByRole('combobox', { name: 'I am' }), DEVELOPER_ROLE);
+    const role = canvas.getByRole('button', { name: `I am: ${CLINIC_ROLE}` });
+    await userEvent.click(role);
+    const roleListbox = within(canvasElement.ownerDocument.body).getByRole('listbox', {
+      name: 'I am',
+    });
+    await userEvent.click(within(roleListbox).getByRole('option', { name: DEVELOPER_ROLE }));
 
     // Re-queried inside the waitFor rather than held from before the swap: the
     // headline is rebuilt around a different <em>, and the assertion should fail
@@ -219,9 +252,9 @@ export const DeveloperPane: Story = {
     // All three points are replaced, not just re-ordered - SignUp shares no point
     // copy between the two branches.
     for (const point of [
-      'REST and FHIR APIs, typed SDKs, and webhooks.',
+      'Authenticated read-only API access for organizations, usage, and appointments.',
       'Open source. Read it, run it locally, send a PR.',
-      'Ship plugins to the marketplace. Reach every clinic.',
+      'Marketplace distribution, SDKs, and webhooks are on the public roadmap.',
     ]) {
       await expect(canvas.getByText(point)).toBeInTheDocument();
     }

@@ -10,6 +10,8 @@ import {
   IoShareOutline,
 } from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import SharedStatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
+import { Textarea } from '@/app/ui/Input';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import TotalBillContainer from '@/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer';
 import PackageBreakdownTooltip from '@/app/features/appointments/pages/AppointmentWorkspace/components/PackageBreakdownTooltip';
@@ -32,6 +34,7 @@ import type {
   PaymentMethod,
 } from '@/app/features/appointments/types/workspace';
 import { formatMoney } from '@/app/lib/money';
+import { formatDateTimeLocal } from '@/app/lib/date';
 import { formatStampDate, formatStampTime } from '@/app/lib/appointmentWorkspace';
 import {
   addLineItemsToAppointments,
@@ -86,11 +89,6 @@ const STATUS_LABELS: Record<InvoiceStatus, string> = {
   PARTIAL: 'Partial',
 };
 
-const STATUS_CLASSES: Record<InvoiceStatus, string> = {
-  PAID_FULL: 'border-pill-success-border bg-pill-success-bg text-pill-success-text',
-  UNPAID: 'border-pill-warning-border bg-pill-warning-bg text-pill-warning-text',
-  PARTIAL: 'border-pill-info-border bg-pill-info-bg text-pill-info-text',
-};
 
 const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   ONLINE: 'Paid Online',
@@ -285,12 +283,62 @@ const openDocumentUrl = (url: string): void => {
 const formatCents = (cents: number, currency: string = DEFAULT_CURRENCY): string =>
   formatMoney(cents / 100, currency);
 
-const escapeHtml = (value: string): string =>
-  value.replace(
-    /[&<>"']/g,
-    (char) =>
-      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] ?? char
+const createInvoiceCell = (
+  document: Document,
+  tagName: 'td' | 'th',
+  text: string,
+  alignRight = false
+) => {
+  const cell = document.createElement(tagName);
+  cell.textContent = text;
+  if (alignRight) cell.style.textAlign = 'right';
+  return cell;
+};
+
+const buildPrintableInvoice = (document: Document, invoice: PastInvoice, currency: string) => {
+  document.title = `Invoice ${invoice.id}`;
+
+  const style = document.createElement('style');
+  style.textContent =
+    'body{font-family:Arial,Helvetica,sans-serif;padding:32px;color:#1a1a1a}' +
+    'h1{font-size:18px}table{width:100%;border-collapse:collapse;margin-top:16px}' +
+    'td,th{padding:8px 0;border-bottom:1px solid #e5e5e5;font-size:13px}' +
+    'tfoot td{font-weight:bold;border-bottom:none}';
+  document.head.replaceChildren(style);
+
+  const heading = document.createElement('h1');
+  heading.textContent = `Invoice ${invoice.id}`;
+  const date = document.createElement('div');
+  date.textContent = `Date: ${formatDateTimeLocal(invoice.createdAt)}`;
+  const table = document.createElement('table');
+  const header = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  headerRow.append(
+    createInvoiceCell(document, 'th', 'Item'),
+    createInvoiceCell(document, 'th', 'Amount', true)
   );
+  header.append(headerRow);
+
+  const body = document.createElement('tbody');
+  for (const item of invoice.items) {
+    const row = document.createElement('tr');
+    row.append(
+      createInvoiceCell(document, 'td', item.name),
+      createInvoiceCell(document, 'td', formatCents(item.amountCents, currency), true)
+    );
+    body.append(row);
+  }
+
+  const footer = document.createElement('tfoot');
+  const footerRow = document.createElement('tr');
+  footerRow.append(
+    createInvoiceCell(document, 'td', 'Total'),
+    createInvoiceCell(document, 'td', formatCents(invoice.totalCents, currency), true)
+  );
+  footer.append(footerRow);
+  table.append(header, body, footer);
+  document.body.replaceChildren(heading, date, table);
+};
 
 // Render an invoice as a standalone printable document and open the browser print
 // dialog (print-to-PDF). There is no backend invoice-PDF endpoint, so this is the
@@ -301,29 +349,7 @@ const printInvoice = (invoice: PastInvoice, currency: string): boolean => {
   // Popup blocked (or otherwise unavailable) — report failure so the caller can
   // surface it instead of the download silently doing nothing.
   if (!printWindow) return false;
-  const rows = invoice.items
-    .map(
-      (item) =>
-        `<tr><td>${escapeHtml(item.name)}</td><td style="text-align:right">${escapeHtml(
-          formatCents(item.amountCents, currency)
-        )}</td></tr>`
-    )
-    .join('');
-  // document.write is deprecated; populate the popup's head/body directly instead.
-  printWindow.document.head.innerHTML =
-    `<title>Invoice ${escapeHtml(invoice.id)}</title>` +
-    `<style>body{font-family:Arial,Helvetica,sans-serif;padding:32px;color:#1a1a1a}` +
-    `h1{font-size:18px}table{width:100%;border-collapse:collapse;margin-top:16px}` +
-    `td,th{padding:8px 0;border-bottom:1px solid #e5e5e5;font-size:13px}` +
-    `tfoot td{font-weight:bold;border-bottom:none}</style>`;
-  printWindow.document.body.innerHTML =
-    `<h1>Invoice ${escapeHtml(invoice.id)}</h1>` +
-    `<div>Date: ${escapeHtml(new Date(invoice.createdAt).toLocaleString())}</div>` +
-    `<table><thead><tr><th style="text-align:left">Item</th><th style="text-align:right">Amount</th></tr></thead>` +
-    `<tbody>${rows}</tbody>` +
-    `<tfoot><tr><td>Total</td><td style="text-align:right">${escapeHtml(
-      formatCents(invoice.totalCents, currency)
-    )}</td></tr></tfoot></table>`;
+  buildPrintableInvoice(printWindow.document, invoice, currency);
   printWindow.focus();
   printWindow.print();
   return true;
@@ -354,16 +380,6 @@ const computeInvoiceTotalCents = (encounter: AppointmentEncounter): number => {
   return discountedCents + Math.round((discountedCents * encounter.taxPercent) / 100);
 };
 
-const invoiceDateFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: '2-digit',
-  year: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-});
-
-const formatInvoiceDate = (iso: string): string => invoiceDateFormatter.format(new Date(iso));
-
 const getDepositMethodLabel = (option: PaymentMethod): string => {
   if (option === 'ONLINE') return 'Online link';
   return 'Cash';
@@ -374,12 +390,18 @@ const getDepositModalActionLabel = (saving: boolean, method: PaymentMethod): str
   return method === 'ONLINE' ? 'Generate link' : 'Collect deposit';
 };
 
-export const StatusPill = ({ status }: { status: InvoiceStatus }) => (
-  <span
-    className={`inline-flex rounded-2xl border px-3 py-1 text-caption-1 ${STATUS_CLASSES[status]}`}
-  >
-    {STATUS_LABELS[status]}
-  </span>
+/**
+ * InvoiceStatus -> the shared pill's tone. STATUS_CLASSES referenced the same
+ * --color-pill-* tokens by hand, so this changes only geometry.
+ */
+const INVOICE_STATUS_TONE: Record<InvoiceStatus, StatusTone> = {
+  PAID_FULL: 'success',
+  UNPAID: 'warning',
+  PARTIAL: 'info',
+};
+
+export const InvoiceStatusPill = ({ status }: { status: InvoiceStatus }) => (
+  <SharedStatusPill label={STATUS_LABELS[status]} tone={INVOICE_STATUS_TONE[status]} />
 );
 
 const getPaymentProgressDescription = (status: PaymentProgressState['status']): string => {
@@ -497,7 +519,10 @@ export const InvoiceBreakdown = ({
         {invoice.items.map((item) => (
           <li key={item.id} className={`${ROW_GRID} px-1 py-2.5 text-body-4 text-text-primary`}>
             <span className="inline-flex min-w-0 items-center gap-1 font-medium">
-              <span className="truncate">{item.name}</span>
+              {/* Same clipped billed-item name as TotalBillContainer. */}
+              <span className="truncate" title={item.name}>
+                {item.name}
+              </span>
               <PackageBreakdownTooltip item={item} currency={currency} />
             </span>
             <span>{formatCents(item.unitPriceCents, currency)}</span>
@@ -610,7 +635,7 @@ export const InvoiceRow = ({
           {index + 1}. ID - {invoice.id}
         </span>
         <span className="truncate text-body-4 text-text-secondary">
-          {formatInvoiceDate(invoice.createdAt)}
+          {formatDateTimeLocal(invoice.createdAt)}
         </span>
         <span className="text-body-4 text-text-primary">
           {formatCents(invoice.totalCents, currency)}
@@ -619,7 +644,7 @@ export const InvoiceRow = ({
           {formatCents(invoice.outstandingCents, currency)}
         </span>
         <div className="flex">
-          <StatusPill status={invoice.status} />
+          <InvoiceStatusPill status={invoice.status} />
         </div>
         <div className="flex justify-end gap-2">
           <CircleIconButton
@@ -772,7 +797,7 @@ export const PaymentActions = ({
   return (
     <section
       aria-label="Payment method"
-      className="flex flex-col gap-3 rounded-[14px] border border-card-border bg-neutral-0 p-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
+      className="flex flex-col gap-3 yc-card-surface yc-card-surface--inset p-4"
     >
       <span
         className="text-[14px] font-bold leading-[130%] tracking-[-0.01em]"
@@ -904,7 +929,7 @@ export const DepositModal = ({
         </label>
         <label className="flex flex-col gap-1 text-body-4 text-text-primary">
           <span>Notes</span>
-          <textarea
+          <Textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             className="min-h-20 rounded-2xl border border-input-border-default px-4 py-3 focus-visible:border-input-border-active focus-visible:outline-none"

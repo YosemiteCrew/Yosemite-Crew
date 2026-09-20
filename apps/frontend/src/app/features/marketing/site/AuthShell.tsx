@@ -15,7 +15,7 @@ const BRAND_TITLE_STYLE: CSSProperties = {
   fontWeight: 400,
   lineHeight: 1.04,
   letterSpacing: '-0.03em',
-  color: '#f4efe6',
+  color: 'var(--spot-ink)',
   animation: 'ycUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.16s both',
 };
 
@@ -24,12 +24,12 @@ const BRAND_POINT_ICON_STYLE: CSSProperties = {
   width: 38,
   height: 38,
   borderRadius: 11,
-  background: 'rgba(234,226,213,0.10)',
-  border: '1px solid rgba(234,226,213,0.16)',
+  background: 'color-mix(in srgb, var(--spot-ink) 10%, transparent)',
+  border: '1px solid color-mix(in srgb, var(--spot-ink) 16%, transparent)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  color: '#8fb6f5',
+  color: 'var(--color-accent-dark)',
 };
 
 const GITHUB_STAR_PILL_STYLE: CSSProperties = {
@@ -40,9 +40,9 @@ const GITHUB_STAR_PILL_STYLE: CSSProperties = {
   textDecoration: 'none',
   padding: '10px 16px 10px 14px',
   borderRadius: 9999,
-  border: '1px solid rgba(234,226,213,0.18)',
-  background: 'rgba(234,226,213,0.05)',
-  color: '#eae2d5',
+  border: '1px solid color-mix(in srgb, var(--spot-ink) 18%, transparent)',
+  background: 'color-mix(in srgb, var(--spot-ink) 5%, transparent)',
+  color: 'var(--spot-ink)',
   fontSize: 14,
   letterSpacing: '-0.01em',
   animation: 'ycUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.42s both',
@@ -56,7 +56,7 @@ const BRAND_PANEL_STYLE: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'space-between',
-  color: '#eae2d5',
+  color: 'var(--spot-ink)',
 };
 
 const BACK_TO_HOME_PILL_STYLE: CSSProperties = {
@@ -103,7 +103,7 @@ export function AuthBrandContent({
           fontWeight: 700,
           letterSpacing: '0.11em',
           textTransform: 'uppercase',
-          color: '#5ce1e6',
+          color: 'var(--cyan)',
           animation: 'ycFade 0.9s ease 0.1s both',
         }}
       >
@@ -159,7 +159,11 @@ export function AuthBrandContent({
           {stars ? `Star on GitHub · ${stars}` : 'Star on GitHub'}
         </span>
         <span
-          style={{ width: 1, height: 13, background: 'rgba(234,226,213,0.22)' }}
+          style={{
+            width: 1,
+            height: 13,
+            background: 'color-mix(in srgb, var(--spot-ink) 22%, transparent)',
+          }}
           aria-hidden="true"
         />
         <span style={{ color: '#b7ac9d' }}>building in the open</span>
@@ -182,7 +186,19 @@ export function AuthShell({ brand, topRight, children }: Readonly<AuthShellProps
     <div
       data-authgrid="true"
       data-yc-theme
-      style={{ display: 'grid', gridTemplateColumns: '1.06fr 1fr', minHeight: '100svh' }}
+      /* `--yc-consent-inset` is the strip the phone consent card denies (0 when
+         it is absent or on desktop). Reserving it as padding inside a
+         border-box `100svh` means the form centres in what is left, and if the
+         form no longer fits the shell grows past the viewport and the page
+         scrolls - either way the submit button stays reachable. Without it the
+         card lands on the centred form and 0% of the button is tappable. */
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1.06fr 1fr',
+        minHeight: '100svh',
+        boxSizing: 'border-box',
+        paddingBottom: 'var(--yc-consent-inset, 0px)',
+      }}
     >
       <div data-brandpanel="true" style={BRAND_PANEL_STYLE}>
         <div
@@ -196,7 +212,8 @@ export function AuthShell({ brand, topRight, children }: Readonly<AuthShellProps
               right: -140,
               width: 620,
               height: 520,
-              background: 'radial-gradient(closest-side, rgba(37,123,237,0.26), transparent 70%)',
+              background:
+                'radial-gradient(closest-side, color-mix(in srgb, var(--blue) 26%, transparent), transparent 70%)',
               animation: 'ycDrift 36s ease-in-out infinite alternate',
             }}
           />
@@ -207,7 +224,8 @@ export function AuthShell({ brand, topRight, children }: Readonly<AuthShellProps
               left: -160,
               width: 600,
               height: 500,
-              background: 'radial-gradient(closest-side, rgba(92,225,230,0.14), transparent 70%)',
+              background:
+                'radial-gradient(closest-side, color-mix(in srgb, var(--color-cyan) 14%, transparent), transparent 70%)',
               animation: 'ycDrift 46s ease-in-out 4s infinite alternate-reverse',
             }}
           />
@@ -218,7 +236,8 @@ export function AuthShell({ brand, topRight, children }: Readonly<AuthShellProps
               right: -80,
               width: 360,
               height: 320,
-              background: 'radial-gradient(closest-side, rgba(255,144,212,0.10), transparent 70%)',
+              background:
+                'radial-gradient(closest-side, color-mix(in srgb, var(--pink) 10%, transparent), transparent 70%)',
               animation: 'ycDrift 54s ease-in-out 2s infinite alternate',
             }}
           />

@@ -8,8 +8,8 @@ import {
   hasAppointmentConflict,
   toLocalDayKey,
 } from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
-import { getWeekDays } from '@/app/features/appointments/components/Calendar/weekHelpers';
-import { buildDateInPreferredTimeZone } from '@/app/lib/timezone';
+import { getWeekDaysInPreferredTimeZone } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import { buildDateInPreferredTimeZone, getDateKeyInPreferredTimeZone } from '@/app/lib/timezone';
 
 type TeamMember = ReturnType<typeof useTeamForPrimaryOrg>[number];
 
@@ -34,7 +34,7 @@ type CollectValidMinutesParams = {
 };
 
 export const getSlotCacheKey = (serviceId: string, date: Date) =>
-  `${serviceId}:${date.toISOString().slice(0, 10)}`;
+  `${serviceId}:${getDateKeyInPreferredTimeZone(date)}`;
 
 export const buildAppointmentStartFromCalendarMinutes = (date: Date, minuteOfDay: number) =>
   buildDateInPreferredTimeZone(date, clampMinutes(minuteOfDay));
@@ -123,7 +123,8 @@ export const buildTeamMemberNameMap = (
 };
 
 // Resolve a member's display name, preferring the member-map lookup and falling
-// back to the team name map, then the raw id.
+// back to the team name map, then '-'. Never the raw id: an unresolved id is a
+// database identifier, not a name.
 export const resolveMemberDisplayName = (
   memberId: string | undefined,
   normalizeId: NormalizeId,
@@ -134,7 +135,7 @@ export const resolveMemberDisplayName = (
   if (!raw) return '-';
   const resolved = resolveMemberName(raw);
   if (resolved && resolved !== '-') return resolved;
-  return teamNameById[normalizeId(raw)] || raw;
+  return teamNameById[normalizeId(raw)] || '-';
 };
 
 const getSlotMinuteBounds = (
@@ -286,7 +287,8 @@ export const buildDragPrefetchTargets = (
   teams: ReturnType<typeof useTeamForPrimaryOrg>
 ): Array<{ date: Date; targetLeadId?: string }> => {
   if (activeCalendar === 'day') return [{ date: currentDate }];
-  if (activeCalendar === 'week') return getWeekDays(weekStart).map((date) => ({ date }));
+  if (activeCalendar === 'week')
+    return getWeekDaysInPreferredTimeZone(weekStart).map((date) => ({ date }));
   if (activeCalendar === 'team') {
     return (teams || []).map((member) => ({
       date: currentDate,

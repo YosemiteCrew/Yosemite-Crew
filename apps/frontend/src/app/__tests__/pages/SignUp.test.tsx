@@ -1,9 +1,38 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
 const showErrorTostMock = jest.fn();
+let turnstileOptions: Record<string, unknown> | undefined;
+const turnstileRenderMock = jest.fn((_container: HTMLElement, options: Record<string, unknown>) => {
+  turnstileOptions = options;
+  return 'widget-1';
+});
+const turnstileResetMock = jest.fn();
+const turnstileRemoveMock = jest.fn();
+let appTheme: 'light' | 'dark' = 'light';
+
+jest.mock('@/app/ui/theme', () => ({
+  useTheme: () => ({ theme: appTheme }),
+}));
+
+jest.mock('next/script', () => ({
+  __esModule: true,
+  default: ({ onReady, onError }: { onReady: () => void; onError: () => void }) => (
+    <>
+      <button type="button" onClick={onReady}>
+        Load bot check
+      </button>
+      <button type="button" onClick={onError}>
+        Fail bot check script
+      </button>
+    </>
+  ),
+}));
 jest.mock('@/app/ui/overlays/Toast/Toast', () => ({
   useErrorTost: () => ({
     showErrorTost: showErrorTostMock,
@@ -23,7 +52,14 @@ jest.mock('@/app/stores/authStore', () => ({
 jest.mock('@/app/features/marketing/site', () => ({
   __esModule: true,
   GITHUB_REPO_URL: 'https://github.com/YosemiteCrew/Yosemite-Crew',
-  AuthBrandContent: (props: any) => <div data-testid="auth-brand" data-eyebrow={props.eyebrow} />,
+  AuthBrandContent: (props: any) => (
+    <div data-testid="auth-brand" data-eyebrow={props.eyebrow}>
+      <p>{props.subtitle}</p>
+      {props.points.map((point: { text: string }) => (
+        <span key={point.text}>{point.text}</span>
+      ))}
+    </div>
+  ),
   AuthShell: ({ brand, topRight, children }: any) => (
     <div data-testid="auth-shell">
       <div>{brand}</div>
@@ -55,6 +91,16 @@ describe('SignUp page', () => {
     authStoreMock.signUp.mockReset();
     showErrorTostMock.mockReset();
     latestOtpModalProps = undefined;
+    turnstileOptions = undefined;
+    turnstileRenderMock.mockClear();
+    turnstileResetMock.mockClear();
+    turnstileRemoveMock.mockClear();
+    appTheme = 'light';
+    (globalThis.window as Window & { turnstile?: unknown }).turnstile = {
+      render: turnstileRenderMock,
+      reset: turnstileResetMock,
+      remove: turnstileRemoveMock,
+    };
   });
 
   const setFieldValue = (label: string, value: string) => {
@@ -138,7 +184,7 @@ describe('SignUp page', () => {
   });
 
   test('submits signup data and opens verification modal without newsletter opt-in', async () => {
-    authStoreMock.signUp.mockResolvedValue(true);
+    authStoreMock.signUp.mockResolvedValue({ userId: 'user-1', email: 'jane@example.com' });
     render(<SignUp />);
 
     fillValidForm();
@@ -154,12 +200,11 @@ describe('SignUp page', () => {
   });
 
   test('passes the developer role when "A developer" is selected', async () => {
-    authStoreMock.signUp.mockResolvedValue(true);
+    authStoreMock.signUp.mockResolvedValue({ userId: 'user-1', email: 'jane@example.com' });
     render(<SignUp />);
 
-    fireEvent.change(screen.getByLabelText('I am'), {
-      target: { value: 'A developer' },
-    });
+    await userEvent.click(screen.getByRole('button', { name: /I am/ }));
+    await userEvent.click(within(screen.getByRole('listbox')).getByText('A developer'));
     fillValidForm();
     fireEvent.click(getSubmitBtn());
 
@@ -175,10 +220,20 @@ describe('SignUp page', () => {
   });
 
   test('developer variant hides the role selector and passes the developer role', async () => {
-    authStoreMock.signUp.mockResolvedValue(true);
+    authStoreMock.signUp.mockResolvedValue({ userId: 'user-1', email: 'jane@example.com' });
     render(<SignUp isDeveloper />);
 
     expect(screen.queryByLabelText('I am')).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Authenticated read-only API access for organizations, usage, and appointments.'
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Marketplace distribution, SDKs, and webhooks are on the public roadmap.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/typed SDKs/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Reach every clinic/i)).not.toBeInTheDocument();
 
     fillValidForm();
     fireEvent.click(getSubmitBtn());
@@ -230,9 +285,196 @@ describe('SignUp page', () => {
     expect(latestOtpModalProps?.showVerifyModal).toBeFalsy();
   });
 
+  test('requires a completed bot check before signup and sends its token', async () => {
+    authStoreMock.signUp.mockResolvedValue({
+      userId: 'user-1',
+      email: 'janedoe@gmail.com',
+    });
+    render(<SignUp turnstileSiteKey="site-key" />);
+    fillValidForm();
+    setFieldValue('Work email', 'Jane.Doe+signup@gmail.com');
+
+    fireEvent.click(getSubmitBtn());
+    expect(screen.getByText('Complete bot verification before creating an account.')).toBeVisible();
+    expect(authStoreMock.signUp).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load bot check' }));
+    expect(turnstileRenderMock).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({
+        sitekey: 'site-key',
+        action: 'business_signup',
+        size: 'flexible',
+      })
+    );
+    act(() => {
+      (turnstileOptions?.callback as (token: string) => void)('verified-token');
+    });
+    fireEvent.click(getSubmitBtn());
+
+    await waitFor(() =>
+      expect(authStoreMock.signUp).toHaveBeenCalledWith(
+        'Jane.Doe+signup@gmail.com',
+        'Secret!23',
+        'Jane',
+        'Doe',
+        undefined,
+        'verified-token'
+      )
+    );
+    expect(latestOtpModalProps).toEqual(
+      expect.objectContaining({
+        email: 'janedoe@gmail.com',
+        showVerifyModal: true,
+      })
+    );
+  });
+
+  test('resets the single-use bot token after a rejected signup', async () => {
+    authStoreMock.signUp.mockRejectedValue(new Error('Already registered'));
+    render(<SignUp turnstileSiteKey="site-key" />);
+    fillValidForm();
+    fireEvent.click(screen.getByRole('button', { name: 'Load bot check' }));
+    act(() => {
+      (turnstileOptions?.callback as (token: string) => void)('single-use-token');
+    });
+
+    fireEvent.click(getSubmitBtn());
+
+    await waitFor(() => expect(turnstileResetMock).toHaveBeenCalledWith('widget-1'));
+
+    fireEvent.click(getSubmitBtn());
+    await waitFor(() => {
+      expect(authStoreMock.signUp).toHaveBeenCalledTimes(1);
+      expect(
+        screen.getByText('Complete bot verification before creating an account.')
+      ).toBeVisible();
+    });
+  });
+
+  test('clears an expired bot token before signup', () => {
+    render(<SignUp turnstileSiteKey="site-key" />);
+    fillValidForm();
+    fireEvent.click(screen.getByRole('button', { name: 'Load bot check' }));
+    act(() => {
+      (turnstileOptions?.callback as (token: string) => void)('single-use-token');
+      (turnstileOptions?.['expired-callback'] as () => void)();
+    });
+
+    fireEvent.click(getSubmitBtn());
+
+    expect(authStoreMock.signUp).not.toHaveBeenCalled();
+    expect(screen.getByText('Complete bot verification before creating an account.')).toBeVisible();
+  });
+
+  test.each(['error-callback', 'unsupported-callback'] as const)(
+    'shows an unavailable message after the Turnstile %s',
+    (callbackName) => {
+      render(<SignUp turnstileSiteKey="site-key" />);
+      fireEvent.click(screen.getByRole('button', { name: 'Load bot check' }));
+
+      let callbackResult: unknown;
+      act(() => {
+        callbackResult = (turnstileOptions?.[callbackName] as () => unknown)();
+      });
+
+      expect(
+        screen.getByText('Bot verification is unavailable. Please try again later.')
+      ).toBeVisible();
+      if (callbackName === 'error-callback') expect(callbackResult).toBe(true);
+    }
+  );
+
+  test('shows an unavailable message when the Turnstile script fails to load', () => {
+    render(<SignUp turnstileSiteKey="site-key" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fail bot check script' }));
+
+    expect(
+      screen.getByText('Bot verification is unavailable. Please try again later.')
+    ).toBeVisible();
+  });
+
+  test('removes the Turnstile widget when signup unmounts', () => {
+    const { unmount } = render(<SignUp turnstileSiteKey="site-key" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Load bot check' }));
+
+    unmount();
+
+    expect(turnstileRemoveMock).toHaveBeenCalledWith('widget-1');
+  });
+
+  test('rerenders the Turnstile widget when the app theme changes', () => {
+    const { rerender } = render(<SignUp turnstileSiteKey="site-key" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Load bot check' }));
+
+    expect(turnstileRenderMock).toHaveBeenLastCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({ theme: 'light' })
+    );
+
+    appTheme = 'dark';
+    rerender(<SignUp turnstileSiteKey="site-key" />);
+
+    expect(turnstileRemoveMock).toHaveBeenCalledWith('widget-1');
+    expect(turnstileRenderMock).toHaveBeenLastCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({ theme: 'dark' })
+    );
+  });
+
+  test('blocks production signup when the Turnstile site key is missing', () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
+
+    render(<SignUp />);
+
+    (process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv;
+    expect(
+      screen.getByText('Bot verification is unavailable. Please try again later.')
+    ).toBeVisible();
+  });
+
   test('has no axe accessibility violations', async () => {
     const { container } = render(<SignUp />);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
+  });
+
+  test('shows a live password strength readout that improves as the password does', () => {
+    render(<SignUp />);
+    expect(screen.queryByText(/password strength/i)).not.toBeInTheDocument();
+
+    setFieldValue('Set up password', 'short');
+    expect(screen.getByText('Password strength: Too weak')).toBeInTheDocument();
+
+    setFieldValue('Set up password', 'Okay now 1!');
+    expect(screen.getByText('Password strength: Strong')).toBeInTheDocument();
+  });
+
+  test('does not show a strength readout on the confirm-password field', () => {
+    render(<SignUp />);
+    setFieldValue('Confirm password', 'Okay now 1!');
+    expect(screen.queryByText(/password strength/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('auth-brand headline reads the fixed accent-dark token', () => {
+  // AuthShell's brand panel is painted with a literal, permanently-dark
+  // gradient (never a token), so the "whole" emphasis must stay pinned to a
+  // fixed-dark-tuned ink rather than the flipping --blue-text - otherwise
+  // light mode would put --blue-text's near-black light value on the
+  // permanently-dark hero.
+  const source = readFileSync(
+    join(process.cwd(), 'src/app/features/auth/pages/SignUp/SignUp.tsx'),
+    'utf8'
+  );
+
+  it('does not hardcode the emphasis colour as a frozen literal', () => {
+    expect(source).not.toContain("color: '#8fb6f5'");
+  });
+
+  it('routes the emphasis colour through --color-accent-dark', () => {
+    expect(source).toContain("color: 'var(--color-accent-dark)'");
   });
 });

@@ -10,6 +10,13 @@ type GlassTooltipProps = {
   side?: TooltipSide;
   className?: string;
   maxWidth?: number | string;
+  /** Also toggle open on tap. Hover and focus have no touch equivalent, so a
+   * trigger whose only affordance is `content` (e.g. the full value behind a
+   * truncated label) is otherwise unreachable on a touchscreen. Off by
+   * default: a trigger with its own click behavior (navigation, a button
+   * action) would have that first tap swallowed by the tooltip opening
+   * instead - review each call site before opting in. */
+  openOnClick?: boolean;
 };
 
 const GlassTooltip = ({
@@ -18,6 +25,7 @@ const GlassTooltip = ({
   side = 'top',
   className = '',
   maxWidth,
+  openOnClick = false,
 }: GlassTooltipProps) => {
   const triggerRef = useRef<HTMLDivElement | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
@@ -118,6 +126,38 @@ const GlassTooltip = ({
       trigger.removeEventListener('focusout', closeTooltip);
     };
   }, []);
+
+  useEffect(() => {
+    if (!openOnClick) return undefined;
+    const trigger = triggerRef.current;
+    if (!trigger) return undefined;
+
+    // Idempotent open, not a toggle: a toggle would also have to survive a
+    // Storybook play function that retries the dispatch until the listener
+    // is bound (see storyInteractions.ts), where a second, redundant dispatch
+    // would close what the first one just opened.
+    const openTooltip = (event: MouseEvent) => {
+      event.stopPropagation();
+      setOpen(true);
+    };
+    trigger.addEventListener('click', openTooltip);
+    return () => trigger.removeEventListener('click', openTooltip);
+  }, [openOnClick]);
+
+  useEffect(() => {
+    if (!openOnClick || !open) return undefined;
+    const closeOnOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target) || bubbleRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', closeOnOutside, { passive: true });
+    document.addEventListener('touchstart', closeOnOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutside);
+      document.removeEventListener('touchstart', closeOnOutside);
+    };
+  }, [openOnClick, open]);
 
   return (
     <span ref={triggerRef} className={`glass-tooltip relative inline-flex ${className}`}>

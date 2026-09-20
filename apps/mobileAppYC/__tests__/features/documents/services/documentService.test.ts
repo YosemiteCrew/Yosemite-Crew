@@ -767,6 +767,59 @@ describe('documentService', () => {
       expect(list[0].createdAt).not.toBe('');
     });
 
+    describe('parseIssueDate: keeps the server-intended calendar day regardless of viewer timezone', () => {
+      // parseIssueDate reads the calendar date off a midnight-UTC response with
+      // getUTC*() accessors, not local ones, so this is correct for every
+      // viewer offset by construction -- no need to fake the device's zone to
+      // exercise it. (Local getters would read a different day depending on
+      // the viewer's real offset; that is exactly the bug this fix avoids.)
+      it('keeps issueDate as 2026-09-15 when the server sends midnight UTC', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: [{id: 'd1', issueDate: '2026-09-15T00:00:00.000Z'}],
+        });
+
+        const list = await documentApi.list({
+          companionId: 'c',
+          accessToken: 't',
+        });
+
+        expect(list[0].issueDate).toBe('2026-09-15');
+      });
+
+      it('passes an already date-only issueDate through unchanged', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: [{id: 'd1', issueDate: '2026-09-15'}],
+        });
+
+        const list = await documentApi.list({
+          companionId: 'c',
+          accessToken: 't',
+        });
+
+        expect(list[0].issueDate).toBe('2026-09-15');
+      });
+
+      it('leaves createdAt/updatedAt as full timestamps, unaffected by the date-only fix', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: [
+            {
+              id: 'd1',
+              issueDate: '2026-09-15T00:00:00.000Z',
+              createdAt: '2026-09-15T00:00:00.000Z',
+            },
+          ],
+        });
+
+        const list = await documentApi.list({
+          companionId: 'c',
+          accessToken: 't',
+        });
+
+        expect(list[0].issueDate).toBe('2026-09-15');
+        expect(list[0].createdAt).toBe('2026-09-15T00:00:00.000Z');
+      });
+    });
+
     it('pickAttachmentList: array location variations', async () => {
       const testCase = (input: any) => {
         (apiClient.get as jest.Mock).mockResolvedValueOnce({data: [input]});

@@ -100,21 +100,12 @@ jest.mock('next/dynamic', () => ({
       }
 
       if (source.includes('components/TurnoverAnalytics')) {
-        const setView = props.setActiveView as ((view: string) => void) | undefined;
         const viewHistory = props.onViewHistory as ((item: unknown) => void) | undefined;
         const items = (props.inventory ?? []) as unknown[];
-        // Stub the dynamic analytics view: expose the Stock/Orders/Turnover
-        // segmented control so tests can switch views (the real one renders the
-        // same buttons but only after the dynamic chunk loads), plus the product
-        // panel's History action.
+        // Stub the dynamic analytics view; its product-panel History action remains
+        // reachable while the page header owns view navigation.
         return (
           <div data-testid="mock-turnover-analytics">
-            <button type="button" onClick={() => setView?.('inventory')}>
-              Stock
-            </button>
-            <button type="button" onClick={() => setView?.('turnover')}>
-              Orders
-            </button>
             <button
               type="button"
               data-testid="turnover-history-btn"
@@ -320,6 +311,7 @@ jest.mock('@/app/ui/tables/InventoryTurnoverTable', () => ({
 }));
 
 // Mock Modals (Updated to handle async errors in onClick to prevent Unhandled Promise Rejections)
+
 jest.mock('@/app/features/inventory/components/AddInventory', () => ({
   __esModule: true,
   default: ({ showModal, onSubmit }: any) =>
@@ -638,6 +630,28 @@ describe('Inventory Page', () => {
       ).toEqual(['derived-low']);
     });
 
+    it('matches both LOW_STOCK and OUT_OF_STOCK rows against the NEEDS_RESTOCK quick filter', () => {
+      const rows = [
+        { id: 'low', status: 'ACTIVE', stockHealth: 'LOW_STOCK', basicInfo: { name: 'Low' } },
+        {
+          id: 'out',
+          status: 'ACTIVE',
+          stockHealth: 'OUT_OF_STOCK',
+          basicInfo: { name: 'Out' },
+        },
+        { id: 'healthy', status: 'ACTIVE', stockHealth: 'HEALTHY', basicInfo: { name: 'Fine' } },
+      ] as any[];
+
+      expect(
+        filterAndSortInventory(
+          rows,
+          { ...defaultFilters, visibility: 'ALL', status: 'NEEDS_RESTOCK' },
+          '',
+          'name'
+        ).map((item) => item.id)
+      ).toEqual(['low', 'out']);
+    });
+
     it('covers inventory helper fallback branches for sparse records and filters', () => {
       const sparseInventory = [
         {
@@ -941,7 +955,7 @@ describe('Inventory Page', () => {
     expect(screen.getByRole('button', { name: 'Dispensary' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sort: Name' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add product' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New product' })).toBeInTheDocument();
     expect(screen.getByTestId('inventory-table')).toBeInTheDocument();
     expect(screen.queryByTestId('dispensary-table')).not.toBeInTheDocument();
 
@@ -1029,6 +1043,11 @@ describe('Inventory Page', () => {
         setFilterOpen={setFilterOpen}
         setFilters={setFilters}
         setSortMode={setSortMode}
+        lowStockCount={0}
+        expiringSoonCount={0}
+        isNeedsRestockActive={false}
+        isExpiringSoonActive={false}
+        onToggleQuickFilter={jest.fn()}
       />
     );
 
@@ -1059,6 +1078,11 @@ describe('Inventory Page', () => {
       dispensaryStatusFilter: 'ALL' as const,
       setDispensaryStatusFilter,
       setDispensarySearch,
+      lowStockCount: 0,
+      expiringSoonCount: 0,
+      isNeedsRestockActive: false,
+      isExpiringSoonActive: false,
+      onToggleQuickFilter: jest.fn(),
     };
 
     const { rerender } = render(<ActiveFilterBar {...commonProps} activeView="turnover" />);
@@ -1105,6 +1129,11 @@ describe('Inventory Page', () => {
         setFilterOpen={jest.fn()}
         setFilters={jest.fn()}
         setSortMode={jest.fn()}
+        lowStockCount={0}
+        expiringSoonCount={0}
+        isNeedsRestockActive={false}
+        isExpiringSoonActive={false}
+        onToggleQuickFilter={jest.fn()}
       />
     );
 
@@ -1183,6 +1212,167 @@ describe('Inventory Page', () => {
     render(<ProtectedInventory />);
 
     expect(screen.queryByRole('button', { name: 'Dispensary' })).not.toBeInTheDocument();
+  });
+
+  it('filters the catalog from the Low stock quick filter chip', () => {
+    render(<ProtectedInventory />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Low stock/ }));
+
+    expect(screen.queryByTestId('item-1')).not.toBeInTheDocument();
+    expect(screen.getByTestId('item-2')).toBeInTheDocument();
+  });
+
+  it('toggles the Low stock quick filter off on a second click', () => {
+    render(<ProtectedInventory />);
+
+    const chip = screen.getByRole('button', { name: /^Low stock/ });
+    fireEvent.click(chip);
+    expect(screen.queryByTestId('item-1')).not.toBeInTheDocument();
+
+    fireEvent.click(chip);
+    expect(screen.getByTestId('item-1')).toBeInTheDocument();
+    expect(screen.getByTestId('item-2')).toBeInTheDocument();
+  });
+
+  it('combines the Low stock quick filter with search rather than overriding it', async () => {
+    render(<ProtectedInventory />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Low stock/ }));
+    expect(screen.queryByTestId('item-1')).not.toBeInTheDocument();
+
+    // Item A ("Healthy") does not match the still-active Low stock filter, so
+    // searching for it combines (AND) rather than clearing the chip's filter -
+    // unlike the old alert-handoff mechanism this replaced, a quick filter is a
+    // real, persistent toggle, not a one-shot override search silently clears.
+    fireEvent.change(screen.getByLabelText('Search inventory'), { target: { value: 'Item A' } });
+
+    act(() => {
+      jest.advanceTimersByTime(300);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('item-1')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('item-2')).not.toBeInTheDocument();
+    });
+  });
+
+  it('filters the catalog from the Expiring soon quick filter chip', () => {
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      inventory: [
+        {
+          id: 'expiring-in-30-days',
+          status: 'ACTIVE',
+          stockHealth: 'EXPIRING_SOON',
+          basicInfo: { name: 'Thirty day batch', category: 'Medicine' },
+        },
+        {
+          id: 'healthy',
+          status: 'ACTIVE',
+          stockHealth: 'HEALTHY',
+          basicInfo: { name: 'Healthy batch', category: 'Medicine' },
+        },
+      ],
+      turnover: [],
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+      updateBatch: mockUpdateBatch,
+    });
+
+    render(<ProtectedInventory />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Expiring soon/ }));
+
+    expect(screen.getByTestId('item-expiring-in-30-days')).toBeInTheDocument();
+    expect(screen.queryByTestId('item-healthy')).not.toBeInTheDocument();
+  });
+
+  it('combines the Low stock quick filter with other active catalog filters (AND, not override)', () => {
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      inventory: [
+        {
+          id: 'low-in-medicine',
+          status: 'ACTIVE',
+          stockHealth: 'LOW_STOCK',
+          stock: { stockLocation: 'Ward A' },
+          // Deliberately doesn't start with "Low stock" - the mocked table renders
+          // this as a button's accessible name, which would otherwise collide with
+          // the "Low stock" quick-filter chip's own button when queried by name.
+          basicInfo: { name: 'Amoxicillin', category: 'Medicine' },
+        },
+        {
+          id: 'low-in-food',
+          status: 'ACTIVE',
+          stockHealth: 'LOW_STOCK',
+          stock: { stockLocation: 'Ward B' },
+          basicInfo: { name: 'Chicken feed', category: 'Food' },
+        },
+      ],
+      turnover: [],
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+      updateBatch: mockUpdateBatch,
+    });
+
+    render(<ProtectedInventory />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Category' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Food' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Low stock/ }));
+
+    // Both the Category=Food filter and the Low stock quick filter apply
+    // together, unlike the old handoff, which reset every other active filter.
+    expect(screen.getByTestId('item-low-in-food')).toBeInTheDocument();
+    expect(screen.queryByTestId('item-low-in-medicine')).not.toBeInTheDocument();
+  });
+
+  it('does not treat an already-expired batch as "expiring soon"', () => {
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      inventory: [
+        {
+          id: 'expired-batch',
+          status: 'ACTIVE',
+          stockHealth: 'EXPIRED',
+          basicInfo: { name: 'Expired batch', category: 'Medicine' },
+        },
+        {
+          id: 'expiring-batch',
+          status: 'ACTIVE',
+          stockHealth: 'EXPIRING_SOON',
+          basicInfo: { name: 'Expiring batch', category: 'Medicine' },
+        },
+      ],
+      turnover: [],
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+      updateBatch: mockUpdateBatch,
+    });
+
+    render(<ProtectedInventory />);
+    fireEvent.click(screen.getByRole('button', { name: /^Expiring soon/ }));
+
+    // Expired and Expiring soon are distinct, mutually exclusive stock-health
+    // states in the STOCK HEALTH column, so the quick filter mirrors that split
+    // rather than treating an overdue batch as still "upcoming".
+    expect(screen.getByTestId('item-expiring-batch')).toBeInTheDocument();
+    expect(screen.queryByTestId('item-expired-batch')).not.toBeInTheDocument();
   });
 
   // --- Section 2: Filtering Logic ---
@@ -1459,7 +1649,7 @@ describe('Inventory Page', () => {
   it('opens add modal on button click', () => {
     render(<ProtectedInventory />);
     expect(screen.queryByTestId('add-modal')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New product' }));
     expect(screen.getByTestId('add-modal')).toBeInTheDocument();
   });
 
@@ -1492,10 +1682,10 @@ describe('Inventory Page', () => {
     expect(screen.queryByTestId('add-modal')).not.toBeInTheDocument();
   });
 
-  it('ignores the phone primary action on the turnover view, where Add product is hidden', () => {
+  it('ignores the phone primary action on the turnover view, where New product is hidden', () => {
     render(<ProtectedInventory />);
     fireEvent.click(screen.getByRole('button', { name: 'Dispensary' }));
-    expect(screen.queryByRole('button', { name: 'Add product' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New product' })).not.toBeInTheDocument();
 
     act(() => {
       globalThis.window.dispatchEvent(
@@ -1528,9 +1718,8 @@ describe('Inventory Page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Turnover' }));
     expect(screen.getByRole('heading', { level: 1, name: /Turnover/ })).toBeInTheDocument();
 
-    // The analytics view's segmented control (Stock / Orders / Turnover) returns
-    // to the inventory list via the "Stock" segment.
-    fireEvent.click(screen.getByRole('button', { name: 'Stock' }));
+    // The canonical page header owns view navigation.
+    fireEvent.click(screen.getByRole('button', { name: 'Catalog' }));
     expect(screen.getByRole('heading', { level: 1, name: /Inventory/ })).toBeInTheDocument();
   });
 
@@ -1722,7 +1911,7 @@ describe('Inventory Page', () => {
     });
     render(<ProtectedInventory />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New product' }));
     fireEvent.click(screen.getByTestId('submit-add'));
 
     await waitFor(() => {
@@ -1740,7 +1929,7 @@ describe('Inventory Page', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     render(<ProtectedInventory />);
-    const btn = screen.getByRole('button', { name: 'Add product' });
+    const btn = screen.getByRole('button', { name: 'New product' });
     expect(btn).toBeDisabled();
 
     // Cleanup before re-rendering for the error test part
@@ -1756,7 +1945,7 @@ describe('Inventory Page', () => {
     render(<ProtectedInventory />);
 
     mockCreateItem.mockRejectedValue(new Error('API Fail'));
-    fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New product' }));
     fireEvent.click(screen.getByTestId('submit-add'));
 
     await waitFor(() => {
@@ -1770,7 +1959,7 @@ describe('Inventory Page', () => {
     const { rerender } = render(<ProtectedInventory />);
 
     // Open the add modal while an org is selected.
-    fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New product' }));
     expect(screen.getByTestId('add-modal')).toBeInTheDocument();
 
     // Org is cleared while the modal stays open — submitting now hits the guard.
@@ -2094,7 +2283,7 @@ describe('Inventory Page', () => {
     });
   });
 
-  it('silently swallows errors when dispensePrescription fails', async () => {
+  it('shows an error when dispensing fails', async () => {
     (listDispenseRequests as jest.Mock).mockResolvedValue([baseDispenseRequest()]);
     (dispensePrescription as jest.Mock).mockRejectedValueOnce(new Error('Dispense failed'));
     await openDispensaryView();
@@ -2102,9 +2291,8 @@ describe('Inventory Page', () => {
     fireEvent.click(screen.getByTestId('dispense-dr-1'));
 
     await waitFor(() => {
-      expect(dispensePrescription).toHaveBeenCalled();
+      expect(screen.getByText('Unable to dispense prescription.')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('dispensary-table')).toBeInTheDocument();
   });
 
   it('does not render dispense actions when prescription edit permission is missing', async () => {
@@ -2242,7 +2430,7 @@ describe('Inventory Page', () => {
       (useIsPhone as jest.Mock).mockReturnValue(false);
     });
 
-    it('renders the bespoke phone catalog instead of the desktop table and hides Add product', () => {
+    it('renders the bespoke phone catalog instead of the desktop table and hides New product', () => {
       render(<ProtectedInventory />);
 
       // Bespoke phone cards replace the shared table; the pill row + FAB own
@@ -2250,7 +2438,7 @@ describe('Inventory Page', () => {
       expect(screen.getByRole('button', { name: 'View Item A' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'View Item B' })).toBeInTheDocument();
       expect(screen.queryByTestId('inventory-table')).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Add product' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'New product' })).not.toBeInTheDocument();
       // The phone filter pill row is present.
       expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
     });

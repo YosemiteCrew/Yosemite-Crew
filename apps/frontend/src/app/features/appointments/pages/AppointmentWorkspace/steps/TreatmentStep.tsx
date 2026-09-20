@@ -74,6 +74,12 @@ type TreatmentStepProps = {
   encounterId?: string;
   authorId?: string;
   encounter: AppointmentEncounter;
+  /**
+   * The patient's species, used to keep species-specific immunologicals out of
+   * the prescribing search: ATCvet's QI codes are per-species, so an unfiltered
+   * search offers a cat clinic bovine and equine vaccines.
+   */
+  companionSpecies?: string;
   /** Resolve (creating via check-in if needed) the encounter id for clinical persistence. */
   ensureEncounterId?: () => Promise<string | undefined>;
   onOpenInvoice: () => void;
@@ -699,6 +705,7 @@ const TreatmentStep = ({
   encounterId,
   authorId,
   encounter,
+  companionSpecies,
   ensureEncounterId,
   onOpenInvoice,
 }: TreatmentStepProps) => {
@@ -944,6 +951,7 @@ const TreatmentStep = ({
         {scheduleError && <p className="text-caption-1 text-text-error">{scheduleError}</p>}
 
         <ServicesPackagesEditor
+          currency={encounter.currency}
           items={encounter.services}
           catalogItems={servicePackageCatalogItems}
           readOnly={readOnly}
@@ -954,9 +962,11 @@ const TreatmentStep = ({
         />
 
         <PrescriptionEditor
+          currency={encounter.currency}
           items={prescriptionItems}
           catalogItems={prescriptionCatalogItems}
           templateItems={prescriptionTemplates}
+          companionSpecies={companionSpecies}
           readOnly={readOnly}
           // A prescription can be removed unless it is actually billed/paid (handled per-row via the
           // `billed` flag) or the encounter is view-only. Being "ready for billing" is NOT a lock —
@@ -978,7 +988,7 @@ const TreatmentStep = ({
 
         <div className="flex flex-wrap justify-between gap-3">
           <Secondary
-            text={printingLabels ? 'Printing...' : 'Print Labels'}
+            text={printingLabels ? 'Printing...' : 'Print labels'}
             icon={<IoPrintOutline aria-hidden="true" />}
             onClick={() => void handlePrintPrescriptionLabels()}
             isDisabled={printingLabels}

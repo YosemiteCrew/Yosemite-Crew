@@ -346,6 +346,21 @@ const prescriptionItemRowsToJson = (items: PrescriptionItemModel[]) =>
     metadata: item.metadata === undefined ? undefined : item.metadata,
   }));
 
+/**
+ * The artifact generation the caller believes it is editing (#3144).
+ *
+ * Optional on purpose: this is the additive half of the rollout, so a client
+ * that does not yet read `version` back keeps working. It is not a permanent
+ * unconditional path - an omitted precondition still only claims the row at the
+ * version the service itself read a moment earlier, so a write that lands
+ * between that read and the claim is rejected either way. What the caller buys
+ * by sending it is rejection of its own stale draft, which the service cannot
+ * detect on its behalf.
+ */
+export type ClinicalArtifactPrecondition = {
+  expectedVersion?: number;
+};
+
 export type SoapNoteInput = ClinicalArtifactBaseInput & {
   subjective?: unknown;
   objective?: unknown;
@@ -367,7 +382,8 @@ export type SoapNoteUpdateInput = Partial<
     | "diagnoses"
     | "metadata"
   >
->;
+> &
+  ClinicalArtifactPrecondition;
 
 export type SoapNoteRecord = {
   artifact: {
@@ -385,6 +401,7 @@ export type SoapNoteRecord = {
     signedBy: string | null;
     signedAt: Date | null;
     summary: string | null;
+    version: number;
     createdAt: Date;
     updatedAt: Date;
   };
@@ -421,7 +438,8 @@ export type PrescriptionUpdateInput = Partial<
     | "notes"
     | "metadata"
   >
->;
+> &
+  ClinicalArtifactPrecondition;
 
 export type PrescriptionRecord = {
   artifact: SoapNoteRecord["artifact"] & {
@@ -461,7 +479,8 @@ export type DischargeSummaryUpdateInput = Partial<
     | "instructions"
     | "metadata"
   >
->;
+> &
+  ClinicalArtifactPrecondition;
 
 export type DischargeSummaryRecord = {
   artifact: SoapNoteRecord["artifact"] & {
@@ -502,7 +521,8 @@ export type VitalRecordUpdateInput = Partial<
     | "notes"
     | "metadata"
   >
->;
+> &
+  ClinicalArtifactPrecondition;
 
 export type VitalRecordRecord = {
   artifact: SoapNoteRecord["artifact"] & {
@@ -1562,25 +1582,86 @@ const assertArtifactEditable = (
   }
 };
 
-const updateArtifactStatusAndSummaryInTx = (
+const isRecordNotFoundError = (error: unknown): boolean =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === "P2025";
+
+export const STALE_CLINICAL_ARTIFACT_MESSAGE =
+  "This record changed since it was loaded. Reload the saved version before saving again.";
+
+/**
+ * Claim the artifact at the exact generation the caller read (#3144).
+ *
+ * Every mutable path used to select the row by id alone after reading its
+ * state, so two sessions editing one record both succeeded and the later write
+ * won whatever it had been shown - including a draft save landing on top of a
+ * record a colleague had finalised in between. Naming the version in the WHERE
+ * makes the read and the write one atomic claim: the loser matches no row.
+ *
+ * `organisationId` is in the WHERE as well. The callers all assert it first, so
+ * this is the second lock on the same door rather than the only one; it means
+ * no future caller can reach a cross-tenant row through this writer by
+ * forgetting the assertion.
+ *
+ * Prisma raises P2025 when the filtered WHERE matches nothing, which is the
+ * only way this statement can fail to write: the row was read moments earlier
+ * inside the same request, so "no such row" here means its generation moved,
+ * not that the id was wrong.
+ */
+const updateArtifactStatusAndSummaryInTx = async (
   txPrisma: ClinicalPrisma,
   artifact: {
     id: string;
+    organisationId: string;
     status: ClinicalArtifactStatus;
     summary: string | null;
+    version: number;
   },
-  input: { status?: ClinicalArtifactStatus; summary?: string | null },
-) =>
-  txPrisma.clinicalArtifact.update({
-    where: { id: artifact.id },
-    data: {
-      status: input.status ?? artifact.status,
-      summary:
-        input.summary === undefined
-          ? artifact.summary
-          : toNullableString(input.summary),
-    },
-  });
+  input: {
+    status?: ClinicalArtifactStatus;
+    summary?: string | null;
+    expectedVersion?: number;
+  },
+) => {
+  const claimedVersion = input.expectedVersion ?? artifact.version;
+  // Prisma DROPS a filter whose value is `undefined` rather than matching no
+  // row, so an artifact loaded by a `select` that forgot `version` would write
+  // unconditionally here - silently, and only on that one caller's path. That
+  // is the exact defect this writer exists to remove, so refuse instead of
+  // widening: every caller loads the whole artifact row.
+  if (!Number.isInteger(claimedVersion)) {
+    throw new ClinicalArtifactServiceError(
+      "Clinical artifact was loaded without its version; refusing to write it unconditionally.",
+      500,
+    );
+  }
+
+  try {
+    return await txPrisma.clinicalArtifact.update({
+      where: {
+        id: artifact.id,
+        organisationId: artifact.organisationId,
+        version: claimedVersion,
+      },
+      data: {
+        status: input.status ?? artifact.status,
+        summary:
+          input.summary === undefined
+            ? artifact.summary
+            : toNullableString(input.summary),
+        version: { increment: 1 },
+      },
+    });
+  } catch (error) {
+    if (isRecordNotFoundError(error)) {
+      throw new ClinicalArtifactServiceError(
+        STALE_CLINICAL_ARTIFACT_MESSAGE,
+        409,
+      );
+    }
+    throw error;
+  }
+};
 
 /**
  * Refuse when ANY treatment item for this prescription has been billed.
@@ -1988,9 +2069,11 @@ export const ClinicalArtifactService = {
         },
       });
 
-      await txPrisma.clinicalArtifact.update({
-        where: { id: record.artifact.id },
-        data: { status: "VOID" },
+      // Through the shared writer like every other status move (#3144): a void
+      // is a generation of the artifact, and it claims the generation it read
+      // so it cannot land on content saved after that read.
+      await updateArtifactStatusAndSummaryInTx(txPrisma, record.artifact, {
+        status: "VOID",
       });
     });
   },
@@ -2076,9 +2159,9 @@ export const ClinicalArtifactService = {
         },
       });
 
-      return txPrisma.clinicalArtifact.update({
-        where: { id: record.artifact.id },
-        data: { status: "VOID" },
+      // See `deletePrescription`: the same shared claim (#3144).
+      return updateArtifactStatusAndSummaryInTx(txPrisma, record.artifact, {
+        status: "VOID",
       });
     });
 

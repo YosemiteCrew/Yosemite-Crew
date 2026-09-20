@@ -1,5 +1,6 @@
 import React from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { useRouter } from 'next/navigation';
 import { Appointment } from '@yosemite-crew/types';
 import AppointmentStatusPill from '@/app/features/appointments/components/AppointmentStatusPill';
@@ -42,16 +43,23 @@ const PopoverHeader = ({
   return (
     <div className="flex items-center justify-between gap-3 border-b border-card-border pb-4">
       <div className="min-w-0 flex items-center gap-3">
-        <Image
+        <AvatarImage
           src={getSafeImageUrl(
             getAppointmentCompanionPhotoUrl(companion),
             companion.species.toLowerCase() as ImageType
           )}
-          height={48}
-          width={48}
+          size={48}
           className="flex aspect-square size-12 shrink-0 items-center justify-center rounded-full border border-card-border bg-neutral-0 object-cover"
           style={{ width: 48, height: 48 }}
           alt=""
+          fallback={
+            <CompanionAvatar
+              name={companion.name}
+              seed={companion.id}
+              size={48}
+              textClassName="text-[21px]"
+            />
+          }
         />
         <div className="min-w-0">
           <button

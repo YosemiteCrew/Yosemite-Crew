@@ -3,6 +3,8 @@ import {
   FinancePaymentError,
   FinancePaymentService,
   __setFinanceStripeClientForTests,
+  cancelOpenCheckoutSessionAttempts,
+  getInvoiceFinancialSummary,
   resolveStripeConnectedAccountId,
 } from "../../src/services/finance/payment";
 import { prisma } from "src/config/prisma";
@@ -74,6 +76,33 @@ describe("FinancePaymentService", () => {
     });
     process.env.STRIPE_SECRET_KEY = "sk_test_mock";
     process.env.APP_URL = "https://app.test";
+  });
+
+  it("nets successful refunds when summarising invoice payments", async () => {
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([
+      { amount: 200, refunds: [{ amount: 50, status: "SUCCEEDED" }] },
+      { amount: 25, refunds: [{ amount: 30, status: "SUCCEEDED" }] },
+    ]);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    await expect(getInvoiceFinancialSummary("inv_1", 200)).resolves.toEqual({
+      paid: 150,
+      credited: 0,
+      balance: 50,
+    });
+    expect(prisma.payment.findMany).toHaveBeenCalledWith({
+      where: {
+        invoiceId: "inv_1",
+        status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED", "REFUNDED"] },
+      },
+      select: {
+        amount: true,
+        refunds: {
+          where: { status: "SUCCEEDED" },
+          select: { amount: true, status: true },
+        },
+      },
+    });
   });
 
   it("creates provider-backed payment attempts", async () => {
@@ -1580,6 +1609,7 @@ describe("FinancePaymentService", () => {
       id: "re_9",
       status: "succeeded",
       amount: 9000,
+      currency: "usd",
     });
     (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
       id: "pay_9",
@@ -1636,6 +1666,68 @@ describe("FinancePaymentService", () => {
     );
     expect(result.refund.refundId).toBe("re_9");
     expect(result.invoice.status).toBe("REFUNDED");
+  });
+
+  it("keeps a zero-decimal Stripe invoice refund amount unscaled", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_jpy",
+      organisationId: "org_1",
+      totalAmount: 1000,
+      currency: "jpy",
+      status: "PAID",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce({ providerPaymentIntentId: "pi_jpy" })
+      .mockResolvedValueOnce({
+        invoiceId: "inv_jpy",
+        rawProviderPayload: { connectedAccountId: "acct_jpy" },
+      });
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
+      latest_charge: "ch_jpy",
+    });
+    (stripeClient.refunds.create as jest.Mock).mockResolvedValueOnce({
+      id: "re_jpy",
+      status: "succeeded",
+      amount: 1000,
+      currency: "jpy",
+    });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_jpy",
+      amount: 1000,
+      currency: "jpy",
+      provider: "STRIPE",
+    });
+    (prisma.refund.create as jest.Mock).mockResolvedValueOnce({
+      id: "refund_jpy",
+      status: "SUCCEEDED",
+    });
+    (prisma.payment.update as jest.Mock).mockResolvedValueOnce({
+      id: "pay_jpy",
+      status: "REFUNDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_jpy",
+      status: "REFUNDED",
+      currency: "jpy",
+      payments: [],
+    });
+
+    const result = await FinancePaymentService.refundInvoicePayment("inv_jpy");
+
+    expect(prisma.refund.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ amount: 1000, currency: "jpy" }),
+      }),
+    );
+    expect(result.refund.amountRefunded).toBe(1000);
   });
 
   it("refunds a payment by payment id", async () => {
@@ -1966,6 +2058,62 @@ describe("FinancePaymentService", () => {
       { line_items: Array<{ price_data: { unit_amount: number } }> },
     ];
     expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(1000);
+  });
+
+  // The other half of the same rule, and the half the JPY test cannot reach.
+  // Stripe's Special cases: UGX "transitioned to a zero-decimal currency, but
+  // backwards compatibility requires you to represent it as a two-decimal value,
+  // where the decimal amount is always 00. For example, to charge 5 UGX, provide
+  // an amount value of 500." ISK carries the identical rule and is correctly
+  // absent from the set; ugx was in it, so a UGX invoice was submitted at a
+  // hundredth of its value.
+  // https://docs.stripe.com/currencies?locale=en-US#special-cases
+  it("submits UGX as a two-decimal value, which Stripe requires despite it being zero-decimal", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_ugx",
+      totalAmount: 5,
+      currency: "ugx",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      organisationId: "org_1",
+      appointmentId: "",
+      parentId: "",
+      items: [{ name: "Consult", quantity: 1, unitPrice: 5, total: 5 }],
+      taxTotal: 0,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_ugx",
+    });
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_ugx",
+    });
+    stripeClient.checkout.sessions.create.mockResolvedValueOnce({
+      id: "cs_ugx",
+      url: "https://checkout.test/ugx",
+    });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice("inv_ugx");
+
+    const [sessionArgs] = stripeClient.checkout.sessions.create.mock
+      .calls[0] as [
+      { line_items: Array<{ price_data: { unit_amount: number } }> },
+    ];
+    // 5 UGX, not 5 minor units.
+    expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(500);
   });
 
   it("charges the current invoice balance when discounts change the raw item total", async () => {
@@ -2299,6 +2447,360 @@ describe("FinancePaymentService", () => {
       {
         stripeAccount: "acct_items",
       },
+    );
+  });
+
+  // Invoice pricing quantizes at the ledger currency's precision and rounds a
+  // tie away from zero, while the stored line snapshot carries the raw product
+  // and this comparison reads it through `roundMoney`, which rounds the scaled
+  // float and takes 8.165 to 8.16. A tie therefore makes the item sum differ
+  // from the pre-tax invoice total and selects the balance line.
+  //
+  // Pinned rather than removed, because the balance line is the branch that
+  // charges what is owed: itemising this invoice submits
+  // `roundMoney(8.165) * 100` = 816, one cent short of the 817 the invoice was
+  // posted at. Making the itemised branch able to represent a rounded line
+  // total is the payment slice of #3153, not this one; the test below holds
+  // the half of that shortfall which predates the quantizer.
+  it("charges the balance line at the posted total when a tie splits the two roundings", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_tie",
+      // What `calculateInvoicePricing` posts for a single 8.165 line: the tie
+      // rounds away from zero on the exact integer, not on the scaled float.
+      totalAmount: 8.17,
+      taxTotal: 0,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      items: [
+        {
+          name: "Consult",
+          description: "Consult",
+          unitPrice: 8.165,
+          quantity: 1,
+          total: 8.165,
+        },
+      ],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_tie",
+    });
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_tie",
+      url: "https://checkout",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_tie",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_tie",
+    });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice("inv_tie");
+
+    const [sessionArgs] = stripeClient.checkout.sessions.create.mock
+      .calls[0] as [
+      {
+        line_items: Array<{
+          price_data: { unit_amount: number; product_data: { name: string } };
+        }>;
+        automatic_tax: { enabled: boolean };
+      },
+    ];
+    expect(sessionArgs.line_items).toHaveLength(1);
+    expect(sessionArgs.line_items[0].price_data.product_data.name).toBe(
+      "Outstanding balance for invoice inv_tie",
+    );
+    // 817, not the 816 the itemised branch would have submitted.
+    expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(817);
+    // The invoice carries no tax, so switching automatic tax off here would
+    // charge a pre-tax amount: the balance line keeps Stripe calculating it.
+    expect(sessionArgs.automatic_tax).toEqual({ enabled: true });
+  });
+
+  // #3305. Stripe multiplies a per-UNIT amount by the quantity, so a line whose
+  // unit price is not representable at the currency's precision used to lose
+  // the remainder once per unit: two 8.165 units sum to 16.33 under BOTH
+  // roundings, so the pre-tax guard found nothing wrong and the session was
+  // itemised at 2 x 816 = 1632 against a 1633 invoice, which then settled as
+  // paid in full. Such a line is now submitted as a single unit at its posted
+  // total, and the guard weighs the amounts the session will actually send.
+  //
+  // Two items, because the second carries no description: a collapsed line has
+  // to say how many units it stands for whether or not the invoice line
+  // described itself.
+  it("collects the posted line total when a unit price is not representable", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_unit_short",
+      totalAmount: 32.66,
+      taxTotal: 0,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      items: [
+        {
+          name: "Consult",
+          description: "Consult",
+          unitPrice: 8.165,
+          quantity: 2,
+          total: 16.33,
+        },
+        {
+          name: "Lab",
+          unitPrice: 8.165,
+          quantity: 2,
+          total: 16.33,
+        },
+      ],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_unit_short",
+    });
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_unit_short",
+      url: "https://checkout",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_unit_short",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_unit_short",
+    });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice(
+      "inv_unit_short",
+    );
+
+    const [sessionArgs] = stripeClient.checkout.sessions.create.mock
+      .calls[0] as [
+      {
+        line_items: Array<{
+          price_data: {
+            unit_amount: number;
+            product_data: { name: string; description?: string };
+          };
+          quantity: number;
+        }>;
+      },
+    ];
+    // Itemised, not the balance line: the shortfall this pins is the one the
+    // guard used to wave through, so a balance line here would pass for the
+    // wrong reason.
+    expect(sessionArgs.line_items).toHaveLength(2);
+    expect(sessionArgs.line_items[0].price_data.product_data.name).toBe(
+      "Consult",
+    );
+    expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(1633);
+    expect(sessionArgs.line_items[0].quantity).toBe(1);
+    expect(sessionArgs.line_items[0].price_data.product_data.description).toBe(
+      "2 x Consult",
+    );
+    expect(sessionArgs.line_items[1].price_data.unit_amount).toBe(1633);
+    expect(sessionArgs.line_items[1].quantity).toBe(1);
+    expect(sessionArgs.line_items[1].price_data.product_data.description).toBe(
+      "2 x Lab",
+    );
+    const submitted = sessionArgs.line_items.reduce(
+      (sum, line) => sum + line.price_data.unit_amount * line.quantity,
+      0,
+    );
+    // 3266, the posted total, where the per-unit submission collected 3264.
+    expect(submitted).toBe(3266);
+  });
+
+  // The other side of the same branch: a unit price the currency CAN represent
+  // keeps Stripe's per-unit presentation, so the checkout still reads "3 x
+  // $12.50" rather than one collapsed line. Without this, the fix above could
+  // be implemented by collapsing every line and no test would notice.
+  it("keeps the per-unit presentation when the units reconstruct the line total", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_units_ok",
+      totalAmount: 57.5,
+      taxTotal: 0,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      items: [
+        {
+          name: "Vaccine",
+          description: "Vaccine",
+          unitPrice: 12.5,
+          quantity: 3,
+          total: 37.5,
+        },
+        // No description, so this one also pins that a line which keeps its
+        // units keeps an absent description absent rather than inventing one.
+        {
+          name: "Boarding",
+          unitPrice: 10,
+          quantity: 2,
+          total: 20,
+        },
+      ],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_units_ok",
+    });
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_units_ok",
+      url: "https://checkout",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_units_ok",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_units_ok",
+    });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice("inv_units_ok");
+
+    const [sessionArgs] = stripeClient.checkout.sessions.create.mock
+      .calls[0] as [
+      {
+        line_items: Array<{
+          price_data: {
+            unit_amount: number;
+            product_data: { name: string; description?: string };
+          };
+          quantity: number;
+        }>;
+      },
+    ];
+    expect(sessionArgs.line_items).toHaveLength(2);
+    expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(1250);
+    expect(sessionArgs.line_items[0].quantity).toBe(3);
+    expect(sessionArgs.line_items[0].price_data.product_data.description).toBe(
+      "Vaccine",
+    );
+    expect(sessionArgs.line_items[1].price_data.unit_amount).toBe(1000);
+    expect(sessionArgs.line_items[1].quantity).toBe(2);
+    expect(
+      sessionArgs.line_items[1].price_data.product_data.description,
+    ).toBeUndefined();
+    const submitted = sessionArgs.line_items.reduce(
+      (sum, line) => sum + line.price_data.unit_amount * line.quantity,
+      0,
+    );
+    expect(submitted).toBe(5750);
+  });
+
+  // The line snapshot is what the invoice was totalled from, and it is the
+  // caller's number: `buildInvoiceLineSnapshots` writes `item.total ?? quantity
+  // x unitPrice - percentDiscount`, so a supplied total passes through whatever
+  // it says. Recomputing the product here instead of reading that snapshot
+  // agrees with it for every percentage-discounted line, which is why the
+  // existing rows cannot tell the two apart - this one sets a total the product
+  // does not reproduce (a flat 5.00 off two 10.00 units) so that substituting
+  // the product is visible. Without it, a line discount that is not a
+  // percentage would silently drop itemisation and no test would fail.
+  it("submits the posted line total rather than recomputing it from the unit price", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_posted_total",
+      totalAmount: 15,
+      taxTotal: 0,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      items: [
+        {
+          name: "Consult",
+          description: "Consult",
+          unitPrice: 10,
+          quantity: 2,
+          total: 15,
+        },
+      ],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_posted_total",
+    });
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_posted_total",
+      url: "https://checkout",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_posted_total",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_posted_total",
+    });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice(
+      "inv_posted_total",
+    );
+
+    const [sessionArgs] = stripeClient.checkout.sessions.create.mock
+      .calls[0] as [
+      {
+        line_items: Array<{
+          price_data: {
+            unit_amount: number;
+            product_data: { name: string; description?: string };
+          };
+          quantity: number;
+        }>;
+      },
+    ];
+    // The line's own name, not "Outstanding balance for invoice ...": reading
+    // the product instead would put 2000 against a 1500 invoice, the guard
+    // would find the mismatch and fall back to the balance line. That line also
+    // charges 1500 at quantity 1, so the name is what separates the two.
+    expect(sessionArgs.line_items).toHaveLength(1);
+    expect(sessionArgs.line_items[0].price_data.product_data.name).toBe(
+      "Consult",
+    );
+    expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(1500);
+    expect(sessionArgs.line_items[0].quantity).toBe(1);
+    expect(sessionArgs.line_items[0].price_data.product_data.description).toBe(
+      "2 x Consult",
     );
   });
 
@@ -2788,7 +3290,9 @@ describe("FinancePaymentService", () => {
     };
     __setFinanceStripeClientForTests(stripeClient);
     (stripeClient.checkout.sessions.expire as jest.Mock).mockRejectedValueOnce(
-      new Error("session already expired"),
+      Object.assign(new Error("session already expired"), {
+        type: "StripeInvalidRequestError",
+      }),
     );
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_expire_fail",
@@ -3280,7 +3784,7 @@ describe("FinancePaymentService", () => {
 
     expect(Stripe).toHaveBeenCalledWith(
       "sk_test_ctor",
-      expect.objectContaining({ apiVersion: expect.any(String) }),
+      expect.objectContaining({ apiVersion: "2026-07-29.dahlia" }),
     );
     expect(constructed.refunds.create).toHaveBeenCalledWith(
       { charge: "ch_new_client", amount: 5000 },
@@ -4894,6 +5398,7 @@ describe("FinancePaymentService", () => {
       id: "re_t",
       status: "succeeded",
       amount: 9000,
+      currency: "usd",
     });
     (prisma.refund.create as jest.Mock).mockResolvedValueOnce({
       id: "refund_t",
@@ -5120,5 +5625,129 @@ describe("FinancePaymentService", () => {
     });
 
     refundSpy.mockRestore();
+  });
+});
+
+describe("cancelOpenCheckoutSessionAttempts", () => {
+  it("never rewrites an attempt that already succeeded", async () => {
+    // The select here excludes SUCCEEDED, FAILED and CANCELED, but the update
+    // once carried no status predicate at all - so it rewrote every Stripe
+    // checkout attempt on the invoice, destroying the record of a payment that
+    // actually completed. That never bit the original caller, which guards the
+    // invoice to AWAITING_PAYMENT/PENDING, but issueCreditNote deliberately
+    // allows crediting a paid invoice.
+    (prisma.paymentAttempt.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.paymentAttempt.updateMany as jest.Mock).mockResolvedValueOnce({
+      count: 0,
+    });
+
+    await cancelOpenCheckoutSessionAttempts("inv_paid");
+
+    expect(prisma.paymentAttempt.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          invoiceId: "inv_paid",
+          status: { notIn: ["CANCELED", "FAILED", "SUCCEEDED"] },
+        }),
+      }),
+    );
+  });
+
+  it("proceeds when Stripe says the session is already closed", async () => {
+    // A session Stripe has already expired, or one the client completed, cannot
+    // collect anything further - there is nothing left to expire, so the caller
+    // is free to continue.
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.checkout.sessions.expire as jest.Mock).mockRejectedValueOnce(
+      Object.assign(new Error("No such session state"), {
+        type: "StripeInvalidRequestError",
+      }),
+    );
+    (prisma.paymentAttempt.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "pa_1",
+        providerCheckoutSessionId: "cs_closed",
+        rawProviderPayload: null,
+      },
+    ]);
+    (prisma.paymentAttempt.updateMany as jest.Mock).mockResolvedValueOnce({
+      count: 1,
+    });
+
+    await expect(
+      cancelOpenCheckoutSessionAttempts("inv_closed"),
+    ).resolves.toBeUndefined();
+    expect(prisma.paymentAttempt.updateMany).toHaveBeenCalled();
+  });
+
+  it("aborts when the session's state is unknown after a provider failure", async () => {
+    // A network fault, a 5xx or a rate limit leaves the link very likely still
+    // live. Swallowing would let the caller reduce what is owed and cancel the
+    // local attempt while the client's link still charges the old amount -
+    // the exact case this expiry exists to prevent (#2598).
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.checkout.sessions.expire as jest.Mock).mockRejectedValueOnce(
+      Object.assign(new Error("rate limited"), {
+        type: "StripeRateLimitError",
+      }),
+    );
+    (prisma.paymentAttempt.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "pa_1",
+        providerCheckoutSessionId: "cs_live",
+        rawProviderPayload: null,
+      },
+    ]);
+
+    await expect(
+      cancelOpenCheckoutSessionAttempts("inv_unknown"),
+    ).rejects.toThrow("rate limited");
+    // Nothing local was written for THIS invoice, so the caller aborts before
+    // issuing anything. Scoped to the invoice: updateMany carries calls from
+    // the other cases in this file.
+    expect(prisma.paymentAttempt.updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ invoiceId: "inv_unknown" }),
+      }),
+    );
+  });
+
+  it("expires each open session at the provider before cancelling locally", async () => {
+    // Cancelling only the local row leaves the link the client holds working,
+    // and it still charges the pre-credit amount (#2598).
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.paymentAttempt.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "pa_1",
+        providerCheckoutSessionId: "cs_live_1",
+        rawProviderPayload: null,
+      },
+    ]);
+    (prisma.paymentAttempt.updateMany as jest.Mock).mockResolvedValueOnce({
+      count: 1,
+    });
+
+    await cancelOpenCheckoutSessionAttempts("inv_open");
+
+    expect(stripeClient.checkout.sessions.expire).toHaveBeenCalledWith(
+      "cs_live_1",
+      {},
+      expect.anything(),
+    );
   });
 });

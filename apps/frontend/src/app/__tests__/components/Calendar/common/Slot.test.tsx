@@ -9,8 +9,45 @@ import {
   acceptAppointment,
   rejectAppointment,
 } from '@/app/features/appointments/services/appointmentService';
+import { getPreferredTimeZone, setPreferredTimeZone } from '@/app/lib/timezone';
 
 jest.useFakeTimers();
+const originalTimeZone = getPreferredTimeZone();
+
+afterEach(() => {
+  setPreferredTimeZone(originalTimeZone);
+});
+
+it('announces the appointment row time without inheriting the date cursor clock', () => {
+  setPreferredTimeZone('America/Los_Angeles');
+  const cursorAt1527 = new Date('2026-03-16T22:27:00.000Z');
+
+  render(
+    <Slot
+      slotEvents={[]}
+      height={120}
+      handleViewAppointment={jest.fn()}
+      handleRescheduleAppointment={jest.fn()}
+      dayIndex={0}
+      length={0}
+      canEditAppointments
+      dropDate={cursorAt1527}
+      dropHour={9}
+      onCreateAppointmentAt={jest.fn()}
+    />
+  );
+
+  expect(
+    screen.getByRole('region', {
+      name: 'Appointments slot for Monday, March 16 at 9:00 AM',
+    })
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole('button', {
+      name: 'Create appointment on Monday, March 16 at 9:00 AM',
+    })
+  ).toBeInTheDocument();
+});
 
 jest.mock('next/image', () => ({
   __esModule: true,

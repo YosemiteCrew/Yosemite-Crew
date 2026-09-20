@@ -38,7 +38,7 @@ jest.mock('../../../../../src/hooks', () => ({
       borderRadius: {lg: 8},
       shadows: {base: {}},
       typography: {
-        h6Clash: {},
+        h6: {},
         body12: {},
         body14: {},
         subtitleRegular14: {},

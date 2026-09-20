@@ -16,6 +16,10 @@ router.get("/terms/suggest", requireWebAuth, (req, res) =>
   CodeController.suggestTerms(req, res),
 );
 
+router.get("/medications/suggest", requireWebAuth, (req, res) =>
+  CodeController.suggestMedications(req, res),
+);
+
 router.get("/mobile/entries", requireMobileAuth, (req, res) =>
   CodeController.listEntries(req, res),
 );
@@ -26,6 +30,10 @@ router.get("/mobile/mappings", requireMobileAuth, (req, res) =>
 
 router.get("/mobile/terms/suggest", requireMobileAuth, (req, res) =>
   CodeController.suggestTerms(req, res),
+);
+
+router.get("/mobile/medications/suggest", requireMobileAuth, (req, res) =>
+  CodeController.suggestMedications(req, res),
 );
 
 export default router;

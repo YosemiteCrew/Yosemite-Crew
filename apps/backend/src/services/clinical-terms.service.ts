@@ -75,6 +75,22 @@ type ClinicalTermMeta = {
   codes?: ClinicalConcept["codes"];
 };
 
+/** A usable crosswalk to another vocabulary, shown beside the term as it is picked. */
+export type ClinicalTermCoding = {
+  system: CodeSystem;
+  code: string;
+  display?: string;
+  equivalence: MappingEquivalence;
+};
+
+/**
+ * Restrict results to terms that actually carry a usable crosswalk to one
+ * vocabulary. A practice that works in SNOMED wants a list it can code in
+ * SNOMED; showing terms with no SNOMED counterpart wastes their time and
+ * produces records they cannot export the way they need.
+ */
+export type VocabularyFilter = "VENOM" | "SNOMED";
+
 export type ClinicalTermSuggestion = {
   ycCode: string;
   label: string;
@@ -82,6 +98,13 @@ export type ClinicalTermSuggestion = {
   species: ClinicalSpecies[];
   synonyms: string[];
   source?: string;
+  /**
+   * VeNom/SNOMED crosswalks for this term, strongest equivalence per system.
+   * Read from CodeMapping — the same table and the same usable-equivalence gate
+   * the FHIR export uses — so what a clinician sees while picking is exactly
+   * what the record will carry.
+   */
+  codings: ClinicalTermCoding[];
 };
 
 const EXTERNAL_CODE_SYSTEM_MAP: Record<string, CodeSystem> = {
@@ -193,6 +216,9 @@ const toSuggestion = (entry: {
       : [],
     synonyms: toUniqueStrings(normalizeSynonyms(entry.synonyms)),
     source: typeof meta.source === "string" ? meta.source : undefined,
+    // Filled in by suggestTerms from CodeMapping; empty for callers that build a
+    // suggestion without the crosswalk lookup.
+    codings: [],
   };
 };
 
@@ -222,6 +248,8 @@ export type SuggestTermsParams = {
   domain?: ClinicalDomain;
   species?: ClinicalSpecies[];
   limit?: number;
+  /** Only terms with a usable crosswalk to this vocabulary. */
+  vocabulary?: VocabularyFilter;
 };
 
 /**
@@ -272,6 +300,22 @@ export const buildSuggestionQuery = (
     );
   }
 
+  if (params.vocabulary) {
+    // Same usable-equivalence gate the picker and the export apply, so a term is
+    // only offered under a vocabulary filter when that vocabulary genuinely holds
+    // a counterpart for it - not merely a row saying "no counterpart exists".
+    filters.push(
+      Prisma.sql`EXISTS (
+        SELECT 1 FROM "CodeMapping" m
+        WHERE m."sourceCode" = e."code"
+          AND m."sourceSystem" = 'YOSEMITECODE'::"CodeSystem"
+          AND m."targetSystem" = ${params.vocabulary}::"CodeSystem"
+          AND m."active"
+          AND m."equivalence" = ANY(${USABLE_SUGGESTION_EQUIVALENCES}::"MappingEquivalence"[])
+      )`,
+    );
+  }
+
   const synonymExact = synonymMatches(Prisma.sql`lower(s) = ${query}`);
   const synonymPrefix = synonymMatches(
     Prisma.sql`lower(s) LIKE ${prefixPattern} ESCAPE '\\'`,
@@ -305,6 +349,88 @@ export const buildSuggestionQuery = (
     ORDER BY score DESC, display ASC
     LIMIT ${safeLimit}
   `;
+};
+
+/**
+ * Equivalences that assert a usable counterpart, mirroring the export gate: a
+ * term shown with a SNOMED code in the picker must be a term that actually
+ * exports with that SNOMED code.
+ */
+const USABLE_SUGGESTION_EQUIVALENCES: MappingEquivalence[] = [
+  "RELATEDTO",
+  "EQUIVALENT",
+  "EQUAL",
+  "WIDER",
+  "SUBSUMES",
+  "NARROWER",
+  "SPECIALIZES",
+  "INEXACT",
+];
+
+/** Strongest first, so one system contributes its best crosswalk only. */
+const SUGGESTION_EQUIVALENCE_RANK: MappingEquivalence[] = [
+  "EQUAL",
+  "EQUIVALENT",
+  "NARROWER",
+  "SPECIALIZES",
+  "WIDER",
+  "SUBSUMES",
+  "RELATEDTO",
+  "INEXACT",
+];
+
+/**
+ * One batched query for the whole result page, keyed by YC code. Never one
+ * query per suggestion: this runs on every keystroke past the debounce.
+ */
+const crossCodesFor = async (
+  ycCodes: string[],
+): Promise<Map<string, ClinicalTermCoding[]>> => {
+  const wanted = [...new Set(ycCodes)];
+  const result = new Map<string, ClinicalTermCoding[]>();
+  if (wanted.length === 0) return result;
+
+  const rows = await prisma.codeMapping.findMany({
+    where: {
+      sourceSystem: "YOSEMITECODE",
+      sourceCode: { in: wanted },
+      active: true,
+      equivalence: { in: USABLE_SUGGESTION_EQUIVALENCES },
+    },
+    select: {
+      sourceCode: true,
+      targetSystem: true,
+      targetCode: true,
+      targetDisplay: true,
+      equivalence: true,
+    },
+    // Deterministic before ranking, so equal-strength rows resolve the same way
+    // on every keystroke rather than flickering between codes.
+    orderBy: { targetCode: "asc" },
+  });
+
+  const rank = (equivalence: MappingEquivalence) => {
+    const index = SUGGESTION_EQUIVALENCE_RANK.indexOf(equivalence);
+    return index === -1 ? SUGGESTION_EQUIVALENCE_RANK.length : index;
+  };
+
+  for (const row of rows) {
+    const held = result.get(row.sourceCode) ?? [];
+    const existing = held.find((coding) => coding.system === row.targetSystem);
+    const candidate: ClinicalTermCoding = {
+      system: row.targetSystem,
+      code: row.targetCode,
+      display: row.targetDisplay ?? undefined,
+      equivalence: row.equivalence,
+    };
+    if (!existing) {
+      held.push(candidate);
+    } else if (rank(row.equivalence) < rank(existing.equivalence)) {
+      held.splice(held.indexOf(existing), 1, candidate);
+    }
+    result.set(row.sourceCode, held);
+  }
+  return result;
 };
 
 export const ClinicalTermsService = {
@@ -355,6 +481,13 @@ export const ClinicalTermsService = {
     const rows = await prisma.$queryRaw<ClinicalTermRow[]>(
       buildSuggestionQuery(params),
     );
-    return rows.map((row) => toSuggestion(row));
+    const suggestions = rows.map((row) => toSuggestion(row));
+    const codings = await crossCodesFor(
+      suggestions.map((suggestion) => suggestion.ycCode),
+    );
+    return suggestions.map((suggestion) => ({
+      ...suggestion,
+      codings: codings.get(suggestion.ycCode) ?? [],
+    }));
   },
 };

@@ -209,6 +209,17 @@
   color: var(--nav-active);
 }
 
+/* --nav-active and the global focus ring (--color-input-border-active) are the
+   same blue in dark mode, so the default focus-visible outline on an active
+   route sits in the same hue as the icon/text it's ringing and the tinted
+   pill behind it - a real focus is hard to tell apart from the row's own
+   active styling. --ink is the opposite end of the palette in both themes
+   (near-black on light, near-white on dark), so it stays visually distinct
+   from --nav-active regardless of theme. */
+.route-active:focus-visible {
+  outline-color: var(--ink);
+}
+
 .route-disabled,
 .route-disabled:hover {
   color: var(--ink-faint2) !important;

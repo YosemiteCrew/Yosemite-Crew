@@ -140,7 +140,7 @@ const ArchiveTab = ({ specialityId, organisationId }: ArchiveTabProps) => {
                           });
                         });
                     }}
-                    className="flex items-center justify-center size-9 rounded-full border border-card-border hover:border-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand transition-colors"
+                    className="flex items-center justify-center size-8 rounded-full border border-card-border hover:border-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand transition-colors"
                   >
                     <IoArchiveOutline
                       size={16}
@@ -154,7 +154,7 @@ const ArchiveTab = ({ specialityId, organisationId }: ArchiveTabProps) => {
                     onClick={() => {
                       setDeleteTarget({ kind: 'service', item: svc });
                     }}
-                    className="flex items-center justify-center size-9 rounded-full border border-card-border hover:border-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 transition-colors"
+                    className="flex items-center justify-center size-8 rounded-full border border-card-border hover:border-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 transition-colors"
                   >
                     <IoTrash size={16} color="var(--color-danger-600)" aria-hidden="true" />
                   </button>
@@ -207,7 +207,7 @@ const ArchiveTab = ({ specialityId, organisationId }: ArchiveTabProps) => {
                         });
                       });
                   }}
-                  className="flex items-center justify-center size-9 rounded-full border border-card-border hover:border-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand transition-colors"
+                  className="flex items-center justify-center size-8 rounded-full border border-card-border hover:border-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand transition-colors"
                 >
                   <IoArchiveOutline size={16} color="var(--color-text-brand)" aria-hidden="true" />
                 </button>
@@ -217,7 +217,7 @@ const ArchiveTab = ({ specialityId, organisationId }: ArchiveTabProps) => {
                   onClick={() => {
                     setDeleteTarget({ kind: 'package', item: pkg });
                   }}
-                  className="flex items-center justify-center size-9 rounded-full border border-card-border hover:border-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 transition-colors"
+                  className="flex items-center justify-center size-8 rounded-full border border-card-border hover:border-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 transition-colors"
                 >
                   <IoTrash size={16} color="var(--color-danger-600)" aria-hidden="true" />
                 </button>

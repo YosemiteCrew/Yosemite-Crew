@@ -163,6 +163,29 @@ const toSafeIsoString = (
   return date.toISOString();
 };
 
+// issueDate is a date-only concept, unlike createdAt/updatedAt. The backend
+// represents "no time of day" as midnight UTC, so extracting the calendar
+// date with UTC getters (not local ones) recovers the day the server meant
+// regardless of the viewer's own timezone offset. Without this, a viewer west
+// of UTC reads the instant's LOCAL date and sees (and later re-saves) the
+// previous day.
+const parseIssueDate = (value?: string | null): string => {
+  if (!value) {
+    return '';
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const serializeIssueDateForApi = (value?: string | null): string => {
   if (!value) {
     return '';
@@ -454,7 +477,7 @@ const normalizeDocumentFromApi = (
       payload?.business ??
       payload?.issuer ??
       '',
-    issueDate: toSafeIsoString(issueDateRaw),
+    issueDate: parseIssueDate(issueDateRaw),
     files,
     createdAt: toSafeIsoString(createdAtRaw, true),
     updatedAt: toSafeIsoString(updatedAtRaw, true),

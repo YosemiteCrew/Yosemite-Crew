@@ -429,7 +429,11 @@ export const Phone: Story = {
     /* Both pills keep their full width - they are `flex-none`, so the text column
        gives way instead. A pill squeezed to a sliver is the failure this guards. */
     const editProfile = canvas.getByRole('button', { name: 'Edit profile' });
-    await expect(editProfile.getBoundingClientRect().height).toBeCloseTo(34, 0);
+    /* 36px: `Secondary size="small"`. This pill was hand-rolled at 34px while the
+       identical "Edit profile" action on Organisation was hand-rolled at 38px -
+       the same label at two sizes depending on which page you opened, and neither
+       on the primitive's 32/36/40/44 scale. */
+    await expect(Math.round(editProfile.getBoundingClientRect().height)).toBe(36);
     await expect(editProfile.getBoundingClientRect().width).toBeGreaterThan(70);
   },
   parameters: {

@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
+import Switch from '@/app/ui/primitives/Switch/Switch';
+import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
 import {
   IoArrowBack,
   IoArrowForward,
@@ -13,6 +15,8 @@ import {
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
+import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
+import { formatMoneyPrecise, recordCurrency } from '@/app/lib/money';
 import { useNotify } from '@/app/hooks/useNotify';
 import type { ServiceRevamp } from '@/app/features/organization/types/revamp';
 import {
@@ -34,14 +38,16 @@ const BUFFER_OPTIONS: { label: string; minutes: number }[] = [
   { label: '15 minutes', minutes: 15 },
   { label: '30 minutes', minutes: 30 },
 ];
-const CURRENCY_SYMBOLS: Record<string, string> = { EUR: '€', USD: '$', GBP: '£' };
-
-const formatPrice = (amount: number, currency?: string): string => {
-  const code = String(currency ?? 'EUR').toUpperCase();
-  const symbol = CURRENCY_SYMBOLS[code] ?? `${code} `;
-  return `${symbol}${Number(amount).toFixed(2)}`;
-};
-
+// Dropdown works in raw strings, so the day/minute counts above are mirrored
+// into string-valued options here rather than parsed back out of a label.
+const WINDOW_DROPDOWN_OPTIONS = WINDOW_OPTIONS.map((opt) => ({
+  label: opt.label,
+  value: String(opt.days),
+}));
+const BUFFER_DROPDOWN_OPTIONS = BUFFER_OPTIONS.map((opt) => ({
+  label: opt.label,
+  value: String(opt.minutes),
+}));
 const copyText = async (value: string): Promise<boolean> => {
   try {
     const clip = globalThis.navigator?.clipboard;
@@ -73,14 +79,14 @@ const SetupHeader = ({ step, label }: { step: 1 | 2; label: string }) => (
 type ServicesStepProps = {
   step: 1 | 2;
   bookableServices: ServiceRevamp[];
+  /** The organisation's currency, used only where a service carries none. */
+  currency: string;
   selected: Set<string>;
   onToggleService: (id: string) => void;
   bookingWindowDays: number;
   onBookingWindowChange: (value: number) => void;
   bufferMinutes: number;
   onBufferChange: (value: number) => void;
-  needsConfirmation: boolean;
-  onToggleConfirmation: () => void;
   onSkip: () => void;
   onContinue: () => void;
 };
@@ -88,14 +94,13 @@ type ServicesStepProps = {
 const BookingServicesStep = ({
   step,
   bookableServices,
+  currency,
   selected,
   onToggleService,
   bookingWindowDays,
   onBookingWindowChange,
   bufferMinutes,
   onBufferChange,
-  needsConfirmation,
-  onToggleConfirmation,
   onSkip,
   onContinue,
 }: ServicesStepProps) => (
@@ -142,8 +147,13 @@ const BookingServicesStep = ({
                     {service.durationMinutes} min · any practitioner
                   </span>
                 </span>
+                {/* Was a hand-rolled three-symbol table (EUR/USD/GBP) defaulting
+                    to EUR, so a clinic in any other currency read "INR 143.00"
+                    here and "₹143" for the same service in Specialities, and a
+                    service with no currency of its own was priced in euros. The
+                    shared helper knows every ISO code and its real minor unit. */}
                 <span className="text-[12.5px] font-bold text-[var(--ink)] tabular-nums">
-                  {formatPrice(service.grossAmount, service.currency)}
+                  {formatMoneyPrecise(service.grossAmount, recordCurrency(service, currency))}
                 </span>
               </button>
             );
@@ -152,63 +162,25 @@ const BookingServicesStep = ({
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
-          <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
-            Bookable window
-          </span>
-          <select
-            aria-label="Bookable window"
-            value={bookingWindowDays}
-            onChange={(e) => onBookingWindowChange(Number(e.target.value))}
-            className="flex-1 bg-transparent text-[13.5px] font-semibold text-[var(--ink-body)] outline-none"
-          >
-            {WINDOW_OPTIONS.map((opt) => (
-              <option key={opt.days} value={opt.days}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
-          <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
-            Buffer between visits
-          </span>
-          <select
-            aria-label="Buffer between visits"
-            value={bufferMinutes}
-            onChange={(e) => onBufferChange(Number(e.target.value))}
-            className="flex-1 bg-transparent text-[13.5px] font-semibold text-[var(--ink-body)] outline-none"
-          >
-            {BUFFER_OPTIONS.map((opt) => (
-              <option key={opt.minutes} value={opt.minutes}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Dropdown
+          placeholder="Bookable window"
+          value={String(bookingWindowDays)}
+          onChange={(v) => onBookingWindowChange(Number(v))}
+          options={WINDOW_DROPDOWN_OPTIONS}
+        />
+        <Dropdown
+          placeholder="Buffer between visits"
+          value={String(bufferMinutes)}
+          onChange={(v) => onBufferChange(Number(v))}
+          options={BUFFER_DROPDOWN_OPTIONS}
+        />
       </div>
 
-      <div className="flex items-center justify-between gap-3 px-3.5 py-3 rounded-[14px] border border-[var(--divider)] bg-[var(--inset)]">
+      <div className="px-3.5 py-3 rounded-[14px] border border-[var(--divider)] bg-[var(--inset)]">
         <span className="text-[12.5px] text-[var(--ink-body)]">
           <strong className="text-[var(--ink)]">Requests need confirmation.</strong> New bookings
           arrive as requests, not fixed slots.
         </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={needsConfirmation}
-          aria-label="Requests need confirmation"
-          onClick={onToggleConfirmation}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full ${
-            needsConfirmation ? 'bg-primary-600' : 'bg-neutral-300'
-          }`}
-        >
-          <span
-            className={`inline-block h-5 w-5 rounded-full bg-neutral-0 transition-transform ${
-              needsConfirmation ? 'translate-x-5' : 'translate-x-0.5'
-            }`}
-          />
-        </button>
       </div>
     </div>
     <div className="flex items-center justify-between gap-3 px-7! py-4! border-t border-[var(--hairline)]">
@@ -374,7 +346,7 @@ const BookingBrandingStep = ({
       </span>
       <div className="flex flex-col md:flex-row gap-3.5">
         <div className="flex-1 flex flex-col gap-2.5">
-          <div className="relative flex items-center gap-2.5 h-[52px] px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+          <div className="relative flex items-center gap-2.5 h-[52px] px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px] focus-within:border-[var(--color-input-border-active)]">
             <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
               Practice logo
             </span>
@@ -392,7 +364,7 @@ const BookingBrandingStep = ({
               Replace
             </button>
           </div>
-          <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+          <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px] focus-within:border-[var(--color-input-border-active)]">
             <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
               Welcome message
             </span>
@@ -403,7 +375,7 @@ const BookingBrandingStep = ({
               className="flex-1 min-w-0 bg-transparent text-[13px] text-[var(--ink-body)] outline-none"
             />
           </label>
-          <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+          <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px] focus-within:border-[var(--color-input-border-active)]">
             <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
               Confirmation email reply-to
             </span>
@@ -451,23 +423,12 @@ const BookingBrandingStep = ({
             ? 'Pet parents can find and use it as soon as you save.'
             : 'Mark at least one service bookable first — an open page with nothing to book helps nobody.'}
         </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={publish}
-          aria-label="Open my booking page"
+        <Switch
+          checked={publish}
           disabled={!hasBookableServices}
-          onClick={onTogglePublish}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full disabled:opacity-50 ${
-            publish ? 'bg-primary-600' : 'bg-neutral-300'
-          }`}
-        >
-          <span
-            className={`inline-block h-5 w-5 rounded-full bg-neutral-0 transition-transform ${
-              publish ? 'translate-x-5' : 'translate-x-0.5'
-            }`}
-          />
-        </button>
+          label="Open my booking page"
+          onChange={onTogglePublish}
+        />
       </div>
 
       {loadFailed ? (
@@ -523,6 +484,7 @@ const PublicBookingSetup = () => {
   const { notify } = useNotify();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const primaryOrg = usePrimaryOrg();
+  const orgCurrency = useCurrencyForPrimaryOrg();
   const services = useRevampCatalogStore((s) => s.services);
   const specialities = useRevampCatalogStore((s) => s.specialities);
   const loadOrganisationCatalog = useRevampCatalogStore((s) => s.loadOrganisationCatalog);
@@ -546,7 +508,6 @@ const PublicBookingSetup = () => {
   const [selectionOverride, setSelectionOverride] = useState<Set<string> | null>(null);
   const [bookingWindowDays, setBookingWindowDays] = useState(WINDOW_OPTIONS[1].days);
   const [bufferMinutes, setBufferMinutes] = useState(BUFFER_OPTIONS[1].minutes);
-  const [needsConfirmation, setNeedsConfirmation] = useState(true);
   const [welcome, setWelcome] = useState(`Book a visit for your companion at ${orgName}.`);
   const [replyTo, setReplyTo] = useState('');
   const [copied, setCopied] = useState(false);
@@ -589,11 +550,10 @@ const PublicBookingSetup = () => {
   // `loadedSpecialityIds`, so re-running this effect is cheap.
   useEffect(() => {
     if (!primaryOrgId) return;
-    specialities
-      .filter((speciality) => speciality.organisationId === primaryOrgId)
-      .forEach((speciality) => {
-        Promise.resolve(loadSpecialityCatalog(primaryOrgId, speciality.id)).catch(() => undefined);
-      });
+    specialities.forEach((speciality) => {
+      if (speciality.organisationId !== primaryOrgId) return;
+      Promise.resolve(loadSpecialityCatalog(primaryOrgId, speciality.id)).catch(() => undefined);
+    });
   }, [primaryOrgId, specialities, loadSpecialityCatalog]);
 
   useEffect(() => {
@@ -608,7 +568,6 @@ const PublicBookingSetup = () => {
         setConfig(loaded);
         setBookingWindowDays(loaded.bookingWindowDays);
         setBufferMinutes(loaded.bufferMinutes);
-        setNeedsConfirmation(!loaded.autoConfirm);
         setPublishOverride(null);
         if (loaded.welcomeMessage) setWelcome(loaded.welcomeMessage);
         if (loaded.replyToEmail) setReplyTo(loaded.replyToEmail);
@@ -663,7 +622,6 @@ const PublicBookingSetup = () => {
         serviceIds: [...selected].filter((id) => allBookableIds.has(id)),
         bookingWindowDays,
         bufferMinutes,
-        autoConfirm: !needsConfirmation,
         welcomeMessage: welcome.trim() || null,
         replyToEmail: replyTo.trim() || null,
         publicBookingEnabled: publish,
@@ -705,14 +663,13 @@ const PublicBookingSetup = () => {
           <BookingServicesStep
             step={step}
             bookableServices={bookableServices}
+            currency={orgCurrency}
             selected={selected}
             onToggleService={toggleService}
             bookingWindowDays={bookingWindowDays}
             onBookingWindowChange={setBookingWindowDays}
             bufferMinutes={bufferMinutes}
             onBufferChange={setBufferMinutes}
-            needsConfirmation={needsConfirmation}
-            onToggleConfirmation={() => setNeedsConfirmation((v) => !v)}
             onSkip={handleSkip}
             onContinue={() => setStep(2)}
           />

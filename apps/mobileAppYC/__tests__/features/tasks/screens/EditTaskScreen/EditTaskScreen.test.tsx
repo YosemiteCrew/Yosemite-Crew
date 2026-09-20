@@ -700,7 +700,25 @@ describe('EditTaskScreen — additional coverage', () => {
       fireEvent.press(getByTestId('save-all-btn'));
 
       await waitFor(() => {
-        expect(mockUpdateTask).toHaveBeenCalled();
+        expect(mockUpdateTask).toHaveBeenCalledWith(
+          expect.objectContaining({taskId: 't1', scope: 'ALL'}),
+        );
+      });
+    });
+
+    it('produces a distinct explicit scope for "save for this day only"', async () => {
+      Object.assign(mockHookData, {
+        task: {id: 't1', title: 'Task', companionId: 'c1', frequency: 'daily'},
+      });
+
+      const {getByTestId} = renderScreen();
+      fireEvent.press(getByTestId('save-btn'));
+      fireEvent.press(getByTestId('save-for-day-btn'));
+
+      await waitFor(() => {
+        expect(mockUpdateTask).toHaveBeenCalledWith(
+          expect.objectContaining({taskId: 't1', scope: 'THIS'}),
+        );
       });
     });
 
@@ -734,7 +752,9 @@ describe('EditTaskScreen — additional coverage', () => {
 
       expect(queryByTestId('save-all-btn')).toBeNull();
       await waitFor(() => {
-        expect(mockUpdateTask).toHaveBeenCalled();
+        expect(mockUpdateTask).toHaveBeenCalledWith(
+          expect.objectContaining({taskId: 't1', scope: 'THIS'}),
+        );
       });
     });
   });
@@ -811,6 +831,7 @@ describe('EditTaskScreen — additional coverage', () => {
         expect(mockDeleteTask).toHaveBeenCalledWith({
           taskId: 't1',
           companionId: 'c1',
+          scope: 'THIS',
         });
       });
     });
@@ -852,6 +873,7 @@ describe('EditTaskScreen — additional coverage', () => {
         expect(mockDeleteTask).toHaveBeenCalledWith({
           taskId: 't1',
           companionId: 'c1',
+          scope: 'THIS',
         });
         expect(mockGoBack).toHaveBeenCalled();
       });
@@ -951,6 +973,7 @@ describe('EditTaskScreen — additional coverage', () => {
         expect(mockDeleteTask).toHaveBeenCalledWith({
           taskId: 't1',
           companionId: 'c1',
+          scope: 'THIS',
         });
       });
     });
@@ -987,6 +1010,7 @@ describe('EditTaskScreen — additional coverage', () => {
         expect(mockDeleteTask).toHaveBeenCalledWith({
           taskId: 't1',
           companionId: 'c1',
+          scope: 'ALL',
         });
       });
     });
@@ -1107,6 +1131,7 @@ describe('EditTaskScreen — additional coverage', () => {
         expect(mockDeleteTask).toHaveBeenCalledWith({
           taskId: 't1',
           companionId: 'c1',
+          scope: 'THIS',
         });
       });
     });

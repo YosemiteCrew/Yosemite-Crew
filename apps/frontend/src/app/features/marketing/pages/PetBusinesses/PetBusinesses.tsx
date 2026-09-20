@@ -554,7 +554,7 @@ function HeroDownloadRow({ macRef, winRef }: Readonly<HeroDownloadRowProps>) {
             height: 7,
             borderRadius: 9999,
             background: 'var(--success)',
-            boxShadow: '0 0 0 3px rgba(0,143,93,0.16)',
+            boxShadow: '0 0 0 3px color-mix(in srgb, var(--success) 16%, transparent)',
           }}
         />
         {'Runs offline. Get the desktop app'}
@@ -1055,7 +1055,7 @@ function NotebookSection() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#8f8984',
+              color: 'var(--ink-faint)',
             }}
           >
             The real incumbent
@@ -1069,7 +1069,7 @@ function NotebookSection() {
               fontWeight: 500,
               lineHeight: 1.34,
               letterSpacing: '-0.035em',
-              color: '#eae2d5',
+              color: 'var(--spot-ink)',
               textWrap: 'pretty',
             }}
           >
@@ -1084,7 +1084,7 @@ function NotebookSection() {
                   fontStyle: 'italic',
                   fontWeight: 500,
                   letterSpacing: '-0.01em',
-                  color: '#82afec',
+                  color: 'var(--spot-blue)',
                 }}
               >
                 We built the software so you can finally close the notebook.

@@ -76,7 +76,7 @@ const Specialities = () => {
       fallback={<Fallback resource="specialities, services and packages" />}
     >
       <SectionCard
-        title="Specialties, services & packages"
+        title="Specialities, services & packages"
         buttonTitle="Manage"
         buttonClick={() => router.push('/organization/specialities')}
         showButton={canEditSpecialities}

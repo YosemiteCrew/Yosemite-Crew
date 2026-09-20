@@ -1,5 +1,6 @@
 import React from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { IoArrowBack } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
 import { getSafeImageUrl, type ImageType } from '@/app/lib/urls';
@@ -37,10 +38,11 @@ const buildSignalment = (breed?: string, ageLabel?: string, weightKg?: number): 
     .join(' · ');
 
 /**
- * Compact phone patient header: 34px back circle, 38px species avatar, name + the
- * shared status pill, a truncating signalment line (allergy tail in --danger-text),
- * and a right-side running visit-timer pill. Presentation only — the timer is the
- * same VisitTimer bound to the same visitStartAt as the desktop header.
+ * Compact phone patient header: 34px back circle, 38px species avatar, then two
+ * stacked lines - name + the shared status pill, and a truncating signalment line
+ * (allergy tail in --danger-text) with the running visit-timer pill at its right
+ * end. Presentation only — the timer is the same VisitTimer bound to the same
+ * visitStartAt as the desktop header.
  */
 const PhonePatientBar = ({
   appointment,
@@ -68,12 +70,19 @@ const PhonePatientBar = ({
       >
         <IoArrowBack size={15} aria-hidden="true" />
       </button>
-      <Image
+      <AvatarImage
         src={getSafeImageUrl(photoUrl, resolveImageType(speciesType))}
         alt={companionName}
-        width={38}
-        height={38}
+        size={38}
         className="size-[38px] shrink-0 rounded-full object-cover"
+        fallback={
+          <CompanionAvatar
+            name={companionName}
+            size={38}
+            textClassName="text-[17px]"
+            alt={companionName}
+          />
+        }
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
@@ -82,17 +91,29 @@ const PhonePatientBar = ({
           </span>
           <AppointmentStatusPill appointment={appointment} />
         </div>
-        <p className="truncate text-[10.5px] leading-tight text-(--ink-faint)">
-          {signalment}
-          {allergyText && (
-            <>
-              {signalment && ' · '}
-              <span className="font-bold text-(--danger-text)">Allergy: {allergyText}</span>
-            </>
-          )}
-        </p>
+        {/* The timer rides on the signalment line rather than beside the name.
+            At 390px the first row is 197px wide when the timer sits outside this
+            column, and the name and the status pill want 114 + 111 of it, so the
+            name - which carries `truncate` while the pill does not shrink -
+            absorbed the whole 34px shortfall (#2790). Moving the timer here
+            widens the row to hold both, and the signalment keeps its full width
+            because the timer takes the space the column gains. */}
+        <div className="flex items-center gap-2">
+          <p
+            data-testid="patient-signalment"
+            className="min-w-0 flex-1 truncate text-[10.5px] leading-tight text-(--ink-faint)"
+          >
+            {signalment}
+            {allergyText && (
+              <>
+                {signalment && ' · '}
+                <span className="font-bold text-(--danger-text)">Allergy: {allergyText}</span>
+              </>
+            )}
+          </p>
+          <VisitTimer variant="phone" startAt={visitStartAt} bookedEndAt={bookedEndAt} />
+        </div>
       </div>
-      <VisitTimer variant="phone" startAt={visitStartAt} bookedEndAt={bookedEndAt} />
     </div>
   );
 };

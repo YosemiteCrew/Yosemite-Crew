@@ -27,6 +27,7 @@ import {
 import {
   defaultFilters,
   effectiveStockHealthKey,
+  isBelowReorderPoint,
 } from '@/app/features/inventory/pages/Inventory/utils';
 import { InventorySectionKey } from '@/app/features/inventory/components/AddInventory/InventoryConfig';
 import { BusinessType } from '@/app/features/organization/types/org';
@@ -59,6 +60,7 @@ import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimar
 import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import DispensaryDetailModal from '@/app/features/inventory/components/DispensaryDetailModal';
 import InventoryPhoneCatalog from '@/app/features/inventory/pages/Inventory/InventoryPhoneCatalog';
+import FilterChip from '@/app/ui/filters/FilterChip';
 import type { InventoryTurnoverFilterState } from '@/app/ui/filters/InventoryTurnoverFilters';
 import { StatusOption, status } from '@/app/features/companions/pages/Companions/types';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -115,6 +117,23 @@ export const compareInventoryRows = (
 export const getSupplierName = (item: InventoryItem) =>
   (item.vendor?.supplierName || item.vendor?.vendor || '').trim();
 
+// NEEDS_RESTOCK is additive to the Filter modal's own LOW_STOCK/EXPIRED/
+// OUT_OF_STOCK radio (raw equality, unchanged): it is the quick-filter chips'
+// value, matching the same LOW_STOCK-or-OUT_OF_STOCK set the header count
+// (isBelowReorderPoint) already uses, so the chip's count and the rows it
+// filters to always agree — plain equality against 'LOW_STOCK' alone would
+// under-count relative to that header the same way the alerts panel used to
+// (see isBelowReorderPoint's own comment).
+const matchesStockHealthFilter = (
+  stockHealthFilter: string,
+  stockHealthKey: string,
+  item: InventoryItem
+): boolean => {
+  if (stockHealthFilter === 'ALL') return true;
+  if (stockHealthFilter === 'NEEDS_RESTOCK') return isBelowReorderPoint(item);
+  return stockHealthKey === stockHealthFilter;
+};
+
 export const filterAndSortInventory = (
   inventory: InventoryItem[],
   filters: InventoryFiltersState,
@@ -153,7 +172,7 @@ export const filterAndSortInventory = (
     const supplierMatch =
       selectedSuppliers.length === 0 || selectedSupplierSet.has(getSupplierName(item));
     const visibilityMatch = visibilityFilter === 'ALL' || statusKey === visibilityFilter;
-    const stockHealthMatch = stockHealthFilter === 'ALL' || stockHealthKey === stockHealthFilter;
+    const stockHealthMatch = matchesStockHealthFilter(stockHealthFilter, stockHealthKey, item);
     const searchMatch =
       normalizedSearch === '' ||
       item.basicInfo.name.toLowerCase().includes(normalizedSearch) ||
@@ -283,11 +302,23 @@ type InventoryFilterBarProps = {
   setFilterOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setFilters: React.Dispatch<React.SetStateAction<InventoryFiltersState>>;
   setSortMode: React.Dispatch<React.SetStateAction<SortMode>>;
+  lowStockCount: number;
+  expiringSoonCount: number;
+  isNeedsRestockActive: boolean;
+  isExpiringSoonActive: boolean;
+  onToggleQuickFilter: (value: 'NEEDS_RESTOCK' | 'EXPIRING_SOON') => void;
 };
 
+/* The shared filter-chip geometry: 32px tall, 13px padding, 12.5px type, the
+   design system's --control-h-sm. These were `py-1.5` + 12px type on desktop and
+   `py-2` on the phone catalogue, so the SAME inventory list changed chip size
+   with the window, and both were a size down from the chip Finance, Guides,
+   Forms and the task board use. Not the shared `ui/filters/FilterChip` component
+   yet because the phone row's low-stock pill carries its own icon and status
+   tokens; the geometry is what a user sees. */
 const chipClass = (active: boolean) =>
   clsx(
-    'inline-flex items-center rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors',
+    'inline-flex h-8 items-center rounded-full! border px-[13px] text-[12.5px] transition-colors',
     active
       ? 'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] text-[var(--chip-selected-ink)] font-bold'
       : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:bg-card-hover'
@@ -300,6 +331,11 @@ export const InventoryFilterBar = ({
   setFilterOpen,
   setFilters,
   setSortMode,
+  lowStockCount,
+  expiringSoonCount,
+  isNeedsRestockActive,
+  isExpiringSoonActive,
+  onToggleQuickFilter,
 }: InventoryFilterBarProps) => {
   const [sortOpen, setSortOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -344,10 +380,13 @@ export const InventoryFilterBar = ({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Category and Low-stock quick pills were removed here: both are covered by
-          the Filter dropdown (category + stock-health), leaving only Active/Hidden. */}
+      {/* Category quick pills stay out of this row - covered by the Filter dropdown
+          (category + stock-health). Low stock / Expiring soon reappear here as
+          count-carrying FilterChips: real toggles into the same table below,
+          replacing the two separate summary cards that used to preview the same
+          rows above it. */}
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {(['ACTIVE', 'HIDDEN'] as const).map((vis) => {
             const label = getVisibilityLabel(vis);
             const active = filters.visibility === vis;
@@ -362,6 +401,21 @@ export const InventoryFilterBar = ({
               </button>
             );
           })}
+          <span className="h-5 w-px bg-[var(--hairline)]" aria-hidden="true" />
+          <FilterChip
+            label="Low stock"
+            tone="danger"
+            active={isNeedsRestockActive}
+            count={lowStockCount}
+            onClick={() => onToggleQuickFilter('NEEDS_RESTOCK')}
+          />
+          <FilterChip
+            label="Expiring soon"
+            tone="danger"
+            active={isExpiringSoonActive}
+            count={expiringSoonCount}
+            onClick={() => onToggleQuickFilter('EXPIRING_SOON')}
+          />
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -372,7 +426,16 @@ export const InventoryFilterBar = ({
             <IoOptionsOutline size={16} aria-hidden="true" />
             <span>Filter</span>
             {selectedFilterChips.length > 0 ? (
-              <span className="rounded-full bg-badge-blue-bg px-2 text-caption-1 text-badge-blue-text">
+              /* `--inset`/`--ink`, not the badge-blue pair. `--color-badge-blue-text`
+                 (#eaf3ff) on `--color-badge-blue-bg` (#007cf5) measures 3.61:1 at
+                 this size - text-caption-1 is 14px/500, so AA wants 4.5 and there is
+                 no large-text escape. Neither token has a dark override, so it fails
+                 identically in both themes. Moving only the fill does not fix it
+                 either: this ink on `--blue-strong` is 5.79 light but 4.06 dark.
+                 `0e5e9de36` already moved three inventory badges to this pair for
+                 the same reason; 13.24 light, 12.64 dark, and both tokens are
+                 theme-aware. See #2799. */
+              <span className="rounded-full bg-[var(--inset)] px-2 text-caption-1 text-[var(--ink)]">
                 {selectedFilterChips.length}
               </span>
             ) : (
@@ -533,6 +596,11 @@ type ActiveFilterBarProps = {
   dispensaryStatusFilter: DispensaryStatus | 'ALL';
   setDispensaryStatusFilter: React.Dispatch<React.SetStateAction<DispensaryStatus | 'ALL'>>;
   setDispensarySearch: React.Dispatch<React.SetStateAction<string>>;
+  lowStockCount: number;
+  expiringSoonCount: number;
+  isNeedsRestockActive: boolean;
+  isExpiringSoonActive: boolean;
+  onToggleQuickFilter: (value: 'NEEDS_RESTOCK' | 'EXPIRING_SOON') => void;
 };
 
 export const ActiveFilterBar = (props: ActiveFilterBarProps) => {
@@ -545,6 +613,11 @@ export const ActiveFilterBar = (props: ActiveFilterBarProps) => {
         setFilterOpen={props.setFilterOpen}
         setFilters={props.setFilters}
         setSortMode={props.setSortMode}
+        lowStockCount={props.lowStockCount}
+        expiringSoonCount={props.expiringSoonCount}
+        isNeedsRestockActive={props.isNeedsRestockActive}
+        isExpiringSoonActive={props.isExpiringSoonActive}
+        onToggleQuickFilter={props.onToggleQuickFilter}
       />
     );
   }
@@ -587,7 +660,6 @@ type InventoryTableContentProps = {
   activeView: InventoryView;
   turnover: InventoryTurnoverItem[];
   inventory: InventoryItem[];
-  setActiveView: React.Dispatch<React.SetStateAction<InventoryView>>;
   turnoverFilters: InventoryTurnoverFilterState;
   setTurnoverFilters: React.Dispatch<React.SetStateAction<InventoryTurnoverFilterState>>;
   turnoverCategoryOptions: string[];
@@ -608,7 +680,6 @@ export const InventoryTableContent = ({
   activeView,
   turnover,
   inventory,
-  setActiveView,
   turnoverFilters,
   setTurnoverFilters,
   turnoverCategoryOptions,
@@ -635,7 +706,6 @@ export const InventoryTableContent = ({
         <TurnoverAnalytics
           turnover={turnover}
           inventory={inventory}
-          setActiveView={setActiveView}
           onReorder={onRestock}
           onViewHistory={onViewHistory}
         />
@@ -759,6 +829,14 @@ const useInventoryContent = () => {
   const [filters, setFilters] = useState<InventoryFiltersState>(defaultFilters);
   const [dispensaryRecords, setDispensaryRecords] = useState<DispensaryRecord[]>([]);
 
+  // A NEEDS_RESTOCK/EXPIRING_SOON quick filter carried into a switched-to
+  // organisation's completely different catalog would read as "no results" for
+  // the wrong reason - only the stock-health quick filter resets, same narrow
+  // scope as the alert-selection reset this replaced.
+  useOnValueChange(primaryOrgId, () => {
+    setFilters((prev) => ({ ...prev, status: 'ALL' }));
+  });
+
   // Pure fetch (null = leave current state alone) so the refresh effect can apply
   // the result in a subscription-style callback.
   const resolveDispensaryRecords = useCallback(async (): Promise<DispensaryRecord[] | null> => {
@@ -821,7 +899,7 @@ const useInventoryContent = () => {
   const showPhoneCatalog = isPhone && activeView === 'inventory';
 
   // The phone shell's FAB has no reference to this page's create flow; opt in so
-  // "New product" opens the same modal the desktop "Add product" button does,
+  // "New product" opens the same modal the desktop "New product" button does,
   // under the same guards that enable that button.
   usePhonePrimaryAction('product', () => {
     if (!canEditInventory || activeView === 'turnover' || savingItem || !primaryOrgId) return;
@@ -1060,9 +1138,16 @@ const useInventoryContent = () => {
     setViewInventory(true);
   }, []);
 
+  const updateFilters = useCallback<React.Dispatch<React.SetStateAction<InventoryFiltersState>>>(
+    (next) => {
+      setFilters(next);
+    },
+    []
+  );
+
   const toggleCategoryFilter = useCallback(
     (category: string) => {
-      setFilters((prev) => {
+      updateFilters((prev) => {
         const categories = toggleArrayValue(prev.categories ?? [], category);
         const categorySubcategories = categorySubcategoryOptions[category] ?? [];
         const selectedCategories = new Set(categories);
@@ -1078,17 +1163,17 @@ const useInventoryContent = () => {
         };
       });
     },
-    [categorySubcategoryOptions]
+    [categorySubcategoryOptions, updateFilters]
   );
 
   const toggleListFilter = useCallback(
     (key: 'subCategories' | 'locations' | 'abcClasses' | 'suppliers', value: string) => {
-      setFilters((prev) => ({
+      updateFilters((prev) => ({
         ...prev,
         [key]: toggleArrayValue(prev[key] ?? [], value),
       }));
     },
-    []
+    [updateFilters]
   );
 
   const selectedFilterChips = useMemo(() => {
@@ -1097,7 +1182,7 @@ const useInventoryContent = () => {
       chips.push({
         id: `status-${filters.status}`,
         label: filters.status.replaceAll('_', ' ').toLowerCase(),
-        onRemove: () => setFilters((prev) => ({ ...prev, status: 'ALL' })),
+        onRemove: () => updateFilters((prev) => ({ ...prev, status: 'ALL' })),
       });
     }
     (filters.categories ?? []).forEach((category) =>
@@ -1140,11 +1225,11 @@ const useInventoryContent = () => {
       chips.push({
         id: `categorySingle-${filters.category}`,
         label: filters.category,
-        onRemove: () => setFilters((prev) => ({ ...prev, category: 'all' })),
+        onRemove: () => updateFilters((prev) => ({ ...prev, category: 'all' })),
       });
     }
     return chips;
-  }, [filters, toggleCategoryFilter, toggleListFilter]);
+  }, [filters, toggleCategoryFilter, toggleListFilter, updateFilters]);
 
   const pageTitle = getInventoryPageTitle(activeView);
   const filteredDispensaryRecords = useMemo(
@@ -1162,9 +1247,7 @@ const useInventoryContent = () => {
     );
   }, [inventory, filters.visibility]);
   const lowStockCount = useMemo(
-    () =>
-      visibilityScopedInventory.filter((item) => effectiveStockHealthKey(item) === 'LOW_STOCK')
-        .length,
+    () => visibilityScopedInventory.filter(isBelowReorderPoint).length,
     [visibilityScopedInventory]
   );
   const expiredCount = useMemo(
@@ -1172,6 +1255,25 @@ const useInventoryContent = () => {
       visibilityScopedInventory.filter((item) => effectiveStockHealthKey(item) === 'EXPIRED')
         .length,
     [visibilityScopedInventory]
+  );
+  // Distinct from expiredCount: a batch inside its expiry-warning window but not
+  // yet past due. The server already annotates this on fetch (see useInventory's
+  // expiringWithinDays request, "keep the catalogue's EXPIRING_SOON state in step
+  // with the alert panel's 30-day preview"), so effectiveStockHealthKey already
+  // reads it correctly off the same `inventory` array the table renders from.
+  const expiringSoonCount = useMemo(
+    () =>
+      visibilityScopedInventory.filter((item) => effectiveStockHealthKey(item) === 'EXPIRING_SOON')
+        .length,
+    [visibilityScopedInventory]
+  );
+  const isNeedsRestockActive = filters.status === 'NEEDS_RESTOCK';
+  const isExpiringSoonActive = filters.status === 'EXPIRING_SOON';
+  const toggleQuickStatusFilter = useCallback(
+    (value: 'NEEDS_RESTOCK' | 'EXPIRING_SOON') => {
+      updateFilters((prev) => ({ ...prev, status: prev.status === value ? 'ALL' : value }));
+    },
+    [updateFilters]
   );
 
   const getTitleCount = () => {
@@ -1191,14 +1293,15 @@ const useInventoryContent = () => {
   const handleDispense = useCallback(
     async (record: DispensaryRecord) => {
       if (!primaryOrgId) return;
+      setActionError(null);
       try {
         await dispensePrescription(primaryOrgId, record.prescriptionId);
         fetchDispensaryRecords();
       } catch {
-        // silently fail
+        setActionError('Unable to dispense prescription.');
       }
     },
-    [fetchDispensaryRecords, primaryOrgId]
+    [fetchDispensaryRecords, primaryOrgId, setActionError]
   );
 
   return (
@@ -1235,7 +1338,7 @@ const useInventoryContent = () => {
           {canEditInventory && activeView !== 'turnover' && !isPhone && (
             <Primary
               href="#"
-              text={savingItem ? 'Saving...' : 'Add product'}
+              text={savingItem ? 'Saving...' : 'New product'}
               onClick={() => setAddPopup(true)}
               isDisabled={savingItem || !primaryOrgId}
               icon={<IoAddOutline size={18} aria-hidden="true" />}
@@ -1253,7 +1356,7 @@ const useInventoryContent = () => {
             <InventoryPhoneCatalog
               filteredInventory={filteredInventory}
               filters={filters}
-              setFilters={setFilters}
+              setFilters={updateFilters}
               categoryOptions={categoryOptions}
               toggleCategoryFilter={toggleCategoryFilter}
               lowStockCount={lowStockCount}
@@ -1272,12 +1375,17 @@ const useInventoryContent = () => {
                 selectedFilterChips={selectedFilterChips}
                 sortMode={sortMode}
                 setFilterOpen={setFilterOpen}
-                setFilters={setFilters}
+                setFilters={updateFilters}
                 setSortMode={setSortMode}
                 dispensarySearch={dispensarySearch}
                 dispensaryStatusFilter={dispensaryStatusFilter}
                 setDispensaryStatusFilter={setDispensaryStatusFilter}
                 setDispensarySearch={setDispensarySearch}
+                lowStockCount={lowStockCount}
+                expiringSoonCount={expiringSoonCount}
+                isNeedsRestockActive={isNeedsRestockActive}
+                isExpiringSoonActive={isExpiringSoonActive}
+                onToggleQuickFilter={toggleQuickStatusFilter}
               />
             </div>
 
@@ -1290,7 +1398,6 @@ const useInventoryContent = () => {
                 activeView={activeView}
                 turnover={turnover}
                 inventory={inventory}
-                setActiveView={setActiveView}
                 turnoverFilters={turnoverFilters}
                 setTurnoverFilters={setTurnoverFilters}
                 turnoverCategoryOptions={turnoverCategoryOptions}
@@ -1331,7 +1438,7 @@ const useInventoryContent = () => {
           filterOpen={filterOpen}
           selectedFilterChips={selectedFilterChips}
           setFilterOpen={setFilterOpen}
-          setFilters={setFilters}
+          setFilters={updateFilters}
           filterOpenSections={filterOpenSections}
           toggleFilterSection={toggleFilterSection}
           filters={filters}

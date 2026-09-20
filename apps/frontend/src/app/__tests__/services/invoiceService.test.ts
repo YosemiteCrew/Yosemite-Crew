@@ -1380,4 +1380,176 @@ describe('invoiceService', () => {
     await expect(sendInvoiceToClient('')).rejects.toThrow('Invoice ID missing');
     errorSpy.mockRestore();
   });
+
+  describe('normalizeFinanceInvoice credit-note passthrough', () => {
+    const creditNote = {
+      id: 'cn-1',
+      invoiceId: 'inv-credit',
+      creditNoteNumber: 'CN-0001',
+      amount: 25,
+      status: 'ISSUED',
+      createdAt: '2026-05-01T00:00:00.000Z',
+      updatedAt: '2026-05-01T00:00:00.000Z',
+    };
+
+    it('carries creditNotes through the single-invoice read', async () => {
+      (getData as jest.Mock).mockResolvedValue({
+        data: {
+          data: {
+            id: 'inv-credit',
+            status: 'PENDING',
+            totalAmount: 100,
+            creditNotes: [creditNote],
+          },
+          meta: null,
+          error: null,
+        },
+      });
+
+      const invoice = await getFinanceInvoiceById('inv-credit');
+
+      expect(invoice.creditNotes).toEqual([creditNote]);
+      expect(invoiceState.upsertInvoice).toHaveBeenCalledWith(
+        expect.objectContaining({ creditNotes: [creditNote] })
+      );
+    });
+
+    it('carries settlementSummary through the single-invoice read', async () => {
+      // Without this the outstanding figure never sees the credited balance and
+      // silently falls back to total-minus-deposit.
+      const settlementSummary = {
+        total: 100,
+        credited: 25,
+        paid: 0,
+        balance: 75,
+      };
+      (getData as jest.Mock).mockResolvedValue({
+        data: {
+          data: {
+            id: 'inv-settled',
+            status: 'PENDING',
+            totalAmount: 100,
+            settlementSummary,
+          },
+          meta: null,
+          error: null,
+        },
+      });
+
+      const invoice = await getFinanceInvoiceById('inv-settled');
+
+      expect(invoice.settlementSummary).toEqual(settlementSummary);
+    });
+
+    it('leaves both undefined when the payload carries neither', async () => {
+      // Unenveloped shape: the single-invoice read returns the invoice directly
+      // when the backend omits the { data, meta } wrapper.
+      (getData as jest.Mock).mockResolvedValue({
+        data: { id: 'inv-bare', status: 'PENDING', totalAmount: 100 },
+      });
+
+      const invoice = await getFinanceInvoiceById('inv-bare');
+
+      expect(invoice.creditNotes).toBeUndefined();
+      expect(invoice.settlementSummary).toBeUndefined();
+      expect(invoice.id).toBe('inv-bare');
+    });
+
+    it('drops a creditNotes value that is not an array', async () => {
+      // The ledger maps over this list, so a stray object or string must become
+      // undefined rather than reaching the component as a non-iterable.
+      (getData as jest.Mock).mockResolvedValue({
+        data: {
+          data: {
+            id: 'inv-bad-credit',
+            status: 'PENDING',
+            totalAmount: 100,
+            creditNotes: { id: 'cn-1' },
+          },
+          meta: null,
+          error: null,
+        },
+      });
+
+      const invoice = await getFinanceInvoiceById('inv-bad-credit');
+
+      expect(invoice.creditNotes).toBeUndefined();
+    });
+
+    it('drops a creditNotes string rather than treating it as a list', async () => {
+      (getData as jest.Mock).mockResolvedValue({
+        data: { id: 'inv-str-credit', status: 'PENDING', creditNotes: 'cn-1' },
+      });
+
+      const invoice = await getFinanceInvoiceById('inv-str-credit');
+
+      expect(invoice.creditNotes).toBeUndefined();
+    });
+
+    it('carries creditNotes through the org invoice list read', async () => {
+      (getData as jest.Mock).mockResolvedValue({
+        data: {
+          data: [
+            { id: 'inv-a', status: 'PENDING', totalAmount: 100, creditNotes: [creditNote] },
+            { id: 'inv-b', status: 'PENDING', totalAmount: 50 },
+          ],
+          meta: null,
+          error: null,
+        },
+      });
+
+      await loadInvoicesForOrgPrimaryOrg();
+
+      const [, invoices] = invoiceState.setInvoicesForOrg.mock.calls[0];
+      expect(invoices[0].creditNotes).toEqual([creditNote]);
+      expect(invoices[1].creditNotes).toBeUndefined();
+    });
+
+    it('unwraps the nested single-invoice payload', async () => {
+      // InvoiceService.getById replies { organistion, invoice } - the
+      // misspelling is the API's - and the finance envelope wraps that pair, so
+      // the invoice sits one level down. Reading fields straight off the pair
+      // produced an invoice with no id at all, and it is the only read that
+      // carries settlementSummary.
+      const settlementSummary = { invoiceTotal: 100, credited: 25, balance: 75 };
+      (getData as jest.Mock).mockResolvedValue({
+        data: {
+          data: {
+            organistion: { name: 'Avenger Park', address: '', image: '', placesId: '' },
+            invoice: {
+              id: 'inv-nested',
+              status: 'AWAITING_PAYMENT',
+              totalAmount: 100,
+              creditNotes: [creditNote],
+              settlementSummary,
+            },
+          },
+          meta: null,
+          error: null,
+        },
+      });
+
+      const invoice = await getFinanceInvoiceById('inv-nested');
+
+      expect(invoice.id).toBe('inv-nested');
+      expect(invoice.totalAmount).toBe(100);
+      expect(invoice.creditNotes).toEqual([creditNote]);
+      expect(invoice.settlementSummary).toEqual(settlementSummary);
+    });
+
+    it('still reads a flat single-invoice payload', async () => {
+      (getData as jest.Mock).mockResolvedValue({
+        data: {
+          data: { id: 'inv-flat', status: 'PENDING', totalAmount: 42 },
+          meta: null,
+          error: null,
+        },
+      });
+
+      const invoice = await getFinanceInvoiceById('inv-flat');
+
+      expect(invoice.id).toBe('inv-flat');
+      expect(invoice.totalAmount).toBe(42);
+    });
+  });
 });

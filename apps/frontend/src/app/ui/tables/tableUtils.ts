@@ -8,6 +8,11 @@ import type { StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
    footer so the pill run reads the same everywhere. */
 const PAGE_PILL_LIMIT = 7;
 
+export const emptyStateCopy = (itemNoun: string) => ({
+  title: `No ${itemNoun} yet`,
+  subtitle: `${itemNoun.charAt(0).toUpperCase()}${itemNoun.slice(1)} appear here as soon as there are any.`,
+});
+
 /** One slot in the pager run: a numbered pill, or the collapsed ellipsis when
  *  `page` is null. `key` is a stable React key — a page pill is identified by its
  *  own number and a gap by the page it follows, both unique within a run, so no
@@ -353,7 +358,14 @@ export const getOrganizationStatusStyle = (status: string) => {
     case 'pending':
       return { color: 'var(--color-warning-900)', backgroundColor: 'var(--color-warning-100)' };
     default:
-      return { color: 'var(--color-neutral-0)', backgroundColor: 'var(--color-badge-blue-bg)' };
+      /* White on `--color-badge-blue-bg` is 4.04:1 - the figure `globals.css`
+         already writes down as failing where it picks `--blue-strong` for the
+         selected day. The neutral pill matches this switch's "unknown status"
+         meaning and clears 4.5:1 in both themes. */
+      return {
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+      };
   }
 };
 

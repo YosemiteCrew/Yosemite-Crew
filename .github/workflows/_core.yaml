@@ -40,7 +40,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # No `ref:` on purpose. The default for a pull_request event is the
+          # merge commit GitHub computes for refs/pull/N/merge - the tree that
+          # would exist on the base branch if this pull request merged now. The
+          # previous `pull_request.head.sha` override judged the branch tip
+          # instead, so a pull request that predates a change to what a gate
+          # READS (a tsconfig include, an eslint ignore list, a coverage
+          # threshold) was green against a tree nobody was about to merge, and
+          # the push run on dev was the first thing to see the real answer. See
+          # issue #3316; #3315 is the instance that cost a red dev.
+          #
+          # This keeps `compute-base-sha.sh` exactly right rather than disturbing
+          # it: on a pull_request the base is `pull_request.base.sha`, the base
+          # branch tip at the time of the event, which is the merge commit's
+          # first parent - so `git diff $BASE_SHA HEAD` is still precisely the
+          # change this pull request makes and nothing else.
+          #
           # Detection diffs against a base commit, so the full history must be
           # present. A shallow clone makes every base unreachable, which the
           # resolver reports as run_all - correct, but it would run everything
@@ -80,6 +95,74 @@ jobs:
       # exception policy, so they run here, in the one job every event reaches.
       - name: Test the CI and security scripts
         run: pnpm run test:scripts
+
+      # react-native's renderer compares React.version against a literal baked
+      # into its bundle and throws at startup when they differ, so a PATCH bump
+      # of react terminates the release app before its first screen. Nothing
+      # else sees it: the peer range is satisfied, jest never mounts through the
+      # native renderer, and the release workflow builds and uploads without
+      # launching.
+      #
+      # .github/dependabot.yml holds react for that reason, but an ignore entry
+      # is a version-update rule only - every block there sets target-branch,
+      # which carves security updates out of the block as a unit - so an
+      # advisory can still open the bump, and a hand-written change was never
+      # covered at all (#3345). This check does not care how the bump arrives.
+      #
+      # Here rather than in the mobile matrix leg for the same reason as the
+      # colour gate below: the matrix only runs for workspaces the diff touched,
+      # and this job is the one every event reaches. It needs no extra setup -
+      # the install above already populates apps/mobileAppYC/node_modules, which
+      # is where both the renderer bundle and the resolved react version live.
+      #
+      # Exit 2 means the check could not run - a missing bundle, or a guard it
+      # can no longer locate unambiguously - and fails the job for the same
+      # reason exit 1 does. Both paths annotate with ::error:: themselves.
+      - name: Check react against the version react-native's renderer expects
+        run: node scripts/mobile/check-react-renderer-pin.mjs
+
+      # Here rather than in the frontend matrix job on purpose: the matrix only
+      # runs for workspaces the diff touched, and a colour literal arrives in
+      # exactly the change that looks too small to be a frontend change. This
+      # job runs on every event, so the baseline is held on every event.
+      #
+      # Exit 2 means the gate could not run - an empty walk, a failed selftest -
+      # and is a failure here for the same reason exit 1 is.
+      #
+      # The failure is annotated and summarised rather than split into its own
+      # job. A reader sees `core / Detect affected workspaces` fail and learns
+      # nothing about the cause, so the two things that DO carry a name are
+      # written explicitly: a titled `::error` annotation, which surfaces at the
+      # top of the run and on the pull request, and the step summary. Giving the
+      # gate its own job would put the name in the check itself, but the job
+      # would then have to be added to `CI Required`'s `needs` in ci.yaml - and a
+      # required-check aggregate that silently stops covering this gate is worse
+      # than a check whose name is imprecise.
+      - name: Check for new hardcoded colours
+        run: |
+          set +e
+          output="$(node scripts/ci/check-hardcoded-colours.mjs 2>&1)"
+          status=$?
+          echo "$output"
+          if [ "$status" -eq 0 ]; then
+            exit 0
+          fi
+          if [ "$status" -eq 2 ]; then
+            title="Colour gate could not run"
+          else
+            title="New hardcoded colour"
+          fi
+          {
+            echo "### $title"
+            echo
+            echo '```'
+            echo "$output"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # One line, so the annotation is readable where GitHub renders it.
+          first="$(printf '%s' "$output" | tr '\n' ' ' | cut -c1-400)"
+          echo "::error title=$title::$first"
+          exit "$status"
 
       - name: Resolve workspace inventory
         run: pnpm ls -r --depth -1 --json > workspaces.json
@@ -149,7 +232,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # No `ref:` - this job judges the merged tree, not the branch tip.
+          # See the Checkout step of the detect job above for why.
           persist-credentials: false
 
       - name: Setup
@@ -179,6 +263,16 @@ jobs:
       # built for 19.1.4, and every Release build died on launch.
       - name: Check peer dependencies
         run: node scripts/ci/check-peer-deps.mjs
+
+      # A pnpm override beats every manifest, so a bump that raises a manifest and
+      # leaves the override behind either installs nothing or splits the package
+      # into two copies. Neither shows up in `pnpm install --frozen-lockfile`, lint
+      # or type-check, because the overrides map and the lockfile agree with each
+      # other and only the manifests disagree with what is installed. axios shipped
+      # inert across four workspaces that way, and validator sat nine patch
+      # releases behind its own declaration on dev.
+      - name: Check override drift
+        run: node scripts/ci/check-override-drift.mjs
 
       # The database package's build compiles against the generated client, so
       # this has to precede the package build rather than sit with the app jobs.
@@ -237,7 +331,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # No `ref:` - this job judges the merged tree, not the branch tip.
+          # See the Checkout step of the detect job above for why.
           persist-credentials: false
 
       - name: Setup

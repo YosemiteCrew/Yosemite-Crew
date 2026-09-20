@@ -86,8 +86,24 @@ function extractOrgIdFromBody(body: unknown): string | null {
   return normalizeOrgId((body as Record<string, unknown>).organisationId);
 }
 
+/**
+ * Marks the middleware `withOrgPermissions()` returns, so tooling can tell which
+ * routes are organisation-scoped by walking the router stack.
+ *
+ * The returned closure is anonymous, so there is nothing else to match on -
+ * name-matching would break the moment it were renamed, and parsing the router
+ * source would miss anything composed indirectly. scripts/ci/openapi-drift.mjs
+ * reads this to decide which operations must declare the `x-org-id` header
+ * (#2573).
+ */
+export const REQUIRES_ORG = Symbol.for("yosemite.requiresOrgPermissions");
+
 export function withOrgPermissions() {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  const middleware = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
     const typedReq = req as OrgRequest;
 
     const userId = typedReq.userId;
@@ -150,6 +166,10 @@ export function withOrgPermissions() {
       });
     }
   };
+
+  // Read by scripts/ci/openapi-drift.mjs when walking the router stack.
+  (middleware as unknown as Record<symbol, boolean>)[REQUIRES_ORG] = true;
+  return middleware;
 }
 
 /**

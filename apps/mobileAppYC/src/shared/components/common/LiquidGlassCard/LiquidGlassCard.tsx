@@ -5,12 +5,8 @@ import {BlurView} from '@react-native-community/blur';
 import {useTheme} from '@/hooks';
 import {UI_FEATURE_FLAGS} from '@/config/variables';
 
-import {colors} from '@/theme';
 // Flip to true to force a consistent outline everywhere.
 const FORCE_CARD_BORDER = UI_FEATURE_FLAGS.forceLiquidGlassBorder;
-// Warm-bone hairline (light value of theme.colors.hairline); this module-level
-// forced outline cannot read useTheme(), so it mirrors the token literal.
-const FORCED_BORDER_COLOR = colors.hairline;
 const FORCED_BORDER_WIDTH = 1;
 // Set to true to fall back to static styling on iOS if native glass misbehaves.
 const LOCK_IOS_GLASS_APPEARANCE = false;
@@ -34,19 +30,23 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
   glassEffect = 'regular',
   interactive = false,
   tintColor,
-  colorScheme = 'light',
+  colorScheme = 'system',
   padding = '4',
   borderRadius = 'lg',
   shadow = 'base',
   fallbackStyle,
 }) => {
-  const {theme} = useTheme();
+  const {theme, isDark} = useTheme();
   const resolvedColorScheme = React.useMemo(() => {
+    // Both this default and the 'system' branch used to be 'light', so every
+    // card in the app asked native glass for light-mode vibrancy on espresso -
+    // a pale wash under ink already picked for a dark ground. Follow the app's
+    // own theme, as LiquidGlassButton and LiquidGlassIconButton already do.
     if (colorScheme === 'system') {
-      return 'light';
+      return isDark ? 'dark' : 'light';
     }
     return colorScheme;
-  }, [colorScheme]);
+  }, [colorScheme, isDark]);
 
   const baseStyle: ViewStyle = {
     padding: theme.spacing[padding],
@@ -69,7 +69,7 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
     (mergedStyleOverrides?.backgroundColor as string | undefined) ?? tintColor;
 
   const overlayBorderColor = FORCE_CARD_BORDER
-    ? FORCED_BORDER_COLOR
+    ? theme.colors.hairline
     : ((mergedStyleOverrides?.borderColor as string | undefined) ??
       theme.colors.hairline);
   const overlayBorderWidth = FORCE_CARD_BORDER

@@ -18,18 +18,18 @@ describe('crash reporting', () => {
         isPackaged: false,
       } as never,
       crashReporter: {
-        start: (options) => started.push(options as never),
+        start: (options: unknown) => started.push(options as never),
       } as never,
       logger: {
-        info: (event) => logs.push({ event }),
+        info: (event: string) => logs.push({ event }),
         warn: jest.fn(),
       } as never,
       env: {},
     });
 
     expect(paths[0]).toEqual({ name: 'crashDumps', value: '/tmp/yc/crashes' });
-    expect(started[0].uploadToServer).toBe(false);
-    expect(logs[0].event).toBe('crash_reporter_started');
+    expect(started[0]!.uploadToServer).toBe(false);
+    expect(logs[0]!.event).toBe('crash_reporter_started');
   });
 
   test('enables upload when a crash upload URL is provided', () => {
@@ -42,7 +42,7 @@ describe('crash reporting', () => {
         isPackaged: true,
       } as never,
       crashReporter: {
-        start: (options) => started.push(options as never),
+        start: (options: unknown) => started.push(options as never),
       } as never,
       logger: { info: jest.fn(), warn: jest.fn() } as never,
       env: {
@@ -50,8 +50,8 @@ describe('crash reporting', () => {
       },
     });
 
-    expect(started[0].uploadToServer).toBe(true);
-    expect(started[0].submitURL).toBe('https://crash.example.com');
+    expect(started[0]!.uploadToServer).toBe(true);
+    expect(started[0]!.submitURL).toBe('https://crash.example.com');
   });
 
   test('wires app-level crash logging events', () => {
@@ -69,14 +69,14 @@ describe('crash reporting', () => {
       } as never,
     });
 
-    handlers['render-process-gone'](
+    handlers['render-process-gone']!(
       {},
       { getURL: () => 'https://yosemitecrew.com/x' },
       { reason: 'crashed', exitCode: 1 }
     );
-    handlers['render-process-gone']({}, null, { reason: 'oom', exitCode: 9 }); // optional-chaining branch
-    handlers['child-process-gone']({}, { type: 'GPU', reason: 'crashed' });
-    handlers['gpu-info-update']();
+    handlers['render-process-gone']!({}, null, { reason: 'oom', exitCode: 9 }); // optional-chaining branch
+    handlers['child-process-gone']!({}, { type: 'GPU', reason: 'crashed' });
+    handlers['gpu-info-update']!();
 
     expect(logs.map((entry) => entry.event)).toEqual([
       'render_process_gone',

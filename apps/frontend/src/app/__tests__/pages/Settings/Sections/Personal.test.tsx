@@ -109,6 +109,18 @@ describe('Settings Personal identity card', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  /**
+   * Pins the shared PreferenceGroup primitive rather than a hand-rolled
+   * `.yc-card-surface` div with its own plain `<div>` title - the card used to
+   * declare its own 14.5px title independently of Settings' other cards, which
+   * is what let it and SecuritySection drift to two different sizes. A plain
+   * `<div>` title (not a heading) would fail this.
+   */
+  it('renders the "Personal" title through the shared PreferenceGroup primitive', () => {
+    render(<Personal />);
+    expect(screen.getByRole('heading', { name: 'Personal', level: 3 })).toBeInTheDocument();
+  });
+
   it('renders the name, meta line, initials avatar and availability summary', () => {
     render(<Personal />);
 
@@ -118,6 +130,25 @@ describe('Settings Personal identity card', () => {
     expect(screen.getByText('Mon–Fri · 08:00–17:00')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Edit profile' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Edit hours' })).toBeInTheDocument();
+  });
+
+  /**
+   * Pins the shared primitive rather than the old hand-rolled string. This pill
+   * was `h-[34px] … px-[15px] text-[12px]` here and `h-[38px] … px-4!
+   * text-[12.5px]` on Organisation for the identical action, so "Edit profile"
+   * changed size with the page and neither height was on the 32/36/40/44 scale
+   * `Secondary` offers. `min-h-9 px-4 text-[12.5px]` IS Secondary's `small`
+   * (Buttons/Secondary.tsx:11), so this fails if the button is hand-rolled again
+   * or moved to another size.
+   */
+  it('renders Edit profile through the shared Secondary primitive at size small', () => {
+    render(<Personal />);
+
+    const edit = screen.getByRole('button', { name: 'Edit profile' });
+    expect(edit.className).toContain('min-h-9');
+    expect(edit.className).toContain('px-4');
+    expect(edit.className).toContain('text-[12.5px]');
+    expect(edit.className).not.toContain('h-[34px]');
   });
 
   it('renders the real avatar image when a https picture url is present', () => {

@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Yosemite Crew Practice Workflow Audit'
+  short_description: 'Find bottlenecks and test practical improvements'
+  default_prompt: 'Use $yosemite-practice-workflow-audit to map our process and propose a measurable improvement using the tools we already have.'

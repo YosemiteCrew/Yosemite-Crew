@@ -124,16 +124,25 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
         infoDialog('Audit Trail', 'The audit log is not initialized.');
         return;
       }
-      const { valid, tampered } = deps.auditLog.verifyAll();
+      const { valid, tampered, otherKey } = deps.auditLog.verifyAll();
       const chainIntact = deps.auditLog.verifyChain();
       const integrity = deps.auditLog.getIntegrity();
       // Without the stored key every historical entry fails its signature check.
       // Reporting that as "Tampered" is indistinguishable from real tampering
       // and sends the practice looking for a breach that did not happen.
+      /* Entries a previous, temporary key signed get their own line and an
+         explanation. Folding them into "Tampered" was a permanent, unexplained
+         compliance alarm on the controlled-substance register once the keychain
+         recovered - the exact false alarm this dialog exists to avoid (#2553). */
+      const otherKeyLine =
+        otherKey > 0
+          ? `\nSigned with a previous key: ${otherKey} (recorded while the signing key was ` +
+            `unreadable - these cannot be re-checked here, and are not evidence of tampering)`
+          : '';
       const signatureLines =
         integrity.signingKey === 'session-only'
           ? 'Signatures: CANNOT BE CHECKED (signing key unreadable)'
-          : `Valid signatures: ${valid}\nTampered: ${tampered}`;
+          : `Valid signatures: ${valid}\nTampered: ${tampered}${otherKeyLine}`;
       // "Hash chain intact: yes" over a log that lost records is an affirmative
       // false compliance statement, so say what is wrong when anything is.
       const problem = integrity.ok ? '' : `\n\nProblem detected: ${integrity.reason}`;

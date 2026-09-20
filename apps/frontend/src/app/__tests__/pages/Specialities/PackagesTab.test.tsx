@@ -20,9 +20,8 @@ jest.mock('@/app/hooks/useBilling', () => ({
   useCurrencyForPrimaryOrg: () => 'USD',
 }));
 
-jest.mock('@/app/lib/money', () => ({
-  formatMoney: (amount: number) => `$ ${amount.toFixed(2)}`,
-}));
+// '@/app/lib/money' is deliberately NOT mocked: it is pure and Intl-backed, so the
+// real formatMoney runs here and the currency assertions pin its actual output.
 
 jest.mock('zustand/react/shallow', () => ({
   useShallow: (fn: any) => fn,
@@ -253,9 +252,9 @@ describe('PackagesTab', () => {
     expect(screen.getByText('Premium Package')).toBeInTheDocument();
   });
 
-  it('renders "Click to add package" button when draft is not open', () => {
+  it('renders "Add package" button when draft is not open', () => {
     render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
-    expect(screen.getByText('Click to add package')).toBeInTheDocument();
+    expect(screen.getByText('Add package')).toBeInTheDocument();
   });
 
   it('shows empty state message when no packages exist', () => {
@@ -275,6 +274,31 @@ describe('PackagesTab', () => {
   it('does not show empty state when packages exist', () => {
     render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
     expect(screen.queryByText(/haven.*t added any packages yet/i)).not.toBeInTheDocument();
+  });
+
+  it('renders the package total with the real formatMoney output', () => {
+    render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
+    // Pins real formatMoney: "$100" — the Intl symbol and whole units, not the old
+    // fake's "$ 100.00". computePackageTotals is stubbed to totalCost 100, and each
+    // of the two cards prints it in both the narrow and the wide layout.
+    expect(screen.getAllByText('$100')).toHaveLength(4);
+  });
+
+  it('formats the total in the package own currency, not the org currency', () => {
+    (useRevampCatalogStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({
+        packages: [{ ...mockPackage, currency: 'GBP' }],
+        archivePackage: mockArchivePackage,
+        hydratePackageDetail: mockHydratePackageDetail,
+        loadSpecialityCatalog: mockLoadSpecialityCatalog,
+        loadedSpecialityIds: ['spec-1:active'],
+      })
+    );
+    render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
+    // Pins the symbol Intl picks for the record's own currency: "£100" in both
+    // layouts, and nothing in the USD org currency.
+    expect(screen.getAllByText('£100')).toHaveLength(2);
+    expect(screen.queryByText('$100')).not.toBeInTheDocument();
   });
 
   it('only renders packages matching the specialityId and ACTIVE status', () => {
@@ -297,20 +321,20 @@ describe('PackagesTab', () => {
 
   // --- Section 2: Add flow ---
 
-  it('opens add draft at bottom when "Click to add package" is clicked', () => {
+  it('opens add draft at bottom when "Add package" is clicked', () => {
     render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
-    fireEvent.click(screen.getByText('Click to add package'));
+    fireEvent.click(screen.getByText('Add package'));
     expect(screen.getByTestId('add-draft')).toBeInTheDocument();
     // Add button should be hidden while draft is open
-    expect(screen.queryByText('Click to add package')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add package')).not.toBeInTheDocument();
   });
 
   it('closes the add draft when Close Draft is clicked', () => {
     render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
-    fireEvent.click(screen.getByText('Click to add package'));
+    fireEvent.click(screen.getByText('Add package'));
     fireEvent.click(screen.getByText('Close Draft'));
     expect(screen.queryByTestId('add-draft')).not.toBeInTheDocument();
-    expect(screen.getByText('Click to add package')).toBeInTheDocument();
+    expect(screen.getByText('Add package')).toBeInTheDocument();
   });
 
   // --- Section 3: Edit flow ---
@@ -414,7 +438,7 @@ describe('PackagesTab', () => {
       ref.current?.openAdd();
     });
     expect(screen.getByTestId('add-draft')).toBeInTheDocument();
-    expect(screen.queryByText('Click to add package')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add package')).not.toBeInTheDocument();
   });
 
   it('does not hydrate when editing a package that already has a breakdown', () => {

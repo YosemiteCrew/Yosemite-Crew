@@ -1,4 +1,4 @@
-FROM node:18 AS build
+FROM node:22 AS build
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@latest --activate
 ENV PNPM_HOME=/root/.pnpm
@@ -12,10 +12,3 @@ EXPOSE ${PORT}
 RUN chown -R 1000:1000 /app
 USER 1000
 CMD ["pnpm", "run", "dev", "--filter", "api"]
-
-# FROM node:18 AS dev
-# WORKDIR /app
-# ENV PORT=3000
-# COPY --from=build /app ./
-# EXPOSE ${PORT}
-# CMD ["pnpm", "run", "dev", "--filter", "api"]

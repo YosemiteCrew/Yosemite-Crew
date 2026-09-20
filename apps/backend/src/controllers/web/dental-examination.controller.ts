@@ -44,9 +44,9 @@ const ToothFindingSchema = z.object({
 });
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  examinedAt: z.string().datetime(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
+  examinedAt: z.iso.datetime(),
   overallGrade: DentalGradeEnum,
   findings: z.array(ToothFindingSchema),
   calculusScore: z.number().int().min(0).max(3).optional(),

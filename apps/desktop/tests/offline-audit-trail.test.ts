@@ -1,5 +1,6 @@
 import { createAuditLog } from '../src/compliance/audit-log';
 import { createOfflineAuditTrail } from '../src/compliance/offline-audit-trail';
+import { fsSeam } from './helpers/fs-seam';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -9,15 +10,16 @@ describe('createOfflineAuditTrail', () => {
   let mockFs: Record<string, string> = {};
 
   const makeDeps = (nowVal = 1000) => ({
-    readFileSync: jest.fn((filePath: string) => {
-      if (mockFs[filePath] !== undefined) return mockFs[filePath];
+    readFileSync: fsSeam((filePath: string) => {
+      const contents = mockFs[filePath];
+      if (contents !== undefined) return contents;
       throw new Error('ENOENT');
     }),
-    writeFileSync: jest.fn((filePath: string, data: string) => {
+    writeFileSync: fsSeam((filePath: string, data: string) => {
       mockFs[filePath] = data;
     }),
     mkdirSync: jest.fn(),
-    existsSync: jest.fn((filePath: string) => mockFs[filePath] !== undefined),
+    existsSync: fsSeam((filePath: string) => mockFs[filePath] !== undefined),
     now: jest.fn(() => nowVal),
   });
 
@@ -43,7 +45,7 @@ describe('createOfflineAuditTrail', () => {
 
     const entries = auditLog.query({});
     expect(entries).toHaveLength(1);
-    expect(entries[0].action).toBe('offline:create');
+    expect(entries[0]!.action).toBe('offline:create');
   });
 
   test('getOfflineMutations returns mutation records', async () => {
@@ -61,9 +63,9 @@ describe('createOfflineAuditTrail', () => {
 
     const mutations = trail.getOfflineMutations();
     expect(mutations).toHaveLength(1);
-    expect(mutations[0].mutationId).toBe('m1');
-    expect(mutations[0].entityType).toBe('patient');
-    expect(mutations[0].action).toBe('update');
+    expect(mutations[0]!.mutationId).toBe('m1');
+    expect(mutations[0]!.entityType).toBe('patient');
+    expect(mutations[0]!.action).toBe('update');
   });
 
   test('getUnsyncedCount counts unsynced mutations', async () => {
