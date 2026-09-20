@@ -10,9 +10,22 @@ const fmt: {
 } = untypedFormat;
 
 describe('highlightLabel', () => {
-  test('marks the query when the whole of it is in the label', () => {
-    expect(fmt.highlightLabel('Patients', 'pat')).toBe(
-      '<mark>P</mark><mark>a</mark><mark>t</mark>ients'
+  // A contiguous occurrence wins and is marked as one run, not as one <mark>
+  // per character: the run is the common case and the one that reads cleanly.
+  test('marks a contiguous occurrence of the query as a single run', () => {
+    expect(fmt.highlightLabel('Patients', 'pat')).toBe('<mark>Pat</mark>ients');
+  });
+
+  test('the run is found anywhere in the label, not only at the start', () => {
+    expect(fmt.highlightLabel('Pin current page', 'page')).toBe('Pin current <mark>page</mark>');
+  });
+
+  // No contiguous run, but every query character is there in order. scoreFuzzy
+  // scores such rows, so they do appear in the list and these marks are what
+  // explain why they matched.
+  test('marks per character when the whole query is present but scattered', () => {
+    expect(fmt.highlightLabel('Patients', 'pts')).toBe(
+      '<mark>P</mark>a<mark>t</mark>ient<mark>s</mark>'
     );
   });
 
@@ -36,14 +49,20 @@ describe('highlightLabel', () => {
   });
 
   test('matching is case-insensitive in both directions', () => {
-    expect(fmt.highlightLabel('Patients', 'PAT')).toContain('<mark>P</mark>');
-    expect(fmt.highlightLabel('PATIENTS', 'pat')).toContain('<mark>P</mark>');
+    expect(fmt.highlightLabel('Patients', 'PAT')).toBe('<mark>Pat</mark>ients');
+    expect(fmt.highlightLabel('PATIENTS', 'pat')).toBe('<mark>PAT</mark>IENTS');
   });
 
   // The result goes into innerHTML, so every path out of here - marked,
   // unmarked, and the unmarked slices between marks - has to be escaped.
-  test('escapes the label on the highlighted path', () => {
+  test('escapes the label on the contiguous-run path', () => {
     expect(fmt.highlightLabel('<b>a</b>', 'a')).toBe('&lt;b&gt;<mark>a</mark>&lt;/b&gt;');
+  });
+
+  test('escapes the label on the scattered path', () => {
+    expect(fmt.highlightLabel('<b>ab</b>', 'ba')).toBe(
+      '&lt;<mark>b</mark>&gt;<mark>a</mark>b&lt;/b&gt;'
+    );
   });
 
   test('escapes the label on the plain path', () => {

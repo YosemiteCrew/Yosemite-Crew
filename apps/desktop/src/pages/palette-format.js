@@ -19,19 +19,38 @@
   };
 
   // A row is matched on its label, its description OR its keywords, but only
-  // the label is rendered. Marking whatever subsequence of the query happens to
-  // appear in the label turned a description-only match into scattered single
-  // letters - searching "app" marked just the "a" of "Pin current page", which
-  // reads as a claim the row matched on that letter. Highlight only when the
-  // WHOLE query is present in the label; otherwise leave the label plain.
+  // the label is rendered. Marking whatever subsequence of the query happened
+  // to appear in the label turned a description-only match into scattered
+  // single letters - searching "app" marked just the "a" of "Pin current
+  // page", which reads as a claim the row matched on that letter.
+  //
+  // Two rules, in order. A contiguous occurrence of the query wins and is
+  // marked as ONE run, which is the common case and the one that reads
+  // cleanly. Failing that, the label is marked per character only if EVERY
+  // query character is there in order - scoreFuzzy scores such rows, so they
+  // do appear in the list and the marks are what explain why. A query that is
+  // only partly in the label leaves it plain.
   const highlightLabel = function (label, query) {
     const text = String(label == null ? '' : label);
     if (!query || !query.trim()) return escapeHtml(text);
     const q = query.toLowerCase().trim();
+    const lower = text.toLowerCase();
+
+    const run = lower.indexOf(q);
+    if (run !== -1) {
+      return (
+        escapeHtml(text.slice(0, run)) +
+        '<mark>' +
+        escapeHtml(text.slice(run, run + q.length)) +
+        '</mark>' +
+        escapeHtml(text.slice(run + q.length))
+      );
+    }
+
     const indices = [];
     let qi = 0;
     for (let li = 0; li < text.length && qi < q.length; li++) {
-      if (text[li].toLowerCase() === q[qi]) {
+      if (lower[li] === q[qi]) {
         indices.push(li);
         qi++;
       }
