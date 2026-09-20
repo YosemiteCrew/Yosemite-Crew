@@ -2,16 +2,46 @@
   const yc = globalThis.ycDesktop;
   if (!yc) return;
 
+  const view = globalThis.ycSettingsView;
   const statusEl = document.getElementById('status');
+  const dndError = document.getElementById('dndError');
+  const TIME_FIELDS = ['dndStart', 'dndEnd'];
   let saveTimer = null;
 
-  const showSaved = function () {
-    statusEl.textContent = 'Saved';
+  /*
+   * The status line is a fixed toast, not the last element of a 1045px page in
+   * a 560px window: every control above the fold used to confirm itself
+   * off-screen (issue #3298). It is a live region that starts empty, so a
+   * screen reader announces a save when it happens instead of reading "Saved"
+   * on load.
+   */
+  const showStatus = function (message, tone) {
+    statusEl.textContent = message;
+    statusEl.classList.toggle('error', tone === 'error');
     statusEl.classList.add('show');
     clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
       statusEl.classList.remove('show');
+      // Emptied as well as faded: a live region that keeps its last message
+      // re-announces it the next time anything in the region changes.
+      statusEl.textContent = '';
     }, 2000);
+  };
+
+  // The main process decides which values are legal - the page does not repeat
+  // the rule, it reports the answer. `rejected` names the keys the store
+  // refused.
+  const markTimeFields = function (rejected) {
+    const bad = TIME_FIELDS.filter(function (key) {
+      return rejected.includes(key);
+    });
+    for (const key of TIME_FIELDS) {
+      const el = document.getElementById(key);
+      if (el) el.setAttribute('aria-invalid', bad.includes(key) ? 'true' : 'false');
+    }
+    if (!dndError) return;
+    dndError.textContent = bad.length > 0 ? view.TIME_HINT : '';
+    dndError.hidden = bad.length === 0;
   };
 
   const setTheme = function (mode) {
@@ -88,23 +118,18 @@
       openAtLogin: getChecked('openAtLogin'),
     };
     yc.setSettings(settings).then(function (res) {
-      if (res?.ok) showSaved();
+      if (!res?.ok) return;
+      const rejected = Array.isArray(res.rejected) ? res.rejected : [];
+      const feedback = view.saveFeedback(rejected);
+      markTimeFields(rejected);
+      showStatus(feedback.message, feedback.tone);
     });
   };
 
   const renderSyncStatus = function (res) {
     const el = document.getElementById('syncStatusText');
     if (!el || !res?.status) return;
-    const s = res.status;
-    let label = s.state || 'unknown';
-    if (s.state === 'blocked') label = 'Waiting for sync endpoint';
-    if (s.state === 'idle') label = 'Up to date';
-    if (s.state === 'pending') label = 'Pending local changes';
-    if (s.state === 'offline') label = 'Offline';
-    if (s.state === 'not-ready') label = 'Initializing';
-    if (s.state === 'error') label = 'Last sync failed';
-    el.textContent =
-      label + ' - pending ' + (s.pendingMutations || 0) + ' - dirty rows ' + (s.dirtyRows || 0);
+    el.textContent = view.syncStatusLabel(res.status);
   };
 
   function refreshSyncStatus() {
@@ -116,9 +141,14 @@
     saveSettings();
   };
 
+  /*
+   * `change` only. The text fields used to save on every `input` too, so typing
+   * a time submitted "2", "22", "22:" and "22:0" in turn - each one refused by
+   * the store, each one answered "Saved" (issue #3298). `change` fires on blur
+   * and on Enter, which is when the user has finished the value.
+   */
   document.querySelectorAll('select, input').forEach(function (el) {
     el.addEventListener('change', onChange);
-    if (el.type === 'text') el.addEventListener('input', onChange);
   });
 
   document.getElementById('theme').addEventListener('change', function () {
@@ -152,7 +182,9 @@
       yc.clearLocalData()
         .then(function (res) {
           if (res?.ok) {
-            showSaved();
+            // Not "Saved": the action deleted the local cache, vault, recents,
+            // sync queue and session rather than storing a preference.
+            showStatus('Local data cleared', 'ok');
             refreshSyncStatus();
           }
         })

@@ -65,13 +65,33 @@
             </svg>
           </div>
           <div class="empty-title">No documents in the vault</div>
-          <div class="empty-hint">Drag files here or use the command palette to save documents</div>
+          <!-- Names a way in that exists. The palette serves BUILTIN_ACTIONS
+               only and has never had a vault or save command. -->
+          <div class="empty-hint">Drag files onto this window to add them</div>
+        </div>
+        <div class="empty hidden" id="noResultsMsg">
+          <div class="empty-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.2-3.2" />
+            </svg>
+          </div>
+          <div class="empty-title" id="noResultsTitle">No documents match your search</div>
+          <button type="button" class="empty-action" id="clearSearch">Clear search</button>
         </div>
         <div id="docList"></div>
       </div>
     </div>
 
-    <div class="preview-panel" id="previewPanel">
+    <div class="preview-panel" id="previewPanel" inert>
       <div class="preview-head">
         <h2 id="previewTitle">Preview</h2>
         <button class="preview-close" id="previewClose" aria-label="Close preview">&times;</button>
@@ -89,6 +109,7 @@
     </div>
 
     <script src="platform-labels.js"></script>
+    <script src="vault-view.js"></script>
     <script src="vault.js"></script>
   </body>
 </html>

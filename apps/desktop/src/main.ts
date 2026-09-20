@@ -74,7 +74,11 @@ import { createSyncQueue, type SyncQueue } from './sync/sync-queue';
 import { createBiometricLock, type BiometricLock } from './lifecycle/biometric-lock';
 import type { ColdStartWatchdog } from './core/cold-start-watchdog';
 import { createLocalApiServer, type LocalApiServer } from './core/local-api';
-import { applyThemeToWebContents, DEFAULT_ACCENT_COLOR } from './ui/theming';
+import {
+  applyThemeToWebContents,
+  DEFAULT_ACCENT_COLOR,
+  localPageBackgroundColor,
+} from './ui/theming';
 import {
   readTracker,
   recordCrash,
@@ -1072,9 +1076,18 @@ const createSettingsWindow = (): void => {
     height: 560,
     resizable: false,
     title: 'Preferences',
-    backgroundColor: '#ffffff',
+    // Hold the window back until the page has painted, the way the command
+    // palette already does. A hardcoded white backgroundColor flashed on a dark
+    // theme (issue #3298); the colour below covers the frame between show and
+    // first paint on either theme.
+    show: false,
+    backgroundColor: localPageBackgroundColor(nativeTheme.shouldUseDarkColors),
     autoHideMenuBar: true,
     webPreferences: secureWebPreferences(path.join(__dirname, 'preload.js')),
+  });
+
+  settingsWindow.once('ready-to-show', () => {
+    settingsWindow?.show();
   });
 
   settingsWindow.on('closed', () => {
@@ -1095,9 +1108,14 @@ const openVaultWindow = (): void => {
     height: 640,
     resizable: true,
     title: 'Document Vault',
-    backgroundColor: '#ffffff',
+    show: false,
+    backgroundColor: localPageBackgroundColor(nativeTheme.shouldUseDarkColors),
     autoHideMenuBar: true,
     webPreferences: secureWebPreferences(path.join(__dirname, 'preload.js')),
+  });
+
+  vaultWindow.once('ready-to-show', () => {
+    vaultWindow?.show();
   });
 
   vaultWindow.on('closed', () => {

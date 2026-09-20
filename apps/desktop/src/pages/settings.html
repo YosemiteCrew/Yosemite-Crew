@@ -125,6 +125,7 @@
                 id="dndStart"
                 placeholder="22:00"
                 aria-label="Do not disturb start time"
+                aria-describedby="dndError"
                 class="dnd-input"
               />
               <span class="dnd-sep">to</span>
@@ -133,10 +134,12 @@
                 id="dndEnd"
                 placeholder="07:00"
                 aria-label="Do not disturb end time"
+                aria-describedby="dndError"
                 class="dnd-input"
               />
             </div>
           </div>
+          <div class="field-error" id="dndError" hidden></div>
         </div>
       </div>
 
@@ -188,10 +191,13 @@
         </div>
       </div>
 
-      <div class="status" id="status">Saved</div>
+      <!-- Empty at load: a live region carrying "Saved" from the start is read
+           out before anything has been saved. The text is set by settings.js. -->
+      <div class="status" id="status" role="status" aria-live="polite"></div>
       <div class="note">Some changes take effect after restarting the app.</div>
     </div>
 
+    <script src="settings-view.js"></script>
     <script src="settings.js"></script>
   </body>
 </html>
