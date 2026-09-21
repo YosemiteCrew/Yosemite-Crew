@@ -328,7 +328,7 @@ let tabChromeView: WebContentsView | null = null;
 // lifecycle that actually owns the lock. Null until an idle lock is armed.
 let requestIdleUnlock: ((mode: 'biometric' | 'password') => void) | null = null;
 let tabMode = false;
-let tabSearchOpen = false;
+let chromeOverlayOpen = false;
 
 const activeContents = (): WebContents | null => {
   if (tabMode && attachedTabId && tabViewHost) {
@@ -398,22 +398,23 @@ const idleLockOverlay = createIdleLockOverlay({
 
 type TabBounds = { width: number; height: number };
 
+// The tab bar's view is also the surface every one of its overlays is drawn
+// on - the tab search panel, the shortcut list, the hover thumbnail - so while
+// one is open the view has to be the whole window, whichever orientation the
+// tabs are in. It used to grow only in horizontal mode, which left every
+// overlay cut off by the 240px rail (issue #3289). The view is transparent, so
+// the workspace stays visible behind each overlay's own scrim.
 const layoutChromeStrip = (b: TabBounds, isVertical: boolean): void => {
   if (!tabChromeView) return;
-  if (isVertical) {
-    tabChromeView.setBounds({
-      x: 0,
-      y: 0,
-      width: VERTICAL_TAB_WIDTH,
-      height: b.height,
-    });
+  if (chromeOverlayOpen) {
+    tabChromeView.setBounds({ x: 0, y: 0, width: b.width, height: b.height });
     return;
   }
   tabChromeView.setBounds({
     x: 0,
     y: 0,
-    width: b.width,
-    height: tabSearchOpen ? b.height : CHROME_STRIP_HEIGHT,
+    width: isVertical ? VERTICAL_TAB_WIDTH : b.width,
+    height: isVertical ? b.height : CHROME_STRIP_HEIGHT,
   });
 };
 
@@ -477,6 +478,11 @@ const enterTabMode = (initialUrl: string): void => {
   tabChromeView = new WebContentsView({
     webPreferences: secureWebPreferences(path.join(__dirname, 'preload.js')),
   });
+  // While an overlay is open this view covers the whole window, so it must not
+  // paint a background of its own over the workspace. Electron reads a hex
+  // alpha as AARRGGBB, not RRGGBBAA - all-zeroes is the same either way, but a
+  // colour written the CSS way round here would come out opaque.
+  tabChromeView.setBackgroundColor('#00000000');
   void tabChromeView.webContents
     .loadFile(localPage('tabbar'))
     .then(() => {
@@ -500,7 +506,6 @@ const enterTabMode = (initialUrl: string): void => {
     })
     .catch((error) => logger.warn('tabbar_load_failed', { error }));
   mainWindow.contentView.addChildView(tabChromeView);
-  wireWindowStateBroadcast(mainWindow);
 
   let tabs = tabManager.getState().tabs;
   if (tabs.length === 0) {
@@ -697,8 +702,8 @@ const setTabOrientation = (mode: 'horizontal' | 'vertical'): void => {
 // leave a caret blinking in the search field while the keystrokes went to the
 // page underneath. Closing hands the keyboard back rather than stranding it in
 // a 40px strip with nothing focusable in it.
-const setTabSearch = (open: boolean): void => {
-  tabSearchOpen = open;
+const setChromeOverlay = (open: boolean): void => {
+  chromeOverlayOpen = open;
   if (open && tabChromeView && mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.contentView.addChildView(tabChromeView); // raise above content
     tabChromeView.webContents.focus();
@@ -719,7 +724,7 @@ const runTabChromeGlobal = (name: string, failEvent: string): void => {
 // Open the Figma-style tab search panel (from the menu/shortcut).
 const openTabSearch = (): void => {
   if (!tabChromeView || tabChromeView.webContents.isDestroyed()) return;
-  setTabSearch(true);
+  setChromeOverlay(true);
   runTabChromeGlobal('__ycOpenTabSearch', 'tab_search_js_failed');
 };
 
@@ -1676,14 +1681,21 @@ const toggleMaximizeMainWindow = (): void => {
   else win.maximize();
 };
 
-// The tab bar draws its own Maximize/Restore button, so it has to be told the
-// window state - including when the change came from snapping, the app menu or
-// a title-bar double-click rather than from that button.
+// Both title bars draw their own Maximize/Restore button, so both have to be
+// told the window state - including when the change came from snapping, the app
+// menu or a title-bar double-click rather than from that button. In tab mode
+// that is the tab bar's child view; before it, the local pages (welcome, what's
+// new, loading) carry the only title bar there is and render in the window's
+// OWN contents (issue #3291).
 const sendWindowMaximizedState = (): void => {
-  const view = tabChromeView;
   const win = mainWindow;
-  if (!view || view.webContents.isDestroyed() || !win || win.isDestroyed()) return;
-  view.webContents.send('yc:window-maximized', win.isMaximized() || win.isFullScreen());
+  if (!win || win.isDestroyed()) return;
+  const isMaximized = win.isMaximized() || win.isFullScreen();
+  const view = tabChromeView;
+  if (view && !view.webContents.isDestroyed()) {
+    view.webContents.send('yc:window-maximized', isMaximized);
+  }
+  if (!win.webContents.isDestroyed()) win.webContents.send('yc:window-maximized', isMaximized);
 };
 
 // Wired once per window, not once per enterTabMode: closing the last tab drops
@@ -1699,6 +1711,10 @@ const wireWindowStateBroadcast = (win: BrowserWindow): void => {
   win.on('unmaximize', sendWindowMaximizedState);
   win.on('enter-full-screen', sendWindowMaximizedState);
   win.on('leave-full-screen', sendWindowMaximizedState);
+  // The local pages are loaded into this same webContents more than once - what's
+  // new on an upgrade, welcome on sign-out and after the last tab closes - and a
+  // freshly loaded page knows nothing until it is told, so seed each load.
+  win.webContents.on('did-finish-load', sendWindowMaximizedState);
   win.once('closed', () => {
     if (windowStateBroadcastWindow === win) windowStateBroadcastWindow = null;
   });
@@ -1840,7 +1856,7 @@ if (gotSingleInstanceLock) {
     attachedTabId: () => attachedTabId,
     splitId: () => splitId,
     tabOrientation: () => tabOrientation,
-    setTabSearch,
+    setChromeOverlay,
     setSplitTab,
     setTabOrientation,
     activeContents,
@@ -1992,7 +2008,7 @@ if (gotSingleInstanceLock) {
           return tabChromeView;
         },
         layoutTabChrome,
-        setTabSearch,
+        setChromeOverlay,
         setSplitTab,
         setTabOrientation,
         get saveSession() {
@@ -2084,6 +2100,9 @@ if (gotSingleInstanceLock) {
         coldStartWatchdog,
         enterTabModeUrl: pendingTabModeUrl,
       } = await openMainWindow());
+      // Not deferred to enterTabMode: the local pages carry a title bar of their
+      // own now, and a signed-out launch never reaches tab mode at all.
+      if (mainWindow) wireWindowStateBroadcast(mainWindow);
       // enterTabMode reads the module window/tab globals assigned just above, so
       // it must run here (not inside createMainWindow) to actually take effect.
       if (pendingTabModeUrl) {
@@ -2248,6 +2267,7 @@ if (gotSingleInstanceLock) {
         tabViewHost = output.tabViewHost;
         saveSession = output.saveSession;
         coldStartWatchdog = output.coldStartWatchdog;
+        wireWindowStateBroadcast(mainWindow);
         // A lock that was up when the old window closed is still up: cover the
         // new window now, whatever it opens on. Entering tab mode below would
         // re-raise it too, but a signed-out reopen never gets that far.

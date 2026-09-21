@@ -524,14 +524,113 @@ test.describe('tab E2E', () => {
     expect(state0.tabs!).toHaveLength(2);
   });
 
+  // Everything the tab bar draws over the workspace lives in the tab bar's own
+  // WebContentsView, which is 40px tall horizontally and 240px WIDE vertically.
+  // Anything bigger was cut off, and in vertical mode the view never grew at
+  // all, so the search panel and the shortcut list were unusable there
+  // (issue #3289). One rule now covers all of them.
+  test.describe('chrome overlays', () => {
+    // The tab bar is a WebContentsView, not a window; find it through the
+    // window's view tree and read the bounds the main process gave it.
+    const chromeBounds = (): Promise<{ width: number; height: number }> =>
+      app!.evaluate(({ BrowserWindow }) => {
+        const win = BrowserWindow.getAllWindows()[0]!;
+        const view = win.contentView.children.find((child) =>
+          (child as { webContents?: { getURL: () => string } }).webContents
+            ?.getURL()
+            .includes('tabbar.html')
+        );
+        if (!view) throw new Error('no tab bar view in the window');
+        const bounds = view.getBounds();
+        return { width: bounds.width, height: bounds.height };
+      });
+
+    const windowContentSize = (): Promise<{ width: number; height: number }> =>
+      app!.evaluate(({ BrowserWindow }) => {
+        const bounds = BrowserWindow.getAllWindows()[0]!.getContentBounds();
+        return { width: bounds.width, height: bounds.height };
+      });
+
+    for (const orientation of ['horizontal', 'vertical'] as const) {
+      test(`an open overlay fills the window in ${orientation} mode`, async () => {
+        await evaluateYcDesktop(page, 'setTabOrientation', orientation);
+        const collapsed = await chromeBounds();
+        const windowSize = await windowContentSize();
+        // Collapsed, the view is only the strip or the rail - which is why an
+        // overlay drawn inside it was cut off.
+        if (orientation === 'horizontal') expect(collapsed.height).toBeLessThan(windowSize.height);
+        else expect(collapsed.width).toBeLessThan(windowSize.width);
+
+        await evaluateYcDesktop(page, 'setChromeOverlay', true);
+        await expect.poll(chromeBounds).toEqual(windowSize);
+
+        await evaluateYcDesktop(page, 'setChromeOverlay', false);
+        await expect.poll(chromeBounds).toEqual(collapsed);
+      });
+    }
+
+    test('the page behind an overlay is not painted over', async () => {
+      // The view covers the whole window while an overlay is open, so an opaque
+      // page background would replace the workspace with a flat colour instead
+      // of dimming it. The strip itself still paints its own.
+      const tabBar = app!.windows().find((w) => w.url().includes('tabbar.html'));
+      if (!tabBar) throw new Error('no tab bar page');
+      await expect
+        .poll(() => tabBar.evaluate(() => getComputedStyle(document.body).backgroundColor))
+        .toBe('rgba(0, 0, 0, 0)');
+      await expect
+        .poll(() =>
+          tabBar.evaluate(
+            () => getComputedStyle(document.getElementById('tabbar')!).backgroundColor
+          )
+        )
+        .not.toBe('rgba(0, 0, 0, 0)');
+    });
+  });
+
+  // The 240px rail used to shrink-wrap to its widest tab title and overflow on
+  // both sides, leaving short titles showing nothing at all (issue #3290).
+  test('vertical tabs fit the rail and ellipsise instead of overflowing', async () => {
+    await evaluateYcDesktop(page, 'newTab', `${pimsServer.origin}/a`);
+    await waitForTabCount(page, 2);
+    await evaluateYcDesktop(page, 'setTabOrientation', 'vertical');
+
+    const tabBar = app!.windows().find((w) => w.url().includes('tabbar.html'));
+    if (!tabBar) throw new Error('no tab bar page');
+
+    await expect
+      .poll(() => tabBar.evaluate(() => document.getElementById('tabbar')!.dataset.orientation))
+      .toBe('vertical');
+
+    const layout = await tabBar.evaluate(() => {
+      const bar = document.getElementById('tabbar')!;
+      const strip = document.getElementById('tab-strip')!;
+      return {
+        railWidth: bar.clientWidth,
+        stripOverflow: strip.scrollWidth - strip.clientWidth,
+        tabs: Array.from(document.querySelectorAll('.tab')).map((tab) => {
+          const box = tab.getBoundingClientRect();
+          return { left: Math.round(box.left), right: Math.round(box.right) };
+        }),
+      };
+    });
+
+    expect(layout.tabs.length).toBeGreaterThan(0);
+    expect(layout.stripOverflow).toBeLessThanOrEqual(0);
+    for (const tab of layout.tabs) {
+      expect(tab.left).toBeGreaterThanOrEqual(0);
+      expect(tab.right).toBeLessThanOrEqual(layout.railWidth);
+    }
+  });
+
   test('tab search opens and closes', async () => {
-    const opened = await evaluateYcDesktop<{ ok: boolean }>(page, 'tabSearch', true);
+    const opened = await evaluateYcDesktop<{ ok: boolean }>(page, 'setChromeOverlay', true);
     expect(opened.ok).toBe(true);
 
     const stateWithSearch = await evaluateYcDesktop<TabResult>(page, 'getTabs');
     expect(stateWithSearch.ok).toBe(true);
 
-    const closed = await evaluateYcDesktop<{ ok: boolean }>(page, 'tabSearch', false);
+    const closed = await evaluateYcDesktop<{ ok: boolean }>(page, 'setChromeOverlay', false);
     expect(closed.ok).toBe(true);
   });
 

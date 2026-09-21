@@ -185,3 +185,101 @@ test.describe('window controls', () => {
     expect(restored.width).toBeLessThan(maximized.width);
   });
 });
+
+// Welcome and What's new render in the main window's OWN contents, with no tab
+// bar above them, so before this fix the window had no title bar at all while
+// one was up: nothing to drag on macOS, and no caption buttons anywhere on
+// Windows and Linux (issue #3291). This launches signed-out and stays on the
+// welcome screen rather than driving into tab mode.
+test.describe('the local pages title bar', () => {
+  let app: ElectronApplication;
+  let server: { origin: string; close: () => Promise<void> };
+  let welcome: Page;
+
+  test.beforeEach(async () => {
+    server = await startPimsServer();
+    app = await electron.launch({
+      executablePath: ELECTRON_EXECUTABLE,
+      args: [APP_ROOT],
+      env: {
+        ...process.env,
+        YC_DESKTOP_START_URL: `${server.origin}/signin`,
+        YC_DESKTOP_ALLOWED_ORIGINS: server.origin,
+        YC_DESKTOP_DISABLE_UPDATES: '1',
+        YC_DESKTOP_USER_DATA_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'yc-e2e-welcome-')),
+      },
+    });
+    welcome = await app.firstWindow();
+    await welcome.waitForLoadState('domcontentloaded');
+    await expect(welcome).toHaveURL(/welcome\.html$/);
+  });
+
+  test.afterEach(async () => {
+    await app.close();
+    await server.close();
+  });
+
+  test('the welcome screen carries a drag strip', async () => {
+    const header = welcome.locator('.yc-window-header');
+    await expect(header).toHaveCount(1);
+    // The strip is what makes the window movable; without the drag region the
+    // element would be decorative.
+    await expect(header).toHaveCSS('-webkit-app-region', 'drag');
+    const box = await header.boundingBox();
+    expect(box?.height).toBe(40);
+  });
+
+  test('the strip keeps clear of the macOS traffic lights', async () => {
+    test.skip(process.platform !== 'darwin', 'the traffic lights are macOS only');
+    // The window draws them itself at x: 12; the inset is what stops the page
+    // putting a caption button (or, on a future page, content) under them.
+    await expect(welcome.locator('.yc-window-header')).toHaveCSS('padding-left', '78px');
+    await expect(welcome.locator('.yc-window-btn')).toHaveCount(0);
+  });
+
+  test('Windows and Linux get minimise, maximise and close on the welcome screen', async () => {
+    test.skip(process.platform === 'darwin', 'macOS draws its own traffic lights');
+    await expect(welcome.locator('.yc-window-btn')).toHaveCount(3);
+    for (const label of ['Minimize', 'Maximize', 'Close']) {
+      await expect(welcome.getByRole('button', { name: label })).toHaveCount(1);
+    }
+  });
+
+  test('the caption buttons are not part of the drag region, or they could not be clicked', async () => {
+    test.skip(process.platform === 'darwin', 'macOS draws its own traffic lights');
+    await expect(welcome.locator('.yc-window-caption')).toHaveCSS('-webkit-app-region', 'no-drag');
+  });
+
+  test('the maximise button minimises the window from the welcome screen', async () => {
+    test.skip(process.platform === 'darwin', 'macOS draws its own traffic lights');
+    await welcome.getByRole('button', { name: 'Minimize' }).click();
+    await expect
+      .poll(() =>
+        app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isMinimized())
+      )
+      .toBe(true);
+  });
+
+  test('the middle button follows the window state, showing one glyph at a time', async () => {
+    test.skip(process.platform === 'darwin', 'macOS draws its own traffic lights');
+    const visibleGlyphs = (): Promise<string[]> =>
+      welcome.evaluate(() =>
+        Array.from(document.querySelectorAll('.yc-window-btn svg[data-glyph]'))
+          .filter((glyph) => getComputedStyle(glyph).display !== 'none')
+          .map((glyph) => (glyph as SVGElement).dataset.glyph as string)
+      );
+
+    // Restored: Maximize is drawn and Restore is not. `svg.hidden = …` is inert
+    // - `hidden` is an HTMLElement property and an SVGElement has none - so
+    //   before the attribute-driven fix BOTH were drawn, on top of each other.
+    await expect.poll(visibleGlyphs).toEqual(['minimize', 'maximize', 'close']);
+    await expect(welcome.getByRole('button', { name: 'Maximize' })).toHaveCount(1);
+
+    await setMaximized(app, true);
+    await expect.poll(visibleGlyphs).toEqual(['minimize', 'restore', 'close']);
+    await expect(welcome.getByRole('button', { name: 'Restore' })).toHaveCount(1);
+
+    await setMaximized(app, false);
+    await expect.poll(visibleGlyphs).toEqual(['minimize', 'maximize', 'close']);
+  });
+});
