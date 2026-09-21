@@ -291,7 +291,8 @@ const TIME_PHRASES: readonly RegExp[] = [
   /\bthis\s+(?:morning|afternoon|evening|night)\b/gi,
   /\besta\s+(?:noche|mañana)\b/gi,
   /\b(?:tonight|today|tomorrow|hoy|manana|mañana)\b/gi,
-  /\bat\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b/gi,
+  /\bat\s+(?:0?[1-9]|1[0-2])\s*\.\s*[0-5]\d\s*(?:am|pm)\b/gi,
+  /\bat\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b(?!\s*\.\s*\d)/gi,
   /\bin\s+\d+\s+\w+\b/gi,
   /\bon\s+\w+day\b/gi,
 ];
