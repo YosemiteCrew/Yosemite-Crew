@@ -162,6 +162,12 @@ const Finance = () => {
                 size="compact"
                 ariaLabel="View insurance claims"
               />
+              <Secondary
+                href="/finance/payment-reconciliation"
+                text="Reconciliation"
+                size="compact"
+                ariaLabel="Review captured payments"
+              />
             </div>
             <PhoneInvoiceList
               filteredList={filteredList}
@@ -226,6 +232,11 @@ const Finance = () => {
                     href="/finance/insurance-claims"
                     text="Insurance"
                     ariaLabel="View insurance claims"
+                  />
+                  <Secondary
+                    href="/finance/payment-reconciliation"
+                    text="Reconciliation"
+                    ariaLabel="Review captured payments"
                   />
                   <StripeStatusPill />
                 </div>
