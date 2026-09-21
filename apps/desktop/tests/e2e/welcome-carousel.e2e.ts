@@ -74,7 +74,7 @@ const launchWelcome = async (
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yc-e2e-welcome-'));
   const app = await electron.launch({
     executablePath: ELECTRON_EXECUTABLE,
-    args: [APP_ROOT],
+    args: [APP_ROOT, '--use-mock-keychain'],
     env: {
       ...process.env,
       YC_DESKTOP_DISABLE_UPDATES: '1',

@@ -52,7 +52,7 @@ const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
   const profileDir = userDataDir || fs.mkdtempSync(path.join(os.tmpdir(), 'yc-e2e-compliance-'));
   const app = await electron.launch({
     executablePath: ELECTRON_EXECUTABLE,
-    args: [APP_ROOT],
+    args: [APP_ROOT, '--use-mock-keychain'],
     env: {
       ...process.env,
       YC_DESKTOP_START_URL: `${pimsOrigin}/signin`,
