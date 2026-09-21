@@ -176,6 +176,33 @@ const followedByDoseUnit = (rest: string): boolean => {
   return next !== null && DOSE_UNITS.has(next[1]);
 };
 
+const DOTTED_TIME_INTRODUCERS: ReadonlySet<string> = new Set([
+  'at',
+  'until',
+  'till',
+  'las',
+  ...Object.keys(RELATIVE_DAYS).filter(word => word !== 'esta'),
+  ...Object.keys(WEEKDAYS),
+  ...Object.keys(DAY_PART_HOURS),
+]);
+
+/** A valid dotted clock shape immediately introduced as a time. */
+const hasIntroducedDottedTimeCandidate = (normalized: string): boolean => {
+  for (const match of normalized.matchAll(
+    /\b([a-z]+)\s+(\d{1,2})\s*\.\s*(\d{2})\b/g,
+  )) {
+    const [, introducer, rawHour, rawMinute] = match;
+    if (
+      DOTTED_TIME_INTRODUCERS.has(introducer) &&
+      Number(rawHour) < 24 &&
+      Number(rawMinute) < 60
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
 /**
  * Words that name a dilution, whose "1:10" is a ratio and not a clock time.
  *
@@ -442,7 +469,7 @@ const resolveRelativeDay = (
   dayPartHour: number | null,
   hour: number,
   minute: number,
-  hasExplicitClock: boolean,
+  usesImpliedDayPartHour: boolean,
 ): string | null => {
   for (const [word, offset] of Object.entries(RELATIVE_DAYS)) {
     // "esta" only means today when it qualifies a part of the day
@@ -453,10 +480,7 @@ const resolveRelativeDay = (
     if (new RegExp(String.raw`\b${word}\b`).test(normalized)) {
       const target = atTime(addDays(now, offset), hour, minute);
       const impliedHourAlreadyPast =
-        offset === 0 &&
-        target <= now &&
-        dayPartHour !== null &&
-        !hasExplicitClock;
+        offset === 0 && target <= now && usesImpliedDayPartHour;
       return impliedHourAlreadyPast ? null : target.toISOString();
     }
   }
@@ -504,9 +528,15 @@ export const parseWhen = (text: string, now: Date): string | null => {
 
   const clock = parseClockTime(text);
   const dayPartHour = parseDayPart(normalized);
+  const rejectedIntroducedDottedTime =
+    clock === null &&
+    hasIntroducedDottedTimeCandidate(normalizeKeepingClock(text));
+  const effectiveDayPartHour = rejectedIntroducedDottedTime
+    ? null
+    : dayPartHour;
   const hour = clock
-    ? hourWithDayPartMeridiem(text, clock.hour, dayPartHour)
-    : (dayPartHour ?? DEFAULT_HOUR);
+    ? hourWithDayPartMeridiem(text, clock.hour, effectiveDayPartHour)
+    : (effectiveDayPartHour ?? DEFAULT_HOUR);
   const minute = clock?.minute ?? 0;
 
   const dated =
@@ -518,7 +548,7 @@ export const parseWhen = (text: string, now: Date): string | null => {
       dayPartHour,
       hour,
       minute,
-      clock !== null,
+      clock === null && effectiveDayPartHour !== null,
     ) ??
     resolveWeekday(normalized, now, hour, minute);
   if (dated) {
@@ -528,8 +558,8 @@ export const parseWhen = (text: string, now: Date): string | null => {
   if (clock) {
     return resolveNextOccurrence(now, hour, clock.minute);
   }
-  if (dayPartHour !== null) {
-    return resolveNextOccurrence(now, dayPartHour, 0);
+  if (effectiveDayPartHour !== null) {
+    return resolveNextOccurrence(now, effectiveDayPartHour, 0);
   }
   return null;
 };
