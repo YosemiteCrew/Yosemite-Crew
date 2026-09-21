@@ -42,6 +42,7 @@ const pageAssets = [
   'tokens.css',
   'tabbar.html',
   'tabbar.css',
+  'tab-indicators.js',
 ];
 for (const filename of pageAssets) {
   const src = path.join(sourceDir, 'pages', filename);
