@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { SPLIT_DIVIDER_COLOR } from '../src/ui/content-panes';
+
 /**
  * Guards the desktop shell's colour tokens against the contrast regressions in
  * issue #3296. It parses the shipped stylesheet rather than restating the hex
@@ -120,7 +122,7 @@ const TEXT_TOKENS = [
 ] as const;
 
 /** The tokens whose value this suite asserts on, in any palette. */
-const GUARDED_TOKENS = [...SURFACES, ...TEXT_TOKENS, '--blue', '--divider'] as const;
+const GUARDED_TOKENS = [...SURFACES, ...TEXT_TOKENS, '--blue', '--divider', '--hairline'] as const;
 
 const AA_SMALL_TEXT = 4.5;
 const NON_TEXT = 3;
@@ -203,6 +205,59 @@ describe('desktop shell colour tokens', () => {
         NON_TEXT
       );
     });
+  });
+
+  /**
+   * #3384: the 1px gutter between split panes is the window content view's own
+   * background, painted from the main process, so its colour cannot be resolved
+   * from the stylesheet at runtime and is duplicated in TypeScript. Nothing tied
+   * the duplicate back to the token, and the failure - a hairline in the wrong
+   * colour between two panes - is not one anybody files a bug about.
+   *
+   * Both halves are read from the source each one ships from, so a `--hairline`
+   * edit that leaves SPLIT_DIVIDER_COLOR behind fails here.
+   */
+  test('SPLIT_DIVIDER_COLOR is --hairline in every palette', () => {
+    const hairlines: Record<'light' | 'dark', Set<string>> = { light: new Set(), dark: new Set() };
+    for (const [name, tokens] of PALETTES) {
+      const mode = /^(light|dark)\b/.exec(name)?.[1];
+      // A palette whose name stops stating its mode must fail, not default to one.
+      if (mode !== 'light' && mode !== 'dark') {
+        throw new Error(`palette name does not state its mode: ${name}`);
+      }
+      hairlines[mode].add(token(tokens, '--hairline'));
+    }
+
+    // All four palettes are read, so a theme block that drifts on its own fails
+    // here rather than passing because the gate named the other two.
+    expect([...hairlines.light]).toEqual([SPLIT_DIVIDER_COLOR.light]);
+    expect([...hairlines.dark]).toEqual([SPLIT_DIVIDER_COLOR.dark]);
+    // ...and the two are genuinely different colours, so neither expectation
+    // above can be satisfied by a palette that collapsed to a single value.
+    expect(SPLIT_DIVIDER_COLOR.light).not.toEqual(SPLIT_DIVIDER_COLOR.dark);
+  });
+
+  test('the divider colour is what the main process paints the window with', () => {
+    // Matching --hairline says nothing about the constant still being used:
+    // it could agree perfectly and paint nothing. main.ts is in
+    // sonar.coverage.exclusions as a composition root, so the wiring is read as
+    // source here rather than executed.
+    const mainTs = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.ts'), 'utf8');
+
+    // Anchored on the function, not on the first setBackgroundColor in the file.
+    // A matching call that lives somewhere else while this one is deleted is the
+    // silent case - the divider stops being painted and an unanchored match
+    // still finds a correct-looking call to assert about.
+    const body = /const applySplitDividerColor = \(\): void => \{([\s\S]*?)\n\};/.exec(mainTs);
+    // Positive first: an unmatched regex must not satisfy the checks below by
+    // yielding an empty string.
+    expect(body).not.toBeNull();
+
+    const calls = [...(body?.[1] ?? '').matchAll(/contentView\.setBackgroundColor\(([^)]*)\)/g)];
+    expect(calls).toHaveLength(1);
+    const args = calls[0]?.[1] ?? '';
+    expect(args).toContain('SPLIT_DIVIDER_COLOR.dark');
+    expect(args).toContain('SPLIT_DIVIDER_COLOR.light');
   });
 
   test('the controls that were invisible carry their own contrast in the stylesheet', () => {

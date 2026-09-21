@@ -43,6 +43,13 @@ export interface ContentPaneLayout {
 // origin so the split stays centred.
 export const SPLIT_DIVIDER_WIDTH = 1;
 
+// What shows through that gutter is the window content view's own background,
+// not CSS, so the colour cannot be resolved from the stylesheet at runtime and
+// has to be stated here. These are `--hairline` from src/pages/tokens.css, in
+// its light and dark palettes; token-contrast.test.ts parses the stylesheet and
+// fails if the two ever part company.
+export const SPLIT_DIVIDER_COLOR = { light: '#e5dccf', dark: '#40362b' };
+
 export const contentPaneWidth = (pane: ContentPane, full: number, half: number): number => {
   if (pane === 'full') return full;
   if (pane === 'left') return Math.max(0, half - SPLIT_DIVIDER_WIDTH);
