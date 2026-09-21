@@ -569,6 +569,33 @@ test.describe('tab E2E', () => {
       });
     }
 
+    test('a fresh tab-mode view does not inherit the old overlay state', async () => {
+      await evaluateYcDesktop(page, 'setTabOrientation', 'horizontal');
+      const collapsed = await chromeBounds();
+      const windowSize = await windowContentSize();
+
+      await evaluateYcDesktop(page, 'setChromeOverlay', true);
+      await expect.poll(chromeBounds).toEqual(windowSize);
+
+      const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
+      await evaluateYcDesktop(page, 'closeTab', state.activeId!);
+      await expect(page).toHaveURL(/welcome\.html$/);
+
+      const restarted = await evaluateYcDesktop<{ ok: boolean }>(page, 'startSignin');
+      expect(restarted.ok).toBe(true);
+      await waitForTabCount(page, 1);
+      await expect
+        .poll(() =>
+          app!.evaluate(({ webContents }) =>
+            webContents
+              .getAllWebContents()
+              .some((contents) => contents.getURL().includes('tabbar.html'))
+          )
+        )
+        .toBe(true);
+      await expect.poll(chromeBounds).toEqual(collapsed);
+    });
+
     test('the page behind an overlay is not painted over', async () => {
       // The view covers the whole window while an overlay is open, so an opaque
       // page background would replace the workspace with a flat colour instead
