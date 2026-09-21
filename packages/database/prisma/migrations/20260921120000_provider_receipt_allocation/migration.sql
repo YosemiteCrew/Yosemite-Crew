@@ -50,7 +50,19 @@ CREATE TABLE IF NOT EXISTS "ProviderReceiptAllocation" (
   CONSTRAINT "ProviderReceiptAllocation_pkey" PRIMARY KEY ("id")
 );
 
+-- deployed-code-survives: "ProviderReceiptAllocation" is created a few lines
+--   above in this same migration, so no deployed query names the table and the
+--   enable takes rows away from no existing reader. Its only readers and
+--   writers are the allocation service and controller shipping in this same
+--   PR, which connect as the owning role and bypass row-level security,
+--   matching every other ENABLE ROW LEVEL SECURITY in this migration set. If
+--   the smoke boot fails and the deploy stops before cutting over, the
+--   previously deployed code carries on untouched: it has no statement that
+--   reads or writes this table.
 -- Deny direct Supabase PostgREST access; the API connects as the owning role.
+-- Every row names an invoice and the staff member who applied money to it, so
+-- leaving it readable would expose an organisation's settlement history to the
+-- anon key.
 ALTER TABLE "ProviderReceiptAllocation" ENABLE ROW LEVEL SECURITY;
 
 -- One allocation per receipt and invoice. This is what makes the readback
