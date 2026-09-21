@@ -722,6 +722,15 @@ describe('parseWhen does not read a dotted amount introduced by a time prepositi
     expect(parseClockTime('set his dose at 0.50 of a tablet')).toBeNull();
   });
 
+  it('still refuses a rate whose hour a clock could use', () => {
+    // The clock-only hour cannot separate this one: an infusion rate is said
+    // with the same preposition and lands in 13-23 as readily as a time, so
+    // the unit that follows is the only thing that marks it as a quantity.
+    expect(
+      localParts(parseWhen('infuse at 16.50 ml per hour tomorrow', NOW)),
+    ).toEqual(at(2026, 2, 4, 9, 0));
+  });
+
   it('still reads an hour only a clock uses', () => {
     expect(localParts(parseWhen('walk him at 20.30 tomorrow', NOW))).toEqual(
       at(2026, 2, 4, 20, 30),
