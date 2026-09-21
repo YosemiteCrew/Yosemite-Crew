@@ -83,3 +83,36 @@ test("keeps env examples stageable", () => {
   expect(result.status).toBe(0);
   expect(result.stderr).not.toMatch(/local secrets file/);
 });
+
+test("allows benign changes to the tracked iOS Info.plist", () => {
+  const result = runChecker({
+    "apps/mobileAppYC/ios/mobileAppYC/Info.plist":
+      "<plist><dict><key>UIAppFonts</key><array><string>Example.otf</string></array></dict></plist>",
+  });
+
+  expect(result.status).toBe(0);
+  expect(result.stderr).not.toMatch(/local secrets file/);
+});
+
+test("still scans the tracked iOS Info.plist content for secrets", () => {
+  const value = ["fixture", "only", "not", "credential", "7Q9Z2X8M4"].join("-");
+  const result = runChecker({
+    "apps/mobileAppYC/ios/mobileAppYC/Info.plist": `<!-- token = "${value}" -->`,
+  });
+
+  expect(result.status).toBe(1);
+  expect(result.stderr).toMatch(
+    /apps\/mobileAppYC\/ios\/mobileAppYC\/Info\.plist:1 \(generic secret assignment\)/,
+  );
+});
+
+test("keeps the untracked Google service plist blocked", () => {
+  const result = runChecker({
+    "apps/mobileAppYC/ios/GoogleService-Info.plist": "ordinary fixture prose",
+  });
+
+  expect(result.status).toBe(1);
+  expect(result.stderr).toMatch(
+    /GoogleService-Info\.plist:1 \(local secrets file\)/,
+  );
+});

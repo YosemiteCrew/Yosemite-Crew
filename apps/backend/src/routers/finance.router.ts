@@ -55,17 +55,26 @@ router.get(
   FinanceController.listProviderReceipts,
 );
 
-// The historical mismatch audit (#3170 delivery 4). Read-only in the strong
-// sense - there is no repair route anywhere for it to pair with, because the
-// issue forbids an automatic guessed correction and a mismatch in money is for
-// a human to resolve. `billing:view:any` for the same reason as the queue
-// above: it reads this organisation's own payments against its own journal.
+// The historical mismatch audit (#3170 delivery 4) is deliberately read-only.
 router.get(
   "/organisation/:organisationId/provider-receipts/audit",
   requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:view:any"),
   FinanceController.auditProviderReceipts,
+);
+
+// `billing:edit:any`, not the view permission the list above carries. This
+// route moves money: it posts a payment against an invoice and reduces what
+// the client owes. The issue is explicit that nothing is marked applied
+// without the configured permission, and reading the queue is what every
+// billing role needs - acting on it is not.
+router.post(
+  "/organisation/:organisationId/provider-receipts/:receiptId/allocations",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  FinanceController.allocateProviderReceipt,
 );
 
 router.get(

@@ -35,6 +35,7 @@
  */
 export const EXPECTED_CONTROLS = [
   "authentication",
+  "auth-account-linking",
   "stream-upload-policy",
 ] as const;
 

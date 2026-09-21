@@ -7101,6 +7101,13 @@ model ProviderReceipt {
   /// way so a redelivered or out-of-order refund webhook is absorbed by
   /// comparison instead of being added twice.
   refundedAmount     Float                 @default(0)
+  /// How much of this capture an operator has applied to invoices, cumulative
+  /// over every allocation against it. The residual an operator may still
+  /// allocate is `amount - refundedAmount - allocatedAmount`, and that
+  /// subtraction is the whole reason this is a stored total rather than a sum
+  /// over the allocation rows: the guard that stops a capture being applied
+  /// twice has to be evaluated inside the same compare-and-set that writes it.
+  allocatedAmount    Float                 @default(0)
   rawProviderPayload Json?
   /// Bumped on every state change so an allocation can be made conditional on
   /// the state it was read from (#3170 delivery 2).
@@ -7108,10 +7115,56 @@ model ProviderReceipt {
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
 
+  allocations ProviderReceiptAllocation[]
+
   @@unique([provider, merchantAccountRef, paymentRef])
   @@index([organisationId])
   @@index([status])
   @@index([invoiceId])
   @@index([appointmentId])
   @@index([capturedAt])
+}
+
+/// One operator decision to apply part of a captured payment to one invoice
+/// (#3170 delivery 2).
+///
+/// The receipt carries the totals; this carries who decided what, and it is
+/// what makes the decision reversible. A refund that has to release an
+/// allocation needs to know which invoices the money went to and how much
+/// went to each - the receipt's `invoiceId` holds at most one of them and says
+/// nothing about the split.
+///
+/// Holds no foreign key to `Invoice`. The journal's rule applies here too: a
+/// record of where money went must not be deletable by the cascade of the
+/// thing it points at, because that is precisely the history a reconciliation
+/// works from.
+model ProviderReceiptAllocation {
+  id             String  @id @default(uuid())
+  receiptId      String
+  invoiceId      String
+  amount         Float
+  /// Supplied by the caller so a retry after a timeout is recognised as the
+  /// same decision rather than posting the money a second time.
+  idempotencyKey String
+  /// The staff member who decided, taken from the session and never from the
+  /// request body.
+  actorId        String
+  /// The `Payment` this allocation posted, filled in once it is posted. NULL
+  /// means the decision is recorded but the money has not been applied yet -
+  /// the state a crash between the two leaves behind, and the state a retry
+  /// with the same idempotency key finishes.
+  paymentId      String?
+  appliedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  receipt ProviderReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
+  /// One allocation per receipt and invoice. It is what makes the readback
+  /// before posting exact: "has this capture already been applied to this
+  /// invoice" has one answer rather than a set of indistinguishable ones.
+  @@unique([receiptId, invoiceId])
+  @@index([receiptId, idempotencyKey])
+  @@index([invoiceId])
+  @@index([paymentId])
 }
