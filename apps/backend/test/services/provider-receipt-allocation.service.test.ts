@@ -6,7 +6,7 @@ import {
 import { prisma } from "src/config/prisma";
 import {
   FinancePaymentService,
-  getInvoiceFinancialSummary,
+  getInvoiceFinancialSummaries,
 } from "src/services/finance/payment";
 import logger from "src/utils/logger";
 
@@ -23,7 +23,7 @@ jest.mock("src/config/prisma", () => ({
       create: jest.fn(),
       update: jest.fn(),
     },
-    invoice: { findFirst: jest.fn() },
+    invoice: { findMany: jest.fn() },
     payment: { findFirst: jest.fn() },
     organization: { findUnique: jest.fn(), count: jest.fn() },
     $transaction: jest.fn(),
@@ -32,7 +32,7 @@ jest.mock("src/config/prisma", () => ({
 
 jest.mock("src/services/finance/payment", () => ({
   FinancePaymentService: { recordInvoicePayment: jest.fn() },
-  getInvoiceFinancialSummary: jest.fn(),
+  getInvoiceFinancialSummaries: jest.fn(),
 }));
 
 jest.mock("src/utils/logger", () => ({
@@ -52,7 +52,7 @@ const mockedPrisma = prisma as unknown as {
     create: jest.Mock;
     update: jest.Mock;
   };
-  invoice: { findFirst: jest.Mock };
+  invoice: { findMany: jest.Mock };
   payment: { findFirst: jest.Mock };
   organization: { findUnique: jest.Mock; count: jest.Mock };
   $transaction: jest.Mock;
@@ -60,7 +60,7 @@ const mockedPrisma = prisma as unknown as {
 const mockedPayments = FinancePaymentService as unknown as {
   recordInvoicePayment: jest.Mock;
 };
-const mockedSummary = getInvoiceFinancialSummary as unknown as jest.Mock;
+const mockedSummaries = getInvoiceFinancialSummaries as unknown as jest.Mock;
 const mockedLogger = logger as unknown as { warn: jest.Mock; info: jest.Mock };
 
 const RECEIPT_ID = "11111111-1111-4111-8111-111111111111";
@@ -112,6 +112,12 @@ const eligibleInvoice = (overrides: Record<string, unknown> = {}) => ({
   depositCollectedAmount: 0,
   ...overrides,
 });
+
+const financialSummaries = (
+  ...entries: Array<
+    [string, { paid: number; credited: number; balance: number }]
+  >
+) => new Map(entries);
 
 /**
  * Run the transaction callback against a client whose writes are recorded.
@@ -291,8 +297,10 @@ describe("ProviderReceiptService.allocate - who may allocate what", () => {
       receipt({ merchantAccountRef: "PLATFORM" }),
     );
     mockedPrisma.providerReceiptAllocation.findMany.mockResolvedValue([]);
-    mockedPrisma.invoice.findFirst.mockResolvedValue(eligibleInvoice());
-    mockedSummary.mockResolvedValue({ paid: 0, credited: 0, balance: 100 });
+    mockedPrisma.invoice.findMany.mockResolvedValue([eligibleInvoice()]);
+    mockedSummaries.mockResolvedValue(
+      financialSummaries([INVOICE_ID, { paid: 0, credited: 0, balance: 100 }]),
+    );
     runTransaction();
     mockedPrisma.payment.findFirst.mockResolvedValue(null);
     mockedPayments.recordInvoicePayment.mockResolvedValue({
@@ -338,30 +346,33 @@ describe("ProviderReceiptService.allocate - eligibility of each line", () => {
     });
     // Refused before any invoice was read, so a rejected request cannot have
     // touched an invoice.
-    expect(mockedPrisma.invoice.findFirst).not.toHaveBeenCalled();
+    expect(mockedPrisma.invoice.findMany).not.toHaveBeenCalled();
   });
 
   it("scopes the invoice lookup to the receipt's organisation", async () => {
     setUpReceipt();
-    mockedPrisma.invoice.findFirst.mockResolvedValue(null);
+    mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
     expect(await ProviderReceiptService.allocate(request())).toEqual({
       outcome: "INVOICE_NOT_ELIGIBLE",
       invoiceId: INVOICE_ID,
       reason: "INVOICE_NOT_FOUND",
     });
-    expect(mockedPrisma.invoice.findFirst).toHaveBeenCalledWith(
+    expect(mockedPrisma.invoice.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: INVOICE_ID, organisationId: "org-a" },
+        where: {
+          id: { in: [INVOICE_ID] },
+          organisationId: "org-a",
+        },
       }),
     );
   });
 
   it("refuses an invoice in another currency", async () => {
     setUpReceipt();
-    mockedPrisma.invoice.findFirst.mockResolvedValue(
+    mockedPrisma.invoice.findMany.mockResolvedValue([
       eligibleInvoice({ currency: "usd" }),
-    );
+    ]);
 
     expect(await ProviderReceiptService.allocate(request())).toEqual({
       outcome: "INVOICE_NOT_ELIGIBLE",
@@ -372,9 +383,9 @@ describe("ProviderReceiptService.allocate - eligibility of each line", () => {
 
   it("refuses a cancelled invoice even though it still shows a total", async () => {
     setUpReceipt();
-    mockedPrisma.invoice.findFirst.mockResolvedValue(
+    mockedPrisma.invoice.findMany.mockResolvedValue([
       eligibleInvoice({ status: "CANCELLED" }),
-    );
+    ]);
 
     expect(await ProviderReceiptService.allocate(request())).toEqual({
       outcome: "INVOICE_NOT_ELIGIBLE",
@@ -382,13 +393,15 @@ describe("ProviderReceiptService.allocate - eligibility of each line", () => {
       reason: "INVOICE_CLOSED",
     });
     // The status decided it, so the balance was never consulted.
-    expect(mockedSummary).not.toHaveBeenCalled();
+    expect(mockedSummaries).toHaveBeenCalledWith([]);
   });
 
   it("refuses an invoice that owes nothing", async () => {
     setUpReceipt();
-    mockedPrisma.invoice.findFirst.mockResolvedValue(eligibleInvoice());
-    mockedSummary.mockResolvedValue({ paid: 100, credited: 0, balance: 0 });
+    mockedPrisma.invoice.findMany.mockResolvedValue([eligibleInvoice()]);
+    mockedSummaries.mockResolvedValue(
+      financialSummaries([INVOICE_ID, { paid: 100, credited: 0, balance: 0 }]),
+    );
 
     expect(await ProviderReceiptService.allocate(request())).toEqual({
       outcome: "INVOICE_NOT_ELIGIBLE",
@@ -399,8 +412,10 @@ describe("ProviderReceiptService.allocate - eligibility of each line", () => {
 
   it("refuses a line larger than the invoice's outstanding balance", async () => {
     setUpReceipt();
-    mockedPrisma.invoice.findFirst.mockResolvedValue(eligibleInvoice());
-    mockedSummary.mockResolvedValue({ paid: 60, credited: 0, balance: 40 });
+    mockedPrisma.invoice.findMany.mockResolvedValue([eligibleInvoice()]);
+    mockedSummaries.mockResolvedValue(
+      financialSummaries([INVOICE_ID, { paid: 60, credited: 0, balance: 40 }]),
+    );
 
     expect(await ProviderReceiptService.allocate(request())).toEqual({
       outcome: "INVOICE_NOT_ELIGIBLE",
@@ -411,12 +426,13 @@ describe("ProviderReceiptService.allocate - eligibility of each line", () => {
 
   it("names the offending line when an earlier one was fine", async () => {
     setUpReceipt();
-    mockedPrisma.invoice.findFirst
-      .mockResolvedValueOnce(eligibleInvoice({ totalAmount: 60 }))
-      .mockResolvedValueOnce(
-        eligibleInvoice({ id: OTHER_INVOICE_ID, currency: "usd" }),
-      );
-    mockedSummary.mockResolvedValue({ paid: 0, credited: 0, balance: 60 });
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      eligibleInvoice({ totalAmount: 60 }),
+      eligibleInvoice({ id: OTHER_INVOICE_ID, currency: "usd" }),
+    ]);
+    mockedSummaries.mockResolvedValue(
+      financialSummaries([INVOICE_ID, { paid: 0, credited: 0, balance: 60 }]),
+    );
 
     expect(
       await ProviderReceiptService.allocate(
@@ -432,6 +448,8 @@ describe("ProviderReceiptService.allocate - eligibility of each line", () => {
       invoiceId: OTHER_INVOICE_ID,
       reason: "CURRENCY_MISMATCH",
     });
+    expect(mockedPrisma.invoice.findMany).toHaveBeenCalledTimes(1);
+    expect(mockedSummaries).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -447,8 +465,10 @@ describe("ProviderReceiptService.allocate - reserving and posting", () => {
     mockedPrisma.organization.findUnique.mockResolvedValue({
       stripeAccountId: "acct_org_a",
     });
-    mockedPrisma.invoice.findFirst.mockResolvedValue(eligibleInvoice());
-    mockedSummary.mockResolvedValue({ paid: 0, credited: 0, balance: 100 });
+    mockedPrisma.invoice.findMany.mockResolvedValue([eligibleInvoice()]);
+    mockedSummaries.mockResolvedValue(
+      financialSummaries([INVOICE_ID, { paid: 0, credited: 0, balance: 100 }]),
+    );
     mockedPrisma.payment.findFirst.mockResolvedValue(null);
     mockedPrisma.providerReceiptAllocation.update.mockResolvedValue({});
   };
@@ -555,13 +575,11 @@ describe("ProviderReceiptService.allocate - reserving and posting", () => {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       providerReceiptAllocation: {
-        create: jest
-          .fn()
-          .mockRejectedValue(
-            Object.assign(new Error("Unique constraint failed"), {
-              code: "P2002",
-            }),
-          ),
+        create: jest.fn().mockRejectedValue(
+          Object.assign(new Error("Unique constraint failed"), {
+            code: "P2002",
+          }),
+        ),
       },
     };
     mockedPrisma.$transaction.mockImplementation(
@@ -726,7 +744,7 @@ describe("ProviderReceiptService.allocate - retrying the same decision", () => {
       remainingAmount: 0,
       allocations: [{ invoiceId: INVOICE_ID, amount: 100, paymentId: "pay-1" }],
     });
-    expect(mockedPrisma.invoice.findFirst).not.toHaveBeenCalled();
+    expect(mockedPrisma.invoice.findMany).not.toHaveBeenCalled();
     expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
     expect(mockedPayments.recordInvoicePayment).not.toHaveBeenCalled();
   });
@@ -827,8 +845,10 @@ describe("ProviderReceiptService.allocate - the edges of the recovery paths", ()
     mockedPrisma.organization.findUnique.mockResolvedValue({
       stripeAccountId: "acct_org_a",
     });
-    mockedPrisma.invoice.findFirst.mockResolvedValue(eligibleInvoice());
-    mockedSummary.mockResolvedValue({ paid: 0, credited: 0, balance: 100 });
+    mockedPrisma.invoice.findMany.mockResolvedValue([eligibleInvoice()]);
+    mockedSummaries.mockResolvedValue(
+      financialSummaries([INVOICE_ID, { paid: 0, credited: 0, balance: 100 }]),
+    );
     mockedPrisma.payment.findFirst.mockResolvedValue(null);
     mockedPrisma.providerReceiptAllocation.update.mockResolvedValue({});
   };
@@ -874,9 +894,9 @@ describe("ProviderReceiptService.allocate - the edges of the recovery paths", ()
 
   it("treats an invoice with no recorded deposit as having collected nothing", async () => {
     setUpEligible();
-    mockedPrisma.invoice.findFirst.mockResolvedValue(
+    mockedPrisma.invoice.findMany.mockResolvedValue([
       eligibleInvoice({ depositCollectedAmount: null }),
-    );
+    ]);
     runTransaction();
     mockedPayments.recordInvoicePayment.mockResolvedValue({
       payment: { id: "pay-1" },
@@ -888,7 +908,9 @@ describe("ProviderReceiptService.allocate - the edges of the recovery paths", ()
 
     await ProviderReceiptService.allocate(request());
 
-    expect(mockedSummary).toHaveBeenCalledWith(INVOICE_ID, 100, 0);
+    expect(mockedSummaries).toHaveBeenCalledWith([
+      eligibleInvoice({ depositCollectedAmount: null }),
+    ]);
   });
 
   it("marks nothing applied when the invoice closed between the check and the post", async () => {
