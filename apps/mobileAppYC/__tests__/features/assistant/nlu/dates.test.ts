@@ -593,19 +593,23 @@ describe('parseWhen does not read a measured dose as a clock time', () => {
     expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
   });
 
+  // These three said "20.30" when the dotted form was still read as a clock.
+  // They are about the scan and the unit guard, not the separator, so they
+  // keep their shape and say "20:30" - the form that carries a time now.
   it('still reads a time said after a dose', () => {
     expect(
-      localParts(parseWhen('give 0.25 ml at 20.30 tomorrow', NOW)),
+      localParts(parseWhen('give 0.25 ml at 20:30 tomorrow', NOW)),
     ).toEqual(at(2026, 2, 4, 20, 30));
   });
 
-  it('reads a time said after a candidate with no readable minute', () => {
-    // No unit follows "0.75", so the unit guard does not skip it - it is
-    // dropped by the hour/minute check instead, which must not stop the scan
-    // either. Giving up on the first unreadable candidate loses the 20.30
-    // that was actually said.
+  it('reads a time said after a candidate skipped as a quantity', () => {
+    // The scan must not stop at the first candidate it declines. "16:50 ml"
+    // is skipped by the unit guard, and giving up there loses the 20:30 that
+    // was actually said.
     expect(
-      localParts(parseWhen('give 0.75 of a tablet at 20.30 tomorrow', NOW)),
+      localParts(
+        parseWhen('infuse 16:50 ml then walk him at 20:30 tomorrow', NOW),
+      ),
     ).toEqual(at(2026, 2, 4, 20, 30));
   });
 
@@ -614,11 +618,147 @@ describe('parseWhen does not read a measured dose as a clock time', () => {
     // time would be thrown away whenever the next word happened to start with
     // a unit letter.
     expect(
-      localParts(parseWhen('walk him at 20.30 go out tomorrow', NOW)),
+      localParts(parseWhen('walk him at 20:30 go out tomorrow', NOW)),
     ).toEqual(at(2026, 2, 4, 20, 30));
   });
 
   it('reads no time at all from a bare dose', () => {
     expect(parseClockTime('give 0.25 ml')).toBeNull();
+  });
+});
+
+/*
+ * A dot is not a clock separator.
+ *
+ * The unit guard above only fires when a unit follows, so every dose said
+ * without one - "0.50 of his heart pill", "a 2.50 dose" - became the hour, and
+ * so did a price: "spent 12.50 on food" scheduled 12:50. A dot is a decimal
+ * point far more often than a clock separator here, and four attempts to tell
+ * the two apart by their surroundings were each refuted by an ordinary
+ * utterance, so the dot is gone from the 24-hour rule entirely. The four and
+ * the utterance that killed each are listed on `parse24HourTime`.
+ *
+ * The dotted forms that carry their own evidence are unaffected: "8.30 pm"
+ * goes through `parseMeridiemTime`, which runs first and accepts a dot. A
+ * colon needs no evidence at all, because nobody writes a dose or a price
+ * with one.
+ */
+describe('parseWhen does not read a dotted number as a time', () => {
+  it.each([
+    ['no unit follows the dose', 'give 0.50 of his heart pill tomorrow'],
+    ['the unit is elided', 'give 1.25 of the tablet tomorrow'],
+    ['the quantity qualifies a noun', 'give half a 2.50 dose tomorrow'],
+    ['the number is a price', 'spent 12.50 on food tomorrow'],
+    ['the price has a clock-shaped hour', 'spent 20.30 on food tomorrow'],
+  ])('keeps the default hour when %s', (_case, text) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
+  });
+
+  /*
+   * A preposition a quantity can also follow is no evidence at all.
+   *
+   * The first cut of this guard accepted "around", "before", "after" and
+   * "by". Every one of them introduces an amount as readily as a time -
+   * "spent around 12.50", "reduce his dose by 0.50" - and "around" is the
+   * commonest hedge English puts in front of a price or a dose, so the list
+   * let both headline failures straight back in.
+   */
+  it.each([
+    ['around hedges a price', 'spent around 12.50 on food tomorrow'],
+    [
+      'around hedges a dose',
+      'give Bruno around 0.50 of his heart pill tomorrow',
+    ],
+    ['before precedes a dose', 'give Bruno before 1.25 of the tablet tomorrow'],
+    ['after precedes a dose', 'give Bruno after 1.25 of the tablet tomorrow'],
+    [
+      'by introduces a reduction',
+      'remind me to reduce his dose by 0.50 tomorrow',
+    ],
+    ['by introduces an increase', 'increase the dose by 1.25 tomorrow'],
+  ])('keeps the default hour when %s', (_case, text) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
+  });
+
+  it.each([
+    ['a colon, with a preposition', 'walk him at 20:30 tomorrow'],
+    ['a colon, with none at all', 'walk him 20:30 tomorrow'],
+    ['a colon after a Spanish preposition', 'pasear a las 20:30 manana'],
+    ['a dot qualified by a meridiem', 'walk him at 8.30 pm tomorrow'],
+  ])('still reads a time written with %s', (_case, text) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 20, 30));
+  });
+
+  it('reads the time after a price rather than the price itself', () => {
+    expect(
+      localParts(parseWhen('spent 12.50 on food at 20:30 tomorrow', NOW)),
+    ).toEqual(at(2026, 2, 4, 20, 30));
+  });
+});
+
+/*
+ * A time preposition is no evidence when the number is an amount.
+ *
+ * The preposition requirement was meant to select words a quantity cannot
+ * follow, but "at", "until" and "till" all introduce a target amount in
+ * ordinary titration language - "set his dose at 0.50 of a tablet", "titrate
+ * until 1.25" - so the dose became the hour again on the owner-facing path.
+ * No word introduces a dotted number as a time now; the colon and meridiem
+ * forms carry it. Refusing the dotted reading is only half of it, though -
+ * "at 0.50" still offers "at 0" to the bare-hour rule below, which is what
+ * the rest of this block pins.
+ */
+describe('parseWhen does not read a dotted amount introduced by a time preposition', () => {
+  it.each([
+    ['at, with the unit elided', 'set his dose at 0.50 of a tablet tomorrow'],
+    ['at, with no continuation at all', 'keep his dose at 1.25 tomorrow'],
+    ['until', 'titrate until 0.50 of a tablet tomorrow'],
+    ['till', 'titrate till 0.50 of a tablet tomorrow'],
+    ['until, on a whole-number hour', 'reduce until 1.25 of a tablet tomorrow'],
+  ])('keeps the default hour when the amount follows %s', (_case, text) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
+  });
+
+  it('does not reread the integer part of the amount as a bare hour', () => {
+    // Refusing the dotted candidate is not enough on its own: "at 0.50" still
+    // offers "at 0" to the bare-hour rule, which scheduled the dose for
+    // midnight instead of leaving the visible 09:00 default.
+    expect(parseClockTime('set his dose at 0.50 of a tablet')).toBeNull();
+  });
+
+  it.each([
+    ['spaced before the dot', 'set his dose at 0 .50 of a tablet tomorrow'],
+    ['spaced after the dot', 'set his dose at 0. 50 of a tablet tomorrow'],
+    ['spaced both sides', 'set his dose at 0 . 50 of a tablet tomorrow'],
+    ['written with a comma', 'set his dose at 0,50 of a tablet tomorrow'],
+  ])('refuses an amount %s', (_case, text) => {
+    // Declining the amount is not enough if the bare-hour rule then rereads
+    // its integer part. Normalising leaves a typed "0 . 50" spaced and turns
+    // "0,50" into "0 50", so what the lookahead has to refuse is the second
+    // number, whatever sits between.
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
+  });
+
+  it.each([
+    ['an unmeasured dose above any cutoff', 'set his dose at 13.50 tomorrow'],
+    ['an unmeasured rate', 'keep the infusion rate at 16.50 tomorrow'],
+  ])('refuses %s', (_case, text) => {
+    // A magnitude cutoff was tried here and does not hold: a dose or a rate
+    // takes any magnitude, so 16.50 is as ordinary an amount as it is a time.
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
+  });
+
+  it('refuses a measured rate through the bare-hour rule as well', () => {
+    // The unit guard declines "16:50 ml", and the hour must not come back as
+    // "at 16" - which is why a colon is in the bare-hour lookahead.
+    expect(
+      localParts(parseWhen('infuse at 16:50 ml per hour tomorrow', NOW)),
+    ).toEqual(at(2026, 2, 4, 9, 0));
+  });
+
+  it('still reads a bare hour that names no amount', () => {
+    expect(localParts(parseWhen('walk him at 7 tomorrow', NOW))).toEqual(
+      at(2026, 2, 4, 7, 0),
+    );
   });
 });
