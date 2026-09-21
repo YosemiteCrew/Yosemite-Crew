@@ -173,12 +173,13 @@
       "decode-uri-component": "0.5.0",
       "cosmiconfig>typescript": "5.9.3",
       "cosmiconfig-typescript-loader>typescript": "5.9.3",
-      "@noble/hashes@1": "2.4.0"
+      "@noble/hashes@1": "1.8.0"
     },
     "patchedDependencies": {
       "react-native@0.81.6": "patches/react-native@0.81.6.patch",
       "body-parser@1.20.6": "patches/body-parser@1.20.6.patch",
-      "body-parser@2.3.0": "patches/body-parser@2.3.0.patch"
+      "body-parser@2.3.0": "patches/body-parser@2.3.0.patch",
+      "@noble/hashes@1.8.0": "patches/@noble__hashes@1.8.0.patch"
     }
   }
 }
