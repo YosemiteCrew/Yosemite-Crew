@@ -1,7 +1,8 @@
 import "dotenv/config";
-import { createApp } from "./app";
+import { createApp, readAuthGate } from "./app";
 import { initQueues } from "./queues";
 import { configureStreamUploadPolicy } from "./config/stream-upload-policy";
+import { configureAuthAccountLinkingControl } from "./config/auth-account-linking";
 import { closePdfBrowser } from "./services/formPDF.service";
 import logger from "./utils/logger";
 import "./workers";
@@ -23,6 +24,7 @@ async function startServer() {
   try {
     await initQueues();
     await configureStreamUploadPolicy();
+    await configureAuthAccountLinkingControl(readAuthGate() === "enabled");
     const app = createApp();
 
     app.listen(PORT, () => {

@@ -13,6 +13,22 @@ const mockInitSuperTokens = jest.fn();
 const mockRegisterSuperTokensBeforeRoutes = jest.fn();
 const mockRegisterSuperTokensErrorHandler = jest.fn();
 
+jest.mock("bullmq", () => ({
+  Queue: class {
+    add = jest.fn();
+    close = jest.fn();
+    on = jest.fn();
+  },
+  Worker: class {
+    on = jest.fn();
+    close = jest.fn();
+  },
+  QueueEvents: class {
+    on = jest.fn();
+    close = jest.fn();
+  },
+}));
+
 jest.mock("@yosemite-crew/auth", () => ({
   initSuperTokens: mockInitSuperTokens,
   registerSuperTokensBeforeRoutes: mockRegisterSuperTokensBeforeRoutes,
@@ -305,6 +321,62 @@ describe("createApp", () => {
     expect(response.statusCode).toBe(500);
     expect(response.getHeader("content-type")).toContain("application/json");
     expect(body).toEqual({ message: "Internal server error." });
+  });
+
+  it("returns a bounded 503 and degrades the control when the core rejects account linking", async () => {
+    mockRegisterRoutes.mockImplementationOnce((app: Express) => {
+      app.post("/test-account-linking", () => {
+        throw new Error(
+          "private core detail: 402 from /recipe/accountlinking/user/primary",
+        );
+      });
+    });
+
+    const app = createApp();
+    const response = await request(app, {
+      method: "POST",
+      path: "/test-account-linking",
+    });
+    const body = JSON.parse(response.body) as {
+      message: string;
+      code: string;
+    };
+    const controls = await request(app, { path: "/health/controls" });
+    const controlsBody = JSON.parse(controls.body) as {
+      controls: Array<{ name: string; state: string; detail?: string }>;
+    };
+
+    expect(response.statusCode).toBe(503);
+    expect(body).toEqual({
+      message: "Authentication is temporarily unavailable.",
+      code: "AUTH_ACCOUNT_LINKING_UNAVAILABLE",
+    });
+    expect(response.body).not.toContain("private core detail");
+    expect(controls.statusCode).toBe(503);
+    expect(controlsBody.controls).toContainEqual(
+      expect.objectContaining({
+        name: "auth-account-linking",
+        state: "failed",
+        detail: "core rejected account linking",
+      }),
+    );
+  });
+
+  it("does not widen the 503 mapping to another core 402", async () => {
+    mockRegisterRoutes.mockImplementationOnce((app: Express) => {
+      app.get("/test-other-core-402", () => {
+        throw new Error("402 from /recipe/session/refresh");
+      });
+    });
+
+    const response = await request(createApp(), {
+      path: "/test-other-core-402",
+    });
+
+    expect(response.statusCode).toBe(500);
+    expect(JSON.parse(response.body)).toEqual({
+      message: "Internal server error.",
+    });
   });
 
   it("delegates unhandled errors after the response headers were sent", () => {
