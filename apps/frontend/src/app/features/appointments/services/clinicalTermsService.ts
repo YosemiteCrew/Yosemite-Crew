@@ -54,7 +54,7 @@ const SPECIES_BY_COMPANION: Record<string, ClinicalTermSpecies> = {
 export const resolveClinicalTermSpecies = (
   companionSpecies?: string | null
 ): ClinicalTermSpecies | undefined =>
-  companionSpecies ? SPECIES_BY_COMPANION[companionSpecies.trim().toLowerCase()] : undefined;
+  SPECIES_BY_COMPANION[companionSpecies?.trim().toLowerCase() ?? ''];
 
 export const suggestClinicalTerms = async (params: {
   q: string;
