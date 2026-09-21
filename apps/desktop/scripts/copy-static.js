@@ -23,6 +23,8 @@ const pageAssets = [
   'vault.js',
   'platform-labels.js',
   'window-caption.js',
+  'palette-format.js',
+  'carousel-autoplay.js',
   'whats-new.html',
   'whats-new.css',
   'whats-new.js',
