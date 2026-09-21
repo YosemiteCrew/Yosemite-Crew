@@ -16,6 +16,7 @@ import {
 import {
   ProviderReceiptService,
   RECONCILIATION_STATUSES,
+  type AllocateResult,
 } from "src/services/finance/provider-receipt";
 import { parseKeysetCursor } from "src/services/shared/pagination";
 import { StripeController } from "src/controllers/web/stripe.controller";
@@ -267,6 +268,85 @@ const ProviderReceiptQuerySchema = z.object({
   capturedTo: z.iso.datetime({ offset: true }).optional(),
   limit: z.string().optional(),
 });
+
+/**
+ * One operator decision to apply a captured payment to invoices.
+ *
+ * `expectedVersion` and `idempotencyKey` are both required rather than
+ * optional, and neither substitutes for the other. The version says which
+ * state the decision was taken from, so a refund or another operator landing
+ * in between loses the write; the key says which decision this is, so a retry
+ * after a timeout is recognised as the same one. A client that omitted either
+ * would double-post money under exactly the conditions this endpoint exists to
+ * survive, so there is no default for either.
+ *
+ * Bounded at twenty lines. An operator splitting one capture across invoices
+ * is working through a handful, and the endpoint posts them sequentially -
+ * leaving the list unbounded would let one request hold a connection for as
+ * long as the caller liked.
+ */
+const ProviderReceiptAllocationBodySchema = z.object({
+  expectedVersion: z.number().int().min(0),
+  idempotencyKey: z.string().trim().min(1).max(200),
+  allocations: z
+    .array(
+      z.object({
+        invoiceId: z.uuid(),
+        // Major units, and strictly positive: a zero or negative line is not a
+        // smaller allocation, it is a different operation this route does not
+        // perform. `z.number()` already refuses NaN and Infinity in Zod 4, so
+        // no separate finiteness guard is needed - and one written as
+        // `.finite()` is deprecated.
+        amount: z.number().positive(),
+      }),
+    )
+    .min(1)
+    .max(20),
+});
+
+/**
+ * How each refusal is answered.
+ *
+ * Separated from the handler so the mapping can be read as a table. Every
+ * refusal that is about the state the caller decided from is a 409, and every
+ * one that is about the objects they named is a 404 or a 409 on the object -
+ * a 400 would tell them to fix a request that was well formed.
+ */
+const PROVIDER_RECEIPT_ALLOCATION_FAILURES: Record<
+  Exclude<AllocateResult["outcome"], "APPLIED" | "REPLAYED">,
+  { status: number; message: string }
+> = {
+  NOT_FOUND: { status: 404, message: "Receipt not found." },
+  NOT_ATTRIBUTED: {
+    status: 409,
+    message:
+      "This capture has not been attributed to an organisation yet, so it cannot be applied.",
+  },
+  FULLY_REFUNDED: {
+    status: 409,
+    message:
+      "This capture has been refunded in full; there is nothing to apply.",
+  },
+  VERSION_CONFLICT: {
+    status: 409,
+    message:
+      "The receipt changed since it was read. Reload it and submit the allocation again.",
+  },
+  ACCOUNT_MISMATCH: {
+    status: 409,
+    message:
+      "The money for this capture is not held in this organisation's connected account.",
+  },
+  EXCEEDS_RESIDUAL: {
+    status: 409,
+    message:
+      "The requested allocation is more than this capture has left to apply.",
+  },
+  INVOICE_NOT_ELIGIBLE: {
+    status: 409,
+    message: "An invoice in this allocation cannot take this payment.",
+  },
+};
 
 const normalizeProvider = (value?: string) =>
   value?.trim().toUpperCase() ?? "STRIPE";
@@ -1814,6 +1894,111 @@ export const FinanceController = {
       });
     } catch (error) {
       logger.error("Error listing provider receipts for reconciliation", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  /**
+   * Apply a captured payment to invoices (#3170 delivery 2).
+   *
+   * The organisation and the acting staff member both come from the session.
+   * Neither is read from the body: an allocation is an audited money movement,
+   * and a request-supplied actor would put a name on it that nobody verified.
+   */
+  async allocateProviderReceipt(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
+      const actorId = resolveVerifiedUserId(req);
+      if (!actorId) {
+        return res.status(401).json({ message: "Unauthenticated" });
+      }
+
+      const receiptId = z.uuid().safeParse(req.params.receiptId);
+      if (!receiptId.success) {
+        return res.status(400).json({ message: "Invalid receipt id." });
+      }
+
+      const body = ProviderReceiptAllocationBodySchema.safeParse(req.body);
+      if (!body.success) {
+        /*
+         * The offending value is not echoed, for the same reason the list
+         * route does not echo its filter: it is caller-controlled and a raw
+         * CR/LF in it forges a second log line.
+         */
+        return res.status(400).json({
+          message:
+            "Invalid allocation. Send expectedVersion, idempotencyKey and one to twenty positive allocations.",
+        });
+      }
+
+      /*
+       * Two lines naming the same invoice are rejected here rather than
+       * summed. Summing them would answer a request the caller did not make,
+       * and the one allocation per receipt and invoice rule downstream would
+       * refuse the second line anyway - as a conflict, which reads as though
+       * somebody else had allocated it.
+       */
+      const invoiceIds = body.data.allocations.map((line) => line.invoiceId);
+      if (new Set(invoiceIds).size !== invoiceIds.length) {
+        return res.status(400).json({
+          message: "Each invoice may appear at most once in an allocation.",
+        });
+      }
+
+      const result = await ProviderReceiptService.allocate({
+        organisationId,
+        receiptId: receiptId.data,
+        expectedVersion: body.data.expectedVersion,
+        idempotencyKey: body.data.idempotencyKey,
+        actorId,
+        allocations: body.data.allocations,
+      });
+
+      if (result.outcome !== "APPLIED" && result.outcome !== "REPLAYED") {
+        const failure = PROVIDER_RECEIPT_ALLOCATION_FAILURES[result.outcome];
+        return res.status(failure.status).json({
+          message: failure.message,
+          /*
+           * The machine-readable half. A UI showing "reload and try again"
+           * needs the stored version to reload TO, and one showing which
+           * invoice line to correct needs its id - so the details a client can
+           * act on travel beside the sentence a human reads.
+           */
+          error: {
+            code: result.outcome,
+            ...("version" in result ? { version: result.version } : {}),
+            ...("residual" in result
+              ? { residual: result.residual, requested: result.requested }
+              : {}),
+            ...("invoiceId" in result
+              ? { invoiceId: result.invoiceId, reason: result.reason }
+              : {}),
+          },
+        });
+      }
+
+      return res.status(200).json({
+        data: {
+          receipt: result.receipt,
+          remainingAmount: result.remainingAmount,
+          allocations: result.allocations,
+        },
+        /*
+         * `replayed` rather than a different status code. A retry that found
+         * the decision already taken succeeded, and answering it 409 would
+         * teach clients to treat their own successful write as a failure.
+         */
+        meta: { replayed: result.outcome === "REPLAYED" },
+        error: null,
+      });
+    } catch (error) {
+      logger.error("Error allocating a provider receipt", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   },
