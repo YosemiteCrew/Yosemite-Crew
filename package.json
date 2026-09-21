@@ -166,7 +166,7 @@
       "http-proxy-middleware": "2.0.10",
       "proxy-addr": "2.0.8",
       "stream-chat": "9.52.1",
-      "zod": "4.6.2",
+      "zod": "4.6.5",
       "toml": "4.2.0",
       "stream-json": "3.5.0",
       "@humanfs/node": "0.16.8",
