@@ -288,13 +288,15 @@ const queryTokens = (query: string): string[] => {
 };
 
 /**
- * \m and \M are Postgres word boundaries. Substring matching a token is far too loose to
+ * \m and \M are Postgres word boundaries. Substring matching a term is far too loose to
  * rank on - "ear" sits inside "heart", "linear" and "clearance", which is 332 of the
  * 11,742 shipped concepts against 75 that contain the actual word - so the prefilter
- * matches substrings, for the trigram index, and the score demands a whole word.
+ * matches substrings, for the trigram index, and the high score demands a whole word.
+ * Escaping keeps punctuation in a full query literal rather than turning it into regex.
  */
 const wordMatch = (haystack: Prisma.Sql, token: string) => {
-  const wholeWord = String.raw`\m${token}\M`;
+  const literal = token.replace(/[\\^$.*+?()[\]{}|]/g, String.raw`\$&`);
+  const wholeWord = String.raw`\m${literal}\M`;
   return Prisma.sql`${haystack} ~ ${wholeWord}`;
 };
 
@@ -407,6 +409,10 @@ export const buildSuggestionQuery = (
 
   const searchText = Prisma.sql`code_entry_search_text(e."display", e."synonyms")`;
   const loweredDisplay = Prisma.sql`lower(e."display")`;
+  const displayWholeWord = wordMatch(loweredDisplay, query ?? "");
+  const synonymWholeWord = synonymMatches(
+    wordMatch(Prisma.sql`lower(s)`, query ?? ""),
+  );
 
   // How much of the query this row accounts for. Each token carries an equal share of
   // TOKEN_COVERAGE_WEIGHT, so a row matching both words of a two-word query ranks with
@@ -414,8 +420,8 @@ export const buildSuggestionQuery = (
   // shorter question. The share is computed here rather than divided in SQL so every
   // value the statement binds is an integer literal.
   //
-  // A row matching no token scores 0 and scoreFilter drops it. That is what discards the
-  // rows the substring prefilter admitted on a mid-word match.
+  // A row matching no token scores 0 here. The lower substring tiers below preserve
+  // partial-word autocomplete without letting those candidates tie a whole-word match.
   const tokenShare = Math.floor(TOKEN_COVERAGE_WEIGHT / (tokens.length || 1));
   const tokenScore = tokens.length
     ? Prisma.sql`(${Prisma.join(
@@ -437,9 +443,16 @@ export const buildSuggestionQuery = (
           WHEN ${synonymExact} THEN 300
           WHEN lower(e."display") LIKE ${prefixPattern} ESCAPE '\\' THEN 200
           WHEN ${synonymPrefix} THEN 150
-          WHEN lower(e."display") LIKE ${containsPattern} ESCAPE '\\' THEN 100
-          WHEN ${synonymContains} THEN 50
-          ELSE ${tokenScore}
+          WHEN ${displayWholeWord} THEN 100
+          WHEN ${synonymWholeWord} THEN 50
+          ELSE GREATEST(
+            CASE
+              WHEN lower(e."display") LIKE ${containsPattern} ESCAPE '\\' THEN 20
+              WHEN ${synonymContains} THEN 10
+              ELSE 0
+            END,
+            ${tokenScore}
+          )
         END`
     : Prisma.sql`0`;
 
