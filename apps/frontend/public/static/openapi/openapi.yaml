@@ -2530,6 +2530,135 @@ paths:
                 properties:
                   message:
                     type: string
+  /v1/patient-allergies/mobile/companion/{patientId}:
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: GET /v1/patient-allergies/mobile/companion/{patientId}
+      operationId: get_v1_patient_allergies_mobile_companion_patientId
+      description: "Live allergies recorded against one of the signed-in parent's companions (#2706). Access is the shared companion gate: an ACTIVE PRIMARY or CO_PARENT link to this patient with the medicalRecords feature granted. Unpaged on purpose - this is one animal's allergy list, and a page boundary here is a way to withhold the row that mattered. There is no organisation filter, so an animal seen by a second practice shows that practice's records too, which the org-scoped PIMS view structurally cannot do. The practice's own notes and the recording staff id are never returned."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          description: The companion whose allergies are being read. Authorised before the handler runs; an id the caller has no ACTIVE medicalRecords link to is answered 404, not 403.
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - allergies
+                properties:
+                  allergies:
+                    type: array
+                    description: 'Ordered by severity descending, then allergyType ascending, then most recently recorded - so a phone showing three rows without scrolling shows the three that can kill. An empty array means nothing has been recorded, which is a different answer from being unable to see the animal.'
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - patientId
+                        - organisationId
+                        - allergen
+                        - allergyType
+                        - severity
+                        - status
+                        - recordedAt
+                        - updatedAt
+                      properties:
+                        id:
+                          type: string
+                        patientId:
+                          type: string
+                        organisationId:
+                          type: string
+                          description: The practice that recorded this allergy, which is not necessarily the one the owner is currently dealing with.
+                        allergen:
+                          type: string
+                        allergyType:
+                          type: string
+                          enum:
+                            - DRUG
+                            - FOOD
+                            - ENVIRONMENTAL
+                            - OTHER
+                        severity:
+                          type: string
+                          enum:
+                            - MILD
+                            - MODERATE
+                            - SEVERE
+                            - LIFE_THREATENING
+                        reaction:
+                          type: string
+                          description: What the animal does. Absent rather than null when the practice did not record one.
+                        status:
+                          type: string
+                          description: 'RESOLVED rows are excluded from this list. UNCONFIRMED means suspected and not yet established - the client should word it that way rather than presenting it as settled.'
+                          enum:
+                            - ACTIVE
+                            - UNCONFIRMED
+                        onsetDate:
+                          type: string
+                          format: date-time
+                          description: When the animal became allergic. Absent when unknown, which is the common case.
+                        recordedAt:
+                          type: string
+                          format: date-time
+                          description: When the practice wrote the record down. Deliberately distinct from onsetDate.
+                        updatedAt:
+                          type: string
+                          format: date-time
+        401:
+          description: No session presented, or the session carries no verified user id
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        403:
+          description: A co-parent link exists but medicalRecords access has not been granted on it
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        404:
+          description: No ACTIVE link from this caller to this companion
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
   /v1/chat/mobile/token:
     post:
       tags:

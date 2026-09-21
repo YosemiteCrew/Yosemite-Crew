@@ -119,7 +119,10 @@ import {
   buildContextMenu,
 } from './shell/window-config';
 import { createMainWindow } from './shell/create-main-window';
-import { layoutContentPanes as applyContentPaneLayout } from './ui/content-panes';
+import {
+  SPLIT_DIVIDER_COLOR,
+  layoutContentPanes as applyContentPaneLayout,
+} from './ui/content-panes';
 import { createOfflineRetryTargets } from './shell/offline-retry';
 
 // Apply managed/MDM config first: fill any env var an admin set via managed
@@ -378,12 +381,6 @@ const layoutChromeStrip = (b: TabBounds, isVertical: boolean): void => {
     height: tabSearchOpen ? b.height : CHROME_STRIP_HEIGHT,
   });
 };
-
-// The split panes leave a 1px gutter between them (SPLIT_DIVIDER_WIDTH); what
-// shows through is the window content view's own background, so it has to be
-// the hairline colour rather than the window's white, or the divider is
-// invisible against a white page. These are --hairline from tokens.css.
-const SPLIT_DIVIDER_COLOR = { light: '#e5dccf', dark: '#40362b' };
 
 const applySplitDividerColor = (): void => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -644,10 +641,19 @@ const setTabOrientation = (mode: 'horizontal' | 'vertical'): void => {
   layoutTabChrome();
 };
 
+// Both tab-bar overlays live in the chrome view. Raising the view is not
+// enough on its own: the overlays are modal dialogs, and showModal() can only
+// move focus inside its own document, so opening one from the menu used to
+// leave a caret blinking in the search field while the keystrokes went to the
+// page underneath. Closing hands the keyboard back rather than stranding it in
+// a 40px strip with nothing focusable in it.
 const setTabSearch = (open: boolean): void => {
   tabSearchOpen = open;
   if (open && tabChromeView && mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.contentView.addChildView(tabChromeView); // raise above content
+    tabChromeView.webContents.focus();
+  } else if (!open) {
+    activeContents()?.focus();
   }
   layoutTabChrome();
 };
