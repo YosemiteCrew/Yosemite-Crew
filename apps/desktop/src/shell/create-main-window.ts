@@ -2,7 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { app, BrowserWindow, dialog, screen, type Session } from 'electron';
+import { app, BrowserWindow, dialog, nativeTheme, screen, type Session } from 'electron';
 import { classifyNavigation } from '../core/navigation-policy';
 import type { DesktopConfig } from '../core/navigation-policy';
 import { createTabManager } from '../core/tab-manager';
@@ -16,6 +16,7 @@ import { DEFAULT_SETTINGS } from '../utils/settings-store';
 import type { SettingsStore } from '../utils/settings-store';
 import { createCacheEntry, type OfflineCache } from '../sync/offline-cache';
 import { HELP_LINKS } from '../ui/branding';
+import { localPageBackgroundColor } from '../ui/theming';
 import { STREAM_TELEHEALTH_PROVIDER } from '../utils/telehealth';
 import type { DesktopLogger } from '../utils/logger';
 import {
@@ -121,7 +122,10 @@ export const createMainWindow = async (
     minWidth: 1024,
     minHeight: 700,
     title: deps.productName,
-    backgroundColor: '#ffffff',
+    // This window's own contents are a local page on every cold start
+    // (welcome, loading or what's new), so it paints `--screen` rather
+    // than Electron's white while that page loads - issue #3425.
+    backgroundColor: localPageBackgroundColor(nativeTheme.shouldUseDarkColors),
     show: false,
     icon: desktopResourcePath('icon.png'),
     autoHideMenuBar: process.platform !== 'darwin',
