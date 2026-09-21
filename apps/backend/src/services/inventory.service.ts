@@ -442,6 +442,18 @@ export interface ListInventoryFilter {
   pageSize?: number;
 }
 
+/**
+ * Which pool a consumption draws from, mirroring the dispense path's
+ * `stockSource` (see inventory-consumption.service.ts).
+ *
+ * NORMAL     - ordinary usage. Must not eat into units already reserved for
+ *              someone else, so it is checked against `onHand - allocated`.
+ * ALLOCATED  - drawing down a reservation this caller already holds. The
+ *              reserved units are part of `onHand`, so it is checked against
+ *              `onHand` and reduces `allocated` by the same amount.
+ */
+export type ConsumeStockSource = "NORMAL" | "ALLOCATED";
+
 export interface ConsumeStockInput {
   itemId: string;
   quantity: number;
@@ -452,6 +464,8 @@ export interface ConsumeStockInput {
     | "BOARDING_USAGE"
     | "OTHER";
   referenceId?: string;
+  /** Defaults to NORMAL - the stricter of the two guards. */
+  stockSource?: ConsumeStockSource;
 }
 
 export interface BulkConsumeStockInput {
@@ -619,6 +633,23 @@ type PrismaClientOrTx = typeof prisma | Prisma.TransactionClient;
 /**
  * HELPER: Recompute onHand and allocated from batches
  */
+/**
+ * `stockSource` arrives straight off the request body, so an unrecognised value
+ * is rejected rather than silently falling back to NORMAL: a caller that meant
+ * to draw down a reservation and mistyped the source would otherwise be told
+ * "Insufficient stock" for a reservation that is sitting right there.
+ */
+const resolveConsumeStockSource = (
+  value: ConsumeStockSource | undefined,
+): ConsumeStockSource => {
+  if (value === undefined) return "NORMAL";
+  if (value === "NORMAL" || value === "ALLOCATED") return value;
+  throw new InventoryServiceError(
+    "stockSource must be NORMAL or ALLOCATED",
+    400,
+  );
+};
+
 const recomputeStockFromBatches = async (
   itemId: string,
   client: PrismaClientOrTx = prisma,
@@ -1990,6 +2021,7 @@ export const InventoryService = {
     if (input.quantity <= 0) {
       throw new InventoryServiceError("quantity must be > 0", 400);
     }
+    const stockSource = resolveConsumeStockSource(input.stockSource);
 
     const updated = await prisma.$transaction(async (tx) => {
       const item = await tx.inventoryItem.findFirst({
@@ -1999,8 +2031,37 @@ export const InventoryService = {
         throw new InventoryServiceError("Inventory item not found", 404);
       }
 
-      if ((item.onHand ?? 0) < input.quantity) {
+      const onHandBefore = item.onHand ?? 0;
+      // A NORMAL consumption must not spend units already reserved for someone
+      // else, which is what `allocated` records. Checking `onHand` alone let an
+      // ordinary usage drain an inpatient's reservation with nothing detecting
+      // it, leaving `onHand < allocated` - the invariant allocateStock itself
+      // enforces on the way in.
+      const available =
+        stockSource === "ALLOCATED"
+          ? onHandBefore
+          : onHandBefore - (item.allocated ?? 0);
+      if (available < input.quantity) {
         throw new InventoryServiceError("Insufficient stock", 400);
+      }
+
+      if (stockSource === "ALLOCATED") {
+        // Conditional decrement rather than a computed literal: the row is only
+        // written if the reservation still covers the draw at write time, so two
+        // concurrent draw-downs on the same reservation cannot both succeed the
+        // way a read-then-write pair would. A `null` allocated matches no row
+        // here, which is correct - there is no reservation to draw down.
+        const claimed = await tx.inventoryItem.updateMany({
+          where: {
+            id: safeItemId,
+            organisationId: safeOrganisationId,
+            allocated: { gte: input.quantity },
+          },
+          data: { allocated: { decrement: input.quantity } },
+        });
+        if (claimed.count !== 1) {
+          throw new InventoryServiceError("Insufficient allocated stock", 400);
+        }
       }
 
       const batches = await tx.inventoryBatch.findMany({
