@@ -392,6 +392,14 @@ describe('parseUtterance rule order', () => {
     ).toBe(at(2026, 0, 16, 20, 30));
   });
 
+  it('does not give a refused dotted time the nearby day-part hour', () => {
+    const parsed = parseUtterance('remind me to walk him tonight 20.30', {
+      now: NOW,
+    });
+    expect(parsed?.actionId).toBe('addCareTask');
+    expect(parsed?.slots.when).toBe(at(2026, 0, 15, 9, 0));
+  });
+
   it('routes "remind me about the vaccine" to addCareTask, not vaccinationStatus', () => {
     expect(
       parseUtterance('remind me about the vaccine', {now: NOW})?.actionId,
