@@ -640,8 +640,9 @@ describe('parseWhen does not read a measured dose as a clock time', () => {
  *
  * The dotted forms that carry their own evidence are unaffected: "8.30 pm"
  * goes through `parseMeridiemTime`, which runs first and accepts a dot. A
- * colon needs no evidence at all, because nobody writes a dose or a price
- * with one.
+ * colon still carries the 24-hour rule, because nobody writes a dose or a
+ * price with one - a dilution ratio is the one thing written with a colon
+ * that is not a time, and the block below covers it.
  *
  * The last two rows are the prices a currency guard was once proposed for.
  * Neither can be told from a time by the text the clock rules receive:
@@ -696,6 +697,44 @@ describe('parseWhen does not read a dotted number as a time', () => {
     ['a dot qualified by a meridiem', 'walk him at 8.30 pm tomorrow'],
   ])('still reads a time written with %s', (_case, text) => {
     expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 20, 30));
+  });
+
+  /*
+   * A dilution ratio is written with a colon and is not a time.
+   *
+   * "dilute 1:10 and bathe him tomorrow" scheduled 01:10. The ratio has no
+   * unit after it for the unit guard to catch and no shape of its own - 1:10,
+   * 1:20 and 1:50 are all valid readings - so the dilution word in front of it
+   * is the only evidence there is, and it only counts within three words. The
+   * two rows below it are what that bound is for: a dilution word further back
+   * is not introducing the number, and a ratio must not disqualify a real time
+   * said later in the same sentence.
+   */
+  it.each([
+    ['the ratio opens the sentence', 'dilute 1:10 and bathe him tomorrow'],
+    ['a determiner and a noun intervene', 'dilute the shampoo 1:20 tomorrow'],
+    ['the verb is mix', 'mix 1:50 tomorrow'],
+    ['the dilution word is Spanish', 'diluir 1:10 manana'],
+  ])('keeps the default hour when %s', (_case, text) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
+  });
+
+  it('still reads a time four words after a dilution word', () => {
+    expect(
+      localParts(parseWhen('mix his food at 18:30 tomorrow', NOW)),
+    ).toEqual(at(2026, 2, 4, 18, 30));
+  });
+
+  it('still reads a time said after a ratio in the same sentence', () => {
+    expect(
+      localParts(parseWhen('dilute 1:10 then walk him at 20:30 tomorrow', NOW)),
+    ).toEqual(at(2026, 2, 4, 20, 30));
+  });
+
+  it('still reads an hour of one that no dilution word introduces', () => {
+    expect(localParts(parseWhen('walk him at 1:10 tomorrow', NOW))).toEqual(
+      at(2026, 2, 4, 1, 10),
+    );
   });
 
   it('reads the time after a price rather than the price itself', () => {
