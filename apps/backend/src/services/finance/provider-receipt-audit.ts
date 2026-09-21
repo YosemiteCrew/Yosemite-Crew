@@ -50,7 +50,19 @@ export type HistoricalMismatchKind =
   | "AMBIGUOUS_JOURNAL_MATCH"
   /** The journal and the payment state different currencies, which makes their amounts not comparable. */
   | "CURRENCY_DIFFERS"
-  /** Same currency, different figure: we applied one amount and the provider reports another. */
+  /**
+   * Same currency, different figure: we applied one amount and the provider
+   * reports another.
+   *
+   * The commonest cause is not a corruption. `recordInvoicePayment` applies
+   * `min(requested, balance)` and writes that figure to both `Payment.amount`
+   * and the attempt's `amountCaptured`, so a capture larger than the invoice
+   * balance is recorded nowhere at its real size and the excess is unaccounted
+   * for. Read the two amounts to tell the directions apart: a journal figure
+   * ABOVE the recorded one is money received and not allocated, and one BELOW
+   * it is the much worse case - an invoice credited with more than the
+   * provider says it took.
+   */
   | "AMOUNT_DIFFERS";
 
 /**
