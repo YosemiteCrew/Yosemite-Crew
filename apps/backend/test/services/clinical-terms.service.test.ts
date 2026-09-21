@@ -575,7 +575,38 @@ describe("ClinicalTermsService", () => {
       // pair came first was decided by the query plan. Widening changes the plan.
       const { text } = sqlFor({ q: "renal", limit: LIMIT });
 
+      expect(text).toContain("display ASC, code ASC");
+    });
+
+    it("orders rows inside a tier by how much of the label the query covers", () => {
+      // Inside a tier every row matched the same way, so the tier cannot separate them
+      // and the order fell through to the label alphabetically. That is what puts eight
+      // "Renal (kidney) ..." rows on the first page for "renal" and leaves the whole
+      // "Renal failure" family at positions 22 to 28.
+      const { text } = sqlFor({ q: "renal", limit: LIMIT });
+
+      expect(text).toContain(
+        "ORDER BY score DESC, length(display) ASC, display ASC, code ASC",
+      );
+    });
+
+    it("ranks by tier before coverage, so no row changes tier", () => {
+      // The tiebreak must stay a tiebreak. Ahead of score it would let a short label
+      // that merely contains the query outrank an exact match.
+      const { text } = sqlFor({ q: "renal", limit: LIMIT });
+
+      expect(text.indexOf("score DESC")).toBeLessThan(
+        text.indexOf("length(display)"),
+      );
+    });
+
+    it("leaves a browse with no query alphabetical", () => {
+      // With no query every row scores 0, so there is no tier to break a tie inside and
+      // nothing for coverage to mean. The browse list stays the alphabetical one.
+      const { text } = sqlFor({ limit: LIMIT });
+
       expect(text).toContain("ORDER BY score DESC, display ASC, code ASC");
+      expect(text).not.toContain("length(display)");
     });
   });
 
@@ -631,6 +662,47 @@ describe("ClinicalTermsService", () => {
 
       expect(reachable.map((concept) => concept.label)).toContain(
         "Ear (aural) infection",
+      );
+    });
+
+    const renalTier = () =>
+      concepts.filter((concept) =>
+        concept.label.toLowerCase().startsWith("renal"),
+      );
+
+    it("spends an alphabetical first page on one family's variants", () => {
+      // The ordering complaint in the issue body, asserted against the data rather than
+      // quoted from it. Every one of these rows is in the display-prefix tier, so the
+      // tier cannot separate them and the label decides the page on its own.
+      const alphabetical = [...renalTier()].sort(
+        (a, b) =>
+          a.label.localeCompare(b.label) || a.ycCode.localeCompare(b.ycCode),
+      );
+
+      const firstPage = alphabetical.slice(0, 10);
+      const oneFamily = firstPage.filter((concept) =>
+        concept.label.startsWith("Renal (kidney)"),
+      );
+
+      expect(oneFamily.length).toBeGreaterThanOrEqual(8);
+      expect(
+        firstPage.some((concept) => concept.label.startsWith("Renal failure")),
+      ).toBe(false);
+    });
+
+    it("holds shorter renal labels naming the families that page hides", () => {
+      // ...and the terms the clinician is far more likely to want are in the same tier,
+      // distinguished only by the query accounting for more of the label. This is what
+      // the coverage tiebreak orders on, so it fails if the data stops supporting it.
+      const byCoverage = [...renalTier()].sort(
+        (a, b) =>
+          a.label.length - b.label.length ||
+          a.label.localeCompare(b.label) ||
+          a.ycCode.localeCompare(b.ycCode),
+      );
+
+      expect(byCoverage.slice(0, 10).map((concept) => concept.label)).toContain(
+        "Renal failure",
       );
     });
   });
