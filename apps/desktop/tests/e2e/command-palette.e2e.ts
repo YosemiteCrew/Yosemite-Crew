@@ -214,7 +214,7 @@ test.describe('command-palette E2E', () => {
     // preload bridge exposed `getPaletteActions`.
     expect(await paletteWindowOpen()).toBe(false);
 
-    await clickMenuItem(app!, 'Command Palette\u2026');
+    // MUTATION ARM: the menu click this test is named for is removed.
     await waitForPaletteReady();
   });
 
@@ -330,7 +330,7 @@ test.describe('command-palette E2E', () => {
      */
     expect(await paletteWindowOpen()).toBe(true);
 
-    await pressPaletteKey('Escape');
+    // MUTATION ARM: the Escape keypress is removed.
 
     await expect
       .poll(paletteWindowOpen, {
