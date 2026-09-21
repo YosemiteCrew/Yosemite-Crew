@@ -32,14 +32,45 @@ export type ClinicalTermSuggestion = {
 /** A practice can narrow the list to terms it can code in one vocabulary. */
 export type VocabularyFilter = 'VENOM' | 'SNOMED';
 
+/** Species buckets the vocabulary tags its terms with, as the endpoint accepts them. */
+export type ClinicalTermSpecies = 'SA' | 'LA' | 'FARM' | 'EXOTICS' | 'EQUINE' | 'AVIAN';
+
+/**
+ * Companion species as recorded on the patient, mapped to the vocabulary's bucket.
+ * Only the three the product records today are mapped; anything else resolves to
+ * `undefined` and the caller sends no filter at all, because a wrong bucket hides
+ * terms silently while no bucket only leaves the list as wide as it is now.
+ *
+ * A Map rather than an object literal: an object lookup also resolves inherited keys,
+ * so a species recorded as `constructor` or `__proto__` - the two Object.prototype
+ * members that survive the lower-casing below - would come back as an Object.prototype
+ * member typed as ClinicalTermSpecies and go into the query string.
+ */
+const SPECIES_BY_COMPANION = new Map<string, ClinicalTermSpecies>([
+  ['dog', 'SA'],
+  ['cat', 'SA'],
+  ['horse', 'EQUINE'],
+]);
+
+/**
+ * The workspace carries the companion species as free text and has been seen
+ * holding both `'dog'` and `'Dog'`, so the lookup is case- and space-insensitive.
+ */
+export const resolveClinicalTermSpecies = (
+  companionSpecies?: string | null
+): ClinicalTermSpecies | undefined =>
+  SPECIES_BY_COMPANION.get(companionSpecies?.trim().toLowerCase() ?? '');
+
 export const suggestClinicalTerms = async (params: {
   q: string;
   domain?: ClinicalTermDomain;
+  species?: ClinicalTermSpecies;
   limit?: number;
   vocabulary?: VocabularyFilter;
 }): Promise<ClinicalTermSuggestion[]> => {
   const search = new URLSearchParams({ q: params.q });
   if (params.domain) search.set('domain', params.domain);
+  if (params.species) search.set('species', params.species);
   if (params.vocabulary) search.set('vocabulary', params.vocabulary);
   if (params.limit) search.set('limit', String(params.limit));
   const res = await getData<{ items?: ClinicalTermSuggestion[] }>(

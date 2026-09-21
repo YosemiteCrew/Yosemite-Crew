@@ -35,6 +35,7 @@ import {
   templateToSoapTemplate,
 } from '@/app/features/appointments/services/workspaceTemplateService';
 import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer';
+import { resolveClinicalTermSpecies } from '@/app/features/appointments/services/clinicalTermsService';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import { collectMissingRequiredFields } from '@/app/features/forms/pages/Forms/Sections/AddForm/validationUtils';
 import { EMPTY_SOAP, isPersistedSoapId, hasNativeSoapContent, isCustomSoap } from './soapStepUtils';
@@ -198,6 +199,8 @@ type SoapStepProps = {
   appointmentReason: string;
   appointmentService?: string;
   appointmentSpeciality?: string;
+  /** Companion species as recorded on the patient; drives the coded-term species filter. */
+  companionSpecies?: string;
   encounter: AppointmentEncounter;
   /**
    * Whether the visit has started (checked in / in progress / completed). Gates the
@@ -224,6 +227,7 @@ const SoapStep = ({
   appointmentReason,
   appointmentService,
   appointmentSpeciality,
+  companionSpecies,
   encounter,
   visitStarted,
   onRecordVitals,
@@ -467,6 +471,7 @@ const SoapStep = ({
                   assessment={note.assessment}
                   plan={note.plan}
                   codedProblems={note.codedProblems}
+                  codedTermSpecies={resolveClinicalTermSpecies(companionSpecies)}
                   terminologyText={terminologyText}
                   onSubjectiveChange={(html) => upsertSoap(appointmentId, { subjective: html })}
                   onObjectiveChange={(html) => upsertSoap(appointmentId, { objective: html })}

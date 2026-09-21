@@ -7,6 +7,7 @@ import WorkspaceSearchResultRow from '@/app/features/appointments/pages/Appointm
 import {
   suggestClinicalTerms,
   type ClinicalTermDomain,
+  type ClinicalTermSpecies,
   type ClinicalTermSuggestion,
   type VocabularyFilter,
 } from '@/app/features/appointments/services/clinicalTermsService';
@@ -56,12 +57,50 @@ const codingLabel = (coding: { system: string; code: string; equivalence?: strin
   return `${system} ${coding.code}${qualifier}`;
 };
 
-/** YC code, then each vocabulary crosswalk, then the synonym that matched. */
-const buildOrigin = (suggestion: ClinicalTermSuggestion, synonym: string | undefined): string => {
+const SPECIES_LABEL: Record<string, string> = {
+  SA: 'Small animal',
+  LA: 'Large animal',
+  FARM: 'Farm',
+  EXOTICS: 'Exotics',
+  EQUINE: 'Equine',
+  AVIAN: 'Avian',
+};
+
+/**
+ * YC code, then each vocabulary crosswalk, then the synonym that matched.
+ *
+ * `showSpecies` is set only for a label that appears more than once in the current
+ * results. The vocabulary ships 189 pairs of terms that share a label within a
+ * domain, 185 of them a small-animal term and its equine counterpart, and 180 of
+ * those carry the same crosswalk - so without the species the two rows are
+ * character for character identical and the clinician is choosing at random. Most
+ * terms carry several species, so showing it on every row would be noise on the
+ * rows that need it least.
+ */
+const buildOrigin = (
+  suggestion: ClinicalTermSuggestion,
+  synonym: string | undefined,
+  showSpecies: boolean
+): string => {
   const parts: string[] = [suggestion.ycCode];
   for (const coding of suggestion.codings ?? []) parts.push(codingLabel(coding));
+  if (showSpecies && suggestion.species.length) {
+    parts.push(suggestion.species.map((code) => SPECIES_LABEL[code] ?? code).join(', '));
+  }
   if (synonym) parts.push(`matches “${synonym}”`);
   return parts.join(' · ');
+};
+
+/** Labels held by more than one row, lower-cased. These are the ambiguous ones. */
+const repeatedLabels = (suggestions: ClinicalTermSuggestion[]): Set<string> => {
+  const seen = new Set<string>();
+  const repeated = new Set<string>();
+  for (const suggestion of suggestions) {
+    const label = suggestion.label.toLowerCase();
+    if (seen.has(label)) repeated.add(label);
+    seen.add(label);
+  }
+  return repeated;
 };
 
 const MIN_QUERY_LENGTH = 2;
@@ -84,6 +123,12 @@ type SoapCodedTermPickerProps = {
   sectionLabel: string;
   /** Vocabulary domain to narrow suggestions to; omit to search every domain. */
   domain?: ClinicalTermDomain;
+  /**
+   * Species bucket of the companion being charted. Omitted when the appointment has
+   * no species context, or the species has no bucket - the list then stays as wide
+   * as it is without one rather than being narrowed on a guess.
+   */
+  species?: ClinicalTermSpecies;
   selected: SoapCodedTerm[];
   onChange: (terms: SoapCodedTerm[]) => void;
 };
@@ -97,6 +142,7 @@ type SoapCodedTermPickerProps = {
 const SoapCodedTermPicker = ({
   sectionLabel,
   domain,
+  species,
   selected,
   onChange,
 }: SoapCodedTermPickerProps) => {
@@ -129,6 +175,7 @@ const SoapCodedTermPicker = ({
         suggestClinicalTerms({
           q: trimmed,
           domain,
+          species,
           limit: SUGGEST_LIMIT,
           ...(scope === 'ALL' ? {} : { vocabulary: scope }),
         })
@@ -148,7 +195,7 @@ const SoapCodedTermPicker = ({
       belowMinimum ? 0 : SUGGEST_DEBOUNCE_MS
     );
     return () => clearTimeout(timer);
-  }, [query, domain, scope]);
+  }, [query, domain, species, scope]);
 
   /* Only worth explaining when a scope is on. An unscoped search that finds
      nothing is just a query with no matches, and the closed dropdown says that
@@ -156,6 +203,8 @@ const SoapCodedTermPicker = ({
   const scopedEmpty = emptyQuery !== null && scope !== 'ALL' ? { query: emptyQuery, scope } : null;
 
   const selectedCodes = useMemo(() => new Set(selected.map((term) => term.ycCode)), [selected]);
+
+  const ambiguousLabels = useMemo(() => repeatedLabels(results), [results]);
 
   // Duplicates can't reach here: the result row for an already-picked code is
   // disabled, and the shared parser dedups again on the way back in.
@@ -270,12 +319,13 @@ const SoapCodedTermPicker = ({
           <ul>
             {results.map((suggestion) => {
               const synonym = matchedSynonym(suggestion, query);
+              const ambiguous = ambiguousLabels.has(suggestion.label.toLowerCase());
               const alreadyAdded = selectedCodes.has(suggestion.ycCode);
               return (
                 <WorkspaceSearchResultRow
                   key={suggestion.ycCode}
                   name={suggestion.label}
-                  origin={buildOrigin(suggestion, synonym)}
+                  origin={buildOrigin(suggestion, synonym, ambiguous)}
                   disabled={alreadyAdded}
                   disabledReason={alreadyAdded ? 'Added' : undefined}
                   onSelect={() => addTerm(suggestion)}
