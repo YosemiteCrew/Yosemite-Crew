@@ -1571,6 +1571,7 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           appointmentReason={appointmentReason}
           appointmentService={appointment.appointmentType?.name}
           appointmentSpeciality={appointment.appointmentType?.speciality?.name}
+          companionSpecies={companion.species}
           encounter={effectiveEncounter}
           visitStarted={hasVisitStarted(appointment.status)}
           onRecordVitals={() => {
