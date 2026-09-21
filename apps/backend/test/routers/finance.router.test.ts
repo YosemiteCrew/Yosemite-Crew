@@ -16,7 +16,29 @@ const withPaymentOrgPermissionsMiddleware = jest.fn((_req, _res, next) =>
 const withPaymentIntentOrgPermissionsMiddleware = jest.fn((_req, _res, next) =>
   next(),
 );
-const requirePermissionMiddleware = jest.fn((_req, _res, next) => next());
+/**
+ * One middleware per permission, not one shared by every route.
+ *
+ * With a single shared object, `expect(handlers).toContain(...)` says a route
+ * is permission-guarded and nothing about WHICH permission - and
+ * `expect(requirePermission).toHaveBeenCalledWith(...)` is satisfied by any
+ * other route in the same router. Swapping a route's permission then changes
+ * nothing that either assertion can see. Keying the middleware on the
+ * permission is what makes the guard on a given route observable.
+ */
+const permissionGuards = new Map<
+  string,
+  jest.Mock<void, [unknown, unknown, () => void]>
+>();
+const permissionGuard = (permission: string) => {
+  const existing = permissionGuards.get(permission);
+  if (existing) return existing;
+  const guard = jest.fn((_req: unknown, _res: unknown, next: () => void) =>
+    next(),
+  );
+  permissionGuards.set(permission, guard);
+  return guard;
+};
 
 const withOrgPermissions = jest.fn(() => withOrgPermissionsMiddleware);
 const withAppointmentOrgPermissions = jest.fn(
@@ -31,12 +53,15 @@ const withPaymentOrgPermissions = jest.fn(
 const withPaymentIntentOrgPermissions = jest.fn(
   () => withPaymentIntentOrgPermissionsMiddleware,
 );
-const requirePermission = jest.fn(() => requirePermissionMiddleware);
+const requirePermission = jest.fn((permission: string) =>
+  permissionGuard(permission),
+);
 
 const FinanceController = {
   webhook: jest.fn(),
   getDiscountSettings: jest.fn(),
   listProviderReceipts: jest.fn(),
+  allocateProviderReceipt: jest.fn(),
   updateDiscountSettings: jest.fn(),
   listInvoices: jest.fn(),
   createInvoice: jest.fn(),
@@ -132,8 +157,27 @@ describe("finance.router", () => {
     expect(handlers).toContain(FinanceController.listProviderReceipts);
     expect(handlers).toContain(requireWebAuth);
     expect(handlers).toContain(withOrgPermissionsMiddleware);
-    expect(handlers).toContain(requirePermissionMiddleware);
+    expect(handlers).toContain(permissionGuard("billing:view:any"));
     expect(requirePermission).toHaveBeenCalledWith("billing:view:any");
+  });
+
+  it("puts allocating a capture behind the billing EDIT permission", () => {
+    // This route moves money - it posts a payment against an invoice and
+    // reduces what the client owes. Reading the queue is what every billing
+    // role needs; acting on it is not, and #3170 is explicit that nothing is
+    // marked applied without the configured permission.
+    const route = findRoute(
+      "/organisation/:organisationId/provider-receipts/:receiptId/allocations",
+      "post",
+    );
+    const handlers = route?.stack.map((layer) => layer.handle);
+
+    expect(handlers).toContain(FinanceController.allocateProviderReceipt);
+    expect(handlers).toContain(requireWebAuth);
+    expect(handlers).toContain(withOrgPermissionsMiddleware);
+    expect(handlers).toContain(permissionGuard("billing:edit:any"));
+    expect(handlers).not.toContain(permissionGuard("billing:view:any"));
+    expect(requirePermission).toHaveBeenCalledWith("billing:edit:any");
   });
 
   it("routes payment and refund endpoints through finance handlers", () => {
@@ -171,7 +215,7 @@ describe("finance.router", () => {
       withInvoiceOrgPermissionsMiddleware,
     );
     expect(sessionRoute?.stack.map((layer) => layer.handle)).toContain(
-      requirePermissionMiddleware,
+      permissionGuard("billing:edit:any"),
     );
     expect(
       findRoute("/invoices/payment-intent/:paymentIntentId", "get")?.stack.map(
@@ -220,7 +264,7 @@ describe("finance.router", () => {
       requireWebAuth,
       financeAppointmentLimiter,
       withInvoiceOrgPermissionsMiddleware,
-      requirePermissionMiddleware,
+      permissionGuard("billing:view:any"),
       FinanceController.getInvoiceById,
     ]);
     expect(
@@ -242,7 +286,7 @@ describe("finance.router", () => {
     ).toEqual([
       requireWebAuth,
       withOrgPermissionsMiddleware,
-      requirePermissionMiddleware,
+      permissionGuard("billing:view:any"),
       FinanceController.getDiscountSettings,
     ]);
     expect(
@@ -253,7 +297,7 @@ describe("finance.router", () => {
     ).toEqual([
       requireWebAuth,
       withOrgPermissionsMiddleware,
-      requirePermissionMiddleware,
+      permissionGuard("org:edit"),
       FinanceController.updateDiscountSettings,
     ]);
   });
