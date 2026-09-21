@@ -131,12 +131,12 @@
     setHidden(slots.label, pinned);
     updateFaviconSlot(slots.favicon, tab, !loading && (!pinned || glyph.kind === 'favicon'));
 
-    const monogram = glyph && glyph.kind === 'monogram' ? glyph.text : '';
+    const monogram = glyph?.kind === 'monogram' ? glyph.text : '';
     if (monogram && slots.monogram.textContent !== monogram) {
       slots.monogram.textContent = monogram;
     }
     setHidden(slots.monogram, !monogram);
-    setHidden(slots.pageIcon, !glyph || glyph.kind !== 'icon');
+    setHidden(slots.pageIcon, glyph?.kind !== 'icon');
   };
 
   const updateBadgeSlot = function (badge, tab) {
