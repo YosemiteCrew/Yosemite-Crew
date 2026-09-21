@@ -1026,6 +1026,10 @@ const reapplyLocalPageTheme = (): void => {
   const theme = (settingsStore?.load() || DEFAULT_SETTINGS).theme;
   applyThemeModeToWc(tabChromeView?.webContents, theme);
   applyThemeModeToWc(mainWindow?.webContents, theme);
+  // The split gutter is the content view's own background, not CSS, so a theme
+  // flip repaints both panes and leaves the old hairline colour between them
+  // until something else relayouts (resize, tab switch, split toggle).
+  applySplitDividerColor();
 };
 
 // Follow the OS appearance live when the user's preference is 'system'.
@@ -1036,6 +1040,10 @@ const applySettings = (settings: DesktopSettings): void => {
   // Local pages that won't re-evaluate prefers-color-scheme on their own.
   applyThemeModeToWc(tabChromeView?.webContents, settings.theme);
   applyThemeModeToWc(mainWindow?.webContents, settings.theme);
+  // Reads nativeTheme.shouldUseDarkColors, so it has to follow the themeSource
+  // assignment above. Covers an explicit light/dark pick the way the
+  // nativeTheme 'updated' path covers an OS flip.
+  applySplitDividerColor();
   try {
     app.setLoginItemSettings({ openAtLogin: settings.openAtLogin });
   } catch {
