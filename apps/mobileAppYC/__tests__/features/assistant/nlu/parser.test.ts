@@ -338,6 +338,25 @@ describe('parseUtterance rule order', () => {
     expect(parsed?.slots.amount).toBe(amount);
   });
 
+  it.each([
+    ['spent 12.50 on food', 12.5],
+    ['I spent 20.30 at the vet', 20.3],
+    ['log expense 45.30 for kibble', 45.3],
+  ])('reads %s as money and not as a time', (text, amount) => {
+    // `collectSlots` runs parseWhen on every action, so a price used to fill
+    // `when` from the same characters parseAmount read as the amount, and the
+    // expense form opened prefilled with 12:50.
+    const parsed = parseUtterance(text, {now: NOW});
+    expect(parsed?.slots.amount).toBe(amount);
+    expect(parsed?.slots.when).toBeUndefined();
+  });
+
+  it('still fills when from a time said alongside a price', () => {
+    expect(
+      parseUtterance('spent 12.50 on food at 8pm', {now: NOW})?.slots,
+    ).toEqual({amount: 12.5, when: at(2026, 0, 15, 20, 0)});
+  });
+
   it('routes "remind me about the vaccine" to addCareTask, not vaccinationStatus', () => {
     expect(
       parseUtterance('remind me about the vaccine', {now: NOW})?.actionId,

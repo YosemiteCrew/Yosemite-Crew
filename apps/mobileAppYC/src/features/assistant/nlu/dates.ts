@@ -165,6 +165,48 @@ const DOSE_UNITS: ReadonlySet<string> = new Set([
 const NEXT_WORD = /^\s*([a-z]+)/;
 
 /**
+ * Words that introduce a clock time and nothing else.
+ *
+ * "las" is here for the Spanish "a las 20.30"; "a" alone is an article, so it
+ * would let "a 2.50 dose" back in.
+ */
+const TIME_PREPOSITIONS: ReadonlySet<string> = new Set([
+  'at',
+  'by',
+  'around',
+  'before',
+  'after',
+  'until',
+  'till',
+  'las',
+]);
+
+/**
+ * Whether a dotted candidate is introduced as a time.
+ *
+ * A dot is a decimal point far more often than a clock separator in this
+ * domain, so the dot form carries the same preposition requirement that
+ * `parseBareHourAfterAt` already puts on a bare hour, and for the same reason:
+ * without it "give 2.50" is 2 o'clock exactly as "give 2" would be. A colon
+ * needs no such evidence - nobody writes a dose or a price with one.
+ */
+const introducedAsTime = (before: string): boolean => {
+  // Walked backwards rather than matched with an end-anchored `([a-z]+)\s*$`,
+  // which is super-linear on a long prefix - the same reason `hasNegativeSign`
+  // in the parser walks instead of anchoring.
+  let end = before.length;
+  while (end > 0 && (before[end - 1] === ' ' || before[end - 1] === '.')) {
+    end -= 1;
+  }
+  let start = end;
+  // `normalizeKeepingClock` has already lower-cased the text.
+  while (start > 0 && before[start - 1] >= 'a' && before[start - 1] <= 'z') {
+    start -= 1;
+  }
+  return start < end && TIME_PREPOSITIONS.has(before.slice(start, end));
+};
+
+/**
  * Whether what follows a clock candidate names a unit of measurement.
  *
  * Matching the whole word rather than a prefix is what keeps a real time from
@@ -177,15 +219,23 @@ const followedByDoseUnit = (rest: string): boolean => {
 };
 
 /**
- * "20:30" - a bare 24-hour reading, and "20.30" where the dot separates.
+ * "20:30" - a bare 24-hour reading, and "at 20.30" where the dot separates.
  *
- * Every candidate is read rather than only the first, so a dose that is
+ * Every candidate is read rather than only the first, so a quantity that is
  * skipped does not hide a time said after it ("give 0.25 ml at 20.30"), and
  * an unreadable one does not either ("0.75 ml" has no valid minute).
  */
 const parse24HourTime = (normalized: string): ClockTime | null => {
-  for (const match of normalized.matchAll(/\b(\d{1,2})\s*[:.]\s*(\d{2})\b/g)) {
-    const [whole, rawHour, rawMinute] = match;
+  for (const match of normalized.matchAll(
+    /\b(\d{1,2})\s*([:.])\s*(\d{2})\b/g,
+  )) {
+    const [whole, rawHour, separator, rawMinute] = match;
+    if (
+      separator === '.' &&
+      !introducedAsTime(normalized.slice(0, match.index))
+    ) {
+      continue;
+    }
     if (followedByDoseUnit(normalized.slice(match.index + whole.length))) {
       continue;
     }

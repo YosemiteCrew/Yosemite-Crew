@@ -622,3 +622,48 @@ describe('parseWhen does not read a measured dose as a clock time', () => {
     expect(parseClockTime('give 0.25 ml')).toBeNull();
   });
 });
+
+/*
+ * A dotted number is only a clock time when something says it is.
+ *
+ * The unit guard above only fires when a unit follows, so every dose said
+ * without one - "0.50 of his heart pill", "a 2.50 dose" - still became the
+ * hour, and so did a price: "spent 12.50 on food" scheduled 12:50. A dot is a
+ * decimal point far more often than a clock separator here, so the dot form
+ * now carries the preposition requirement a bare hour already had. A colon
+ * keeps needing no evidence, because nobody writes a dose or a price with one.
+ */
+describe('parseWhen reads a dotted number as a time only when introduced', () => {
+  it.each([
+    ['no unit follows the dose', 'give 0.50 of his heart pill tomorrow'],
+    ['the unit is elided', 'give 1.25 of the tablet tomorrow'],
+    ['the quantity qualifies a noun', 'give half a 2.50 dose tomorrow'],
+    ['the number is a price', 'spent 12.50 on food tomorrow'],
+    ['the price has a clock-shaped hour', 'spent 20.30 on food tomorrow'],
+  ])('keeps the default hour when %s', (_case, text) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
+  });
+
+  it.each([
+    ['at', 'walk him at 20.30 tomorrow'],
+    ['by', 'give the pill by 20.30 tomorrow'],
+    ['until', 'keep him in until 20.30 tomorrow'],
+    ['the Spanish "a las"', 'pasear a las 20.30 manana'],
+  ])('still reads a time introduced by %s', (_case, text) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 20, 30));
+  });
+
+  it('still reads a colon time with no preposition at all', () => {
+    // The colon carries its own evidence, so requiring a preposition there
+    // would throw away a time nothing else could rescue.
+    expect(localParts(parseWhen('walk him 20:30 tomorrow', NOW))).toEqual(
+      at(2026, 2, 4, 20, 30),
+    );
+  });
+
+  it('reads the time after a price rather than the price itself', () => {
+    expect(
+      localParts(parseWhen('spent 12.50 on food at 20.30 tomorrow', NOW)),
+    ).toEqual(at(2026, 2, 4, 20, 30));
+  });
+});
