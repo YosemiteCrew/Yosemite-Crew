@@ -243,7 +243,6 @@ async function handleCheckoutCompleted(
         "Canceled a duplicate developer subscription instead of replacing the active subscription on record",
         {
           eventId: event.id,
-          ownerUserId: ownerId,
           keptSubscriptionId: current.id,
           canceledSubscriptionId: sub.id,
         },
