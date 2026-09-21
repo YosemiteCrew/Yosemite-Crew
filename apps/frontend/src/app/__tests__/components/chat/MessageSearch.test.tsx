@@ -37,6 +37,12 @@ describe('MessageSearch', () => {
     expect(screen.getByLabelText('Search in conversation')).toBeInTheDocument();
   });
 
+  it('focuses the field when the panel opens', () => {
+    render(<MessageSearch />);
+    fireEvent.click(screen.getByLabelText('Search messages'));
+    expect(screen.getByLabelText('Search in conversation')).toHaveFocus();
+  });
+
   it('searches the channel and lists matching results', async () => {
     render(<MessageSearch />);
     openAndType('vaccine');
