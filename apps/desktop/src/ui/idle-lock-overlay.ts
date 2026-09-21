@@ -110,7 +110,11 @@ export const removeChildViewsExcept = <V>(
   win: { contentView: { children: readonly V[]; removeChildView: (view: V) => void } },
   keep: V | null
 ): void => {
-  for (const child of [...win.contentView.children]) {
+  // Taken once, before anything is removed: `children` is the window's own
+  // collection, and a version of Electron that hands back the live array rather
+  // than a copy would otherwise advance past the next view as this one goes.
+  const attached = Array.from(win.contentView.children);
+  for (const child of attached) {
     if (child !== keep) win.contentView.removeChildView(child);
   }
 };
