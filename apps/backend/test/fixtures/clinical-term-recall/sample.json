@@ -1,0 +1,440 @@
+[
+  {
+    "kind": "issue",
+    "query": "ear infection",
+    "expected": "YC-001308",
+    "note": "issue body: returns nothing today"
+  },
+  {
+    "kind": "issue",
+    "query": "renal failure",
+    "expected": "YC-010041",
+    "note": "maintainer comment"
+  },
+  {
+    "kind": "issue",
+    "query": "renal",
+    "expected": null,
+    "note": "issue body: an ordering complaint, not a recall one"
+  },
+  {
+    "kind": "reordered",
+    "query": "rupture wall Abdominal",
+    "expected": "YC-000001",
+    "note": "reversed wording of Abdominal wall rupture"
+  },
+  {
+    "kind": "reordered",
+    "query": "infection benhamiae Arthrodema",
+    "expected": "YC-000380",
+    "note": "reversed wording of Arthrodema benhamiae infection"
+  },
+  {
+    "kind": "reordered",
+    "query": "fibrosis scar Cervical",
+    "expected": "YC-000765",
+    "note": "reversed wording of Cervical scar/fibrosis"
+  },
+  {
+    "kind": "reordered",
+    "query": "wear tooth Dental",
+    "expected": "YC-001151",
+    "note": "reversed wording of Dental (tooth) wear"
+  },
+  {
+    "kind": "reordered",
+    "query": "associated herpesvirus multiforme Erythema",
+    "expected": "YC-001542",
+    "note": "reversed wording of Erythema multiforme - herpesvirus-associated"
+  },
+  {
+    "kind": "reordered",
+    "query": "unspecified bone carpal limb thoracic of Fracture",
+    "expected": "YC-001905",
+    "note": "reversed wording of Fracture of thoracic limb - carpal bone (unspecified)"
+  },
+  {
+    "kind": "reordered",
+    "query": "s Cushing iatrogenic Hyperadrenocorticism",
+    "expected": "YC-002306",
+    "note": "reversed wording of Hyperadrenocorticism - iatrogenic (\"Cushing's\")"
+  },
+  {
+    "kind": "reordered",
+    "query": "joint MTP metatarsophalangeal subluxation Joint",
+    "expected": "YC-002696",
+    "note": "reversed wording of Joint subluxation - metatarsophalangeal (MTP) joint"
+  },
+  {
+    "kind": "reordered",
+    "query": "spp Klebsiella Mastitis",
+    "expected": "YC-003072",
+    "note": "reversed wording of Mastitis - Klebsiella spp."
+  },
+  {
+    "kind": "reordered",
+    "query": "infection Neospora",
+    "expected": "YC-003457",
+    "note": "reversed wording of Neospora infection"
+  },
+  {
+    "kind": "reordered",
+    "query": "equorum Parascaris infestation Parasite",
+    "expected": "YC-003846",
+    "note": "reversed wording of Parasite infestation - Parascaris equorum"
+  },
+  {
+    "kind": "reordered",
+    "query": "mites Pterygosomid",
+    "expected": "YC-004245",
+    "note": "reversed wording of Pterygosomid mites"
+  },
+  {
+    "kind": "reordered",
+    "query": "cervical stenosis Spinal",
+    "expected": "YC-004625",
+    "note": "reversed wording of Spinal stenosis - cervical"
+  },
+  {
+    "kind": "reordered",
+    "query": "idiopathic neuropathy Trigeminal",
+    "expected": "YC-005010",
+    "note": "reversed wording of Trigeminal neuropathy, idiopathic"
+  },
+  {
+    "kind": "reordered",
+    "query": "wound microbiology for Swab",
+    "expected": "YC-005390",
+    "note": "reversed wording of Swab (for microbiology) - wound"
+  },
+  {
+    "kind": "reordered",
+    "query": "infected Wound",
+    "expected": "YC-005797",
+    "note": "reversed wording of Wound - infected"
+  },
+  {
+    "kind": "reordered",
+    "query": "pin transarticular open reduction Joint Hip",
+    "expected": "YC-006157",
+    "note": "reversed wording of Hip: Joint reduction, open - transarticular pin"
+  },
+  {
+    "kind": "reordered",
+    "query": "injection Spinal",
+    "expected": "YC-006512",
+    "note": "reversed wording of Spinal injection"
+  },
+  {
+    "kind": "reordered",
+    "query": "up Hunched",
+    "expected": "YC-006901",
+    "note": "reversed wording of Hunched up"
+  },
+  {
+    "kind": "reordered",
+    "query": "poisoning Arsenic",
+    "expected": "YC-007336",
+    "note": "reversed wording of Arsenic poisoning"
+  },
+  {
+    "kind": "reordered",
+    "query": "hemorrhage Colonic",
+    "expected": "YC-007730",
+    "note": "reversed wording of Colonic hemorrhage"
+  },
+  {
+    "kind": "reordered",
+    "query": "testicle Enlarged",
+    "expected": "YC-008123",
+    "note": "reversed wording of Enlarged testicle"
+  },
+  {
+    "kind": "reordered",
+    "query": "increased hormone Growth",
+    "expected": "YC-008506",
+    "note": "reversed wording of Growth hormone increased"
+  },
+  {
+    "kind": "reordered",
+    "query": "subluxation Joint",
+    "expected": "YC-008943",
+    "note": "reversed wording of Joint subluxation"
+  },
+  {
+    "kind": "reordered",
+    "query": "discharge Nasal",
+    "expected": "YC-009366",
+    "note": "reversed wording of Nasal discharge"
+  },
+  {
+    "kind": "reordered",
+    "query": "change Personality",
+    "expected": "YC-009762",
+    "note": "reversed wording of Personality change"
+  },
+  {
+    "kind": "reordered",
+    "query": "injection Scleral",
+    "expected": "YC-010158",
+    "note": "reversed wording of Scleral injection"
+  },
+  {
+    "kind": "reordered",
+    "query": "reddened Tongue",
+    "expected": "YC-010542",
+    "note": "reversed wording of Tongue reddened"
+  },
+  {
+    "kind": "reordered",
+    "query": "neuropathy plexus Brachial",
+    "expected": "YC-010922",
+    "note": "reversed wording of Brachial plexus neuropathy"
+  },
+  {
+    "kind": "reordered",
+    "query": "myeloma Multiple",
+    "expected": "YC-011327",
+    "note": "reversed wording of Multiple myeloma"
+  },
+  {
+    "kind": "shortened",
+    "query": "Abnormal phalanx",
+    "expected": "YC-000003",
+    "note": "head+tail of Abnormal bone mineralisation: distal phalanx"
+  },
+  {
+    "kind": "shortened",
+    "query": "Carcinoma nasopharynx",
+    "expected": "YC-000648",
+    "note": "head+tail of Carcinoma in situ - nasopharynx"
+  },
+  {
+    "kind": "shortened",
+    "query": "Dorsal shins",
+    "expected": "YC-001272",
+    "note": "head+tail of Dorsal metacarpal disease (bucked shins)"
+  },
+  {
+    "kind": "shortened",
+    "query": "Fracture physeal",
+    "expected": "YC-001829",
+    "note": "head+tail of Fracture of hindlimb - tibia, proximal physeal"
+  },
+  {
+    "kind": "shortened",
+    "query": "Infectious Cough",
+    "expected": "YC-002425",
+    "note": "head+tail of Infectious canine tracheobronchitis (Kennel Cough)"
+  },
+  {
+    "kind": "shortened",
+    "query": "Mass cutaneous",
+    "expected": "YC-003027",
+    "note": "head+tail of Mass lesion - skin (cutaneous)"
+  },
+  {
+    "kind": "shortened",
+    "query": "Parasite battus",
+    "expected": "YC-003836",
+    "note": "head+tail of Parasite infestation - Nematodirosis ( Nematodirus battus)"
+  },
+  {
+    "kind": "shortened",
+    "query": "Soft carpus",
+    "expected": "YC-004591",
+    "note": "head+tail of Soft tissue swelling - carpus"
+  },
+  {
+    "kind": "shortened",
+    "query": "Blood profile",
+    "expected": "YC-005281",
+    "note": "head+tail of Blood test: Biochemistry - basic profile"
+  },
+  {
+    "kind": "shortened",
+    "query": "Carpus ESF",
+    "expected": "YC-005907",
+    "note": "head+tail of Carpus: Transarticular external skeletal fixation (ESF)"
+  },
+  {
+    "kind": "shortened",
+    "query": "Pelvic graft",
+    "expected": "YC-006353",
+    "note": "head+tail of Pelvic limb (hindlimb) digit: Pad graft"
+  },
+  {
+    "kind": "shortened",
+    "query": "Drinking more",
+    "expected": "YC-006861",
+    "note": "head+tail of Drinking and urinating more"
+  },
+  {
+    "kind": "shortened",
+    "query": "Drug eruption",
+    "expected": "YC-008046",
+    "note": "head+tail of Drug-induced cutaneous eruption"
+  },
+  {
+    "kind": "shortened",
+    "query": "Oral carcinoma",
+    "expected": "YC-009533",
+    "note": "head+tail of Oral squamous cell carcinoma"
+  },
+  {
+    "kind": "shortened",
+    "query": "Distal laceration",
+    "expected": "YC-011014",
+    "note": "head+tail of Distal sesamoidean ligament laceration"
+  },
+  {
+    "kind": "designation",
+    "query": "Aflatoxin intoxication",
+    "expected": "YC-000215",
+    "note": "alternate wording of Aflatoxicosis"
+  },
+  {
+    "kind": "designation",
+    "query": "Cyst of iris",
+    "expected": "YC-005120",
+    "note": "alternate wording of Uveal cyst"
+  },
+  {
+    "kind": "designation",
+    "query": "Spermatozoa absent",
+    "expected": "YC-007405",
+    "note": "alternate wording of Azoospermia"
+  },
+  {
+    "kind": "designation",
+    "query": "Blood coagulation disorder",
+    "expected": "YC-007715",
+    "note": "alternate wording of Coagulopathy"
+  },
+  {
+    "kind": "designation",
+    "query": "Dry hair",
+    "expected": "YC-008050",
+    "note": "alternate wording of Dry fur"
+  },
+  {
+    "kind": "designation",
+    "query": "Fructosamine concentrations increased above normal",
+    "expected": "YC-008393",
+    "note": "alternate wording of Fructosamine levels increased"
+  },
+  {
+    "kind": "designation",
+    "query": "Serum chloride concentration decreased below normal",
+    "expected": "YC-008705",
+    "note": "alternate wording of Hypochloremia"
+  },
+  {
+    "kind": "designation",
+    "query": "Litter box substrate preference",
+    "expected": "YC-009061",
+    "note": "alternate wording of Litter box substrate aversion"
+  },
+  {
+    "kind": "designation",
+    "query": "Cervical pain",
+    "expected": "YC-009387",
+    "note": "alternate wording of Neck pain"
+  },
+  {
+    "kind": "designation",
+    "query": "Persistent frenulum of penis",
+    "expected": "YC-009758",
+    "note": "alternate wording of Persistent preputial frenulum"
+  },
+  {
+    "kind": "designation",
+    "query": "Fold in retina",
+    "expected": "YC-010076",
+    "note": "alternate wording of Retinal fold"
+  },
+  {
+    "kind": "designation",
+    "query": "Feces quantity bulky",
+    "expected": "YC-010357",
+    "note": "alternate wording of Stool voluminous"
+  },
+  {
+    "kind": "designation",
+    "query": "Upper motor neruon disorder of forelimb",
+    "expected": "YC-010661",
+    "note": "alternate wording of Upper motor neuron disease of forelimb"
+  },
+  {
+    "kind": "designation",
+    "query": "Ovarian cyst",
+    "expected": "YC-010978",
+    "note": "alternate wording of Cyst of ovary"
+  },
+  {
+    "kind": "designation",
+    "query": "Neoplasm of large intestine",
+    "expected": "YC-011356",
+    "note": "alternate wording of Neoplasm of large colon"
+  },
+  {
+    "kind": "single-word",
+    "query": "Abdominal",
+    "expected": null,
+    "note": "control: must be identical before and after"
+  },
+  {
+    "kind": "single-word",
+    "query": "Dermocystidium",
+    "expected": null,
+    "note": "control: must be identical before and after"
+  },
+  {
+    "kind": "single-word",
+    "query": "Hypersplenism",
+    "expected": null,
+    "note": "control: must be identical before and after"
+  },
+  {
+    "kind": "single-word",
+    "query": "Oestrus",
+    "expected": null,
+    "note": "control: must be identical before and after"
+  },
+  {
+    "kind": "single-word",
+    "query": "Squamous",
+    "expected": null,
+    "note": "control: must be identical before and after"
+  },
+  {
+    "kind": "single-word",
+    "query": "Bandage",
+    "expected": null,
+    "note": "control: must be identical before and after"
+  },
+  {
+    "kind": "single-word",
+    "query": "Transfer",
+    "expected": null,
+    "note": "control: must be identical before and after"
+  },
+  {
+    "kind": "single-word",
+    "query": "Expiratory",
+    "expected": null,
+    "note": "control: must be identical before and after"
+  },
+  {
+    "kind": "single-word",
+    "query": "Necrotizing",
+    "expected": null,
+    "note": "control: must be identical before and after"
+  },
+  {
+    "kind": "single-word",
+    "query": "Tooth",
+    "expected": null,
+    "note": "control: must be identical before and after"
+  }
+]
