@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { MOD, openPimsTab } from './welcome';
+import { openPimsTab } from './welcome';
 
 type TestServer = {
   origin: string;
@@ -80,13 +80,72 @@ const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): P
     { m: method, a: args }
   ) as Promise<T>;
 
-const waitForPaletteReady = async (page: Page, timeout = 5000): Promise<void> => {
+/*
+ * The palette window, counted rather than asserted on directly, so the two
+ * directions can be told apart: `open` is what "a palette exists" means, and
+ * `loaded` is the stronger form the open-side polls for. Returning to
+ * `afterEach` with a window still loading is what timed the hook out in #3392,
+ * so nothing here settles for construction alone.
+ *
+ * Identified by the page it loaded, for the reason written out above
+ * `settingsWindowLoaded` below: this window is constructed with
+ * `title: 'Command Palette'` and then loads a page with its own `<title>`, so a
+ * title equality is true only between construction and first paint.
+ */
+const paletteWindows = (app: ElectronApplication): Promise<{ open: number; loaded: number }> =>
+  app.evaluate(({ BrowserWindow }) => {
+    const wins = BrowserWindow.getAllWindows().filter(
+      (w) => !w.isDestroyed() && w.webContents.getURL().endsWith('/pages/command-palette.html')
+    );
+    return { open: wins.length, loaded: wins.filter((w) => !w.webContents.isLoading()).length };
+  });
+
+const palettePage = (app: ElectronApplication): Page | undefined =>
+  app.windows().find((w) => w.url().endsWith('/pages/command-palette.html'));
+
+/*
+ * Opens the palette the way a user can from this process.
+ *
+ * Not `keyboard.press('Mod+K')`, which these tests used to do: Cmd/Ctrl+K is an
+ * Electron `globalShortcut` (ui/keyboard-shortcuts.ts), which the OS delivers.
+ * Playwright's key presses are injected into a renderer over CDP and never
+ * reach the window server, so the accelerator does not fire. Measured on this
+ * spec's own fixture: with the app launched and a `Mod+K` press delivered to the
+ * shell page, `BrowserWindow.getAllWindows()` was unchanged - no palette window
+ * at all - while the same fixture opened one through the menu item below.
+ *
+ * That the accelerator is bound to this action, and held exactly while the app
+ * has focus, is asserted by the first test in this file and by
+ * tests/keyboard-shortcuts.test.ts. What is left for an e2e to show is that the
+ * action opens a real window, which is what this drives.
+ */
+const openPalette = async (app: ElectronApplication): Promise<void> => {
+  const clicked = await app.evaluate(({ Menu }) => {
+    const menu = Menu.getApplicationMenu();
+    if (!menu) return false;
+    const find = (items: Electron.MenuItem[]): Electron.MenuItem | undefined => {
+      for (const item of items) {
+        if (item.label === 'Command Palette\u2026') return item;
+        const nested = item.submenu ? find(item.submenu.items) : undefined;
+        if (nested) return nested;
+      }
+      return undefined;
+    };
+    const item = find(menu.items);
+    if (!item) return false;
+    item.click();
+    return true;
+  });
+  expect(clicked, 'the application menu has no Command Palette item to open').toBe(true);
+};
+
+const waitForPaletteReady = async (app: ElectronApplication, timeout = 10_000): Promise<void> => {
   await expect
-    .poll(async () => await evaluateYcDesktop<unknown>(page, 'getPaletteActions'), {
+    .poll(async () => (await paletteWindows(app)).loaded, {
       timeout,
-      message: 'Timed out waiting for command palette to open',
+      message: 'Timed out waiting for the command palette window to open',
     })
-    .not.toBeNull();
+    .toBeGreaterThan(0);
 };
 
 test.describe('command-palette E2E', () => {
@@ -158,18 +217,25 @@ test.describe('command-palette E2E', () => {
     if (refocused.focused) expect(refocused.held.sort()).toEqual(OWN_ACCELERATORS);
   });
 
-  test('Cmd+K opens palette window', async () => {
+  test('opening the command palette opens a palette window', async () => {
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    await page.keyboard.press(`${MOD}+K`);
-    await waitForPaletteReady(page);
-    const paletteResult = await evaluateYcDesktop<unknown>(page, 'getPaletteActions');
-    expect(paletteResult).not.toBeNull();
+
+    // The control. This test used to end on
+    // `expect(await getPaletteActions()).not.toBeNull()`, which is true of every
+    // state the app can be in: `yc:get-palette-actions` returns a module
+    // constant and reads no window state (core/ipc-handlers.ts), so it answers
+    // the same object with the palette open, closed, or never created. Asserting
+    // the absent state first is what makes the poll below able to fail.
+    expect((await paletteWindows(app!)).open).toBe(0);
+
+    await openPalette(app!);
+    await waitForPaletteReady(app!);
   });
 
   test('search "patient" returns "Patients" result', async () => {
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    await page.keyboard.press(`${MOD}+K`);
-    await waitForPaletteReady(page);
+    await openPalette(app!);
+    await waitForPaletteReady(app!);
     const actions = await evaluateYcDesktop<{
       ok: boolean;
       actions: { id: string; label: string }[];
@@ -265,10 +331,48 @@ test.describe('command-palette E2E', () => {
 
   test('Escape closes palette', async () => {
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    await page.keyboard.press(`${MOD}+K`);
-    await waitForPaletteReady(page);
-    const closeResult = await evaluateYcDesktop<{ ok: boolean }>(page, 'closePalette');
-    expect(closeResult).not.toBeNull();
+    expect((await paletteWindows(app!)).open).toBe(0);
+    await openPalette(app!);
+    await waitForPaletteReady(app!);
+
+    /*
+     * Escape is sent to the palette's own document, because that is where it is
+     * handled: pages/command-palette.js binds it on the search field's keydown
+     * and calls `closePalette()` from there. It is not a global accelerator, so
+     * a press delivered to the shell page would close nothing and the poll below
+     * would be asserting against a window no key ever reached.
+     *
+     * The old body pressed no Escape at all - it drove `closePalette` over IPC
+     * and then asserted `not.toBeNull()` on the reply, which `yc:close-palette`
+     * answers `{ ok: true }` to even when there is no window to close.
+     */
+    const palette = palettePage(app!);
+    expect(palette, 'the palette window did not surface as a Playwright page').toBeTruthy();
+
+    // Stated before the key is sent, because the handler is bound to the search
+    // field and not to the document: a key arriving with anything else focused
+    // would close nothing, and this test would then be failing for a reason that
+    // has nothing to do with Escape.
+    await expect(palette!.locator('#search')).toBeFocused();
+
+    // Sent from the main process rather than with `locator.press`. The key
+    // destroys the window the press is being made against, so Playwright's call
+    // returns `Target page, context or browser has been closed` - a failure
+    // raised by the key having worked. `sendInputEvent` does not wait on the
+    // renderer, which leaves the close to be observed by the poll below.
+    await app!.evaluate(({ BrowserWindow }) => {
+      const win = BrowserWindow.getAllWindows().find(
+        (w) => !w.isDestroyed() && w.webContents.getURL().endsWith('/pages/command-palette.html')
+      );
+      win?.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+    });
+
+    await expect
+      .poll(async () => (await paletteWindows(app!)).open, {
+        timeout: 10_000,
+        message: 'Escape did not close the command palette window',
+      })
+      .toBe(0);
   });
 
   test('recents persist across palette open/close', async () => {
