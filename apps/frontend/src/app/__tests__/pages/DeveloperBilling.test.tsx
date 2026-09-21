@@ -126,6 +126,16 @@ describe('DeveloperBilling page', () => {
     expect(await screen.findByRole('button', { name: 'Manage billing' })).toBeInTheDocument();
   });
 
+  /* The cards used to promise 1 key on Free and unlimited on Pro/Enterprise
+     while issuance applied one ceiling to every owner without reading the plan.
+     Same line on all three tiers is the honest statement of what is enforced. */
+  it('states the same enforced key allowance on every plan card', async () => {
+    render(<DeveloperBilling />);
+    const allowances = await screen.findAllByText('Up to 25 active API keys');
+    expect(allowances).toHaveLength(3);
+    expect(screen.queryByText(/Unlimited API keys/)).not.toBeInTheDocument();
+  });
+
   it('shows per-call pricing in the Pro plan card', async () => {
     render(<DeveloperBilling />);
     await screen.findByTestId('plan-card-pro');
