@@ -8164,6 +8164,203 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/finance/organisation/{organisationId}/provider-receipts/audit':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/finance/organisation/{organisationId}/provider-receipts/audit'
+      operationId: get_v1_finance_organisation_organisationId_provider_receipts_audit
+      description: "The historical mismatch audit for the provider receipt journal (#3170). The journal only holds what was captured after it was deployed; everything charged before that is recorded solely as a Payment, which is a record of what the practice applied to an invoice rather than of what the provider says it took. This reads one window of settled provider payments against the journal and reports where the two disagree. It repairs nothing - there is no counterpart write route, because a correction taken on the audit's own reading is not recoverable by running the audit again."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+        - name: recordedFrom
+          in: query
+          required: false
+          description: 'Inclusive lower bound on when the payment was RECORDED, which is the field the window sorts on. Named after that clock rather than the capture because it is genuinely which one it reads: paidAt is nullable, so a window built from it would silently omit every settled payment that has none. ISO 8601 with an explicit offset; a bare date is answered 400.'
+          schema:
+            type: string
+            format: date-time
+        - name: recordedTo
+          in: query
+          required: false
+          description: Inclusive upper bound on when the payment was recorded, same format rule as recordedFrom. Either bound may be omitted, which leaves the window open at that end.
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          description: 'How many payments the window examines, clamped server-side rather than rejected (default 100, max 200). The value actually applied comes back in meta.limit.'
+          schema:
+            type: integer
+        - name: cursor
+          in: query
+          required: false
+          description: "Opaque cursor from the previous response's meta.nextCursor. A malformed cursor is answered 400 rather than ignored."
+          schema:
+            type: string
+      responses:
+        200:
+          description: The mismatches found in one window, with that window's coverage
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                  - error
+                properties:
+                  data:
+                    type: array
+                    description: 'One entry per payment the audit found something wrong with, newest recorded first. A payment yields at most one entry, which is what makes meta.matched a count rather than an estimate.'
+                    items:
+                      type: object
+                      required:
+                        - kind
+                        - paymentId
+                        - invoiceId
+                        - provider
+                        - status
+                        - paymentRef
+                        - paidAt
+                        - recordedAt
+                        - recordedAmount
+                        - recordedCurrency
+                        - journalledReceiptIds
+                        - journalledAmount
+                        - journalledCurrency
+                      properties:
+                        kind:
+                          type: string
+                          enum:
+                            - NOT_JOURNALLED
+                            - REFERENCE_MISSING
+                            - AMBIGUOUS_JOURNAL_MATCH
+                            - CURRENCY_DIFFERS
+                            - AMOUNT_DIFFERS
+                          description: "NOT_JOURNALLED is the pre-journal population - captured, with no journal row of this organisation's carrying the reference. REFERENCE_MISSING is a provider payment that kept no reference at all, so it can never be matched by anybody. AMBIGUOUS_JOURNAL_MATCH is more than one journal row under one reference, which is not resolved by picking either. CURRENCY_DIFFERS means the two figures are not comparable, and is reported in preference to AMOUNT_DIFFERS."
+                        paymentId:
+                          type: string
+                        invoiceId:
+                          type: string
+                        provider:
+                          type: string
+                        status:
+                          type: string
+                          description: The payment state. Refunded states are audited too - a capture still happened, and the refund is a later fact about the same money.
+                        paymentRef:
+                          type: string
+                          nullable: true
+                          description: The provider's reference as the payment records it. Null is REFERENCE_MISSING. Operational data for authorised staff.
+                        paidAt:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        recordedAt:
+                          type: string
+                          format: date-time
+                          description: When the payment was recorded here. This is the sort key and the field the window filters on.
+                        recordedAmount:
+                          type: number
+                          description: 'What was APPLIED to the invoice, in major units of recordedCurrency, which is not always what the provider took: a payment is recorded at min(requested, invoice balance), so a capture larger than the balance is stored nowhere at its real size. Read against journalledAmount this gives the direction of an AMOUNT_DIFFERS - a journal figure above the recorded one is money received and not allocated, and one below it is an invoice credited with more than the provider says it took.'
+                        recordedCurrency:
+                          type: string
+                        journalledReceiptIds:
+                          type: array
+                          description: Every journal row of this organisation's carrying the reference. Empty for NOT_JOURNALLED and REFERENCE_MISSING, more than one for AMBIGUOUS_JOURNAL_MATCH.
+                          items:
+                            type: string
+                        journalledAmount:
+                          type: number
+                          nullable: true
+                          description: The journal's figure, present only where exactly one row carries the reference.
+                        journalledCurrency:
+                          type: string
+                          nullable: true
+                  meta:
+                    type: object
+                    required:
+                      - examined
+                      - matched
+                      - nextCursor
+                      - hasMore
+                      - limit
+                    properties:
+                      examined:
+                        type: integer
+                        description: 'Settled provider payments compared in THIS window, never a total over the organisation. It is what stops an empty data array reading as a clean bill of health: no findings in a window of 100 says something, and no findings in a window that examined 0 says nothing at all.'
+                      matched:
+                        type: integer
+                        description: examined minus the findings.
+                      nextCursor:
+                        type: string
+                        nullable: true
+                        description: Position of the last payment in this window; pass it back as `cursor`. Null when there is no further window.
+                      hasMore:
+                        type: boolean
+                        description: Whether another window exists. Never infer this from data.length - a window can report no findings and still not be the last.
+                      limit:
+                        type: integer
+                        description: The window size actually applied, which is not always the one requested.
+                  error:
+                    nullable: true
+        400:
+          description: A date without an offset, an unusable limit, or a malformed cursor
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        401:
+          description: No staff session presented
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        403:
+          description: The caller has no active membership of this organisation, or holds no billing:view:any permission in it
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
   '/v1/finance/organisation/{organisationId}/provider-receipts/{receiptId}/allocations':
     post:
       tags:

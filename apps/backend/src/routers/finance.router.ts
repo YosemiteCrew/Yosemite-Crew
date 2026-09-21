@@ -55,6 +55,15 @@ router.get(
   FinanceController.listProviderReceipts,
 );
 
+// The historical mismatch audit (#3170 delivery 4) is deliberately read-only.
+router.get(
+  "/organisation/:organisationId/provider-receipts/audit",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:view:any"),
+  FinanceController.auditProviderReceipts,
+);
+
 // `billing:edit:any`, not the view permission the list above carries. This
 // route moves money: it posts a payment against an invoice and reduces what
 // the client owes. The issue is explicit that nothing is marked applied

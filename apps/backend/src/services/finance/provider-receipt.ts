@@ -394,6 +394,15 @@ const exclusiveMerchantAccount = async (
   return null;
 };
 
+/** The tenant-safe receipt scope shared by reconciliation readers. */
+export const reconciliationScopeForOrganisation = async (
+  organisationId: string,
+): Promise<Prisma.ProviderReceiptWhereInput[]> =>
+  reconciliationScope(
+    organisationId,
+    await exclusiveMerchantAccount(organisationId),
+  );
+
 /**
  * The exclusive `(createdAt, id)` comparison that continues a page.
  *
@@ -1082,10 +1091,6 @@ export const ProviderReceiptService = {
   ): Promise<ListReconciliationResult> {
     const limit = clampPageSize(input.limit, RECONCILIATION_PAGE_SIZE);
 
-    const merchantAccountRef = await exclusiveMerchantAccount(
-      input.organisationId,
-    );
-
     const capturedAt =
       input.capturedFrom || input.capturedTo
         ? {
@@ -1097,7 +1102,7 @@ export const ProviderReceiptService = {
     const where: Prisma.ProviderReceiptWhereInput = {
       AND: [
         {
-          OR: reconciliationScope(input.organisationId, merchantAccountRef),
+          OR: await reconciliationScopeForOrganisation(input.organisationId),
         },
         ...(input.statuses?.length
           ? [{ status: { in: [...input.statuses] } }]
