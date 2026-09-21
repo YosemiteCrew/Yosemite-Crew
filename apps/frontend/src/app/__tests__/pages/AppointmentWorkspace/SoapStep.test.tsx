@@ -501,7 +501,9 @@ describe('SoapStep', () => {
   it('surfaces the backend error and does NOT sign or advance when the save fails', async () => {
     // Override the global throwing console.error spy: the handler logs on failure.
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    (saveSoapNote as jest.Mock).mockRejectedValueOnce(new Error('SOAP save rejected'));
+    (saveSoapNote as jest.Mock).mockRejectedValueOnce(
+      new Error('Your session was refreshed. Review your unsaved changes and save again.')
+    );
     onSaveAndNext.mockClear();
     seedAndGet();
     useAppointmentWorkspaceStore.getState().upsertSoap(APPT, { subjective: '<p>history</p>' });
@@ -521,7 +523,9 @@ describe('SoapStep', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Save & Next' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('SOAP save rejected');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your session was refreshed. Review your unsaved changes and save again.'
+    );
     // Critical: a failed save must not advance the step or mark the note COMPLETED.
     expect(onSaveAndNext).not.toHaveBeenCalled();
     expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.soap[0]?.status).not.toBe(
