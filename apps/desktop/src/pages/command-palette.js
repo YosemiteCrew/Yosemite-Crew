@@ -1,7 +1,10 @@
 (function () {
   const yc = globalThis.ycDesktop;
+  const fmt = globalThis.ycPaletteFormat;
   const searchEl = document.getElementById('search');
   const resultsEl = document.getElementById('results');
+  const emptyEl = document.getElementById('empty');
+  const liveEl = document.getElementById('cp-live');
   let selectedIndex = -1;
   let results = [];
   let currentQuery = '';
@@ -66,81 +69,79 @@
     return { results: scored, isRecents: false };
   }
 
-  function escapeHtml(value) {
-    return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
-      return {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;',
-      }[c];
-    });
+  const escapeHtml = fmt.escapeHtml;
+  const highlightLabel = fmt.highlightLabel;
+
+  // Rows carry listbox semantics, so each needs a stable id for the input's
+  // aria-activedescendant to point at.
+  function optionId(index) {
+    return 'cp-option-' + index;
   }
 
-  function highlightLabel(label, query) {
-    if (!query?.trim()) return escapeHtml(label);
-    const q = query.toLowerCase();
-    const l = label;
-    const indices = [];
-    let li = 0;
-    for (let qi = 0; qi < q.length && li < l.length; li++) {
-      if (l[li].toLowerCase() === q[qi]) {
-        indices.push(li);
-        qi++;
-      }
-    }
-    if (indices.length === 0) return escapeHtml(label);
-    let result = '';
-    let lastIdx = 0;
-    indices.forEach(function (idx) {
-      result += escapeHtml(l.slice(lastIdx, idx)) + '<mark>' + escapeHtml(l[idx]) + '</mark>';
-      lastIdx = idx + 1;
-    });
-    result += escapeHtml(l.slice(lastIdx));
-    return result;
+  // The icon tile used to fall back to a bullet whenever an action had no
+  // icon - which is every built-in action, so every row showed the same
+  // meaningless dot. No icon, no tile.
+  function iconTile(action, extraClass) {
+    if (!action.icon) return '';
+    return (
+      '<div class="item-icon' +
+      (extraClass ? ' ' + extraClass : '') +
+      '" aria-hidden="true">' +
+      escapeHtml(action.icon) +
+      '</div>'
+    );
   }
 
   function render(query) {
     currentQuery = query;
     const data = search(query, recentsCache);
     let html = '';
+    let emptyText = '';
     results = [];
     selectedIndex = -1;
 
     if (data.isRecents && recentsCache.length > 0) {
-      html += '<div class="section-title">Recent</div>';
+      // The section title is inside the listbox, so the rows it heads are
+      // wrapped in a group - a listbox may only contain options and groups.
+      let rows = '';
       recentsCache.forEach(function (r) {
         const a = actionMap[r.id];
         if (!a) return;
-        const icon = a.icon || '\u2022';
+        const index = results.length;
         results.push(a);
-        html +=
-          '<div class="item" data-index="' +
-          (results.length - 1) +
+        rows +=
+          '<div class="item" role="option" aria-selected="false" id="' +
+          optionId(index) +
+          '" data-index="' +
+          index +
           '">' +
-          '<div class="item-icon recents-clock">' +
-          escapeHtml(icon) +
-          '</div>' +
+          iconTile(a, 'recents-clock') +
           '<div class="item-label">' +
           escapeHtml(a.label) +
           '</div>' +
           (a.description ? '<div class="item-desc">' + escapeHtml(a.description) + '</div>' : '') +
           '</div>';
       });
-      if (results.length === 0) html += '<div id="empty">No recents yet</div>';
+      if (results.length === 0) {
+        emptyText = 'No recents yet';
+      } else {
+        html =
+          '<div role="group" aria-labelledby="cp-recent-title">' +
+          '<div class="section-title" id="cp-recent-title">Recent</div>' +
+          rows +
+          '</div>';
+      }
     } else if (data.results.length > 0) {
       data.results.forEach(function (r, i) {
         const a = r.item;
-        const icon = a.icon || '\u2022';
         results.push(a);
         html +=
-          '<div class="item" data-index="' +
+          '<div class="item" role="option" aria-selected="false" id="' +
+          optionId(i) +
+          '" data-index="' +
           i +
           '">' +
-          '<div class="item-icon">' +
-          escapeHtml(icon) +
-          '</div>' +
+          iconTile(a) +
           '<div class="item-label">' +
           highlightLabel(a.label, query) +
           '</div>' +
@@ -149,13 +150,17 @@
           '</div>' +
           '</div>';
       });
-    } else if (query.trim()) {
-      html += '<div id="empty">No results for "' + escapeHtml(query) + '"</div>';
     } else {
-      html += '<div id="empty">Type to search commands</div>';
+      emptyText = fmt.resultsAnnouncement(0, query);
     }
 
     resultsEl.innerHTML = html;
+    emptyEl.textContent = emptyText;
+    searchEl.setAttribute('aria-expanded', results.length > 0 ? 'true' : 'false');
+    // Arrow-key movement is announced through aria-activedescendant; the live
+    // region carries the two things with no element to point at - how many rows
+    // there are, and the empty states.
+    liveEl.textContent = emptyText || fmt.resultsAnnouncement(results.length, query);
 
     resultsEl.querySelectorAll('.item').forEach(function (el) {
       el.addEventListener('click', function () {
@@ -177,15 +182,23 @@
   function setSelected(idx) {
     if (selectedIndex >= 0) {
       const prev = resultsEl.querySelector('.item[data-index="' + selectedIndex + '"]');
-      if (prev) prev.classList.remove('selected');
+      if (prev) {
+        prev.classList.remove('selected');
+        prev.setAttribute('aria-selected', 'false');
+      }
     }
     selectedIndex = idx;
-    if (selectedIndex >= 0) {
-      const next = resultsEl.querySelector('.item[data-index="' + selectedIndex + '"]');
-      if (next) {
-        next.classList.add('selected');
-        next.scrollIntoView({ block: 'nearest' });
-      }
+    const next =
+      selectedIndex >= 0
+        ? resultsEl.querySelector('.item[data-index="' + selectedIndex + '"]')
+        : null;
+    if (next) {
+      next.classList.add('selected');
+      next.setAttribute('aria-selected', 'true');
+      next.scrollIntoView({ block: 'nearest' });
+      searchEl.setAttribute('aria-activedescendant', next.id);
+    } else {
+      searchEl.removeAttribute('aria-activedescendant');
     }
   }
 

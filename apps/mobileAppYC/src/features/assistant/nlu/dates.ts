@@ -111,15 +111,91 @@ const parseMeridiemTime = (normalized: string): ClockTime | null => {
   return {hour: (rawHour % 12) + (match[3] === 'pm' ? 12 : 0), minute};
 };
 
-/** "20:30" - a bare 24-hour reading. */
+/**
+ * Units that mark a dotted number as a measured dose, not a clock reading.
+ *
+ * "0.25 ml" and "1.25 mg" are among the commonest things an owner says here,
+ * and in this domain a dot is a decimal point far more often than it is a
+ * clock separator. The fraction only has to land in 00-59 to read as valid
+ * minutes, which .25, .30 and .50 all do - so the dose became the hour and
+ * "give Max 0.25 ml tomorrow" scheduled the reminder for twenty-five past
+ * midnight instead of the 09:00 default. That is the mis-scheduled dose this
+ * module's header exists to prevent.
+ *
+ * The guard is not limited to the dot form, because a colon reading followed
+ * by a unit ("8:30 ml") is not something anyone says - narrowing it would add
+ * a branch no utterance can tell apart.
+ */
+const DOSE_UNITS: ReadonlySet<string> = new Set([
+  'ml',
+  'mls',
+  'l',
+  'mg',
+  'mcg',
+  'ug',
+  'g',
+  'kg',
+  'cc',
+  'iu',
+  'unit',
+  'units',
+  'tab',
+  'tabs',
+  'tablet',
+  'tablets',
+  'cap',
+  'caps',
+  'capsule',
+  'capsules',
+  'drop',
+  'drops',
+  'pill',
+  'pills',
+  'sachet',
+  'sachets',
+  'scoop',
+  'scoops',
+  'puff',
+  'puffs',
+  'spray',
+  'sprays',
+]);
+
+/** The next whole word, already lower-cased by `normalizeKeepingClock`. */
+const NEXT_WORD = /^\s*([a-z]+)/;
+
+/**
+ * Whether what follows a clock candidate names a unit of measurement.
+ *
+ * Matching the whole word rather than a prefix is what keeps a real time from
+ * being thrown away: in "at 20.30 go out" the next word is "go", not the unit
+ * "g".
+ */
+const followedByDoseUnit = (rest: string): boolean => {
+  const next = NEXT_WORD.exec(rest);
+  return next !== null && DOSE_UNITS.has(next[1]);
+};
+
+/**
+ * "20:30" - a bare 24-hour reading, and "20.30" where the dot separates.
+ *
+ * Every candidate is read rather than only the first, so a dose that is
+ * skipped does not hide a time said after it ("give 0.25 ml at 20.30"), and
+ * an unreadable one does not either ("0.75 ml" has no valid minute).
+ */
 const parse24HourTime = (normalized: string): ClockTime | null => {
-  const match = /\b(\d{1,2})\s*[:.]\s*(\d{2})\b/.exec(normalized);
-  if (!match) {
-    return null;
+  for (const match of normalized.matchAll(/\b(\d{1,2})\s*[:.]\s*(\d{2})\b/g)) {
+    const [whole, rawHour, rawMinute] = match;
+    if (followedByDoseUnit(normalized.slice(match.index + whole.length))) {
+      continue;
+    }
+    const hour = Number(rawHour);
+    const minute = Number(rawMinute);
+    if (hour < 24 && minute < 60) {
+      return {hour, minute};
+    }
   }
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  return hour < 24 && minute < 60 ? {hour, minute} : null;
+  return null;
 };
 
 /**

@@ -83,6 +83,8 @@ module.exports = [
     files: [
       'src/pages/platform-labels.js',
       'src/pages/window-caption.js',
+      'src/pages/palette-format.js',
+      'src/pages/carousel-autoplay.js',
       'src/pages/tab-indicators.js',
     ],
     languageOptions: {
