@@ -55,6 +55,19 @@ router.get(
   FinanceController.listProviderReceipts,
 );
 
+// `billing:edit:any`, not the view permission the list above carries. This
+// route moves money: it posts a payment against an invoice and reduces what
+// the client owes. The issue is explicit that nothing is marked applied
+// without the configured permission, and reading the queue is what every
+// billing role needs - acting on it is not.
+router.post(
+  "/organisation/:organisationId/provider-receipts/:receiptId/allocations",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  FinanceController.allocateProviderReceipt,
+);
+
 router.get(
   "/organisation/:organisationId/subscription/seat-sync-plan",
   requireWebAuth,

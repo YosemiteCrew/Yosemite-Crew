@@ -730,3 +730,113 @@ describe("ProviderReceiptService.recordRefund", () => {
     );
   });
 });
+
+describe("the applied figure and the status are written together", () => {
+  it("records a capture the ingesting path applied as fully allocated", async () => {
+    // The status and the figure are two halves of one fact. Written apart, a
+    // receipt the booking webhook had already settled read as ALLOCATED with
+    // nothing applied - so an operator working the reconciliation queue was
+    // offered its full amount and could apply the same capture a second time,
+    // to a second invoice.
+    mockedPrisma.providerReceipt.create.mockResolvedValue({
+      id: "receipt-1",
+      status: "ALLOCATED",
+    });
+
+    await ProviderReceiptService.journalCapture(
+      capture({
+        amount: 42.5,
+        organisationId: "org-1",
+        invoiceId: "invoice-1",
+      }),
+    );
+
+    expect(mockedPrisma.providerReceipt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "ALLOCATED",
+          allocatedAmount: 42.5,
+        }),
+      }),
+    );
+  });
+
+  it("records a capture with nowhere to go as having applied nothing", async () => {
+    mockedPrisma.providerReceipt.create.mockResolvedValue({
+      id: "receipt-1",
+      status: "UNALLOCATED",
+    });
+
+    await ProviderReceiptService.journalCapture(
+      capture({ amount: 42.5, organisationId: "org-1" }),
+    );
+
+    expect(mockedPrisma.providerReceipt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "UNALLOCATED",
+          allocatedAmount: 0,
+        }),
+      }),
+    );
+  });
+
+  it("pairs them again when a later delivery supplies the invoice", async () => {
+    // An attribution that arrives afterwards and names the invoice the capture
+    // went to has applied it just as much as one that knew at ingest.
+    mockedPrisma.providerReceipt.create.mockRejectedValue(uniqueViolation());
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValue({
+      id: "receipt-1",
+      status: "UNATTRIBUTED",
+      organisationId: null,
+    });
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 1 });
+
+    await ProviderReceiptService.journalCapture(
+      capture({
+        amount: 42.5,
+        organisationId: "org-1",
+        invoiceId: "invoice-1",
+      }),
+    );
+
+    expect(mockedPrisma.providerReceipt.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "ALLOCATED",
+          allocatedAmount: 42.5,
+        }),
+      }),
+    );
+  });
+
+  it("does not resurrect an applied figure on a receipt whose money went back", async () => {
+    // A refunded state is preserved through attribution, so the figure paired
+    // with it must be too - claiming 42.50 applied on a refunded capture would
+    // break the oracle in the other direction.
+    mockedPrisma.providerReceipt.create.mockRejectedValue(uniqueViolation());
+    mockedPrisma.providerReceipt.findUnique.mockResolvedValue({
+      id: "receipt-1",
+      status: "REFUNDED",
+      organisationId: null,
+    });
+    mockedPrisma.providerReceipt.updateMany.mockResolvedValue({ count: 1 });
+
+    await ProviderReceiptService.journalCapture(
+      capture({
+        amount: 42.5,
+        organisationId: "org-1",
+        invoiceId: "invoice-1",
+      }),
+    );
+
+    expect(mockedPrisma.providerReceipt.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "REFUNDED",
+          allocatedAmount: 0,
+        }),
+      }),
+    );
+  });
+});
