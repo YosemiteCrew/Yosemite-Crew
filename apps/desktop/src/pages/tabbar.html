@@ -288,13 +288,15 @@
         >
           +
         </button>
-        <div
+        <!-- <output> rather than a div with role="status": it carries the
+             implicit status role and is announced on devices where the bare
+             ARIA role is not. -->
+        <output
           id="sync-badge"
           class="not-ready"
-          role="status"
           title="Initializing"
           aria-label="Sync: Initializing"
-        ></div>
+        ></output>
       </div>
       <div id="win-caption" class="win-caption">
         <button id="win-min" class="win-btn" type="button" aria-label="Minimize" title="Minimize">
@@ -633,68 +635,75 @@
         return svg;
       };
 
+      const buildFavicon = (tab) => {
+        const img = document.createElement('img');
+        img.className = 'tab-favicon';
+        img.src = tab.favicon;
+        img.alt = '';
+        img.onerror = () => {
+          img.style.display = 'none';
+        };
+        return img;
+      };
+
+      const buildSpinner = () => {
+        const spinner = document.createElement('span');
+        spinner.className = 'tab-spinner';
+        return spinner;
+      };
+
+      const buildMonogram = (text) => {
+        const mono = document.createElement('span');
+        mono.className = 'tab-monogram';
+        mono.textContent = text;
+        mono.setAttribute('aria-hidden', 'true');
+        return mono;
+      };
+
+      // A pinned tab is 48px wide, so the label only ever rendered as "Ap…" or
+      // a bare ellipsis. It shows one glyph instead; the full title stays in
+      // the tooltip and the tab's accessible name.
+      const buildPinnedGlyph = (tab) => {
+        if (tab.loading) return buildSpinner();
+        const glyph = ycTabIndicators.pinnedGlyph(tab);
+        if (glyph.kind === 'favicon') return buildFavicon(tab);
+        if (glyph.kind === 'monogram') return buildMonogram(glyph.text);
+        return buildPageIcon();
+      };
+
+      const buildLabel = (tab) => {
+        const label = document.createElement('span');
+        label.className = 'tab-label';
+        label.textContent = tab.title;
+        return label;
+      };
+
+      const buildBadge = (tab) => {
+        const view = ycTabIndicators.tabBadge(tab);
+        if (!view) return null;
+        const badge = document.createElement('span');
+        badge.className = view.className;
+        badge.textContent = view.text;
+        badge.title = view.title;
+        badge.setAttribute('role', 'img');
+        badge.setAttribute('aria-label', view.label);
+        return badge;
+      };
+
       const buildTabInner = (tab) => {
         const inner = document.createElement('div');
         inner.className = 'tab-inner';
 
-        const buildFavicon = () => {
-          const img = document.createElement('img');
-          img.className = 'tab-favicon';
-          img.src = tab.favicon;
-          img.alt = '';
-          img.onerror = () => {
-            img.style.display = 'none';
-          };
-          return img;
-        };
-
-        const buildSpinner = () => {
-          const spinner = document.createElement('span');
-          spinner.className = 'tab-spinner';
-          return spinner;
-        };
-
-        // A pinned tab is 48px wide, so the label only ever rendered as "Ap…"
-        // or a bare ellipsis. It shows one glyph instead; the full title stays
-        // in the tooltip and the tab's accessible name.
         if (tab.pinned) {
-          const glyph = ycTabIndicators.pinnedGlyph(tab);
-          if (tab.loading) {
-            inner.appendChild(buildSpinner());
-          } else if (glyph.kind === 'favicon') {
-            inner.appendChild(buildFavicon());
-          } else if (glyph.kind === 'monogram') {
-            const mono = document.createElement('span');
-            mono.className = 'tab-monogram';
-            mono.textContent = glyph.text;
-            mono.setAttribute('aria-hidden', 'true');
-            inner.appendChild(mono);
-          } else {
-            inner.appendChild(buildPageIcon());
-          }
+          inner.appendChild(buildPinnedGlyph(tab));
         } else {
-          if (tab.loading) {
-            inner.appendChild(buildSpinner());
-          } else if (tab.favicon) {
-            inner.appendChild(buildFavicon());
-          }
-
-          const label = document.createElement('span');
-          label.className = 'tab-label';
-          label.textContent = tab.title;
-          inner.appendChild(label);
+          if (tab.loading) inner.appendChild(buildSpinner());
+          else if (tab.favicon) inner.appendChild(buildFavicon(tab));
+          inner.appendChild(buildLabel(tab));
         }
 
-        const badgeView = ycTabIndicators.tabBadge(tab);
-        if (badgeView) {
-          const badge = document.createElement('span');
-          badge.className = badgeView.className;
-          badge.textContent = badgeView.text;
-          badge.title = badgeView.title;
-          badge.setAttribute('role', 'img');
-          badge.setAttribute('aria-label', badgeView.label);
-          inner.appendChild(badge);
-        }
+        const badge = buildBadge(tab);
+        if (badge) inner.appendChild(badge);
 
         if (tab.audible) {
           const audio = document.createElement('span');
