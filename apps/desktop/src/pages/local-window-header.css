@@ -1,0 +1,77 @@
+/* Title-bar strip for the local pages that render in the MAIN window's own
+   webContents (welcome, what's new, loading). See local-window-header.js for
+   why they need one and the tab bar does not. */
+
+.yc-window-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  z-index: 100;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  /* The whole strip drags the window; the caption buttons opt back out below.
+     Safe here in a way it is not in the tab bar: this page IS the window's own
+     contents, so there is no sibling view whose clicks it could swallow. */
+  -webkit-app-region: drag;
+  /* Transparent: these pages paint their own background and a solid bar across
+     the top of a centred, haloed layout would read as a seam. */
+  background: transparent;
+  user-select: none;
+}
+
+/* macOS draws the traffic lights over the top-left corner itself, so the strip
+   only has to stay out of their way - it has no buttons of its own. */
+.yc-window-header[data-platform='darwin'] {
+  padding-left: 78px;
+}
+
+.yc-window-caption {
+  display: flex;
+  align-items: stretch;
+  -webkit-app-region: no-drag;
+}
+
+.yc-window-btn {
+  width: 44px;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.yc-window-btn svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.1;
+}
+
+/* See window-caption.js: the UA [hidden] rule does not reach these glyphs. */
+.yc-window-btn svg[hidden] {
+  display: none;
+}
+
+.yc-window-btn:hover {
+  background: var(--inset);
+  color: var(--ink);
+}
+
+.yc-window-btn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+
+.yc-window-btn--close:hover {
+  background: var(--danger);
+  color: #fff;
+}

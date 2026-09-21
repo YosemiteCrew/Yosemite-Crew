@@ -642,6 +642,13 @@ describe('parseWhen does not read a measured dose as a clock time', () => {
  * goes through `parseMeridiemTime`, which runs first and accepts a dot. A
  * colon needs no evidence at all, because nobody writes a dose or a price
  * with one.
+ *
+ * The last two rows are the prices a currency guard was once proposed for.
+ * Neither can be told from a time by the text the clock rules receive:
+ * `normalizeKeepingClock` keeps only `[a-z0-9:.]`, so the symbol that marks
+ * the first as money is a space before `parse24HourTime` runs, and the second
+ * carries no symbol to keep. Both are held by the dot being gone rather than
+ * by anything that reads the price, which is why no such guard exists.
  */
 describe('parseWhen does not read a dotted number as a time', () => {
   it.each([
@@ -650,6 +657,8 @@ describe('parseWhen does not read a dotted number as a time', () => {
     ['the quantity qualifies a noun', 'give half a 2.50 dose tomorrow'],
     ['the number is a price', 'spent 12.50 on food tomorrow'],
     ['the price has a clock-shaped hour', 'spent 20.30 on food tomorrow'],
+    ['a currency symbol marks the price', 'bought food at $12.50 tomorrow'],
+    ['a unit price is introduced by at', 'bought 3 tins at 2.50 each tomorrow'],
   ])('keeps the default hour when %s', (_case, text) => {
     expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
   });

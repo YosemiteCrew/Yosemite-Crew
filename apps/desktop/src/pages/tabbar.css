@@ -12,9 +12,25 @@
   user-select: none;
 }
 
+/* macOS draws its traffic lights over the top-left corner of the window, so the
+   tab bar has to keep that corner clear. Horizontally the lights sit beside the
+   first tab, so the room is a left inset; in the vertical rail they sit ABOVE
+   it, so the same 78px inset would only push every title off the 240px rail
+   (issue #3290). The rail reserves a top inset instead. */
+#tabbar[data-platform='darwin'] {
+  padding-left: 78px;
+}
+
 /* ── Vertical tab sidebar ── */
 #tabbar[data-orientation='vertical'] {
   flex-direction: column;
+  /* Not `center`: the strip and the trailing controls are cross-axis items
+     here, and centring shrink-wraps them to their widest child, so a long tab
+     title made the strip wider than the rail and overflowed it on BOTH sides -
+     the left overflow being unreachable by the scrollbar the overflow created.
+     Stretching lets the tabs' own `width: 100%` / `min-width: 0` below take
+     effect, which is what makes the titles ellipsise instead. */
+  align-items: stretch;
   height: 100%;
   width: 240px;
   border-bottom: none;
@@ -22,9 +38,15 @@
   padding: 10px 8px;
   overflow-y: auto;
 }
+#tabbar[data-platform='darwin'][data-orientation='vertical'] {
+  padding-left: 8px;
+  /* Clears the traffic lights, which the window draws 14px tall at y: 13. */
+  padding-top: 40px;
+}
 #tabbar[data-orientation='vertical'] .tab-strip {
   flex-direction: column;
   flex: 1;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 0;
   gap: 3px;
@@ -42,6 +64,13 @@
 #tabbar[data-orientation='vertical'] .tabbar-trailing {
   padding-left: 0;
   padding-top: 6px;
+  justify-content: center;
+}
+/* The caption block is flush with the strip's right edge when horizontal; in
+   the rail it is a full-width row of its own, so the negative inset would drag
+   it off the edge. */
+#tabbar[data-orientation='vertical'] .win-caption {
+  margin-right: 0;
   justify-content: center;
 }
 
@@ -386,6 +415,12 @@
   stroke-width: 1.1;
 }
 
+/* The UA rule for [hidden] does not reach an <svg> here, so the maximise
+   button drew its Maximize and Restore glyphs on top of each other. */
+.win-btn svg[hidden] {
+  display: none;
+}
+
 .win-btn:hover {
   background: var(--inset);
   color: var(--ink);
@@ -419,46 +454,6 @@
 /* ── Drag over state ── */
 .tab--drag-over {
   box-shadow: inset 2px 0 0 var(--blue);
-}
-
-/* ── Context menu ── */
-.context-menu {
-  position: fixed;
-  z-index: 1000;
-  background: var(--glass-93);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--hairline-soft);
-  border-radius: var(--radius-md);
-  box-shadow: 0 24px 60px var(--sh28);
-  padding: 6px;
-  min-width: 180px;
-  font-family: var(--font-satoshi);
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--ink-body);
-  -webkit-app-region: no-drag;
-}
-
-.context-menu-item {
-  padding: 8px 11px;
-  color: var(--ink-body);
-  cursor: pointer;
-  border-radius: 8px;
-  transition:
-    background 0.1s ease,
-    color 0.1s ease;
-}
-
-.context-menu-item:hover {
-  background: var(--nav-active-bg);
-  color: var(--nav-active);
-}
-
-.context-menu-separator {
-  height: 1px;
-  background: var(--hairline-soft);
-  margin: 4px 8px;
 }
 
 /* ── Keyboard focus ──
