@@ -80,6 +80,28 @@ const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): P
     { m: method, a: args }
   ) as Promise<T>;
 
+const SETTINGS_PAGE = 'settings.html';
+
+// `executeCommand('open-settings')` resolves as soon as the BrowserWindow is
+// constructed; the page is still loading. Closing the app in that window races
+// the quit and hangs it, which times the afterEach hook out (#3392). Every
+// other window-opening test here waits for its window first.
+const waitForSettingsWindow = async (app: ElectronApplication, timeout = 10_000): Promise<void> => {
+  await expect
+    .poll(
+      () =>
+        app.evaluate(
+          ({ BrowserWindow }, page) =>
+            BrowserWindow.getAllWindows().some(
+              (w) => w.webContents.getURL().endsWith(page) && !w.webContents.isLoading()
+            ),
+          SETTINGS_PAGE
+        ),
+      { timeout, message: 'open-settings did not open a loaded Preferences window' }
+    )
+    .toBe(true);
+};
+
 const waitForPaletteReady = async (page: Page, timeout = 5000): Promise<void> => {
   await expect
     .poll(async () => await evaluateYcDesktop<unknown>(page, 'getPaletteActions'), {
@@ -212,7 +234,10 @@ test.describe('command-palette E2E', () => {
       'executeCommand',
       'open-settings'
     );
+    // Non-null only says the preload bridge exposes executeCommand - it is the
+    // same answer for a command that does nothing. The window is the navigation.
     expect(result).not.toBeNull();
+    await waitForSettingsWindow(app!);
   });
 
   test('Escape closes palette', async () => {
