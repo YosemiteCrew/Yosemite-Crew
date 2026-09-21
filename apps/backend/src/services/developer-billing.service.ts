@@ -64,6 +64,98 @@ const toSubscriptionStatus = (
   return "incomplete";
 };
 
+const isLiveStripeSubscription = (sub: Stripe.Subscription): boolean =>
+  sub.status !== "canceled" && sub.status !== "incomplete_expired";
+
+async function persistSubscription(
+  ownerUserId: string,
+  sub: Stripe.Subscription,
+  lastStripeEventId?: string,
+): Promise<void> {
+  const item = sub.items.data[0];
+  const data = {
+    stripeCustomerId:
+      typeof sub.customer === "string" ? sub.customer : sub.customer.id,
+    stripeSubscriptionId: sub.id,
+    stripeSubscriptionItemId: item?.id ?? null,
+    stripePriceId: item?.price?.id ?? null,
+    plan: "pro" as DeveloperPlanTier,
+    status: toSubscriptionStatus(sub.status),
+    currentPeriodStart: item?.current_period_start
+      ? new Date(item.current_period_start * 1000)
+      : null,
+    currentPeriodEnd: item?.current_period_end
+      ? new Date(item.current_period_end * 1000)
+      : null,
+    cancelAtPeriodEnd: sub.cancel_at_period_end,
+    ...(lastStripeEventId ? { lastStripeEventId } : {}),
+  };
+
+  await prisma.developerSubscription.upsert({
+    where: { ownerUserId },
+    create: { ownerUserId, ...data },
+    update: data,
+  });
+}
+
+async function cancelCustomerSubscriptions(
+  stripe: Stripe,
+  stripeCustomerId: string,
+): Promise<Set<string>> {
+  const canceled = new Set<string>();
+  try {
+    let startingAfter: string | undefined;
+    do {
+      const subscriptions = await stripe.subscriptions.list({
+        customer: stripeCustomerId,
+        status: "all",
+        limit: 100,
+        ...(startingAfter ? { starting_after: startingAfter } : {}),
+      });
+      for (const subscription of subscriptions.data) {
+        if (!isLiveStripeSubscription(subscription)) continue;
+        await stripe.subscriptions.cancel(subscription.id);
+        canceled.add(subscription.id);
+      }
+      startingAfter = subscriptions.has_more
+        ? subscriptions.data.at(-1)?.id
+        : undefined;
+    } while (startingAfter);
+  } catch (err) {
+    logger.error(
+      "Failed to reconcile developer subscriptions during account deletion; cancel them in Stripe by hand",
+      { stripeCustomerId, err },
+    );
+  }
+  return canceled;
+}
+
+async function expireCustomerCheckouts(
+  stripe: Stripe,
+  stripeCustomerId: string,
+): Promise<void> {
+  try {
+    let startingAfter: string | undefined;
+    do {
+      const open = await stripe.checkout.sessions.list({
+        customer: stripeCustomerId,
+        status: "open",
+        limit: 100,
+        ...(startingAfter ? { starting_after: startingAfter } : {}),
+      });
+      for (const session of open.data) {
+        await stripe.checkout.sessions.expire(session.id);
+      }
+      startingAfter = open.has_more ? open.data.at(-1)?.id : undefined;
+    } while (startingAfter);
+  } catch (err) {
+    logger.error(
+      "Failed to expire open checkout sessions during account deletion; expire them in Stripe by hand",
+      { stripeCustomerId, err },
+    );
+  }
+}
+
 const resolveMeteredPriceId = (): string => {
   const id = process.env.STRIPE_DEV_METERED_PRICE_ID;
   if (!id) {
@@ -132,45 +224,35 @@ async function handleCheckoutCompleted(
     expand: ["items.data.price"],
   });
 
-  const item = sub.items.data[0];
-  const priceId = item?.price?.id ?? null;
-
-  await prisma.developerSubscription.upsert({
+  const recorded = await prisma.developerSubscription.findUnique({
     where: { ownerUserId: ownerId },
-    create: {
-      ownerUserId: ownerId,
-      stripeCustomerId:
-        typeof sub.customer === "string" ? sub.customer : sub.customer.id,
-      stripeSubscriptionId: sub.id,
-      stripeSubscriptionItemId: item?.id ?? null,
-      stripePriceId: priceId,
-      plan: "pro",
-      status: toSubscriptionStatus(sub.status),
-      currentPeriodStart: item?.current_period_start
-        ? new Date(item.current_period_start * 1000)
-        : null,
-      currentPeriodEnd: item?.current_period_end
-        ? new Date(item.current_period_end * 1000)
-        : null,
-      cancelAtPeriodEnd: sub.cancel_at_period_end,
-      lastStripeEventId: event.id,
-    },
-    update: {
-      stripeSubscriptionId: sub.id,
-      stripeSubscriptionItemId: item?.id ?? null,
-      stripePriceId: priceId,
-      plan: "pro",
-      status: toSubscriptionStatus(sub.status),
-      currentPeriodStart: item?.current_period_start
-        ? new Date(item.current_period_start * 1000)
-        : null,
-      currentPeriodEnd: item?.current_period_end
-        ? new Date(item.current_period_end * 1000)
-        : null,
-      cancelAtPeriodEnd: sub.cancel_at_period_end,
-      lastStripeEventId: event.id,
-    },
+    select: { stripeSubscriptionId: true },
   });
+  if (
+    recorded?.stripeSubscriptionId &&
+    recorded.stripeSubscriptionId !== sub.id
+  ) {
+    const current = await stripe.subscriptions.retrieve(
+      recorded.stripeSubscriptionId,
+    );
+    if (isLiveStripeSubscription(current)) {
+      if (isLiveStripeSubscription(sub)) {
+        await stripe.subscriptions.cancel(sub.id);
+      }
+      logger.error(
+        "Canceled a duplicate developer subscription instead of replacing the active subscription on record",
+        {
+          eventId: event.id,
+          ownerUserId: ownerId,
+          keptSubscriptionId: current.id,
+          canceledSubscriptionId: sub.id,
+        },
+      );
+      return;
+    }
+  }
+
+  await persistSubscription(ownerId, sub, event.id);
 }
 
 async function handleSubscriptionUpdated(
@@ -292,11 +374,27 @@ export const DeveloperBillingService = {
     });
     if (!record) return;
 
-    if (record.stripeSubscriptionId) {
+    if (!record.stripeCustomerId && !record.stripeSubscriptionId) {
+      await prisma.developerSubscription.deleteMany({
+        where: { ownerUserId: String(ownerUserId) },
+      });
+      return;
+    }
+
+    const stripe = getStripeClient();
+    const canceled = record.stripeCustomerId
+      ? await cancelCustomerSubscriptions(stripe, record.stripeCustomerId)
+      : new Set<string>();
+    if (record.stripeCustomerId) {
+      await expireCustomerCheckouts(stripe, record.stripeCustomerId);
+    }
+
+    if (
+      record.stripeSubscriptionId &&
+      !canceled.has(record.stripeSubscriptionId)
+    ) {
       try {
-        await getStripeClient().subscriptions.cancel(
-          record.stripeSubscriptionId,
-        );
+        await stripe.subscriptions.cancel(record.stripeSubscriptionId);
       } catch (err) {
         logger.error(
           "Failed to cancel a developer subscription during account deletion; cancel it in Stripe by hand",
@@ -305,26 +403,9 @@ export const DeveloperBillingService = {
       }
     }
 
-    if (record.stripeCustomerId) {
-      try {
-        const stripe = getStripeClient();
-        const open = await stripe.checkout.sessions.list({
-          customer: record.stripeCustomerId,
-          status: "open",
-          limit: 100,
-        });
-        for (const session of open.data) {
-          await stripe.checkout.sessions.expire(session.id);
-        }
-      } catch (err) {
-        logger.error(
-          "Failed to expire open checkout sessions during account deletion; expire them in Stripe by hand",
-          { stripeCustomerId: record.stripeCustomerId, err },
-        );
-      }
-    }
-
-    await prisma.developerSubscription.deleteMany({ where: { ownerUserId } });
+    await prisma.developerSubscription.deleteMany({
+      where: { ownerUserId: String(ownerUserId) },
+    });
   },
 
   async getOrCreateCustomer(ownerUserId: string): Promise<string> {
@@ -335,9 +416,10 @@ export const DeveloperBillingService = {
     if (existing?.stripeCustomerId) return existing.stripeCustomerId;
 
     const stripe = getStripeClient();
-    const customer = await stripe.customers.create({
-      metadata: { ownerUserId, source: "developer_portal" },
-    });
+    const customer = await stripe.customers.create(
+      { metadata: { ownerUserId, source: "developer_portal" } },
+      { idempotencyKey: `developer-customer:${ownerUserId}` },
+    );
 
     await prisma.developerSubscription.upsert({
       where: { ownerUserId },
@@ -360,17 +442,52 @@ export const DeveloperBillingService = {
 
     const customerId =
       await DeveloperBillingService.getOrCreateCustomer(ownerUserId);
-    const priceId = resolveMeteredPriceId();
     const stripe = getStripeClient();
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
+    const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
-      line_items: [{ price: priceId }],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      metadata: { ownerUserId, source: "developer_portal" },
+      status: "all",
+      limit: 100,
     });
+    const current = subscriptions.data.find(isLiveStripeSubscription);
+    if (current) {
+      await persistSubscription(ownerUserId, current);
+      const portal = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: cancelUrl,
+      });
+      return portal.url;
+    }
+
+    const sessions = await stripe.checkout.sessions.list({
+      customer: customerId,
+      limit: 100,
+    });
+    const developerSessions = sessions.data.filter(
+      (session) =>
+        session.mode === "subscription" &&
+        session.metadata?.ownerUserId === ownerUserId &&
+        session.metadata?.source === "developer_portal",
+    );
+    const pending = developerSessions.find(
+      (session) => session.status === "open" && session.url,
+    );
+    if (pending?.url) return pending.url;
+
+    const priceId = resolveMeteredPriceId();
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "subscription",
+        customer: customerId,
+        line_items: [{ price: priceId }],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata: { ownerUserId, source: "developer_portal" },
+      },
+      {
+        idempotencyKey: `developer-checkout:${ownerUserId}:${developerSessions[0]?.id ?? "first"}`,
+      },
+    );
 
     if (!session.url) {
       throw new DeveloperBillingServiceError(

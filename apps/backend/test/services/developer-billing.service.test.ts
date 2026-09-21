@@ -31,6 +31,7 @@ jest.mock("stripe", () => {
   const mockBillingPortalCreate = jest.fn();
   const mockSubscriptionsRetrieve = jest.fn();
   const mockSubscriptionsCancel = jest.fn();
+  const mockSubscriptionsList = jest.fn();
   const mockCheckoutSessionsList = jest.fn();
   const mockCheckoutSessionsExpire = jest.fn();
   const mockWebhooksConstructEvent = jest.fn();
@@ -49,6 +50,7 @@ jest.mock("stripe", () => {
     subscriptions: {
       retrieve: mockSubscriptionsRetrieve,
       cancel: mockSubscriptionsCancel,
+      list: mockSubscriptionsList,
     },
     billing: { meterEvents: { create: mockMeterEventsCreate } },
     webhooks: { constructEvent: mockWebhooksConstructEvent },
@@ -78,7 +80,9 @@ const getStripeInstance = () => {
 describe("DeveloperBillingService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPrisma.developerSubscription.findUnique.mockResolvedValue(null);
     getStripeInstance().checkout.sessions.list.mockResolvedValue({ data: [] });
+    getStripeInstance().subscriptions.list.mockResolvedValue({ data: [] });
     // A completed checkout is refused for a deleted account; default to live.
     mockPrisma.user.findFirst.mockResolvedValue({ isActive: true });
     process.env.STRIPE_SECRET_KEY = "sk_test_key";
@@ -179,9 +183,9 @@ describe("DeveloperBillingService", () => {
         stripeCustomerId: "cus_1",
       });
       const stripe = getStripeInstance();
-      stripe.checkout.sessions.list.mockResolvedValue({
-        data: [{ id: "cs_1" }, { id: "cs_2" }],
-      });
+      stripe.checkout.sessions.list
+        .mockResolvedValueOnce({ data: [{ id: "cs_1" }], has_more: true })
+        .mockResolvedValueOnce({ data: [{ id: "cs_2" }], has_more: false });
 
       await DeveloperBillingService.cancelForOwner("user-1");
 
@@ -190,9 +194,48 @@ describe("DeveloperBillingService", () => {
         status: "open",
         limit: 100,
       });
+      expect(stripe.checkout.sessions.list).toHaveBeenCalledWith({
+        customer: "cus_1",
+        status: "open",
+        limit: 100,
+        starting_after: "cs_1",
+      });
       expect(stripe.checkout.sessions.expire).toHaveBeenCalledWith("cs_1");
       expect(stripe.checkout.sessions.expire).toHaveBeenCalledWith("cs_2");
       expect(mockPrisma.developerSubscription.deleteMany).toHaveBeenCalled();
+    });
+
+    it("cancels every live provider subscription for the customer", async () => {
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        stripeSubscriptionId: "sub_recorded",
+        stripeCustomerId: "cus_1",
+      });
+      const stripe = getStripeInstance();
+      stripe.subscriptions.list
+        .mockResolvedValueOnce({
+          data: [
+            { id: "sub_recorded", status: "active" },
+            { id: "sub_old", status: "canceled" },
+          ],
+          has_more: true,
+        })
+        .mockResolvedValueOnce({
+          data: [{ id: "sub_untracked", status: "past_due" }],
+          has_more: false,
+        });
+
+      await DeveloperBillingService.cancelForOwner("user-1");
+
+      expect(stripe.subscriptions.cancel).toHaveBeenCalledTimes(2);
+      expect(stripe.subscriptions.cancel).toHaveBeenCalledWith("sub_recorded");
+      expect(stripe.subscriptions.cancel).toHaveBeenCalledWith("sub_untracked");
+      expect(stripe.subscriptions.cancel).not.toHaveBeenCalledWith("sub_old");
+      expect(stripe.subscriptions.list).toHaveBeenLastCalledWith({
+        customer: "cus_1",
+        status: "all",
+        limit: 100,
+        starting_after: "sub_old",
+      });
     });
 
     it("still deletes the row when expiring sessions fails", async () => {
@@ -207,6 +250,24 @@ describe("DeveloperBillingService", () => {
       await expect(
         DeveloperBillingService.cancelForOwner("user-1"),
       ).resolves.toBeUndefined();
+      expect(mockPrisma.developerSubscription.deleteMany).toHaveBeenCalled();
+    });
+
+    it("still cancels the recorded subscription when provider reconciliation fails", async () => {
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        stripeSubscriptionId: "sub_recorded",
+        stripeCustomerId: "cus_1",
+      });
+      const stripe = getStripeInstance();
+      stripe.subscriptions.list.mockRejectedValueOnce(new Error("stripe down"));
+
+      await DeveloperBillingService.cancelForOwner("user-1");
+
+      expect(stripe.subscriptions.cancel).toHaveBeenCalledWith("sub_recorded");
+      expect(jest.mocked(logger.error)).toHaveBeenCalledWith(
+        expect.stringContaining("reconcile developer subscriptions"),
+        expect.objectContaining({ stripeCustomerId: "cus_1" }),
+      );
       expect(mockPrisma.developerSubscription.deleteMany).toHaveBeenCalled();
     });
 
@@ -308,6 +369,10 @@ describe("DeveloperBillingService", () => {
 
       const id = await DeveloperBillingService.getOrCreateCustomer("org-1");
       expect(id).toBe("cus_new");
+      expect(stripe.customers.create).toHaveBeenCalledWith(
+        { metadata: { ownerUserId: "org-1", source: "developer_portal" } },
+        { idempotencyKey: "developer-customer:org-1" },
+      );
       expect(mockPrisma.developerSubscription.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { ownerUserId: "org-1" },
@@ -340,6 +405,99 @@ describe("DeveloperBillingService", () => {
           customer: "cus_x",
           line_items: [{ price: "price_metered_abc" }],
         }),
+        { idempotencyKey: "developer-checkout:org-1:first" },
+      );
+    });
+
+    it("reuses an open developer checkout instead of creating another", async () => {
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        stripeCustomerId: "cus_x",
+      });
+      const stripe = getStripeInstance();
+      stripe.checkout.sessions.list.mockResolvedValue({
+        data: [
+          {
+            id: "cs_open",
+            mode: "subscription",
+            status: "open",
+            url: "https://checkout.stripe.com/existing",
+            metadata: { ownerUserId: "org-1", source: "developer_portal" },
+          },
+        ],
+      });
+
+      await expect(
+        DeveloperBillingService.createCheckoutSession({
+          ownerUserId: "org-1",
+          successUrl: "https://app.com/success",
+          cancelUrl: "https://app.com/cancel",
+        }),
+      ).resolves.toBe("https://checkout.stripe.com/existing");
+      expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+    });
+
+    it("reconciles a live provider subscription and opens the portal", async () => {
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        stripeCustomerId: "cus_x",
+      });
+      const stripe = getStripeInstance();
+      stripe.subscriptions.list.mockResolvedValue({
+        data: [
+          {
+            id: "sub_live",
+            status: "active",
+            customer: "cus_x",
+            cancel_at_period_end: false,
+            items: { data: [] },
+          },
+        ],
+      });
+      stripe.billingPortal.sessions.create.mockResolvedValue({
+        url: "https://billing.stripe.com/reconciled",
+      });
+      mockPrisma.developerSubscription.upsert.mockResolvedValue({});
+
+      await expect(
+        DeveloperBillingService.createCheckoutSession({
+          ownerUserId: "org-1",
+          successUrl: "https://app.com/success",
+          cancelUrl: "https://app.com/cancel",
+        }),
+      ).resolves.toBe("https://billing.stripe.com/reconciled");
+      expect(mockPrisma.developerSubscription.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { ownerUserId: "org-1" },
+          update: expect.objectContaining({ stripeSubscriptionId: "sub_live" }),
+        }),
+      );
+      expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+    });
+
+    it("uses the same provider idempotency key for simultaneous first requests", async () => {
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        stripeCustomerId: "cus_x",
+      });
+      const stripe = getStripeInstance();
+      stripe.checkout.sessions.create.mockResolvedValue({
+        url: "https://checkout.stripe.com/one",
+      });
+
+      await Promise.all([
+        DeveloperBillingService.createCheckoutSession({
+          ownerUserId: "org-1",
+          successUrl: "https://app.com/success",
+          cancelUrl: "https://app.com/cancel",
+        }),
+        DeveloperBillingService.createCheckoutSession({
+          ownerUserId: "org-1",
+          successUrl: "https://app.com/success",
+          cancelUrl: "https://app.com/cancel",
+        }),
+      ]);
+
+      expect(stripe.checkout.sessions.create).toHaveBeenCalledTimes(2);
+      expect(stripe.checkout.sessions.create.mock.calls[0][1]).toEqual(
+        stripe.checkout.sessions.create.mock.calls[1][1],
       );
     });
 
@@ -535,6 +693,39 @@ describe("DeveloperBillingService", () => {
             stripeSubscriptionItemId: "si_x",
           }),
         }),
+      );
+    });
+
+    it("cancels a duplicate completed subscription instead of overwriting the live one", async () => {
+      const stripe = getStripeInstance();
+      stripe.subscriptions.retrieve
+        .mockResolvedValueOnce(baseSubscription)
+        .mockResolvedValueOnce({
+          ...baseSubscription,
+          id: "sub_existing",
+        });
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        stripeSubscriptionId: "sub_existing",
+      });
+
+      await DeveloperBillingService.handleWebhookEvent({
+        id: "evt_duplicate",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_duplicate",
+            mode: "subscription",
+            subscription: "sub_123",
+            metadata: { ownerUserId: "org-1" },
+          },
+        },
+      } as never);
+
+      expect(stripe.subscriptions.cancel).toHaveBeenCalledWith("sub_123");
+      expect(mockPrisma.developerSubscription.upsert).not.toHaveBeenCalled();
+      expect(jest.mocked(logger.error)).toHaveBeenCalledWith(
+        expect.stringContaining("duplicate developer subscription"),
+        expect.objectContaining({ keptSubscriptionId: "sub_existing" }),
       );
     });
 
