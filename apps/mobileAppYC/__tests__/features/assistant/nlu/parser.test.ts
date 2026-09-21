@@ -357,6 +357,36 @@ describe('parseUtterance rule order', () => {
     ).toEqual({amount: 12.5, when: at(2026, 0, 15, 20, 0)});
   });
 
+  /*
+   * A dose named after a time preposition is not the reminder hour.
+   *
+   * "at", "until" and "till" introduce a target amount as readily as a clock
+   * time, so the dotted dose reached `slots.when` through the real parser and
+   * the owner's medication reminder was set for the small hours. Pinned here
+   * rather than only on `parseWhen` because that is the path the assistant
+   * actually runs.
+   */
+  it.each([
+    [
+      'at, with the unit elided',
+      'remind me to set his dose at 0.50 of a tablet tomorrow',
+    ],
+    ['at, with no continuation', 'remind me to keep the dose at 1.25 tomorrow'],
+    ['until', 'remind me to titrate until 0.50 of a tablet tomorrow'],
+    ['till', 'remind me to titrate till 0.50 of a tablet tomorrow'],
+  ])('keeps the default hour when the dose follows %s', (_case, text) => {
+    const parsed = parseUtterance(text, {now: NOW});
+    expect(parsed?.actionId).toBe('addCareTask');
+    expect(parsed?.slots.when).toBe(at(2026, 0, 16, 9, 0));
+  });
+
+  it('still fills when from an hour only a clock uses', () => {
+    expect(
+      parseUtterance('remind me to walk him at 20.30 tomorrow', {now: NOW})
+        ?.slots.when,
+    ).toBe(at(2026, 0, 16, 20, 30));
+  });
+
   it('routes "remind me about the vaccine" to addCareTask, not vaccinationStatus', () => {
     expect(
       parseUtterance('remind me about the vaccine', {now: NOW})?.actionId,

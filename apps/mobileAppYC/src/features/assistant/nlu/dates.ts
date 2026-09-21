@@ -165,15 +165,19 @@ const DOSE_UNITS: ReadonlySet<string> = new Set([
 const NEXT_WORD = /^\s*([a-z]+)/;
 
 /**
- * Prepositions that introduce a clock time and nothing else.
+ * Prepositions a clock time is introduced by.
  *
- * Deliberately shorter than the list of prepositions a time can follow.
- * "around", "before", "after" and "by" also introduce a QUANTITY - "spent
- * around 12.50", "reduce his dose by 0.50" - and "around" is the commonest
- * hedge English puts in front of a price or a dose, so accepting them put both
- * of this module's headline failures straight back. What is selected for here
- * is the word that cannot precede an amount. "las" is the Spanish "a las
- * 20.30"; "a" alone is an article, so it would let "a 2.50 dose" back in.
+ * Deliberately shorter than the list of prepositions a time can follow:
+ * "around", "before", "after" and "by" are the commonest hedges English puts
+ * in front of a price or a dose - "spent around 12.50", "reduce his dose by
+ * 0.50" - so accepting them put both of this module's headline failures
+ * straight back. "las" is the Spanish "a las 20.30"; "a" alone is an article,
+ * so it would let "a 2.50 dose" back in.
+ *
+ * Membership is necessary and not sufficient. Every word left here can still
+ * introduce a target quantity in titration language - "set his dose at 0.50 of
+ * a tablet", "titrate until 1.25" - so the hour has to carry evidence of its
+ * own; see `CLOCK_ONLY_HOUR`.
  */
 const TIME_PREPOSITIONS: ReadonlySet<string> = new Set([
   'at',
@@ -181,6 +185,18 @@ const TIME_PREPOSITIONS: ReadonlySet<string> = new Set([
   'till',
   'las',
 ]);
+
+/**
+ * The lowest hour a dotted reading is accepted at.
+ *
+ * Below 13 a dotted number is genuinely ambiguous: "at 0.50" and "until 1.25"
+ * are amounts far more often than they are twenty to one and half past one in
+ * the morning, and no preposition tells the two apart. From 13 up the hour is
+ * one nothing but a 24-hour clock uses, so the reading needs no other
+ * evidence. The hours it gives up keep their colon and meridiem forms - "at
+ * 8:30", "8.30 pm" - which a dose is never written in.
+ */
+const CLOCK_ONLY_HOUR = 13;
 
 /**
  * Whether a dotted candidate is introduced as a time.
@@ -231,17 +247,18 @@ const parse24HourTime = (normalized: string): ClockTime | null => {
     /\b(\d{1,2})\s*([:.])\s*(\d{2})\b/g,
   )) {
     const [whole, rawHour, separator, rawMinute] = match;
+    const hour = Number(rawHour);
+    const minute = Number(rawMinute);
     if (
       separator === '.' &&
-      !introducedAsTime(normalized.slice(0, match.index))
+      (hour < CLOCK_ONLY_HOUR ||
+        !introducedAsTime(normalized.slice(0, match.index)))
     ) {
       continue;
     }
     if (followedByDoseUnit(normalized.slice(match.index + whole.length))) {
       continue;
     }
-    const hour = Number(rawHour);
-    const minute = Number(rawMinute);
     if (hour < 24 && minute < 60) {
       return {hour, minute};
     }
@@ -253,9 +270,15 @@ const parse24HourTime = (normalized: string): ClockTime | null => {
  * "at 7" - a bare hour, and only after "at".
  *
  * The preposition is what keeps "give 2 tablets" from becoming 2 o'clock.
+ *
+ * A decimal is refused whole rather than read down to its integer part: once
+ * the dotted rule above declines "at 0.50", the same characters still offer
+ * "at 0" here, and midnight is exactly the mis-scheduled dose that rule
+ * declined to make. A trailing sentence stop is not a decimal, so the
+ * lookahead needs the digit after it.
  */
 const parseBareHourAfterAt = (normalized: string): ClockTime | null => {
-  const match = /\bat\s+(\d{1,2})\b/.exec(normalized);
+  const match = /\bat\s+(\d{1,2})\b(?![.,]\d)/.exec(normalized);
   if (!match) {
     return null;
   }

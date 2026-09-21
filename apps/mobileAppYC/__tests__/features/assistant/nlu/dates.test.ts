@@ -693,3 +693,38 @@ describe('parseWhen reads a dotted number as a time only when introduced', () =>
     ).toEqual(at(2026, 2, 4, 20, 30));
   });
 });
+
+/*
+ * A time preposition is no evidence when the number is an amount.
+ *
+ * The preposition requirement was meant to select words a quantity cannot
+ * follow, but "at", "until" and "till" all introduce a target amount in
+ * ordinary titration language - "set his dose at 0.50 of a tablet", "titrate
+ * until 1.25" - so the dose became the hour again on the owner-facing path.
+ * The dot is now read as a clock separator only when the hour is one nothing
+ * but a clock uses; below that the colon and meridiem forms carry the time.
+ */
+describe('parseWhen does not read a dotted amount introduced by a time preposition', () => {
+  it.each([
+    ['at, with the unit elided', 'set his dose at 0.50 of a tablet tomorrow'],
+    ['at, with no continuation at all', 'keep his dose at 1.25 tomorrow'],
+    ['until', 'titrate until 0.50 of a tablet tomorrow'],
+    ['till', 'titrate till 0.50 of a tablet tomorrow'],
+    ['until, on a whole-number hour', 'reduce until 1.25 of a tablet tomorrow'],
+  ])('keeps the default hour when the amount follows %s', (_case, text) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
+  });
+
+  it('does not reread the integer part of the amount as a bare hour', () => {
+    // Refusing the dotted candidate is not enough on its own: "at 0.50" still
+    // offers "at 0" to the bare-hour rule, which scheduled the dose for
+    // midnight instead of leaving the visible 09:00 default.
+    expect(parseClockTime('set his dose at 0.50 of a tablet')).toBeNull();
+  });
+
+  it('still reads an hour only a clock uses', () => {
+    expect(localParts(parseWhen('walk him at 20.30 tomorrow', NOW))).toEqual(
+      at(2026, 2, 4, 20, 30),
+    );
+  });
+});
