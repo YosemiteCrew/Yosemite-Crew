@@ -15,6 +15,7 @@ import {
 } from "../../src/services/appointment.prisma.service";
 import { StripeService } from "../../src/services/stripe.service";
 import { ProviderReceiptService } from "../../src/services/finance/provider-receipt";
+import { ProviderReceiptAuditService } from "../../src/services/finance/provider-receipt-audit";
 import { encodeKeysetCursor } from "../../src/services/shared/pagination";
 import { Request, Response } from "express";
 
@@ -143,6 +144,13 @@ jest.mock("../../src/services/finance/provider-receipt", () => ({
     "PARTIALLY_REFUNDED",
     "REFUNDED",
   ],
+}));
+
+jest.mock("../../src/services/finance/provider-receipt-audit", () => ({
+  __esModule: true,
+  ProviderReceiptAuditService: {
+    auditHistoricalMismatches: jest.fn(),
+  },
 }));
 jest.mock("src/utils/logger", () => ({
   __esModule: true,
@@ -1569,6 +1577,158 @@ describe("FinanceController.listProviderReceipts", () => {
     const res = buildRes();
 
     await FinanceController.listProviderReceipts(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Internal server error",
+    });
+  });
+});
+
+describe("FinanceController.auditProviderReceipts", () => {
+  const buildRes = () =>
+    ({
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    }) as unknown as Response;
+
+  const buildReq = (overrides: Record<string, unknown> = {}) =>
+    ({
+      params: { organisationId: "org_1" },
+      query: {},
+      organisationId: "org_1",
+      ...overrides,
+    }) as unknown as Request;
+
+  const cleanWindow = {
+    mismatches: [],
+    examined: 0,
+    matched: 0,
+    nextCursor: null,
+    hasMore: false,
+    limit: 100,
+  };
+
+  const auditMock = () =>
+    ProviderReceiptAuditService.auditHistoricalMismatches as jest.Mock;
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    auditMock().mockResolvedValue(cleanWindow);
+  });
+
+  it("scopes the audit to the authorized organisation, not the path", async () => {
+    // Same reason as the queue beside it: the path segment is
+    // caller-controlled, and taking the organisation from it would let anyone
+    // holding the permission in their own org audit another tenant's money.
+    const res = buildRes();
+
+    await FinanceController.auditProviderReceipts(
+      buildReq({
+        params: { organisationId: "org_victim" },
+        organisationId: "org_attacker",
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(auditMock()).not.toHaveBeenCalled();
+  });
+
+  it("returns the findings with the coverage that stops an empty list reading as clean", async () => {
+    auditMock().mockResolvedValue({
+      mismatches: [{ kind: "NOT_JOURNALLED", paymentId: "payment-1" }],
+      examined: 100,
+      matched: 99,
+      nextCursor: "cursor-2",
+      hasMore: true,
+      limit: 100,
+    });
+    const res = buildRes();
+
+    await FinanceController.auditProviderReceipts(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      data: [{ kind: "NOT_JOURNALLED", paymentId: "payment-1" }],
+      meta: {
+        examined: 100,
+        matched: 99,
+        nextCursor: "cursor-2",
+        hasMore: true,
+        limit: 100,
+      },
+      error: null,
+    });
+  });
+
+  it("requires the audit window to state its offset", async () => {
+    const res = buildRes();
+
+    await FinanceController.auditProviderReceipts(
+      buildReq({ query: { recordedFrom: "2026-09-01" } }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(auditMock()).not.toHaveBeenCalled();
+  });
+
+  it("turns an offset-bearing window into the instants the service filters on", async () => {
+    const res = buildRes();
+
+    await FinanceController.auditProviderReceipts(
+      buildReq({
+        query: {
+          recordedFrom: "2026-09-01T00:00:00.000Z",
+          recordedTo: "2026-09-30T23:59:59.000Z",
+        },
+      }),
+      res,
+    );
+
+    expect(auditMock()).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recordedFrom: new Date("2026-09-01T00:00:00.000Z"),
+        recordedTo: new Date("2026-09-30T23:59:59.000Z"),
+      }),
+    );
+  });
+
+  it("answers 400 for a malformed cursor rather than letting the query throw", async () => {
+    const res = buildRes();
+
+    await FinanceController.auditProviderReceipts(
+      buildReq({ query: { cursor: "not-a-cursor" } }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(auditMock()).not.toHaveBeenCalled();
+  });
+
+  it("carries a usable cursor through to the service", async () => {
+    const cursor = {
+      createdAt: new Date("2026-09-18T10:00:01.000Z"),
+      id: "11111111-1111-4111-8111-111111111111",
+    };
+    const res = buildRes();
+
+    await FinanceController.auditProviderReceipts(
+      buildReq({ query: { cursor: encodeKeysetCursor(cursor) } }),
+      res,
+    );
+
+    expect(auditMock()).toHaveBeenCalledWith(
+      expect.objectContaining({ cursor }),
+    );
+  });
+
+  it("does not report a service failure as the caller's mistake", async () => {
+    auditMock().mockRejectedValue(new Error("connection reset"));
+    const res = buildRes();
+
+    await FinanceController.auditProviderReceipts(buildReq(), res);
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({

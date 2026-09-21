@@ -17,6 +17,7 @@ import {
   ProviderReceiptService,
   RECONCILIATION_STATUSES,
 } from "src/services/finance/provider-receipt";
+import { ProviderReceiptAuditService } from "src/services/finance/provider-receipt-audit";
 import { parseKeysetCursor } from "src/services/shared/pagination";
 import { StripeController } from "src/controllers/web/stripe.controller";
 import { StripeService } from "src/services/stripe.service";
@@ -265,6 +266,25 @@ const ProviderReceiptQuerySchema = z.object({
     .optional(),
   capturedFrom: z.iso.datetime({ offset: true }).optional(),
   capturedTo: z.iso.datetime({ offset: true }).optional(),
+  limit: z.string().optional(),
+});
+
+/**
+ * The filter for the historical mismatch audit (#3170 delivery 4).
+ *
+ * The bounds are named `recorded*` rather than `captured*` because that is
+ * genuinely which clock they read: the audit windows on when the payment was
+ * recorded here, since `paidAt` is nullable and a window built from it would
+ * silently omit every settled payment that has none. Naming them after the
+ * capture would be a friendlier lie.
+ *
+ * Same offset rule as the reconciliation queue, for the same reason - a window
+ * taken at the operator's local midnight and applied against a UTC column
+ * moves the boundary by hours, so the caller states the instant.
+ */
+const ProviderReceiptAuditQuerySchema = z.object({
+  recordedFrom: z.iso.datetime({ offset: true }).optional(),
+  recordedTo: z.iso.datetime({ offset: true }).optional(),
   limit: z.string().optional(),
 });
 
@@ -1814,6 +1834,92 @@ export const FinanceController = {
       });
     } catch (error) {
       logger.error("Error listing provider receipts for reconciliation", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  /**
+   * The historical mismatch audit (#3170 delivery 4).
+   *
+   * Reports settled provider payments that the journal does not corroborate,
+   * and repairs none of them. The issue is explicit that this audit performs
+   * no automatic guessed repair, which is why the route is a GET with no
+   * counterpart: there is nothing here to invoke a correction with, so no
+   * later caller can mistake one for being available.
+   *
+   * `billing:view:any`, like the queue beside it. The findings are this
+   * organisation's own payments and its own journal rows, which billing staff
+   * can already read one at a time; what the audit adds is that they are read
+   * against each other.
+   *
+   * The organisation comes from `resolveAuthorizedOrganisationId`, never the
+   * query, so a caller cannot name another tenant in the path and audit its
+   * money.
+   */
+  async auditProviderReceipts(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
+      const query = ProviderReceiptAuditQuerySchema.safeParse(req.query);
+      if (!query.success) {
+        /*
+         * The offending value is not echoed, for the reason the queue's does
+         * not: it is caller-controlled, a raw CR/LF in it forges a second log
+         * line, and the message already tells the only party who can act on it
+         * what to send instead.
+         */
+        return res.status(400).json({
+          message:
+            "Invalid audit window. Check recordedFrom, recordedTo and limit.",
+        });
+      }
+
+      const cursor = parseKeysetCursor(req.query.cursor);
+      if (cursor === null) {
+        return res.status(400).json({
+          message:
+            "Unknown or malformed cursor. Use nextCursor from the previous response.",
+        });
+      }
+
+      const audit = await ProviderReceiptAuditService.auditHistoricalMismatches(
+        {
+          organisationId,
+          ...(query.data.recordedFrom
+            ? { recordedFrom: new Date(query.data.recordedFrom) }
+            : {}),
+          ...(query.data.recordedTo
+            ? { recordedTo: new Date(query.data.recordedTo) }
+            : {}),
+          ...(cursor ? { cursor } : {}),
+          limit: query.data.limit,
+        },
+      );
+
+      /*
+       * `examined` and `matched` ride in `meta` beside the paging fields
+       * because they are what stops an empty `data` being read as a clean bill
+       * of health: no findings in a window of 100 says something, and no
+       * findings in a window that examined 0 payments says nothing at all.
+       */
+      return res.status(200).json({
+        data: audit.mismatches,
+        meta: {
+          examined: audit.examined,
+          matched: audit.matched,
+          nextCursor: audit.nextCursor,
+          hasMore: audit.hasMore,
+          limit: audit.limit,
+        },
+        error: null,
+      });
+    } catch (error) {
+      logger.error("Error auditing provider receipts against payments", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   },
