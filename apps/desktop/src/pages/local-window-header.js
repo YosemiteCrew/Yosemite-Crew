@@ -126,7 +126,7 @@
   // script runs and null under a `require()` from the unit tests, which is what
   // keeps this from running against a document the tests never asked for.
   const doc = root.document;
-  if (doc && doc.currentScript) {
+  if (doc?.currentScript) {
     const autoMount = function () {
       mount(doc, {
         platform: root.ycPlatformLabels?.detectPlatform(root.ycDesktop, root.navigator.userAgent),
