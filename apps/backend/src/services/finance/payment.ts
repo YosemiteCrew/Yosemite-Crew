@@ -32,6 +32,38 @@ type InvoiceFinancialSummary = {
   balance: number;
 };
 
+type InvoiceFinancialSummaryInput = {
+  id: string;
+  totalAmount: number;
+  depositCollectedAmount?: number | null;
+};
+
+const summariseInvoice = (
+  invoice: InvoiceFinancialSummaryInput,
+  payments: Array<{
+    amount: number;
+    refunds: Array<{ amount: number; status: string }>;
+  }>,
+  creditNotes: Array<{ amount: number }>,
+): InvoiceFinancialSummary => {
+  const paid = roundMoney(
+    payments.reduce((sum, payment) => sum + getNetPaymentAmount(payment), 0),
+  );
+  const credited = roundMoney(
+    creditNotes.reduce((sum, creditNote) => sum + creditNote.amount, 0),
+  );
+  const effectivePaid = roundMoney(
+    Math.max(paid, roundMoney(invoice.depositCollectedAmount ?? 0)),
+  );
+  return {
+    paid: effectivePaid,
+    credited,
+    balance: roundMoney(
+      Math.max(0, invoice.totalAmount - effectivePaid - credited),
+    ),
+  };
+};
+
 const EMPTY_METADATA = {} as Record<string, unknown>;
 
 export type StripeRequestOptions = { stripeAccount?: string };
@@ -207,6 +239,58 @@ type CreatePaymentIntentForInvoiceOptions = {
   settlementChannel?: PrismaSettlementChannel | null;
 };
 
+export const getInvoiceFinancialSummaries = async (
+  invoices: readonly InvoiceFinancialSummaryInput[],
+): Promise<Map<string, InvoiceFinancialSummary>> => {
+  if (invoices.length === 0) return new Map();
+
+  const invoiceIds = invoices.map((invoice) => invoice.id);
+  const [payments, creditNotes] = await Promise.all([
+    prisma.payment.findMany({
+      where: {
+        invoiceId: { in: invoiceIds },
+        status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED", "REFUNDED"] },
+      },
+      select: {
+        invoiceId: true,
+        amount: true,
+        refunds: {
+          where: { status: "SUCCEEDED" },
+          select: { amount: true, status: true },
+        },
+      },
+    }),
+    prisma.creditNote.findMany({
+      where: { invoiceId: { in: invoiceIds }, status: "ISSUED" },
+      select: { invoiceId: true, amount: true },
+    }),
+  ]);
+
+  const paymentsByInvoice = new Map<string, typeof payments>();
+  for (const payment of payments) {
+    const bucket = paymentsByInvoice.get(payment.invoiceId);
+    if (bucket) bucket.push(payment);
+    else paymentsByInvoice.set(payment.invoiceId, [payment]);
+  }
+  const creditNotesByInvoice = new Map<string, typeof creditNotes>();
+  for (const creditNote of creditNotes) {
+    const bucket = creditNotesByInvoice.get(creditNote.invoiceId);
+    if (bucket) bucket.push(creditNote);
+    else creditNotesByInvoice.set(creditNote.invoiceId, [creditNote]);
+  }
+
+  return new Map(
+    invoices.map((invoice) => [
+      invoice.id,
+      summariseInvoice(
+        invoice,
+        paymentsByInvoice.get(invoice.id) ?? [],
+        creditNotesByInvoice.get(invoice.id) ?? [],
+      ),
+    ]),
+  );
+};
+
 export const getInvoiceFinancialSummary = async (
   invoiceId: string,
   totalAmount: number,
@@ -231,22 +315,11 @@ export const getInvoiceFinancialSummary = async (
       select: { amount: true },
     }),
   ]);
-
-  const paid = roundMoney(
-    payments.reduce((sum, payment) => sum + getNetPaymentAmount(payment), 0),
+  return summariseInvoice(
+    { id: invoiceId, totalAmount, depositCollectedAmount },
+    payments,
+    creditNotes,
   );
-  const credited = roundMoney(
-    creditNotes.reduce((sum, creditNote) => sum + creditNote.amount, 0),
-  );
-  const effectivePaid = roundMoney(
-    Math.max(paid, roundMoney(depositCollectedAmount)),
-  );
-
-  return {
-    paid: effectivePaid,
-    credited,
-    balance: roundMoney(Math.max(0, totalAmount - effectivePaid - credited)),
-  };
 };
 
 const getOutstandingBalance = async (
