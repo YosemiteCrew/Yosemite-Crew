@@ -1,3 +1,5 @@
+import 'whatwg-fetch';
+
 import SuperTokens from 'supertokens-web-js';
 import EmailPassword from 'supertokens-web-js/recipe/emailpassword';
 import EmailVerification from 'supertokens-web-js/recipe/emailverification';
@@ -35,7 +37,10 @@ jest.mock('supertokens-web-js/recipe/passwordless', () => ({
 
 jest.mock('supertokens-web-js/recipe/session', () => ({
   __esModule: true,
-  default: { init: jest.fn(() => 'session-recipe') },
+  default: {
+    init: jest.fn(() => 'session-recipe'),
+    attemptRefreshingSession: jest.fn(),
+  },
 }));
 
 jest.mock('supertokens-web-js/recipe/totp', () => ({
@@ -132,6 +137,100 @@ describe('authClient', () => {
       expect(MultiFactorAuth.init).toHaveBeenCalled();
       expect(TOTP.init).toHaveBeenCalled();
       expect(Session.init).toHaveBeenCalled();
+    });
+
+    it('refreshes but does not replay a state-changing request after a 401', async () => {
+      const { initAuthClient } = await loadAuthClient();
+      initAuthClient();
+
+      const sessionConfig = (Session.init as jest.Mock).mock.calls[0][0];
+      const originalFetch = jest.fn().mockResolvedValue(new Response('expired', { status: 401 }));
+      const originalImplementation = {
+        addFetchInterceptorsAndReturnModifiedFetch: ({
+          originalFetch: interceptedFetch,
+        }: {
+          originalFetch: typeof fetch;
+        }) => interceptedFetch,
+        addXMLHttpRequestInterceptor: jest.fn(),
+      };
+      const guardedImplementation = sessionConfig.override.functions(originalImplementation);
+      const guardedFetch = guardedImplementation.addFetchInterceptorsAndReturnModifiedFetch({
+        originalFetch,
+        userContext: {},
+      });
+
+      const response = await guardedFetch('https://api.example.com/v1/appointments/1', {
+        method: 'PATCH',
+        body: '{"status":"complete"}',
+      });
+
+      expect(originalFetch).toHaveBeenCalledTimes(1);
+      expect(Session.attemptRefreshingSession).toHaveBeenCalledTimes(1);
+      expect(response.status).toBe(401);
+      expect(response.headers.get('x-yc-session-write-replay-blocked')).toBe('true');
+      expect(guardedImplementation.addXMLHttpRequestInterceptor).not.toBe(
+        originalImplementation.addXMLHttpRequestInterceptor
+      );
+    });
+
+    it('leaves safe reads and auth recipe requests on the SDK retry path', async () => {
+      const { initAuthClient } = await loadAuthClient();
+      initAuthClient();
+
+      const sessionConfig = (Session.init as jest.Mock).mock.calls[0][0];
+      const originalFetch = jest.fn().mockResolvedValue(new Response(null, { status: 401 }));
+      const originalImplementation = {
+        addFetchInterceptorsAndReturnModifiedFetch: ({
+          originalFetch: interceptedFetch,
+        }: {
+          originalFetch: typeof fetch;
+        }) => interceptedFetch,
+        addXMLHttpRequestInterceptor: jest.fn(),
+      };
+      const guardedImplementation = sessionConfig.override.functions(originalImplementation);
+      const guardedFetch = guardedImplementation.addFetchInterceptorsAndReturnModifiedFetch({
+        originalFetch,
+        userContext: {},
+      });
+
+      const readResponse = await guardedFetch('https://api.example.com/v1/appointments');
+      const authResponse = await guardedFetch('https://api.example.com/auth/signout', {
+        method: 'POST',
+      });
+
+      expect(readResponse.status).toBe(401);
+      expect(authResponse.status).toBe(401);
+      expect(Session.attemptRefreshingSession).not.toHaveBeenCalled();
+    });
+
+    it('blocks Request objects and malformed write URLs conservatively', async () => {
+      const { initAuthClient } = await loadAuthClient();
+      initAuthClient();
+
+      const sessionConfig = (Session.init as jest.Mock).mock.calls[0][0];
+      const originalFetch = jest.fn().mockResolvedValue(new Response(null, { status: 401 }));
+      const originalImplementation = {
+        addFetchInterceptorsAndReturnModifiedFetch: ({
+          originalFetch: interceptedFetch,
+        }: {
+          originalFetch: typeof fetch;
+        }) => interceptedFetch,
+        addXMLHttpRequestInterceptor: jest.fn(),
+      };
+      const guardedImplementation = sessionConfig.override.functions(originalImplementation);
+      const guardedFetch = guardedImplementation.addFetchInterceptorsAndReturnModifiedFetch({
+        originalFetch,
+        userContext: {},
+      });
+
+      const requestResponse = await guardedFetch(
+        new Request('https://api.example.com/v1/appointments/1', { method: 'PATCH' })
+      );
+      const malformedResponse = await guardedFetch('http://[invalid', { method: 'POST' });
+
+      expect(requestResponse.headers.get('x-yc-session-write-replay-blocked')).toBe('true');
+      expect(malformedResponse.headers.get('x-yc-session-write-replay-blocked')).toBe('true');
+      expect(Session.attemptRefreshingSession).toHaveBeenCalledTimes(2);
     });
 
     it('only initializes once', async () => {

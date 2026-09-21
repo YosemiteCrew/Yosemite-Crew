@@ -3,6 +3,7 @@ import Session from 'supertokens-web-js/recipe/session';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { hardSignOut } from '@/app/hooks/useAuth';
+import { SESSION_WRITE_REPLAY_BLOCKED_HEADER } from '@/app/lib/authClient';
 import { logger } from '@/app/lib/logger';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
@@ -18,9 +19,10 @@ const DEFAULT_API_TIMEOUT_MS = 60_000;
 // Product API calls are authorized by httpOnly session cookies on the API
 // domain (SuperTokens) — no Authorization header. `withCredentials` sends the
 // cookies cross-origin; the supertokens-web-js SDK (initialized via
-// authClient) globally intercepts XHR/fetch and transparently refreshes an
-// expired session before retrying, so no manual refresh logic lives here.
+// authClient) guards the fetch transport. Safe reads retain transparent
+// refresh/retry, while writes return unsaved for explicit resubmission.
 const api: AxiosInstance = axios.create({
+  adapter: 'fetch',
   baseURL: BASE_URL,
   timeout: DEFAULT_API_TIMEOUT_MS,
   withCredentials: true,
@@ -276,6 +278,10 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config as RetriableAxiosRequestConfig | undefined;
     const status = error.response?.status;
+
+    if (error.response?.headers?.[SESSION_WRITE_REPLAY_BLOCKED_HEADER] === 'true') {
+      throw new Error('Your session was refreshed. Review your unsaved changes and save again.');
+    }
 
     // Transient failures (rate limiting, gateway/5xx, timeouts) on idempotent
     // reads: retry a few times with backoff so a slow/overloaded backend doesn't
