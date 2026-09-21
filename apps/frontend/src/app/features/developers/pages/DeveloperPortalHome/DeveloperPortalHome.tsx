@@ -8,6 +8,7 @@ import { useAuthStore } from '@/app/stores/authStore';
 import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
 import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import PhoneDevHome from '@/app/features/developers/pages/DeveloperPortalHome/PhoneDevHome';
+import { isApiKeyUsable } from '@/app/services/developerApiKeyStatus';
 import { listApiKeys } from '@/app/services/developerApiKeys';
 import { getUsage } from '@/app/services/developerUsage';
 import { logger } from '@/app/lib/logger';
@@ -66,7 +67,9 @@ const DeveloperPortalHome = () => {
     const [keysResult, usageResult] = await Promise.allSettled([listApiKeys(), getUsage()]);
 
     if (keysResult.status === 'fulfilled') {
-      setActiveKeyCount(keysResult.value.filter((key) => key.status === 'active').length);
+      // Usable, not stored-active: an expired key keeps `status: 'active'` and
+      // would inflate this count with credentials the API already refuses.
+      setActiveKeyCount(keysResult.value.filter((key) => isApiKeyUsable(key)).length);
     } else {
       logger.error(
         'Failed to load developer API keys for the portal status card',
