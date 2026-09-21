@@ -360,9 +360,24 @@ export const buildSuggestionQuery = (
   }
 
   if (params.species?.length) {
-    const speciesElements = jsonTextArray(SPECIES_META);
+    // An untagged concept is one with no species restriction, not one that belongs to
+    // no species. EXISTS over an empty array is false, so matching on the tag alone
+    // would drop every untagged row from every filtered search - 16 of the 11,742
+    // shipped active concepts, all of them Procedure, and they are the cross-species
+    // ones: rabies vaccination, castration, ID chip insertion, anti-parasitic therapy.
+    // Filtering a dog appointment would have hidden exactly those from the Plan picker.
+    //
+    //   node -e 'const a=require("./apps/backend/data/yc_concepts.json");
+    //     for (const c of a) if (c.active !== false && !(c.species||[]).length)
+    //       console.log(c.ycCode, c.domain, c.label)'
+    //
+    // jsonTextArray coerces a missing key, a null and a non-array alike to '[]', so the
+    // untagged arm is true for all three as well as for a literal empty array.
     filters.push(
-      Prisma.sql`EXISTS (SELECT 1 FROM ${speciesElements} sp WHERE sp = ANY(${params.species}))`,
+      Prisma.sql`(
+        EXISTS (SELECT 1 FROM ${jsonTextArray(SPECIES_META)} sp WHERE sp = ANY(${params.species}))
+        OR NOT EXISTS (SELECT 1 FROM ${jsonTextArray(SPECIES_META)} sp)
+      )`,
     );
   }
 

@@ -437,6 +437,22 @@ describe("ClinicalTermsService", () => {
       expect(sqlFor({ q: "a" }).text).not.toContain("'species'");
     });
 
+    it("passes concepts carrying no species tag through a species filter", () => {
+      // EXISTS over an empty array is false, so matching on the tag alone excludes an
+      // untagged concept from every filtered search rather than passing it through.
+      // 16 of the 11,742 shipped active concepts are untagged, all of them Procedure
+      // and all cross-species - rabies vaccination, castration, ID chip insertion -
+      // so a species-filtered Plan search would have lost exactly those.
+      const normalised = sqlFor({ q: "a", species: ["SA"] }).text.replace(
+        /\s+/g,
+        " ",
+      );
+
+      expect(normalised).toContain(
+        `OR NOT EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(e."meta"->'species') = 'array' THEN e."meta"->'species' ELSE '[]'::jsonb END) sp)`,
+      );
+    });
+
     it("returns unscored rows when browsing without a query", () => {
       const { text } = sqlFor({});
 
