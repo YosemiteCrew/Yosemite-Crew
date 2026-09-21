@@ -74,7 +74,7 @@ test.describe('window controls', () => {
     server = await startPimsServer();
     app = await electron.launch({
       executablePath: ELECTRON_EXECUTABLE,
-      args: [APP_ROOT],
+      args: [APP_ROOT, '--use-mock-keychain'],
       env: {
         ...process.env,
         YC_DESKTOP_START_URL: `${server.origin}/signin`,
@@ -200,7 +200,7 @@ test.describe('the local pages title bar', () => {
     server = await startPimsServer();
     app = await electron.launch({
       executablePath: ELECTRON_EXECUTABLE,
-      args: [APP_ROOT],
+      args: [APP_ROOT, '--use-mock-keychain'],
       env: {
         ...process.env,
         YC_DESKTOP_START_URL: `${server.origin}/signin`,
