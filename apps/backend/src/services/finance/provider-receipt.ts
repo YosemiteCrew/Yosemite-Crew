@@ -774,24 +774,25 @@ const postAllocationLine = async (
     select: { id: true, amount: true },
   });
 
-  const posted = alreadyPosted
-    ? { paymentId: alreadyPosted.id, amount: alreadyPosted.amount }
-    : await (async () => {
-        const applied = await FinancePaymentService.recordInvoicePayment(
-          row.invoiceId,
-          {
-            provider: receipt.provider,
-            amount: row.amount,
-            currency: receipt.currency,
-            providerPaymentId: receipt.paymentRef,
-            receivedAt: receipt.capturedAt,
-          },
-        );
-        return {
-          paymentId: applied.payment?.id ?? null,
-          amount: applied.appliedAmount ?? 0,
-        };
-      })();
+  let posted: { paymentId: string | null; amount: number };
+  if (alreadyPosted) {
+    posted = { paymentId: alreadyPosted.id, amount: alreadyPosted.amount };
+  } else {
+    const applied = await FinancePaymentService.recordInvoicePayment(
+      row.invoiceId,
+      {
+        provider: receipt.provider,
+        amount: row.amount,
+        currency: receipt.currency,
+        providerPaymentId: receipt.paymentRef,
+        receivedAt: receipt.capturedAt,
+      },
+    );
+    posted = {
+      paymentId: applied.payment?.id ?? null,
+      amount: applied.appliedAmount ?? 0,
+    };
+  }
 
   await prisma.providerReceiptAllocation.update({
     where: { id: row.id },
@@ -852,6 +853,94 @@ const releaseUnappliedReservation = async (
   logger.warn(
     `Receipt ${receipt.id} reserved ${reserved} but its invoices took ${applied}; the difference was returned to the residual`,
   );
+};
+
+type AllocationRow = { id: string; invoiceId: string; amount: number };
+
+const validateAllocation = async (
+  receipt: AllocationReceipt,
+  organisationId: string,
+  lines: readonly AllocationRequest[],
+  requested: number,
+): Promise<AllocateResult | null> => {
+  if (receipt.status === "REFUNDED") return { outcome: "FULLY_REFUNDED" };
+  if (!(await receiptAccountServesOrganisation(receipt, organisationId))) {
+    return { outcome: "ACCOUNT_MISMATCH" };
+  }
+
+  const residual = allocatableResidual(receipt);
+  if (requested > residual) {
+    return { outcome: "EXCEEDS_RESIDUAL", residual, requested };
+  }
+
+  for (const line of lines) {
+    const reason = await rejectAllocationLine(line, receipt);
+    if (reason) {
+      return {
+        outcome: "INVOICE_NOT_ELIGIBLE",
+        invoiceId: line.invoiceId,
+        reason,
+      };
+    }
+  }
+  return null;
+};
+
+const reserveAllocation = async (
+  receipt: AllocationReceipt,
+  input: AllocateInput,
+  lines: readonly AllocationRequest[],
+  requested: number,
+): Promise<AllocationRow[] | AllocateResult> => {
+  const expectedVersion = Number(input.expectedVersion);
+  const organisationId = String(input.organisationId);
+  const idempotencyKey = String(input.idempotencyKey);
+  const actorId = String(input.actorId);
+  const status = allocatedReceiptStatus({
+    status: receipt.status,
+    amount: receipt.amount,
+    refundedAmount: receipt.refundedAmount,
+    allocatedAmount: roundMoney(receipt.allocatedAmount + requested),
+  });
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      /* Keep the reservation conditional on every figure used to compute it. */
+      const reserved = await tx.providerReceipt.updateMany({
+        where: {
+          id: receipt.id,
+          version: expectedVersion,
+          organisationId,
+          allocatedAmount: receipt.allocatedAmount,
+          refundedAmount: receipt.refundedAmount,
+          status: receipt.status,
+        },
+        data: {
+          allocatedAmount: { increment: requested },
+          status,
+          version: { increment: 1 },
+        },
+      });
+      if (reserved.count !== 1) throw new LostAllocationRace();
+
+      return Promise.all(
+        lines.map((line) =>
+          tx.providerReceiptAllocation.create({
+            data: {
+              receiptId: receipt.id,
+              invoiceId: line.invoiceId,
+              amount: line.amount,
+              idempotencyKey,
+              actorId,
+            },
+            select: { id: true, invoiceId: true, amount: true },
+          }),
+        ),
+      );
+    });
+  } catch (error) {
+    return refusedReservation(error, receipt, lines);
+  }
 };
 
 export const ProviderReceiptService = {
@@ -1201,88 +1290,18 @@ export const ProviderReceiptService = {
       return this.resumeAllocation(receipt, prior);
     }
 
-    if (receipt.status === "REFUNDED") return { outcome: "FULLY_REFUNDED" };
-
-    if (
-      !(await receiptAccountServesOrganisation(receipt, input.organisationId))
-    ) {
-      return { outcome: "ACCOUNT_MISMATCH" };
-    }
-
-    const residual = allocatableResidual(receipt);
-    if (requested > residual) {
-      return { outcome: "EXCEEDS_RESIDUAL", residual, requested };
-    }
-
-    for (const line of lines) {
-      const reason = await rejectAllocationLine(line, receipt);
-      if (reason) {
-        return {
-          outcome: "INVOICE_NOT_ELIGIBLE",
-          invoiceId: line.invoiceId,
-          reason,
-        };
-      }
-    }
-
-    const status = allocatedReceiptStatus({
-      status: receipt.status,
-      amount: receipt.amount,
-      refundedAmount: receipt.refundedAmount,
-      allocatedAmount: roundMoney(receipt.allocatedAmount + requested),
-    });
-
-    let rows: { id: string; invoiceId: string; amount: number }[];
-    try {
-      rows = await prisma.$transaction(async (tx) => {
-        /*
-         * Every figure the decision was taken from is in the WHERE, not just
-         * the version. The version alone would be enough while this is the
-         * only writer, and it is not: a refund webhook increments it too, so
-         * matching on the figures as well is what keeps the reservation
-         * arithmetic conditional on the arithmetic that produced it.
-         */
-        const reserved = await tx.providerReceipt.updateMany({
-          where: {
-            id: receipt.id,
-            version: input.expectedVersion,
-            organisationId: input.organisationId,
-            allocatedAmount: receipt.allocatedAmount,
-            refundedAmount: receipt.refundedAmount,
-            status: receipt.status,
-          },
-          data: {
-            allocatedAmount: { increment: requested },
-            status,
-            version: { increment: 1 },
-          },
-        });
-        if (reserved.count !== 1) throw new LostAllocationRace();
-
-        return Promise.all(
-          lines.map((line) =>
-            tx.providerReceiptAllocation.create({
-              data: {
-                receiptId: receipt.id,
-                invoiceId: line.invoiceId,
-                amount: line.amount,
-                idempotencyKey: input.idempotencyKey,
-                actorId: input.actorId,
-              },
-              select: { id: true, invoiceId: true, amount: true },
-            }),
-          ),
-        );
-      });
-    } catch (error) {
-      return refusedReservation(error, receipt, lines);
-    }
-
-    const allocations = await this.postAllocations(receipt, rows);
-    const applied = roundMoney(
-      allocations.reduce((total, line) => total + line.amount, 0),
+    const rejected = await validateAllocation(
+      receipt,
+      input.organisationId,
+      lines,
+      requested,
     );
-    await releaseUnappliedReservation(receipt, requested, applied);
+    if (rejected) return rejected;
+
+    const rows = await reserveAllocation(receipt, input, lines, requested);
+    if (!Array.isArray(rows)) return rows;
+
+    const allocations = await this.postReservedAllocations(receipt, rows);
 
     return this.describeAllocation(receipt.id, "APPLIED", allocations);
   },
@@ -1295,9 +1314,9 @@ export const ProviderReceiptService = {
    * not are posted now, through the same readback that stops the first attempt
    * posting twice.
    *
-   * No reservation is released here. The receipt's `allocatedAmount` already
-   * reflects this decision, and a row that posts less than it reserved has its
-   * shortfall released by the attempt that posts it.
+   * The receipt's `allocatedAmount` already reflects this decision. If this
+   * retry is the attempt that finally posts a row, it also releases any
+   * shortfall between the reserved and applied amounts.
    */
   async resumeAllocation(
     receipt: AllocationReceipt,
@@ -1313,14 +1332,7 @@ export const ProviderReceiptService = {
       logger.info(
         `Receipt ${receipt.id} was allocated but ${unposted.length} line(s) were never posted; finishing them`,
       );
-      const reserved = roundMoney(
-        unposted.reduce((total, row) => total + row.amount, 0),
-      );
-      const posted = await this.postAllocations(receipt, unposted);
-      const applied = roundMoney(
-        posted.reduce((total, line) => total + line.amount, 0),
-      );
-      await releaseUnappliedReservation(receipt, reserved, applied);
+      await this.postReservedAllocations(receipt, unposted);
     }
 
     const rows = await prisma.providerReceiptAllocation.findMany({
@@ -1346,6 +1358,22 @@ export const ProviderReceiptService = {
     for (const row of rows) {
       posted.push(await postAllocationLine(receipt, row));
     }
+    return posted;
+  },
+
+  /** Post reserved lines and return any amount the invoices did not take. */
+  async postReservedAllocations(
+    receipt: AllocationReceipt,
+    rows: AllocationRow[],
+  ): Promise<AllocatedLine[]> {
+    const reserved = roundMoney(
+      rows.reduce((total, row) => total + row.amount, 0),
+    );
+    const posted = await this.postAllocations(receipt, rows);
+    const applied = roundMoney(
+      posted.reduce((total, line) => total + line.amount, 0),
+    );
+    await releaseUnappliedReservation(receipt, reserved, applied);
     return posted;
   },
 
