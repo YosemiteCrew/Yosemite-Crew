@@ -68,7 +68,7 @@ import {
 import { createRecentsStore, BUILTIN_ACTIONS, type RecentsStore } from './ui/command-palette';
 import { PAGE_ACTION_TRIGGERS, buildPageActionScript } from './ui/page-actions';
 import { createPinWindowManager, pinWindowBounds } from './ui/pin-window';
-import { createIdleLockOverlay } from './ui/idle-lock-overlay';
+import { createIdleLockOverlay, removeChildViewsExcept } from './ui/idle-lock-overlay';
 import { createOfflineCache, type OfflineCache } from './sync/offline-cache';
 import { createNotificationManager, type NotificationManager } from './ui/notifications';
 import { createSyncDaemon, type SyncDaemon } from './sync/sync-daemon';
@@ -597,9 +597,7 @@ const newTab = (url?: string): void => {
 const exitTabMode = (): Promise<void> => {
   const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
   if (win) {
-    for (const child of win.contentView.children) {
-      if (child !== lockOverlayView) win.contentView.removeChildView(child);
-    }
+    removeChildViewsExcept(win, lockOverlayView);
   }
   if (tabChromeView) {
     if (!tabChromeView.webContents.isDestroyed()) tabChromeView.webContents.close();

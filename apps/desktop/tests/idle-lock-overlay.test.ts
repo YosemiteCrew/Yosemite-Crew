@@ -3,6 +3,7 @@
 import {
   createIdleLockOverlay,
   MAX_LOCK_PAGE_REMOUNTS,
+  removeChildViewsExcept,
   type LockContents,
   type LockWindow,
 } from '../src/ui/idle-lock-overlay';
@@ -786,5 +787,56 @@ describe('idle lock page crash', () => {
     lockPage.crash();
     expect(deps.mount).toHaveBeenCalledTimes(1);
     expect(overlay.isVisible()).toBe(false);
+  });
+});
+
+describe('removeChildViewsExcept', () => {
+  // Electron's contentView.children is the window's own collection, so removing
+  // a view while iterating it skips the next one. The stand-in below behaves the
+  // same way: removeChildView splices the array the caller may be iterating.
+  const makeWindow = (children: object[]) => {
+    const live = children;
+    return {
+      contentView: {
+        get children() {
+          return live;
+        },
+        removeChildView: jest.fn((view: object) => {
+          const at = live.indexOf(view);
+          if (at >= 0) live.splice(at, 1);
+        }),
+      },
+    };
+  };
+
+  it('detaches every view but the one kept, even though removing shortens the list', () => {
+    const lock = { id: 'lock' };
+    const tabBar = { id: 'tabBar' };
+    const tab = { id: 'tab' };
+    const split = { id: 'split' };
+    const win = makeWindow([tabBar, tab, lock, split]);
+
+    removeChildViewsExcept(win, lock);
+
+    expect(win.contentView.children).toEqual([lock]);
+    expect(win.contentView.removeChildView).toHaveBeenCalledTimes(3);
+  });
+
+  it('detaches everything when nothing is kept', () => {
+    const a = { id: 'a' };
+    const b = { id: 'b' };
+    const win = makeWindow([a, b]);
+
+    removeChildViewsExcept(win, null);
+
+    expect(win.contentView.children).toEqual([]);
+  });
+
+  it('does nothing to a window with no children', () => {
+    const win = makeWindow([]);
+
+    removeChildViewsExcept(win, null);
+
+    expect(win.contentView.removeChildView).not.toHaveBeenCalled();
   });
 });

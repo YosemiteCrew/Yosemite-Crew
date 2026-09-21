@@ -97,6 +97,24 @@ export interface IdleLockOverlayDeps {
 // that keeps crashing must not turn into a remount loop.
 export const MAX_LOCK_PAGE_REMOUNTS = 3;
 
+/**
+ * Detaches every child view of a window except one, for example everything but
+ * the lock page when a session ends.
+ *
+ * The list is copied first because `contentView.children` reflects the window's
+ * own collection: removing while iterating it advances past the next view, so
+ * a stale tab or chrome view would stay attached and keep painting the old
+ * session under the lock.
+ */
+export const removeChildViewsExcept = <V>(
+  win: { contentView: { children: readonly V[]; removeChildView: (view: V) => void } },
+  keep: V | null
+): void => {
+  for (const child of [...win.contentView.children]) {
+    if (child !== keep) win.contentView.removeChildView(child);
+  }
+};
+
 const focusIfAlive = (target: LockContents | null): void => {
   if (target && !target.isDestroyed()) target.focus();
 };
