@@ -125,7 +125,7 @@ overrides:
   http-proxy-middleware: 2.0.10
   proxy-addr: 2.0.8
   stream-chat: 9.52.1
-  zod: 4.6.2
+  zod: 4.6.5
   toml: 4.2.0
   stream-json: 3.5.0
   '@humanfs/node': 0.16.8
@@ -324,8 +324,8 @@ importers:
         specifier: ^3.17.0
         version: 3.19.0
       zod:
-        specifier: 4.6.2
-        version: 4.6.2
+        specifier: 4.6.5
+        version: 4.6.5
     devDependencies:
       '@eslint/js':
         specifier: ^9.21.0
@@ -1151,13 +1151,13 @@ importers:
     dependencies:
       '@modelcontextprotocol/sdk':
         specifier: 1.30.0
-        version: 1.30.0(zod@4.6.2)
+        version: 1.30.0(zod@4.6.5)
       axios:
         specifier: 1.20.0
         version: 1.20.0(debug@4.4.3)
       zod:
-        specifier: 4.6.2
-        version: 4.6.2
+        specifier: 4.6.5
+        version: 4.6.5
     devDependencies:
       '@types/jest':
         specifier: ^30.0.0
@@ -3464,8 +3464,8 @@ packages:
     resolution: {integrity: sha512-1ogs+wu6VEvAGyWolM5FiWUY1jWIMk3U6XZtJzFnHGC2qKERAHfaGSY31Gpnh3EKbGDxXctldorwwMMRKxv1rw==}
     hasBin: true
     dependencies:
-      '@modelcontextprotocol/sdk': 1.30.0(zod@4.6.2)
-      zod: 4.6.2
+      '@modelcontextprotocol/sdk': 1.30.0(zod@4.6.5)
+      zod: 4.6.5
     transitivePeerDependencies:
       - '@cfworker/json-schema'
       - supports-color
@@ -6139,12 +6139,12 @@ packages:
       react: 19.3.0
     dev: true
 
-  /@modelcontextprotocol/sdk@1.30.0(zod@4.6.2):
+  /@modelcontextprotocol/sdk@1.30.0(zod@4.6.5):
     resolution: {integrity: sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA==}
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
-      zod: 4.6.2
+      zod: 4.6.5
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
@@ -6164,8 +6164,8 @@ packages:
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
       raw-body: 4.0.0
-      zod: 4.6.2
-      zod-to-json-schema: 3.25.2(zod@4.6.2)
+      zod: 4.6.5
+      zod-to-json-schema: 3.25.2(zod@4.6.5)
     transitivePeerDependencies:
       - supports-color
     dev: false
@@ -12590,7 +12590,7 @@ packages:
     dependencies:
       devtools-protocol: 0.0.1701330
       mitt: 3.0.1
-      zod: 4.6.2
+      zod: 4.6.5
     dev: true
 
   /chromium-edge-launcher@0.2.0:
@@ -14605,8 +14605,8 @@ packages:
       '@babel/parser': 7.29.8
       eslint: 9.39.2
       hermes-parser: 0.25.1
-      zod: 4.6.2
-      zod-validation-error: 4.0.2(zod@4.6.2)
+      zod: 4.6.5
+      zod-validation-error: 4.0.2(zod@4.6.5)
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -26056,25 +26056,25 @@ packages:
       readable-stream: 4.7.0
     dev: false
 
-  /zod-to-json-schema@3.25.2(zod@4.6.2):
+  /zod-to-json-schema@3.25.2(zod@4.6.5):
     resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
     peerDependencies:
-      zod: 4.6.2
+      zod: 4.6.5
     dependencies:
-      zod: 4.6.2
+      zod: 4.6.5
     dev: false
 
-  /zod-validation-error@4.0.2(zod@4.6.2):
+  /zod-validation-error@4.0.2(zod@4.6.5):
     resolution: {integrity: sha512-Q6/nZLe6jxuU80qb/4uJ4t5v2VEZ44lzQjPDhYJNztRQ4wyWc6VF3D3Kb/fAuPetZQnhS3hnajCf9CsWesghLQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      zod: 4.6.2
+      zod: 4.6.5
     dependencies:
-      zod: 4.6.2
+      zod: 4.6.5
     dev: true
 
-  /zod@4.6.2:
-    resolution: {integrity: sha512-lh5RCAGFa1Cm2hjtNwLQhSs/AsqdWnTQaBER9fEwN/88pSh7KOtJavtBx/0VlkN/uFd61SwYmljLMDAsHlvzBQ==}
+  /zod@4.6.5:
+    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
 
   /zustand@5.0.15(@types/react@19.3.0)(react@19.3.0):
     resolution: {integrity: sha512-MpSEjRiBkA9crSYeOUH32rJC7SVqAbm0Fqcqge/bUi2PPoLcBWKOsG+C8mevmpr8TwXHBVkChbbJiyvkE+i/3A==}
