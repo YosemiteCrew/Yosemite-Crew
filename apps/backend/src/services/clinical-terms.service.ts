@@ -295,7 +295,7 @@ const queryTokens = (query: string): string[] => {
  * Escaping keeps punctuation in a full query literal rather than turning it into regex.
  */
 const wordMatch = (haystack: Prisma.Sql, token: string) => {
-  const literal = token.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+  const literal = token.replace(/[\\^$.*+?()[\]{}|]/g, String.raw`\$&`);
   const wholeWord = String.raw`\m${literal}\M`;
   return Prisma.sql`${haystack} ~ ${wholeWord}`;
 };
