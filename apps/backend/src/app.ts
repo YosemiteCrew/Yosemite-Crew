@@ -37,6 +37,7 @@ import {
 } from "@yosemite-crew/auth";
 import { authHooks } from "./config/auth-hooks";
 import logger from "./utils/logger";
+import { isAccountLinkingUnavailableError } from "./config/auth-account-linking";
 
 /**
  * Three states, not two.
@@ -79,7 +80,7 @@ function signupEmailDomain(req: Request): string {
   return domain === "googlemail.com" ? "gmail.com" : domain || "invalid";
 }
 
-function readAuthGate(): AuthGate {
+export function readAuthGate(): AuthGate {
   const disabled =
     process.env.SUPERTOKENS_DISABLED === "true" ||
     process.env.SUPERTOKENS_DISABLED === "1";
@@ -103,6 +104,18 @@ const handleUnhandledError: ErrorRequestHandler = (err, _req, res, next) => {
   logger.error("Unhandled application error:", err);
   if (res.headersSent) {
     next(err);
+    return;
+  }
+  if (isAccountLinkingUnavailableError(err)) {
+    recordControl(
+      "auth-account-linking",
+      "failed",
+      "core rejected account linking",
+    );
+    res.status(503).json({
+      message: "Authentication is temporarily unavailable.",
+      code: "AUTH_ACCOUNT_LINKING_UNAVAILABLE",
+    });
     return;
   }
   res.status(500).json({ message: "Internal server error." });
