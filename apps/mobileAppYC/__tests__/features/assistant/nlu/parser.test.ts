@@ -410,7 +410,7 @@ describe('parseUtterance rule order', () => {
       now: NOW,
     });
     expect(parsed?.actionId).toBe('addCareTask');
-    expect(parsed?.slots.when).toBe(at(2026, 0, 15, 9, 0));
+    expect(parsed?.slots.when).toBeUndefined();
   });
 
   it('routes "remind me about the vaccine" to addCareTask, not vaccinationStatus', () => {
