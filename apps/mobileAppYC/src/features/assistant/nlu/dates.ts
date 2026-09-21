@@ -165,17 +165,18 @@ const DOSE_UNITS: ReadonlySet<string> = new Set([
 const NEXT_WORD = /^\s*([a-z]+)/;
 
 /**
- * Words that introduce a clock time and nothing else.
+ * Prepositions that introduce a clock time and nothing else.
  *
- * "las" is here for the Spanish "a las 20.30"; "a" alone is an article, so it
- * would let "a 2.50 dose" back in.
+ * Deliberately shorter than the list of prepositions a time can follow.
+ * "around", "before", "after" and "by" also introduce a QUANTITY - "spent
+ * around 12.50", "reduce his dose by 0.50" - and "around" is the commonest
+ * hedge English puts in front of a price or a dose, so accepting them put both
+ * of this module's headline failures straight back. What is selected for here
+ * is the word that cannot precede an amount. "las" is the Spanish "a las
+ * 20.30"; "a" alone is an article, so it would let "a 2.50 dose" back in.
  */
 const TIME_PREPOSITIONS: ReadonlySet<string> = new Set([
   'at',
-  'by',
-  'around',
-  'before',
-  'after',
   'until',
   'till',
   'las',
@@ -185,7 +186,7 @@ const TIME_PREPOSITIONS: ReadonlySet<string> = new Set([
  * Whether a dotted candidate is introduced as a time.
  *
  * A dot is a decimal point far more often than a clock separator in this
- * domain, so the dot form carries the same preposition requirement that
+ * domain, so the dot form carries the preposition requirement that
  * `parseBareHourAfterAt` already puts on a bare hour, and for the same reason:
  * without it "give 2.50" is 2 o'clock exactly as "give 2" would be. A colon
  * needs no such evidence - nobody writes a dose or a price with one.
