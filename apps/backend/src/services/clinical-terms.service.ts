@@ -453,12 +453,20 @@ export const buildSuggestionQuery = (
   // family - acute, chronic, anuric, polyuric and unspecified - sits at positions 22 to
   // 28, off the page the picker shows.
   //
-  // Within a tier the query is a fixed length, so ordering by label length ascending is
-  // ordering by the share of the label the query accounts for, largest share first:
-  // "renal" is 5 of the 13 characters of "Renal failure" and 5 of the 47 of "Renal
+  // In the three tiers matched against "display" - 400 exact, 200 prefix, 100 contains -
+  // the query is a fixed length and occurs in the label, so ordering by label length
+  // ascending is ordering by the share of the label the query accounts for, largest share
+  // first: "renal" is 5 of the 13 characters of "Renal failure" and 5 of the 47 of "Renal
   // (kidney) anomaly, congenital - Polycystic kidney disease (PKD)". It is the same
   // coverage idea the token score above already uses, applied to the label instead of to
   // the query, and it needs nothing the row does not already carry.
+  //
+  // In the three synonym tiers - 300, 150, 50 - and for a token row that matched only
+  // through the synonym half of code_entry_search_text, the query need not occur in
+  // "display" at all, so length is not measuring coverage there. It is a different
+  // arbitrary key than alphabetical rather than a better one, and it is used anyway
+  // because one ORDER BY is worth more than a scalar subquery over
+  // jsonb_array_elements_text per prefilter row on a keystroke path.
   //
   // This orders rows inside a tier only. No row changes tier, so a term that outranks
   // another today by matching more exactly still outranks it. With no query every row
