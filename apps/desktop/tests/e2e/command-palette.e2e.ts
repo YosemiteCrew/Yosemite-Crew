@@ -377,26 +377,97 @@ test.describe('command-palette E2E', () => {
 
   test('recents persist across palette open/close', async () => {
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+
+    // `yc:get-palette-recents` returns `store.load()`, which is `RecentEntry[]`.
+    // The body this replaces typed it `string[]` and then asserted nothing about
+    // the elements, so the shape mismatch never surfaced.
+    type RecentEntry = { id: string; label: string; url: string; visitedAt: number };
+    const readRecents = async (): Promise<RecentEntry[]> => {
+      const reply = await evaluateYcDesktop<{ ok: boolean; recents: RecentEntry[] }>(
+        page,
+        'getPaletteRecents'
+      );
+      expect(reply.ok).toBe(true);
+      return reply.recents;
+    };
+
+    // The control, and what makes every id below attributable: `beforeEach`
+    // launches into a fresh `YC_DESKTOP_USER_DATA_DIR`, so the recents file does
+    // not exist yet and `load()` starts from the empty list.
+    expect(await readRecents()).toEqual([]);
+
     const actions = await evaluateYcDesktop<{
       ok: boolean;
-      actions: { id: string }[];
+      actions: { id: string; label: string; url?: string }[];
     }>(page, 'getPaletteActions');
     expect(actions.ok).toBe(true);
-    if (actions.actions.length > 0) {
-      await evaluateYcDesktop(page, 'executeCommand', actions.actions[0]!.id);
-    }
-    const recents1 = await evaluateYcDesktop<{
-      ok: boolean;
-      recents: string[];
-    }>(page, 'getPaletteRecents');
-    expect(recents1.ok).toBe(true);
+
+    /*
+     * Only a url-bearing action is ever recorded: `runCommandAction` (main.ts)
+     * calls `recentsStore.recordVisit` under `if (recentsStore && action.url)`.
+     * The `open-settings` this test used to execute between its two reads is an
+     * `action(...)` with no slug, so it carries no url and could not have
+     * reached recents however the list was asserted. Selecting by that property
+     * rather than by name is what makes the assertions below reachable at all.
+     */
+    const recordable = actions.actions.filter((a) => a.url);
+    expect(
+      recordable.length,
+      'fewer than two url-bearing palette actions, so recents ordering cannot be driven'
+    ).toBeGreaterThanOrEqual(2);
+    const [first, second] = recordable as [
+      { id: string; label: string; url?: string },
+      { id: string; label: string; url?: string },
+    ];
+
+    /*
+     * `yc:execute-command` replies immediately after `void
+     * services.runCommandAction(id)` - the call is deliberately not awaited, to
+     * keep the IPC reply off the navigation - so the `recordVisit` write lands
+     * after `{ ok: true }` is already back. Read once and this races; polled, it
+     * asserts the write itself.
+     */
+    const executeAndWaitForRecent = async (id: string): Promise<void> => {
+      const reply = await evaluateYcDesktop<{ ok: boolean }>(page, 'executeCommand', id);
+      expect(reply.ok).toBe(true);
+      await expect
+        .poll(async () => (await readRecents())[0]?.id, {
+          timeout: 10_000,
+          message: `executing ${id} did not reach the front of recents`,
+        })
+        .toBe(id);
+    };
+
+    await executeAndWaitForRecent(first.id);
+    const recents1 = await readRecents();
+    expect(recents1.map((r) => r.id)).toEqual([first.id]);
+    expect(recents1[0]).toMatchObject({ id: first.id, label: first.label, url: first.url });
+
+    // The open/close this test is named for, driven rather than assumed. The old
+    // body called `closePalette` with no palette ever opened, and that handler
+    // returns `{ ok: true }` when there is no window to close.
+    await openPalette(app!);
+    await waitForPaletteReady(app!);
     await evaluateYcDesktop(page, 'closePalette');
-    await evaluateYcDesktop(page, 'executeCommand', 'open-settings');
-    const recents2 = await evaluateYcDesktop<{
-      ok: boolean;
-      recents: string[];
-    }>(page, 'getPaletteRecents');
-    expect(recents2.ok).toBe(true);
+    await expect
+      .poll(async () => (await paletteWindows(app!)).open, {
+        timeout: 10_000,
+        message: 'closePalette left a palette window open',
+      })
+      .toBe(0);
+
+    // Persistence: the entry survives the palette window being opened and
+    // destroyed, byte for byte - `visitedAt` included, so a re-record would fail
+    // here rather than read as a pass.
+    expect(await readRecents()).toEqual(recents1);
+
+    // Ordering: `recordVisit` unshifts, so the most recent command is first.
+    await executeAndWaitForRecent(second.id);
+    expect((await readRecents()).map((r) => r.id)).toEqual([second.id, first.id]);
+
+    // Dedup: re-running the first moves it back to the front and adds no row.
+    await executeAndWaitForRecent(first.id);
+    expect((await readRecents()).map((r) => r.id)).toEqual([first.id, second.id]);
   });
 
   test('stale recents IDs gracefully skipped', async () => {
