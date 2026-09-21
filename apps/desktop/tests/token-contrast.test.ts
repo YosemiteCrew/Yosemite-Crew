@@ -11,8 +11,10 @@ const TOKENS_CSS = path.join(__dirname, '..', 'src', 'pages', 'tokens.css');
 
 const source = fs.readFileSync(TOKENS_CSS, 'utf8');
 
+type Block = { open: number; close: number; text: string };
+
 /** Slice one balanced `{ ... }` declaration block out of the stylesheet. */
-const declarationBlock = (selector: RegExp): string => {
+const declarationBlock = (selector: RegExp): Block => {
   const start = source.search(selector);
   if (start < 0) throw new Error(`selector not found in tokens.css: ${selector}`);
 
@@ -26,7 +28,7 @@ const declarationBlock = (selector: RegExp): string => {
       if (depth === 0) break;
     }
   }
-  return source.slice(open, index);
+  return { open, close: index, text: source.slice(open, index) };
 };
 
 const customProperties = (block: string): Record<string, string> => {
@@ -69,8 +71,39 @@ const token = (tokens: Record<string, string>, name: string): string => {
   return value;
 };
 
-const light = customProperties(declarationBlock(/^:root/m));
-const dark = customProperties(declarationBlock(/^\[data-theme='dark'\]/m));
+/**
+ * tokens.css resolves to four palettes, not two. `:root` is the base; the three
+ * override blocks are partial, so each palette is the base with its own block
+ * applied on top - exactly how the cascade resolves it in the renderer.
+ * `@media (prefers-color-scheme: dark)` is what a user who never opens the theme
+ * toggle gets, so it has to be measured in its own right.
+ */
+const OVERRIDE_SELECTORS = {
+  'dark (prefers-color-scheme)': /:root:not\(\[data-theme='light'\]\)/,
+  "dark (forced data-theme='dark')": /^\[data-theme='dark'\]/m,
+  "light (forced data-theme='light')": /^\[data-theme='light'\]/m,
+} as const;
+
+const base = declarationBlock(/^:root\s*\{/m);
+const baseTokens = customProperties(base.text);
+
+const overrideBlocks = Object.entries(OVERRIDE_SELECTORS).map(([name, selector]) => ({
+  name,
+  block: declarationBlock(selector),
+}));
+
+const PALETTES: Array<[string, Record<string, string>]> = [
+  ['light (default :root)', baseTokens],
+  ...overrideBlocks.map(
+    ({ name, block }) =>
+      [name, { ...baseTokens, ...customProperties(block.text) }] as [string, Record<string, string>]
+  ),
+];
+
+/** Every block this suite actually reads, as source ranges. */
+const MEASURED_RANGES = [base, ...overrideBlocks.map(({ block }) => block)].map(
+  ({ open, close }) => [open, close] as const
+);
 
 /** Every surface a shell page paints text onto. */
 const SURFACES = ['--screen', '--screen-2', '--page', '--inset', '--pill-raised'] as const;
@@ -86,48 +119,79 @@ const TEXT_TOKENS = [
   '--blue-text',
 ] as const;
 
+/** The tokens whose value this suite asserts on, in any palette. */
+const GUARDED_TOKENS = [...SURFACES, ...TEXT_TOKENS, '--blue', '--divider'] as const;
+
 const AA_SMALL_TEXT = 4.5;
 const NON_TEXT = 3;
 
+/** #3296 shipped dark --inset #3c332a on --screen #2f271e, a 1.19:1 step; the bug
+ *  was #302820 on the same screen, 1.01:1. This floor is fixed rather than derived
+ *  from the light theme's own step, because a derived bar can be lowered by
+ *  flattening the theme it is read from. */
+const INSET_STEP = 1.1;
+
 describe('desktop shell colour tokens', () => {
-  test('the stylesheet parser reads both themes', () => {
+  test('the stylesheet parser reads every palette', () => {
     // Without this the suite would pass vacuously on an empty parse.
     expect(contrast('#000000', '#ffffff')).toBeCloseTo(21, 2);
-    expect(Object.keys(light).length).toBeGreaterThan(15);
-    expect(Object.keys(dark).length).toBeGreaterThan(15);
-    expect(token(light, '--ink-faint')).toMatch(/^#[0-9a-f]{6}$/);
-    expect(token(dark, '--ink-faint')).toMatch(/^#[0-9a-f]{6}$/);
+    expect(PALETTES).toHaveLength(4);
+    for (const [name, tokens] of PALETTES) {
+      expect(Object.keys(tokens).length).toBeGreaterThan(15);
+      expect(`${name}: ${token(tokens, '--ink-faint')}`).toMatch(/#[0-9a-f]{6}$/);
+    }
+    // The four palettes are not all the same palette.
+    expect(new Set(PALETTES.map(([, t]) => t['--screen'])).size).toBe(2);
   });
 
-  describe.each([
-    ['light', light],
-    ['dark', dark],
-  ])('%s theme', (_theme, tokens) => {
+  test('no guarded token is declared in a block this suite does not read', () => {
+    // #3296 came back green once because the gate named two of the four theme
+    // blocks. Deriving the coverage means a fifth block, or a value moved out of
+    // a measured one, fails here instead of passing silently.
+    const inMeasuredBlock = (offset: number): boolean =>
+      MEASURED_RANGES.some(([open, close]) => offset > open && offset < close);
+
+    const strays: string[] = [];
+    for (const name of GUARDED_TOKENS) {
+      for (const match of source.matchAll(new RegExp(`${name}:\\s*#[0-9a-fA-F]{6}`, 'g'))) {
+        const offset = match.index ?? -1;
+        if (!inMeasuredBlock(offset)) {
+          strays.push(`${name} at line ${source.slice(0, offset).split('\n').length}`);
+        }
+      }
+    }
+    expect(strays).toEqual([]);
+
+    // And the guard above is live: it can see the declarations inside the blocks.
+    expect([...source.matchAll(/--ink-faint:/g)]).toHaveLength(MEASURED_RANGES.length);
+  });
+
+  describe.each(PALETTES)('%s', (_palette, tokens) => {
     test.each(TEXT_TOKENS)('%s reaches AA on every surface', (textToken) => {
       for (const surface of SURFACES) {
-        expect(contrast(token(tokens, textToken), token(tokens, surface))).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
+        expect(contrast(token(tokens, textToken), token(tokens, surface))).toBeGreaterThanOrEqual(
+          AA_SMALL_TEXT
+        );
       }
     });
 
-    test('inset panels are at least as distinct from the screen as the light theme is', () => {
+    test('inset panels are visibly stepped off the screen', () => {
       // #3296: dark --inset was #302820 against --screen #2f271e, 1.01:1, so vault
       // thumbnails, the preview boxes and the palette icon tiles had no visible
-      // surface. The light theme's own inset step is the reference, not a number
-      // invented here.
-      const lightStep = contrast(token(light, '--inset'), token(light, '--screen'));
+      // surface.
       expect(contrast(token(tokens, '--inset'), token(tokens, '--screen'))).toBeGreaterThanOrEqual(
-        lightStep,
+        INSET_STEP
       );
     });
 
     test('the toggle ring and the on state both clear the non-text minimum', () => {
       // .slider carries its off state as an inset --ink-faint ring on a --screen
       // group card; the on state is --blue.
-      expect(contrast(token(tokens, '--ink-faint'), token(tokens, '--screen'))).toBeGreaterThanOrEqual(
-        NON_TEXT,
-      );
+      expect(
+        contrast(token(tokens, '--ink-faint'), token(tokens, '--screen'))
+      ).toBeGreaterThanOrEqual(NON_TEXT);
       expect(contrast(token(tokens, '--blue'), token(tokens, '--screen'))).toBeGreaterThanOrEqual(
-        NON_TEXT,
+        NON_TEXT
       );
     });
 
@@ -135,7 +199,9 @@ describe('desktop shell colour tokens', () => {
       // The bug was --divider used as the whole off-state fill: 1.37:1 light and
       // 1.15:1 dark. It is still the right colour for a rule between rows, so it
       // is not required to reach 3:1 - this pins why it cannot carry a control.
-      expect(contrast(token(tokens, '--divider'), token(tokens, '--screen'))).toBeLessThan(NON_TEXT);
+      expect(contrast(token(tokens, '--divider'), token(tokens, '--screen'))).toBeLessThan(
+        NON_TEXT
+      );
     });
   });
 
@@ -144,7 +210,7 @@ describe('desktop shell colour tokens', () => {
     // settings.css the ratios above would still pass, so the rule is read here.
     const settingsCss = fs.readFileSync(
       path.join(__dirname, '..', 'src', 'pages', 'settings.css'),
-      'utf8',
+      'utf8'
     );
 
     const sliderBlock = /\.slider\s*\{([^}]*)\}/.exec(settingsCss)?.[1] ?? '';
@@ -158,7 +224,12 @@ describe('desktop shell colour tokens', () => {
   test('--font-display only names faces the app can actually load', () => {
     // Newsreader led this list but is not shipped, so headings silently fell
     // through to Georgia. resources/fonts carries Satoshi only.
-    const fontDisplay = /--font-display:\s*([^;]+);/.exec(source)?.[1] ?? '';
+    const declaration = /--font-display:\s*([^;]+);/.exec(source);
+    // Positive first: an unmatched regex must not satisfy the negative below by
+    // yielding an empty string.
+    expect(declaration).not.toBeNull();
+    const fontDisplay = declaration?.[1] ?? '';
+    expect(fontDisplay).toMatch(/serif/);
     expect(fontDisplay).not.toMatch(/Newsreader/i);
 
     const fontFaces = [...source.matchAll(/font-family:\s*'([^']+)'/g)].map((m) => m[1]);
