@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { MOD, openPimsTab } from './welcome';
+import { openPimsTab } from './welcome';
+import { clickMenuItem } from './menu';
 
 type TestServer = {
   origin: string;
@@ -80,19 +81,66 @@ const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): P
     { m: method, a: args }
   ) as Promise<T>;
 
-const waitForPaletteReady = async (page: Page, timeout = 5000): Promise<void> => {
-  await expect
-    .poll(async () => await evaluateYcDesktop<unknown>(page, 'getPaletteActions'), {
-      timeout,
-      message: 'Timed out waiting for command palette to open',
-    })
-    .not.toBeNull();
-};
-
 test.describe('command-palette E2E', () => {
   let app: ElectronApplication | undefined;
   let page: Page;
   let tab: Page;
+
+  const PALETTE_PAGE = '/pages/command-palette.html';
+
+  /*
+   * The palette is observed as a real window, not as a reply from the preload
+   * bridge. `yc:get-palette-actions` returns a module constant and reads no
+   * window state, so the previous `getPaletteActions() !== null` poll was
+   * already satisfied before Cmd+K was pressed and synchronised nothing
+   * (issue #3396). Keyed on the loaded URL for the same reason as
+   * `settingsWindowLoaded` below: the window is constructed with
+   * `title: 'Command Palette'` and the title is not a stable identifier across
+   * the load, while the URL is settled for the whole of the window's life.
+   */
+  const paletteWindowOpen = (): Promise<boolean> =>
+    app!.evaluate(
+      ({ BrowserWindow }, palettePage) =>
+        BrowserWindow.getAllWindows().some(
+          (w) =>
+            !w.isDestroyed() &&
+            w.webContents.getURL().endsWith(palettePage) &&
+            !w.webContents.isLoading()
+        ),
+      PALETTE_PAGE
+    );
+
+  const waitForPaletteReady = async (timeout = 5000): Promise<void> => {
+    await expect
+      .poll(paletteWindowOpen, {
+        timeout,
+        message: 'Timed out waiting for the command palette window to open',
+      })
+      .toBe(true);
+  };
+
+  /*
+   * Escape is handled by the palette page's own keydown listener, which calls
+   * `yc.closePalette()`. The key therefore has to reach that window's
+   * webContents; `page.keyboard.press` on the main window would exercise
+   * nothing. Same main-process technique `tabs.e2e.ts` uses to drive its
+   * cheatsheet.
+   */
+  const pressPaletteKey = async (keyCode: string): Promise<void> => {
+    await app!.evaluate(
+      ({ webContents }, { code, palettePage }) => {
+        const wc = webContents
+          .getAllWebContents()
+          .find((c) => c.getURL().endsWith(palettePage) && !c.isDestroyed());
+        if (!wc) throw new Error('the command palette window is not loaded');
+        wc.focus();
+        wc.sendInputEvent({ type: 'keyDown', keyCode: code });
+        wc.sendInputEvent({ type: 'char', keyCode: code });
+        wc.sendInputEvent({ type: 'keyUp', keyCode: code });
+      },
+      { code: keyCode, palettePage: PALETTE_PAGE }
+    );
+  };
   let pimsServer: TestServer;
   let userDataDir: string | undefined;
 
@@ -158,18 +206,22 @@ test.describe('command-palette E2E', () => {
     if (refocused.focused) expect(refocused.held.sort()).toEqual(OWN_ACCELERATORS);
   });
 
-  test('Cmd+K opens palette window', async () => {
+  test('the Command Palette menu item opens the palette window', async () => {
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    await page.keyboard.press(`${MOD}+K`);
-    await waitForPaletteReady(page);
-    const paletteResult = await evaluateYcDesktop<unknown>(page, 'getPaletteActions');
-    expect(paletteResult).not.toBeNull();
+
+    // The control. Without it the poll below could be true of every app state,
+    // which is how the old assertion passed: it only ever showed that the
+    // preload bridge exposed `getPaletteActions`.
+    expect(await paletteWindowOpen()).toBe(false);
+
+    await clickMenuItem(app!, 'Command Palette\u2026');
+    await waitForPaletteReady();
   });
 
   test('search "patient" returns "Patients" result', async () => {
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    await page.keyboard.press(`${MOD}+K`);
-    await waitForPaletteReady(page);
+    await clickMenuItem(app!, 'Command Palette\u2026');
+    await waitForPaletteReady();
     const actions = await evaluateYcDesktop<{
       ok: boolean;
       actions: { id: string; label: string }[];
@@ -265,10 +317,27 @@ test.describe('command-palette E2E', () => {
 
   test('Escape closes palette', async () => {
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    await page.keyboard.press(`${MOD}+K`);
-    await waitForPaletteReady(page);
-    const closeResult = await evaluateYcDesktop<{ ok: boolean }>(page, 'closePalette');
-    expect(closeResult).not.toBeNull();
+    expect(await paletteWindowOpen()).toBe(false);
+
+    await clickMenuItem(app!, 'Command Palette\u2026');
+    await waitForPaletteReady();
+
+    /*
+     * Asserted immediately before the key, so that a palette which closed for
+     * some other reason - the window closes itself on `blur` - fails here
+     * rather than satisfying the "it is gone" poll below without Escape having
+     * done anything.
+     */
+    expect(await paletteWindowOpen()).toBe(true);
+
+    await pressPaletteKey('Escape');
+
+    await expect
+      .poll(paletteWindowOpen, {
+        timeout: 5000,
+        message: 'Escape did not close the command palette window',
+      })
+      .toBe(false);
   });
 
   test('recents persist across palette open/close', async () => {
