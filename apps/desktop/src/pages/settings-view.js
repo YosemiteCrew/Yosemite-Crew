@@ -86,9 +86,7 @@
       return FIELD_LABELS[key] || key;
     });
     const subject =
-      names.length === 1
-        ? names[0]
-        : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+      names.length === 1 ? names[0] : names.slice(0, -1).join(', ') + ' and ' + names.at(-1);
     return { message: subject + ' not saved', tone: 'error' };
   };
 
