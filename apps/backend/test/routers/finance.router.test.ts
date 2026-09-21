@@ -61,6 +61,7 @@ const FinanceController = {
   webhook: jest.fn(),
   getDiscountSettings: jest.fn(),
   listProviderReceipts: jest.fn(),
+  auditProviderReceipts: jest.fn(),
   allocateProviderReceipt: jest.fn(),
   updateDiscountSettings: jest.fn(),
   listInvoices: jest.fn(),
@@ -178,6 +179,30 @@ describe("finance.router", () => {
     expect(handlers).toContain(permissionGuard("billing:edit:any"));
     expect(handlers).not.toContain(permissionGuard("billing:view:any"));
     expect(requirePermission).toHaveBeenCalledWith("billing:edit:any");
+  });
+
+  it("puts the historical mismatch audit behind billing READ permission", () => {
+    const route = findRoute(
+      "/organisation/:organisationId/provider-receipts/audit",
+      "get",
+    );
+    const handlers = route?.stack.map((layer) => layer.handle);
+
+    expect(handlers).toContain(FinanceController.auditProviderReceipts);
+    expect(handlers).toContain(requireWebAuth);
+    expect(handlers).toContain(withOrgPermissionsMiddleware);
+    expect(handlers).toContain(permissionGuard("billing:view:any"));
+    expect(handlers).not.toContain(permissionGuard("billing:edit:any"));
+  });
+
+  it("mounts no write route for historical audit findings", () => {
+    const methods = (
+      (financeRouter as unknown as { stack: Layer[] }).stack ?? []
+    )
+      .filter((entry) => entry.route?.path?.includes("provider-receipts/audit"))
+      .flatMap((entry) => Object.keys(entry.route?.methods ?? {}));
+
+    expect(methods).toEqual(["get"]);
   });
 
   it("routes payment and refund endpoints through finance handlers", () => {
