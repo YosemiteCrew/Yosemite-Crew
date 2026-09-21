@@ -239,15 +239,28 @@ const parse24HourTime = (normalized: string): ClockTime | null => {
  *   at 0,50   a comma, which normalising turns into a space, leaving "at 0 50"
  *   at 16:50  a rate the colon rule already declined as "16:50 ml"
  *
+ * The comma is handled by the space it becomes, not by a comma in the class.
+ * `normalizeKeepingClock` keeps only `[a-z0-9:.]`, so no comma ever reaches
+ * here - a class member for one would be unreachable, and removing it from
+ * the class changes no reading.
+ *
  * The last one is the reason a colon is in the class. `parse24HourTime` runs
  * first, so a real "at 8:30" never reaches here; the only colon readings that
  * do are the ones it refused, and re-reading their hour is exactly the
  * mis-scheduled dose it refused to make. A separator is optional and a
  * trailing sentence stop is not a decimal, so what the lookahead really
  * requires is the second number.
+ *
+ * The separator carries the whitespace that follows it, rather than the
+ * spelling `\s*[.:]?\s*` the list above reads like. Both accept exactly the
+ * same strings, but with the separator optional on its own the two `\s*` can
+ * divide a run of spaces between them in every possible way, so a long run
+ * before a non-digit costs quadratic time to refuse. Grouping the separator
+ * with its trailing space leaves one `\s*` to match a run with no separator
+ * and removes the choice.
  */
 const parseBareHourAfterAt = (normalized: string): ClockTime | null => {
-  const match = /\bat\s+(\d{1,2})\b(?!\s*[.,:]?\s*\d)/.exec(normalized);
+  const match = /\bat\s+(\d{1,2})\b(?!\s*(?:[.:]\s*)?\d)/.exec(normalized);
   if (!match) {
     return null;
   }
