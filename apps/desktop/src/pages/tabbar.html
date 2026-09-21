@@ -6,23 +6,35 @@
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="tabbar.css" />
     <style>
-      #tab-search-overlay {
-        position: fixed;
-        inset: 0;
+      /* Both overlays are real modal dialogs. showModal() supplies what the
+         page used to lack and could not convincingly fake: focus moves into the
+         dialog, Tab is trapped inside it, Escape raises `cancel`, and the top
+         layer lifts it above the strip without a z-index ladder. The dim is
+         ::backdrop rather than a wrapper element, which also means a click on
+         it reports the dialog itself as the event target. */
+      #tab-search-dialog::backdrop,
+      #cheatsheet-dialog::backdrop {
         background: var(--sh28);
-        display: none;
-        z-index: 9999;
       }
-      #tab-search-overlay.open {
-        display: block;
+      /* Restores the UA's own `dialog:not([open]) { display: none }`. An author
+         rule outranks the UA stylesheet whatever the specificity, so the
+         `display: flex` each panel needs while open was keeping BOTH of them
+         painted permanently once they stopped being wrapped in a hidden div.
+         Measured: with this rule removed, the shortcut list and the search box
+         are both on screen with nothing open. */
+      dialog:not([open]) {
+        display: none;
       }
       .ts-panel {
-        position: absolute;
+        position: fixed;
         top: 8px;
-        /* The UA dialog stylesheet sets left: 0; without resetting it the fixed
-           width over-constrains the insets and the panel snaps to the left edge. */
+        /* The UA dialog stylesheet sets every inset - left: 0 on any dialog and
+           top/bottom: 0 once it is modal. Left un-reset, the fixed width and
+           height over-constrain those insets and the panel snaps to the corner,
+           so each one this panel does not want is put back to auto by hand. */
         left: auto;
         right: 12px;
+        bottom: auto;
         width: 460px;
         max-height: calc(100vh - 24px);
         background: var(--glass-93);
@@ -127,22 +139,29 @@
         color: var(--ink-faint);
         font-size: 13px;
       }
+      /* The live region carries the result count to a screen reader. Typing in
+         the filter changes the list without moving focus, so nothing else in
+         the panel announces that the matches changed. */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
+      }
 
       /* ── Cheatsheet overlay ── */
-      #cheatsheet-overlay {
-        position: fixed;
-        inset: 0;
-        background: var(--sh28);
-        display: none;
-        z-index: 9998;
-      }
-      #cheatsheet-overlay[style*='block'] {
-        display: block;
-      }
       .cs-panel {
-        position: absolute;
+        position: fixed;
         top: 50%;
         left: 50%;
+        /* As with .ts-panel: the UA's dialog insets are reset, not relied on. */
+        right: auto;
+        bottom: auto;
         transform: translate(-50%, -50%);
         width: 520px;
         max-height: 80vh;
@@ -161,10 +180,38 @@
         color: var(--ink-body);
       }
       .cs-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
         font-size: 15px;
         font-weight: 700;
         padding: 14px 18px;
         border-bottom: 1px solid var(--hairline-soft);
+        color: var(--ink);
+      }
+      /* Escape closes the panel, but a keyboard user who arrives by Tab and a
+         pointer user on a touchpad both need a control they can see. */
+      .cs-close {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        border-radius: var(--radius-sm);
+        background: transparent;
+        color: var(--ink-faint);
+        font: inherit;
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 1;
+        padding: 0;
+        cursor: pointer;
+      }
+      .cs-close:hover {
+        background: var(--pill-raised);
         color: var(--ink);
       }
       .cs-body {
@@ -252,8 +299,8 @@
     </style>
   </head>
   <body>
-    <div id="tabbar" role="tablist" aria-label="Tabs">
-      <div id="tab-strip" class="tab-strip"></div>
+    <div id="tabbar">
+      <div id="tab-strip" class="tab-strip" role="tablist" aria-label="Tabs"></div>
       <div class="drag-spacer" aria-hidden="true"></div>
       <div class="tabbar-trailing">
         <button
@@ -329,102 +376,110 @@
       <img id="tab-preview-img" alt="" />
     </div>
 
-    <div id="tab-search-overlay">
-      <dialog class="ts-panel" open aria-label="Search tabs">
-        <div class="ts-search">
-          <input
-            id="ts-input"
-            type="text"
-            placeholder="Search tabs…"
-            spellcheck="false"
-            aria-label="Search tabs"
-          />
-        </div>
-        <div id="ts-list" class="ts-list"></div>
-      </dialog>
-    </div>
+    <dialog id="tab-search-dialog" class="ts-panel" aria-label="Search tabs">
+      <div class="ts-search">
+        <input
+          id="ts-input"
+          type="text"
+          placeholder="Search tabs…"
+          spellcheck="false"
+          autocomplete="off"
+          aria-label="Search tabs"
+          role="combobox"
+          aria-expanded="true"
+          aria-controls="ts-list"
+          aria-autocomplete="list"
+        />
+      </div>
+      <div id="ts-list" class="ts-list" role="listbox" aria-label="Matching tabs"></div>
+      <output id="ts-status" class="sr-only" aria-live="polite"></output>
+    </dialog>
 
-    <div id="cheatsheet-overlay" style="display: none">
-      <dialog class="cs-panel" open aria-label="Keyboard shortcuts">
-        <div class="cs-header">Keyboard Shortcuts</div>
-        <div class="cs-body">
-          <div class="cs-group">
-            <div class="cs-group-title">Tabs</div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+T"></span><span class="cs-desc">New tab</span>
-            </div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+W"></span
-              ><span class="cs-desc">Close tab</span>
-            </div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+Shift+T"></span
-              ><span class="cs-desc">Reopen closed tab</span>
-            </div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+Shift+Y"></span
-              ><span class="cs-desc">Search tabs</span>
-            </div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+1-9"></span
-              ><span class="cs-desc">Jump to tab</span>
-            </div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+Shift+E"></span
-              ><span class="cs-desc">Toggle vertical tabs</span>
-            </div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+Shift+\"></span
-              ><span class="cs-desc">Split view</span>
-            </div>
+    <dialog id="cheatsheet-dialog" class="cs-panel" aria-label="Keyboard shortcuts">
+      <div class="cs-header">
+        <span>Keyboard Shortcuts</span>
+        <button id="cs-close" class="cs-close" type="button" aria-label="Close keyboard shortcuts">
+          ×
+        </button>
+      </div>
+      <div class="cs-body">
+        <div class="cs-group">
+          <div class="cs-group-title">Tabs</div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+T"></span><span class="cs-desc">New tab</span>
           </div>
-          <div class="cs-group">
-            <div class="cs-group-title">Navigation</div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+Shift+H"></span
-              ><span class="cs-desc">Home</span>
-            </div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+Shift+B"></span
-              ><span class="cs-desc">Open in browser</span>
-            </div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+K"></span
-              ><span class="cs-desc">Command palette</span>
-            </div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+F"></span
-              ><span class="cs-desc">Find in page</span>
-            </div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+G"></span
-              ><span class="cs-desc">Find next</span>
-            </div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+Shift+G"></span
-              ><span class="cs-desc">Find previous</span>
-            </div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+W"></span><span class="cs-desc">Close tab</span>
           </div>
-          <div class="cs-group">
-            <div class="cs-group-title">Window</div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+P"></span><span class="cs-desc">Print</span>
-            </div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+,"></span
-              ><span class="cs-desc">Preferences</span>
-            </div>
-            <div class="cs-row">
-              <span class="cs-key" data-shortcut="Mod+/"></span
-              ><span class="cs-desc">Keyboard shortcuts</span>
-            </div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+Shift+T"></span
+            ><span class="cs-desc">Reopen closed tab</span>
+          </div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+Shift+Y"></span
+            ><span class="cs-desc">Search tabs</span>
+          </div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+1-9"></span
+            ><span class="cs-desc">Jump to tab</span>
+          </div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+Shift+E"></span
+            ><span class="cs-desc">Toggle vertical tabs</span>
+          </div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+Shift+\"></span
+            ><span class="cs-desc">Split view</span>
           </div>
         </div>
-      </dialog>
-    </div>
+        <div class="cs-group">
+          <div class="cs-group-title">Navigation</div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+Shift+H"></span
+            ><span class="cs-desc">Home</span>
+          </div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+Shift+B"></span
+            ><span class="cs-desc">Open in browser</span>
+          </div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+K"></span
+            ><span class="cs-desc">Command palette</span>
+          </div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+F"></span
+            ><span class="cs-desc">Find in page</span>
+          </div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+G"></span><span class="cs-desc">Find next</span>
+          </div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+Shift+G"></span
+            ><span class="cs-desc">Find previous</span>
+          </div>
+        </div>
+        <div class="cs-group">
+          <div class="cs-group-title">Window</div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+P"></span><span class="cs-desc">Print</span>
+          </div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+,"></span
+            ><span class="cs-desc">Preferences</span>
+          </div>
+          <div class="cs-row">
+            <span class="cs-key" data-shortcut="Mod+/"></span
+            ><span class="cs-desc">Keyboard shortcuts</span>
+          </div>
+        </div>
+      </div>
+    </dialog>
 
     <script src="platform-labels.js"></script>
     <script src="tab-indicators.js"></script>
+    <script src="tabbar-a11y.js"></script>
+    <script src="tab-strip-diff.js"></script>
+    <script src="tab-row.js"></script>
     <script src="window-caption.js"></script>
     <script>
       const tabStrip = document.getElementById('tab-strip');
@@ -613,113 +668,6 @@
         });
       };
 
-      // Drawn rather than set as text: the app font has no glyph for the page
-      // and warning characters, which is how the search button ended up as a
-      // 7px system fallback.
-      const SVG_NS = 'http://www.w3.org/2000/svg';
-      const buildPageIcon = () => {
-        const svg = document.createElementNS(SVG_NS, 'svg');
-        svg.setAttribute('class', 'tab-page-icon');
-        svg.setAttribute('viewBox', '0 0 16 16');
-        svg.setAttribute('fill', 'none');
-        svg.setAttribute('stroke', 'currentColor');
-        svg.setAttribute('stroke-width', '1.4');
-        svg.setAttribute('stroke-linejoin', 'round');
-        svg.setAttribute('aria-hidden', 'true');
-        const page = document.createElementNS(SVG_NS, 'path');
-        page.setAttribute('d', 'M3.5 2.5h6l3 3v8h-9z');
-        const fold = document.createElementNS(SVG_NS, 'path');
-        fold.setAttribute('d', 'M9.5 2.5v3h3');
-        svg.appendChild(page);
-        svg.appendChild(fold);
-        return svg;
-      };
-
-      const buildFavicon = (tab) => {
-        const img = document.createElement('img');
-        img.className = 'tab-favicon';
-        img.src = tab.favicon;
-        img.alt = '';
-        img.onerror = () => {
-          img.style.display = 'none';
-        };
-        return img;
-      };
-
-      const buildSpinner = () => {
-        const spinner = document.createElement('span');
-        spinner.className = 'tab-spinner';
-        return spinner;
-      };
-
-      const buildMonogram = (text) => {
-        const mono = document.createElement('span');
-        mono.className = 'tab-monogram';
-        mono.textContent = text;
-        mono.setAttribute('aria-hidden', 'true');
-        return mono;
-      };
-
-      // A pinned tab is 48px wide, so the label only ever rendered as "Ap…" or
-      // a bare ellipsis. It shows one glyph instead; the full title stays in
-      // the tooltip and the tab's accessible name.
-      const buildPinnedGlyph = (tab) => {
-        if (tab.loading) return buildSpinner();
-        const glyph = ycTabIndicators.pinnedGlyph(tab);
-        if (glyph.kind === 'favicon') return buildFavicon(tab);
-        if (glyph.kind === 'monogram') return buildMonogram(glyph.text);
-        return buildPageIcon();
-      };
-
-      const buildLabel = (tab) => {
-        const label = document.createElement('span');
-        label.className = 'tab-label';
-        label.textContent = tab.title;
-        return label;
-      };
-
-      const buildBadge = (tab) => {
-        const view = ycTabIndicators.tabBadge(tab);
-        if (!view) return null;
-        const badge = document.createElement('span');
-        badge.className = view.className;
-        badge.textContent = view.text;
-        badge.title = view.title;
-        badge.setAttribute('role', 'img');
-        badge.setAttribute('aria-label', view.label);
-        return badge;
-      };
-
-      const buildTabInner = (tab) => {
-        const inner = document.createElement('div');
-        inner.className = 'tab-inner';
-
-        if (tab.pinned) {
-          inner.appendChild(buildPinnedGlyph(tab));
-        } else {
-          if (tab.loading) inner.appendChild(buildSpinner());
-          else if (tab.favicon) inner.appendChild(buildFavicon(tab));
-          inner.appendChild(buildLabel(tab));
-        }
-
-        const badge = buildBadge(tab);
-        if (badge) inner.appendChild(badge);
-
-        if (tab.audible) {
-          const audio = document.createElement('span');
-          audio.className = 'tab-audio' + (tab.muted ? ' tab-audio--muted' : '');
-          audio.textContent = tab.muted ? '\uD83D\uDD07' : '\uD83D\uDD0A';
-          audio.title = tab.muted ? 'Unmute tab' : 'Mute tab';
-          audio.addEventListener('click', (e) => {
-            e.stopPropagation();
-            send('toggleTabMute', tab.id);
-          });
-          inner.appendChild(audio);
-        }
-
-        return inner;
-      };
-
       const wireTabHoverPreview = (div, tab) => {
         let previewTimer = null;
         div.addEventListener('mouseenter', () => {
@@ -743,41 +691,76 @@
         });
       };
 
+      // Which tab holds the strip's single tab stop. Arrow keys move focus
+      // without activating (activating swaps a whole view, so doing it on every
+      // arrow press would navigate the user through every tab they pass), which
+      // means the entry point has to follow focus and not selection.
+      let focusedTabId = null;
+      const entryTabId = () => {
+        const stillOpen = state.tabs.some((t) => t.id === focusedTabId);
+        return stillOpen ? focusedTabId : state.activeId;
+      };
+
+      // Named so as not to shadow window.orientation, which still exists here.
+      const stripOrientation = () => document.getElementById('tabbar').dataset.orientation;
+
+      const focusTabAt = (index) => {
+        const el = tabStrip.children[index];
+        if (el) el.focus();
+      };
+
+      const onTabKeydown = (e) => {
+        // Mod-held keys are the window-wide shortcuts handled on document.
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        const id = e.currentTarget.dataset.tabId;
+        const index = state.tabs.findIndex((t) => t.id === id);
+        if (index < 0) return;
+        const action = ycTabbarA11y.keyAction(e.key, stripOrientation());
+        if (!action) return;
+        e.preventDefault();
+        if (action === 'activate') {
+          send('activateTab', id);
+          return;
+        }
+        if (action === 'close') {
+          send('closeTab', id);
+          return;
+        }
+        const next = ycTabbarA11y.moveIndex(action, index, state.tabs.length);
+        if (next !== null) focusTabAt(next);
+      };
+
       const renderTab = (tab) => {
         const div = document.createElement('div');
-        div.className =
-          'tab' +
-          (tab.id === state.activeId ? ' tab--active' : '') +
-          (tab.pinned ? ' tab--pinned' : '') +
-          (tab.id === state.splitId ? ' tab--split' : '');
         div.setAttribute('role', 'tab');
-        div.setAttribute('aria-selected', String(tab.id === state.activeId));
         div.dataset.tabId = tab.id;
         div.setAttribute('draggable', 'true');
-        div.title = tab.title;
-        // A pinned tab renders no text, and the split tab's only other marker
-        // is a colour, so both need the name spelled out.
-        div.setAttribute(
-          'aria-label',
-          tab.id === state.splitId ? tab.title + ' (split view)' : tab.title
-        );
 
         wireTabDrag(div, tab);
-
-        div.appendChild(buildTabInner(tab));
+        div.appendChild(ycTabRow.buildRow((tabId) => send('toggleTabMute', tabId)));
 
         const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
         closeBtn.className = 'tab-close-btn';
-        closeBtn.setAttribute('aria-label', 'Close tab');
+        // Deliberately out of the sequential tab order: with eight tabs open,
+        // Tab would otherwise walk eight close buttons - most of them invisible
+        // - before leaving the strip. The keyboard route to closing a tab is
+        // Delete on the focused tab. It still takes focus on click, which is
+        // what the :focus-within rule in tabbar.css is for.
+        closeBtn.tabIndex = -1;
         closeBtn.textContent = '\u00D7';
         closeBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           send('closeTab', tab.id);
         });
-        if (!tab.pinned) div.appendChild(closeBtn);
+        div.appendChild(closeBtn);
 
         div.addEventListener('click', () => send('activateTab', tab.id));
         div.addEventListener('dblclick', () => send('closeTab', tab.id));
+        div.addEventListener('keydown', onTabKeydown);
+        div.addEventListener('focus', () => {
+          focusedTabId = tab.id;
+        });
 
         div.addEventListener('contextmenu', (e) => {
           e.preventDefault();
@@ -790,6 +773,26 @@
         return div;
       };
 
+      const updateTab = (div, tab) => {
+        const active = tab.id === state.activeId;
+        const split = tab.id === state.splitId;
+        div.className =
+          'tab' +
+          (active ? ' tab--active' : '') +
+          (tab.pinned ? ' tab--pinned' : '') +
+          (split ? ' tab--split' : '');
+        div.setAttribute('aria-selected', String(active));
+        div.tabIndex = ycTabbarA11y.rovingTabIndex(state.tabs, entryTabId(), tab.id);
+        const name = ycTabbarA11y.tabName(tab);
+        div.title = name;
+        // A pinned tab renders no text and the split tab's only other marker is
+        // a colour, so both need the name spelled out. Per poll, not per build:
+        // a tab can be pinned or split long after its row exists.
+        div.setAttribute('aria-label', split ? name + ' (split view)' : name);
+        div.lastElementChild.setAttribute('aria-label', ycTabbarA11y.closeLabel(tab));
+        ycTabRow.updateRow(div.firstElementChild, tab);
+      };
+
       const render = (newState) => {
         state.tabs = newState.tabs || [];
         state.activeId = newState.activeId;
@@ -798,10 +801,29 @@
         if (newState.orientation) {
           document.getElementById('tabbar').dataset.orientation = newState.orientation;
         }
-        tabStrip.innerHTML = '';
-        for (const tab of state.tabs) {
-          tabStrip.appendChild(renderTab(tab));
+
+        // Reconcile rather than rebuild. Clearing innerHTML destroyed whatever
+        // had keyboard focus in the strip within a second of it getting there.
+        const byId = new Map();
+        for (const el of tabStrip.children) byId.set(el.dataset.tabId, el);
+        const plan = ycTabStripDiff.plan(
+          [...byId.keys()],
+          state.tabs.map((t) => t.id)
+        );
+        for (const id of plan.remove) {
+          byId.get(id).remove();
+          byId.delete(id);
         }
+        for (const step of plan.insert) {
+          let el = byId.get(step.id);
+          if (!el) {
+            el = renderTab(state.tabs.find((t) => t.id === step.id));
+            byId.set(step.id, el);
+          }
+          tabStrip.insertBefore(el, step.before ? byId.get(step.before) : null);
+        }
+        for (const tab of state.tabs) updateTab(byId.get(tab.id), tab);
+
         if (searchOpen) renderSearch();
       };
 
@@ -866,9 +888,10 @@
       });
 
       // ── Figma-style tab search panel ──
-      const overlay = document.getElementById('tab-search-overlay');
+      const tsDialog = document.getElementById('tab-search-dialog');
       const tsInput = document.getElementById('ts-input');
       const tsList = document.getElementById('ts-list');
+      const tsStatus = document.getElementById('ts-status');
       let searchOpen = false;
       let tsSel = 0;
       let tsRows = []; // flattened selectable rows: { kind:'open'|'closed', tab }
@@ -889,15 +912,17 @@
             const i = tsRows.length;
             tsRows.push({ kind: 'open', tab: t });
             html +=
-              '<div class="ts-item" data-i="' +
+              '<div class="ts-item" role="option" id="ts-item-' +
+              i +
+              '" data-i="' +
               i +
               '">' +
-              '<span class="ic">' +
+              '<span class="ic" aria-hidden="true">' +
               (t.id === state.activeId ? '●' : '○') +
               '</span>' +
-              '<span class="lbl"></span><button class="x" data-close="' +
+              '<span class="lbl"></span><button class="x" type="button" tabindex="-1" data-close="' +
               t.id +
-              '" aria-label="Close">×</button></div>';
+              '">×</button></div>';
           });
         }
         if (closed.length) {
@@ -906,9 +931,11 @@
             const i = tsRows.length;
             tsRows.push({ kind: 'closed', tab: t });
             html +=
-              '<div class="ts-item" data-i="' +
+              '<div class="ts-item" role="option" id="ts-item-' +
               i +
-              '"><span class="ic">↺</span><span class="lbl"></span></div>';
+              '" data-i="' +
+              i +
+              '"><span class="ic" aria-hidden="true">↺</span><span class="lbl"></span></div>';
           });
         }
         if (!tsRows.length) html = '<div class="ts-empty">No matching tabs</div>';
@@ -925,20 +952,35 @@
             activateRow(i);
           });
           const x = el.querySelector('.x');
-          if (x)
+          if (x) {
+            x.setAttribute('aria-label', ycTabbarA11y.closeLabel(row.tab));
             x.addEventListener('click', (e) => {
               e.stopPropagation();
               send('closeTab', x.dataset.close);
             });
+          }
         });
+        // Filtering changes the list with no focus move, so without a live
+        // region nothing tells a screen-reader user that the matches changed -
+        // including the "No matching tabs" state, which was on screen only.
+        tsStatus.textContent = ycTabbarA11y.resultsStatus(tsRows.length);
         if (tsSel >= tsRows.length) tsSel = Math.max(0, tsRows.length - 1);
         paintSel();
       };
 
+      // Focus stays in the input the whole time; the "selected" row is carried
+      // to assistive technology by aria-activedescendant, as a listbox wants.
       const paintSel = () => {
         tsList.querySelectorAll('.ts-item').forEach((el) => {
-          el.classList.toggle('sel', Number.parseInt(el.dataset.i, 10) === tsSel);
+          const selected = Number.parseInt(el.dataset.i, 10) === tsSel;
+          el.classList.toggle('sel', selected);
+          el.setAttribute('aria-selected', String(selected));
         });
+        if (tsRows.length) {
+          tsInput.setAttribute('aria-activedescendant', 'ts-item-' + tsSel);
+        } else {
+          tsInput.removeAttribute('aria-activedescendant');
+        }
       };
       const setSel = (i) => {
         tsSel = i;
@@ -954,23 +996,35 @@
       };
 
       const openSearch = () => {
+        if (searchOpen) return;
+        // Only one of the two overlays at a time, in either direction: two
+        // stacked modals leave the user Escaping twice to get back to the app.
+        closeCheatsheet();
         searchOpen = true;
         tsSel = 0;
         tsInput.value = '';
-        overlay.classList.add('open');
         send('tabSearch', true); // expand the chrome view to full height
+        // showModal(), not an `open` attribute: it is what traps Tab inside the
+        // panel, raises `cancel` on Escape, and puts the panel in the top layer.
+        if (!tsDialog.open) tsDialog.showModal();
         renderSearch();
-        setTimeout(() => tsInput.focus(), 0);
+        tsInput.focus();
       };
       const closeSearch = () => {
+        if (!searchOpen) return;
         searchOpen = false;
-        overlay.classList.remove('open');
-        send('tabSearch', false); // collapse back to the strip
+        if (tsDialog.open) tsDialog.close();
+        // Collapses the chrome view back to the strip and hands the keyboard
+        // back to the page underneath.
+        send('tabSearch', false);
       };
       globalThis.__ycOpenTabSearch = openSearch;
 
-      overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) closeSearch();
+      // Escape and the backdrop both close through the dialog's own `close`
+      // event, so there is one path out however the user leaves.
+      tsDialog.addEventListener('close', closeSearch);
+      tsDialog.addEventListener('click', (e) => {
+        if (e.target === tsDialog) closeSearch();
       });
       tsInput.addEventListener('input', () => {
         tsSel = 0;
@@ -986,25 +1040,26 @@
         } else if (e.key === 'Enter') {
           e.preventDefault();
           activateRow(tsSel);
-        } else if (e.key === 'Escape') {
-          e.preventDefault();
-          closeSearch();
         }
+        // Escape is the dialog's own; it raises `cancel`, then `close`.
       });
       document.getElementById('search-tabs-btn').addEventListener('click', openSearch);
 
       // ── Cheatsheet ──
-      const csOverlay = document.getElementById('cheatsheet-overlay');
+      const csDialog = document.getElementById('cheatsheet-dialog');
       const openCheatsheet = () => {
-        csOverlay.style.display = 'block';
+        if (csDialog.open) return;
         send('tabSearch', true);
+        // As with tab search: showModal() gives the panel focus, traps Tab in
+        // it and closes it on Escape. It had none of the three, and no way out
+        // but Cmd+/ again or a click outside.
+        csDialog.showModal();
       };
       const closeCheatsheet = () => {
-        csOverlay.style.display = 'none';
-        send('tabSearch', false);
+        if (csDialog.open) csDialog.close();
       };
       const toggleCheatsheet = () => {
-        if (csOverlay.style.display === 'block') {
+        if (csDialog.open) {
           closeCheatsheet();
           return;
         }
@@ -1013,9 +1068,11 @@
       };
       globalThis.__ycOpenCheatsheet = openCheatsheet;
       globalThis.__ycToggleCheatsheet = toggleCheatsheet;
-      csOverlay.addEventListener('click', (e) => {
-        if (e.target === csOverlay) closeCheatsheet();
+      csDialog.addEventListener('close', () => send('tabSearch', false));
+      csDialog.addEventListener('click', (e) => {
+        if (e.target === csDialog) closeCheatsheet();
       });
+      document.getElementById('cs-close').addEventListener('click', closeCheatsheet);
 
       document.addEventListener('keydown', (e) => {
         if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'y' || e.key === 'Y')) {
