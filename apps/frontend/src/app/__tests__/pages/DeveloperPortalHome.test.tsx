@@ -47,6 +47,8 @@ jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
 const listApiKeysMock = jest.fn();
 const getUsageMock = jest.fn();
 
+// Only the request is mocked. The card counts usable keys through the real
+// `isApiKeyUsable` in `developerApiKeyStatus`, which is left alone.
 jest.mock('@/app/services/developerApiKeys', () => ({
   listApiKeys: (...args: unknown[]) => listApiKeysMock(...args),
 }));
@@ -218,6 +220,26 @@ describe('DeveloperPortalHome page', () => {
     expect(await screen.findByText('1,234')).toBeInTheDocument();
   });
 
+  test('leaves an expired key out of the active count', async () => {
+    useAuthStoreMock.mockReturnValue({
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
+    });
+    /* All three are stored `active`; only one is still usable. An expired key
+       keeps that status forever, so counting the stored value advertises
+       credentials the API already answers 401 for. */
+    listApiKeysMock.mockResolvedValue([
+      { id: 'k1', status: 'active', expiresAt: null },
+      { id: 'k2', status: 'active', expiresAt: '2026-01-01T00:00:00.000Z' },
+      { id: 'k3', status: 'active', expiresAt: '2026-02-01T00:00:00.000Z' },
+    ]);
+    getUsageMock.mockResolvedValue({ billingPeriod: '2026-09', callCount: 7, limit: 1000 });
+
+    await renderSettled();
+
+    expect(await screen.findByText('1')).toBeInTheDocument();
+    expect(screen.queryByText('3')).not.toBeInTheDocument();
+  });
+
   test('shows a dash rather than a number when the reads fail', async () => {
     useAuthStoreMock.mockReturnValue({
       ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
@@ -309,9 +331,7 @@ describe('spot-card ink stays on the fixed --spot tokens, not the flipping ones'
   });
 
   it('keeps the phone platform-status card off the flipping ink and background tokens', () => {
-    const css = readCss(
-      'src/app/features/developers/pages/DeveloperPortalHome/PhoneDevHome.css'
-    );
+    const css = readCss('src/app/features/developers/pages/DeveloperPortalHome/PhoneDevHome.css');
     expect(css).not.toMatch(/\.dev-ph-status\s*{[^}]*background:\s*var\(--color-ink\)/);
     expect(css).not.toMatch(/\.dev-ph-status-title\s*{[^}]*color:\s*var\(--ink\)/);
     expect(css).not.toMatch(/\.dev-ph-status-live\s*{[^}]*color:\s*var\(--success-text\)/);

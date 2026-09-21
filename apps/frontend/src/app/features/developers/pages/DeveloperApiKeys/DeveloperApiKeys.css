@@ -183,6 +183,14 @@
   border-color: var(--divider);
 }
 
+/* Expired is a weaker signal than revoked: the owner did not ask for it and
+   can still revoke the record, so it reads as a warning rather than a danger. */
+.DevApiKeys-badge--expired {
+  background: var(--status-cancelled-bg);
+  color: var(--status-cancelled-text);
+  border-color: var(--status-cancelled-border);
+}
+
 .DevApiKeys-badge--revoked {
   background: var(--danger-bg);
   color: var(--danger-text);

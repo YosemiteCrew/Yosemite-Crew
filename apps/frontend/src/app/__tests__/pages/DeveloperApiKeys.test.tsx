@@ -5,6 +5,9 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
+// Only the three requests are mocked. The Expired derivation and the ceiling
+// message come from `developerApiKeyStatus`, which is left real - stubbing it
+// would leave the behaviour under test unexercised.
 jest.mock('@/app/services/developerApiKeys', () => ({
   listApiKeys: jest.fn(),
   createApiKey: jest.fn(),
@@ -91,10 +94,56 @@ describe('DeveloperApiKeys page', () => {
     expect(screen.getByRole('button', { name: 'Revoke' })).toBeInTheDocument();
   });
 
+  it('shows an expired key as expired, with its expiry, and still offers revoke', async () => {
+    listApiKeysMock.mockResolvedValue([{ ...sampleKey, expiresAt: '2026-01-31T00:00:00.000Z' }]);
+    render(<DeveloperApiKeys />);
+
+    expect(await screen.findByText('expired')).toBeInTheDocument();
+    expect(screen.queryByText('active')).not.toBeInTheDocument();
+    expect(screen.getByText('2026-01-31')).toBeInTheDocument();
+    // The record is still there to clear, so revoking it must stay possible.
+    expect(screen.getByRole('button', { name: 'Revoke' })).toBeInTheDocument();
+  });
+
+  it('keeps a key active until the instant it expires', async () => {
+    const expiresAt = new Date(Date.now() + 60_000).toISOString();
+    listApiKeysMock.mockResolvedValue([{ ...sampleKey, expiresAt }]);
+    render(<DeveloperApiKeys />);
+
+    expect(await screen.findByText('active')).toBeInTheDocument();
+    expect(screen.queryByText('expired')).not.toBeInTheDocument();
+  });
+
   it('shows an error when loading fails', async () => {
     listApiKeysMock.mockRejectedValue(new Error('boom'));
     render(<DeveloperApiKeys />);
     expect(await screen.findByText(/Could not load your API keys/)).toBeInTheDocument();
+  });
+
+  it('names the key ceiling when the API refuses a further key', async () => {
+    const user = userEvent.setup();
+    createApiKeyMock.mockRejectedValue({ response: { status: 429 } });
+    render(<DeveloperApiKeys />);
+    await openCreateForm(user);
+
+    await user.type(screen.getByLabelText('Key name'), 'CI');
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+
+    expect(await screen.findByText(/already have 25 active API keys/)).toBeInTheDocument();
+    // "Please try again" is the wrong advice here - it cannot succeed.
+    expect(screen.queryByText(/Please try again/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the generic message for a create failure that is not the ceiling', async () => {
+    const user = userEvent.setup();
+    createApiKeyMock.mockRejectedValue({ response: { status: 500 } });
+    render(<DeveloperApiKeys />);
+    await openCreateForm(user);
+
+    await user.type(screen.getByLabelText('Key name'), 'CI');
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+
+    expect(await screen.findByText(/Could not create the API key/)).toBeInTheDocument();
   });
 
   it('creates a key, parses scopes, and reveals the secret once', async () => {

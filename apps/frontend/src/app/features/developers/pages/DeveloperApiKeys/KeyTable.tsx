@@ -2,6 +2,7 @@
 import React from 'react';
 
 import { Secondary } from '@/app/ui/primitives/Buttons';
+import { apiKeyDisplayStatus } from '@/app/services/developerApiKeyStatus';
 import type { DeveloperApiKey } from '@/app/services/developerApiKeys';
 
 /**
@@ -56,44 +57,63 @@ const KeyTable = ({
           <th>Key</th>
           <th>Env</th>
           <th>Status</th>
+          <th>Expires</th>
           <th>Last used</th>
           <th>Created</th>
           <th aria-label="Actions" />
         </tr>
       </thead>
       <tbody>
-        {keys.map((apiKey) => (
-          <tr key={apiKey.id}>
-            <td>{apiKey.name}</td>
-            <td>
-              <code>
-                {apiKey.prefix}…{apiKey.last4}
-              </code>
-            </td>
-            <td>
-              <span className={`DevApiKeys-badge DevApiKeys-badge--${apiKey.environment}`}>
-                {apiKey.environment}
-              </span>
-            </td>
-            <td>
-              <span className={`DevApiKeys-badge DevApiKeys-badge--${apiKey.status}`}>
-                {apiKey.status}
-              </span>
-            </td>
-            <td>{formatDate(apiKey.lastUsedAt)}</td>
-            <td>{formatDate(apiKey.createdAt)}</td>
-            <td>
-              {apiKey.status === 'active' && (
-                <Secondary
-                  danger
-                  text="Revoke"
-                  onClick={() => onRevoke(apiKey.id)}
-                  style={{ maxWidth: 110 }}
-                />
-              )}
-            </td>
-          </tr>
-        ))}
+        {keys.map((apiKey) => {
+          /*
+           * Expiry is derived per render rather than read from the record: the
+           * API refuses an expired key while its stored status stays `active`,
+           * so rendering `apiKey.status` presents a credential that
+           * authenticates nothing as usable.
+           *
+           * Reading the clock during render is safe here because rows only
+           * exist once the page's fetch resolves in the browser - the server
+           * pass renders the empty state, so there is no hydration pair to
+           * disagree.
+           */
+          const displayStatus = apiKeyDisplayStatus(apiKey);
+          return (
+            <tr key={apiKey.id}>
+              <td>{apiKey.name}</td>
+              <td>
+                <code>
+                  {apiKey.prefix}…{apiKey.last4}
+                </code>
+              </td>
+              <td>
+                <span className={`DevApiKeys-badge DevApiKeys-badge--${apiKey.environment}`}>
+                  {apiKey.environment}
+                </span>
+              </td>
+              <td>
+                <span className={`DevApiKeys-badge DevApiKeys-badge--${displayStatus}`}>
+                  {displayStatus}
+                </span>
+              </td>
+              <td>{formatDate(apiKey.expiresAt)}</td>
+              <td>{formatDate(apiKey.lastUsedAt)}</td>
+              <td>{formatDate(apiKey.createdAt)}</td>
+              <td>
+                {/* Gated on the stored status, not the derived one: an expired
+                  record is still revocable, and revoking it is how an owner
+                  clears it from the list. */}
+                {apiKey.status === 'active' && (
+                  <Secondary
+                    danger
+                    text="Revoke"
+                    onClick={() => onRevoke(apiKey.id)}
+                    style={{ maxWidth: 110 }}
+                  />
+                )}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
 import { logger } from '@/app/lib/logger';
+import { isKeyLimitReached, MAX_ACTIVE_API_KEYS } from '@/app/services/developerApiKeyStatus';
 import {
   createApiKey,
   listApiKeys,
@@ -72,7 +73,13 @@ const DeveloperApiKeys = () => {
       await loadKeys();
     } catch (err) {
       logger.error('Failed to create API key', err);
-      setError('Could not create the API key. Please try again.');
+      // At the ceiling, "please try again" is advice that cannot work: the
+      // request will keep failing until a key is revoked. Say which.
+      setError(
+        isKeyLimitReached(err)
+          ? `You already have ${MAX_ACTIVE_API_KEYS} active API keys. Revoke one before creating another.`
+          : 'Could not create the API key. Please try again.'
+      );
     } finally {
       setCreating(false);
     }

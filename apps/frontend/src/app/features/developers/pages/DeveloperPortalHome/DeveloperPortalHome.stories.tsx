@@ -37,6 +37,21 @@ const KEYS: DeveloperApiKey[] = [
     createdAt: '2026-08-23T14:30:00.000Z',
   },
   {
+    /* Stored `active` and already past its expiry. The API refuses it, so the
+       card must not count it - the status field alone would say otherwise. */
+    id: 'k-expired',
+    name: 'Seasonal import',
+    prefix: 'yc_live_7dQm',
+    last4: '02fe',
+    scopes: ['appointments:read'],
+    environment: 'live',
+    status: 'active',
+    lastUsedAt: '2026-01-20T09:00:00.000Z',
+    expiresAt: '2026-01-31T00:00:00.000Z',
+    revokedAt: null,
+    createdAt: '2025-12-01T10:00:00.000Z',
+  },
+  {
     // Revoked keys are listed by the API but do not count as active here.
     id: 'k-revoked',
     name: 'Legacy import script',
