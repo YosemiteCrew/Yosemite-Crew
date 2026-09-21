@@ -36,11 +36,9 @@
           stroke-linejoin="round"
           aria-hidden="true"
         >
-          <path d="M12 11c-1.5 0-3 .4-4 1.2" />
-          <path d="M8 8.5A5 5 0 0 1 16 8.5" />
-          <path d="M6 11.5A8 8 0 0 1 18 11.5" />
-          <path d="M9.5 15.5c.6-.6 1.5-1 2.5-1s1.9.4 2.5 1" />
-          <path d="M12 18.5v.01" />
+          <path d="M3 19.8C3 10.2 7 3.8 12 3.8s9 6.4 9 16" />
+          <path d="M6.8 20.8C6.8 12.4 9 7.6 12 7.6s5.2 4.8 5.2 13.2" />
+          <path d="M12 11.6c.8 0 1.4 1.8 1.4 4c0 2-.2 3.8-.6 5.4" />
         </svg>
       </span>
       <h1>Locked</h1>
@@ -56,15 +54,29 @@
           stroke-linejoin="round"
           aria-hidden="true"
         >
-          <path d="M12 11c-1.5 0-3 .4-4 1.2" />
-          <path d="M8 8.5A5 5 0 0 1 16 8.5" />
-          <path d="M6 11.5A8 8 0 0 1 18 11.5" />
-          <path d="M9.5 15.5c.6-.6 1.5-1 2.5-1s1.9.4 2.5 1" />
-          <path d="M12 18.5v.01" />
+          <path d="M3 19.8C3 10.2 7 3.8 12 3.8s9 6.4 9 16" />
+          <path d="M6.8 20.8C6.8 12.4 9 7.6 12 7.6s5.2 4.8 5.2 13.2" />
+          <path d="M12 11.6c.8 0 1.4 1.8 1.4 4c0 2-.2 3.8-.6 5.4" />
         </svg>
         <span>Unlock with Touch ID</span>
       </button>
-      <button class="use-password" id="usePassword" type="button">Use password instead</button>
+      <button
+        class="use-password"
+        id="usePassword"
+        type="button"
+        aria-expanded="false"
+        aria-controls="signOutConfirm"
+      >
+        Sign out and sign in with password
+      </button>
+
+      <div class="signout-confirm" id="signOutConfirm" hidden>
+        <p>Signing out closes this session. Anything unsaved in open tabs is lost.</p>
+        <div class="signout-actions">
+          <button class="signout-go" id="confirmSignOut" type="button">Sign out</button>
+          <button class="signout-cancel" id="cancelSignOut" type="button">Cancel</button>
+        </div>
+      </div>
 
       <div class="lock-user">
         <span class="lock-user-ic">
@@ -87,6 +99,7 @@
       <output class="lock-status" id="lockStatus"></output>
     </dialog>
 
+    <script src="idle-lock-controls.js"></script>
     <script src="idle-lock.js"></script>
   </body>
 </html>
