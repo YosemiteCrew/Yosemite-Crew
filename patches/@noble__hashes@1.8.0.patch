@@ -1,0 +1,38 @@
+diff --git a/esm/utils.js b/esm/utils.js
+index 9614c8e5754cc1e94e26a81e9517f20499696b4e..766808590c6f5015e201144f6d11c75403ddf096 100644
+--- a/esm/utils.js
++++ b/esm/utils.js
+@@ -233,7 +233,13 @@ export function concatBytes(...arrays) {
+ export function checkOpts(defaults, opts) {
+     if (opts !== undefined && {}.toString.call(opts) !== '[object Object]')
+         throw new Error('options should be object or undefined');
+-    const merged = Object.assign(defaults, opts);
++    // Object.assign() treats an own "__proto__" source key as a write to the target's legacy
++    // prototype setter, so a forged dkLen/key/salt would be inherited by the merged options.
++    if (opts !== undefined && Object.prototype.hasOwnProperty.call(opts, '__proto__'))
++        throw new Error('options __proto__ is not allowed');
++    // Callers read optional fields directly, so omitted values must not fall through to ambient
++    // Object.prototype pollution.
++    const merged = Object.assign(Object.create(null), defaults, opts);
+     return merged;
+ }
+ /** For runtime check if class implements interface */
+diff --git a/utils.js b/utils.js
+index aed9199852dc91ae3a1a149a64fe806bf697a3ab..389fd408e6c9fd781458eefe3b415ea196bc7a9d 100644
+--- a/utils.js
++++ b/utils.js
+@@ -264,7 +264,13 @@ function concatBytes(...arrays) {
+ function checkOpts(defaults, opts) {
+     if (opts !== undefined && {}.toString.call(opts) !== '[object Object]')
+         throw new Error('options should be object or undefined');
+-    const merged = Object.assign(defaults, opts);
++    // Object.assign() treats an own "__proto__" source key as a write to the target's legacy
++    // prototype setter, so a forged dkLen/key/salt would be inherited by the merged options.
++    if (opts !== undefined && Object.prototype.hasOwnProperty.call(opts, '__proto__'))
++        throw new Error('options __proto__ is not allowed');
++    // Callers read optional fields directly, so omitted values must not fall through to ambient
++    // Object.prototype pollution.
++    const merged = Object.assign(Object.create(null), defaults, opts);
+     return merged;
+ }
+ /** For runtime check if class implements interface */
