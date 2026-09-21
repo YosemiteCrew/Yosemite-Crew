@@ -12,7 +12,11 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* `safe center` centres while there is room and falls back to start once the
+     content is taller than the window, so zooming in at the minimum window size
+     no longer cuts the top off instead of showing a scrollbar. */
+  justify-content: safe center;
+  overflow-y: auto;
   text-align: center;
   gap: 0;
   padding: 48px 48px 72px;
@@ -27,8 +31,12 @@ body {
   pointer-events: none;
 }
 
+/* flex: none across the board - the carousel and the CTA were being shrunk to
+   fit before anything scrolled, which clipped the slide copy and squashed the
+   Sign in button. */
 .wrap > * {
   position: relative;
+  flex: none;
 }
 
 .logo {
@@ -113,28 +121,91 @@ body {
   max-width: 400px;
 }
 
-.dots {
+.dots-row {
   margin-top: 18px;
   display: flex;
-  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
+.dots {
+  display: flex;
+  gap: 0;
+}
+
+/* The button is 24x24 for the minimum target size; the dot the user sees is the
+   8px pseudo-element inside it. --divider measured 1.37:1 against --screen in
+   light and 1.15:1 in dark, so an unselected dot was all but invisible;
+   --ink-faint is 3.12:1 and 4.81:1. */
 .dot {
-  width: 8px;
-  height: 8px;
+  position: relative;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: none;
-  border-radius: var(--radius-pill);
-  background: var(--divider);
+  background: none;
   cursor: pointer;
+}
+
+.dot::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--ink-faint);
   transition:
     background 0.2s ease,
     transform 0.2s ease;
 }
 
-.dot.active {
+.dot.active::after {
   background: var(--blue);
   transform: scale(1.25);
+}
+
+.dot:focus-visible,
+.carousel-toggle:focus-visible {
+  outline: 2px solid var(--nav-active);
+  outline-offset: -2px;
+  border-radius: var(--radius-pill);
+}
+
+.carousel-toggle {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-faint);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.carousel-toggle:hover {
+  color: var(--ink-muted);
+}
+
+.carousel-toggle[hidden] {
+  display: none;
+}
+
+.toggle-ic {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* One icon, two states: bars while playing, triangle while paused. */
+.carousel-toggle .tri,
+.carousel-toggle.is-paused .bar {
+  display: none;
+}
+
+.carousel-toggle.is-paused .tri {
+  display: block;
 }
 
 .cta {
@@ -229,7 +300,13 @@ body {
   .logo {
     animation: none;
   }
+  /* The slide changes themselves are stopped in welcome.js; suppressing only
+     the transition here is what let the carousel keep advancing, silently, for
+     anyone who had asked the OS for less motion. */
   .carousel-track {
+    transition: none;
+  }
+  .dot::after {
     transition: none;
   }
 }
