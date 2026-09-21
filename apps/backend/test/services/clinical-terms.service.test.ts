@@ -476,7 +476,8 @@ describe("ClinicalTermsService", () => {
     const LIMIT = 37;
     const wordPatterns = (values: unknown[]) =>
       values.filter(
-        (v): v is string => typeof v === "string" && v.startsWith("\\m"),
+        (v): v is string =>
+          typeof v === "string" && v.startsWith("\\m") && !/\s/u.test(v),
       );
 
     it("reaches a phrase the vocabulary only holds in pieces", () => {
@@ -508,22 +509,30 @@ describe("ClinicalTermsService", () => {
       expect(values).toContain("\\minfection\\M");
     });
 
-    it("emits nothing extra for a single-word query", () => {
-      // The common keystroke. Every row holding the word holds it as a substring too, so
-      // the existing tiers already score all of them and the statement must not change.
+    it("keeps the single-word trigram prefilter and uses word boundaries only for scoring", () => {
       const { text, values } = sqlFor({ q: "Vomiting", limit: LIMIT });
 
-      expect(values).toEqual([
-        "vomiting",
-        "vomiting",
-        "vomiting%",
-        "vomiting%",
-        "%vomiting%",
-        "%vomiting%",
-        "%vomiting%",
-        LIMIT,
-      ]);
-      expect(text).not.toContain("~");
+      // The LIKE stays in the prefilter, where pg_trgm can serve it.
+      expect(values).toContain("%vomiting%");
+      // The boundary is a score condition, never a replacement filter.
+      expect(values).toContain("\\mvomiting\\M");
+      expect(text).toContain("~");
+    });
+
+    it("scores whole-word contains above mid-word-only contains", () => {
+      const { text, values } = sqlFor({ q: "ear", limit: LIMIT });
+      const normalised = text.replace(/\s+/g, " ");
+
+      expect(values).toContain("\\mear\\M");
+      expect(normalised).toMatch(
+        /WHEN lower\(e\."display"\) ~ .* THEN 100 WHEN EXISTS .* lower\(s\) ~ .* THEN 50 ELSE GREATEST\(\s*CASE WHEN lower\(e\."display"\) LIKE .* THEN 20 WHEN EXISTS .* LIKE .* THEN 10 ELSE 0 END, 0\s*\) END/,
+      );
+    });
+
+    it("treats regex punctuation in the query literally", () => {
+      const { values } = sqlFor({ q: "c++", limit: LIMIT });
+
+      expect(values).toContain("\\mc\\+\\+\\M");
     });
 
     it("drops a word too short for the trigram index to serve", () => {
@@ -662,6 +671,25 @@ describe("ClinicalTermsService", () => {
 
       expect(reachable.map((concept) => concept.label)).toContain(
         "Ear (aural) infection",
+      );
+    });
+
+    it("identifies the shipped terms whose ear match is only mid-word", () => {
+      const query = "ear";
+      const substringMatches = concepts.filter((concept) =>
+        searchText(concept).includes(query),
+      );
+      const wholeWordMatches = substringMatches.filter((concept) =>
+        hasWord(searchText(concept), query),
+      );
+      const midWordOnly = substringMatches.filter(
+        (concept) => !hasWord(searchText(concept), query),
+      );
+
+      expect(wholeWordMatches.length).toBeGreaterThan(0);
+      expect(midWordOnly.length).toBeGreaterThan(wholeWordMatches.length);
+      expect(midWordOnly.length + wholeWordMatches.length).toBe(
+        substringMatches.length,
       );
     });
 
