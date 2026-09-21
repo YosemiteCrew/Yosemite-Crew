@@ -232,7 +232,7 @@ test.describe('command-palette E2E', () => {
     const result = await evaluateYcDesktop<{ ok: boolean }>(
       page,
       'executeCommand',
-      'open-settings'
+      'action-find-patient'
     );
     // Non-null only says the preload bridge exposes executeCommand - it is the
     // same answer for a command that does nothing. The window is the navigation.
