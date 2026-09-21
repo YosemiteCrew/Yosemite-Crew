@@ -1,13 +1,31 @@
 import type { DeveloperApiKeyEnvironment } from "@prisma/client";
 import { prisma } from "src/config/prisma";
-import { DeveloperBillingService } from "./developer-billing.service";
-import logger from "../utils/logger";
+import {
+  DeveloperBillingService,
+  DeveloperBillingServiceError,
+} from "./developer-billing.service";
 
 const FREE_TIER_LIMIT = 1_000;
+const DELIVERY_BATCH_SIZE = 100;
+const DELIVERY_DRAIN_BUDGET_MS = 45_000;
+const MAX_BACKOFF_MINUTES = 60;
+const MINUTE_MS = 60_000;
+const PENDING = { deliveredAt: null } as const;
 
-// One authenticated request is one metered call. Reported as a delta because the
-// Stripe meter sums the events it receives - see DeveloperBillingService.reportUsage.
-const CALLS_PER_REQUEST = 1;
+type MeterEventRow = {
+  id: string;
+  ownerUserId: string;
+  billingPeriod: string;
+  stripeCustomerId: string | null;
+  attempts: number;
+};
+
+type MeteringStatus =
+  | "current"
+  | "pending"
+  | "configuration_error"
+  | "delivery_error"
+  | "reconciliation_error";
 
 const currentBillingPeriod = (): string => {
   const now = new Date();
@@ -15,108 +33,184 @@ const currentBillingPeriod = (): string => {
   return `${now.getUTCFullYear()}-${mm}`;
 };
 
+const retryAt = (attempts: number, now: Date) =>
+  new Date(
+    now.getTime() + Math.min(2 ** attempts, MAX_BACKOFF_MINUTES) * MINUTE_MS,
+  );
+
+const failureCode = (error: unknown): string =>
+  error instanceof DeveloperBillingServiceError && error.code
+    ? error.code
+    : "provider_delivery_failed";
+
+const scheduleRetry = async (
+  event: Pick<MeterEventRow, "id" | "attempts">,
+  code: string,
+  now: Date,
+): Promise<void> => {
+  const attempts = event.attempts + 1;
+  await prisma.developerMeterEvent.update({
+    where: { id: event.id },
+    data: {
+      attempts,
+      nextAttemptAt: retryAt(attempts, now),
+      lastAttemptAt: now,
+      failureCode: code,
+    },
+  });
+};
+
 export const DeveloperUsageService = {
-  /*
-   * Increments call count atomically and checks quota.
-   * Returns { allowed: boolean, callCount: number } - caller should 429 when !allowed.
-   *
-   * `environment` is required rather than optional so a caller cannot meter a
-   * key by forgetting to pass it. A `test` key never consumes quota, never
-   * triggers a 429 and never produces a Stripe meter event - which is what the
-   * billing UI already promises in two places ("Test-environment calls are
-   * always free", DeveloperBilling.tsx; "Test-environment calls are not
-   * counted", UsageMeter.tsx). The code was silent on test keys rather than
-   * deliberate about them: `verified.environment` existed and was attached to
-   * the request, but nothing consulted it, and this service could not have
-   * discriminated even if a caller wanted it to (#2549).
-   */
   async incrementAndCheck(
     ownerUserId: string,
     environment: DeveloperApiKeyEnvironment,
   ): Promise<{ allowed: boolean; callCount: number }> {
-    /* Returns the count it did not record. A test key is unmetered, so there is
-       no meaningful running total to report, and 0 keeps callers that log or
-       surface this from implying a quota was consumed. */
     if (environment === "test") {
       return { allowed: true, callCount: 0 };
     }
 
-    const period = currentBillingPeriod();
-
-    const record = await prisma.developerApiUsage.upsert({
-      where: {
-        ownerUserId_billingPeriod: { ownerUserId, billingPeriod: period },
-      },
-      create: { ownerUserId, billingPeriod: period, callCount: 1 },
-      update: { callCount: { increment: 1 } },
-    });
-
-    const sub = await prisma.developerSubscription.findUnique({
-      where: { ownerUserId },
-      select: { plan: true, stripeCustomerId: true },
-    });
-
-    const plan = sub?.plan ?? "free";
-
-    if (plan === "free" && record.callCount > FREE_TIER_LIMIT) {
-      return { allowed: false, callCount: record.callCount };
-    }
-
-    if (plan === "pro" && sub?.stripeCustomerId) {
-      DeveloperUsageService.reportToStripe(
-        sub.stripeCustomerId,
-        ownerUserId,
-        period,
-        record.callCount,
-      );
-    }
-
-    return { allowed: true, callCount: record.callCount };
-  },
-
-  // Fire-and-forget: report this one call to Stripe and update lastReportedAt.
-  // Called inline from incrementAndCheck; errors are logged but never surfaced to the caller.
-  //
-  // `callSequence` is the request's position in the period, taken from the atomic
-  // increment in incrementAndCheck. It is NOT the reported quantity - it only
-  // makes the meter event's identifier unique per call, and stable if the same
-  // call is ever reported twice.
-  reportToStripe(
-    customerId: string,
-    ownerUserId: string,
-    billingPeriod: string,
-    callSequence: number,
-  ): void {
-    void (async () => {
-      try {
-        await DeveloperBillingService.reportUsage(
-          customerId,
-          CALLS_PER_REQUEST,
-          `dev-api-${ownerUserId}-${billingPeriod}-${callSequence}`,
-        );
-        await prisma.developerApiUsage.update({
-          where: {
-            ownerUserId_billingPeriod: {
-              ownerUserId,
-              billingPeriod,
-            },
-          },
-          data: { lastReportedAt: new Date() },
-        });
-      } catch (err) {
-        // The billing period and the Stripe customer are enough to find the
-        // row again; the owner's user id identifies a person and does not
-        // belong in a log line.
-        logger.error("Failed to report API usage to Stripe", {
-          stripeCustomerId: customerId,
+    const billingPeriod = currentBillingPeriod();
+    const { record, plan } = await prisma.$transaction(async (tx) => {
+      const subscription = await tx.developerSubscription.findUnique({
+        where: { ownerUserId },
+        select: { plan: true, stripeCustomerId: true },
+      });
+      const isPro = subscription?.plan === "pro";
+      const usage = await tx.developerApiUsage.upsert({
+        where: { ownerUserId_billingPeriod: { ownerUserId, billingPeriod } },
+        create: {
+          ownerUserId,
           billingPeriod,
-          err,
+          callCount: 1,
+          meteredCallCount: isPro ? 1 : 0,
+        },
+        update: {
+          callCount: { increment: 1 },
+          ...(isPro ? { meteredCallCount: { increment: 1 } } : {}),
+        },
+      });
+
+      if (isPro) {
+        await tx.developerMeterEvent.create({
+          data: {
+            ownerUserId,
+            billingPeriod,
+            callSequence: usage.callCount,
+            stripeCustomerId: subscription.stripeCustomerId,
+          },
         });
       }
-    })();
+
+      return { record: usage, plan: subscription?.plan ?? "free" };
+    });
+
+    return {
+      allowed: plan !== "free" || record.callCount <= FREE_TIER_LIMIT,
+      callCount: record.callCount,
+    };
   },
 
-  // Returns usage for a given org and period (defaults to current month).
+  async drainMeterEvents(now: Date = new Date()): Promise<{
+    delivered: number;
+    retrying: number;
+    pending: number;
+    oldestPendingSeconds: number | null;
+  }> {
+    const deadline = Date.now() + DELIVERY_DRAIN_BUDGET_MS;
+    let delivered = 0;
+    let retrying = 0;
+    let events: MeterEventRow[];
+
+    do {
+      events = await prisma.developerMeterEvent.findMany({
+        where: { ...PENDING, nextAttemptAt: { lte: now } },
+        orderBy: [{ nextAttemptAt: "asc" }, { id: "asc" }],
+        take: DELIVERY_BATCH_SIZE,
+      });
+      const ownerUserIds = [
+        ...new Set(
+          events
+            .filter((event) => !event.stripeCustomerId)
+            .map((event) => event.ownerUserId),
+        ),
+      ];
+      const subscriptions = ownerUserIds.length
+        ? await prisma.developerSubscription.findMany({
+            where: { ownerUserId: { in: ownerUserIds } },
+            select: { ownerUserId: true, stripeCustomerId: true },
+          })
+        : [];
+      const customerIdsByOwner = new Map(
+        subscriptions.map((subscription) => [
+          subscription.ownerUserId,
+          subscription.stripeCustomerId,
+        ]),
+      );
+
+      for (const event of events) {
+        const customerId =
+          event.stripeCustomerId ??
+          customerIdsByOwner.get(event.ownerUserId) ??
+          null;
+
+        if (!customerId) {
+          await scheduleRetry(event, "missing_stripe_customer", now);
+          retrying += 1;
+          continue;
+        }
+
+        try {
+          await DeveloperBillingService.reportUsage(customerId, 1, event.id);
+          await prisma.$transaction([
+            prisma.developerMeterEvent.update({
+              where: { id: event.id },
+              data: {
+                stripeCustomerId: customerId,
+                deliveredAt: now,
+                lastAttemptAt: now,
+                failureCode: null,
+              },
+            }),
+            prisma.developerApiUsage.update({
+              where: {
+                ownerUserId_billingPeriod: {
+                  ownerUserId: event.ownerUserId,
+                  billingPeriod: event.billingPeriod,
+                },
+              },
+              data: { lastReportedAt: now },
+            }),
+          ]);
+          delivered += 1;
+        } catch (error) {
+          await scheduleRetry(event, failureCode(error), now);
+          retrying += 1;
+        }
+      }
+    } while (events.length === DELIVERY_BATCH_SIZE && Date.now() < deadline);
+
+    const pending = await prisma.developerMeterEvent.count({ where: PENDING });
+    const oldest = pending
+      ? await prisma.developerMeterEvent.findFirst({
+          where: PENDING,
+          orderBy: { createdAt: "asc" },
+          select: { createdAt: true },
+        })
+      : null;
+
+    return {
+      delivered,
+      retrying,
+      pending,
+      oldestPendingSeconds: oldest
+        ? Math.max(
+            0,
+            Math.floor((now.getTime() - oldest.createdAt.getTime()) / 1000),
+          )
+        : null,
+    };
+  },
+
   async getUsage(
     ownerUserId: string,
     billingPeriod?: string,
@@ -124,30 +218,86 @@ export const DeveloperUsageService = {
     billingPeriod: string;
     callCount: number;
     limit: number | null;
+    metering: {
+      recorded: number;
+      reported: number;
+      pending: number;
+      status: MeteringStatus;
+      failureCode: string | null;
+      oldestPendingAt: Date | null;
+    } | null;
   }> {
     const period = billingPeriod ?? currentBillingPeriod();
-
-    const [record, sub] = await Promise.all([
+    const [record, subscription] = await Promise.all([
       prisma.developerApiUsage.findUnique({
         where: {
-          ownerUserId_billingPeriod: {
-            ownerUserId,
-            billingPeriod: period,
-          },
+          ownerUserId_billingPeriod: { ownerUserId, billingPeriod: period },
         },
-        select: { callCount: true },
+        select: { callCount: true, meteredCallCount: true },
       }),
       prisma.developerSubscription.findUnique({
         where: { ownerUserId },
         select: { plan: true },
       }),
     ]);
+    const plan = subscription?.plan ?? "free";
 
-    const plan = sub?.plan ?? "free";
+    if (plan !== "pro") {
+      return {
+        billingPeriod: period,
+        callCount: record?.callCount ?? 0,
+        limit: plan === "free" ? FREE_TIER_LIMIT : null,
+        metering: null,
+      };
+    }
+
+    const [reported, pending, oldest, latestFailure] = await Promise.all([
+      prisma.developerMeterEvent.count({
+        where: {
+          ownerUserId,
+          billingPeriod: period,
+          deliveredAt: { not: null },
+        },
+      }),
+      prisma.developerMeterEvent.count({
+        where: { ownerUserId, billingPeriod: period, deliveredAt: null },
+      }),
+      prisma.developerMeterEvent.findFirst({
+        where: { ownerUserId, billingPeriod: period, deliveredAt: null },
+        orderBy: { createdAt: "asc" },
+        select: { createdAt: true },
+      }),
+      prisma.developerMeterEvent.findFirst({
+        where: {
+          ownerUserId,
+          billingPeriod: period,
+          deliveredAt: null,
+          failureCode: { not: null },
+        },
+        orderBy: { lastAttemptAt: "desc" },
+        select: { failureCode: true },
+      }),
+    ]);
+    const code = latestFailure?.failureCode;
+    const reconciled = reported + pending === (record?.meteredCallCount ?? 0);
+    let status: MeteringStatus = "current";
+    if (pending) status = "pending";
+    if (!reconciled) status = "reconciliation_error";
+    if (code) status = "delivery_error";
+    if (code?.startsWith("missing_")) status = "configuration_error";
+
     return {
       billingPeriod: period,
       callCount: record?.callCount ?? 0,
-      limit: plan === "free" ? FREE_TIER_LIMIT : null,
+      limit: null,
+      metering: {
+        recorded: record?.meteredCallCount ?? 0,
+        reported,
+        pending,
+        status,
+        failureCode: code ?? (reconciled ? null : "usage_count_mismatch"),
+        oldestPendingAt: oldest?.createdAt ?? null,
+      },
     };
   },
 };

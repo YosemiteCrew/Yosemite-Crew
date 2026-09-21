@@ -151,6 +151,28 @@ export const Metered: Story = {
   },
 };
 
+export const MeteringNeedsAttention: Story = {
+  name: 'Metering needs attention',
+  args: {
+    usage: {
+      ...usage(48_250, null),
+      metering: {
+        recorded: 48_250,
+        reported: 48_248,
+        pending: 2,
+        status: 'configuration_error',
+        failureCode: 'missing_meter_configuration',
+        oldestPendingAt: '2026-08-20T10:00:00.000Z',
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const warning = within(canvasElement).getByRole('alert');
+    await expect(warning).toHaveTextContent('2 calls remain safely queued');
+    await expect(warning).toHaveTextContent('missing_meter_configuration');
+  },
+};
+
 export const ZeroLimit: Story = {
   name: 'Limit of zero',
   args: { usage: usage(40, 0) },

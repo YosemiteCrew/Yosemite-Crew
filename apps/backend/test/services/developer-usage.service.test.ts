@@ -1,415 +1,454 @@
 import { DeveloperUsageService } from "../../src/services/developer-usage.service";
-import { DeveloperBillingService } from "../../src/services/developer-billing.service";
+import {
+  DeveloperBillingService,
+  DeveloperBillingServiceError,
+} from "../../src/services/developer-billing.service";
 import { prisma } from "../../src/config/prisma";
-import logger from "../../src/utils/logger";
 
 jest.mock("../../src/config/prisma", () => ({
   prisma: {
+    $transaction: jest.fn(),
     developerApiUsage: {
       upsert: jest.fn(),
       update: jest.fn(),
       findUnique: jest.fn(),
     },
-    developerSubscription: {
-      findUnique: jest.fn(),
+    developerSubscription: { findUnique: jest.fn(), findMany: jest.fn() },
+    developerMeterEvent: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      count: jest.fn(),
+      findFirst: jest.fn(),
     },
   },
 }));
 
-jest.mock("../../src/services/developer-billing.service", () => ({
-  DeveloperBillingService: {
-    reportUsage: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/utils/logger", () => ({
-  __esModule: true,
-  default: { error: jest.fn(), info: jest.fn() },
-}));
+jest.mock("../../src/services/developer-billing.service", () => {
+  class BillingError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode: number,
+      public readonly code?: string,
+    ) {
+      super(message);
+    }
+  }
+  return {
+    DeveloperBillingService: { reportUsage: jest.fn() },
+    DeveloperBillingServiceError: BillingError,
+  };
+});
 
 const mockPrisma = prisma as unknown as {
+  $transaction: jest.Mock;
   developerApiUsage: {
     upsert: jest.Mock;
     update: jest.Mock;
     findUnique: jest.Mock;
   };
-  developerSubscription: {
-    findUnique: jest.Mock;
+  developerSubscription: { findUnique: jest.Mock; findMany: jest.Mock };
+  developerMeterEvent: {
+    create: jest.Mock;
+    findMany: jest.Mock;
+    update: jest.Mock;
+    count: jest.Mock;
+    findFirst: jest.Mock;
   };
 };
+const reportUsage = DeveloperBillingService.reportUsage as jest.Mock;
 
-const mockReportUsage = DeveloperBillingService.reportUsage as jest.Mock;
-const mockLoggerError = logger.error as jest.Mock;
-
-// Mirrors the service's own period key. Recomputed per assertion rather than
-// frozen at module load so a test running across a UTC month boundary still
-// matches the value the service derives.
-const currentPeriod = (): string => {
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-};
+const event = (overrides: Record<string, unknown> = {}) => ({
+  id: "meter-event-1",
+  ownerUserId: "owner-1",
+  billingPeriod: "2026-09",
+  callSequence: 7,
+  stripeCustomerId: "cus_1",
+  attempts: 0,
+  ...overrides,
+});
 
 describe("DeveloperUsageService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPrisma.$transaction.mockImplementation(async (argument) =>
+      typeof argument === "function"
+        ? argument(mockPrisma)
+        : Promise.all(argument),
+    );
+    mockPrisma.developerMeterEvent.findMany.mockResolvedValue([]);
+    mockPrisma.developerMeterEvent.count.mockResolvedValue(0);
+    mockPrisma.developerMeterEvent.findFirst.mockResolvedValue(null);
+    mockPrisma.developerSubscription.findMany.mockResolvedValue([]);
   });
 
-  describe("incrementAndCheck", () => {
-    it("a test key consumes no quota, is never blocked and is never metered", async () => {
-      /* The billing UI promises this in two places - "Test-environment calls are
-         always free" and "Test-environment calls are not counted" - while the
-         code metered a test key exactly like a live one (#2549). A test key
-         must not touch the usage row at all, not merely be forgiven at the
-         quota check, or the count itself would still climb toward the limit. */
-      const result = await DeveloperUsageService.incrementAndCheck(
-        "org-1",
-        "test",
-      );
+  afterEach(() => jest.restoreAllMocks());
 
-      expect(result).toEqual({ allowed: true, callCount: 0 });
-      expect(mockPrisma.developerApiUsage.upsert).not.toHaveBeenCalled();
-      expect(
-        mockPrisma.developerSubscription.findUnique,
-      ).not.toHaveBeenCalled();
-      expect(mockReportUsage).not.toHaveBeenCalled();
+  describe("incrementAndCheck", () => {
+    it("does not record or meter test-key traffic", async () => {
+      await expect(
+        DeveloperUsageService.incrementAndCheck("owner-1", "test"),
+      ).resolves.toEqual({ allowed: true, callCount: 0 });
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
 
-    it("a test key on a pro plan produces no Stripe meter event", async () => {
-      /* Pro is the branch that meters rather than blocks, so it is where an
-         unscreened test key costs the developer money instead of a 429. */
-      mockPrisma.developerApiUsage.upsert.mockResolvedValue({
-        callCount: 5000,
+    it.each([
+      [1000, true],
+      [1001, false],
+    ])("enforces the free limit at %i", async (callCount, allowed) => {
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        plan: "free",
+        stripeCustomerId: null,
       });
+      mockPrisma.developerApiUsage.upsert.mockResolvedValue({ callCount });
+
+      await expect(
+        DeveloperUsageService.incrementAndCheck("owner-1", "live"),
+      ).resolves.toEqual({ allowed, callCount });
+      expect(mockPrisma.developerMeterEvent.create).not.toHaveBeenCalled();
+    });
+
+    it("records the usage increment and durable meter event in one transaction", async () => {
       mockPrisma.developerSubscription.findUnique.mockResolvedValue({
         plan: "pro",
         stripeCustomerId: "cus_1",
       });
+      mockPrisma.developerApiUsage.upsert.mockResolvedValue({ callCount: 7 });
 
-      const result = await DeveloperUsageService.incrementAndCheck(
-        "org-1",
-        "test",
+      await expect(
+        DeveloperUsageService.incrementAndCheck("owner-1", "live"),
+      ).resolves.toEqual({ allowed: true, callCount: 7 });
+
+      expect(mockPrisma.developerApiUsage.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ meteredCallCount: 1 }),
+          update: expect.objectContaining({
+            meteredCallCount: { increment: 1 },
+          }),
+        }),
       );
-
-      expect(result.allowed).toBe(true);
-      expect(mockReportUsage).not.toHaveBeenCalled();
+      expect(mockPrisma.developerMeterEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          ownerUserId: "owner-1",
+          callSequence: 7,
+          stripeCustomerId: "cus_1",
+        }),
+      });
+      expect(reportUsage).not.toHaveBeenCalled();
     });
 
-    it("a test key past the free-tier limit is still allowed", async () => {
-      // The 429 path: a test key must never be the thing that blocks a caller.
-      mockPrisma.developerApiUsage.upsert.mockResolvedValue({
-        callCount: 1001,
-      });
-      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
-        plan: "free",
-        stripeCustomerId: null,
-      });
-
-      const result = await DeveloperUsageService.incrementAndCheck(
-        "org-1",
-        "test",
-      );
-
-      expect(result.allowed).toBe(true);
-    });
-
-    it("free plan, first call — returns allowed:true and callCount:1", async () => {
-      mockPrisma.developerApiUsage.upsert.mockResolvedValue({ callCount: 1 });
-      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
-        plan: "free",
-        stripeCustomerId: null,
-      });
-
-      const result = await DeveloperUsageService.incrementAndCheck(
-        "org-1",
-        "live",
-      );
-
-      expect(result).toEqual({ allowed: true, callCount: 1 });
-      expect(mockReportUsage).not.toHaveBeenCalled();
-    });
-
-    it("free plan, 1001st call — returns allowed:false", async () => {
-      mockPrisma.developerApiUsage.upsert.mockResolvedValue({
-        callCount: 1001,
-      });
-      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
-        plan: "free",
-        stripeCustomerId: null,
-      });
-
-      const result = await DeveloperUsageService.incrementAndCheck(
-        "org-1",
-        "live",
-      );
-
-      expect(result).toEqual({ allowed: false, callCount: 1001 });
-    });
-
-    it("free plan at exactly 1000 — returns allowed:true (boundary is non-inclusive)", async () => {
-      mockPrisma.developerApiUsage.upsert.mockResolvedValue({
-        callCount: 1000,
-      });
-      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
-        plan: "free",
-        stripeCustomerId: null,
-      });
-
-      const result = await DeveloperUsageService.incrementAndCheck(
-        "org-1",
-        "live",
-      );
-
-      expect(result).toEqual({ allowed: true, callCount: 1000 });
-    });
-
-    it("pro plan — returns allowed:true and fires reportToStripe for Stripe", async () => {
-      mockPrisma.developerApiUsage.upsert.mockResolvedValue({ callCount: 42 });
-      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
-        plan: "pro",
-        stripeCustomerId: "cus_x",
-      });
-      mockReportUsage.mockResolvedValue(undefined);
-      mockPrisma.developerApiUsage.update.mockResolvedValue({});
-
-      const result = await DeveloperUsageService.incrementAndCheck(
-        "org-1",
-        "live",
-      );
-
-      expect(result).toEqual({ allowed: true, callCount: 42 });
-
-      // Flush the void IIFE inside reportToStripe
-      await Promise.resolve();
-      await Promise.resolve();
-
-      expect(mockReportUsage).toHaveBeenCalledWith(
-        "cus_x",
-        1,
-        `dev-api-org-1-${currentPeriod()}-42`,
-      );
-    });
-
-    // Regression guard. Reporting record.callCount as the quantity - which this
-    // did originally - makes a summing meter bill the Nth call N times over, so
-    // 1,000 real calls invoice as 500,500. The quantity must stay 1 no matter how
-    // far into the period the request lands.
-    it.each([1, 42, 1000, 250_000])(
-      "reports a quantity of 1 on call %i, never the running total",
-      async (callCount) => {
-        mockPrisma.developerApiUsage.upsert.mockResolvedValue({ callCount });
-        mockPrisma.developerSubscription.findUnique.mockResolvedValue({
-          plan: "pro",
-          stripeCustomerId: "cus_x",
-        });
-        mockReportUsage.mockResolvedValue(undefined);
-        mockPrisma.developerApiUsage.update.mockResolvedValue({});
-
-        await DeveloperUsageService.incrementAndCheck("org-1", "live");
-        await Promise.resolve();
-        await Promise.resolve();
-
-        expect(mockReportUsage).toHaveBeenCalledWith(
-          "cus_x",
-          1,
-          expect.stringContaining(`-${callCount}`),
-        );
-      },
-    );
-
-    it("gives consecutive calls distinct meter-event identifiers", async () => {
-      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
-        plan: "pro",
-        stripeCustomerId: "cus_x",
-      });
-      mockReportUsage.mockResolvedValue(undefined);
-      mockPrisma.developerApiUsage.update.mockResolvedValue({});
-
-      mockPrisma.developerApiUsage.upsert.mockResolvedValueOnce({
-        callCount: 7,
-      });
-      await DeveloperUsageService.incrementAndCheck("org-1", "live");
-      mockPrisma.developerApiUsage.upsert.mockResolvedValueOnce({
-        callCount: 8,
-      });
-      await DeveloperUsageService.incrementAndCheck("org-1", "live");
-
-      await Promise.resolve();
-      await Promise.resolve();
-
-      const identifiers = mockReportUsage.mock.calls.map(
-        (call: unknown[]) => call[2],
-      );
-      expect(new Set(identifiers).size).toBe(2);
-    });
-
-    it("no subscription record (null) — defaults to free plan, allowed:true when count <= 1000", async () => {
-      mockPrisma.developerApiUsage.upsert.mockResolvedValue({ callCount: 5 });
-      mockPrisma.developerSubscription.findUnique.mockResolvedValue(null);
-
-      const result = await DeveloperUsageService.incrementAndCheck(
-        "org-1",
-        "live",
-      );
-
-      expect(result).toEqual({ allowed: true, callCount: 5 });
-      expect(mockReportUsage).not.toHaveBeenCalled();
-    });
-
-    it("pro plan with null stripeCustomerId — does NOT call reportUsage", async () => {
-      mockPrisma.developerApiUsage.upsert.mockResolvedValue({ callCount: 10 });
+    it("retains Pro usage even when its Stripe customer is temporarily missing", async () => {
       mockPrisma.developerSubscription.findUnique.mockResolvedValue({
         plan: "pro",
         stripeCustomerId: null,
       });
+      mockPrisma.developerApiUsage.upsert.mockResolvedValue({ callCount: 8 });
 
-      const result = await DeveloperUsageService.incrementAndCheck(
-        "org-1",
-        "live",
-      );
+      await DeveloperUsageService.incrementAndCheck("owner-1", "live");
 
-      expect(result).toEqual({ allowed: true, callCount: 10 });
+      expect(mockPrisma.developerMeterEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ stripeCustomerId: null }),
+      });
+    });
 
-      await Promise.resolve();
-      await Promise.resolve();
-
-      expect(mockReportUsage).not.toHaveBeenCalled();
+    it("does not acknowledge a call when the atomic write fails", async () => {
+      mockPrisma.$transaction.mockRejectedValue(new Error("database down"));
+      await expect(
+        DeveloperUsageService.incrementAndCheck("owner-1", "live"),
+      ).rejects.toThrow("database down");
     });
   });
 
-  describe("reportToStripe", () => {
-    it("happy path — calls reportUsage then updates lastReportedAt", async () => {
-      mockReportUsage.mockResolvedValue(undefined);
-      mockPrisma.developerApiUsage.update.mockResolvedValue({});
+  describe("drainMeterEvents", () => {
+    const now = new Date("2026-09-22T10:00:00.000Z");
 
-      DeveloperUsageService.reportToStripe("cus_abc", "org-1", "2026-06", 99);
+    it("delivers a persisted event with its stable id and checkpoints it", async () => {
+      mockPrisma.developerMeterEvent.findMany.mockResolvedValue([event()]);
+      mockPrisma.developerMeterEvent.count.mockResolvedValue(0);
+      reportUsage.mockResolvedValue(undefined);
 
-      // Wait for the void IIFE to settle
-      await Promise.resolve();
-      await Promise.resolve();
-
-      // 1, not 99: the fourth argument is the call's position in the period, used
-      // to build the identifier, not the quantity being billed.
-      expect(mockReportUsage).toHaveBeenCalledWith(
-        "cus_abc",
-        1,
-        "dev-api-org-1-2026-06-99",
-      );
+      await expect(
+        DeveloperUsageService.drainMeterEvents(now),
+      ).resolves.toEqual({
+        delivered: 1,
+        retrying: 0,
+        pending: 0,
+        oldestPendingSeconds: null,
+      });
+      expect(reportUsage).toHaveBeenCalledWith("cus_1", 1, "meter-event-1");
+      expect(mockPrisma.developerMeterEvent.update).toHaveBeenCalledWith({
+        where: { id: "meter-event-1" },
+        data: expect.objectContaining({ deliveredAt: now, failureCode: null }),
+      });
       expect(mockPrisma.developerApiUsage.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { lastReportedAt: now } }),
+      );
+    });
+
+    it("retries an outage after restart without changing the event id", async () => {
+      mockPrisma.developerMeterEvent.findMany.mockResolvedValue([event()]);
+      mockPrisma.developerMeterEvent.count.mockResolvedValue(1);
+      mockPrisma.developerMeterEvent.findFirst.mockResolvedValue({
+        createdAt: new Date("2026-09-22T09:55:00.000Z"),
+      });
+      reportUsage.mockRejectedValue(
+        new Error("timeout after provider accepted"),
+      );
+
+      await expect(
+        DeveloperUsageService.drainMeterEvents(now),
+      ).resolves.toEqual({
+        delivered: 0,
+        retrying: 1,
+        pending: 1,
+        oldestPendingSeconds: 300,
+      });
+      expect(reportUsage).toHaveBeenCalledWith("cus_1", 1, "meter-event-1");
+      expect(mockPrisma.developerMeterEvent.update).toHaveBeenCalledWith({
+        where: { id: "meter-event-1" },
+        data: {
+          attempts: 1,
+          nextAttemptAt: new Date("2026-09-22T10:02:00.000Z"),
+          lastAttemptAt: now,
+          failureCode: "provider_delivery_failed",
+        },
+      });
+    });
+
+    it("marks missing meter configuration explicitly and leaves the event pending", async () => {
+      mockPrisma.developerMeterEvent.findMany.mockResolvedValue([event()]);
+      reportUsage.mockRejectedValue(
+        new DeveloperBillingServiceError(
+          "provider configuration unavailable",
+          500,
+          "missing_meter_configuration",
+        ),
+      );
+
+      await DeveloperUsageService.drainMeterEvents(now);
+
+      expect(mockPrisma.developerMeterEvent.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
-            ownerUserId_billingPeriod: {
-              ownerUserId: "org-1",
-              billingPeriod: "2026-06",
-            },
-          },
-          data: expect.objectContaining({ lastReportedAt: expect.any(Date) }),
+          data: expect.objectContaining({
+            failureCode: "missing_meter_configuration",
+          }),
         }),
       );
     });
 
-    it("reportUsage throws — logs the error, does not rethrow", async () => {
-      const boom = new Error("stripe down");
-      mockReportUsage.mockRejectedValue(boom);
+    it("resolves a customer created after the call was queued", async () => {
+      mockPrisma.developerMeterEvent.findMany.mockResolvedValue([
+        event({ stripeCustomerId: null }),
+      ]);
+      mockPrisma.developerSubscription.findMany.mockResolvedValue([
+        { ownerUserId: "owner-1", stripeCustomerId: "cus_later" },
+      ]);
+      reportUsage.mockResolvedValue(undefined);
 
-      // Should not throw from the caller's perspective
-      expect(() => {
-        DeveloperUsageService.reportToStripe("cus_abc", "org-1", "2026-06", 5);
-      }).not.toThrow();
+      await DeveloperUsageService.drainMeterEvents(now);
 
-      // Flush the void IIFE
-      await Promise.resolve();
-      await Promise.resolve();
+      expect(reportUsage).toHaveBeenCalledWith("cus_later", 1, "meter-event-1");
+    });
 
-      expect(mockLoggerError).toHaveBeenCalledWith(
-        "Failed to report API usage to Stripe",
+    it("resolves one customer lookup for a batch from the same owner", async () => {
+      mockPrisma.developerMeterEvent.findMany.mockResolvedValue([
+        event({ id: "meter-event-1", stripeCustomerId: null }),
+        event({ id: "meter-event-2", stripeCustomerId: null }),
+      ]);
+      mockPrisma.developerSubscription.findMany.mockResolvedValue([
+        { ownerUserId: "owner-1", stripeCustomerId: "cus_later" },
+      ]);
+
+      await DeveloperUsageService.drainMeterEvents(now);
+
+      expect(mockPrisma.developerSubscription.findMany).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(mockPrisma.developerSubscription.findMany).toHaveBeenCalledWith({
+        where: { ownerUserId: { in: ["owner-1"] } },
+        select: { ownerUserId: true, stripeCustomerId: true },
+      });
+      expect(reportUsage).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps usage pending when no Stripe customer can be resolved", async () => {
+      mockPrisma.developerMeterEvent.findMany.mockResolvedValue([
+        event({ stripeCustomerId: null, attempts: 2 }),
+      ]);
+      await DeveloperUsageService.drainMeterEvents(now);
+
+      expect(reportUsage).not.toHaveBeenCalled();
+      expect(mockPrisma.developerMeterEvent.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          stripeCustomerId: "cus_abc",
-          billingPeriod: "2026-06",
-          err: boom,
+          data: expect.objectContaining({
+            attempts: 3,
+            failureCode: "missing_stripe_customer",
+          }),
         }),
       );
-      // The owner's user id identifies a person and must stay out of the log.
-      expect(mockLoggerError.mock.calls[0][1]).not.toHaveProperty(
-        "ownerUserId",
+    });
+
+    it("uses the same id after an ambiguous acknowledgement so Stripe can deduplicate", async () => {
+      mockPrisma.developerMeterEvent.findMany.mockResolvedValue([event()]);
+      reportUsage
+        .mockRejectedValueOnce(new Error("connection closed after send"))
+        .mockResolvedValueOnce(undefined);
+
+      await DeveloperUsageService.drainMeterEvents(now);
+      await DeveloperUsageService.drainMeterEvents(
+        new Date("2026-09-22T10:02:00.000Z"),
       );
-      // update should NOT have been called after the throw
-      expect(mockPrisma.developerApiUsage.update).not.toHaveBeenCalled();
+
+      expect(reportUsage.mock.calls.map((call) => call[2])).toEqual([
+        "meter-event-1",
+        "meter-event-1",
+      ]);
+    });
+
+    it("continues draining after a full batch while the job has time", async () => {
+      jest.spyOn(Date, "now").mockReturnValue(0);
+      const firstBatch = Array.from({ length: 100 }, (_, index) =>
+        event({ id: `meter-event-${index + 1}` }),
+      );
+      mockPrisma.developerMeterEvent.findMany
+        .mockResolvedValueOnce(firstBatch)
+        .mockResolvedValueOnce([event({ id: "meter-event-101" })]);
+
+      await expect(
+        DeveloperUsageService.drainMeterEvents(now),
+      ).resolves.toEqual({
+        delivered: 101,
+        retrying: 0,
+        pending: 0,
+        oldestPendingSeconds: null,
+      });
+      expect(mockPrisma.developerMeterEvent.findMany).toHaveBeenCalledTimes(2);
+      expect(reportUsage).toHaveBeenCalledTimes(101);
+    });
+
+    it("stops between full batches when the drain budget is exhausted", async () => {
+      jest
+        .spyOn(Date, "now")
+        .mockReturnValueOnce(0)
+        .mockReturnValueOnce(45_000);
+      mockPrisma.developerMeterEvent.findMany.mockResolvedValue(
+        Array.from({ length: 100 }, (_, index) =>
+          event({ id: `meter-event-${index + 1}` }),
+        ),
+      );
+
+      await DeveloperUsageService.drainMeterEvents(now);
+
+      expect(mockPrisma.developerMeterEvent.findMany).toHaveBeenCalledTimes(1);
     });
   });
 
   describe("getUsage", () => {
-    it("free plan — returns billingPeriod, callCount, and limit:1000", async () => {
+    it("returns free usage without a billing delivery state", async () => {
       mockPrisma.developerApiUsage.findUnique.mockResolvedValue({
         callCount: 77,
+        meteredCallCount: 0,
       });
       mockPrisma.developerSubscription.findUnique.mockResolvedValue({
         plan: "free",
       });
 
-      const result = await DeveloperUsageService.getUsage("org-1", "2026-06");
-
-      expect(result).toEqual({
-        billingPeriod: "2026-06",
+      await expect(
+        DeveloperUsageService.getUsage("owner-1", "2026-09"),
+      ).resolves.toEqual({
+        billingPeriod: "2026-09",
         callCount: 77,
         limit: 1000,
+        metering: null,
       });
     });
 
-    it("pro plan — returns limit:null", async () => {
+    it("keeps Enterprise uncapped without Stripe metering state", async () => {
       mockPrisma.developerApiUsage.findUnique.mockResolvedValue({
-        callCount: 500,
+        callCount: 20_000,
+        meteredCallCount: 0,
+      });
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        plan: "enterprise",
+      });
+
+      await expect(
+        DeveloperUsageService.getUsage("owner-1", "2026-09"),
+      ).resolves.toEqual({
+        billingPeriod: "2026-09",
+        callCount: 20_000,
+        limit: null,
+        metering: null,
+      });
+    });
+
+    it.each([
+      [null, 0, "current"],
+      [null, 2, "pending"],
+      ["missing_meter_configuration", 2, "configuration_error"],
+      ["provider_delivery_failed", 2, "delivery_error"],
+    ])(
+      "reconciles Pro usage with failure %s as %s",
+      async (failureCodeValue, pending, status) => {
+        const oldest = new Date("2026-09-22T09:00:00.000Z");
+        mockPrisma.developerApiUsage.findUnique.mockResolvedValue({
+          callCount: 12,
+          meteredCallCount: 10,
+        });
+        mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+          plan: "pro",
+        });
+        mockPrisma.developerMeterEvent.count
+          .mockResolvedValueOnce(10 - pending)
+          .mockResolvedValueOnce(pending);
+        mockPrisma.developerMeterEvent.findFirst
+          .mockResolvedValueOnce(pending ? { createdAt: oldest } : null)
+          .mockResolvedValueOnce(
+            failureCodeValue ? { failureCode: failureCodeValue } : null,
+          );
+
+        const result = await DeveloperUsageService.getUsage(
+          "owner-1",
+          "2026-09",
+        );
+
+        expect(result).toEqual({
+          billingPeriod: "2026-09",
+          callCount: 12,
+          limit: null,
+          metering: {
+            recorded: 10,
+            reported: 10 - pending,
+            pending,
+            status,
+            failureCode: failureCodeValue,
+            oldestPendingAt: pending ? oldest : null,
+          },
+        });
+      },
+    );
+
+    it("shows an actionable mismatch when recorded and delivery counts diverge", async () => {
+      mockPrisma.developerApiUsage.findUnique.mockResolvedValue({
+        callCount: 12,
+        meteredCallCount: 10,
       });
       mockPrisma.developerSubscription.findUnique.mockResolvedValue({
         plan: "pro",
       });
+      mockPrisma.developerMeterEvent.count
+        .mockResolvedValueOnce(5)
+        .mockResolvedValueOnce(3);
 
-      const result = await DeveloperUsageService.getUsage("org-1", "2026-06");
+      const result = await DeveloperUsageService.getUsage("owner-1", "2026-09");
 
-      expect(result).toEqual({
-        billingPeriod: "2026-06",
-        callCount: 500,
-        limit: null,
-      });
-    });
-
-    it("no usage record — returns callCount:0", async () => {
-      mockPrisma.developerApiUsage.findUnique.mockResolvedValue(null);
-      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
-        plan: "free",
-      });
-
-      const result = await DeveloperUsageService.getUsage("org-1", "2026-06");
-
-      expect(result).toEqual({
-        billingPeriod: "2026-06",
-        callCount: 0,
-        limit: 1000,
-      });
-    });
-
-    it("uses current billing period when none is provided", async () => {
-      mockPrisma.developerApiUsage.findUnique.mockResolvedValue({
-        callCount: 3,
-      });
-      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
-        plan: "free",
-      });
-
-      const result = await DeveloperUsageService.getUsage("org-1");
-
-      expect(result.callCount).toBe(3);
-      expect(result.billingPeriod).toMatch(/^\d{4}-\d{2}$/);
-    });
-
-    it("defaults to free when no subscription record exists", async () => {
-      mockPrisma.developerApiUsage.findUnique.mockResolvedValue({
-        callCount: 5,
-      });
-      mockPrisma.developerSubscription.findUnique.mockResolvedValue(null);
-
-      const result = await DeveloperUsageService.getUsage("org-1", "2026-06");
-
-      expect(result.limit).toBe(1000);
+      expect(result.metering).toEqual(
+        expect.objectContaining({
+          status: "reconciliation_error",
+          failureCode: "usage_count_mismatch",
+          pending: 3,
+        }),
+      );
     });
   });
 });

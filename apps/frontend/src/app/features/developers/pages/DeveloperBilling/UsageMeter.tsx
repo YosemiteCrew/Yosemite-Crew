@@ -14,8 +14,10 @@ import type { DeveloperUsage } from '@/app/services/developerUsage';
  * could disagree with the invoice.
  */
 const UsageMeter = ({ usage }: { usage: DeveloperUsage }) => {
-  const { billingPeriod, callCount, limit } = usage;
+  const { billingPeriod, callCount, limit, metering } = usage;
   const formatted = callCount.toLocaleString();
+  const meteringIssue =
+    metering && metering.status !== 'current' && metering.status !== 'pending' ? metering : null;
 
   /* A limit is only usable as a denominator when it is positive. `limit: 0`
      would make the fill `0 / 0` -> NaN, which reaches the DOM as the invalid
@@ -64,6 +66,16 @@ const UsageMeter = ({ usage }: { usage: DeveloperUsage }) => {
       {allowance === null && (
         <p className="DevBilling-usageNote">
           Metered — billed at the end of the period. Test-environment calls are not counted.
+        </p>
+      )}
+
+      {meteringIssue && (
+        <p className="DevBilling-usageWarning" role="alert">
+          Billing usage reporting needs attention.{' '}
+          {meteringIssue.pending > 0 &&
+            `${meteringIssue.pending.toLocaleString()} calls remain safely queued. `}
+          Contact support and mention{' '}
+          <code>{meteringIssue.failureCode ?? meteringIssue.status}</code>.
         </p>
       )}
     </div>
