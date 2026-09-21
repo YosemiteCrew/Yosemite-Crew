@@ -552,6 +552,9 @@ export const parseWhen = (text: string, now: Date): string | null => {
     ) ??
     resolveWeekday(normalized, now, hour, minute);
   if (dated) {
+    if (rejectedIntroducedDottedTime && new Date(dated) <= now) {
+      return null;
+    }
     return dated;
   }
 

@@ -164,6 +164,16 @@ describe('parseWhen relative day words', () => {
     );
   });
 
+  it('rejects a refused dotted clock when its same-day fallback is past', () => {
+    expect(parseWhen('tonight 20.30', NOW)).toBeNull();
+  });
+
+  it('keeps a refused dotted clock fallback when the named day is future', () => {
+    expect(localParts(parseWhen('tomorrow 20.30', NOW))).toEqual(
+      at(2026, 2, 4, 9, 0),
+    );
+  });
+
   it('lets an explicit time override the default hour', () => {
     expect(localParts(parseWhen('tomorrow at 7', NOW))).toEqual(
       at(2026, 2, 4, 7, 0),
@@ -751,8 +761,13 @@ describe('parseWhen does not read a dotted number as a time', () => {
  */
 describe('parseWhen does not answer an introduced dotted candidate with a day-part hour', () => {
   it.each([
-    ['a following English day part', 'walk him at 20.30 tonight', 3],
-    ['a preceding English day part', 'walk him tonight 20.30', 3],
+    ['a following English day part', 'walk him at 20.30 tonight'],
+    ['a preceding English day part', 'walk him tonight 20.30'],
+  ])('rejects a past default hour for %s', (_case, text) => {
+    expect(parseWhen(text, NOW)).toBeNull();
+  });
+
+  it.each([
     [
       'a Spanish afternoon beside a relative day',
       'pasear a las 20.30 de la tarde manana',
@@ -763,7 +778,7 @@ describe('parseWhen does not answer an introduced dotted candidate with a day-pa
       'pasear a las 21.15 de la noche manana',
       4,
     ],
-  ])('keeps the visible default hour for %s', (_case, text, date) => {
+  ])('keeps the future default hour for %s', (_case, text, date) => {
     expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, date, 9, 0));
   });
 
