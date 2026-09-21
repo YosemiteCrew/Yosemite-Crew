@@ -10463,6 +10463,20 @@ paths:
                     - OTHER
                 referenceId:
                   type: string
+                stockSource:
+                  type: string
+                  default: NORMAL
+                  description: >-
+                    Which pool the consumption draws from. NORMAL (the default)
+                    is checked against onHand minus allocated, so it cannot
+                    spend units reserved for someone else. ALLOCATED draws down
+                    a reservation the caller already holds: it is checked
+                    against onHand and reduces allocated by the same amount,
+                    and is rejected if the reservation no longer covers the
+                    draw. Any other value is rejected with 400.
+                  enum:
+                    - NORMAL
+                    - ALLOCATED
       responses:
         200:
           description: Response
@@ -10665,6 +10679,15 @@ paths:
                           - OTHER
                       referenceId:
                         type: string
+                      stockSource:
+                        type: string
+                        default: NORMAL
+                        description: >-
+                          Per-entry, same meaning as on POST
+                          /v1/inventory/stock/consume.
+                        enum:
+                          - NORMAL
+                          - ALLOCATED
       responses:
         200:
           description: Response

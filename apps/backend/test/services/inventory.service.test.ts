@@ -730,10 +730,13 @@ describe("Inventory service", () => {
   it("consumeStock leaves an existing reservation untouched", async () => {
     // Reservations are held on the item by allocateStock and are never mirrored
     // onto the batch rows, so consumption must not recompute them from batches.
+    // The fixture leaves 5 unreserved units so the draw clears the allocation
+    // guard - the point under test is that `allocated` survives the write, not
+    // whether the guard admits it.
     (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValue({
       id: "item-1",
       organisationId: "org-1",
-      onHand: 5,
+      onHand: 10,
       allocated: 5,
     });
     (prisma.inventoryBatch.findMany as jest.Mock)
@@ -742,7 +745,7 @@ describe("Inventory service", () => {
           id: "batch-1",
           itemId: "item-1",
           organisationId: "org-1",
-          quantity: 5,
+          quantity: 10,
           allocated: 0,
         },
       ])
@@ -751,14 +754,14 @@ describe("Inventory service", () => {
           id: "batch-1",
           itemId: "item-1",
           organisationId: "org-1",
-          quantity: 3,
+          quantity: 8,
           allocated: 0,
         },
       ]);
     (prisma.inventoryItem.update as jest.Mock).mockResolvedValue({
       id: "item-1",
       organisationId: "org-1",
-      onHand: 3,
+      onHand: 8,
       allocated: 5,
     });
 
@@ -769,7 +772,7 @@ describe("Inventory service", () => {
 
     expect(prisma.inventoryItem.update).toHaveBeenCalledWith({
       where: { id: "item-1" },
-      data: { onHand: 3 },
+      data: { onHand: 8 },
     });
     expect(consumed.allocated).toBe(5);
   });
@@ -2592,6 +2595,131 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         statusCode: 400,
       });
       expect(prisma.inventoryBatch.findMany).not.toHaveBeenCalled();
+    });
+
+    it("refuses a NORMAL consumption that would eat into a reservation", async () => {
+      // onHand 10 with 5 reserved leaves 5 genuinely available. Checking onHand
+      // alone would admit this draw of 8, drop onHand to 2 against an allocation
+      // of 5, and leave the reservation unfulfillable with nothing detecting it.
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 10, allocated: 5 }),
+      );
+
+      await expect(
+        InventoryService.consumeStock(
+          { itemId: "item-1", quantity: 8, reason: "APPOINTMENT_USAGE" },
+          "org-1",
+        ),
+      ).rejects.toMatchObject({
+        message: "Insufficient stock",
+        statusCode: 400,
+      });
+      // Refused before any stock moves, not unwound afterwards.
+      expect(prisma.inventoryBatch.findMany).not.toHaveBeenCalled();
+      expect(prisma.inventoryItem.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("admits a NORMAL consumption that fits in the unreserved remainder", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 10, allocated: 5 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany)
+        .mockResolvedValueOnce([batchRow({ id: "b1", quantity: 10 })])
+        .mockResolvedValueOnce([batchRow({ id: "b1", quantity: 5 })]);
+      mockOf(prisma.inventoryItem.update).mockResolvedValue(
+        itemRow({ onHand: 5, allocated: 5 }),
+      );
+
+      const updated = await InventoryService.consumeStock(
+        { itemId: "item-1", quantity: 5, reason: "APPOINTMENT_USAGE" },
+        "org-1",
+      );
+
+      expect(updated.onHand).toBe(5);
+      // A NORMAL draw never touches the reservation.
+      expect(prisma.inventoryItem.updateMany).not.toHaveBeenCalled();
+      expect(prisma.inventoryItem.update).toHaveBeenCalledWith({
+        where: { id: "item-1" },
+        data: { onHand: 5 },
+      });
+    });
+
+    it("draws an ALLOCATED consumption down against the reservation", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 10, allocated: 5 }),
+      );
+      mockOf(prisma.inventoryItem.updateMany).mockResolvedValue({ count: 1 });
+      mockOf(prisma.inventoryBatch.findMany)
+        .mockResolvedValueOnce([batchRow({ id: "b1", quantity: 10 })])
+        .mockResolvedValueOnce([batchRow({ id: "b1", quantity: 5 })]);
+      mockOf(prisma.inventoryItem.update).mockResolvedValue(
+        itemRow({ onHand: 5, allocated: 0 }),
+      );
+
+      const updated = await InventoryService.consumeStock(
+        {
+          itemId: "item-1",
+          quantity: 5,
+          reason: "APPOINTMENT_USAGE",
+          stockSource: "ALLOCATED",
+        },
+        "org-1",
+      );
+
+      // Conditional decrement, not a computed literal: the `gte` is what stops a
+      // second concurrent draw-down of the same reservation from also landing.
+      expect(prisma.inventoryItem.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: "item-1",
+          organisationId: "org-1",
+          allocated: { gte: 5 },
+        },
+        data: { allocated: { decrement: 5 } },
+      });
+      expect(updated.onHand).toBe(5);
+    });
+
+    it("refuses an ALLOCATED draw the reservation no longer covers", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 10, allocated: 5 }),
+      );
+      // The row moved between the read and the write - the conditional decrement
+      // matches nothing, which is the race this guard exists to lose safely.
+      mockOf(prisma.inventoryItem.updateMany).mockResolvedValue({ count: 0 });
+
+      await expect(
+        InventoryService.consumeStock(
+          {
+            itemId: "item-1",
+            quantity: 5,
+            reason: "APPOINTMENT_USAGE",
+            stockSource: "ALLOCATED",
+          },
+          "org-1",
+        ),
+      ).rejects.toMatchObject({
+        message: "Insufficient allocated stock",
+        statusCode: 400,
+      });
+      expect(prisma.inventoryBatch.findMany).not.toHaveBeenCalled();
+    });
+
+    it("rejects an unrecognised stockSource instead of defaulting it", async () => {
+      await expect(
+        InventoryService.consumeStock(
+          {
+            itemId: "item-1",
+            quantity: 1,
+            reason: "OTHER",
+            stockSource: "allocated" as never,
+          },
+          "org-1",
+        ),
+      ).rejects.toMatchObject({
+        message: "stockSource must be NORMAL or ALLOCATED",
+        statusCode: 400,
+      });
+      expect(prisma.inventoryItem.findFirst).not.toHaveBeenCalled();
     });
 
     it("fails loudly when the batches cannot cover the item level stock", async () => {
