@@ -177,6 +177,68 @@ const followedByDoseUnit = (rest: string): boolean => {
 };
 
 /**
+ * Words that name a dilution, whose "1:10" is a ratio and not a clock time.
+ *
+ * A colon was left carrying the 24-hour rule on the grounds that it brings its
+ * own evidence, because nobody writes a dose or a price with one. A dilution
+ * is the case where somebody does: "dilute 1:10 and bathe him tomorrow"
+ * scheduled the reminder for 01:10 instead of the 09:00 default, which is the
+ * mis-scheduled medication this module's header exists to prevent.
+ *
+ * The ratio has no unit after it for `followedByDoseUnit` to catch and no
+ * shape of its own - 1:10, 1:20 and 1:50 are all valid times - so the word
+ * that introduces it is the only evidence there is. Both shipped languages are
+ * listed, as everywhere else in this module; accents are already folded by
+ * `normalizeKeepingClock`, so "dilucion" is the form that arrives here.
+ */
+const RATIO_WORDS: ReadonlySet<string> = new Set([
+  'dilute',
+  'diluted',
+  'diluting',
+  'dilution',
+  'dilutions',
+  'mix',
+  'mixed',
+  'mixing',
+  'ratio',
+  'ratios',
+  // Spanish.
+  'diluir',
+  'diluye',
+  'diluido',
+  'dilucion',
+  'mezcla',
+  'mezclar',
+  'proporcion',
+]);
+
+/**
+ * How far back a dilution word is taken as introducing the number.
+ *
+ * Three words is what the reported utterances need - "dilute the shampoo 1:20"
+ * puts a determiner and a noun between the two - and deliberately no more.
+ * Unbounded, the word would disqualify every later candidate in the sentence
+ * as well, and "dilute 1:10 then walk him at 20:30" would lose the 20:30 that
+ * the all-candidates scan exists to find.
+ */
+const RATIO_WORD_WINDOW = 3;
+
+/**
+ * Whether one of the last few words before a clock candidate names a dilution.
+ *
+ * Counting words rather than characters is what keeps an ordinary time safe:
+ * in "mix his food at 18:30" the dilution word is four words back, too far to
+ * be introducing the number, and the time is read as said.
+ */
+const precededByRatioWord = (before: string): boolean => {
+  const words = before.match(/[a-z]+/g);
+  return (
+    words !== null &&
+    words.slice(-RATIO_WORD_WINDOW).some(word => RATIO_WORDS.has(word))
+  );
+};
+
+/**
  * "20:30" - a bare 24-hour reading. The separator must be a colon.
  *
  * A dot was accepted here and cannot be. In this domain a dot is a decimal
@@ -209,7 +271,10 @@ const followedByDoseUnit = (rest: string): boolean => {
 const parse24HourTime = (normalized: string): ClockTime | null => {
   for (const match of normalized.matchAll(/\b(\d{1,2})\s*:\s*(\d{2})\b/g)) {
     const [whole, rawHour, rawMinute] = match;
-    if (followedByDoseUnit(normalized.slice(match.index + whole.length))) {
+    if (
+      followedByDoseUnit(normalized.slice(match.index + whole.length)) ||
+      precededByRatioWord(normalized.slice(0, match.index))
+    ) {
       continue;
     }
     const hour = Number(rawHour);
