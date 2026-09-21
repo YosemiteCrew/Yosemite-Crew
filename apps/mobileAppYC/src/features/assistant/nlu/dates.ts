@@ -177,14 +177,37 @@ const followedByDoseUnit = (rest: string): boolean => {
 };
 
 /**
- * "20:30" - a bare 24-hour reading, and "20.30" where the dot separates.
+ * "20:30" - a bare 24-hour reading. The separator must be a colon.
  *
- * Every candidate is read rather than only the first, so a dose that is
- * skipped does not hide a time said after it ("give 0.25 ml at 20.30"), and
- * an unreadable one does not either ("0.75 ml" has no valid minute).
+ * A dot was accepted here and cannot be. In this domain a dot is a decimal
+ * point far more often than a clock separator, and the fraction only has to
+ * land in 00-59 to pass as minutes - .25, .30 and .50 all do - so a quantity
+ * read as the hour and the dose was scheduled for just after midnight.
+ *
+ * Four discriminators were tried against real utterances and every one was
+ * refuted, which is why none of them is here:
+ *
+ *   a preposition introduces it        "spent around 12.50", "reduce it by 0.50"
+ *   only one a quantity cannot follow  "set his dose at 0.50 of a tablet"
+ *   a day or day-part word is evidence "remind me tomorrow 0.50 of the pill"
+ *   an hour only a clock would use     "keep the infusion rate at 16.50"
+ *
+ * Every word that can introduce a time can introduce an amount, and a dose or
+ * an infusion rate takes any magnitude, so neither the neighbours nor the
+ * number's own shape decides it. Reading no time is the safe failure: the
+ * owner sees the 09:00 default in a prefilled form and corrects it in one tap,
+ * whereas a dose at the wrong hour is the mis-scheduled medication this
+ * module's header exists to prevent.
+ *
+ * The dotted forms that carry their own evidence are unaffected. "8.30 pm"
+ * goes through `parseMeridiemTime`, which runs first and accepts `[:.]`, and
+ * "20:30" is one keystroke away. No dose is written either way.
+ *
+ * Every candidate is read rather than only the first, so a colon reading
+ * skipped as a quantity does not hide a time said after it.
  */
 const parse24HourTime = (normalized: string): ClockTime | null => {
-  for (const match of normalized.matchAll(/\b(\d{1,2})\s*[:.]\s*(\d{2})\b/g)) {
+  for (const match of normalized.matchAll(/\b(\d{1,2})\s*:\s*(\d{2})\b/g)) {
     const [whole, rawHour, rawMinute] = match;
     if (followedByDoseUnit(normalized.slice(match.index + whole.length))) {
       continue;
@@ -202,9 +225,42 @@ const parse24HourTime = (normalized: string): ClockTime | null => {
  * "at 7" - a bare hour, and only after "at".
  *
  * The preposition is what keeps "give 2 tablets" from becoming 2 o'clock.
+ *
+ * A decimal is refused whole rather than read down to its integer part. With
+ * no dotted clock rule left, "at 0.50" arrives here directly, and reading it
+ * as "at 0" is the midnight mis-scheduled dose in its own right. A trailing
+ * sentence stop is not a decimal, so the lookahead needs the digit after it.
+ *
+ * The lookahead is deliberately loose about what sits between the two numbers,
+ * because every tightening of it has been a hole:
+ *
+ *   at 0.50   an adjacent dot
+ *   at 0 . 50 spaced, which is how a typed "0 . 50" survives normalising
+ *   at 0,50   a comma, which normalising turns into a space, leaving "at 0 50"
+ *   at 16:50  a rate the colon rule already declined as "16:50 ml"
+ *
+ * The comma is handled by the space it becomes, not by a comma in the class.
+ * `normalizeKeepingClock` keeps only `[a-z0-9:.]`, so no comma ever reaches
+ * here - a class member for one would be unreachable, and removing it from
+ * the class changes no reading.
+ *
+ * The last one is the reason a colon is in the class. `parse24HourTime` runs
+ * first, so a real "at 8:30" never reaches here; the only colon readings that
+ * do are the ones it refused, and re-reading their hour is exactly the
+ * mis-scheduled dose it refused to make. A separator is optional and a
+ * trailing sentence stop is not a decimal, so what the lookahead really
+ * requires is the second number.
+ *
+ * The separator carries the whitespace that follows it, rather than the
+ * spelling `\s*[.:]?\s*` the list above reads like. Both accept exactly the
+ * same strings, but with the separator optional on its own the two `\s*` can
+ * divide a run of spaces between them in every possible way, so a long run
+ * before a non-digit costs quadratic time to refuse. Grouping the separator
+ * with its trailing space leaves one `\s*` to match a run with no separator
+ * and removes the choice.
  */
 const parseBareHourAfterAt = (normalized: string): ClockTime | null => {
-  const match = /\bat\s+(\d{1,2})\b/.exec(normalized);
+  const match = /\bat\s+(\d{1,2})\b(?!\s*(?:[.:]\s*)?\d)/.exec(normalized);
   if (!match) {
     return null;
   }

@@ -338,6 +338,60 @@ describe('parseUtterance rule order', () => {
     expect(parsed?.slots.amount).toBe(amount);
   });
 
+  it.each([
+    ['spent 12.50 on food', 12.5],
+    ['I spent 20.30 at the vet', 20.3],
+    ['log expense 45.30 for kibble', 45.3],
+  ])('reads %s as money and not as a time', (text, amount) => {
+    // `collectSlots` runs parseWhen on every action, so a price used to fill
+    // `when` from the same characters parseAmount read as the amount, and the
+    // expense form opened prefilled with 12:50.
+    const parsed = parseUtterance(text, {now: NOW});
+    expect(parsed?.slots.amount).toBe(amount);
+    expect(parsed?.slots.when).toBeUndefined();
+  });
+
+  it('still fills when from a time said alongside a price', () => {
+    expect(
+      parseUtterance('spent 12.50 on food at 8pm', {now: NOW})?.slots,
+    ).toEqual({amount: 12.5, when: at(2026, 0, 15, 20, 0)});
+  });
+
+  /*
+   * A dose named after a time preposition is not the reminder hour.
+   *
+   * "at", "until" and "till" introduce a target amount as readily as a clock
+   * time, so the dotted dose reached `slots.when` through the real parser and
+   * the owner's medication reminder was set for the small hours. Pinned here
+   * rather than only on `parseWhen` because that is the path the assistant
+   * actually runs.
+   */
+  it.each([
+    [
+      'at, with the unit elided',
+      'remind me to set his dose at 0.50 of a tablet tomorrow',
+    ],
+    ['at, with no continuation', 'remind me to keep the dose at 1.25 tomorrow'],
+    ['until', 'remind me to titrate until 0.50 of a tablet tomorrow'],
+    ['till', 'remind me to titrate till 0.50 of a tablet tomorrow'],
+    ['a spaced decimal', 'remind me to set his dose at 0 . 50 tomorrow'],
+    [
+      'an amount above any magnitude cutoff',
+      'remind me to keep the infusion rate at 16.50 tomorrow',
+    ],
+  ])('keeps the default hour when the dose follows %s', (_case, text) => {
+    const parsed = parseUtterance(text, {now: NOW});
+    expect(parsed?.actionId).toBe('addCareTask');
+    expect(parsed?.slots.when).toBe(at(2026, 0, 16, 9, 0));
+  });
+
+  it('still fills when from a time the owner wrote with a colon', () => {
+    expect(
+      parseUtterance('remind me to walk him at 20:30 tomorrow', {now: NOW})
+        ?.slots.when,
+    ).toBe(at(2026, 0, 16, 20, 30));
+  });
+
   it('routes "remind me about the vaccine" to addCareTask, not vaccinationStatus', () => {
     expect(
       parseUtterance('remind me about the vaccine', {now: NOW})?.actionId,
