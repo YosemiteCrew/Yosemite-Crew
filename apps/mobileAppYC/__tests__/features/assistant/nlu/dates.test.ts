@@ -693,3 +693,88 @@ describe('parseWhen reads a dotted number as a time only when introduced', () =>
     ).toEqual(at(2026, 2, 4, 20, 30));
   });
 });
+
+/*
+ * A day word is the other thing that can introduce a dotted time.
+ *
+ * Requiring a time-only preposition cost every dotted time an owner
+ * introduces with a day instead. "walk him tomorrow 20.30" fell to the 09:00
+ * default, which is visible and one tap to correct; "walk him tonight 20.30"
+ * fell to 21:00 through the day-part rule, where a wrong hour looks
+ * deliberate and nothing prompts the owner to look.
+ *
+ * A day word is evidence no price or dose can produce, but it is weaker than
+ * a preposition: it says the sentence is about a moment, not that this number
+ * is one. So it only counts immediately before the number, and two shapes a
+ * dose takes are refused on top of it.
+ */
+describe('parseWhen reads a dotted time introduced by a day word', () => {
+  it.each([
+    ['a relative day', 'walk him tomorrow 20.30', at(2026, 2, 4, 20, 30)],
+    ['a weekday', 'walk him friday 20.30', at(2026, 2, 6, 20, 30)],
+    ['a day part', 'walk him tonight 20.30', at(2026, 2, 3, 20, 30)],
+    ['the Spanish day word', 'pasear manana 20.30', at(2026, 2, 4, 20, 30)],
+    [
+      'minutes that are not half past',
+      'vet visit tomorrow 14.15',
+      at(2026, 2, 4, 14, 15),
+    ],
+  ])('reads the time when introduced by %s', (_case, text, expected) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(expected);
+  });
+
+  it('reads an unqualified hour against the day part that introduced it', () => {
+    // The day part moves a 1-11 hour past noon exactly as it does for a
+    // colon time, so "tonight 8.30" is half past eight in the evening.
+    expect(localParts(parseWhen('walk him tonight 8.30', NOW))).toEqual(
+      at(2026, 2, 3, 20, 30),
+    );
+  });
+
+  it('keeps a price a price when the day word qualifies the sentence', () => {
+    // "tomorrow" is four words away and says when the spending is logged,
+    // not what 12.50 is. Only the word immediately before the number counts.
+    expect(localParts(parseWhen('spent 12.50 on food tomorrow', NOW))).toEqual(
+      at(2026, 2, 4, 9, 0),
+    );
+  });
+
+  it.each([
+    ['an English partitive follows', 'remind me tomorrow 1.25 of the tablet'],
+    ['a Spanish partitive follows', 'dale manana 1.25 de la pastilla'],
+  ])('keeps the default hour when %s', (_case, text) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
+  });
+
+  it('keeps the default hour for a dose written as a bare zero hour', () => {
+    // Nobody writes ten to one in the morning as "0.50", and a dose under a
+    // whole unit is written that way constantly.
+    expect(localParts(parseWhen('remind me tomorrow 0.50', NOW))).toEqual(
+      at(2026, 2, 4, 9, 0),
+    );
+  });
+
+  it('still reads a zero hour spelled as a clock', () => {
+    // "00.50" is nobody's way of writing a dose, so the two-digit spelling is
+    // read as the time it looks like.
+    expect(localParts(parseWhen('walk him tomorrow 00.50', NOW))).toEqual(
+      at(2026, 2, 4, 0, 50),
+    );
+  });
+
+  it('does not treat a bare determiner as a day word', () => {
+    // "esta" only names a day when it qualifies a day part ("esta noche"),
+    // which is why `resolveRelativeDay` skips it alone. Counting it here
+    // would make "esta 2.50" two o'clock.
+    expect(parseWhen('dale esta 2.50', NOW)).toBeNull();
+  });
+
+  it('still reads a Spanish time said "de la tarde"', () => {
+    // The partitive check belongs to the day-word path only: "a las" is
+    // already a word no quantity can follow, and "20.30 de la tarde" is how
+    // the time is ordinarily said.
+    expect(
+      localParts(parseWhen('pasear a las 20.30 de la tarde manana', NOW)),
+    ).toEqual(at(2026, 2, 4, 20, 30));
+  });
+});

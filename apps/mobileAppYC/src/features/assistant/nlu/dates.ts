@@ -183,15 +183,34 @@ const TIME_PREPOSITIONS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Whether a dotted candidate is introduced as a time.
+ * Day, weekday and day-part words, the other thing that introduces a time.
  *
- * A dot is a decimal point far more often than a clock separator in this
- * domain, so the dot form carries the preposition requirement that
- * `parseBareHourAfterAt` already puts on a bare hour, and for the same reason:
- * without it "give 2.50" is 2 o'clock exactly as "give 2" would be. A colon
- * needs no such evidence - nobody writes a dose or a price with one.
+ * A day word is evidence no price or dose can produce, so "tomorrow 20.30" is
+ * a time where "around 20.30" is not. It has to sit IMMEDIATELY before the
+ * number to count: in "spent 12.50 on food tomorrow" the day word is four
+ * words away and qualifies the sentence rather than the number, which is what
+ * keeps that price a price.
+ *
+ * "esta" is left out for the reason "a" is left out of `TIME_PREPOSITIONS`:
+ * alone it is a determiner, so it would admit "esta 2.50 de dosis".
  */
-const introducedAsTime = (before: string): boolean => {
+const DAY_WORDS: ReadonlySet<string> = new Set([
+  ...Object.keys(RELATIVE_DAYS).filter(word => word !== 'esta'),
+  ...Object.keys(WEEKDAYS),
+  ...Object.keys(DAY_PART_HOURS),
+]);
+
+/**
+ * Words that mark the number before them as an amount of something.
+ *
+ * Only consulted on the day-word path. A time preposition is already a word a
+ * quantity cannot follow, so it needs no second opinion there - and "a las
+ * 20.30 de la tarde" is ordinary Spanish, which this would otherwise reject.
+ */
+const PARTITIVES: ReadonlySet<string> = new Set(['of', 'de']);
+
+/** The whole word immediately before a clock candidate, if there is one. */
+const wordBefore = (before: string): string | null => {
   // Walked backwards rather than matched with an end-anchored `([a-z]+)\s*$`,
   // which is super-linear on a long prefix - the same reason `hasNegativeSign`
   // in the parser walks instead of anchoring.
@@ -204,7 +223,41 @@ const introducedAsTime = (before: string): boolean => {
   while (start > 0 && before[start - 1] >= 'a' && before[start - 1] <= 'z') {
     start -= 1;
   }
-  return start < end && TIME_PREPOSITIONS.has(before.slice(start, end));
+  return start < end ? before.slice(start, end) : null;
+};
+
+/**
+ * Whether a dotted candidate is introduced as a time.
+ *
+ * A dot is a decimal point far more often than a clock separator in this
+ * domain, so the dot form carries the preposition requirement that
+ * `parseBareHourAfterAt` already puts on a bare hour, and for the same reason:
+ * without it "give 2.50" is 2 o'clock exactly as "give 2" would be. A colon
+ * needs no such evidence - nobody writes a dose or a price with one.
+ *
+ * A day word is the second admissible introduction, and the weaker one: it
+ * says the sentence is about a moment, not that this number is one. Two
+ * shapes survive it and are refused here rather than by widening the word
+ * list, because both are how an owner writes a dose:
+ *
+ *   an hour of "0"        nobody writes ten to one as "0.50", but a dose
+ *                         under a whole unit is written that way constantly.
+ *                         Spelt "00.50" it is read as the time it looks like.
+ *   a partitive after it  "tomorrow 1.25 of the tablet" measures the tablet.
+ */
+const introducedAsTime = (
+  before: string,
+  rawHour: string,
+  rest: string,
+): boolean => {
+  const word = wordBefore(before);
+  if (word === null) {
+    return false;
+  }
+  if (TIME_PREPOSITIONS.has(word)) {
+    return true;
+  }
+  return DAY_WORDS.has(word) && rawHour !== '0' && !followedByPartitive(rest);
 };
 
 /**
@@ -219,8 +272,15 @@ const followedByDoseUnit = (rest: string): boolean => {
   return next !== null && DOSE_UNITS.has(next[1]);
 };
 
+/** Whether what follows a clock candidate makes it an amount OF something. */
+const followedByPartitive = (rest: string): boolean => {
+  const next = NEXT_WORD.exec(rest);
+  return next !== null && PARTITIVES.has(next[1]);
+};
+
 /**
- * "20:30" - a bare 24-hour reading, and "at 20.30" where the dot separates.
+ * "20:30" - a bare 24-hour reading, and "at 20.30" or "tomorrow 20.30" where
+ * the dot separates.
  *
  * Every candidate is read rather than only the first, so a quantity that is
  * skipped does not hide a time said after it ("give 0.25 ml at 20.30"), and
@@ -231,13 +291,14 @@ const parse24HourTime = (normalized: string): ClockTime | null => {
     /\b(\d{1,2})\s*([:.])\s*(\d{2})\b/g,
   )) {
     const [whole, rawHour, separator, rawMinute] = match;
+    const rest = normalized.slice(match.index + whole.length);
     if (
       separator === '.' &&
-      !introducedAsTime(normalized.slice(0, match.index))
+      !introducedAsTime(normalized.slice(0, match.index), rawHour, rest)
     ) {
       continue;
     }
-    if (followedByDoseUnit(normalized.slice(match.index + whole.length))) {
+    if (followedByDoseUnit(rest)) {
       continue;
     }
     const hour = Number(rawHour);

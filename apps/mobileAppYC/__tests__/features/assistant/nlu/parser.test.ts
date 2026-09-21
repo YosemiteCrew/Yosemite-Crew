@@ -357,6 +357,24 @@ describe('parseUtterance rule order', () => {
     ).toEqual({amount: 12.5, when: at(2026, 0, 15, 20, 0)});
   });
 
+  it('fills when from a dotted time a day word introduces', () => {
+    // A day word is the only evidence some owners give ("walk him tomorrow
+    // 20.30"), and without it the reminder opened at the 09:00 default.
+    expect(
+      parseUtterance('remind me to walk Bruno tomorrow 20.30', {now: NOW})
+        ?.slots.when,
+    ).toBe(at(2026, 0, 16, 20, 30));
+  });
+
+  it('leaves a dose abutting a day word out of when', () => {
+    // "tomorrow 1.25 of the tablet" is elliptical but not impossible, and a
+    // dose read as an hour is the failure this whole guard exists to stop.
+    expect(
+      parseUtterance('remind me tomorrow 1.25 of the tablet', {now: NOW})?.slots
+        .when,
+    ).toBe(at(2026, 0, 16, 9, 0));
+  });
+
   it('routes "remind me about the vaccine" to addCareTask, not vaccinationStatus', () => {
     expect(
       parseUtterance('remind me about the vaccine', {now: NOW})?.actionId,
