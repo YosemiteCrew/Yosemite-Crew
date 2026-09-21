@@ -55,6 +55,19 @@ router.get(
   FinanceController.listProviderReceipts,
 );
 
+// The historical mismatch audit (#3170 delivery 4). Read-only in the strong
+// sense - there is no repair route anywhere for it to pair with, because the
+// issue forbids an automatic guessed correction and a mismatch in money is for
+// a human to resolve. `billing:view:any` for the same reason as the queue
+// above: it reads this organisation's own payments against its own journal.
+router.get(
+  "/organisation/:organisationId/provider-receipts/audit",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:view:any"),
+  FinanceController.auditProviderReceipts,
+);
+
 router.get(
   "/organisation/:organisationId/subscription/seat-sync-plan",
   requireWebAuth,

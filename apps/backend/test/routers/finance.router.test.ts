@@ -16,7 +16,32 @@ const withPaymentOrgPermissionsMiddleware = jest.fn((_req, _res, next) =>
 const withPaymentIntentOrgPermissionsMiddleware = jest.fn((_req, _res, next) =>
   next(),
 );
-const requirePermissionMiddleware = jest.fn((_req, _res, next) => next());
+/**
+ * One middleware per permission, memoised, rather than one shared by all of
+ * them.
+ *
+ * With a single stand-in, `expect(handlers).toContain(requirePermissionMiddleware)`
+ * holds for every guarded route no matter which permission it was guarded
+ * with, and `expect(requirePermission).toHaveBeenCalledWith(...)` is satisfied
+ * by any OTHER route in the file having asked for it. Keyed this way the
+ * handler a route carries identifies the permission it is actually behind.
+ */
+const permissionMiddlewares = new Map<
+  string,
+  jest.Mock<void, [unknown, unknown, () => void]>
+>();
+const permissionMiddleware = (permission: string) => {
+  const existing = permissionMiddlewares.get(permission);
+  if (existing) return existing;
+  const created = jest.fn((_req: unknown, _res: unknown, next: () => void) =>
+    next(),
+  );
+  permissionMiddlewares.set(permission, created);
+  return created;
+};
+
+/** What every route in this file guarded by the billing READ permission carries. */
+const requirePermissionMiddleware = permissionMiddleware("billing:view:any");
 
 const withOrgPermissions = jest.fn(() => withOrgPermissionsMiddleware);
 const withAppointmentOrgPermissions = jest.fn(
@@ -31,12 +56,15 @@ const withPaymentOrgPermissions = jest.fn(
 const withPaymentIntentOrgPermissions = jest.fn(
   () => withPaymentIntentOrgPermissionsMiddleware,
 );
-const requirePermission = jest.fn(() => requirePermissionMiddleware);
+const requirePermission = jest.fn((permission: string) =>
+  permissionMiddleware(permission),
+);
 
 const FinanceController = {
   webhook: jest.fn(),
   getDiscountSettings: jest.fn(),
   listProviderReceipts: jest.fn(),
+  auditProviderReceipts: jest.fn(),
   updateDiscountSettings: jest.fn(),
   listInvoices: jest.fn(),
   createInvoice: jest.fn(),
@@ -136,6 +164,34 @@ describe("finance.router", () => {
     expect(requirePermission).toHaveBeenCalledWith("billing:view:any");
   });
 
+  it("puts the historical mismatch audit behind web auth, org scope and a permission", () => {
+    const route = findRoute(
+      "/organisation/:organisationId/provider-receipts/audit",
+      "get",
+    );
+    const handlers = route?.stack.map((layer) => layer.handle);
+
+    expect(handlers).toContain(FinanceController.auditProviderReceipts);
+    expect(handlers).toContain(requireWebAuth);
+    expect(handlers).toContain(withOrgPermissionsMiddleware);
+    expect(handlers).toContain(requirePermissionMiddleware);
+    expect(requirePermission).toHaveBeenCalledWith("billing:view:any");
+  });
+
+  it("mounts no route that could repair what the audit reports", () => {
+    // The issue is explicit that the historical audit performs no automatic
+    // guessed repair. Nothing under the audit path may accept a write, so a
+    // later correction endpoint has to be argued for rather than appearing
+    // beside the read that found the mismatch.
+    const writes = (
+      (financeRouter as unknown as { stack: Layer[] }).stack ?? []
+    )
+      .filter((entry) => entry.route?.path?.includes("provider-receipts/audit"))
+      .flatMap((entry) => Object.keys(entry.route?.methods ?? {}));
+
+    expect(writes).toEqual(["get"]);
+  });
+
   it("routes payment and refund endpoints through finance handlers", () => {
     const sessionRoute = findRoute(
       "/invoices/:invoiceId/payments/sessions",
@@ -171,7 +227,7 @@ describe("finance.router", () => {
       withInvoiceOrgPermissionsMiddleware,
     );
     expect(sessionRoute?.stack.map((layer) => layer.handle)).toContain(
-      requirePermissionMiddleware,
+      permissionMiddleware("billing:edit:any"),
     );
     expect(
       findRoute("/invoices/payment-intent/:paymentIntentId", "get")?.stack.map(
@@ -253,7 +309,10 @@ describe("finance.router", () => {
     ).toEqual([
       requireWebAuth,
       withOrgPermissionsMiddleware,
-      requirePermissionMiddleware,
+      // `org:edit`, not a billing permission: the cap a discount is checked
+      // against lives on the organisation record, so anyone who could edit it
+      // could raise their own ceiling first.
+      permissionMiddleware("org:edit"),
       FinanceController.updateDiscountSettings,
     ]);
   });
