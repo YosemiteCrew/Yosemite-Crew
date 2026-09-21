@@ -4,6 +4,7 @@ import type {
   Prisma,
 } from "@prisma/client";
 import { prisma } from "src/config/prisma";
+import { reconciliationScopeForOrganisation } from "src/services/finance/provider-receipt";
 import {
   clampPageSize,
   encodeKeysetCursor,
@@ -276,7 +277,7 @@ const journalRowsFor = async (
   const rows = await prisma.providerReceipt.findMany({
     where: {
       paymentRef: { in: references },
-      OR: [{ organisationId }, { organisationId: null }],
+      OR: await reconciliationScopeForOrganisation(organisationId),
     },
     select: {
       id: true,

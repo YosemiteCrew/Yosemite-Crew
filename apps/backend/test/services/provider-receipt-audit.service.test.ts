@@ -23,6 +23,10 @@ jest.mock("src/config/prisma", () => ({
       create: jest.fn(),
       delete: jest.fn(),
     },
+    organization: {
+      findUnique: jest.fn(),
+      count: jest.fn(),
+    },
   },
 }));
 
@@ -40,6 +44,10 @@ const mockedPrisma = prisma as unknown as {
     updateMany: jest.Mock;
     create: jest.Mock;
     delete: jest.Mock;
+  };
+  organization: {
+    findUnique: jest.Mock;
+    count: jest.Mock;
   };
 };
 
@@ -81,6 +89,10 @@ const audit = (input: Record<string, unknown> = {}) =>
 
 beforeEach(() => {
   jest.resetAllMocks();
+  mockedPrisma.organization.findUnique.mockResolvedValue({
+    stripeAccountId: "acct_audited",
+  });
+  mockedPrisma.organization.count.mockResolvedValue(1);
 });
 
 describe("ProviderReceiptAuditService.auditHistoricalMismatches - classification", () => {
@@ -325,9 +337,27 @@ describe("ProviderReceiptAuditService.auditHistoricalMismatches - population", (
       expect.objectContaining({
         where: {
           paymentRef: { in: ["pi_captured"] },
-          OR: [{ organisationId: ORG }, { organisationId: null }],
+          OR: [
+            { organisationId: ORG },
+            {
+              organisationId: null,
+              merchantAccountRef: "acct_audited",
+            },
+          ],
         },
       }),
+    );
+  });
+
+  it("never reads unattributed receipts from another merchant account", async () => {
+    given([payment()], []);
+
+    await audit();
+
+    const [{ where }] = mockedPrisma.providerReceipt.findMany.mock.calls[0];
+    expect(where.OR).not.toContainEqual({ organisationId: null });
+    expect(where.OR).not.toContainEqual(
+      expect.objectContaining({ merchantAccountRef: "acct_other" }),
     );
   });
 
