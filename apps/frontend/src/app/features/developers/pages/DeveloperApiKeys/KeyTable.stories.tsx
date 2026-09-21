@@ -61,6 +61,10 @@ const meta = {
           'The key register. It owns nothing: loading and empty are passed in rather than ' +
           'inferred, because `keys.length === 0` cannot tell "none yet" from "not loaded yet" and ' +
           'showing "you have no API keys" to someone who has three is worse than showing nothing.\n\n' +
+          'Status is derived, not stored: the API refuses a key past its `expiresAt` while the ' +
+          'record keeps `status: active`, so the table shows Expired and the expiry date rather ' +
+          'than the stored value. Revoke stays offered on an expired row - the record is still ' +
+          'there to clear.\n\n' +
           'Only `prefix…last4` is ever rendered - the plaintext key exists once, on the reveal ' +
           'panel, and never here. Revoke is offered per row and only while a key is `active`; a ' +
           'revoked key keeps its row so the audit trail survives.\n\n' +
@@ -87,7 +91,7 @@ export const Default: Story = {
 
     /* The actions column has no visible header, so its `aria-label` is the only
        thing standing between a screen-reader user and an unnamed column. */
-    await expect(canvas.getAllByRole('columnheader')).toHaveLength(7);
+    await expect(canvas.getAllByRole('columnheader')).toHaveLength(8);
     await expect(canvas.getByRole('columnheader', { name: 'Actions' })).toBeInTheDocument();
 
     // Masked, never plaintext: the full key is not recoverable from this screen.
@@ -160,9 +164,50 @@ export const MissingDates: Story = {
     /* Both cells fall back to a dash. `new Date('not-a-date')` is an Invalid
        Date, and calling `toISOString` on one throws - so without the NaN guard
        this row takes the whole page down rather than losing one cell. */
-    await expect(canvas.getAllByText('—')).toHaveLength(2);
+    /* Three now: the row has no expiry either, and "no expiry" is a real
+       answer rather than a missing one. */
+    await expect(canvas.getAllByText('—')).toHaveLength(3);
     await expect(canvas.getByText('Never used')).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Revoke' })).toBeInTheDocument();
+  },
+};
+
+export const Expired: Story = {
+  name: 'An expired key is not an active one',
+  args: {
+    keys: [
+      {
+        ...KEYS[0],
+        id: 'k-expired',
+        name: 'Seasonal import',
+        /* Stored `active`, which is the whole point: nothing moves a key out of
+           `active` when it expires, so the record on its own reads as usable. */
+        status: 'active',
+        expiresAt: '2026-01-31T00:00:00.000Z',
+      },
+      {
+        ...KEYS[1],
+        id: 'k-expiring',
+        name: 'Rotating integration',
+        /* Far future on purpose: a fixture that expires would silently swap
+           this row into the case above and the story would still pass. */
+        expiresAt: '2099-12-31T00:00:00.000Z',
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText('expired')).toBeInTheDocument();
+    await expect(canvas.getByText('2026-01-31')).toBeInTheDocument();
+
+    // The unexpired row keeps its own status, so the derivation is per row.
+    await expect(canvas.getByText('active')).toBeInTheDocument();
+    await expect(canvas.getByText('2099-12-31')).toBeInTheDocument();
+
+    /* Both rows keep a Revoke button. An expired key is still a record the
+       owner may want gone, and only revoking removes it from the list. */
+    await expect(canvas.getAllByRole('button', { name: 'Revoke' })).toHaveLength(2);
   },
 };
 
@@ -173,7 +218,7 @@ export const Phone: Story = {
     docs: {
       description: {
         story:
-          'Below 768px the table becomes `display: block; overflow-x: auto`. Seven columns cannot ' +
+          'Below 768px the table becomes `display: block; overflow-x: auto`. Eight columns cannot ' +
           'usefully reflow, so it scrolls inside its own card rather than dragging the page ' +
           'sideways with it. Pinned to the `mobile` viewport - at any wider width this renders ' +
           'exactly like the default story.',
