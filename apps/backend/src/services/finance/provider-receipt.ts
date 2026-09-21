@@ -7,7 +7,7 @@ import { ProviderReceiptStatus } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import {
   FinancePaymentService,
-  getInvoiceFinancialSummary,
+  getInvoiceFinancialSummaries,
 } from "src/services/finance/payment";
 import { roundMoney } from "src/services/finance/pricing";
 import {
@@ -716,31 +716,25 @@ const receiptAccountServesOrganisation = async (
  * SAME answer on purpose. Telling the caller which of the two it was answers
  * "does invoice X exist" for every id they care to try, across every tenant.
  */
-const rejectAllocationLine = async (
+const rejectAllocationLine = (
   line: AllocationRequest,
   receipt: AllocationReceipt,
-): Promise<AllocationRejection | null> => {
-  const invoice = await prisma.invoice.findFirst({
-    where: { id: line.invoiceId, organisationId: receipt.organisationId },
-    select: {
-      id: true,
-      currency: true,
-      status: true,
-      totalAmount: true,
-      depositCollectedAmount: true,
-    },
-  });
+  invoice:
+    | {
+        id: string;
+        currency: string;
+        status: string;
+      }
+    | undefined,
+  balances: ReadonlyMap<string, { balance: number }>,
+): AllocationRejection | null => {
   if (!invoice) return "INVOICE_NOT_FOUND";
   if (invoice.currency !== receipt.currency) return "CURRENCY_MISMATCH";
   if (CLOSED_INVOICE_STATUSES.has(invoice.status)) return "INVOICE_CLOSED";
 
-  const summary = await getInvoiceFinancialSummary(
-    invoice.id,
-    invoice.totalAmount,
-    invoice.depositCollectedAmount ?? 0,
-  );
-  if (summary.balance <= 0) return "NO_OUTSTANDING_BALANCE";
-  if (line.amount > summary.balance) return "EXCEEDS_INVOICE_BALANCE";
+  const balance = balances.get(invoice.id)?.balance ?? 0;
+  if (balance <= 0) return "NO_OUTSTANDING_BALANCE";
+  if (line.amount > balance) return "EXCEEDS_INVOICE_BALANCE";
   return null;
 };
 
@@ -873,8 +867,37 @@ const validateAllocation = async (
     return { outcome: "EXCEEDS_RESIDUAL", residual, requested };
   }
 
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      id: { in: lines.map((line) => line.invoiceId) },
+      organisationId: receipt.organisationId,
+    },
+    select: {
+      id: true,
+      currency: true,
+      status: true,
+      totalAmount: true,
+      depositCollectedAmount: true,
+    },
+  });
+  const invoicesById = new Map(
+    invoices.map((invoice) => [invoice.id, invoice]),
+  );
+  const summaries = await getInvoiceFinancialSummaries(
+    invoices.filter(
+      (invoice) =>
+        invoice.currency === receipt.currency &&
+        !CLOSED_INVOICE_STATUSES.has(invoice.status),
+    ),
+  );
+
   for (const line of lines) {
-    const reason = await rejectAllocationLine(line, receipt);
+    const reason = rejectAllocationLine(
+      line,
+      receipt,
+      invoicesById.get(line.invoiceId),
+      summaries,
+    );
     if (reason) {
       return {
         outcome: "INVOICE_NOT_ELIGIBLE",
