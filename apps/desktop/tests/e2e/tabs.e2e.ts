@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { openPimsTab } from './welcome';
 import { clickMenuItem } from './menu';
+import { recordFocusCalls, focusMark, focusedSince } from './focus-probe';
 
 type TestServer = {
   origin: string;
@@ -63,6 +64,7 @@ const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
     },
   });
   const pages = await openPimsTab(app, pimsOrigin);
+  await recordFocusCalls(app);
   return { app, page: pages.shell, tab: pages.tab, userDataDir: profileDir };
 };
 
@@ -164,18 +166,47 @@ const pressTabJumpKey = async (
   );
 };
 
-// The shortcut-list overlay lives in the tab-chrome view, which is a
-// WebContentsView rather than a window, so it is read from the main process.
-const cheatsheetDisplay = (app: ElectronApplication): Promise<string> =>
-  app.evaluate(async ({ webContents }) => {
+// The tab chrome is a WebContentsView rather than a window, so Playwright has
+// no Page for it and everything in it is read through the main process.
+const chromeEval = <T>(app: ElectronApplication, js: string): Promise<T> =>
+  app.evaluate(async ({ webContents }, source) => {
     const chrome = webContents
       .getAllWebContents()
       .find((wc) => wc.getURL().includes('tabbar.html') && !wc.isDestroyed());
     if (!chrome) throw new Error('the tab chrome view is not loaded');
-    return (await chrome.executeJavaScript(
-      "document.getElementById('cheatsheet-overlay').style.display"
-    )) as string;
-  });
+    return chrome.executeJavaScript(source);
+  }, js) as Promise<T>;
+
+// A key pressed at the tab chrome through the window's input pipeline, the way
+// a keyboard delivers it - not a synthetic DOM event, which would skip focus.
+const pressChromeKey = async (app: ElectronApplication, keyCode: string): Promise<void> => {
+  await app.evaluate(({ webContents }, code) => {
+    const chrome = webContents
+      .getAllWebContents()
+      .find((wc) => wc.getURL().includes('tabbar.html') && !wc.isDestroyed());
+    if (!chrome) throw new Error('the tab chrome view is not loaded');
+    chrome.focus();
+    chrome.sendInputEvent({ type: 'keyDown', keyCode: code });
+    chrome.sendInputEvent({ type: 'char', keyCode: code });
+    chrome.sendInputEvent({ type: 'keyUp', keyCode: code });
+  }, keyCode);
+};
+
+// The strip re-reads the tab state on a 1s poll, so the main process agreeing
+// there are N tabs says nothing about what the strip has drawn. Any spec that
+// changes the tab count must wait for the strip too, or it asserts against the
+// previous render - which is how two of these passed on macOS and failed on
+// Windows, where the poll lands later relative to the assertions.
+const waitForStripTabs = async (app: ElectronApplication, count: number): Promise<void> => {
+  await expect
+    .poll(() => chromeEval<number>(app, "document.querySelectorAll('#tab-strip .tab').length"), {
+      message: `the tab strip never drew ${count} tabs`,
+    })
+    .toBe(count);
+};
+
+const cheatsheetOpen = (app: ElectronApplication): Promise<boolean> =>
+  chromeEval<boolean>(app, "document.getElementById('cheatsheet-dialog').open");
 
 test.describe('tab E2E', () => {
   let app: ElectronApplication | undefined;
@@ -393,13 +424,13 @@ test.describe('tab E2E', () => {
 
   test('the Keyboard Shortcuts menu item toggles the shortcut list', async () => {
     await waitForTabCount(page, 1);
-    expect(await cheatsheetDisplay(app!)).not.toBe('block');
+    expect(await cheatsheetOpen(app!)).toBe(false);
 
     await clickMenuItem(app!, 'Keyboard Shortcuts');
-    await expect.poll(() => cheatsheetDisplay(app!)).toBe('block');
+    await expect.poll(() => cheatsheetOpen(app!)).toBe(true);
 
     await clickMenuItem(app!, 'Keyboard Shortcuts');
-    await expect.poll(() => cheatsheetDisplay(app!)).not.toBe('block');
+    await expect.poll(() => cheatsheetOpen(app!)).toBe(false);
   });
 
   test('the New Tab menu item opens a tab', async () => {
@@ -527,5 +558,181 @@ test.describe('tab E2E', () => {
     expect(stateAfter.ok).toBe(true);
     expect(Array.isArray(stateAfter.tabs)).toBe(true);
     expect(stateAfter.tabs!.length).toBeGreaterThan(0);
+  });
+
+  // ── Keyboard and screen reader (#3294) ──
+
+  test('role="tablist" wraps the tabs only, not the buttons beside them', async () => {
+    await waitForTabCount(page, 1);
+    expect(
+      await chromeEval<string | null>(
+        app!,
+        "document.getElementById('tabbar').getAttribute('role')"
+      )
+    ).toBeNull();
+    expect(
+      await chromeEval<string | null>(
+        app!,
+        "document.getElementById('tab-strip').getAttribute('role')"
+      )
+    ).toBe('tablist');
+    // Nothing that is not a tab may sit inside the tablist.
+    expect(
+      await chromeEval<number>(
+        app!,
+        "[...document.getElementById('tab-strip').children].filter((el) => el.getAttribute('role') !== 'tab').length"
+      )
+    ).toBe(0);
+  });
+
+  test('exactly one tab is in the tab order, and it is the active one', async () => {
+    await evaluateYcDesktop(page, 'newTab');
+    await waitForTabCount(page, 2);
+    await waitForStripTabs(app!, 2);
+    const activeId = (await evaluateYcDesktop<TabResult>(page, 'getTabs')).activeId;
+    // Both halves as one predicate: joining the ids of every tab carrying a
+    // tabindex of 0 equals the active id only when there is exactly one such
+    // tab and it is the active one. Two tab stops would read "id1,id2".
+    await expect
+      .poll(() =>
+        chromeEval<string>(
+          app!,
+          "[...document.querySelectorAll('#tab-strip .tab')].filter((el) => el.tabIndex === 0).map((el) => el.dataset.tabId).join(',')"
+        )
+      )
+      .toBe(activeId);
+  });
+
+  test('an arrow key moves focus along the strip, and Enter activates the tab it lands on', async () => {
+    await evaluateYcDesktop(page, 'newTab');
+    await waitForTabCount(page, 2);
+    await waitForStripTabs(app!, 2);
+    const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
+    const first = state.tabs![0]!.id;
+    expect(state.activeId).not.toBe(first);
+
+    // Focus the strip's single tab stop the way Tab into the strip would.
+    await chromeEval(app!, 'document.querySelector(\'#tab-strip .tab[tabindex="0"]\').focus()');
+    await expect
+      .poll(() => chromeEval<string>(app!, 'document.activeElement.className'))
+      .toContain('tab');
+
+    await pressChromeKey(app!, 'Left');
+    // Focus moved, but nothing was activated: switching a tab swaps a whole
+    // view, so arrowing past three tabs must not navigate through all three.
+    await expect
+      .poll(() => chromeEval<string>(app!, 'document.activeElement.dataset.tabId'))
+      .toBe(first);
+    expect((await evaluateYcDesktop<TabResult>(page, 'getTabs')).activeId).not.toBe(first);
+
+    await pressChromeKey(app!, 'Return');
+    await expect
+      .poll(async () => (await evaluateYcDesktop<TabResult>(page, 'getTabs')).activeId)
+      .toBe(first);
+  });
+
+  test('Delete on a focused tab closes it', async () => {
+    await evaluateYcDesktop(page, 'newTab');
+    await waitForTabCount(page, 2);
+    await waitForStripTabs(app!, 2);
+    await chromeEval(app!, 'document.querySelector(\'#tab-strip .tab[tabindex="0"]\').focus()');
+    await pressChromeKey(app!, 'Delete');
+    await waitForTabCount(page, 1);
+  });
+
+  test('the strip keeps its elements across a poll, so focus in it survives', async () => {
+    await evaluateYcDesktop(page, 'newTab');
+    await waitForTabCount(page, 2);
+    await waitForStripTabs(app!, 2);
+    // Stamp the live elements and focus one, then force a real update by
+    // opening a third tab. Waiting on the strip reaching three tabs is a
+    // condition only a poll can satisfy, so it stands in for a fixed sleep -
+    // and it is the stronger claim: identity survives an update, not just an
+    // idle tick.
+    await chromeEval(
+      app!,
+      "[...document.querySelectorAll('#tab-strip .tab')].forEach((el, i) => { el.dataset.stamp = 'e2e-' + i; });" +
+        'document.querySelector(\'#tab-strip .tab[tabindex="0"]\').focus();'
+    );
+    await evaluateYcDesktop(page, 'newTab');
+    await waitForStripTabs(app!, 3);
+
+    expect(
+      await chromeEval<string>(
+        app!,
+        "[...document.querySelectorAll('#tab-strip .tab')].map((el) => el.dataset.stamp || 'new').join(',')"
+      )
+    ).toBe('e2e-0,e2e-1,new');
+    expect(await chromeEval<string>(app!, "document.activeElement.getAttribute('role')")).toBe(
+      'tab'
+    );
+  });
+
+  test('a close button names the tab it closes', async () => {
+    await waitForTabCount(page, 1);
+    const labels = await chromeEval<string[]>(
+      app!,
+      "[...document.querySelectorAll('#tab-strip .tab-close-btn')].map((el) => el.getAttribute('aria-label'))"
+    );
+    expect(labels.length).toBeGreaterThan(0);
+    for (const label of labels) {
+      expect(label).toMatch(/^Close .+/);
+      expect(label).not.toBe('Close tab');
+    }
+  });
+
+  test('tab search opened from the menu receives the keyboard, and hands it back', async () => {
+    await waitForTabCount(page, 1);
+    const beforeOpen = await focusMark(app!);
+    await clickMenuItem(app!, 'Search Tabs…');
+
+    await expect
+      .poll(() => chromeEval<boolean>(app!, "document.getElementById('tab-search-dialog').open"))
+      .toBe(true);
+    // Two separate claims. In-document: showModal put the caret in the filter.
+    // Across views: the app handed the keyboard to the view the panel lives in,
+    // which is the half a page cannot do for itself and the half that was
+    // missing - the caret blinked while the keystrokes went to the page below.
+    await expect.poll(() => chromeEval<string>(app!, 'document.activeElement.id')).toBe('ts-input');
+    await expect.poll(() => focusedSince(app!, beforeOpen, 'tabbar.html')).toBe(true);
+
+    const beforeClose = await focusMark(app!);
+    await pressChromeKey(app!, 'Escape');
+    await expect
+      .poll(() => chromeEval<boolean>(app!, "document.getElementById('tab-search-dialog').open"))
+      .toBe(false);
+    // ...and hands it back, rather than stranding it in a 40px strip.
+    await expect.poll(() => focusedSince(app!, beforeClose, pimsServer.origin)).toBe(true);
+  });
+
+  test('tab search announces its result count, including no matches', async () => {
+    await waitForTabCount(page, 1);
+    await clickMenuItem(app!, 'Search Tabs…');
+    await expect
+      .poll(() => chromeEval<string>(app!, "document.getElementById('ts-status').textContent"))
+      .toMatch(/tabs?$/);
+
+    await chromeEval(
+      app!,
+      "const i = document.getElementById('ts-input'); i.value = 'zzzz-no-such-tab'; i.dispatchEvent(new Event('input'));"
+    );
+    await expect
+      .poll(() => chromeEval<string>(app!, "document.getElementById('ts-status').textContent"))
+      .toBe('No matching tabs');
+    expect(
+      await chromeEval<string>(app!, "document.getElementById('ts-list').getAttribute('role')")
+    ).toBe('listbox');
+  });
+
+  test('the shortcut list takes focus and closes with Escape', async () => {
+    await waitForTabCount(page, 1);
+    await clickMenuItem(app!, 'Keyboard Shortcuts');
+    await expect.poll(() => cheatsheetOpen(app!)).toBe(true);
+    // showModal() puts focus on the first focusable thing in the panel, which
+    // is its close button - the panel used to have neither.
+    await expect.poll(() => chromeEval<string>(app!, 'document.activeElement.id')).toBe('cs-close');
+
+    await pressChromeKey(app!, 'Escape');
+    await expect.poll(() => cheatsheetOpen(app!)).toBe(false);
   });
 });
