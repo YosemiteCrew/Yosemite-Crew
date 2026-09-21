@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import { NoDataMessage } from '@/app/ui/tables/common';
@@ -162,7 +162,7 @@ const ReconciliationTable = ({
   isFiltered,
   onLoadMore,
 }: Readonly<ReconciliationTableProps>) => {
-  const empty = useMemo(() => emptyCopy(isFiltered), [isFiltered]);
+  const empty = emptyCopy(isFiltered);
   const isPhone = useIsPhone();
 
   if (loading) {
