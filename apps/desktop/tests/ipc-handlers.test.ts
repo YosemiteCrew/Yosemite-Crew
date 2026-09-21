@@ -352,6 +352,7 @@ describe('ipc-handlers — happy paths', () => {
     expect(await call('yc:get-settings')).toMatchObject({ ok: true });
     expect(await call('yc:set-settings', { theme: 'dark' })).toMatchObject({
       ok: true,
+      rejected: [],
     });
     expect(await call('yc:execute-command', BUILTIN_ACTIONS[0]!.id)).toMatchObject({ ok: true });
     expect(services.runCommandAction).toHaveBeenCalledWith(BUILTIN_ACTIONS[0]!.id);
@@ -1161,5 +1162,30 @@ describe('ipc-handlers — not-ready / invalid branches', () => {
       const result = await call(channel, ...args);
       expect(result).toMatchObject({ ok: false });
     }
+  });
+});
+
+/*
+ * The handler answered `ok: true` whether or not a value survived validation,
+ * so the Preferences page confirmed a Do Not Disturb time the store had
+ * dropped (issue #3298).
+ */
+describe('yc:set-settings names the fields the store refused', () => {
+  test('a refused field is named while the rest of the submission still saves', async () => {
+    const services = makeServices();
+    const call = register(services);
+    const result = await call('yc:set-settings', { theme: 'dark', dndStart: '25:00' });
+    expect(result).toMatchObject({ ok: true, rejected: ['dndStart'] });
+    // The accepted field in the same submission is still applied: a mistyped
+    // time must not discard the control the user changed beside it.
+    expect(services.applySettings).toHaveBeenCalledWith(expect.objectContaining({ theme: 'dark' }));
+  });
+
+  test('a submission the store accepts in full reports nothing', async () => {
+    const call = register(makeServices());
+    expect(await call('yc:set-settings', { dndStart: '23:59' })).toMatchObject({
+      ok: true,
+      rejected: [],
+    });
   });
 });
