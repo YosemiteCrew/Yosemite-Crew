@@ -171,12 +171,7 @@
     updateAudioSlot(slots.audio, tab);
   };
 
-  const api = {
-    buildRow: buildRow,
-    updateRow: updateRow,
-    slotsOf: slotsOf,
-    failedFavicons: failedFavicons,
-  };
+  const api = { buildRow, updateRow, slotsOf, failedFavicons };
   root.ycTabRow = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
