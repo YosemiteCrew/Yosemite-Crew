@@ -564,3 +564,61 @@ describe('parseWhen same-day phrases already past', () => {
     );
   });
 });
+
+/*
+ * A dose is not a clock time.
+ *
+ * "0.25 ml" and "1.25 mg" are among the commonest things an owner says, and
+ * the dot reads as a clock separator just as happily as a decimal point. The
+ * fraction only has to land in 00-59 to pass as minutes - .25, .30 and .50 all
+ * do - so the dose became the hour and the reminder was scheduled for
+ * twenty-five past midnight instead of the 09:00 default.
+ */
+describe('parseWhen does not read a measured dose as a clock time', () => {
+  it('keeps the default hour when the only dotted number is a dose', () => {
+    expect(
+      localParts(
+        parseWhen('remind me to give Max 0.25 ml of metacam tomorrow', NOW),
+      ),
+    ).toEqual(at(2026, 2, 4, 9, 0));
+  });
+
+  it.each([
+    ['millilitres', 'give 0.25 ml tomorrow'],
+    ['milligrams', 'give 1.25 mg tomorrow'],
+    ['micrograms', 'give 2.50 mcg tomorrow'],
+    ['tablets', 'give 1.30 tablets tomorrow'],
+    ['cubic centimetres', 'give 0.50 cc tomorrow'],
+  ])('ignores a dose measured in %s', (_unit, text) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
+  });
+
+  it('still reads a time said after a dose', () => {
+    expect(
+      localParts(parseWhen('give 0.25 ml at 20.30 tomorrow', NOW)),
+    ).toEqual(at(2026, 2, 4, 20, 30));
+  });
+
+  it('reads a time said after a candidate with no readable minute', () => {
+    // No unit follows "0.75", so the unit guard does not skip it - it is
+    // dropped by the hour/minute check instead, which must not stop the scan
+    // either. Giving up on the first unreadable candidate loses the 20.30
+    // that was actually said.
+    expect(
+      localParts(parseWhen('give 0.75 of a tablet at 20.30 tomorrow', NOW)),
+    ).toEqual(at(2026, 2, 4, 20, 30));
+  });
+
+  it('does not mistake a word that starts with a unit for the unit', () => {
+    // "go" is not the unit "g": the guard requires a word boundary, or a real
+    // time would be thrown away whenever the next word happened to start with
+    // a unit letter.
+    expect(
+      localParts(parseWhen('walk him at 20.30 go out tomorrow', NOW)),
+    ).toEqual(at(2026, 2, 4, 20, 30));
+  });
+
+  it('reads no time at all from a bare dose', () => {
+    expect(parseClockTime('give 0.25 ml')).toBeNull();
+  });
+});
