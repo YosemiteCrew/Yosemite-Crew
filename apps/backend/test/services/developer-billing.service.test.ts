@@ -727,6 +727,9 @@ describe("DeveloperBillingService", () => {
         expect.stringContaining("duplicate developer subscription"),
         expect.objectContaining({ keptSubscriptionId: "sub_existing" }),
       );
+      expect(
+        jest.mocked(logger.error).mock.calls.at(-1)?.[1],
+      ).not.toHaveProperty("ownerUserId");
     });
 
     it("skips checkout.session.completed when mode is not subscription", async () => {
