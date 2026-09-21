@@ -6,6 +6,15 @@
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="tabbar.css" />
     <style>
+      /* tokens.css gives every page an opaque --page background. This one is a
+         WebContentsView stacked OVER the workspace, and while an overlay is
+         open it covers the whole window - so an opaque body painted a flat
+         colour where the dimmed page should have been (issue #3289). The strip
+         itself still paints its own background, so only what is NOT the strip
+         is see-through. */
+      body {
+        background: transparent;
+      }
       /* Both overlays are real modal dialogs. showModal() supplies what the
          page used to lack and could not convincingly fake: focus moves into the
          dialog, Tab is trapped inside it, Escape raises `cancel`, and the top
@@ -370,8 +379,6 @@
       </div>
     </div>
 
-    <div id="context-menu" class="context-menu" style="display: none"></div>
-
     <div id="tab-preview" class="tab-preview" style="display: none">
       <img id="tab-preview-img" alt="" />
     </div>
@@ -481,10 +488,10 @@
     <script src="tab-strip-diff.js"></script>
     <script src="tab-row.js"></script>
     <script src="window-caption.js"></script>
+    <script src="tab-preview-position.js"></script>
     <script>
       const tabStrip = document.getElementById('tab-strip');
       const newTabBtn = document.getElementById('new-tab-btn');
-      const contextMenu = document.getElementById('context-menu');
       const yc = globalThis.ycDesktop;
 
       const state = { tabs: [], activeId: null, splitId: null, closedStack: [] };
@@ -497,10 +504,11 @@
       const platform = ycPlatformLabels.detectPlatform(yc, navigator.userAgent);
       const isMac = platform === 'darwin';
 
-      // Leave room for the macOS traffic-light buttons so tabs don't sit under them.
-      if (isMac) {
-        document.getElementById('tabbar').style.paddingLeft = '78px';
-      }
+      // Where the macOS traffic lights need room depends on the orientation, and
+      // the orientation changes at runtime, so the host is published as an
+      // attribute for the stylesheet to answer rather than being baked into an
+      // inline padding here.
+      document.getElementById('tabbar').dataset.platform = platform;
 
       // Windows and Linux have neither the Command key nor its glyph, so the
       // tab-bar tooltips and the cheat sheet are written as neutral
@@ -519,6 +527,29 @@
         if (yc && typeof yc[method] === 'function') return yc[method](...args);
         return Promise.resolve(null);
       };
+
+      // Everything this page draws on top of the workspace - the tab search
+      // panel, the shortcut list, the hover thumbnail - lives inside the tab
+      // bar's own WebContentsView, which is 40px tall horizontally and 240px
+      // wide vertically. Anything bigger was simply cut off (issue #3289).
+      //
+      // So there is ONE rule for all of them rather than one per feature: while
+      // any overlay is open the main process grows this view to the whole
+      // window, in either orientation. The view is transparent, so the page
+      // behind stays visible under each overlay's own scrim.
+      const overlaysOpen = { search: false, cheatsheet: false, preview: false };
+      const syncChromeOverlay = () => {
+        send(
+          'setChromeOverlay',
+          overlaysOpen.search || overlaysOpen.cheatsheet || overlaysOpen.preview
+        );
+      };
+      const setOverlayOpen = (name, open) => {
+        if (overlaysOpen[name] === open) return;
+        overlaysOpen[name] = open;
+        syncChromeOverlay();
+      };
+      const isVertical = () => document.getElementById('tabbar').dataset.orientation === 'vertical';
 
       // Manual window drag. The tab bar lives in a child WebContentsView where
       // `-webkit-app-region: drag` is all-or-nothing (it would make the tabs and
@@ -564,63 +595,35 @@
         dragSpacer.addEventListener('dblclick', () => send('windowToggleMaximize'));
       }
 
-      const hideContextMenu = () => {
-        contextMenu.style.display = 'none';
+      // The right-click menu is native (see the yc:tab-context-menu handler): the
+      // page's own <div> menu was clipped to the 40px chrome view and unusable.
+      // Main pushes the chosen item back here and the tab bar performs it
+      // through the same tab IPC its own buttons use.
+      const tabContextActions = {
+        duplicate: (id) => send('duplicateTab', id),
+        pin: (id) => send('pinTab', id, true),
+        unpin: (id) => send('pinTab', id, false),
+        close: (id) => send('closeTab', id),
+        'close-others': (id) => {
+          state.tabs.forEach((t) => {
+            if (t.id !== id) send('closeTab', t.id);
+          });
+        },
+        'close-right': (id) => {
+          const idx = state.tabs.findIndex((t) => t.id === id);
+          state.tabs.slice(idx + 1).forEach((t) => send('closeTab', t.id));
+        },
+        'reopen-closed': () => send('reopenClosedTab'),
       };
 
-      const showContextMenu = (x, y, tabId) => {
-        const tab = state.tabs.find((t) => t.id === tabId);
-        if (!tab) return;
-        contextMenu.innerHTML = '';
-        contextMenu.style.display = 'block';
-        contextMenu.style.left = x + 'px';
-        contextMenu.style.top = y + 'px';
-
-        const items = [
-          { label: 'Duplicate', action: () => send('duplicateTab', tabId) },
-          tab.pinned
-            ? { label: 'Unpin tab', action: () => send('pinTab', tabId, false) }
-            : { label: 'Pin tab', action: () => send('pinTab', tabId, true) },
-          { type: 'separator' },
-          { label: 'Close tab', action: () => send('closeTab', tabId) },
-          {
-            label: 'Close others',
-            action: () => {
-              state.tabs.forEach((t) => {
-                if (t.id !== tabId) send('closeTab', t.id);
-              });
-            },
-          },
-          {
-            label: 'Close tabs to the right',
-            action: () => {
-              const idx = state.tabs.findIndex((t) => t.id === tabId);
-              state.tabs.slice(idx + 1).forEach((t) => send('closeTab', t.id));
-            },
-          },
-          { type: 'separator' },
-          { label: 'Reopen closed tab', action: () => send('reopenClosedTab') },
-        ];
-
-        items.forEach((item) => {
-          if (item.type === 'separator') {
-            const sep = document.createElement('div');
-            sep.className = 'context-menu-separator';
-            contextMenu.appendChild(sep);
-          } else {
-            const el = document.createElement('div');
-            el.className = 'context-menu-item';
-            el.textContent = item.label;
-            el.addEventListener('click', () => {
-              hideContextMenu();
-              item.action();
-            });
-            contextMenu.appendChild(el);
-          }
+      if (yc && typeof yc.onTabContextAction === 'function') {
+        yc.onTabContextAction((payload) => {
+          // Own-property only: a plain index would resolve 'constructor' and
+          // friends off Object.prototype into something callable.
+          if (!payload || !Object.hasOwn(tabContextActions, payload.action)) return;
+          tabContextActions[payload.action](payload.tabId);
         });
-      };
-
-      document.addEventListener('click', hideContextMenu);
+      }
 
       const wireTabDrag = (div, tab) => {
         div.addEventListener('dragstart', (e) => {
@@ -668,26 +671,109 @@
         });
       };
 
+      const buildTabInner = (tab) => {
+        const inner = document.createElement('div');
+        inner.className = 'tab-inner';
+
+        if (tab.loading) {
+          const spinner = document.createElement('span');
+          spinner.className = 'tab-spinner';
+          inner.appendChild(spinner);
+        } else if (tab.favicon) {
+          const img = document.createElement('img');
+          img.className = 'tab-favicon';
+          img.src = tab.favicon;
+          img.alt = '';
+          img.onerror = () => {
+            img.style.display = 'none';
+          };
+          inner.appendChild(img);
+        }
+
+        const label = document.createElement('span');
+        label.className = 'tab-label';
+        label.textContent = tab.title;
+        inner.appendChild(label);
+
+        if (tab.error || tab.offline) {
+          const badge = document.createElement('span');
+          badge.className = 'tab-badge ' + (tab.error ? 'tab-badge--error' : 'tab-badge--offline');
+          badge.textContent = tab.error ? '!' : '\u26A0';
+          inner.appendChild(badge);
+        }
+
+        if (tab.audible) {
+          const audio = document.createElement('span');
+          audio.className = 'tab-audio' + (tab.muted ? ' tab-audio--muted' : '');
+          audio.textContent = tab.muted ? '\uD83D\uDD07' : '\uD83D\uDD0A';
+          audio.title = tab.muted ? 'Unmute tab' : 'Mute tab';
+          audio.addEventListener('click', (e) => {
+            e.stopPropagation();
+            send('toggleTabMute', tab.id);
+          });
+          inner.appendChild(audio);
+        }
+
+        return inner;
+      };
+
+      // The hovered tab's box, kept so the thumbnail can be re-placed whenever
+      // the view's size changes - which it does immediately after the preview
+      // opens, because opening it is what grows the view.
+      let previewRect = null;
+
+      const placePreview = () => {
+        const preview = document.getElementById('tab-preview');
+        if (!previewRect) return;
+        const viewport = { width: window.innerWidth, height: window.innerHeight };
+        // Before the main process has grown the view the viewport IS the 40px
+        // strip (or the 240px rail), and there is nowhere in it a 320x200
+        // thumbnail fits. Stay hidden rather than flash one over the tabs; the
+        // resize that the growth produces runs this again.
+        if (
+          viewport.width < ycTabPreviewPosition.WIDTH ||
+          viewport.height < ycTabPreviewPosition.HEIGHT
+        ) {
+          preview.style.display = 'none';
+          return;
+        }
+        const at = ycTabPreviewPosition.previewPosition(
+          previewRect,
+          viewport,
+          isVertical() ? document.getElementById('tabbar').offsetWidth : 0
+        );
+        preview.style.left = at.left + 'px';
+        preview.style.top = at.top + 'px';
+        preview.style.display = 'block';
+      };
+      window.addEventListener('resize', placePreview);
+
+      const hidePreview = () => {
+        previewRect = null;
+        document.getElementById('tab-preview').style.display = 'none';
+        setOverlayOpen('preview', false);
+      };
+
+      const showPreview = (rect, dataUrl) => {
+        document.getElementById('tab-preview-img').src = dataUrl;
+        previewRect = rect;
+        setOverlayOpen('preview', true);
+        placePreview();
+      };
+
       const wireTabHoverPreview = (div, tab) => {
         let previewTimer = null;
         div.addEventListener('mouseenter', () => {
           if (previewTimer) clearTimeout(previewTimer);
           previewTimer = setTimeout(async () => {
-            const preview = document.getElementById('tab-preview');
-            const img = document.getElementById('tab-preview-img');
+            const rect = div.getBoundingClientRect();
             const result = await send('getTabPreview', tab.id);
-            if (result && result.ok && result.dataUrl) {
-              img.src = result.dataUrl;
-              const rect = div.getBoundingClientRect();
-              preview.style.left = Math.max(0, rect.left + (rect.width - 320) / 2) + 'px';
-              preview.style.top = rect.bottom + 4 + 'px';
-              preview.style.display = 'block';
-            }
+            if (result && result.ok && result.dataUrl) showPreview(rect, result.dataUrl);
           }, 600);
         });
         div.addEventListener('mouseleave', () => {
           if (previewTimer) clearTimeout(previewTimer);
-          document.getElementById('tab-preview').style.display = 'none';
+          hidePreview();
         });
       };
 
@@ -765,7 +851,7 @@
         div.addEventListener('contextmenu', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          showContextMenu(e.clientX, e.clientY, tab.id);
+          send('showTabContextMenu', tab.id);
         });
 
         wireTabHoverPreview(div, tab);
@@ -1003,7 +1089,7 @@
         searchOpen = true;
         tsSel = 0;
         tsInput.value = '';
-        send('tabSearch', true); // expand the chrome view to full height
+        setOverlayOpen('search', true); // grows the chrome view to the window
         // showModal(), not an `open` attribute: it is what traps Tab inside the
         // panel, raises `cancel` on Escape, and puts the panel in the top layer.
         if (!tsDialog.open) tsDialog.showModal();
@@ -1014,9 +1100,9 @@
         if (!searchOpen) return;
         searchOpen = false;
         if (tsDialog.open) tsDialog.close();
-        // Collapses the chrome view back to the strip and hands the keyboard
-        // back to the page underneath.
-        send('tabSearch', false);
+        // Collapses the chrome view back to the strip - unless another overlay
+        // is still open - and hands the keyboard back to the page underneath.
+        setOverlayOpen('search', false);
       };
       globalThis.__ycOpenTabSearch = openSearch;
 
@@ -1049,7 +1135,7 @@
       const csDialog = document.getElementById('cheatsheet-dialog');
       const openCheatsheet = () => {
         if (csDialog.open) return;
-        send('tabSearch', true);
+        setOverlayOpen('cheatsheet', true);
         // As with tab search: showModal() gives the panel focus, traps Tab in
         // it and closes it on Escape. It had none of the three, and no way out
         // but Cmd+/ again or a click outside.
@@ -1057,6 +1143,7 @@
       };
       const closeCheatsheet = () => {
         if (csDialog.open) csDialog.close();
+        setOverlayOpen('cheatsheet', false);
       };
       const toggleCheatsheet = () => {
         if (csDialog.open) {
@@ -1068,7 +1155,7 @@
       };
       globalThis.__ycOpenCheatsheet = openCheatsheet;
       globalThis.__ycToggleCheatsheet = toggleCheatsheet;
-      csDialog.addEventListener('close', () => send('tabSearch', false));
+      csDialog.addEventListener('close', () => setOverlayOpen('cheatsheet', false));
       csDialog.addEventListener('click', (e) => {
         if (e.target === csDialog) closeCheatsheet();
       });
@@ -1101,13 +1188,7 @@
         // above or from the app menu, so the button follows main's state
         // rather than the last click here.
         const applyMaxState = (isMaximized) => {
-          if (!maxBtn) return;
-          const spec = ycWindowCaption.maximizeButton(isMaximized);
-          maxBtn.setAttribute('aria-label', spec.label);
-          maxBtn.title = spec.label;
-          for (const glyph of maxBtn.querySelectorAll('svg[data-glyph]')) {
-            glyph.hidden = glyph.dataset.glyph !== spec.glyph;
-          }
+          if (maxBtn) ycWindowCaption.applyMaximizeState(maxBtn, isMaximized);
         };
         if (yc && typeof yc.onWindowMaximizedChanged === 'function') {
           yc.onWindowMaximizedChanged(applyMaxState);

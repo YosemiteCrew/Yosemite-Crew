@@ -4,6 +4,20 @@ import path from 'node:path';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'yc-ipc-'));
 
+const menuPopup = jest.fn();
+// Captured so a test can click an item: Menu.popup() is fire-and-forget here,
+// and the chosen item is pushed back to the sender rather than returned.
+let lastMenuTemplate: Array<{
+  type?: string;
+  label?: string;
+  enabled?: boolean;
+  click?: () => void;
+}> = [];
+const buildFromTemplateMock = jest.fn((...args: unknown[]) => {
+  lastMenuTemplate = args[0] as typeof lastMenuTemplate;
+  return { popup: menuPopup };
+});
+
 const childWindow = {
   setMenuBarVisibility: jest.fn(),
   loadURL: jest.fn(() => Promise.resolve()),
@@ -26,6 +40,7 @@ jest.mock('electron', () => ({
     showMessageBox: jest.fn(() => Promise.resolve({ response: 0 })),
   },
   ipcMain: { handle: jest.fn() },
+  Menu: { buildFromTemplate: (...a: unknown[]) => buildFromTemplateMock(...a) },
   net: { isOnline: () => true },
   shell: { showItemInFolder: jest.fn() },
 }));
@@ -61,6 +76,8 @@ const makeSender = (id = 1, url = 'https://yosemitecrew.com/dashboard') => {
       return Promise.resolve();
     }),
     once: jest.fn(),
+    send: jest.fn(),
+    isDestroyed: jest.fn(() => false),
     showOfflinePage: () => {
       current = OFFLINE_PAGE;
     },
@@ -121,10 +138,11 @@ const makeServices = (overrides: Partial<IpcServices> = {}): IpcServices => {
       activate: jest.fn(() => true),
       getState: jest.fn(() => ({
         tabs: [
-          { id: 't1', url: 'https://yosemitecrew.com/a', title: 'A', zoom: 1 },
-          { id: 't2', url: 'https://yosemitecrew.com/b', title: 'B' },
+          { id: 't1', url: 'https://yosemitecrew.com/a', title: 'A', zoom: 1, pinned: false },
+          { id: 't2', url: 'https://yosemitecrew.com/b', title: 'B', pinned: false },
         ],
         activeId: 't1',
+        closedStack: [],
       })),
       move: jest.fn(() => true),
       pin: jest.fn(() => true),
@@ -156,7 +174,7 @@ const makeServices = (overrides: Partial<IpcServices> = {}): IpcServices => {
       },
     } as never,
     layoutTabChrome: jest.fn(),
-    setTabSearch: jest.fn(),
+    setChromeOverlay: jest.fn(),
     setSplitTab: jest.fn(),
     setTabOrientation: jest.fn(),
     saveSession: jest.fn(),
@@ -778,6 +796,75 @@ describe('ipc-handlers — happy paths', () => {
     expect(services.layoutTabChrome).toHaveBeenCalled();
   });
 
+  describe('yc:tab-context-menu', () => {
+    test('pops a native menu over the main window for a live tab', async () => {
+      const services = makeServices();
+      const call = register(services);
+      expect(await call('yc:tab-context-menu', 't1')).toEqual({ ok: true });
+      expect(menuPopup).toHaveBeenCalledWith({ window: services.mainWindow });
+      expect(lastMenuTemplate.map((item) => item.label)).toEqual([
+        'Duplicate',
+        'Pin tab',
+        undefined,
+        'Close tab',
+        'Close others',
+        'Close tabs to the right',
+        undefined,
+        'Reopen closed tab',
+      ]);
+    });
+
+    test('the chosen item is pushed back to the tab bar that asked', async () => {
+      const services = makeServices();
+      const call = register(services);
+      await call('yc:tab-context-menu', 't2');
+      const duplicate = lastMenuTemplate.find((item) => item.label === 'Duplicate');
+      duplicate?.click?.();
+      expect(event.sender.send).toHaveBeenCalledWith('yc:tab-context-action', {
+        action: 'duplicate',
+        tabId: 't2',
+      });
+    });
+
+    test('a menu left open past its tab bar does not push into a dead sender', async () => {
+      const services = makeServices();
+      const call = register(services);
+      await call('yc:tab-context-menu', 't1');
+      (event.sender.isDestroyed as jest.Mock).mockReturnValueOnce(true);
+      lastMenuTemplate.find((item) => item.label === 'Close tab')?.click?.();
+      expect(event.sender.send).not.toHaveBeenCalled();
+      (event.sender.isDestroyed as jest.Mock).mockReturnValue(false);
+    });
+
+    test('a tab closed between the right-click and this call has no menu', async () => {
+      const services = makeServices();
+      const call = register(services);
+      expect(await call('yc:tab-context-menu', 'gone')).toMatchObject({
+        ok: false,
+        error: 'tab-not-found',
+      });
+      expect(menuPopup).not.toHaveBeenCalled();
+    });
+
+    test('a non-string id is refused before any menu is built', async () => {
+      const call = register(makeServices());
+      expect(await call('yc:tab-context-menu', 7)).toMatchObject({
+        ok: false,
+        error: 'invalid-args',
+      });
+      expect(buildFromTemplateMock).not.toHaveBeenCalled();
+    });
+
+    test('there is no menu without a window to pop it over', async () => {
+      const call = register(makeServices({ mainWindow: null }));
+      expect(await call('yc:tab-context-menu', 't1')).toMatchObject({
+        ok: false,
+        error: 'not-ready',
+      });
+      expect(menuPopup).not.toHaveBeenCalled();
+    });
+  });
+
   test('tab + window + misc handlers', async () => {
     const services = makeServices();
     const call = register(services);
@@ -791,7 +878,7 @@ describe('ipc-handlers — happy paths', () => {
     expect(await call('yc:tab-pin', 't1', true)).toMatchObject({ ok: true });
     expect(await call('yc:tab-duplicate', 't1')).toMatchObject({ ok: true });
     expect(await call('yc:tab-reopen-closed')).toMatchObject({ ok: true });
-    expect(await call('yc:tab-search', true)).toEqual({ ok: true });
+    expect(await call('yc:chrome-overlay', true)).toEqual({ ok: true });
     expect(await call('yc:tab-set-zoom', 't1', 1.2)).toMatchObject({
       ok: true,
     });
