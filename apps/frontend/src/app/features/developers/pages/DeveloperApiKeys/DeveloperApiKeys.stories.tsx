@@ -258,6 +258,7 @@ export const LoadFailed: Story = {
     /* An error replaces the list rather than sitting above a stale one, so a
        failed refresh never leaves keys on screen that may no longer be valid. */
     await expect(canvas.queryByRole('table')).not.toBeInTheDocument();
+    await expect(canvas.queryByTestId('api-keys-empty')).not.toBeInTheDocument();
   },
   parameters: {
     docs: {
