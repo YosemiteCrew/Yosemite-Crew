@@ -106,4 +106,9 @@ module.exports = {
   maxWorkers: '50%',
   // Ensure lingering native timers/handles from mocks don't hang the runner
   forceExit: true,
+  // Screen tests drive long multi-field flows through a full RN render tree, so
+  // wall-clock cost scales with machine load: on a loaded runner the same case
+  // that takes ~2s alone can cross jest's 5s default and fail without the code
+  // changing. Match apps/frontend's 30s so a timeout means a real hang.
+  testTimeout: 30000,
 };
