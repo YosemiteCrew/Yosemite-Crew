@@ -366,6 +366,17 @@ describe('parseUtterance rule order', () => {
     ).toBe(at(2026, 0, 16, 20, 30));
   });
 
+  it.each([
+    ['remind me to keep his dose at 0.50 tomorrow'],
+    ['remind me to set his dose at 1.25 tomorrow'],
+  ])('leaves a target amount named with "at" out of when: %s', text => {
+    // Pre-existing: both routed as addCareTask with 00:50 and 01:25 in the
+    // when slot, so the reminder itself carried the wrong hour.
+    const parsed = parseUtterance(text, {now: NOW});
+    expect(parsed?.actionId).toBe('addCareTask');
+    expect(parsed?.slots.when).toBe(at(2026, 0, 16, 9, 0));
+  });
+
   it('leaves a dose abutting a day word out of when', () => {
     // "tomorrow 1.25 of the tablet" is elliptical but not impossible, and a
     // dose read as an hour is the failure this whole guard exists to stop.

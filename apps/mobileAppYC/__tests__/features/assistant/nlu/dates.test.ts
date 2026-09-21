@@ -778,3 +778,67 @@ describe('parseWhen reads a dotted time introduced by a day word', () => {
     ).toEqual(at(2026, 2, 4, 20, 30));
   });
 });
+
+/*
+ * "at" introduces a target amount as well as a clock time.
+ *
+ * Pre-existing and not a regression: "keep his dose at 0.50 tomorrow"
+ * scheduled 00:50 before any of these guards existed. The obvious remedy -
+ * dropping "at" from the accepted set - makes it worse rather than better,
+ * because `parseBareHourAfterAt` then reads the "0" in "at 0.50" as a bare
+ * hour and schedules 00:00: the same wrong hour, quieter, and "at 20.30"
+ * loses its minutes to 20:00 on the way past. So the amount is recognised as
+ * an amount instead, by what governs the preposition and by what follows the
+ * number, and the bare-hour rule is kept off a decimal the dotted rule has
+ * already declined.
+ */
+describe('parseWhen does not read a target amount as a clock time', () => {
+  it.each([
+    ['dose', 'remind me to keep his dose at 0.50 tomorrow'],
+    ['doses', 'remind me to keep his doses at 0.50 tomorrow'],
+    ['amount', 'keep the amount at 1.25 tomorrow'],
+    ['weight', 'keep his weight at 4.50 tomorrow'],
+  ])(
+    'keeps the default hour when %s governs the preposition',
+    (_case, text) => {
+      expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
+    },
+  );
+
+  it('applies the same reading to a day word', () => {
+    // The noun governs whatever introduces the number, not only a
+    // preposition, so "dose tomorrow 1.25" is an amount as well.
+    expect(localParts(parseWhen('keep his dose tomorrow 1.25', NOW))).toEqual(
+      at(2026, 2, 4, 9, 0),
+    );
+  });
+
+  it.each([
+    ['at', 'set his dose at 0.50 of a tablet tomorrow'],
+    ['until', 'titrate until 0.50 of a tablet tomorrow'],
+  ])('keeps the default hour when a partitive follows %s', (_case, text) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
+  });
+
+  it('does not let the bare-hour rule re-read a declined decimal', () => {
+    // The dose-unit guard has skipped "0.25" since long before the
+    // preposition work, and the bare hour then made it midnight.
+    expect(localParts(parseWhen('give Max at 0.25 ml tomorrow', NOW))).toEqual(
+      at(2026, 2, 4, 9, 0),
+    );
+  });
+
+  it('still reads a bare hour after at', () => {
+    expect(localParts(parseWhen('remind me at 7 tomorrow', NOW))).toEqual(
+      at(2026, 2, 4, 7, 0),
+    );
+  });
+
+  it('still reads a time in a sentence that mentions a dose elsewhere', () => {
+    // One word of reach. A dose named earlier in the sentence is not
+    // evidence about a number four words later.
+    expect(
+      localParts(parseWhen('give his dose to Bruno at 20.30 tomorrow', NOW)),
+    ).toEqual(at(2026, 2, 4, 20, 30));
+  });
+});

@@ -164,6 +164,15 @@ const DOSE_UNITS: ReadonlySet<string> = new Set([
 /** The next whole word, already lower-cased by `normalizeKeepingClock`. */
 const NEXT_WORD = /^\s*([a-z]+)/;
 
+/** Whether the word directly after a clock candidate is one of `words`. */
+const followedByWordIn = (
+  rest: string,
+  words: ReadonlySet<string>,
+): boolean => {
+  const next = NEXT_WORD.exec(rest);
+  return next !== null && words.has(next[1]);
+};
+
 /**
  * Prepositions that introduce a clock time and nothing else.
  *
@@ -207,7 +216,35 @@ const DAY_WORDS: ReadonlySet<string> = new Set([
  * quantity cannot follow, so it needs no second opinion there - and "a las
  * 20.30 de la tarde" is ordinary Spanish, which this would otherwise reject.
  */
-const PARTITIVES: ReadonlySet<string> = new Set(['of', 'de']);
+const PARTITIVES: ReadonlySet<string> = new Set(['of']);
+
+/**
+ * The same, plus the Spanish `de`, refused on the day-word path only.
+ *
+ * "a las 20.30 de la tarde" is the ordinary way to say the time, so rejecting
+ * `de` after a preposition throws away a reading nothing else recovers. After
+ * a day word the risk runs the other way round, because "manana 1.25 de la
+ * pastilla" measures the pill. English has no such split: "at 20.30 of the
+ * evening" is nobody's sentence.
+ */
+const DAY_WORD_PARTITIVES: ReadonlySet<string> = new Set(['of', 'de']);
+
+/**
+ * Nouns that make whatever is introduced next an amount rather than a moment.
+ *
+ * "keep his dose at 0.50 tomorrow" uses `at` to name a target quantity, which
+ * is the one thing the preposition list claims cannot happen. The noun has to
+ * govern the introducer directly - the reach is one word - so "walk him at
+ * 20.30" is untouched. Every member here is pinned by a case of its own;
+ * an unexercised guess would be a silent hole in exactly the direction that
+ * mis-schedules a dose.
+ */
+const QUANTITY_NOUNS: ReadonlySet<string> = new Set([
+  'dose',
+  'doses',
+  'amount',
+  'weight',
+]);
 
 /** The whole word immediately before a clock candidate, if there is one. */
 const wordBefore = (before: string): string | null => {
@@ -225,6 +262,16 @@ const wordBefore = (before: string): string | null => {
   }
   return start < end ? before.slice(start, end) : null;
 };
+
+/**
+ * The word governing `word`, which `wordBefore` has just read off `before`.
+ *
+ * One word of reach and no more: "keep his dose at 0.50" is caught, "set the
+ * dose for Bruno at 1.25" is not. Widening it would start rejecting times in
+ * sentences that merely mention a dose somewhere.
+ */
+const wordGoverning = (before: string, word: string): string | null =>
+  wordBefore(before.replace(/[ .]+$/, '').slice(0, -word.length));
 
 /**
  * Whether a dotted candidate is introduced as a time.
@@ -254,10 +301,18 @@ const introducedAsTime = (
   if (word === null) {
     return false;
   }
-  if (TIME_PREPOSITIONS.has(word)) {
-    return true;
+  const governing = wordGoverning(before, word);
+  if (governing !== null && QUANTITY_NOUNS.has(governing)) {
+    return false;
   }
-  return DAY_WORDS.has(word) && rawHour !== '0' && !followedByPartitive(rest);
+  if (TIME_PREPOSITIONS.has(word)) {
+    return !followedByWordIn(rest, PARTITIVES);
+  }
+  return (
+    DAY_WORDS.has(word) &&
+    rawHour !== '0' &&
+    !followedByWordIn(rest, DAY_WORD_PARTITIVES)
+  );
 };
 
 /**
@@ -267,16 +322,8 @@ const introducedAsTime = (
  * being thrown away: in "at 20.30 go out" the next word is "go", not the unit
  * "g".
  */
-const followedByDoseUnit = (rest: string): boolean => {
-  const next = NEXT_WORD.exec(rest);
-  return next !== null && DOSE_UNITS.has(next[1]);
-};
-
-/** Whether what follows a clock candidate makes it an amount OF something. */
-const followedByPartitive = (rest: string): boolean => {
-  const next = NEXT_WORD.exec(rest);
-  return next !== null && PARTITIVES.has(next[1]);
-};
+const followedByDoseUnit = (rest: string): boolean =>
+  followedByWordIn(rest, DOSE_UNITS);
 
 /**
  * "20:30" - a bare 24-hour reading, and "at 20.30" or "tomorrow 20.30" where
@@ -314,9 +361,17 @@ const parse24HourTime = (normalized: string): ClockTime | null => {
  * "at 7" - a bare hour, and only after "at".
  *
  * The preposition is what keeps "give 2 tablets" from becoming 2 o'clock.
+ *
+ * The lookahead keeps this rule off a decimal the dotted rule has just
+ * declined. Without it, refusing "at 0.50 of a tablet" as a time only moves
+ * the failure: the `0` reads as a bare hour and the dose is scheduled at
+ * 00:00, which is quieter than 00:50 and no more correct. It bites on the
+ * same shape whatever declined it, so "give Max at 0.25 ml" - turned down by
+ * the dose-unit guard since long before any of this - stops resolving to
+ * midnight too.
  */
 const parseBareHourAfterAt = (normalized: string): ClockTime | null => {
-  const match = /\bat\s+(\d{1,2})\b/.exec(normalized);
+  const match = /\bat\s+(\d{1,2})\b(?!\s*[.:]\s*\d)/.exec(normalized);
   if (!match) {
     return null;
   }
