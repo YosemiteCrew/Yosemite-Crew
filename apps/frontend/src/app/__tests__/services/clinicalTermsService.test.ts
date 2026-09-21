@@ -78,4 +78,15 @@ describe('resolveClinicalTermSpecies', () => {
       expect(resolveClinicalTermSpecies(companion as string | undefined)).toBeUndefined();
     }
   );
+
+  /* An object-literal lookup resolves inherited keys too, so these would come back as
+     an Object.prototype member typed as ClinicalTermSpecies and go into the query
+     string. Only the two that survive .toLowerCase() are here: `toString` arrives as
+     `tostring` and is an ordinary miss, so it would pass either way. */
+  it.each([['constructor'], ['__proto__']])(
+    'resolves the inherited key %p to no filter',
+    (companion) => {
+      expect(resolveClinicalTermSpecies(companion)).toBeUndefined();
+    }
+  );
 });
