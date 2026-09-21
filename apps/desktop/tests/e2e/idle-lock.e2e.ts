@@ -544,14 +544,18 @@ const recordUncovering = (app: ElectronApplication): Promise<void> =>
 const uncovered = (app: ElectronApplication): Promise<Uncovered[]> =>
   app.evaluate(() => (globalThis as Record<string, unknown>).__uncovered as Uncovered[]);
 
-// Cancel the pending Touch ID prompt, then press the lock page's other button,
-// and wait for the lock page to go.
+// Cancel the pending Touch ID prompt, then sign out and wait for the lock page
+// to go. Sign-out is deliberately two presses: #usePassword only opens the
+// confirmation panel - it sends nothing - and #confirmSignOut is what asks the
+// main process to end the session. Stopping after the first press leaves the
+// lock page up, which is the lock working, not failing.
 const signOutFromLock = async (app: ElectronApplication, lockPage: Page): Promise<void> => {
   await answerTouchId(app, false);
   await expect
     .poll(() => lockPage.evaluate(() => document.getElementById('lockStatus')?.textContent))
     .toBe('Could not verify. Try again.');
   await lockPage.click('#usePassword');
+  await lockPage.click('#confirmSignOut');
   await expect.poll(() => app.windows().some((p) => p.url().includes(LOCK_PAGE))).toBe(false);
 };
 
@@ -888,8 +892,16 @@ test.describe('idle lock', () => {
     const tabUrl = `${server.origin}/dashboard`;
     await expect.poll(() => keysReceived(app!, tabUrl)).toBe(0);
     await openOtherWindows(app, shell, server.origin, tabUrl);
-    // One of them is minimized to the Dock.
+    // One of them is minimized to the Dock. openVaultWindow creates that window with
+    // show: false and shows it from ready-to-show, and openOtherWindows waits for the
+    // window to exist rather than for it to be on screen. Minimizing it before that
+    // handler runs is undone by the handler: show() on a minimized window restores it,
+    // so isMinimized() drops back to false and stays there. Waiting for the window to
+    // be up means ready-to-show has already fired and nothing will undo the minimize.
     const vaultId = (await otherWindows(app)).find((w) => w.title.startsWith('Document Vault'))!.id;
+    await expect
+      .poll(async () => (await otherWindows(app!)).find((w) => w.id === vaultId)?.visible)
+      .toBe(true);
     await app.evaluate(({ BrowserWindow }, id) => BrowserWindow.fromId(id)!.minimize(), vaultId);
     await expect
       .poll(async () => (await otherWindows(app!)).find((w) => w.id === vaultId)?.minimized)
