@@ -159,7 +159,12 @@ describe('tabbar.html wiring', () => {
     expect(tabbarHtml).toContain('class="tab-action-icon"');
   });
 
+  // <output> carries the implicit status role; a bare role="status" on a div is
+  // not announced on every device, which is what Sonar's Web:S6819 is about.
   test('the sync dot announces itself', () => {
-    expect(tabbarHtml).toContain('role="status"');
+    // Prettier breaks the element across lines, so match the tag and its id together
+    // rather than a literal substring.
+    expect(tabbarHtml).toMatch(/<output\s+id="sync-badge"/);
+    expect(tabbarHtml).toContain('aria-label="Sync: Initializing"');
   });
 });

@@ -25,7 +25,7 @@
   // the healthy state went missing. The neutral colour is reused, but the label
   // says the state is unknown rather than claiming one.
   const syncBadge = function (state) {
-    const known = Object.prototype.hasOwnProperty.call(SYNC_LABELS, state);
+    const known = Object.hasOwn(SYNC_LABELS, state);
     const label = known ? SYNC_LABELS[state] : 'Sync status unknown';
     return {
       className: known ? state : 'not-ready',
@@ -66,14 +66,14 @@
   // title made only of punctuation or emoji yields nothing, and the caller
   // falls back to the generic page icon.
   const monogram = function (title) {
-    const match = String(title == null ? '' : title).match(/[\p{L}\p{N}]/u);
+    const match = /[\p{L}\p{N}]/u.exec(String(title == null ? '' : title));
     return match ? match[0].toUpperCase() : '';
   };
 
   // A pinned tab is 48px wide at most, so it shows one glyph and no text.
   const pinnedGlyph = function (tab) {
-    if (tab && tab.favicon) return { kind: 'favicon' };
-    const initial = monogram(tab && tab.title);
+    if (tab?.favicon) return { kind: 'favicon' };
+    const initial = monogram(tab?.title);
     return initial ? { kind: 'monogram', text: initial } : { kind: 'icon' };
   };
 
