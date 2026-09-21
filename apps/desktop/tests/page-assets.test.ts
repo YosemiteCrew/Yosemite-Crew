@@ -17,7 +17,6 @@ import path from 'node:path';
 //      helper the same page loads.
 
 const PAGES_DIR = path.join(__dirname, '..', 'src', 'pages');
-const COPY_STATIC = path.join(__dirname, '..', 'scripts', 'copy-static.js');
 
 const readPage = (file: string): string => fs.readFileSync(path.join(PAGES_DIR, file), 'utf8');
 
@@ -36,10 +35,10 @@ const scriptRefs = (html: string): string[] =>
   [...html.matchAll(/<script\s+src="([^"]+)"/g)].map((m) => m[1]!).filter((r) => !r.includes('/'));
 
 const packagedAssets = (): string[] => {
-  const source = fs.readFileSync(COPY_STATIC, 'utf8');
-  const block = /const pageAssets = \[([\s\S]*?)\];/.exec(source);
-  if (!block) throw new Error('copy-static.js no longer declares a pageAssets array');
-  return [...block[1]!.matchAll(/'([^']+)'/g)].map((m) => m[1]!);
+  // New implementation copies the entire directory, so all files in src/pages are packaged.
+  return fs
+    .readdirSync(PAGES_DIR)
+    .filter((f) => f.endsWith('.js') || f.endsWith('.css') || f.endsWith('.html'));
 };
 
 describe('local page assets', () => {

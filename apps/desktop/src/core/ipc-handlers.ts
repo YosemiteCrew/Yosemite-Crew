@@ -16,6 +16,7 @@ import {
 import { BUILTIN_ACTIONS } from '../ui/command-palette';
 import {
   DEFAULT_SETTINGS,
+  rejectedSettingKeys,
   type DesktopSettings,
   type SettingsStore,
 } from '../utils/settings-store';
@@ -285,9 +286,13 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     if (typeof partial !== 'object' || partial === null || Array.isArray(partial)) {
       return { ok: false, error: 'invalid-settings' };
     }
+    // `rejected` before `save`, so the caller can say which field it dropped.
+    // The other fields still persist: a mistyped Do Not Disturb time must not
+    // discard the toggle the user flipped in the same submission (issue #3298).
+    const rejected = rejectedSettingKeys(partial);
     const updated = store.save(partial);
     services.applySettings(updated);
-    return { ok: true, settings: updated };
+    return { ok: true, settings: updated, rejected };
   });
 
   registry.handle('yc:execute-command', async (_event, args) => {

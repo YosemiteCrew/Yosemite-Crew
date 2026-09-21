@@ -86,6 +86,8 @@ module.exports = [
       'src/pages/palette-format.js',
       'src/pages/carousel-autoplay.js',
       'src/pages/tab-indicators.js',
+      'src/pages/settings-view.js',
+      'src/pages/vault-view.js',
       'src/pages/tabbar-a11y.js',
       'src/pages/tab-row.js',
       'src/pages/tab-strip-diff.js',

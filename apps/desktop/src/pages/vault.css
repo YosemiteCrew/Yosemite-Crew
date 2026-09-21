@@ -190,6 +190,31 @@ body {
   color: var(--ink-faint);
 }
 
+/* The way out of a search that matched nothing, in the place the user is
+   already looking (issue #3297). */
+.empty-action {
+  margin-top: 2px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  background: var(--screen);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.empty-action:hover {
+  border-color: var(--hairline-hover);
+  background: var(--surface-soft);
+}
+
+.empty-action:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
 #docList {
   display: flex;
   flex-direction: column;
