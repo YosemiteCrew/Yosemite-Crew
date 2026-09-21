@@ -95,7 +95,10 @@ const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): P
 const paletteWindows = (app: ElectronApplication): Promise<{ open: number; loaded: number }> =>
   app.evaluate(({ BrowserWindow }) => {
     const wins = BrowserWindow.getAllWindows().filter(
-      (w) => !w.isDestroyed() && w.webContents.getURL().endsWith('/pages/command-palette.html')
+      (w) =>
+        !w.isDestroyed() &&
+        !w.webContents.isDestroyed() &&
+        w.webContents.getURL().endsWith('/pages/command-palette.html')
     );
     return { open: wins.length, loaded: wins.filter((w) => !w.webContents.isLoading()).length };
   });
@@ -290,6 +293,7 @@ test.describe('command-palette E2E', () => {
       BrowserWindow.getAllWindows().some(
         (w) =>
           !w.isDestroyed() &&
+          !w.webContents.isDestroyed() &&
           w.webContents.getURL().endsWith('/pages/settings.html') &&
           !w.webContents.isLoading()
       )
@@ -362,7 +366,10 @@ test.describe('command-palette E2E', () => {
     // renderer, which leaves the close to be observed by the poll below.
     await app!.evaluate(({ BrowserWindow }) => {
       const win = BrowserWindow.getAllWindows().find(
-        (w) => !w.isDestroyed() && w.webContents.getURL().endsWith('/pages/command-palette.html')
+        (w) =>
+          !w.isDestroyed() &&
+          !w.webContents.isDestroyed() &&
+          w.webContents.getURL().endsWith('/pages/command-palette.html')
       );
       win?.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
     });
