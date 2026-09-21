@@ -892,10 +892,6 @@ const reserveAllocation = async (
   lines: readonly AllocationRequest[],
   requested: number,
 ): Promise<AllocationRow[] | AllocateResult> => {
-  const expectedVersion = Number(input.expectedVersion);
-  const organisationId = String(input.organisationId);
-  const idempotencyKey = String(input.idempotencyKey);
-  const actorId = String(input.actorId);
   const status = allocatedReceiptStatus({
     status: receipt.status,
     amount: receipt.amount,
@@ -905,12 +901,18 @@ const reserveAllocation = async (
 
   try {
     return await prisma.$transaction(async (tx) => {
-      /* Keep the reservation conditional on every figure used to compute it. */
+      /*
+       * Every figure the decision was taken from is in the WHERE, not just
+       * the version. The version alone would be enough while this is the only
+       * writer, and it is not: a refund webhook increments it too, so matching
+       * on the figures as well is what keeps the reservation arithmetic
+       * conditional on the arithmetic that produced it.
+       */
       const reserved = await tx.providerReceipt.updateMany({
         where: {
           id: receipt.id,
-          version: expectedVersion,
-          organisationId,
+          version: input.expectedVersion,
+          organisationId: input.organisationId,
           allocatedAmount: receipt.allocatedAmount,
           refundedAmount: receipt.refundedAmount,
           status: receipt.status,
@@ -930,8 +932,8 @@ const reserveAllocation = async (
               receiptId: receipt.id,
               invoiceId: line.invoiceId,
               amount: line.amount,
-              idempotencyKey,
-              actorId,
+              idempotencyKey: input.idempotencyKey,
+              actorId: input.actorId,
             },
             select: { id: true, invoiceId: true, amount: true },
           }),
