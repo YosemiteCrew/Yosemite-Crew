@@ -119,7 +119,7 @@ describe('Axios Service', () => {
 
   // The instance is created once at module import, before beforeEach clears
   // mocks — capture the create config in beforeAll so the assertion survives.
-  let createConfig: { timeout?: number; withCredentials?: boolean } | undefined;
+  let createConfig: { adapter?: string; timeout?: number; withCredentials?: boolean } | undefined;
   beforeAll(() => {
     createConfig = (axios.create as jest.Mock).mock.calls[0]?.[0];
   });
@@ -130,6 +130,10 @@ describe('Axios Service', () => {
 
   it('creates the api instance with credentials so session cookies are sent', () => {
     expect(createConfig).toEqual(expect.objectContaining({ withCredentials: true }));
+  });
+
+  it('uses the guarded fetch transport instead of the SDK XHR replay path', () => {
+    expect(createConfig).toEqual(expect.objectContaining({ adapter: 'fetch' }));
   });
 
   describe('Wrapper Methods', () => {
@@ -337,6 +341,15 @@ describe('Axios Service', () => {
       expect(logger.error).toHaveBeenCalledWith('API postData error:', expect.any(Error));
     });
 
+    it('does not log the intentional auth redirect error', async () => {
+      const error = { __ycAuthRedirect: true };
+      mockAxiosInstance.post.mockRejectedValue(error);
+
+      await expect(postData('/test')).rejects.toEqual(error);
+
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
     it('putData calls api.put', async () => {
       mockAxiosInstance.put.mockResolvedValue({ data: 'ok' });
       await putData('/test', { foo: 'bar' });
@@ -441,11 +454,38 @@ describe('Axios Service', () => {
       expect(responseSuccessHandler(response)).toEqual(response);
     });
 
+    it('surfaces a blocked session write as explicitly unsaved', async () => {
+      const error = {
+        response: {
+          status: 401,
+          headers: { 'x-yc-session-write-replay-blocked': 'true' },
+        },
+        config: { method: 'patch' },
+      };
+
+      await expect(responseErrorHandler(error)).rejects.toThrow(
+        'Your session was refreshed. Review your unsaved changes and save again.'
+      );
+      expect(mockDoesSessionExist).not.toHaveBeenCalled();
+      expect(mockAxiosInstance).not.toHaveBeenCalled();
+    });
+
     it('throws non-retryable errors immediately for idempotent reads', async () => {
       const error = {
         response: { status: 400 },
         config: { method: 'get' },
       };
+      await expect(responseErrorHandler(error)).rejects.toEqual(error);
+      expect(mockAxiosInstance).not.toHaveBeenCalled();
+    });
+
+    it('does not retry a non-timeout network error', async () => {
+      const error = {
+        code: 'ERR_NETWORK',
+        message: 'Network Error',
+        config: { method: 'get' },
+      };
+
       await expect(responseErrorHandler(error)).rejects.toEqual(error);
       expect(mockAxiosInstance).not.toHaveBeenCalled();
     });
@@ -486,6 +526,16 @@ describe('Axios Service', () => {
       expect(result).toEqual({ data: 'recovered' });
     });
 
+    it('recognises a timeout message when the transport omits an error code', async () => {
+      const error = {
+        message: 'request timeout',
+        config: { method: 'get' },
+      };
+      mockAxiosInstance.mockResolvedValueOnce({ data: 'recovered' });
+
+      await expect(responseErrorHandler(error)).resolves.toEqual({ data: 'recovered' });
+    });
+
     it('gives up after the maximum transient retries', async () => {
       const error = {
         response: { status: 503, headers: { 'retry-after': '0' } },
@@ -521,6 +571,26 @@ describe('Axios Service', () => {
         expect(isAuthRedirectError(caughtError)).toBe(true);
       }
       expect(mockSignout).toHaveBeenCalled();
+    });
+
+    it('still rejects as signed out when local session cleanup fails', async () => {
+      const cleanupError = new Error('storage unavailable');
+      const mockSignout = jest.fn().mockRejectedValue(cleanupError);
+      mockGetState.mockReturnValue({ signout: mockSignout });
+      mockDoesSessionExist.mockResolvedValue(false);
+
+      const error = { response: { status: 401 }, config: { method: 'patch' } };
+
+      try {
+        await responseErrorHandler(error);
+        throw new Error('Expected response interceptor to reject');
+      } catch (caughtError) {
+        expect(isAuthRedirectError(caughtError)).toBe(true);
+      }
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Failed to clear expired session cleanly',
+        cleanupError
+      );
     });
 
     it('builds the sign-in redirect URL with a reason SignIn can show a notice for', () => {
