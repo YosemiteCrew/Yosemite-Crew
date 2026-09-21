@@ -27,19 +27,27 @@
       <input
         id="search"
         type="text"
-        placeholder="Search patients, actions, and commands…"
+        placeholder="Search commands and pages…"
         aria-label="Search commands"
+        role="combobox"
+        aria-expanded="false"
+        aria-controls="results"
+        aria-autocomplete="list"
+        autocomplete="off"
         spellcheck="false"
       />
       <span class="cp-esc">esc</span>
     </div>
-    <div id="results"></div>
+    <div id="results" role="listbox" aria-label="Commands"></div>
+    <div id="empty"></div>
+    <output id="cp-live" class="cp-live"></output>
     <div class="cp-footer">
       <span class="cp-hint"><span class="cp-key">↑↓</span>Navigate</span>
       <span class="cp-hint"><span class="cp-key">↵</span>Open</span>
       <span class="cp-foot-note">Desktop commands included</span>
     </div>
 
+    <script src="palette-format.js"></script>
     <script src="command-palette.js"></script>
   </body>
 </html>
