@@ -4,7 +4,13 @@ name: Tests Must Be Able To Fail
 # ruleset, a filter here would mean GitHub never creates the context for a PR
 # outside it, leaving that PR waiting on a check that will never appear.
 on:
-  pull_request: {}
+  # `labeled`/`unlabeled` are on top of the defaults because the
+  # no-behaviour-change escape hatch is claimed by label: a re-run replays the
+  # payload captured at `opened`, so a label added afterwards is invisible and
+  # the only way to claim it would be a throwaway commit. `unlabeled` is here so
+  # removing the label re-tightens the gate rather than leaving a stale green.
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch: {}
 
 concurrency:
