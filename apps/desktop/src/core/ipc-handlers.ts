@@ -2,7 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { app, BrowserWindow, dialog, ipcMain, net, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, net, shell } from 'electron';
 import { createIpcRegistry } from './ipc';
 import type { RetryContents } from '../shell/offline-retry';
 import { classifyNavigation, deepLinkToUrl, type getDesktopConfig } from './navigation-policy';
@@ -14,6 +14,7 @@ import {
   type TelehealthLaunchIntent,
 } from '../utils/telehealth';
 import { BUILTIN_ACTIONS } from '../ui/command-palette';
+import { buildTabContextMenu } from '../ui/tab-context-menu';
 import {
   DEFAULT_SETTINGS,
   rejectedSettingKeys,
@@ -69,8 +70,10 @@ export interface IpcServices {
     close: (id: string) => void;
     activate: (id: string) => boolean;
     getState: () => {
-      tabs: Array<{ id: string; url: string; title?: string; zoom?: number }>;
+      tabs: Array<{ id: string; url: string; title?: string; zoom?: number; pinned?: boolean }>;
       activeId: string | null;
+      // Only ever read for its length, by the tab context menu.
+      closedStack?: readonly unknown[];
     };
     move: (id: string, toIndex: number) => boolean;
     pin: (id: string, pinned: boolean) => boolean;
@@ -95,7 +98,7 @@ export interface IpcServices {
   splitId: string | null;
   tabChromeView: Electron.WebContentsView | null;
   layoutTabChrome: () => void;
-  setTabSearch: (open: boolean) => void;
+  setChromeOverlay: (open: boolean) => void;
   setSplitTab: (id: string | null) => void;
   setTabOrientation: (mode: 'horizontal' | 'vertical') => void;
   saveSession: () => void;
@@ -914,6 +917,44 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, id: dupId };
   });
 
+  // The tab bar's right-click menu is drawn by the OS, not by the page. A menu
+  // drawn in the page was clipped to the 40px chrome view and only its top edge
+  // was ever visible, so no item in it could be clicked (issue #3289); a native
+  // menu is clamped to the screen, closes on Escape, walks under the arrow keys
+  // and reaches a screen reader, none of which the page's <div>s did.
+  //
+  // The chosen item is pushed back to the tab bar rather than returned from
+  // this call: on macOS a popup's click handler runs after popup() has already
+  // returned, so a resolved-from-the-click promise would race the close. The
+  // tab bar then performs the action through the same tab IPC its own buttons
+  // use, which keeps one code path per action.
+  registry.handle('yc:tab-context-menu', async (event, args) => {
+    const id = args[0];
+    if (!services.tabManager || typeof id !== 'string') return { ok: false, error: 'invalid-args' };
+    const win = services.mainWindow;
+    if (!win || win.isDestroyed()) return { ok: false, error: 'not-ready' };
+    const items = buildTabContextMenu(services.tabManager.getState(), id);
+    if (!items) return { ok: false, error: 'tab-not-found' };
+    const sender = event.sender;
+    const menu = Menu.buildFromTemplate(
+      items.map((item) =>
+        item.separator
+          ? { type: 'separator' as const }
+          : {
+              label: item.label,
+              enabled: item.enabled,
+              click: (): void => {
+                if (!sender.isDestroyed()) {
+                  sender.send('yc:tab-context-action', { action: item.id, tabId: id });
+                }
+              },
+            }
+      )
+    );
+    menu.popup({ window: win });
+    return { ok: true };
+  });
+
   registry.handle('yc:tab-reopen-closed', async () => {
     if (
       !services.tabManager ||
@@ -934,8 +975,8 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     return { ok: true, id };
   });
 
-  registry.handle('yc:tab-search', async (_event, args) => {
-    services.setTabSearch(args[0] === true);
+  registry.handle('yc:chrome-overlay', async (_event, args) => {
+    services.setChromeOverlay(args[0] === true);
     return { ok: true };
   });
 
@@ -1101,7 +1142,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
 
   registry.handle('yc:show-cheatsheet', async () => {
     if (services.tabChromeView && !services.tabChromeView.webContents.isDestroyed()) {
-      services.setTabSearch(true);
+      services.setChromeOverlay(true);
       void services.tabChromeView.webContents
         .executeJavaScript('window.__ycOpenCheatsheet && window.__ycOpenCheatsheet()')
         .catch((error) => services.logger.warn('cheatsheet_js_failed', { error }));
