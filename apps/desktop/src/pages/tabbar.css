@@ -114,6 +114,35 @@
 .tab--pinned {
   min-width: 34px;
   max-width: 48px;
+  justify-content: center;
+}
+
+.tab--pinned .tab-inner {
+  flex: 0 0 auto;
+  justify-content: center;
+}
+
+/* The tab mounted in the right-hand split pane. Without a marker it looks like
+   any other background tab, so there is nothing tying a pane to its tab. It
+   gets a secondary-active fill plus an accent bar - quieter than .tab--active,
+   which keeps the raised, screen-coloured treatment for the primary pane. An
+   inset box-shadow would follow the 9px corner radius and read as a stray
+   outline, so the bar is drawn as its own element. */
+.tab--split {
+  background: var(--inset);
+  color: var(--ink);
+}
+
+.tab--split::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--blue);
+  pointer-events: none;
 }
 
 .tab--dragging {
@@ -180,6 +209,43 @@
 .tab-badge--offline {
   background: var(--blue);
   color: #fff;
+  position: relative;
+}
+
+/* The offline badge's slash is drawn rather than set as text: the app font has
+   no glyph for U+26A0, so a character would fall back to a mismatched system
+   one at this size. */
+.tab-badge--offline::after {
+  content: '';
+  position: absolute;
+  width: 9px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  transform: rotate(-45deg);
+}
+
+/* Pinned-tab stand-ins for a missing favicon. */
+.tab-monogram {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 4px;
+  background: var(--inset);
+  color: var(--ink-body);
+}
+
+.tab-page-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.7;
 }
 
 /* ── Audio indicator ── */
@@ -266,6 +332,14 @@
 .tab-action-btn:hover {
   background: var(--inset);
   color: var(--ink);
+}
+
+/* Matches the + button's optical size; the SVG replaces a text character the
+   app font does not carry. */
+.tab-action-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
 }
 
 /* ── Windows / Linux caption controls (hidden on macOS; shown by tabbar.js) ── */
