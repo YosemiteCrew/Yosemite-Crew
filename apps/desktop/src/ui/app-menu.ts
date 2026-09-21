@@ -212,14 +212,20 @@ export const buildMenuTemplate = (actions: MenuActions): MenuItemConstructorOpti
       submenu: [
         { role: 'reload' },
         { role: 'forceReload' },
-        {
-          label: 'Toggle Developer Tools',
-          accelerator: process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
-          click: () => {
-            const wc = actions.activeContents();
-            if (wc && !wc.isDestroyed()) wc.toggleDevTools();
-          },
-        },
+        // Development builds only: a shipped build has no DevTools item, and so
+        // no shortcut for it either.
+        ...(app.isPackaged
+          ? []
+          : [
+              {
+                label: 'Toggle Developer Tools',
+                accelerator: isMac ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
+                click: () => {
+                  const wc = actions.activeContents();
+                  if (wc && !wc.isDestroyed()) wc.toggleDevTools();
+                },
+              },
+            ]),
         { type: 'separator' as const },
         { role: 'resetZoom' },
         { role: 'zoomIn' },
