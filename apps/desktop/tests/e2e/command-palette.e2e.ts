@@ -205,14 +205,62 @@ test.describe('command-palette E2E', () => {
     expect(Array.isArray(actions.actions)).toBe(true);
   });
 
+  /*
+   * Identified by the URL it loaded, not by `getTitle()`. The window is
+   * constructed with `title: 'Preferences'` and then loads a page whose own
+   * `<title>` is "Preferences — Yosemite Crew PIMS"; nothing cancels
+   * `page-title-updated` for this window the way `create-main-window.ts` does
+   * for the main one, so the constructor title survives only until the load
+   * that this predicate is waiting for replaces it. A title equality would
+   * therefore be true only in the window between construction and first paint
+   * and false forever after - the never-true poll this test is being fixed to
+   * avoid. `getURL()` is settled for the whole of that window's life.
+   *
+   * `endsWith` on a forward-slash path holds on Windows too: a `file://` URL
+   * uses forward slashes on both platforms this suite runs on.
+   */
+  const settingsWindowLoaded = (): Promise<boolean> =>
+    app!.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows().some(
+        (w) =>
+          !w.isDestroyed() &&
+          w.webContents.getURL().endsWith('/pages/settings.html') &&
+          !w.webContents.isLoading()
+      )
+    );
+
   test('execute via IPC fires navigation', async () => {
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+
+    // The control, and the reason the poll below is worth anything: it has to
+    // be false of the app as launched. A predicate true of every state would
+    // pass without `open-settings` having done a thing, which is the defect
+    // being fixed here - `expect(result).not.toBeNull()` was true whenever the
+    // preload existed at all.
+    expect(await settingsWindowLoaded()).toBe(false);
+
     const result = await evaluateYcDesktop<{ ok: boolean }>(
       page,
       'executeCommand',
       'open-settings'
     );
-    expect(result).not.toBeNull();
+    expect(result.ok).toBe(true);
+
+    /*
+     * Waiting here is what removes the flake, not just what gives the test an
+     * assertion. `executeCommand` resolves as soon as `createSettingsWindow()`
+     * has constructed the window - `loadFile` is not awaited - so without this
+     * the test returned into `afterEach`, which calls `app.close()` against a
+     * window still loading. On `macos-latest` that lost the race often enough
+     * to time the hook out and then the worker teardown with it (issue #3392).
+     * Every other test in this spec that opens a window already waits for it.
+     */
+    await expect
+      .poll(settingsWindowLoaded, {
+        timeout: 10_000,
+        message: 'open-settings did not open the Preferences window',
+      })
+      .toBe(true);
   });
 
   test('Escape closes palette', async () => {
