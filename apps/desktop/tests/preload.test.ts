@@ -149,8 +149,9 @@ describe('preload bridge', () => {
       { name: 'pinTab', channel: 'yc:tab-pin', args: ['tab-1', true] },
       { name: 'duplicateTab', channel: 'yc:tab-duplicate', args: ['tab-1'] },
       { name: 'reopenClosedTab', channel: 'yc:tab-reopen-closed' },
+      { name: 'showTabContextMenu', channel: 'yc:tab-context-menu', args: ['tab-1'] },
       { name: 'setTabZoom', channel: 'yc:tab-set-zoom', args: ['tab-1', 1.5] },
-      { name: 'tabSearch', channel: 'yc:tab-search', args: [true] },
+      { name: 'setChromeOverlay', channel: 'yc:chrome-overlay', args: [true] },
 
       { name: 'stopFindInPage', channel: 'yc:stop-find-in-page' },
       { name: 'openDevTools', channel: 'yc:open-devtools' },
@@ -234,6 +235,23 @@ describe('preload bridge', () => {
 
       cleanup();
       expect(mockListeners['yc:idle-unlock-failed']).toBeUndefined();
+    });
+  });
+
+  describe('onTabContextAction', () => {
+    test('passes the chosen item through and unsubscribes on cleanup', () => {
+      const callback = jest.fn();
+      const cleanup = mockExposed.ycDesktop!.onTabContextAction(callback);
+
+      const handler = mockListeners['yc:tab-context-action'];
+      expect(handler).toBeDefined();
+
+      handler!({}, { action: 'duplicate', tabId: 'tab-1' });
+      expect(callback).toHaveBeenCalledWith({ action: 'duplicate', tabId: 'tab-1' });
+      expect(callback).toHaveBeenCalledTimes(1);
+
+      cleanup();
+      expect(mockListeners['yc:tab-context-action']).toBeUndefined();
     });
   });
 

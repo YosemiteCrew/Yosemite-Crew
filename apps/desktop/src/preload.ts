@@ -46,8 +46,12 @@ export interface YcDesktop {
   pinTab: (id: string, pinned: boolean) => Promise<unknown>;
   duplicateTab: (id: string) => Promise<unknown>;
   reopenClosedTab: () => Promise<unknown>;
+  showTabContextMenu: (id: string) => Promise<unknown>;
+  onTabContextAction: (
+    callback: (payload: { action: string; tabId: string }) => void
+  ) => () => void;
   setTabZoom: (id: string, level: number) => Promise<unknown>;
-  tabSearch: (open: boolean) => Promise<unknown>;
+  setChromeOverlay: (open: boolean) => Promise<unknown>;
   findInPage: (text: string, forward?: boolean, matchCase?: boolean) => Promise<unknown>;
   stopFindInPage: () => Promise<unknown>;
   openDevTools: () => Promise<unknown>;
@@ -143,9 +147,20 @@ const api: YcDesktop = {
     ipcRenderer.invoke('yc:tab-pin', id, pinned),
   duplicateTab: (id: string): Promise<unknown> => ipcRenderer.invoke('yc:tab-duplicate', id),
   reopenClosedTab: (): Promise<unknown> => ipcRenderer.invoke('yc:tab-reopen-closed'),
+  showTabContextMenu: (id: string): Promise<unknown> =>
+    ipcRenderer.invoke('yc:tab-context-menu', id),
+  onTabContextAction: (
+    callback: (payload: { action: string; tabId: string }) => void
+  ): (() => void) => {
+    const handler = (_event: unknown, payload: { action: string; tabId: string }): void =>
+      callback(payload);
+    ipcRenderer.on('yc:tab-context-action', handler);
+    return () => ipcRenderer.removeListener('yc:tab-context-action', handler);
+  },
   setTabZoom: (id: string, level: number): Promise<unknown> =>
     ipcRenderer.invoke('yc:tab-set-zoom', id, level),
-  tabSearch: (open: boolean): Promise<unknown> => ipcRenderer.invoke('yc:tab-search', open),
+  setChromeOverlay: (open: boolean): Promise<unknown> =>
+    ipcRenderer.invoke('yc:chrome-overlay', open),
   findInPage: (text: string, forward?: boolean, matchCase?: boolean): Promise<unknown> =>
     ipcRenderer.invoke('yc:find-in-page', { text, forward, matchCase }),
   stopFindInPage: (): Promise<unknown> => ipcRenderer.invoke('yc:stop-find-in-page'),

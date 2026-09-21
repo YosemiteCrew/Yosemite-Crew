@@ -11,10 +11,13 @@ interface CaptionSpec {
   glyph: string;
 }
 
+type GlyphShape = { tag: string } & Record<string, string | undefined>;
+
 const caption: {
   maximizeButton: (isMaximized: boolean) => CaptionSpec;
   MAXIMIZE: CaptionSpec;
   RESTORE: CaptionSpec;
+  GLYPHS: Record<string, GlyphShape[]>;
 } = untypedCaption;
 
 describe('maximizeButton', () => {
@@ -157,5 +160,59 @@ describe('caption glyph geometry', () => {
       { orientation: 'diagonal' },
       { orientation: 'diagonal' },
     ]);
+  });
+});
+
+// The local pages (welcome, what's new, loading) have no caption markup of
+// their own: local-window-header.js builds their buttons from this table. The
+// tab bar keeps its own markup, so the two title bars can only stay identical
+// if something holds them to each other - that is what this block is.
+const glyphSvg = (name: string): string => {
+  const shapes = caption.GLYPHS[name];
+  if (!shapes) throw new Error(`no ${name} glyph in the table`);
+  return (
+    '<svg>' +
+    shapes
+      .map((shape) => {
+        const attributes = Object.keys(shape)
+          .filter((key) => key !== 'tag' && shape[key] !== undefined)
+          .map((key) => `${key}="${shape[key]}"`)
+          .join(' ');
+        return `<${shape.tag} ${attributes} />`;
+      })
+      .join('') +
+    '</svg>'
+  );
+};
+
+describe('the shared caption glyph table', () => {
+  test.each([
+    ['maximize', maximizeGlyph('maximize')],
+    ['restore', maximizeGlyph('restore')],
+    ['minimize', captionButtonSvg('win-min')],
+    ['close', captionButtonSvg('win-close')],
+  ])('the %s entry draws what the tab bar draws', (name, markup) => {
+    expect(segmentsOf(glyphSvg(name))).toEqual(segmentsOf(markup));
+  });
+
+  test('every glyph in the table is one the caption buttons ask for', () => {
+    expect(Object.keys(caption.GLYPHS).sort()).toEqual(
+      ['close', 'maximize', 'minimize', 'restore'].sort()
+    );
+  });
+
+  test.each([['maximize'], ['restore'], ['minimize']])(
+    'every axis-aligned stroke in the %s entry sits on the half-pixel grid',
+    (name) => {
+      const aligned = segmentsOf(glyphSvg(name)).filter((s) => s.orientation !== 'diagonal');
+      expect(aligned.length).toBeGreaterThan(0);
+      expect(aligned.filter((s) => !Number.isInteger((s.at as number) - 0.5))).toEqual([]);
+    }
+  );
+
+  test('both states maximizeButton can select have an entry to draw', () => {
+    for (const isMaximized of [true, false]) {
+      expect(caption.GLYPHS[caption.maximizeButton(isMaximized).glyph]).toBeDefined();
+    }
   });
 });
