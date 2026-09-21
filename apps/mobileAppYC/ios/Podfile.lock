@@ -2202,9 +2202,9 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-maps (1.29.0):
-    - react-native-maps/Maps (= 1.29.0)
-  - react-native-maps/Generated (1.29.0):
+  - react-native-maps (1.29.2):
+    - react-native-maps/Maps (= 1.29.2)
+  - react-native-maps/Generated (1.29.2):
     - boost
     - DoubleConversion
     - fast_float
@@ -2232,7 +2232,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-maps/Google (1.29.0):
+  - react-native-maps/Google (1.29.2):
     - boost
     - DoubleConversion
     - fast_float
@@ -2264,7 +2264,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - react-native-maps/Maps (1.29.0):
+  - react-native-maps/Maps (1.29.2):
     - boost
     - DoubleConversion
     - fast_float
@@ -4470,7 +4470,7 @@ SPEC CHECKSUMS:
   react-native-geolocation: 95e48fe2687e5a8280103085372fa62c2297c5d6
   react-native-get-random-values: d16467cf726c618e9c7a8c3c39c31faa2244bbba
   react-native-image-picker: 0314366753615115fa55c3cc937ac44cb7e75702
-  react-native-maps: 452eb21d3a1b5ab56772dc1f1dee04c594d4db15
+  react-native-maps: 3bde9b7b6098564254684dd7d3750480da7799d7
   react-native-netinfo: a0be8c77f8420a60ddf07eb87be1a36f02a1bd65
   react-native-pdf: 292d5d7cd7d79d95540e94f8e4c08cfce6c9eb18
   react-native-safe-area-context: 6cf08f4151132f9cf2adb948dc6c4ac387f8d30f
