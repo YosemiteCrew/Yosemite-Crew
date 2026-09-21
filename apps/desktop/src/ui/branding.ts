@@ -26,7 +26,7 @@ export const aboutPanelOptions = (
 ): AboutPanelOptions => ({
   applicationName: PRODUCT_NAME,
   applicationVersion: version,
-  version,
+  version: '',
   copyright: `© ${year} ${COMPANY}`,
   website: WEBSITE,
 });

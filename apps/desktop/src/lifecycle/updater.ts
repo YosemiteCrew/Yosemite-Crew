@@ -128,18 +128,20 @@ export const manualResultDialog = (
   info?: UpdateInfo
 ): MessageBoxOptions => {
   if (state === 'none') {
+    const version = info?.version ? ` ${info.version}` : '';
     return {
       type: 'info',
       buttons: ['OK'],
       message: `${PRODUCT_NAME} is up to date.`,
-      detail: info?.version ? `You're on the latest version (${info.version}).` : undefined,
+      detail: version ? `Version${version}.` : undefined,
     };
   }
   if (state === 'available') {
+    const version = info?.version ? ` ${info.version}` : '';
     return {
       type: 'info',
       buttons: ['OK'],
-      message: 'An update is available.',
+      message: `Version${version} is available.`,
       detail:
         'It will download in the background and you’ll be prompted to restart when it’s ready.',
     };

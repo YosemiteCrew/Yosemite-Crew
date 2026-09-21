@@ -615,11 +615,14 @@ describe('ChatChannelScreen', () => {
   });
 
   it('unsubscribes from typing events on unmount', async () => {
-    const {getByTestId, unmount} = render(<ChatChannelScreen />);
-    await waitFor(() => expect(getByTestId('StreamChat')).toBeTruthy());
-
+    const {unmount} = render(<ChatChannelScreen />);
+    // The subscribing effect runs a commit after the channel lands, so waiting
+    // on the rendered chat can settle before `on` has been called at all.
+    // Wait on the subscriptions themselves.
+    await waitFor(() =>
+      expect((mockChannel.on as jest.Mock).mock.results).toHaveLength(2),
+    );
     const subscriptions = (mockChannel.on as jest.Mock).mock.results;
-    expect(subscriptions.length).toBe(2);
 
     unmount();
 

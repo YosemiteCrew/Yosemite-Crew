@@ -25,6 +25,8 @@ const pageAssets = [
   'tabbar-a11y.js',
   'tab-strip-diff.js',
   'window-caption.js',
+  'palette-format.js',
+  'carousel-autoplay.js',
   'whats-new.html',
   'whats-new.css',
   'whats-new.js',
