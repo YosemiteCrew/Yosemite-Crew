@@ -730,11 +730,13 @@ describe("Inventory service", () => {
   it("consumeStock leaves an existing reservation untouched", async () => {
     // Reservations are held on the item by allocateStock and are never mirrored
     // onto the batch rows, so consumption must not recompute them from batches.
+    // Reserved 2 of 5 rather than all 5: consuming into a reservation is now
+    // refused outright, which is a different test one block below.
     (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValue({
       id: "item-1",
       organisationId: "org-1",
       onHand: 5,
-      allocated: 5,
+      allocated: 2,
     });
     (prisma.inventoryBatch.findMany as jest.Mock)
       .mockResolvedValueOnce([
@@ -759,7 +761,7 @@ describe("Inventory service", () => {
       id: "item-1",
       organisationId: "org-1",
       onHand: 3,
-      allocated: 5,
+      allocated: 2,
     });
 
     const consumed = await InventoryService.consumeStock(
@@ -771,7 +773,7 @@ describe("Inventory service", () => {
       where: { id: "item-1" },
       data: { onHand: 3 },
     });
-    expect(consumed.allocated).toBe(5);
+    expect(consumed.allocated).toBe(2);
   });
 
   it("adjusts, allocates, and releases inventory", async () => {
@@ -2592,6 +2594,57 @@ describe("Inventory service guards, helpers, and branch paths", () => {
         statusCode: 400,
       });
       expect(prisma.inventoryBatch.findMany).not.toHaveBeenCalled();
+    });
+
+    /*
+     * This route has no notion of an allocation: it never reduces `allocated`,
+     * so anything it consumes comes out of the reservation someone else is
+     * holding. The allocation-aware path in inventory-consumption.service
+     * already refuses the same case for a NORMAL-source consumption, and this
+     * guard mirrors it rather than inventing a second rule.
+     */
+    it("refuses to consume stock already reserved for someone else", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 10, allocated: 5 }),
+      );
+
+      await expect(
+        InventoryService.consumeStock(
+          { itemId: "item-1", quantity: 6, reason: "OTHER" },
+          "org-1",
+        ),
+      ).rejects.toMatchObject({
+        message: "Insufficient stock",
+        statusCode: 400,
+      });
+      // Refused before anything moved, not part way through.
+      expect(prisma.inventoryBatch.findMany).not.toHaveBeenCalled();
+      expect(prisma.inventoryBatch.update).not.toHaveBeenCalled();
+      expect(prisma.inventoryStockMovement.create).not.toHaveBeenCalled();
+    });
+
+    it("consumes every unreserved unit, up to the last one", async () => {
+      mockOf(prisma.inventoryItem.findFirst).mockResolvedValue(
+        itemRow({ onHand: 10, allocated: 5 }),
+      );
+      mockOf(prisma.inventoryBatch.findMany)
+        .mockResolvedValueOnce([batchRow({ id: "b1", quantity: 10 })])
+        .mockResolvedValueOnce([batchRow({ id: "b1", quantity: 5 })]);
+      mockOf(prisma.inventoryItem.update).mockResolvedValue(
+        itemRow({ onHand: 5, allocated: 5 }),
+      );
+
+      // Exactly onHand - allocated. The boundary is allowed, so the guard
+      // refuses over-consumption without costing the caller a usable unit.
+      const updated = await InventoryService.consumeStock(
+        { itemId: "item-1", quantity: 5, reason: "OTHER" },
+        "org-1",
+      );
+
+      expect(mockOf(prisma.inventoryBatch.update).mock.calls).toEqual([
+        [{ where: { id: "b1" }, data: { quantity: { decrement: 5 } } }],
+      ]);
+      expect(updated.onHand).toBe(5);
     });
 
     it("fails loudly when the batches cannot cover the item level stock", async () => {

@@ -1999,7 +1999,18 @@ export const InventoryService = {
         throw new InventoryServiceError("Inventory item not found", 404);
       }
 
-      if ((item.onHand ?? 0) < input.quantity) {
+      /*
+       * Unreserved stock only. This route has no notion of an allocation and
+       * never reduces `allocated`, so anything it takes beyond
+       * `onHand - allocated` comes out of a reservation somebody else is
+       * holding and leaves that reservation unfulfillable with nothing
+       * detecting it. A caller that means to draw down its own reservation
+       * releases it first, or goes through the allocation-aware path in
+       * inventory-consumption.service, which reduces `allocated` as it
+       * consumes. Same comparison that path already makes for a NORMAL-source
+       * consumption, and the same 400 as before for the caller.
+       */
+      if ((item.onHand ?? 0) - (item.allocated ?? 0) < input.quantity) {
         throw new InventoryServiceError("Insufficient stock", 400);
       }
 
