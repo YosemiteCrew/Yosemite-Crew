@@ -88,6 +88,10 @@ module.exports = [
       'src/pages/tab-indicators.js',
       'src/pages/settings-view.js',
       'src/pages/vault-view.js',
+      'src/pages/tabbar-a11y.js',
+      'src/pages/tab-row.js',
+      'src/pages/tab-strip-diff.js',
+      'src/pages/idle-lock-controls.js',
     ],
     languageOptions: {
       globals: {

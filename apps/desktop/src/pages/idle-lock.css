@@ -187,8 +187,83 @@ body {
   cursor: pointer;
 }
 
-.use-password:hover {
+.use-password:hover:not(:disabled) {
   color: var(--ink);
+}
+
+.use-password:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* The sign-out question. Sign-out ends the session and closes the open tabs,
+   so it is asked before anything is sent, in the card rather than in an OS
+   dialog the lock screen cannot style. */
+.signout-confirm:not([hidden]) {
+  margin-top: 12px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-md);
+  background: var(--danger-bg-faint);
+}
+
+.signout-confirm p {
+  margin-top: 0;
+  font-size: 12.5px;
+  color: var(--ink-body);
+}
+
+.signout-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.signout-go,
+.signout-cancel {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-satoshi);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.signout-go {
+  border: none;
+  background: var(--cta);
+  color: var(--cta-text);
+}
+
+.signout-go:hover:not(:disabled) {
+  background: var(--cta-hover);
+}
+
+.signout-cancel {
+  border: 1px solid var(--hairline);
+  background: var(--pill-raised);
+  color: var(--ink-body);
+}
+
+.signout-cancel:hover:not(:disabled) {
+  border-color: var(--hairline-hover);
+}
+
+.signout-go:focus-visible,
+.signout-cancel:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.signout-go:disabled,
+.signout-cancel:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .lock-user {
@@ -231,6 +306,11 @@ body {
   font-size: 12px;
   font-weight: 600;
   color: var(--blue-text);
+}
+
+/* A refused check is not progress: the progress blue reads as one more step. */
+.lock-status.is-error {
+  color: var(--danger-text);
 }
 
 @keyframes rise {

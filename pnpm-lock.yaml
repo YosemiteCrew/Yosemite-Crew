@@ -481,6 +481,9 @@ importers:
       jest:
         specifier: ^30.5.1
         version: 30.5.1(@types/node@26.5.1)(ts-node@10.9.2)
+      jest-environment-jsdom:
+        specifier: ^30.5.1
+        version: 30.5.1
       ts-jest:
         specifier: ^29.4.12
         version: 29.4.12(@babel/core@7.29.6)(esbuild@0.28.2)(jest@30.5.1)(typescript@5.9.3)
