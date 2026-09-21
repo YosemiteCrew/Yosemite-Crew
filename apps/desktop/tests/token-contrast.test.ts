@@ -243,11 +243,19 @@ describe('desktop shell colour tokens', () => {
     // sonar.coverage.exclusions as a composition root, so the wiring is read as
     // source here rather than executed.
     const mainTs = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.ts'), 'utf8');
-    const call = /contentView\.setBackgroundColor\(([^)]*)\)/.exec(mainTs);
+
+    // Anchored on the function, not on the first setBackgroundColor in the file.
+    // A matching call that lives somewhere else while this one is deleted is the
+    // silent case - the divider stops being painted and an unanchored match
+    // still finds a correct-looking call to assert about.
+    const body = /const applySplitDividerColor = \(\): void => \{([\s\S]*?)\n\};/.exec(mainTs);
     // Positive first: an unmatched regex must not satisfy the checks below by
     // yielding an empty string.
-    expect(call).not.toBeNull();
-    const args = call?.[1] ?? '';
+    expect(body).not.toBeNull();
+
+    const calls = [...(body?.[1] ?? '').matchAll(/contentView\.setBackgroundColor\(([^)]*)\)/g)];
+    expect(calls).toHaveLength(1);
+    const args = calls[0]?.[1] ?? '';
     expect(args).toContain('SPLIT_DIVIDER_COLOR.dark');
     expect(args).toContain('SPLIT_DIVIDER_COLOR.light');
   });
