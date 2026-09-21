@@ -243,6 +243,61 @@ const jsonTextArray = (expression: Prisma.Sql) =>
 const synonymMatches = (predicate: Prisma.Sql) =>
   Prisma.sql`EXISTS (SELECT 1 FROM ${jsonTextArray(SYNONYMS_COLUMN)} s WHERE ${predicate})`;
 
+/**
+ * pg_trgm cannot serve a pattern shorter than three characters, and one such token in
+ * the OR below costs the whole statement its index. Measured on the 11,742 shipped
+ * concepts: "%cyst% OR %of%" is a sequential scan, 2,209 rows and 937 buffers at 52 ms,
+ * while "%cyst% OR %iris%" is a BitmapOr over the trigram index, 229 rows and 138
+ * buffers. Two-letter words in a clinical phrase are "of", "in" and "to", which carry no
+ * selectivity anyway, so the floor costs recall nothing and buys back the index.
+ */
+const MIN_QUERY_TOKEN_LENGTH = 3;
+/**
+ * A bound on the OR-ed trigram scans one keystroke can provoke. Measured over the 73
+ * query sample in test/fixtures: recall and mean position are identical at 4, 5, 6 and
+ * 8 tokens, while p95 latency is 15.2 ms at 4 against 50.6 ms at 8 and the worst case is
+ * 40 ms against 211 ms. Four is where the sample stops paying for more.
+ *
+ * A query longer than this is scored on its first four words, and coverage is a share of
+ * those four. The sample holds no query whose fifth word is the only discriminating one,
+ * so that is a property of the sample rather than a proof that none exists.
+ */
+const MAX_QUERY_TOKENS = 4;
+/**
+ * Full token coverage scores TOKEN_COVERAGE_WEIGHT and a partial match less, so the
+ * ceiling stays below 50, the weakest whole-phrase tier. Widening can therefore only
+ * append rows beneath today's results; it can never reorder them.
+ */
+const TOKEN_COVERAGE_WEIGHT = 40;
+const TOKEN_DISPLAY_BONUS = 5;
+
+/**
+ * The word-shaped fragments of a query. Split on everything that is not a letter or a
+ * digit, so "otitis externa", "otitis-externa" and "ear (aural) infection" tokenise the
+ * same way and a token can never carry a LIKE wildcard or a regex metacharacter.
+ *
+ * Empty for a single-word query, which needs no widening: every row holding that word
+ * holds it as a substring too, so the whole-phrase tiers already score all of them.
+ */
+const queryTokens = (query: string): string[] => {
+  const words = query.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  if (words.length < 2) return [];
+  return [...new Set(words)]
+    .filter((word) => word.length >= MIN_QUERY_TOKEN_LENGTH)
+    .slice(0, MAX_QUERY_TOKENS);
+};
+
+/**
+ * \m and \M are Postgres word boundaries. Substring matching a token is far too loose to
+ * rank on - "ear" sits inside "heart", "linear" and "clearance", which is 332 of the
+ * 11,742 shipped concepts against 75 that contain the actual word - so the prefilter
+ * matches substrings, for the trigram index, and the score demands a whole word.
+ */
+const wordMatch = (haystack: Prisma.Sql, token: string) => {
+  const wholeWord = String.raw`\m${token}\M`;
+  return Prisma.sql`${haystack} ~ ${wholeWord}`;
+};
+
 export type SuggestTermsParams = {
   q?: string;
   domain?: ClinicalDomain;
@@ -269,6 +324,7 @@ export const buildSuggestionQuery = (
   const escaped = query ? escapeLike(query) : "";
   const containsPattern = `%${escaped}%`;
   const prefixPattern = `${escaped}%`;
+  const tokens = query ? queryTokens(query) : [];
 
   // Filtering and scoring happen in SQL. Doing it in JavaScript meant first pulling a
   // fixed slice of rows, which silently made most of the vocabulary unsearchable.
@@ -284,9 +340,19 @@ export const buildSuggestionQuery = (
     // elements rather than from synonyms::text, so a synonym containing a quote or
     // backslash is searchable rather than appearing JSON-escaped. This is a prefilter
     // over a superset; scoreExpression below decides the real matches.
-    filters.push(
+    // Widening is an OR, never a replacement: the whole-phrase pattern still runs and
+    // still drives the same tiers. The token patterns only admit rows the phrase cannot
+    // reach into the scoring stage, where scoreExpression decides whether they are a
+    // real match. "ear infection" is a substring of no shipped term, so without the
+    // token patterns this prefilter returns nothing at all for it.
+    const textMatches = [
       Prisma.sql`code_entry_search_text(e."display", e."synonyms") LIKE ${containsPattern} ESCAPE '\\'`,
-    );
+      ...tokens.map((token) => {
+        const tokenPattern = `%${escapeLike(token)}%`;
+        return Prisma.sql`code_entry_search_text(e."display", e."synonyms") LIKE ${tokenPattern} ESCAPE '\\'`;
+      }),
+    ];
+    filters.push(Prisma.sql`(${Prisma.join(textMatches, " OR ")})`);
   }
 
   if (params.domain) {
@@ -324,6 +390,32 @@ export const buildSuggestionQuery = (
     Prisma.sql`lower(s) LIKE ${containsPattern} ESCAPE '\\'`,
   );
 
+  const searchText = Prisma.sql`code_entry_search_text(e."display", e."synonyms")`;
+  const loweredDisplay = Prisma.sql`lower(e."display")`;
+
+  // How much of the query this row accounts for. Each token carries an equal share of
+  // TOKEN_COVERAGE_WEIGHT, so a row matching both words of a two-word query ranks with
+  // one matching all four words of a four-word query rather than being penalised for the
+  // shorter question. The share is computed here rather than divided in SQL so every
+  // value the statement binds is an integer literal.
+  //
+  // A row matching no token scores 0 and scoreFilter drops it. That is what discards the
+  // rows the substring prefilter admitted on a mid-word match.
+  const tokenShare = Math.floor(TOKEN_COVERAGE_WEIGHT / (tokens.length || 1));
+  const tokenScore = tokens.length
+    ? Prisma.sql`(${Prisma.join(
+        tokens.map(
+          (token) =>
+            Prisma.sql`CASE WHEN ${wordMatch(searchText, token)} THEN ${tokenShare} ELSE 0 END`,
+        ),
+        " + ",
+      )})
+        + CASE WHEN ${Prisma.join(
+          tokens.map((token) => wordMatch(loweredDisplay, token)),
+          " OR ",
+        )} THEN ${TOKEN_DISPLAY_BONUS} ELSE 0 END`
+    : Prisma.sql`0`;
+
   const scoreExpression = query
     ? Prisma.sql`CASE
           WHEN lower(e."display") = ${query} THEN 400
@@ -332,7 +424,7 @@ export const buildSuggestionQuery = (
           WHEN ${synonymPrefix} THEN 150
           WHEN lower(e."display") LIKE ${containsPattern} ESCAPE '\\' THEN 100
           WHEN ${synonymContains} THEN 50
-          ELSE 0
+          ELSE ${tokenScore}
         END`
     : Prisma.sql`0`;
 
@@ -346,7 +438,7 @@ export const buildSuggestionQuery = (
       WHERE ${Prisma.join(filters, " AND ")}
     ) scored
     WHERE ${scoreFilter}
-    ORDER BY score DESC, display ASC
+    ORDER BY score DESC, display ASC, code ASC
     LIMIT ${safeLimit}
   `;
 };

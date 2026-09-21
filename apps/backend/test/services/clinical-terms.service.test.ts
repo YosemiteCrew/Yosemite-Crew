@@ -451,6 +451,174 @@ describe("ClinicalTermsService", () => {
     });
   });
 
+  describe("buildSuggestionQuery token widening", () => {
+    const sqlFor = (params: Parameters<typeof buildSuggestionQuery>[0]) => {
+      const statement = buildSuggestionQuery(params);
+      return { text: statement.sql, values: statement.values };
+    };
+    // Distinctive so the row limit cannot be mistaken for a score in the values array.
+    const LIMIT = 37;
+    const wordPatterns = (values: unknown[]) =>
+      values.filter(
+        (v): v is string => typeof v === "string" && v.startsWith("\\m"),
+      );
+
+    it("reaches a phrase the vocabulary only holds in pieces", () => {
+      // #3375: the whole query went into one LIKE, so "ear infection" matched none of
+      // the 11,742 shipped concepts and the picker showed an empty list.
+      const { values } = sqlFor({ q: "ear infection", limit: LIMIT });
+
+      expect(values).toContain("%ear%");
+      expect(values).toContain("%infection%");
+      // Widening is an OR, not a replacement: the whole phrase still drives the tiers.
+      expect(values).toContain("%ear infection%");
+    });
+
+    it("keeps the maintainer's second phrase working", () => {
+      const { values } = sqlFor({ q: "renal failure", limit: LIMIT });
+
+      expect(values).toContain("%renal failure%");
+      expect(values).toContain("%renal%");
+      expect(values).toContain("%failure%");
+    });
+
+    it("asks for a whole word, not a substring", () => {
+      // "ear" is inside "heart", "linear" and "clearance". \m and \M are the Postgres
+      // word boundaries; written as a single backslash they would be the letters m and M
+      // and every token would match nothing.
+      const { values } = sqlFor({ q: "ear infection", limit: LIMIT });
+
+      expect(values).toContain("\\mear\\M");
+      expect(values).toContain("\\minfection\\M");
+    });
+
+    it("emits nothing extra for a single-word query", () => {
+      // The common keystroke. Every row holding the word holds it as a substring too, so
+      // the existing tiers already score all of them and the statement must not change.
+      const { text, values } = sqlFor({ q: "Vomiting", limit: LIMIT });
+
+      expect(values).toEqual([
+        "vomiting",
+        "vomiting",
+        "vomiting%",
+        "vomiting%",
+        "%vomiting%",
+        "%vomiting%",
+        "%vomiting%",
+        LIMIT,
+      ]);
+      expect(text).not.toContain("~");
+    });
+
+    it("drops a word too short for the trigram index to serve", () => {
+      // A two-character pattern cannot use pg_trgm, and one of them in the OR costs the
+      // whole statement its index: measured on the shipped vocabulary, "%cyst% OR %of%"
+      // is a sequential scan at 52 ms against 229 rows by BitmapOr for "%cyst% OR %iris%".
+      const { values } = sqlFor({ q: "cyst of iris", limit: LIMIT });
+
+      expect(values).toContain("%cyst%");
+      expect(values).toContain("%iris%");
+      expect(values).not.toContain("%of%");
+      expect(values).not.toContain("\\mof\\M");
+    });
+
+    it("bounds how many scans one keystroke can provoke", () => {
+      const { values } = sqlFor({
+        q: "aaa bbb ccc ddd eee fff",
+        limit: LIMIT,
+      });
+
+      expect(new Set(wordPatterns(values))).toEqual(
+        new Set(["\\maaa\\M", "\\mbbb\\M", "\\mccc\\M", "\\mddd\\M"]),
+      );
+    });
+
+    it("scores a widened row below every whole-phrase tier", () => {
+      // The property the whole change rests on: 50 is the weakest phrase tier, so as long
+      // as full token coverage plus the display bonus stays under it, widening can only
+      // append rows beneath today's results and can never reorder them. Read off the
+      // emitted parameters rather than the constants, so retuning the weights fails here.
+      for (const q of ["ear infection", "aaa bbb ccc ddd"]) {
+        const { values } = sqlFor({ q, limit: LIMIT });
+        const scores = values.filter(
+          (v): v is number => typeof v === "number" && v !== LIMIT,
+        );
+        const shares = scores.slice(0, -1);
+        const displayBonus = scores[scores.length - 1];
+
+        expect(shares).toHaveLength(wordPatterns(values).length / 2);
+        expect(
+          shares.reduce((total, share) => total + share, 0) + displayBonus,
+        ).toBeLessThan(50);
+      }
+    });
+
+    it("orders tied rows by code so a page is stable", () => {
+      // score and display alone are not a total order - the vocabulary ships two concepts
+      // labelled "Renal amyloidosis" and two labelled "Coagulopathy" - so which of a tied
+      // pair came first was decided by the query plan. Widening changes the plan.
+      const { text } = sqlFor({ q: "renal", limit: LIMIT });
+
+      expect(text).toContain("ORDER BY score DESC, display ASC, code ASC");
+    });
+  });
+
+  describe("the recall gap in #3375, against the shipped vocabulary", () => {
+    // These read the vocabulary this repository ships rather than a hand-written fixture,
+    // so they fail if the data stops supporting the fix as well as if the code does.
+    type Concept = {
+      ycCode: string;
+      label: string;
+      active?: boolean;
+      designations?: { term: string }[];
+    };
+    const searchText = (concept: Concept) =>
+      [concept.label, ...(concept.designations ?? []).map((d) => d.term)]
+        .join(" ")
+        .toLowerCase();
+    const hasWord = (text: string, word: string) =>
+      new RegExp(`(^|[^\\p{L}\\p{N}])${word}([^\\p{L}\\p{N}]|$)`, "u").test(
+        text,
+      );
+
+    let concepts: Concept[];
+
+    beforeAll(() => {
+      concepts = (
+        JSON.parse(
+          fs.readFileSync(
+            path.join(process.cwd(), "data/yc_concepts.json"),
+            "utf-8",
+          ),
+        ) as Concept[]
+      ).filter((concept) => concept.active !== false);
+    });
+
+    it("holds no term containing the phrase a clinician types", () => {
+      // This is the defect. One LIKE over the whole query can only match a term that
+      // contains that exact phrase, and no shipped term does.
+      expect(
+        concepts.filter((concept) =>
+          searchText(concept).includes("ear infection"),
+        ),
+      ).toEqual([]);
+    });
+
+    it("holds terms containing both of its words", () => {
+      // ...while the concept the clinician wants is right there, worded with a
+      // parenthesis between the two words. Tokenising is what reaches it.
+      const reachable = concepts.filter(
+        (concept) =>
+          hasWord(searchText(concept), "ear") &&
+          hasWord(searchText(concept), "infection"),
+      );
+
+      expect(reachable.map((concept) => concept.label)).toContain(
+        "Ear (aural) infection",
+      );
+    });
+  });
+
   describe("importFromFile - path traversal protection", () => {
     const testDataDir = path.join(process.cwd(), "test-data-clinical");
     const validFile = path.join(testDataDir, "concepts.json");
