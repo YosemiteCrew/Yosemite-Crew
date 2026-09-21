@@ -25,7 +25,49 @@
     return isMaximized ? RESTORE : MAXIMIZE;
   };
 
-  const api = { maximizeButton: maximizeButton, MAXIMIZE: MAXIMIZE, RESTORE: RESTORE };
+  // The caption glyphs, as the SVG children each button needs. The tab bar
+  // writes these straight into its own markup; the local pages' shared header
+  // (local-window-header.js) has no markup of its own to write them into and
+  // builds its buttons from this table instead. One copy, so the two title
+  // bars cannot drift apart - window-caption.test.ts holds the tab bar's
+  // markup to it, and holds every glyph here to the pixel grid.
+  const GLYPHS = {
+    minimize: [{ tag: 'path', d: 'M2 6.5h8' }],
+    maximize: [{ tag: 'rect', x: '2.5', y: '2.5', width: '7', height: '7' }],
+    restore: [
+      { tag: 'rect', x: '2.5', y: '4.5', width: '5', height: '5' },
+      { tag: 'path', d: 'M4.5 4.5V2.5h5v5h-2' },
+    ],
+    close: [{ tag: 'path', d: 'M2.5 2.5l7 7M9.5 2.5l-7 7' }],
+  };
+
+  // Applies a state to a caption button: the accessible name, the tooltip, and
+  // which glyph is drawn. Shared so the tab bar and the local pages' header
+  // cannot disagree about any of the three.
+  //
+  // The glyph is toggled as an ATTRIBUTE, not as `svg.hidden = …`: `hidden` is
+  // an HTMLElement property and an SVGElement has none, so the assignment only
+  // ever set an expando. The shipped Windows/Linux maximise button drew both
+  // glyphs on top of each other and never changed with the window state. The
+  // stylesheets carry the matching `svg[hidden] { display: none }` rule,
+  // because the UA one is outranked here.
+  const applyMaximizeState = function (button, isMaximized) {
+    const spec = maximizeButton(isMaximized);
+    button.setAttribute('aria-label', spec.label);
+    button.title = spec.label;
+    for (const glyph of button.querySelectorAll('svg[data-glyph]')) {
+      glyph.toggleAttribute('hidden', glyph.dataset.glyph !== spec.glyph);
+    }
+    return spec;
+  };
+
+  const api = {
+    maximizeButton: maximizeButton,
+    applyMaximizeState: applyMaximizeState,
+    MAXIMIZE: MAXIMIZE,
+    RESTORE: RESTORE,
+    GLYPHS: GLYPHS,
+  };
   root.ycWindowCaption = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

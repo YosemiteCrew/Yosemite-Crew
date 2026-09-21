@@ -43,7 +43,7 @@ export interface CreateMainWindowDeps {
   attachedTabId: () => string | null;
   splitId: () => string | null;
   tabOrientation: () => 'horizontal' | 'vertical';
-  setTabSearch: (open: boolean) => void;
+  setChromeOverlay: (open: boolean) => void;
   setSplitTab: (id: string | null) => void;
   setTabOrientation: (mode: 'horizontal' | 'vertical') => void;
   activeContents: () => Electron.WebContents | null;
