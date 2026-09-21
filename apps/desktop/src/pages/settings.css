@@ -156,7 +156,9 @@ body {
   width: 130px;
   height: 4px;
   border-radius: var(--radius-pill);
-  background: var(--divider);
+  /* Was --divider, the same 1.37:1 / 1.15:1 as the toggle track. A 4px rail is
+     too thin to carry a ring, so the fill itself has to reach 3:1. */
+  background: var(--ink-faint);
   cursor: pointer;
 }
 
@@ -196,6 +198,11 @@ body {
   height: 24px;
   border-radius: var(--radius-pill);
   background: var(--divider);
+  /* The off state used to be --divider alone: 1.37:1 in light and 1.15:1 in dark
+     against the --screen group card, so the control was not visibly there. The
+     inset ring carries the 3:1 boundary instead of the fill, which keeps the
+     resting colour and adds no layout box. */
+  box-shadow: inset 0 0 0 1px var(--ink-faint);
   transition: background 0.18s ease;
 }
 
@@ -214,6 +221,9 @@ body {
 
 .toggle input:checked + .slider {
   background: var(--blue);
+  /* --blue is already 3.70:1 light and 3.59:1 dark on the card, so the on state
+     does not need the ring. */
+  box-shadow: none;
 }
 
 .toggle input:checked + .slider::before {

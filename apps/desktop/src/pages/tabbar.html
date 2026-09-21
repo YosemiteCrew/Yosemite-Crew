@@ -265,15 +265,15 @@
         margin: 0 6px;
         transition: background 0.3s;
       }
-      #sync-badge.synced {
+      /* One rule per SyncState in src/sync/sync-status.ts. `idle` is the healthy
+         state and MUST stay here: an unstyled class draws no dot at all, which
+         is how the "everything is synced" signal went missing. */
+      #sync-badge.idle {
         background: var(--color-success-bright);
-      }
-      #sync-badge.syncing {
-        background: var(--color-warning-600);
-        animation: sync-pulse 1.2s ease-in-out infinite;
       }
       #sync-badge.pending {
         background: var(--color-warning-600);
+        animation: sync-pulse 1.2s ease-in-out infinite;
       }
       #sync-badge.offline {
         background: var(--color-danger-600);
@@ -310,7 +310,21 @@
           data-shortcut-title="Search tabs"
           data-shortcut="Mod+Shift+Y"
         >
-          ⌕
+          <!-- Satoshi has no glyph for U+2315, so the character the button used
+               fell back to a ~7px system one. Same SVG as vault.html and
+               command-palette.html. -->
+          <svg
+            class="tab-action-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.2-3.2" />
+          </svg>
         </button>
         <button
           id="new-tab-btn"
@@ -321,7 +335,15 @@
         >
           +
         </button>
-        <div id="sync-badge" class="not-ready" title="Sync status"></div>
+        <!-- <output> rather than a div with role="status": it carries the
+             implicit status role and is announced on devices where the bare
+             ARIA role is not. -->
+        <output
+          id="sync-badge"
+          class="not-ready"
+          title="Initializing"
+          aria-label="Sync: Initializing"
+        ></output>
       </div>
       <div id="win-caption" class="win-caption">
         <button id="win-min" class="win-btn" type="button" aria-label="Minimize" title="Minimize">
@@ -454,8 +476,10 @@
     </dialog>
 
     <script src="platform-labels.js"></script>
+    <script src="tab-indicators.js"></script>
     <script src="tabbar-a11y.js"></script>
     <script src="tab-strip-diff.js"></script>
+    <script src="tab-row.js"></script>
     <script src="window-caption.js"></script>
     <script>
       const tabStrip = document.getElementById('tab-strip');
@@ -463,7 +487,7 @@
       const contextMenu = document.getElementById('context-menu');
       const yc = globalThis.ycDesktop;
 
-      const state = { tabs: [], activeId: null, closedStack: [] };
+      const state = { tabs: [], activeId: null, splitId: null, closedStack: [] };
       let dragSrcId = null;
       let dragDropped = false;
 
@@ -644,93 +668,6 @@
         });
       };
 
-      // A favicon URL that failed once. Without this the next poll asks for the
-      // same missing icon again, and the <img> holds its 14px until the error
-      // arrives, so the label shifts sideways once a second forever.
-      const failedFavicons = new Set();
-
-      // The tab row carries one element per slot for its whole life and hides
-      // the slots it does not need. Nothing in the row is created or destroyed
-      // by a poll, so focus inside it - on the mute button, say - survives.
-      const buildTabInner = () => {
-        const inner = document.createElement('div');
-        inner.className = 'tab-inner';
-
-        const spinner = document.createElement('span');
-        spinner.className = 'tab-spinner';
-        spinner.hidden = true;
-
-        const favicon = document.createElement('img');
-        favicon.className = 'tab-favicon';
-        favicon.alt = '';
-        favicon.hidden = true;
-        favicon.addEventListener('error', () => {
-          if (favicon.dataset.url) failedFavicons.add(favicon.dataset.url);
-          favicon.hidden = true;
-        });
-
-        const label = document.createElement('span');
-        label.className = 'tab-label';
-
-        const badge = document.createElement('span');
-        badge.className = 'tab-badge';
-        badge.hidden = true;
-
-        const audio = document.createElement('button');
-        audio.type = 'button';
-        audio.className = 'tab-audio';
-        audio.hidden = true;
-        audio.addEventListener('click', (e) => {
-          e.stopPropagation();
-          send('toggleTabMute', inner.parentElement.dataset.tabId);
-        });
-
-        inner.append(spinner, favicon, label, badge, audio);
-        return inner;
-      };
-
-      const updateFaviconSlot = (favicon, tab) => {
-        const url =
-          !tab.loading && tab.favicon && !failedFavicons.has(tab.favicon) ? tab.favicon : '';
-        if (favicon.dataset.url !== url) {
-          favicon.dataset.url = url;
-          // Only ever assign a non-empty src: clearing it re-requests the page.
-          if (url) favicon.src = url;
-        }
-        favicon.hidden = !url;
-      };
-
-      const updateBadgeSlot = (badge, tab) => {
-        let kind = '';
-        if (tab.error) kind = 'error';
-        else if (tab.offline) kind = 'offline';
-        badge.hidden = !kind;
-        if (!kind) return;
-        badge.className = 'tab-badge tab-badge--' + kind;
-        badge.textContent = kind === 'error' ? '!' : '\u26A0';
-      };
-
-      const updateAudioSlot = (audio, tab) => {
-        audio.hidden = !tab.audible;
-        if (!tab.audible) return;
-        const muteName = ycTabbarA11y.muteLabel(tab);
-        audio.className = 'tab-audio' + (tab.muted ? ' tab-audio--muted' : '');
-        audio.textContent = tab.muted ? '\uD83D\uDD07' : '\uD83D\uDD0A';
-        audio.title = muteName;
-        audio.setAttribute('aria-label', muteName);
-        audio.setAttribute('aria-pressed', String(Boolean(tab.muted)));
-      };
-
-      const updateTabInner = (inner, tab) => {
-        const [spinner, favicon, label, badge, audio] = inner.children;
-        spinner.hidden = !tab.loading;
-        updateFaviconSlot(favicon, tab);
-        const title = tab.title || '';
-        if (label.textContent !== title) label.textContent = title;
-        updateBadgeSlot(badge, tab);
-        updateAudioSlot(audio, tab);
-      };
-
       const wireTabHoverPreview = (div, tab) => {
         let previewTimer = null;
         div.addEventListener('mouseenter', () => {
@@ -800,7 +737,7 @@
         div.setAttribute('draggable', 'true');
 
         wireTabDrag(div, tab);
-        div.appendChild(buildTabInner());
+        div.appendChild(ycTabRow.buildRow((tabId) => send('toggleTabMute', tabId)));
 
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
@@ -838,18 +775,29 @@
 
       const updateTab = (div, tab) => {
         const active = tab.id === state.activeId;
-        div.className = 'tab' + (active ? ' tab--active' : '') + (tab.pinned ? ' tab--pinned' : '');
+        const split = tab.id === state.splitId;
+        div.className =
+          'tab' +
+          (active ? ' tab--active' : '') +
+          (tab.pinned ? ' tab--pinned' : '') +
+          (split ? ' tab--split' : '');
         div.setAttribute('aria-selected', String(active));
         div.tabIndex = ycTabbarA11y.rovingTabIndex(state.tabs, entryTabId(), tab.id);
-        div.title = ycTabbarA11y.tabName(tab);
+        const name = ycTabbarA11y.tabName(tab);
+        div.title = name;
+        // A pinned tab renders no text and the split tab's only other marker is
+        // a colour, so both need the name spelled out. Per poll, not per build:
+        // a tab can be pinned or split long after its row exists.
+        div.setAttribute('aria-label', split ? name + ' (split view)' : name);
         div.lastElementChild.setAttribute('aria-label', ycTabbarA11y.closeLabel(tab));
-        updateTabInner(div.firstElementChild, tab);
+        ycTabRow.updateRow(div.firstElementChild, tab);
       };
 
       const render = (newState) => {
         state.tabs = newState.tabs || [];
         state.activeId = newState.activeId;
         state.closedStack = newState.closedStack || [];
+        state.splitId = newState.splitId || null;
         if (newState.orientation) {
           document.getElementById('tabbar').dataset.orientation = newState.orientation;
         }
@@ -885,18 +833,10 @@
           if (!res || !res.status) return;
           const badge = document.getElementById('sync-badge');
           if (!badge) return;
-          const s = res.status.state || 'not-ready';
-          badge.className = s;
-          const labels = {
-            synced: 'Synced',
-            syncing: 'Syncing…',
-            pending: 'Pending changes',
-            offline: 'Offline',
-            error: 'Sync error',
-            'not-ready': 'Initializing',
-            blocked: 'Waiting for endpoint',
-          };
-          badge.title = labels[s] || s;
+          const view = ycTabIndicators.syncBadge(res.status.state || 'not-ready');
+          badge.className = view.className;
+          badge.title = view.label;
+          badge.setAttribute('aria-label', view.ariaLabel);
         } catch {
           /* ignore sync poll errors */
         }

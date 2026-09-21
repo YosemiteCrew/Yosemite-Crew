@@ -8,6 +8,7 @@ import {
   type WindowOpenHandlerResponse,
 } from 'electron';
 import type { DesktopLogger } from '../utils/logger';
+import { loadFailureMeta } from './load-error';
 
 interface TabMetaUpdate {
   url?: string;
@@ -124,7 +125,7 @@ export const createTabViewHost = (deps: TabViewHostDeps): TabViewHost => {
 
       view.webContents.on('did-start-loading', () => {
         deps.logger.debug('tab_start_loading', { id });
-        deps.onUpdate?.(id, { loading: true, error: null });
+        deps.onUpdate?.(id, { loading: true, error: null, offline: false });
       });
 
       view.webContents.on('did-stop-loading', () => {
@@ -141,17 +142,24 @@ export const createTabViewHost = (deps: TabViewHostDeps): TabViewHost => {
         'did-fail-load',
         (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
           deps.logger.warn('tab_fail_load', { id, error: errorDescription });
-          deps.onUpdate?.(id, { error: errorDescription, loading: false });
           // errorCode -3 is ERR_ABORTED, fired on intentional redirect/cancel
           // (e.g. an external link handed off by the nav policy) — not a real
-          // failure. Only surface genuine main-frame load failures.
-          if (isMainFrame && errorCode !== -3) {
-            deps.onLoadError?.(id, {
-              url: validatedURL,
-              error: errorDescription,
-              code: errorCode,
-            });
-          }
+          // failure. Nor is a subframe failure: a third-party iframe that cannot
+          // resolve leaves the page itself rendered, while the badge is a claim
+          // about the whole tab. Both used to reach onUpdate, so one dead iframe
+          // captioned a working tab "No network connection" for the life of the
+          // page view — did-start-loading had already fired, so nothing cleared it.
+          if (!isMainFrame || errorCode === -3) return;
+          // A lost connection gets the offline badge and a page error the red
+          // error badge; setting `error` for both is what made every offline
+          // tab claim the page was broken. did-stop-loading clears `loading` for
+          // a failed navigation too, so the subframe path above loses nothing.
+          deps.onUpdate?.(id, { ...loadFailureMeta(errorCode, errorDescription), loading: false });
+          deps.onLoadError?.(id, {
+            url: validatedURL,
+            error: errorDescription,
+            code: errorCode,
+          });
         }
       );
 

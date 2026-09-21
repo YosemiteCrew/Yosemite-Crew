@@ -23,6 +23,7 @@ const pageAssets = [
   'vault.js',
   'platform-labels.js',
   'tabbar-a11y.js',
+  'tab-row.js',
   'tab-strip-diff.js',
   'window-caption.js',
   'palette-format.js',
@@ -44,6 +45,7 @@ const pageAssets = [
   'tokens.css',
   'tabbar.html',
   'tabbar.css',
+  'tab-indicators.js',
 ];
 for (const filename of pageAssets) {
   const src = path.join(sourceDir, 'pages', filename);
