@@ -863,8 +863,10 @@ test.describe('idle lock', () => {
     await app.evaluate(({ webContents }, id) => {
       webContents.fromId(id)!.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 });
     }, crashed!);
-    await expect.poll(lockPages).toEqual([expect.any(Number)]);
-    expect(await lockPages()).not.toEqual([crashed]);
+    await expect
+      .poll(async () => (await lockPages()).filter((id) => id !== crashed))
+      .toEqual([expect.any(Number)]);
+    expect(await lockPages()).toEqual([expect.any(Number)]);
     expect(await topmostView(app)).toContain(LOCK_PAGE);
     expect(await focusedSince(app, beforeCrash, LOCK_PAGE)).toBe(true);
     await pressKey(app, firstTab, 'A');
