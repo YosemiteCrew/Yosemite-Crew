@@ -27,6 +27,7 @@ const taskReminderQueue = queueDouble("task-reminder");
 const vaccineReminderQueue = queueDouble("vaccine-reminder");
 const publicBookingQueue = queueDouble("public-booking");
 const parasiteRiskQueue = queueDouble("parasite-risk");
+const superadminContactQueue = queueDouble("superadmin-contact-forward");
 
 jest.mock("../../src/queues/appointment.queue", () => ({
   AppointmentQueue: appointmentQueue,
@@ -56,6 +57,9 @@ jest.mock("../../src/queues/public-booking.queue", () => ({
 jest.mock("../../src/queues/parasite-risk.queue", () => ({
   ParasiteRiskQueue: parasiteRiskQueue,
 }));
+jest.mock("../../src/queues/superadmin-contact.queue", () => ({
+  SuperadminContactQueue: superadminContactQueue,
+}));
 
 const pruneLegacyRepeatablesAcross = jest.fn(
   async (..._queues: unknown[]): Promise<void> => undefined,
@@ -74,6 +78,7 @@ const registerLabResultsScheduler = jest.fn(async () => undefined);
 const registerVaccineReminderScheduler = jest.fn(async () => undefined);
 const registerPublicBookingSchedulers = jest.fn(async () => undefined);
 const registerParasiteRiskScheduler = jest.fn(async () => undefined);
+const registerSuperadminContactScheduler = jest.fn(async () => undefined);
 
 jest.mock("../../src/queues/task.schedulers", () => ({
   registerTaskSchedulers: () => registerTaskSchedulers(),
@@ -102,6 +107,10 @@ jest.mock("../../src/queues/public-booking.scheduler", () => ({
 jest.mock("../../src/queues/parasite-risk.scheduler", () => ({
   registerParasiteRiskScheduler: () => registerParasiteRiskScheduler(),
 }));
+jest.mock("../../src/queues/superadmin-contact.scheduler", () => ({
+  registerSuperadminContactScheduler: () =>
+    registerSuperadminContactScheduler(),
+}));
 
 const info = jest.fn();
 jest.mock("src/utils/logger", () => ({
@@ -121,6 +130,7 @@ const registrations = [
   registerVaccineReminderScheduler,
   registerPublicBookingSchedulers,
   registerParasiteRiskScheduler,
+  registerSuperadminContactScheduler,
 ];
 
 const orderOf = (mock: jest.Mock): number =>
@@ -146,8 +156,9 @@ describe("scheduledQueues", () => {
       vaccineReminderQueue,
       publicBookingQueue,
       parasiteRiskQueue,
+      superadminContactQueue,
     ]);
-    expect(new Set(scheduledQueues)).toHaveProperty("size", 10);
+    expect(new Set(scheduledQueues)).toHaveProperty("size", 11);
   });
 });
 

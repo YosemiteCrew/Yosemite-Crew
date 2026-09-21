@@ -123,7 +123,10 @@ export const createMainWindow = async (
     icon: desktopResourcePath('icon.png'),
     autoHideMenuBar: process.platform !== 'darwin',
     titleBarStyle: process.platform === 'darwin' ? 'hidden' : undefined,
-    trafficLightPosition: process.platform === 'darwin' ? { x: 12, y: 10 } : undefined,
+    // Centred on the 40px tab strip (CHROME_STRIP_HEIGHT in main.ts): macOS
+    // draws the traffic lights 14px tall, so (40 - 14) / 2 = 13 puts them on
+    // the tab labels' centre line instead of 3px above it.
+    trafficLightPosition: process.platform === 'darwin' ? { x: 12, y: 13 } : undefined,
     ...(process.platform === 'darwin' ? {} : { frame: false }),
     webPreferences: secureWebPreferences(desktopPreloadPath()),
   });

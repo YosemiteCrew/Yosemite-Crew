@@ -4,6 +4,7 @@ import { join } from 'path';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
+import { CONTACT_MESSAGE_MAX_LENGTH } from '@yosemite-crew/types';
 import ContactusPage from '@/app/features/marketing/pages/ContactusPage/ContactusPage';
 import { postData } from '@/app/services/axios';
 
@@ -33,6 +34,38 @@ describe('ContactusPage', () => {
     expect(screen.getByText('Join the Discord')).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'General Enquiry' })).toBeChecked();
     expect(screen.getByPlaceholderText('Your Message')).toBeInTheDocument();
+  });
+
+  /* #3361: this message is mirrored verbatim into the SuperAdmin intake, which
+     refuses a longer one with a permanent 400 - so it would be stored here and
+     never delivered. The bound belongs on the field the visitor types into. */
+  it('bounds the message at the SuperAdmin intake limit and shows the count', () => {
+    render(<ContactusPage />);
+
+    const message = screen.getByPlaceholderText('Your Message');
+    expect(message).toHaveAttribute('maxlength', String(CONTACT_MESSAGE_MAX_LENGTH));
+
+    const counter = screen.getByText(`0 of ${CONTACT_MESSAGE_MAX_LENGTH} characters`);
+    expect(message.getAttribute('aria-describedby')).toContain(counter.id);
+
+    fireEvent.change(message, { target: { value: 'seven!!' } });
+    expect(screen.getByText(`7 of ${CONTACT_MESSAGE_MAX_LENGTH} characters`)).toBeInTheDocument();
+  });
+
+  it('bounds the complaint and data-request messages at the same limit', () => {
+    render(<ContactusPage />);
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Complaint' }));
+    expect(screen.getByPlaceholderText('Your Message')).toHaveAttribute(
+      'maxlength',
+      String(CONTACT_MESSAGE_MAX_LENGTH)
+    );
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Data Service Access Request' }));
+    expect(screen.getByPlaceholderText('Your Message')).toHaveAttribute(
+      'maxlength',
+      String(CONTACT_MESSAGE_MAX_LENGTH)
+    );
   });
 
   it('should render the Discord channel as an external link', () => {
