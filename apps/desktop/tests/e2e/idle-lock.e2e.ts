@@ -859,6 +859,10 @@ test.describe('idle lock', () => {
     await app.evaluate(({ webContents }, id) => {
       webContents.fromId(id)!.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 });
     }, crashed!);
+    // The crashed id has to be filtered out before the poll can mean anything:
+    // there is already exactly one lock page before the crash, so polling for
+    // "one lock page" is satisfied on the first tick by the page that just
+    // died, and the replacement check below becomes a race. See #3435.
     await expect
       .poll(async () => (await lockPages()).filter((id) => id !== crashed))
       .toEqual([expect.any(Number)]);
