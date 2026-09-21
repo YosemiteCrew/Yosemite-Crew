@@ -628,16 +628,22 @@ describe('parseWhen does not read a measured dose as a clock time', () => {
 });
 
 /*
- * A dotted number is only a clock time when something says it is.
+ * A dot is not a clock separator.
  *
  * The unit guard above only fires when a unit follows, so every dose said
- * without one - "0.50 of his heart pill", "a 2.50 dose" - still became the
- * hour, and so did a price: "spent 12.50 on food" scheduled 12:50. A dot is a
- * decimal point far more often than a clock separator here, so the dot form
- * now carries the preposition requirement a bare hour already had. A colon
- * keeps needing no evidence, because nobody writes a dose or a price with one.
+ * without one - "0.50 of his heart pill", "a 2.50 dose" - became the hour, and
+ * so did a price: "spent 12.50 on food" scheduled 12:50. A dot is a decimal
+ * point far more often than a clock separator here, and four attempts to tell
+ * the two apart by their surroundings were each refuted by an ordinary
+ * utterance, so the dot is gone from the 24-hour rule entirely. The four and
+ * the utterance that killed each are listed on `parse24HourTime`.
+ *
+ * The dotted forms that carry their own evidence are unaffected: "8.30 pm"
+ * goes through `parseMeridiemTime`, which runs first and accepts a dot. A
+ * colon needs no evidence at all, because nobody writes a dose or a price
+ * with one.
  */
-describe('parseWhen reads a dotted number as a time only when introduced', () => {
+describe('parseWhen does not read a dotted number as a time', () => {
   it.each([
     ['no unit follows the dose', 'give 0.50 of his heart pill tomorrow'],
     ['the unit is elided', 'give 1.25 of the tablet tomorrow'],
@@ -697,8 +703,10 @@ describe('parseWhen reads a dotted number as a time only when introduced', () =>
  * follow, but "at", "until" and "till" all introduce a target amount in
  * ordinary titration language - "set his dose at 0.50 of a tablet", "titrate
  * until 1.25" - so the dose became the hour again on the owner-facing path.
- * The dot is now read as a clock separator only when the hour is one nothing
- * but a clock uses; below that the colon and meridiem forms carry the time.
+ * No word introduces a dotted number as a time now; the colon and meridiem
+ * forms carry it. Refusing the dotted reading is only half of it, though -
+ * "at 0.50" still offers "at 0" to the bare-hour rule below, which is what
+ * the rest of this block pins.
  */
 describe('parseWhen does not read a dotted amount introduced by a time preposition', () => {
   it.each([
