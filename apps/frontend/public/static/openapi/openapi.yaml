@@ -8041,6 +8041,7 @@ paths:
                         - status
                         - reason
                         - refundedAmount
+                        - allocatedAmount
                         - version
                         - createdAt
                       properties:
@@ -8089,7 +8090,10 @@ paths:
                           description: Why the receipt is in its current state, in the words of the path that wrote it. Read by a human; never parsed.
                         refundedAmount:
                           type: number
-                          description: 'What the provider says it has given back on this capture, cumulative over every refund against it - not the delta of one refund event. `amount` minus this is the residual still to reconcile.'
+                          description: 'What the provider says it has given back on this capture, cumulative over every refund against it - not the delta of one refund event.'
+                        allocatedAmount:
+                          type: number
+                          description: 'How much of this capture has been applied to invoices, cumulative over every allocation against it. The residual an operator may still place is `amount` minus `refundedAmount` minus this - both subtractions matter, because money already applied must not be applied again and money already given back was never available to apply at all.'
                         version:
                           type: integer
                           description: Bumped on every state change, so a later allocation can be made conditional on the state it was read from.
@@ -8149,6 +8153,288 @@ paths:
                 properties:
                   message:
                     type: string
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+  '/v1/finance/organisation/{organisationId}/provider-receipts/{receiptId}/allocations':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/finance/organisation/{organisationId}/provider-receipts/{receiptId}/allocations'
+      operationId: post_v1_finance_organisation_organisationId_provider_receipts_receiptId_allocations
+      description: "Apply a captured payment to one or more of its organisation's invoices (#3170). The write side of the reconciliation queue: until this existed an operator could see a capture sitting against no invoice and had no way to place it. Behind billing:edit:any rather than the billing:view:any the queue itself uses, because this posts a payment against an invoice and reduces what a client owes. The decision is recorded and the amount reserved on the receipt before any money moves, then posted; a crash in between leaves allocation rows unposted and a retry carrying the same idempotencyKey finishes them rather than deciding again. The acting staff member is taken from the session and never from the body."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: receiptId
+          in: path
+          required: true
+          description: The receipt to apply. One belonging to another organisation is answered exactly as one that does not exist.
+          schema:
+            type: string
+            format: uuid
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - expectedVersion
+                - idempotencyKey
+                - allocations
+              properties:
+                expectedVersion:
+                  type: integer
+                  minimum: 0
+                  description: "The receipt's `version` as the caller read it. The write is conditional on it and on every other figure the decision used, so a refund, an attribution or another operator's allocation landing in between loses this write instead of silently changing what it meant."
+                idempotencyKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                  description: "The caller's own key for this decision, scoped to this receipt. A retry after a timeout carrying the same key is answered with what already happened rather than posting the money a second time."
+                allocations:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  description: 'The invoices to apply to. Bounded because the lines are posted sequentially. An invoice named twice is answered 400 rather than summed.'
+                  items:
+                    type: object
+                    required:
+                      - invoiceId
+                      - amount
+                    properties:
+                      invoiceId:
+                        type: string
+                        format: uuid
+                      amount:
+                        type: number
+                        exclusiveMinimum: 0
+                        description: "Major units of the receipt's currency, strictly positive. A zero or negative line is a different operation this route does not perform."
+      responses:
+        200:
+          description: 'The allocation was applied, or a retry found it already taken'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - meta
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - receipt
+                      - remainingAmount
+                      - allocations
+                    properties:
+                      receipt:
+                        type: object
+                        description: 'The receipt read back after the call rather than the state this call intended - which would be wrong in exactly the cases that matter, such as a shortfall released or a refund landing while the money was posting. Same shape as a row of the reconciliation queue.'
+                        required:
+                          - id
+                          - provider
+                          - merchantAccountRef
+                          - paymentRef
+                          - organisationId
+                          - invoiceId
+                          - appointmentId
+                          - amount
+                          - currency
+                          - capturedAt
+                          - status
+                          - reason
+                          - refundedAmount
+                          - allocatedAmount
+                          - version
+                          - createdAt
+                        properties:
+                          id:
+                            type: string
+                          provider:
+                            type: string
+                          merchantAccountRef:
+                            type: string
+                          paymentRef:
+                            type: string
+                          organisationId:
+                            type: string
+                            nullable: true
+                          invoiceId:
+                            type: string
+                            nullable: true
+                          appointmentId:
+                            type: string
+                            nullable: true
+                          amount:
+                            type: number
+                          currency:
+                            type: string
+                          capturedAt:
+                            type: string
+                            format: date-time
+                          status:
+                            type: string
+                            enum:
+                              - UNATTRIBUTED
+                              - UNALLOCATED
+                              - ALLOCATED
+                              - PARTIALLY_REFUNDED
+                              - REFUNDED
+                          reason:
+                            type: string
+                            nullable: true
+                          refundedAmount:
+                            type: number
+                          allocatedAmount:
+                            type: number
+                          version:
+                            type: integer
+                          createdAt:
+                            type: string
+                            format: date-time
+                      remainingAmount:
+                        type: number
+                        description: What is still unapplied on this capture after the call - amount less refunded less allocated, floored at zero.
+                      allocations:
+                        type: array
+                        description: "What was actually applied, line by line. The amount is read back from the invoice rather than assumed: an invoice partly paid between the eligibility check and the post takes less than was asked for, and the shortfall is returned to the receipt's residual rather than recorded as money that went somewhere."
+                        items:
+                          type: object
+                          required:
+                            - invoiceId
+                            - amount
+                            - paymentId
+                          properties:
+                            invoiceId:
+                              type: string
+                            amount:
+                              type: number
+                            paymentId:
+                              type: string
+                              nullable: true
+                              description: The Payment this line posted. Null means the decision is recorded but the money has not been applied - the state a crash between the two leaves behind, and the state a retry with the same key finishes.
+                  meta:
+                    type: object
+                    required:
+                      - replayed
+                    properties:
+                      replayed:
+                        type: boolean
+                        description: 'True when this call found the decision already taken under the same idempotencyKey. Still a 200: a retry that finds its own successful write succeeded, and answering it 409 would teach clients to treat that as a failure.'
+        400:
+          description: 'A malformed receipt id, a body failing validation, or an invoice named more than once'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        401:
+          description: No staff session presented
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        403:
+          description: The caller has no active membership of this organisation, or holds no billing:edit:any permission in it
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        404:
+          description: 'No such receipt for this organisation. A receipt belonging to another organisation is answered identically, so this is never a test for whether a receipt id is real in some other tenant.'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        409:
+          description: 'The allocation was refused because of the state it was decided from, or the invoices it named. error.code distinguishes them and carries the detail a client can act on.'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                  - error
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: object
+                    required:
+                      - code
+                    properties:
+                      code:
+                        type: string
+                        enum:
+                          - NOT_ATTRIBUTED
+                          - FULLY_REFUNDED
+                          - VERSION_CONFLICT
+                          - ACCOUNT_MISMATCH
+                          - EXCEEDS_RESIDUAL
+                          - INVOICE_NOT_ELIGIBLE
+                        description: "NOT_ATTRIBUTED - nobody has said whose the capture is, and this route never guesses. FULLY_REFUNDED - the money has gone back. VERSION_CONFLICT - the receipt changed since it was read. ACCOUNT_MISMATCH - the funds are not held in this organisation's connected account. EXCEEDS_RESIDUAL - more was asked for than the capture has left. INVOICE_NOT_ELIGIBLE - one named invoice cannot take this payment."
+                      version:
+                        type: integer
+                        description: 'On VERSION_CONFLICT, the version that IS stored - so the client can reload and retry without a round trip to discover what it should have sent.'
+                      residual:
+                        type: number
+                        description: On EXCEEDS_RESIDUAL, what the capture actually has left.
+                      requested:
+                        type: number
+                        description: On EXCEEDS_RESIDUAL, the total that was asked for.
+                      invoiceId:
+                        type: string
+                        description: On INVOICE_NOT_ELIGIBLE, the line to correct.
+                      reason:
+                        type: string
+                        enum:
+                          - INVOICE_NOT_FOUND
+                          - CURRENCY_MISMATCH
+                          - INVOICE_CLOSED
+                          - NO_OUTSTANDING_BALANCE
+                          - EXCEEDS_INVOICE_BALANCE
+                          - ALREADY_ALLOCATED
+                        description: 'On INVOICE_NOT_ELIGIBLE, why. A missing invoice and one belonging to another organisation both answer INVOICE_NOT_FOUND, so this never answers "does invoice X exist" across tenants.'
         500:
           description: Response
           content:
