@@ -21,6 +21,7 @@
     "check:wallet": "tsx src/scripts/check-wallet-config.ts",
     "import:venom-designations": "tsx src/scripts/import-venom-designations.ts",
     "backfill:atc-codes": "tsx src/scripts/backfill-atc-codes.ts",
+    "backfill:superadmin-contact": "tsx src/scripts/backfill-superadmin-contact-forwards.ts",
     "import:atcvet-index": "tsx src/scripts/import-atcvet-index.ts",
     "import:venom-hierarchy": "tsx src/scripts/import-venom-hierarchy.ts"
   },

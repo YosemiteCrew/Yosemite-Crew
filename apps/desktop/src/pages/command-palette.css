@@ -84,8 +84,13 @@ body {
   cursor: pointer;
 }
 
+/* The tint alone measured 1.14:1 against an unselected row in light and 1.30:1
+   in dark, so the row Enter would run was barely distinguishable. The inset
+   ring carries the state instead: --nav-active is 5.86:1 against --screen in
+   light and 7.12:1 in dark. Inset so it costs no layout. */
 .item.selected {
   background: var(--nav-active-bg);
+  box-shadow: inset 0 0 0 1.5px var(--nav-active);
 }
 
 .item-icon {
@@ -139,11 +144,38 @@ body {
   color: var(--ink-faint);
 }
 
+/* Lifted out of #results: a listbox may only contain options and groups, so the
+   empty message is now a sibling and takes the space the list is not using. */
+#results:empty {
+  flex: none;
+  padding: 0;
+}
+
 #empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 26px 16px;
   text-align: center;
   font-size: 13px;
   color: var(--ink-faint);
+}
+
+#empty:empty {
+  display: none;
+}
+
+/* Announced, never shown: the result count duplicates what is on screen. */
+.cp-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* ── Footer hints ── */

@@ -163,6 +163,8 @@ export type {
   UserStatus,
 } from './support/support-types';
 
+export { CONTACT_MESSAGE_MAX_LENGTH } from './support/support-types';
+
 export type {
   ConvertToFhirVetProfileParams,
   OperatingHourType,
