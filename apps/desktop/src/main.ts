@@ -475,6 +475,7 @@ const layoutTabChrome = (): void => {
 const enterTabMode = (initialUrl: string): void => {
   if (tabMode || !mainWindow || mainWindow.isDestroyed() || !tabManager || !tabViewHost) return;
   tabMode = true;
+  chromeOverlayOpen = false;
   tabChromeView = new WebContentsView({
     webPreferences: secureWebPreferences(path.join(__dirname, 'preload.js')),
   });
