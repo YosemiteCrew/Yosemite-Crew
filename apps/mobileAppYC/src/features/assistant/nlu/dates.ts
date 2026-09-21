@@ -165,65 +165,6 @@ const DOSE_UNITS: ReadonlySet<string> = new Set([
 const NEXT_WORD = /^\s*([a-z]+)/;
 
 /**
- * Prepositions a clock time is introduced by.
- *
- * Deliberately shorter than the list of prepositions a time can follow:
- * "around", "before", "after" and "by" are the commonest hedges English puts
- * in front of a price or a dose - "spent around 12.50", "reduce his dose by
- * 0.50" - so accepting them put both of this module's headline failures
- * straight back. "las" is the Spanish "a las 20.30"; "a" alone is an article,
- * so it would let "a 2.50 dose" back in.
- *
- * Membership is necessary and not sufficient. Every word left here can still
- * introduce a target quantity in titration language - "set his dose at 0.50 of
- * a tablet", "titrate until 1.25" - so the hour has to carry evidence of its
- * own; see `CLOCK_ONLY_HOUR`.
- */
-const TIME_PREPOSITIONS: ReadonlySet<string> = new Set([
-  'at',
-  'until',
-  'till',
-  'las',
-]);
-
-/**
- * The lowest hour a dotted reading is accepted at.
- *
- * Below 13 a dotted number is genuinely ambiguous: "at 0.50" and "until 1.25"
- * are amounts far more often than they are twenty to one and half past one in
- * the morning, and no preposition tells the two apart. From 13 up the hour is
- * one nothing but a 24-hour clock uses, so the reading needs no other
- * evidence. The hours it gives up keep their colon and meridiem forms - "at
- * 8:30", "8.30 pm" - which a dose is never written in.
- */
-const CLOCK_ONLY_HOUR = 13;
-
-/**
- * Whether a dotted candidate is introduced as a time.
- *
- * A dot is a decimal point far more often than a clock separator in this
- * domain, so the dot form carries the preposition requirement that
- * `parseBareHourAfterAt` already puts on a bare hour, and for the same reason:
- * without it "give 2.50" is 2 o'clock exactly as "give 2" would be. A colon
- * needs no such evidence - nobody writes a dose or a price with one.
- */
-const introducedAsTime = (before: string): boolean => {
-  // Walked backwards rather than matched with an end-anchored `([a-z]+)\s*$`,
-  // which is super-linear on a long prefix - the same reason `hasNegativeSign`
-  // in the parser walks instead of anchoring.
-  let end = before.length;
-  while (end > 0 && (before[end - 1] === ' ' || before[end - 1] === '.')) {
-    end -= 1;
-  }
-  let start = end;
-  // `normalizeKeepingClock` has already lower-cased the text.
-  while (start > 0 && before[start - 1] >= 'a' && before[start - 1] <= 'z') {
-    start -= 1;
-  }
-  return start < end && TIME_PREPOSITIONS.has(before.slice(start, end));
-};
-
-/**
  * Whether what follows a clock candidate names a unit of measurement.
  *
  * Matching the whole word rather than a prefix is what keeps a real time from
@@ -236,29 +177,43 @@ const followedByDoseUnit = (rest: string): boolean => {
 };
 
 /**
- * "20:30" - a bare 24-hour reading, and "at 20.30" where the dot separates.
+ * "20:30" - a bare 24-hour reading. The separator must be a colon.
  *
- * Every candidate is read rather than only the first, so a quantity that is
- * skipped does not hide a time said after it ("give 0.25 ml at 20.30"), and
- * an unreadable one does not either ("0.75 ml" has no valid minute).
+ * A dot was accepted here and cannot be. In this domain a dot is a decimal
+ * point far more often than a clock separator, and the fraction only has to
+ * land in 00-59 to pass as minutes - .25, .30 and .50 all do - so a quantity
+ * read as the hour and the dose was scheduled for just after midnight.
+ *
+ * Four discriminators were tried against real utterances and every one was
+ * refuted, which is why none of them is here:
+ *
+ *   a preposition introduces it        "spent around 12.50", "reduce it by 0.50"
+ *   only one a quantity cannot follow  "set his dose at 0.50 of a tablet"
+ *   a day or day-part word is evidence "remind me tomorrow 0.50 of the pill"
+ *   an hour only a clock would use     "keep the infusion rate at 16.50"
+ *
+ * Every word that can introduce a time can introduce an amount, and a dose or
+ * an infusion rate takes any magnitude, so neither the neighbours nor the
+ * number's own shape decides it. Reading no time is the safe failure: the
+ * owner sees the 09:00 default in a prefilled form and corrects it in one tap,
+ * whereas a dose at the wrong hour is the mis-scheduled medication this
+ * module's header exists to prevent.
+ *
+ * The dotted forms that carry their own evidence are unaffected. "8.30 pm"
+ * goes through `parseMeridiemTime`, which runs first and accepts `[:.]`, and
+ * "20:30" is one keystroke away. No dose is written either way.
+ *
+ * Every candidate is read rather than only the first, so a colon reading
+ * skipped as a quantity does not hide a time said after it.
  */
 const parse24HourTime = (normalized: string): ClockTime | null => {
-  for (const match of normalized.matchAll(
-    /\b(\d{1,2})\s*([:.])\s*(\d{2})\b/g,
-  )) {
-    const [whole, rawHour, separator, rawMinute] = match;
-    const hour = Number(rawHour);
-    const minute = Number(rawMinute);
-    if (
-      separator === '.' &&
-      (hour < CLOCK_ONLY_HOUR ||
-        !introducedAsTime(normalized.slice(0, match.index)))
-    ) {
-      continue;
-    }
+  for (const match of normalized.matchAll(/\b(\d{1,2})\s*:\s*(\d{2})\b/g)) {
+    const [whole, rawHour, rawMinute] = match;
     if (followedByDoseUnit(normalized.slice(match.index + whole.length))) {
       continue;
     }
+    const hour = Number(rawHour);
+    const minute = Number(rawMinute);
     if (hour < 24 && minute < 60) {
       return {hour, minute};
     }
@@ -271,14 +226,28 @@ const parse24HourTime = (normalized: string): ClockTime | null => {
  *
  * The preposition is what keeps "give 2 tablets" from becoming 2 o'clock.
  *
- * A decimal is refused whole rather than read down to its integer part: once
- * the dotted rule above declines "at 0.50", the same characters still offer
- * "at 0" here, and midnight is exactly the mis-scheduled dose that rule
- * declined to make. A trailing sentence stop is not a decimal, so the
- * lookahead needs the digit after it.
+ * A decimal is refused whole rather than read down to its integer part. With
+ * no dotted clock rule left, "at 0.50" arrives here directly, and reading it
+ * as "at 0" is the midnight mis-scheduled dose in its own right. A trailing
+ * sentence stop is not a decimal, so the lookahead needs the digit after it.
+ *
+ * The lookahead is deliberately loose about what sits between the two numbers,
+ * because every tightening of it has been a hole:
+ *
+ *   at 0.50   an adjacent dot
+ *   at 0 . 50 spaced, which is how a typed "0 . 50" survives normalising
+ *   at 0,50   a comma, which normalising turns into a space, leaving "at 0 50"
+ *   at 16:50  a rate the colon rule already declined as "16:50 ml"
+ *
+ * The last one is the reason a colon is in the class. `parse24HourTime` runs
+ * first, so a real "at 8:30" never reaches here; the only colon readings that
+ * do are the ones it refused, and re-reading their hour is exactly the
+ * mis-scheduled dose it refused to make. A separator is optional and a
+ * trailing sentence stop is not a decimal, so what the lookahead really
+ * requires is the second number.
  */
 const parseBareHourAfterAt = (normalized: string): ClockTime | null => {
-  const match = /\bat\s+(\d{1,2})\b(?![.,]\d)/.exec(normalized);
+  const match = /\bat\s+(\d{1,2})\b(?!\s*[.,:]?\s*\d)/.exec(normalized);
   if (!match) {
     return null;
   }

@@ -374,15 +374,20 @@ describe('parseUtterance rule order', () => {
     ['at, with no continuation', 'remind me to keep the dose at 1.25 tomorrow'],
     ['until', 'remind me to titrate until 0.50 of a tablet tomorrow'],
     ['till', 'remind me to titrate till 0.50 of a tablet tomorrow'],
+    ['a spaced decimal', 'remind me to set his dose at 0 . 50 tomorrow'],
+    [
+      'an amount above any magnitude cutoff',
+      'remind me to keep the infusion rate at 16.50 tomorrow',
+    ],
   ])('keeps the default hour when the dose follows %s', (_case, text) => {
     const parsed = parseUtterance(text, {now: NOW});
     expect(parsed?.actionId).toBe('addCareTask');
     expect(parsed?.slots.when).toBe(at(2026, 0, 16, 9, 0));
   });
 
-  it('still fills when from an hour only a clock uses', () => {
+  it('still fills when from a time the owner wrote with a colon', () => {
     expect(
-      parseUtterance('remind me to walk him at 20.30 tomorrow', {now: NOW})
+      parseUtterance('remind me to walk him at 20:30 tomorrow', {now: NOW})
         ?.slots.when,
     ).toBe(at(2026, 0, 16, 20, 30));
   });
