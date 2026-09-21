@@ -745,6 +745,60 @@ describe('parseWhen does not read a dotted number as a time', () => {
 });
 
 /*
+ * A refused dotted candidate must not borrow a plausible hour from a nearby
+ * day part. Only a candidate immediately introduced as a time suppresses that
+ * fallback; ordinary prices and doses still keep the day-part hour.
+ */
+describe('parseWhen does not answer an introduced dotted candidate with a day-part hour', () => {
+  it.each([
+    ['a following English day part', 'walk him at 20.30 tonight', 3],
+    ['a preceding English day part', 'walk him tonight 20.30', 3],
+    [
+      'a Spanish afternoon beside a relative day',
+      'pasear a las 20.30 de la tarde manana',
+      4,
+    ],
+    [
+      'a Spanish night beside a relative day',
+      'pasear a las 21.15 de la noche manana',
+      4,
+    ],
+  ])('keeps the visible default hour for %s', (_case, text, date) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, date, 9, 0));
+  });
+
+  it.each([
+    ['a price', 'spent 12.50 on food tonight'],
+    ['an unmeasured dose', 'give him 0.50 of the pill tonight'],
+  ])('keeps the day-part hour for %s', (_case, text) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 3, 21, 0));
+  });
+
+  it.each([
+    ['a day part alone', 'walk him tonight', 21, 0],
+    ['a colon clock', 'walk him at 20:30 tonight', 20, 30],
+    ['a dotted meridiem clock', 'walk him at 8.30 pm tonight', 20, 30],
+    [
+      'a later accepted clock',
+      'walk him at 20.30 then at 8:15 tonight',
+      20,
+      15,
+    ],
+  ])('preserves %s', (_case, text, hour, minute) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(
+      at(2026, 2, 3, hour, minute),
+    );
+  });
+
+  it.each([
+    ['an out-of-range dotted hour', 'walk him tonight 24.30'],
+    ['out-of-range dotted minutes', 'walk him tonight 20.70'],
+  ])('does not suppress the day part for %s', (_case, text) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 3, 21, 0));
+  });
+});
+
+/*
  * A time preposition is no evidence when the number is an amount.
  *
  * The preposition requirement was meant to select words a quantity cannot
