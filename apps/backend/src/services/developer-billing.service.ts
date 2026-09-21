@@ -8,6 +8,7 @@ export class DeveloperBillingServiceError extends Error {
   constructor(
     message: string,
     public readonly statusCode: number,
+    public readonly code?: string,
   ) {
     super(message);
     this.name = "DeveloperBillingServiceError";
@@ -547,7 +548,13 @@ export const DeveloperBillingService = {
   ): Promise<void> {
     if (!customerId || quantity <= 0) return;
     const eventName = process.env.STRIPE_DEV_METER_EVENT_NAME;
-    if (!eventName) return;
+    if (!eventName) {
+      throw new DeveloperBillingServiceError(
+        "STRIPE_DEV_METER_EVENT_NAME is not configured",
+        500,
+        "missing_meter_configuration",
+      );
+    }
     const stripe = getStripeClient();
     await stripe.billing.meterEvents.create({
       event_name: eventName,
