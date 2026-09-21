@@ -320,7 +320,10 @@ test.describe('tab E2E', () => {
     const left = split.find((b) => b.x === 0)!;
     const right = split.find((b) => b.x > 0)!;
     expect(left.width).toBeLessThan(full);
-    expect(left.x + left.width).toBe(right.x);
+    // #3301: the panes used to meet edge to edge, so nothing marked where one
+    // ended and the next began. The left pane gives up its last column and the
+    // window's own background shows through as a 1px divider.
+    expect(right.x - (left.x + left.width)).toBe(1);
     expect(right.x + right.width).toBe(full);
 
     await evaluateYcDesktop(page, 'executeCommand', 'tab:toggle-split');
