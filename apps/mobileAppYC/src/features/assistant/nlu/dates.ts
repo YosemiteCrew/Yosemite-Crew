@@ -124,12 +124,57 @@ const parseMeridiemTime = (normalized: string): ClockTime | null => {
  *
  * The guard is not limited to the dot form, because a colon reading followed
  * by a unit ("8:30 ml") is not something anyone says - narrowing it would add
- * a branch no utterance can tell apart. The trailing `\b` is what keeps a
- * real time from being skipped: in "at 20.30 go out", `g` is not followed by
- * a boundary, so "go" is not the unit `g`.
+ * a branch no utterance can tell apart.
  */
-const DOSE_UNIT_AFTER =
-  /^\s*(?:ml|mls|l|mg|mcg|ug|g|kg|cc|iu|units?|tabs?|tablets?|caps?|capsules?|drops?|pills?|sachets?|scoops?|puffs?|sprays?)\b/;
+const DOSE_UNITS: ReadonlySet<string> = new Set([
+  'ml',
+  'mls',
+  'l',
+  'mg',
+  'mcg',
+  'ug',
+  'g',
+  'kg',
+  'cc',
+  'iu',
+  'unit',
+  'units',
+  'tab',
+  'tabs',
+  'tablet',
+  'tablets',
+  'cap',
+  'caps',
+  'capsule',
+  'capsules',
+  'drop',
+  'drops',
+  'pill',
+  'pills',
+  'sachet',
+  'sachets',
+  'scoop',
+  'scoops',
+  'puff',
+  'puffs',
+  'spray',
+  'sprays',
+]);
+
+/** The next whole word, already lower-cased by `normalizeKeepingClock`. */
+const NEXT_WORD = /^\s*([a-z]+)/;
+
+/**
+ * Whether what follows a clock candidate names a unit of measurement.
+ *
+ * Matching the whole word rather than a prefix is what keeps a real time from
+ * being thrown away: in "at 20.30 go out" the next word is "go", not the unit
+ * "g".
+ */
+const followedByDoseUnit = (rest: string): boolean => {
+  const next = NEXT_WORD.exec(rest);
+  return next !== null && DOSE_UNITS.has(next[1]);
+};
 
 /**
  * "20:30" - a bare 24-hour reading, and "20.30" where the dot separates.
@@ -141,7 +186,7 @@ const DOSE_UNIT_AFTER =
 const parse24HourTime = (normalized: string): ClockTime | null => {
   for (const match of normalized.matchAll(/\b(\d{1,2})\s*[:.]\s*(\d{2})\b/g)) {
     const [whole, rawHour, rawMinute] = match;
-    if (DOSE_UNIT_AFTER.test(normalized.slice(match.index + whole.length))) {
+    if (followedByDoseUnit(normalized.slice(match.index + whole.length))) {
       continue;
     }
     const hour = Number(rawHour);
