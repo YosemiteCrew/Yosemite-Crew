@@ -118,6 +118,7 @@ describe('DeveloperApiKeys page', () => {
     listApiKeysMock.mockRejectedValue(new Error('boom'));
     render(<DeveloperApiKeys />);
     expect(await screen.findByText(/Could not load your API keys/)).toBeInTheDocument();
+    expect(screen.queryByTestId('api-keys-empty')).not.toBeInTheDocument();
   });
 
   it('names the key ceiling when the API refuses a further key', async () => {

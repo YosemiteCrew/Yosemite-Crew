@@ -27,7 +27,7 @@ import '@/app/features/organizations/styles/Organizations.css';
  * create is in flight, the one issued key, and the last error.
  */
 const DeveloperApiKeys = () => {
-  const [keys, setKeys] = useState<DeveloperApiKey[]>([]);
+  const [keys, setKeys] = useState<DeveloperApiKey[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -44,6 +44,7 @@ const DeveloperApiKeys = () => {
       setError(null);
     } catch (err) {
       logger.error('Failed to load API keys', err);
+      setKeys(null);
       setError('Could not load your API keys. Please try again.');
     } finally {
       setLoading(false);
@@ -131,7 +132,9 @@ const DeveloperApiKeys = () => {
           </p>
         )}
 
-        <KeyTable keys={keys} loading={loading} onRevoke={handleRevoke} />
+        {(loading || keys !== null) && (
+          <KeyTable keys={keys ?? []} loading={loading} onRevoke={handleRevoke} />
+        )}
       </div>
     </DevRouteGuard>
   );
