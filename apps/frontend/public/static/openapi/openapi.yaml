@@ -8271,7 +8271,7 @@ paths:
                           description: When the payment was recorded here. This is the sort key and the field the window filters on.
                         recordedAmount:
                           type: number
-                          description: What was applied to the invoice, in major units of recordedCurrency.
+                          description: 'What was APPLIED to the invoice, in major units of recordedCurrency, which is not always what the provider took: a payment is recorded at min(requested, invoice balance), so a capture larger than the balance is stored nowhere at its real size. Read against journalledAmount this gives the direction of an AMOUNT_DIFFERS - a journal figure above the recorded one is money received and not allocated, and one below it is an invoice credited with more than the provider says it took.'
                         recordedCurrency:
                           type: string
                         journalledReceiptIds:
