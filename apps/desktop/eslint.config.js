@@ -89,6 +89,7 @@ module.exports = [
       'src/pages/tabbar-a11y.js',
       'src/pages/tab-row.js',
       'src/pages/tab-strip-diff.js',
+      'src/pages/idle-lock-controls.js',
     ],
     languageOptions: {
       globals: {
