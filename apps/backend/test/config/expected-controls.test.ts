@@ -95,7 +95,8 @@ jest.mock("src/utils/logger", () => ({
 }));
 
 import { configureStreamUploadPolicy } from "src/config/stream-upload-policy";
-import { createApp } from "src/app";
+import { createApp, readAuthGate } from "src/app";
+import { configureAuthAccountLinkingControl } from "src/config/auth-account-linking";
 import {
   EXPECTED_CONTROLS,
   getControlReports,
@@ -130,9 +131,16 @@ beforeEach(() => {
     delete process.env[key];
   }
   mockUpdateAppSettings.mockResolvedValue({});
+  jest.spyOn(global, "fetch").mockResolvedValue(
+    new Response(JSON.stringify({ features: ["mfa"] }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }),
+  );
 });
 
 afterEach(() => {
+  jest.restoreAllMocks();
   resetControlsForTest();
   for (const key of ENV_KEYS) {
     if (savedEnv[key] === undefined) delete process.env[key];
@@ -177,6 +185,7 @@ describe("the expected-controls manifest stays honest", () => {
       setEnv();
 
       await configureStreamUploadPolicy();
+      await configureAuthAccountLinkingControl(readAuthGate() === "enabled");
       createApp();
 
       expect(recordedNames().sort()).toEqual(
@@ -191,6 +200,7 @@ describe("the expected-controls manifest stays honest", () => {
     process.env.STREAM_API_SECRET = "secret";
 
     await configureStreamUploadPolicy();
+    await configureAuthAccountLinkingControl(readAuthGate() === "enabled");
     createApp();
 
     // The other direction from the test above. A control recorded but not
@@ -230,8 +240,10 @@ describe("every declared control is recorded before the port answers", () => {
       jest.doMock("src/app", () => {
         const actual = jest.requireActual("src/app") as {
           createApp: typeof createApp;
+          readAuthGate: typeof readAuthGate;
         };
         return {
+          readAuthGate: actual.readAuthGate,
           createApp: () => {
             actual.createApp();
             return { listen: mockListen };
