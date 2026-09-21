@@ -85,6 +85,7 @@ module.exports = [
       'src/pages/window-caption.js',
       'src/pages/palette-format.js',
       'src/pages/carousel-autoplay.js',
+      'src/pages/tab-indicators.js',
     ],
     languageOptions: {
       globals: {

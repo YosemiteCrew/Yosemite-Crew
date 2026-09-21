@@ -799,6 +799,9 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
       ok: true,
       ...services.tabManager.getState(),
       orientation: services.tabOrientation,
+      // The tab bar marks the tab mounted in the right-hand split pane, so it
+      // needs the split tab alongside the active one.
+      splitId: services.splitId,
     };
   });
 

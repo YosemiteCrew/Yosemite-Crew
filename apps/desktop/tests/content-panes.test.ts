@@ -1,4 +1,5 @@
 import {
+  SPLIT_DIVIDER_WIDTH,
   contentPaneBounds,
   layoutContentPanes,
   type ContentPaneLayout,
@@ -57,6 +58,12 @@ const layout = (over: LayoutOverrides = {}) => {
 };
 
 describe('contentPaneBounds', () => {
+  // Pinned separately from the gap assertions below: those state the width as a
+  // literal, so setting the constant to 0 cannot satisfy them by definition.
+  test('the divider is one pixel wide', () => {
+    expect(SPLIT_DIVIDER_WIDTH).toBe(1);
+  });
+
   test('a full pane fills the content area below the chrome strip', () => {
     expect(contentPaneBounds('full', { width: 1280, height: 800 }, false, CHROME, RAIL)).toEqual({
       x: 0,
@@ -66,12 +73,38 @@ describe('contentPaneBounds', () => {
     });
   });
 
-  test('left and right panes split the width with no gap and no overlap', () => {
+  // #3301: the panes used to meet edge to edge, so there was no line marking
+  // where one view ended and the next began. The left pane gives up its last
+  // column and the window background shows through as the divider.
+  test('left and right panes leave exactly the divider between them', () => {
     const b = { width: 1025, height: 700 };
     const left = contentPaneBounds('left', b, false, CHROME, RAIL);
     const right = contentPaneBounds('right', b, false, CHROME, RAIL);
-    expect(left.x + left.width).toBe(right.x);
+    expect(right.x - (left.x + left.width)).toBe(1);
     expect(right.x + right.width).toBe(b.width);
+  });
+
+  test('the divider does not move the right pane, so the split stays centred', () => {
+    const b = { width: 1024, height: 700 };
+    expect(contentPaneBounds('right', b, false, CHROME, RAIL).x).toBe(512);
+  });
+
+  test('vertical tabs get the same divider', () => {
+    const b = { width: 1280, height: 800 };
+    const left = contentPaneBounds('left', b, true, CHROME, RAIL);
+    const right = contentPaneBounds('right', b, true, CHROME, RAIL);
+    expect(right.x - (left.x + left.width)).toBe(1);
+    expect(left.x).toBe(RAIL);
+  });
+
+  test('a window too narrow to divide clamps the left pane to zero rather than negative', () => {
+    expect(contentPaneBounds('left', { width: 1, height: 700 }, false, CHROME, RAIL).width).toBe(0);
+  });
+
+  test('an unsplit pane keeps the full width, divider or not', () => {
+    expect(contentPaneBounds('full', { width: 1025, height: 700 }, false, CHROME, RAIL).width).toBe(
+      1025
+    );
   });
 
   test('vertical tabs move the content area right by the rail width', () => {
@@ -104,7 +137,7 @@ describe('layoutContentPanes', () => {
   test('a split mounts both panes and reports the tab in the right pane', () => {
     const { host, surface, mounted } = layout({ splitId: 'b' });
     expect(mounted).toBe('b');
-    expect(host.setBounds).toHaveBeenCalledWith('a', expect.objectContaining({ x: 0, width: 640 }));
+    expect(host.setBounds).toHaveBeenCalledWith('a', expect.objectContaining({ x: 0, width: 639 }));
     expect(host.setBounds).toHaveBeenCalledWith('b', expect.objectContaining({ x: 640 }));
     expect(surface.added).toEqual([host.get('a'), host.get('b')]);
     expect(surface.removed).toHaveLength(0);

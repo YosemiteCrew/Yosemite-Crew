@@ -313,6 +313,7 @@ describe('TabViewHost', () => {
       expect(onUpdate).toHaveBeenCalledWith('tab_1', {
         loading: true,
         error: null,
+        offline: false,
       });
     });
 
@@ -339,19 +340,91 @@ describe('TabViewHost', () => {
       expect(view.webContents.setZoomFactor).not.toHaveBeenCalled();
     });
 
-    it('did-fail-load calls onUpdate with error', () => {
+    it('did-fail-load calls onUpdate with error for a non-network failure', () => {
       const onUpdate = jest.fn();
       createHost({ onUpdate }).create('tab_1', 'https://example.com');
-      viewEventHandlers['did-fail-load']!(undefined, -3, 'ERR_CONNECTION_REFUSED');
+      viewEventHandlers['did-fail-load']!(
+        undefined,
+        -201,
+        'ERR_CERT_DATE_INVALID',
+        'https://example.com',
+        true
+      );
       expect(onUpdate).toHaveBeenCalledWith('tab_1', {
-        error: 'ERR_CONNECTION_REFUSED',
+        error: 'ERR_CERT_DATE_INVALID',
+        offline: false,
         loading: false,
+      });
+    });
+
+    // The tab bar draws the red error badge whenever `error` is set, so a tab
+    // that had only lost its connection claimed the page was broken while the
+    // page itself said "You're offline".
+    it('did-fail-load marks a network failure offline instead of errored', () => {
+      const onUpdate = jest.fn();
+      createHost({ onUpdate }).create('tab_1', 'https://example.com');
+      viewEventHandlers['did-fail-load']!(
+        undefined,
+        -106,
+        'ERR_INTERNET_DISCONNECTED',
+        'https://example.com',
+        true
+      );
+      expect(onUpdate).toHaveBeenCalledWith('tab_1', {
+        error: null,
+        offline: true,
+        loading: false,
+      });
+    });
+
+    it.each([
+      [-102, 'ERR_CONNECTION_REFUSED'],
+      [-105, 'ERR_NAME_NOT_RESOLVED'],
+    ])('did-fail-load treats %i as offline', (code, description) => {
+      const onUpdate = jest.fn();
+      createHost({ onUpdate }).create('tab_1', 'https://example.com');
+      viewEventHandlers['did-fail-load']!(
+        undefined,
+        code,
+        description,
+        'https://example.com',
+        true
+      );
+      expect(onUpdate).toHaveBeenCalledWith('tab_1', {
+        error: null,
+        offline: true,
+        loading: false,
+      });
+    });
+
+    it('a reload clears the offline flag as well as the error', () => {
+      const onUpdate = jest.fn();
+      createHost({ onUpdate }).create('tab_1', 'https://example.com');
+      viewEventHandlers['did-fail-load']!(
+        undefined,
+        -106,
+        'ERR_INTERNET_DISCONNECTED',
+        'https://example.com',
+        true
+      );
+      onUpdate.mockClear();
+      viewEventHandlers['did-start-loading']!();
+      expect(onUpdate).toHaveBeenCalledWith('tab_1', {
+        loading: true,
+        error: null,
+        offline: false,
       });
     });
 
     it('did-fail-load logs warning', () => {
       createHost().create('tab_1', 'https://example.com');
-      viewEventHandlers['did-fail-load']!(undefined, -3, 'ERR_CONNECTION_REFUSED');
+      viewEventHandlers['did-fail-load']!(
+        undefined,
+        -3,
+        'ERR_CONNECTION_REFUSED',
+        'https://example.com',
+        true
+      );
       expect(dummyLogger.warn).toHaveBeenCalledWith('tab_fail_load', {
         id: 'tab_1',
         error: 'ERR_CONNECTION_REFUSED',
@@ -386,6 +459,83 @@ describe('TabViewHost', () => {
         true
       );
       expect(onLoadError).not.toHaveBeenCalled();
+    });
+
+    // A tab badge is a claim about the whole tab. A third-party iframe failing
+    // to resolve leaves the page itself rendered, so marking the tab offline
+    // states something false, and nothing clears it: did-start-loading already
+    // fired for this navigation, so the caption survives for the life of the
+    // page view.
+    it('did-fail-load leaves the badge alone for a subframe failure', () => {
+      const onUpdate = jest.fn();
+      createHost({ onUpdate }).create('tab_1', 'https://example.com');
+      onUpdate.mockClear();
+      viewEventHandlers['did-fail-load']!(
+        undefined,
+        -105,
+        'ERR_NAME_NOT_RESOLVED',
+        'https://ads.example',
+        false
+      );
+      expect(onUpdate).not.toHaveBeenCalled();
+    });
+
+    // ERR_ABORTED on the main frame is an intentional hand-off - the nav policy
+    // sending an external link to the browser - not a load the user should see a
+    // red error badge for.
+    it('did-fail-load leaves the badge alone for a main-frame ERR_ABORTED', () => {
+      const onUpdate = jest.fn();
+      createHost({ onUpdate }).create('tab_1', 'https://example.com');
+      onUpdate.mockClear();
+      viewEventHandlers['did-fail-load']!(
+        undefined,
+        -3,
+        'ERR_ABORTED',
+        'https://example.com',
+        true
+      );
+      expect(onUpdate).not.toHaveBeenCalled();
+    });
+
+    // The guard above must not be the whole story: the same handler still has to
+    // write the badge when the failure really is a main-frame one, or both arms
+    // above would pass against a handler that does nothing at all.
+    it('did-fail-load still writes the badge for a main-frame failure', () => {
+      const onUpdate = jest.fn();
+      createHost({ onUpdate }).create('tab_1', 'https://example.com');
+      onUpdate.mockClear();
+      viewEventHandlers['did-fail-load']!(
+        undefined,
+        -105,
+        'ERR_NAME_NOT_RESOLVED',
+        'https://example.com',
+        true
+      );
+      expect(onUpdate).toHaveBeenCalledWith('tab_1', {
+        error: null,
+        offline: true,
+        loading: false,
+      });
+    });
+
+    // The log is deliberately outside the guard: a subframe failure is still
+    // worth a line, it just is not worth a badge.
+    it('did-fail-load logs a subframe failure even though it writes no badge', () => {
+      const onUpdate = jest.fn();
+      createHost({ onUpdate }).create('tab_1', 'https://example.com');
+      onUpdate.mockClear();
+      viewEventHandlers['did-fail-load']!(
+        undefined,
+        -105,
+        'ERR_NAME_NOT_RESOLVED',
+        'https://ads.example',
+        false
+      );
+      expect(dummyLogger.warn).toHaveBeenCalledWith('tab_fail_load', {
+        id: 'tab_1',
+        error: 'ERR_NAME_NOT_RESOLVED',
+      });
+      expect(onUpdate).not.toHaveBeenCalled();
     });
 
     it('did-fail-load ignores subframe failures for onLoadError', () => {
