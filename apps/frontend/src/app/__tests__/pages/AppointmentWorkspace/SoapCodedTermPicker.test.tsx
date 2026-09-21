@@ -424,3 +424,105 @@ describe('SoapCodedTermPicker scoped empty state', () => {
     consoleError.mockRestore();
   });
 });
+
+/**
+ * The vocabulary ships 189 pairs of active concepts that share a label inside one
+ * domain - 185 of them a small-animal term and its equine counterpart - and 180 of
+ * those pairs carry the same crosswalk. Typing the shared label puts both rows in the
+ * top ten for all 189, so without the species the clinician is choosing at random.
+ */
+describe('SoapCodedTermPicker species handling', () => {
+  const ABSCESS_SA = {
+    ycCode: 'YC-007141',
+    label: 'Abscess',
+    domain: 'Diagnosis',
+    species: ['SA'],
+    synonyms: [],
+    codings: [{ system: 'SNOMED', code: '128477000', equivalence: 'EQUIVALENT' }],
+  };
+  const ABSCESS_EQUINE = {
+    ...ABSCESS_SA,
+    ycCode: 'YC-010840',
+    species: ['EQUINE'],
+  };
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    suggestMock.mockReset();
+    suggestMock.mockResolvedValue([ABSCESS_SA, ABSCESS_EQUINE]);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const renderPicker = (species?: 'SA' | 'EQUINE') =>
+    render(
+      <SoapCodedTermPicker
+        sectionLabel="Assessment"
+        domain="Diagnosis"
+        species={species}
+        selected={[]}
+        onChange={jest.fn()}
+      />
+    );
+
+  it('sends the species it was given', () => {
+    renderPicker('SA');
+    typeQuery('abscess');
+    expect(suggestMock).toHaveBeenCalledWith({
+      q: 'abscess',
+      domain: 'Diagnosis',
+      species: 'SA',
+      limit: 8,
+    });
+  });
+
+  it('sends no species when the appointment has no species context', () => {
+    renderPicker(undefined);
+    typeQuery('abscess');
+    expect(suggestMock.mock.calls[0][0].species).toBeUndefined();
+  });
+
+  it('re-queries when the species changes', () => {
+    const { rerender } = renderPicker('SA');
+    typeQuery('abscess');
+    expect(suggestMock).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <SoapCodedTermPicker
+        sectionLabel="Assessment"
+        domain="Diagnosis"
+        species="EQUINE"
+        selected={[]}
+        onChange={jest.fn()}
+      />
+    );
+    act(() => {
+      jest.advanceTimersByTime(300);
+    });
+    expect(suggestMock).toHaveBeenLastCalledWith(expect.objectContaining({ species: 'EQUINE' }));
+  });
+
+  it('names the species on both rows when two share a label', async () => {
+    renderPicker(undefined);
+    typeQuery('abscess');
+
+    await waitFor(() =>
+      expect(screen.getByText(/YC-007141 · SNOMED 128477000 · Small animal/)).toBeInTheDocument()
+    );
+    expect(screen.getByText(/YC-010840 · SNOMED 128477000 · Equine/)).toBeInTheDocument();
+  });
+
+  /* Most terms carry several species, so naming it on every row would be noise on
+     exactly the rows that do not need it. Only a repeated label is ambiguous. */
+  it('leaves the species off a row whose label is unique in the results', async () => {
+    suggestMock.mockResolvedValue([ABSCESS_SA, { ...ABSCESS_EQUINE, label: 'Abscess - dental' }]);
+    renderPicker(undefined);
+    typeQuery('abscess');
+
+    await waitFor(() => expect(screen.getByText('Abscess')).toBeInTheDocument());
+    expect(screen.getByText('YC-007141 · SNOMED 128477000')).toBeInTheDocument();
+    expect(screen.queryByText(/Small animal/)).not.toBeInTheDocument();
+  });
+});
