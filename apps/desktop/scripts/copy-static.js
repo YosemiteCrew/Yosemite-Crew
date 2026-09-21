@@ -34,6 +34,7 @@ const pageAssets = [
   'idle-lock.html',
   'idle-lock.css',
   'idle-lock.js',
+  'idle-lock-controls.js',
   'command-palette.css',
   'command-palette.js',
   'offline.css',
