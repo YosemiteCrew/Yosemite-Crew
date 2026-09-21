@@ -644,10 +644,36 @@ describe('parseWhen reads a dotted number as a time only when introduced', () =>
     expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
   });
 
+  /*
+   * A preposition a quantity can also follow is no evidence at all.
+   *
+   * The first cut of this guard accepted "around", "before", "after" and
+   * "by". Every one of them introduces an amount as readily as a time -
+   * "spent around 12.50", "reduce his dose by 0.50" - and "around" is the
+   * commonest hedge English puts in front of a price or a dose, so the list
+   * let both headline failures straight back in.
+   */
+  it.each([
+    ['around hedges a price', 'spent around 12.50 on food tomorrow'],
+    [
+      'around hedges a dose',
+      'give Bruno around 0.50 of his heart pill tomorrow',
+    ],
+    ['before precedes a dose', 'give Bruno before 1.25 of the tablet tomorrow'],
+    ['after precedes a dose', 'give Bruno after 1.25 of the tablet tomorrow'],
+    [
+      'by introduces a reduction',
+      'remind me to reduce his dose by 0.50 tomorrow',
+    ],
+    ['by introduces an increase', 'increase the dose by 1.25 tomorrow'],
+  ])('keeps the default hour when %s', (_case, text) => {
+    expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 9, 0));
+  });
+
   it.each([
     ['at', 'walk him at 20.30 tomorrow'],
-    ['by', 'give the pill by 20.30 tomorrow'],
     ['until', 'keep him in until 20.30 tomorrow'],
+    ['till', 'keep him in till 20.30 tomorrow'],
     ['the Spanish "a las"', 'pasear a las 20.30 manana'],
   ])('still reads a time introduced by %s', (_case, text) => {
     expect(localParts(parseWhen(text, NOW))).toEqual(at(2026, 2, 4, 20, 30));
