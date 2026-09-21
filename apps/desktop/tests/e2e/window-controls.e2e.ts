@@ -1,11 +1,11 @@
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test';
-import electronPath from 'electron';
 import { _electron as electron } from '@playwright/test';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { openPimsTab } from './welcome';
+import { electronLaunchOptions } from './launch';
 
 // The title bar the app draws itself has to behave like a native one: the
 // middle caption button says Restore while the window is maximised, a
@@ -14,9 +14,6 @@ import { openPimsTab } from './welcome';
 //
 // These need the real window: maximise state lives in the main process, and the
 // tab bar is a WebContentsView that is only told about it over IPC.
-
-const APP_ROOT = path.resolve(__dirname, '..', '..');
-const ELECTRON_EXECUTABLE = electronPath as unknown as string;
 
 const startPimsServer = async (): Promise<{ origin: string; close: () => Promise<void> }> => {
   const server = http.createServer((_req, res) => {
@@ -73,8 +70,7 @@ test.describe('window controls', () => {
   test.beforeEach(async () => {
     server = await startPimsServer();
     app = await electron.launch({
-      executablePath: ELECTRON_EXECUTABLE,
-      args: [APP_ROOT, '--use-mock-keychain'],
+      ...electronLaunchOptions(),
       env: {
         ...process.env,
         YC_DESKTOP_START_URL: `${server.origin}/signin`,
@@ -199,8 +195,7 @@ test.describe('the local pages title bar', () => {
   test.beforeEach(async () => {
     server = await startPimsServer();
     app = await electron.launch({
-      executablePath: ELECTRON_EXECUTABLE,
-      args: [APP_ROOT, '--use-mock-keychain'],
+      ...electronLaunchOptions(),
       env: {
         ...process.env,
         YC_DESKTOP_START_URL: `${server.origin}/signin`,
