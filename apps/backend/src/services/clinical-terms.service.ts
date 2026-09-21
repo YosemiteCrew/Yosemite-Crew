@@ -294,7 +294,7 @@ const queryTokens = (query: string): string[] => {
  * matches substrings, for the trigram index, and the score demands a whole word.
  */
 const wordMatch = (haystack: Prisma.Sql, token: string) => {
-  const wholeWord = `\\m${token}\\M`;
+  const wholeWord = String.raw`\m${token}\M`;
   return Prisma.sql`${haystack} ~ ${wholeWord}`;
 };
 
