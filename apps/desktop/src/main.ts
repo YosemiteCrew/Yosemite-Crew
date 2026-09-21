@@ -115,7 +115,10 @@ import {
   buildContextMenu,
 } from './shell/window-config';
 import { createMainWindow } from './shell/create-main-window';
-import { layoutContentPanes as applyContentPaneLayout } from './ui/content-panes';
+import {
+  SPLIT_DIVIDER_COLOR,
+  layoutContentPanes as applyContentPaneLayout,
+} from './ui/content-panes';
 import { createOfflineRetryTargets } from './shell/offline-retry';
 
 // Apply managed/MDM config first: fill any env var an admin set via managed
@@ -374,12 +377,6 @@ const layoutChromeStrip = (b: TabBounds, isVertical: boolean): void => {
     height: tabSearchOpen ? b.height : CHROME_STRIP_HEIGHT,
   });
 };
-
-// The split panes leave a 1px gutter between them (SPLIT_DIVIDER_WIDTH); what
-// shows through is the window content view's own background, so it has to be
-// the hairline colour rather than the window's white, or the divider is
-// invisible against a white page. These are --hairline from tokens.css.
-const SPLIT_DIVIDER_COLOR = { light: '#e5dccf', dark: '#40362b' };
 
 const applySplitDividerColor = (): void => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
