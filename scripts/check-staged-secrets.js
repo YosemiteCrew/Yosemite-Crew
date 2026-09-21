@@ -9,7 +9,6 @@ const BLOCKED_LOCAL_FILES = [
   /^apps\/mobileAppYC\/android\/gradle\.properties$/,
   /^apps\/mobileAppYC\/android\/local\.properties$/,
   /^apps\/mobileAppYC\/ios\/GoogleService-Info\.plist$/,
-  /^apps\/mobileAppYC\/ios\/mobileAppYC\/Info\.plist$/,
   /^apps\/mobileAppYC\/ios\/\.xcode\.env\.local$/,
   /^apps\/mobileAppYC\/src\/config\/variables\.local\.tsx?$/,
 ];

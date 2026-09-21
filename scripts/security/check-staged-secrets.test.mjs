@@ -11,12 +11,12 @@ const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', st
 
 const createRepository = () => {
   const cwd = mkdtempSync(join(tmpdir(), 'staged-secrets-'));
-  const plistDirectory = join(cwd, 'apps/mobileAppYC/ios/mobileAppYC');
+  const plistDirectory = join(cwd, 'apps/mobileAppYC/ios');
   mkdirSync(plistDirectory, { recursive: true });
   git(cwd, ['init', '--quiet']);
   git(cwd, ['config', 'user.name', 'Scanner Test']);
   git(cwd, ['config', 'user.email', 'scanner@example.invalid']);
-  return { cwd, plist: join(plistDirectory, 'Info.plist') };
+  return { cwd, plist: join(plistDirectory, 'GoogleService-Info.plist') };
 };
 
 const runScanner = (cwd) => spawnSync(process.execPath, [scanner], { cwd, encoding: 'utf8' });
