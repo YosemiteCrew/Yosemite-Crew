@@ -1,0 +1,362 @@
+[
+  {
+    "kind": "crowded",
+    "query": "abdominal",
+    "matches": 47,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "abortion",
+    "matches": 39,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "acute",
+    "matches": 37,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "adenoma",
+    "matches": 33,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "anaemia",
+    "matches": 18,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "angular",
+    "matches": 19,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "atrial",
+    "matches": 20,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "bone",
+    "matches": 54,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "bursitis",
+    "matches": 32,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "carcinoma",
+    "matches": 67,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "cardiomyopathy",
+    "matches": 18,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "cervical",
+    "matches": 28,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "colitis",
+    "matches": 21,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "congenital",
+    "matches": 29,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "corneal",
+    "matches": 47,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "cutaneous",
+    "matches": 31,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "dermatitis",
+    "matches": 22,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "desmopathy",
+    "matches": 16,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "elbow",
+    "matches": 20,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "enteropathy",
+    "matches": 16,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "equine",
+    "matches": 56,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "faecal",
+    "matches": 19,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "fibrosarcoma",
+    "matches": 20,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "fracture",
+    "matches": 267,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "gastric",
+    "matches": 32,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "granuloma",
+    "matches": 15,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "heart",
+    "matches": 70,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "hernia",
+    "matches": 24,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "immune",
+    "matches": 15,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "intervertebral",
+    "matches": 15,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "intoxication",
+    "matches": 64,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "joint",
+    "matches": 95,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "laryngeal",
+    "matches": 19,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "leukaemia",
+    "matches": 15,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "liver",
+    "matches": 19,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "lymphoma",
+    "matches": 41,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "mast",
+    "matches": 46,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "melanocytic",
+    "matches": 21,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "nail",
+    "matches": 15,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "neoplasm",
+    "matches": 160,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "oral",
+    "matches": 19,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "osteoarthritis",
+    "matches": 39,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "osteochondrosis",
+    "matches": 22,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "osteosarcoma",
+    "matches": 17,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "para",
+    "matches": 103,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "peripheral",
+    "matches": 25,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "persistent",
+    "matches": 19,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "pneumonia",
+    "matches": 33,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "post",
+    "matches": 76,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "protein",
+    "matches": 17,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "pulmonary",
+    "matches": 49,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "renal",
+    "matches": 47,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "retinal",
+    "matches": 30,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "salivary",
+    "matches": 15,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "sinus",
+    "matches": 30,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "small",
+    "matches": 47,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "spinal",
+    "matches": 31,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "squamous",
+    "matches": 38,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "tendon",
+    "matches": 30,
+    "expected": null
+  },
+  {
+    "kind": "crowded",
+    "query": "third",
+    "matches": 15,
+    "expected": null
+  }
+]

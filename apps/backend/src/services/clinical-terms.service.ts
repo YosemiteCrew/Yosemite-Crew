@@ -445,6 +445,29 @@ export const buildSuggestionQuery = (
 
   const scoreFilter = query ? Prisma.sql`score > 0` : Prisma.sql`TRUE`;
 
+  // Inside one tier every row matched the same query the same way, so the tier says
+  // nothing about which of them the clinician meant and the order fell through to the
+  // label alphabetically. That clusters a concept family: the query "renal" in domain
+  // Diagnosis matches 119 concepts, and eight of the first ten are "Renal (kidney) ..."
+  // rows, of which six are variants of one congenital anomaly. The whole "Renal failure"
+  // family - acute, chronic, anuric, polyuric and unspecified - sits at positions 22 to
+  // 28, off the page the picker shows.
+  //
+  // Within a tier the query is a fixed length, so ordering by label length ascending is
+  // ordering by the share of the label the query accounts for, largest share first:
+  // "renal" is 5 of the 13 characters of "Renal failure" and 5 of the 47 of "Renal
+  // (kidney) anomaly, congenital - Polycystic kidney disease (PKD)". It is the same
+  // coverage idea the token score above already uses, applied to the label instead of to
+  // the query, and it needs nothing the row does not already carry.
+  //
+  // This orders rows inside a tier only. No row changes tier, so a term that outranks
+  // another today by matching more exactly still outranks it. With no query every row
+  // scores 0, there is no tier to break a tie inside, and the browse list stays
+  // alphabetical.
+  const ordering = query
+    ? Prisma.sql`ORDER BY score DESC, length(display) ASC, display ASC, code ASC`
+    : Prisma.sql`ORDER BY score DESC, display ASC, code ASC`;
+
   return Prisma.sql`
     SELECT code, display, synonyms, meta, score FROM (
       SELECT e."code" AS code, e."display" AS display, e."synonyms" AS synonyms,
@@ -453,7 +476,7 @@ export const buildSuggestionQuery = (
       WHERE ${Prisma.join(filters, " AND ")}
     ) scored
     WHERE ${scoreFilter}
-    ORDER BY score DESC, display ASC, code ASC
+    ${ordering}
     LIMIT ${safeLimit}
   `;
 };
