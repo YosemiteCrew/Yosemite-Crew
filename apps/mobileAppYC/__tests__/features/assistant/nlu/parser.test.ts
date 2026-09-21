@@ -181,6 +181,19 @@ describe('extractTaskTitle', () => {
     expect(extractTaskTitle(text, undefined)).toBe(expected);
   });
 
+  it.each([
+    [
+      'remind me to set his dose at 0.50 of a tablet tomorrow',
+      'set his dose at 0.50 of a tablet',
+    ],
+    [
+      'remind me to keep the infusion rate at 16.50 tomorrow',
+      'keep the infusion rate at 16.50',
+    ],
+  ])('preserves a dotted quantity in %s', (text, expected) => {
+    expect(extractTaskTitle(text, undefined)).toBe(expected);
+  });
+
   it('strips an accented Spanish time phrase', () => {
     expect(
       extractTaskTitle('recuérdame dar la pastilla mañana', undefined),
@@ -436,6 +449,20 @@ describe('parseUtterance slots', () => {
         title: 'give his heart pill',
       },
       confidence: 0.692,
+      source: 'rules',
+    });
+  });
+
+  it('fills when and strips the complete dotted-meridiem time from a reminder title', () => {
+    expect(
+      parseUtterance('remind me to walk him at 8.30 pm tonight', {now: NOW}),
+    ).toEqual({
+      actionId: 'addCareTask',
+      slots: {
+        when: at(2026, 0, 15, 20, 30),
+        title: 'walk him',
+      },
+      confidence: 0.69,
       source: 'rules',
     });
   });
