@@ -295,9 +295,10 @@ export const getInvoiceFinancialSummary = async (
   invoiceId: string,
   totalAmount: number,
   depositCollectedAmount = 0,
+  client: Pick<PaymentTxClient, "payment" | "creditNote"> = prisma,
 ): Promise<InvoiceFinancialSummary> => {
   const [payments, creditNotes] = await Promise.all([
-    prisma.payment.findMany({
+    client.payment.findMany({
       where: {
         invoiceId,
         status: { in: ["SUCCEEDED", "PARTIALLY_REFUNDED", "REFUNDED"] },
@@ -310,7 +311,7 @@ export const getInvoiceFinancialSummary = async (
         },
       },
     }),
-    prisma.creditNote.findMany({
+    client.creditNote.findMany({
       where: { invoiceId, status: "ISSUED" },
       select: { amount: true },
     }),
@@ -326,11 +327,13 @@ const getOutstandingBalance = async (
   invoiceId: string,
   totalAmount: number,
   depositCollectedAmount = 0,
+  client: Pick<PaymentTxClient, "payment" | "creditNote"> = prisma,
 ) => {
   const summary = await getInvoiceFinancialSummary(
     invoiceId,
     totalAmount,
     depositCollectedAmount,
+    client,
   );
   return {
     paid: summary.paid,
@@ -1917,52 +1920,6 @@ export const FinancePaymentService = {
   },
 
   async recordInvoicePayment(invoiceId: string, input: InvoicePaymentInput) {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
-      include: { payments: { where: { status: "SUCCEEDED" } } },
-    });
-
-    if (!invoice) {
-      throw new FinancePaymentError("Invoice not found", 404);
-    }
-
-    if (["CANCELLED", "REFUNDED"].includes(invoice.status)) {
-      throw new FinancePaymentError("Invoice cannot accept payment", 409);
-    }
-
-    const isDepositPayment =
-      input.collectionMode === "DEPOSIT_THEN_SETTLE" ||
-      input.settlementChannel === "DEPOSIT" ||
-      invoice.billingCollectionMode === "DEPOSIT_THEN_SETTLE";
-
-    if (isDepositPayment && invoice.visitBillingStage === "READY_FOR_BILLING") {
-      throw new FinancePaymentError(
-        "Deposit payments are not allowed after the invoice is ready for billing",
-        409,
-      );
-    }
-
-    const { paid, balance } = await getOutstandingBalance(
-      invoiceId,
-      invoice.totalAmount,
-      invoice.depositCollectedAmount ?? 0,
-    );
-
-    if (balance <= 0) {
-      return {
-        invoice,
-        paymentAttempt: null,
-        payment: null,
-        balanceAfterPayment: 0,
-        paidToDate: paid,
-        appliedAmount: 0,
-        // Nothing was applied, so this is not a fresh success either. A caller
-        // that notifies the pet parent must not fire for a redelivery that
-        // arrives after the balance is already closed.
-        replayed: true,
-      };
-    }
-
     const requestedAmount = roundMoney(input.amount);
     if (requestedAmount <= 0) {
       throw new FinancePaymentError(
@@ -1971,12 +1928,10 @@ export const FinancePaymentService = {
       );
     }
 
-    const appliedAmount = roundMoney(Math.min(requestedAmount, balance));
     const receivedAt = input.receivedAt ?? new Date();
-    const isPartial = appliedAmount < balance || paid > 0;
 
-    // The attempt write, the Payment insert and the invoice update move
-    // together or not at all.
+    // The balance read, attempt write, Payment insert and invoice update move
+    // together or not at all, behind one invoice-scoped lock.
     //
     // They used to be three sequential awaits, which is what made every replay
     // guard here unsound: a P2002 on Payment.paymentAttemptId proved the payment
@@ -1984,7 +1939,9 @@ export const FinancePaymentService = {
     // and the invoice update left a covered invoice that was never marked PAID,
     // and a deposit whose collected amount never moved. No amount of reasoning
     // on the recovery path can distinguish that from a clean replay, because the
-    // database does not record which of the three steps ran.
+    // database does not record which of the three steps ran. Keeping the
+    // balance read outside that atomic block left a second race: two distinct
+    // captures could both read the same balance and each apply all of it.
     //
     // FinanceEventService.recordEvent stays outside deliberately: it closes over
     // the module-level client, so calling it in here would run on a second
@@ -1992,6 +1949,57 @@ export const FinancePaymentService = {
     let settled;
     try {
       settled = await prisma.$transaction(async (tx) => {
+        const lockKey = `invoice-payment:${invoiceId}`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+        const invoice = await tx.invoice.findUnique({
+          where: { id: invoiceId },
+          include: { payments: { where: { status: "SUCCEEDED" } } },
+        });
+        if (!invoice) {
+          throw new FinancePaymentError("Invoice not found", 404);
+        }
+        if (["CANCELLED", "REFUNDED"].includes(invoice.status)) {
+          throw new FinancePaymentError("Invoice cannot accept payment", 409);
+        }
+
+        const isDepositPayment =
+          input.collectionMode === "DEPOSIT_THEN_SETTLE" ||
+          input.settlementChannel === "DEPOSIT" ||
+          invoice.billingCollectionMode === "DEPOSIT_THEN_SETTLE";
+        if (
+          isDepositPayment &&
+          invoice.visitBillingStage === "READY_FOR_BILLING"
+        ) {
+          throw new FinancePaymentError(
+            "Deposit payments are not allowed after the invoice is ready for billing",
+            409,
+          );
+        }
+
+        const { paid, balance } = await getOutstandingBalance(
+          invoiceId,
+          invoice.totalAmount,
+          invoice.depositCollectedAmount ?? 0,
+          tx,
+        );
+        if (balance <= 0) {
+          return {
+            invoice,
+            paymentAttempt: null,
+            payment: null,
+            balanceAfterPayment: 0,
+            paidToDate: paid,
+            appliedAmount: 0,
+            // Nothing was applied, so this is not a fresh success either. A
+            // caller that notifies the pet parent must not fire for a
+            // redelivery that arrives after the balance is already closed.
+            replayed: true as const,
+          };
+        }
+
+        const appliedAmount = roundMoney(Math.min(requestedAmount, balance));
+        const isPartial = appliedAmount < balance || paid > 0;
         const paymentAttempt = input.paymentAttemptId
           ? await tx.paymentAttempt.update({
               where: { id: input.paymentAttemptId },
@@ -2056,7 +2064,15 @@ export const FinancePaymentService = {
           client: tx,
         });
 
-        return { paymentAttempt, payment, updatedInvoice };
+        return {
+          invoice,
+          paymentAttempt,
+          payment,
+          updatedInvoice,
+          appliedAmount,
+          isPartial,
+          replayed: false as const,
+        };
       });
     } catch (error) {
       if (!isUniqueConstraintViolation(error) || !input.paymentAttemptId) {
@@ -2099,7 +2115,16 @@ export const FinancePaymentService = {
       };
     }
 
-    const { paymentAttempt, payment, updatedInvoice } = settled;
+    if (settled.replayed) return settled;
+
+    const {
+      invoice,
+      paymentAttempt,
+      payment,
+      updatedInvoice,
+      appliedAmount,
+      isPartial,
+    } = settled;
 
     await FinanceEventService.recordEvent({
       organisationId: invoice.organisationId ?? null,

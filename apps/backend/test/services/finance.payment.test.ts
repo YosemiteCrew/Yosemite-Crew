@@ -17,6 +17,7 @@ jest.mock("stripe", () => ({
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    $executeRaw: jest.fn(),
     $transaction: jest.fn(),
     invoice: {
       findUnique: jest.fn(),
@@ -255,7 +256,8 @@ describe("FinancePaymentService", () => {
 
     expect(result.appliedAmount).toBe(0);
     expect(result.replayed).toBe(true);
-    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
   });
 
   it("writes the attempt, the payment and the invoice in one transaction", async () => {
@@ -303,6 +305,62 @@ describe("FinancePaymentService", () => {
       expect.objectContaining({
         data: expect.objectContaining({ status: "PAID" }),
       }),
+    );
+  });
+
+  it("serializes balance reads and payment writes for one invoice", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_concurrent",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      depositCollectedAmount: 0,
+    });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ amount: 100 }]);
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_concurrent",
+    });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_concurrent",
+      amount: 100,
+      status: "SUCCEEDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_concurrent",
+      totalAmount: 100,
+      currency: "usd",
+      status: "PAID",
+      depositCollectedAmount: 0,
+    });
+
+    await FinancePaymentService.recordInvoicePayment("inv_concurrent", {
+      provider: "STRIPE",
+      amount: 100,
+      settlementChannel: "STRIPE",
+      currency: "usd",
+      providerPaymentId: "pi_concurrent_a",
+    });
+
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+    const [strings, lockKey] = (prisma.$executeRaw as jest.Mock).mock.calls[0];
+    expect(strings.join("")).toContain("pg_advisory_xact_lock");
+    expect(lockKey).toBe("invoice-payment:inv_concurrent");
+    expect(
+      (prisma.$executeRaw as jest.Mock).mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      (prisma.invoice.findUnique as jest.Mock).mock.invocationCallOrder[0],
+    );
+    expect(
+      (prisma.$executeRaw as jest.Mock).mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      (prisma.payment.findMany as jest.Mock).mock.invocationCallOrder[0],
+    );
+    expect(
+      (prisma.$executeRaw as jest.Mock).mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      (prisma.payment.create as jest.Mock).mock.invocationCallOrder[0],
     );
   });
 
