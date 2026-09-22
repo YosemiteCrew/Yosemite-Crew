@@ -104,23 +104,64 @@ test.describe('docs code samples on a wide window', () => {
   });
 });
 
+const navMenu = (page: Page) => page.getByRole('button', { name: 'Documentation menu' });
+const navTree = (page: Page) => page.locator('#docs-nav-tree');
+const docsTitleTop = (page: Page) =>
+  page.locator('.DocsTitle').evaluate((el) => el.getBoundingClientRect().top);
+
 test.describe('collapsed docs navigation at a phone width', () => {
   test.use({ viewport: PHONE });
 
-  test('scrolls out of the viewport instead of covering the article', async ({ page }) => {
+  test('keeps the article on the first screen instead of below the whole tree', async ({
+    page,
+  }) => {
     await openDocs(page);
 
-    const nav = page.locator('.DocsNav');
-    await expect(nav).toHaveCSS('position', 'static');
+    const toggle = navMenu(page);
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(toggle).toHaveAttribute('aria-controls', 'docs-nav-tree');
+    await expect(navTree(page)).toBeHidden();
+    // In flow rather than pinned: sticky here would cover the article instead.
+    await expect(page.locator('.DocsNav')).toHaveCSS('position', 'static');
 
-    const before = await nav.evaluate((el) => el.getBoundingClientRect().top);
-    await page.evaluate(() => window.scrollTo(0, 1500));
-    await page.waitForFunction(() => window.scrollY > 1000);
-    const after = await nav.evaluate((el) => el.getBoundingClientRect().top);
+    /*
+     * The control, and the only part that measures the reported defect. That
+     * the tree is collapsed says nothing about where the reader lands, and a
+     * nav that had shrunk to a handful of links would satisfy the assertion
+     * above with nothing left to prove. Forcing `data-open` in the page gives
+     * the pre-fix reading from this same render, so the two numbers differ by
+     * the height the disclosure actually removes.
+     */
+    const collapsedTop = await docsTitleTop(page);
+    await navTree(page).evaluate((el) => el.setAttribute('data-open', 'true'));
+    const expandedTop = await docsTitleTop(page);
+    await navTree(page).evaluate((el) => el.setAttribute('data-open', 'false'));
 
-    // Sticky would hold it at the top bar; in flow it leaves with the page.
-    expect(before).toBeGreaterThan(0);
-    expect(after).toBeLessThan(-500);
+    expect(collapsedTop).toBeLessThan(PHONE.height);
+    expect(expandedTop).toBeGreaterThan(PHONE.height);
+  });
+
+  test('opens from the keyboard with its links reachable', async ({ page }) => {
+    await openDocs(page);
+
+    const toggle = navMenu(page);
+    await toggle.focus();
+    await page.keyboard.press('Enter');
+
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(navTree(page)).toBeVisible();
+
+    const firstLink = navTree(page).getByRole('link').first();
+    await expect(firstLink).toBeVisible();
+    await expect(firstLink).toHaveAttribute('href', /^\/docs/);
+    await firstLink.focus();
+    await expect(firstLink).toBeFocused();
+
+    await toggle.focus();
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(navTree(page)).toBeHidden();
   });
 });
 
@@ -137,6 +178,20 @@ test.describe('docs navigation on a wide window', () => {
     await page.waitForFunction(() => window.scrollY > 1000);
 
     expect(await nav.evaluate((el) => el.getBoundingClientRect().top)).toBeGreaterThan(0);
+  });
+
+  /*
+   * The desktop half of the phone disclosure. The tree is hidden by a media
+   * query keyed on `data-open`, not by the component, so the rail here must be
+   * visible while the client state behind it is still the collapsed one.
+   */
+  test('shows the whole tree with no disclosure to press', async ({ page }) => {
+    await openDocs(page);
+
+    await expect(navMenu(page)).toBeHidden();
+    await expect(navTree(page)).toBeVisible();
+    await expect(navTree(page)).toHaveAttribute('data-open', 'false');
+    await expect(navTree(page).getByRole('link').first()).toBeVisible();
   });
 });
 
