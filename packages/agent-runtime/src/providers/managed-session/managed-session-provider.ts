@@ -66,6 +66,28 @@ const failureFor = (value: unknown): AgentRuntimeError => {
   }
 };
 
+const runRequiredActions = async (
+  value: unknown,
+  hooks: ProviderRunHooks
+): Promise<{ tool_results: Record<string, unknown>[] }> => {
+  const results: Record<string, unknown>[] = [];
+  for (const action of readRequiredActions(value)) {
+    hooks.onProgress(`tool:${action.tool}`);
+    try {
+      const output = await hooks.callTool(action.tool, action.arguments);
+      results.push({ call_id: action.callId, output });
+    } catch (error) {
+      // A refused tool is information for the model, not a crash. The runtime
+      // has already audited the denial.
+      results.push({
+        call_id: action.callId,
+        error: error instanceof AgentRuntimeError ? error.code : 'tool-failed',
+      });
+    }
+  }
+  return { tool_results: results };
+};
+
 export function createManagedSessionProvider(config: ExecutionConfig): ExecutionProvider {
   const send = async (
     method: 'DELETE' | 'POST',
@@ -108,26 +130,9 @@ export function createManagedSessionProvider(config: ExecutionConfig): Execution
           payload = {};
           break;
 
-        case 'requires_action': {
-          const actions = readRequiredActions(response.required_actions);
-          const results = [];
-          for (const action of actions) {
-            hooks.onProgress(`tool:${action.tool}`);
-            try {
-              const output = await hooks.callTool(action.tool, action.arguments);
-              results.push({ call_id: action.callId, output });
-            } catch (error) {
-              // A refused tool is information for the model, not a crash. The
-              // runtime has already audited the denial.
-              results.push({
-                call_id: action.callId,
-                error: error instanceof AgentRuntimeError ? error.code : 'tool-failed',
-              });
-            }
-          }
-          payload = { tool_results: results };
+        case 'requires_action':
+          payload = await runRequiredActions(response.required_actions, hooks);
           break;
-        }
 
         case 'completed':
           return { output: response.output, usage: readUsage(response.usage) };
