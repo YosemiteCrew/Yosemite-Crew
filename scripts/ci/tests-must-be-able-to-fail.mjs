@@ -38,7 +38,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -193,10 +193,7 @@ export const categorizeSourceFiles = (source, existsAtBase, existsAtHead) => {
  * - wrongly, because the path never reached the runner - which is a bug, and
  *   until #3264 was indistinguishable from the first.
  *
- * Both sides arrive already resolved through `realpathSync`, because jest
- * prints absolute paths and `/var` is a symlink to `/private/var` on macOS -
- * the same trap the direct-invocation check at the bottom of this file
- * documents.
+ * Both sides are absolute paths rooted at the repository returned by git.
  */
 export const selectDiscoverable = (paths, discovered) => {
   const set = new Set(discovered);
@@ -309,16 +306,17 @@ const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
  * runner - so they are confined before either happens rather than after.
  */
 export const absolutePathsIn = (repoRoot, paths) =>
-  paths.map((path) => real(resolveInside(repoRoot, path)));
-
-/** Resolves a path the way jest prints one, tolerating one that is already gone. */
-const real = (path) => {
-  try {
-    return realpathSync(path);
-  } catch {
-    return path;
-  }
-};
+  paths.map((path) => {
+    const absolute = resolveInside(repoRoot, path);
+    try {
+      if (lstatSync(absolute).isSymbolicLink()) {
+        throw new Error(`refusing a symbolic-link test path: ${path}`);
+      }
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
+    return absolute;
+  });
 
 const jest = (ws, jestArgs, options) =>
   execFileSync('pnpm', ['--filter', ws, 'exec', 'jest', '--ci', ...jestArgs], options);
@@ -328,8 +326,7 @@ const discoverableIn = (ws, absolutePaths) => {
   const listed = jest(ws, ['--listTests', '--passWithNoTests'], { encoding: 'utf8' })
     .split('\n')
     .map((line) => line.trim())
-    .filter(Boolean)
-    .map(real);
+    .filter(Boolean);
   return selectDiscoverable(absolutePaths, listed);
 };
 
