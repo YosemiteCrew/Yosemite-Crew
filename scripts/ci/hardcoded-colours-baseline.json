@@ -260,8 +260,8 @@
       "why": "FALLBACK_LANGUAGE_COLOUR is a computed-style assertion (documented at the const) - the resolved form of --spot-ink-faint (#a9a39e), asserted against the rendered swatch colour for the one language with no explicit LANG_COLORS entry."
     },
     "apps/frontend/src/app/features/marketing/pages/Insights/Insights.tsx": {
-      "n": 17,
-      "why": "Two --spot cards (a live GitHub-stats console, a latest-release card - both background: var(--spot)) carry four DIFFERENT close-but-not-identical muted-grey inks (#8a8074 x5, #6b6155 x2, #a89e90 x2 - the dark-mode value of the flipping --ink-muted, hardcoded because the card itself never flips - plus the already-tokenised #f4efe6 in this PR), none matching --spot-ink-faint's #a9a39e exactly, so each was picked independently rather than drawn from a shared token. Also on the same console: a bespoke near-black panel (#232120, border #302f2e x3, matching DevelopersPage.tsx's EconomicsCard pattern), a 'LIVE' status pair (dot #2bbd86 - --success's dark-mode value, no matching --spot-success-strength token exists - and its paired label #6cd6a3), the shared terminal-mockup text colour #d6d1cd (see DevelopersPage.tsx), and the shared bespoke CTA border #454341 (see DevelopersPage.tsx's CLOSING_PORTAL_LINK_STYLE)."
+      "n": 8,
+      "why": "The always-dark console keeps its bespoke near-black panel (#232120, border #302f2e x3), a fixed LIVE status pair (#2bbd86 dot and #6cd6a3 label), the shared terminal-mockup text colour #d6d1cd, and the shared bespoke CTA border #454341. Muted text now uses --spot-ink-faint rather than nine close-but-inaccessible literal greys."
     },
     "apps/frontend/src/app/features/marketing/pages/PetBusinesses/PetBusinesses.tsx": {
       "n": 2,

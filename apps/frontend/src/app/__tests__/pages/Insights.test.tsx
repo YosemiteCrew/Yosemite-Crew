@@ -88,6 +88,9 @@ describe('Insights page', () => {
     );
     expect(screen.getByText('Numbers included.')).toBeInTheDocument();
     expect(screen.getByText('Building in public')).toBeInTheDocument();
+    expect(screen.getByText('Commit activity')).toHaveStyle({ color: 'var(--spot-ink-faint)' });
+    expect(screen.getByText('52 weeks')).toHaveStyle({ color: 'var(--spot-ink-faint)' });
+    expect(screen.getByText('Pulled on every visit')).toHaveStyle({ color: 'var(--ink-muted)' });
   });
 
   test('renders the four live community stats with their labels', () => {
@@ -110,6 +113,10 @@ describe('Insights page', () => {
     expect(screen.getByText('v0.1.0-beta.2')).toBeInTheDocument();
     // Commit + facts + contributor
     expect(screen.getByText('feat: add the insights page')).toBeInTheDocument();
+    expect(screen.getByText('Latest release')).toHaveStyle({ color: 'var(--spot-ink-faint)' });
+    expect(screen.getByText(/Published Jul 2, 2026/)).toHaveStyle({
+      color: 'var(--spot-ink-faint)',
+    });
     expect(screen.getByText('AGPL-3.0')).toBeInTheDocument();
     expect(screen.getByAltText('ada')).toBeInTheDocument();
   });
@@ -137,7 +144,9 @@ describe('Insights page', () => {
     release = { ...defaultRelease, date: null as unknown as string };
 
     render(<Insights />);
-    expect(screen.getByText(/Reading the repository/)).toBeInTheDocument();
+    expect(screen.getByText(/Reading the repository/)).toHaveStyle({
+      color: 'var(--spot-ink-faint)',
+    });
     expect(screen.getByText(/Fetching the latest commit/)).toBeInTheDocument();
     expect(screen.getByText(/Tagged and published on GitHub Releases/)).toBeInTheDocument();
   });

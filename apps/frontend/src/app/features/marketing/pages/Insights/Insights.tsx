@@ -145,7 +145,7 @@ function LiveTag() {
 function Heartbeat({ weeks }: Readonly<{ weeks: number[] | null }>) {
   if (!weeks || weeks.length === 0) {
     return (
-      <div style={{ margin: 'auto', fontSize: 12.5, color: '#6b6155' }}>
+      <div style={{ margin: 'auto', fontSize: 12.5, color: 'var(--spot-ink-faint)' }}>
         Reading the repository...
       </div>
     );
@@ -189,7 +189,14 @@ function MiniStat({ value, label }: Readonly<{ value: string; label: string }>) 
       >
         {value}
       </div>
-      <div style={{ fontSize: 12, letterSpacing: '-0.01em', color: '#8a8074', marginTop: 3 }}>
+      <div
+        style={{
+          fontSize: 12,
+          letterSpacing: '-0.01em',
+          color: 'var(--spot-ink-faint)',
+          marginTop: 3,
+        }}
+      >
         {label}
       </div>
     </div>
@@ -267,7 +274,7 @@ function ConsoleHeader() {
           color: '#d6d1cd',
         }}
       >
-        <IoLogoGithub style={{ fontSize: 15, color: '#8a8074' }} aria-hidden="true" />
+        <IoLogoGithub style={{ fontSize: 15, color: 'var(--spot-ink-faint)' }} aria-hidden="true" />
         YosemiteCrew / Yosemite-Crew
       </span>
       <span style={CONSOLE_LIVE_STYLE}>
@@ -295,12 +302,14 @@ function ConsoleHeartbeatPanel({ weeks }: Readonly<{ weeks: number[] | null }>) 
             fontWeight: 700,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
-            color: '#8a8074',
+            color: 'var(--spot-ink-faint)',
           }}
         >
           Commit activity
         </span>
-        <span style={{ fontSize: 12, letterSpacing: '-0.01em', color: '#6b6155' }}>52 weeks</span>
+        <span style={{ fontSize: 12, letterSpacing: '-0.01em', color: 'var(--spot-ink-faint)' }}>
+          52 weeks
+        </span>
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 66 }}>
         <Heartbeat weeks={weeks} />
@@ -343,7 +352,7 @@ function ConsoleLastCommit({ lastCommit }: Readonly<{ lastCommit: RepoCommit | u
         style={{
           fontSize: 12.5,
           letterSpacing: '-0.01em',
-          color: '#a89e90',
+          color: 'var(--spot-ink-faint)',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
@@ -365,7 +374,7 @@ function ConsoleFloatBadge() {
       </span>
       <div>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>No cache</div>
-        <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>Pulled on every visit</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>Pulled on every visit</div>
       </div>
     </div>
   );
@@ -812,7 +821,7 @@ const RELEASE_LABEL_STYLE: CSSProperties = {
   fontWeight: 700,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
-  color: '#8a8074',
+  color: 'var(--spot-ink-faint)',
 };
 
 function LatestReleaseCard() {
@@ -843,7 +852,10 @@ function LatestReleaseCard() {
             <IoPricetagOutline style={{ fontSize: 15, color: 'var(--cyan)' }} aria-hidden="true" />
             Latest release
           </span>
-          <IoArrowForwardOutline style={{ fontSize: 16, color: '#8a8074' }} aria-hidden="true" />
+          <IoArrowForwardOutline
+            style={{ fontSize: 16, color: 'var(--spot-ink-faint)' }}
+            aria-hidden="true"
+          />
         </div>
         <div style={{ position: 'relative' }}>
           <div
@@ -857,7 +869,14 @@ function LatestReleaseCard() {
           >
             {release.tag ?? 'Loading...'}
           </div>
-          <div style={{ marginTop: 8, fontSize: 13.5, letterSpacing: '-0.01em', color: '#a89e90' }}>
+          <div
+            style={{
+              marginTop: 8,
+              fontSize: 13.5,
+              letterSpacing: '-0.01em',
+              color: 'var(--spot-ink-faint)',
+            }}
+          >
             {release.date
               ? `Published ${release.date} on GitHub Releases.`
               : 'Tagged and published on GitHub Releases.'}
