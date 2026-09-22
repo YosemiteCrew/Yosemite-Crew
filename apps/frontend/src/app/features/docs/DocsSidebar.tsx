@@ -31,16 +31,30 @@ interface DocsSidebarProps {
  * selector it sits in. `[data-open=false]` is an unquoted attribute value,
  * which is valid CSS because `false` is a valid identifier.
  *
- * Deliberately not in here: revealing a section declared `collapsed`, whose
- * body is hidden by the `hidden` attribute rather than by this media query.
- * That gap predates the disclosure, and Tailwind's preflight declares
- * `[hidden]{display:none!important}` in a cascade layer, which an unlayered
- * override cannot outrank at any specificity or importance. It needs the
- * attribute replaced, not a rule added - see issue #3515.
+ * The last two rules reach a section declared `collapsed` - today the largest
+ * in the tree - whose links were unreachable with scripting off until the
+ * `hidden` attribute that closed it became `data-expanded`. `hidden` could not be overridden from here at any
+ * specificity or importance: Tailwind's preflight declares
+ * `[hidden]{display:none!important}` inside `@layer base`, and for the
+ * important origin the cascade inverts - a layered important declaration beats
+ * an unlayered one, so a `<style>` in the body always loses. `docs.css` closes
+ * the section with an ordinary unlayered rule instead, which this outranks on
+ * specificity alone. The chevron goes with it because it is a `+` drawn from
+ * React state: left in place it would sit over content it says is closed.
+ *
+ * What stays wrong here, knowingly: the section head keeps
+ * `aria-expanded="false"` over a body this reveals, because that attribute is
+ * React state and no stylesheet can reach it. A wrong state hint on a control
+ * that cannot work either way is a smaller defect than a whole section of
+ * documented endpoints no scripting-off reader can open, and the alternative -
+ * hiding the head, as this does to the phone toggle - would delete the only
+ * group label those endpoints have. See issue #3515.
  */
 export const DOCS_NAV_NO_JS_CSS = [
   '.DocsNav .DocsNavToggle{display:none}',
   '.DocsNav .DocsNavTree[data-open=false]{display:block}',
+  '.DocsNav .DocsNavSection [data-expanded=false]{display:block}',
+  '.DocsNav .DocsNavChevron{display:none}',
 ].join('');
 
 /**
@@ -139,7 +153,7 @@ export default function DocsSidebar({ nav }: Readonly<DocsSidebarProps>) {
                   {expanded ? '−' : '+'}
                 </span>
               </button>
-              <div id={sectionId} hidden={!expanded}>
+              <div id={sectionId} data-expanded={expanded}>
                 {node.items.map((item) => {
                   const active = item.href === pathname;
                   return (
