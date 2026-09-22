@@ -14,9 +14,10 @@ import type { SearchDoc } from './searchIndex';
  * than on mount, so a reader who never searches never pays for it. It is about
  * 344 KB for the 156-page corpus.
  *
- * Matching is deliberately simple: every term must appear in the title or the
- * body text. That is enough for 156 pages and avoids shipping a scoring library
- * for a corpus this size. Titles rank above body hits.
+ * Exact all-term matches render first. When fewer than three pages match, a
+ * same-origin server route may widen candidates to any matching term and ask
+ * for a typed relevance judgment. The deterministic fallback ranks title hits
+ * above body hits.
  */
 
 const INDEX_URL = '/docs/search-index.json';
