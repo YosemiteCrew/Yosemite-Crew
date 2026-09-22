@@ -4,7 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 /**
  * 90s, not the 30s default.
  *
- * An axe pass is CPU-heavy, and this file now runs twenty-one of them against a
+ * An axe pass is CPU-heavy, and this file now runs twenty-nine of them against a
  * single Next dev server. CI serialises them (`workers: 1`), but a local run is
  * fullyParallel, and adding the fourteen public-page tests was enough to push the
  * sign-in and sign-up runs past 30s on a warm laptop - they pass in 6s and 4s
@@ -446,6 +446,60 @@ for (const theme of ['light', 'dark'] as const) {
       const results = await runAxeWithContrast(page);
       expect(results.violations).toEqual([]);
     });
+  });
+}
+
+/**
+ * The four public pages whose contrast defects this suite could not see.
+ *
+ * Two of them (/insights, /pet-businesses) carry embedded product mockups that
+ * paint text with FILL tokens - `--blue`, `--success`, `--ink-faint`,
+ * `--ink-faint2` - which owe 3:1 as a fill and were never meant to carry copy.
+ * Between them they shipped 73 nodes below AA across the two themes.
+ *
+ * The scroll pass is load-bearing, not hygiene. Most of the copy on these pages
+ * is inside `Reveal`, which stays `opacity: 0` until it intersects - and axe
+ * skips what it cannot see. Measured both ways on the unfixed pages, in light:
+ * /insights 7 nodes unscrolled against 18 scrolled, /pet-businesses 15 against
+ * 40, /pet-parents 4 against 5, /dmca 1 either way. Drop the scroll call and
+ * the below-the-fold eyebrows and the calculator unit labels leave the result.
+ */
+const revealEverything = async (page: Page) => {
+  await page.evaluate(async () => {
+    const step = window.innerHeight;
+    for (let y = 0; y < document.body.scrollHeight; y += step) {
+      window.scrollTo(0, y);
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    }
+    window.scrollTo(0, 0);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  });
+};
+
+for (const theme of ['light', 'dark'] as const) {
+  test.describe(`Mockup-heavy public pages — accessibility, ${theme} (incl. contrast)`, () => {
+    // The file-wide 90s does not cover these: a full-height scroll pass plus an
+    // axe run over the longest pages on the site measured 18-38s each locally,
+    // and /pet-businesses alone paints 40 mockup nodes.
+    test.describe.configure({ timeout: 180_000 });
+    test.use({ colorScheme: theme });
+
+    test.beforeEach(async ({ page }) => {
+      await blockCrossOriginRequests(page);
+    });
+
+    for (const path of ['/insights', '/pet-businesses', '/pet-parents', '/dmca']) {
+      test(`${path} has no axe violations in ${theme}`, async ({ page }) => {
+        await page.goto(path);
+        await page.waitForLoadState('networkidle').catch(() => {});
+        // The content floor: the page rendered rather than an error boundary.
+        await expect(page.locator('main')).toBeVisible();
+        await revealEverything(page);
+
+        const results = await runAxeWithContrast(page);
+        expect(results.violations).toEqual([]);
+      });
+    }
   });
 }
 
