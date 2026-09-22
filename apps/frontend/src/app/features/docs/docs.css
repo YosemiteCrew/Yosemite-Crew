@@ -221,9 +221,9 @@
   margin: 0 0 14px;
 }
 
-.DocsBody a {
+.DocsBody a:not(.DocsHeadingAnchor) {
   color: var(--color-text-brand);
-  text-decoration: underline;
+  text-decoration: underline !important;
   text-underline-offset: 2px;
 }
 

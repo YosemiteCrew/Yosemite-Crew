@@ -59,26 +59,28 @@ test.describe('docs code samples at a phone width', () => {
   });
 
   test('leave no scrollable-region-focusable violation', async ({ page }) => {
-    await openDocs(page);
+    for (const viewport of [PHONE, DESKTOP]) {
+      await page.setViewportSize(viewport);
+      for (const colorScheme of ['light', 'dark'] as const) {
+        await page.emulateMedia({ colorScheme });
+        await openDocs(page);
 
-    const results = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
-      /*
-       * Every documentation prose link is distinguished from the surrounding
-       * text by colour alone, because globals.css sets
-       * `a { text-decoration: none !important }` over the underline docs.css
-       * declares. Fourteen serious nodes, identical at 320px and at desktop in
-       * both themes, so it is neither a mobile defect nor one this change
-       * introduced - it is #3471, which also has to repair the sanitiser entry
-       * that strips the heading-anchor class.
-       */
-      .disableRules(['link-in-text-block'])
-      .analyze();
+        const linkStyles = await page.evaluate(() => ({
+          body: getComputedStyle(document.querySelector('.DocsBody p a')!).textDecorationLine,
+          heading: getComputedStyle(document.querySelector('.DocsHeadingAnchor')!)
+            .textDecorationLine,
+        }));
+        expect(linkStyles.body).toContain('underline');
+        expect(linkStyles.heading).not.toContain('underline');
 
-    expect(results.violations).toEqual([]);
-    // Guards the line above: disabling a rule that stopped running would leave
-    // an empty violation list looking exactly like a pass.
-    expect(results.passes.length).toBeGreaterThan(0);
+        const results = await new AxeBuilder({ page })
+          .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+          .analyze();
+
+        expect(results.violations).toEqual([]);
+        expect(results.passes.length).toBeGreaterThan(0);
+      }
+    }
   });
 });
 

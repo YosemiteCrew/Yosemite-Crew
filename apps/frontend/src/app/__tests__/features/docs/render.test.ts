@@ -74,6 +74,13 @@ describe('renderDoc sanitisation', () => {
     expect(html).not.toContain('user-content-');
   });
 
+  it('preserves only the approved heading-anchor class and renders prose links', async () => {
+    const html = await render('## Heading\n\n[prose link](/apps/backend)');
+    expect(html).toContain('<a class="DocsHeadingAnchor" href="#heading">Heading</a>');
+    expect(html).toContain('<a href="/docs/apps/backend">prose link</a>');
+    expect(html).not.toContain('class="DocsHeadingAnchor evil"');
+  });
+
   it('keeps highlighter class names, which the CSP-safe theme needs', async () => {
     const html = await render('```ts\nconst a: number = 1;\n```');
     expect(html).toMatch(/hljs/);

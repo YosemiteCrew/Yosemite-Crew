@@ -80,7 +80,15 @@ const schema: Schema = {
     h4: [...(defaultSchema.attributes?.h4 ?? []), 'id'],
     h5: [...(defaultSchema.attributes?.h5 ?? []), 'id'],
     h6: [...(defaultSchema.attributes?.h6 ?? []), 'id'],
-    a: [...(defaultSchema.attributes?.a ?? []), 'id', 'rel', 'target', ['className']],
+    a: [
+      ...(defaultSchema.attributes?.a ?? []).filter(
+        (attribute) => !(Array.isArray(attribute) ? attribute[0] : attribute === 'className')
+      ),
+      'id',
+      'rel',
+      'target',
+      ['className', 'data-footnote-backref', 'DocsHeadingAnchor'],
+    ],
   },
 };
 
