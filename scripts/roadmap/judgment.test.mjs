@@ -514,6 +514,54 @@ test('the file cache survives the process and a missing file is simply empty', a
   });
 });
 
+test('an errored answer never reaches the file, so one outage does not outlive its run', async () => {
+  // The blocking finding on PR #3492: `set` is unconditional, so a 503 was
+  // cached like an answer. In memory that is the intended per-run dedup; on the
+  // file-backed store the workflow restores it next run and the row is never
+  // retried, because the key only moves when the issue does.
+  const path = join(mkdtempSync(join(tmpdir(), 'l3yc-roadmap-')), 'cache.json');
+  const healthy = {
+    number: 4002,
+    updatedAt: '2026-09-22T10:00:00Z',
+    title: 'Invoice totals drift on the practice dashboard',
+    body: 'Two staff see different totals.',
+    labels: [],
+  };
+  const answering = (req) => {
+    if (JSON.stringify(req.body).includes(abandoned.title)) throw new Error('HTTP 503');
+    return answer({ category: CATEGORIES.PMS });
+  };
+
+  await withCachePath(path, async () => {
+    const first = fakeTransport(answering);
+    const saving = createJudgmentCacheStore();
+    const run1 = createJudgmentClient({ transport: first, store: saving });
+    const errored = await run1(abandoned, { askCategory: true });
+    const answered = await run1(healthy, { askCategory: true });
+    assert.equal(first.calls.length, 2);
+    assert.ok(errored.error, 'the fixture that must not persist really did fail');
+    assert.equal(answered.category, CATEGORIES.PMS, 'and the control really did answer');
+    assert.equal(saving.size, 2, 'both are cached in memory for the rest of this run');
+    assert.equal(saving.save(), true);
+
+    const restored = createJudgmentCacheStore();
+    assert.equal(restored.size, 1, 'only the answer survived the file');
+    const second = fakeTransport(answer({ category: CATEGORIES.PMS }));
+    const run2 = createJudgmentClient({ transport: second, store: restored });
+
+    await run2(healthy, { askCategory: true });
+    assert.equal(
+      second.calls.length,
+      0,
+      'control: a successful answer is still served from the file'
+    );
+
+    const retried = await run2(abandoned, { askCategory: true });
+    assert.equal(second.calls.length, 1, 'the errored row is asked again on the next run');
+    assert.equal(retried.category, CATEGORIES.PMS);
+  });
+});
+
 test('with no cache path configured the store is an ordinary in-memory Map', () => {
   const previous = env.ROADMAP_JUDGMENT_CACHE;
   delete env.ROADMAP_JUDGMENT_CACHE;

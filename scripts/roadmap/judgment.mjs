@@ -479,7 +479,12 @@ export function createJudgmentCacheStore({ log = () => {} } = {}) {
     save() {
       if (!dirty) return false;
       try {
-        writeFileSync(path, JSON.stringify(Object.fromEntries(entries)));
+        // A failure is deduped for this run and then thrown away. Persisting it
+        // would make one outage permanent for every row it touched, because the
+        // key only moves when the issue does - so a row nobody edits would stay
+        // uncategorised on a public board until somebody touched the issue.
+        const durable = [...entries].filter(([, value]) => !value?.result?.error);
+        writeFileSync(path, JSON.stringify(Object.fromEntries(durable)));
         return true;
       } catch (err) {
         log(`judgment cache could not be written: ${err.message}`);

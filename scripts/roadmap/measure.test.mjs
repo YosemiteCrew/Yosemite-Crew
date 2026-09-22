@@ -89,7 +89,13 @@ const row = (number, ladder, judgment, published) => ({
   title: `issue ${number}`,
   labels: [],
   ladder,
-  judgment: { asked: {}, skipped: null, confidence: null, error: null, ...judgment },
+  judgment: {
+    asked: { askCategory: true, askUrgency: true },
+    skipped: null,
+    confidence: null,
+    error: null,
+    ...judgment,
+  },
   published,
 });
 
@@ -122,7 +128,7 @@ test('agreement is reported for both columns, with the denominator beside it', (
     row(
       3,
       { category: CATEGORIES.MOBILE, priority: PRIORITIES.HIGH },
-      { category: null, priority: null },
+      { category: null, priority: null, asked: { askCategory: false, askUrgency: false } },
       { category: CATEGORIES.MOBILE, priority: PRIORITIES.HIGH }
     ),
     // Not adjudicated: must not count in either numerator or denominator.
@@ -165,17 +171,48 @@ test('every disagreement between the ladder and the judgment is listed', () => {
     row(
       2,
       { category: CATEGORIES.MOBILE, priority: PRIORITIES.HIGH },
-      { category: null, priority: null },
+      { category: null, priority: null, asked: { askCategory: false, askUrgency: false } },
       { category: CATEGORIES.MOBILE, priority: PRIORITIES.HIGH }
     ),
   ];
   const out = score({ rows, stats }, { 1: { category: CATEGORIES.PMS, priority: null } });
+  const disagreementTable = out.slice(
+    out.indexOf('### Every disagreement'),
+    out.indexOf('### Judgment never consulted')
+  );
   assert.match(out, /disagree on 1 of 2 rows/);
-  assert.match(out, /\| 1 \| issue 1 \|/);
-  assert.ok(!/\| 2 \| issue 2 \|/.test(out));
+  assert.match(disagreementTable, /\| 1 \| issue 1 \|/);
+  assert.ok(!/\| 2 \| issue 2 \|/.test(disagreementTable));
   // A row nobody adjudicated is still listed, and says so rather than looking agreed.
   const both = score({ rows, stats }, {});
   assert.match(both, /not adjudicated/);
+});
+
+test('a row the judgment never saw is still reported, marked as not consulted', () => {
+  // The two titles #3376 quotes as its motivating failures both carry `bug`, so
+  // the ladder answers them and no question is ever asked. They have no judgment
+  // value, so the disagreement filter drops them - and they are precisely the
+  // rows the acceptance criteria exist to put in front of a reviewer.
+  const rows = [
+    row(
+      9,
+      { category: CATEGORIES.PMS, priority: PRIORITIES.URGENT },
+      { category: null, priority: null, asked: { askCategory: false, askUrgency: false } },
+      { category: CATEGORIES.PMS, priority: PRIORITIES.URGENT }
+    ),
+  ];
+  const out = score(
+    { rows, stats },
+    { 9: { category: CATEGORIES.PMS, priority: PRIORITIES.NORMAL } }
+  );
+  const section = out.slice(out.indexOf('### Judgment never consulted'));
+
+  assert.match(out, /### Judgment never consulted \(1 of 1\)/);
+  assert.match(section, /\| 9 \| issue 9 \|/);
+  assert.match(section, /\| not consulted \|/);
+  // The reviewer's own answer still travels with it, or the disagreement the
+  // section exists to show cannot be read off the row.
+  assert.match(section, new RegExp(`${PRIORITIES.NORMAL}`));
 });
 
 test('over-escalation counts rows pushed above the reviewer, not rows merely disagreed with', () => {
@@ -249,7 +286,12 @@ test('a title containing an escaped pipe does not shift the table columns', () =
             title,
             labels: [],
             ladder: { category: null, priority: null },
-            judgment: { category: CATEGORIES.PMS, priority: null, asked: {}, error: null },
+            judgment: {
+              category: CATEGORIES.PMS,
+              priority: null,
+              asked: { askCategory: true, askUrgency: true },
+              error: null,
+            },
             published: { category: CATEGORIES.PMS, priority: null },
           },
         ],
