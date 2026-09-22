@@ -205,11 +205,59 @@ for (const theme of ['light', 'dark'] as const) {
         await expect(proseLink).toHaveCSS('text-decoration-line', 'underline');
         await expect(headingAnchor).toHaveCSS('text-decoration-line', 'none');
 
+        for (const selector of [
+          '.DocsTopBrand',
+          '.DocsTopTitle',
+          '.DocsNavLink',
+          '.DocsToc a',
+          '.DocsEditLink',
+        ]) {
+          await expect(page.locator(selector).first()).toHaveCSS('text-decoration-line', 'none');
+        }
+
+        await page.locator('.DocsSearchInput').fill('installation');
+        const searchResult = page.locator('.DocsSearchResult').first();
+        await expect(searchResult).toBeVisible();
+        await expect(searchResult).toHaveCSS('text-decoration-line', 'none');
+
         const results = await runAxeWithContrast(page);
         expect(
           results.violations.filter((violation) => violation.id === 'link-in-text-block')
         ).toEqual([]);
         expect(results.passes.some((rule) => rule.id === 'link-in-text-block')).toBe(true);
+      });
+    });
+  }
+}
+
+for (const theme of ['light', 'dark'] as const) {
+  for (const viewport of [
+    { name: 'phone', width: 320, height: 800 },
+    { name: 'desktop', width: 1280, height: 900 },
+  ]) {
+    test.describe(`Marketing link decoration, ${theme}, ${viewport.name}`, () => {
+      test.use({ colorScheme: theme, viewport });
+      test.beforeEach(async ({ page }) => {
+        await blockCrossOriginRequests(page);
+      });
+
+      test('keeps navigation, calls to action, and card links unadorned', async ({ page }) => {
+        await page.goto('/pet-businesses');
+
+        await expect(page.locator('.yc-nav-links a').first()).toHaveCSS(
+          'text-decoration-line',
+          'none'
+        );
+        await expect(page.locator('.yc-nav-cta a[href="/signup"]').first()).toHaveCSS(
+          'text-decoration-line',
+          'none'
+        );
+        await expect(page.locator('.yc-link').first()).toHaveCSS('text-decoration-line', 'none');
+
+        await page.goto('/insights');
+        const releaseCard = page.locator('a[href*="/releases"]').first();
+        await expect(releaseCard).toBeVisible();
+        await expect(releaseCard).toHaveCSS('text-decoration-line', 'none');
       });
     });
   }
