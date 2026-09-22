@@ -641,10 +641,12 @@ describe("DeveloperBillingService", () => {
       expect(stripe.billing.meterEvents.create).not.toHaveBeenCalled();
     });
 
-    it("does nothing when STRIPE_DEV_METER_EVENT_NAME is not set", async () => {
+    it("fails explicitly when STRIPE_DEV_METER_EVENT_NAME is not set", async () => {
       delete process.env.STRIPE_DEV_METER_EVENT_NAME;
       const stripe = getStripeInstance();
-      await DeveloperBillingService.reportUsage("cus_abc", 10);
+      await expect(
+        DeveloperBillingService.reportUsage("cus_abc", 10),
+      ).rejects.toThrow("STRIPE_DEV_METER_EVENT_NAME is not configured");
       expect(stripe.billing.meterEvents.create).not.toHaveBeenCalled();
     });
   });

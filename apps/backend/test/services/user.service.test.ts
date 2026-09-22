@@ -34,6 +34,9 @@ const mockPrisma = {
   developerApiUsage: {
     deleteMany: jest.fn(),
   },
+  developerMeterEvent: {
+    deleteMany: jest.fn(),
+  },
 };
 
 jest.mock("src/config/prisma", () => ({
@@ -400,6 +403,9 @@ describe("UserService", () => {
       where: { ownerUserId: "user-123" },
     });
     expect(mockPrisma.developerApiUsage.deleteMany).toHaveBeenCalledWith({
+      where: { ownerUserId: "user-123" },
+    });
+    expect(mockPrisma.developerMeterEvent.deleteMany).toHaveBeenCalledWith({
       where: { ownerUserId: "user-123" },
     });
   });

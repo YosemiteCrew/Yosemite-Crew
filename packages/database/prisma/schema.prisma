@@ -1885,17 +1885,38 @@ enum DeveloperSubscriptionStatus {
 // Tracks per-org API call counts per billing period.
 // Free tier quota enforcement uses this; Pro tier batches here before reporting to Stripe meters.
 model DeveloperApiUsage {
-  id             String    @id @default(uuid())
-  ownerUserId    String
-  billingPeriod  String
-  callCount      Int       @default(0)
-  lastReportedAt DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id               String    @id @default(uuid())
+  ownerUserId      String
+  billingPeriod    String
+  callCount        Int       @default(0)
+  meteredCallCount Int       @default(0)
+  lastReportedAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@unique([ownerUserId, billingPeriod])
   @@index([billingPeriod])
   @@map("DeveloperApiUsage")
+}
+
+/// Durable Stripe meter delivery. The UUID is also the provider identifier, so
+/// retries after a timeout or process restart cannot count the call twice.
+model DeveloperMeterEvent {
+  id               String    @id @default(uuid())
+  ownerUserId      String
+  billingPeriod    String
+  callSequence     Int
+  stripeCustomerId String?
+  attempts         Int       @default(0)
+  nextAttemptAt    DateTime  @default(now())
+  lastAttemptAt    DateTime?
+  failureCode      String?
+  deliveredAt      DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@unique([ownerUserId, billingPeriod, callSequence])
+  @@index([deliveredAt, nextAttemptAt])
+  @@index([ownerUserId, billingPeriod])
 }
 
 enum DevicePlatform {
