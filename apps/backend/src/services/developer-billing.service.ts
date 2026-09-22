@@ -279,7 +279,7 @@ async function handleSubscriptionUpdated(
   const status = toSubscriptionStatus(current.status);
 
   await prisma.developerSubscription.update({
-    where: { id: record.id },
+    where: { stripeSubscriptionId: String(sub.id) },
     data: {
       plan: planForStatus(status),
       status,
