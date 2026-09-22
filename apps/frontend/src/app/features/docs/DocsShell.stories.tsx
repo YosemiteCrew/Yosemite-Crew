@@ -173,6 +173,41 @@ export const TabletTableOfContents: DocsShellStory = {
   },
 };
 
+export const PhoneNavigation: DocsShellStory = {
+  name: 'Phone (collapsed navigation)',
+  globals: { viewport: { value: 'mobile', isRotated: false } },
+  parameters: {
+    chromatic: { viewports: [375] },
+    docs: {
+      description: {
+        story:
+          'Below 860px the navigation tree collapses behind a disclosure, so the article starts ' +
+          'on the first screen instead of below the whole tree. The desktop rail is unchanged.',
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const toggle = canvas.getByRole('button', { name: 'Documentation menu' });
+    const tree = canvasElement.querySelector('#docs-nav-tree') as HTMLElement;
+
+    /* State only. Whether the media query actually hides the tree at 390px is
+       measured in e2e/docs-mobile.spec.ts, which controls the viewport. */
+    await expect(toggle).toHaveAttribute('aria-controls', 'docs-nav-tree');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(tree).toHaveAttribute('data-open', 'false');
+
+    toggle.click();
+
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(tree).toHaveAttribute('data-open', 'true');
+    await expect(within(tree).getByRole('link', { name: 'Overview' })).toHaveAttribute(
+      'href',
+      '/docs'
+    );
+  },
+};
+
 export const NoTableOfContents: DocsShellStory = {
   name: 'No table of contents',
   args: { toc: [] },
