@@ -57,18 +57,36 @@ test.describe('docs code samples at a phone width', () => {
       expect(block.scrollWidth).toBeLessThanOrEqual(block.clientWidth);
     }
   });
-
-  test('leave no WCAG 2.1 AA violations on mobile docs', async ({ page }) => {
-    await openDocs(page);
-
-    const results = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
-      .analyze();
-
-    expect(results.violations).toEqual([]);
-    expect(results.passes.length).toBeGreaterThan(0);
-  });
 });
+
+for (const viewport of [
+  { name: 'phone', size: PHONE },
+  { name: 'desktop', size: DESKTOP },
+]) {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test.describe(`docs WCAG 2.1 AA, ${viewport.name}, ${colorScheme}`, () => {
+      test.use({ viewport: viewport.size, colorScheme });
+
+      test('has no violations and evaluates link-in-text-block', async ({ page }) => {
+        await openDocs(page);
+
+        const proseLink = page.locator('.DocsBody p a').first();
+        const headingAnchor = page.locator('.DocsHeadingAnchor').first();
+        await expect(proseLink).toBeVisible();
+        await expect(headingAnchor).toBeVisible();
+        await expect(proseLink).toHaveCSS('text-decoration-line', 'underline');
+        await expect(headingAnchor).toHaveCSS('text-decoration-line', 'none');
+
+        const results = await new AxeBuilder({ page })
+          .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+          .analyze();
+
+        expect(results.violations).toEqual([]);
+        expect(results.passes.some((rule) => rule.id === 'link-in-text-block')).toBe(true);
+      });
+    });
+  }
+}
 
 test.describe('docs code samples on a wide window', () => {
   test.use({ viewport: DESKTOP });
