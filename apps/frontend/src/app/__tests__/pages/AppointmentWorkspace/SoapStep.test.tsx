@@ -13,6 +13,9 @@ import {
 expect.extend(toHaveNoViolations);
 
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
+  // Spread the real module so the pure conflict-message helper and the shared
+  // conflict copy stay under test; only the network calls are replaced.
+  ...jest.requireActual('@/app/features/appointments/services/workspaceClinicalService'),
   saveSoapNote: jest.fn(),
 }));
 

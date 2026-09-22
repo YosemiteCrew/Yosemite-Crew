@@ -52,6 +52,9 @@ jest.mock('@/app/features/appointments/services/workspaceAggregateService', () =
 }));
 
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
+  // Spread the real module so the pure conflict-message helper and the shared
+  // conflict copy stay under test; only the network calls are replaced.
+  ...jest.requireActual('@/app/features/appointments/services/workspaceClinicalService'),
   savePrescriptionArtifact: jest.fn().mockResolvedValue({ resourceType: 'MedicationRequest' }),
   deletePrescriptionArtifact: jest.fn().mockResolvedValue(true),
 }));
