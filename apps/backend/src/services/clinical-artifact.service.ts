@@ -1743,11 +1743,11 @@ const retirePrescriptionInTx = async (
   });
 };
 
-const preparePrescriptionRetirement = async (
+const assertPrescriptionRetirable = async (
   record: PrescriptionWithArtifact,
   organisationId: string | undefined,
   actor: PrescriptionActor,
-): Promise<PrescriptionDispenseRequestModel | null> => {
+): Promise<void> => {
   assertArtifactKind(
     record.artifact,
     "PRESCRIPTION",
@@ -1771,6 +1771,23 @@ const preparePrescriptionRetirement = async (
     record.id,
     "Prescription has already been billed or paid.",
   );
+};
+
+/**
+ * The retirement guards plus the dispense request the stock reversal branches
+ * on, both outside any transaction.
+ *
+ * Only `updatePrescription` still uses the returned row, and only because its
+ * stock reversal also still runs outside the transaction (#3500). Reading the
+ * branch-deciding row here races the approve path, so `cancelPrescription`
+ * takes the guards alone and reads the row inside its transaction (#3503).
+ */
+const preparePrescriptionRetirement = async (
+  record: PrescriptionWithArtifact,
+  organisationId: string | undefined,
+  actor: PrescriptionActor,
+): Promise<PrescriptionDispenseRequestModel | null> => {
+  await assertPrescriptionRetirable(record, organisationId, actor);
   return clinicalPrisma.prescriptionDispenseRequest.findFirst({
     where: {
       organisationId: String(record.artifact.organisationId),
@@ -2286,11 +2303,7 @@ export const ClinicalArtifactService = {
       return toPrescriptionRecord(record);
     }
 
-    const dispenseRequest = await preparePrescriptionRetirement(
-      record,
-      organisationId,
-      actor,
-    );
+    await assertPrescriptionRetirable(record, organisationId, actor);
     const artifact = await prisma.$transaction(
       async (tx) => {
         // Version claim first: a caller holding a stale generation is rejected
@@ -2300,6 +2313,18 @@ export const ClinicalArtifactService = {
           record,
           expectedVersion,
         );
+        // #3503: the row that selects the reversal branch is read here, under
+        // the dispense-request advisory lock, not before the transaction
+        // opened - otherwise an approve committing in between draws stock this
+        // cancellation then never releases.
+        const dispenseRequest =
+          await InventoryConsumptionService.loadDispenseRequestForRetirementInTx(
+            tx,
+            {
+              organisationId: record.artifact.organisationId,
+              prescriptionId: record.id,
+            },
+          );
         await reversePrescriptionDispenseInTx(tx, record, dispenseRequest);
         return retired;
       },

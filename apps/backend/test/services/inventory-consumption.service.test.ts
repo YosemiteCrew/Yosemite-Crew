@@ -434,6 +434,97 @@ describe("InventoryConsumptionService", () => {
     );
   });
 
+  /**
+   * #3503: the cancel path branches on this request's status, so approve and
+   * cancel have to serialise. Approve used to read and flip it holding no lock
+   * at all, which let it draw stock inside the window a concurrent cancel had
+   * already read as PENDING.
+   */
+  it("locks the dispense request before approve reads it", async () => {
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValue(null);
+
+    await expect(
+      InventoryConsumptionService.approvePrescriptionDispenseRequest({
+        organisationId: "org-1",
+        prescriptionId: "rx-lock-1",
+        medications: [],
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+
+    const [lockSql, lockKey] = mockedPrisma.$executeRaw.mock.calls[0];
+    expect(lockSql.join("")).toContain("pg_advisory_xact_lock");
+    expect(lockKey).toBe("prescription-dispense-request:org-1:rx-lock-1");
+    expect(mockedPrisma.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      mockedPrisma.prescriptionDispenseRequest.findFirst.mock
+        .invocationCallOrder[0],
+    );
+  });
+
+  describe("loadDispenseRequestForRetirementInTx", () => {
+    const txClient = () => ({
+      $executeRaw: jest.fn(),
+      prescriptionDispenseRequest: { findFirst: jest.fn() },
+    });
+
+    it("takes the dispense-request lock on the caller's client before reading", async () => {
+      const tx = txClient();
+      tx.prescriptionDispenseRequest.findFirst.mockResolvedValue({
+        id: "request-retire-1",
+        status: "DISPENSED",
+      });
+
+      const request =
+        await InventoryConsumptionService.loadDispenseRequestForRetirementInTx(
+          tx as never,
+          { organisationId: "org-1", prescriptionId: "rx-retire-1" },
+        );
+
+      expect(request).toMatchObject({ id: "request-retire-1" });
+      expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+      const [lockSql, lockKey] = tx.$executeRaw.mock.calls[0];
+      expect(lockSql.join("")).toContain("pg_advisory_xact_lock");
+      expect(lockKey).toBe("prescription-dispense-request:org-1:rx-retire-1");
+      expect(tx.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
+        tx.prescriptionDispenseRequest.findFirst.mock.invocationCallOrder[0],
+      );
+      // On the caller's client: a lock taken on the service's own client is
+      // released by that client's own transaction and guards nothing here.
+      expect(mockedPrisma.$executeRaw).not.toHaveBeenCalled();
+    });
+
+    it("reads the newest PENDING or DISPENSED request for the prescription", async () => {
+      const tx = txClient();
+      tx.prescriptionDispenseRequest.findFirst.mockResolvedValue(null);
+
+      await InventoryConsumptionService.loadDispenseRequestForRetirementInTx(
+        tx as never,
+        { organisationId: "org-1", prescriptionId: "rx-retire-2" },
+      );
+
+      expect(tx.prescriptionDispenseRequest.findFirst).toHaveBeenCalledWith({
+        where: {
+          organisationId: "org-1",
+          prescriptionId: "rx-retire-2",
+          status: { in: ["PENDING", "DISPENSED"] },
+        },
+        orderBy: { requestedAt: "desc" },
+      });
+    });
+
+    it("rejects a blank prescription id without taking the lock", async () => {
+      const tx = txClient();
+
+      await expect(
+        InventoryConsumptionService.loadDispenseRequestForRetirementInTx(
+          tx as never,
+          { organisationId: "org-1", prescriptionId: "  " },
+        ),
+      ).rejects.toMatchObject({ statusCode: 400 });
+
+      expect(tx.$executeRaw).not.toHaveBeenCalled();
+    });
+  });
+
   it("enriches dispense requests with pet and stock snapshots", async () => {
     mockedPrisma.appointment.findFirst.mockResolvedValueOnce({
       patient: {
