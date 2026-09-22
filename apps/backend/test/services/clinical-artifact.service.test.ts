@@ -4400,7 +4400,12 @@ describe("ClinicalArtifactService", () => {
         .mockResolvedValueOnce(revision)
         .mockResolvedValueOnce(original);
       mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
-      mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+      // #3503: the reversal branches on the row read inside the revision
+      // transaction, under the dispense-request advisory lock, so that is
+      // where this test supplies it.
+      (
+        InventoryConsumptionService.loadDispenseRequestForRetirementInTx as jest.Mock
+      ).mockResolvedValueOnce({
         id: "dispense-original",
         status: "PENDING",
       });
@@ -4483,6 +4488,110 @@ describe("ClinicalArtifactService", () => {
       ).toHaveBeenCalledTimes(1);
     });
 
+    it("reads the superseded prescription's dispense request inside the revision transaction", async () => {
+      // #3503 on the supersession path. The row read here decides which
+      // reversal branch runs. Read before the transaction opened, an approve
+      // committing in between flips PENDING to DISPENSED and draws stock this
+      // supersession then never releases, because the branch was already
+      // chosen. Reading it inside the transaction, under the dispense-request
+      // advisory lock the approve path also takes, leaves only the two
+      // serialised orderings.
+      const revision = prescriptionRow({
+        id: "prescription-revision",
+        supersedesId: "prescription-original",
+        artifact: artifactRow({
+          kind: "PRESCRIPTION",
+          status: "DRAFT",
+          authorId: "author-1",
+        }),
+      });
+      const original = prescriptionRow({
+        id: "prescription-original",
+        artifactId: "artifact-original",
+        artifact: artifactRow({
+          id: "artifact-original",
+          kind: "PRESCRIPTION",
+          status: "COMPLETED",
+          authorId: "author-1",
+        }),
+      });
+      mockedPrisma.prescription.findFirst
+        .mockResolvedValueOnce(revision)
+        .mockResolvedValueOnce(original);
+      mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
+      (
+        InventoryConsumptionService.loadDispenseRequestForRetirementInTx as jest.Mock
+      ).mockResolvedValueOnce({
+        id: "dispense-original",
+        status: "DISPENSED",
+      });
+      mockedPrisma.clinicalArtifact.update
+        .mockResolvedValueOnce(
+          artifactRow({
+            kind: "PRESCRIPTION",
+            status: "COMPLETED",
+            authorId: "author-1",
+          }),
+        )
+        .mockResolvedValueOnce(
+          artifactRow({
+            id: "artifact-original",
+            kind: "PRESCRIPTION",
+            status: "VOID",
+            authorId: "author-1",
+          }),
+        );
+      mockedPrisma.prescription.update.mockResolvedValueOnce(
+        prescriptionRow({
+          id: "prescription-revision",
+          supersedesId: "prescription-original",
+          artifactId,
+        }),
+      );
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-rx-revision-in-tx-read",
+        kind: "PRESCRIPTION",
+        title: "Prescription",
+      });
+
+      await ClinicalArtifactService.finalizePrescription(
+        "prescription-revision",
+        organisationId,
+        { actorId: "author-1", canEditAny: false },
+      );
+
+      // Read on the transaction client, for the superseded prescription.
+      expect(
+        InventoryConsumptionService.loadDispenseRequestForRetirementInTx,
+      ).toHaveBeenCalledWith(mockedPrisma, {
+        organisationId,
+        prescriptionId: "prescription-original",
+      });
+      // ...and nowhere else. The pre-transaction read this replaces went
+      // straight to the model, so a row arriving from there again is the
+      // regression.
+      expect(
+        mockedPrisma.prescriptionDispenseRequest.findFirst,
+      ).not.toHaveBeenCalled();
+      // The read has to precede the branch it decides, inside the same
+      // transaction: after the retirement's VOID claim, before the reversal.
+      expect(
+        mockedPrisma.clinicalArtifact.update.mock.invocationCallOrder[1],
+      ).toBeLessThan(
+        jest.mocked(
+          InventoryConsumptionService.loadDispenseRequestForRetirementInTx,
+        ).mock.invocationCallOrder[0],
+      );
+      expect(
+        jest.mocked(
+          InventoryConsumptionService.loadDispenseRequestForRetirementInTx,
+        ).mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        jest.mocked(InventoryConsumptionService.voidDispensePrescriptionInTx)
+          .mock.invocationCallOrder[0],
+      );
+    });
+
     it("releases a dispensed superseded prescription inside the revision transaction", async () => {
       // The DISPENSED branch of the reversal, which is the one that moves real
       // stock. It has to run on the revision transaction's client: released in
@@ -4511,7 +4620,12 @@ describe("ClinicalArtifactService", () => {
         .mockResolvedValueOnce(revision)
         .mockResolvedValueOnce(original);
       mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
-      mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+      // #3503: the reversal branches on the row read inside the revision
+      // transaction, under the dispense-request advisory lock, so that is
+      // where this test supplies it.
+      (
+        InventoryConsumptionService.loadDispenseRequestForRetirementInTx as jest.Mock
+      ).mockResolvedValueOnce({
         id: "dispense-original",
         status: "DISPENSED",
       });
