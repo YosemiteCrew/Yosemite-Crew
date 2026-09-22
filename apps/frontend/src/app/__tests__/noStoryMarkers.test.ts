@@ -19,6 +19,7 @@ const MARKED_FILES = [
   'src/app/(routes)/(app)/chat/page.tsx',
   'src/app/(routes)/(app)/developers/settings/layout.tsx',
   'src/app/(routes)/(app)/layout.tsx',
+  'src/app/(routes)/(app)/loading.tsx',
   'src/app/(routes)/(app)/network/page.tsx',
   'src/app/(routes)/(app)/public-booking-setup/page.tsx',
   'src/app/(routes)/(book)/layout.tsx',

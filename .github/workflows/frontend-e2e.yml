@@ -211,6 +211,7 @@ jobs:
           e2e/smoke.spec.ts e2e/a11y.spec.ts
           e2e/pageInvariants.spec.ts e2e/routeSweepExtractors.spec.ts
           e2e/docs-mobile.spec.ts e2e/marketing-hero-mobile.spec.ts
+          e2e/no-js.spec.ts
 
       - name: Upload Playwright HTML report
         if: always()
