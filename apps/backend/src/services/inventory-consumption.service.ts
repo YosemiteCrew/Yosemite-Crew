@@ -1958,6 +1958,26 @@ const consumePrescriptionMedications = async (
   );
 };
 
+/**
+ * Serialise every writer of a prescription's dispense request against every
+ * other one, for the caller's transaction (#3503).
+ *
+ * The request's status is what decides whether cancelling the prescription
+ * releases drawn stock or only retires a pending request, so a reader that
+ * branches on it has to hold this lock while it reads AND while it acts.
+ * Without it, approve can read PENDING, draw the stock and commit between the
+ * cancel path's read and its write, leaving the artifact VOID with the drawn
+ * stock never released.
+ */
+const lockPrescriptionDispenseRequestInTx = async (
+  tx: Prisma.TransactionClient,
+  organisationId: string,
+  prescriptionId: string,
+): Promise<void> => {
+  const lockKey = `prescription-dispense-request:${organisationId}:${prescriptionId}`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+};
+
 const upsertPendingDispenseRequest = async (
   tx: Prisma.TransactionClient,
   params: {
@@ -1968,8 +1988,11 @@ const upsertPendingDispenseRequest = async (
     requestedBy?: string | null;
   },
 ) => {
-  const lockKey = `prescription-dispense-request:${params.organisationId}:${params.prescriptionId}`;
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+  await lockPrescriptionDispenseRequestInTx(
+    tx,
+    params.organisationId,
+    params.prescriptionId,
+  );
 
   const existing = await tx.prescriptionDispenseRequest.findFirst({
     where: {
@@ -2327,6 +2350,14 @@ export const InventoryConsumptionService = {
     }
 
     return prisma.$transaction(async (tx) => {
+      // #3503: taken before the read, and before the per-item stock locks, so
+      // this path and the cancel path serialise in one consistent order.
+      await lockPrescriptionDispenseRequestInTx(
+        tx,
+        organisationId,
+        prescriptionId,
+      );
+
       const request = await tx.prescriptionDispenseRequest.findFirst({
         where: {
           organisationId,
@@ -2410,6 +2441,49 @@ export const InventoryConsumptionService = {
     );
 
     return hydrateDispenseRequest(prisma, refreshedRequest);
+  },
+
+  /**
+   * The dispense request that decides how a prescription's stock is reversed,
+   * read inside the caller's transaction and under the dispense-request
+   * advisory lock (#3503).
+   *
+   * `cancelPrescription` used to branch on a copy of this row read before its
+   * transaction opened. An approve landing in between flipped PENDING to
+   * DISPENSED and drew the stock, so the cancel took the PENDING branch, found
+   * nothing pending to retire, and committed a VOID artifact whose drawn stock
+   * was never released. Reading here, under the lock the approve path also
+   * takes, makes the two orderings the only two outcomes: either this sees
+   * DISPENSED and releases, or approve runs afterwards and finds nothing
+   * PENDING to approve.
+   */
+  async loadDispenseRequestForRetirementInTx(
+    tx: Prisma.TransactionClient,
+    params: { organisationId: string; prescriptionId: string },
+  ) {
+    const organisationId = asNonEmptyString(params.organisationId);
+    const prescriptionId = asNonEmptyString(params.prescriptionId);
+    if (!organisationId || !prescriptionId) {
+      throw new InventoryConsumptionServiceError(
+        "organisationId and prescriptionId are required",
+        400,
+      );
+    }
+
+    await lockPrescriptionDispenseRequestInTx(
+      tx,
+      organisationId,
+      prescriptionId,
+    );
+
+    return tx.prescriptionDispenseRequest.findFirst({
+      where: {
+        organisationId,
+        prescriptionId,
+        status: { in: ["PENDING", "DISPENSED"] },
+      },
+      orderBy: { requestedAt: "desc" },
+    });
   },
 
   /**
