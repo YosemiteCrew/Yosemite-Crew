@@ -526,14 +526,14 @@ function HeroResponseCard() {
             color: 'var(--ink-muted)',
           }}
         >
-          <span style={{ color: 'var(--success)', fontWeight: 700 }}>GET</span>{' '}
+          <span style={{ color: 'var(--success-text)', fontWeight: 700 }}>GET</span>{' '}
           /v1/developer/organizations
         </span>
         <span
           style={{
             fontSize: '12px',
             fontWeight: 700,
-            color: 'var(--success)',
+            color: 'var(--success-text)',
             letterSpacing: '0.06em',
           }}
         >
@@ -553,9 +553,9 @@ function HeroResponseCard() {
       >
         <span style={{ color: 'var(--ink-faint2)' }}>[{'{'}</span>
         {'\n  '}
-        <span style={{ color: 'var(--cyan-text)' }}>&quot;id&quot;</span>:{' '}
+        <span style={{ color: 'var(--blue-text)' }}>&quot;id&quot;</span>:{' '}
         <span style={{ color: 'var(--code-str)' }}>&quot;org_demo&quot;</span>,{'\n  '}
-        <span style={{ color: 'var(--cyan-text)' }}>&quot;name&quot;</span>:{' '}
+        <span style={{ color: 'var(--blue-text)' }}>&quot;name&quot;</span>:{' '}
         <span style={{ color: 'var(--code-str)' }}>&quot;Demo Practice&quot;</span>
         {'\n'}
         <span style={{ color: 'var(--ink-faint2)' }}>{'}'}]</span>

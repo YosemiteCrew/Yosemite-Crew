@@ -84,12 +84,6 @@
   .DocsLayout {
     grid-template-columns: minmax(0, 1fr);
   }
-  .DocsNav {
-    position: static;
-    max-height: none;
-    border-right: 0;
-    border-bottom: 1px solid var(--divider);
-  }
 }
 
 /* ---------- sidebar ---------- */
@@ -101,6 +95,14 @@
   overflow-y: auto;
   padding: 20px 12px 40px 0;
   border-right: 1px solid var(--divider);
+}
+
+/*
+ * The phone disclosure. Hidden here rather than rendered conditionally, so the
+ * wide layout cannot lose its rail to a stale client state.
+ */
+.DocsNavToggle {
+  display: none;
 }
 
 .DocsNavSection {
@@ -148,6 +150,52 @@
   background: var(--nav-active-bg);
   color: var(--color-text-brand);
   font-weight: 600;
+}
+
+/*
+ * One column: the sidebar becomes a block of links above the article.
+ *
+ * This block has to sit AFTER the base .DocsNav rule, not with the other
+ * one-column overrides further up. A media query adds no specificity, so two
+ * `.DocsNav` rules are decided on source order alone - declared first, every
+ * line here lost to the sticky base rule and the collapsed navigation stayed
+ * pinned under the top bar, covering the article as the reader scrolled.
+ */
+@media (max-width: 860px) {
+  .DocsNav {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+    padding: 14px 0 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--divider);
+  }
+
+  .DocsNavToggle {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 44px;
+    padding: 11px 14px;
+    background: var(--color-surface-card);
+    border: 1px solid var(--divider);
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  .DocsNavTree {
+    padding-top: 8px;
+  }
+
+  .DocsNavTree[data-open='false'] {
+    display: none;
+  }
 }
 
 /* ---------- main column ---------- */
@@ -254,6 +302,30 @@
   line-height: 1.6;
 }
 
+/*
+ * Code samples wrap on a phone instead of scrolling sideways.
+ *
+ * `overflow-x: auto` on a box the reader cannot reach with a keyboard is an
+ * axe `scrollable-region-focusable` failure, and at 390px three of the four
+ * blocks on the overview page overflowed (399, 387 and 485 CSS px of content
+ * in a 318px box). Wrapping removes the scroll container altogether rather
+ * than making it focusable, so there is no keyboard trap to get right. The
+ * desktop treatment is untouched: a wide window has the room, and preserving
+ * the original line breaks matters more there.
+ */
+@media (max-width: 860px) {
+  .DocsBody pre {
+    overflow-x: visible;
+  }
+
+  .DocsBody pre code {
+    /* `anywhere` and not `break-word`: a command line is one long unbroken
+       token far more often than prose is. */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
 /* Wide tables scroll inside their own box rather than pushing the page sideways. */
 .DocsBody table {
   display: block;
@@ -316,6 +388,28 @@
   padding: 30px 0 40px;
 }
 
+.DocsTocCompact {
+  display: none;
+  margin: 0 0 28px;
+  border: 1px solid var(--divider);
+  border-radius: 10px;
+  background: var(--color-surface-card);
+}
+
+.DocsTocCompactSummary {
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 11px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.DocsTocCompact[open] .DocsTocCompactSummary {
+  border-bottom: 1px solid var(--divider);
+}
+
 .DocsTocHeading {
   margin: 0 0 10px;
   font-size: 11.5px;
@@ -343,13 +437,37 @@
   padding-left: 12px;
 }
 
-.DocsToc a {
+.DocsToc a,
+.DocsTocCompact a {
   color: var(--color-text-tertiary);
   text-decoration: none;
 }
 
-.DocsToc a:hover {
+.DocsToc a:hover,
+.DocsTocCompact a:hover {
   color: var(--color-text-brand);
+}
+
+.DocsTocCompact .DocsTocList {
+  padding: 8px 14px;
+  border-left: 0;
+}
+
+.DocsTocCompact .DocsTocItem,
+.DocsTocCompact .DocsTocItemNested {
+  margin: 0;
+}
+
+.DocsTocCompact a {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+}
+
+@media (max-width: 1180px) {
+  .DocsTocCompact {
+    display: block;
+  }
 }
 
 /* ---------- search ---------- */
@@ -357,6 +475,42 @@
 .DocsSearch {
   position: relative;
   width: min(320px, 42vw);
+}
+
+/*
+ * Below 516px the top bar is over-subscribed and every item pays for it: the
+ * brand and the title each wrap onto a second line, and the search field is
+ * squeezed to 63px of content at 320px for a prompt that needs 108px, so it
+ * reads as `Search th`. Giving the field its own row fixes all three.
+ *
+ * 516px is where the row stops shrinking, not a round number picked by eye:
+ * brand (109.2) + divider (1) + title (93.05) + 42vw + four 12px gaps + 48px
+ * of padding first fits at 515.9px, and a 4px sweep of the live page puts the
+ * change at exactly 516. So every width that renders the bar at its natural
+ * size today renders identically after this rule.
+ */
+@media (max-width: 515px) {
+  .DocsTopBar {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  /* The spacer only exists to push the search right on one row. */
+  .DocsTopSpacer {
+    display: none;
+  }
+
+  .DocsSearch {
+    width: 100%;
+  }
+
+  /* The stacked bar is taller than the 57px single row, and an #anchor has to
+     clear whichever one is on screen. */
+  .DocsBody h2,
+  .DocsBody h3,
+  .DocsBody h4 {
+    scroll-margin-top: 108px;
+  }
 }
 
 .DocsSearchInput {

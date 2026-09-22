@@ -59,6 +59,7 @@ describe("clinicalArtifactFhirMapper", () => {
     prescription: {
       id: "rx-1",
       artifactId: "artifact-2",
+      supersedesId: null,
       medications: [{ name: "Amoxicillin" }],
       instructions: "BID",
       notes: "after food",

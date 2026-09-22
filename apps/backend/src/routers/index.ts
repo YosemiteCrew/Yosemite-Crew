@@ -81,6 +81,7 @@ import mobileCareReminderRouter from "./mobile-care-reminder.router";
 import patientProblemRouter from "./patient-problem.router";
 import patientAllergyRouter from "./patient-allergy.router";
 import mobilePatientAllergyRouter from "./mobile-patient-allergy.router";
+import mobilePatientProblemRouter from "./mobile-patient-problem.router";
 import marRouter from "./mar.router";
 import preventiveCarePlanRouter from "./preventive-care-plan.router";
 import surgicalProcedureRouter from "./surgical-procedure.router";
@@ -226,6 +227,7 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, patientProblemRouter);
   app.use(`/v1`, patientAllergyRouter);
   app.use(`/v1/patient-allergies`, mobilePatientAllergyRouter);
+  app.use(`/v1/patient-problems`, mobilePatientProblemRouter);
   app.use(`/v1`, marRouter);
   app.use(`/v1`, preventiveCarePlanRouter);
   app.use(`/v1`, surgicalProcedureRouter);
