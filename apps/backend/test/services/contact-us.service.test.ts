@@ -190,6 +190,43 @@ describe("ContactService", () => {
         expect.objectContaining({ id: "web-1", subject: "GENERAL_ENQUIRY" }),
       );
     });
+
+    /* #3329: the mirror forward is queued by this same insert rather than sent
+       off the request path, so a submission and its forward commit together.
+       Dropping the nested create is how history goes missing silently - the
+       submission still stores, nothing errors, and the CRM never hears. */
+    it("queues the SuperAdmin forward in the same insert as the submission", async () => {
+      (prisma.contactRequest.create as jest.Mock).mockResolvedValue({
+        id: "web-2",
+      });
+
+      await ContactService.createWebRequest(baseWebInput);
+
+      const args = (prisma.contactRequest.create as jest.Mock).mock
+        .calls[0][0] as { data: Record<string, unknown> };
+      expect(args.data.superadminForward).toEqual({ create: {} });
+    });
+
+    /* The mobile path is authenticated and is not mirrored. It writes no
+       complaintContext, which is also what the #3330 backfill selects on, so
+       the two paths have to stay distinguishable. */
+    it("does not queue a forward for the authenticated non-web path", async () => {
+      (prisma.contactRequest.create as jest.Mock).mockResolvedValue({
+        id: "app-1",
+      });
+
+      await ContactService.createRequest({
+        type: "GENERAL_ENQUIRY",
+        source: "PMS_APP",
+        subject: "Help",
+        message: "Need help",
+      } as any);
+
+      const args = (prisma.contactRequest.create as jest.Mock).mock
+        .calls[0][0] as { data: Record<string, unknown> };
+      expect(args.data.superadminForward).toBeUndefined();
+      expect(args.data.complaintContext).toBeUndefined();
+    });
   });
 
   // 2. listRequests

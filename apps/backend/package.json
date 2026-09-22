@@ -20,6 +20,7 @@
     "seed:template-library": "tsx src/scripts/seed-template-library.ts",
     "check:wallet": "tsx src/scripts/check-wallet-config.ts",
     "import:venom-designations": "tsx src/scripts/import-venom-designations.ts",
+    "backfill:superadmin-contact": "tsx src/scripts/backfill-superadmin-contact-forwards.ts",
     "import:venom-hierarchy": "tsx src/scripts/import-venom-hierarchy.ts"
   },
   "dependencies": {

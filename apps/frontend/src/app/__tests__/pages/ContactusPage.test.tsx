@@ -66,6 +66,49 @@ describe('ContactusPage', () => {
       expect(mockedPostData).not.toHaveBeenCalled();
     });
 
+    it('renders the honeypot hidden from people and from assistive technology', () => {
+      /* It has to be reachable by a form-filling bot and unreachable by a real
+         visitor. Hidden by position rather than display:none, because a bot that
+         skips undisplayed inputs is exactly the one worth catching (#2645). */
+      const { container } = render(<ContactusPage />);
+      const honeypot = container.querySelector('input[name="website"]') as HTMLInputElement;
+
+      expect(honeypot).not.toBeNull();
+      // Not announced, not tabbable, not autofilled.
+      expect(honeypot.closest('[aria-hidden="true"]')).not.toBeNull();
+      expect(honeypot.tabIndex).toBe(-1);
+      expect(honeypot.getAttribute('autocomplete')).toBe('off');
+      /* Absent from the accessibility tree. Asserted with a ROLE query, because
+         only role queries honour aria-hidden - getByLabelText finds the input
+         regardless, which is why this assertion was wrong the first time. */
+      expect(screen.queryByRole('textbox', { name: 'Website' })).toBeNull();
+    });
+
+    it('sends whatever the honeypot holds, so the API can discard it', async () => {
+      /* The client must not decide - it forwards the value and the server drops
+         it, which keeps the detection in one place and lets the API answer 201
+         without revealing that the submission was binned. */
+      const { container } = render(<ContactusPage />);
+
+      fireEvent.change(screen.getByLabelText('Full Name'), { target: { value: 'Bot' } });
+      fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+        target: { value: 'bot@spam.example' },
+      });
+      fireEvent.change(screen.getByPlaceholderText('Your Message'), {
+        target: { value: 'buy cheap watches' },
+      });
+      const honeypot = container.querySelector('input[name="website"]') as HTMLInputElement;
+      fireEvent.change(honeypot, { target: { value: 'http://spam.example' } });
+
+      fireEvent.submit(container.getElementsByTagName('form')[0]);
+
+      await waitFor(() => expect(mockedPostData).toHaveBeenCalledTimes(1));
+      expect(mockedPostData).toHaveBeenCalledWith(
+        '/v1/contact-us/contact-web',
+        expect.objectContaining({ website: 'http://spam.example' })
+      );
+    });
+
     it('should submit through the form action when the form is submitted natively', async () => {
       const { container } = render(<ContactusPage />);
 
@@ -88,6 +131,7 @@ describe('ContactusPage', () => {
         fullName: 'John Doe',
         email: 'john.doe@example.com',
         source: 'PMS_WEB',
+        website: '',
       });
     });
 
@@ -136,6 +180,7 @@ describe('ContactusPage', () => {
         fullName: 'John Doe',
         email: 'john.doe@example.com',
         source: 'PMS_WEB',
+        website: '',
       });
     });
 
@@ -165,6 +210,7 @@ describe('ContactusPage', () => {
         fullName: 'John Doe',
         email: 'john.doe@example.com',
         source: 'PMS_WEB',
+        website: '',
         phone: '+49 152 000 000',
       });
     });
@@ -196,6 +242,7 @@ describe('ContactusPage', () => {
         fullName: 'John Doe',
         email: 'john.doe@example.com',
         source: 'PMS_WEB',
+        website: '',
       });
     });
 
@@ -243,6 +290,7 @@ describe('ContactusPage', () => {
         fullName: 'Jane Doe',
         email: 'jane.doe@example.com',
         source: 'PMS_WEB',
+        website: '',
       });
       // On success the form is replaced by the confirmation card.
       expect(await screen.findByText('Message sent')).toBeInTheDocument();
@@ -311,6 +359,7 @@ describe('ContactusPage', () => {
         fullName: 'Sam Smith',
         email: 'sam.smith@example.com',
         source: 'PMS_WEB',
+        website: '',
         dsarDetails: {
           requesterType: 'SELF',
           lawBasis: 'UK_GDPR',
