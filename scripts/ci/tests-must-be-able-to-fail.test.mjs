@@ -447,10 +447,20 @@ test('resolveInside accepts what is inside and refuses what is not', () => {
   // path naming something above the repository root would be resolved and run.
   assert.equal(resolveInside('/tmp/d', 'report.json'), '/tmp/d/report.json');
   assert.equal(resolveInside('/tmp/d', 'a/b.json'), '/tmp/d/a/b.json');
-  assert.equal(resolveInside('/tmp/d', '/tmp/d/report.json'), '/tmp/d/report.json');
-  for (const outside of ['..', '../report.json', '/etc/passwd', 'a/../../b', '.']) {
+  for (const outside of [
+    '..',
+    '../report.json',
+    '/tmp/d/report.json',
+    '/etc/passwd',
+    'a/../../b',
+    '.',
+    'a//b',
+    'a\\b',
+    'a\0b',
+  ]) {
     assert.throws(() => resolveInside('/tmp/d', outside), /not inside/, outside);
   }
+  assert.throws(() => resolveInside('tmp/d', 'report.json'), /not inside/);
 });
 
 test('the suite total comes from the report the run just wrote', () => {
