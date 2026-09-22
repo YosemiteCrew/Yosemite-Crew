@@ -236,14 +236,18 @@ async function main() {
   const [, , cmd, a, b] = argv;
   switch (cmd) {
     case 'sample':
-      return void (await cmdSample());
+      await cmdSample();
+      return;
     case 'blind':
-      return void stdout.write(`${blindSheet(await readStdin())}\n`);
+      stdout.write(`${blindSheet(await readStdin())}\n`);
+      return;
     case 'run':
-      return void stdout.write(`${JSON.stringify(await cmdRun(await readStdin()), null, 2)}\n`);
+      stdout.write(`${JSON.stringify(await cmdRun(await readStdin()), null, 2)}\n`);
+      return;
     case 'score': {
       const run = JSON.parse(readFileSync(a, 'utf8'));
-      return void stdout.write(`${score(run, JSON.parse(readFileSync(b, 'utf8')))}\n`);
+      stdout.write(`${score(run, JSON.parse(readFileSync(b, 'utf8')))}\n`);
+      return;
     }
     default:
       throw new Error(`usage: measure.mjs <sample|blind|run|score> - see the header of this file`);

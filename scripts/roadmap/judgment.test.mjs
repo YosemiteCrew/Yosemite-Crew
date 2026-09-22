@@ -6,6 +6,7 @@
 // only that a wrong or slow or absent answer cannot reach a public board.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { env } from 'node:process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -18,7 +19,7 @@ import {
   URGENCY_LEVELS,
   URGENCY_PRIORITY_BY_LEVEL,
   classifyWithJudgment,
-  createFileStore,
+  createJudgmentCacheStore,
   createJudgmentClient,
   judgmentCacheKey,
   judgmentPayload,
@@ -54,6 +55,26 @@ const answer = ({ category, categoryConfidence = 0.9, score, urgencyConfidence =
   }
   return { model: 'jev-1.13.0', answers, usage: { input_tokens: 296, output_tokens: 20 } };
 };
+
+// The cache store reads its path from the environment rather than from an
+// argument, so a test that wants one sets the variable around the call and puts
+// it back afterwards.
+function withCachePath(path, run) {
+  const previous = env.ROADMAP_JUDGMENT_CACHE;
+  env.ROADMAP_JUDGMENT_CACHE = path;
+  const restore = () => {
+    if (previous === undefined) delete env.ROADMAP_JUDGMENT_CACHE;
+    else env.ROADMAP_JUDGMENT_CACHE = previous;
+  };
+  let out;
+  try {
+    out = run();
+  } catch (err) {
+    restore();
+    throw err;
+  }
+  return out instanceof Promise ? out.finally(restore) : (restore(), out);
+}
 
 // An issue the ladder cannot judge: no surface label, no conventional-commit
 // scope, no workspace path in the body. This is the whole population the
@@ -201,6 +222,25 @@ test('a judge that answers a question it was not asked cannot overwrite the ladd
   const out = await classifyWithJudgment(issue, overreaching);
   assert.equal(out.category, CATEGORIES.MOBILE, 'the ladder keeps the cell it answered');
   assert.equal(out.priority, PRIORITIES.LOW, 'and the cell it did not is filled');
+});
+
+test('a board cell a human already filled is never asked about', async () => {
+  const transport = fakeTransport(answer({ category: CATEGORIES.PMS, score: 4 }));
+  const judge = createJudgmentClient({ transport });
+
+  // The ladder abandons both cells, but the board only wants a priority.
+  const out = await classifyWithJudgment(abandoned, judge, { wantCategory: false });
+  assert.deepEqual(Object.keys(transport.calls[0].body.questions), [QUESTION_URGENCY]);
+  assert.equal(out.category, null);
+  assert.equal(out.priority, PRIORITIES.URGENT);
+
+  // And with neither cell wanted, nothing is asked at all.
+  const quiet = fakeTransport(answer({ category: CATEGORIES.PMS, score: 4 }));
+  await classifyWithJudgment(abandoned, createJudgmentClient({ transport: quiet }), {
+    wantCategory: false,
+    wantPriority: false,
+  });
+  assert.equal(quiet.calls.length, 0);
 });
 
 // ------------------------------------------------------------- skip rules
@@ -459,37 +499,50 @@ test('the file cache survives the process and a missing file is simply empty', a
   const path = join(mkdtempSync(join(tmpdir(), 'l3yc-roadmap-')), 'cache.json');
   const transport = fakeTransport(answer({ category: CATEGORIES.PMS }));
 
-  const first = createJudgmentClient({ transport, store: createFileStore(path) });
-  await first(abandoned, { askCategory: true });
+  await withCachePath(path, async () => {
+    const saving = createJudgmentCacheStore();
+    assert.equal(saving.size, 0, 'a cache file that does not exist yet is simply empty');
+    const first = createJudgmentClient({ transport, store: saving });
+    await first(abandoned, { askCategory: true });
+    assert.equal(saving.save(), true);
 
-  const store = createFileStore(path);
-  assert.equal(store.size, 0, 'nothing is on disk until save() is called');
+    const third = createJudgmentClient({ transport, store: createJudgmentCacheStore() });
+    const before = transport.calls.length;
+    const out = await third(abandoned, { askCategory: true });
+    assert.equal(transport.calls.length, before, 'answered from the file, not the network');
+    assert.equal(out.category, CATEGORIES.PMS);
+  });
+});
 
-  const saving = createFileStore(path);
-  const second = createJudgmentClient({ transport, store: saving });
-  await second(abandoned, { askCategory: true });
-  assert.equal(saving.save(), true);
-
-  const third = createJudgmentClient({ transport, store: createFileStore(path) });
-  const before = transport.calls.length;
-  const out = await third(abandoned, { askCategory: true });
-  assert.equal(transport.calls.length, before, 'answered from the file, not the network');
-  assert.equal(out.category, CATEGORIES.PMS);
+test('with no cache path configured the store is an ordinary in-memory Map', () => {
+  const previous = env.ROADMAP_JUDGMENT_CACHE;
+  delete env.ROADMAP_JUDGMENT_CACHE;
+  try {
+    const store = createJudgmentCacheStore();
+    assert.ok(store instanceof Map);
+    assert.equal(typeof store.save, 'undefined', 'nothing is ever written to disk');
+  } finally {
+    if (previous !== undefined) env.ROADMAP_JUDGMENT_CACHE = previous;
+  }
 });
 
 test('a corrupt cache file is an empty cache, never a failed sync', () => {
   const path = join(mkdtempSync(join(tmpdir(), 'l3yc-roadmap-')), 'cache.json');
   writeFileSync(path, 'not json at all');
   const lines = [];
-  const store = createFileStore(path, { log: (m) => lines.push(m) });
-  assert.equal(store.size, 0);
+  withCachePath(path, () => {
+    const store = createJudgmentCacheStore({ log: (m) => lines.push(m) });
+    assert.equal(store.size, 0);
+  });
   assert.equal(lines.length, 1);
 });
 
 test('an unwritable cache path is reported but does not throw', () => {
-  const store = createFileStore('/definitely/not/a/directory/cache.json');
-  store.set('k', { asked: {}, result: {} });
-  assert.equal(store.save(), false);
+  withCachePath('/definitely/not/a/directory/cache.json', () => {
+    const store = createJudgmentCacheStore();
+    store.set('k', { asked: {}, result: {} });
+    assert.equal(store.save(), false);
+  });
 });
 
 // ------------------------------------------------------------------ stats
@@ -516,7 +569,9 @@ test('token usage is accumulated across calls for the measurement', async () => 
 
 // ------------------------------------------------------- the write path
 
-const boardWrites = async (issue, judge, { dryRun = false } = {}) => {
+const cell = (name, value) => ({ name: value, field: { name } });
+
+const boardWrites = async (issue, judge, { dryRun = false, filled = [] } = {}) => {
   const writes = [];
   const actions = { uncategorised: [], untriaged: [], updated: [], judgments: [] };
   await reconcileIssue({
@@ -529,7 +584,7 @@ const boardWrites = async (issue, judge, { dryRun = false } = {}) => {
       updatedAt: issue.updatedAt,
       labels: { nodes: (issue.labels || []).map((name) => ({ name })) },
     },
-    item: { id: 'i', fieldValues: { nodes: [] } },
+    item: { id: 'i', fieldValues: { nodes: filled } },
     setSelect: async (_item, field, value) => writes.push([field, value]),
     setDate: async (_item, field, value) => writes.push([field, value.slice(0, 10)]),
     actions,
@@ -618,6 +673,52 @@ test('a dry run reports the ladder and the judgment side by side and writes neit
   assert.equal(actions.judgments.length, 1);
   assert.match(actions.judgments[0], /ladder -\/-/);
   assert.match(actions.judgments[0], new RegExp(`judgment ${CATEGORIES.PMS}/${PRIORITIES.URGENT}`));
+});
+
+test('a row whose cells a human already filled is not classified at all', async () => {
+  const transport = fakeTransport(answer({ category: CATEGORIES.PMS, score: 4 }));
+  const inner = createJudgmentClient({ transport });
+  // Count invocations of the judge itself, not just requests. The want flags
+  // already stop the request; this is the separate claim that sync.mjs reads
+  // the board BEFORE it classifies, and it has to be able to fail on its own.
+  let judgeCalls = 0;
+  const judge = (...args) => {
+    judgeCalls += 1;
+    return inner(...args);
+  };
+
+  const { writes } = await boardWrites(abandoned, judge, {
+    filled: [cell('Category', CATEGORIES.GROWTH), cell('Priority', PRIORITIES.LOW)],
+  });
+
+  assert.equal(judgeCalls, 0, 'the board is read before anything is classified');
+  assert.equal(transport.calls.length, 0, 'nothing is sent for a row nothing can be written to');
+  assert.deepEqual(
+    writes.filter(([f]) => f === 'Category' || f === 'Priority'),
+    [],
+    'and the human values are left exactly as they were'
+  );
+});
+
+test('only the empty cell is asked about when the other is already filled', async () => {
+  const transport = fakeTransport(answer({ category: CATEGORIES.PMS, score: 4 }));
+  const judge = createJudgmentClient({ transport });
+
+  await boardWrites(abandoned, judge, { filled: [cell('Category', CATEGORIES.GROWTH)] });
+  assert.deepEqual(Object.keys(transport.calls[0].body.questions), [QUESTION_URGENCY]);
+});
+
+test('the side-by-side report carries the issue number and not its title', async () => {
+  const judge = createJudgmentClient({
+    transport: fakeTransport(answer({ category: CATEGORIES.PMS, score: 4 })),
+  });
+  const { actions } = await boardWrites(abandoned, judge, { dryRun: true });
+  assert.equal(actions.judgments.length, 1);
+  assert.ok(
+    !actions.judgments[0].includes(abandoned.title),
+    'an author-controlled title does not belong in a log line'
+  );
+  assert.match(actions.judgments[0], /^#4001 \|/);
 });
 
 test('nothing is reported side by side for a row the judgment never saw', async () => {
