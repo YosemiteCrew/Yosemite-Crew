@@ -359,7 +359,7 @@ function ConsoleLastCommit({ lastCommit }: Readonly<{ lastCommit: RepoCommit | u
         style={{
           fontSize: 12.5,
           letterSpacing: '-0.01em',
-          color: '#a89e90',
+          color: 'var(--spot-ink-faint)',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
@@ -876,7 +876,14 @@ function LatestReleaseCard() {
           >
             {release.tag ?? 'Loading...'}
           </div>
-          <div style={{ marginTop: 8, fontSize: 13.5, letterSpacing: '-0.01em', color: '#a89e90' }}>
+          <div
+            style={{
+              marginTop: 8,
+              fontSize: 13.5,
+              letterSpacing: '-0.01em',
+              color: 'var(--spot-ink-faint)',
+            }}
+          >
             {release.date
               ? `Published ${release.date} on GitHub Releases.`
               : 'Tagged and published on GitHub Releases.'}
