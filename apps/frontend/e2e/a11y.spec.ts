@@ -4,9 +4,9 @@ import AxeBuilder from '@axe-core/playwright';
 /**
  * 90s, not the 30s default.
  *
- * An axe pass is CPU-heavy, and this file now runs thirteen of them against a
+ * An axe pass is CPU-heavy, and this file now runs fifteen of them against a
  * single Next dev server. CI serialises them (`workers: 1`), but a local run is
- * fullyParallel, and adding the six public-page tests was enough to push the
+ * fullyParallel, and adding the eight public-page tests was enough to push the
  * sign-in and sign-up runs past 30s on a warm laptop - they pass in 6s and 4s
  * serialised. Raising the ceiling keeps the local run honest instead of
  * intermittently red for a reason that has nothing to do with accessibility.
@@ -18,7 +18,7 @@ const WCAG_AA = ['wcag2a', 'wcag2aa', 'wcag21aa'];
 /**
  * WCAG 2.1 AA, minus colour-contrast. Sign-in and sign-up retain this narrower
  * pass while their existing palette is handled separately; the marketing home
- * and pricing surfaces use the full rule set below.
+ * home, pricing and contact surfaces use the full rule set below.
  */
 const runAxe = (page: Page) =>
   new AxeBuilder({ page }).withTags(WCAG_AA).disableRules(['color-contrast']).analyze();
@@ -94,6 +94,14 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
     expect(results.violations).toEqual([]);
   });
 
+  test('contact page has no axe violations', async ({ page }) => {
+    await page.goto('/contact-us');
+    await page.waitForLoadState('networkidle').catch(() => {});
+
+    const results = await runAxeWithContrast(page);
+    expect(results.violations).toEqual([]);
+  });
+
   test.describe('marketing pages in dark mode', () => {
     test.use({ colorScheme: 'dark' });
 
@@ -107,6 +115,14 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
 
     test('pricing has no dark-theme axe violations', async ({ page }) => {
       await page.goto('/pricing');
+      await page.waitForLoadState('networkidle').catch(() => {});
+
+      const results = await runAxeWithContrast(page);
+      expect(results.violations).toEqual([]);
+    });
+
+    test('contact has no dark-theme axe violations', async ({ page }) => {
+      await page.goto('/contact-us');
       await page.waitForLoadState('networkidle').catch(() => {});
 
       const results = await runAxeWithContrast(page);
