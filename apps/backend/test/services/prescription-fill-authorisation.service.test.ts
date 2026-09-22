@@ -371,6 +371,40 @@ describe("revokeAuthorization", () => {
     },
   );
 
+  it("takes the item's advisory lock before reading the status it decides on", async () => {
+    db.prescriptionFillAuthorization.findFirst.mockResolvedValue(authority());
+
+    await PrescriptionFillAuthorisationService.revokeAuthorization(input);
+
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
+    expect(db.$executeRaw).toHaveBeenCalledTimes(1);
+    const [locate, decide] =
+      db.prescriptionFillAuthorization.findFirst.mock.invocationCallOrder;
+    expect(locate).toBeLessThan(db.$executeRaw.mock.invocationCallOrder[0]);
+    expect(db.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(decide);
+  });
+
+  /*
+   * The first read only resolves the lock key. Deciding on it would let a
+   * revoke land between `reserveFill`'s authority read and its `create`, so a
+   * fill would be allocated against an authority already withdrawn.
+   */
+  it("refuses an authority revoked between locating it and taking the lock", async () => {
+    db.prescriptionFillAuthorization.findFirst
+      .mockResolvedValueOnce(authority())
+      .mockResolvedValue(authority({ status: "REVOKED" }));
+
+    await expect(
+      PrescriptionFillAuthorisationService.revokeAuthorization(input),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining(
+        "Only an active fill authorisation can be revoked",
+      ),
+    });
+    expect(db.prescriptionFillAuthorization.update).not.toHaveBeenCalled();
+  });
+
   it("requires revokedBy", async () => {
     await expectRefusal(
       () =>
@@ -744,6 +778,64 @@ describe("recordFulfilment", () => {
     },
   );
 
+  it("takes the item's advisory lock before reading the quantity it adds to", async () => {
+    withReservation();
+
+    await PrescriptionFillAuthorisationService.recordFulfilment(input);
+
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
+    expect(db.$executeRaw).toHaveBeenCalledTimes(1);
+    const [locate, decide] =
+      db.prescriptionFillReservation.findFirst.mock.invocationCallOrder;
+    expect(locate).toBeLessThan(db.$executeRaw.mock.invocationCallOrder[0]);
+    expect(db.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(decide);
+    expect(db.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      db.prescriptionFillReservation.update.mock.invocationCallOrder[0],
+    );
+  });
+
+  /*
+   * These run at READ COMMITTED, so accumulating onto a value read before the
+   * lock is a lost update: two concurrent top-ups both read the same
+   * `fulfilledQuantity` and the second overwrites the first.
+   */
+  it("adds to the quantity read after the lock, not the one read before it", async () => {
+    db.prescriptionFillReservation.findFirst
+      .mockResolvedValueOnce({
+        ...reservation(),
+        authorization: authority(),
+      })
+      .mockResolvedValue({
+        ...reservation({ fulfilledQuantity: new Prisma.Decimal("4") }),
+        authorization: authority(),
+      });
+
+    await PrescriptionFillAuthorisationService.recordFulfilment(input);
+
+    const data = db.prescriptionFillReservation.update.mock.calls[0][0].data;
+    expect(data.fulfilledQuantity.toString()).toBe("7");
+  });
+
+  it("refuses a fill completed between locating it and taking the lock", async () => {
+    db.prescriptionFillReservation.findFirst
+      .mockResolvedValueOnce({
+        ...reservation(),
+        authorization: authority(),
+      })
+      .mockResolvedValue({
+        ...reservation({ status: "COMPLETED" }),
+        authorization: authority(),
+      });
+
+    await expect(
+      PrescriptionFillAuthorisationService.recordFulfilment(input),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining("completed fill cannot be fulfilled"),
+    });
+    expect(db.prescriptionFillReservation.update).not.toHaveBeenCalled();
+  });
+
   it("refuses a reservation in another organisation", async () => {
     db.prescriptionFillReservation.findFirst.mockResolvedValue(null);
 
@@ -829,6 +921,42 @@ describe("cancelReservation", () => {
       404,
       "Fill reservation not found",
     );
+  });
+
+  it("takes the item's advisory lock before reading the status it decides on", async () => {
+    db.prescriptionFillReservation.findFirst.mockResolvedValue(reservation());
+
+    await PrescriptionFillAuthorisationService.cancelReservation(input);
+
+    expect(db.$transaction).toHaveBeenCalledTimes(1);
+    expect(db.$executeRaw).toHaveBeenCalledTimes(1);
+    const [locate, decide] =
+      db.prescriptionFillReservation.findFirst.mock.invocationCallOrder;
+    expect(locate).toBeLessThan(db.$executeRaw.mock.invocationCallOrder[0]);
+    expect(db.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(decide);
+    expect(db.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      db.prescriptionFillReservation.update.mock.invocationCallOrder[0],
+    );
+  });
+
+  /*
+   * The interleaving the sequential completed-fill case above cannot see: a
+   * fulfilment commits COMPLETED after the cancel has already read RESERVED.
+   * `countAllocatedFills` skips CANCELLED, so deciding on the earlier read
+   * would hand the authority back a repeat for a fill already dispensed.
+   */
+  it("refuses a fill completed between locating it and taking the lock", async () => {
+    db.prescriptionFillReservation.findFirst
+      .mockResolvedValueOnce(reservation())
+      .mockResolvedValue(reservation({ status: "COMPLETED" }));
+
+    await expect(
+      PrescriptionFillAuthorisationService.cancelReservation(input),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining("reverse the dispense instead"),
+    });
+    expect(db.prescriptionFillReservation.update).not.toHaveBeenCalled();
   });
 
   it("requires a reservationId", async () => {
