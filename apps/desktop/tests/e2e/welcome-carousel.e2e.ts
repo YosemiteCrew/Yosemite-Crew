@@ -1,9 +1,9 @@
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test';
-import electronPath from 'electron';
 import { _electron as electron } from '@playwright/test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { electronLaunchOptions } from './launch';
 
 // The welcome screen's feature carousel, against the real app (issue #3299).
 //
@@ -16,8 +16,6 @@ import path from 'node:path';
 //
 // `firstWindow()` is the welcome screen: the app boots into it and only reaches
 // a PIMS tab once startSignin runs, which these specs deliberately never do.
-
-const APP_ROOT = path.resolve(__dirname, '..', '..');
 
 // Comfortably more than the 4s carousel interval that carousel-autoplay.js
 // declares, so "it did not advance" is a claim about three missed ticks.
@@ -54,7 +52,6 @@ const releaseHolds = async (page: Page): Promise<void> => {
   await page.mouse.move(0, 0);
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 };
-const ELECTRON_EXECUTABLE = electronPath as unknown as string;
 
 // `fakeClock` swaps the page's timers for Playwright's controllable clock, so
 // a spec can say "four autoplay intervals passed" instead of sleeping through
@@ -73,8 +70,7 @@ const launchWelcome = async (
 ): Promise<{ app: ElectronApplication; page: Page; userDataDir: string }> => {
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yc-e2e-welcome-'));
   const app = await electron.launch({
-    executablePath: ELECTRON_EXECUTABLE,
-    args: [APP_ROOT, '--use-mock-keychain'],
+    ...electronLaunchOptions(),
     env: {
       ...process.env,
       YC_DESKTOP_DISABLE_UPDATES: '1',

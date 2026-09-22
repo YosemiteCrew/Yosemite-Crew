@@ -1,19 +1,16 @@
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test';
-import electronPath from 'electron';
 import { _electron as electron } from '@playwright/test';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import { electronLaunchOptions } from './launch';
 import { openPimsTab } from './welcome';
 
 type TestServer = {
   origin: string;
   close: () => Promise<void>;
 };
-
-const APP_ROOT = path.resolve(__dirname, '..', '..');
-const ELECTRON_EXECUTABLE = electronPath as unknown as string;
 
 const startServer = async (
   handler: (req: http.IncomingMessage, res: http.ServerResponse) => void
@@ -51,8 +48,7 @@ const startPimsServer = async (): Promise<TestServer> =>
 const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
   const profileDir = userDataDir || fs.mkdtempSync(path.join(os.tmpdir(), 'yc-e2e-palette-'));
   const app = await electron.launch({
-    executablePath: ELECTRON_EXECUTABLE,
-    args: [APP_ROOT, '--use-mock-keychain'],
+    ...electronLaunchOptions(),
     env: {
       ...process.env,
       YC_DESKTOP_START_URL: `${pimsOrigin}/signin`,

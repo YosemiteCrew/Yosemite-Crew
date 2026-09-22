@@ -1,11 +1,11 @@
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test';
-import electronPath from 'electron';
 import { _electron as electron } from '@playwright/test';
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import { electronLaunchOptions } from './launch';
 import { openPimsTab } from './welcome';
 import { clickMenuItem } from './menu';
 import { SHORTCUTS } from '../../src/ui/keyboard-shortcuts';
@@ -14,8 +14,6 @@ import { SHORTCUTS } from '../../src/ui/keyboard-shortcuts';
 // unlock is macOS-only (Touch ID), so there is nothing to drive elsewhere.
 test.skip(process.platform !== 'darwin', 'the idle lock overlay is macOS-only (Touch ID)');
 
-const APP_ROOT = path.resolve(__dirname, '..', '..');
-const ELECTRON_EXECUTABLE = electronPath as unknown as string;
 const LOCK_PAGE = 'idle-lock.html';
 
 // Each page counts the keydowns and mousedowns it receives, so a spec can tell
@@ -86,9 +84,7 @@ const launchLockableApp = async (
   const recorder = path.join(profileDir, 'record-shortcuts.js');
   fs.writeFileSync(recorder, SHORTCUT_RECORDER);
   const app = await electron.launch({
-    executablePath: ELECTRON_EXECUTABLE,
-    // No Keychain prompt on the machine running the suite.
-    args: ['-r', recorder, APP_ROOT, '--use-mock-keychain'],
+    ...electronLaunchOptions({ nodeArgs: ['-r', recorder] }),
     env: {
       ...process.env,
       YC_DESKTOP_START_URL: `${origin}${startPath}`,
@@ -863,6 +859,10 @@ test.describe('idle lock', () => {
     await app.evaluate(({ webContents }, id) => {
       webContents.fromId(id)!.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 });
     }, crashed!);
+    // The crashed id has to be filtered out before the poll can mean anything:
+    // there is already exactly one lock page before the crash, so polling for
+    // "one lock page" is satisfied on the first tick by the page that just
+    // died, and the replacement check below becomes a race. See #3435.
     await expect
       .poll(async () => (await lockPages()).filter((id) => id !== crashed))
       .toEqual([expect.any(Number)]);
