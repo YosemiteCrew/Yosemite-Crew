@@ -4,7 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 /**
  * 90s, not the 30s default.
  *
- * An axe pass is CPU-heavy, and this file now runs twenty-four of them against a
+ * An axe pass is CPU-heavy, and this file now runs twenty-five of them against a
  * single Next dev server. CI serialises them (`workers: 1`), but a local run is
  * fullyParallel, and adding the fourteen public-page tests was enough to push the
  * sign-in and sign-up runs past 30s on a warm laptop - they pass in 6s and 4s
@@ -124,22 +124,34 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/docs');
-    await page.waitForLoadState('networkidle').catch(() => {});
 
-    const codeBlocks = page.locator('.DocsBody pre');
-    await expect(codeBlocks).not.toHaveCount(0);
-    for (const block of await codeBlocks.all()) {
+    for (const theme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: theme });
+      await page.goto('/docs');
+      await page.waitForLoadState('networkidle').catch(() => {});
+
+      const codeBlocks = page.locator('.DocsBody pre');
+      await expect(codeBlocks).not.toHaveCount(0);
+      for (const block of await codeBlocks.all()) {
+        await expect
+          .poll(() => block.evaluate((element) => element.scrollWidth <= element.clientWidth))
+          .toBe(true);
+        await expect
+          .poll(() => block.evaluate((element) => getComputedStyle(element).whiteSpace))
+          .toBe('pre-wrap');
+      }
+
+      const headingAnchor = page.locator('.DocsBody .DocsHeadingAnchor').first();
+      await expect(headingAnchor).toHaveCount(1);
       await expect
-        .poll(() => block.evaluate((element) => element.scrollWidth <= element.clientWidth))
-        .toBe(true);
-      await expect
-        .poll(() => block.evaluate((element) => getComputedStyle(element).whiteSpace))
-        .toBe('pre-wrap');
+        .poll(() =>
+          headingAnchor.evaluate((element) => getComputedStyle(element).textDecorationLine)
+        )
+        .toBe('none');
+
+      const results = await runAxeWithContrast(page);
+      expect(results.violations).toEqual([]);
     }
-
-    const results = await runAxeWithContrast(page);
-    expect(results.violations).toEqual([]);
   });
 
   test('docs preserve desktop code formatting and pass axe in light and dark themes', async ({

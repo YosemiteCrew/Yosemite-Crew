@@ -74,6 +74,12 @@ describe('renderDoc sanitisation', () => {
     expect(html).not.toContain('user-content-');
   });
 
+  it('preserves only the class that keeps generated heading links unstyled', async () => {
+    const html = await render('## Prerequisites\n\n[body link](/apps/backend)');
+    expect(html).toContain('<a class="DocsHeadingAnchor" href="#prerequisites">');
+    expect(html).toContain('<a href="/docs/apps/backend">body link</a>');
+  });
+
   it('keeps highlighter class names, which the CSP-safe theme needs', async () => {
     const html = await render('```ts\nconst a: number = 1;\n```');
     expect(html).toMatch(/hljs/);

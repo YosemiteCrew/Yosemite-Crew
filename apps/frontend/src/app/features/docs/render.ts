@@ -48,6 +48,7 @@ export interface RenderedDoc {
 /**
  * Extends the default schema with exactly what the corpus needs:
  * - `className` on code/span for the highlighter's token classes
+ * - `DocsHeadingAnchor` on heading links, so the CSS can keep them unstyled
  * - `id` on headings for anchors and the table of contents
  *
  * Note what is NOT here: no `style`, no `on*` handlers, no `srcset`, no
@@ -80,7 +81,17 @@ const schema: Schema = {
     h4: [...(defaultSchema.attributes?.h4 ?? []), 'id'],
     h5: [...(defaultSchema.attributes?.h5 ?? []), 'id'],
     h6: [...(defaultSchema.attributes?.h6 ?? []), 'id'],
-    a: [...(defaultSchema.attributes?.a ?? []), 'id', 'rel', 'target', ['className']],
+    a: [
+      ...(defaultSchema.attributes?.a?.filter(
+        (attribute) => !Array.isArray(attribute) || attribute[0] !== 'className'
+      ) ?? []),
+      'id',
+      'rel',
+      'target',
+      // Replace the default class definition instead of appending a duplicate:
+      // hast-util-sanitize uses the first definition, which otherwise strips it.
+      ['className', 'data-footnote-backref', 'DocsHeadingAnchor'],
+    ],
   },
 };
 
