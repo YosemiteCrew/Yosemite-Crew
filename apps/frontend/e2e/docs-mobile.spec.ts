@@ -227,7 +227,10 @@ test.describe('docs navigation at a phone width with JavaScript disabled', () =>
        so a role query cannot count them. */
     expect(await tree.locator('a').count()).toBeGreaterThan(0);
 
-    // The media query hid this tree; without the override it stays hidden.
+    /* The media query hides this tree below 860px and `data-open` is still
+       `false` above, so the only thing putting it back is the `<noscript>`
+       override in DocsSidebar. Visible here therefore means the override
+       applied; remove it and this reads hidden, which is the defect. */
     await expect(tree).toBeVisible();
     /* A button whose only behaviour is an onClick handler must not be offered.
        `toBeHidden` is also satisfied by an element that is not there at all,
