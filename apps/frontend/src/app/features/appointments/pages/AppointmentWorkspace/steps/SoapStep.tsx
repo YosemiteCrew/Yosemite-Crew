@@ -29,6 +29,7 @@ import {
   resolveSectionLock,
 } from '@/app/lib/appointmentWorkspace';
 import {
+  artifactVersionFromMeta,
   getClinicalArtifactMutationErrorMessage,
   saveSoapNote,
 } from '@/app/features/appointments/services/workspaceClinicalService';
@@ -45,12 +46,6 @@ import { EMPTY_SOAP, isPersistedSoapId, hasNativeSoapContent, isCustomSoap } fro
 import { SoapSignActions, SoapContextField, ChiefComplaintField } from './SoapPresentational';
 import SoapTemplateSearch from './SoapTemplateSearch';
 import NativeSoapFields from './NativeSoapFields';
-
-const getArtifactVersion = (resource: unknown): number | undefined => {
-  const versionId = (resource as { meta?: { versionId?: string } } | undefined)?.meta?.versionId;
-  const version = Number.parseInt(versionId ?? '', 10);
-  return Number.isSafeInteger(version) && version > 0 ? version : undefined;
-};
 
 /**
  * Auto-load the SOAP template linked to the encounter's service/package when the active draft
@@ -420,7 +415,7 @@ const SoapStep = ({
           signerName ?? 'Clinician',
           false,
           persistedId,
-          getArtifactVersion(saved)
+          artifactVersionFromMeta(saved)
         );
       } else {
         signSoap(appointmentId, authorName?.trim() || encounter.leadName || 'Clinician', false);

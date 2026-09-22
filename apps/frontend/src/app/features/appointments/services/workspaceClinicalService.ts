@@ -133,10 +133,17 @@ const compactExtensions = (items: Array<{ url: string; valueString?: string } | 
 
 const getReferenceId = (reference?: string) => reference?.split('/').findLast(Boolean);
 
-const artifactVersionFromMeta = (resource: {
-  meta?: { versionId?: string };
-}): number | undefined => {
-  const version = Number.parseInt(resource.meta?.versionId ?? '', 10);
+/**
+ * The single rule for reading an artifact's version off a FHIR response: a positive safe integer
+ * `meta.versionId`, or `undefined` for anything else — including the documented case where a
+ * projection omits `meta.versionId` entirely. Exported because it decides whether the write that
+ * follows is guarded, and that decision must not drift between the step that makes it.
+ */
+export const artifactVersionFromMeta = (resource: unknown): number | undefined => {
+  const version = Number.parseInt(
+    (resource as { meta?: { versionId?: string } } | undefined)?.meta?.versionId ?? '',
+    10
+  );
   return Number.isSafeInteger(version) && version > 0 ? version : undefined;
 };
 

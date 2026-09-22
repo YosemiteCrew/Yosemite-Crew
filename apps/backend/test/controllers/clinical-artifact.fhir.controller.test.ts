@@ -492,7 +492,7 @@ describe("ClinicalArtifactFhirController", () => {
     expect(statusMock).toHaveBeenCalledWith(404);
   });
 
-  it("requires a valid If-Match generation for draft updates", async () => {
+  it("honours a valid If-Match generation, degrades without one, and rejects a malformed one", async () => {
     mockedMapper.compositionToSoapNoteInput.mockReturnValue({
       organisationId: "org-1",
     } as never);
@@ -518,7 +518,14 @@ describe("ClinicalArtifactFhirController", () => {
       "org-1",
     );
 
+    // #3144 deploy order: a tab on the previous bundle sends no If-Match. It must still save -
+    // degraded to the pre-#3144 behaviour - rather than being locked out mid-consult, so no
+    // precondition reaches the service and the write succeeds.
     buildResponse();
+    mockedService.updateSoapNote.mockResolvedValueOnce({
+      artifact: { id: "artifact-1" },
+      soapNote: { id: "soap-1" },
+    } as never);
     await ClinicalArtifactFhirController.updateSoapNote(
       {
         ...req,
@@ -528,7 +535,26 @@ describe("ClinicalArtifactFhirController", () => {
       res as Response,
     );
 
-    expect(statusMock).toHaveBeenCalledWith(428);
+    expect(mockedService.updateSoapNote).toHaveBeenLastCalledWith(
+      "soap-1",
+      expect.objectContaining({ expectedVersion: undefined }),
+      "org-1",
+    );
+    expect(statusMock).toHaveBeenCalledWith(200);
+
+    // A header that IS present but malformed is a client bug, not an old client: honouring it is
+    // impossible and ignoring it would drop a precondition the caller believes it set.
+    buildResponse();
+    await ClinicalArtifactFhirController.updateSoapNote(
+      {
+        ...req,
+        header: jest.fn(() => 'W/"not-a-generation"'),
+        body: { resourceType: "Composition" },
+      } as unknown as Request,
+      res as Response,
+    );
+
+    expect(statusMock).toHaveBeenCalledWith(400);
   });
 
   it("handles passport clinical-record FHIR reads for all kinds", async () => {
