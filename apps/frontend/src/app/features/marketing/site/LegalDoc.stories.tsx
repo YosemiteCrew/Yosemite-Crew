@@ -130,7 +130,7 @@ export const Desktop: Story = {
       description: {
         story:
           'The two-column form: a 220px rail stuck 100px from the top beside the prose. The rail ' +
-          'heading is the small uppercase `--ink-faint2` line, and the toggle that replaces it on a ' +
+          'heading is the small uppercase `--ink-muted` line, and the toggle that replaces it on a ' +
           'phone is present in the DOM but not displayed.',
       },
     },
