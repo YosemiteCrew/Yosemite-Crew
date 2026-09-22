@@ -1774,31 +1774,6 @@ const assertPrescriptionRetirable = async (
 };
 
 /**
- * The retirement guards plus the dispense request the stock reversal branches
- * on, both outside any transaction.
- *
- * Only `updatePrescription` still uses the returned row, and only because its
- * stock reversal also still runs outside the transaction (#3500). Reading the
- * branch-deciding row here races the approve path, so `cancelPrescription`
- * takes the guards alone and reads the row inside its transaction (#3503).
- */
-const preparePrescriptionRetirement = async (
-  record: PrescriptionWithArtifact,
-  organisationId: string | undefined,
-  actor: PrescriptionActor,
-): Promise<PrescriptionDispenseRequestModel | null> => {
-  await assertPrescriptionRetirable(record, organisationId, actor);
-  return clinicalPrisma.prescriptionDispenseRequest.findFirst({
-    where: {
-      organisationId: String(record.artifact.organisationId),
-      prescriptionId: String(record.id),
-      status: { in: ["PENDING", "DISPENSED"] },
-    },
-    orderBy: { requestedAt: "desc" },
-  });
-};
-
-/**
  * Reverses a prescription's dispense inside the caller's transaction (#3495).
  *
  * The stock release used to run in its own transaction and commit before the
@@ -2097,8 +2072,6 @@ export const ClinicalArtifactService = {
     }
 
     let supersededPrescription: PrescriptionWithArtifact | undefined;
-    let supersededDispenseRequest: PrescriptionDispenseRequestModel | null =
-      null;
     if (
       record.supersedesId &&
       !shouldCreateDispenseRequestForPrescription(record.artifact.status) &&
@@ -2109,11 +2082,10 @@ export const ClinicalArtifactService = {
         includeVoid: true,
       });
       if (superseded.artifact.status !== "VOID") {
-        supersededDispenseRequest = await preparePrescriptionRetirement(
-          superseded,
-          organisationId,
-          actor,
-        );
+        // Guards only. #3507 moved this path's reversal into the transaction,
+        // which removed the reason #3504 left the branch-deciding row being
+        // read out here; it is read inside the transaction below now.
+        await assertPrescriptionRetirable(superseded, organisationId, actor);
         supersededPrescription = superseded;
       }
     }
@@ -2167,6 +2139,19 @@ export const ClinicalArtifactService = {
           // release survived a rollback of everything around it and left the
           // original's stock on the shelf while the original itself stayed
           // SIGNED - the same orphan #3501 closed on the cancel path.
+          // #3503's race, reached by revising instead of cancelling: read
+          // before the transaction opened, an approve committing in between
+          // flips PENDING to DISPENSED and draws stock this reversal then
+          // never releases. Read here, under the same advisory lock approve
+          // takes, so the two serialise.
+          const supersededDispenseRequest =
+            await InventoryConsumptionService.loadDispenseRequestForRetirementInTx(
+              tx,
+              {
+                organisationId: supersededPrescription.artifact.organisationId,
+                prescriptionId: supersededPrescription.id,
+              },
+            );
           await reversePrescriptionDispenseInTx(
             tx,
             supersededPrescription,
