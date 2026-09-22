@@ -73,7 +73,11 @@ jest.mock('@/app/ui/inputs/Datepicker', () => {
   return function MockDatepicker({ currentDate, setCurrentDate, placeholder }: any) {
     return (
       <div data-testid={`datepicker-${placeholder}`}>
-        <span data-testid="date-value">{currentDate ? currentDate.toISOString() : 'null'}</span>
+        <span data-testid="date-value">
+          {currentDate
+            ? `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`
+            : 'null'}
+        </span>
         <button
           onClick={() => {
             const d = new Date('2023-01-01');
