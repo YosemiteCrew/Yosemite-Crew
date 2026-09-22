@@ -180,13 +180,49 @@ describe('ContactusPage', () => {
         target: { value: 'A message' },
       });
 
-      fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+      const email = screen.getByLabelText('Enter Email Address');
+      fireEvent.change(email, {
         target: { value: 'not-an-email' },
       });
       fireEvent.click(screen.getAllByRole('button', { name: 'Send message' })[0]);
 
-      expect(await screen.findByText('Invalid email address')).toBeInTheDocument();
+      const error = await screen.findByText('Invalid email address');
+      expect(email).toHaveAttribute('aria-invalid', 'true');
+      expect(email.getAttribute('aria-describedby')).toContain(error.id);
       expect(mockedPostData).not.toHaveBeenCalled();
+
+      fireEvent.change(email, { target: { value: 'john.doe@example.com' } });
+      fireEvent.change(screen.getByPlaceholderText('Your Message'), { target: { value: ' ' } });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Send message' })[0]);
+
+      await waitFor(() =>
+        expect(screen.queryByText('Invalid email address')).not.toBeInTheDocument()
+      );
+      expect(email).not.toHaveAttribute('aria-invalid');
+      expect(email).not.toHaveAttribute('aria-describedby');
+      expect(mockedPostData).not.toHaveBeenCalled();
+    });
+
+    it('associates required-field errors while preserving the message counter description', async () => {
+      render(<ContactusPage />);
+      const name = screen.getByLabelText('Full Name');
+      const message = screen.getByPlaceholderText('Your Message');
+      const counter = screen.getByText(`0 of ${CONTACT_MESSAGE_MAX_LENGTH} characters`);
+
+      fireEvent.change(name, { target: { value: ' ' } });
+      fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+        target: { value: 'john.doe@example.com' },
+      });
+      fireEvent.change(message, { target: { value: ' ' } });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Send message' })[0]);
+
+      const nameError = await screen.findByText('Full name is required');
+      const messageError = screen.getByText('Message is required');
+      expect(name).toHaveAttribute('aria-invalid', 'true');
+      expect(name.getAttribute('aria-describedby')).toContain(nameError.id);
+      expect(message).toHaveAttribute('aria-invalid', 'true');
+      expect(message.getAttribute('aria-describedby')).toContain(counter.id);
+      expect(message.getAttribute('aria-describedby')).toContain(messageError.id);
     });
 
     it('should enable submit button when general enquiry form is valid and submit successfully', async () => {
