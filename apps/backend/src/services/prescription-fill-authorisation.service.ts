@@ -89,6 +89,41 @@ const lockItem = async (
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 };
 
+const AUTHORISATION_NOT_FOUND = "Fill authorisation not found";
+const RESERVATION_NOT_FOUND = "Fill reservation not found";
+
+/**
+ * Takes the lock that guards a reservation's authority.
+ *
+ * The lock is keyed on the item, so the row has to be located before the key
+ * exists. Nothing is decided on that read - `itemId` never changes once a
+ * reservation exists, and every status check runs on the re-read the caller
+ * does after this returns. Without it a cancel and a fulfilment on the same
+ * reservation interleave: the cancel reads RESERVED, the fulfilment commits
+ * COMPLETED, and the cancel writes CANCELLED against a snapshot that no longer
+ * holds. `countAllocatedFills` skips CANCELLED, so the authority would mint a
+ * repeat for a fill that was physically handed over.
+ */
+const lockReservationItem = async (
+  tx: Prisma.TransactionClient,
+  organisationId: string,
+  reservationId: string,
+) => {
+  const located = await tx.prescriptionFillReservation.findFirst({
+    where: { id: reservationId, organisationId },
+    select: { itemId: true },
+  });
+
+  if (!located) {
+    throw new PrescriptionFillAuthorisationServiceError(
+      RESERVATION_NOT_FOUND,
+      404,
+    );
+  }
+
+  await lockItem(tx, organisationId, located.itemId);
+};
+
 /**
  * Refuses a caller who only holds `prescription:edit:own` on someone else's
  * prescription.
@@ -386,47 +421,64 @@ export const PrescriptionFillAuthorisationService = {
     );
     const now = params.now ?? new Date();
 
-    const authority = await prisma.prescriptionFillAuthorization.findFirst({
+    // Located outside the lock only to resolve the lock key - `itemId` is
+    // immutable, and the status this call turns on is read again inside.
+    const located = await prisma.prescriptionFillAuthorization.findFirst({
       where: { id: authorizationId, organisationId },
+      select: { itemId: true },
     });
 
-    if (!authority) {
+    if (!located) {
       throw new PrescriptionFillAuthorisationServiceError(
-        "Fill authorisation not found",
+        AUTHORISATION_NOT_FOUND,
         404,
       );
     }
 
-    if (authority.status !== PrescriptionFillAuthorizationStatus.ACTIVE) {
-      throw new PrescriptionFillAuthorisationServiceError(
-        "Only an active fill authorisation can be revoked",
-        409,
-      );
-    }
+    return prisma.$transaction(async (tx) => {
+      // Same key `reserveFill` takes, so a revoke can no longer land between
+      // its `loadActiveAuthorization` read and its `create` and leave a fill
+      // allocated against an authority that was already withdrawn.
+      await lockItem(tx, organisationId, located.itemId);
 
-    // Only an own-only caller needs the item read, and it goes through the
-    // same organisation-scoped join `authoriseFills` uses rather than trusting
-    // the authority row's own denormalised ids.
-    if (!params.canEditAny) {
-      const item = await loadOwnedItem(
-        prisma,
-        organisationId,
-        authority.itemId,
-      );
-      assertActorMayAuthorise(item.prescription.artifact, {
-        actorId: revokedBy,
-        canEditAny: false,
+      const authority = await tx.prescriptionFillAuthorization.findFirst({
+        where: { id: authorizationId, organisationId },
       });
-    }
 
-    return prisma.prescriptionFillAuthorization.update({
-      where: { id: authority.id },
-      data: {
-        status: PrescriptionFillAuthorizationStatus.REVOKED,
-        revokedBy,
-        revokedAt: now,
-        revokedReason: asNonEmptyString(params.reason),
-      },
+      if (!authority) {
+        throw new PrescriptionFillAuthorisationServiceError(
+          AUTHORISATION_NOT_FOUND,
+          404,
+        );
+      }
+
+      if (authority.status !== PrescriptionFillAuthorizationStatus.ACTIVE) {
+        throw new PrescriptionFillAuthorisationServiceError(
+          "Only an active fill authorisation can be revoked",
+          409,
+        );
+      }
+
+      // Only an own-only caller needs the item read, and it goes through the
+      // same organisation-scoped join `authoriseFills` uses rather than
+      // trusting the authority row's own denormalised ids.
+      if (!params.canEditAny) {
+        const item = await loadOwnedItem(tx, organisationId, authority.itemId);
+        assertActorMayAuthorise(item.prescription.artifact, {
+          actorId: revokedBy,
+          canEditAny: false,
+        });
+      }
+
+      return tx.prescriptionFillAuthorization.update({
+        where: { id: authority.id },
+        data: {
+          status: PrescriptionFillAuthorizationStatus.REVOKED,
+          revokedBy,
+          revokedAt: now,
+          revokedReason: asNonEmptyString(params.reason),
+        },
+      });
     });
   },
 
@@ -587,6 +639,12 @@ export const PrescriptionFillAuthorisationService = {
    * 3 of an authorised 10 leaves 7 owing on that fill and does NOT consume a
    * second repeat. Expiry is checked again here because a reservation made
    * inside the window can be fulfilled outside it.
+   *
+   * Accumulating is a read-then-write, so it takes the item's lock. These
+   * transactions run at the connection default (READ COMMITTED), under which
+   * two concurrent top-ups would each read `fulfilledQuantity` as 0 and the
+   * second would overwrite rather than add. The lock is held to commit, so the
+   * second waits and reads the first's committed total instead.
    */
   async recordFulfilment(params: {
     organisationId: string;
@@ -613,6 +671,8 @@ export const PrescriptionFillAuthorisationService = {
     }
 
     return prisma.$transaction(async (tx) => {
+      await lockReservationItem(tx, organisationId, reservationId);
+
       const reservation = await tx.prescriptionFillReservation.findFirst({
         where: { id: reservationId, organisationId },
         include: { authorization: true },
@@ -620,7 +680,7 @@ export const PrescriptionFillAuthorisationService = {
 
       if (!reservation) {
         throw new PrescriptionFillAuthorisationServiceError(
-          "Fill reservation not found",
+          RESERVATION_NOT_FOUND,
           404,
         );
       }
@@ -668,6 +728,11 @@ export const PrescriptionFillAuthorisationService = {
    * Release an undispensed fill back to the authority. A completed fill is not
    * cancellable here - reversing a physical dispense is a stock decision and
    * must not silently mint a repeat.
+   *
+   * That guard is only worth anything under the item's lock: read outside one,
+   * a fulfilment committing COMPLETED between the read and the write leaves the
+   * check passing on a snapshot that no longer holds. Both routes carry the
+   * same permission pair, so any caller who can fulfil can also cancel.
    */
   async cancelReservation(params: {
     organisationId: string;
@@ -685,35 +750,39 @@ export const PrescriptionFillAuthorisationService = {
     );
     const now = params.now ?? new Date();
 
-    const reservation = await prisma.prescriptionFillReservation.findFirst({
-      where: { id: reservationId, organisationId },
-    });
+    return prisma.$transaction(async (tx) => {
+      await lockReservationItem(tx, organisationId, reservationId);
 
-    if (!reservation) {
-      throw new PrescriptionFillAuthorisationServiceError(
-        "Fill reservation not found",
-        404,
-      );
-    }
+      const reservation = await tx.prescriptionFillReservation.findFirst({
+        where: { id: reservationId, organisationId },
+      });
 
-    if (reservation.status === PrescriptionFillReservationStatus.CANCELLED) {
-      return reservation;
-    }
+      if (!reservation) {
+        throw new PrescriptionFillAuthorisationServiceError(
+          RESERVATION_NOT_FOUND,
+          404,
+        );
+      }
 
-    if (reservation.status === PrescriptionFillReservationStatus.COMPLETED) {
-      throw new PrescriptionFillAuthorisationServiceError(
-        "A completed fill cannot be cancelled; reverse the dispense instead",
-        409,
-      );
-    }
+      if (reservation.status === PrescriptionFillReservationStatus.CANCELLED) {
+        return reservation;
+      }
 
-    return prisma.prescriptionFillReservation.update({
-      where: { id: reservation.id },
-      data: {
-        status: PrescriptionFillReservationStatus.CANCELLED,
-        cancelledAt: now,
-        cancelledReason: asNonEmptyString(params.reason),
-      },
+      if (reservation.status === PrescriptionFillReservationStatus.COMPLETED) {
+        throw new PrescriptionFillAuthorisationServiceError(
+          "A completed fill cannot be cancelled; reverse the dispense instead",
+          409,
+        );
+      }
+
+      return tx.prescriptionFillReservation.update({
+        where: { id: reservation.id },
+        data: {
+          status: PrescriptionFillReservationStatus.CANCELLED,
+          cancelledAt: now,
+          cancelledReason: asNonEmptyString(params.reason),
+        },
+      });
     });
   },
 };
