@@ -1803,6 +1803,45 @@ const reversePrescriptionDispense = async (
   }
 };
 
+/**
+ * `reversePrescriptionDispense` inside the caller's transaction (#3495).
+ *
+ * The stock release used to run in its own transaction and commit before the
+ * one that claims the artifact version. A concurrent writer landing in between
+ * made the claim match no row, so the retirement rolled back with the stock
+ * already returned: the prescription stayed SIGNED/COMPLETED with its dispense
+ * request still DISPENSED while its stock sat back on the shelf. #3144's oracle
+ * says a losing concurrent intent mutates no stock at all, so the two halves
+ * have to share a transaction rather than merely be ordered.
+ *
+ * Ordering inside the transaction still matters for cost, not for correctness:
+ * callers claim the version first so a stale caller does no stock work before
+ * being rejected.
+ */
+const reversePrescriptionDispenseInTx = async (
+  tx: Prisma.TransactionClient,
+  record: PrescriptionWithArtifact,
+  request: PrescriptionDispenseRequestModel | null,
+): Promise<void> => {
+  if (request?.status === "DISPENSED") {
+    await InventoryConsumptionService.voidDispensePrescriptionInTx(tx, {
+      organisationId: record.artifact.organisationId,
+      prescriptionId: record.id,
+      medications: record.medications,
+      metadata: record.metadata as Prisma.InputJsonValue | undefined,
+    });
+  } else if (request?.status === "PENDING") {
+    await InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx(
+      tx,
+      {
+        organisationId: record.artifact.organisationId,
+        prescriptionId: record.id,
+        metadata: record.metadata as Prisma.InputJsonValue | undefined,
+      },
+    );
+  }
+};
+
 export const ClinicalArtifactService = {
   async createSoapNote(input: SoapNoteInput): Promise<SoapNoteRecord> {
     const organisationId = ensureId(input.organisationId, "organisationId");
@@ -2252,10 +2291,22 @@ export const ClinicalArtifactService = {
       organisationId,
       actor,
     );
-    await reversePrescriptionDispense(record, dispenseRequest);
-
-    const artifact = await prisma.$transaction((tx) =>
-      retirePrescriptionInTx(tx as ClinicalPrisma, record, expectedVersion),
+    const artifact = await prisma.$transaction(
+      async (tx) => {
+        // Version claim first: a caller holding a stale generation is rejected
+        // before any stock is touched, so the common conflict costs nothing.
+        const retired = await retirePrescriptionInTx(
+          tx as ClinicalPrisma,
+          record,
+          expectedVersion,
+        );
+        await reversePrescriptionDispenseInTx(tx, record, dispenseRequest);
+        return retired;
+      },
+      // The stock release walks every prescription line and takes a per-item
+      // advisory lock, which does not fit the 5s interactive default on a
+      // multi-line prescription. Same budget `activitypub.service` uses.
+      { timeout: 10_000 },
     );
 
     return buildPrescriptionRecord(artifact, record);

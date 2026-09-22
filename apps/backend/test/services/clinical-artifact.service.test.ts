@@ -14,8 +14,10 @@ jest.mock("../../src/services/inventory-consumption.service", () => ({
     approvePrescriptionDispenseRequest: jest.fn(),
     createPrescriptionDispenseRequest: jest.fn(),
     markPrescriptionDispenseRequestNotDispensed: jest.fn(),
+    markPrescriptionDispenseRequestNotDispensedInTx: jest.fn(),
     releasePrescription: jest.fn(),
     voidDispensePrescription: jest.fn(),
+    voidDispensePrescriptionInTx: jest.fn(),
   },
 }));
 
@@ -2613,14 +2615,19 @@ describe("ClinicalArtifactService", () => {
       { actorId: "actor-1", canEditAny: true },
     );
 
+    // #3495: on the caller's transaction client, so a lost version claim rolls
+    // the stock release back with the retirement instead of orphaning it.
     expect(
-      InventoryConsumptionService.voidDispensePrescription,
-    ).toHaveBeenCalledWith({
+      InventoryConsumptionService.voidDispensePrescriptionInTx,
+    ).toHaveBeenCalledWith(expect.anything(), {
       organisationId,
       prescriptionId: "prescription-1",
       medications: prescription.medications,
       metadata: prescription.metadata,
     });
+    expect(
+      InventoryConsumptionService.voidDispensePrescription,
+    ).not.toHaveBeenCalled();
     expect(mockedPrisma.workspaceTreatmentItem.deleteMany).toHaveBeenCalledWith(
       {
         where: {
@@ -2689,14 +2696,17 @@ describe("ClinicalArtifactService", () => {
     );
 
     expect(
-      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
-    ).toHaveBeenCalledWith({
+      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx,
+    ).toHaveBeenCalledWith(expect.anything(), {
       organisationId,
       prescriptionId: "prescription-1",
       metadata: null,
     });
     expect(
-      InventoryConsumptionService.voidDispensePrescription,
+      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+    ).not.toHaveBeenCalled();
+    expect(
+      InventoryConsumptionService.voidDispensePrescriptionInTx,
     ).not.toHaveBeenCalled();
   });
 
@@ -2748,6 +2758,9 @@ describe("ClinicalArtifactService", () => {
     });
     expect(
       InventoryConsumptionService.voidDispensePrescription,
+    ).not.toHaveBeenCalled();
+    expect(
+      InventoryConsumptionService.voidDispensePrescriptionInTx,
     ).not.toHaveBeenCalled();
     expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
   });
