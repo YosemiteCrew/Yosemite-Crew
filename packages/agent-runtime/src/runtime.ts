@@ -2,6 +2,7 @@ import { AgentRuntimeError, isAgentRuntimeError } from './errors.js';
 import type {
   ExecutionProvider,
   ProviderRunHooks,
+  ProviderRunOutcome,
   ProviderRunRequest,
 } from './execution-provider.js';
 import type { ToolHandler, WorkflowDefinition } from './workflow.js';
@@ -138,24 +139,35 @@ export class AgentRuntime<TResult> {
     state: RunState,
     ctx: RunContext,
     request: ProviderRunRequest,
-    providerResume?: (hooks: ProviderRunHooks) => Promise<{
-      output: unknown;
-      usage?: UsageReport;
-    }>
+    providerResume?: (hooks: ProviderRunHooks) => Promise<ProviderRunOutcome>
   ): Promise<RunRecord<TResult>> {
     const hooks = this.hooksFor(runId, state, ctx);
 
     try {
-      const outcome = providerResume
-        ? await providerResume(hooks)
-        : await this.deps.provider.run(request, hooks);
-
-      this.assertOutcomeAllowed(runId, state, outcome.usage);
-      const result = this.deps.workflow.validateResult(outcome.output);
-      return await this.completeRun(runId, state, request, result);
+      const outcome = await this.invokeProvider(hooks, request, providerResume);
+      return await this.acceptOutcome(runId, state, request, outcome);
     } catch (error) {
       return this.failRun(runId, state, request, error);
     }
+  }
+
+  private invokeProvider(
+    hooks: ProviderRunHooks,
+    request: ProviderRunRequest,
+    providerResume?: (hooks: ProviderRunHooks) => Promise<ProviderRunOutcome>
+  ): Promise<ProviderRunOutcome> {
+    return providerResume ? providerResume(hooks) : this.deps.provider.run(request, hooks);
+  }
+
+  private async acceptOutcome(
+    runId: RunId,
+    state: RunState,
+    request: ProviderRunRequest,
+    outcome: ProviderRunOutcome
+  ): Promise<RunRecord<TResult>> {
+    this.assertOutcomeAllowed(runId, state, outcome.usage);
+    const result = this.deps.workflow.validateResult(outcome.output);
+    return this.completeRun(runId, state, request, result);
   }
 
   /**
