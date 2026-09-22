@@ -165,6 +165,65 @@ test.describe('collapsed docs navigation at a phone width', () => {
   });
 });
 
+/*
+ * The no-JavaScript floor, and the arm that was missing when #3488 shipped.
+ *
+ * This measures COMPUTED STYLE, not visibility, and that is not a shortcut.
+ * With scripting off nothing on this site paints at all: every route segment
+ * sits behind the Suspense boundary that `src/app/loading.tsx` installs, so the
+ * whole document arrives inside `<div hidden id="S:0">` and is swapped into
+ * place by an inline script that never runs. `toBeVisible` therefore answers
+ * "hidden" for `.DocsTopBar`, the article and the nav alike, on every page,
+ * fixed or not - it cannot see this defect and cannot see it being fixed.
+ * That is YosemiteCrew/Yosemite-Crew#3510, and it is a separate change.
+ *
+ * `display: none` on an ancestor does not change a descendant's own computed
+ * `display`, so the cascade below is fully readable through it - and it is
+ * exactly what the disclosure is built out of. When #3510 lands, promote these
+ * to `toBeVisible` / `toBeHidden`.
+ */
+test.describe('docs navigation at a phone width with JavaScript disabled', () => {
+  test.use({ viewport: PHONE, javaScriptEnabled: false });
+
+  const cascade = (page: Page) =>
+    page.evaluate(() => {
+      const shown = (selector: string) =>
+        getComputedStyle(document.querySelector(selector)!).display;
+      const tree = document.querySelector('#docs-nav-tree')!;
+      return {
+        toggle: shown('.DocsNavToggle'),
+        tree: shown('#docs-nav-tree'),
+        dataOpen: tree.getAttribute('data-open'),
+        /* `locator('a')` rather than a role query: a section declared
+           `collapsed` carries `hidden`, which takes its links out of the
+           accessibility tree, so a role query cannot count them. */
+        links: tree.querySelectorAll('a').length,
+      };
+    });
+
+  test('resolves the tree open and the dead disclosure away', async ({ page }) => {
+    await page.goto('/docs', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#docs-nav-tree')).toHaveCount(1);
+
+    const state = await cascade(page);
+
+    /*
+     * The premise. The served state is still the collapsed one - the override
+     * is a stylesheet, not a different render, and that is the whole point:
+     * serving it open would flash the tree above the article on every phone
+     * load with JavaScript on. If this ever reads "true", the assertions below
+     * have stopped testing the case they were written for.
+     */
+    expect(state.dataOpen).toBe('false');
+    expect(state.links).toBeGreaterThan(0);
+
+    // The media query hid this tree; without the override it computes to none.
+    expect(state.tree).toBe('block');
+    // A button whose only behaviour is an onClick handler must not be offered.
+    expect(state.toggle).toBe('none');
+  });
+});
+
 test.describe('docs navigation on a wide window', () => {
   test.use({ viewport: DESKTOP });
 

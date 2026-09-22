@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import DocsSidebar from '@/app/features/docs/DocsSidebar';
+import { renderToStaticMarkup } from 'react-dom/server';
+import DocsSidebar, { DOCS_NAV_NO_JS_CSS } from '@/app/features/docs/DocsSidebar';
 import type { NavNode } from '@/app/features/docs/docsNav';
 
 const mockPathname = jest.fn(() => '/docs');
@@ -128,6 +129,57 @@ describe('DocsSidebar', () => {
       fireEvent.click(menuButton());
       fireEvent.click(screen.getByRole('button', { name: /Backend API/ }));
       expect(menuButton()).toHaveAttribute('aria-expanded', 'true');
+    });
+  });
+  /*
+   * The no-JavaScript floor. These assert the SERVER markup, because that is
+   * the only artefact a scripting-off browser ever gets - `render` here has
+   * already run the client, where none of this applies.
+   */
+  describe('the no-JavaScript floor', () => {
+    const serverHtml = () => renderToStaticMarkup(<DocsSidebar nav={NAV} />);
+
+    it('ships the override inside noscript, the one element a running browser ignores', () => {
+      expect(serverHtml()).toContain(`<noscript><style>${DOCS_NAV_NO_JS_CSS}</style></noscript>`);
+    });
+
+    it('reveals the collapsed tree and withdraws the control that cannot work', () => {
+      expect(DOCS_NAV_NO_JS_CSS).toContain('.DocsNavTree[data-open=false]{display:block}');
+      expect(DOCS_NAV_NO_JS_CSS).toContain('.DocsNavToggle{display:none}');
+      expect(serverHtml()).toContain('class="DocsNavTree" data-open="false"');
+    });
+
+    /*
+     * Scope, pinned. A section declared `collapsed` hides its body with the
+     * `hidden` attribute, and Tailwind's preflight declares
+     * `[hidden]{display:none!important}` in a cascade layer - which an
+     * unlayered rule cannot outrank at any specificity or importance. Adding
+     * one here would read as a fix and do nothing. See issue #3515.
+     */
+    it('does not pretend to reveal a section hidden by the hidden attribute', () => {
+      expect(serverHtml()).toContain('hidden=""');
+      expect(DOCS_NAV_NO_JS_CSS).not.toContain('[hidden]');
+    });
+
+    /*
+     * `<style>` is a raw-text element: React writes these characters through
+     * unescaped in the server markup, and a browser will not decode an entity
+     * inside one. A quote reaching here would therefore ship as `&#x27;` and
+     * silently void the selector it sits in, with nothing failing anywhere.
+     */
+    it('uses no character that would have to survive escaping', () => {
+      expect(DOCS_NAV_NO_JS_CSS).not.toMatch(/['"&<>]/);
+    });
+
+    /*
+     * The reason this is a stylesheet rather than a different server render.
+     * Serving the tree open and collapsing it on mount would put the whole nav
+     * above the article on every phone load - the defect the disclosure exists
+     * to remove - so the markup must be byte-identical to the collapsed one.
+     */
+    it('leaves the served state collapsed, so a phone paints no tree before hydrating', () => {
+      expect(serverHtml()).toContain('aria-controls="docs-nav-tree"');
+      expect(serverHtml()).not.toContain('data-open="true"');
     });
   });
 });
