@@ -43,6 +43,7 @@
     "@tiptap/extension-underline": "^3.31.3",
     "@tiptap/react": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
+    "@typesafe-ai/sdk": "0.6.0",
     "axios": "^1.20.0",
     "classnames": "^2.5.1",
     "dompurify": "^3.4.15",
