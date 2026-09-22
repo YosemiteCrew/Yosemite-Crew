@@ -66,6 +66,24 @@ export const isCheckableSource = (file) => {
 };
 
 /**
+ * Shared packages whose tests this gate can run, by directory.
+ *
+ * Only jest workspaces belong here. `@yosemite-crew/auth` runs its tests with
+ * `node --test` over compiled output, so handing its paths to `pnpm --filter
+ * auth exec jest` would fail on a runner that is not there - which this gate
+ * cannot distinguish from the import failure it reads as evidence.
+ *
+ * Until #3049 nothing under `packages/` mapped at all, so a PR whose only
+ * tests were in a shared package reported "outside a known workspace" and the
+ * gate refused to judge it. Same blind spot as desktop and `scripts/`, one
+ * directory across.
+ */
+const PACKAGE_WORKSPACES = {
+  'agent-runtime': '@yosemite-crew/agent-runtime',
+  'mcp-server': '@yosemite-crew/mcp-server',
+};
+
+/**
  * The workspace a changed test belongs to.
  *
  * The first version ran `pnpm --filter frontend` unconditionally, so a PR whose
@@ -78,14 +96,19 @@ export const isCheckableSource = (file) => {
  * test change read as "outside a known workspace" and fail the gate.
  */
 export const workspaceOf = (file) => {
-  const match = /^apps\/([^/]+)\//.exec(file);
-  if (!match) return undefined;
-  return {
-    frontend: 'frontend',
-    backend: 'backend',
-    mobileAppYC: 'mobileAppYC',
-    desktop: '@yosemite-crew/desktop',
-  }[match[1]];
+  const app = /^apps\/([^/]+)\//.exec(file);
+  if (app) {
+    return {
+      frontend: 'frontend',
+      backend: 'backend',
+      mobileAppYC: 'mobileAppYC',
+      desktop: '@yosemite-crew/desktop',
+    }[app[1]];
+  }
+
+  const pkg = /^packages\/([^/]+)\//.exec(file);
+  if (!pkg) return undefined;
+  return PACKAGE_WORKSPACES[pkg[1]];
 };
 
 /** Groups test paths by the workspace whose runner can execute them. */

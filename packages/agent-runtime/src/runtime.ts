@@ -150,60 +150,88 @@ export class AgentRuntime<TResult> {
         ? await providerResume(hooks)
         : await this.deps.provider.run(request, hooks);
 
-      if (state.budgetStopped) {
-        throw new AgentRuntimeError(
-          'budget-exceeded',
-          `Run ${runId} exceeded ${this.deps.budget.maxToolCalls} tool calls.`
-        );
-      }
-      if (state.cancelled) {
-        throw new AgentRuntimeError('cancelled', `Run ${runId} was cancelled.`);
-      }
-
-      const maxCost = this.deps.budget.maxCostUsd;
-      const cost = outcome.usage?.costUsd;
-      if (maxCost !== undefined && cost !== undefined && cost > maxCost) {
-        throw new AgentRuntimeError(
-          'budget-exceeded',
-          `Run ${runId} reported ${cost} against a ${maxCost} budget.`
-        );
-      }
-
+      this.assertOutcomeAllowed(runId, state, outcome.usage);
       const result = this.deps.workflow.validateResult(outcome.output);
-      await this.deps.store.save({
-        runId,
-        workflowId: request.workflowId,
-        input: request.input,
-        sources: state.sources,
-        completedSteps: state.steps,
-      });
-      state.status = 'completed';
-      this.emit({ type: 'run-completed', runId, at: this.at() });
-      return { runId, workflowId: request.workflowId, status: 'completed', result };
+      return await this.completeRun(runId, state, request, result);
     } catch (error) {
-      const failure = this.stopReason(state, this.normalise(error));
-      state.status = failure.code === 'cancelled' ? 'cancelled' : 'failed';
-      // A checkpoint is written on failure too: the product, not the vendor,
-      // owns what a later attempt starts from.
-      await this.deps.store.save({
-        runId,
-        workflowId: request.workflowId,
-        input: request.input,
-        sources: state.sources,
-        completedSteps: state.steps,
-      });
-      this.emit(
-        failure.code === 'cancelled'
-          ? { type: 'run-cancelled', runId, at: this.at() }
-          : { type: 'run-failed', runId, at: this.at(), code: failure.code }
-      );
-      return {
-        runId,
-        workflowId: request.workflowId,
-        status: state.status,
-        errorCode: failure.code,
-      };
+      return this.failRun(runId, state, request, error);
     }
+  }
+
+  /**
+   * What a provider returned is not automatically what the product accepts.
+   * These are the reasons a finished call is still not a completed run, and
+   * they are checked here rather than inside an adapter that cannot see them.
+   */
+  private assertOutcomeAllowed(runId: RunId, state: RunState, usage?: UsageReport): void {
+    if (state.budgetStopped) {
+      throw new AgentRuntimeError(
+        'budget-exceeded',
+        `Run ${runId} exceeded ${this.deps.budget.maxToolCalls} tool calls.`
+      );
+    }
+    if (state.cancelled) {
+      throw new AgentRuntimeError('cancelled', `Run ${runId} was cancelled.`);
+    }
+
+    const maxCost = this.deps.budget.maxCostUsd;
+    const cost = usage?.costUsd;
+    if (maxCost !== undefined && cost !== undefined && cost > maxCost) {
+      throw new AgentRuntimeError(
+        'budget-exceeded',
+        `Run ${runId} reported ${cost} against a ${maxCost} budget.`
+      );
+    }
+  }
+
+  private async completeRun(
+    runId: RunId,
+    state: RunState,
+    request: ProviderRunRequest,
+    result: TResult
+  ): Promise<RunRecord<TResult>> {
+    await this.saveCheckpoint(runId, state, request);
+    state.status = 'completed';
+    this.emit({ type: 'run-completed', runId, at: this.at() });
+    return { runId, workflowId: request.workflowId, status: 'completed', result };
+  }
+
+  private async failRun(
+    runId: RunId,
+    state: RunState,
+    request: ProviderRunRequest,
+    error: unknown
+  ): Promise<RunRecord<TResult>> {
+    const failure = this.stopReason(state, this.normalise(error));
+    state.status = failure.code === 'cancelled' ? 'cancelled' : 'failed';
+    // A checkpoint is written on failure too: the product, not the vendor, owns
+    // what a later attempt starts from.
+    await this.saveCheckpoint(runId, state, request);
+    this.emit(
+      failure.code === 'cancelled'
+        ? { type: 'run-cancelled', runId, at: this.at() }
+        : { type: 'run-failed', runId, at: this.at(), code: failure.code }
+    );
+    return {
+      runId,
+      workflowId: request.workflowId,
+      status: state.status,
+      errorCode: failure.code,
+    };
+  }
+
+  private saveCheckpoint(
+    runId: RunId,
+    state: RunState,
+    request: ProviderRunRequest
+  ): Promise<void> {
+    return this.deps.store.save({
+      runId,
+      workflowId: request.workflowId,
+      input: request.input,
+      sources: state.sources,
+      completedSteps: state.steps,
+    });
   }
 
   private hooksFor(runId: RunId, state: RunState, ctx: RunContext): ProviderRunHooks {
