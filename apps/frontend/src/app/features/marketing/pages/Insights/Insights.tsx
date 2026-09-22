@@ -28,6 +28,8 @@ import {
   InkAnnotate,
   GITHUB_REPO_URL,
   useGithubStats,
+  useCloudUsers,
+  timeAgo,
   useLatestRelease,
   useRepoInsights,
   type RepoLanguage,
@@ -540,7 +542,7 @@ function Hero() {
   );
 }
 
-/* ---------- live four-stat band ---------- */
+/* ---------- live five-stat band ---------- */
 
 interface BandStat {
   key: string;
@@ -604,14 +606,33 @@ function StatCell({ stat }: Readonly<{ stat: BandStat }>) {
 function StatBand() {
   // Live (uncached) read: the band eyebrow reads "The numbers, right now".
   const stats = useGithubStats({ live: true });
+  /* `useCloudUsers` has no live mode, so unlike the four beside it this one can
+     be up to its 5 minute session TTL behind. The signup time is printed with
+     it rather than left implicit, so the band never asserts a freshness it does
+     not have under an eyebrow that reads "The numbers, right now". */
+  const cloudUsers = useCloudUsers();
+  const latestSignup = timeAgo(cloudUsers.latestSignupAt ?? undefined);
   const cells: BandStat[] = [
+    // The accent moves here from repository clones so the band still carries
+    // exactly one. Every other number in it counts interest in the repository;
+    // this is the only one that counts people using the product.
+    {
+      key: 'cloudUsers',
+      value: cloudUsers.totalUsers,
+      label: 'Cloud users',
+      desc: latestSignup
+        ? `Accounts on Yosemite Crew Cloud, verified or not. Last signup ${latestSignup}.`
+        : 'Accounts on Yosemite Crew Cloud, verified or not.',
+      accent: true,
+      delay: 0,
+    },
     {
       key: 'repositoryClones',
       value: stats.repositoryClones,
       label: 'Repository clones',
       desc: 'Clone events from GitHub traffic. Not installs, not people.',
-      accent: true,
-      delay: 0,
+      accent: false,
+      delay: 90,
     },
     {
       key: 'contributors',
@@ -619,7 +640,7 @@ function StatBand() {
       label: 'Contributors',
       desc: 'Accounts credited with commits, bots excluded.',
       accent: false,
-      delay: 90,
+      delay: 180,
     },
     {
       key: 'discord',
@@ -627,7 +648,7 @@ function StatBand() {
       label: 'Discord members',
       desc: 'Builders and pet pros in the community.',
       accent: false,
-      delay: 180,
+      delay: 270,
     },
     {
       key: 'stars',
@@ -635,7 +656,7 @@ function StatBand() {
       label: 'GitHub stars',
       desc: 'Developers who bookmarked the project.',
       accent: false,
-      delay: 270,
+      delay: 360,
     },
   ];
   return (
@@ -669,7 +690,7 @@ function StatBand() {
           data-grid-2-m="true"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(5, 1fr)',
             gap: 'clamp(24px, 3vw, 44px)',
           }}
         >
