@@ -19657,6 +19657,447 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/prescriptions/organisations/{organisationId}/items/{itemId}/fill-authorisations':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/prescriptions/organisations/{organisationId}/items/{itemId}/fill-authorisations'
+      operationId: post_v1_prescriptions_organisations_organisationId_items_itemId_fill_authorisations
+      description: "Issue the authority for a prescription item to be filled again (#3162). Authorising is a prescribing decision, so this needs only prescription:edit - unlike the fill actions below, no inventory permission is involved. A caller holding prescription:edit:own rather than :any reaches this route and is then refused 403 by the service on any prescription they did not author. Issuing again supersedes the active authority and takes the next version rather than editing it, so a repeat already allocated against version 1 is refused at reservation instead of being quietly handed version 2's allowance."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          description: The prescription item the authority applies to. An item belonging to another organisation is answered 404 rather than 403, so this route cannot be used to discover that one exists.
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - validUntil
+                - maxAdditionalFills
+                - perFillQuantity
+                - perFillQuantityUnit
+              properties:
+                validUntil:
+                  type: string
+                  format: date-time
+                  description: When the authority lapses. ISO 8601 with an explicit offset; a bare date, or any instant not in the future, is answered 400.
+                maxAdditionalFills:
+                  type: integer
+                  minimum: 0
+                  description: 'Repeats permitted BEYOND the initial fill, so 2 here permits 3 fills in total. Zero is valid and means the initial fill only.'
+                perFillQuantity:
+                  type: string
+                  description: 'How much each fill dispenses, as a decimal STRING. A JSON number is a double, so 0.1 would arrive as 0.1000000000000000055 and the quantity stored would not be the quantity the clinician typed. Must be greater than zero.'
+                perFillQuantityUnit:
+                  type: string
+                  description: The unit `perFillQuantity` is expressed in, recorded alongside it so a later reading cannot reinterpret the number.
+      responses:
+        201:
+          description: The authority as issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillAuthorization'
+        400:
+          description: The body failed validation, or validUntil is not in the future
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+        401:
+          description: No authenticated user on the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+        403:
+          description: The caller holds only prescription:edit:own and did not author this prescription
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+        404:
+          description: No prescription item of this organisation has that id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+  '/v1/prescriptions/organisations/{organisationId}/fill-authorisations/{authorizationId}/$revoke':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/prescriptions/organisations/{organisationId}/fill-authorisations/{authorizationId}/$revoke'
+      operationId: post_v1_prescriptions_organisations_organisationId_fill_authorisations_authorizationId_revoke
+      description: "Withdraw an active fill authority (#3162). Reservations already allocated against it are deliberately left alone: a fill that has been handed over is a fact, and cancelling it is the dispensary's decision rather than a side effect of this one. Only an ACTIVE authority can be revoked - a superseded or already-revoked one is answered 409."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: authorizationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Why the authority was withdrawn, stored on the record. Optional, and a request with no body at all is valid.
+      responses:
+        200:
+          description: The authority in its revoked state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillAuthorization'
+        401:
+          description: No authenticated user on the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+        403:
+          description: The caller holds only prescription:edit:own and did not author this prescription
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+        404:
+          description: No fill authorisation of this organisation has that id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+        409:
+          description: The authority is not ACTIVE, so there is nothing to withdraw
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+  '/v1/prescriptions/organisations/{organisationId}/items/{itemId}/fill-eligibility':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/prescriptions/organisations/{organisationId}/items/{itemId}/fill-eligibility'
+      operationId: get_v1_prescriptions_organisations_organisationId_items_itemId_fill_eligibility
+      description: "What is true right now for a reader deciding what to show (#3162). ADVISORY ONLY - the authoritative refusal happens inside the reservation route, under the item's advisory lock, because a remaining fill read outside one can be spent before it is acted on. Needs prescription:view:any and deliberately NOT inventory:view:any, which the dispense-request reads do require: a prescriber has to see remaining repeats while writing the prescription, and demanding an inventory permission would hide it from them."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        200:
+          description: The eligibility answer. An item with no authority at all is a 200 with eligible false, not a 404.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - authorizationId
+                  - version
+                  - eligible
+                  - reasonCodes
+                  - remainingFills
+                  - remainingQuantity
+                  - unit
+                  - expiresAt
+                properties:
+                  authorizationId:
+                    type: string
+                    nullable: true
+                    description: Null when no authority has ever been issued for this item.
+                  version:
+                    type: integer
+                    nullable: true
+                    description: The version a reservation should send as expectedVersion to be sure it is spending the allowance it was shown.
+                  eligible:
+                    type: boolean
+                  reasonCodes:
+                    type: array
+                    description: 'Codes rather than sentences: the dispensary and the pet-parent app word the same refusal differently, and only one of them may see a clinical reason at all. Empty when eligible.'
+                    items:
+                      type: string
+                      enum:
+                        - NOT_AUTHORISED
+                        - AUTHORITY_REVOKED
+                        - AUTHORITY_SUPERSEDED
+                        - AUTHORITY_EXPIRED
+                        - FILLS_EXHAUSTED
+                  remainingFills:
+                    type: integer
+                    description: 'Fills that may still be allocated, COUNTING the initial fill when it has not been taken yet. An authority for 2 additional refills reads 3 here before anything is dispensed.'
+                  remainingQuantity:
+                    type: string
+                    nullable: true
+                    description: remainingFills multiplied by the authorised per-fill quantity, as a decimal string for the same reason the request sends one.
+                  unit:
+                    type: string
+                    nullable: true
+                  expiresAt:
+                    type: string
+                    format: date-time
+                    nullable: true
+        400:
+          description: A path id was blank
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+  '/v1/prescriptions/organisations/{organisationId}/items/{itemId}/fill-reservations':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/prescriptions/organisations/{organisationId}/items/{itemId}/fill-reservations'
+      operationId: post_v1_prescriptions_organisations_organisationId_items_itemId_fill_reservations
+      description: "Allocate one fill against the item's active authority (#3162). This is where the refusal is authoritative: the item is locked, the remaining capacity counted under that lock, and the ordinal taken as max+1, so two sessions cannot each count one fill remaining and each allocate a different ordinal. Needs prescription:edit:any AND inventory:edit:any, the same pair the dispense actions take. Replaying the same idempotencyKey returns the reservation that already exists rather than allocating a second; reusing that key for a DIFFERENT prescription item is answered 409 instead of being silently honoured."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - idempotencyKey
+              properties:
+                idempotencyKey:
+                  type: string
+                  description: Unique per organisation. A timed-out caller retries with the SAME key and gets the same reservation back, which is what stops a retry consuming a second repeat.
+                expectedVersion:
+                  type: integer
+                  minimum: 1
+                  description: The authority version the caller was shown. Sent, a reservation against a superseded authority is answered 409 rather than being handed the newer allowance. Omitted, whatever is active is used.
+                dispenseRequestId:
+                  type: string
+                  description: The dispense request this fill is being allocated for, when one exists.
+      responses:
+        201:
+          description: The reservation, either newly allocated or the one the idempotency key already names
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillReservation'
+        400:
+          description: The body failed validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+        401:
+          description: No authenticated user on the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+        404:
+          description: No prescription item of this organisation has that id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+        409:
+          description: 'No active authority, the authority is expired, exhausted or superseded past expectedVersion, or the idempotency key belongs to a different item. The message names which.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+  '/v1/prescriptions/organisations/{organisationId}/fill-reservations/{reservationId}/$fulfil':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/prescriptions/organisations/{organisationId}/fill-reservations/{reservationId}/$fulfil'
+      operationId: post_v1_prescriptions_organisations_organisationId_fill_reservations_reservationId_fulfil
+      description: 'Record what was actually handed over against a reservation (#3162). Quantity ACCUMULATES on the same ordinal, so a partial dispense does not consume a second repeat; the reservation completes only once the authorised per-fill quantity is reached. Dispensing more than that is answered 409 rather than silently allowed, and an authority that lapsed between reservation and hand-over is answered 409 too.'
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: reservationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - quantity
+              properties:
+                quantity:
+                  type: string
+                  description: How much was dispensed on this occasion, as a decimal string. Must be greater than zero.
+      responses:
+        200:
+          description: The reservation with the fulfilment applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillReservation'
+        400:
+          description: The quantity is missing, malformed, or not greater than zero
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+        401:
+          description: No authenticated user on the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+        404:
+          description: No fill reservation of this organisation has that id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+        409:
+          description: 'The reservation is not open, the authority expired before hand-over, or the quantity would exceed what this fill authorises.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+  '/v1/prescriptions/organisations/{organisationId}/fill-reservations/{reservationId}/$cancel':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/prescriptions/organisations/{organisationId}/fill-reservations/{reservationId}/$cancel'
+      operationId: post_v1_prescriptions_organisations_organisationId_fill_reservations_reservationId_cancel
+      description: 'Release a reservation that was never handed over (#3162). The ordinal it held is NOT returned to the pool - the next reservation still takes max+1 - because an ordinal that could be reused would let a cancelled fill and a live one collide on the unique index that makes a lost lock a constraint violation. Capacity comes from counting non-cancelled rows, so cancelling does restore the remaining fill. A COMPLETED reservation cannot be cancelled: the medicine left the shelf, and the correction for that is a reversal of the dispense, not the disappearance of its record.'
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: reservationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Why the fill was released, stored on the record. Optional, and a request with no body at all is valid.
+      responses:
+        200:
+          description: The reservation in its cancelled state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillReservation'
+        401:
+          description: No authenticated user on the request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+        404:
+          description: No fill reservation of this organisation has that id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
+        409:
+          description: The reservation is already completed, so it cannot be released
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionFillError'
   /v1/stripe/webhook:
     post:
       tags:
@@ -24766,6 +25207,145 @@ components:
       scheme: bearer
       bearerFormat: 'yc_<live|test>_<secret> - a developer API key, not a session JWT'
   schemas:
+    PrescriptionFillError:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Why the request was refused, in wording safe to show the caller. An unexpected failure is logged and answered with a generic sentence instead, because its message can name a record the caller is not entitled to know exists.
+    PrescriptionFillAuthorization:
+      type: object
+      description: The authority for a prescription item to be filled again (#3162). Issuing again supersedes rather than edits, so this record is the state of ONE version.
+      required:
+        - id
+        - organisationId
+        - prescriptionId
+        - itemId
+        - version
+        - validUntil
+        - maxAdditionalFills
+        - perFillQuantity
+        - perFillQuantityUnit
+        - status
+        - authorisedBy
+        - authorisedAt
+      properties:
+        id:
+          type: string
+        organisationId:
+          type: string
+        patientId:
+          type: string
+          nullable: true
+          description: Resolved server-side from the prescription's encounter, never accepted from the request - a request-supplied patient would let one organisation's fill be recorded against another's animal. Null when the artifact is not attached to an encounter.
+        prescriptionId:
+          type: string
+        itemId:
+          type: string
+        version:
+          type: integer
+          description: 1 for the first authority on this item, incrementing each time a new one supersedes it.
+        validUntil:
+          type: string
+          format: date-time
+        maxAdditionalFills:
+          type: integer
+          description: Repeats permitted beyond the initial fill.
+        perFillQuantity:
+          type: string
+          description: A decimal serialised as a string; see the request body for why.
+        perFillQuantityUnit:
+          type: string
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - REVOKED
+            - SUPERSEDED
+        authorisedBy:
+          type: string
+          description: The authenticated user who issued it. Taken from the session, not the body.
+        authorisedAt:
+          type: string
+          format: date-time
+        revokedBy:
+          type: string
+          nullable: true
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        revokedReason:
+          type: string
+          nullable: true
+        supersedesId:
+          type: string
+          nullable: true
+          description: The authority this one replaced, so the chain of allowances stays readable after the fact.
+    PrescriptionFillReservation:
+      type: object
+      description: One fill allocated against an authority (#3162).
+      required:
+        - id
+        - organisationId
+        - authorizationId
+        - itemId
+        - fillOrdinal
+        - quantity
+        - fulfilledQuantity
+        - quantityUnit
+        - status
+        - idempotencyKey
+        - reservedAt
+      properties:
+        id:
+          type: string
+        organisationId:
+          type: string
+        authorizationId:
+          type: string
+        itemId:
+          type: string
+        dispenseRequestId:
+          type: string
+          nullable: true
+        fillOrdinal:
+          type: integer
+          description: 'An allocation sequence, not a repeat index: ordinal 0 is the initial fill and a cancelled ordinal is never reused. Remaining capacity is counted from the non-cancelled rows, so a gap here is expected and is not a lost fill.'
+        quantity:
+          type: string
+          description: What this fill authorises, as a decimal string.
+        fulfilledQuantity:
+          type: string
+          description: What has actually been handed over so far. Accumulates across partial dispenses on the same ordinal; the reservation completes when it reaches quantity.
+        quantityUnit:
+          type: string
+        status:
+          type: string
+          enum:
+            - RESERVED
+            - COMPLETED
+            - CANCELLED
+        idempotencyKey:
+          type: string
+          description: Unique per organisation. Replaying it returns this same reservation instead of allocating another.
+        reservedBy:
+          type: string
+          nullable: true
+        reservedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+        cancelledReason:
+          type: string
+          nullable: true
     AccessPolicy:
       type: object
       properties:
