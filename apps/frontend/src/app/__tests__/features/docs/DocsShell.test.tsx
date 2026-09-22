@@ -153,10 +153,8 @@ describe('DocsShell', () => {
   it('keeps a non-colour cue on prose links while leaving heading anchors unstyled', () => {
     const css = readFileSync(join(process.cwd(), 'src/app/features/docs/docs.css'), 'utf8');
 
-    expect(css).toMatch(/\.DocsBody a\s*{[^}]*text-decoration:\s*underline !important/);
-    expect(css).toMatch(
-      /\.DocsBody \.DocsHeadingAnchor\s*{[^}]*text-decoration:\s*none !important/
-    );
+    expect(css).toMatch(/\.DocsBody a\s*{[^}]*text-decoration:\s*underline;/);
+    expect(css).toMatch(/\.DocsBody \.DocsHeadingAnchor\s*{[^}]*text-decoration:\s*none;/);
   });
 });
 
