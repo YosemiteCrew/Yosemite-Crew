@@ -234,6 +234,30 @@ export function score({ rows, stats }, reviewer) {
       `| ${r.number} | ${mdCell(r.title)} | ${r.ladder.category ?? '-'} / ${r.ladder.priority ?? '-'} | ${r.judgment.category ?? '-'} / ${r.judgment.priority ?? '-'} | ${rev ? `${rev.category ?? '-'} / ${rev.priority ?? '-'}` : 'not adjudicated'} |`
     );
   }
+
+  // A row the ladder answered outright is never put to a judgment, so both its
+  // judgment cells are null and the disagreement filter above drops it. Those
+  // rows are the ones the issue quotes as its motivating failures, so the table
+  // that exists to show the conflict must not be the table that hides it.
+  const neverConsulted = rows.filter(
+    (r) => !r.judgment.asked.askCategory && !r.judgment.asked.askUrgency
+  );
+  lines.push(
+    '',
+    `### Judgment never consulted (${neverConsulted.length} of ${rows.length})`,
+    '',
+    'The ladder answered both cells, so no question was asked. A row here cannot change.',
+    '',
+    '| Issue | Title | Ladder | Judgment | Reviewer |',
+    '|---|---|---|---|---|'
+  );
+  for (const r of neverConsulted) {
+    const rev = reviewer[String(r.number)];
+    lines.push(
+      `| ${r.number} | ${mdCell(r.title)} | ${r.ladder.category ?? '-'} / ${r.ladder.priority ?? '-'} | not consulted | ${rev ? `${rev.category ?? '-'} / ${rev.priority ?? '-'}` : 'not adjudicated'} |`
+    );
+  }
+
   return lines.join('\n');
 }
 
