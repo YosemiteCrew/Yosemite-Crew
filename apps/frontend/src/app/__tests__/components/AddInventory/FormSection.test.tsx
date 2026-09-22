@@ -71,12 +71,17 @@ jest.mock('@/app/ui/inputs/FormDesc/FormDesc', () => (props: any) => (
 
 jest.mock('@/app/ui/inputs/Datepicker', () => {
   return function MockDatepicker({ currentDate, setCurrentDate, placeholder }: any) {
+    const localDate = currentDate
+      ? `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(
+          currentDate.getDate()
+        ).padStart(2, '0')}`
+      : 'null';
     return (
       <div data-testid={`datepicker-${placeholder}`}>
-        <span data-testid="date-value">{currentDate ? currentDate.toISOString() : 'null'}</span>
+        <span data-testid="date-value">{localDate}</span>
         <button
           onClick={() => {
-            const d = new Date('2023-01-01');
+            const d = new Date(2023, 0, 1);
             setCurrentDate(d);
           }}
           data-testid="date-set-direct"
@@ -85,7 +90,7 @@ jest.mock('@/app/ui/inputs/Datepicker', () => {
         </button>
         <button
           onClick={() => {
-            setCurrentDate(() => new Date('2023-02-02'));
+            setCurrentDate(() => new Date(2023, 1, 2));
           }}
           data-testid="date-set-fn"
         >
