@@ -28,6 +28,7 @@ const vaccineReminderQueue = queueDouble("vaccine-reminder");
 const publicBookingQueue = queueDouble("public-booking");
 const parasiteRiskQueue = queueDouble("parasite-risk");
 const superadminContactQueue = queueDouble("superadmin-contact-forward");
+const developerMeterQueue = queueDouble("developer-meter-delivery");
 
 jest.mock("../../src/queues/appointment.queue", () => ({
   AppointmentQueue: appointmentQueue,
@@ -60,6 +61,9 @@ jest.mock("../../src/queues/parasite-risk.queue", () => ({
 jest.mock("../../src/queues/superadmin-contact.queue", () => ({
   SuperadminContactQueue: superadminContactQueue,
 }));
+jest.mock("../../src/queues/developer-meter.queue", () => ({
+  DeveloperMeterQueue: developerMeterQueue,
+}));
 
 const pruneLegacyRepeatablesAcross = jest.fn(
   async (..._queues: unknown[]): Promise<void> => undefined,
@@ -79,6 +83,7 @@ const registerVaccineReminderScheduler = jest.fn(async () => undefined);
 const registerPublicBookingSchedulers = jest.fn(async () => undefined);
 const registerParasiteRiskScheduler = jest.fn(async () => undefined);
 const registerSuperadminContactScheduler = jest.fn(async () => undefined);
+const registerDeveloperMeterScheduler = jest.fn(async () => undefined);
 
 jest.mock("../../src/queues/task.schedulers", () => ({
   registerTaskSchedulers: () => registerTaskSchedulers(),
@@ -111,6 +116,9 @@ jest.mock("../../src/queues/superadmin-contact.scheduler", () => ({
   registerSuperadminContactScheduler: () =>
     registerSuperadminContactScheduler(),
 }));
+jest.mock("../../src/queues/developer-meter.scheduler", () => ({
+  registerDeveloperMeterScheduler: () => registerDeveloperMeterScheduler(),
+}));
 
 const info = jest.fn();
 jest.mock("src/utils/logger", () => ({
@@ -131,6 +139,7 @@ const registrations = [
   registerPublicBookingSchedulers,
   registerParasiteRiskScheduler,
   registerSuperadminContactScheduler,
+  registerDeveloperMeterScheduler,
 ];
 
 const orderOf = (mock: jest.Mock): number =>
@@ -157,8 +166,9 @@ describe("scheduledQueues", () => {
       publicBookingQueue,
       parasiteRiskQueue,
       superadminContactQueue,
+      developerMeterQueue,
     ]);
-    expect(new Set(scheduledQueues)).toHaveProperty("size", 11);
+    expect(new Set(scheduledQueues)).toHaveProperty("size", 12);
   });
 });
 
