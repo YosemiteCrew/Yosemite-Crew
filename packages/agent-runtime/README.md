@@ -109,7 +109,7 @@ Measured on the branch for issue #3049 with `pnpm --filter
 @yosemite-crew/agent-runtime run test:coverage`:
 
 - 93 tests across 5 suites, all passing.
-- Coverage: 98.7% statements, 92.19% branches, 100% functions, 98.65% lines.
+- Coverage: 98.73% statements, 92.11% branches, 100% functions, 98.68% lines.
 - The contract suite runs 12 cases against each of the two adapters. Both
   produce identical briefings (deep equality) from the same synthetic fixture, and degrade
   identically when a tool is refused.

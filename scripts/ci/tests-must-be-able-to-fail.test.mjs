@@ -113,6 +113,15 @@ test('routes a changed test to the workspace that can run it', () => {
   // was missing, every desktop test change reported "outside a known workspace"
   // and the gate failed a PR that had in fact proved its change.
   assert.equal(workspaceOf('apps/desktop/tests/window-config.test.ts'), '@yosemite-crew/desktop');
+  assert.equal(
+    workspaceOf('packages/agent-runtime/test/contract.test.ts'),
+    '@yosemite-crew/agent-runtime'
+  );
+  assert.equal(workspaceOf('packages/mcp-server/test/client.test.ts'), '@yosemite-crew/mcp-server');
+  // auth runs node --test over compiled output, so its paths must not be
+  // handed to jest.
+  assert.equal(workspaceOf('packages/auth/src/auth-service.test.ts'), undefined);
+  assert.equal(workspaceOf('packages/types/src/x.test.ts'), undefined);
 });
 
 test('groups tests per workspace and drops what this gate cannot run', () => {

@@ -19,6 +19,50 @@ interface TranscriptEntry {
   readonly text: string;
 }
 
+// The spend block is optional and each field inside it is optional, so it is
+// read rather than cast.
+const readSpend = (response: Record<string, unknown>): ProviderRunOutcome['usage'] => {
+  if (!isRecord(response.spend)) {
+    return undefined;
+  }
+  const { units, usd } = response.spend;
+  return {
+    ...(typeof units === 'number' ? { outputUnits: units } : {}),
+    ...(typeof usd === 'number' ? { costUsd: usd } : {}),
+  };
+};
+
+// One tool turn. A refused tool is written into the transcript as a refusal the
+// model can read, which is why this does not rethrow.
+const runToolTurn = async (
+  completion: Record<string, unknown>,
+  hooks: ProviderRunHooks,
+  transcript: TranscriptEntry[]
+): Promise<void> => {
+  if (typeof completion.tool_id !== 'string') {
+    throw new AgentRuntimeError('malformed-output', 'Tool request named no tool.');
+  }
+  const toolId = completion.tool_id;
+  hooks.onProgress(`tool:${toolId}`);
+  const fields = isRecord(completion.fields) ? completion.fields : {};
+  try {
+    const output = await hooks.callTool(toolId, fields);
+    transcript.push({ from: 'product', text: `${toolId}=${JSON.stringify(output)}` });
+  } catch (error) {
+    transcript.push({
+      from: 'product',
+      text: `${toolId}!${error instanceof AgentRuntimeError ? error.code : 'tool-failed'}`,
+    });
+  }
+};
+
+const openingTranscript = (request: ProviderRunRequest): TranscriptEntry[] =>
+  request.checkpoint
+    ? // Restarting: tell the model what the product already has, rather than
+      // asking the provider to remember it.
+      [{ from: 'product', text: `resumed:${request.checkpoint.completedSteps.join(',')}` }]
+    : [];
+
 export function createModelToolProvider(config: ExecutionConfig): ExecutionProvider {
   const generate = async (body: unknown): Promise<unknown> => {
     const token = await resolveCredential(config.credential);
@@ -47,15 +91,7 @@ export function createModelToolProvider(config: ExecutionConfig): ExecutionProvi
     },
 
     async run(request: ProviderRunRequest, hooks: ProviderRunHooks): Promise<ProviderRunOutcome> {
-      const transcript: TranscriptEntry[] = [];
-      if (request.checkpoint) {
-        // Restarting: tell the model what the product already has, rather than
-        // asking the provider to remember it.
-        transcript.push({
-          from: 'product',
-          text: `resumed:${request.checkpoint.completedSteps.join(',')}`,
-        });
-      }
+      const transcript = openingTranscript(request);
 
       for (let turn = 0; turn < MAX_TURNS; turn += 1) {
         if (hooks.shouldStop()) {
@@ -80,52 +116,26 @@ export function createModelToolProvider(config: ExecutionConfig): ExecutionProvi
         }
         const completion = response.completion;
 
-        if (completion.kind === 'tool_request') {
-          if (typeof completion.tool_id !== 'string') {
-            throw new AgentRuntimeError('malformed-output', 'Tool request named no tool.');
-          }
-          hooks.onProgress(`tool:${completion.tool_id}`);
-          const fields = isRecord(completion.fields) ? completion.fields : {};
-          try {
-            const output = await hooks.callTool(completion.tool_id, fields);
-            transcript.push({
-              from: 'product',
-              text: `${completion.tool_id}=${JSON.stringify(output)}`,
-            });
-          } catch (error) {
-            transcript.push({
-              from: 'product',
-              text: `${completion.tool_id}!${
-                error instanceof AgentRuntimeError ? error.code : 'tool-failed'
-              }`,
-            });
-          }
-          continue;
-        }
+        switch (completion.kind) {
+          case 'tool_request':
+            await runToolTurn(completion, hooks, transcript);
+            break;
 
-        if (completion.kind === 'final') {
-          const usage = isRecord(response.spend)
-            ? {
-                ...(typeof response.spend.units === 'number'
-                  ? { outputUnits: response.spend.units }
-                  : {}),
-                ...(typeof response.spend.usd === 'number' ? { costUsd: response.spend.usd } : {}),
-              }
-            : undefined;
-          return { output: completion.document, usage };
-        }
+          case 'final':
+            return { output: completion.document, usage: readSpend(response) };
 
-        if (completion.kind === 'refusal') {
-          throw new AgentRuntimeError(
-            'provider-unavailable',
-            typeof completion.reason === 'string' ? completion.reason : 'Model refused.'
-          );
-        }
+          case 'refusal':
+            throw new AgentRuntimeError(
+              'provider-unavailable',
+              typeof completion.reason === 'string' ? completion.reason : 'Model refused.'
+            );
 
-        throw new AgentRuntimeError(
-          'malformed-output',
-          `Generation returned an unrecognised completion: ${String(completion.kind)}.`
-        );
+          default:
+            throw new AgentRuntimeError(
+              'malformed-output',
+              `Generation returned an unrecognised completion: ${String(completion.kind)}.`
+            );
+        }
       }
 
       throw new AgentRuntimeError(
@@ -137,8 +147,6 @@ export function createModelToolProvider(config: ExecutionConfig): ExecutionProvi
 
     // Nothing is held on the provider, so there is nothing to cancel remotely.
     // The runtime's own cancellation is what stops the loop.
-    async cancel(): Promise<void> {
-      return undefined;
-    },
+    async cancel(): Promise<void> {},
   };
 }
