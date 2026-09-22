@@ -201,9 +201,25 @@ describe('DocsSidebar', () => {
       // The comment above the rule quotes both of the strings this forbids.
       const rules = css.replaceAll(/\/\*[\s\S]*?\*\//g, '');
 
-      expect(rules).toMatch(/\.DocsNavSection \[data-expanded='false'\]\s*{[^}]*display:\s*none;/);
+      expect(rules).toMatch(/\.DocsNavTree \[data-expanded='false'\]\s*{[^}]*display:\s*none;/);
       expect(rules).not.toContain('@layer');
       expect(rules).not.toContain('!important');
+    });
+
+    /*
+     * `.DocsNavSection` is not ours alone - `features/developers/pages/
+     * DeveloperDocs` renders the same class. A collapse rule resting on it
+     * would close a section on that page too, while the override that reopens
+     * one is scoped `.DocsNav`, which that page has not got: the defect this
+     * whole file is about, recurring where nothing looks. So the rule hangs off
+     * `.DocsNavTree`, which is this feature's alone, and the shared class must
+     * not carry a `[data-expanded]` rule at all.
+     */
+    it('closes the section through a class no other feature renders', () => {
+      const css = readFileSync(join(process.cwd(), 'src/app/features/docs/docs.css'), 'utf8');
+      const rules = css.replaceAll(/\/\*[\s\S]*?\*\//g, '');
+
+      expect(rules).not.toMatch(/\.DocsNavSection\s*\[data-expanded/);
     });
 
     /*

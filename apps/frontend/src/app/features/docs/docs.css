@@ -122,8 +122,20 @@
  * `display: none` keeps the closed body out of the accessibility tree and out
  * of the tab order exactly as `hidden` did, so nothing changes for a client
  * with JavaScript.
+ *
+ * Scoped on `.DocsNavTree`, which only this feature uses, and not on
+ * `.DocsNavSection`, which `features/developers/pages/DeveloperDocs` also
+ * carries. Unscoped, this rule would reach a `DeveloperDocs` section while the
+ * override that reopens it - scoped `.DocsNav`, a class that page has not got -
+ * would not, which is this very defect recurring somewhere nothing tests it.
+ *
+ * `.DocsNavTree` rather than the symmetric `.DocsNav .DocsNavSection` because
+ * the margin above matters: at (0,2,0) this stays a whole class below the
+ * override's (0,3,0), whereas the symmetric form ties it and leaves source
+ * order the only thing deciding - the kind of silent inversion the `hidden`
+ * attribute already cost us once.
  */
-.DocsNavSection [data-expanded='false'] {
+.DocsNavTree [data-expanded='false'] {
   display: none;
 }
 
