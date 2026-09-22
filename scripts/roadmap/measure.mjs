@@ -19,7 +19,7 @@ import { argv, env, exit, stderr, stdin, stdout } from 'node:process';
 import { readFileSync } from 'node:fs';
 import { CATEGORIES, PRIORITIES, classifyCategory, classifyPriority } from './classify.mjs';
 import { classifyWithJudgment, createJudgmentClient } from './judgment.mjs';
-import { paginate } from './sync.mjs';
+import { paginate, safeTitle } from './sync.mjs';
 
 const OWNER = env.ROADMAP_OWNER || 'YosemiteCrew';
 const REPO = env.ROADMAP_REPO || 'Yosemite-Crew';
@@ -149,6 +149,17 @@ async function cmdRun(sample) {
   return { rows, stats: judge.stats() };
 }
 
+/**
+ * An issue title as one cell of a markdown table.
+ *
+ * The BACKSLASH is escaped before the pipe, not after. Escaping only the pipe
+ * leaves `\\|` in a title as an escaped backslash followed by a live pipe, which
+ * ends the cell early and shifts every column after it - and the reviewer reads
+ * this table to adjudicate, so a shifted row is a wrong adjudication. safeTitle
+ * flattens the newlines and control characters first, for the same reason.
+ */
+export const mdCell = (title) => safeTitle(title, 60).replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
+
 const RANK = {
   [PRIORITIES.LOW]: 0,
   [PRIORITIES.NORMAL]: 1,
@@ -220,7 +231,7 @@ export function score({ rows, stats }, reviewer) {
   for (const r of disagreements) {
     const rev = reviewer[String(r.number)];
     lines.push(
-      `| ${r.number} | ${r.title.replace(/\|/g, '\\|').slice(0, 60)} | ${r.ladder.category ?? '-'} / ${r.ladder.priority ?? '-'} | ${r.judgment.category ?? '-'} / ${r.judgment.priority ?? '-'} | ${rev ? `${rev.category ?? '-'} / ${rev.priority ?? '-'}` : 'not adjudicated'} |`
+      `| ${r.number} | ${mdCell(r.title)} | ${r.ladder.category ?? '-'} / ${r.ladder.priority ?? '-'} | ${r.judgment.category ?? '-'} / ${r.judgment.priority ?? '-'} | ${rev ? `${rev.category ?? '-'} / ${rev.priority ?? '-'}` : 'not adjudicated'} |`
     );
   }
   return lines.join('\n');

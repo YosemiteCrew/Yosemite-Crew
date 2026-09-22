@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CATEGORIES, PRIORITIES } from './classify.mjs';
-import { QUOTED_CASES, blindSheet, score, selectSample } from './measure.mjs';
+import { QUOTED_CASES, blindSheet, mdCell, score, selectSample } from './measure.mjs';
 
 const issue = (number, over = {}) => ({
   number,
@@ -229,4 +229,49 @@ test('the cost and latency the acceptance criteria ask for are reported', () => 
 test('an unmeasured latency prints as a dash rather than as null', () => {
   const out = score({ rows: [], stats: { ...stats, latencyMs: { p50: null, p95: null } } }, {});
   assert.match(out, /Latency p50 -ms, p95 -ms/);
+});
+
+// --------------------------------------------------------------- md escaping
+
+// Parse a markdown table row the way a renderer does: an escaped backslash is
+// one literal backslash, an escaped pipe is one literal pipe, and only what is
+// left separates cells.
+const cellsOf = (row) =>
+  row.replace(/\\\\/g, '\u0000').replace(/\\\|/g, '\u0001').split('|').slice(1, -1);
+
+test('a title containing an escaped pipe does not shift the table columns', () => {
+  const titled = (title) =>
+    score(
+      {
+        rows: [
+          {
+            number: 1,
+            title,
+            labels: [],
+            ladder: { category: null, priority: null },
+            judgment: { category: CATEGORIES.PMS, priority: null, asked: {}, error: null },
+            published: { category: CATEGORIES.PMS, priority: null },
+          },
+        ],
+        stats,
+      },
+      {}
+    )
+      .split('\n')
+      .find((l) => l.startsWith('| 1 |'));
+
+  const plain = cellsOf(titled('an ordinary title'));
+  assert.equal(plain.length, 5);
+  // Backslash-pipe is the case that breaks when only the pipe is escaped: the
+  // backslash escapes the escape, and the pipe goes live.
+  assert.equal(cellsOf(titled('before \\| after')).length, 5);
+  assert.equal(cellsOf(titled('a | b')).length, 5);
+  assert.equal(cellsOf(titled('a \\\\ b')).length, 5);
+});
+
+test('a cell escapes the backslash before the pipe and flattens newlines', () => {
+  assert.equal(mdCell('a|b'), 'a\\|b');
+  assert.equal(mdCell('a\\|b'), 'a\\\\\\|b');
+  assert.equal(mdCell('line\none'), 'line one');
+  assert.equal(mdCell('x'.repeat(200)).length, 60);
 });
