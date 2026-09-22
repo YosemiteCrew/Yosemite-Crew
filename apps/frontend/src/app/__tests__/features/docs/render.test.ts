@@ -74,6 +74,16 @@ describe('renderDoc sanitisation', () => {
     expect(html).not.toContain('user-content-');
   });
 
+  it('keeps the heading-anchor class used to exempt headings from prose-link styling', async () => {
+    const html = await render('## Prerequisites');
+    expect(html).toContain('class="DocsHeadingAnchor"');
+  });
+
+  it('preserves the sanitizer default class used by footnote back-links', async () => {
+    const html = await render('Reference[^1].\n\n[^1]: Footnote');
+    expect(html).toContain('class="data-footnote-backref"');
+  });
+
   it('keeps highlighter class names, which the CSP-safe theme needs', async () => {
     const html = await render('```ts\nconst a: number = 1;\n```');
     expect(html).toMatch(/hljs/);
