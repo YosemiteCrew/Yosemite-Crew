@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { AxiosError } from 'axios';
 import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { CONTACT_MESSAGE_MAX_LENGTH } from '@yosemite-crew/types';
 
 import api from '@/app/services/axios';
 // Only `(routes)/(public)/layout.tsx` loads this sheet, and the page's buttons and
@@ -193,6 +194,9 @@ export const InvalidEmail: Story = {
 
     const emailError = await canvas.findByText('Invalid email address');
     await expect(emailError).toBeInTheDocument();
+    const email = canvas.getByLabelText('Enter Email Address');
+    await expect(email).toHaveAttribute('aria-invalid', 'true');
+    await expect(email.getAttribute('aria-describedby')).toContain(emailError.id);
 
     /* The other two messages stay away, because the fields are genuinely filled.
        Asserting their absence is what makes this a validation story rather than a
@@ -209,9 +213,8 @@ export const InvalidEmail: Story = {
       description: {
         story:
           'A 14px line in `--color-danger-600` directly under the field it belongs to, with no ' +
-          'icon - the alert glyph belongs to the submit error, not to these. The input itself ' +
-          'does not change either: no red border, no `aria-invalid`, so the message is the only ' +
-          'signal there is.',
+          'icon - the alert glyph belongs to the submit error, not to these. The input exposes ' +
+          '`aria-invalid` and describes the error text while leaving the neutral border intact.',
       },
     },
   },
@@ -233,7 +236,17 @@ export const BlankAfterTrim: Story = {
 
     const nameError = await canvas.findByText('Full name is required');
     await expect(nameError).toBeInTheDocument();
-    await expect(canvas.getByText('Message is required')).toBeInTheDocument();
+    const messageError = canvas.getByText('Message is required');
+    await expect(messageError).toBeInTheDocument();
+    const name = canvas.getByLabelText('Full Name');
+    const message = canvas.getByLabelText('Your Message');
+    await expect(name).toHaveAttribute('aria-invalid', 'true');
+    await expect(name.getAttribute('aria-describedby')).toContain(nameError.id);
+    await expect(message).toHaveAttribute('aria-invalid', 'true');
+    await expect(message.getAttribute('aria-describedby')).toContain(messageError.id);
+    await expect(message.getAttribute('aria-describedby')).toContain(
+      canvas.getByText(`1 of ${CONTACT_MESSAGE_MAX_LENGTH} characters`).id
+    );
     await expect(canvas.queryByText('Invalid email address')).not.toBeInTheDocument();
   },
   parameters: {
