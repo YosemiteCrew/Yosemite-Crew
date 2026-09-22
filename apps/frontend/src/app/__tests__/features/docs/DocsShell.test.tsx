@@ -1,4 +1,6 @@
 import { render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import DocsShell from '@/app/features/docs/DocsShell';
 import SkipLink from '@/app/ui/layout/SkipLink';
 import { loadCorpus } from '@/app/features/docs/corpus';
@@ -127,6 +129,15 @@ describe('DocsShell', () => {
     const wrapper = container.querySelector('[data-yc-app]');
     expect(wrapper).not.toBeNull();
     expect(wrapper).toHaveStyle({ display: 'contents' });
+  });
+
+  it('keeps a non-colour cue on prose links while leaving heading anchors unstyled', () => {
+    const css = readFileSync(join(process.cwd(), 'src/app/features/docs/docs.css'), 'utf8');
+
+    expect(css).toMatch(/\.DocsBody a\s*{[^}]*text-decoration:\s*underline !important/);
+    expect(css).toMatch(
+      /\.DocsBody \.DocsHeadingAnchor\s*{[^}]*text-decoration:\s*none !important/
+    );
   });
 });
 
