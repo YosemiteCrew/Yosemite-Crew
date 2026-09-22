@@ -17,8 +17,14 @@ export interface ExecutionConfig {
   readonly transport: ProviderTransport;
 }
 
-const isHttpsOrLocal = (url: string): boolean =>
-  url.startsWith('https://') || url.startsWith('http://localhost');
+const isHttpsOrLocal = (value: string): boolean => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || (url.protocol === 'http:' && url.hostname === 'localhost');
+  } catch {
+    return false;
+  }
+};
 
 export function validateExecutionConfig(config: ExecutionConfig): void {
   if (!config.provider.trim()) {

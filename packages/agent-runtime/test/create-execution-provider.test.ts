@@ -33,6 +33,15 @@ describe('configuration', () => {
     ).not.toThrow();
   });
 
+  it.each(['http://localhost.evil.invalid', 'http://localhost@evil.invalid', 'not a URL'])(
+    'refuses a non-local URL disguised as localhost: %s',
+    (baseUrl) => {
+      expect(() => validateExecutionConfig({ ...managed(), baseUrl })).toThrow(
+        expect.objectContaining({ code: 'configuration-invalid' })
+      );
+    }
+  );
+
   it('refuses an empty model', () => {
     expect(() => createExecutionProvider({ ...managed(), model: '  ' })).toThrow(
       expect.objectContaining({ code: 'configuration-invalid' })
