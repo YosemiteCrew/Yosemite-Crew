@@ -300,12 +300,12 @@
       "why": "The Spotlight component's cursor-follow glow colour (rgb(90,160,255)) - a distinct, brighter blue chosen for this specific hover effect, not an exact match for --blue (rgb(37,123,237)) or any --glow-b* stop."
     },
     "apps/frontend/src/app/features/marketing/site/SiteFooter.stories.tsx": {
-      "n": 2,
-      "why": "Computed-style assertions (documented at the call site) pinning the footer status dot's colours, including 'rgb(29, 107, 79)' which is the resolved form of SiteFooter.tsx's own #1d6b4f literal (see that file's entry above) - getComputedStyle() never returns a token name, so there's nothing to migrate to."
+      "n": 1,
+      "why": "A computed-style assertion verifies that the footer status dot is not transparent. getComputedStyle() serialises transparency as 'rgba(0, 0, 0, 0)', so a design token cannot express the expected value."
     },
     "apps/frontend/src/app/features/marketing/site/SiteFooter.tsx": {
-      "n": 8,
-      "why": "'#e0dcd8' (x2, an outline-pill border and a divider) and '#cfe9dd' (another outline-pill border) are bespoke tints with no exact token match (checked --divider/--hairline/--pill-raised families). '#e5dccf' coincidentally matches --hairline's light-mode value but is used here as text ink, not a border, and --hairline flips - a false match. '#837d78' (x2) is the same bespoke faint-label tint used in PetBusinesses.tsx. '#f5c518' is GitHub's own star-icon yellow, not a design-system colour. '#1d6b4f' is STATUS_TONE_TEXT.success - its siblings (warning/danger) already read var(--amber)/var(--danger), so this one not following the theme looks like a genuine gap, but no existing token matches #1d6b4f exactly (closest is --success-text at #006642/#2bbd86, a different shade) - migrating it would change the rendered colour, not preserve it, so it's flagged here rather than silently changed; worth a follow-up if the mismatch turns out to matter in dark mode."
+      "n": 5,
+      "why": "'#e0dcd8' (x2, an outline-pill border and a divider), '#cfe9dd' (another outline-pill border), and '#e5dccf' (text ink whose light value only coincidentally matches --hairline) are bespoke tints with no theme-safe token match. '#f5c518' is GitHub's brand star yellow."
     },
     "apps/frontend/src/app/features/marketing/site/useRepoInsights.ts": {
       "n": 12,
