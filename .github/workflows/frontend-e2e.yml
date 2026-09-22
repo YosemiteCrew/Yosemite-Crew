@@ -199,14 +199,18 @@ jobs:
         # pageInvariants and routeSweepExtractors need no session, so they run
         # here and therefore on every pull request - the rules and the DOM
         # extraction are gated pre-merge even though the sweep that uses them
-        # can only run where credentials exist. docs-mobile is public too, and
-        # it is the only spec that drives a phone viewport; this list is
-        # explicit, so a spec left off it never runs anywhere.
+        # can only run where credentials exist. docs-mobile and
+        # marketing-hero-mobile are public too, and they are the specs that
+        # drive a phone viewport; this list is explicit, so a spec left off it
+        # never runs anywhere. It has already happened once: #3502 added
+        # marketing-hero-mobile, read a green `Frontend E2E Required`, and the
+        # spec had not run at all. Add the file here in the same commit that
+        # adds the spec.
         run: >-
           pnpm --filter frontend exec playwright test
           e2e/smoke.spec.ts e2e/a11y.spec.ts
           e2e/pageInvariants.spec.ts e2e/routeSweepExtractors.spec.ts
-          e2e/docs-mobile.spec.ts
+          e2e/docs-mobile.spec.ts e2e/marketing-hero-mobile.spec.ts
 
       - name: Upload Playwright HTML report
         if: always()
