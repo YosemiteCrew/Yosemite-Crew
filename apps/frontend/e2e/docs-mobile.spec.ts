@@ -190,14 +190,26 @@ test.describe('docs navigation at a phone width with JavaScript disabled', () =>
       const shown = (selector: string) =>
         getComputedStyle(document.querySelector(selector)!).display;
       const tree = document.querySelector('#docs-nav-tree')!;
+      /* The body of a section declared `collapsed`. Read by attribute rather
+         than by id so it follows `docsNav.ts` instead of pinning a label. */
+      const section = () => {
+        const body = tree.querySelector('[data-expanded="false"]');
+        return body === null
+          ? { sectionDisplay: null, sectionLinks: 0 }
+          : {
+              sectionDisplay: getComputedStyle(body).display,
+              sectionLinks: body.querySelectorAll('a').length,
+            };
+      };
       return {
         toggle: shown('.DocsNavToggle'),
         tree: shown('#docs-nav-tree'),
         dataOpen: tree.getAttribute('data-open'),
         /* `locator('a')` rather than a role query: a section declared
-           `collapsed` carries `hidden`, which takes its links out of the
-           accessibility tree, so a role query cannot count them. */
+           `collapsed` is closed with `display: none`, which takes its links
+           out of the accessibility tree, so a role query cannot count them. */
         links: tree.querySelectorAll('a').length,
+        ...section(),
       };
     });
 
@@ -221,6 +233,49 @@ test.describe('docs navigation at a phone width with JavaScript disabled', () =>
     expect(state.tree).toBe('block');
     // A button whose only behaviour is an onClick handler must not be offered.
     expect(state.toggle).toBe('none');
+  });
+
+  /*
+   * The collapsed section, which is the largest part of the tree and the one
+   * thing a scripting-off reader could never open. The override only reaches
+   * it because `docs.css` closes the body with an ordinary unlayered rule -
+   * so this is the assertion that fails if that rule is ever given `!important`
+   * or moved into a layer, and the one that fails if its selector stops
+   * matching the served DOM at all.
+   */
+  test('resolves a collapsed section open, links and all', async ({ page }) => {
+    await page.goto('/docs', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#docs-nav-tree')).toHaveCount(1);
+
+    const state = await cascade(page);
+
+    // The premise: the served state is still the collapsed one.
+    expect(state.sectionLinks).toBeGreaterThan(0);
+    expect(state.sectionDisplay).toBe('block');
+  });
+});
+
+/*
+ * The other side of the same rule. With scripting on, that section must still
+ * be shut on arrival - the override lives in `<noscript>`, which a running
+ * browser ignores. Without this, a collapse rule whose selector had quietly
+ * stopped matching would read as a pass above and break nothing here.
+ */
+test.describe('docs navigation with JavaScript enabled', () => {
+  test.use({ viewport: DESKTOP });
+
+  test('keeps a section declared collapsed shut on arrival', async ({ page }) => {
+    await openDocs(page);
+
+    const state = await page.evaluate(() => {
+      const body = document.querySelector('#docs-nav-tree [data-expanded="false"]');
+      return body === null
+        ? { display: null, links: 0 }
+        : { display: getComputedStyle(body).display, links: body.querySelectorAll('a').length };
+    });
+
+    expect(state.links).toBeGreaterThan(0);
+    expect(state.display).toBe('none');
   });
 });
 
