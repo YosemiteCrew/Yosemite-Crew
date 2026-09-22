@@ -63,6 +63,32 @@ const openingTranscript = (request: ProviderRunRequest): TranscriptEntry[] =>
       [{ from: 'product', text: `resumed:${request.checkpoint.completedSteps.join(',')}` }]
     : [];
 
+const generationBody = (
+  model: string,
+  request: ProviderRunRequest,
+  transcript: TranscriptEntry[]
+): Record<string, unknown> => ({
+  model,
+  system: request.instructions,
+  workflow: request.workflowId,
+  subject: request.input,
+  transcript,
+  tool_catalog: request.tools.map((tool) => ({
+    id: tool.name,
+    summary: tool.description,
+    fields: tool.input,
+  })),
+});
+
+const readGeneration = (
+  value: unknown
+): { response: Record<string, unknown>; completion: Record<string, unknown> } => {
+  if (!isRecord(value) || !isRecord(value.completion)) {
+    throw new AgentRuntimeError('malformed-output', 'Generation returned no completion.');
+  }
+  return { response: value, completion: value.completion };
+};
+
 export function createModelToolProvider(config: ExecutionConfig): ExecutionProvider {
   const generate = async (body: unknown): Promise<unknown> => {
     const token = await resolveCredential(config.credential);
@@ -98,23 +124,9 @@ export function createModelToolProvider(config: ExecutionConfig): ExecutionProvi
           throw new AgentRuntimeError('cancelled', 'Runtime asked the adapter to stop.');
         }
 
-        const response = await generate({
-          model: config.model,
-          system: request.instructions,
-          workflow: request.workflowId,
-          subject: request.input,
-          transcript,
-          tool_catalog: request.tools.map((tool) => ({
-            id: tool.name,
-            summary: tool.description,
-            fields: tool.input,
-          })),
-        });
-
-        if (!isRecord(response) || !isRecord(response.completion)) {
-          throw new AgentRuntimeError('malformed-output', 'Generation returned no completion.');
-        }
-        const completion = response.completion;
+        const { response, completion } = readGeneration(
+          await generate(generationBody(config.model, request, transcript))
+        );
 
         switch (completion.kind) {
           case 'tool_request':
