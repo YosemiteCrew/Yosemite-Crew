@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { basename, dirname, resolve } from 'node:path';
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import {
   classify,
@@ -113,6 +113,15 @@ test('routes a changed test to the workspace that can run it', () => {
   // was missing, every desktop test change reported "outside a known workspace"
   // and the gate failed a PR that had in fact proved its change.
   assert.equal(workspaceOf('apps/desktop/tests/window-config.test.ts'), '@yosemite-crew/desktop');
+  assert.equal(
+    workspaceOf('packages/agent-runtime/test/contract.test.ts'),
+    '@yosemite-crew/agent-runtime'
+  );
+  assert.equal(workspaceOf('packages/mcp-server/test/client.test.ts'), '@yosemite-crew/mcp-server');
+  // auth runs node --test over compiled output, so its paths must not be
+  // handed to jest.
+  assert.equal(workspaceOf('packages/auth/src/auth-service.test.ts'), undefined);
+  assert.equal(workspaceOf('packages/types/src/x.test.ts'), undefined);
 });
 
 test('groups tests per workspace and drops what this gate cannot run', () => {
@@ -438,8 +447,17 @@ test('resolveInside accepts what is inside and refuses what is not', () => {
   // path naming something above the repository root would be resolved and run.
   assert.equal(resolveInside('/tmp/d', 'report.json'), '/tmp/d/report.json');
   assert.equal(resolveInside('/tmp/d', 'a/b.json'), '/tmp/d/a/b.json');
-  assert.equal(resolveInside('/tmp/d', '/tmp/d/report.json'), '/tmp/d/report.json');
-  for (const outside of ['..', '../report.json', '/etc/passwd', 'a/../../b', '.']) {
+  for (const outside of [
+    '..',
+    '../report.json',
+    '/tmp/d/report.json',
+    '/etc/passwd',
+    'a/../../b',
+    '.',
+    'a//b',
+    'a\\b',
+    'a\0b',
+  ]) {
     assert.throws(() => resolveInside('/tmp/d', outside), /not inside/, outside);
   }
 });
@@ -500,5 +518,21 @@ test('changed paths are made absolute and confined to the repository', () => {
   // A path naming something above the root is refused, not resolved and run.
   for (const outside of ['../elsewhere/a.test.ts', '/etc/passwd', 'apps/../../a.test.ts']) {
     assert.throws(() => absolutePathsIn(root, [outside]), /not inside/, outside);
+  }
+});
+
+test('changed test paths cannot escape through a symbolic link', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'mutation-gate-root-'));
+  const outside = `${root}-outside.test.ts`;
+  try {
+    writeFileSync(outside, 'not a repository test');
+    symlinkSync(outside, resolve(root, 'outside.test.ts'));
+    assert.throws(
+      () => absolutePathsIn(root, ['outside.test.ts']),
+      /refusing a symbolic-link test path/
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outside, { force: true });
   }
 });
