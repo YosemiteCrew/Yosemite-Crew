@@ -89,6 +89,31 @@ const readGeneration = (
   return { response: value, completion: value.completion };
 };
 
+const handleGeneration = async (
+  value: unknown,
+  hooks: ProviderRunHooks,
+  transcript: TranscriptEntry[]
+): Promise<ProviderRunOutcome | undefined> => {
+  const { response, completion } = readGeneration(value);
+  switch (completion.kind) {
+    case 'tool_request':
+      await runToolTurn(completion, hooks, transcript);
+      return undefined;
+    case 'final':
+      return { output: completion.document, usage: readSpend(response) };
+    case 'refusal':
+      throw new AgentRuntimeError(
+        'provider-unavailable',
+        typeof completion.reason === 'string' ? completion.reason : 'Model refused.'
+      );
+    default:
+      throw new AgentRuntimeError(
+        'malformed-output',
+        `Generation returned an unrecognised completion: ${String(completion.kind)}.`
+      );
+  }
+};
+
 export function createModelToolProvider(config: ExecutionConfig): ExecutionProvider {
   const generate = async (body: unknown): Promise<unknown> => {
     const token = await resolveCredential(config.credential);
@@ -124,29 +149,13 @@ export function createModelToolProvider(config: ExecutionConfig): ExecutionProvi
           throw new AgentRuntimeError('cancelled', 'Runtime asked the adapter to stop.');
         }
 
-        const { response, completion } = readGeneration(
-          await generate(generationBody(config.model, request, transcript))
+        const outcome = await handleGeneration(
+          await generate(generationBody(config.model, request, transcript)),
+          hooks,
+          transcript
         );
-
-        switch (completion.kind) {
-          case 'tool_request':
-            await runToolTurn(completion, hooks, transcript);
-            break;
-
-          case 'final':
-            return { output: completion.document, usage: readSpend(response) };
-
-          case 'refusal':
-            throw new AgentRuntimeError(
-              'provider-unavailable',
-              typeof completion.reason === 'string' ? completion.reason : 'Model refused.'
-            );
-
-          default:
-            throw new AgentRuntimeError(
-              'malformed-output',
-              `Generation returned an unrecognised completion: ${String(completion.kind)}.`
-            );
+        if (outcome) {
+          return outcome;
         }
       }
 
