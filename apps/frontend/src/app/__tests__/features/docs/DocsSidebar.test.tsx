@@ -1,4 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import DocsSidebar, { DOCS_NAV_NO_JS_CSS } from '@/app/features/docs/DocsSidebar';
 import type { NavNode } from '@/app/features/docs/docsNav';
@@ -43,13 +45,20 @@ describe('DocsSidebar', () => {
     expect(head).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('toggles a section', () => {
+  it('toggles a section, and the body follows the head', () => {
     render(<DocsSidebar nav={NAV} />);
     const head = screen.getByRole('button', { name: /Backend API/ });
+    const body = () => document.getElementById('docs-section-backend-api');
+
+    expect(body()).toHaveAttribute('data-expanded', 'false');
+
     fireEvent.click(head);
     expect(head).toHaveAttribute('aria-expanded', 'true');
+    expect(body()).toHaveAttribute('data-expanded', 'true');
+
     fireEvent.click(head);
     expect(head).toHaveAttribute('aria-expanded', 'false');
+    expect(body()).toHaveAttribute('data-expanded', 'false');
   });
 
   /*
@@ -150,15 +159,51 @@ describe('DocsSidebar', () => {
     });
 
     /*
-     * Scope, pinned. A section declared `collapsed` hides its body with the
-     * `hidden` attribute, and Tailwind's preflight declares
-     * `[hidden]{display:none!important}` in a cascade layer - which an
-     * unlayered rule cannot outrank at any specificity or importance. Adding
-     * one here would read as a fix and do nothing. See issue #3515.
+     * A section declared `collapsed` holds the largest part of the tree, and
+     * with scripting off nothing can ever open it - so the override has to
+     * reach it too. It can only do that because the body is closed by
+     * `data-expanded`: an override of `hidden` is unreachable from here at any
+     * specificity or importance, since Tailwind's preflight declares
+     * `[hidden]{display:none!important}` inside a cascade layer and the
+     * important origin ranks a layered declaration above an unlayered one.
      */
-    it('does not pretend to reveal a section hidden by the hidden attribute', () => {
-      expect(serverHtml()).toContain('hidden=""');
+    it('reveals a section that was declared collapsed', () => {
+      expect(DOCS_NAV_NO_JS_CSS).toContain('.DocsNavSection [data-expanded=false]{display:block}');
+      expect(serverHtml()).toContain('data-expanded="false"');
+    });
+
+    /*
+     * The chevron is a `+` drawn from React state, so revealing the body
+     * without withdrawing it leaves a closed marker over open content.
+     */
+    it('withdraws the chevron, which cannot follow the state it reports', () => {
+      expect(DOCS_NAV_NO_JS_CSS).toContain('.DocsNavChevron{display:none}');
+    });
+
+    /*
+     * The attribute that made the override possible at all. `hidden` is the
+     * one way of closing the body this cannot reopen, so its absence from the
+     * served markup is the fix, not an incidental detail of it.
+     */
+    it('closes the body with no attribute preflight can pin shut', () => {
+      expect(serverHtml()).not.toContain('hidden=""');
       expect(DOCS_NAV_NO_JS_CSS).not.toContain('[hidden]');
+    });
+
+    /*
+     * The other half of that cascade argument, which lives in a file this
+     * component only imports indirectly: the rule that closes the section has
+     * to stay unlayered and unimportant, or the override above stops winning
+     * and nothing here would notice.
+     */
+    it('is outranking an ordinary unlayered rule, not an important layered one', () => {
+      const css = readFileSync(join(process.cwd(), 'src/app/features/docs/docs.css'), 'utf8');
+      // The comment above the rule quotes both of the strings this forbids.
+      const rules = css.replaceAll(/\/\*[\s\S]*?\*\//g, '');
+
+      expect(rules).toMatch(/\.DocsNavSection \[data-expanded='false'\]\s*{[^}]*display:\s*none;/);
+      expect(rules).not.toContain('@layer');
+      expect(rules).not.toContain('!important');
     });
 
     /*

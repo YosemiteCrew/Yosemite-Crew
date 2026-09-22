@@ -109,6 +109,24 @@
   margin-top: 14px;
 }
 
+/*
+ * A collapsed section, closed here rather than by the `hidden` attribute.
+ *
+ * `hidden` cannot be overridden from the `<noscript>` stylesheet that restores
+ * the nav for a scripting-off reader: Tailwind's preflight declares
+ * `[hidden]{display:none!important}` inside `@layer base`, and for the
+ * important origin the cascade inverts - a layered important declaration wins
+ * over an unlayered one whatever its specificity. This rule is unlayered and
+ * ordinary, so `DOCS_NAV_NO_JS_CSS` can outrank it on specificity alone.
+ *
+ * `display: none` keeps the closed body out of the accessibility tree and out
+ * of the tab order exactly as `hidden` did, so nothing changes for a client
+ * with JavaScript.
+ */
+.DocsNavSection [data-expanded='false'] {
+  display: none;
+}
+
 .DocsNavSectionHead {
   display: flex;
   align-items: center;
