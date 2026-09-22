@@ -384,10 +384,20 @@ function BillingToggle({
           borderRadius: '9999px',
         }}
       >
-        <button type="button" onClick={() => onSelect(false)} style={billingBtnStyle(!yearly)}>
+        <button
+          type="button"
+          aria-pressed={!yearly}
+          onClick={() => onSelect(false)}
+          style={billingBtnStyle(!yearly)}
+        >
           Monthly
         </button>
-        <button type="button" onClick={() => onSelect(true)} style={billingBtnStyle(yearly)}>
+        <button
+          type="button"
+          aria-pressed={yearly}
+          onClick={() => onSelect(true)}
+          style={billingBtnStyle(yearly)}
+        >
           Yearly
         </button>
       </div>
