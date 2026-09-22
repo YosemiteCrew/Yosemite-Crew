@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import {
   classify,
   groupTestsByWorkspace,
+  authTestsOf,
   scriptTestsOf,
   selectDiscoverable,
   workspaceOf,
@@ -184,6 +185,21 @@ test('the root runner claims only what node --test can load', () => {
       'scripts/ci/__tests__/helper.ts',
     ]),
     []
+  );
+});
+
+test('routes only compiled auth tests to the auth node:test runner', () => {
+  assert.deepEqual(
+    authTestsOf([
+      'packages/auth/src/auth-service.test.ts',
+      'packages/auth/src/providers/legacy-cognito/legacy-token-verifier.test.ts',
+      'packages/auth/src/support.ts',
+      'packages/types/src/types.test.ts',
+    ]),
+    [
+      'packages/auth/src/auth-service.test.ts',
+      'packages/auth/src/providers/legacy-cognito/legacy-token-verifier.test.ts',
+    ]
   );
 });
 
