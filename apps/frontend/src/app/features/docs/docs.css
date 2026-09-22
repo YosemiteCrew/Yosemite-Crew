@@ -208,9 +208,10 @@
   margin: 0 0 14px;
 }
 
-.DocsBody a {
+.DocsBody a:not(.DocsHeadingAnchor) {
   color: var(--color-text-brand);
-  text-decoration: underline;
+  /* globals.css removes all anchor underlines with !important. */
+  text-decoration: underline !important;
   text-underline-offset: 2px;
 }
 
@@ -245,6 +246,13 @@
   border: 1px solid var(--divider);
   border-radius: 10px;
   background: var(--screen-2);
+}
+
+@media (max-width: 860px) {
+  .DocsBody pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
 }
 
 .DocsBody pre code {

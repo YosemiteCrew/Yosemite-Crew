@@ -1,4 +1,6 @@
 import { render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import DocsShell from '@/app/features/docs/DocsShell';
 import SkipLink from '@/app/ui/layout/SkipLink';
 import { loadCorpus } from '@/app/features/docs/corpus';
@@ -127,6 +129,14 @@ describe('DocsShell', () => {
     const wrapper = container.querySelector('[data-yc-app]');
     expect(wrapper).not.toBeNull();
     expect(wrapper).toHaveStyle({ display: 'contents' });
+  });
+
+  it('wraps code samples only at mobile widths', () => {
+    const css = readFileSync(join(process.cwd(), 'src/app/features/docs/docs.css'), 'utf8');
+    expect(css).toMatch(
+      /@media \(max-width: 860px\)\s*{\s*\.DocsBody pre\s*{\s*white-space:\s*pre-wrap;\s*overflow-wrap:\s*anywhere;/
+    );
+    expect(css).toMatch(/\.DocsBody pre\s*{[^}]*overflow-x:\s*auto/);
   });
 });
 

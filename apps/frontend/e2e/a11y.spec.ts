@@ -4,7 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 /**
  * 90s, not the 30s default.
  *
- * An axe pass is CPU-heavy, and this file now runs twenty-one of them against a
+ * An axe pass is CPU-heavy, and this file now runs twenty-four of them against a
  * single Next dev server. CI serialises them (`workers: 1`), but a local run is
  * fullyParallel, and adding the fourteen public-page tests was enough to push the
  * sign-in and sign-up runs past 30s on a warm laptop - they pass in 6s and 4s
@@ -119,6 +119,51 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
       expect(results.violations).toEqual([]);
     });
   }
+
+  test('docs code samples wrap without mobile horizontal scroll or axe violations', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/docs');
+    await page.waitForLoadState('networkidle').catch(() => {});
+
+    const codeBlocks = page.locator('.DocsBody pre');
+    await expect(codeBlocks).not.toHaveCount(0);
+    for (const block of await codeBlocks.all()) {
+      await expect
+        .poll(() => block.evaluate((element) => element.scrollWidth <= element.clientWidth))
+        .toBe(true);
+      await expect
+        .poll(() => block.evaluate((element) => getComputedStyle(element).whiteSpace))
+        .toBe('pre-wrap');
+    }
+
+    const results = await runAxeWithContrast(page);
+    expect(results.violations).toEqual([]);
+  });
+
+  test('docs preserve desktop code formatting and pass axe in light and dark themes', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    for (const theme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: theme });
+      await page.goto('/docs');
+      await page.waitForLoadState('networkidle').catch(() => {});
+      await expect
+        .poll(() =>
+          page
+            .locator('.DocsBody pre')
+            .first()
+            .evaluate((element) => getComputedStyle(element).whiteSpace)
+        )
+        .toBe('pre');
+
+      const results = await runAxeWithContrast(page);
+      expect(results.violations).toEqual([]);
+    }
+  });
 
   test.describe('marketing pages in dark mode', () => {
     test.use({ colorScheme: 'dark' });
