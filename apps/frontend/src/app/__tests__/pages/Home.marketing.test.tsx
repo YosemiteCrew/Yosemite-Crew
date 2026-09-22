@@ -113,6 +113,27 @@ describe('Home marketing page', () => {
     expect(screen.getByText('Repo stars')).toBeInTheDocument();
   });
 
+  it('uses readable semantic text tokens on every home-page surface', () => {
+    for (const label of [
+      'dogs',
+      'Today · Thursday 3 July',
+      '12 visits · ↑ 2 from yesterday',
+      '08:30',
+      'Senior wellness · Dr. Weber',
+      'Tue',
+      '01',
+      'Trust, the expensive kind',
+      'Building in public',
+      'live via Yosemite Crew',
+    ]) {
+      expect(screen.getAllByText(label)[0]).toHaveStyle({ color: 'var(--ink-muted)' });
+    }
+    expect(screen.getByText('Offline-ready')).toHaveStyle({ color: 'var(--success-text)' });
+    expect(screen.getByText('Publish to the marketplace in an afternoon')).toHaveStyle({
+      color: 'var(--spot-ink-faint)',
+    });
+  });
+
   it('shows a last-signup recency caption on the cloud users tile once a timestamp resolves', () => {
     mockCloudUsers = { totalUsers: '346', latestSignupAt: '2026-09-12T11:46:00.000Z' };
     render(<Home />);
