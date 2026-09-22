@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import { expect, within } from 'storybook/test';
 import type { Element, Root, Text } from 'hast';
 import DocsShell from './DocsShell';
 import type { NavNode } from './docsNav';
@@ -137,6 +138,40 @@ export default docsShellMeta;
 type DocsShellStory = StoryObj<typeof docsShellMeta>;
 
 export const Default: DocsShellStory = {};
+
+export const TabletTableOfContents: DocsShellStory = {
+  name: 'Tablet (compact table of contents)',
+  globals: { viewport: { value: 'tablet', isRotated: false } },
+  parameters: {
+    chromatic: { viewports: [1024] },
+    docs: {
+      description: {
+        story:
+          'Below 1180px the right rail is replaced by a native disclosure in the reading column. ' +
+          'It starts collapsed and exposes the same heading anchors.',
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const desktopToc = canvasElement.querySelector('.DocsToc') as HTMLElement;
+    const compactToc = canvasElement.querySelector('.DocsTocCompact') as HTMLDetailsElement;
+    const summary = compactToc.querySelector('summary') as HTMLElement;
+
+    await expect(desktopToc).toBeInTheDocument();
+    await expect(compactToc.open).toBe(false);
+
+    summary.click();
+
+    await expect(compactToc.open).toBe(true);
+    const links = within(compactToc).getAllByRole('link');
+    await expect(links).toHaveLength(TOC.length);
+    await expect(links[0]).toHaveAttribute('href', '#installation');
+    await expect(
+      canvas.getByRole('heading', { level: 1, name: 'Notification setup guide' })
+    ).toBeInTheDocument();
+  },
+};
 
 export const NoTableOfContents: DocsShellStory = {
   name: 'No table of contents',
