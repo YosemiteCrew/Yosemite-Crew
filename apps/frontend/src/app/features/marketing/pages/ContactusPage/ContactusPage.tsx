@@ -363,7 +363,7 @@ function ChannelCard({
         {icon}
       </span>
       <div>
-        <div style={{ fontSize: 12.5, color: 'var(--ink-faint)', letterSpacing: '-0.01em' }}>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-muted)', letterSpacing: '-0.01em' }}>
           {kicker}
         </div>
         <div
@@ -403,6 +403,7 @@ function TextField({
   error,
 }: Readonly<TextFieldProps>) {
   const fieldId = useId();
+  const errorId = `${fieldId}-error`;
   return (
     <div style={fieldGroup}>
       <label className="yc-lbl" htmlFor={fieldId}>
@@ -415,10 +416,16 @@ function TextField({
         type={type}
         value={value}
         aria-label={label}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
       />
-      {error ? <div style={errorLine}>{error}</div> : null}
+      {error ? (
+        <div id={errorId} style={errorLine}>
+          {error}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -451,6 +458,7 @@ function TextAreaField({
 }: Readonly<TextAreaFieldProps>) {
   const fieldId = useId();
   const counterId = `${fieldId}-count`;
+  const errorId = `${fieldId}-error`;
   const style: CSSProperties = {
     resize: 'vertical',
     minHeight: minHeight ?? 116,
@@ -470,13 +478,18 @@ function TextAreaField({
         aria-label={ariaLabel}
         placeholder={placeholder}
         maxLength={CONTACT_MESSAGE_MAX_LENGTH}
-        aria-describedby={counterId}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${counterId} ${errorId}` : counterId}
         onChange={(e) => onChange(e.target.value)}
       />
       <div id={counterId} style={counterLine}>
         {`${value.length} of ${CONTACT_MESSAGE_MAX_LENGTH} characters`}
       </div>
-      {error ? <div style={errorLine}>{error}</div> : null}
+      {error ? (
+        <div id={errorId} style={errorLine}>
+          {error}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -995,7 +1008,7 @@ function PrivacyNote() {
         margin: 0,
         fontSize: 12.5,
         lineHeight: 1.5,
-        color: 'var(--ink-faint2)',
+        color: 'var(--ink-muted)',
         textAlign: 'center',
         letterSpacing: '-0.01em',
       }}

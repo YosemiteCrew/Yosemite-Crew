@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
@@ -45,6 +47,17 @@ describe('LegalDoc', () => {
       '#second'
     );
     expect(screen.getByRole('heading', { name: '1. First section', level: 2 })).toBeInTheDocument();
+    expect(document.querySelector('.yc-toc-heading')).toHaveStyle({ color: 'var(--ink-muted)' });
+  });
+
+  it('keeps navigation and inline links readable without relying on color alone', () => {
+    const css = readFileSync(
+      join(process.cwd(), 'src/app/features/marketing/site/marketing.css'),
+      'utf8'
+    );
+    expect(css).toMatch(/\.yc-doc a\s*{[^}]*text-decoration:\s*underline !important/);
+    expect(css).toMatch(/\.yc-toc a\s*{[^}]*color:\s*var\(--ink-muted\)/);
+    expect(css).toMatch(/\.yc-toc-toggle\s*{[^}]*color:\s*var\(--ink-muted\)/);
   });
 
   it('omits the meta line when the document has no last-updated note', () => {

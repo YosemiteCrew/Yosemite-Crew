@@ -38,9 +38,9 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** A test file, by this repository's own conventions. */
@@ -66,6 +66,24 @@ export const isCheckableSource = (file) => {
 };
 
 /**
+ * Shared packages whose tests this gate can run, by directory.
+ *
+ * Only jest workspaces belong here. `@yosemite-crew/auth` runs its tests with
+ * `node --test` over compiled output, so handing its paths to `pnpm --filter
+ * auth exec jest` would fail on a runner that is not there - which this gate
+ * cannot distinguish from the import failure it reads as evidence.
+ *
+ * Until #3049 nothing under `packages/` mapped at all, so a PR whose only
+ * tests were in a shared package reported "outside a known workspace" and the
+ * gate refused to judge it. Same blind spot as desktop and `scripts/`, one
+ * directory across.
+ */
+const PACKAGE_WORKSPACES = {
+  'agent-runtime': '@yosemite-crew/agent-runtime',
+  'mcp-server': '@yosemite-crew/mcp-server',
+};
+
+/**
  * The workspace a changed test belongs to.
  *
  * The first version ran `pnpm --filter frontend` unconditionally, so a PR whose
@@ -78,14 +96,19 @@ export const isCheckableSource = (file) => {
  * test change read as "outside a known workspace" and fail the gate.
  */
 export const workspaceOf = (file) => {
-  const match = /^apps\/([^/]+)\//.exec(file);
-  if (!match) return undefined;
-  return {
-    frontend: 'frontend',
-    backend: 'backend',
-    mobileAppYC: 'mobileAppYC',
-    desktop: '@yosemite-crew/desktop',
-  }[match[1]];
+  const app = /^apps\/([^/]+)\//.exec(file);
+  if (app) {
+    return {
+      frontend: 'frontend',
+      backend: 'backend',
+      mobileAppYC: 'mobileAppYC',
+      desktop: '@yosemite-crew/desktop',
+    }[app[1]];
+  }
+
+  const pkg = /^packages\/([^/]+)\//.exec(file);
+  if (!pkg) return undefined;
+  return PACKAGE_WORKSPACES[pkg[1]];
 };
 
 /** Groups test paths by the workspace whose runner can execute them. */
@@ -170,10 +193,7 @@ export const categorizeSourceFiles = (source, existsAtBase, existsAtHead) => {
  * - wrongly, because the path never reached the runner - which is a bug, and
  *   until #3264 was indistinguishable from the first.
  *
- * Both sides arrive already resolved through `realpathSync`, because jest
- * prints absolute paths and `/var` is a symlink to `/private/var` on macOS -
- * the same trap the direct-invocation check at the bottom of this file
- * documents.
+ * Both sides are absolute paths rooted at the repository returned by git.
  */
 export const selectDiscoverable = (paths, discovered) => {
   const set = new Set(discovered);
@@ -286,16 +306,17 @@ const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
  * runner - so they are confined before either happens rather than after.
  */
 export const absolutePathsIn = (repoRoot, paths) =>
-  paths.map((path) => real(resolveInside(repoRoot, path)));
-
-/** Resolves a path the way jest prints one, tolerating one that is already gone. */
-const real = (path) => {
-  try {
-    return realpathSync(path);
-  } catch {
-    return path;
-  }
-};
+  paths.map((path) => {
+    const absolute = resolveInside(repoRoot, path);
+    try {
+      if (lstatSync(absolute).isSymbolicLink()) {
+        throw new Error(`refusing a symbolic-link test path: ${path}`);
+      }
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
+    return absolute;
+  });
 
 const jest = (ws, jestArgs, options) =>
   execFileSync('pnpm', ['--filter', ws, 'exec', 'jest', '--ci', ...jestArgs], options);
@@ -305,8 +326,7 @@ const discoverableIn = (ws, absolutePaths) => {
   const listed = jest(ws, ['--listTests', '--passWithNoTests'], { encoding: 'utf8' })
     .split('\n')
     .map((line) => line.trim())
-    .filter(Boolean)
-    .map(real);
+    .filter(Boolean);
   return selectDiscoverable(absolutePaths, listed);
 };
 
@@ -371,20 +391,22 @@ export const withJestReport = (runJest) => {
 };
 
 /**
- * `candidate` resolved against `dir`, or a throw if it does not land inside it.
+ * `candidate` appended to the trusted repository root, or a throw if it could escape it.
  *
  * Used where a path arrives from outside this script. Refusing is the right
  * answer rather than a clamp: a changed-file list that names something above
  * the repository root is not a list this gate can act on.
  */
 export const resolveInside = (dir, candidate) => {
-  const base = resolve(dir);
-  const target = resolve(base, candidate);
-  const within = relative(base, target);
-  if (within === '' || within.startsWith('..') || isAbsolute(within)) {
+  const parts = candidate.split('/');
+  if (
+    candidate.includes('\\') ||
+    candidate.includes('\0') ||
+    parts.some((part) => part === '' || part === '.' || part === '..')
+  ) {
     throw new Error(`refusing a path that is not inside ${dir}: ${candidate}`);
   }
-  return target;
+  return `${dir.endsWith('/') ? dir : `${dir}/`}${parts.join('/')}`;
 };
 
 /**

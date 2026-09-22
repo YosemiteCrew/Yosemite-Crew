@@ -74,6 +74,16 @@ describe('renderDoc sanitisation', () => {
     expect(html).not.toContain('user-content-');
   });
 
+  it('keeps the heading-anchor class used to exempt headings from prose-link styling', async () => {
+    const html = await render('## Prerequisites');
+    expect(html).toContain('class="DocsHeadingAnchor"');
+  });
+
+  it('preserves the sanitizer default class used by footnote back-links', async () => {
+    const html = await render('Reference[^1].\n\n[^1]: Footnote');
+    expect(html).toContain('class="data-footnote-backref"');
+  });
+
   it('keeps highlighter class names, which the CSP-safe theme needs', async () => {
     const html = await render('```ts\nconst a: number = 1;\n```');
     expect(html).toMatch(/hljs/);
@@ -89,6 +99,17 @@ describe('renderDoc sanitisation', () => {
 
 describe('renderDoc over the real corpus', () => {
   const corpus = loadCorpus();
+
+  it('labels the overview repository link as GitHub', async () => {
+    const overview = corpus.find((entry) => entry.id === 'overview');
+    expect(overview).toBeDefined();
+
+    const html = toHtml((await renderDoc(overview!, corpus)).tree);
+    expect(html).toContain(
+      '<a href="https://github.com/YosemiteCrew/Yosemite-Crew" target="_blank" rel="noopener noreferrer">GitHub</a>'
+    );
+    expect(html).not.toContain('>Twitter</a>');
+  });
 
   it('renders every page without throwing', async () => {
     const results = await Promise.all(

@@ -60,6 +60,11 @@ describe('SiteFooter', () => {
     render(<SiteFooter />);
     expect(screen.getByText('★')).toBeInTheDocument();
   });
+
+  it('uses the readable muted token for footer headings', () => {
+    render(<SiteFooter />);
+    expect(screen.getByText('Product')).toHaveStyle({ color: 'var(--ink-muted)' });
+  });
 });
 
 describe('the version-stat divider routes its tint through --page, not a frozen literal', () => {

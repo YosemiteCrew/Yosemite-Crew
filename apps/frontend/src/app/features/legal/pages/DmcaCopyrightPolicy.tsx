@@ -40,7 +40,7 @@ const DmcaCopyrightPolicy = () => {
               fontWeight: 700,
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
-              color: 'var(--ink-faint2)',
+              color: 'var(--ink-muted)',
               marginBottom: 10,
             }}
           >

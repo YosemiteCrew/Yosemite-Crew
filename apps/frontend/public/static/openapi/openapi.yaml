@@ -2530,6 +2530,129 @@ paths:
                 properties:
                   message:
                     type: string
+  /v1/patient-problems/mobile/companion/{patientId}:
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: GET /v1/patient-problems/mobile/companion/{patientId}
+      operationId: get_v1_patient_problems_mobile_companion_patientId
+      description: "Live problems recorded against one of the signed-in parent's companions (#2706). Access is the shared companion gate: an ACTIVE PRIMARY or CO_PARENT link to this patient with the medicalRecords feature granted. Unpaged on purpose - this is one animal's problem list, and a page boundary here is a way to withhold the row that mattered. There is no organisation filter, so an animal seen by a second practice shows that practice's records too, which the org-scoped PIMS view structurally cannot do. The practice's own notes, the recording staff id and the encounter pointer are never returned."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          description: The companion whose problems are being read. Authorised before the handler runs; an id the caller has no ACTIVE medicalRecords link to is answered 404, not 403.
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - problems
+                properties:
+                  problems:
+                    type: array
+                    description: 'Ordered live before dormant, then by severity descending, then by most recent onset, then most recently recorded - so a phone showing three rows without scrolling shows the three that matter most. Rows with no severity or no onset date recorded sort last rather than first. An empty array means nothing has been recorded, which is a different answer from being unable to see the animal.'
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - patientId
+                        - organisationId
+                        - name
+                        - status
+                        - recordedAt
+                        - updatedAt
+                      properties:
+                        id:
+                          type: string
+                        patientId:
+                          type: string
+                        organisationId:
+                          type: string
+                          description: The practice that recorded this problem, which is not necessarily the one the owner is currently dealing with.
+                        name:
+                          type: string
+                        codeSystem:
+                          type: string
+                          description: The coding scheme the practice used. Absent rather than null when the problem was recorded as free text.
+                        code:
+                          type: string
+                          description: The code within that scheme, so an out-of-hours service can match the condition unambiguously. Absent rather than null when uncoded.
+                        status:
+                          type: string
+                          description: 'RESOLVED rows are excluded from this list. INACTIVE means dormant and not concluded - the client should word it that way rather than presenting it as over.'
+                          enum:
+                            - ACTIVE
+                            - INACTIVE
+                        severity:
+                          type: string
+                          description: Absent rather than null when the practice did not grade it.
+                          enum:
+                            - MILD
+                            - MODERATE
+                            - SEVERE
+                        onsetDate:
+                          type: string
+                          format: date-time
+                          description: When the animal fell ill. Absent when unknown, which is often the case.
+                        recordedAt:
+                          type: string
+                          format: date-time
+                          description: When the practice wrote the record down. Deliberately distinct from onsetDate.
+                        updatedAt:
+                          type: string
+                          format: date-time
+        401:
+          description: No session presented, or the session carries no verified user id
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        403:
+          description: A co-parent link exists but medicalRecords access has not been granted on it
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        404:
+          description: No ACTIVE link from this caller to this companion
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
   /v1/patient-allergies/mobile/companion/{patientId}:
     get:
       tags:

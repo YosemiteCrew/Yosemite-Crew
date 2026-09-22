@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import DocsSidebar from '@/app/features/docs/DocsSidebar';
 import type { NavNode } from '@/app/features/docs/docsNav';
 
@@ -67,5 +67,67 @@ describe('DocsSidebar', () => {
   it('leaves an uncollapsed section open', () => {
     render(<DocsSidebar nav={NAV} />);
     expect(screen.getByRole('button', { name: /Guides/ })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  /*
+   * The phone disclosure. jsdom loads no stylesheet, so these assert the state
+   * the media query reads - `aria-expanded` and `data-open` - not visibility.
+   * Whether the tree is actually hidden at 390px and still shown at 1280px is
+   * a layout question, and e2e/docs-mobile.spec.ts is where it is measured.
+   */
+  describe('the phone navigation menu', () => {
+    const menuButton = () => screen.getByRole('button', { name: /Documentation menu/ });
+    const tree = () => document.getElementById('docs-nav-tree') as HTMLElement;
+
+    it('starts closed and names the region it controls', () => {
+      render(<DocsSidebar nav={NAV} />);
+      expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
+      expect(menuButton()).toHaveAttribute('aria-controls', 'docs-nav-tree');
+      expect(tree()).toHaveAttribute('data-open', 'false');
+    });
+
+    it('opens the tree, leaving the links real anchors', () => {
+      render(<DocsSidebar nav={NAV} />);
+      fireEvent.click(menuButton());
+
+      expect(menuButton()).toHaveAttribute('aria-expanded', 'true');
+      expect(tree()).toHaveAttribute('data-open', 'true');
+
+      const link = within(tree()).getByRole('link', { name: 'Overview' });
+      expect(link.tagName).toBe('A');
+      expect(link).toHaveAttribute('href', '/docs');
+      link.focus();
+      expect(link).toHaveFocus();
+    });
+
+    it('closes again on a second press', () => {
+      render(<DocsSidebar nav={NAV} />);
+      fireEvent.click(menuButton());
+      fireEvent.click(menuButton());
+      expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    /*
+     * Next keeps this component mounted across a docs-to-docs route change, so
+     * an open menu would otherwise survive the tap that navigated - putting the
+     * whole tree back above the article on every page after the first.
+     */
+    it('closes when a link is followed', () => {
+      render(<DocsSidebar nav={NAV} />);
+      fireEvent.click(menuButton());
+      expect(menuButton()).toHaveAttribute('aria-expanded', 'true');
+
+      fireEvent.click(within(tree()).getByRole('link', { name: 'Notification Setup' }));
+
+      expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
+      expect(tree()).toHaveAttribute('data-open', 'false');
+    });
+
+    it('stays open when a section is expanded', () => {
+      render(<DocsSidebar nav={NAV} />);
+      fireEvent.click(menuButton());
+      fireEvent.click(screen.getByRole('button', { name: /Backend API/ }));
+      expect(menuButton()).toHaveAttribute('aria-expanded', 'true');
+    });
   });
 });

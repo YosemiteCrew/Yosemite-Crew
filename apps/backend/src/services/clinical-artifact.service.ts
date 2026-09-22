@@ -448,6 +448,7 @@ export type PrescriptionRecord = {
   prescription: {
     id: string;
     artifactId: string;
+    supersedesId: string | null;
     items: PrescriptionItemModel[];
     medications: Prisma.JsonValue | null;
     instructions: Prisma.JsonValue | null;
@@ -1075,6 +1076,7 @@ const buildPrescriptionRecord = (
   prescription: {
     id: prescription.id,
     artifactId: prescription.artifactId,
+    supersedesId: prescription.supersedesId,
     items: prescription.items ?? [],
     medications: prescriptionMedicationsFromItems(prescription),
     instructions: prescription.instructions,
@@ -1091,6 +1093,7 @@ const toPrescriptionRecord = (
   buildPrescriptionRecord(record.artifact, {
     id: record.id,
     artifactId: record.artifactId,
+    supersedesId: record.supersedesId,
     items: record.items,
     medications: record.medications,
     instructions: record.instructions,
@@ -1493,9 +1496,9 @@ const advanceCheckedInAppointment = async (
 
   await txPrisma.appointment.updateMany({
     where: {
-      id: input.appointmentId,
-      organisationId: input.organisationId,
-      encounterId: input.encounterId,
+      id: String(input.appointmentId),
+      organisationId: String(input.organisationId),
+      encounterId: String(input.encounterId),
       status: "CHECKED_IN",
     },
     data: {
@@ -1711,6 +1714,95 @@ const assertNoBilledTreatmentItems = async (
   }
 };
 
+const retirePrescriptionInTx = async (
+  db: ClinicalPrisma,
+  record: PrescriptionWithArtifact,
+  // Only the caller that was shown a generation passes one. The supersession
+  // path retires an artifact the caller never read, so it has none to claim.
+  expectedVersion?: number,
+): Promise<PrescriptionWithArtifact["artifact"]> => {
+  await assertNoBilledTreatmentItems(
+    db,
+    record.artifact.organisationId,
+    record.id,
+    "Prescription has already been billed or paid.",
+  );
+
+  await db.workspaceTreatmentItem.deleteMany({
+    where: {
+      // Aikido treats Prisma bulk-operation identifiers as trust-boundary
+      // inputs; keep the explicit scalar normalization at every such sink.
+      organisationId: String(record.artifact.organisationId),
+      prescriptionId: String(record.id),
+    },
+  });
+
+  return updateArtifactStatusAndSummaryInTx(db, record.artifact, {
+    status: "VOID",
+    expectedVersion,
+  });
+};
+
+const preparePrescriptionRetirement = async (
+  record: PrescriptionWithArtifact,
+  organisationId: string | undefined,
+  actor: PrescriptionActor,
+): Promise<PrescriptionDispenseRequestModel | null> => {
+  assertArtifactKind(
+    record.artifact,
+    "PRESCRIPTION",
+    "prescription",
+    organisationId,
+  );
+  assertActorMayMutateArtifact(record.artifact, actor);
+  if (
+    record.artifact.status !== "SIGNED" &&
+    record.artifact.status !== "COMPLETED"
+  ) {
+    throw new ClinicalArtifactServiceError(
+      "Only finalized prescriptions can be cancelled.",
+      409,
+    );
+  }
+
+  await assertNoBilledTreatmentItems(
+    clinicalPrisma,
+    record.artifact.organisationId,
+    record.id,
+    "Prescription has already been billed or paid.",
+  );
+  return clinicalPrisma.prescriptionDispenseRequest.findFirst({
+    where: {
+      organisationId: String(record.artifact.organisationId),
+      prescriptionId: String(record.id),
+      status: { in: ["PENDING", "DISPENSED"] },
+    },
+    orderBy: { requestedAt: "desc" },
+  });
+};
+
+const reversePrescriptionDispense = async (
+  record: PrescriptionWithArtifact,
+  request: PrescriptionDispenseRequestModel | null,
+): Promise<void> => {
+  if (request?.status === "DISPENSED") {
+    await InventoryConsumptionService.voidDispensePrescription({
+      organisationId: record.artifact.organisationId,
+      prescriptionId: record.id,
+      medications: record.medications,
+      metadata: record.metadata as Prisma.InputJsonValue | undefined,
+    });
+  } else if (request?.status === "PENDING") {
+    await InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed(
+      {
+        organisationId: record.artifact.organisationId,
+        prescriptionId: record.id,
+        metadata: record.metadata as Prisma.InputJsonValue | undefined,
+      },
+    );
+  }
+};
+
 export const ClinicalArtifactService = {
   async createSoapNote(input: SoapNoteInput): Promise<SoapNoteRecord> {
     const organisationId = ensureId(input.organisationId, "organisationId");
@@ -1872,6 +1964,7 @@ export const ClinicalArtifactService = {
 
   async createPrescription(
     input: PrescriptionInput,
+    supersedesId?: string,
   ): Promise<PrescriptionRecord> {
     const organisationId = ensureId(input.organisationId, "organisationId");
     const prescriptionItems = normalizePrescriptionItemInputs(
@@ -1889,6 +1982,7 @@ export const ClinicalArtifactService = {
       const createdPrescription = await txPrisma.prescription.create({
         data: {
           artifactId: createdArtifact.id,
+          ...(supersedesId ? { supersedesId } : {}),
           items: {
             create: prescriptionItemRowsToCreate(prescriptionItems),
           },
@@ -1964,6 +2058,28 @@ export const ClinicalArtifactService = {
       );
     }
 
+    let supersededPrescription: PrescriptionWithArtifact | undefined;
+    let supersededDispenseRequest: PrescriptionDispenseRequestModel | null =
+      null;
+    if (
+      record.supersedesId &&
+      !shouldCreateDispenseRequestForPrescription(record.artifact.status) &&
+      input.status !== undefined &&
+      shouldCreateDispenseRequestForPrescription(input.status)
+    ) {
+      const superseded = await loadPrescriptionOrThrow(record.supersedesId, {
+        includeVoid: true,
+      });
+      if (superseded.artifact.status !== "VOID") {
+        supersededDispenseRequest = await preparePrescriptionRetirement(
+          superseded,
+          organisationId,
+          actor,
+        );
+        supersededPrescription = superseded;
+      }
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
       const hasPrescriptionItemUpdates =
@@ -2002,8 +2118,22 @@ export const ClinicalArtifactService = {
         include: { items: true },
       });
 
+      if (supersededPrescription) {
+        // Both status changes commit or roll back together. Keeping this after
+        // every revision write also leaves the original untouched when any
+        // revision persistence step fails.
+        await retirePrescriptionInTx(txPrisma, supersededPrescription);
+      }
+
       return buildPrescriptionRecord(artifact, prescription);
     });
+
+    if (supersededPrescription) {
+      await reversePrescriptionDispense(
+        supersededPrescription,
+        supersededDispenseRequest,
+      );
+    }
 
     if (DOCUMENT_BACKED_CLINICAL_KINDS.has(updated.artifact.kind)) {
       await persistClinicalArtifactRenderedDocumentPdf(updated.artifact.id);
@@ -2077,8 +2207,8 @@ export const ClinicalArtifactService = {
 
       await txPrisma.workspaceTreatmentItem.deleteMany({
         where: {
-          organisationId: record.artifact.organisationId,
-          prescriptionId: record.id,
+          organisationId: String(record.artifact.organisationId),
+          prescriptionId: String(record.id),
         },
       });
 
@@ -2117,73 +2247,16 @@ export const ClinicalArtifactService = {
       return toPrescriptionRecord(record);
     }
 
-    if (
-      record.artifact.status !== "COMPLETED" &&
-      record.artifact.status !== "SIGNED"
-    ) {
-      throw new ClinicalArtifactServiceError(
-        "Only finalized prescriptions can be cancelled.",
-        409,
-      );
-    }
-
-    await assertNoBilledTreatmentItems(
-      clinicalPrisma,
-      record.artifact.organisationId,
-      record.id,
-      "Prescription has already been billed or paid.",
+    const dispenseRequest = await preparePrescriptionRetirement(
+      record,
+      organisationId,
+      actor,
     );
+    await reversePrescriptionDispense(record, dispenseRequest);
 
-    const dispenseRequest =
-      await clinicalPrisma.prescriptionDispenseRequest.findFirst({
-        where: {
-          organisationId: record.artifact.organisationId,
-          prescriptionId: record.id,
-          status: { in: ["PENDING", "DISPENSED"] },
-        },
-        orderBy: { requestedAt: "desc" },
-      });
-
-    if (dispenseRequest?.status === "DISPENSED") {
-      await InventoryConsumptionService.voidDispensePrescription({
-        organisationId: record.artifact.organisationId,
-        prescriptionId: record.id,
-        medications: record.medications,
-        metadata: record.metadata as Prisma.InputJsonValue | undefined,
-      });
-    } else if (dispenseRequest?.status === "PENDING") {
-      await InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed(
-        {
-          organisationId: record.artifact.organisationId,
-          prescriptionId: record.id,
-          metadata: record.metadata as Prisma.InputJsonValue | undefined,
-        },
-      );
-    }
-
-    const artifact = await prisma.$transaction(async (tx) => {
-      const txPrisma = tx as ClinicalPrisma;
-      // Re-checked inside the transaction; see `deletePrescription`.
-      await assertNoBilledTreatmentItems(
-        txPrisma,
-        record.artifact.organisationId,
-        record.id,
-        "Prescription has already been billed or paid.",
-      );
-
-      await txPrisma.workspaceTreatmentItem.deleteMany({
-        where: {
-          organisationId: record.artifact.organisationId,
-          prescriptionId: record.id,
-        },
-      });
-
-      // See `deletePrescription`: the same shared claim (#3144).
-      return updateArtifactStatusAndSummaryInTx(txPrisma, record.artifact, {
-        status: "VOID",
-        expectedVersion,
-      });
-    });
+    const artifact = await prisma.$transaction((tx) =>
+      retirePrescriptionInTx(tx as ClinicalPrisma, record, expectedVersion),
+    );
 
     return buildPrescriptionRecord(artifact, record);
   },
@@ -2862,11 +2935,23 @@ export const ClinicalArtifactService = {
     if (expectedVersion !== undefined) {
       assertExpectedArtifactVersion(record.artifact, expectedVersion);
     }
-    return ClinicalArtifactService.createPrescription({
-      ...prescriptionInputFromRecord(record),
-      // The amending clinician owns the new draft; see `amendSoapNote`.
-      ...(actor.actorId.trim() ? { authorId: actor.actorId.trim() } : {}),
-    });
+    if (
+      record.artifact.status !== "SIGNED" &&
+      record.artifact.status !== "COMPLETED"
+    ) {
+      throw new ClinicalArtifactServiceError(
+        "Only finalized prescriptions can be amended.",
+        409,
+      );
+    }
+    return ClinicalArtifactService.createPrescription(
+      {
+        ...prescriptionInputFromRecord(record),
+        // The amending clinician owns the new draft; see `amendSoapNote`.
+        ...(actor.actorId.trim() ? { authorId: actor.actorId.trim() } : {}),
+      },
+      record.prescription.id,
+    );
   },
 
   async finalizeDischargeSummary(

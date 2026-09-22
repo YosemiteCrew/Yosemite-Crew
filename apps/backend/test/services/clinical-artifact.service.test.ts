@@ -454,6 +454,7 @@ describe("ClinicalArtifactService", () => {
   const prescriptionRow = (overrides: Record<string, unknown> = {}) => ({
     id: "prescription-1",
     artifactId,
+    supersedesId: null,
     items: [],
     medications: null,
     instructions: null,
@@ -4354,6 +4355,256 @@ describe("ClinicalArtifactService", () => {
       ).not.toHaveBeenCalled();
     });
 
+    it("retires the superseded prescription before dispensing a finalized revision", async () => {
+      const revision = prescriptionRow({
+        id: "prescription-revision",
+        supersedesId: "prescription-original",
+        artifact: artifactRow({
+          kind: "PRESCRIPTION",
+          status: "DRAFT",
+          authorId: "author-1",
+        }),
+      });
+      const original = prescriptionRow({
+        id: "prescription-original",
+        artifactId: "artifact-original",
+        artifact: artifactRow({
+          id: "artifact-original",
+          kind: "PRESCRIPTION",
+          status: "COMPLETED",
+          authorId: "author-1",
+        }),
+      });
+      mockedPrisma.prescription.findFirst
+        .mockResolvedValueOnce(revision)
+        .mockResolvedValueOnce(original);
+      mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
+      mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+        id: "dispense-original",
+        status: "PENDING",
+      });
+      mockedPrisma.clinicalArtifact.update
+        .mockResolvedValueOnce(
+          artifactRow({
+            kind: "PRESCRIPTION",
+            status: "COMPLETED",
+            authorId: "author-1",
+          }),
+        )
+        .mockResolvedValueOnce(
+          artifactRow({
+            id: "artifact-original",
+            kind: "PRESCRIPTION",
+            status: "VOID",
+            authorId: "author-1",
+          }),
+        );
+      mockedPrisma.prescription.update.mockResolvedValueOnce(
+        prescriptionRow({
+          id: "prescription-revision",
+          supersedesId: "prescription-original",
+          artifactId,
+        }),
+      );
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-rx-revision",
+        kind: "PRESCRIPTION",
+        title: "Prescription",
+      });
+
+      await ClinicalArtifactService.finalizePrescription(
+        "prescription-revision",
+        organisationId,
+        { actorId: "author-1", canEditAny: false },
+      );
+
+      expect(mockedPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.clinicalArtifact.update).toHaveBeenNthCalledWith(2, {
+        where: {
+          id: "artifact-original",
+          organisationId,
+          version: 1,
+        },
+        data: { status: "VOID", summary: null, version: { increment: 1 } },
+      });
+      expect(
+        InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+      ).toHaveBeenCalledWith({
+        organisationId,
+        prescriptionId: "prescription-original",
+        metadata: null,
+      });
+      expect(
+        mockedPrisma.clinicalArtifact.update.mock.invocationCallOrder[1],
+      ).toBeLessThan(
+        jest.mocked(
+          InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+        ).mock.invocationCallOrder[0],
+      );
+      expect(
+        jest.mocked(
+          InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+        ).mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        jest.mocked(
+          InventoryConsumptionService.createPrescriptionDispenseRequest,
+        ).mock.invocationCallOrder[0],
+      );
+      expect(
+        InventoryConsumptionService.createPrescriptionDispenseRequest,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves the original untouched when revision persistence fails", async () => {
+      mockedPrisma.prescription.findFirst
+        .mockResolvedValueOnce(
+          prescriptionRow({
+            id: "prescription-revision",
+            supersedesId: "prescription-original",
+            artifact: artifactRow({
+              kind: "PRESCRIPTION",
+              status: "DRAFT",
+              authorId: "author-1",
+            }),
+          }),
+        )
+        .mockResolvedValueOnce(
+          prescriptionRow({
+            id: "prescription-original",
+            artifactId: "artifact-original",
+            artifact: artifactRow({
+              id: "artifact-original",
+              kind: "PRESCRIPTION",
+              status: "COMPLETED",
+              authorId: "author-1",
+            }),
+          }),
+        );
+      mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
+      mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce(
+        artifactRow({
+          kind: "PRESCRIPTION",
+          status: "COMPLETED",
+          authorId: "author-1",
+        }),
+      );
+      mockedPrisma.prescription.update.mockRejectedValueOnce(
+        new Error("revision write failed"),
+      );
+
+      await expect(
+        ClinicalArtifactService.finalizePrescription(
+          "prescription-revision",
+          organisationId,
+          { actorId: "author-1", canEditAny: false },
+        ),
+      ).rejects.toThrow("revision write failed");
+      expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledTimes(1);
+      expect(
+        mockedPrisma.workspaceTreatmentItem.deleteMany,
+      ).not.toHaveBeenCalled();
+      expect(
+        InventoryConsumptionService.createPrescriptionDispenseRequest,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("finalizes a revision when its superseded prescription is already void", async () => {
+      mockedPrisma.prescription.findFirst
+        .mockResolvedValueOnce(
+          prescriptionRow({
+            id: "prescription-revision",
+            supersedesId: "prescription-original",
+            artifact: artifactRow({
+              kind: "PRESCRIPTION",
+              status: "DRAFT",
+              authorId: "author-1",
+            }),
+          }),
+        )
+        .mockResolvedValueOnce(
+          prescriptionRow({
+            id: "prescription-original",
+            artifact: artifactRow({
+              kind: "PRESCRIPTION",
+              status: "VOID",
+              authorId: "author-1",
+            }),
+          }),
+        );
+      mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce(
+        artifactRow({
+          kind: "PRESCRIPTION",
+          status: "COMPLETED",
+          authorId: "author-1",
+        }),
+      );
+      mockedPrisma.prescription.update.mockResolvedValueOnce(
+        prescriptionRow({
+          id: "prescription-revision",
+          supersedesId: "prescription-original",
+        }),
+      );
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-rx-revision",
+        kind: "PRESCRIPTION",
+        title: "Prescription",
+      });
+
+      await expect(
+        ClinicalArtifactService.finalizePrescription(
+          "prescription-revision",
+          organisationId,
+          { actorId: "author-1", canEditAny: false },
+        ),
+      ).resolves.toMatchObject({ artifact: { status: "COMPLETED" } });
+      expect(
+        mockedPrisma.workspaceTreatmentItem.deleteMany,
+      ).not.toHaveBeenCalled();
+      expect(
+        InventoryConsumptionService.createPrescriptionDispenseRequest,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not finalize a revision when billing prevents retiring the original", async () => {
+      mockedPrisma.prescription.findFirst
+        .mockResolvedValueOnce(
+          prescriptionRow({
+            id: "prescription-revision",
+            supersedesId: "prescription-original",
+            artifact: artifactRow({
+              kind: "PRESCRIPTION",
+              status: "DRAFT",
+              authorId: "author-1",
+            }),
+          }),
+        )
+        .mockResolvedValueOnce(
+          prescriptionRow({
+            id: "prescription-original",
+            artifact: artifactRow({
+              kind: "PRESCRIPTION",
+              status: "COMPLETED",
+              authorId: "author-1",
+            }),
+          }),
+        );
+      mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValueOnce({
+        id: "billed-item",
+      });
+
+      await expect(
+        ClinicalArtifactService.finalizePrescription(
+          "prescription-revision",
+          organisationId,
+          { actorId: "author-1", canEditAny: false },
+        ),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(mockedPrisma.prescription.update).not.toHaveBeenCalled();
+      expect(
+        InventoryConsumptionService.createPrescriptionDispenseRequest,
+      ).not.toHaveBeenCalled();
+    });
+
     it("writes every supplied prescription field and leaves the line items untouched", async () => {
       mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
         prescriptionRow({
@@ -4622,6 +4873,7 @@ describe("ClinicalArtifactService", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             artifactId: "artifact-amend",
+            supersedesId: "prescription-1",
             instructions: { text: "Take daily" },
           }),
         }),
@@ -4630,6 +4882,29 @@ describe("ClinicalArtifactService", () => {
       expect(
         InventoryConsumptionService.createPrescriptionDispenseRequest,
       ).not.toHaveBeenCalled();
+    });
+
+    it("refuses to amend a prescription that is not finalized", async () => {
+      mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+        prescriptionRow({
+          artifact: artifactRow({
+            kind: "PRESCRIPTION",
+            status: "DRAFT",
+          }),
+        }),
+      );
+
+      await expect(
+        ClinicalArtifactService.amendPrescription(
+          "prescription-1",
+          organisationId,
+          { actorId: "supervisor", canEditAny: true },
+        ),
+      ).rejects.toMatchObject({
+        statusCode: 409,
+        message: "Only finalized prescriptions can be amended.",
+      });
+      expect(mockedPrisma.prescription.create).not.toHaveBeenCalled();
     });
 
     it("re-reads the prescription for the ownership pre-check when the caller only holds own-scope edit", async () => {
