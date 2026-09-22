@@ -90,6 +90,17 @@ describe('renderDoc sanitisation', () => {
 describe('renderDoc over the real corpus', () => {
   const corpus = loadCorpus();
 
+  it('labels the overview repository link as GitHub', async () => {
+    const overview = corpus.find((entry) => entry.id === 'overview');
+    expect(overview).toBeDefined();
+
+    const html = toHtml((await renderDoc(overview!, corpus)).tree);
+    expect(html).toContain(
+      '<a href="https://github.com/YosemiteCrew/Yosemite-Crew" target="_blank" rel="noopener noreferrer">GitHub</a>'
+    );
+    expect(html).not.toContain('>Twitter</a>');
+  });
+
   it('renders every page without throwing', async () => {
     const results = await Promise.all(
       corpus.map(async (entry) => ({
