@@ -65,6 +65,11 @@ const toSubscriptionStatus = (
   return "incomplete";
 };
 
+const planForStatus = (
+  status: DeveloperSubscriptionStatus,
+): DeveloperPlanTier =>
+  status === "active" || status === "trialing" ? "pro" : "free";
+
 const isLiveStripeSubscription = (sub: Stripe.Subscription): boolean =>
   sub.status !== "canceled" && sub.status !== "incomplete_expired";
 
@@ -81,9 +86,7 @@ async function persistSubscription(
     stripeSubscriptionId: sub.id,
     stripeSubscriptionItemId: item?.id ?? null,
     stripePriceId: item?.price?.id ?? null,
-    plan: (status === "active" || status === "trialing"
-      ? "pro"
-      : "free") as DeveloperPlanTier,
+    plan: planForStatus(status),
     status,
     currentPeriodStart: item?.current_period_start
       ? new Date(item.current_period_start * 1000)
@@ -278,7 +281,7 @@ async function handleSubscriptionUpdated(
   await prisma.developerSubscription.update({
     where: { id: record.id },
     data: {
-      plan: status === "active" || status === "trialing" ? "pro" : "free",
+      plan: planForStatus(status),
       status,
       stripePriceId: item?.price?.id ?? record.stripePriceId,
       stripeSubscriptionItemId: item?.id ?? record.stripeSubscriptionItemId,
