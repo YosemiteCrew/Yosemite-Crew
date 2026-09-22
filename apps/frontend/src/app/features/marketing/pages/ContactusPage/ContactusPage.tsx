@@ -363,7 +363,7 @@ function ChannelCard({
         {icon}
       </span>
       <div>
-        <div style={{ fontSize: 12.5, color: 'var(--ink-faint)', letterSpacing: '-0.01em' }}>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-muted)', letterSpacing: '-0.01em' }}>
           {kicker}
         </div>
         <div
@@ -1008,7 +1008,7 @@ function PrivacyNote() {
         margin: 0,
         fontSize: 12.5,
         lineHeight: 1.5,
-        color: 'var(--ink-faint2)',
+        color: 'var(--ink-muted)',
         textAlign: 'center',
         letterSpacing: '-0.01em',
       }}
