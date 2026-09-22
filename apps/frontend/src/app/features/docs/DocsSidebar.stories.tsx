@@ -145,11 +145,11 @@ export const TogglesASection: DocsSidebarStory = {
 
     await expect(header).toHaveAttribute('aria-expanded', 'false');
     const content = canvasElement.querySelector('#docs-section-apps');
-    await expect(content).toHaveAttribute('hidden');
+    await expect(content).toHaveAttribute('data-expanded', 'false');
 
     // Toggling back reopens it.
     await userEvent.click(header);
     await expect(header).toHaveAttribute('aria-expanded', 'true');
-    await expect(content).not.toHaveAttribute('hidden');
+    await expect(content).toHaveAttribute('data-expanded', 'true');
   },
 };
