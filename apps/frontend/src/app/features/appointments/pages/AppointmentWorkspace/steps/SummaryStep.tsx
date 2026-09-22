@@ -35,6 +35,7 @@ import type { AppointmentEncounter } from '@/app/features/appointments/types/wor
 import { formatStampDate, formatStampTime } from '@/app/lib/appointmentWorkspace';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import {
+  artifactVersionFromMeta,
   getRenderedDocument,
   saveDischargeSummaryArtifact,
 } from '@/app/features/appointments/services/workspaceClinicalService';
@@ -1013,6 +1014,7 @@ const useSummaryStepContent = ({
     // engine): "Saving…" now, "Autosaved" on success, "Offline" on failure.
     setSaveStatus(appointmentId, 'saving');
     let persistedId: string | undefined;
+    let artifactVersion: number | undefined;
     let saveFailed = false;
     try {
       if (appointment?.organisationId) {
@@ -1030,12 +1032,18 @@ const useSummaryStepContent = ({
           encounter.followUpAt
         );
         persistedId = (saved as { id?: string } | undefined)?.id;
+        artifactVersion = artifactVersionFromMeta(saved);
       }
     } catch (error) {
       console.error('Unable to persist discharge summary:', error);
       saveFailed = true;
     } finally {
-      saveDischargeSummary(appointmentId, encounter.leadName ?? 'Clinician', persistedId);
+      saveDischargeSummary(
+        appointmentId,
+        encounter.leadName ?? 'Clinician',
+        persistedId,
+        artifactVersion
+      );
       setSaveStatus(appointmentId, saveFailed ? 'offline' : 'saved');
       setIsSaving(false);
     }

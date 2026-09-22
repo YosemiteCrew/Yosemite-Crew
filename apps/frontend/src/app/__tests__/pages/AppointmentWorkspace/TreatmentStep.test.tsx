@@ -52,6 +52,9 @@ jest.mock('@/app/features/appointments/services/workspaceAggregateService', () =
 }));
 
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
+  // Spread the real module so the pure conflict-message helper and the shared
+  // conflict copy stay under test; only the network calls are replaced.
+  ...jest.requireActual('@/app/features/appointments/services/workspaceClinicalService'),
   savePrescriptionArtifact: jest.fn().mockResolvedValue({ resourceType: 'MedicationRequest' }),
   deletePrescriptionArtifact: jest.fn().mockResolvedValue(true),
 }));
@@ -255,6 +258,7 @@ const seedAndGet = (mode: 'OUTPATIENT' | 'INPATIENT' = 'OUTPATIENT') => {
         prescription: [
           {
             id: 'rx-1',
+            artifactVersion: 3,
             medicineName: 'Amoxicillin - 625',
             strength: '625',
             strengthUnit: 'mg',
@@ -272,6 +276,7 @@ const seedAndGet = (mode: 'OUTPATIENT' | 'INPATIENT' = 'OUTPATIENT') => {
           },
           {
             id: 'rx-2',
+            artifactVersion: 4,
             medicineName: 'Prednisone',
             strength: '10',
             strengthUnit: 'mg',
@@ -362,7 +367,11 @@ describe('TreatmentStep', () => {
     // Echo back the saved artifact id (mirrors the create/update response) so finalize targets
     // the real id and the save handler does not append a duplicate local row.
     (savePrescriptionArtifact as jest.Mock).mockImplementation((_ctx, rx) =>
-      Promise.resolve({ resourceType: 'MedicationRequest', id: rx.id })
+      Promise.resolve({
+        resourceType: 'MedicationRequest',
+        id: rx.id,
+        meta: { versionId: String(rx.artifactVersion ?? 1) },
+      })
     );
     (finalizePrescription as jest.Mock).mockClear();
     (finalizePrescription as jest.Mock).mockResolvedValue({});
@@ -828,7 +837,7 @@ describe('TreatmentStep', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /remove amoxicillin/i }));
 
-    await waitFor(() => expect(deletePrescriptionArtifact).toHaveBeenCalledWith(ORG, 'rx-1'));
+    await waitFor(() => expect(deletePrescriptionArtifact).toHaveBeenCalledWith(ORG, 'rx-1', 3));
     expect(
       useAppointmentWorkspaceStore
         .getState()
@@ -1095,8 +1104,8 @@ describe('TreatmentStep', () => {
     await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
     expect(persistTreatmentItems).toHaveBeenCalledWith(ORG, 'enc-1', enc.services);
     expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith(ORG, APPT);
-    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-1');
-    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2');
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-1', { expectedVersion: 3 });
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2', { expectedVersion: 4 });
     expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT).toBe(
       'COMPLETED'
     );
@@ -1134,8 +1143,90 @@ describe('TreatmentStep', () => {
     expect(savedIds).not.toContain('rx-1');
     expect(savedIds).toContain('rx-2');
     // The finalized row is not re-dispensed either.
-    expect(finalizePrescription).not.toHaveBeenCalledWith(ORG, 'rx-1');
-    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2');
+    expect(finalizePrescription).not.toHaveBeenCalledWith(ORG, 'rx-1', { expectedVersion: 3 });
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2', { expectedVersion: 4 });
+  });
+
+  // #3144: finalize now carries the `expectedVersion` this client read, so a colleague finalizing
+  // the same encounter in between this clinician's save and finalize produces a 409. `Promise.allSettled`
+  // never rejects, so before this the conflict was discarded: the step went COMPLETED and Invoice
+  // opened while the prescription was still a draft and its inventory dispense never ran.
+  it('reports a finalize conflict instead of completing the step', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (finalizePrescription as jest.Mock).mockImplementation((_org, id) =>
+      id === 'rx-1'
+        ? Promise.reject({ response: { status: 409, data: { message: 'Version conflict' } } })
+        : Promise.resolve({})
+    );
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    // The clinician is told to reload, with the same copy as every other clinical conflict.
+    expect(await screen.findByText(/Your draft is still here/i)).toBeInTheDocument();
+    // One conflicted row must not abandon the others mid-flight...
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2', { expectedVersion: 4 });
+    // ...and the re-hydrate still runs, so the retry starts from the server's versions.
+    await waitFor(() => expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith(ORG, APPT));
+    // An unfinished dispense must never be presented as a completed step.
+    expect(onOpenInvoice).not.toHaveBeenCalled();
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT
+    ).not.toBe('COMPLETED');
+    errorSpy.mockRestore();
+  });
+
+  // #3144: `meta.versionId` is documented as omittable by a projection, and finalize requires a
+  // positive `expectedVersion`. Such a row cannot be finalized at all - so it must be reported,
+  // not quietly dropped from the finalize list while the step still turns green.
+  it('reports an in-house prescription that came back without a usable version', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (savePrescriptionArtifact as jest.Mock).mockImplementation((_ctx, rx) =>
+      Promise.resolve(
+        rx.id === 'rx-1'
+          ? // A projection that omits `meta.versionId` entirely.
+            { resourceType: 'MedicationRequest', id: rx.id }
+          : {
+              resourceType: 'MedicationRequest',
+              id: rx.id,
+              meta: { versionId: String(rx.artifactVersion ?? 1) },
+            }
+      )
+    );
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    expect(await screen.findByText(/could not be finalized for dispensing/i)).toBeInTheDocument();
+    // Never guess a version: no finalize call is made for the unversioned row at all.
+    expect(finalizePrescription).not.toHaveBeenCalledWith(ORG, 'rx-1', expect.objectContaining({}));
+    // The versioned row is still dispensed.
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2', { expectedVersion: 4 });
+    expect(onOpenInvoice).not.toHaveBeenCalled();
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT
+    ).not.toBe('COMPLETED');
+    errorSpy.mockRestore();
   });
 
   it('blocks the invoice and shows an error when treatment persistence fails', async () => {
@@ -1165,10 +1256,9 @@ describe('TreatmentStep', () => {
     errorSpy.mockRestore();
   });
 
-  // The backend refuses a plain save against an already-final prescription (409) instead of
-  // silently reopening it to DRAFT and wiping its items. Retrying can never succeed, so the
-  // generic retry copy must give way to the real reason.
-  it('surfaces the real reason when the prescription is already finalized (409)', async () => {
+  // A 409 can mean either a finalized prescription or a generation conflict. Both require a
+  // reload instead of a blind retry, and the local draft must remain intact.
+  it('preserves the draft and asks for a reload after a prescription conflict (409)', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     (savePrescriptionArtifact as jest.Mock).mockRejectedValueOnce({
       response: {
@@ -1190,9 +1280,7 @@ describe('TreatmentStep', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
 
-    expect(
-      await screen.findByText(/already finalized and can no longer be edited/i)
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Your draft is still here/i)).toBeInTheDocument();
     // The misleading "just try again" copy must NOT be what the clinician is left with.
     expect(screen.queryByText(/Unable to save treatment items/)).not.toBeInTheDocument();
     // A rejected save still must not advance to billing.
