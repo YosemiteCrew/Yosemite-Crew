@@ -111,11 +111,10 @@ const meta = {
           'viewport below the hero, so a play function that measures on mount is measuring a ' +
           'transparent box. Every story here walks each card into view and waits out its ' +
           'stagger before asserting anything about it.\n\n' +
-          'Second, **the toggle announces nothing.** The two period buttons are plain buttons ' +
-          'with no `aria-pressed`, no radiogroup and no `aria-current`; the filled `#1d1c1b` ' +
-          'pill is the entire indication of which period is live. The stories therefore assert ' +
-          'the pill colour on both buttons and the repriced copy, because there is no ' +
-          'accessibility state to assert instead.\n\n' +
+          'Second, **the toggle has both semantic and visual state.** Each period is a native ' +
+          'toggle button whose `aria-pressed` value identifies the live period, while the filled ' +
+          '`#1d1c1b` pill provides the matching visual indication. The stories assert both ' +
+          'signals and the repriced copy so neither can drift independently.\n\n' +
           'The phone story is the one that earns its keep for layout: the tier grid collapses ' +
           "through a `max-width: 960px` rule in the page's own inline `<style>`, while the FAQ " +
           'and the CTA row collapse through the `[data-grid-1-m]` and `[data-stack-m]` helper ' +
