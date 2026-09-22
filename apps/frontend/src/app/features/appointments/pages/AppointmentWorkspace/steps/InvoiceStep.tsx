@@ -50,6 +50,7 @@ import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useOrganisationDiscountCap } from '@/app/features/finance/hooks/useOrganisationDiscountCap';
 import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import {
+  CLINICAL_ARTIFACT_CONFLICT_MESSAGE,
   deletePrescriptionArtifact,
   savePrescriptionArtifact,
 } from '@/app/features/appointments/services/workspaceClinicalService';
@@ -88,7 +89,6 @@ const STATUS_LABELS: Record<InvoiceStatus, string> = {
   UNPAID: 'Unpaid',
   PARTIAL: 'Partial',
 };
-
 
 const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   ONLINE: 'Paid Online',
@@ -1447,17 +1447,34 @@ const useInvoiceStepContent = ({
   const handleRemoveBillLine = useCallback(
     async (id: string) => {
       const line = encounter.invoiceLineItems.find((item) => item.id === id);
-      removeInvoiceLineItem(appointmentId, id);
       const prescriptionId = line?.sourcePrescriptionId;
-      if (!prescriptionId || !organisationId) return;
-      // Drop the source prescription locally and remember the dismissal so auto-seed doesn't
-      // re-add it this session.
-      if (line?.name) getSeededBillNames().add(line.name.trim().toLowerCase());
-      removePrescription(appointmentId, prescriptionId);
+      if (!prescriptionId || !organisationId) {
+        removeInvoiceLineItem(appointmentId, id);
+        return;
+      }
+      const sourcePrescription = encounter.prescription.find((item) => item.id === prescriptionId);
       const isPersisted = !prescriptionId.startsWith('local-');
-      if (!isPersisted) return;
+      if (!isPersisted) {
+        removeInvoiceLineItem(appointmentId, id);
+        removePrescription(appointmentId, prescriptionId);
+        return;
+      }
+      if (sourcePrescription?.artifactVersion === undefined) {
+        notify('error', {
+          title: 'Reload before removing',
+          text: 'This prescription changed or has no saved version. Reload the appointment and try again.',
+        });
+        return;
+      }
       try {
-        await deletePrescriptionArtifact(organisationId, prescriptionId);
+        await deletePrescriptionArtifact(
+          organisationId,
+          prescriptionId,
+          sourcePrescription.artifactVersion
+        );
+        if (line?.name) getSeededBillNames().add(line.name.trim().toLowerCase());
+        removePrescription(appointmentId, prescriptionId);
+        removeInvoiceLineItem(appointmentId, id);
       } catch (error) {
         console.error('Failed to delete prescription from invoice:', error);
         const status = (error as { response?: { status?: number } })?.response?.status;
@@ -1465,7 +1482,7 @@ const useInvoiceStepContent = ({
           title: 'Couldn’t remove the prescription',
           text:
             status === 409
-              ? 'This prescription is finalized or dispensed and can no longer be removed.'
+              ? CLINICAL_ARTIFACT_CONFLICT_MESSAGE
               : 'The change wasn’t saved. Please try again.',
         });
       }
@@ -1473,6 +1490,7 @@ const useInvoiceStepContent = ({
     [
       appointmentId,
       encounter.invoiceLineItems,
+      encounter.prescription,
       getSeededBillNames,
       notify,
       organisationId,

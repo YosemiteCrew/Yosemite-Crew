@@ -255,6 +255,7 @@ const seedAndGet = (mode: 'OUTPATIENT' | 'INPATIENT' = 'OUTPATIENT') => {
         prescription: [
           {
             id: 'rx-1',
+            artifactVersion: 3,
             medicineName: 'Amoxicillin - 625',
             strength: '625',
             strengthUnit: 'mg',
@@ -272,6 +273,7 @@ const seedAndGet = (mode: 'OUTPATIENT' | 'INPATIENT' = 'OUTPATIENT') => {
           },
           {
             id: 'rx-2',
+            artifactVersion: 4,
             medicineName: 'Prednisone',
             strength: '10',
             strengthUnit: 'mg',
@@ -362,7 +364,11 @@ describe('TreatmentStep', () => {
     // Echo back the saved artifact id (mirrors the create/update response) so finalize targets
     // the real id and the save handler does not append a duplicate local row.
     (savePrescriptionArtifact as jest.Mock).mockImplementation((_ctx, rx) =>
-      Promise.resolve({ resourceType: 'MedicationRequest', id: rx.id })
+      Promise.resolve({
+        resourceType: 'MedicationRequest',
+        id: rx.id,
+        meta: { versionId: String(rx.artifactVersion ?? 1) },
+      })
     );
     (finalizePrescription as jest.Mock).mockClear();
     (finalizePrescription as jest.Mock).mockResolvedValue({});
@@ -828,7 +834,7 @@ describe('TreatmentStep', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /remove amoxicillin/i }));
 
-    await waitFor(() => expect(deletePrescriptionArtifact).toHaveBeenCalledWith(ORG, 'rx-1'));
+    await waitFor(() => expect(deletePrescriptionArtifact).toHaveBeenCalledWith(ORG, 'rx-1', 3));
     expect(
       useAppointmentWorkspaceStore
         .getState()
@@ -1095,8 +1101,8 @@ describe('TreatmentStep', () => {
     await waitFor(() => expect(onOpenInvoice).toHaveBeenCalled());
     expect(persistTreatmentItems).toHaveBeenCalledWith(ORG, 'enc-1', enc.services);
     expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith(ORG, APPT);
-    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-1');
-    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2');
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-1', { expectedVersion: 3 });
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2', { expectedVersion: 4 });
     expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT).toBe(
       'COMPLETED'
     );
@@ -1134,8 +1140,8 @@ describe('TreatmentStep', () => {
     expect(savedIds).not.toContain('rx-1');
     expect(savedIds).toContain('rx-2');
     // The finalized row is not re-dispensed either.
-    expect(finalizePrescription).not.toHaveBeenCalledWith(ORG, 'rx-1');
-    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2');
+    expect(finalizePrescription).not.toHaveBeenCalledWith(ORG, 'rx-1', { expectedVersion: 3 });
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2', { expectedVersion: 4 });
   });
 
   it('blocks the invoice and shows an error when treatment persistence fails', async () => {
@@ -1165,10 +1171,9 @@ describe('TreatmentStep', () => {
     errorSpy.mockRestore();
   });
 
-  // The backend refuses a plain save against an already-final prescription (409) instead of
-  // silently reopening it to DRAFT and wiping its items. Retrying can never succeed, so the
-  // generic retry copy must give way to the real reason.
-  it('surfaces the real reason when the prescription is already finalized (409)', async () => {
+  // A 409 can mean either a finalized prescription or a generation conflict. Both require a
+  // reload instead of a blind retry, and the local draft must remain intact.
+  it('preserves the draft and asks for a reload after a prescription conflict (409)', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     (savePrescriptionArtifact as jest.Mock).mockRejectedValueOnce({
       response: {
@@ -1190,9 +1195,7 @@ describe('TreatmentStep', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
 
-    expect(
-      await screen.findByText(/already finalized and can no longer be edited/i)
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Your draft is still here/i)).toBeInTheDocument();
     // The misleading "just try again" copy must NOT be what the clinician is left with.
     expect(screen.queryByText(/Unable to save treatment items/)).not.toBeInTheDocument();
     // A rejected save still must not advance to billing.

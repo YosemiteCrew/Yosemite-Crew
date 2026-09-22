@@ -1589,6 +1589,18 @@ const isRecordNotFoundError = (error: unknown): boolean =>
 export const STALE_CLINICAL_ARTIFACT_MESSAGE =
   "This record changed since it was loaded. Reload the saved version before saving again.";
 
+const assertExpectedArtifactVersion = (
+  artifact: { version: number },
+  expectedVersion: number,
+) => {
+  if (artifact.version !== expectedVersion) {
+    throw new ClinicalArtifactServiceError(
+      STALE_CLINICAL_ARTIFACT_MESSAGE,
+      409,
+    );
+  }
+};
+
 /**
  * Claim the artifact at the exact generation the caller read (#3144).
  *
@@ -2034,6 +2046,7 @@ export const ClinicalArtifactService = {
     prescriptionId: string,
     organisationId: string | undefined,
     actor: PrescriptionActor,
+    expectedVersion?: number,
   ): Promise<void> {
     const record = await loadPrescriptionOrThrow(prescriptionId);
     assertArtifactKind(
@@ -2074,6 +2087,7 @@ export const ClinicalArtifactService = {
       // so it cannot land on content saved after that read.
       await updateArtifactStatusAndSummaryInTx(txPrisma, record.artifact, {
         status: "VOID",
+        expectedVersion,
       });
     });
   },
@@ -2082,6 +2096,7 @@ export const ClinicalArtifactService = {
     prescriptionId: string,
     organisationId: string | undefined,
     actor: PrescriptionActor,
+    expectedVersion?: number,
   ): Promise<PrescriptionRecord> {
     const record = await loadPrescriptionOrThrow(prescriptionId, {
       includeVoid: true,
@@ -2093,6 +2108,10 @@ export const ClinicalArtifactService = {
       organisationId,
     );
     assertActorMayMutateArtifact(record.artifact, actor);
+
+    if (expectedVersion !== undefined) {
+      assertExpectedArtifactVersion(record.artifact, expectedVersion);
+    }
 
     if (record.artifact.status === "VOID") {
       return toPrescriptionRecord(record);
@@ -2162,6 +2181,7 @@ export const ClinicalArtifactService = {
       // See `deletePrescription`: the same shared claim (#3144).
       return updateArtifactStatusAndSummaryInTx(txPrisma, record.artifact, {
         status: "VOID",
+        expectedVersion,
       });
     });
 
@@ -2748,10 +2768,11 @@ export const ClinicalArtifactService = {
   async finalizeSoapNote(
     soapNoteId: string,
     organisationId?: string,
+    expectedVersion?: number,
   ): Promise<SoapNoteRecord> {
     return ClinicalArtifactService.updateSoapNote(
       soapNoteId,
-      { status: "COMPLETED" },
+      { status: "COMPLETED", expectedVersion },
       organisationId,
     );
   },
@@ -2759,10 +2780,11 @@ export const ClinicalArtifactService = {
   async reopenSoapNote(
     soapNoteId: string,
     organisationId?: string,
+    expectedVersion?: number,
   ): Promise<SoapNoteRecord> {
     return ClinicalArtifactService.updateSoapNote(
       soapNoteId,
-      { status: "IN_PROGRESS" },
+      { status: "IN_PROGRESS", expectedVersion },
       organisationId,
     );
   },
@@ -2779,11 +2801,15 @@ export const ClinicalArtifactService = {
     soapNoteId: string,
     organisationId?: string,
     amendedBy?: string,
+    expectedVersion?: number,
   ): Promise<SoapNoteRecord> {
     const note = await ClinicalArtifactService.getSoapNote(
       soapNoteId,
       organisationId,
     );
+    if (expectedVersion !== undefined) {
+      assertExpectedArtifactVersion(note.artifact, expectedVersion);
+    }
     return ClinicalArtifactService.createSoapNote({
       ...soapNoteInputFromRecord(note),
       ...(amendedBy?.trim() ? { authorId: amendedBy.trim() } : {}),
@@ -2794,10 +2820,11 @@ export const ClinicalArtifactService = {
     prescriptionId: string,
     organisationId: string | undefined,
     actor: PrescriptionActor,
+    expectedVersion?: number,
   ): Promise<PrescriptionRecord> {
     return ClinicalArtifactService.updatePrescription(
       prescriptionId,
-      { status: "COMPLETED" },
+      { status: "COMPLETED", expectedVersion },
       organisationId,
       actor,
     );
@@ -2807,10 +2834,11 @@ export const ClinicalArtifactService = {
     prescriptionId: string,
     organisationId: string | undefined,
     actor: PrescriptionActor,
+    expectedVersion?: number,
   ): Promise<PrescriptionRecord> {
     return ClinicalArtifactService.updatePrescription(
       prescriptionId,
-      { status: "IN_PROGRESS" },
+      { status: "IN_PROGRESS", expectedVersion },
       organisationId,
       actor,
     );
@@ -2820,6 +2848,7 @@ export const ClinicalArtifactService = {
     prescriptionId: string,
     organisationId: string | undefined,
     actor: PrescriptionActor,
+    expectedVersion?: number,
   ): Promise<PrescriptionRecord> {
     await assertActorMayMutatePrescription(
       prescriptionId,
@@ -2830,6 +2859,9 @@ export const ClinicalArtifactService = {
       prescriptionId,
       organisationId,
     );
+    if (expectedVersion !== undefined) {
+      assertExpectedArtifactVersion(record.artifact, expectedVersion);
+    }
     return ClinicalArtifactService.createPrescription({
       ...prescriptionInputFromRecord(record),
       // The amending clinician owns the new draft; see `amendSoapNote`.
@@ -2840,10 +2872,11 @@ export const ClinicalArtifactService = {
   async finalizeDischargeSummary(
     dischargeSummaryId: string,
     organisationId?: string,
+    expectedVersion?: number,
   ): Promise<DischargeSummaryRecord> {
     return ClinicalArtifactService.updateDischargeSummary(
       dischargeSummaryId,
-      { status: "COMPLETED" },
+      { status: "COMPLETED", expectedVersion },
       organisationId,
     );
   },
@@ -2851,10 +2884,11 @@ export const ClinicalArtifactService = {
   async reopenDischargeSummary(
     dischargeSummaryId: string,
     organisationId?: string,
+    expectedVersion?: number,
   ): Promise<DischargeSummaryRecord> {
     return ClinicalArtifactService.updateDischargeSummary(
       dischargeSummaryId,
-      { status: "IN_PROGRESS" },
+      { status: "IN_PROGRESS", expectedVersion },
       organisationId,
     );
   },
@@ -2863,11 +2897,15 @@ export const ClinicalArtifactService = {
     dischargeSummaryId: string,
     organisationId?: string,
     amendedBy?: string,
+    expectedVersion?: number,
   ): Promise<DischargeSummaryRecord> {
     const record = await ClinicalArtifactService.getDischargeSummary(
       dischargeSummaryId,
       organisationId,
     );
+    if (expectedVersion !== undefined) {
+      assertExpectedArtifactVersion(record.artifact, expectedVersion);
+    }
     return ClinicalArtifactService.createDischargeSummary({
       ...dischargeSummaryInputFromRecord(record),
       ...(amendedBy?.trim() ? { authorId: amendedBy.trim() } : {}),
@@ -2877,10 +2915,11 @@ export const ClinicalArtifactService = {
   async finalizeVitalRecord(
     vitalRecordId: string,
     organisationId?: string,
+    expectedVersion?: number,
   ): Promise<VitalRecordRecord> {
     return ClinicalArtifactService.updateVitalRecord(
       vitalRecordId,
-      { status: "COMPLETED" },
+      { status: "COMPLETED", expectedVersion },
       organisationId,
     );
   },
@@ -2888,10 +2927,11 @@ export const ClinicalArtifactService = {
   async reopenVitalRecord(
     vitalRecordId: string,
     organisationId?: string,
+    expectedVersion?: number,
   ): Promise<VitalRecordRecord> {
     return ClinicalArtifactService.updateVitalRecord(
       vitalRecordId,
-      { status: "IN_PROGRESS" },
+      { status: "IN_PROGRESS", expectedVersion },
       organisationId,
     );
   },
@@ -2900,11 +2940,15 @@ export const ClinicalArtifactService = {
     vitalRecordId: string,
     organisationId?: string,
     amendedBy?: string,
+    expectedVersion?: number,
   ): Promise<VitalRecordRecord> {
     const record = await ClinicalArtifactService.getVitalRecord(
       vitalRecordId,
       organisationId,
     );
+    if (expectedVersion !== undefined) {
+      assertExpectedArtifactVersion(record.artifact, expectedVersion);
+    }
     return ClinicalArtifactService.createVitalRecord({
       ...vitalRecordInputFromRecord(record),
       ...(amendedBy?.trim() ? { authorId: amendedBy.trim() } : {}),

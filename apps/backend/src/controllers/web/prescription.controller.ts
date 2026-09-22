@@ -20,6 +20,10 @@ const actionBodySchema = z.object({
   reason: z.string().trim().min(1).optional(),
 });
 
+const finalizeBodySchema = actionBodySchema.extend({
+  expectedVersion: z.number().int().positive(),
+});
+
 const dispenseRequestListQuerySchema = z.object({
   status: z.enum(["PENDING", "NOT_DISPENSED", "DISPENSED"]).optional(),
   prescriptionId: z.string().trim().min(1).optional(),
@@ -165,6 +169,7 @@ export const PrescriptionController = {
 
   async finalize(req: Request, res: Response) {
     try {
+      const body = finalizeBodySchema.parse(req.body ?? {});
       const orgRequest = req as OrgRequest;
       const prescription = await ClinicalArtifactService.finalizePrescription(
         req.params.prescriptionId,
@@ -175,6 +180,7 @@ export const PrescriptionController = {
             orgRequest.userPermissions?.includes("prescription:edit:any") ??
             false,
         },
+        body.expectedVersion,
       );
       return res
         .status(200)

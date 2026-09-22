@@ -16,6 +16,7 @@ import type {
 } from '@/app/features/appointments/types/workspace';
 import {
   deletePrescriptionArtifact,
+  getClinicalArtifactMutationErrorMessage,
   savePrescriptionArtifact,
 } from '@/app/features/appointments/services/workspaceClinicalService';
 import { finalizePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
@@ -592,10 +593,15 @@ const usePrescriptionActions = ({
 
     const isPersisted = Boolean(id) && !id.startsWith('local-');
     if (!isPersisted || !organisationId || !target) return;
+    if (target.artifactVersion === undefined) {
+      addPrescription(appointmentId, target, target.id);
+      setPrescriptionError('Reload this prescription before removing it.');
+      return;
+    }
 
     try {
       // Backend voids the draft and cascades the treatment-item row.
-      const deleted = await deletePrescriptionArtifact(organisationId, id);
+      const deleted = await deletePrescriptionArtifact(organisationId, id, target.artifactVersion);
       // Route not available yet → fall back to deleting the linked treatment-item row.
       if (!deleted && encounterId) {
         await deletePrescriptionTreatmentItem(organisationId, encounterId, {
@@ -689,9 +695,10 @@ const usePrescriptionActions = ({
 // that would just trade one misleading message for another. The mapped copy mirrors the
 // finalized/billed wording handleRemovePrescription already uses for the same 409.
 const getTreatmentSaveErrorMessage = (error: unknown): string =>
-  (error as { response?: { status?: number } })?.response?.status === 409
-    ? 'This prescription is already finalized and can no longer be edited.'
-    : getInvoiceErrorMessage(error, 'Unable to save treatment items. Please try again.');
+  getClinicalArtifactMutationErrorMessage(
+    error,
+    getInvoiceErrorMessage(error, 'Unable to save treatment items. Please try again.')
+  );
 
 /**
  * Treatment step: services/packages, prescription, and inpatient schedule.
@@ -844,7 +851,7 @@ const TreatmentStep = ({
     // Saved prescription ids captured from the create/update responses, so finalize targets the
     // real artifact id (not the local `local-rx-…` id) and the post-save bootstrap merge — not a
     // local append — becomes the single source of truth for the list (avoids duplicate rows).
-    const savedInHouseIds: string[] = [];
+    const savedInHouseArtifacts: Array<{ id: string; version: number }> = [];
     try {
       // Persist any staged service/package rows.
       await persistTreatmentItems(organisationId, activeEncounterId, encounter.services);
@@ -868,8 +875,26 @@ const TreatmentStep = ({
             rx
           );
           const savedId = (savedRx as { id?: string } | undefined)?.id ?? rx.id;
-          if (savedId && rx.fulfillment !== 'PRESCRIPTION_ONLY') savedInHouseIds.push(savedId);
-          return { ...rx, id: savedId };
+          const savedVersion = Number.parseInt(
+            (savedRx as { meta?: { versionId?: string } } | undefined)?.meta?.versionId ?? '',
+            10
+          );
+          if (
+            savedId &&
+            Number.isSafeInteger(savedVersion) &&
+            savedVersion > 0 &&
+            rx.fulfillment !== 'PRESCRIPTION_ONLY'
+          ) {
+            savedInHouseArtifacts.push({ id: savedId, version: savedVersion });
+          }
+          return {
+            ...rx,
+            id: savedId,
+            artifactVersion:
+              Number.isSafeInteger(savedVersion) && savedVersion > 0
+                ? savedVersion
+                : rx.artifactVersion,
+          };
         })
       );
       // Authoritatively replace the list with exactly the saved rows (deduped by backend id) so
@@ -881,7 +906,9 @@ const TreatmentStep = ({
       setPrescriptions(appointmentId, dedupedById);
       // Finalize in-house prescriptions (triggers inventory dispense) using the real saved ids.
       await Promise.allSettled(
-        savedInHouseIds.map((id) => finalizePrescription(organisationId, id))
+        savedInHouseArtifacts.map(({ id, version }) =>
+          finalizePrescription(organisationId, id, { expectedVersion: version })
+        )
       );
       // Re-hydrate from the authoritative server state — replaces the staged local rows so the
       // saved prescription appears exactly once.
