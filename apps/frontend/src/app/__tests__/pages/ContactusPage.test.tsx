@@ -32,8 +32,20 @@ describe('ContactusPage', () => {
     expect(screen.getByText('support@yosemitecrew.com')).toBeInTheDocument();
     expect(screen.getByText('+49 152 277 63275')).toBeInTheDocument();
     expect(screen.getByText('Join the Discord')).toBeInTheDocument();
+    for (const kicker of ['Email', 'Phone', 'Community']) {
+      expect(screen.getByText(kicker)).toHaveStyle({ color: 'var(--ink-muted)' });
+    }
     expect(screen.getByRole('radio', { name: 'General Enquiry' })).toBeChecked();
     expect(screen.getByPlaceholderText('Your Message')).toBeInTheDocument();
+  });
+
+  it('uses the readable muted token for the privacy note', () => {
+    render(<ContactusPage />);
+    expect(
+      screen.getByText(
+        'We use your details only to handle this request. No lists, no selling, no noise.'
+      )
+    ).toHaveStyle({ color: 'var(--ink-muted)' });
   });
 
   /* #3361: this message is mirrored verbatim into the SuperAdmin intake, which
