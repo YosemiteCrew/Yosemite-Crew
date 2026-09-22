@@ -40,7 +40,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** A test file, by this repository's own conventions. */
@@ -401,13 +401,16 @@ export const withJestReport = (runJest) => {
  * the repository root is not a list this gate can act on.
  */
 export const resolveInside = (dir, candidate) => {
-  const base = resolve(dir);
-  const target = resolve(base, candidate);
-  const within = relative(base, target);
-  if (within === '' || within.startsWith('..') || isAbsolute(within)) {
+  const parts = candidate.split('/');
+  if (
+    !isAbsolute(dir) ||
+    candidate.includes('\\') ||
+    candidate.includes('\0') ||
+    parts.some((part) => part === '' || part === '.' || part === '..')
+  ) {
     throw new Error(`refusing a path that is not inside ${dir}: ${candidate}`);
   }
-  return target;
+  return `${dir.endsWith('/') ? dir : `${dir}/`}${parts.join('/')}`;
 };
 
 /**
