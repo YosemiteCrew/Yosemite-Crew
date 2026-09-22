@@ -16,15 +16,9 @@ test.describe.configure({ timeout: 90_000 });
 const WCAG_AA = ['wcag2a', 'wcag2aa', 'wcag21aa'];
 
 /**
- * WCAG 2.1 AA, minus colour-contrast.
- *
- * The original comment here said colour-contrast was excluded "because headless
- * Chrome does not compute computed colour styles reliably". That is not true -
- * see `runAxeWithContrast` below, which relies on it working, and does. The real
- * reason the rule stays off for the marketing pages is less flattering: `/` and
- * `/pricing` currently fail it 26 times in light and 16 in dark, worst 1.94:1.
- * Turning it on for them would make this suite red on arrival, so that debt is
- * tracked separately rather than hidden behind a wrong explanation.
+ * WCAG 2.1 AA, minus colour-contrast. Sign-in and sign-up retain this narrower
+ * pass while their existing palette is handled separately; the marketing home
+ * and pricing surfaces use the full rule set below.
  */
 const runAxe = (page: Page) =>
   new AxeBuilder({ page }).withTags(WCAG_AA).disableRules(['color-contrast']).analyze();
@@ -72,7 +66,7 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle').catch(() => {});
 
-    const results = await runAxe(page);
+    const results = await runAxeWithContrast(page);
     expect(results.violations).toEqual([]);
   });
 
@@ -96,8 +90,28 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
     await page.goto('/pricing');
     await page.waitForLoadState('networkidle').catch(() => {});
 
-    const results = await runAxe(page);
+    const results = await runAxeWithContrast(page);
     expect(results.violations).toEqual([]);
+  });
+
+  test.describe('marketing pages in dark mode', () => {
+    test.use({ colorScheme: 'dark' });
+
+    test('home has no dark-theme axe violations', async ({ page }) => {
+      await page.goto('/');
+      await page.waitForLoadState('networkidle').catch(() => {});
+
+      const results = await runAxeWithContrast(page);
+      expect(results.violations).toEqual([]);
+    });
+
+    test('pricing has no dark-theme axe violations', async ({ page }) => {
+      await page.goto('/pricing');
+      await page.waitForLoadState('networkidle').catch(() => {});
+
+      const results = await runAxeWithContrast(page);
+      expect(results.violations).toEqual([]);
+    });
   });
 
   test('skip link is reachable via keyboard on every page', async ({ page }) => {

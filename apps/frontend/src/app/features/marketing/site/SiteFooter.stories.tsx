@@ -142,10 +142,7 @@ export const Default: Story = {
        and the computed read underneath is what catches a token that no longer
        exists, which would otherwise leave a transparent dot. */
     await expect(dot.style.background).toBe('var(--success)');
-    // `#1d6b4f`, reserialised: the success label is the one tone written as a
-    // literal hex instead of a token, so it is also the one that does not follow
-    // the theme.
-    await expect(label.style.color).toBe('rgb(29, 107, 79)');
+    await expect(label.style.color).toBe('var(--success-text)');
     await expect(getComputedStyle(dot).backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
 
     // Only the healthy pill pulses, and only it takes the green hover tone. Both
@@ -217,8 +214,8 @@ export const Degraded: Story = {
     await waitFor(() => {
       expect(label).toHaveTextContent('Degraded performance');
     });
-    await expect(dot.style.background).toBe('var(--amber)');
-    await expect(label.style.color).toBe('var(--amber)');
+    await expect(dot.style.background).toBe('var(--warn)');
+    await expect(label.style.color).toBe('var(--ink-body)');
     // No pulse and no green hover tone: the pill stops advertising health the
     // moment the tone leaves `success`.
     await expect(getComputedStyle(dot).animationName).toBe('none');
@@ -246,7 +243,7 @@ export const MajorOutage: Story = {
       expect(label).toHaveTextContent('Major outage');
     });
     await expect(dot.style.background).toBe('var(--danger)');
-    await expect(label.style.color).toBe('var(--danger)');
+    await expect(label.style.color).toBe('var(--danger-text)');
     await expect(getComputedStyle(dot).animationName).toBe('none');
   },
   parameters: {
