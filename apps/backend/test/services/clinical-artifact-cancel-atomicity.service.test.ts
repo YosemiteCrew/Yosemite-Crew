@@ -21,6 +21,7 @@ jest.mock("src/services/inventory-consumption.service", () => ({
     voidDispensePrescriptionInTx: jest.fn(),
     markPrescriptionDispenseRequestNotDispensed: jest.fn(),
     markPrescriptionDispenseRequestNotDispensedInTx: jest.fn(),
+    loadDispenseRequestForRetirementInTx: jest.fn(),
   },
 }));
 
@@ -49,6 +50,7 @@ describe("cancelPrescription stock/artifact atomicity", () => {
     voidDispensePrescriptionInTx: jest.Mock;
     markPrescriptionDispenseRequestNotDispensed: jest.Mock;
     markPrescriptionDispenseRequestNotDispensedInTx: jest.Mock;
+    loadDispenseRequestForRetirementInTx: jest.Mock;
   };
 
   const organisationId = "org-1";
@@ -152,6 +154,13 @@ describe("cancelPrescription stock/artifact atomicity", () => {
     mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValue(
       dispenseRequestRow("DISPENSED"),
     );
+    // #3503: the row the reversal branches on now comes from inside the
+    // transaction. The pre-transaction read above still feeds the
+    // `updatePrescription` path and is deliberately left disagreeing with this
+    // one in the tests below.
+    mockedInventory.loadDispenseRequestForRetirementInTx.mockResolvedValue(
+      dispenseRequestRow("DISPENSED"),
+    );
   });
 
   it("releases dispensed stock on the caller's transaction client, not its own", async () => {
@@ -223,7 +232,7 @@ describe("cancelPrescription stock/artifact atomicity", () => {
   });
 
   it("retires a still-pending dispense request on the same transaction client", async () => {
-    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValue(
+    mockedInventory.loadDispenseRequestForRetirementInTx.mockResolvedValue(
       dispenseRequestRow("PENDING"),
     );
 
@@ -243,6 +252,115 @@ describe("cancelPrescription stock/artifact atomicity", () => {
       mockedInventory.markPrescriptionDispenseRequestNotDispensed,
     ).not.toHaveBeenCalled();
     expect(mockedInventory.voidDispensePrescriptionInTx).not.toHaveBeenCalled();
+  });
+
+  /**
+   * #3503: the request whose status selects the reversal branch used to be read
+   * before the transaction opened. An approve committing in that window flipped
+   * PENDING to DISPENSED and drew the stock, so the cancel took the PENDING
+   * branch, found nothing pending to retire, and committed a VOID artifact
+   * whose drawn stock was never released.
+   *
+   * These tests set the pre-transaction read and the in-transaction read to
+   * DISAGREE. That is the race made deterministic: the pre-transaction value is
+   * what a racing approve has already invalidated, so a cancel that still obeys
+   * it is the defect.
+   */
+  describe("#3503 the reversal branch follows the in-transaction read", () => {
+    it("releases stock an approve drew after the pre-transaction read", async () => {
+      mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValue(
+        dispenseRequestRow("PENDING"),
+      );
+      mockedInventory.loadDispenseRequestForRetirementInTx.mockResolvedValue(
+        dispenseRequestRow("DISPENSED"),
+      );
+
+      await ClinicalArtifactService.cancelPrescription(
+        prescriptionId,
+        organisationId,
+        actor,
+      );
+
+      expect(
+        mockedInventory.voidDispensePrescriptionInTx,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mockedInventory.markPrescriptionDispenseRequestNotDispensedInTx,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("does not void stock for a request an approve has not yet drawn", async () => {
+      mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValue(
+        dispenseRequestRow("DISPENSED"),
+      );
+      mockedInventory.loadDispenseRequestForRetirementInTx.mockResolvedValue(
+        dispenseRequestRow("PENDING"),
+      );
+
+      await ClinicalArtifactService.cancelPrescription(
+        prescriptionId,
+        organisationId,
+        actor,
+      );
+
+      expect(
+        mockedInventory.markPrescriptionDispenseRequestNotDispensedInTx,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mockedInventory.voidDispensePrescriptionInTx,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("reads it on the caller's transaction client", async () => {
+      await ClinicalArtifactService.cancelPrescription(
+        prescriptionId,
+        organisationId,
+        actor,
+      );
+
+      expect(
+        mockedInventory.loadDispenseRequestForRetirementInTx,
+      ).toHaveBeenCalledWith(
+        txClient,
+        expect.objectContaining({ organisationId, prescriptionId }),
+      );
+    });
+
+    it("reads it after the version claim and before the stock work", async () => {
+      await ClinicalArtifactService.cancelPrescription(
+        prescriptionId,
+        organisationId,
+        actor,
+      );
+
+      const claim =
+        txClient.clinicalArtifact.update.mock.invocationCallOrder[0];
+      const read =
+        mockedInventory.loadDispenseRequestForRetirementInTx.mock
+          .invocationCallOrder[0];
+      const release =
+        mockedInventory.voidDispensePrescriptionInTx.mock
+          .invocationCallOrder[0];
+
+      expect(claim).toBeLessThan(read);
+      expect(read).toBeLessThan(release);
+    });
+
+    it("never takes the dispense-request lock when the version claim is lost", async () => {
+      txClient.clinicalArtifact.update.mockRejectedValueOnce(recordNotFound());
+
+      await expect(
+        ClinicalArtifactService.cancelPrescription(
+          prescriptionId,
+          organisationId,
+          actor,
+        ),
+      ).rejects.toMatchObject({ statusCode: 409 });
+
+      expect(
+        mockedInventory.loadDispenseRequestForRetirementInTx,
+      ).not.toHaveBeenCalled();
+    });
   });
 
   it("gives the combined transaction more than prisma's 5s interactive default", async () => {
