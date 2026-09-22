@@ -487,7 +487,22 @@ describe("@yosemite-crew/auth supertokens config", () => {
       expect(originalSignUpPOST).toHaveBeenCalledTimes(1);
     });
 
-    it("blocks only signup when the Turnstile secret is missing in production", async () => {
+    /*
+     * The regression guard for the promotion outage. Turnstile is keyed on the
+     * secret alone, never on NODE_ENV, because this half and the sign-up form
+     * are a lockstep: when the check is required the form posts a third form
+     * field, and supertokens-node refuses a request carrying more formFields
+     * than the recipe declares. Keying on "this is a production build" armed
+     * this side the moment the API deployed, which is minutes apart from the
+     * frontend it has to agree with, and refused every sign-up for that window
+     * rather than degrading.
+     *
+     * Nothing about the control itself changes: with a secret set, an
+     * unverifiable token is still refused - see "fails closed when Turnstile is
+     * unavailable", "fails closed when Turnstile returns a non-successful
+     * response" and "refuses an oversized bot token before calling Turnstile".
+     */
+    it("allows signup with no Turnstile secret even in production", async () => {
       process.env.SMTP_HOST = "smtp.example.test";
       process.env.SMTP_PORT = "465";
       process.env.SMTP_USER = "smtp-user";
@@ -509,18 +524,20 @@ describe("@yosemite-crew/auth supertokens config", () => {
           signInPOST: originalSignInPOST,
         });
 
+        // Allowed, and the original handler actually runs: an unconfigured
+        // Turnstile must not stand between a customer and an account.
         await expect(apis.signUpPOST(signUpInput())).resolves.toEqual({
-          status: "SIGN_UP_NOT_ALLOWED",
-          reason:
-            "We could not verify this signup. Please refresh and try again.",
+          status: "OK",
         });
         await expect(
           apis.signInPOST({
             formFields: [{ id: "email", value: "member@example.test" }],
           }),
         ).resolves.toEqual({ status: "OK" });
+        // No verification call is made, because there is nothing configured to
+        // verify against - not because the request was rejected first.
         expect(globalThis.fetch).not.toHaveBeenCalled();
-        expect(originalSignUpPOST).not.toHaveBeenCalled();
+        expect(originalSignUpPOST).toHaveBeenCalledTimes(1);
         expect(originalSignInPOST).toHaveBeenCalledTimes(1);
       } finally {
         (process.env as Record<string, string | undefined>).NODE_ENV =
