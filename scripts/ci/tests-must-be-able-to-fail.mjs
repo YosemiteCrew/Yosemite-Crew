@@ -71,7 +71,8 @@ export const isCheckableSource = (file) => {
  * Only jest workspaces belong here. `@yosemite-crew/auth` runs its tests with
  * `node --test` over compiled output, so handing its paths to `pnpm --filter
  * auth exec jest` would fail on a runner that is not there - which this gate
- * cannot distinguish from the import failure it reads as evidence.
+ * cannot distinguish from the import failure it reads as evidence. Auth tests
+ * are selected and run separately below.
  *
  * Until #3049 nothing under `packages/` mapped at all, so a PR whose only
  * tests were in a shared package reported "outside a known workspace" and the
@@ -143,6 +144,10 @@ export const groupTestsByWorkspace = (tests) => {
  * reads as evidence.
  */
 export const scriptTestsOf = (tests) => tests.filter((t) => /^scripts\/.+\.test\.mjs$/.test(t));
+
+/** Changed auth tests executed by that package's compiled node:test runner. */
+export const authTestsOf = (tests) =>
+  tests.filter((t) => /^packages\/auth\/src\/.+\.test\.ts$/.test(t));
 
 export const classify = (files) => ({
   source: files.filter(isCheckableSource),
@@ -494,6 +499,25 @@ const runChangedScriptTests = (absolutePaths) => {
   }
 };
 
+/** Builds auth, then runs only the changed tests from its compiled output. */
+const runChangedAuthTests = (repoRoot, paths) => {
+  console.log(`running ${paths.length} changed auth test file(s) against the base`);
+  try {
+    execFileSync('pnpm', ['--filter', '@yosemite-crew/auth', 'run', 'build'], {
+      stdio: 'inherit',
+    });
+    const compiled = paths.map((path) =>
+      path.replace(/^packages\/auth\/src\//, 'packages/auth/dist/src/').replace(/\.ts$/, '.js')
+    );
+    execFileSync('node', ['--test', ...absolutePathsIn(repoRoot, compiled)], {
+      stdio: 'inherit',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const main = () => {
   const args = process.argv.slice(2);
   const get = (flag, fallback) => {
@@ -577,11 +601,12 @@ const main = () => {
 
     const byWorkspace = groupTestsByWorkspace(runnableTests);
     const scriptTests = scriptTestsOf(runnableTests);
+    const authTests = authTestsOf(runnableTests);
     try {
       if (runnableTests.length === 0) {
         console.log('every changed test file was deleted by this branch; nothing left to run');
         nothingRunnable = 'all-tests-deleted';
-      } else if (byWorkspace.size === 0 && scriptTests.length === 0) {
+      } else if (byWorkspace.size === 0 && scriptTests.length === 0 && authTests.length === 0) {
         console.log('no runnable unit tests changed (e2e only, or outside a known workspace)');
         nothingRunnable = 'e2e-only';
       } else {
@@ -591,12 +616,13 @@ const main = () => {
         // survive their own revert"; one failing anywhere proves they do not.
         const scriptsPassed =
           scriptTests.length === 0 || runChangedScriptTests(absolutePathsIn(repoRoot, scriptTests));
-        const ranAnything = run.ranAnything || scriptTests.length > 0;
+        const authPassed = authTests.length === 0 || runChangedAuthTests(repoRoot, authTests);
+        const ranAnything = run.ranAnything || scriptTests.length > 0 || authTests.length > 0;
         // `allPassed` starts true and nothing ran to falsify it, so reading it
         // as "the tests survived their own revert" would be the vacuous pass
         // `--passWithNoTests` used to hand out for a branch whose only test
         // change is a `__tests__/support/` helper.
-        testsPassedAgainstBase = ranAnything ? run.allPassed && scriptsPassed : null;
+        testsPassedAgainstBase = ranAnything ? run.allPassed && scriptsPassed && authPassed : null;
         if (!ranAnything) nothingRunnable = 'no-tests-in-changed-tests';
       }
     } finally {
