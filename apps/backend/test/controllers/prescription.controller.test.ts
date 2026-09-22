@@ -104,7 +104,7 @@ describe("PrescriptionController", () => {
         organisationId: "org-1",
         prescriptionId: "rx-1",
       },
-      body: {},
+      body: { expectedVersion: 3 },
       headers: {},
     };
     buildResponse();
@@ -198,6 +198,7 @@ describe("PrescriptionController", () => {
       "rx-1",
       "org-1",
       { actorId: "vet-session", canEditAny: false },
+      3,
     );
   });
 
@@ -222,6 +223,7 @@ describe("PrescriptionController", () => {
       "rx-1",
       "org-1",
       { actorId: "supervisor-1", canEditAny: true },
+      3,
     );
   });
 
@@ -237,6 +239,7 @@ describe("PrescriptionController", () => {
       "rx-1",
       "org-1",
       { actorId: "", canEditAny: false },
+      3,
     );
     expect(statusMock).toHaveBeenCalledWith(200);
     expect(jsonMock).toHaveBeenCalledWith(

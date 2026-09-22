@@ -49,6 +49,23 @@ const handleError = createFhirErrorHandler({
   logMessage: "Unexpected FHIR clinical artifact error",
 });
 
+const parseRequiredIfMatchVersion = (req: Request): number => {
+  const value = req.header("if-match")?.trim();
+  if (!value) {
+    throw new ClinicalArtifactServiceError(
+      "If-Match is required for clinical artifact mutations.",
+      428,
+    );
+  }
+
+  const match = /^(?:W\/)?"([1-9]\d*)"$/.exec(value);
+  const version = Number.parseInt(match?.[1] ?? "", 10);
+  if (!Number.isSafeInteger(version)) {
+    throw new ClinicalArtifactServiceError("Invalid If-Match header.", 400);
+  }
+  return version;
+};
+
 const readFirstPerformer = (resource: Record<string, unknown>) => {
   if (
     typeof resource.performer !== "object" ||
@@ -221,10 +238,13 @@ export const ClinicalArtifactFhirController = {
       );
       const record = await ClinicalArtifactService.updateSoapNote(
         req.params.soapNoteId,
-        clinicalArtifactFhirMapper.compositionToSoapNoteInput(body, {
-          ...context,
-          organisationId: req.params.organisationId,
-        }),
+        {
+          ...clinicalArtifactFhirMapper.compositionToSoapNoteInput(body, {
+            ...context,
+            organisationId: req.params.organisationId,
+          }),
+          expectedVersion: parseRequiredIfMatchVersion(req),
+        },
         req.params.organisationId,
       );
       return res.status(200).json(await serializeSoapNote(record));
@@ -321,10 +341,16 @@ export const ClinicalArtifactFhirController = {
       );
       const record = await ClinicalArtifactService.updatePrescription(
         req.params.prescriptionId,
-        clinicalArtifactFhirMapper.medicationRequestToPrescriptionInput(body, {
-          ...context,
-          organisationId: req.params.organisationId,
-        }),
+        {
+          ...clinicalArtifactFhirMapper.medicationRequestToPrescriptionInput(
+            body,
+            {
+              ...context,
+              organisationId: req.params.organisationId,
+            },
+          ),
+          expectedVersion: parseRequiredIfMatchVersion(req),
+        },
         req.params.organisationId,
         resolvePrescriptionActor(req),
       );
@@ -412,10 +438,16 @@ export const ClinicalArtifactFhirController = {
       );
       const record = await ClinicalArtifactService.updateDischargeSummary(
         req.params.dischargeSummaryId,
-        clinicalArtifactFhirMapper.compositionToDischargeSummaryInput(body, {
-          ...context,
-          organisationId: req.params.organisationId,
-        }),
+        {
+          ...clinicalArtifactFhirMapper.compositionToDischargeSummaryInput(
+            body,
+            {
+              ...context,
+              organisationId: req.params.organisationId,
+            },
+          ),
+          expectedVersion: parseRequiredIfMatchVersion(req),
+        },
         req.params.organisationId,
       );
       return res
@@ -500,10 +532,13 @@ export const ClinicalArtifactFhirController = {
       );
       const record = await ClinicalArtifactService.updateVitalRecord(
         req.params.vitalRecordId,
-        clinicalArtifactFhirMapper.observationToVitalRecordInput(body, {
-          ...context,
-          organisationId: req.params.organisationId,
-        }),
+        {
+          ...clinicalArtifactFhirMapper.observationToVitalRecordInput(body, {
+            ...context,
+            organisationId: req.params.organisationId,
+          }),
+          expectedVersion: parseRequiredIfMatchVersion(req),
+        },
         req.params.organisationId,
       );
       return res
@@ -519,6 +554,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.finalizeSoapNote(
         req.params.soapNoteId,
         req.params.organisationId,
+        parseRequiredIfMatchVersion(req),
       );
       return res.status(200).json(await serializeSoapNote(record));
     } catch (error) {
@@ -531,6 +567,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.reopenSoapNote(
         req.params.soapNoteId,
         req.params.organisationId,
+        parseRequiredIfMatchVersion(req),
       );
       return res.status(200).json(await serializeSoapNote(record));
     } catch (error) {
@@ -544,6 +581,7 @@ export const ClinicalArtifactFhirController = {
         req.params.soapNoteId,
         req.params.organisationId,
         resolveVerifiedUserId(req),
+        parseRequiredIfMatchVersion(req),
       );
       return res.status(201).json(await serializeSoapNote(record));
     } catch (error) {
@@ -557,6 +595,7 @@ export const ClinicalArtifactFhirController = {
         req.params.prescriptionId,
         req.params.organisationId,
         resolvePrescriptionActor(req),
+        parseRequiredIfMatchVersion(req),
       );
       return res
         .status(200)
@@ -574,6 +613,7 @@ export const ClinicalArtifactFhirController = {
         req.params.prescriptionId,
         req.params.organisationId,
         resolvePrescriptionActor(req),
+        parseRequiredIfMatchVersion(req),
       );
       return res
         .status(200)
@@ -591,6 +631,7 @@ export const ClinicalArtifactFhirController = {
         req.params.prescriptionId,
         req.params.organisationId,
         resolvePrescriptionActor(req),
+        parseRequiredIfMatchVersion(req),
       );
       return res
         .status(201)
@@ -608,6 +649,7 @@ export const ClinicalArtifactFhirController = {
         req.params.prescriptionId,
         req.params.organisationId,
         resolvePrescriptionActor(req),
+        parseRequiredIfMatchVersion(req),
       );
       return res.status(204).send();
     } catch (error) {
@@ -621,6 +663,7 @@ export const ClinicalArtifactFhirController = {
         req.params.prescriptionId,
         req.params.organisationId,
         resolvePrescriptionActor(req),
+        parseRequiredIfMatchVersion(req),
       );
       return res
         .status(200)
@@ -637,6 +680,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.finalizeDischargeSummary(
         req.params.dischargeSummaryId,
         req.params.organisationId,
+        parseRequiredIfMatchVersion(req),
       );
       return res
         .status(200)
@@ -651,6 +695,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.reopenDischargeSummary(
         req.params.dischargeSummaryId,
         req.params.organisationId,
+        parseRequiredIfMatchVersion(req),
       );
       return res
         .status(200)
@@ -666,6 +711,7 @@ export const ClinicalArtifactFhirController = {
         req.params.dischargeSummaryId,
         req.params.organisationId,
         resolveVerifiedUserId(req),
+        parseRequiredIfMatchVersion(req),
       );
       return res
         .status(201)
@@ -680,6 +726,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.finalizeVitalRecord(
         req.params.vitalRecordId,
         req.params.organisationId,
+        parseRequiredIfMatchVersion(req),
       );
       return res
         .status(200)
@@ -694,6 +741,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.reopenVitalRecord(
         req.params.vitalRecordId,
         req.params.organisationId,
+        parseRequiredIfMatchVersion(req),
       );
       return res
         .status(200)
@@ -709,6 +757,7 @@ export const ClinicalArtifactFhirController = {
         req.params.vitalRecordId,
         req.params.organisationId,
         resolveVerifiedUserId(req),
+        parseRequiredIfMatchVersion(req),
       );
       return res
         .status(201)

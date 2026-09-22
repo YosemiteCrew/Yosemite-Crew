@@ -154,7 +154,8 @@ describe('VitalsForm', () => {
     expect(addVitals).toHaveBeenCalledWith(
       'appt-1',
       expect.objectContaining({ weightLbs: 42, notes: 'Looks good' }),
-      'vital-1'
+      'vital-1',
+      undefined
     );
 
     // Form resets to the list view after a successful save.

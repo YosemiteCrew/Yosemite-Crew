@@ -162,6 +162,9 @@ describe("ClinicalArtifactFhirController", () => {
       body: {},
       query: {},
       headers: {},
+      header: jest.fn((name: string) =>
+        name.toLowerCase() === "if-match" ? 'W/"3"' : undefined,
+      ) as never,
     };
     buildResponse();
   });
@@ -306,6 +309,7 @@ describe("ClinicalArtifactFhirController", () => {
       "rx-1",
       "org-1",
       { actorId: "", canEditAny: false },
+      3,
     );
     expect(statusMock).toHaveBeenCalledWith(201);
     expect(statusMock).toHaveBeenCalledWith(204);
@@ -486,6 +490,45 @@ describe("ClinicalArtifactFhirController", () => {
       res as Response,
     );
     expect(statusMock).toHaveBeenCalledWith(404);
+  });
+
+  it("requires a valid If-Match generation for draft updates", async () => {
+    mockedMapper.compositionToSoapNoteInput.mockReturnValue({
+      organisationId: "org-1",
+    } as never);
+    mockedMapper.soapNoteToComposition.mockReturnValue({
+      resourceType: "Composition",
+    } as never);
+    mockedService.updateSoapNote.mockResolvedValueOnce({
+      artifact: { id: "artifact-1" },
+      soapNote: { id: "soap-1" },
+    } as never);
+
+    await ClinicalArtifactFhirController.updateSoapNote(
+      {
+        ...req,
+        body: { resourceType: "Composition" },
+      } as Request,
+      res as Response,
+    );
+
+    expect(mockedService.updateSoapNote).toHaveBeenCalledWith(
+      "soap-1",
+      expect.objectContaining({ expectedVersion: 3 }),
+      "org-1",
+    );
+
+    buildResponse();
+    await ClinicalArtifactFhirController.updateSoapNote(
+      {
+        ...req,
+        header: jest.fn(() => undefined),
+        body: { resourceType: "Composition" },
+      } as unknown as Request,
+      res as Response,
+    );
+
+    expect(statusMock).toHaveBeenCalledWith(428);
   });
 
   it("handles passport clinical-record FHIR reads for all kinds", async () => {
@@ -736,7 +779,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.soapNoteToComposition),
         record: soapRecord,
         envelope: soapComposition,
-        args: ["soap-1", "org-1"],
+        args: ["soap-1", "org-1", 3],
         status: 200,
       },
       {
@@ -750,7 +793,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.soapNoteToComposition),
         record: soapRecord,
         envelope: soapComposition,
-        args: ["soap-1", "org-1"],
+        args: ["soap-1", "org-1", 3],
         status: 200,
       },
       {
@@ -764,7 +807,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.soapNoteToComposition),
         record: soapRecord,
         envelope: soapComposition,
-        args: ["soap-1", "org-1", undefined],
+        args: ["soap-1", "org-1", undefined, 3],
         status: 201,
       },
       {
@@ -778,7 +821,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.prescriptionToMedicationRequest),
         record: prescriptionRecord,
         envelope: medicationRequest,
-        args: ["rx-1", "org-1", anonymousActor],
+        args: ["rx-1", "org-1", anonymousActor, 3],
         status: 200,
       },
       {
@@ -792,7 +835,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.prescriptionToMedicationRequest),
         record: prescriptionRecord,
         envelope: medicationRequest,
-        args: ["rx-1", "org-1", anonymousActor],
+        args: ["rx-1", "org-1", anonymousActor, 3],
         status: 200,
       },
       {
@@ -806,7 +849,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.prescriptionToMedicationRequest),
         record: prescriptionRecord,
         envelope: medicationRequest,
-        args: ["rx-1", "org-1", anonymousActor],
+        args: ["rx-1", "org-1", anonymousActor, 3],
         status: 201,
       },
       {
@@ -820,7 +863,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.dischargeSummaryToComposition),
         record: dischargeRecord,
         envelope: dischargeComposition,
-        args: ["ds-1", "org-1"],
+        args: ["ds-1", "org-1", 3],
         status: 200,
       },
       {
@@ -834,7 +877,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.dischargeSummaryToComposition),
         record: dischargeRecord,
         envelope: dischargeComposition,
-        args: ["ds-1", "org-1"],
+        args: ["ds-1", "org-1", 3],
         status: 200,
       },
       {
@@ -848,7 +891,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.dischargeSummaryToComposition),
         record: dischargeRecord,
         envelope: dischargeComposition,
-        args: ["ds-1", "org-1", undefined],
+        args: ["ds-1", "org-1", undefined, 3],
         status: 201,
       },
       {
@@ -862,7 +905,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.vitalRecordToObservation),
         record: vitalRecord,
         envelope: observation,
-        args: ["vital-1", "org-1"],
+        args: ["vital-1", "org-1", 3],
         status: 200,
       },
       {
@@ -876,7 +919,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.vitalRecordToObservation),
         record: vitalRecord,
         envelope: observation,
-        args: ["vital-1", "org-1"],
+        args: ["vital-1", "org-1", 3],
         status: 200,
       },
       {
@@ -890,7 +933,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.vitalRecordToObservation),
         record: vitalRecord,
         envelope: observation,
-        args: ["vital-1", "org-1", undefined],
+        args: ["vital-1", "org-1", undefined, 3],
         status: 201,
       },
     ];
@@ -977,6 +1020,7 @@ describe("ClinicalArtifactFhirController", () => {
         "rx-1",
         "org-1",
         { actorId: "vet-1", canEditAny: true },
+        3,
       );
     });
   });

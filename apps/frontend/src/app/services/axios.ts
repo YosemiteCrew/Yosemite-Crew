@@ -406,10 +406,12 @@ export const putData = async <T, D = unknown>(
 // DELETE Request
 export const deleteData = async <T>(
   endpoint: string,
-  params: Record<string, unknown> = {}
+  params: Record<string, unknown> = {},
+  config?: ApiRequestConfig
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.delete<T>(endpoint, {
+      ...config,
       params,
     });
   } catch (error: unknown) {
