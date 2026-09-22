@@ -861,7 +861,7 @@ function CompanionCard({ src, alt, label, species }: CompanionCardProps) {
         >
           {label}
         </span>
-        <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-faint2)' }}>
+        <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-muted)' }}>
           {species}
         </span>
       </div>
@@ -1032,7 +1032,7 @@ function ScheduleRow({
         background: 'var(--screen)',
       }}
     >
-      <span style={{ fontSize: 13, color: 'var(--ink-faint)', width: 40, flex: 'none' }}>
+      <span style={{ fontSize: 13, color: 'var(--ink-muted)', width: 40, flex: 'none' }}>
         {time}
       </span>
       <span style={{ ...SCHEDULE_ROW_AVATAR_STYLE, background: avatarBg, color: avatarColor }}>
@@ -1052,7 +1052,7 @@ function ScheduleRow({
         <span
           style={{
             fontSize: 12.5,
-            color: 'var(--ink-faint)',
+            color: 'var(--ink-muted)',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -1096,7 +1096,7 @@ function PracticeCardHeader() {
           fontSize: 13,
           fontWeight: 500,
           letterSpacing: '-0.01em',
-          color: 'var(--ink-faint)',
+          color: 'var(--ink-muted)',
         }}
       >
         Today · Thursday 3 July
@@ -1107,7 +1107,7 @@ function PracticeCardHeader() {
           alignItems: 'center',
           gap: 6,
           fontSize: 12,
-          color: 'var(--success)',
+          color: 'var(--success-text)',
           fontWeight: 700,
         }}
       >
@@ -1139,7 +1139,7 @@ function PracticeSchedule() {
         >
           Schedule
         </span>
-        <span style={{ fontSize: 13, color: 'var(--ink-faint)' }}>
+        <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>
           12 visits · ↑ 2 from yesterday
         </span>
       </div>
@@ -1258,7 +1258,7 @@ function RecordRow({ icon, text, meta }: RecordRowProps) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <span style={RECORD_ROW_ICON_STYLE}>{icon}</span>
       <span style={{ fontSize: 12.5, color: 'var(--ink-muted)', flex: 1 }}>{text}</span>
-      <span style={{ fontSize: 12, color: 'var(--ink-faint2)' }}>{meta}</span>
+      <span style={{ fontSize: 12, color: 'var(--ink-muted)' }}>{meta}</span>
     </div>
   );
 }
@@ -1367,7 +1367,7 @@ function PhoneNextVisitCard() {
           <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink-body)' }}>
             Sat 5 July · 09:00
           </span>
-          <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>
+          <span style={{ fontSize: 12, color: 'var(--ink-muted)' }}>
             Senior wellness · Dr. Weber
           </span>
         </div>
@@ -1670,7 +1670,7 @@ function DevPluginCard() {
         >
           AI Scribe · your plugin here
         </span>
-        <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>
+        <span style={{ fontSize: 12, color: 'var(--spot-ink-faint)' }}>
           Publish to the marketplace in an afternoon
         </span>
       </div>
@@ -1764,7 +1764,7 @@ function PrincipleCell({
         gap: 14,
       }}
     >
-      <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink-faint2)' }}>{number}</span>
+      <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink-muted)' }}>{number}</span>
       <h3
         style={{
           margin: 0,
@@ -1867,7 +1867,7 @@ function Principles() {
         }}
       >
         <Reveal delay={0} style={{ maxWidth: 760 }}>
-          <Eyebrow color="var(--ink-faint)">Trust, the expensive kind</Eyebrow>
+          <Eyebrow color="var(--ink-muted)">Trust, the expensive kind</Eyebrow>
           <h2
             style={{
               fontFamily: SERIF,
@@ -1970,7 +1970,7 @@ function Metric({ value, label, source, delay }: MetricProps) {
       >
         {label}
       </span>
-      <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-faint2)' }}>
+      <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-muted)' }}>
         {source}
       </span>
     </Reveal>
@@ -2002,7 +2002,7 @@ function BuildingInPublic() {
           }}
         >
           <div style={{ maxWidth: 620 }}>
-            <Eyebrow color="var(--ink-faint)">Building in public</Eyebrow>
+            <Eyebrow color="var(--ink-muted)">Building in public</Eyebrow>
             <h2
               style={{
                 fontFamily: SERIF,
