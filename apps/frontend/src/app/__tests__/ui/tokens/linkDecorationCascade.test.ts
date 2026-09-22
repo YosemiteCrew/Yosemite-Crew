@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import postcss, { type Declaration, type Rule } from 'postcss';
+import ts from 'typescript';
 
 /**
  * The cascade fight that `a { text-decoration: none !important }` started.
@@ -14,15 +15,18 @@ import postcss, { type Declaration, type Rule } from 'postcss';
  * (WCAG 2.1 AA, serious) and had to rediscover the trick - which is what #3471
  * and #3475 were filed for.
  *
- * Both halves matter, so both are asserted:
+ * All three halves matter, so all three are asserted:
  *   - no element-level `text-decoration` rule on `a` in `globals.css`, which is
  *     what made the reset blanket;
- *   - no `!important` text-decoration anywhere in the app's stylesheets, which
- *     is the tax the blanket reset collected.
+ *   - no `!important` text-decoration anywhere in the app's stylesheets, and
+ *   - no Tailwind `!` important variant on a decoration utility in any
+ *     `className`, which is the same tax in the other spelling. Both are what
+ *     the blanket reset collected.
  *
- * Read with postcss rather than a regex: a regex over the file text cannot tell
- * a declaration from the comment above it explaining why the declaration is not
- * there, and this file ships with exactly such a comment.
+ * Read with postcss and the TypeScript parser rather than a regex over the file
+ * text, which cannot tell a declaration from the comment above it explaining
+ * why the declaration is not there - both this file and the booking-page story
+ * ship exactly such a comment, and a regex would match its own explanation.
  */
 const APP = join(__dirname, '..', '..', '..');
 
@@ -37,6 +41,55 @@ const stylesheets = (): string[] => {
   };
   walk(APP);
   return found;
+};
+
+const sources = (): string[] => {
+  const found: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.tsx$/.test(entry.name)) found.push(full);
+    }
+  };
+  walk(APP);
+  return found;
+};
+
+/** `underline!`, `hover:no-underline!`, `md:line-through!` - the `!` is Tailwind's `!important`. */
+const IMPORTANT_DECORATION = /^(?:no-)?(?:underline|overline|line-through)!$/;
+
+/** The utility with its variants stripped. Split rather than matched: a pattern
+    that also consumed `hover:` / `md:` would need a nested quantifier. */
+const utility = (token: string): string => token.slice(token.lastIndexOf(':') + 1);
+
+/**
+ * Decoration utilities carrying Tailwind's `!` in a `className`, read from the
+ * JSX attributes themselves so that prose about them does not count.
+ */
+const importantClasses = (file: string): string[] => {
+  const source = ts.createSourceFile(
+    file,
+    readFileSync(file, 'utf8'),
+    ts.ScriptTarget.Latest,
+    true
+  );
+  const hits: string[] = [];
+  const visit = (node: ts.Node) => {
+    if (
+      ts.isJsxAttribute(node) &&
+      ts.isIdentifier(node.name) &&
+      (node.name.text === 'className' || node.name.text === 'class') &&
+      node.initializer
+    ) {
+      for (const token of node.initializer.getText(source).split(/[\s`'"{}]+/)) {
+        if (IMPORTANT_DECORATION.test(utility(token))) hits.push(token);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return hits;
 };
 
 /** Every `text-decoration*` declaration in a sheet, with the selector it sits under. */
@@ -69,6 +122,14 @@ describe('link text-decoration cascade', () => {
           ({ selector, declaration }) =>
             `${file.slice(APP.length + 1)}: ${selector} { ${declaration.toString()} }`
         )
+    );
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('needs no Tailwind `!` variant to decorate a link either', () => {
+    const offenders = sources().flatMap((file) =>
+      importantClasses(file).map((token) => `${file.slice(APP.length + 1)}: ${token}`)
     );
 
     expect(offenders).toEqual([]);
