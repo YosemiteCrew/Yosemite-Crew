@@ -19,8 +19,7 @@ const DESKTOP = { width: 1280, height: 900 };
    fetch on first focus; `load` plus fonts is enough and `networkidle` is not
    needed. Fonts matter: every width measured here is a text-fit question. */
 const openDocs = async (page: Page) => {
-  await page.goto('/docs');
-  await page.waitForLoadState('load');
+  await page.goto('/docs', { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => document.fonts.ready);
   await expect(page.locator('.DocsTopBar')).toBeVisible();
 };
@@ -140,6 +139,41 @@ test.describe('docs navigation on a wide window', () => {
     expect(await nav.evaluate((el) => el.getBoundingClientRect().top)).toBeGreaterThan(0);
   });
 });
+
+for (const viewport of [NARROW, { width: 1024, height: 800 }, DESKTOP]) {
+  test.describe(`docs table of contents at ${viewport.width}px`, () => {
+    test.use({ viewport });
+
+    test('shows keyboard-operable compact navigation only below the desktop breakpoint', async ({
+      page,
+    }) => {
+      await openDocs(page);
+
+      const compactToc = page.locator('.DocsTocCompact');
+      const desktopToc = page.locator('.DocsToc');
+
+      if (viewport.width <= 1180) {
+        await expect(compactToc).toBeVisible();
+        await expect(desktopToc).toBeHidden();
+        await expect(compactToc).not.toHaveAttribute('open');
+
+        const summary = compactToc.locator('summary');
+        await summary.focus();
+        await expect(summary).toBeFocused();
+        await summary.press('Enter');
+        await expect(compactToc).toHaveAttribute('open', '');
+
+        const prerequisiteLink = compactToc.locator('a[href="#prerequisites"]');
+        await expect(prerequisiteLink).toBeVisible();
+        await prerequisiteLink.click();
+        await expect(page).toHaveURL(/#prerequisites$/);
+      } else {
+        await expect(compactToc).toBeHidden();
+        await expect(desktopToc).toBeVisible();
+      }
+    });
+  });
+}
 
 /**
  * Measures the prompt the way the browser draws it - a span carrying the
