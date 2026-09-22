@@ -3643,6 +3643,254 @@ describe("InventoryConsumptionService", () => {
     );
   });
 
+  it("joins the caller's transaction instead of opening one of its own", async () => {
+    // #3495: the in-transaction variant exists so the stock move commits with
+    // whatever the caller is claiming. Opening a transaction of its own would
+    // put the release back outside that boundary, which is the defect.
+    const txClient = { ...mockedPrisma, __tx: true };
+    mockedPrisma.inventoryStockMovement.findMany.mockResolvedValueOnce([
+      {
+        id: "movement-in-tx",
+        itemId: "item-in-tx",
+        batchId: "batch-in-tx",
+        change: -1,
+        referenceId: "rx-in-tx",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    ]);
+    mockedPrisma.inventoryItem.findFirst.mockResolvedValueOnce({
+      id: "item-in-tx",
+      organisationId: "org-1",
+      onHand: 4,
+      allocated: 0,
+    });
+    mockedPrisma.inventoryBatch.findMany.mockResolvedValueOnce([
+      { id: "batch-in-tx", quantity: 4 },
+    ]);
+    mockedPrisma.inventoryBatch.update.mockResolvedValue({});
+    mockedPrisma.inventoryStockMovement.create.mockResolvedValue({});
+    mockedPrisma.inventoryItem.update.mockResolvedValue({});
+    mockedPrisma.inventoryConsumptionEvent.create.mockResolvedValue({
+      id: "event-in-tx",
+    });
+    mockedPrisma.$transaction.mockClear();
+
+    await InventoryConsumptionService.voidDispensePrescriptionInTx(
+      txClient as never,
+      {
+        organisationId: "org-1",
+        prescriptionId: "rx-in-tx",
+        medications: [
+          {
+            inventoryItemId: "item-in-tx",
+            batchId: "batch-in-tx",
+            quantity: 1,
+            sourceLineKey: "line-in-tx",
+          },
+        ],
+      },
+    );
+
+    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+    expect(mockedPrisma.inventoryStockMovement.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          reason: "PRESCRIPTION_VOID_DISPENSE",
+          change: 1,
+        }),
+      }),
+    );
+  });
+
+  it("marks a pending request not dispensed on the caller's transaction", async () => {
+    const txClient = {
+      ...mockedPrisma,
+      prescriptionDispenseRequest: mockedPrisma.prescriptionDispenseRequest,
+    };
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+      id: "request-in-tx",
+      status: "PENDING",
+    });
+    mockedPrisma.prescriptionDispenseRequest.update.mockResolvedValueOnce({});
+    mockedPrisma.$transaction.mockClear();
+
+    const updatedId =
+      await InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx(
+        txClient as never,
+        { organisationId: "org-1", prescriptionId: "rx-in-tx" },
+      );
+
+    expect(updatedId).toBe("request-in-tx");
+    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.update,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "request-in-tx" },
+        data: expect.objectContaining({ status: "NOT_DISPENSED" }),
+      }),
+    );
+  });
+
+  it("is a no-op in the caller's transaction when no pending request is left", async () => {
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
+      null,
+    );
+
+    await expect(
+      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx(
+        mockedPrisma as never,
+        { organisationId: "org-1", prescriptionId: "rx-none" },
+      ),
+    ).resolves.toBeNull();
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.update,
+    ).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "a blank organisationId",
+      { organisationId: "  ", prescriptionId: "rx-1" },
+    ],
+    [
+      "a blank prescriptionId",
+      { organisationId: "org-1", prescriptionId: "  " },
+    ],
+  ])("refuses %s on the in-transaction mark", async (_label, params) => {
+    await expect(
+      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx(
+        mockedPrisma as never,
+        params,
+      ),
+    ).rejects.toBeInstanceOf(InventoryConsumptionServiceError);
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.findFirst,
+    ).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "a blank organisationId",
+      { organisationId: "  ", prescriptionId: "rx-1" },
+    ],
+    [
+      "a blank prescriptionId",
+      { organisationId: "org-1", prescriptionId: "  " },
+    ],
+  ])("refuses %s on the in-transaction void", async (_label, params) => {
+    await expect(
+      InventoryConsumptionService.voidDispensePrescriptionInTx(
+        mockedPrisma as never,
+        { ...params, medications: [] },
+      ),
+    ).rejects.toBeInstanceOf(InventoryConsumptionServiceError);
+  });
+
+  it("does not credit stock twice when a void is replayed", async () => {
+    // Stand-ins for the two things the database enforces: the unique index on
+    // idempotencyKey, and the ledger the release nets itself against. Both are
+    // load-bearing - with the dedupe removed the netting refuses the replay
+    // outright rather than letting it through.
+    const events = new Map<string, { id: string; idempotencyKey: string }>();
+    const movements = [
+      {
+        id: "m0",
+        itemId: "item-replay",
+        batchId: "batch-replay",
+        change: -3,
+        referenceId: "rx-replay",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    ];
+    let onHand = 7;
+    let batchQuantity = 7;
+
+    mockedPrisma.inventoryConsumptionEvent.findUnique.mockImplementation(
+      async ({ where }: { where: { idempotencyKey: string } }) =>
+        events.get(where.idempotencyKey) ?? null,
+    );
+    mockedPrisma.inventoryConsumptionEvent.create.mockImplementation(
+      async ({ data }: { data: { idempotencyKey: string } }) => {
+        const row = {
+          id: `event-replay-${events.size + 1}`,
+          idempotencyKey: data.idempotencyKey,
+        };
+        events.set(data.idempotencyKey, row);
+        return row;
+      },
+    );
+    mockedPrisma.inventoryStockMovement.findMany.mockImplementation(
+      async () => [...movements],
+    );
+    mockedPrisma.inventoryStockMovement.create.mockImplementation(
+      async ({
+        data,
+      }: {
+        data: {
+          itemId: string;
+          batchId?: string;
+          change: number;
+          referenceId: string;
+        };
+      }) => {
+        movements.push({
+          id: `m${movements.length}`,
+          itemId: data.itemId,
+          batchId: data.batchId ?? "batch-replay",
+          change: data.change,
+          referenceId: data.referenceId,
+          createdAt: new Date(),
+        });
+        return {};
+      },
+    );
+    mockedPrisma.inventoryItem.findFirst.mockImplementation(async () => ({
+      id: "item-replay",
+      organisationId: "org-1",
+      onHand,
+      allocated: 0,
+    }));
+    mockedPrisma.inventoryItem.update.mockImplementation(
+      async ({ data }: { data: { onHand?: number } }) => {
+        if (typeof data.onHand === "number") onHand = data.onHand;
+        return {};
+      },
+    );
+    mockedPrisma.inventoryBatch.findMany.mockImplementation(async () => [
+      { id: "batch-replay", quantity: batchQuantity },
+    ]);
+    mockedPrisma.inventoryBatch.update.mockImplementation(
+      async ({ data }: { data: { quantity?: { increment?: number } } }) => {
+        batchQuantity += data.quantity?.increment ?? 0;
+        return {};
+      },
+    );
+
+    const params = {
+      organisationId: "org-1",
+      prescriptionId: "rx-replay",
+      medications: [
+        {
+          inventoryItemId: "item-replay",
+          batchId: "batch-replay",
+          quantity: 3,
+          sourceLineKey: "line-replay",
+        },
+      ],
+    };
+
+    await InventoryConsumptionService.voidDispensePrescription(params);
+    expect(onHand).toBe(10);
+
+    await InventoryConsumptionService.voidDispensePrescription(params);
+
+    expect(onHand).toBe(10);
+    expect(batchQuantity).toBe(10);
+    expect(events.size).toBe(1);
+    expect(movements).toHaveLength(2);
+  });
+
   it("voids a dispense with a null original metadata when none is supplied", async () => {
     mockedPrisma.inventoryStockMovement.findMany.mockResolvedValueOnce([
       {

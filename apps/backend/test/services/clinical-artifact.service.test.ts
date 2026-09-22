@@ -14,8 +14,10 @@ jest.mock("../../src/services/inventory-consumption.service", () => ({
     approvePrescriptionDispenseRequest: jest.fn(),
     createPrescriptionDispenseRequest: jest.fn(),
     markPrescriptionDispenseRequestNotDispensed: jest.fn(),
+    markPrescriptionDispenseRequestNotDispensedInTx: jest.fn(),
     releasePrescription: jest.fn(),
     voidDispensePrescription: jest.fn(),
+    voidDispensePrescriptionInTx: jest.fn(),
   },
 }));
 
@@ -2613,14 +2615,20 @@ describe("ClinicalArtifactService", () => {
       { actorId: "actor-1", canEditAny: true },
     );
 
+    // The in-transaction variant, and with the same transaction client the
+    // version claim below runs on: that is what makes a lost claim roll the
+    // stock back with it (#3495).
     expect(
-      InventoryConsumptionService.voidDispensePrescription,
-    ).toHaveBeenCalledWith({
+      InventoryConsumptionService.voidDispensePrescriptionInTx,
+    ).toHaveBeenCalledWith(mockedPrisma, {
       organisationId,
       prescriptionId: "prescription-1",
       medications: prescription.medications,
       metadata: prescription.metadata,
     });
+    expect(
+      InventoryConsumptionService.voidDispensePrescription,
+    ).not.toHaveBeenCalled();
     expect(mockedPrisma.workspaceTreatmentItem.deleteMany).toHaveBeenCalledWith(
       {
         where: {
@@ -2634,6 +2642,81 @@ describe("ClinicalArtifactService", () => {
       data: { status: "VOID", summary: null, version: { increment: 1 } },
     });
     expect(result.artifact.status).toBe("VOID");
+  });
+
+  it("rolls the inventory release back with a lost version claim", async () => {
+    // A distinct client for the transaction body, so "the release ran inside
+    // the transaction" is something this test can actually see rather than
+    // infer: the old shape released through the root client, on its own, and
+    // committed before the claim below was ever attempted.
+    const txClient = { ...mockedPrisma, __tx: true };
+    const committed: string[] = [];
+    mockedPrisma.$transaction.mockImplementation(async (callback: unknown) => {
+      if (typeof callback !== "function") return undefined;
+      const writes: string[] = [];
+      try {
+        const result = await (
+          callback as (client: unknown) => Promise<unknown>
+        )({
+          ...txClient,
+          clinicalArtifact: {
+            ...mockedPrisma.clinicalArtifact,
+            update: (...args: unknown[]) => {
+              writes.push("artifact-void");
+              return mockedPrisma.clinicalArtifact.update(...args);
+            },
+          },
+        });
+        committed.push(...writes);
+        return result;
+      } catch (error) {
+        // Rolled back: nothing this callback wrote reaches `committed`.
+        throw error;
+      }
+    });
+
+    mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+      prescriptionRow({
+        artifact: artifactRow({ kind: "PRESCRIPTION", status: "COMPLETED" }),
+      }) as never,
+    );
+    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+      id: "dispense-1",
+      status: "DISPENSED",
+    });
+    mockedPrisma.workspaceTreatmentItem.deleteMany.mockResolvedValueOnce({
+      count: 1,
+    });
+    // The losing side of the race: another writer bumped the version, so the
+    // claim matches no row.
+    mockedPrisma.clinicalArtifact.update.mockRejectedValueOnce(
+      new Error("Record to update not found"),
+    );
+
+    await expect(
+      ClinicalArtifactService.cancelPrescription(
+        "prescription-1",
+        organisationId,
+        { actorId: "actor-1", canEditAny: true },
+      ),
+    ).rejects.toThrow("Record to update not found");
+
+    // The release went through the transaction's client, so the rollback that
+    // discards the VOID update discards the stock movement too.
+    expect(
+      InventoryConsumptionService.voidDispensePrescriptionInTx,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      jest.mocked(InventoryConsumptionService.voidDispensePrescriptionInTx).mock
+        .calls[0][0],
+    ).toMatchObject({ __tx: true });
+    // Never the self-committing variant: that one survives the rollback, which
+    // is the whole of #3495.
+    expect(
+      InventoryConsumptionService.voidDispensePrescription,
+    ).not.toHaveBeenCalled();
+    expect(committed).toEqual([]);
   });
 
   it("marks a pending dispense request not dispensed when cancelling", async () => {
@@ -2689,14 +2772,14 @@ describe("ClinicalArtifactService", () => {
     );
 
     expect(
-      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
-    ).toHaveBeenCalledWith({
+      InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx,
+    ).toHaveBeenCalledWith(mockedPrisma, {
       organisationId,
       prescriptionId: "prescription-1",
       metadata: null,
     });
     expect(
-      InventoryConsumptionService.voidDispensePrescription,
+      InventoryConsumptionService.voidDispensePrescriptionInTx,
     ).not.toHaveBeenCalled();
   });
 
@@ -4428,23 +4511,25 @@ describe("ClinicalArtifactService", () => {
         data: { status: "VOID", summary: null, version: { increment: 1 } },
       });
       expect(
-        InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
-      ).toHaveBeenCalledWith({
+        InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx,
+      ).toHaveBeenCalledWith(mockedPrisma, {
         organisationId,
         prescriptionId: "prescription-original",
         metadata: null,
       });
+      // The retirement of the original and the reversal of its dispense now sit
+      // in one transaction (#3495), so the reversal runs before the VOID update
+      // rather than after the transaction has already committed. Both still
+      // precede the new request raised for the revision, which is outside it.
       expect(
-        mockedPrisma.clinicalArtifact.update.mock.invocationCallOrder[1],
-      ).toBeLessThan(
         jest.mocked(
-          InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+          InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx,
         ).mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        mockedPrisma.clinicalArtifact.update.mock.invocationCallOrder[1],
       );
       expect(
-        jest.mocked(
-          InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
-        ).mock.invocationCallOrder[0],
+        mockedPrisma.clinicalArtifact.update.mock.invocationCallOrder[1],
       ).toBeLessThan(
         jest.mocked(
           InventoryConsumptionService.createPrescriptionDispenseRequest,

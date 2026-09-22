@@ -1781,19 +1781,27 @@ const preparePrescriptionRetirement = async (
   });
 };
 
-const reversePrescriptionDispense = async (
+// Inside the caller's transaction, not beside it (#3495). Releasing the stock
+// in a transaction of its own left the release committed when the version claim
+// that follows lost its race and rolled everything else back: stock back on the
+// shelf for a prescription still SIGNED with its dispense request still
+// DISPENSED. Joined to the claim, a losing cancel now mutates no stock at all,
+// which is what #3144's oracle asks for.
+const reversePrescriptionDispenseInTx = async (
+  tx: Prisma.TransactionClient,
   record: PrescriptionWithArtifact,
   request: PrescriptionDispenseRequestModel | null,
 ): Promise<void> => {
   if (request?.status === "DISPENSED") {
-    await InventoryConsumptionService.voidDispensePrescription({
+    await InventoryConsumptionService.voidDispensePrescriptionInTx(tx, {
       organisationId: record.artifact.organisationId,
       prescriptionId: record.id,
       medications: record.medications,
       metadata: record.metadata as Prisma.InputJsonValue | undefined,
     });
   } else if (request?.status === "PENDING") {
-    await InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed(
+    await InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx(
+      tx,
       {
         organisationId: record.artifact.organisationId,
         prescriptionId: record.id,
@@ -2122,18 +2130,16 @@ export const ClinicalArtifactService = {
         // Both status changes commit or roll back together. Keeping this after
         // every revision write also leaves the original untouched when any
         // revision persistence step fails.
+        await reversePrescriptionDispenseInTx(
+          tx,
+          supersededPrescription,
+          supersededDispenseRequest,
+        );
         await retirePrescriptionInTx(txPrisma, supersededPrescription);
       }
 
       return buildPrescriptionRecord(artifact, prescription);
     });
-
-    if (supersededPrescription) {
-      await reversePrescriptionDispense(
-        supersededPrescription,
-        supersededDispenseRequest,
-      );
-    }
 
     if (DOCUMENT_BACKED_CLINICAL_KINDS.has(updated.artifact.kind)) {
       await persistClinicalArtifactRenderedDocumentPdf(updated.artifact.id);
@@ -2252,11 +2258,14 @@ export const ClinicalArtifactService = {
       organisationId,
       actor,
     );
-    await reversePrescriptionDispense(record, dispenseRequest);
-
-    const artifact = await prisma.$transaction((tx) =>
-      retirePrescriptionInTx(tx as ClinicalPrisma, record, expectedVersion),
-    );
+    const artifact = await prisma.$transaction(async (tx) => {
+      await reversePrescriptionDispenseInTx(tx, record, dispenseRequest);
+      return retirePrescriptionInTx(
+        tx as ClinicalPrisma,
+        record,
+        expectedVersion,
+      );
+    });
 
     return buildPrescriptionRecord(artifact, record);
   },
