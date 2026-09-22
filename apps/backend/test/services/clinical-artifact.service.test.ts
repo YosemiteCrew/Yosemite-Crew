@@ -2555,6 +2555,109 @@ describe("ClinicalArtifactService", () => {
     ).rejects.toMatchObject({ statusCode: 409 });
   });
 
+  it("releases the lines held as item rows when the medications column is null", async () => {
+    // #3511. `createPrescription` and `updatePrescription` persist a
+    // prescription's medications as PrescriptionItem rows and never write
+    // `Prescription.medications`, so the column is null for every
+    // clinician-created prescription. Handed that null, the release resolves no
+    // lines and returns having moved nothing - no error and no event - leaving
+    // the drawn stock against a VOID prescription. The reversal has to be given
+    // the same item-derived list `buildPrescriptionRecord` exposes.
+    const prescription = {
+      id: "prescription-1",
+      artifactId,
+      supersedesId: null,
+      medications: null,
+      instructions: null,
+      notes: null,
+      metadata: { dispenseStockSource: "NORMAL" },
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      items: [
+        {
+          id: "item-row-1",
+          prescriptionId: "prescription-1",
+          sourceLineKey: "line-1",
+          medication: "Amoxicillin",
+          strength: null,
+          dosage: null,
+          route: null,
+          frequency: null,
+          duration: null,
+          quantity: "2",
+          instructions: null,
+          refill: null,
+          inventoryItemId: "item-1",
+          inventoryItemSku: null,
+          batchId: null,
+          batchNumber: null,
+          lotNumber: null,
+          expiryDate: null,
+          metadata: null,
+          sortOrder: 0,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ],
+      artifact: {
+        version: 1,
+        id: artifactId,
+        organisationId,
+        appointmentId: "appt-1",
+        caseId: null,
+        encounterId: "enc-1",
+        kind: "PRESCRIPTION",
+        status: "COMPLETED",
+        templateId: null,
+        templateVersion: null,
+        templateVersionId: null,
+        authorId: "author-1",
+        signedBy: null,
+        signedAt: null,
+        summary: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    };
+    mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+      prescription as never,
+    );
+    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
+    (
+      InventoryConsumptionService.loadDispenseRequestForRetirementInTx as jest.Mock
+    ).mockResolvedValueOnce({
+      id: "dispense-1",
+      status: "DISPENSED",
+    });
+    mockedPrisma.workspaceTreatmentItem.deleteMany.mockResolvedValueOnce({
+      count: 0,
+    });
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      ...prescription.artifact,
+      status: "VOID",
+    });
+
+    await ClinicalArtifactService.cancelPrescription(
+      artifactId,
+      organisationId,
+      { actorId: "actor-1", canEditAny: true },
+    );
+
+    const [, releaseArgs] = jest.mocked(
+      InventoryConsumptionService.voidDispensePrescriptionInTx,
+    ).mock.calls[0] as [unknown, { medications: unknown }];
+    // A null here is the defect: zero resolved lines, nothing released.
+    expect(releaseArgs.medications).not.toBeNull();
+    expect(releaseArgs.medications).toEqual([
+      expect.objectContaining({
+        sourceLineKey: "line-1",
+        medication: "Amoxicillin",
+        quantity: 2,
+        inventoryItemId: "item-1",
+      }),
+    ]);
+  });
+
   it("cancels an unbilled dispensed prescription and reverses inventory", async () => {
     const prescription = {
       id: "prescription-1",

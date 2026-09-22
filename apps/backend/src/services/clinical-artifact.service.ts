@@ -1816,6 +1816,19 @@ const preparePrescriptionRetirement = async (
  * Both callers - the cancel path and the supersession half of
  * `updatePrescription` - go through here, so there is no self-committing form
  * of this left to reach for by accident.
+ *
+ * The release is given the item-derived lines, not the raw
+ * `Prescription.medications` column (#3511). `createPrescription` and
+ * `updatePrescription` persist a prescription's medications as
+ * `PrescriptionItem` rows and never write that column, so it is null for every
+ * clinician-created prescription. Handed a null, `resolvePrescriptionLines`
+ * resolves no lines and the release returns having moved nothing - no error,
+ * no event - leaving the drawn stock against a VOID prescription. Only the
+ * package-expansion path in `case-encounter.service` writes the column, and
+ * `prescriptionMedicationsFromItems` falls back to it when a prescription has
+ * no item rows, so that path is unchanged. This is the same value
+ * `buildPrescriptionRecord` exposes and the `$void-dispense` controller
+ * already passes.
  */
 const reversePrescriptionDispenseInTx = async (
   tx: Prisma.TransactionClient,
@@ -1826,7 +1839,7 @@ const reversePrescriptionDispenseInTx = async (
     await InventoryConsumptionService.voidDispensePrescriptionInTx(tx, {
       organisationId: record.artifact.organisationId,
       prescriptionId: record.id,
-      medications: record.medications,
+      medications: prescriptionMedicationsFromItems(record),
       metadata: record.metadata as Prisma.InputJsonValue | undefined,
     });
   } else if (request?.status === "PENDING") {
