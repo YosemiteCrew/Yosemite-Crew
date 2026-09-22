@@ -11,7 +11,10 @@ import {
   InventoryConsumptionServiceError,
 } from "src/services/inventory-consumption.service";
 import { renderPrescriptionLabelPdf } from "src/services/rendered-document-renderer.service";
-import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
+import {
+  createFhirErrorHandler,
+  logUnversionedClinicalMutation,
+} from "src/controllers/web/fhir-controller.shared";
 import { resolveVerifiedUserId } from "src/utils/request";
 import logger from "src/utils/logger";
 
@@ -175,6 +178,9 @@ export const PrescriptionController = {
   async finalize(req: Request, res: Response) {
     try {
       const body = finalizeBodySchema.parse(req.body ?? {});
+      if (body.expectedVersion === undefined) {
+        logUnversionedClinicalMutation(req, "prescription-finalize");
+      }
       const orgRequest = req as OrgRequest;
       const prescription = await ClinicalArtifactService.finalizePrescription(
         req.params.prescriptionId,

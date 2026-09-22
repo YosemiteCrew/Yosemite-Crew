@@ -12,7 +12,10 @@ import {
 import { clinicalArtifactFhirMapper } from "src/services/fhir-clinical-artifact.mapper";
 import { SoapCodedTermsFhirService } from "src/services/soap-coded-terms.service";
 import type { SoapNoteRecord } from "@yosemite-crew/types";
-import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
+import {
+  createFhirErrorHandler,
+  logUnversionedClinicalMutation,
+} from "src/controllers/web/fhir-controller.shared";
 import { resolveVerifiedUserId } from "src/utils/request";
 import type { PrescriptionActor } from "src/services/clinical-artifact.service";
 import type { OrgRequest } from "src/middlewares/rbac";
@@ -64,6 +67,7 @@ const handleError = createFhirErrorHandler({
 const parseIfMatchVersion = (req: Request): number | undefined => {
   const value = req.header("if-match")?.trim();
   if (!value) {
+    logUnversionedClinicalMutation(req, "clinical-artifact-write");
     return undefined;
   }
 
