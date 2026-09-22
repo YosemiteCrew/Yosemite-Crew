@@ -16,6 +16,9 @@ jest.mock('@/app/stores/appointmentWorkspaceStore', () => ({
 }));
 
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
+  // Spread the real module so the pure conflict-message helper and the shared
+  // conflict copy stay under test; only the network calls are replaced.
+  ...jest.requireActual('@/app/features/appointments/services/workspaceClinicalService'),
   saveVitalRecord: jest.fn(),
 }));
 
@@ -154,7 +157,8 @@ describe('VitalsForm', () => {
     expect(addVitals).toHaveBeenCalledWith(
       'appt-1',
       expect.objectContaining({ weightLbs: 42, notes: 'Looks good' }),
-      'vital-1'
+      'vital-1',
+      undefined
     );
 
     // Form resets to the list view after a successful save.

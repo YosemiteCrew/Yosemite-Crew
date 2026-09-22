@@ -13,6 +13,9 @@ import {
 expect.extend(toHaveNoViolations);
 
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
+  // Spread the real module so the pure conflict-message helper and the shared
+  // conflict copy stay under test; only the network calls are replaced.
+  ...jest.requireActual('@/app/features/appointments/services/workspaceClinicalService'),
   saveSoapNote: jest.fn(),
 }));
 
@@ -66,7 +69,10 @@ describe('SoapStep', () => {
     reset();
     onRecordVitals.mockClear();
     onSaveAndNext.mockClear();
-    (saveSoapNote as jest.Mock).mockResolvedValue({ id: 'soap-saved' });
+    (saveSoapNote as jest.Mock).mockResolvedValue({
+      id: 'soap-saved',
+      meta: { versionId: '6' },
+    });
     (getWorkspaceTemplateById as jest.Mock).mockReset();
     (getWorkspaceTemplateById as jest.Mock).mockResolvedValue(undefined);
     (resolveSoapTemplate as jest.Mock).mockReset();
@@ -426,6 +432,10 @@ describe('SoapStep', () => {
     const [, savedNote] = (saveSoapNote as jest.Mock).mock.calls[0];
     expect(savedNote.codedProblems).toEqual({
       assessment: [{ ycCode: 'YC-000123', label: 'Gastritis' }],
+    });
+    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.soap[0]).toMatchObject({
+      id: 'soap-saved',
+      artifactVersion: 6,
     });
   });
 

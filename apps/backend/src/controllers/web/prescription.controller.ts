@@ -11,13 +11,25 @@ import {
   InventoryConsumptionServiceError,
 } from "src/services/inventory-consumption.service";
 import { renderPrescriptionLabelPdf } from "src/services/rendered-document-renderer.service";
-import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
+import {
+  createFhirErrorHandler,
+  logUnversionedClinicalMutation,
+} from "src/controllers/web/fhir-controller.shared";
 import { resolveVerifiedUserId } from "src/utils/request";
 import logger from "src/utils/logger";
 
 const actionBodySchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
   reason: z.string().trim().min(1).optional(),
+});
+
+// #3144 deploy order, same reasoning as `parseIfMatchVersion` in the clinical-artifact FHIR
+// controller: this release teaches the client to send the version, the next one demands it. A tab
+// on the previous bundle posts `$finalize` with an empty body; rejecting that would break finalize
+// and its inventory dispense for the length of the deploy. Absent means "no precondition", which
+// is how `dev` behaves today; a supplied value is still validated and enforced.
+const finalizeBodySchema = actionBodySchema.extend({
+  expectedVersion: z.number().int().positive().optional(),
 });
 
 const dispenseRequestListQuerySchema = z.object({
@@ -165,6 +177,10 @@ export const PrescriptionController = {
 
   async finalize(req: Request, res: Response) {
     try {
+      const body = finalizeBodySchema.parse(req.body ?? {});
+      if (body.expectedVersion === undefined) {
+        logUnversionedClinicalMutation(req, "prescription-finalize");
+      }
       const orgRequest = req as OrgRequest;
       const prescription = await ClinicalArtifactService.finalizePrescription(
         req.params.prescriptionId,
@@ -175,6 +191,7 @@ export const PrescriptionController = {
             orgRequest.userPermissions?.includes("prescription:edit:any") ??
             false,
         },
+        body.expectedVersion,
       );
       return res
         .status(200)

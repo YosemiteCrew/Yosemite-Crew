@@ -28,7 +28,11 @@ import {
   formatStampTime,
   resolveSectionLock,
 } from '@/app/lib/appointmentWorkspace';
-import { saveSoapNote } from '@/app/features/appointments/services/workspaceClinicalService';
+import {
+  artifactVersionFromMeta,
+  getClinicalArtifactMutationErrorMessage,
+  saveSoapNote,
+} from '@/app/features/appointments/services/workspaceClinicalService';
 import {
   getWorkspaceTemplateById,
   resolveSoapTemplate,
@@ -382,7 +386,6 @@ const SoapStep = ({
     // Drive the autosave indicator off this explicit save (no separate autosave
     // engine): "Saving…" now, then "Autosaved" on success or "Offline" on failure.
     setSaveStatus(appointmentId, 'saving');
-    let persistedId: string | undefined;
     try {
       if (organisationId) {
         const noteForSave =
@@ -404,10 +407,16 @@ const SoapStep = ({
           },
           noteForSave
         );
-        persistedId = (saved as { id?: string } | undefined)?.id;
+        const persistedId = (saved as { id?: string } | undefined)?.id;
         const savedSignedByName = (saved as { signedByName?: string } | undefined)?.signedByName;
         const signerName = savedSignedByName?.trim() || authorName?.trim() || encounter.leadName;
-        signSoap(appointmentId, signerName ?? 'Clinician', false, persistedId);
+        signSoap(
+          appointmentId,
+          signerName ?? 'Clinician',
+          false,
+          persistedId,
+          artifactVersionFromMeta(saved)
+        );
       } else {
         signSoap(appointmentId, authorName?.trim() || encounter.leadName || 'Clinician', false);
       }
@@ -416,7 +425,10 @@ const SoapStep = ({
       // unsaved clinical note as signed. Surface the backend error and stop.
       console.error('Unable to persist SOAP note:', error);
       setSaveError(
-        error instanceof Error ? error.message : 'Unable to save the SOAP note. Please try again.'
+        getClinicalArtifactMutationErrorMessage(
+          error,
+          error instanceof Error ? error.message : 'Unable to save the SOAP note. Please try again.'
+        )
       );
       setSaveStatus(appointmentId, 'offline');
       setIsSaving(false);
