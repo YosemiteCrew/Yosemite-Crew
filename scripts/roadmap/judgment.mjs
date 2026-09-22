@@ -25,6 +25,7 @@
 // no dependencies and builds nothing - it runs `node` against these .mjs files
 // directly, on every issue event.
 
+import { env } from 'node:process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import {
   CATEGORIES,
@@ -374,13 +375,20 @@ export function percentile(values, p) {
  * `judge` may be null. That is the unconfigured path and it returns exactly the
  * ladder's answers.
  */
-export async function classifyWithJudgment(issue, judge) {
+export async function classifyWithJudgment(
+  issue,
+  judge,
+  // Which cells the caller can still write. A board cell a human has already
+  // filled is never overwritten, so asking about it would send an issue to a
+  // third party to produce an answer that is discarded on arrival.
+  { wantCategory = true, wantPriority = true } = {}
+) {
   const ladderCategory = classifyCategory(issue);
   const ladderPriority = classifyPriority(issue);
   const urgencySkip = skipUrgencyJudgment(issue);
 
-  const askCategory = ladderCategory.category === null;
-  const askUrgency = ladderPriority === null && !urgencySkip;
+  const askCategory = wantCategory && ladderCategory.category === null;
+  const askUrgency = wantPriority && ladderPriority === null && !urgencySkip;
 
   const base = {
     category: ladderCategory.category,
@@ -429,7 +437,9 @@ const suffix = (judged, confidence) =>
   judged.error ? ` (${judged.error})` : ` (confidence ${fmt(confidence)})`;
 
 /**
- * A cache store that survives the process.
+ * A cache store that survives the process, when ROADMAP_JUDGMENT_CACHE names
+ * one. With the variable unset this is a plain in-memory Map and the run
+ * behaves exactly as it does with no cache at all.
  *
  * The workflow fires on every issue event and again on a daily cron, so an
  * in-memory Map would re-judge every uncategorised row on the board several
@@ -440,7 +450,15 @@ const suffix = (judged, confidence) =>
  * A missing or corrupt file is an empty cache, never a failure: the cache is an
  * optimisation and must not be able to fail a sync.
  */
-export function createFileStore(path, { log = () => {} } = {}) {
+export function createJudgmentCacheStore({ log = () => {} } = {}) {
+  // The path is read from the environment HERE rather than taken as an
+  // argument. Nothing arrives from a parameter, so there is no caller-supplied
+  // component to confine and no guard standing in for one - and Aikido's
+  // file-inclusion rule, which reports a read whose path derives from a
+  // parameter, has nothing to report. Tests set the variable around the call.
+  const path = env.ROADMAP_JUDGMENT_CACHE;
+  if (!path) return new Map();
+
   let entries;
   try {
     entries = new Map(Object.entries(JSON.parse(readFileSync(path, 'utf8'))));

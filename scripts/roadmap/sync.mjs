@@ -38,7 +38,11 @@ import {
   PRIORITIES,
   STATUS_RANK,
 } from './classify.mjs';
-import { classifyWithJudgment, createFileStore, createJudgmentClient } from './judgment.mjs';
+import {
+  classifyWithJudgment,
+  createJudgmentCacheStore,
+  createJudgmentClient,
+} from './judgment.mjs';
 
 const OWNER = env.ROADMAP_OWNER || 'YosemiteCrew';
 const REPO = env.ROADMAP_REPO || 'Yosemite-Crew';
@@ -62,7 +66,6 @@ const token = env.ROADMAP_TOKEN || env.GITHUB_TOKEN;
 // client makes exactly the board writes it made before this existed, so a
 // missing key is a quieter board rather than a broken one.
 const JUDGMENT_TOKEN = env.ROADMAP_JUDGMENT_TOKEN || null;
-const JUDGMENT_CACHE_PATH = env.ROADMAP_JUDGMENT_CACHE || null;
 
 const log = (msg) => {
   if (!AS_JSON) stdout.write(`${msg}\n`);
@@ -409,10 +412,21 @@ export async function reconcileIssue({
   const ref = `#${issue.number}`;
   const labels = (issue.labels?.nodes || []).map((l) => l.name);
 
+  // Read the board FIRST. A cell a human already filled is never overwritten,
+  // so classifying for one would send the issue to a third party to produce an
+  // answer that is discarded on arrival - and with both cells filled there is
+  // nothing to decide at all and no request is made.
+  const wantCategory = !fieldValue(item, 'Category');
+  // Held in a variable because the target date below depends on it, and a value
+  // a human already set must drive that target rather than the derived one.
+  let priority = fieldValue(item, 'Priority');
+  const wantPriority = !priority;
+
   // One call, one request: the ladder decides first and a typed judgment is
-  // asked only about whatever it left null. Both answers are needed before
-  // either is written, so they are resolved together rather than a request per
-  // cell.
+  // asked only about whatever it left null AND the board still wants. With both
+  // cells already filled the want flags make that no questions and no request;
+  // there is deliberately no second short-circuit here, because a branch whose
+  // removal changes nothing observable is not a guard, it is decoration.
   const decided = await classifyWithJudgment(
     {
       number: issue.number,
@@ -421,15 +435,18 @@ export async function reconcileIssue({
       body: issue.body,
       labels,
     },
-    judge
+    judge,
+    { wantCategory, wantPriority }
   );
 
   // A dry run reports the ladder's answer and the judgment's answer side by
   // side, for every row where they could differ. That comparison is the whole
-  // reason to run one before enabling the judgment on a public board.
+  // reason to run one before enabling the judgment on a public board. The issue
+  // NUMBER only: the title is author-controlled prose, and this line is read
+  // next to the tracker, where the title already is.
   if (dryRun && decided.judgment) {
     actions.judgments.push(
-      `${ref} ${safeTitle(issue.title, 50)} | ladder ${decided.ladder.category ?? '-'}/${
+      `${ref} | ladder ${decided.ladder.category ?? '-'}/${
         decided.ladder.priority ?? '-'
       } | judgment ${decided.judgment.category ?? '-'}/${decided.judgment.priority ?? '-'}${
         decided.judgment.error ? ` | ${decided.judgment.error}` : ''
@@ -437,7 +454,7 @@ export async function reconcileIssue({
     );
   }
 
-  if (!fieldValue(item, 'Category')) {
+  if (wantCategory) {
     if (decided.category) await setSelect(item, 'Category', decided.category, ref);
     else
       actions.uncategorised.push(
@@ -445,10 +462,7 @@ export async function reconcileIssue({
       );
   }
 
-  // Held in a variable because the target date below depends on it, and a value a
-  // human already set must drive that target rather than the derived one.
-  let priority = fieldValue(item, 'Priority');
-  if (!priority) {
+  if (wantPriority) {
     priority = decided.priority;
     if (priority) {
       await setSelect(item, 'Priority', priority, ref);
@@ -602,7 +616,7 @@ async function main() {
     skipped: [],
   };
   const { setSelect, setDate } = makeWriters({ project, fields, optionId, actions });
-  const store = JUDGMENT_CACHE_PATH ? createFileStore(JUDGMENT_CACHE_PATH, { log }) : new Map();
+  const store = createJudgmentCacheStore({ log });
   const judge = createJudgmentClient({
     // A resolver, not a value: the token is read per request and is never held
     // on the config object where it could reach a log line by being in scope.
