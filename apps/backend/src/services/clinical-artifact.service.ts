@@ -1774,6 +1774,51 @@ const assertPrescriptionRetirable = async (
 };
 
 /**
+ * Keep a prescription's dispense request in step with its status, inside the
+ * transaction that writes the status (#3512). Done after the commit, a failure
+ * here left a SIGNED or COMPLETED prescription with no PENDING request, which
+ * the pharmacy queue never shows and a retry cannot recreate: the artifact is
+ * final, so the save that would have created it is refused.
+ */
+const syncPrescriptionDispenseRequestInTx = async (
+  tx: Prisma.TransactionClient,
+  wasPendingDispenseRequest: boolean,
+  record: PrescriptionRecord,
+): Promise<void> => {
+  const isPendingDispenseRequest = shouldCreateDispenseRequestForPrescription(
+    record.artifact.status,
+  );
+  const metadata = record.prescription.metadata as
+    Prisma.InputJsonValue | undefined;
+
+  if (!wasPendingDispenseRequest && isPendingDispenseRequest) {
+    await InventoryConsumptionService.createPrescriptionDispenseRequestInTx(
+      tx,
+      {
+        organisationId: record.artifact.organisationId,
+        prescriptionId: record.prescription.id,
+        medications: record.prescription.medications,
+        metadata,
+        requestedBy: record.artifact.authorId,
+        context: {
+          appointmentId: record.artifact.appointmentId,
+          encounterId: record.artifact.encounterId,
+        },
+      },
+    );
+  } else if (wasPendingDispenseRequest && !isPendingDispenseRequest) {
+    await InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx(
+      tx,
+      {
+        organisationId: record.artifact.organisationId,
+        prescriptionId: record.prescription.id,
+        metadata,
+      },
+    );
+  }
+};
+
+/**
  * Reverses a prescription's dispense inside the caller's transaction (#3495).
  *
  * The stock release used to run in its own transaction and commit before the
@@ -2027,26 +2072,16 @@ export const ClinicalArtifactService = {
 
       await createRenderedDocumentForArtifactInTx(createdArtifact, tx);
 
-      return buildPrescriptionRecord(createdArtifact, createdPrescription);
+      const created = buildPrescriptionRecord(
+        createdArtifact,
+        createdPrescription,
+      );
+      await syncPrescriptionDispenseRequestInTx(tx, false, created);
+      return created;
     });
 
     if (DOCUMENT_BACKED_CLINICAL_KINDS.has(artifact.artifact.kind)) {
       await persistClinicalArtifactRenderedDocumentPdf(artifact.artifact.id);
-    }
-
-    if (shouldCreateDispenseRequestForPrescription(artifact.artifact.status)) {
-      await InventoryConsumptionService.createPrescriptionDispenseRequest({
-        organisationId,
-        prescriptionId: artifact.prescription.id,
-        medications: artifact.prescription.medications,
-        metadata: artifact.prescription.metadata as
-          Prisma.InputJsonValue | undefined,
-        requestedBy: artifact.artifact.authorId,
-        context: {
-          appointmentId: artifact.artifact.appointmentId,
-          encounterId: artifact.artifact.encounterId,
-        },
-      });
     }
 
     return artifact;
@@ -2172,7 +2207,13 @@ export const ClinicalArtifactService = {
           );
         }
 
-        return buildPrescriptionRecord(artifact, prescription);
+        const revised = buildPrescriptionRecord(artifact, prescription);
+        await syncPrescriptionDispenseRequestInTx(
+          tx,
+          shouldCreateDispenseRequestForPrescription(record.artifact.status),
+          revised,
+        );
+        return revised;
       },
       // The superseded prescription's release walks every line and takes a
       // per-item advisory lock, which does not fit the 5s interactive default.
@@ -2182,36 +2223,6 @@ export const ClinicalArtifactService = {
 
     if (DOCUMENT_BACKED_CLINICAL_KINDS.has(updated.artifact.kind)) {
       await persistClinicalArtifactRenderedDocumentPdf(updated.artifact.id);
-    }
-
-    const wasPendingDispenseRequest =
-      shouldCreateDispenseRequestForPrescription(record.artifact.status);
-    const isPendingDispenseRequest = shouldCreateDispenseRequestForPrescription(
-      updated.artifact.status,
-    );
-
-    if (!wasPendingDispenseRequest && isPendingDispenseRequest) {
-      await InventoryConsumptionService.createPrescriptionDispenseRequest({
-        organisationId: updated.artifact.organisationId,
-        prescriptionId: updated.prescription.id,
-        medications: updated.prescription.medications,
-        metadata: updated.prescription.metadata as
-          Prisma.InputJsonValue | undefined,
-        requestedBy: updated.artifact.authorId,
-        context: {
-          appointmentId: updated.artifact.appointmentId,
-          encounterId: updated.artifact.encounterId,
-        },
-      });
-    } else if (wasPendingDispenseRequest && !isPendingDispenseRequest) {
-      await InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed(
-        {
-          organisationId: updated.artifact.organisationId,
-          prescriptionId: updated.prescription.id,
-          metadata: updated.prescription.metadata as
-            Prisma.InputJsonValue | undefined,
-        },
-      );
     }
 
     return updated;
