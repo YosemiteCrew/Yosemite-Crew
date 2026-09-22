@@ -15,6 +15,7 @@ jest.mock("../../src/services/inventory-consumption.service", () => ({
     createPrescriptionDispenseRequest: jest.fn(),
     markPrescriptionDispenseRequestNotDispensed: jest.fn(),
     markPrescriptionDispenseRequestNotDispensedInTx: jest.fn(),
+    loadDispenseRequestForRetirementInTx: jest.fn(),
     releasePrescription: jest.fn(),
     voidDispensePrescription: jest.fn(),
     voidDispensePrescriptionInTx: jest.fn(),
@@ -2600,7 +2601,11 @@ describe("ClinicalArtifactService", () => {
     // unbilled row - was the bug: the delete below removes EVERY row for the
     // prescription, and package expansion routinely creates several.
     mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
-    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+    // #3503: the reversal branches on the row read inside the transaction, so
+    // that is where this test supplies it.
+    (
+      InventoryConsumptionService.loadDispenseRequestForRetirementInTx as jest.Mock
+    ).mockResolvedValueOnce({
       id: "dispense-1",
       status: "DISPENSED",
     });
@@ -2675,7 +2680,10 @@ describe("ClinicalArtifactService", () => {
       },
     } as never);
     mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValueOnce(null);
-    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+    // #3503: see above - read inside the transaction, not before it.
+    (
+      InventoryConsumptionService.loadDispenseRequestForRetirementInTx as jest.Mock
+    ).mockResolvedValueOnce({
       id: "dispense-1",
       status: "PENDING",
     });
