@@ -54,7 +54,7 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
         return (
           <Link
             href={`/organization/specialities${openParam}`}
-            className="appointment-profile-title hover:underline! text-text-primary cursor-pointer"
+            className="appointment-profile-title hover:underline text-text-primary cursor-pointer"
           >
             {item.name}
           </Link>

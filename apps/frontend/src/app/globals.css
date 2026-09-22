@@ -1180,9 +1180,15 @@ body {
   height: 100%;
 }
 
-a {
-  text-decoration: none !important;
-}
+/* No blanket link reset here, deliberately.
+   Tailwind's preflight already sets `a { text-decoration: inherit }`, so a link
+   with no rule of its own is undecorated without our help. The blanket
+   `a { text-decoration: none !important }` this replaces added nothing on top of
+   that and cost every prose surface an `!important` of its own to undo - docs,
+   the legal pages, the marketing long-form body and the booking footer each
+   carried one, and `link-in-text-block` (WCAG 2.1 AA, serious) was the default
+   for any surface that had not yet discovered the trick. A surface that wants
+   undecorated links says so on its own selector. */
 
 p,
 button,

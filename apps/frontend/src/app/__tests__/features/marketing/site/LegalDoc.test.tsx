@@ -55,7 +55,7 @@ describe('LegalDoc', () => {
       join(process.cwd(), 'src/app/features/marketing/site/marketing.css'),
       'utf8'
     );
-    expect(css).toMatch(/\.yc-doc a\s*{[^}]*text-decoration:\s*underline !important/);
+    expect(css).toMatch(/\.yc-doc a\s*{[^}]*text-decoration:\s*underline;/);
     expect(css).toMatch(/\.yc-toc a\s*{[^}]*color:\s*var\(--ink-muted\)/);
     expect(css).toMatch(/\.yc-toc-toggle\s*{[^}]*color:\s*var\(--ink-muted\)/);
   });

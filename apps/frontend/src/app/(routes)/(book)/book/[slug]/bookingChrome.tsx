@@ -43,17 +43,15 @@ export const BookShell = ({ children }: { children: React.ReactNode }) => (
 export const BookFooter = () => (
   <footer className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-caption-2 text-[var(--ink-muted)]">
     <span>Booking page provided by Yosemite Crew</span>
-    {/* `underline!`, not `underline`: `a { text-decoration: none !important }`
-        is unlayered, and a layered non-important utility loses to it. */}
     <Link
       href="/privacy-policy"
-      className="underline! underline-offset-2 transition-colors duration-150 ease-out hover:text-[var(--ink-body)]"
+      className="underline underline-offset-2 transition-colors duration-150 ease-out hover:text-[var(--ink-body)]"
     >
       Privacy
     </Link>
     <Link
       href="/terms-and-conditions"
-      className="underline! underline-offset-2 transition-colors duration-150 ease-out hover:text-[var(--ink-body)]"
+      className="underline underline-offset-2 transition-colors duration-150 ease-out hover:text-[var(--ink-body)]"
     >
       Terms
     </Link>

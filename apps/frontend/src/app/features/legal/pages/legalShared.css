@@ -67,7 +67,7 @@
   color: var(--blue-text);
 }
 .PrivacyPolicySec .PrivacyPolicyData .PolicyItems :is(p span.spanlink, p a) {
-  text-decoration: underline !important;
+  text-decoration: underline;
 }
 .PrivacyPolicySec .PrivacyPolicyData .PolicyItems p a:hover {
   color: var(--blue-text);

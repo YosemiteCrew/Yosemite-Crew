@@ -144,10 +144,11 @@ export const Shell: Story = {
     await expect(privacy).toHaveAttribute('href', '/privacy-policy');
     await expect(terms).toHaveAttribute('href', '/terms-and-conditions');
 
-    /* `a { text-decoration: none !important }` is unlayered in globals.css, and
-       an unlayered important declaration beats a layered non-important one
-       whatever the specificity. The `!` in `underline!` is the only reason
-       these two read as links rather than as body text. */
+    /* The footer's two links are the only cue that they are links - same size,
+       same weight as the sentence beside them - so the underline is load-bearing.
+       It used to need `underline!` to beat an unlayered
+       `a { text-decoration: none !important }` in globals.css; that reset is gone,
+       and this assertion is what catches it coming back. */
     for (const link of [privacy, terms]) {
       await expect(getComputedStyle(link).textDecorationLine).toContain('underline');
     }
