@@ -132,8 +132,7 @@ const navMenu = (page: Page) => page.getByRole('button', { name: 'Documentation 
 const navTree = (page: Page) => page.locator('#docs-nav-tree');
 const docsTitleTop = (page: Page) =>
   page.locator('.DocsTitle').evaluate((el) => el.getBoundingClientRect().top);
-const collapsedSection = (page: Page) =>
-  page.locator('#docs-nav-tree [data-expanded="false"]');
+const collapsedSection = (page: Page) => page.locator('#docs-nav-tree [data-expanded="false"]');
 
 test.describe('collapsed docs navigation at a phone width', () => {
   test.use({ viewport: PHONE });
