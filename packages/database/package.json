@@ -1,5 +1,6 @@
 {
   "name": "@yosemite-crew/database",
+  "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
