@@ -72,10 +72,6 @@ const revealAll = async (elements: HTMLElement[]) => {
   }
 };
 
-/* The billing toggle carries no `aria-pressed`, no radiogroup and no `aria-current`:
-   the filled pill is the ONLY signal of which period is selected, for everyone. So
-   the pill background is the thing to assert - swap the two `billingBtnStyle(...)`
-   arguments and nothing else on the page changes shape. */
 const PILL_ON = 'rgb(29, 28, 27)';
 const PILL_OFF = 'rgba(0, 0, 0, 0)';
 
@@ -86,6 +82,8 @@ const expectSelected = async (canvasElement: HTMLElement, period: 'Monthly' | 'Y
   // Polled: `billingBtnStyle` transitions background over 200ms, so reading on the
   // same tick as the click returns the colour it is moving away from.
   await waitFor(() => {
+    expect(selected).toHaveAttribute('aria-pressed', 'true');
+    expect(other).toHaveAttribute('aria-pressed', 'false');
     expect(getComputedStyle(selected).backgroundColor).toBe(PILL_ON);
     expect(getComputedStyle(other).backgroundColor).toBe(PILL_OFF);
   });
