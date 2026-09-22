@@ -58,26 +58,14 @@ test.describe('docs code samples at a phone width', () => {
     }
   });
 
-  test('leave no scrollable-region-focusable violation', async ({ page }) => {
+  test('leave no WCAG 2.1 AA violations on mobile docs', async ({ page }) => {
     await openDocs(page);
 
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
-      /*
-       * Every documentation prose link is distinguished from the surrounding
-       * text by colour alone, because globals.css sets
-       * `a { text-decoration: none !important }` over the underline docs.css
-       * declares. Fourteen serious nodes, identical at 320px and at desktop in
-       * both themes, so it is neither a mobile defect nor one this change
-       * introduced - it is #3471, which also has to repair the sanitiser entry
-       * that strips the heading-anchor class.
-       */
-      .disableRules(['link-in-text-block'])
       .analyze();
 
     expect(results.violations).toEqual([]);
-    // Guards the line above: disabling a rule that stopped running would leave
-    // an empty violation list looking exactly like a pass.
     expect(results.passes.length).toBeGreaterThan(0);
   });
 });

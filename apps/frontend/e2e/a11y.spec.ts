@@ -206,9 +206,7 @@ for (const theme of ['light', 'dark'] as const) {
         await expect(headingAnchor).toHaveCSS('text-decoration-line', 'none');
 
         const results = await runAxeWithContrast(page);
-        expect(
-          results.violations.filter((violation) => violation.id === 'link-in-text-block')
-        ).toEqual([]);
+        expect(results.violations).toEqual([]);
         expect(results.passes.some((rule) => rule.id === 'link-in-text-block')).toBe(true);
       });
     });
