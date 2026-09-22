@@ -27,7 +27,6 @@ const env: NodeJS.ProcessEnv = {
 };
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
-const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }) as string;
 const jwks = {
   keys: [{ ...publicKey.export({ format: 'jwk' }), kid: KID, alg: 'RS256', use: 'sig' }],
 };
@@ -115,15 +114,16 @@ test('rejects a token whose payload was edited after signing', async () => {
 });
 
 /*
- * Alg confusion: the token is HMAC-signed with the issuer's *public* key, which
- * is public by definition. Without `algorithms: ['RS256']` the verifier would
- * take that same public key from the JWKS as an HMAC secret and accept it.
+ * Same key, same claims, different algorithm. jsonwebtoken already refuses an
+ * HMAC token verified against a public key, so alg confusion cannot be the arm
+ * here; RS512 can, because it is in the list jsonwebtoken would fall back to on
+ * an RSA key. Dropping `algorithms: ['RS256']` accepts this token.
  */
-test('rejects a token signed with HS256 using the public key as the secret', async () => {
+test('rejects a token signed with an algorithm the issuer config does not allow', async () => {
   setup();
-  const hsToken = jwt.sign(staffClaims, publicKeyPem, { algorithm: 'HS256', keyid: KID });
+  const rs512Token = jwt.sign(staffClaims, privateKey, { algorithm: 'RS512', keyid: KID });
 
-  const session = await verifyLegacyBearerToken(hsToken, env);
+  const session = await verifyLegacyBearerToken(rs512Token, env);
 
   assert.equal(session, null);
 });
