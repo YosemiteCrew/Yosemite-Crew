@@ -1978,6 +1978,15 @@ const lockPrescriptionDispenseRequestInTx = async (
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 };
 
+type PrescriptionDispenseRequestCreateParams = {
+  organisationId: string;
+  prescriptionId: string;
+  medications: unknown;
+  metadata?: Prisma.InputJsonValue;
+  requestedBy?: string | null;
+  context?: PrescriptionDispenseRequestContext;
+};
+
 const upsertPendingDispenseRequest = async (
   tx: Prisma.TransactionClient,
   params: {
@@ -2280,14 +2289,28 @@ export const InventoryConsumptionService = {
     return hydrateDispenseRequest(prisma, request);
   },
 
-  async createPrescriptionDispenseRequest(params: {
-    organisationId: string;
-    prescriptionId: string;
-    medications: unknown;
-    metadata?: Prisma.InputJsonValue;
-    requestedBy?: string | null;
-    context?: PrescriptionDispenseRequestContext;
-  }) {
+  async createPrescriptionDispenseRequest(
+    params: PrescriptionDispenseRequestCreateParams,
+  ) {
+    return prisma.$transaction((tx) =>
+      InventoryConsumptionService.createPrescriptionDispenseRequestInTx(
+        tx,
+        params,
+      ),
+    );
+  },
+
+  /**
+   * `createPrescriptionDispenseRequest` for a caller that already holds a
+   * transaction (#3512). A prescription that becomes SIGNED or COMPLETED has
+   * to commit together with its PENDING request: created after the commit, a
+   * failure left a final prescription the pharmacy queue never saw, and a
+   * retry could not recover it because the artifact no longer accepts edits.
+   */
+  async createPrescriptionDispenseRequestInTx(
+    tx: Prisma.TransactionClient,
+    params: PrescriptionDispenseRequestCreateParams,
+  ) {
     const organisationId = asNonEmptyString(params.organisationId);
     const prescriptionId = asNonEmptyString(params.prescriptionId);
     if (!organisationId || !prescriptionId) {
@@ -2297,16 +2320,15 @@ export const InventoryConsumptionService = {
       );
     }
 
-    const [petContext, medications] = await Promise.all([
-      loadPetSnapshot(prisma, {
-        organisationId,
-        context: params.context,
-      }),
-      enrichDispenseRequestMedications(prisma, {
-        organisationId,
-        medications: params.medications,
-      }),
-    ]);
+    // Sequential: one transaction client runs one query at a time.
+    const petContext = await loadPetSnapshot(tx, {
+      organisationId,
+      context: params.context,
+    });
+    const medications = await enrichDispenseRequestMedications(tx, {
+      organisationId,
+      medications: params.medications,
+    });
 
     const appointmentKind = petContext.appointmentKind ?? "OUTPATIENT";
     const dispenseStockSource = resolveDispenseStockSource(appointmentKind);
@@ -2322,15 +2344,13 @@ export const InventoryConsumptionService = {
       ? (metadataBase as Prisma.InputJsonValue)
       : params.metadata;
 
-    return prisma.$transaction((tx) =>
-      upsertPendingDispenseRequest(tx, {
-        organisationId,
-        prescriptionId,
-        medications,
-        metadata,
-        requestedBy: params.requestedBy,
-      }),
-    );
+    return upsertPendingDispenseRequest(tx, {
+      organisationId,
+      prescriptionId,
+      medications,
+      metadata,
+      requestedBy: params.requestedBy,
+    });
   },
 
   async approvePrescriptionDispenseRequest(params: {
