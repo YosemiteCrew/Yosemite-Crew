@@ -5,6 +5,25 @@ test('app shell loads', async ({ page }) => {
   await expect(page).toHaveTitle(/Yosemite|Crew|YC/i);
 });
 
+test('mobile docs keep the article above a collapsible navigation tree', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/docs', { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle').catch(() => {});
+
+  const toggle = page.getByRole('button', { name: 'Documentation menu' });
+  await expect(toggle).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Yosemite Crew Overview' })
+  ).toBeInViewport();
+
+  await toggle.click();
+
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('link', { name: 'Notification Setup Guide' })).toBeVisible();
+});
+
 /**
  * The public booking page, exercised without a session.
  *

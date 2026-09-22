@@ -20,6 +20,7 @@ interface DocsSidebarProps {
  */
 export default function DocsSidebar({ nav }: Readonly<DocsSidebarProps>) {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const containsCurrent = (node: NavNode) =>
     node.kind === 'section' && node.items.some((item) => item.href === pathname);
@@ -36,57 +37,72 @@ export default function DocsSidebar({ nav }: Readonly<DocsSidebarProps>) {
     setOpen((current) => ({ ...current, [label]: !current[label] }));
 
   return (
-    <nav className="DocsNav" aria-label="Documentation">
-      {nav.map((node) => {
-        if (node.kind === 'link') {
-          const active = node.href === pathname;
+    <nav className="DocsNav" aria-label="Documentation" data-mobile-open={mobileOpen}>
+      <button
+        type="button"
+        className="DocsNavToggle"
+        aria-label="Documentation menu"
+        aria-expanded={mobileOpen}
+        aria-controls="docs-navigation-links"
+        onClick={() => setMobileOpen((current) => !current)}
+      >
+        <span>Documentation</span>
+        <span aria-hidden="true">{mobileOpen ? '−' : '+'}</span>
+      </button>
+      <div className="DocsNavItems" id="docs-navigation-links">
+        {nav.map((node) => {
+          if (node.kind === 'link') {
+            const active = node.href === pathname;
+            return (
+              <Link
+                key={node.id}
+                href={node.href}
+                className={active ? 'DocsNavLink DocsNavLinkActive' : 'DocsNavLink'}
+                aria-current={active ? 'page' : undefined}
+                onClick={() => setMobileOpen(false)}
+              >
+                {node.title}
+              </Link>
+            );
+          }
+
+          const expanded = open[node.label] ?? true;
+          const sectionId = `docs-section-${node.label.replaceAll(/\W+/g, '-').toLowerCase()}`;
+
           return (
-            <Link
-              key={node.id}
-              href={node.href}
-              className={active ? 'DocsNavLink DocsNavLinkActive' : 'DocsNavLink'}
-              aria-current={active ? 'page' : undefined}
-            >
-              {node.title}
-            </Link>
-          );
-        }
-
-        const expanded = open[node.label] ?? true;
-        const sectionId = `docs-section-${node.label.replaceAll(/\W+/g, '-').toLowerCase()}`;
-
-        return (
-          <div key={node.label} className="DocsNavSection">
-            <button
-              type="button"
-              className="DocsNavSectionHead"
-              aria-expanded={expanded}
-              aria-controls={sectionId}
-              onClick={() => toggle(node.label)}
-            >
-              <span>{node.label}</span>
-              <span className="DocsNavChevron" aria-hidden="true">
-                {expanded ? '−' : '+'}
-              </span>
-            </button>
-            <div id={sectionId} hidden={!expanded}>
-              {node.items.map((item) => {
-                const active = item.href === pathname;
-                return (
-                  <Link
-                    key={item.id}
-                    href={item.href}
-                    className={active ? 'DocsNavLink DocsNavLinkActive' : 'DocsNavLink'}
-                    aria-current={active ? 'page' : undefined}
-                  >
-                    {item.title}
-                  </Link>
-                );
-              })}
+            <div key={node.label} className="DocsNavSection">
+              <button
+                type="button"
+                className="DocsNavSectionHead"
+                aria-expanded={expanded}
+                aria-controls={sectionId}
+                onClick={() => toggle(node.label)}
+              >
+                <span>{node.label}</span>
+                <span className="DocsNavChevron" aria-hidden="true">
+                  {expanded ? '−' : '+'}
+                </span>
+              </button>
+              <div id={sectionId} hidden={!expanded}>
+                {node.items.map((item) => {
+                  const active = item.href === pathname;
+                  return (
+                    <Link
+                      key={item.id}
+                      href={item.href}
+                      className={active ? 'DocsNavLink DocsNavLinkActive' : 'DocsNavLink'}
+                      aria-current={active ? 'page' : undefined}
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      {item.title}
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </nav>
   );
 }

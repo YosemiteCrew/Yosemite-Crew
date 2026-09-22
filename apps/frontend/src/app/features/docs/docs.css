@@ -84,6 +84,23 @@
   .DocsLayout {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .DocsNav {
+    position: static;
+    max-height: none;
+    padding: 16px 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--divider);
+  }
+
+  .DocsNavItems {
+    display: none;
+    padding-top: 8px;
+  }
+
+  .DocsNav[data-mobile-open='true'] .DocsNavItems {
+    display: block;
+  }
 }
 
 /* ---------- sidebar ---------- */
@@ -95,6 +112,26 @@
   overflow-y: auto;
   padding: 20px 12px 40px 0;
   border-right: 1px solid var(--divider);
+}
+
+.DocsNavToggle {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .DocsNavToggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px;
+    border: 0;
+    background: none;
+    color: var(--color-text-primary);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
 }
 
 .DocsNavSection {

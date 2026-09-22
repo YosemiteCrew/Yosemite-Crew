@@ -36,6 +36,29 @@ describe('DocsSidebar', () => {
     expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-current', 'page');
   });
 
+  it('collapses the mobile navigation behind an accessible toggle', () => {
+    const { container } = render(<DocsSidebar nav={NAV} />);
+    const toggle = screen.getByRole('button', { name: 'Documentation menu' });
+    const nav = container.querySelector('.DocsNav');
+
+    expect(toggle).toHaveAttribute('aria-controls', 'docs-navigation-links');
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(nav).toHaveAttribute('data-mobile-open', 'false');
+
+    fireEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(nav).toHaveAttribute('data-mobile-open', 'true');
+  });
+
+  it('closes the mobile navigation after choosing a page', () => {
+    const { container } = render(<DocsSidebar nav={NAV} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Documentation menu' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Overview' }));
+
+    expect(container.querySelector('.DocsNav')).toHaveAttribute('data-mobile-open', 'false');
+  });
+
   it('starts a collapsed section closed', () => {
     render(<DocsSidebar nav={NAV} />);
     const head = screen.getByRole('button', { name: /Backend API/ });
