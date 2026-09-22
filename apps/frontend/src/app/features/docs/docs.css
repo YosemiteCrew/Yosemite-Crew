@@ -85,14 +85,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .DocsNav {
-    position: static;
-    max-height: none;
-    padding: 16px 0;
-    border-right: 0;
-    border-bottom: 1px solid var(--divider);
-  }
-
   .DocsNavItems {
     display: none;
     padding-top: 8px;
@@ -195,6 +187,7 @@
     position: static;
     max-height: none;
     overflow-y: visible;
+    padding: 16px 0;
     border-right: 0;
     border-bottom: 1px solid var(--divider);
   }

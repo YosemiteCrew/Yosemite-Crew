@@ -54,6 +54,7 @@ describe('DocsSidebar', () => {
   it('closes the mobile navigation after choosing a page', () => {
     const { container } = render(<DocsSidebar nav={NAV} />);
     fireEvent.click(screen.getByRole('button', { name: 'Documentation menu' }));
+    expect(container.querySelector('.DocsNav')).toHaveAttribute('data-mobile-open', 'true');
     fireEvent.click(screen.getByRole('link', { name: 'Overview' }));
 
     expect(container.querySelector('.DocsNav')).toHaveAttribute('data-mobile-open', 'false');

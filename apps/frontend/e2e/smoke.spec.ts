@@ -14,13 +14,40 @@ test('mobile docs keep the article above a collapsible navigation tree', async (
   const toggle = page.getByRole('button', { name: 'Documentation menu' });
   await expect(toggle).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('.DocsNavItems')).toBeHidden();
   await expect(
     page.getByRole('heading', { level: 1, name: 'Yosemite Crew Overview' })
   ).toBeInViewport();
 
-  await toggle.click();
+  await toggle.focus();
+  await toggle.press('Enter');
 
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('.DocsNavItems')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Notification Setup Guide' })).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('.DocsNavItems a').first()).toBeFocused();
+});
+
+test('tablet docs keep navigation collapsed until requested', async ({ page }) => {
+  await page.setViewportSize({ width: 834, height: 900 });
+  await page.goto('/docs', { waitUntil: 'domcontentloaded' });
+
+  await expect(page.getByRole('button', { name: 'Documentation menu' })).toHaveAttribute(
+    'aria-expanded',
+    'false'
+  );
+  await expect(page.locator('.DocsNavItems')).toBeHidden();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Yosemite Crew Overview' })
+  ).toBeInViewport();
+});
+
+test('desktop docs keep the navigation persistently visible', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/docs', { waitUntil: 'domcontentloaded' });
+
+  await expect(page.getByRole('button', { name: 'Documentation menu' })).toBeHidden();
   await expect(page.getByRole('link', { name: 'Notification Setup Guide' })).toBeVisible();
 });
 
