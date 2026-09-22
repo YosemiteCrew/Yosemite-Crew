@@ -15,6 +15,7 @@ import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceS
 import type { Vitals } from '@/app/features/appointments/types/workspace';
 import { formatStampDate } from '@/app/lib/appointmentWorkspace';
 import {
+  artifactVersionFromMeta,
   getClinicalArtifactMutationErrorMessage,
   saveVitalRecord,
 } from '@/app/features/appointments/services/workspaceClinicalService';
@@ -570,15 +571,11 @@ const VitalsForm = ({
         { organisationId, appointmentId, encounterId, authorId },
         nextVitals
       );
-      const savedVersion = Number.parseInt(
-        (savedVital as { meta?: { versionId?: string } } | undefined)?.meta?.versionId ?? '',
-        10
-      );
       addVitals(
         appointmentId,
         nextVitals,
         (savedVital as { id?: string } | undefined)?.id,
-        Number.isSafeInteger(savedVersion) && savedVersion > 0 ? savedVersion : undefined
+        artifactVersionFromMeta(savedVital)
       );
     } catch (error) {
       console.error('Failed to save vitals', error);

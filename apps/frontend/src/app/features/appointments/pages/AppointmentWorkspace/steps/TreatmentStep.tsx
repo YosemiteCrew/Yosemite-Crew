@@ -15,6 +15,7 @@ import type {
   ScheduleTaskStatus,
 } from '@/app/features/appointments/types/workspace';
 import {
+  artifactVersionFromMeta,
   deletePrescriptionArtifact,
   getClinicalArtifactMutationErrorMessage,
   savePrescriptionArtifact,
@@ -694,6 +695,14 @@ const usePrescriptionActions = ({
 // shows, and directs the clinician to reopen/amend, which has no affordance on this screen —
 // that would just trade one misleading message for another. The mapped copy mirrors the
 // finalized/billed wording handleRemovePrescription already uses for the same 409.
+// A saved prescription whose response carried no usable version is not finalized at all: the only
+// alternatives are guessing a version or omitting the precondition, and both dispense controlled
+// stock against a record this client never read. Worded for a clinician, and surfaced through the
+// same save-error banner as every other failure on this path - the one thing it must never do is
+// pass silently, because the medication would then never be dispensed.
+const UNVERSIONED_FINALIZE_MESSAGE =
+  'A prescription was saved but could not be finalized for dispensing. Reload the encounter and try again.';
+
 const getTreatmentSaveErrorMessage = (error: unknown): string =>
   getClinicalArtifactMutationErrorMessage(
     error,
@@ -851,7 +860,7 @@ const TreatmentStep = ({
     // Saved prescription ids captured from the create/update responses, so finalize targets the
     // real artifact id (not the local `local-rx-…` id) and the post-save bootstrap merge — not a
     // local append — becomes the single source of truth for the list (avoids duplicate rows).
-    const savedInHouseArtifacts: Array<{ id: string; version: number }> = [];
+    const savedInHouseArtifacts: Array<{ id: string; version: number | undefined }> = [];
     try {
       // Persist any staged service/package rows.
       await persistTreatmentItems(organisationId, activeEncounterId, encounter.services);
@@ -875,25 +884,16 @@ const TreatmentStep = ({
             rx
           );
           const savedId = (savedRx as { id?: string } | undefined)?.id ?? rx.id;
-          const savedVersion = Number.parseInt(
-            (savedRx as { meta?: { versionId?: string } } | undefined)?.meta?.versionId ?? '',
-            10
-          );
-          if (
-            savedId &&
-            Number.isSafeInteger(savedVersion) &&
-            savedVersion > 0 &&
-            rx.fulfillment !== 'PRESCRIPTION_ONLY'
-          ) {
+          const savedVersion = artifactVersionFromMeta(savedRx);
+          // Collect every in-house row, version or not. A row whose response carried no usable
+          // version must not be quietly dropped from finalize — it is reported below instead.
+          if (savedId && rx.fulfillment !== 'PRESCRIPTION_ONLY') {
             savedInHouseArtifacts.push({ id: savedId, version: savedVersion });
           }
           return {
             ...rx,
             id: savedId,
-            artifactVersion:
-              Number.isSafeInteger(savedVersion) && savedVersion > 0
-                ? savedVersion
-                : rx.artifactVersion,
+            artifactVersion: savedVersion ?? rx.artifactVersion,
           };
         })
       );
@@ -905,15 +905,28 @@ const TreatmentStep = ({
       );
       setPrescriptions(appointmentId, dedupedById);
       // Finalize in-house prescriptions (triggers inventory dispense) using the real saved ids.
-      await Promise.allSettled(
+      // `allSettled` so one conflicted row does not abandon the rest mid-flight; the outcomes are
+      // inspected below, after the re-hydrate, so a failure is reported rather than discarded.
+      // A row with no usable version is never finalized unconditionally - it fails here rather
+      // than silently skipping the dispense.
+      const finalizeOutcomes = await Promise.allSettled(
         savedInHouseArtifacts.map(({ id, version }) =>
-          finalizePrescription(organisationId, id, { expectedVersion: version })
+          version === undefined
+            ? Promise.reject(new Error(UNVERSIONED_FINALIZE_MESSAGE))
+            : finalizePrescription(organisationId, id, { expectedVersion: version })
         )
       );
       // Re-hydrate from the authoritative server state — replaces the staged local rows so the
       // saved prescription appears exactly once.
       const bootstrap = await getAppointmentWorkspaceBootstrap(organisationId, appointmentId);
       mergeEncounterData(appointmentId, normalizeWorkspaceBootstrapForEncounter(bootstrap));
+      // A rejected finalize leaves that prescription a draft and its inventory dispense
+      // untriggered. Reported only now, so the re-hydrate above has already refreshed the
+      // versions a retry needs - but before the step can claim COMPLETED and open Invoice.
+      const failedFinalize = finalizeOutcomes.find((outcome) => outcome.status === 'rejected');
+      if (failedFinalize) {
+        throw (failedFinalize as PromiseRejectedResult).reason;
+      }
     } catch (error) {
       // Do NOT open Invoice when persistence fails — staged rows would otherwise
       // appear billable without a backing record.

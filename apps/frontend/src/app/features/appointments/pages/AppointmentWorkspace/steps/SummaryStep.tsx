@@ -35,6 +35,7 @@ import type { AppointmentEncounter } from '@/app/features/appointments/types/wor
 import { formatStampDate, formatStampTime } from '@/app/lib/appointmentWorkspace';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import {
+  artifactVersionFromMeta,
   getRenderedDocument,
   saveDischargeSummaryArtifact,
 } from '@/app/features/appointments/services/workspaceClinicalService';
@@ -1031,12 +1032,7 @@ const useSummaryStepContent = ({
           encounter.followUpAt
         );
         persistedId = (saved as { id?: string } | undefined)?.id;
-        const parsedVersion = Number.parseInt(
-          (saved as { meta?: { versionId?: string } } | undefined)?.meta?.versionId ?? '',
-          10
-        );
-        artifactVersion =
-          Number.isSafeInteger(parsedVersion) && parsedVersion > 0 ? parsedVersion : undefined;
+        artifactVersion = artifactVersionFromMeta(saved);
       }
     } catch (error) {
       console.error('Unable to persist discharge summary:', error);

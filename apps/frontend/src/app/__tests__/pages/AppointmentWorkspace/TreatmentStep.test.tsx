@@ -1147,6 +1147,88 @@ describe('TreatmentStep', () => {
     expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2', { expectedVersion: 4 });
   });
 
+  // #3144: finalize now carries a required `expectedVersion`, so a colleague finalizing the same
+  // encounter in between this clinician's save and finalize produces a 409. `Promise.allSettled`
+  // never rejects, so before this the conflict was discarded: the step went COMPLETED and Invoice
+  // opened while the prescription was still a draft and its inventory dispense never ran.
+  it('reports a finalize conflict instead of completing the step', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (finalizePrescription as jest.Mock).mockImplementation((_org, id) =>
+      id === 'rx-1'
+        ? Promise.reject({ response: { status: 409, data: { message: 'Version conflict' } } })
+        : Promise.resolve({})
+    );
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    // The clinician is told to reload, with the same copy as every other clinical conflict.
+    expect(await screen.findByText(/Your draft is still here/i)).toBeInTheDocument();
+    // One conflicted row must not abandon the others mid-flight...
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2', { expectedVersion: 4 });
+    // ...and the re-hydrate still runs, so the retry starts from the server's versions.
+    await waitFor(() => expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith(ORG, APPT));
+    // An unfinished dispense must never be presented as a completed step.
+    expect(onOpenInvoice).not.toHaveBeenCalled();
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT
+    ).not.toBe('COMPLETED');
+    errorSpy.mockRestore();
+  });
+
+  // #3144: `meta.versionId` is documented as omittable by a projection, and finalize requires a
+  // positive `expectedVersion`. Such a row cannot be finalized at all - so it must be reported,
+  // not quietly dropped from the finalize list while the step still turns green.
+  it('reports an in-house prescription that came back without a usable version', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (savePrescriptionArtifact as jest.Mock).mockImplementation((_ctx, rx) =>
+      Promise.resolve(
+        rx.id === 'rx-1'
+          ? // A projection that omits `meta.versionId` entirely.
+            { resourceType: 'MedicationRequest', id: rx.id }
+          : {
+              resourceType: 'MedicationRequest',
+              id: rx.id,
+              meta: { versionId: String(rx.artifactVersion ?? 1) },
+            }
+      )
+    );
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    expect(await screen.findByText(/could not be finalized for dispensing/i)).toBeInTheDocument();
+    // Never guess a version: no finalize call is made for the unversioned row at all.
+    expect(finalizePrescription).not.toHaveBeenCalledWith(ORG, 'rx-1', expect.objectContaining({}));
+    // The versioned row is still dispensed.
+    expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2', { expectedVersion: 4 });
+    expect(onOpenInvoice).not.toHaveBeenCalled();
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT
+    ).not.toBe('COMPLETED');
+    errorSpy.mockRestore();
+  });
+
   it('blocks the invoice and shows an error when treatment persistence fails', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     (persistTreatmentItems as jest.Mock).mockRejectedValueOnce(new Error('save failed'));

@@ -227,6 +227,41 @@ describe("PrescriptionController", () => {
     );
   });
 
+  // #3144 deploy order: a tab on the previous bundle posts $finalize with an empty body. It must
+  // still finalize and dispense - degraded to no precondition, as dev behaves today - rather than
+  // 400ing for the length of the deploy. A rejected finalize is also an undispensed medication.
+  it("finalizes without a precondition when the client sends no expectedVersion", async () => {
+    mockedClinicalService.finalizePrescription.mockResolvedValueOnce({
+      artifact: { id: "artifact-1" },
+      prescription: { id: "rx-1", medications: [{ quantity: 1 }] },
+    } as never);
+
+    await PrescriptionController.finalize(
+      { ...req, body: {} } as Request,
+      res as Response,
+    );
+
+    expect(mockedClinicalService.finalizePrescription).toHaveBeenCalledWith(
+      "rx-1",
+      "org-1",
+      { actorId: "", canEditAny: false },
+      undefined,
+    );
+    expect(statusMock).toHaveBeenCalledWith(200);
+  });
+
+  // A supplied value is still validated: zero/negative/non-integer is a client bug, not an old
+  // client, and must not be quietly dropped into an unconditional finalize.
+  it("rejects a malformed expectedVersion rather than finalizing unconditionally", async () => {
+    await PrescriptionController.finalize(
+      { ...req, body: { expectedVersion: 0 } } as Request,
+      res as Response,
+    );
+
+    expect(mockedClinicalService.finalizePrescription).not.toHaveBeenCalled();
+    expect(statusMock).toHaveBeenCalledWith(400);
+  });
+
   it("finalizes a prescription", async () => {
     mockedClinicalService.finalizePrescription.mockResolvedValueOnce({
       artifact: { id: "artifact-1" },

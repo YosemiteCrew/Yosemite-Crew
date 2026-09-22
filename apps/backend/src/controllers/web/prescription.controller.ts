@@ -20,8 +20,13 @@ const actionBodySchema = z.object({
   reason: z.string().trim().min(1).optional(),
 });
 
+// #3144 deploy order, same reasoning as `parseIfMatchVersion` in the clinical-artifact FHIR
+// controller: this release teaches the client to send the version, the next one demands it. A tab
+// on the previous bundle posts `$finalize` with an empty body; rejecting that would break finalize
+// and its inventory dispense for the length of the deploy. Absent means "no precondition", which
+// is how `dev` behaves today; a supplied value is still validated and enforced.
 const finalizeBodySchema = actionBodySchema.extend({
-  expectedVersion: z.number().int().positive(),
+  expectedVersion: z.number().int().positive().optional(),
 });
 
 const dispenseRequestListQuerySchema = z.object({
