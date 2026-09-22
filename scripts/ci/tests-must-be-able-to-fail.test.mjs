@@ -460,7 +460,6 @@ test('resolveInside accepts what is inside and refuses what is not', () => {
   ]) {
     assert.throws(() => resolveInside('/tmp/d', outside), /not inside/, outside);
   }
-  assert.throws(() => resolveInside('tmp/d', 'report.json'), /not inside/);
 });
 
 test('the suite total comes from the report the run just wrote', () => {

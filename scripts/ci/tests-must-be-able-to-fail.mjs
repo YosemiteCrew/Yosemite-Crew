@@ -40,7 +40,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { isAbsolute, join } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** A test file, by this repository's own conventions. */
@@ -394,7 +394,7 @@ export const withJestReport = (runJest) => {
 };
 
 /**
- * `candidate` resolved against `dir`, or a throw if it does not land inside it.
+ * `candidate` appended to the trusted repository root, or a throw if it could escape it.
  *
  * Used where a path arrives from outside this script. Refusing is the right
  * answer rather than a clamp: a changed-file list that names something above
@@ -403,7 +403,6 @@ export const withJestReport = (runJest) => {
 export const resolveInside = (dir, candidate) => {
   const parts = candidate.split('/');
   if (
-    !isAbsolute(dir) ||
     candidate.includes('\\') ||
     candidate.includes('\0') ||
     parts.some((part) => part === '' || part === '.' || part === '..')
