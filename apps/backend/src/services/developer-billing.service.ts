@@ -65,6 +65,11 @@ const toSubscriptionStatus = (
   return "incomplete";
 };
 
+const planForStatus = (
+  status: DeveloperSubscriptionStatus,
+): DeveloperPlanTier =>
+  status === "active" || status === "trialing" ? "pro" : "free";
+
 const isLiveStripeSubscription = (sub: Stripe.Subscription): boolean =>
   sub.status !== "canceled" && sub.status !== "incomplete_expired";
 
@@ -74,14 +79,15 @@ async function persistSubscription(
   lastStripeEventId?: string,
 ): Promise<void> {
   const item = sub.items.data[0];
+  const status = toSubscriptionStatus(sub.status);
   const data = {
     stripeCustomerId:
       typeof sub.customer === "string" ? sub.customer : sub.customer.id,
     stripeSubscriptionId: sub.id,
     stripeSubscriptionItemId: item?.id ?? null,
     stripePriceId: item?.price?.id ?? null,
-    plan: "pro" as DeveloperPlanTier,
-    status: toSubscriptionStatus(sub.status),
+    plan: planForStatus(status),
+    status,
     currentPeriodStart: item?.current_period_start
       ? new Date(item.current_period_start * 1000)
       : null,
@@ -264,12 +270,19 @@ async function handleSubscriptionUpdated(
   });
   if (!record) return;
 
-  const item = sub.items.data[0];
+  // Webhooks can be delayed or replayed. Stripe's current object is the source
+  // of truth, so an older payload cannot regress entitlement or status.
+  const current = await getStripeClient().subscriptions.retrieve(sub.id, {
+    expand: ["items.data.price"],
+  });
+  const item = current.items.data[0];
+  const status = toSubscriptionStatus(current.status);
 
   await prisma.developerSubscription.update({
-    where: { id: record.id },
+    where: { stripeSubscriptionId: String(sub.id) },
     data: {
-      status: toSubscriptionStatus(sub.status),
+      plan: planForStatus(status),
+      status,
       stripePriceId: item?.price?.id ?? record.stripePriceId,
       stripeSubscriptionItemId: item?.id ?? record.stripeSubscriptionItemId,
       currentPeriodStart: item?.current_period_start
@@ -278,7 +291,7 @@ async function handleSubscriptionUpdated(
       currentPeriodEnd: item?.current_period_end
         ? new Date(item.current_period_end * 1000)
         : null,
-      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      cancelAtPeriodEnd: current.cancel_at_period_end,
       lastStripeEventId: event.id,
     },
   });
