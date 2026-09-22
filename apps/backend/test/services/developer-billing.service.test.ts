@@ -851,7 +851,7 @@ describe("DeveloperBillingService", () => {
       expect(jest.mocked(logger.error)).not.toHaveBeenCalled();
     });
 
-    it("updates the record on customer.subscription.updated", async () => {
+    it("updates only while the record still tracks this subscription", async () => {
       getStripeInstance().subscriptions.retrieve.mockResolvedValue({
         ...baseSubscription,
         status: "past_due",
@@ -871,7 +871,7 @@ describe("DeveloperBillingService", () => {
 
       expect(mockPrisma.developerSubscription.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: "ds-1" },
+          where: { stripeSubscriptionId: "sub_123" },
           data: expect.objectContaining({ status: "past_due" }),
         }),
       );
