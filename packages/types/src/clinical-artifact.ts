@@ -213,6 +213,7 @@ export type PrescriptionRecord = {
   prescription: {
     id: string;
     artifactId: string;
+    supersedesId: string | null;
     items?: unknown;
     medications: unknown;
     instructions: unknown;

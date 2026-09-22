@@ -3044,6 +3044,7 @@ model SoapNote {
 model Prescription {
   id               String                        @id @default(uuid())
   artifactId       String                        @unique
+  supersedesId     String?                       @unique
   items            PrescriptionItem[]
   dispenseRequests PrescriptionDispenseRequest[]
   medications      Json?
@@ -3054,6 +3055,8 @@ model Prescription {
   updatedAt        DateTime                      @updatedAt
 
   artifact ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  supersedes   Prescription? @relation("PrescriptionSupersession", fields: [supersedesId], references: [id], onDelete: SetNull)
+  supersededBy Prescription? @relation("PrescriptionSupersession")
 
   @@index([artifactId])
 }
