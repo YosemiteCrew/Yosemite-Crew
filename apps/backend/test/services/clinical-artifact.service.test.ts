@@ -4440,23 +4440,30 @@ describe("ClinicalArtifactService", () => {
         },
         data: { status: "VOID", summary: null, version: { increment: 1 } },
       });
+      // In the revision transaction now, not after it (#3495), so the original's
+      // stock cannot survive a rollback of the retirement that released it.
       expect(
-        InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
-      ).toHaveBeenCalledWith({
+        InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx,
+      ).toHaveBeenCalledWith(mockedPrisma, {
         organisationId,
         prescriptionId: "prescription-original",
         metadata: null,
       });
       expect(
+        InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+      ).not.toHaveBeenCalled();
+      // Still after the VOID claim it belongs to, and still before the new
+      // request raised for the revision, which is outside the transaction.
+      expect(
         mockedPrisma.clinicalArtifact.update.mock.invocationCallOrder[1],
       ).toBeLessThan(
         jest.mocked(
-          InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+          InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx,
         ).mock.invocationCallOrder[0],
       );
       expect(
         jest.mocked(
-          InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+          InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensedInTx,
         ).mock.invocationCallOrder[0],
       ).toBeLessThan(
         jest.mocked(
@@ -4466,6 +4473,105 @@ describe("ClinicalArtifactService", () => {
       expect(
         InventoryConsumptionService.createPrescriptionDispenseRequest,
       ).toHaveBeenCalledTimes(1);
+    });
+
+    it("releases a dispensed superseded prescription inside the revision transaction", async () => {
+      // The DISPENSED branch of the reversal, which is the one that moves real
+      // stock. It has to run on the revision transaction's client: released in
+      // a transaction of its own, as it used to be, the stock survived a
+      // rollback of the retirement that authorised it (#3495).
+      const revision = prescriptionRow({
+        id: "prescription-revision",
+        supersedesId: "prescription-original",
+        artifact: artifactRow({
+          kind: "PRESCRIPTION",
+          status: "DRAFT",
+          authorId: "author-1",
+        }),
+      });
+      const original = prescriptionRow({
+        id: "prescription-original",
+        artifactId: "artifact-original",
+        artifact: artifactRow({
+          id: "artifact-original",
+          kind: "PRESCRIPTION",
+          status: "COMPLETED",
+          authorId: "author-1",
+        }),
+      });
+      mockedPrisma.prescription.findFirst
+        .mockResolvedValueOnce(revision)
+        .mockResolvedValueOnce(original);
+      mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
+      mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
+        id: "dispense-original",
+        status: "DISPENSED",
+      });
+      mockedPrisma.clinicalArtifact.update
+        .mockResolvedValueOnce(
+          artifactRow({
+            kind: "PRESCRIPTION",
+            status: "COMPLETED",
+            authorId: "author-1",
+          }),
+        )
+        .mockResolvedValueOnce(
+          artifactRow({
+            id: "artifact-original",
+            kind: "PRESCRIPTION",
+            status: "VOID",
+            authorId: "author-1",
+          }),
+        );
+      mockedPrisma.prescription.update.mockResolvedValueOnce(
+        prescriptionRow({
+          id: "prescription-revision",
+          supersedesId: "prescription-original",
+          artifactId,
+        }),
+      );
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-rx-revision-dispensed",
+        kind: "PRESCRIPTION",
+        title: "Prescription",
+      });
+
+      await ClinicalArtifactService.finalizePrescription(
+        "prescription-revision",
+        organisationId,
+        { actorId: "author-1", canEditAny: false },
+      );
+
+      expect(mockedPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(
+        InventoryConsumptionService.voidDispensePrescriptionInTx,
+      ).toHaveBeenCalledWith(mockedPrisma, {
+        organisationId,
+        prescriptionId: "prescription-original",
+        medications: null,
+        metadata: null,
+      });
+      // The self-committing variant is what survived a rollback. It must not be
+      // reachable from this path any more.
+      expect(
+        InventoryConsumptionService.voidDispensePrescription,
+      ).not.toHaveBeenCalled();
+      // Inside the transaction means after the VOID claim it reverses and
+      // before the new request raised for the revision, which is outside it.
+      expect(
+        mockedPrisma.clinicalArtifact.update.mock.invocationCallOrder[1],
+      ).toBeLessThan(
+        jest.mocked(InventoryConsumptionService.voidDispensePrescriptionInTx)
+          .mock.invocationCallOrder[0],
+      );
+      expect(
+        jest.mocked(InventoryConsumptionService.voidDispensePrescriptionInTx)
+          .mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        jest.mocked(
+          InventoryConsumptionService.createPrescriptionDispenseRequest,
+        ).mock.invocationCallOrder[0],
+      );
     });
 
     it("leaves the original untouched when revision persistence fails", async () => {
