@@ -210,14 +210,14 @@
 
 .DocsBody a {
   color: var(--color-text-brand);
-  text-decoration: underline;
+  text-decoration: underline !important;
   text-underline-offset: 2px;
 }
 
 /* The heading anchor wraps the heading text; it must not look like a link. */
 .DocsBody .DocsHeadingAnchor {
   color: inherit;
-  text-decoration: none;
+  text-decoration: none !important;
 }
 
 .DocsBody ul,

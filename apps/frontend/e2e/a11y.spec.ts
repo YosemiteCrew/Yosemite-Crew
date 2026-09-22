@@ -186,6 +186,35 @@ test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
   });
 });
 
+for (const theme of ['light', 'dark'] as const) {
+  for (const viewport of [
+    { name: 'phone', width: 320, height: 800 },
+    { name: 'desktop', width: 1280, height: 900 },
+  ]) {
+    test.describe(`Documentation accessibility, ${theme}, ${viewport.name}`, () => {
+      test.use({ colorScheme: theme, viewport });
+
+      test('distinguishes prose links without styling heading anchors', async ({ page }) => {
+        await page.goto('/docs');
+        await page.waitForLoadState('networkidle').catch(() => {});
+
+        const proseLink = page.locator('.DocsBody a:not(.DocsHeadingAnchor)').first();
+        const headingAnchor = page.locator('.DocsBody .DocsHeadingAnchor').first();
+        await expect(proseLink).toBeVisible();
+        await expect(headingAnchor).toBeVisible();
+        await expect(proseLink).toHaveCSS('text-decoration-line', 'underline');
+        await expect(headingAnchor).toHaveCSS('text-decoration-line', 'none');
+
+        const results = await runAxeWithContrast(page);
+        expect(
+          results.violations.filter((violation) => violation.id === 'link-in-text-block')
+        ).toEqual([]);
+        expect(results.passes.some((rule) => rule.id === 'link-in-text-block')).toBe(true);
+      });
+    });
+  }
+}
+
 /**
  * The three public pages a link gets sent to.
  *
