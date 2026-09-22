@@ -97,6 +97,14 @@
   border-right: 1px solid var(--divider);
 }
 
+/*
+ * The phone disclosure. Hidden here rather than rendered conditionally, so the
+ * wide layout cannot lose its rail to a stale client state.
+ */
+.DocsNavToggle {
+  display: none;
+}
+
 .DocsNavSection {
   margin-top: 14px;
 }
@@ -158,8 +166,35 @@
     position: static;
     max-height: none;
     overflow-y: visible;
+    padding: 14px 0 16px;
     border-right: 0;
     border-bottom: 1px solid var(--divider);
+  }
+
+  .DocsNavToggle {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 44px;
+    padding: 11px 14px;
+    background: var(--color-surface-card);
+    border: 1px solid var(--divider);
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  .DocsNavTree {
+    padding-top: 8px;
+  }
+
+  .DocsNavTree[data-open='false'] {
+    display: none;
   }
 }
 
