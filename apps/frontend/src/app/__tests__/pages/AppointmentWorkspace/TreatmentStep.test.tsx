@@ -1147,8 +1147,8 @@ describe('TreatmentStep', () => {
     expect(finalizePrescription).toHaveBeenCalledWith(ORG, 'rx-2', { expectedVersion: 4 });
   });
 
-  // #3144: finalize now carries a required `expectedVersion`, so a colleague finalizing the same
-  // encounter in between this clinician's save and finalize produces a 409. `Promise.allSettled`
+  // #3144: finalize now carries the `expectedVersion` this client read, so a colleague finalizing
+  // the same encounter in between this clinician's save and finalize produces a 409. `Promise.allSettled`
   // never rejects, so before this the conflict was discarded: the step went COMPLETED and Invoice
   // opened while the prescription was still a draft and its inventory dispense never ran.
   it('reports a finalize conflict instead of completing the step', async () => {

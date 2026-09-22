@@ -8,6 +8,7 @@ import {
 import { clinicalArtifactFhirMapper } from "../../src/services/fhir-clinical-artifact.mapper";
 import { SoapCodedTermsFhirService } from "../../src/services/soap-coded-terms.service";
 import logger from "../../src/utils/logger";
+import { UNVERSIONED_CLINICAL_MUTATION_MARKER } from "../../src/controllers/web/fhir-controller.shared";
 
 jest.mock("../../src/services/clinical-artifact.service", () => {
   const actual = jest.requireActual(
@@ -517,6 +518,9 @@ describe("ClinicalArtifactFhirController", () => {
       expect.objectContaining({ expectedVersion: 3 }),
       "org-1",
     );
+    // A write that DID carry a precondition must not be counted, or #3496's entry condition never
+    // reaches zero however many clients upgrade.
+    expect(logger.warn).not.toHaveBeenCalled();
 
     // #3144 deploy order: a tab on the previous bundle sends no If-Match. It must still save -
     // degraded to the pre-#3144 behaviour - rather than being locked out mid-consult, so no
@@ -529,6 +533,7 @@ describe("ClinicalArtifactFhirController", () => {
     await ClinicalArtifactFhirController.updateSoapNote(
       {
         ...req,
+        method: "PUT",
         header: jest.fn(() => undefined),
         body: { resourceType: "Composition" },
       } as unknown as Request,
@@ -541,6 +546,18 @@ describe("ClinicalArtifactFhirController", () => {
       "org-1",
     );
     expect(statusMock).toHaveBeenCalledWith(200);
+
+    // #3496 step 0: the branch that accepts the degraded write is the only thing that can report
+    // it, and #3496's entry condition is a count of exactly these. Without this line the condition
+    // is unmeasurable and the soft landing has no termination event.
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      UNVERSIONED_CLINICAL_MUTATION_MARKER,
+      {
+        operation: "clinical-artifact-write",
+        method: "PUT",
+      },
+    );
 
     // A header that IS present but malformed is a client bug, not an old client: honouring it is
     // impossible and ignoring it would drop a precondition the caller believes it set.
@@ -555,6 +572,9 @@ describe("ClinicalArtifactFhirController", () => {
     );
 
     expect(statusMock).toHaveBeenCalledWith(400);
+    // A malformed header is a client bug, not an old client: counting it would keep #3496's entry
+    // condition off zero for a reason upgrading the fleet cannot fix.
+    expect(logger.warn).toHaveBeenCalledTimes(1);
   });
 
   it("handles passport clinical-record FHIR reads for all kinds", async () => {

@@ -10,6 +10,8 @@ import {
 } from "../../src/services/inventory-consumption.service";
 import { clinicalArtifactFhirMapper } from "../../src/services/fhir-clinical-artifact.mapper";
 import { renderPrescriptionLabelPdf } from "../../src/services/rendered-document-renderer.service";
+import { UNVERSIONED_CLINICAL_MUTATION_MARKER } from "../../src/controllers/web/fhir-controller.shared";
+import logger from "../../src/utils/logger";
 
 jest.mock("../../src/services/clinical-artifact.service", () => ({
   ClinicalArtifactService: {
@@ -237,7 +239,7 @@ describe("PrescriptionController", () => {
     } as never);
 
     await PrescriptionController.finalize(
-      { ...req, body: {} } as Request,
+      { ...req, method: "POST", body: {} } as Request,
       res as Response,
     );
 
@@ -248,6 +250,13 @@ describe("PrescriptionController", () => {
       undefined,
     );
     expect(statusMock).toHaveBeenCalledWith(200);
+
+    // #3496 step 0: the degraded finalize is the only thing that can report itself, and #3496's
+    // entry condition is a count of exactly these. Without this line the condition is unmeasurable.
+    expect(logger.warn).toHaveBeenCalledWith(
+      UNVERSIONED_CLINICAL_MUTATION_MARKER,
+      { operation: "prescription-finalize", method: "POST" },
+    );
   });
 
   // A supplied value is still validated: zero/negative/non-integer is a client bug, not an old
@@ -277,6 +286,9 @@ describe("PrescriptionController", () => {
       3,
     );
     expect(statusMock).toHaveBeenCalledWith(200);
+    // A finalize that DID carry a precondition must not be counted, or #3496's entry condition
+    // never reaches zero however many clients upgrade.
+    expect(logger.warn).not.toHaveBeenCalled();
     expect(jsonMock).toHaveBeenCalledWith(
       expect.objectContaining({
         resourceType: "MedicationRequest",
