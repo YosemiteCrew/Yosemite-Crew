@@ -1,7 +1,9 @@
 import {
   ClientAccountService,
+  planClientAllocation,
   summariseClientCredit,
 } from "../../src/services/finance/client-account";
+import { getInvoiceFinancialSummaries } from "src/services/finance/payment";
 import { prisma } from "src/config/prisma";
 
 jest.mock("src/config/prisma", () => ({
@@ -20,7 +22,21 @@ jest.mock("src/config/prisma", () => ({
       updateMany: jest.fn(),
       create: jest.fn(),
     },
+    providerReceiptAllocation: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+    },
+    organization: {
+      findUnique: jest.fn(),
+    },
   },
+}));
+
+// Only the one export this service uses. The whole payment service is not
+// needed to plan an allocation, and pulling it in would make a change anywhere
+// in it able to fail these tests.
+jest.mock("src/services/finance/payment", () => ({
+  getInvoiceFinancialSummaries: jest.fn(),
 }));
 
 const mockedPrisma = prisma as unknown as {
@@ -36,7 +52,11 @@ const mockedPrisma = prisma as unknown as {
     updateMany: jest.Mock;
     create: jest.Mock;
   };
+  providerReceiptAllocation: { findMany: jest.Mock; create: jest.Mock };
+  organization: { findUnique: jest.Mock };
 };
+
+const mockedSummaries = getInvoiceFinancialSummaries as unknown as jest.Mock;
 
 const ORG = "11111111-1111-4111-8111-111111111111";
 const PARENT = "22222222-2222-4222-8222-222222222222";
@@ -253,5 +273,505 @@ describe("ClientAccountService.getAccountCredit", () => {
     ]) {
       expect(write).not.toHaveBeenCalled();
     }
+  });
+});
+
+const credit = (over: Partial<Record<string, unknown>> = {}) => ({
+  receiptId: "receipt-1",
+  version: 3,
+  capturedAt: new Date("2026-09-01T10:00:00.000Z"),
+  availableCredit: 150,
+  ...over,
+});
+
+const debt = (over: Partial<Record<string, unknown>> = {}) => ({
+  invoiceId: "invoice-1",
+  dueAt: new Date("2026-08-01T00:00:00.000Z"),
+  balance: 100,
+  ...over,
+});
+
+describe("planClientAllocation", () => {
+  // The oracle written into #3163: invoices 100 and 80 against 150 of credit.
+  it("pays the oldest debt in full and puts the rest on the next", () => {
+    const lines = planClientAllocation({
+      credits: [credit({ availableCredit: 150 })],
+      debts: [
+        debt({ invoiceId: "invoice-1", balance: 100 }),
+        debt({
+          invoiceId: "invoice-2",
+          balance: 80,
+          dueAt: new Date("2026-08-15T00:00:00.000Z"),
+        }),
+      ],
+      allocatedPairs: new Set<string>(),
+    });
+
+    expect(lines).toEqual([
+      { receiptId: "receipt-1", invoiceId: "invoice-1", amount: 100 },
+      { receiptId: "receipt-1", invoiceId: "invoice-2", amount: 50 },
+    ]);
+  });
+
+  it("leaves the surplus unplanned rather than over-paying a debt", () => {
+    const lines = planClientAllocation({
+      credits: [credit({ availableCredit: 50 })],
+      debts: [debt({ balance: 30 })],
+      allocatedPairs: new Set<string>(),
+    });
+
+    expect(lines).toEqual([
+      { receiptId: "receipt-1", invoiceId: "invoice-1", amount: 30 },
+    ]);
+  });
+
+  it("orders debts by due date and not by the order they were read in", () => {
+    const lines = planClientAllocation({
+      credits: [credit({ availableCredit: 100 })],
+      debts: [
+        debt({
+          invoiceId: "newer",
+          balance: 100,
+          dueAt: new Date("2026-09-01T00:00:00.000Z"),
+        }),
+        debt({
+          invoiceId: "older",
+          balance: 100,
+          dueAt: new Date("2026-01-01T00:00:00.000Z"),
+        }),
+      ],
+      allocatedPairs: new Set<string>(),
+    });
+
+    expect(lines.map((line) => line.invoiceId)).toEqual(["older"]);
+  });
+
+  it("breaks a same-instant debt tie on the id so the plan reproduces", () => {
+    const sameInstant = new Date("2026-08-01T00:00:00.000Z");
+    const lines = planClientAllocation({
+      credits: [credit({ availableCredit: 100 })],
+      debts: [
+        debt({ invoiceId: "invoice-b", balance: 100, dueAt: sameInstant }),
+        debt({ invoiceId: "invoice-a", balance: 100, dueAt: sameInstant }),
+      ],
+      allocatedPairs: new Set<string>(),
+    });
+
+    expect(lines.map((line) => line.invoiceId)).toEqual(["invoice-a"]);
+  });
+
+  it("spends the oldest capture before a newer one", () => {
+    const lines = planClientAllocation({
+      credits: [
+        credit({
+          receiptId: "newer",
+          availableCredit: 100,
+          capturedAt: new Date("2026-09-10T00:00:00.000Z"),
+        }),
+        credit({
+          receiptId: "older",
+          availableCredit: 100,
+          capturedAt: new Date("2026-02-10T00:00:00.000Z"),
+        }),
+      ],
+      debts: [debt({ balance: 100 })],
+      allocatedPairs: new Set<string>(),
+    });
+
+    expect(lines.map((line) => line.receiptId)).toEqual(["older"]);
+  });
+
+  it("draws on a second capture when the first runs out", () => {
+    const lines = planClientAllocation({
+      credits: [
+        credit({
+          receiptId: "first",
+          availableCredit: 40,
+          capturedAt: new Date("2026-02-10T00:00:00.000Z"),
+        }),
+        credit({
+          receiptId: "second",
+          availableCredit: 90,
+          capturedAt: new Date("2026-03-10T00:00:00.000Z"),
+        }),
+      ],
+      debts: [debt({ balance: 100 })],
+      allocatedPairs: new Set<string>(),
+    });
+
+    expect(lines).toEqual([
+      { receiptId: "first", invoiceId: "invoice-1", amount: 40 },
+      { receiptId: "second", invoiceId: "invoice-1", amount: 60 },
+    ]);
+  });
+
+  /*
+   * The journal holds a unique on (receipt, invoice), so the allocation call
+   * refuses this pairing as a double-apply. Proposing it would be proposing an
+   * action that cannot be taken.
+   */
+  it("skips a capture already applied to that invoice and uses the next", () => {
+    const lines = planClientAllocation({
+      credits: [
+        credit({
+          receiptId: "spent-here",
+          availableCredit: 100,
+          capturedAt: new Date("2026-02-10T00:00:00.000Z"),
+        }),
+        credit({
+          receiptId: "free",
+          availableCredit: 100,
+          capturedAt: new Date("2026-03-10T00:00:00.000Z"),
+        }),
+      ],
+      debts: [debt({ invoiceId: "invoice-1", balance: 100 })],
+      allocatedPairs: new Set(["spent-here:invoice-1"]),
+    });
+
+    expect(lines).toEqual([
+      { receiptId: "free", invoiceId: "invoice-1", amount: 100 },
+    ]);
+  });
+
+  it("plans nothing when every capture is already applied to that invoice", () => {
+    const lines = planClientAllocation({
+      credits: [credit({ receiptId: "spent-here", availableCredit: 100 })],
+      debts: [debt({ invoiceId: "invoice-1", balance: 100 })],
+      allocatedPairs: new Set(["spent-here:invoice-1"]),
+    });
+
+    expect(lines).toEqual([]);
+  });
+
+  it("never plans more from one capture than is left on it", () => {
+    const lines = planClientAllocation({
+      credits: [credit({ availableCredit: 70 })],
+      debts: [
+        debt({ invoiceId: "invoice-1", balance: 100 }),
+        debt({
+          invoiceId: "invoice-2",
+          balance: 100,
+          dueAt: new Date("2026-08-15T00:00:00.000Z"),
+        }),
+      ],
+      allocatedPairs: new Set<string>(),
+    });
+
+    expect(lines).toEqual([
+      { receiptId: "receipt-1", invoiceId: "invoice-1", amount: 70 },
+    ]);
+  });
+
+  it("keeps a part-paid capture to the cent across two debts", () => {
+    const lines = planClientAllocation({
+      credits: [credit({ availableCredit: 100.1 })],
+      debts: [
+        debt({ invoiceId: "invoice-1", balance: 33.37 }),
+        debt({
+          invoiceId: "invoice-2",
+          balance: 500,
+          dueAt: new Date("2026-08-15T00:00:00.000Z"),
+        }),
+      ],
+      allocatedPairs: new Set<string>(),
+    });
+
+    expect(lines).toEqual([
+      { receiptId: "receipt-1", invoiceId: "invoice-1", amount: 33.37 },
+      { receiptId: "receipt-1", invoiceId: "invoice-2", amount: 66.73 },
+    ]);
+  });
+});
+
+const dbInvoice = (over: Partial<Record<string, unknown>> = {}) => ({
+  id: "invoice-1",
+  currency: "gbp",
+  status: "PENDING",
+  totalAmount: 100,
+  depositCollectedAmount: 0,
+  finalizedAt: new Date("2026-08-01T00:00:00.000Z"),
+  createdAt: new Date("2026-07-01T00:00:00.000Z"),
+  ...over,
+});
+
+const dbReceipt = (over: Partial<Record<string, unknown>> = {}) => ({
+  id: "receipt-1",
+  merchantAccountRef: "acct_org",
+  currency: "gbp",
+  capturedAt: new Date("2026-09-01T10:00:00.000Z"),
+  amount: 150,
+  refundedAmount: 0,
+  allocatedAmount: 0,
+  version: 3,
+  ...over,
+});
+
+const balances = (entries: Record<string, number>) =>
+  new Map(
+    Object.entries(entries).map(([id, balance]) => [
+      id,
+      { paid: 0, credited: 0, balance },
+    ]),
+  );
+
+describe("ClientAccountService.proposeAllocation", () => {
+  beforeEach(() => {
+    mockedPrisma.organization.findUnique.mockResolvedValue({
+      stripeAccountId: "acct_org",
+    });
+    mockedPrisma.providerReceiptAllocation.findMany.mockResolvedValue([]);
+  });
+
+  it("plans the oldest debt first and reports what is left on both sides", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      dbInvoice({ id: "invoice-1", totalAmount: 100 }),
+      dbInvoice({
+        id: "invoice-2",
+        totalAmount: 80,
+        finalizedAt: new Date("2026-08-15T00:00:00.000Z"),
+      }),
+    ]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      dbReceipt({ amount: 150 }),
+    ]);
+    mockedSummaries.mockResolvedValue(
+      balances({ "invoice-1": 100, "invoice-2": 80 }),
+    );
+
+    const [proposal] = await ClientAccountService.proposeAllocation({
+      organisationId: ORG,
+      parentId: PARENT,
+    });
+
+    expect(proposal).toMatchObject({
+      currency: "gbp",
+      availableCredit: 150,
+      proposedAmount: 150,
+      residualCredit: 0,
+      outstandingBefore: 180,
+      outstandingAfter: 30,
+    });
+    expect(proposal.lines).toEqual([
+      { receiptId: "receipt-1", invoiceId: "invoice-1", amount: 100 },
+      { receiptId: "receipt-1", invoiceId: "invoice-2", amount: 50 },
+    ]);
+  });
+
+  it("reports the credit a smaller debt leaves over", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([dbInvoice({})]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      dbReceipt({ amount: 50 }),
+    ]);
+    mockedSummaries.mockResolvedValue(balances({ "invoice-1": 30 }));
+
+    const [proposal] = await ClientAccountService.proposeAllocation({
+      organisationId: ORG,
+      parentId: PARENT,
+    });
+
+    expect(proposal).toMatchObject({
+      proposedAmount: 30,
+      residualCredit: 20,
+      outstandingAfter: 0,
+    });
+  });
+
+  it("carries the version each capture was read at", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([dbInvoice({})]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      dbReceipt({ version: 7 }),
+    ]);
+    mockedSummaries.mockResolvedValue(balances({ "invoice-1": 100 }));
+
+    const [proposal] = await ClientAccountService.proposeAllocation({
+      organisationId: ORG,
+      parentId: PARENT,
+    });
+
+    expect(proposal.credits).toEqual([
+      {
+        receiptId: "receipt-1",
+        version: 7,
+        capturedAt: new Date("2026-09-01T10:00:00.000Z"),
+        availableCredit: 150,
+      },
+    ]);
+  });
+
+  it("never nets one currency against another", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      dbInvoice({ id: "invoice-gbp", currency: "gbp" }),
+      dbInvoice({ id: "invoice-usd", currency: "usd" }),
+    ]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      dbReceipt({ id: "receipt-gbp", currency: "gbp", amount: 40 }),
+      dbReceipt({ id: "receipt-usd", currency: "usd", amount: 10 }),
+    ]);
+    mockedSummaries.mockResolvedValue(
+      balances({ "invoice-gbp": 100, "invoice-usd": 100 }),
+    );
+
+    const proposals = await ClientAccountService.proposeAllocation({
+      organisationId: ORG,
+      parentId: PARENT,
+    });
+
+    expect(proposals.map((proposal) => proposal.currency)).toEqual([
+      "gbp",
+      "usd",
+    ]);
+    expect(proposals[0].lines).toEqual([
+      { receiptId: "receipt-gbp", invoiceId: "invoice-gbp", amount: 40 },
+    ]);
+    expect(proposals[1].lines).toEqual([
+      { receiptId: "receipt-usd", invoiceId: "invoice-usd", amount: 10 },
+    ]);
+  });
+
+  /*
+   * The allocation call refuses a capture held in a merchant account that is
+   * not this organisation's, so the preview must not offer to spend it.
+   */
+  it("leaves out a capture held in another merchant account", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([dbInvoice({})]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      dbReceipt({ merchantAccountRef: "acct_somebody_else" }),
+    ]);
+    mockedSummaries.mockResolvedValue(balances({ "invoice-1": 100 }));
+
+    expect(
+      await ClientAccountService.proposeAllocation({
+        organisationId: ORG,
+        parentId: PARENT,
+      }),
+    ).toEqual([]);
+  });
+
+  it("spends a platform-account capture, which belongs to no one merchant", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([dbInvoice({})]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      dbReceipt({ merchantAccountRef: "PLATFORM" }),
+    ]);
+    mockedSummaries.mockResolvedValue(balances({ "invoice-1": 100 }));
+
+    const [proposal] = await ClientAccountService.proposeAllocation({
+      organisationId: ORG,
+      parentId: PARENT,
+    });
+
+    expect(proposal.proposedAmount).toBe(100);
+  });
+
+  it("does not offer money that has been given back", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([dbInvoice({})]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      dbReceipt({ amount: 150, refundedAmount: 150 }),
+    ]);
+    mockedSummaries.mockResolvedValue(balances({ "invoice-1": 100 }));
+
+    expect(
+      await ClientAccountService.proposeAllocation({
+        organisationId: ORG,
+        parentId: PARENT,
+      }),
+    ).toEqual([]);
+  });
+
+  it("keeps a cancelled invoice out of the debts it plans against", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      dbInvoice({ id: "invoice-cancelled", status: "CANCELLED" }),
+    ]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([dbReceipt({})]);
+    mockedSummaries.mockResolvedValue(new Map());
+
+    const [proposal] = await ClientAccountService.proposeAllocation({
+      organisationId: ORG,
+      parentId: PARENT,
+    });
+
+    expect(mockedSummaries).toHaveBeenCalledWith([]);
+    expect(proposal).toMatchObject({
+      proposedAmount: 0,
+      residualCredit: 150,
+      outstandingBefore: 0,
+      lines: [],
+    });
+  });
+
+  it("does not plan a pairing the journal has already recorded", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([dbInvoice({})]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([dbReceipt({})]);
+    mockedSummaries.mockResolvedValue(balances({ "invoice-1": 100 }));
+    mockedPrisma.providerReceiptAllocation.findMany.mockResolvedValue([
+      { receiptId: "receipt-1", invoiceId: "invoice-1" },
+    ]);
+
+    const [proposal] = await ClientAccountService.proposeAllocation({
+      organisationId: ORG,
+      parentId: PARENT,
+    });
+
+    expect(proposal.lines).toEqual([]);
+    expect(proposal.residualCredit).toBe(150);
+  });
+
+  /*
+   * A `Parent` is global, so the client id alone is not a tenancy boundary.
+   * Both reads carry the organisation, and a client this organisation has
+   * never invoiced is answered without reading any money at all.
+   */
+  it("reads no captures for a client this organisation has not invoiced", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+    expect(
+      await ClientAccountService.proposeAllocation({
+        organisationId: ORG,
+        parentId: PARENT,
+      }),
+    ).toEqual([]);
+    expect(mockedPrisma.providerReceipt.findMany).not.toHaveBeenCalled();
+  });
+
+  it("scopes both reads to the organisation", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([dbInvoice({})]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([dbReceipt({})]);
+    mockedSummaries.mockResolvedValue(balances({ "invoice-1": 100 }));
+
+    await ClientAccountService.proposeAllocation({
+      organisationId: ORG,
+      parentId: PARENT,
+    });
+
+    expect(mockedPrisma.invoice.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organisationId: ORG, parentId: PARENT },
+      }),
+    );
+    expect(mockedPrisma.providerReceipt.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organisationId: ORG,
+          invoiceId: { in: ["invoice-1"] },
+        },
+      }),
+    );
+  });
+
+  it("writes nothing", async () => {
+    mockedPrisma.invoice.findMany.mockResolvedValue([dbInvoice({})]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([dbReceipt({})]);
+    mockedSummaries.mockResolvedValue(balances({ "invoice-1": 100 }));
+
+    await ClientAccountService.proposeAllocation({
+      organisationId: ORG,
+      parentId: PARENT,
+    });
+
+    expect(mockedPrisma.invoice.update).not.toHaveBeenCalled();
+    expect(mockedPrisma.providerReceipt.update).not.toHaveBeenCalled();
+    expect(mockedPrisma.providerReceipt.updateMany).not.toHaveBeenCalled();
+    expect(
+      mockedPrisma.providerReceiptAllocation.create,
+    ).not.toHaveBeenCalled();
   });
 });

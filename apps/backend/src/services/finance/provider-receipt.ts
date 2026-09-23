@@ -686,7 +686,7 @@ type AllocationReceipt = Prisma.ProviderReceiptGetPayload<{
  * invoice can still show an outstanding total, and applying a capture to one
  * would post money against a document nobody is going to collect.
  */
-const CLOSED_INVOICE_STATUSES: ReadonlySet<string> = new Set([
+export const CLOSED_INVOICE_STATUSES: ReadonlySet<string> = new Set([
   "CANCELLED",
   "REFUNDED",
 ]);
