@@ -1,3 +1,4 @@
+import { PLATFORM_STATUS_API_URL } from '@/app/hooks/usePlatformStatus';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
@@ -24,13 +25,11 @@ const CACHED_STATS = {
   discord: '3,182',
 };
 
-const OPENSTATUS_HOST = 'openstatus.dev';
-
 /** Stands in for `window.scrollTo` so "Back to top" can be clicked without moving the canvas. */
 const scrollSpy = fn();
 
 /**
- * The footer asks api.openstatus.dev for the platform status on mount and colours
+ * The footer asks /api/platform-status for the platform status on mount and colours
  * the pill from the answer, so every story swaps `fetch` for a canned reply and puts
  * the real one back on unmount. Left alone, the tone of the pill would depend on how
  * the platform happened to be doing when the story was opened.
@@ -46,7 +45,7 @@ const seed = ({ status, seedStats = true }: { status: string | 'reject'; seedSta
     globalThis.window.scrollTo = scrollSpy as unknown as typeof globalThis.window.scrollTo;
 
     globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-      if (String(input).includes(OPENSTATUS_HOST)) {
+      if (String(input).startsWith(PLATFORM_STATUS_API_URL)) {
         if (status === 'reject') return Promise.reject(new Error('status api unreachable'));
         return Promise.resolve(
           new Response(JSON.stringify({ status }), {
