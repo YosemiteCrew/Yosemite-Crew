@@ -296,9 +296,11 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm --filter frontend exec playwright install --with-deps chromium firefox
 
-      # Both authenticated specs run here and nowhere else. The public job runs
-      # an explicit two-file list, so a spec that needs a session has no other
-      # home: adding it to `e2e/` alone would mean it never executes.
+      # These specs run here and nowhere else, so they run only after a merge -
+      # this job is excluded from `pull_request` above. That is no longer
+      # carried by this comment alone: each one is recorded in
+      # POST_MERGE_ONLY_SPECS in scripts/ci/check-e2e-spec-coverage.mjs, and
+      # moving a spec into this list without recording it there is red (#3546).
       # public-booking-setup.spec.ts follows the same credential-artefact rules
       # as auth-flow.spec.ts (trace/screenshot/video off in-file, and the
       # PLAYWRIGHT_NO_COPY_PROMPT above), which is why it is safe in this job.
