@@ -23,138 +23,151 @@ import type {Theme} from '@/theme';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Prescriptions'>;
 
-const formatDate = (value: string | undefined): string | null => {
-  if (!value) return null;
+const formatDate = (value: string): string | null => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString();
 };
+
+type LoadError = 'signIn' | 'loadFailed';
 
 export const PrescriptionsScreen: React.FC<Props> = ({navigation, route}) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const {t} = useTranslation();
+  const {companionId} = route.params;
   const [prescriptions, setPrescriptions] = React.useState<
     MobilePrescription[]
   >([]);
   const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<LoadError | null>(null);
   const [requestingId, setRequestingId] = React.useState<string | null>(null);
 
   const load = React.useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const tokens = await getFreshStoredTokens();
-      if (!tokens?.accessToken) throw new Error(t('prescriptions.signInAgain'));
-      const all = await prescriptionApi.list(tokens.accessToken);
-      setPrescriptions(
-        all.filter(item => item.patientId === route.params.companionId),
-      );
-      setError(null);
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error &&
-          loadError.message === t('prescriptions.signInAgain')
-          ? loadError.message
-          : t('prescriptions.loadFailed'),
-      );
+      if (tokens?.accessToken) {
+        const all = await prescriptionApi.list(tokens.accessToken);
+        setPrescriptions(all.filter(item => item.patientId === companionId));
+      } else {
+        setError('signIn');
+      }
+    } catch {
+      setError('loadFailed');
     } finally {
       setLoading(false);
     }
-  }, [route.params.companionId, t]);
+  }, [companionId]);
 
   React.useEffect(() => {
     load();
   }, [load]);
 
   const requestRefill = async (prescription: MobilePrescription) => {
+    setRequestingId(prescription.id);
     try {
       const tokens = await getFreshStoredTokens();
-      if (!tokens?.accessToken) throw new Error(t('prescriptions.signInAgain'));
-      setRequestingId(prescription.id);
+      if (!tokens?.accessToken) {
+        Alert.alert(
+          t('prescriptions.refillFailedTitle'),
+          t('prescriptions.signInAgain'),
+        );
+        return;
+      }
       await prescriptionApi.requestRefill(prescription.id, tokens.accessToken);
       Alert.alert(
         t('prescriptions.refillRequestedTitle'),
         t('prescriptions.refillRequestedBody'),
       );
-    } catch (requestError) {
+    } catch {
       Alert.alert(
         t('prescriptions.refillFailedTitle'),
-        requestError instanceof Error &&
-          requestError.message === t('prescriptions.signInAgain')
-          ? requestError.message
-          : t('prescriptions.refillFailedBody'),
+        t('prescriptions.refillFailedBody'),
       );
     } finally {
       setRequestingId(null);
     }
   };
 
-  const renderPrescription = (prescription: MobilePrescription) => (
-    <View key={prescription.id} style={styles.card}>
-      <Text style={styles.title}>
-        {prescription.items.map(item => item.medication).join(', ')}
-      </Text>
-      {prescription.summary ? (
-        <Text style={styles.detail}>{prescription.summary}</Text>
-      ) : null}
-      {prescription.items.map(item => (
-        <View key={item.id} style={styles.item}>
-          <Text style={styles.itemTitle}>
-            {item.medication}
-            {item.strength ? ` · ${item.strength}` : ''}
+  const renderPrescription = (prescription: MobilePrescription) => {
+    const medication = prescription.items
+      .map(item => item.medication)
+      .join(', ');
+    const recordedOn = formatDate(
+      prescription.signedAt ?? prescription.createdAt,
+    );
+    const isRequesting = requestingId === prescription.id;
+    return (
+      <View key={prescription.id} style={styles.card}>
+        <Text style={styles.title}>{medication}</Text>
+        {prescription.summary ? (
+          <Text style={styles.detail}>{prescription.summary}</Text>
+        ) : null}
+        {prescription.items.map(item => (
+          <View key={item.id} style={styles.item}>
+            <Text style={styles.itemTitle}>
+              {item.medication}
+              {item.strength ? ` · ${item.strength}` : ''}
+            </Text>
+            <Text style={styles.detail}>
+              {[item.dosage, item.route, item.frequency]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+            {item.instructions ? (
+              <Text style={styles.detail}>{item.instructions}</Text>
+            ) : null}
+          </View>
+        ))}
+        {recordedOn ? (
+          <Text style={styles.meta}>
+            {t('prescriptions.recorded', {date: recordedOn})}
           </Text>
-          <Text style={styles.detail}>
-            {[item.dosage, item.route, item.frequency]
-              .filter(Boolean)
-              .join(' · ')}
+        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t(
+            isRequesting
+              ? 'prescriptions.requestingFor'
+              : 'prescriptions.requestRefillFor',
+            {medication},
+          )}
+          accessibilityState={{disabled: isRequesting, busy: isRequesting}}
+          disabled={isRequesting}
+          onPress={() => requestRefill(prescription)}
+          style={[styles.button, isRequesting && styles.buttonDisabled]}>
+          <Text style={styles.buttonLabel}>
+            {t(
+              isRequesting
+                ? 'prescriptions.requesting'
+                : 'prescriptions.requestRefill',
+            )}
           </Text>
-          {item.instructions ? (
-            <Text style={styles.detail}>{item.instructions}</Text>
-          ) : null}
-        </View>
-      ))}
-      {formatDate(prescription.signedAt ?? prescription.createdAt) ? (
-        <Text style={styles.meta}>
-          {t('prescriptions.recorded', {
-            date: formatDate(prescription.signedAt ?? prescription.createdAt),
-          })}
-        </Text>
-      ) : null}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('prescriptions.requestRefill')}
-        disabled={requestingId === prescription.id}
-        onPress={() => requestRefill(prescription)}
-        style={[
-          styles.button,
-          requestingId === prescription.id && styles.buttonDisabled,
-        ]}>
-        <Text style={styles.buttonLabel}>
-          {requestingId === prescription.id
-            ? t('prescriptions.requesting')
-            : t('prescriptions.requestRefill')}
-        </Text>
-      </Pressable>
-    </View>
-  );
+        </Pressable>
+      </View>
+    );
+  };
 
-  return (
-    <SafeArea>
-      <Header
-        title={t('prescriptions.title')}
-        showBackButton
-        onBack={() => navigation.goBack()}
-      />
-      {loading ? (
+  const renderBody = () => {
+    if (loading) {
+      return (
         <View style={styles.centered}>
           <GifLoader />
         </View>
-      ) : error ? (
+      );
+    }
+    if (error) {
+      return (
         <View style={styles.centered}>
           <Text style={styles.error} accessibilityRole="alert">
-            {error}
+            {t(
+              error === 'signIn'
+                ? 'prescriptions.signInAgain'
+                : 'prescriptions.loadFailed',
+            )}
           </Text>
-          {error !== t('prescriptions.signInAgain') ? (
+          {error === 'loadFailed' ? (
             <Pressable
               accessibilityRole="button"
               onPress={load}
@@ -163,18 +176,30 @@ export const PrescriptionsScreen: React.FC<Props> = ({navigation, route}) => {
             </Pressable>
           ) : null}
         </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}>
-          <Text style={styles.intro}>{t('prescriptions.intro')}</Text>
-          {prescriptions.length ? (
-            prescriptions.map(renderPrescription)
-          ) : (
-            <Text style={styles.empty}>{t('prescriptions.empty')}</Text>
-          )}
-        </ScrollView>
-      )}
+      );
+    }
+    return (
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}>
+        <Text style={styles.intro}>{t('prescriptions.intro')}</Text>
+        {prescriptions.length ? (
+          prescriptions.map(renderPrescription)
+        ) : (
+          <Text style={styles.empty}>{t('prescriptions.empty')}</Text>
+        )}
+      </ScrollView>
+    );
+  };
+
+  return (
+    <SafeArea>
+      <Header
+        title={t('prescriptions.title')}
+        showBackButton
+        onBack={() => navigation.goBack()}
+      />
+      {renderBody()}
     </SafeArea>
   );
 };
