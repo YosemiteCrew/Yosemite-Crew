@@ -51,11 +51,53 @@ const ZERO_DECIMAL_CURRENCIES = new Set([
   "xpf",
 ]);
 
-/** An amount in the smallest unit Stripe accepts for `currency`. */
-export const toStripeMinorUnits = (amount: number, currency: string): number =>
-  ZERO_DECIMAL_CURRENCIES.has(currency.trim().toLowerCase())
+// Currencies whose ledger amount carries three decimals. Scaling one by a
+// hundred, as the two-decimal default below does, drops the third digit before
+// Stripe ever sees it, and Stripe's own minor unit for these codes is not the
+// hundredth either, so what reaches the charge is not the posted amount under
+// any reading. Charging one needs its own verified conversion and sandbox
+// fixtures (#3153); until then it is refused here, where every outbound amount
+// passes, rather than submitted at the wrong scale.
+const THREE_DECIMAL_CURRENCIES = new Set([
+  "bhd",
+  "jod",
+  "kwd",
+  "lyd",
+  "omr",
+  "tnd",
+]);
+
+export class UnsupportedStripeCurrencyError extends Error {
+  readonly currency: string;
+
+  constructor(currency: string) {
+    super(`Stripe charges are not supported in ${currency.toUpperCase()}`);
+    this.name = "UnsupportedStripeCurrencyError";
+    this.currency = currency;
+  }
+}
+
+/** Whether an amount in `currency` can be submitted to Stripe unchanged. */
+export const isStripeChargeCurrencySupported = (currency: string): boolean =>
+  !THREE_DECIMAL_CURRENCIES.has(currency.trim().toLowerCase());
+
+/**
+ * An amount in the smallest unit Stripe accepts for `currency`. Throws
+ * `UnsupportedStripeCurrencyError` for a three-decimal currency.
+ */
+export const toStripeMinorUnits = (
+  amount: number,
+  currency: string,
+): number => {
+  const code = currency.trim().toLowerCase();
+  if (THREE_DECIMAL_CURRENCIES.has(code)) {
+    throw new UnsupportedStripeCurrencyError(code);
+  }
+
+  return ZERO_DECIMAL_CURRENCIES.has(code)
     ? Math.round(amount)
     : Math.round(amount * 100);
+};
 
 /** Convert an amount returned by Stripe to its major currency unit. */
 export const fromStripeMinorUnits = (
