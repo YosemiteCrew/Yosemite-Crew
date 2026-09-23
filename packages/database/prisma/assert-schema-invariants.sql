@@ -44,6 +44,8 @@ BEGIN
   END IF;
 END $$;
 
+-- The Invoice assertion above also makes this block non-vacuous: it fails first
+-- if current_schema() does not contain the migrated application tables.
 DO $$
 DECLARE
   target_schema text := current_schema();
