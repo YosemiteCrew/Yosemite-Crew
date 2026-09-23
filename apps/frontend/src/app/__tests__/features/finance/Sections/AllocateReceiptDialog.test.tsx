@@ -229,8 +229,95 @@ describe('AllocateReceiptDialog', () => {
     await user.click(screen.getByRole('checkbox', { name: /#7701/ }));
     await user.click(screen.getByRole('button', { name: /apply this captured payment/i }));
 
-    await waitFor(() => expect(screen.getByText('£25.00 applied')).toBeInTheDocument());
-    expect(screen.queryByText('£40.00 applied')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('£25.00 applied to #7701')).toBeInTheDocument());
+    expect(screen.queryByText('£40.00 applied to #7701')).not.toBeInTheDocument();
+  });
+
+  /*
+   * Two lines of a split capture are two amounts, and an amount on its own
+   * says nothing about where the money went. The invoice is what an operator
+   * reconciles against afterwards.
+   */
+  it('names the invoice each applied line went to', async () => {
+    const user = userEvent.setup();
+    allocateProviderReceipt.mockResolvedValue({
+      receipt: receipt({ allocatedAmount: 100 }),
+      remainingAmount: 0,
+      allocations: [
+        { invoiceId: '7701', amount: 40 },
+        { invoiceId: '7702', amount: 60 },
+      ],
+      replayed: false,
+    });
+
+    renderDialog({
+      invoices: [
+        invoice('7701', 40, { metadata: { invoiceNumber: 'INV-0041' } }),
+        invoice('7702', 90, { metadata: { invoiceNumber: 'INV-0042' } }),
+      ],
+    });
+    await user.click(screen.getByRole('checkbox', { name: /#INV-0041/ }));
+    await user.click(screen.getByRole('button', { name: /apply this captured payment/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText('£40.00 applied to #INV-0041')).toBeInTheDocument()
+    );
+    expect(screen.getByText('£60.00 applied to #INV-0042')).toBeInTheDocument();
+  });
+
+  /*
+   * A replay reports the lines of the decision it repeats, and that decision
+   * may well have settled the invoice - which takes it out of the picker. The
+   * name has to come from every loaded invoice, not the eligible ones.
+   */
+  it('names an invoice the repeated decision already settled', async () => {
+    const user = userEvent.setup();
+    allocateProviderReceipt.mockResolvedValue({
+      receipt: receipt({ allocatedAmount: 40 }),
+      remainingAmount: 60,
+      allocations: [{ invoiceId: '7709', amount: 40 }],
+      replayed: true,
+    });
+
+    renderDialog({
+      invoices: [
+        invoice('7701', 40),
+        invoice('7709', 0, {
+          status: 'PAID',
+          settlementSummary: { balance: 0 },
+          metadata: { invoiceNumber: 'INV-0099' },
+        }),
+      ],
+    });
+    await user.click(screen.getByRole('checkbox', { name: /#7701/ }));
+    await user.click(screen.getByRole('button', { name: /apply this captured payment/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText('£40.00 applied to #INV-0099')).toBeInTheDocument()
+    );
+    expect(screen.queryByRole('checkbox', { name: /INV-0099/ })).not.toBeInTheDocument();
+  });
+
+  /*
+   * And an invoice the store never loaded still has to read as a distinct
+   * line rather than as a bare amount.
+   */
+  it('falls back to a code from the id for an invoice it never loaded', async () => {
+    const user = userEvent.setup();
+    allocateProviderReceipt.mockResolvedValue({
+      receipt: receipt({ allocatedAmount: 40 }),
+      remainingAmount: 60,
+      allocations: [{ invoiceId: 'not-loaded-1', amount: 40 }],
+      replayed: true,
+    });
+
+    renderDialog();
+    await user.click(screen.getByRole('checkbox', { name: /#7701/ }));
+    await user.click(screen.getByRole('button', { name: /apply this captured payment/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText('£40.00 applied to #not-loaded-1')).toBeInTheDocument()
+    );
   });
 
   it('reports a replay as a success and says nothing was posted twice', async () => {

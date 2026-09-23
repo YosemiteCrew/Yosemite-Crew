@@ -2,6 +2,7 @@ import type { Invoice } from '@yosemite-crew/types';
 import {
   ALL_STATUSES_KEY,
   allocatableInvoices,
+  allocatedInvoiceLabel,
   allocatableResidual,
   allocationBlockedReason,
   canAllocate,
@@ -273,5 +274,39 @@ describe('allocatableInvoices', () => {
 
   it('drops a record with no id, which cannot be named in an allocation', () => {
     expect(allocatableInvoices([asInvoice({ id: undefined })], allocatable())).toEqual([]);
+  });
+});
+
+describe('allocatedInvoiceLabel', () => {
+  it('reads an applied line under the invoice number the practice issued', () => {
+    const numbered = asInvoice({
+      metadata: { invoiceNumber: 'INV-2026-0042' },
+    } as Partial<Invoice>);
+
+    expect(allocatedInvoiceLabel('inv-1', [numbered])).toBe('#INV-2026-0042');
+  });
+
+  /*
+   * The case the picker cannot answer: a replay names the invoice the earlier
+   * decision closed, and a closed invoice is not allocatable.
+   */
+  it('names an invoice that is no longer allocatable', () => {
+    const settled = asInvoice({
+      status: 'PAID',
+      settlementSummary: { balance: 0 },
+    } as Partial<Invoice>);
+
+    expect(allocatableInvoices([settled], allocatable())).toEqual([]);
+    expect(allocatedInvoiceLabel('inv-1', [settled])).toBe('#inv-1');
+  });
+
+  it('derives a code from the id when the store never loaded the invoice', () => {
+    expect(allocatedInvoiceLabel('c93099a27f4b41d2ae51b8ca0f3d7e61', [asInvoice()])).toBe(
+      '#CA0F3D7E61'
+    );
+  });
+
+  it('falls back to a word rather than an empty label', () => {
+    expect(allocatedInvoiceLabel('', [asInvoice()])).toBe('Invoice');
   });
 });
