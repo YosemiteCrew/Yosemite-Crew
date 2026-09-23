@@ -34,7 +34,9 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
   );
   const activeRef = useRef(false);
   const authenticatingRef = useRef(status.authenticating);
-  authenticatingRef.current = status.authenticating;
+  if (status.authenticating) {
+    authenticatingRef.current = true;
+  }
   const [failure, setFailure] = useState<string | null>(null);
   const currentUserId = user?.parentId ?? user?.id ?? null;
   const isOwner = !settings.ownerId || settings.ownerId === currentUserId;
