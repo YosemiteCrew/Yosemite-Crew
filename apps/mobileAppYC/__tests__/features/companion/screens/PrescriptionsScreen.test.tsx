@@ -62,7 +62,6 @@ const mockRequest = prescriptionApi.requestRefill as jest.Mock;
 const route = {params: {companionId: 'pet-1'}};
 const navigation = {goBack: jest.fn()};
 const CREATED_AT = '2026-01-15T12:00:00Z';
-const SIGNED_AT = '2026-02-20T12:00:00Z';
 const prescription = {
   id: 'rx-1',
   patientId: 'pet-1',
@@ -80,6 +79,9 @@ const prescription = {
   ],
 };
 const REFILL_AMOXICILLIN = 'prescriptions.requestRefillFor:Amoxicillin';
+// The first render in a worker is cold. On a loaded runner it can land just
+// past RNTL's 1s default, so waits here state their own budget.
+const WAIT = {timeout: 5000};
 
 const renderScreen = () =>
   render(
@@ -140,7 +142,7 @@ describe('PrescriptionsScreen', () => {
       });
     renderScreen();
 
-    await screen.findByRole('button', {name: REFILL_AMOXICILLIN});
+    await screen.findByRole('button', {name: REFILL_AMOXICILLIN}, WAIT);
     expect(screen.queryByText('prescriptions.empty')).toBeNull();
     expect(apiClient.get).toHaveBeenCalledTimes(2);
   });
@@ -152,14 +154,16 @@ describe('PrescriptionsScreen', () => {
 
     expect(screen.getByText('loading')).toBeTruthy();
     pending.resolve([prescription]);
-    await screen.findByRole('button', {name: REFILL_AMOXICILLIN});
+    await screen.findByRole('button', {name: REFILL_AMOXICILLIN}, WAIT);
     expect(screen.queryByText('loading')).toBeNull();
   });
 
   it('filters the owner prescription list to the selected companion', async () => {
     renderScreen();
-    await waitFor(() =>
-      expect(screen.getAllByText('Amoxicillin').length).toBeGreaterThan(0),
+    await waitFor(
+      () =>
+        expect(screen.getAllByText('Amoxicillin').length).toBeGreaterThan(0),
+      WAIT,
     );
     expect(mockList).toHaveBeenCalledWith('token');
     expect(
@@ -172,71 +176,20 @@ describe('PrescriptionsScreen', () => {
     expect(screen.queryByText('prescriptions.empty')).toBeNull();
   });
 
-  it('renders the optional summary, strength, route and instructions, dated by signature', async () => {
-    mockList.mockResolvedValue([
-      {
-        ...prescription,
-        summary: 'Post-op course',
-        signedAt: SIGNED_AT,
-        items: [
-          {
-            id: 'item-1',
-            medication: 'Meloxicam',
-            strength: '1.5mg/ml',
-            dosage: '0.1ml',
-            route: 'Oral',
-            frequency: 'Once daily',
-            instructions: 'Give with food',
-          },
-          {id: 'item-2', medication: 'Gabapentin'},
-        ],
-      },
-    ]);
-    renderScreen();
-
-    await waitFor(() =>
-      expect(screen.getByText('Meloxicam, Gabapentin')).toBeTruthy(),
-    );
-    expect(screen.getByText('Post-op course')).toBeTruthy();
-    expect(screen.getByText('Meloxicam · 1.5mg/ml')).toBeTruthy();
-    expect(screen.getByText('0.1ml · Oral · Once daily')).toBeTruthy();
-    expect(screen.getByText('Give with food')).toBeTruthy();
-    expect(
-      screen.getByText(
-        `prescriptions.recorded:${new Date(SIGNED_AT).toLocaleDateString()}`,
-      ),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole('button', {
-        name: 'prescriptions.requestRefillFor:Meloxicam, Gabapentin',
-      }),
-    ).toBeTruthy();
-  });
-
-  it('omits the recorded line when the date is unparseable', async () => {
-    mockList.mockResolvedValue([{...prescription, createdAt: 'not-a-date'}]);
-    renderScreen();
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', {name: REFILL_AMOXICILLIN}),
-      ).toBeTruthy(),
-    );
-    expect(screen.queryByText(/prescriptions\.recorded/)).toBeNull();
-  });
-
   it('says nothing is recorded when the companion has no prescriptions', async () => {
     mockList.mockResolvedValue([{...prescription, patientId: 'pet-2'}]);
     renderScreen();
 
-    await waitFor(() =>
-      expect(screen.getByText('prescriptions.empty')).toBeTruthy(),
+    await waitFor(
+      () => expect(screen.getByText('prescriptions.empty')).toBeTruthy(),
+      WAIT,
     );
     expect(screen.getByText('prescriptions.intro')).toBeTruthy();
     expect(screen.queryByRole('button', {name: /requestRefillFor/})).toBeNull();
   });
 
-  it('names the medication in each refill button label', async () => {
+  // The screen decides which card is busy; the card and hook own the rest.
+  it('requests a refill and marks only that card busy while in flight', async () => {
     mockList.mockResolvedValue([
       prescription,
       {
@@ -245,45 +198,36 @@ describe('PrescriptionsScreen', () => {
         items: [{...prescription.items[0], id: 'i2', medication: 'Cefalexin'}],
       },
     ]);
-    renderScreen();
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', {name: REFILL_AMOXICILLIN}),
-      ).toBeTruthy(),
-    );
-    expect(
-      screen.getByRole('button', {
-        name: 'prescriptions.requestRefillFor:Cefalexin',
-      }),
-    ).toBeTruthy();
-  });
-
-  it('requests a refill and marks only that button busy while in flight', async () => {
     const pending = deferred<void>();
     mockRequest.mockReturnValue(pending.promise);
     renderScreen();
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', {name: REFILL_AMOXICILLIN}),
-      ).toBeTruthy(),
-    );
+    await screen.findByRole('button', {name: REFILL_AMOXICILLIN}, WAIT);
 
     fireEvent.press(screen.getByRole('button', {name: REFILL_AMOXICILLIN}));
 
-    const busy = await screen.findByRole('button', {
-      name: 'prescriptions.requestingFor:Amoxicillin',
-    });
+    const busy = await screen.findByRole(
+      'button',
+      {name: 'prescriptions.requestingFor:Amoxicillin'},
+      WAIT,
+    );
     expect(busy.props.accessibilityState).toEqual({disabled: true, busy: true});
-    expect(screen.getByText('prescriptions.requesting')).toBeTruthy();
+    const other = screen.getByRole('button', {
+      name: 'prescriptions.requestRefillFor:Cefalexin',
+    });
+    expect(other.props.accessibilityState).toEqual({
+      disabled: false,
+      busy: false,
+    });
     expect(mockRequest).toHaveBeenCalledWith('rx-1', 'token');
 
     pending.resolve();
-    await waitFor(() =>
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'prescriptions.refillRequestedTitle',
-        'prescriptions.refillRequestedBody',
-      ),
+    await waitFor(
+      () =>
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'prescriptions.refillRequestedTitle',
+          'prescriptions.refillRequestedBody',
+        ),
+      WAIT,
     );
     const idle = screen.getByRole('button', {name: REFILL_AMOXICILLIN});
     expect(idle.props.accessibilityState).toEqual({
@@ -292,85 +236,25 @@ describe('PrescriptionsScreen', () => {
     });
   });
 
-  it('marks the button busy before the token lookup resolves', async () => {
-    renderScreen();
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', {name: REFILL_AMOXICILLIN}),
-      ).toBeTruthy(),
-    );
-    const pendingTokens = deferred<{accessToken: string}>();
-    mockTokens.mockReturnValue(pendingTokens.promise);
-
-    fireEvent.press(screen.getByRole('button', {name: REFILL_AMOXICILLIN}));
-
-    expect(
-      await screen.findByRole('button', {
-        name: 'prescriptions.requestingFor:Amoxicillin',
-      }),
-    ).toBeTruthy();
-    expect(mockRequest).not.toHaveBeenCalled();
-    pendingTokens.resolve({accessToken: 'token'});
-    await waitFor(() => expect(mockRequest).toHaveBeenCalledTimes(1));
-  });
-
-  it('shows a translated failure when the refill request fails', async () => {
-    mockRequest.mockRejectedValue(new Error('Network Error'));
-    renderScreen();
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', {name: REFILL_AMOXICILLIN}),
-      ).toBeTruthy(),
-    );
-
-    fireEvent.press(screen.getByRole('button', {name: REFILL_AMOXICILLIN}));
-
-    await waitFor(() =>
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'prescriptions.refillFailedTitle',
-        'prescriptions.refillFailedBody',
-      ),
-    );
-    expect(screen.getByRole('button', {name: REFILL_AMOXICILLIN})).toBeTruthy();
-  });
-
-  it('asks the owner to sign in again when the refill has no session', async () => {
-    renderScreen();
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', {name: REFILL_AMOXICILLIN}),
-      ).toBeTruthy(),
-    );
-    mockTokens.mockResolvedValue(null);
-
-    fireEvent.press(screen.getByRole('button', {name: REFILL_AMOXICILLIN}));
-
-    await waitFor(() =>
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'prescriptions.refillFailedTitle',
-        'prescriptions.signInAgain',
-      ),
-    );
-    expect(mockRequest).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', {name: REFILL_AMOXICILLIN})).toBeTruthy();
-  });
-
   it('shows a translated load error for transport failures and retries', async () => {
     mockList.mockRejectedValueOnce(new Error('Forbidden'));
     renderScreen();
 
-    await waitFor(() =>
-      expect(screen.getByText('prescriptions.loadFailed')).toBeTruthy(),
+    await waitFor(
+      () => expect(screen.getByText('prescriptions.loadFailed')).toBeTruthy(),
+      WAIT,
     );
     expect(screen.getByRole('alert')).toBeTruthy();
     expect(screen.queryByText('Forbidden')).toBeNull();
 
     fireEvent.press(screen.getByText('prescriptions.retry'));
 
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', {name: REFILL_AMOXICILLIN}),
-      ).toBeTruthy(),
+    await waitFor(
+      () =>
+        expect(
+          screen.getByRole('button', {name: REFILL_AMOXICILLIN}),
+        ).toBeTruthy(),
+      WAIT,
     );
     expect(mockList).toHaveBeenCalledTimes(2);
     expect(screen.queryByText('prescriptions.loadFailed')).toBeNull();
@@ -380,8 +264,9 @@ describe('PrescriptionsScreen', () => {
     mockTokens.mockResolvedValue({accessToken: ''});
     renderScreen();
 
-    await waitFor(() =>
-      expect(screen.getByText('prescriptions.signInAgain')).toBeTruthy(),
+    await waitFor(
+      () => expect(screen.getByText('prescriptions.signInAgain')).toBeTruthy(),
+      WAIT,
     );
     expect(screen.queryByText('prescriptions.retry')).toBeNull();
     expect(mockList).not.toHaveBeenCalled();
@@ -389,7 +274,7 @@ describe('PrescriptionsScreen', () => {
 
   it('goes back from the header', async () => {
     renderScreen();
-    await screen.findByRole('button', {name: REFILL_AMOXICILLIN});
+    await screen.findByRole('button', {name: REFILL_AMOXICILLIN}, WAIT);
 
     fireEvent.press(screen.getByText('prescriptions.title'));
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
