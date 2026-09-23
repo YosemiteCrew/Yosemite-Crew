@@ -16,6 +16,7 @@ import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceS
 import type {
   AppointmentEncounter,
   SoapNoteEntry,
+  SoapTemplate,
 } from '@/app/features/appointments/types/workspace';
 import {
   SOAP_CODED_SECTIONS,
@@ -192,6 +193,118 @@ const CustomSoapFields = ({
       />
     </div>
   </SectionContainer>
+);
+
+type SoapDraftEditorProps = {
+  readOnly: boolean;
+  lockReason?: string;
+  chipTemplateOptions: ReturnType<typeof buildSoapTemplateOptions>['options'];
+  resolvedTemplateName?: string;
+  onTemplateChipSelect: (templateId: string) => void;
+  saveState?: { status?: 'idle' | 'saving' | 'saved' | 'offline'; at?: string };
+  templateSearchRef: React.RefObject<HTMLDivElement | null>;
+  templateQuery: string;
+  setTemplateQuery: (value: string) => void;
+  templateMatches: SoapTemplate[];
+  onSelectTemplate: (templateId: string) => void;
+  customMode: boolean;
+  note: SoapNoteEntry;
+  onCustomAnswerChange: (fieldId: string, value: unknown) => void;
+  onRecordVitals: () => void;
+  terminologyText: (text: string) => string;
+  companionSpecies?: string;
+  onSubjectiveChange: (html: string) => void;
+  onObjectiveChange: (html: string) => void;
+  onAssessmentChange: (html: string) => void;
+  onPlanChange: (html: string) => void;
+  onCodedProblemsChange: (section: SoapCodedSection, terms: SoapCodedTerm[]) => void;
+  saveError: string | null;
+  isSaving: boolean;
+  onSaveAndNext: () => void;
+};
+
+const SoapDraftEditor = ({
+  readOnly,
+  lockReason,
+  chipTemplateOptions,
+  resolvedTemplateName,
+  onTemplateChipSelect,
+  saveState,
+  templateSearchRef,
+  templateQuery,
+  setTemplateQuery,
+  templateMatches,
+  onSelectTemplate,
+  customMode,
+  note,
+  onCustomAnswerChange,
+  onRecordVitals,
+  terminologyText,
+  companionSpecies,
+  onSubjectiveChange,
+  onObjectiveChange,
+  onAssessmentChange,
+  onPlanChange,
+  onCodedProblemsChange,
+  saveError,
+  isSaving,
+  onSaveAndNext,
+}: SoapDraftEditorProps) => (
+  <div className="flex min-w-0 flex-1 flex-col gap-7">
+    {!readOnly && (
+      <>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SoapTemplateChip
+            templates={chipTemplateOptions}
+            activeName={resolvedTemplateName}
+            onSelect={onTemplateChipSelect}
+          />
+          <AutosaveIndicator status={saveState?.status ?? 'idle'} savedAt={saveState?.at} />
+        </div>
+        <SoapTemplateSearch
+          templateSearchRef={templateSearchRef}
+          templateQuery={templateQuery}
+          setTemplateQuery={setTemplateQuery}
+          templateMatches={templateMatches}
+          onSelectTemplate={onSelectTemplate}
+        />
+        {customMode ? (
+          <CustomSoapFields
+            note={note}
+            onAnswerChange={onCustomAnswerChange}
+            onRecordVitals={onRecordVitals}
+          />
+        ) : (
+          <NativeSoapFields
+            subjective={note.subjective}
+            objective={note.objective}
+            assessment={note.assessment}
+            plan={note.plan}
+            codedProblems={note.codedProblems}
+            codedTermSpecies={resolveClinicalTermSpecies(companionSpecies)}
+            terminologyText={terminologyText}
+            onSubjectiveChange={onSubjectiveChange}
+            onObjectiveChange={onObjectiveChange}
+            onAssessmentChange={onAssessmentChange}
+            onPlanChange={onPlanChange}
+            onCodedProblemsChange={onCodedProblemsChange}
+            onRecordVitals={onRecordVitals}
+          />
+        )}
+        {saveError && (
+          <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-text-error">
+            {saveError}
+          </p>
+        )}
+        <div className="flex justify-end">
+          <SoapSignActions disabled={isSaving} onSaveAndNext={onSaveAndNext} />
+        </div>
+      </>
+    )}
+    {readOnly && lockReason && (
+      <p className="rounded-2xl bg-neutral-100 p-3 text-body-4 text-text-secondary">{lockReason}</p>
+    )}
+  </div>
 );
 
 type SoapStepProps = {
@@ -449,70 +562,33 @@ const SoapStep = ({
       />
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div className="flex min-w-0 flex-1 flex-col gap-7">
-          {!readOnly && (
-            <>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <SoapTemplateChip
-                  templates={chipTemplateOptions}
-                  activeName={resolvedTemplateName}
-                  onSelect={handleTemplateChipSelect}
-                />
-                <AutosaveIndicator status={saveState?.status ?? 'idle'} savedAt={saveState?.at} />
-              </div>
-              <SoapTemplateSearch
-                templateSearchRef={templateSearchRef}
-                templateQuery={templateQuery}
-                setTemplateQuery={setTemplateQuery}
-                templateMatches={templateMatches}
-                onSelectTemplate={(templateId) => {
-                  void applySelectedTemplate(templateId);
-                }}
-              />
-
-              {customMode ? (
-                <CustomSoapFields
-                  note={note}
-                  onAnswerChange={handleCustomAnswerChange}
-                  onRecordVitals={onRecordVitals}
-                />
-              ) : (
-                <NativeSoapFields
-                  subjective={note.subjective}
-                  objective={note.objective}
-                  assessment={note.assessment}
-                  plan={note.plan}
-                  codedProblems={note.codedProblems}
-                  codedTermSpecies={resolveClinicalTermSpecies(companionSpecies)}
-                  terminologyText={terminologyText}
-                  onSubjectiveChange={(html) => upsertSoap(appointmentId, { subjective: html })}
-                  onObjectiveChange={(html) => upsertSoap(appointmentId, { objective: html })}
-                  onAssessmentChange={(html) => upsertSoap(appointmentId, { assessment: html })}
-                  onPlanChange={(html) => upsertSoap(appointmentId, { plan: html })}
-                  onCodedProblemsChange={handleCodedProblemsChange}
-                  onRecordVitals={onRecordVitals}
-                />
-              )}
-
-              {saveError && (
-                <p
-                  role="alert"
-                  className="rounded-2xl bg-danger-100 p-3 text-body-4 text-text-error"
-                >
-                  {saveError}
-                </p>
-              )}
-              <div className="flex justify-end">
-                <SoapSignActions disabled={isSaving} onSaveAndNext={handleSaveAndNext} />
-              </div>
-            </>
-          )}
-          {readOnly && lockReason && (
-            <p className="rounded-2xl bg-neutral-100 p-3 text-body-4 text-text-secondary">
-              {lockReason}
-            </p>
-          )}
-        </div>
+        <SoapDraftEditor
+          readOnly={readOnly}
+          lockReason={lockReason}
+          chipTemplateOptions={chipTemplateOptions}
+          resolvedTemplateName={resolvedTemplateName}
+          onTemplateChipSelect={handleTemplateChipSelect}
+          saveState={saveState}
+          templateSearchRef={templateSearchRef}
+          templateQuery={templateQuery}
+          setTemplateQuery={setTemplateQuery}
+          templateMatches={templateMatches}
+          onSelectTemplate={(templateId) => void applySelectedTemplate(templateId)}
+          customMode={customMode}
+          note={note}
+          onCustomAnswerChange={handleCustomAnswerChange}
+          onRecordVitals={onRecordVitals}
+          terminologyText={terminologyText}
+          companionSpecies={companionSpecies}
+          onSubjectiveChange={(html) => upsertSoap(appointmentId, { subjective: html })}
+          onObjectiveChange={(html) => upsertSoap(appointmentId, { objective: html })}
+          onAssessmentChange={(html) => upsertSoap(appointmentId, { assessment: html })}
+          onPlanChange={(html) => upsertSoap(appointmentId, { plan: html })}
+          onCodedProblemsChange={handleCodedProblemsChange}
+          saveError={saveError}
+          isSaving={isSaving}
+          onSaveAndNext={() => void handleSaveAndNext()}
+        />
         <aside className="w-full lg:w-[360px] lg:shrink-0">
           <WorkspaceVitalsPanel
             vitals={encounter.vitals}
