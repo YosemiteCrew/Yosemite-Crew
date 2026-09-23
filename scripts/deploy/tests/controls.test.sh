@@ -699,6 +699,31 @@ else
      "probe=$PROBE_LINE kill=$KILL_LINE"
 fi
 
+# The served-revision gate (#2740). Only a bundle that predates the field ships
+# without it; every other shape the gate cannot confirm stops the cutover.
+REV="0123456789abcdef0123456789abcdef01234567"
+reports_revision() { # reports_revision <name> <expected yes|no> <body> [sha]
+  local got=no
+  if deploy_health_reports_revision "$3" "${4-$REV}"; then got=yes; fi
+  check "$1" "$2" "$got"
+}
+reports_revision "revision: exact match cuts over" yes "{\"status\":\"ok\",\"revision\":\"$REV\"}"
+reports_revision "revision: a different sha stops" no "{\"status\":\"ok\",\"revision\":\"${REV%?}8\"}"
+reports_revision "revision: a prefix of the sha stops" no "{\"revision\":\"${REV:0:12}\"}"
+reports_revision "revision: a null revision stops" no '{"status":"ok","revision":null}'
+reports_revision "revision: the pre-#2740 body ships, so a rollback still deploys" yes '{"status":"ok"}'
+reports_revision "revision: a JSON array stops" no '[]'
+reports_revision "revision: the sha nested under a wrong top-level one stops" no "{\"revision\":null,\"build\":{\"revision\":\"$REV\"}}"
+reports_revision "revision: a non-JSON body stops" no "<html>$REV</html>"
+reports_revision "revision: an empty body stops" no ''
+reports_revision "revision: an empty expected sha stops" no '{"revision":""}' ''
+
+if grep -qF "if ! deploy_health_reports_revision \"\$HEALTH_BODY\" \"\$API_REVISION\"; then" <<< "$DEPLOY_CODE"; then
+  ok "the deploy gates cutover on the served revision"
+else
+  no "the deploy gates cutover on the served revision" "call not found in api-deploy.sh"
+fi
+
 echo
 printf '%s passed, %s failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

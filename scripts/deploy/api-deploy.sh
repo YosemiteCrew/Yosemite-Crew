@@ -113,6 +113,14 @@ say "checkout $GIT_REF"
 # meant to arrive first.
 deploy_git_sync "$REPO_DIR" "$GIT_REF" "${REQUIRE_PROMOTED_FROM:-}"
 
+# The commit the new process reports as `revision` on /health (#2740), so the
+# outside can tell which code a 200 came from. Exported here so the smoke boot
+# inherits it, and it reaches the SERVING process only through the
+# `pm2 restart --update-env` at cutover: a deploy that stops anywhere before
+# that leaves the running process, and what it reports, untouched.
+API_REVISION="$(git rev-parse HEAD)"
+export API_REVISION
+
 # Before anything is installed, built or applied: name the migrations this
 # deploy would add on top of what the box is serving. That set is exactly what a
 # rollback to $ROLLBACK_SHA would leave applied, so it is what has to be said out
@@ -218,6 +226,12 @@ SMOKE_PID=$!
 sleep 25
 CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "http://127.0.0.1:$SMOKE_PORT/health" || echo 000)"
 echo "  /health -> $CODE"
+# The bundle must report the commit that was checked out. A mismatch means the
+# build did not come from this tree - the stale-output failure the freshness
+# check above exists for - and cutting over would publish a revision that is
+# not the code running.
+HEALTH_BODY="$(curl -s --max-time 10 "http://127.0.0.1:$SMOKE_PORT/health" || echo '')"
+echo "  revision -> $HEALTH_BODY"
 # An app-level JSON body proves Express reached a real handler; Express's own
 # HTML 404 on a bogus path proves the probe was not just hitting a catch-all.
 echo "  real route : $(curl -s --max-time 10 "http://127.0.0.1:$SMOKE_PORT/v1/pet-passport/mobile/companion/probe" | head -c 60)"
@@ -305,6 +319,12 @@ sleep 2
 if [ "$CODE" != "200" ]; then
   echo "smoke boot failed - NOT cutting over. Rollback sha: $ROLLBACK_SHA" >&2
   echo "::error::Smoke boot did not answer 200 (got $CODE). NOT cutting over. Rollback sha: $ROLLBACK_SHA"
+  exit 1
+fi
+
+if ! deploy_health_reports_revision "$HEALTH_BODY" "$API_REVISION"; then
+  echo "smoke boot does not report revision $API_REVISION on /health - NOT cutting over. Rollback sha: $ROLLBACK_SHA" >&2
+  echo "::error::Smoke boot does not report revision $API_REVISION on /health. NOT cutting over. Rollback sha: $ROLLBACK_SHA"
   exit 1
 fi
 

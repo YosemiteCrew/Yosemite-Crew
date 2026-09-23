@@ -187,6 +187,7 @@ jobs:
           echo "ref=${INPUT_REF:-}" >> "$GITHUB_OUTPUT"
 
       - name: Deploy over SSH
+        id: deploy
         shell: bash
         env:
           SSH_KEY: ${{ secrets.API_DEPLOY_SSH_KEY }}
@@ -233,10 +234,17 @@ jobs:
             -o ServerAliveInterval=30 "ubuntu@$HOST" \
             "chmod +x /tmp/yc-deploy/api-deploy.sh && REQUIRE_PROMOTED_FROM='$PROMOTION_BRANCH' /tmp/yc-deploy/api-deploy.sh '$REPO' '$PM2_TARGET' '$TARGET_REF'"
 
+          # The exact commit the box now serves, for the outside check below.
+          # Read only after the script succeeded, so it is the cutover commit.
+          DEPLOYED_SHA="$(ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "ubuntu@$HOST" \
+            "git -C '$REPO' rev-parse HEAD")"
+          echo "deployed_sha=$DEPLOYED_SHA" >> "$GITHUB_OUTPUT"
+
       - name: Verify from outside
         shell: bash
         env:
           ENVIRONMENT: ${{ inputs.environment }}
+          DEPLOYED_SHA: ${{ steps.deploy.outputs.deployed_sha }}
         run: |
           set -euo pipefail
           if [ "$ENVIRONMENT" = "production" ]; then
@@ -247,6 +255,23 @@ jobs:
           code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$BASE/health")"
           echo "$BASE/health -> $code"
           [ "$code" = "200" ] || { echo "health check failed after deploy" >&2; exit 1; }
+
+          # A 200 proves some process is alive, not which code it runs (#2740).
+          # The query string is unique per run so no intermediary can answer
+          # with a body from before the cutover.
+          health="$(curl -s --max-time 20 -H 'cache-control: no-cache' "$BASE/health?deploy=$GITHUB_RUN_ID")"
+          echo "health body -> $health"
+          # A body with no `revision` key is a bundle older than #2740 (a
+          # rollback, or main before this was promoted): warn, the same call the
+          # smoke gate in lib/controls.sh makes. Any other mismatch fails.
+          if jq -e 'has("revision") | not' <<< "$health" >/dev/null; then
+            echo "::warning::$BASE/health predates the revision field, so which commit it serves cannot be confirmed from outside."
+          elif jq -e --arg sha "$DEPLOYED_SHA" '.revision == $sha' <<< "$health" >/dev/null; then
+            echo "serving $DEPLOYED_SHA ✅"
+          else
+            echo "::error::$BASE/health does not report the deployed commit $DEPLOYED_SHA."
+            exit 1
+          fi
 
           # Status alone proves little: Express answers 404 for a route that was
           # never mounted AND for one that ran and found nothing. The body is
