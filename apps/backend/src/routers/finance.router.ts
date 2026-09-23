@@ -89,6 +89,17 @@ router.get(
   FinanceController.getClientAccountCredit,
 );
 
+// `billing:edit:any`, unlike the credit read above. Nothing here is written,
+// but a plan for applying money is only useful to someone allowed to apply it,
+// and it is the preview the allocation route confirms.
+router.get(
+  "/organisation/:organisationId/clients/:parentId/account-credit/allocation-proposal",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  FinanceController.getClientAccountAllocationProposal,
+);
+
 router.get(
   "/organisation/:organisationId/subscription/seat-sync-plan",
   requireWebAuth,

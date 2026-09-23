@@ -64,6 +64,7 @@ const FinanceController = {
   auditProviderReceipts: jest.fn(),
   allocateProviderReceipt: jest.fn(),
   getClientAccountCredit: jest.fn(),
+  getClientAccountAllocationProposal: jest.fn(),
   updateDiscountSettings: jest.fn(),
   listInvoices: jest.fn(),
   createInvoice: jest.fn(),
@@ -212,6 +213,24 @@ describe("finance.router", () => {
     expect(handlers).not.toContain(permissionGuard("billing:edit:any"));
   });
 
+  it("puts the allocation proposal behind the billing EDIT permission", () => {
+    // It writes nothing, but it is the preview of a decision only a staff
+    // member allowed to apply money has any use for.
+    const route = findRoute(
+      "/organisation/:organisationId/clients/:parentId/account-credit/allocation-proposal",
+      "get",
+    );
+    const handlers = route?.stack.map((layer) => layer.handle);
+
+    expect(handlers).toContain(
+      FinanceController.getClientAccountAllocationProposal,
+    );
+    expect(handlers).toContain(requireWebAuth);
+    expect(handlers).toContain(withOrgPermissionsMiddleware);
+    expect(handlers).toContain(permissionGuard("billing:edit:any"));
+    expect(handlers).not.toContain(permissionGuard("billing:view:any"));
+  });
+
   it("mounts no write route on a client's account credit", () => {
     const methods = (
       (financeRouter as unknown as { stack: Layer[] }).stack ?? []
@@ -219,7 +238,9 @@ describe("finance.router", () => {
       .filter((entry) => entry.route?.path?.includes("account-credit"))
       .flatMap((entry) => Object.keys(entry.route?.methods ?? {}));
 
-    expect(methods).toEqual(["get"]);
+    // Two routes under the prefix - the credit read and the allocation
+    // proposal - and neither of them writes.
+    expect(methods).toEqual(["get", "get"]);
   });
 
   it("mounts no write route for historical audit findings", () => {
