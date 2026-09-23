@@ -2430,33 +2430,22 @@ describe("FinanceController.applyClientAccountAllocation", () => {
     expect(ClientAccountService.applyAllocation).not.toHaveBeenCalled();
   });
 
-  it("refuses a plan that names one capture twice", async () => {
-    // The second entry would carry this plan's key into a capture the first
-    // already decided, and come back REPLAYED with the first entry's lines.
+  it("maps a capture named twice to 409 DUPLICATE_RECEIPT", async () => {
+    // The guard lives in the service beside the sum it protects; the route
+    // only translates it, like the other two zero-write refusals.
+    (ClientAccountService.applyAllocation as jest.Mock).mockResolvedValue({
+      outcome: "DUPLICATE_RECEIPT",
+      receiptId: RECEIPT_A,
+    });
     const res = buildRes();
 
-    await FinanceController.applyClientAccountAllocation(
-      buildReq({
-        body: body({
-          receipts: [
-            {
-              receiptId: RECEIPT_A,
-              expectedVersion: 3,
-              allocations: [{ invoiceId: INVOICE_A, amount: 25 }],
-            },
-            {
-              receiptId: RECEIPT_A,
-              expectedVersion: 3,
-              allocations: [{ invoiceId: INVOICE_A, amount: 10 }],
-            },
-          ],
-        }),
-      }),
-      res,
-    );
+    await FinanceController.applyClientAccountAllocation(buildReq(), res);
 
     expect(res.status).toHaveBeenCalledWith(409);
-    expect(ClientAccountService.applyAllocation).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Each capture may appear at most once in a plan.",
+      error: { code: "DUPLICATE_RECEIPT", receiptId: RECEIPT_A },
+    });
   });
 
   it("refuses one capture naming the same invoice twice", async () => {

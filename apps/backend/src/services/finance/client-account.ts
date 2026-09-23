@@ -217,13 +217,14 @@ export type ClientAllocationStep = {
 /**
  * What confirming a plan did.
  *
- * The two refusals above the fold are checked before anything is written, so
+ * The three refusals above the fold are checked before anything is written, so
  * they are the only outcomes that leave the money exactly where it was. Once
  * the first capture has been applied, a later refusal cannot unwind it - the
  * journal is append-only by design - so the result says how far it got rather
  * than pretending the request did nothing.
  */
 export type ClientAccountAllocationResult =
+  | { outcome: "DUPLICATE_RECEIPT"; receiptId: string }
   | { outcome: "RECEIPT_NOT_THIS_CLIENT"; receiptId: string }
   | { outcome: "INVOICE_NOT_THIS_CLIENT"; invoiceId: string }
   | {
@@ -305,6 +306,98 @@ export const planClientAllocation = (input: {
     }
   }
   return lines;
+};
+
+/** The zero-write refusals, the only outcomes that leave every capture as it was. */
+type AllocationRefusal = Exclude<
+  ClientAccountAllocationResult,
+  { outcome: "APPLIED" | "STOPPED" }
+>;
+
+/**
+ * Every check a plan must pass before its first capture is written. Run in
+ * full before any write, because after the first one nothing can be unwound.
+ */
+const refuseBeforeWriting = async (input: {
+  organisationId: string;
+  parentId: string;
+  receipts: readonly ClientAllocationCommand[];
+}): Promise<AllocationRefusal | null> => {
+  /*
+   * A capture named twice is refused rather than merged. The second entry
+   * carries this plan's idempotency key into a capture the first has already
+   * decided, so it comes back REPLAYED with the FIRST entry's lines and would
+   * be summed as money that moved when nothing did. The check lives here,
+   * beside the sum it protects, so a caller that is not the HTTP route
+   * cannot skip it.
+   */
+  const seenReceipts = new Set<string>();
+  for (const command of input.receipts) {
+    if (seenReceipts.has(command.receiptId)) {
+      return { outcome: "DUPLICATE_RECEIPT", receiptId: command.receiptId };
+    }
+    seenReceipts.add(command.receiptId);
+  }
+
+  /*
+   * A capture is this client's when it is attributed to one of their
+   * invoices, which is the same statement of ownership the proposal reads.
+   * Unattributed captures are excluded by that rule rather than a second
+   * one: `invoiceId` is what carries the claim, so a capture nobody has
+   * placed yet is not this client's either.
+   *
+   * Both reads are bounded by what the plan names, never by the client's
+   * whole history: the captures first, for the invoices they are attributed
+   * to, then only those invoices and the ones the lines name.
+   */
+  const captures = await prisma.providerReceipt.findMany({
+    where: {
+      organisationId: input.organisationId,
+      id: { in: [...seenReceipts] },
+    },
+    select: { id: true, invoiceId: true },
+  });
+  const lines = input.receipts.flatMap((command) => command.allocations);
+  const invoiceIdsToCheck = new Set([
+    ...captures.flatMap((capture) =>
+      capture.invoiceId ? [capture.invoiceId] : [],
+    ),
+    ...lines.map((line) => line.invoiceId),
+  ]);
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      organisationId: input.organisationId,
+      parentId: input.parentId,
+      id: { in: [...invoiceIdsToCheck] },
+    },
+    select: { id: true },
+  });
+  const clientInvoiceIds = new Set(invoices.map((invoice) => invoice.id));
+
+  const foreignLine = lines.find(
+    (line) => !clientInvoiceIds.has(line.invoiceId),
+  );
+  if (foreignLine) {
+    return {
+      outcome: "INVOICE_NOT_THIS_CLIENT",
+      invoiceId: foreignLine.invoiceId,
+    };
+  }
+
+  const ownedIds = new Set(
+    captures
+      .filter(
+        (capture) =>
+          capture.invoiceId !== null && clientInvoiceIds.has(capture.invoiceId),
+      )
+      .map((capture) => capture.id),
+  );
+  const unowned = input.receipts.find(
+    (command) => !ownedIds.has(command.receiptId),
+  );
+  return unowned
+    ? { outcome: "RECEIPT_NOT_THIS_CLIENT", receiptId: unowned.receiptId }
+    : null;
 };
 
 export const ClientAccountService = {
@@ -563,50 +656,8 @@ export const ClientAccountService = {
     idempotencyKey: string;
     receipts: readonly ClientAllocationCommand[];
   }): Promise<ClientAccountAllocationResult> {
-    const invoices = await prisma.invoice.findMany({
-      where: {
-        organisationId: input.organisationId,
-        parentId: input.parentId,
-      },
-      select: { id: true },
-    });
-    const clientInvoiceIds = new Set(invoices.map((invoice) => invoice.id));
-
-    for (const command of input.receipts) {
-      for (const line of command.allocations) {
-        if (!clientInvoiceIds.has(line.invoiceId)) {
-          return {
-            outcome: "INVOICE_NOT_THIS_CLIENT",
-            invoiceId: line.invoiceId,
-          };
-        }
-      }
-    }
-
-    /*
-     * A capture is this client's when it is attributed to one of their
-     * invoices, which is the same statement of ownership the proposal reads.
-     * Unattributed captures are excluded by that join rather than by a second
-     * rule: `invoiceId` is what carries the claim, so a capture nobody has
-     * placed yet is not this client's either.
-     */
-    const owned = await prisma.providerReceipt.findMany({
-      where: {
-        organisationId: input.organisationId,
-        invoiceId: { in: [...clientInvoiceIds] },
-        id: { in: input.receipts.map((command) => command.receiptId) },
-      },
-      select: { id: true },
-    });
-    const ownedIds = new Set(owned.map((receipt) => receipt.id));
-    for (const command of input.receipts) {
-      if (!ownedIds.has(command.receiptId)) {
-        return {
-          outcome: "RECEIPT_NOT_THIS_CLIENT",
-          receiptId: command.receiptId,
-        };
-      }
-    }
+    const refusal = await refuseBeforeWriting(input);
+    if (refusal) return refusal;
 
     const steps: ClientAllocationStep[] = [];
     let appliedAmount = 0;
