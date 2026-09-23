@@ -39,7 +39,9 @@ describe('AppLockGate', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     state.appLock.enabled = true;
+    state.appLock.timeoutMs = 60000;
     state.appLockStatus.locked = true;
+    state.appLockStatus.authenticating = false;
     (useTheme as jest.Mock).mockReturnValue({
       theme: {
         colors: {
@@ -122,7 +124,7 @@ describe('AppLockGate', () => {
 
   it('keeps the lock visible after a failed check and allows sign out', async () => {
     (unlock as jest.Mock).mockResolvedValue({ok: false, reason: 'cancelled'});
-    const {getByRole} = render(
+    const {getByRole, getByText} = render(
       <AppLockGate>
         <></>
       </AppLockGate>,
@@ -142,7 +144,8 @@ describe('AppLockGate', () => {
         <Text>content</Text>
       </AppLockGate>,
     );
-    const wrapper = getByText('content').parent;
+    const content = getByText('content');
+    const wrapper = content.parent;
     const lockDispatches = dispatch.mock.calls.filter(
       ([action]) => action?.type === 'appLockStatus/appLocked',
     ).length;
@@ -152,7 +155,13 @@ describe('AppLockGate', () => {
         <Text>content</Text>
       </AppLockGate>,
     );
-    expect(getByText('content').parent).toBe(wrapper);
+    state.appLockStatus.locked = true;
+    rerender(
+      <AppLockGate>
+        <Text>content</Text>
+      </AppLockGate>,
+    );
+    expect(content.parent).toBe(wrapper);
     expect(
       dispatch.mock.calls.filter(
         ([action]) => action?.type === 'appLockStatus/appLocked',
@@ -166,7 +175,7 @@ describe('AppLockGate', () => {
       logout,
       user: {id: 'different-account'},
     });
-    const {getByRole} = render(
+    const {getByRole, UNSAFE_getAllByType} = render(
       <AppLockGate>
         <Text>content</Text>
       </AppLockGate>,
@@ -175,6 +184,24 @@ describe('AppLockGate', () => {
       getByRole('button', {name: 'appLock.unlock'}).props.accessibilityState
         .disabled,
     ).toBe(true);
+    expect(
+      UNSAFE_getAllByType(Text)[0].parent?.props.accessibilityElementsHidden,
+    ).toBe(true);
+  });
+
+  it('ignores active events while the OS prompt is authenticating', async () => {
+    state.appLockStatus.authenticating = true;
+    render(
+      <AppLockGate>
+        <Text>content</Text>
+      </AppLockGate>,
+    );
+    const onChange = (AppState.addEventListener as jest.Mock).mock.calls[0][1];
+    dispatch.mockClear();
+    await act(async () => onChange('active'));
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({type: 'appLockStatus/appLocked'}),
+    );
   });
 
   it('locks again when the measured background interval expires', async () => {
