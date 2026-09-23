@@ -1,37 +1,27 @@
 'use client';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import type { Invoice } from '@yosemite-crew/types';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { formatMoneyPrecise } from '@/app/lib/money';
-import {
-  ProviderReceiptAllocationError,
-  allocateProviderReceipt,
-} from '@/app/features/finance/services/providerReceiptService';
+import { useReceiptAllocation } from '@/app/features/finance/hooks/useReceiptAllocation';
 import type {
   ProviderReceipt,
   ProviderReceiptAllocationResult,
 } from '@/app/features/finance/types/providerReceipt';
 import {
-  allocatableInvoices,
   allocationBlockedReason,
   formatCapturedAt,
   truncateReference,
 } from '@/app/features/finance/pages/PaymentReconciliation/receiptPresentation';
-import {
-  reviewAllocationDraft,
-  suggestedAmount,
-  type AllocationDraft,
-} from '@/app/features/finance/pages/PaymentReconciliation/allocationDraft';
+import AllocationPicker, {
+  errorTextClass,
+} from '@/app/features/finance/pages/PaymentReconciliation/Sections/AllocationPicker';
 
 const TITLE_ID = 'allocate-receipt-title';
 
-const fieldClass =
-  'w-28 rounded-2xl border border-input-border-default focus-within:border-input-border-active ' +
-  'bg-transparent px-3 py-2 text-body-4 text-text-primary outline-none tabular-nums';
-
-const errorTextClass = 'text-caption-2 text-text-error';
+const panelClass = 'flex flex-col gap-4 px-3 pb-3';
 
 /**
  * The refusal that means the row the decision was taken from has moved.
@@ -102,6 +92,46 @@ const ReadBack = ({
   </div>
 );
 
+/** A capture the route would refuse, refused here instead of offered a form. */
+const Blocked = ({ reason, onClose }: Readonly<{ reason: string; onClose: () => void }>) => (
+  <div className="flex flex-col gap-3 px-3 pb-3">
+    <p role="alert" className="text-body-4 text-text-secondary">
+      {reason}
+    </p>
+    <div className="flex justify-end">
+      <Secondary text="Close" onClick={onClose} ariaLabel="Close" />
+    </div>
+  </div>
+);
+
+/**
+ * What the server said, and the one refusal that has an action of its own.
+ *
+ * Every other code is something the operator corrects in the form in front of
+ * them, so the sentence is the whole response.
+ */
+const SubmitFailure = ({
+  failure,
+  onRequestReload,
+}: Readonly<{
+  failure: { code: string; message: string };
+  onRequestReload: () => void;
+}>) => (
+  <div className="flex flex-col gap-2 rounded-2xl bg-danger-100 p-3!">
+    <p role="alert" className="text-body-4 text-text-error">
+      {failure.message}
+    </p>
+    {failure.code === VERSION_CONFLICT && (
+      <Secondary
+        text="Reload the queue"
+        size="compact"
+        onClick={onRequestReload}
+        ariaLabel="Reload the reconciliation queue and start again"
+      />
+    )}
+  </div>
+);
+
 const DialogBody = ({
   receipt,
   organisationId,
@@ -113,175 +143,40 @@ const DialogBody = ({
   submitting,
   setSubmitting,
 }: Readonly<DialogBodyProps>) => {
-  const [selected, setSelected] = useState<string[]>([]);
-  const [draft, setDraft] = useState<AllocationDraft>({});
-  const [failure, setFailure] = useState<{ code: string; message: string } | null>(null);
-  const [result, setResult] = useState<ProviderReceiptAllocationResult | null>(null);
-
-  /*
-   * Minted once per decision and deliberately NOT cleared when a submit fails.
-   *
-   * A failed request is the case the key exists for: a timeout leaves the
-   * screen unable to tell a write that never happened from one whose answer
-   * was lost, and retrying under the same key is what makes the two safe to
-   * confuse. It is cleared when the operator edits the form, because that is a
-   * different decision and must not be recognised as a replay of this one.
-   */
-  const idempotencyKeyRef = useRef<string | null>(null);
-
-  const options = useMemo(() => allocatableInvoices(invoices, receipt), [invoices, receipt]);
-  const review = useMemo(
-    () => reviewAllocationDraft(receipt, options, selected, draft),
-    [receipt, options, selected, draft]
-  );
-
-  /*
-   * Every edit retires the key. The operator changing what they are asking for
-   * is a different decision, and submitting it under the previous key would
-   * let the server recognise it as a replay of the one they abandoned.
-   */
-  const beginEdit = () => {
-    idempotencyKeyRef.current = null;
-    setFailure(null);
-  };
-
-  const toggle = (invoiceId: string) => {
-    beginEdit();
-    const wasSelected = selected.includes(invoiceId);
-    setSelected(wasSelected ? selected.filter((id) => id !== invoiceId) : [...selected, invoiceId]);
-
-    if (wasSelected || draft[invoiceId] !== undefined) return;
-    const invoice = options.find((option) => option.id === invoiceId);
-    if (!invoice) return;
-    /*
-     * Seeded against what the OTHER selected lines already claim, not against
-     * the whole residual - ticking a second invoice on a capture with nothing
-     * left should offer nothing, not offer the same money again.
-     */
-    setDraft({ ...draft, [invoiceId]: suggestedAmount(invoice, review.residual - review.total) });
-  };
-
-  const setAmount = (invoiceId: string, value: string) => {
-    beginEdit();
-    setDraft({ ...draft, [invoiceId]: value });
-  };
-
-  const submit = async () => {
-    if (!review.canSubmit || submitting) return;
-    idempotencyKeyRef.current ??= crypto.randomUUID();
-
-    setSubmitting(true);
-    setFailure(null);
-    try {
-      const allocated = await allocateProviderReceipt(organisationId, receipt.id, {
-        expectedVersion: receipt.version,
-        idempotencyKey: idempotencyKeyRef.current,
-        allocations: review.lines.map((line) => ({
-          invoiceId: line.invoice.id,
-          amount: line.amount as number,
-        })),
-      });
-      setResult(allocated);
-      onAllocated(allocated.receipt);
-    } catch (error) {
-      const detail =
-        error instanceof ProviderReceiptAllocationError
-          ? error.failure
-          : { code: '', message: 'Unable to apply this captured payment.' };
-      setFailure({ code: detail.code, message: detail.message });
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const { options, review, draft, failure, result, toggle, setAmount, submit } =
+    useReceiptAllocation({
+      receipt,
+      organisationId,
+      invoices,
+      submitting,
+      setSubmitting,
+      onAllocated,
+    });
 
   if (result) {
     return <ReadBack result={result} currency={receipt.currency} onClose={onClose} />;
   }
 
   const blocked = allocationBlockedReason(receipt);
-  if (blocked) {
-    return (
-      <div className="flex flex-col gap-3 px-3 pb-3">
-        <p role="alert" className="text-body-4 text-text-secondary">
-          {blocked}
-        </p>
-        <div className="flex justify-end">
-          <Secondary text="Close" onClick={onClose} ariaLabel="Close" />
-        </div>
-      </div>
-    );
-  }
+  if (blocked) return <Blocked reason={blocked} onClose={onClose} />;
 
   return (
-    <div className="flex flex-col gap-4 px-3 pb-3">
+    <div className={panelClass}>
       <p className="text-body-4 text-text-secondary">
         {`${formatMoneyPrecise(review.residual, receipt.currency)} of this capture is unapplied. ` +
           'Choose the invoices it belongs to.'}
       </p>
 
-      {invoicesLoading && (
-        <p className="text-body-4 text-text-secondary" aria-live="polite">
-          {'Loading invoices...'}
-        </p>
-      )}
-
-      {!invoicesLoading && options.length === 0 && (
-        <p className="text-body-4 text-text-secondary">
-          {`No open invoice in ${receipt.currency} has an outstanding balance, so there is nothing to apply this capture to yet.`}
-        </p>
-      )}
-
-      {options.length > 0 && (
-        <fieldset className="flex flex-col gap-2 border-0 p-0! m-0!">
-          <legend className="text-caption-2 font-bold text-text-tertiary">
-            {'Invoices this payment can be applied to'}
-          </legend>
-          {options.map((invoice) => {
-            const line = review.lines.find((entry) => entry.invoice.id === invoice.id);
-            const amountId = `allocate-amount-${invoice.id}`;
-            const errorId = `${amountId}-error`;
-            return (
-              <div key={invoice.id} className="flex flex-wrap items-center gap-3">
-                <label className="flex flex-1 min-w-0 items-center gap-2 text-body-4 text-text-primary">
-                  <input
-                    type="checkbox"
-                    checked={line !== undefined}
-                    onChange={() => toggle(invoice.id)}
-                    disabled={submitting}
-                  />
-                  <span className="truncate">{invoice.label}</span>
-                  <span className="text-caption-2 text-text-secondary whitespace-nowrap">
-                    {`${formatMoneyPrecise(invoice.balance, invoice.currency)} owed`}
-                  </span>
-                </label>
-                {line !== undefined && (
-                  <span className="flex flex-col gap-1">
-                    <label htmlFor={amountId} className="sr-only">
-                      {`Amount to apply to ${invoice.label}`}
-                    </label>
-                    <input
-                      id={amountId}
-                      type="text"
-                      inputMode="decimal"
-                      value={draft[invoice.id] ?? ''}
-                      onChange={(e) => setAmount(invoice.id, e.target.value)}
-                      disabled={submitting}
-                      aria-invalid={line.error !== null}
-                      aria-describedby={line.error === null ? undefined : errorId}
-                      className={fieldClass}
-                    />
-                    {line.error !== null && (
-                      <span id={errorId} role="alert" className={errorTextClass}>
-                        {line.error}
-                      </span>
-                    )}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </fieldset>
-      )}
+      <AllocationPicker
+        options={options}
+        lines={review.lines}
+        amounts={draft}
+        loading={invoicesLoading}
+        disabled={submitting}
+        currency={receipt.currency}
+        onToggle={toggle}
+        onAmountChange={setAmount}
+      />
 
       <p className="text-body-4 text-text-primary" aria-live="polite">
         {`${formatMoneyPrecise(review.total, receipt.currency)} selected. ` +
@@ -294,21 +189,7 @@ const DialogBody = ({
         </p>
       )}
 
-      {failure && (
-        <div className="flex flex-col gap-2 rounded-2xl bg-danger-100 p-3!">
-          <p role="alert" className="text-body-4 text-text-error">
-            {failure.message}
-          </p>
-          {failure.code === VERSION_CONFLICT && (
-            <Secondary
-              text="Reload the queue"
-              size="compact"
-              onClick={onRequestReload}
-              ariaLabel="Reload the reconciliation queue and start again"
-            />
-          )}
-        </div>
-      )}
+      {failure && <SubmitFailure failure={failure} onRequestReload={onRequestReload} />}
 
       <div className="flex flex-wrap justify-end gap-3">
         <Secondary text="Cancel" onClick={onClose} isDisabled={submitting} ariaLabel="Cancel" />
