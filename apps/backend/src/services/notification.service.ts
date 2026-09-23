@@ -30,22 +30,32 @@ if (!getApps().length && credentialsPath) {
 }
 
 const createNotificationRecord = async (input: {
+  id?: string;
   userId: string;
   title: string;
   body: string;
   type: string;
 }) => {
-  const record = await prisma.notification.create({
-    data: {
-      userId: input.userId,
-      title: input.title,
-      body: input.body,
-      type: input.type as NotificationType,
-      enabled: true,
-      isSeen: false,
-    },
-    select: { id: true },
-  });
+  const data = {
+    userId: input.userId,
+    title: input.title,
+    body: input.body,
+    type: input.type as NotificationType,
+    enabled: true,
+    isSeen: false,
+  };
+  // With a caller-supplied id a repeat send finds the row the first one wrote
+  // and leaves it alone. `userId` in the WHERE means a row written for someone
+  // else is never handed to this user: the create then fails on the id and is
+  // logged like any other failed write.
+  const record = input.id
+    ? await prisma.notification.upsert({
+        where: { id: input.id, userId: input.userId },
+        create: { id: input.id, ...data },
+        update: {},
+        select: { id: true },
+      })
+    : await prisma.notification.create({ data, select: { id: true } });
 
   return record.id;
 };
@@ -63,6 +73,11 @@ export interface DeviceTokenRecord {
 export type SendOptions = {
   data?: Record<string, string>; // extra payload (non-PII)
   dryRun?: boolean; // for testing
+  /**
+   * Stable id for the in-app row, for a message that may be sent again. A
+   * retried care reminder passes its own id so the owner's list keeps one row.
+   */
+  recordId?: string;
 };
 
 export type SendResult = {
@@ -208,6 +223,7 @@ export const NotificationService = {
     let notificationId: string | undefined;
     try {
       notificationId = await createNotificationRecord({
+        id: options?.recordId,
         userId,
         title: payload.title,
         body: payload.body,
