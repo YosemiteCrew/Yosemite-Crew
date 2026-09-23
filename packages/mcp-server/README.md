@@ -1,4 +1,4 @@
-# @yosemite-crew/mcp-server
+# @yosemitecrew/mcp-server
 
 An [MCP](https://modelcontextprotocol.io) server that gives an AI agent read access to a Yosemite Crew practice through the developer data API at `/v1/developer`. It runs over stdio and authenticates with a developer API key, so Claude Desktop, Claude Code, or any other MCP client can query the practices a key can reach and the appointments in them.
 
@@ -45,11 +45,19 @@ The server exits at startup with a readable error if `YC_API_KEY` is unset. The 
 
 ```bash
 pnpm install
-pnpm --filter @yosemite-crew/mcp-server run build
+pnpm --filter @yosemitecrew/mcp-server run build
 YC_API_KEY=yc_test_… node packages/mcp-server/dist/index.js
 ```
 
-Without a build step, `pnpm --filter @yosemite-crew/mcp-server run dev`.
+Without a build step, `pnpm --filter @yosemitecrew/mcp-server run dev`.
+
+## Publishing
+
+npm staged publishing requires the package to exist in the registry. A
+maintainer must bootstrap version 0.1.0 with an interactive, 2FA-protected
+publish. For later versions, create an `mcp-v<version>` tag only after its
+commit reaches `main`; the release workflow stages the package for a separate
+maintainer review and 2FA approval.
 
 ## Claude Desktop
 

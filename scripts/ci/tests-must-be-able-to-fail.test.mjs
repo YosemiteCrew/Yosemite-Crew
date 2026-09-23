@@ -122,7 +122,7 @@ test('routes a changed test to the workspace that can run it', () => {
     workspaceOf('packages/agent-runtime/test/contract.test.ts'),
     '@yosemite-crew/agent-runtime'
   );
-  assert.equal(workspaceOf('packages/mcp-server/test/client.test.ts'), '@yosemite-crew/mcp-server');
+  assert.equal(workspaceOf('packages/mcp-server/test/client.test.ts'), '@yosemitecrew/mcp-server');
   // auth runs node --test over compiled output, so its paths must not be
   // handed to jest.
   assert.equal(workspaceOf('packages/auth/src/auth-service.test.ts'), undefined);
