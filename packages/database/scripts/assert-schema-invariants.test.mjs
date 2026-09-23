@@ -56,7 +56,7 @@ const restorePaymentIntentIndex = () => {
 
 test('refuses a remote mutation target without explicit opt-in', () => {
   assert.throws(
-    () => assertSafeMutationTarget('postgresql://db.example.test/yosemite'),
+    () => assertSafeMutationTarget('postgresql://db.example.test/yosemite', false),
     /require a local database/
   );
   assert.doesNotThrow(() =>
