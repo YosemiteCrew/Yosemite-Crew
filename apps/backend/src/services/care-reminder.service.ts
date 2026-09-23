@@ -1,7 +1,7 @@
 import { prisma } from "src/config/prisma";
 import { escapeHtml } from "src/utils/email-templates";
 import { AuditTrailService } from "./audit-trail.service";
-import { NotificationService } from "./notification.service";
+import { NotificationService, type SendResult } from "./notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { sendEmail } from "src/utils/email";
 import {
@@ -10,7 +10,7 @@ import {
   type CareReminderSuppression,
 } from "./care-reminder-opt-out.service";
 import logger from "src/utils/logger";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import {
   assertPatientOrgMembership,
   assertPatientsOrgMembership,
@@ -182,6 +182,27 @@ const buildReminderEmailBody = (body: string, unsubscribeUrl: string) =>
  */
 type ChannelOutcome = "delivered" | "failed" | "suppressed" | "unreachable";
 
+/**
+ * The push is sent with the reminder id as its in-app row id, so a reminder
+ * that is still PENDING but already has that row for this owner had an earlier
+ * attempt that reached their devices and delivered nothing. If no device is left
+ * now, it is because `sendToDevice` deleted the tokens FCM rejected, so this is
+ * the same failure again, not an owner with no device, and must not end SENT.
+ */
+const pushOutcome = async (
+  reminderId: string,
+  ownerUserId: string,
+  results: SendResult[],
+): Promise<ChannelOutcome> => {
+  if (results.some((result) => result.success)) return "delivered";
+  if (results.length) return "failed";
+  const earlierAttempt = await prisma.notification.findFirst({
+    where: { id: reminderId, userId: ownerUserId },
+    select: { id: true },
+  });
+  return earlierAttempt ? "failed" : "unreachable";
+};
+
 const dispatchNotification = async (
   reminder: Awaited<ReturnType<typeof assertReminder>>,
   patientName: string,
@@ -217,22 +238,20 @@ const dispatchNotification = async (
     } else {
       // sendToUser reports per-device failures in its results rather than
       // throwing, and returns none when the owner has no registered device.
+      // The reminder id keys the in-app row, so a retry keeps the one row.
       push = await NotificationService.sendToUser(
         ownerUserId,
         NotificationTemplates.Care.CARE_REMINDER(patientName, typeLabel),
-      ).then(
-        (results): ChannelOutcome => {
-          if (results.some((result) => result.success)) return "delivered";
-          return results.length ? "failed" : "unreachable";
-        },
-        (err: unknown): ChannelOutcome => {
+        { recordId: reminder.id },
+      )
+        .then((results) => pushOutcome(reminder.id, ownerUserId, results))
+        .catch((err: unknown): ChannelOutcome => {
           logger.error("Care reminder push notification failed", {
             reminderId: reminder.id,
             err,
           });
           return "failed";
-        },
-      );
+        });
     }
   }
 
@@ -426,12 +445,27 @@ export const CareReminderService = {
       );
     }
 
-    const updated = await prisma.careReminder.update({
-      where: { id },
-      data: { status: "SENT", sentAt: new Date() },
-      select: reminderSelect,
-    });
+    // Only a reminder still PENDING becomes SENT. Delivery takes seconds, and a
+    // cancel (or a second send) that lands in between must not be overwritten.
+    // P2025 is that case: the row was read moments ago in this request, so no
+    // match means its status moved, not that the id is wrong.
+    const updated = await prisma.careReminder
+      .update({
+        where: { id, organisationId, status: "PENDING" },
+        data: { status: "SENT", sentAt: new Date() },
+        select: reminderSelect,
+      })
+      .catch((err: unknown) => {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2025"
+        ) {
+          return null;
+        }
+        throw err;
+      });
 
+    // Recorded either way: what reached the owner is true whatever the status.
     await AuditTrailService.recordSafely({
       organisationId,
       patientId: reminder.patientId,
@@ -446,6 +480,13 @@ export const CareReminderService = {
         delivery,
       },
     });
+
+    if (!updated) {
+      throw new CareReminderError(
+        "The reminder was cancelled or changed while it was being sent, so its status was not updated.",
+        409,
+      );
+    }
 
     return updated;
   },

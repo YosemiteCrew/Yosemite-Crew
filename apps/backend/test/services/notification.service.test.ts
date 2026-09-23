@@ -39,6 +39,7 @@ jest.mock("src/config/prisma", () => ({
   prisma: {
     notification: {
       create: jest.fn(),
+      upsert: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
       updateMany: jest.fn(),
@@ -254,6 +255,34 @@ describe("NotificationService", () => {
           notificationId: "notif-row-1",
         });
       }
+    });
+
+    it("with a recordId, reuses that row on a repeat send instead of inserting another", async () => {
+      // A retried care reminder passes its own id. The upsert finds the row the
+      // first attempt wrote, so the owner's list shows the reminder once.
+      (DeviceTokenService.getTokensForUser as jest.Mock).mockResolvedValueOnce([
+        { deviceToken: "token-1" },
+      ]);
+      mockSend.mockResolvedValue("msg-id");
+      (prisma.notification.upsert as jest.Mock).mockResolvedValueOnce({
+        id: "reminder-1",
+      });
+
+      await NotificationService.sendToUser("user1", payload, {
+        recordId: "reminder-1",
+      });
+
+      expect(prisma.notification.create).not.toHaveBeenCalled();
+      expect(prisma.notification.upsert).toHaveBeenCalledWith({
+        // The owner is in the WHERE: another user's row is never reused.
+        where: { id: "reminder-1", userId: "user1" },
+        create: expect.objectContaining({ id: "reminder-1", userId: "user1" }),
+        update: {},
+        select: { id: true },
+      });
+      expect(mockSend.mock.calls[0][0].data).toEqual({
+        notificationId: "reminder-1",
+      });
     });
 
     it("still delivers the push when the row cannot be written", async () => {
