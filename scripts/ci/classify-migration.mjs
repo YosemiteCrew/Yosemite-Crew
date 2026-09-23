@@ -519,10 +519,8 @@ const main = (paths) => {
       continue;
     }
 
-    const review = reviewMigration({
-      name: migrationName(relative(repoRoot, resolved)),
-      sql: readFileSync(resolved, 'utf8'),
-    });
+    const sql = readFileSync(resolved, 'utf8');
+    const review = reviewMigration({ name: migrationName(relative(repoRoot, resolved)), sql });
 
     if (review.hazards.length === 0) {
       console.log(`ok  ${review.name}: additive only.`);
@@ -535,7 +533,7 @@ const main = (paths) => {
       console.log(`ok  ${review.name}: ${review.hazards.length} hazard(s), declared.`);
       console.log(listed);
       console.log(`      declared: ${review.declaration}`);
-      if (readDeclaration(readFileSync(resolved, 'utf8')) === null) {
+      if (readDeclaration(sql) === null) {
         console.log(
           `      (recorded in RETROACTIVE_DECLARATIONS: applied before the rule existed)`
         );
