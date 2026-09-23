@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
+import { rankStrictMatches, retrieveJudgmentCandidates } from './searchRanking';
+import type { RankedSearchDoc } from './searchRanking';
 import type { SearchDoc } from './searchIndex';
 
 /**
@@ -13,36 +15,26 @@ import type { SearchDoc } from './searchIndex';
  * held under 400 KB by searchIndex.test.ts rather than quoted here, where
  * nothing could contradict the figure.
  *
- * Matching is deliberately simple: every term must appear in the title or the
- * body text. That is enough at that size and avoids shipping a scoring library.
- * Titles rank above body hits.
+ * Exact all-term matches render first. When fewer than three pages match, a
+ * same-origin server route may widen candidates to any matching term and ask
+ * for a typed relevance judgment. The deterministic fallback ranks title hits
+ * above body hits.
  */
 
 const INDEX_URL = '/docs/search-index.json';
 const MAX_RESULTS = 8;
+const RERANK_DEBOUNCE_MS = 120;
 
-interface Ranked extends SearchDoc {
-  score: number;
-}
+const isString = (value: unknown): value is string => typeof value === 'string';
+const isStringOrder = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every(isString);
 
-const rank = (docs: SearchDoc[], query: string): Ranked[] => {
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  if (!terms.length) return [];
-
-  return docs
-    .map((doc) => {
-      const title = doc.title.toLowerCase();
-      const text = doc.text.toLowerCase();
-      let score = 0;
-      for (const term of terms) {
-        if (title.includes(term)) score += 10;
-        else if (text.includes(term)) score += 1;
-        else return null;
-      }
-      return { ...doc, score };
-    })
-    .filter((doc): doc is Ranked => doc !== null)
-    .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))
+const rankedCandidates = (order: unknown[], docs: SearchDoc[], query: string): SearchDoc[] => {
+  const candidates = retrieveJudgmentCandidates(docs, query);
+  const byHref = new Map(candidates.map((candidate) => [candidate.href, candidate]));
+  return [...new Set(order)]
+    .map((href) => byHref.get(href as string))
+    .filter((candidate): candidate is RankedSearchDoc => candidate !== undefined)
     .slice(0, MAX_RESULTS);
 };
 
@@ -51,6 +43,7 @@ export default function DocsSearch() {
   const [docs, setDocs] = useState<SearchDoc[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [judgedResults, setJudgedResults] = useState<SearchDoc[] | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const loadPromiseRef = useRef<Promise<void> | null>(null);
   const resultRefs = useRef<Array<HTMLAnchorElement | null>>([]);
@@ -89,9 +82,46 @@ export default function DocsSearch() {
     return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
 
-  const results = docs ? rank(docs, query) : [];
+  const deterministicResults = docs ? rankStrictMatches(docs, query).slice(0, MAX_RESULTS) : [];
+  const results = judgedResults ?? deterministicResults;
   const showPanel = open && query.trim().length > 0;
   const activeOptionId = activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined;
+
+  useEffect(() => {
+    if (!open || !docs || !query.trim()) return undefined;
+
+    const controller = new AbortController();
+    const timer = globalThis.setTimeout(() => {
+      fetch('/api/docs/rerank', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+        signal: controller.signal,
+      })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((result: unknown) => {
+          if (controller.signal.aborted || typeof result !== 'object' || result === null) return;
+
+          const order = (result as { order?: unknown }).order;
+          if (!isStringOrder(order)) return;
+
+          const ranked = rankedCandidates(order, docs, query);
+
+          // An order that resolves to nothing - unmappable, or empty because every
+          // candidate was judged below the admission level - leaves the deterministic
+          // list in place rather than blanking a match the reader can see.
+          if (ranked.length === 0) return;
+          setJudgedResults(ranked);
+          setActiveIndex(-1);
+        })
+        .catch(() => undefined);
+    }, RERANK_DEBOUNCE_MS);
+
+    return () => {
+      globalThis.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [docs, open, query]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Escape') {
@@ -137,6 +167,7 @@ export default function DocsSearch() {
         }}
         onChange={(event) => {
           setQuery(event.target.value);
+          setJudgedResults(null);
           setActiveIndex(-1);
           setOpen(true);
         }}
