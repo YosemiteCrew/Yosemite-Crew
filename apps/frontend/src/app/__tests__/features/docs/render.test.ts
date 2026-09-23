@@ -111,6 +111,14 @@ describe('renderDoc over the real corpus', () => {
     expect(html).not.toContain('>Twitter</a>');
   });
 
+  it('keeps the overview prerequisites directly below the installation heading', async () => {
+    const overview = corpus.find((entry) => entry.id === 'overview');
+    expect(overview).toBeDefined();
+
+    const rendered = await renderDoc(overview!, corpus);
+    expect(rendered.toc).toContainEqual({ id: 'prerequisites', text: 'Prerequisites', depth: 2 });
+  });
+
   it('renders every page without throwing', async () => {
     const results = await Promise.all(
       corpus.map(async (entry) => ({

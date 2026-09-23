@@ -51,7 +51,7 @@ For Developers
 
 # 💻 Installation
 
-### Prerequisites
+## Prerequisites
 
 - Git
 - Node.js
