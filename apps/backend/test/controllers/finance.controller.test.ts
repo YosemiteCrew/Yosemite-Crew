@@ -16,6 +16,7 @@ import {
 import { StripeService } from "../../src/services/stripe.service";
 import { ProviderReceiptService } from "../../src/services/finance/provider-receipt";
 import { ProviderReceiptAuditService } from "../../src/services/finance/provider-receipt-audit";
+import { ClientAccountService } from "../../src/services/finance/client-account";
 import { encodeKeysetCursor } from "../../src/services/shared/pagination";
 import { Request, Response } from "express";
 
@@ -151,6 +152,13 @@ jest.mock("../../src/services/finance/provider-receipt-audit", () => ({
   __esModule: true,
   ProviderReceiptAuditService: {
     auditHistoricalMismatches: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/finance/client-account", () => ({
+  __esModule: true,
+  ClientAccountService: {
+    getAccountCredit: jest.fn(),
   },
 }));
 jest.mock("src/utils/logger", () => ({
@@ -2040,6 +2048,114 @@ describe("FinanceController.allocateProviderReceipt", () => {
     const res = buildRes();
 
     await FinanceController.allocateProviderReceipt(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });
+  });
+});
+
+describe("FinanceController.getClientAccountCredit", () => {
+  const PARENT = "22222222-2222-4222-8222-222222222222";
+
+  const buildRes = () =>
+    ({
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    }) as unknown as Response;
+
+  const buildReq = (overrides: Record<string, unknown> = {}) =>
+    ({
+      params: { organisationId: "org_1", parentId: PARENT },
+      query: {},
+      organisationId: "org_1",
+      ...overrides,
+    }) as unknown as Request;
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    (ClientAccountService.getAccountCredit as jest.Mock).mockResolvedValue([]);
+  });
+
+  it("scopes the credit to the authorized organisation, not the path", async () => {
+    // A Parent is global. Without the organisation coming from the session,
+    // anyone holding the permission in their own practice could read what a
+    // shared client has paid another practice.
+    const res = buildRes();
+
+    await FinanceController.getClientAccountCredit(
+      buildReq({
+        params: { organisationId: "org_victim", parentId: PARENT },
+        organisationId: "org_attacker",
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(ClientAccountService.getAccountCredit).not.toHaveBeenCalled();
+  });
+
+  it("rejects a client id that is not a uuid without reaching the service", async () => {
+    const res = buildRes();
+
+    await FinanceController.getClientAccountCredit(
+      buildReq({ params: { organisationId: "org_1", parentId: "not-a-uuid" } }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(ClientAccountService.getAccountCredit).not.toHaveBeenCalled();
+  });
+
+  it("returns the per-currency credit the service reports", async () => {
+    const credit = [
+      {
+        currency: "gbp",
+        availableCredit: 75,
+        lines: [
+          {
+            receiptId: "receipt-1",
+            provider: "STRIPE",
+            paymentRef: "pi_1",
+            invoiceId: "invoice-1",
+            capturedAt: new Date("2026-09-01T10:00:00.000Z"),
+            availableCredit: 75,
+          },
+        ],
+      },
+    ];
+    (ClientAccountService.getAccountCredit as jest.Mock).mockResolvedValue(
+      credit,
+    );
+    const res = buildRes();
+
+    await FinanceController.getClientAccountCredit(buildReq(), res);
+
+    expect(ClientAccountService.getAccountCredit).toHaveBeenCalledWith({
+      organisationId: "org_1",
+      parentId: PARENT,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ data: credit, error: null });
+  });
+
+  it("answers an empty list the same for no credit and for an unknown client", async () => {
+    const res = buildRes();
+
+    await FinanceController.getClientAccountCredit(buildReq(), res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ data: [], error: null });
+  });
+
+  it("reports a failed read as a server error rather than as an empty account", async () => {
+    // Answering [] on a thrown query would tell an operator the client has no
+    // credit, which is the one wrong answer that looks like a real one.
+    (ClientAccountService.getAccountCredit as jest.Mock).mockRejectedValue(
+      new Error("database down"),
+    );
+    const res = buildRes();
+
+    await FinanceController.getClientAccountCredit(buildReq(), res);
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ message: "Internal server error" });

@@ -19,6 +19,7 @@ import {
   type AllocateResult,
 } from "src/services/finance/provider-receipt";
 import { ProviderReceiptAuditService } from "src/services/finance/provider-receipt-audit";
+import { ClientAccountService } from "src/services/finance/client-account";
 import { parseKeysetCursor } from "src/services/shared/pagination";
 import { StripeController } from "src/controllers/web/stripe.controller";
 import { StripeService } from "src/services/stripe.service";
@@ -1988,6 +1989,52 @@ export const FinanceController = {
       });
     } catch (error) {
       logger.error("Error auditing provider receipts against payments", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  /**
+   * A client's available account credit (#3163).
+   *
+   * Read-only, so `billing:view:any` like the reconciliation queue beside it.
+   * The figure is this organisation's own captures against its own invoices,
+   * read together; nothing here moves money.
+   *
+   * The organisation comes from `resolveAuthorizedOrganisationId` and never
+   * from the path, and it is then applied to the invoice as well as the
+   * capture. A `Parent` is global rather than owned by one practice, so a
+   * client id alone is not a tenancy boundary - without the organisation on
+   * both sides this route would answer one practice's question with another
+   * practice's money.
+   */
+  async getClientAccountCredit(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
+      const parentId = z.uuid().safeParse(req.params.parentId);
+      if (!parentId.success) {
+        return res.status(400).json({ message: "Invalid client id." });
+      }
+
+      const credit = await ClientAccountService.getAccountCredit({
+        organisationId,
+        parentId: parentId.data,
+      });
+
+      /*
+       * An empty array is the honest answer for a client with no credit, and
+       * it is the same answer as for a client this organisation has never
+       * invoiced. Distinguishing the two would turn this into a test for
+       * whether a given client id exists somewhere in the estate.
+       */
+      return res.status(200).json({ data: credit, error: null });
+    } catch (error) {
+      logger.error("Error reading client account credit", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   },
