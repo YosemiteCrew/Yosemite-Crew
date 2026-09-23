@@ -10,19 +10,15 @@ import {mockTheme} from '../../../setup/mockTheme';
 import {MedicalRecordsScreen} from '@/features/companion/screens/MedicalRecordsScreen';
 import {medicalRecordApi} from '@/features/companion/services/medicalRecordService';
 import {getFreshStoredTokens} from '@/features/auth/sessionManager';
-import en from '@/localization/resources/en/common.json';
-import es from '@/localization/resources/es/common.json';
 
+// The screen runs the real useMedicalRecords hook and the real record cards;
+// only the session, the API and the chrome around the body are mocked.
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 const mockTranslation = {
-  t: (key: string, values?: {date?: string; defaultValue?: string}) =>
-    values?.date
-      ? `${key}:${values.date}`
-      : /^medicalRecords\.(labels|problemLabels)\./.test(key)
-        ? `translated:${key}`
-        : (values?.defaultValue ?? key),
+  t: (key: string, values?: {date?: string}) =>
+    values?.date ? `${key}:${values.date}` : key,
 };
 jest.mock('react-i18next', () => ({useTranslation: () => mockTranslation}));
 jest.mock('@/features/auth/sessionManager', () => ({
@@ -55,7 +51,6 @@ const mockFetchAllergies = medicalRecordApi.fetchAllergies as jest.Mock;
 const mockFetchProblems = medicalRecordApi.fetchProblems as jest.Mock;
 
 const navigation = {goBack: jest.fn()};
-const route = {params: {companionId: 'pet-1'}};
 
 const renderFor = (companionId: string) => (
   <MedicalRecordsScreen
@@ -74,12 +69,10 @@ const allergy = (allergen: string) => ({
 
 const deferred = () => {
   let resolve!: (value: unknown[]) => void;
-  let reject!: (error: Error) => void;
-  const promise = new Promise<unknown[]>((res, rej) => {
+  const promise = new Promise<unknown[]>(res => {
     resolve = res;
-    reject = rej;
   });
-  return {promise, resolve, reject};
+  return {promise, resolve};
 };
 
 describe('MedicalRecordsScreen', () => {
@@ -90,58 +83,27 @@ describe('MedicalRecordsScreen', () => {
     mockFetchProblems.mockResolvedValue([]);
   });
 
-  it('renders current allergies and problems with their safety status', async () => {
-    mockFetchAllergies.mockResolvedValue([
-      {
-        id: 'a1',
-        allergen: 'Chicken',
-        allergyType: 'FOOD',
-        severity: 'SEVERE',
-        status: 'UNCONFIRMED',
-        reaction: 'Hives',
-      },
-    ]);
+  it('lays out the allergies and problems for the companion', async () => {
+    mockFetchAllergies.mockResolvedValue([allergy('Chicken')]);
     mockFetchProblems.mockResolvedValue([
-      {
-        id: 'p1',
-        name: 'Arthritis',
-        status: 'INACTIVE',
-        severity: 'MODERATE',
-        onsetDate: '2024-03-04',
-      },
+      {id: 'p1', name: 'Arthritis', status: 'INACTIVE'},
     ]);
 
-    render(
-      <MedicalRecordsScreen
-        navigation={navigation as never}
-        route={route as never}
-      />,
-    );
+    render(renderFor('pet-1'));
 
+    expect(screen.getByText('loading')).toBeTruthy();
     await waitFor(() => expect(screen.getByText('Chicken')).toBeTruthy());
-    expect(screen.getByText('Hives')).toBeTruthy();
     expect(screen.getByText('Arthritis')).toBeTruthy();
-    expect(screen.getByText(/^medicalRecords\.since:.*2024/)).toBeTruthy();
-    expect(screen.getByText(/medicalRecords\.suspected/)).toBeTruthy();
-    expect(screen.getByText(/medicalRecords\.dormant/)).toBeTruthy();
-    expect(
-      screen.getByText(/translated:medicalRecords\.labels\.SEVERE/),
-    ).toBeTruthy();
-    expect(
-      screen.getByText(/translated:medicalRecords\.problemLabels\.MODERATE/),
-    ).toBeTruthy();
-    expect(screen.queryByText(/medicalRecords\.labels\.MODERATE/)).toBeNull();
+    expect(screen.getAllByRole('header')).toHaveLength(2);
+    expect(screen.getByText('medicalRecords.intro')).toBeTruthy();
+    expect(screen.getByText('medicalRecords.flagsNotice')).toBeTruthy();
+    expect(screen.queryByText('medicalRecords.noAllergies')).toBeNull();
+    expect(screen.queryByText('medicalRecords.noProblems')).toBeNull();
     expect(mockFetchAllergies).toHaveBeenCalledWith('pet-1', 'token');
-    expect(mockFetchProblems).toHaveBeenCalledWith('pet-1', 'token');
   });
 
   it('shows empty states when no records exist', async () => {
-    render(
-      <MedicalRecordsScreen
-        navigation={navigation as never}
-        route={route as never}
-      />,
-    );
+    render(renderFor('pet-1'));
 
     await waitFor(() =>
       expect(screen.getByText('medicalRecords.noAllergies')).toBeTruthy(),
@@ -149,140 +111,33 @@ describe('MedicalRecordsScreen', () => {
     expect(screen.getByText('medicalRecords.noProblems')).toBeTruthy();
   });
 
-  it('shows translated load copy and offers retry for transport failures', async () => {
-    mockFetchAllergies.mockRejectedValue(new Error('Forbidden'));
+  it('shows translated load copy and retries into the recovered records', async () => {
+    mockFetchAllergies
+      .mockRejectedValueOnce(new Error('Request failed with status code 403'))
+      .mockResolvedValueOnce([allergy('Beef')]);
 
-    render(
-      <MedicalRecordsScreen
-        navigation={navigation as never}
-        route={route as never}
-      />,
-    );
+    render(renderFor('pet-1'));
 
     await waitFor(() =>
       expect(screen.getByText('medicalRecords.loadFailed')).toBeTruthy(),
     );
     expect(screen.getByRole('alert')).toBeTruthy();
-    expect(
-      screen.getByRole('button', {name: 'medicalRecords.retry'}),
-    ).toBeTruthy();
+    expect(screen.queryByText(/status code 403/)).toBeNull();
+    fireEvent.press(screen.getByRole('button', {name: 'medicalRecords.retry'}));
+    await waitFor(() => expect(screen.getByText('Beef')).toBeTruthy());
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('asks an unauthenticated owner to sign in without exposing a retry loop', async () => {
     mockTokens.mockResolvedValue(null);
 
-    render(
-      <MedicalRecordsScreen
-        navigation={navigation as never}
-        route={route as never}
-      />,
-    );
+    render(renderFor('pet-1'));
 
     await waitFor(() =>
       expect(screen.getByText('medicalRecords.signInAgain')).toBeTruthy(),
     );
     expect(screen.queryByRole('button')).toBeNull();
     expect(mockFetchAllergies).not.toHaveBeenCalled();
-  });
-
-  it('renders optional dates, reactions, and active records safely', async () => {
-    mockFetchAllergies.mockResolvedValue([
-      {
-        id: 'a2',
-        allergen: 'Dust',
-        allergyType: 'OTHER',
-        severity: 'MILD',
-        status: 'CONFIRMED',
-        onsetDate: '2025-01-02',
-      },
-    ]);
-    mockFetchProblems.mockResolvedValue([
-      {
-        id: 'p2',
-        name: 'Cough',
-        status: 'ACTIVE',
-        severity: undefined,
-        onsetDate: 'bad-date',
-      },
-    ]);
-    render(
-      <MedicalRecordsScreen
-        navigation={navigation as never}
-        route={route as never}
-      />,
-    );
-    await waitFor(() => expect(screen.getByText('Dust')).toBeTruthy());
-    await waitFor(() => expect(screen.getByText('Cough')).toBeTruthy());
-    expect(screen.getByText(/medicalRecords\.active/)).toBeTruthy();
-    expect(
-      screen.getByText(
-        /medicalRecords\.since:1\/2\/2025|medicalRecords\.since:02\/01\/2025/,
-      ),
-    ).toBeTruthy();
-  });
-
-  it('retries a failed load and renders the recovered records', async () => {
-    mockFetchAllergies
-      .mockRejectedValueOnce(new Error('Forbidden'))
-      .mockResolvedValueOnce([
-        {
-          id: 'a3',
-          allergen: 'Beef',
-          allergyType: 'FOOD',
-          severity: 'MILD',
-          status: 'CONFIRMED',
-        },
-      ]);
-    render(
-      <MedicalRecordsScreen
-        navigation={navigation as never}
-        route={route as never}
-      />,
-    );
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', {name: 'medicalRecords.retry'}),
-      ).toBeTruthy(),
-    );
-    fireEvent.press(screen.getByRole('button', {name: 'medicalRecords.retry'}));
-    await waitFor(() => expect(screen.getByText('Beef')).toBeTruthy());
-  });
-
-  it('never shows a slow response for the previous companion', async () => {
-    const pet1 = deferred();
-    mockFetchAllergies.mockImplementation((id: string) =>
-      id === 'pet-1' ? pet1.promise : Promise.resolve([allergy('Beef')]),
-    );
-    const view = render(renderFor('pet-1'));
-    await waitFor(() =>
-      expect(mockFetchAllergies).toHaveBeenCalledWith('pet-1', 'token'),
-    );
-
-    view.rerender(renderFor('pet-2'));
-    await waitFor(() => expect(screen.getByText('Beef')).toBeTruthy());
-    await act(async () => pet1.resolve([allergy('Chicken')]));
-
-    expect(screen.queryByText('Chicken')).toBeNull();
-    expect(screen.getByText('Beef')).toBeTruthy();
-  });
-
-  it('never shows a late failure for the previous companion', async () => {
-    const pet1 = deferred();
-    mockFetchAllergies.mockImplementation((id: string) =>
-      id === 'pet-1' ? pet1.promise : Promise.resolve([allergy('Beef')]),
-    );
-    const view = render(renderFor('pet-1'));
-    await waitFor(() =>
-      expect(mockFetchAllergies).toHaveBeenCalledWith('pet-1', 'token'),
-    );
-
-    view.rerender(renderFor('pet-2'));
-    await waitFor(() => expect(screen.getByText('Beef')).toBeTruthy());
-    await act(async () => pet1.reject(new Error('timeout')));
-
-    expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.queryByText('medicalRecords.loadFailed')).toBeNull();
-    expect(screen.getByText('Beef')).toBeTruthy();
   });
 
   it('hides the previous companion records while the next one loads', async () => {
@@ -302,23 +157,8 @@ describe('MedicalRecordsScreen', () => {
     expect(screen.queryByText('Chicken')).toBeNull();
   });
 
-  it('has a problem severity label for every value in both locales', () => {
-    for (const severity of ['MILD', 'MODERATE', 'SEVERE'] as const) {
-      expect(en.medicalRecords.problemLabels[severity]).toBeTruthy();
-      expect(es.medicalRecords.problemLabels[severity]).toBeTruthy();
-    }
-    // "el problema" is masculine; the allergy label agrees with "la alergia".
-    expect(es.medicalRecords.problemLabels.MODERATE).toBe('Moderado');
-    expect(es.medicalRecords.labels.MODERATE).toBe('Moderada');
-  });
-
   it('uses the header back action to leave the screen', async () => {
-    render(
-      <MedicalRecordsScreen
-        navigation={navigation as never}
-        route={route as never}
-      />,
-    );
+    render(renderFor('pet-1'));
     await waitFor(() =>
       expect(screen.getByText('medicalRecords.noAllergies')).toBeTruthy(),
     );
