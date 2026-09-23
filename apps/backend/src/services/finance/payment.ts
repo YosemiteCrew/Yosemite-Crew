@@ -1517,70 +1517,106 @@ export const FinancePaymentService = {
     invoiceId: string,
     reason?: string,
   ): Promise<RefundInvoiceResult> {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
-      include: {
-        payments: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
-      },
-    });
+    // When the invoice has no Payment row yet, this path reconstructs one for
+    // the full total, and getInvoiceFinancialSummary counts it the moment it
+    // lands. That made it the last way an invoice's paid total could move
+    // without passing through the lock recordInvoicePayment takes: a capture
+    // could read the balance, this could insert the reconstructed row after
+    // that read, and the invoice would end up credited twice for one
+    // settlement.
+    //
+    // So the payments read and the reconstruct write happen together under the
+    // same invoice-scoped key that recordInvoicePayment uses. A different key
+    // would serialize nothing.
+    //
+    // The Stripe round-trip stays outside: a network call inside an interactive
+    // transaction spends Prisma's 5s budget while holding a pool connection.
+    const { invoice, payment, paymentIntentId } = await prisma.$transaction(
+      async (tx) => {
+        const lockKey = `invoice-payment:${invoiceId}`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 
-    if (!invoice) {
-      throw new FinancePaymentError("Invoice not found", 404);
-    }
-
-    const latestPaymentAttempt = await prisma.paymentAttempt.findFirst({
-      where: {
-        invoiceId,
-        provider: "STRIPE",
-      },
-      orderBy: { createdAt: "desc" },
-      select: {
-        providerPaymentIntentId: true,
-      },
-    });
-
-    if (
-      !invoice.payments.length &&
-      !latestPaymentAttempt?.providerPaymentIntentId
-    ) {
-      throw new FinancePaymentError("Invoice has no refundable payment", 409);
-    }
-
-    const existingPayment = invoice.payments[0];
-    const paymentIntentId =
-      existingPayment?.providerPaymentId ??
-      latestPaymentAttempt?.providerPaymentIntentId ??
-      null;
-
-    let payment = existingPayment ?? null;
-    if (!payment) {
-      if (!paymentIntentId) {
-        throw new FinancePaymentError(
-          "Invoice has no refundable payment intent",
-          409,
-        );
-      }
-
-      payment = await prisma.payment.create({
-        data: {
-          invoiceId,
-          provider: "STRIPE",
-          settlementChannel: "STRIPE",
-          providerPaymentId: paymentIntentId,
-          amount: invoice.totalAmount,
-          currency: invoice.currency,
-          status: "SUCCEEDED",
-          paidAt: invoice.paidAt ?? new Date(),
-          rawProviderPayload: {
-            source: "finance.refundInvoicePayment",
-            invoiceId,
+        const lockedInvoice = await tx.invoice.findUnique({
+          where: { id: invoiceId },
+          include: {
+            payments: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
           },
-        },
-      });
-    }
+        });
+
+        if (!lockedInvoice) {
+          throw new FinancePaymentError("Invoice not found", 404);
+        }
+
+        const latestPaymentAttempt = await tx.paymentAttempt.findFirst({
+          where: {
+            invoiceId,
+            provider: "STRIPE",
+          },
+          orderBy: { createdAt: "desc" },
+          select: {
+            providerPaymentIntentId: true,
+          },
+        });
+
+        if (
+          !lockedInvoice.payments.length &&
+          !latestPaymentAttempt?.providerPaymentIntentId
+        ) {
+          throw new FinancePaymentError(
+            "Invoice has no refundable payment",
+            409,
+          );
+        }
+
+        const existingPayment = lockedInvoice.payments[0];
+        const intentId =
+          existingPayment?.providerPaymentId ??
+          latestPaymentAttempt?.providerPaymentIntentId ??
+          null;
+
+        if (existingPayment) {
+          return {
+            invoice: lockedInvoice,
+            payment: existingPayment,
+            paymentIntentId: intentId,
+          };
+        }
+
+        if (!intentId) {
+          throw new FinancePaymentError(
+            "Invoice has no refundable payment intent",
+            409,
+          );
+        }
+
+        // Still absent under the lock, so nothing landed while we waited.
+        const reconstructed = await tx.payment.create({
+          data: {
+            invoiceId,
+            provider: "STRIPE",
+            settlementChannel: "STRIPE",
+            providerPaymentId: intentId,
+            amount: lockedInvoice.totalAmount,
+            currency: lockedInvoice.currency,
+            status: "SUCCEEDED",
+            paidAt: lockedInvoice.paidAt ?? new Date(),
+            rawProviderPayload: {
+              source: "finance.refundInvoicePayment",
+              invoiceId,
+            },
+          },
+        });
+
+        return {
+          invoice: lockedInvoice,
+          payment: reconstructed,
+          paymentIntentId: intentId,
+        };
+      },
+    );
 
     let providerRefundId: string | null = null;
     let refundStatus = "succeeded";
