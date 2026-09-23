@@ -108,6 +108,83 @@ const runAction = (
   }
 };
 
+type EstimateResultsProps = {
+  loading: boolean;
+  error: string | null;
+  reload: () => void;
+  visibleEstimates: Estimate[];
+  query: string;
+  estimates: Estimate[];
+  activeStatus: string;
+  EstimatesList: typeof EstimateList;
+  activeEstimateId: string | null;
+  onSelect: (estimate: Estimate) => void;
+  companion: (patientId: string) => EstimateCompanion;
+  activeEstimate: Estimate | null;
+  companionName: (patientId: string) => string;
+  pendingAction: EstimateAction | null;
+  onAction: (action: EstimateAction) => void;
+  actionError: string | null;
+};
+
+const EstimateResults = ({
+  loading,
+  error,
+  reload,
+  visibleEstimates,
+  query,
+  estimates,
+  activeStatus,
+  EstimatesList,
+  activeEstimateId,
+  onSelect,
+  companion,
+  activeEstimate,
+  companionName,
+  pendingAction,
+  onAction,
+  actionError,
+}: EstimateResultsProps) => (
+  <>
+    {loading && <div className="h-40 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />}
+    {!loading && error && (
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-danger-100 p-3!">
+        <p role="alert" className="text-body-4 text-text-error">
+          {error}
+        </p>
+        <Secondary text="Retry" onClick={reload} ariaLabel="Retry loading estimates" />
+      </div>
+    )}
+    {!loading && !error && visibleEstimates.length === 0 && (
+      <div className="border border-card-border rounded-2xl px-6! py-10! text-center">
+        <p className="text-body-3 text-text-primary">No estimates yet</p>
+        <p className="text-body-4 text-text-secondary">
+          {emptyListMessage(Boolean(query.trim()), estimates.length > 0, activeStatus)}
+        </p>
+      </div>
+    )}
+    {!loading && !error && visibleEstimates.length > 0 && (
+      <div className="flex flex-col gap-6">
+        <EstimatesList
+          estimates={visibleEstimates}
+          activeEstimateId={activeEstimateId}
+          onSelect={onSelect}
+          companion={companion}
+        />
+        {activeEstimate && (
+          <EstimateDetail
+            estimate={activeEstimate}
+            companionName={companionName(activeEstimate.patientId)}
+            pendingAction={pendingAction}
+            onAction={onAction}
+            error={actionError}
+          />
+        )}
+      </div>
+    )}
+  </>
+);
+
 const EstimatesContent = () => {
   const { notify } = useNotify();
   const isPhone = useIsPhone();
@@ -355,47 +432,24 @@ const EstimatesContent = () => {
         </div>
       )}
 
-      {loading && (
-        <div className="h-40 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
-      )}
-
-      {!loading && error && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-danger-100 p-3!">
-          <p role="alert" className="text-body-4 text-text-error">
-            {error}
-          </p>
-          <Secondary text="Retry" onClick={reload} ariaLabel="Retry loading estimates" />
-        </div>
-      )}
-
-      {!loading && !error && visibleEstimates.length === 0 && (
-        <div className="border border-card-border rounded-2xl px-6! py-10! text-center">
-          <p className="text-body-3 text-text-primary">No estimates yet</p>
-          <p className="text-body-4 text-text-secondary">
-            {emptyListMessage(Boolean(query.trim()), estimates.length > 0, activeStatus)}
-          </p>
-        </div>
-      )}
-
-      {!loading && !error && visibleEstimates.length > 0 && (
-        <div className="flex flex-col gap-6">
-          <EstimatesList
-            estimates={visibleEstimates}
-            activeEstimateId={activeEstimateId}
-            onSelect={openEstimate}
-            companion={companionFor}
-          />
-          {activeEstimate && (
-            <EstimateDetail
-              estimate={activeEstimate}
-              companionName={companionName(activeEstimate.patientId)}
-              pendingAction={pendingAction}
-              onAction={(action) => void handleAction(action)}
-              error={actionError}
-            />
-          )}
-        </div>
-      )}
+      <EstimateResults
+        loading={loading}
+        error={error}
+        reload={reload}
+        visibleEstimates={visibleEstimates}
+        query={query}
+        estimates={estimates}
+        activeStatus={activeStatus}
+        EstimatesList={EstimatesList}
+        activeEstimateId={activeEstimateId}
+        onSelect={openEstimate}
+        companion={companionFor}
+        activeEstimate={activeEstimate}
+        companionName={companionName}
+        pendingAction={pendingAction}
+        onAction={(action) => void handleAction(action)}
+        actionError={actionError}
+      />
 
       <CreateEstimateDialog
         open={createOpen}
