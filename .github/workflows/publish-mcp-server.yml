@@ -4,17 +4,24 @@
 # from this workflow's identity, so there is no NPM_TOKEN to leak, rotate or
 # leave in a log, and the staged package carries provenance linking it to this
 # repository and this run. A maintainer then reviews and approves the staged
-# package with 2FA. The one-time setup is on npm's side: the
-# package's Settings > Trusted publisher must name this repository and this
-# workflow file, with staged publishing allowed. Until that is done the stage
-# step fails closed rather than falling back to anything weaker.
+# package with 2FA.
 #
-# npm only supports staging an existing package. Bootstrap version 0.1.0 with
-# an interactive, 2FA-protected publish before creating the first release tag;
-# tagged releases after that point always use staged publishing.
+# Two jobs, so the credential and the build never share a job:
+#   build  checks the tag, installs, builds, tests and packs with `contents:
+#          read` only. Every install and build script runs here, where there is
+#          no id-token for a compromised dependency to take.
+#   stage  runs only on a tag push, in the `npm-publish` environment (whose
+#          deployment policy admits `mcp-v*` tags only), and is the ONLY job
+#          with `id-token: write`. It installs nothing and runs no package
+#          scripts: it stages exactly the tarball `build` produced and tested.
+# npm's trust configuration names this repository, this file AND the
+# `npm-publish` environment, so a credential requested from anywhere else - a
+# branch dispatch, another environment, another workflow - is refused by npm.
+# `publish-mcp-first` (the one-time bootstrap that published 0.1.0
+# interactively) created that configuration and refuses any that differs.
 #
-# `id-token: write` is what lets npm verify that identity. `contents: read` is
-# everything else this needs.
+# npm only supports staging an existing package, so the first tag this
+# workflow publishes is the version after 0.1.0.
 name: Publish MCP server
 
 on:
@@ -26,13 +33,12 @@ on:
 permissions: {}
 
 jobs:
-  publish:
-    name: Stage on npm
+  build:
+    name: Build and pack
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -43,6 +49,7 @@ jobs:
       # published from code that is already on main, never from a tag pointing
       # at something that never landed.
       - name: Refuse a tag that is not on main
+        if: github.event_name == 'push'
         run: |
           set -euo pipefail
           git fetch --no-tags origin main
@@ -57,16 +64,12 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
-      # Trusted publishing needs a recent npm; the one bundled with Node 22 is
-      # older than the release that added OIDC support.
-      - name: Use an npm that can do trusted publishing
-        run: npm install -g npm@latest
-
       - run: pnpm install --frozen-lockfile
 
       # The tag must name the version being published, so a mistyped tag cannot
       # ship a different version than the one it claims.
       - name: Check the tag matches the package version
+        if: github.event_name == 'push'
         run: |
           set -euo pipefail
           PKG=$(node -p "require('./packages/mcp-server/package.json').version")
@@ -98,7 +101,40 @@ jobs:
           head -1 "$BIN" | grep -q '^#!' || { echo "::error::bin entrypoint has no shebang"; exit 1; }
           echo "tarball installs and carries a runnable entrypoint"
 
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mcp-server-tarball
+          path: packages/mcp-server/*.tgz
+          if-no-files-found: error
+          retention-days: 7
+
+  stage:
+    name: Stage on npm
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: npm-publish
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      # Trusted publishing needs a recent npm; the one bundled with Node 22 is
+      # older than the release that added OIDC support. Pinned, not @latest, so
+      # the npm that holds the credential is one that was reviewed.
+      - name: Use a pinned npm that can do trusted publishing
+        run: npm install -g npm@12.1.0 --ignore-scripts
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: mcp-server-tarball
+          path: tarball
+
       - name: Stage for maintainer approval
-        if: github.event_name == 'push'
-        working-directory: packages/mcp-server
-        run: npm stage publish
+        run: |
+          set -euo pipefail
+          TARBALL=$(ls tarball/*.tgz)
+          npm stage publish "$TARBALL" --ignore-scripts
