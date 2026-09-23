@@ -66,6 +66,8 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
       if (authenticatingRef.current) {
         if (next === 'background' || next === 'inactive') {
           promptInactiveRef.current = true;
+        } else if (next === 'active') {
+          promptInactiveRef.current = false;
         }
         return;
       }
