@@ -392,7 +392,23 @@ export function getSuperTokensConfig(): TypeInput {
   const thirdPartyProviders = buildThirdPartyProviders();
   const appInfo = getAuthAppInfo();
   const turnstileSecret = process.env.TURNSTILE_SECRET_KEY?.trim();
-  const turnstileRequired = process.env.NODE_ENV === 'production' || Boolean(turnstileSecret);
+  // Keyed on the secret alone, deliberately, NOT on NODE_ENV.
+  //
+  // This half and the sign-up form are a two-way lockstep: when Turnstile is
+  // required the form posts a third form field, and supertokens-node rejects a
+  // request carrying more formFields than the recipe declares. So an API that
+  // requires it and a frontend that does not (or the reverse) does not degrade,
+  // it refuses 100% of business sign-ups. Keying either half on NODE_ENV made
+  // that lockstep fire on the mere fact of being a production build, which is
+  // exactly when the two halves are deployed minutes apart: Amplify ships the
+  // frontend the instant main moves, and the API is a separate manual dispatch.
+  //
+  // This does not switch a live control off. Production carries no Turnstile
+  // today - https://www.yosemitecrew.com/signup serves no turnstile script and
+  // no challenges.cloudflare.com reference. Setting TURNSTILE_SECRET_KEY here
+  // and NEXT_PUBLIC_TURNSTILE_SITE_KEY on the frontend arms it, on both sides,
+  // in one deliberate step rather than as a side effect of a build flag.
+  const turnstileRequired = Boolean(turnstileSecret);
   const turnstileHostname = new URL(requireEnv('AUTH_WEBSITE_DOMAIN')).hostname;
 
   const firstFactors = [

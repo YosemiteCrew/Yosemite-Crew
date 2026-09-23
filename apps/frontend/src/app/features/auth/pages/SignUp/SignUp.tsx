@@ -537,7 +537,11 @@ const SignUp = ({
   const [registeredEmail, setRegisteredEmail] = useState('');
 
   const effectiveDeveloper = isDeveloper || role === DEVELOPER_ROLE;
-  const turnstileRequired = process.env.NODE_ENV === 'production' || Boolean(turnstileSiteKey);
+  // The site key alone, not NODE_ENV. See the matching comment in
+  // packages/auth supertokens.config.ts: these two are a lockstep, and keying
+  // either on NODE_ENV means a production build demands a token the deployed
+  // API does not yet accept, which refuses every sign-up rather than degrading.
+  const turnstileRequired = Boolean(turnstileSiteKey);
 
   const { clearSignUpDraft } = useSignUpDraft({
     firstName,

@@ -159,6 +159,16 @@ jobs:
       - name: Verify the app config restored
         run: node scripts/mobile/doctor.mjs --require-app-config
 
+      # Which API the build points at, checked only for a tag push. A
+      # workflow_dispatch exercises the signing chain and uploads nothing, so it
+      # has no business failing on routing; the condition is the same one that
+      # gates the uploads below. Without this a MOBILE_VARIABLES_LOCAL_TS secret
+      # left at USE_DEV_API = true ships a signed store build pointed at
+      # devapi.yosemitecrew.com with every gate green.
+      - name: Verify the build targets the production API (tag pushes only)
+        if: github.event_name == 'push'
+        run: node scripts/mobile/doctor.mjs --require-production-api
+
       - name: Restore keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -309,6 +319,16 @@ jobs:
       # config, and nothing in the build itself would say so.
       - name: Verify the app config restored
         run: node scripts/mobile/doctor.mjs --require-app-config
+
+      # Which API the build points at, checked only for a tag push. A
+      # workflow_dispatch exercises the signing chain and uploads nothing, so it
+      # has no business failing on routing; the condition is the same one that
+      # gates the uploads below. Without this a MOBILE_VARIABLES_LOCAL_TS secret
+      # left at USE_DEV_API = true ships a signed store build pointed at
+      # devapi.yosemitecrew.com with every gate green.
+      - name: Verify the build targets the production API (tag pushes only)
+        if: github.event_name == 'push'
+        run: node scripts/mobile/doctor.mjs --require-production-api
 
       # A dedicated keychain, deleted in cleanup, so the signing identity never
       # persists on the runner beyond this job.
