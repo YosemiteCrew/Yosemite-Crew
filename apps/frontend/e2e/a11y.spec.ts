@@ -15,6 +15,16 @@ test.describe.configure({ timeout: 90_000 });
 
 const WCAG_AA = ['wcag2a', 'wcag2aa', 'wcag21aa'];
 
+const openDocs = async (page: Page) => {
+  await page.goto('/docs');
+  await page.waitForLoadState('networkidle').catch(() => {});
+  await expect(page.locator('.DocsTopBar')).toBeVisible();
+  await page.waitForFunction(() => {
+    const input = document.querySelector('.DocsSearchInput');
+    return input !== null && Object.keys(input).some((key) => key.startsWith('__reactProps$'));
+  });
+};
+
 /**
  * WCAG 2.1 AA, minus colour-contrast. Sign-in and sign-up retain this narrower
  * pass while their existing palette is handled separately; the marketing home,
@@ -195,8 +205,7 @@ for (const theme of ['light', 'dark'] as const) {
       test.use({ colorScheme: theme, viewport });
 
       test('distinguishes prose links without styling heading anchors', async ({ page }) => {
-        await page.goto('/docs');
-        await page.waitForLoadState('networkidle').catch(() => {});
+        await openDocs(page);
 
         const proseLink = page.locator('.DocsBody a:not(.DocsHeadingAnchor)').first();
         const headingAnchor = page.locator('.DocsBody .DocsHeadingAnchor').first();
@@ -215,7 +224,13 @@ for (const theme of ['light', 'dark'] as const) {
           await expect(page.locator(selector).first()).toHaveCSS('text-decoration-line', 'none');
         }
 
-        await page.locator('.DocsSearchInput').fill('installation');
+        const searchInput = page.locator('.DocsSearchInput');
+        const searchIndex = page.waitForResponse(
+          (response) => response.url().endsWith('/docs/search-index.json') && response.ok()
+        );
+        await searchInput.focus();
+        await searchIndex;
+        await searchInput.fill('installation');
         const searchResult = page.locator('.DocsSearchResult').first();
         await expect(searchResult).toBeVisible();
         await expect(searchResult).toHaveCSS('text-decoration-line', 'none');
