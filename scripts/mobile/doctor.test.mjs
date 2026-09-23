@@ -123,3 +123,107 @@ test('ignores non-font files sitting in assets/fonts', () => {
   });
   assert.match(fontLine(out), /^OK\s+UIAppFonts/);
 });
+
+// --- --require-production-api ----------------------------------------------
+// The gate the tag workflow runs before it uploads to TestFlight and Play.
+// `variables.local.ts` is gitignored and restored wholesale from a secret, so
+// the only thing standing between a stale `USE_DEV_API = true` and a signed
+// store build pointed at devapi is this check. It exits before the rest of the
+// report, so unlike the font gate its exit code is the whole answer.
+const runProductionApiGate = (variablesLocal) => {
+  const root = mkdtempSync(join(tmpdir(), 'yc-doctor-api-'));
+  try {
+    mkdirSync(join(root, 'scripts/mobile'), { recursive: true });
+    cpSync(DOCTOR, join(root, 'scripts/mobile/doctor.mjs'));
+    cpSync(join(here, 'check-ios-secrets.mjs'), join(root, 'scripts/mobile/check-ios-secrets.mjs'));
+    const config = join(root, 'apps/mobileAppYC/src/config');
+    mkdirSync(config, { recursive: true });
+    if (variablesLocal !== null) {
+      writeFileSync(join(config, 'variables.local.ts'), variablesLocal);
+    }
+    try {
+      const stdout = execFileSync(
+        process.execPath,
+        [join(root, 'scripts/mobile/doctor.mjs'), '--require-production-api'],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
+      );
+      return { status: 0, stdout };
+    } catch (err) {
+      return { status: err.status, stdout: err.stdout ?? '' };
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+};
+
+test('passes when USE_DEV_API is declared false', () => {
+  const { status, stdout } = runProductionApiGate('const USE_DEV_API = false;\n');
+  assert.equal(status, 0);
+  assert.match(stdout, /^OK\s+src\/config\/variables\.local\.ts routes this build/m);
+});
+
+test('passes when the declaration is exported', () => {
+  const { status } = runProductionApiGate('export const USE_DEV_API = false;\n');
+  assert.equal(status, 0);
+});
+
+// The failure the gate exists for: a secret left on dev.
+test('fails when USE_DEV_API is declared true', () => {
+  const { status, stdout } = runProductionApiGate('const USE_DEV_API = true;\n');
+  assert.equal(status, 1);
+  assert.match(stdout, /WRONG\s+USE_DEV_API is true/);
+});
+
+// "I could not find it" must never read the same as "it is correct".
+test('fails when USE_DEV_API is absent rather than treating absence as a pass', () => {
+  const { status, stdout } = runProductionApiGate('export const OTHER = 1;\n');
+  assert.equal(status, 1);
+  assert.match(stdout, /WRONG\s+USE_DEV_API not declared/);
+});
+
+test('fails when variables.local.ts did not restore at all', () => {
+  const { status, stdout } = runProductionApiGate(null);
+  assert.equal(status, 1);
+  assert.match(stdout, /WRONG\s+src\/config\/variables\.local\.ts missing/);
+});
+
+// A substring search over the whole file reports OK on this, because the
+// commented line matches first while the live declaration routes the build at
+// devapi. The declaration is anchored to the start of an uncommented line.
+test('fails when a commented-out false sits above a live true', () => {
+  const { status, stdout } = runProductionApiGate(
+    '// const USE_DEV_API = false;\nconst USE_DEV_API = true;\n'
+  );
+  assert.equal(status, 1);
+  assert.match(stdout, /WRONG\s+USE_DEV_API is true/);
+});
+
+// The other direction: a multi-line block comment can put a bare `const ... =
+// true;` at the start of its own line, where the anchor alone cannot tell it
+// from live code. Stripping block comments first keeps the gate from failing a
+// file that is actually correct.
+test('passes when a block-commented true is only commentary above a live false', () => {
+  const { status, stdout } = runProductionApiGate(
+    '/*\nconst USE_DEV_API = true;\n*/\nconst USE_DEV_API = false;\n'
+  );
+  assert.equal(status, 0, stdout);
+  assert.match(stdout, /^OK\s+src\/config\/variables\.local\.ts routes this build/m);
+});
+
+test('fails when a block-commented false sits above a live true', () => {
+  const { status, stdout } = runProductionApiGate(
+    '/* const USE_DEV_API = false; */\nconst USE_DEV_API = true;\n'
+  );
+  assert.equal(status, 1);
+  assert.match(stdout, /WRONG\s+USE_DEV_API is true/);
+});
+
+// Two live declarations cannot both be the one the build reads, so the gate
+// must not pick a winner.
+test('fails when USE_DEV_API is declared twice', () => {
+  const { status, stdout } = runProductionApiGate(
+    'const USE_DEV_API = false;\nconst USE_DEV_API = true;\n'
+  );
+  assert.equal(status, 1);
+  assert.match(stdout, /WRONG\s+USE_DEV_API declared 2 times/);
+});
