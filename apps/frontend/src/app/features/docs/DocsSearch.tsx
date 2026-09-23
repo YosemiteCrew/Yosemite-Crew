@@ -107,7 +107,10 @@ export default function DocsSearch() {
 
           const ranked = rankedCandidates(order, docs, query);
 
-          if (order.length > 0 && ranked.length === 0) return;
+          // An order that resolves to nothing - unmappable, or empty because every
+          // candidate was judged below the admission level - leaves the deterministic
+          // list in place rather than blanking a match the reader can see.
+          if (ranked.length === 0) return;
           setJudgedResults(ranked);
           setActiveIndex(-1);
         })
