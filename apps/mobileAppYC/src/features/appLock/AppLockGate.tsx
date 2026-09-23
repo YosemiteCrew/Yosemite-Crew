@@ -49,6 +49,11 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
       dispatch(appUnlocked());
       return;
     }
+    if (settings.ownerId && settings.ownerId !== currentUserId) {
+      activeRef.current = false;
+      dispatch(appUnlocked());
+      return;
+    }
     if (!activeRef.current) {
       dispatch(appLocked());
     }
@@ -86,7 +91,14 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
     };
     const subscription = AppState.addEventListener('change', onStateChange);
     return () => subscription.remove();
-  }, [dispatch, isLoggedIn, settings.enabled, settings.timeoutMs]);
+  }, [
+    currentUserId,
+    dispatch,
+    isLoggedIn,
+    settings.enabled,
+    settings.ownerId,
+    settings.timeoutMs,
+  ]);
 
   const handleUnlock = useCallback(async () => {
     if (status.authenticating || !isOwner) return;
@@ -104,7 +116,7 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
     }
   }, [dispatch, isOwner, status.authenticating, t]);
 
-  const locked = settings.enabled && isLoggedIn && status.locked;
+  const locked = settings.enabled && isLoggedIn && isOwner && status.locked;
 
   return (
     <>
