@@ -444,7 +444,7 @@ const VitalRow = ({
   );
 };
 
-const VitalsHistory = ({
+export const VitalsHistory = ({
   vitals,
   resolveRecorderName,
   onNew,

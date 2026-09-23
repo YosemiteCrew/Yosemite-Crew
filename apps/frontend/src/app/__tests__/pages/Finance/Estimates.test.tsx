@@ -120,7 +120,7 @@ jest.mock('@/app/features/finance/services/estimateService', () => ({
   },
 }));
 
-import ProtectedEstimates from '@/app/features/finance/pages/Estimates';
+import ProtectedEstimates, { EstimateResults } from '@/app/features/finance/pages/Estimates';
 
 const buildEstimate = (overrides: Partial<Estimate> = {}): Estimate => ({
   id: 'est-1',
@@ -176,6 +176,34 @@ beforeEach(() => {
 });
 
 describe('Finance > Estimates page', () => {
+  it('renders the extracted result states and forwards retry', async () => {
+    const reload = jest.fn();
+    const props = {
+      loading: false,
+      error: 'Unable to load estimates.',
+      reload,
+      visibleEstimates: [],
+      query: '',
+      estimates: [],
+      activeStatus: 'all',
+      EstimatesList: () => <div />,
+      activeEstimateId: null,
+      onSelect: jest.fn(),
+      companion: jest.fn(),
+      activeEstimate: null,
+      companionName: jest.fn(),
+      pendingAction: null,
+      onAction: jest.fn(),
+      actionError: null,
+    };
+
+    render(<EstimateResults {...props} />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Unable to load estimates.');
+    await userEvent.click(screen.getByRole('button', { name: 'Retry loading estimates' }));
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
   it('shows the "nothing yet" empty state under the all filter', async () => {
     mockEstimateService.listEstimates.mockResolvedValue([]);
 

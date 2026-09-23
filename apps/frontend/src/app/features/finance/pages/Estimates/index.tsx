@@ -127,7 +127,7 @@ type EstimateResultsProps = {
   actionError: string | null;
 };
 
-const EstimateResults = ({
+export const EstimateResults = ({
   loading,
   error,
   reload,

@@ -2,7 +2,10 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
-import SoapStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/SoapStep';
+import SoapStep, {
+  SoapDraftEditor,
+} from '@/app/features/appointments/pages/AppointmentWorkspace/steps/SoapStep';
+import { EMPTY_SOAP } from '@/app/features/appointments/pages/AppointmentWorkspace/steps/soapStepUtils';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { saveSoapNote } from '@/app/features/appointments/services/workspaceClinicalService';
 import {
@@ -94,6 +97,38 @@ describe('SoapStep', () => {
         onSaveAndNext={onSaveAndNext}
       />
     );
+
+  it('renders the extracted draft editor lock state without editing controls', () => {
+    render(
+      <SoapDraftEditor
+        readOnly
+        lockReason="SOAP is locked after discharge."
+        chipTemplateOptions={[]}
+        onTemplateChipSelect={jest.fn()}
+        templateSearchRef={{ current: null }}
+        templateQuery=""
+        setTemplateQuery={jest.fn()}
+        templateMatches={[]}
+        onSelectTemplate={jest.fn()}
+        customMode={false}
+        note={EMPTY_SOAP}
+        onCustomAnswerChange={jest.fn()}
+        onRecordVitals={jest.fn()}
+        terminologyText={(text) => text}
+        onSubjectiveChange={jest.fn()}
+        onObjectiveChange={jest.fn()}
+        onAssessmentChange={jest.fn()}
+        onPlanChange={jest.fn()}
+        onCodedProblemsChange={jest.fn()}
+        saveError={null}
+        isSaving={false}
+        onSaveAndNext={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('SOAP is locked after discharge.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save & Next' })).not.toBeInTheDocument();
+  });
 
   it('renders the four SOAP sections and chief complaint', () => {
     const encounter = seedAndGet();

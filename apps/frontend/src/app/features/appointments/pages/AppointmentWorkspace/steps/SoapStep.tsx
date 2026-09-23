@@ -223,7 +223,7 @@ type SoapDraftEditorProps = {
   onSaveAndNext: () => void;
 };
 
-const SoapDraftEditor = ({
+export const SoapDraftEditor = ({
   readOnly,
   lockReason,
   chipTemplateOptions,

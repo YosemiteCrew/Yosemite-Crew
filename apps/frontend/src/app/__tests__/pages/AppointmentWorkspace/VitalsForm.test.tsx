@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import VitalsForm from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/VitalsForm';
+import VitalsForm, {
+  VitalsHistory,
+} from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/VitalsForm';
 import {
   INITIAL_VITALS_FORM_DRAFT_STATE,
   vitalsFormDraftReducer,
@@ -50,6 +52,25 @@ describe('VitalsForm', () => {
     (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([]);
     (listVitalsTemplates as jest.Mock).mockResolvedValue([]);
     (saveVitalRecord as jest.Mock).mockResolvedValue({ id: 'vital-1' });
+  });
+
+  it('renders the extracted history and forwards its new-vital action', () => {
+    const onNew = jest.fn();
+    const vital = {
+      id: 'v1',
+      code: 'VIT-1',
+      recordedByName: 'Dr Vet',
+      recordedAt: '2026-05-01T10:00:00Z',
+      weightLbs: 42,
+    } as Vitals;
+
+    render(
+      <VitalsHistory vitals={[vital]} resolveRecorderName={() => 'Nurse Ann'} onNew={onNew} />
+    );
+
+    expect(screen.getByText('Nurse Ann')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'New Vital' }));
+    expect(onNew).toHaveBeenCalledTimes(1);
   });
 
   it('shows the empty state and opens the new-vitals form', async () => {
