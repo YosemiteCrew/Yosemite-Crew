@@ -11,6 +11,8 @@ const assertSafeMutationTarget = (
 ) => {
   assert.ok(databaseUrl, 'DATABASE_URL is required for destructive schema invariant tests');
   const url = new URL(databaseUrl);
+  // Measured against Prisma 6.19.3: query `host` overrides the authority host,
+  // and a leading `/` identifies a Unix socket directory.
   const target = url.searchParams.get('host') ?? url.hostname;
   assert.ok(
     allowRemote ||
