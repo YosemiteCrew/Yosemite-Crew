@@ -439,7 +439,7 @@ function FreePlanCard() {
           fontWeight: 700,
           letterSpacing: '0.06em',
           textTransform: 'uppercase',
-          color: 'var(--ink-faint)',
+          color: 'var(--ink-muted)',
         }}
       >
         Free
@@ -538,9 +538,9 @@ function EnterprisePlanCard() {
     >
       <PlanBadgeHeader
         label="Enterprise"
-        labelColor="var(--ink-faint)"
+        labelColor="var(--ink-muted)"
         badge="COMING SOON"
-        badgeColor="var(--ink-faint)"
+        badgeColor="var(--ink-muted)"
         badgeBg="var(--inset)"
       />
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', margin: '20px 0 4px' }}>
