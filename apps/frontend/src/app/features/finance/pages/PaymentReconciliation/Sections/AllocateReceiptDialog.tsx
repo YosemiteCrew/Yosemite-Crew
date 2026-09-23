@@ -11,6 +11,7 @@ import type {
   ProviderReceiptAllocationResult,
 } from '@/app/features/finance/types/providerReceipt';
 import {
+  allocatedInvoiceLabel,
   allocationBlockedReason,
   formatCapturedAt,
   truncateReference,
@@ -58,10 +59,13 @@ type DialogBodyProps = Omit<AllocateReceiptDialogProps, 'receipt'> & {
 const ReadBack = ({
   result,
   currency,
+  invoices,
   onClose,
 }: Readonly<{
   result: ProviderReceiptAllocationResult;
   currency: string;
+  /** Every invoice loaded for the organisation, to name the lines from. */
+  invoices: readonly Invoice[];
   onClose: () => void;
 }>) => (
   <div className="flex flex-col gap-3 px-3 pb-3">
@@ -85,7 +89,10 @@ const ReadBack = ({
     <ul className="flex flex-col gap-1 list-none pl-0!">
       {result.allocations.map((line) => (
         <li key={line.invoiceId} className="text-body-4 text-text-secondary">
-          {`${formatMoneyPrecise(line.amount, currency)} applied`}
+          {`${formatMoneyPrecise(line.amount, currency)} applied to ${allocatedInvoiceLabel(
+            line.invoiceId,
+            invoices
+          )}`}
         </li>
       ))}
     </ul>
@@ -160,7 +167,9 @@ const DialogBody = ({
     });
 
   if (result) {
-    return <ReadBack result={result} currency={receipt.currency} onClose={onClose} />;
+    return (
+      <ReadBack result={result} currency={receipt.currency} invoices={invoices} onClose={onClose} />
+    );
   }
 
   const blocked = allocationBlockedReason(receipt);
