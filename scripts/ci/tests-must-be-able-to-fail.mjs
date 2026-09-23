@@ -81,7 +81,7 @@ export const isCheckableSource = (file) => {
  */
 const PACKAGE_WORKSPACES = {
   'agent-runtime': '@yosemite-crew/agent-runtime',
-  'mcp-server': '@yosemite-crew/mcp-server',
+  'mcp-server': '@yosemitecrew/mcp-server',
 };
 
 /**
