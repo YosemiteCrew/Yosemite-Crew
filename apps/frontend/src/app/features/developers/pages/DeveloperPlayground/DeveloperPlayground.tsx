@@ -131,36 +131,25 @@ type Props = {
   baseUrl?: string;
 };
 
-const DeveloperPlayground = ({ baseUrl = process.env.NEXT_PUBLIC_BASE_URL }: Props) => {
-  const idPrefix = useId();
-  const [operationId, setOperationId] = useState(PLAYGROUND_OPERATIONS[0].id);
-  // Drafts are kept per operation, so switching away and back loses nothing.
-  const [drafts, setDrafts] = useState<Record<string, ParamValues>>({});
-  const [apiKey, setApiKey] = useState('');
+type DraftsSetter = React.Dispatch<React.SetStateAction<Record<string, ParamValues>>>;
+
+type RequestRunnerArgs = {
+  baseUrl: string | undefined;
+  operation: (typeof PLAYGROUND_OPERATIONS)[number];
+  values: ParamValues;
+  apiKey: string;
+  setDrafts: DraftsSetter;
+};
+
+const useRequestRunner = ({ baseUrl, operation, values, apiKey, setDrafts }: RequestRunnerArgs) => {
   const [keyError, setKeyError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
   const [practices, setPractices] = useState<PracticeOption[]>([]);
-  const [exportTab, setExportTab] = useState<ExportTab>('curl');
-  const [copied, setCopied] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => abortRef.current?.abort(), []);
-
-  const operation =
-    PLAYGROUND_OPERATIONS.find((op) => op.id === operationId) ?? PLAYGROUND_OPERATIONS[0];
-  const values = drafts[operation.id] ?? {};
-  const request = buildRequest(operation, values);
-  const url = resolveUrl(baseUrl, request.path);
-  const apiHost = resolveUrl(baseUrl, '/') ? new URL(baseUrl as string).host : null;
-
-  const exportText = useMemo(() => {
-    if (!url) return '';
-    if (exportTab === 'typescript') return toTypeScript(request, url);
-    if (exportTab === 'fixture') return toRequestFixture(operation, request, url);
-    return toCurl(request, url);
-  }, [exportTab, operation, request, url]);
 
   const setValue = (name: string, value: string) => {
     setDrafts((prev) => ({ ...prev, [operation.id]: { ...prev[operation.id], [name]: value } }));
@@ -204,11 +193,41 @@ const DeveloperPlayground = ({ baseUrl = process.env.NEXT_PUBLIC_BASE_URL }: Pro
     }
   };
 
-  const runNextPage = (cursor: string) => {
+  const runNextPage = async (cursor: string) => {
     const next = { ...values, cursor };
     setDrafts((prev) => ({ ...prev, [operation.id]: next }));
-    void run(next);
+    await run(next);
   };
+
+  return {
+    abortRef,
+    errors,
+    keyError,
+    practices,
+    result,
+    running,
+    run,
+    runNextPage,
+    setErrors,
+    setKeyError,
+    setResult,
+    setValue,
+  };
+};
+
+const useExport = (
+  operation: (typeof PLAYGROUND_OPERATIONS)[number],
+  request: BuiltRequest,
+  url: string | null
+) => {
+  const [exportTab, setExportTab] = useState<ExportTab>('curl');
+  const [copied, setCopied] = useState(false);
+  const exportText = useMemo(() => {
+    if (!url) return '';
+    if (exportTab === 'typescript') return toTypeScript(request, url);
+    if (exportTab === 'fixture') return toRequestFixture(operation, request, url);
+    return toCurl(request, url);
+  }, [exportTab, operation, request, url]);
 
   const handleCopy = async () => {
     try {
@@ -220,8 +239,250 @@ const DeveloperPlayground = ({ baseUrl = process.env.NEXT_PUBLIC_BASE_URL }: Pro
     }
   };
 
-  const keyId = `${idPrefix}-key`;
+  return { copied, exportTab, exportText, handleCopy, setExportTab };
+};
+
+const PlaygroundIntro = ({ apiHost }: { apiHost: string | null }) => (
+  <div className="PlaygroundIntro">
+    <h1 className="PlaygroundTitle">API playground</h1>
+    <p className="PlaygroundText">
+      Run a read operation of the developer API with one of your keys and see the real response.
+      Calls are made from this browser straight to <strong>{apiHost ?? 'the API'}</strong> and count
+      toward the key&apos;s quota. They read live data from the practices your account belongs to;
+      nothing is written.
+    </p>
+  </div>
+);
+
+type OperationFieldProps = {
+  id: string;
+  operationId: string;
+  onChange: (operationId: string) => void;
+};
+
+const OperationField = ({ id, operationId, onChange }: OperationFieldProps) => (
+  <div className="PlaygroundField">
+    <label className="PlaygroundLabel" htmlFor={id}>
+      Operation
+    </label>
+    <select
+      id={id}
+      className="PlaygroundInput"
+      value={operationId}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      {PLAYGROUND_OPERATIONS.map((operation) => (
+        <option key={operation.id} value={operation.id}>
+          {operation.summary} - {operation.method} {operation.path}
+        </option>
+      ))}
+    </select>
+  </div>
+);
+
+const OperationFacts = ({ operation }: { operation: (typeof PLAYGROUND_OPERATIONS)[number] }) => (
+  <dl className="PlaygroundFacts">
+    <div>
+      <dt>Request</dt>
+      <dd>
+        <code>
+          {operation.method} {operation.path}
+        </code>
+      </dd>
+    </div>
+    <div>
+      <dt>Key scope</dt>
+      <dd>{operation.scope ?? 'None required'}</dd>
+    </div>
+    <div>
+      <dt>Practice permission</dt>
+      <dd>{operation.permission ?? 'None required'}</dd>
+    </div>
+  </dl>
+);
+
+type ParameterFieldsProps = {
+  idPrefix: string;
+  operation: (typeof PLAYGROUND_OPERATIONS)[number];
+  values: ParamValues;
+  errors: Record<string, string>;
+  practices: PracticeOption[];
+  onChange: (name: string, value: string) => void;
+};
+
+const ParameterFields = ({
+  idPrefix,
+  operation,
+  values,
+  errors,
+  practices,
+  onChange,
+}: ParameterFieldsProps) => {
   const practicesListId = practices.length ? `${idPrefix}-practices` : undefined;
+  return (
+    <>
+      {operation.params.map((param) => (
+        <ParamField
+          key={param.name}
+          id={`${idPrefix}-${param.name}`}
+          param={param}
+          value={values[param.name] ?? ''}
+          error={errors[param.name]}
+          listId={param.name === 'x-org-id' ? practicesListId : undefined}
+          onChange={(value) => onChange(param.name, value)}
+        />
+      ))}
+      {practicesListId ? (
+        <datalist id={practicesListId}>
+          {practices.map((practice) => (
+            <option key={practice.id} value={practice.id}>
+              {practice.name}
+            </option>
+          ))}
+        </datalist>
+      ) : null}
+    </>
+  );
+};
+
+type PlaygroundFormProps = {
+  idPrefix: string;
+  operation: (typeof PLAYGROUND_OPERATIONS)[number];
+  values: ParamValues;
+  apiKey: string;
+  keyError: string | null;
+  errors: Record<string, string>;
+  practices: PracticeOption[];
+  running: boolean;
+  hasResult: boolean;
+  onApiKeyChange: (value: string) => void;
+  onOperationChange: (operationId: string) => void;
+  onParamChange: (name: string, value: string) => void;
+  onRun: () => void;
+  onCancel: () => void;
+  onClear: () => void;
+};
+
+const PlaygroundForm = ({
+  idPrefix,
+  operation,
+  values,
+  apiKey,
+  keyError,
+  errors,
+  practices,
+  running,
+  hasResult,
+  onApiKeyChange,
+  onOperationChange,
+  onParamChange,
+  onRun,
+  onCancel,
+  onClear,
+}: PlaygroundFormProps) => (
+  <form
+    className="PlaygroundForm"
+    onSubmit={(event) => {
+      event.preventDefault();
+      onRun();
+    }}
+    noValidate
+  >
+    <KeyField id={`${idPrefix}-key`} value={apiKey} error={keyError} onChange={onApiKeyChange} />
+    <OperationField
+      id={`${idPrefix}-operation`}
+      operationId={operation.id}
+      onChange={onOperationChange}
+    />
+    <OperationFacts operation={operation} />
+    <ParameterFields
+      idPrefix={idPrefix}
+      operation={operation}
+      values={values}
+      errors={errors}
+      practices={practices}
+      onChange={onParamChange}
+    />
+    <div className="PlaygroundActions">
+      <Button type="submit" text={running ? 'Running...' : 'Run'} isDisabled={running} />
+      {running ? (
+        <Button variant="secondary" text="Cancel" onClick={onCancel} />
+      ) : (
+        <Button variant="secondary" text="Clear result" isDisabled={!hasResult} onClick={onClear} />
+      )}
+    </div>
+  </form>
+);
+
+type PlaygroundExportProps = {
+  exportTab: ExportTab;
+  exportText: string;
+  copied: boolean;
+  onTabChange: (tab: ExportTab) => void;
+  onCopy: () => void;
+};
+
+const PlaygroundExport = ({
+  exportTab,
+  exportText,
+  copied,
+  onTabChange,
+  onCopy,
+}: PlaygroundExportProps) => (
+  <section className="PlaygroundExport" aria-label="Use this request in your project">
+    <div className="PlaygroundTabs" role="tablist" aria-label="Export format">
+      {EXPORT_TABS.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          role="tab"
+          aria-selected={exportTab === tab.id}
+          className={`PlaygroundTab${exportTab === tab.id ? ' is-active' : ''}`}
+          onClick={() => onTabChange(tab.id)}
+        >
+          {tab.label}
+        </button>
+      ))}
+      <button type="button" className="PlaygroundCopy" onClick={onCopy} disabled={!exportText}>
+        <IoCopyOutline size={12} aria-hidden="true" />
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    </div>
+    <pre className="PlaygroundPre" role="tabpanel" tabIndex={0}>
+      {exportText || 'No API address is configured for this portal.'}
+    </pre>
+    <p className="PlaygroundHint">
+      Set <code>{API_KEY_ENV_VAR}</code> in your environment before running it. The example is
+      generated from your inputs, not from the response above.
+    </p>
+  </section>
+);
+
+const DeveloperPlayground = ({ baseUrl = process.env.NEXT_PUBLIC_BASE_URL }: Props) => {
+  const idPrefix = useId();
+  const [operationId, setOperationId] = useState(PLAYGROUND_OPERATIONS[0].id);
+  // Drafts are kept per operation, so switching away and back loses nothing.
+  const [drafts, setDrafts] = useState<Record<string, ParamValues>>({});
+  const [apiKey, setApiKey] = useState('');
+  const operation =
+    PLAYGROUND_OPERATIONS.find((candidate) => candidate.id === operationId) ??
+    PLAYGROUND_OPERATIONS[0];
+  const values = drafts[operation.id] ?? {};
+  const request = buildRequest(operation, values);
+  const url = resolveUrl(baseUrl, request.path);
+  const apiHost = url ? new URL(url).host : null;
+  const runner = useRequestRunner({ baseUrl, operation, values, apiKey, setDrafts });
+  const requestExport = useExport(operation, request, url);
+
+  const handleOperationChange = (nextOperationId: string) => {
+    setOperationId(nextOperationId);
+    runner.setErrors({});
+  };
+
+  const handleApiKeyChange = (value: string) => {
+    setApiKey(value);
+    runner.setKeyError(null);
+  };
 
   return (
     <DevRouteGuard>
@@ -237,153 +498,38 @@ const DeveloperPlayground = ({ baseUrl = process.env.NEXT_PUBLIC_BASE_URL }: Pro
         </div>
 
         <div className="PlaygroundShell">
-          <div className="PlaygroundIntro">
-            <h1 className="PlaygroundTitle">API playground</h1>
-            <p className="PlaygroundText">
-              Run a read operation of the developer API with one of your keys and see the real
-              response. Calls are made from this browser straight to{' '}
-              <strong>{apiHost ?? 'the API'}</strong> and count toward the key&apos;s quota. They
-              read live data from the practices your account belongs to; nothing is written.
-            </p>
-          </div>
-
-          <form
-            className="PlaygroundForm"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void run();
-            }}
-            noValidate
-          >
-            <KeyField
-              id={keyId}
-              value={apiKey}
-              error={keyError}
-              onChange={(value) => {
-                setApiKey(value);
-                setKeyError(null);
-              }}
-            />
-
-            <div className="PlaygroundField">
-              <label className="PlaygroundLabel" htmlFor={`${idPrefix}-operation`}>
-                Operation
-              </label>
-              <select
-                id={`${idPrefix}-operation`}
-                className="PlaygroundInput"
-                value={operation.id}
-                onChange={(e) => {
-                  setOperationId(e.target.value);
-                  setErrors({});
-                }}
-              >
-                {PLAYGROUND_OPERATIONS.map((op) => (
-                  <option key={op.id} value={op.id}>
-                    {op.summary} - {op.method} {op.path}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <dl className="PlaygroundFacts">
-              <div>
-                <dt>Request</dt>
-                <dd>
-                  <code>
-                    {operation.method} {operation.path}
-                  </code>
-                </dd>
-              </div>
-              <div>
-                <dt>Key scope</dt>
-                <dd>{operation.scope ?? 'None required'}</dd>
-              </div>
-              <div>
-                <dt>Practice permission</dt>
-                <dd>{operation.permission ?? 'None required'}</dd>
-              </div>
-            </dl>
-
-            {operation.params.map((param) => (
-              <ParamField
-                key={param.name}
-                id={`${idPrefix}-${param.name}`}
-                param={param}
-                value={values[param.name] ?? ''}
-                error={errors[param.name]}
-                listId={param.name === 'x-org-id' ? practicesListId : undefined}
-                onChange={(value) => setValue(param.name, value)}
-              />
-            ))}
-            {practicesListId ? (
-              <datalist id={practicesListId}>
-                {practices.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </datalist>
-            ) : null}
-
-            <div className="PlaygroundActions">
-              <Button type="submit" text={running ? 'Running...' : 'Run'} isDisabled={running} />
-              {running ? (
-                <Button
-                  variant="secondary"
-                  text="Cancel"
-                  onClick={() => abortRef.current?.abort()}
-                />
-              ) : (
-                <Button
-                  variant="secondary"
-                  text="Clear result"
-                  isDisabled={!result}
-                  onClick={() => setResult(null)}
-                />
-              )}
-            </div>
-          </form>
-
-          <ResultPanel
-            result={result}
-            running={running}
-            operationId={operation.id}
-            onNextPage={runNextPage}
+          <PlaygroundIntro apiHost={apiHost} />
+          <PlaygroundForm
+            idPrefix={idPrefix}
+            operation={operation}
+            values={values}
+            apiKey={apiKey}
+            keyError={runner.keyError}
+            errors={runner.errors}
+            practices={runner.practices}
+            running={runner.running}
+            hasResult={runner.result !== null}
+            onApiKeyChange={handleApiKeyChange}
+            onOperationChange={handleOperationChange}
+            onParamChange={runner.setValue}
+            onRun={runner.run}
+            onCancel={() => runner.abortRef.current?.abort()}
+            onClear={() => runner.setResult(null)}
           />
 
-          <section className="PlaygroundExport" aria-label="Use this request in your project">
-            <div className="PlaygroundTabs" role="tablist" aria-label="Export format">
-              {EXPORT_TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={exportTab === tab.id}
-                  className={`PlaygroundTab${exportTab === tab.id ? ' is-active' : ''}`}
-                  onClick={() => setExportTab(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-              <button
-                type="button"
-                className="PlaygroundCopy"
-                onClick={handleCopy}
-                disabled={!exportText}
-              >
-                <IoCopyOutline size={12} aria-hidden="true" />
-                {copied ? 'Copied' : 'Copy'}
-              </button>
-            </div>
-            <pre className="PlaygroundPre" role="tabpanel" tabIndex={0}>
-              {exportText || 'No API address is configured for this portal.'}
-            </pre>
-            <p className="PlaygroundHint">
-              Set <code>{API_KEY_ENV_VAR}</code> in your environment before running it. The example
-              is generated from your inputs, not from the response above.
-            </p>
-          </section>
+          <ResultPanel
+            result={runner.result}
+            running={runner.running}
+            operationId={operation.id}
+            onNextPage={runner.runNextPage}
+          />
+          <PlaygroundExport
+            exportTab={requestExport.exportTab}
+            exportText={requestExport.exportText}
+            copied={requestExport.copied}
+            onTabChange={requestExport.setExportTab}
+            onCopy={requestExport.handleCopy}
+          />
         </div>
       </section>
     </DevRouteGuard>
