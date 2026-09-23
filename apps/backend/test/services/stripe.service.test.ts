@@ -743,7 +743,11 @@ describe("StripeService", () => {
         StripeService.retrievePaymentIntent("pi_unknown", {
           organisationId: "org_1",
         }),
-      ).rejects.toThrow("Payment intent not found");
+      ).rejects.toMatchObject({
+        name: "FinancePaymentError",
+        message: "Payment intent not found",
+        statusCode: 404,
+      });
       expect(mStripe.paymentIntents.retrieve).not.toHaveBeenCalled();
     });
 

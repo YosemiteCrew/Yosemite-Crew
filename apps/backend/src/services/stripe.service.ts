@@ -7,6 +7,7 @@ import logger from "../utils/logger";
 
 import { InvoiceService } from "./invoice.service";
 import {
+  FinancePaymentError,
   FinancePaymentService,
   assertInvoiceInScope,
   resolveStripeConnectedAccountId,
@@ -702,8 +703,10 @@ export const StripeService = {
       },
     });
 
+    // 404, like an intent on someone else's invoice, so both callers answer
+    // a stale or mistyped id as not found rather than 500 (mobile) or 400 (web).
     if (!attempt?.invoice) {
-      throw new Error("Payment intent not found");
+      throw new FinancePaymentError("Payment intent not found", 404);
     }
 
     assertInvoiceInScope(attempt.invoice, scope);
