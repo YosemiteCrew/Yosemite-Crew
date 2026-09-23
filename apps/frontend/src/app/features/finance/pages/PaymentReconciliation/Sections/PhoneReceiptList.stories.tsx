@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 
 import PhoneReceiptList from './PhoneReceiptList';
 import type { ProviderReceipt } from '@/app/features/finance/types/providerReceipt';
@@ -18,6 +18,7 @@ const receipt = (over: Partial<ProviderReceipt>): ProviderReceipt => ({
   status: 'UNALLOCATED',
   reason: 'The appointment already has a settled invoice',
   refundedAmount: 0,
+  allocatedAmount: 0,
   version: 1,
   createdAt: '2026-09-12T14:03:05.000Z',
   ...over,
@@ -51,6 +52,7 @@ const RECEIPTS: ProviderReceipt[] = [
   }),
   receipt({
     id: 'rec-allocated',
+    allocatedAmount: 65,
     paymentRef: 'pi_3QhZ4mAllocated',
     amount: 65,
     status: 'ALLOCATED',
@@ -111,5 +113,25 @@ export const SingleCapture: Story = {
     const canvas = within(canvasElement);
     await expect(await canvas.findByRole('link', { name: 'Open invoice' })).toBeVisible();
     await expect(canvas.getByRole('link', { name: 'Open appointment' })).toBeVisible();
+  },
+};
+
+/**
+ * The action, at the width the table cannot reach.
+ *
+ * It sits on the card rather than in a row of its own and only where the route
+ * would accept the capture, so the two rows that cannot take it - the one
+ * nobody owns and the one already fully applied - carry no control at all.
+ */
+export const WithTheAllocateAction: Story = {
+  name: 'Apply, on the cards that can take it',
+  args: { onAllocate: fn() },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const buttons = await canvas.findAllByRole('button', { name: /^Apply the payment captured/ });
+    await expect(buttons).toHaveLength(2);
+
+    await userEvent.click(buttons[0]);
+    await expect(args.onAllocate).toHaveBeenCalled();
   },
 };

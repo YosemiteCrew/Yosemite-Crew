@@ -2,9 +2,12 @@
 import React from 'react';
 import Link from 'next/link';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import { Secondary } from '@/app/ui/primitives/Buttons';
 import { formatMoneyPrecise } from '@/app/lib/money';
 import type { ProviderReceipt } from '@/app/features/finance/types/providerReceipt';
 import {
+  allocatableResidual,
+  canAllocate,
   formatCapturedAt,
   netCaptured,
   providerLabel,
@@ -25,7 +28,13 @@ const linkClass = 'text-body-4 text-blue-text underline underline-offset-2';
  * and the reason - every field an operator needs to decide anything - were off
  * screen with no affordance saying so. Same data, stacked.
  */
-const PhoneReceiptCard = ({ receipt }: { receipt: ProviderReceipt }) => {
+const PhoneReceiptCard = ({
+  receipt,
+  onAllocate,
+}: {
+  receipt: ProviderReceipt;
+  onAllocate?: (receipt: ProviderReceipt) => void;
+}) => {
   const { invoiceId, appointmentId } = receipt;
 
   return (
@@ -53,6 +62,11 @@ const PhoneReceiptCard = ({ receipt }: { receipt: ProviderReceipt }) => {
               receipt.refundedAmount,
               receipt.currency
             )} refunded`}
+          </span>
+        )}
+        {receipt.allocatedAmount > 0 && allocatableResidual(receipt) > 0 && (
+          <span className="text-caption-2 text-text-secondary">
+            {`${formatMoneyPrecise(allocatableResidual(receipt), receipt.currency)} unapplied`}
           </span>
         )}
       </span>
@@ -92,17 +106,39 @@ const PhoneReceiptCard = ({ receipt }: { receipt: ProviderReceipt }) => {
       {receipt.reason !== null && (
         <span className="text-body-4 text-text-secondary">{receipt.reason}</span>
       )}
+
+      {/*
+        The action is on the card rather than in a row of its own, and only
+        where it can be taken. The table gives it a column; at phone widths
+        there are no columns, and a full-width button per card would push the
+        next capture off the screen.
+      */}
+      {onAllocate && canAllocate(receipt) && (
+        <Secondary
+          text="Apply"
+          size="compact"
+          className="w-fit"
+          onClick={() => onAllocate(receipt)}
+          ariaLabel={`Apply the payment captured on ${formatCapturedAt(receipt.capturedAt)}`}
+        />
+      )}
     </li>
   );
 };
 
-const PhoneReceiptList = ({ receipts }: Readonly<{ receipts: ProviderReceipt[] }>) => (
+const PhoneReceiptList = ({
+  receipts,
+  onAllocate,
+}: Readonly<{
+  receipts: ProviderReceipt[];
+  onAllocate?: (receipt: ProviderReceipt) => void;
+}>) => (
   <ul
     className="flex flex-col gap-3 list-none pl-0!"
     aria-label="Captured payments and how far each one has been reconciled"
   >
     {receipts.map((receipt) => (
-      <PhoneReceiptCard key={receipt.id} receipt={receipt} />
+      <PhoneReceiptCard key={receipt.id} receipt={receipt} onAllocate={onAllocate} />
     ))}
   </ul>
 );
