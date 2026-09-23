@@ -175,12 +175,19 @@ const buildReminderEmailBody = (body: string, unsubscribeUrl: string) =>
   `<a href="${escapeHtml(unsubscribeUrl)}">Stop receiving care reminders from this practice</a>.` +
   `</p>`;
 
+/**
+ * What happened on one channel. Only `delivered` and `failed` count as an
+ * attempt: `suppressed` is the owner's own opt-out and `unreachable` is no
+ * address or device to try, neither of which a retry would change.
+ */
+type ChannelOutcome = "delivered" | "failed" | "suppressed" | "unreachable";
+
 const dispatchNotification = async (
   reminder: Awaited<ReturnType<typeof assertReminder>>,
   patientName: string,
   ownerUserId: string | null,
   ownerEmail: string | null,
-) => {
+): Promise<{ push: ChannelOutcome; email: ChannelOutcome }> => {
   const typeLabel = CARE_TYPE_LABELS[reminder.reminderType] ?? "care";
   // Shared with the in-app due list so the two never drift - see
   // `shared/care-reminder-message`.
@@ -195,44 +202,63 @@ const dispatchNotification = async (
     ownerEmail,
   );
 
-  const suppressed = (channel: "push" | "email") =>
+  const suppressed = (channel: "push" | "email"): ChannelOutcome => {
     logger.info(`Care reminder ${channel} suppressed: recipient opted out`, {
       reminderId: reminder.id,
       organisationId: reminder.organisationId,
     });
+    return "suppressed";
+  };
 
+  let push: ChannelOutcome = "unreachable";
   if (ownerUserId) {
     if (suppression.push) {
-      suppressed("push");
+      push = suppressed("push");
     } else {
-      await NotificationService.sendToUser(
+      // sendToUser reports per-device failures in its results rather than
+      // throwing, and returns none when the owner has no registered device.
+      push = await NotificationService.sendToUser(
         ownerUserId,
         NotificationTemplates.Care.CARE_REMINDER(patientName, typeLabel),
-      ).catch((err: unknown) => {
-        logger.error("Care reminder push notification failed", {
-          reminderId: reminder.id,
-          err,
-        });
-      });
+      ).then(
+        (results): ChannelOutcome => {
+          if (results.some((result) => result.success)) return "delivered";
+          return results.length ? "failed" : "unreachable";
+        },
+        (err: unknown): ChannelOutcome => {
+          logger.error("Care reminder push notification failed", {
+            reminderId: reminder.id,
+            err,
+          });
+          return "failed";
+        },
+      );
     }
   }
 
+  let email: ChannelOutcome = "unreachable";
   if (ownerEmail) {
     if (suppression.email || !unsubscribeUrl) {
-      suppressed("email");
+      email = suppressed("email");
     } else {
-      await sendEmail({
+      email = await sendEmail({
         to: ownerEmail,
         subject: `Care reminder for ${patientName}`,
         htmlBody: buildReminderEmailBody(body, unsubscribeUrl),
-      }).catch((err: unknown) => {
-        logger.error("Care reminder email failed", {
-          reminderId: reminder.id,
-          err,
-        });
-      });
+      }).then(
+        (): ChannelOutcome => "delivered",
+        (err: unknown): ChannelOutcome => {
+          logger.error("Care reminder email failed", {
+            reminderId: reminder.id,
+            err,
+          });
+          return "failed";
+        },
+      );
     }
   }
+
+  return { push, email };
 };
 
 export const CareReminderService = {
@@ -383,7 +409,22 @@ export const CareReminderService = {
       ownerEmail = parent?.email ?? null;
     }
 
-    await dispatchNotification(reminder, patientName, ownerUserId, ownerEmail);
+    const delivery = await dispatchNotification(
+      reminder,
+      patientName,
+      ownerUserId,
+      ownerEmail,
+    );
+    const outcomes = [delivery.push, delivery.email];
+    // Every channel that was tried failed. Marking it SENT would show the
+    // clinic a reminder nobody received, and only a PENDING reminder can be
+    // sent again, so it stays PENDING for a retry.
+    if (outcomes.includes("failed") && !outcomes.includes("delivered")) {
+      throw new CareReminderError(
+        "The reminder could not be delivered. It is still pending, so it can be sent again.",
+        502,
+      );
+    }
 
     const updated = await prisma.careReminder.update({
       where: { id },
@@ -402,6 +443,7 @@ export const CareReminderService = {
       metadata: {
         reminderType: reminder.reminderType,
         dueDate: reminder.dueDate,
+        delivery,
       },
     });
 

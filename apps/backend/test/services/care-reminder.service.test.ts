@@ -89,7 +89,10 @@ beforeEach(() => {
   );
   jest.clearAllMocks();
   (AuditTrailService.recordSafely as jest.Mock).mockResolvedValue(undefined);
-  (NotificationService.sendToUser as jest.Mock).mockResolvedValue(undefined);
+  // The real sendToUser resolves one result per registered device.
+  (NotificationService.sendToUser as jest.Mock).mockResolvedValue([
+    { token: "device-1", success: true },
+  ]);
   (sendEmail as jest.Mock).mockResolvedValue(undefined);
   // No opt-out by default, and the unsubscribe link needs both of these to build.
   pm.careReminderOptOut.findMany.mockResolvedValue([]);
@@ -381,6 +384,72 @@ describe("CareReminderService.send", () => {
       () => undefined,
     );
     expect(NotificationService.sendToUser).not.toHaveBeenCalled();
+  });
+
+  it("records which channels delivered in the audit row", async () => {
+    await CareReminderService.send("reminder-1", "org-1");
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          delivery: { push: "delivered", email: "delivered" },
+        }),
+      }),
+    );
+  });
+
+  it("still marks SENT when one channel fails and the other delivers", async () => {
+    (sendEmail as jest.Mock).mockRejectedValue(new Error("SES down"));
+    const result = await CareReminderService.send("reminder-1", "org-1");
+    expect(result.status).toBe("SENT");
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          delivery: { push: "delivered", email: "failed" },
+        }),
+      }),
+    );
+  });
+
+  it("stays PENDING and answers 502 when every channel tried fails", async () => {
+    // A vaccination reminder shown as sent is one nobody follows up, and only
+    // a PENDING reminder can be sent again.
+    (NotificationService.sendToUser as jest.Mock).mockRejectedValue(
+      new Error("FCM down"),
+    );
+    (sendEmail as jest.Mock).mockRejectedValue(new Error("SES down"));
+    await expect(
+      CareReminderService.send("reminder-1", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 502 });
+    expect(pm.careReminder.update).not.toHaveBeenCalled();
+    expect(AuditTrailService.recordSafely).not.toHaveBeenCalled();
+  });
+
+  it("counts a push that failed on every device as failed, not delivered", async () => {
+    // sendToUser reports device failures in its results instead of throwing.
+    (NotificationService.sendToUser as jest.Mock).mockResolvedValue([
+      { token: "device-1", success: false, error: "unregistered" },
+    ]);
+    pm.parent.findUnique.mockResolvedValue({
+      linkedUserId: "user-1",
+      email: null,
+    });
+    await expect(
+      CareReminderService.send("reminder-1", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 502 });
+    expect(pm.careReminder.update).not.toHaveBeenCalled();
+  });
+
+  it("does not treat an owner with no registered device as a failure", async () => {
+    (NotificationService.sendToUser as jest.Mock).mockResolvedValue([]);
+    const result = await CareReminderService.send("reminder-1", "org-1");
+    expect(result.status).toBe("SENT");
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          delivery: { push: "unreachable", email: "delivered" },
+        }),
+      }),
+    );
   });
 
   it("still transitions to SENT when no parent found", async () => {
