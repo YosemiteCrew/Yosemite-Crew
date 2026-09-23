@@ -374,12 +374,12 @@ describe("FinancePaymentService", () => {
       depositCollectedAmount: 0,
     };
     const recordedPayments: Array<{ id: string; amount: number }> = [];
-    let releaseInvoiceLock = () => undefined;
+    let releaseInvoiceLock: () => void = () => {};
     let lockTail = Promise.resolve();
     let transactionNumber = 0;
     let balanceReadNumber = 0;
-    let signalFirstBalanceRead = () => undefined;
-    let releaseFirstBalanceRead = () => undefined;
+    let signalFirstBalanceRead: () => void = () => {};
+    let releaseFirstBalanceRead: () => void = () => {};
     const firstBalanceReadStarted = new Promise<void>((resolve) => {
       signalFirstBalanceRead = resolve;
     });
