@@ -78,3 +78,74 @@ test.describe('the public surface renders without JavaScript', () => {
     });
   }
 });
+
+/*
+ * The consent card, which the root layout serves on every route.
+ *
+ * Its `Accept` and `Reject` controls pass `href="#"`, which `BaseButton`
+ * treats as no href at all, so they render as bare `<button>` elements whose
+ * only behaviour is an `onClick`. The decision is written to localStorage, so
+ * with scripting off the card takes a press, records nothing, and stays.
+ * Measured on a
+ * production build at this viewport it held 508-760 of 844px, 30% of the
+ * screen, and its subtree intercepted pointer events aimed at links that came
+ * to rest under it. Consent here gates PostHog alone, which cannot run either,
+ * so the card is withdrawn rather than made to work. See issue #3531.
+ *
+ * The JS-on arm below is the control. Without it this file could pass with the
+ * card removed from the application entirely, which is a different change from
+ * the one under test.
+ */
+const CONSENT_CARD = 'aside[aria-label="Cookie consent"]';
+
+test.describe('the consent card is withdrawn without JavaScript', () => {
+  test.use({ viewport: PHONE, javaScriptEnabled: false });
+
+  test('/docs offers no consent control that cannot record an answer', async ({ page }) => {
+    await page.goto('/docs', { waitUntil: 'domcontentloaded' });
+
+    const card = page.locator(CONSENT_CARD);
+
+    /*
+     * Present but not visible, asserted in that order. The rule that hides it
+     * travels inside `<noscript>`, so the element is still served and still in
+     * the DOM - `toHaveCount(0)` here would pass for the fix and for the card
+     * having been deleted from the layout alike.
+     */
+    await expect(card).toHaveCount(1);
+    await expect(card).toBeHidden();
+
+    await expect(page.getByRole('button', { name: 'Accept' })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Reject' })).toBeHidden();
+  });
+});
+
+test.describe('the consent card still works with JavaScript', () => {
+  test.use({ viewport: PHONE, javaScriptEnabled: true });
+
+  test('/docs shows the card and dismisses it on Accept', async ({ page }) => {
+    await page.goto('/docs', { waitUntil: 'domcontentloaded' });
+
+    const card = page.locator(CONSENT_CARD);
+    await expect(card).toBeVisible();
+
+    /*
+     * Wait for React to adopt the button before pressing it, the same way and
+     * for the same reason `docs-mobile.spec.ts` waits on `.DocsNavToggle`:
+     * since #3510 the public surface is ordinary markup, so the card paints
+     * immediately and a click can land tens of milliseconds before the
+     * `onClick` exists. Measured here without this wait, the press was
+     * swallowed and the card stayed up - which is indistinguishable from the
+     * defect under test, and would have read as this fix breaking the JS-on
+     * path. A visible element cannot report that it is hydrated;
+     * `__reactProps$` is the only thing on the page that does.
+     */
+    await page.waitForFunction(() => {
+      const accept = document.querySelector('aside[aria-label="Cookie consent"] button');
+      return accept !== null && Object.keys(accept).some((key) => key.startsWith('__reactProps$'));
+    });
+
+    await page.getByRole('button', { name: 'Accept' }).click();
+    await expect(card).toBeHidden();
+  });
+});
