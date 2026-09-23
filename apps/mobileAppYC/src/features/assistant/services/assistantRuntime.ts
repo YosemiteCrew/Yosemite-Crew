@@ -97,7 +97,9 @@ export const runTurn = async (
     options.useModel !== false &&
     result.status === 'ok';
 
-  const text = shouldRephrase ? await rephrase(factual) : factual;
+  const text = shouldRephrase
+    ? await rephrase(factual, Object.values(result.speechParams ?? {}))
+    : factual;
 
   return {intent, result, text};
 };
