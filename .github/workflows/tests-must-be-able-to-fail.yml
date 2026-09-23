@@ -28,6 +28,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # No `ref:` on purpose - see `_core.yaml`'s checkout, which carries the
+          # full reasoning. The default is refs/pull/<n>/merge, the tree that
+          # would exist on the base branch if this pull request merged now, and
+          # a head-sha override would judge a tree nobody is about to merge
+          # (#3316). The base this gate diffs against therefore comes from that
+          # merge commit's own first parent rather than from the event payload,
+          # which goes stale as soon as the base branch moves (#3530).
+          #
           # The gate diffs the branch against its base and checks out base
           # versions of individual files, so the full history is required.
           fetch-depth: 0
@@ -51,7 +59,11 @@ jobs:
           # Claimed per pull request rather than configured in the repo, so it
           # appears in the review and expires with the branch.
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          # The pull request head, used to prove the checkout really is this
+          # pull request's merge commit before its first parent is trusted as
+          # the base. Not a base: `pull_request.base.sha` is the base branch tip
+          # at event time and is what #3530 was.
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           ALLOW=""
@@ -59,4 +71,4 @@ jobs:
             echo "::notice::no-behaviour-change label present: a passing base run will be allowed"
             ALLOW="--allow-unchanged-behaviour"
           fi
-          node scripts/ci/tests-must-be-able-to-fail.mjs --base "${BASE_SHA}" $ALLOW
+          node scripts/ci/tests-must-be-able-to-fail.mjs --head-sha "${HEAD_SHA}" $ALLOW

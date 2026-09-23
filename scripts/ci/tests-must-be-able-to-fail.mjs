@@ -304,6 +304,49 @@ export const verdict = ({
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 
 /**
+ * The files this branch itself changed.
+ *
+ * Three-dot deliberately: the left end is the merge base of `base` and `HEAD`,
+ * so a base branch that has moved on since `base` was captured contributes
+ * nothing. A two-dot range is a plain comparison of two trees and would report
+ * every file the base branch changed after the fork point as though this branch
+ * had reverted it.
+ *
+ * The left end still has to be the right commit: on a pull request that is the
+ * merge commit's first parent, not the event's base sha. See
+ * `baseFromMergeCommit`.
+ */
+export const changedFiles = (base, run = git) =>
+  run('diff', '--name-only', `${base}...HEAD`).split('\n').filter(Boolean);
+
+/**
+ * The base of the range, read off the checkout instead of the event payload.
+ *
+ * On a `pull_request` event the checkout is refs/pull/<n>/merge: a merge commit
+ * whose FIRST parent is the base branch tip it was computed against and whose
+ * SECOND parent is the pull request head. That first parent is the one base
+ * that cannot go stale, because the commit being diffed was computed from it.
+ *
+ * `github.event.pull_request.base.sha` is the base branch tip when the event
+ * FIRED. The merge ref is recomputed as the base branch moves; the event sha is
+ * not. Everything merged in between then falls inside the range and is
+ * attributed to this pull request - and this gate reads a failure anywhere in
+ * the range as the branch proving itself, so another pull request's failing
+ * test became this one's evidence (#3530).
+ *
+ * Returns null unless HEAD really is that merge commit. A head-sha checkout has
+ * one parent, and a branch that merged its base in by hand has two whose second
+ * is not the pull request head; in both, `parents[0]` is the branch's own
+ * previous commit and the range would silently narrow to a single commit.
+ */
+export const baseFromMergeCommit = (parents, headSha) =>
+  parents.length === 2 && headSha && parents[1] === headSha ? parents[0] : null;
+
+/** The parents of a commit, oldest first. Input for `baseFromMergeCommit`. */
+export const parentsOf = (rev, run = git) =>
+  run('rev-list', '--parents', '-n1', rev).split(' ').slice(1);
+
+/**
  * One workspace's changed test paths, absolute and confined to the repository.
  *
  * They arrive from `git diff --name-only`, which is outside input as far as
@@ -547,14 +590,30 @@ const main = () => {
     return;
   }
 
-  const base = get('--base', 'origin/dev');
+  // --head-sha is how a pull request run identifies itself. Without it - a
+  // workflow_dispatch, or a local run - there is no merge commit to read a base
+  // off, and --base falls back to the base branch.
+  const headSha = get('--head-sha', '');
+  const parents = headSha ? parentsOf('HEAD') : [];
+  const base = headSha ? baseFromMergeCommit(parents, headSha) : get('--base', 'origin/dev');
   const allowUnchangedBehaviour = args.includes('--allow-unchanged-behaviour');
+
+  if (base === null) {
+    console.error(
+      `HEAD is ${git('rev-parse', 'HEAD')} with parent(s) ${parents.join(' ') || '(none)'},\n` +
+        `which is not the merge commit for head ${headSha}. The base this gate diffs\n` +
+        "against is that merge commit's first parent, so without it the range is not this\n" +
+        "branch's change set and a failure in it would not be this branch's proof (#3530).\n" +
+        'Check out refs/pull/<n>/merge - that is the actions/checkout default.'
+    );
+    process.exit(1);
+  }
 
   // --runTestsByPath resolves against the workspace rootDir, not the repo root,
   // so the repo-relative paths a diff yields have to be made absolute first.
   const repoRoot = git('rev-parse', '--show-toplevel');
 
-  const files = git('diff', '--name-only', `${base}...HEAD`).split('\n').filter(Boolean);
+  const files = changedFiles(base);
   const { source, tests } = classify(files);
 
   console.log(`source files changed: ${source.length}`);
