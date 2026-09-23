@@ -94,8 +94,21 @@ const MAX_THROTTLE_WAIT_MS = 16 * 60 * 1000;
  */
 export const resolveCompanionOverview = async (
   page: Page,
-  timeout = 30_000
+  timeout = 30_000,
+  confirmEmptyMs = 5_000
 ): Promise<{ href: string } | { unreachable: string }> => {
+  const at = () => new URL(page.url()).pathname;
+  /*
+   * A guard can move the page off the list, before the lookup or while it
+   * waits. Whatever the page then shows is not the list, so the reason given is
+   * the redirect, not what the lookup failed to find there.
+   */
+  const unreachable = (reason: string) => ({
+    unreachable: at() === '/companions' ? reason : `/companions redirected to ${at()}`,
+  });
+  // Already elsewhere: nothing on this page is the list, so do not wait for it.
+  if (at() !== '/companions') return unreachable('');
+
   const rowMenu = page.getByRole('button', { name: /row actions$/i }).first();
   // Every layout (table, grid, phone) carries its own copy of the empty state;
   // only the one on screen counts.
@@ -106,17 +119,26 @@ export const resolveCompanionOverview = async (
     .waitFor({ state: 'visible', timeout })
     .then(() => true)
     .catch(() => false);
-  if (!settled) {
-    return { unreachable: '/companions rendered neither a companion nor its empty state' };
-  }
-  if (!(await rowMenu.isVisible())) {
-    return {
-      unreachable: 'no companion is listed on /companions, so there is no overview to open',
-    };
+  if (!settled) return unreachable('/companions rendered neither a companion nor its empty state');
+
+  // The list has no loading state: it shows its empty state until the
+  // companions arrive. So an empty list counts only once it has stayed empty.
+  const listed = await rowMenu
+    .waitFor({ state: 'visible', timeout: confirmEmptyMs })
+    .then(() => true)
+    .catch(() => false);
+  if (!listed) {
+    return unreachable('no companion is listed on /companions, so there is no overview to open');
   }
 
-  await rowMenu.click();
-  await page.getByRole('menuitem', { name: 'Open overview' }).click();
+  const offered = await rowMenu
+    .click({ timeout })
+    .then(() => page.getByRole('menuitem', { name: 'Open overview' }).click({ timeout }))
+    .then(() => true)
+    .catch(() => false);
+  if (!offered) {
+    return unreachable('the first companion\'s row menu offered no "Open overview"');
+  }
   const opened = await page
     .waitForURL(
       (url) => url.pathname === '/companions/history' && url.searchParams.has('companionId'),

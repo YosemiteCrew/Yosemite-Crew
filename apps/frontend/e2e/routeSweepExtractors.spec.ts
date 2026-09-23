@@ -115,22 +115,24 @@ in 30 days</li></ul>
  * router.push, so the fixture is served from a real origin: a pushState needs
  * one, and setContent's about:blank has none.
  */
-const COMPANIONS_URL = 'http://route-sweep.test/companions';
-const serveCompanions = async (page: Page, body: string) => {
-  await page.route(COMPANIONS_URL, (route) =>
+const ORIGIN = 'http://route-sweep.test';
+const serveAt = async (page: Page, pathname: string, body: string) => {
+  await page.route(`${ORIGIN}${pathname}`, (route) =>
     route.fulfill({ contentType: 'text/html', body: `<!doctype html><body>${body}</body>` })
   );
-  await page.goto(COMPANIONS_URL);
+  await page.goto(`${ORIGIN}${pathname}`);
 };
-const ROW_MENU = (openOverview: string) => `
+const serveCompanions = (page: Page, body: string) => serveAt(page, '/companions', body);
+const MENU_ITEMS = (openOverview: string) => `
+  <button role="menuitem">Add task</button>
+  <button role="menuitem" onclick="${openOverview}">Open overview</button>
+`;
+const ROW_MENU = (openOverview: string, items = MENU_ITEMS(openOverview)) => `
   <p style="display:none">No patients yet</p>
   <button aria-label="Patient row actions" onclick="document.getElementById('menu').hidden = false">
     More
   </button>
-  <div id="menu" role="menu" hidden>
-    <button role="menuitem">Add task</button>
-    <button role="menuitem" onclick="${openOverview}">Open overview</button>
-  </div>
+  <div id="menu" role="menu" hidden>${items}</div>
 `;
 
 test('opens the first companion overview from its row menu and returns its address', async ({
@@ -161,7 +163,7 @@ test('reports an org with no companions as unswept, not as a pass', async ({ pag
   // Each layout renders its own empty state; the hidden copies must not be
   // what the lookup waits on.
   await serveCompanions(page, `<p style="display:none">No patients yet</p><p>No patients yet</p>`);
-  expect(await resolveCompanionOverview(page, 2_000)).toEqual({
+  expect(await resolveCompanionOverview(page, 2_000, 500)).toEqual({
     unreachable: 'no companion is listed on /companions, so there is no overview to open',
   });
 });
@@ -170,5 +172,52 @@ test('reports a companions page that never finished rendering', async ({ page })
   await serveCompanions(page, `<div class="animate-pulse">Loading</div>`);
   expect(await resolveCompanionOverview(page, 1_000)).toEqual({
     unreachable: '/companions rendered neither a companion nor its empty state',
+  });
+});
+
+test('waits out the empty state the list shows before its companions arrive', async ({ page }) => {
+  // The list has no loading state, so a slow load reads as an empty org at first.
+  const rows = ROW_MENU(
+    "history.pushState({}, '', '/companions/history?companionId=abc123&amp;source=companions')"
+  );
+  await serveCompanions(
+    page,
+    `<p>No patients yet</p>
+     <script>setTimeout(() => { document.body.innerHTML = ${JSON.stringify(rows)}; }, 500);</script>`
+  );
+  expect(await resolveCompanionOverview(page, 2_000, 3_000)).toEqual({
+    href: '/companions/history?companionId=abc123&source=companions',
+  });
+});
+
+test('reports a row menu without "Open overview" by name, not as a timeout', async ({ page }) => {
+  await serveCompanions(page, ROW_MENU('', '<button role="menuitem">Add task</button>'));
+  expect(await resolveCompanionOverview(page, 1_000, 500)).toEqual({
+    unreachable: 'the first companion\'s row menu offered no "Open overview"',
+  });
+});
+
+test('names the redirect at once when /companions was left before the lookup', async ({ page }) => {
+  // What an unverified org's owner gets: the guard sends /companions to the
+  // dashboard. Nothing there is the list, so there is nothing to wait for.
+  await serveAt(page, '/dashboard', '<p>Good morning</p>');
+  const started = Date.now();
+  expect(await resolveCompanionOverview(page, 20_000, 20_000)).toEqual({
+    unreachable: '/companions redirected to /dashboard',
+  });
+  expect(Date.now() - started).toBeLessThan(5_000);
+});
+
+test('names the redirect when /companions is left while the lookup waits', async ({ page }) => {
+  await serveCompanions(
+    page,
+    `<div class="animate-pulse">Loading</div>
+     <script>setTimeout(() => {
+       history.pushState({}, '', '/dashboard');
+       document.body.innerHTML = '<p>No tasks yet</p>';
+     }, 300);</script>`
+  );
+  expect(await resolveCompanionOverview(page, 2_000, 500)).toEqual({
+    unreachable: '/companions redirected to /dashboard',
   });
 });

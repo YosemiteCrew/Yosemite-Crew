@@ -81,6 +81,12 @@ const ACTOR_URI = `https://example.com/ap/organizations/${ORG_ID}`;
 // Same pattern as rawIdViolations in e2e/support/pageInvariants.ts.
 const RAW_ID = /\b[0-9a-f]{24}\b/;
 
+// Other clinics' actor URIs, one per id shape, and how each is printed.
+const REMOTE_HEX = 'https://remote.example/ap/organizations/a1b2c3d4e5f6a7b8c9d0e1f2';
+const SHORT_HEX = 'https://remote.example/ap/organizations/…d0e1f2';
+const REMOTE_UUID = 'https://other.example/ap/organizations/0b6f3c1e-8a2d-4f5b-9c7e-1d2e3f4a5b6c';
+const SHORT_UUID = 'https://other.example/ap/organizations/…4a5b6c';
+
 const mockActor: APActorSettings = {
   uri: ACTOR_URI,
   preferredUsername: 'clinic-a',
@@ -240,9 +246,6 @@ describe('FederationSection', () => {
   });
 
   it("abbreviates the database ids other clinics' URIs end in, and acts on the full URI", async () => {
-    const REMOTE_HEX = 'https://remote.example/ap/organizations/a1b2c3d4e5f6a7b8c9d0e1f2';
-    const REMOTE_UUID =
-      'https://other.example/ap/organizations/0b6f3c1e-8a2d-4f5b-9c7e-1d2e3f4a5b6c';
     (listFollowers as jest.Mock).mockResolvedValue([
       { ...mockFollower, remoteActorUri: REMOTE_HEX },
     ]);
@@ -258,22 +261,75 @@ describe('FederationSection', () => {
     (approveFollower as jest.Mock).mockResolvedValue(undefined);
     render(<FederationSection />);
 
-    expect(
-      await screen.findByText('https://remote.example/ap/organizations/…d0e1f2')
-    ).toBeInTheDocument();
-    expect(screen.getByText('https://other.example/ap/organizations/…4a5b6c')).toBeInTheDocument();
-    expect(
-      await screen.findByText('from https://remote.example/ap/organizations/…d0e1f2')
-    ).toBeInTheDocument();
-    expect(
-      await screen.findByText('to https://other.example/ap/organizations/…4a5b6c')
-    ).toBeInTheDocument();
+    // Follower and inbound sender; following and outbound recipient.
+    await waitFor(() => expect(screen.getAllByText(SHORT_HEX)).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByText(SHORT_UUID)).toHaveLength(2));
+    expect(screen.getByText('from')).toBeInTheDocument();
+    expect(screen.getByText('to')).toBeInTheDocument();
     expect(screen.queryAllByText(RAW_ID)).toHaveLength(0);
     expect(screen.queryAllByText(/0b6f3c1e/)).toHaveLength(0);
 
     // Only the text is shortened: the action still names the follower in full.
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
     await waitFor(() => expect(approveFollower).toHaveBeenCalledWith(REMOTE_HEX));
+  });
+
+  /*
+   * These rows are where a vet finds another clinic's actor URI, and Send
+   * referral asks for one in a free-text field. The printed URI is shortened, so
+   * each row carries a Copy for the whole value.
+   */
+  it("copies another clinic's full actor URI from its row, the value Send referral needs", async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    (listFollowers as jest.Mock).mockResolvedValue([mockFollower]);
+    (listFollowing as jest.Mock).mockResolvedValue([
+      { ...mockFollowing, remoteActorUri: REMOTE_UUID },
+    ]);
+    (listInboundReferrals as jest.Mock).mockResolvedValue([
+      { ...mockReferral, fromActorUri: REMOTE_HEX },
+    ]);
+    render(<FederationSection />);
+
+    fireEvent.click(await screen.findByRole('button', { name: `Copy ${SHORT_UUID}` }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(REMOTE_UUID));
+    // An inbound referral's sender, the clinic a referral would go back to.
+    fireEvent.click(await screen.findByRole('button', { name: `Copy ${SHORT_HEX}` }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(REMOTE_HEX));
+    expect(mockNotify).toHaveBeenCalledWith(
+      'success',
+      expect.objectContaining({ text: 'Actor URI copied to clipboard.' })
+    );
+
+    // Selected by hand, a shortened URI is not a valid one, so it cannot be
+    // selected; text with nothing shortened stays selectable.
+    expect(screen.getByText(SHORT_UUID)).toHaveClass('select-none');
+    expect(screen.getByText(SHORT_HEX)).toHaveClass('select-none');
+    expect(screen.getByText('https://example.com/ap/organizations/…e07942')).toHaveClass(
+      'select-none'
+    );
+    expect(screen.getByText('https://remote.example/ap/organizations/r1')).not.toHaveClass(
+      'select-none'
+    );
+    expect(screen.getByText('@clinic-a')).not.toHaveClass('select-none');
+  });
+
+  it("hands over another clinic's full actor URI to copy by hand when the clipboard refuses", async () => {
+    Object.assign(navigator, { clipboard: undefined });
+    (listFollowing as jest.Mock).mockResolvedValue([
+      { ...mockFollowing, remoteActorUri: REMOTE_UUID },
+    ]);
+    render(<FederationSection />);
+
+    fireEvent.click(await screen.findByRole('button', { name: `Copy ${SHORT_UUID}` }));
+
+    expect(
+      await screen.findByRole('textbox', { name: `${SHORT_UUID}, to copy by hand` })
+    ).toHaveValue(REMOTE_UUID);
+    expect(mockNotify).toHaveBeenCalledWith('error', {
+      title: 'Copy failed',
+      text: 'Could not copy the Actor URI. Select it below and copy it by hand.',
+    });
   });
 
   it('explains the failure instead of disappearing when getActorSettings rejects', async () => {
