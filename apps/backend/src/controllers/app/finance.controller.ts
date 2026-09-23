@@ -422,6 +422,7 @@ const CLIENT_ACCOUNT_ALLOCATION_FAILURES: Record<
   Exclude<ClientAccountAllocationResult["outcome"], "APPLIED" | "STOPPED">,
   string
 > = {
+  DUPLICATE_RECEIPT: "Each capture may appear at most once in a plan.",
   RECEIPT_NOT_THIS_CLIENT:
     "A capture in this plan does not belong to this client's account.",
   INVOICE_NOT_THIS_CLIENT:
@@ -2193,21 +2194,7 @@ export const FinanceController = {
       }
 
       /*
-       * A capture named twice is rejected rather than merged. The second entry
-       * would carry this plan's idempotency key into a capture the first has
-       * already decided, so it would come back REPLAYED with the FIRST entry's
-       * lines - reporting a success for lines that were never applied.
-       */
-      const receiptIds = body.data.receipts.map((entry) => entry.receiptId);
-      if (new Set(receiptIds).size !== receiptIds.length) {
-        return res.status(409).json({
-          message: "Each capture may appear at most once in a plan.",
-          error: { code: "DUPLICATE_RECEIPT" },
-        });
-      }
-
-      /*
-       * And an invoice named twice under one capture, for the reason the
+       * An invoice named twice under one capture, for the reason the
        * per-capture route gives: summing them answers a request the caller did
        * not make, and the one-allocation-per-pair rule downstream would refuse
        * the second line as a conflict, which reads as somebody else's write.
