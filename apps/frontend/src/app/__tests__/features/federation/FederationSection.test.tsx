@@ -74,14 +74,21 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
+// A real-shaped organisation id (what Mongo-era orgs carry). A slug like `org1`
+// could never trip the raw-id check below, which is how the leak shipped.
+const ORG_ID = '6971e5d25934bff94ee07942';
+const ACTOR_URI = `https://example.com/ap/organizations/${ORG_ID}`;
+// Same pattern as rawIdViolations in e2e/support/pageInvariants.ts.
+const RAW_ID = /\b[0-9a-f]{24}\b/;
+
 const mockActor: APActorSettings = {
-  uri: 'https://example.com/ap/organizations/org1',
+  uri: ACTOR_URI,
   preferredUsername: 'clinic-a',
-  publicKeyId: 'https://example.com/ap/organizations/org1#main-key',
-  inboxUri: 'https://example.com/ap/organizations/org1/inbox',
-  outboxUri: 'https://example.com/ap/organizations/org1/outbox',
-  followersUri: 'https://example.com/ap/organizations/org1/followers',
-  followingUri: 'https://example.com/ap/organizations/org1/following',
+  publicKeyId: `${ACTOR_URI}#main-key`,
+  inboxUri: `${ACTOR_URI}/inbox`,
+  outboxUri: `${ACTOR_URI}/outbox`,
+  followersUri: `${ACTOR_URI}/followers`,
+  followingUri: `${ACTOR_URI}/following`,
   sharedInboxUri: null,
   summary: null,
   iconUrl: null,
@@ -141,12 +148,33 @@ beforeEach(() => {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('FederationSection', () => {
-  it('renders actor URI after loading', async () => {
+  it('never prints the organisation id that the actor and inbox URIs end in', async () => {
     render(<FederationSection />);
+    expect(await screen.findByText('Federation identity')).toBeInTheDocument();
+    await waitFor(() => expect(listOutboundReferrals).toHaveBeenCalled());
+
+    // Per text node, like the e2e rule: container.textContent glues the URI to
+    // the "Copy" label beside it, and "…07942Copy" has no word boundary to match.
+    expect(screen.queryAllByText(RAW_ID)).toHaveLength(0);
+    // The inbox has no human use; remote servers read it from the actor document.
+    expect(screen.queryByRole('button', { name: 'Copy Inbox' })).not.toBeInTheDocument();
+    expect(screen.getByText('@clinic-a')).toBeInTheDocument();
+  });
+
+  it('still copies the full actor URI, the one value another clinic needs', async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    render(<FederationSection />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Copy Actor URI' }));
+
+    expect(writeText).toHaveBeenCalledWith(ACTOR_URI);
     await waitFor(() =>
-      expect(screen.getByText('https://example.com/ap/organizations/org1')).toBeInTheDocument()
+      expect(mockNotify).toHaveBeenCalledWith(
+        'success',
+        expect.objectContaining({ text: 'Actor URI copied to clipboard.' })
+      )
     );
-    expect(screen.getByText('Federation identity')).toBeInTheDocument();
   });
 
   it('explains the failure instead of disappearing when getActorSettings rejects', async () => {

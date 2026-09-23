@@ -116,9 +116,12 @@ describe('Settings Personal identity card', () => {
    * is what let it and SecuritySection drift to two different sizes. A plain
    * `<div>` title (not a heading) would fail this.
    */
-  it('renders the "Personal" title through the shared PreferenceGroup primitive', () => {
+  it('renders the "Profile" title through the shared PreferenceGroup primitive', () => {
     render(<Personal />);
-    expect(screen.getByRole('heading', { name: 'Personal', level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Profile', level: 3 })).toBeInTheDocument();
+    // The Settings band wrapping this card is already the "Personal" heading; a
+    // card of the same name gave /settings two identical headings.
+    expect(screen.queryByRole('heading', { name: /^personal$/i })).not.toBeInTheDocument();
   });
 
   it('renders the name, meta line, initials avatar and availability summary', () => {

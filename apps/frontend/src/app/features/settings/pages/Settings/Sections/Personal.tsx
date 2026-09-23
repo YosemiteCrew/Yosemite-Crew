@@ -63,7 +63,7 @@ const Personal = ({ onEditProfile, onEditHours }: PersonalProps) => {
   );
 
   return (
-    <PreferenceGroup title="Personal">
+    <PreferenceGroup title="Profile">
       <div className="flex items-center gap-[14px]">
         {isHttpsAvatar(avatarUrl) ? (
           <AvatarImage

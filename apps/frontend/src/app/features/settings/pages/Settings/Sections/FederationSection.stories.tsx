@@ -441,8 +441,11 @@ export const Ready: Story = {
     await expect(canvas.getByTitle('Approved')).toBeInTheDocument();
     await expect(canvas.queryByTitle('PENDING')).not.toBeInTheDocument();
 
-    // The copy affordance is labelled per row, so three identical "Copy"
-    // buttons are still distinguishable.
+    // The copy affordance is labelled per row, so two identical "Copy" buttons
+    // are still distinguishable. The actor URI itself is not printed (it ends in
+    // the organisation's database id), so copying is the only way to get it.
+    await expect(canvas.queryByText(ACTOR_URI)).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: 'Copy Inbox' })).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole('button', { name: 'Copy Actor URI' }));
     await waitFor(() => expect(copied).toEqual([ACTOR_URI]));
     await waitFor(() => expect(toastText()).toContain('Actor URI copied to clipboard.'));

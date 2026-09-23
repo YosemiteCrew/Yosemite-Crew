@@ -86,7 +86,10 @@ const StateBadge = ({ state }: { state: string }) => (
   />
 );
 
-const CopyRow = ({ label, value }: { label: string; value: string }) => {
+const COPY_VALUE_BOX = 'flex-1 text-body-4 bg-card-hover px-3 py-1.5 rounded-lg';
+
+/** `hint` replaces the printed value; Copy still copies `value`. */
+const CopyRow = ({ label, value, hint }: { label: string; value: string; hint?: string }) => {
   const { notify } = useNotify();
   const copy = () => {
     navigator.clipboard.writeText(value).then(() => {
@@ -97,9 +100,11 @@ const CopyRow = ({ label, value }: { label: string; value: string }) => {
     <div className="flex flex-col gap-1">
       <div className={TEXT_MUTED}>{label}</div>
       <div className="flex items-center gap-2">
-        <code className="flex-1 text-body-4 text-text-primary bg-card-hover px-3 py-1.5 rounded-lg overflow-x-auto">
-          {value}
-        </code>
+        {hint ? (
+          <span className={`${COPY_VALUE_BOX} text-text-secondary`}>{hint}</span>
+        ) : (
+          <code className={`${COPY_VALUE_BOX} text-text-primary overflow-x-auto`}>{value}</code>
+        )}
         <button
           type="button"
           onClick={copy}
@@ -119,9 +124,12 @@ const ActorInfoCard = ({ actor }: { actor: APActorSettings }) => (
       This instance&apos;s ActivityPub actor. Share your actor URI with other clinics to enable
       federation.
     </div>
-    <CopyRow label="Actor URI" value={actor.uri} />
+    {/* The actor and inbox URIs both end in the organisation's database id, which
+        must never be printed to a vet. The actor URI is still what another clinic
+        pastes under Following, so it stays one click away; the inbox had no human
+        use (remote servers read it from the actor document), so its row is gone. */}
+    <CopyRow label="Actor URI" value={actor.uri} hint="Copy it to share with another clinic." />
     <CopyRow label="Handle" value={`@${actor.preferredUsername}`} />
-    <CopyRow label="Inbox" value={actor.inboxUri} />
   </SectionCard>
 );
 

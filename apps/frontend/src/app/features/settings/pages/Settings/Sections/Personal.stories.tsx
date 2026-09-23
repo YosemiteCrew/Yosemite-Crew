@@ -363,7 +363,7 @@ export const NoAuthAttributes: Story = {
        and on the affordances, because "nothing rendered" and "rendered empty" look
        the same in a snapshot and only one of them leaves a hole in the Settings
        column. */
-    await expect(canvas.queryByText('Personal')).not.toBeInTheDocument();
+    await expect(canvas.queryByText('Profile')).not.toBeInTheDocument();
     await expect(canvas.queryByText('Availability & consultation hours')).not.toBeInTheDocument();
     await expect(canvas.queryByRole('button')).not.toBeInTheDocument();
   },
