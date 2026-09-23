@@ -124,15 +124,18 @@ describe('AppLockGate', () => {
 
   it('keeps the lock visible after a failed check and allows sign out', async () => {
     (unlock as jest.Mock).mockResolvedValue({ok: false, reason: 'cancelled'});
-    const {getByRole, getByText} = render(
+    const {getByRole, getByText, UNSAFE_getAllByType} = render(
       <AppLockGate>
-        <></>
+        <Text>content</Text>
       </AppLockGate>,
     );
     await act(async () => {
       fireEvent.press(getByRole('button', {name: 'appLock.unlock'}));
     });
     expect(getByText('appLock.failure.cancelled')).toBeTruthy();
+    expect(
+      UNSAFE_getAllByType(Text)[0].parent?.props.accessibilityElementsHidden,
+    ).toBe(true);
     fireEvent.press(getByRole('button', {name: 'appLock.signOut'}));
     expect(logout).toHaveBeenCalled();
   });
@@ -169,24 +172,18 @@ describe('AppLockGate', () => {
     ).toHaveLength(lockDispatches);
   });
 
-  it('does not offer an unlock path to another signed-in account', () => {
+  it('does not carry the owner lock into another signed-in account', () => {
     (useAuth as jest.Mock).mockReturnValue({
       isLoggedIn: true,
       logout,
       user: {id: 'different-account'},
     });
-    const {getByRole, UNSAFE_getAllByType} = render(
+    const {getByText} = render(
       <AppLockGate>
         <Text>content</Text>
       </AppLockGate>,
     );
-    expect(
-      getByRole('button', {name: 'appLock.unlock'}).props.accessibilityState
-        .disabled,
-    ).toBe(true);
-    expect(
-      UNSAFE_getAllByType(Text)[0].parent?.props.accessibilityElementsHidden,
-    ).toBe(true);
+    expect(getByText('content')).toBeTruthy();
   });
 
   it('ignores active events while the OS prompt is authenticating', async () => {
