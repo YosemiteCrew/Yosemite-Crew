@@ -264,3 +264,19 @@ export const allocatableInvoices = (
       balance: roundMoney(getInvoiceOutstanding(invoice)),
       createdAt: new Date(invoice.createdAt).toISOString(),
     }));
+
+/**
+ * The invoice an applied line went to, named the way the rest of finance names
+ * one.
+ *
+ * Resolved against every loaded invoice rather than the allocatable ones: a
+ * replay reports the lines of the decision it repeats, and an invoice that
+ * decision closed is no longer eligible, so looking it up in the picker's list
+ * would leave exactly the case the operator most needs to read unnamed. When
+ * the store has never seen the invoice at all the id still derives a stable
+ * code, which keeps two lines of the same amount apart.
+ */
+export const allocatedInvoiceLabel = (invoiceId: string, invoices: readonly Invoice[]): string => {
+  const match = invoices.find((invoice) => invoice.id === invoiceId);
+  return getInvoiceNumberLabel(match ?? { id: invoiceId }) || 'Invoice';
+};
