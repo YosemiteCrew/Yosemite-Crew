@@ -1,8 +1,16 @@
 import { expect, test } from '@playwright/test';
 
-const API_ORIGIN = 'http://127.0.0.1:3999';
+// The SDK's apiDomain is inlined from NEXT_PUBLIC_BASE_URL at build time, and
+// the app's CSP connect-src is a fixed allowlist that the built API origin is
+// on. Mocking any other origin makes every request fail CSP before Playwright
+// can route it, so read the same env var the build did rather than naming a
+// loopback port of our own.
+const API_ORIGIN = new URL(
+  process.env.NEXT_PUBLIC_BASE_URL?.trim() || 'https://devapi.yosemitecrew.com/'
+).origin;
 const APP_ORIGIN = (process.env.E2E_BASE_URL?.trim() || 'http://127.0.0.1:3001').replace(/\/$/, '');
 const APP_HOST = new URL(APP_ORIGIN).hostname;
+const APPOINTMENT_URL = `${API_ORIGIN}/v1/appointments/appointment-1`;
 
 const corsHeaders = {
   'access-control-allow-credentials': 'true',
@@ -39,6 +47,13 @@ test('refreshes safe reads but requires explicit resubmission for writes', async
       return;
     }
     if (request.method() === 'GET') {
+      // The app makes its own reads against this origin while /signin loads.
+      // Only the appointment read is the one under test - counting the others
+      // would both inflate getAttempts and hand the 401 to the wrong request.
+      if (request.url() !== APPOINTMENT_URL) {
+        await route.fulfill({ status: 200, headers: corsHeaders });
+        return;
+      }
       getAttempts += 1;
       await route.fulfill({ status: getAttempts === 1 ? 401 : 200, headers: corsHeaders });
       return;
@@ -79,8 +94,8 @@ test('refreshes safe reads but requires explicit resubmission for writes', async
   expect(sdkState.interceptorInstalled).toBe(true);
   expect(sdkState.cookies).toContain('sFrontToken=');
 
-  const blockedWrite = await page.evaluate(async () => {
-    const response = await fetch('http://127.0.0.1:3999/v1/appointments/appointment-1', {
+  const blockedWrite = await page.evaluate(async (url) => {
+    const response = await fetch(url, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ expectedVersion: 7, status: 'complete' }),
@@ -89,22 +104,20 @@ test('refreshes safe reads but requires explicit resubmission for writes', async
       replayBlocked: response.headers.get('x-yc-session-write-replay-blocked'),
       status: response.status,
     };
-  });
+  }, APPOINTMENT_URL);
 
   expect(blockedWrite).toEqual({ replayBlocked: 'true', status: 401 });
   expect(writeBodies).toEqual([JSON.stringify({ expectedVersion: 7, status: 'complete' })]);
 
-  const explicitResubmissionStatus = await page.evaluate(async () => {
-    const response = await fetch('http://127.0.0.1:3999/v1/appointments/appointment-1', {
+  const explicitResubmissionStatus = await page.evaluate(async (url) => {
+    const response = await fetch(url, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ expectedVersion: 8, status: 'complete' }),
     });
     return response.status;
-  });
-  const readStatus = await page.evaluate(
-    async () => (await fetch('http://127.0.0.1:3999/v1/appointments/appointment-1')).status
-  );
+  }, APPOINTMENT_URL);
+  const readStatus = await page.evaluate(async (url) => (await fetch(url)).status, APPOINTMENT_URL);
 
   expect(explicitResubmissionStatus).toBe(200);
   expect(writeBodies).toEqual([

@@ -205,13 +205,15 @@ jobs:
         # never runs anywhere. It has already happened once: #3502 added
         # marketing-hero-mobile, read a green `Frontend E2E Required`, and the
         # spec had not run at all. Add the file here in the same commit that
-        # adds the spec.
+        # adds the spec - scripts/ci/e2e-specs-run-somewhere.test.mjs fails the
+        # core pipeline when a spec is named in no workflow, because this
+        # comment on its own did not hold.
         run: >-
           pnpm --filter frontend exec playwright test
           e2e/smoke.spec.ts e2e/a11y.spec.ts
           e2e/pageInvariants.spec.ts e2e/routeSweepExtractors.spec.ts
           e2e/docs-mobile.spec.ts e2e/marketing-hero-mobile.spec.ts
-          e2e/no-js.spec.ts
+          e2e/no-js.spec.ts e2e/session-write-replay.spec.ts
 
       - name: Upload Playwright HTML report
         if: always()
