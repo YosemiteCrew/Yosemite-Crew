@@ -377,6 +377,37 @@ describe('ProfileOverviewScreen', () => {
     });
   });
 
+  it('navigates to medical records when the feature is allowed', () => {
+    const {getByText} = setup();
+    fireEvent.press(getByText('medicalRecords.title'));
+    expect(mockNavigate).toHaveBeenCalledWith('MedicalRecords', {
+      companionId: 'comp-123',
+    });
+  });
+
+  it('blocks medical records when the permission is denied', () => {
+    const restrictedState = {
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        accessByCompanionId: {
+          'comp-123': {role: 'CO_PARENT', permissions: {medicalRecords: false}},
+        },
+      },
+    };
+    const spyAlert = jest.spyOn(Alert, 'alert');
+    const {getByText} = setup(restrictedState);
+    fireEvent.press(getByText('medicalRecords.title'));
+    expect(mockNavigate).not.toHaveBeenCalledWith(
+      'MedicalRecords',
+      expect.anything(),
+    );
+    expect(spyAlert).toHaveBeenCalledWith(
+      'Permission needed',
+      expect.stringContaining("don't have access"),
+    );
+  });
+
   it('navigates to CoParents screen', () => {
     const {getByText} = setup();
     fireEvent.press(getByText('Co-parents'));
