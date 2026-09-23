@@ -6093,6 +6093,42 @@ describe("InvoiceService", () => {
       expect(items).toHaveLength(1);
     });
 
+    // The empty-string case is why this is `||` and not `??`. A line whose id
+    // is blank has no identity, and `??` would preserve it - after which every
+    // blank-id line would match every other blank-id line by id.
+    it("mints an id for a line whose stored id is blank", async () => {
+      openInvoice(
+        "inv_blank_id",
+        [
+          {
+            id: "   ",
+            name: "Consult",
+            description: "Consult",
+            quantity: 1,
+            unitPrice: 100,
+            total: 100,
+          },
+        ],
+        100,
+      );
+
+      await InvoiceService.addItemsToInvoice("inv_blank_id", [
+        {
+          name: "Bandage",
+          description: "Bandage",
+          quantity: 1,
+          unitPrice: 5,
+          total: 5,
+        },
+      ]);
+
+      const items = persistedItemsFromUpdate();
+      expect(items).toHaveLength(2);
+      const [restored] = items;
+      expect(typeof restored.id).toBe("string");
+      expect((restored.id as string).trim().length).toBeGreaterThan(0);
+    });
+
     it("assigns an id to a line that was persisted before ids existed", async () => {
       openInvoice(
         "inv_legacy",
