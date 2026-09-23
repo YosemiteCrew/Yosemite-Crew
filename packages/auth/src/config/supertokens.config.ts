@@ -441,10 +441,14 @@ export function getSuperTokensConfig(): TypeInput {
         },
         override: {
           apis: (original) => {
-            const signUpPOST = original.signUpPOST;
-            const signInPOST = original.signInPOST;
-            const generatePasswordResetTokenPOST = original.generatePasswordResetTokenPOST;
-            const emailExistsGET = original.emailExistsGET;
+            // Bound, never detached: `original` is a supertokens-js-override proxy whose methods
+            // dispatch through `this._call`, so `signInPOST(input)` on a bare reference throws and
+            // every email/password route answers 500.
+            const signUpPOST = original.signUpPOST?.bind(original);
+            const signInPOST = original.signInPOST?.bind(original);
+            const generatePasswordResetTokenPOST =
+              original.generatePasswordResetTokenPOST?.bind(original);
+            const emailExistsGET = original.emailExistsGET?.bind(original);
 
             return {
               ...original,
