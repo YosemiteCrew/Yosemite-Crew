@@ -1,0 +1,125 @@
+name: Dev API Drift
+
+# The dev API is deployed by hand (deploy-api.yml, workflow_dispatch only), and
+# nothing noticed when it stopped being deployed: on 2026-09-05 it was serving a
+# commit 122 commits behind `dev` while /health answered 200. /health now reports
+# the commit the process was started on (#2740), and this compares it with `dev`
+# every day so drift turns into a red run and an issue, not a surprise.
+#
+# It only reports. Deploying stays a manual decision, because a deploy runs
+# migrations against the live database.
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    inputs:
+      max_behind:
+        description: Fail when the dev API is more than this many merges behind dev.
+        required: false
+        default: '100'
+        type: string
+
+concurrency:
+  group: api-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  check:
+    name: Check dev API drift
+    # Forks have no reason to probe our hosts on a schedule.
+    if: github.repository_owner == 'YosemiteCrew'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      # Full history of dev: the check needs to find the served commit in it and
+      # count the merges since.
+      - name: Checkout dev
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: dev
+          fetch-depth: 0
+          persist-credentials: false
+
+      # No setup-node and no install, for the reason tls-expiry.yml gives: the
+      # check imports only node: builtins, and setup-node trips over the root
+      # packageManager field before pnpm exists.
+      - name: Compare the served commit with dev
+        run: |
+          set -o pipefail
+          node scripts/ci/check-api-drift.mjs \
+            --url https://devapi.yosemitecrew.com \
+            --ref HEAD \
+            --max-behind "${MAX_BEHIND}" | tee drift-report.txt
+        env:
+          MAX_BEHIND: ${{ inputs.max_behind || '100' }}
+
+      - name: Open or update the tracking issue
+        # Runs on failure only. The job still fails afterwards - the issue is the
+        # notification, not a way to swallow the red.
+        if: failure()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            let report = '';
+            try {
+              report = fs.readFileSync('drift-report.txt', 'utf8').trim();
+            } catch {}
+
+            // The verdict line is written only once the served commit has been
+            // measured. Without it the check never got that far (the API did
+            // not answer, or the runner broke), which is a different problem
+            // and must not be reported as drift.
+            const checkRan = /^verdict:/m.test(report);
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            const marker = checkRan ? '<!-- api-drift-tracker -->' : '<!-- api-drift-tooling -->';
+            const title = checkRan
+              ? 'Dev API is behind dev or its served commit is unknown'
+              : 'Dev API drift check could not run';
+
+            const body = checkRan
+              ? [
+                  marker,
+                  '',
+                  'The daily drift check reported a problem with the dev API:',
+                  '',
+                  '```',
+                  report,
+                  '```',
+                  '',
+                  'Deploy dev with the Deploy API workflow (environment: dev) once it is',
+                  'safe to run the pending migrations. This check does not deploy.',
+                  '',
+                  `Run: ${run}`,
+                ].join('\n')
+              : [
+                  marker,
+                  '',
+                  'The daily drift check failed **before** it could compare the served',
+                  'commit with dev, so this says nothing about drift. Read the job log',
+                  'for the real cause - an unreachable API is one of them.',
+                  '',
+                  `Run: ${run}`,
+                ].join('\n');
+            const existing = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open in:body "${marker}"`,
+            });
+            if (existing.data.total_count > 0) {
+              const number = existing.data.items[0].number;
+              await github.rest.issues.createComment({ ...context.repo, issue_number: number, body });
+              core.info(`commented on existing issue #${number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                ...context.repo,
+                title,
+                body,
+                labels: ['CI/CD'],
+              });
+              core.info(`opened issue #${created.data.number}`);
+            }

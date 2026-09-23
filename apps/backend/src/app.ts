@@ -51,6 +51,13 @@ type AuthGate = "enabled" | "disabled" | "incomplete";
 const SIGNUP_RATE_LIMIT_REASON =
   "Too many signup attempts. Please try again later.";
 
+const COMMIT_SHA = /^[0-9a-f]{40}$/;
+
+function servedRevision(): string | null {
+  const revision = process.env.API_REVISION?.trim().toLowerCase() ?? "";
+  return COMMIT_SHA.test(revision) ? revision : null;
+}
+
 function signupRateLimitResponse(_req: Request, res: Response) {
   res
     .status(200)
@@ -328,7 +335,15 @@ export function createApp() {
 
   registerRoutes(app); // all routes in 1 place
 
-  app.get("/health", (_, res) => res.status(200).json({ status: "ok" }));
+  // `revision` is the commit this process was started on, so an outside check
+  // can tell which code a 200 came from (#2740). The deploy sets API_REVISION
+  // only on the cutover restart, so a deploy that stops earlier leaves the old
+  // value in place. Anything that is not a full commit sha is reported as null:
+  // this route is public, and a misconfigured variable must not echo a path or
+  // a hostname to the world.
+  app.get("/health", (_, res) =>
+    res.status(200).json({ status: "ok", revision: servedRevision() }),
+  );
 
   // Startup controls, reported separately from liveness.
   //
