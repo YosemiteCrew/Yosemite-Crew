@@ -1440,12 +1440,19 @@ test.describe('idle lock', () => {
       .toEqual([tabUrl]);
     expect(await windowStates(app)).toEqual([expect.objectContaining({ workspace: true })]);
     await expect.poll(() => stillAlive(app!, oldPages)).toEqual([]);
-    // The shell page is the window's own page, which the sign-out reloads: the
-    // poll rides out that reload.
+    // The shell page is the window's own page, which the sign-out reloads, and an
+    // evaluate that lands mid-reload throws "Execution context was destroyed".
+    // expect.poll fails on the first throw rather than retrying it, so that one
+    // error reads as "not yet"; anything else still fails the test.
     await expect
       .poll(async () => {
-        const { tabs } = await callShell<{ tabs: Array<{ url: string }> }>(shell, 'getTabs');
-        return tabs.map((t) => t.url);
+        try {
+          const { tabs } = await callShell<{ tabs: Array<{ url: string }> }>(shell, 'getTabs');
+          return tabs.map((t) => t.url);
+        } catch (error) {
+          if (!String(error).includes('Execution context was destroyed')) throw error;
+          return null;
+        }
       })
       .toEqual([tabUrl]);
   });
