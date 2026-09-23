@@ -170,17 +170,25 @@ export const pullRequestJobs = (source) => {
   if (!triggers.includes('pull_request')) return new Set();
 
   const jobs = workflow?.jobs ?? {};
-  // `seen` guards a `needs` cycle. Actions rejects one, so this is about not
-  // hanging on a malformed file rather than about a case that reaches CI.
-  const isExcluded = (name, seen) => {
-    if (seen.has(name)) return false;
-    seen.add(name);
-    const job = jobs[name];
-    const needs = job?.needs == null ? [] : [job.needs].flat();
-    return excludesPullRequest(job?.if) || needs.some((dep) => isExcluded(dep, seen));
+  // Walked iteratively rather than recursively: a long `needs` chain would
+  // otherwise exhaust the call stack, and the honest failure for a malformed
+  // file is a parse that finishes, not one that gives up at a depth and reports
+  // the job as reachable. `seen` guards a cycle, which Actions rejects anyway.
+  const isExcluded = (name) => {
+    const seen = new Set();
+    const pending = [name];
+    while (pending.length > 0) {
+      const current = pending.pop();
+      if (seen.has(current)) continue;
+      seen.add(current);
+      const job = jobs[current];
+      if (excludesPullRequest(job?.if)) return true;
+      if (job?.needs != null) pending.push(...[job.needs].flat());
+    }
+    return false;
   };
 
-  return new Set(Object.keys(jobs).filter((name) => !isExcluded(name, new Set())));
+  return new Set(Object.keys(jobs).filter((name) => !isExcluded(name)));
 };
 
 /** Spec paths named by a job that runs on a pull request. */
