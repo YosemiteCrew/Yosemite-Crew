@@ -142,6 +142,25 @@ const makeAuthError = (message: string, code: string): AuthError => {
   return error;
 };
 
+// supertokens-web-js rejects with the fetch Response itself when the API answers a status it
+// does not model (a 500, a proxy's 502, a rate limit). `String()` of that is
+// "[object Response]", which the sign-in and sign-up forms then put on screen.
+const toAuthFailure = (error: unknown): Error => {
+  if (error instanceof Error) return error;
+  const status = (error as { status?: unknown } | null | undefined)?.status;
+  if (typeof status !== 'number') return new Error(String(error));
+  if (status === 429) {
+    return makeAuthError('Too many attempts. Please wait a minute and try again.', 'HTTP_429');
+  }
+  if (status >= 500) {
+    return makeAuthError(
+      'The service is temporarily unavailable. Please wait a moment and try again.',
+      `HTTP_${status}`
+    );
+  }
+  return makeAuthError('Something went wrong. Please try again.', `HTTP_${status}`);
+};
+
 const emailPasswordFormFields = (email: string, password: string) => [
   { id: 'email', value: email },
   { id: 'password', value: password },
@@ -311,7 +330,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       return { userId: response.user.id, email: registeredEmail };
     } catch (error) {
       set({ loading: false });
-      throw error instanceof Error ? error : new Error(String(error));
+      throw toAuthFailure(error);
     }
   },
 
@@ -348,17 +367,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         formFields: emailPasswordFormFields(email, password),
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Authentication failed';
+      const failure = toAuthFailure(error);
       set({
         loading: false,
-        error: message,
+        error: failure.message,
         user: null,
         role: null,
         roles: [],
         status: 'unauthenticated',
         attributes: null,
       });
-      throw error instanceof Error ? error : new Error(String(error));
+      throw failure;
     }
 
     if (response.status !== 'OK') {
@@ -420,7 +439,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       response = await TOTP.verifyCode({ totp: code });
     } catch (error) {
       set({ loading: false });
-      throw error instanceof Error ? error : new Error(String(error));
+      throw toAuthFailure(error);
     }
     if (response.status === 'INVALID_TOTP_ERROR') {
       set({ loading: false });
@@ -452,7 +471,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       response = await Passwordless.consumeCode({ userInputCode: code });
     } catch (error) {
       set({ loading: false });
-      throw error instanceof Error ? error : new Error(String(error));
+      throw toAuthFailure(error);
     }
     if (
       response.status === 'INCORRECT_USER_INPUT_CODE_ERROR' ||
