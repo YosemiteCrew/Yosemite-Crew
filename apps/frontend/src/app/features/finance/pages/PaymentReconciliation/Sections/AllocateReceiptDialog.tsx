@@ -71,11 +71,17 @@ const ReadBack = ({
       applied it in full, applied less because an invoice was part-paid in the
       meantime, or replayed an earlier attempt.
     */}
-    <p role="status" className="text-body-4 text-text-primary">
+    {/*
+      `<output>` rather than a paragraph carrying `role="status"`. It is the
+      element for a value the page computed in response to what the user did,
+      it carries the same implicit role, and Sonar's S6819 is about the
+      platforms where the explicit role is not announced.
+    */}
+    <output className="block text-body-4 text-text-primary">
       {result.replayed
         ? 'This payment had already been applied. Nothing was posted twice.'
         : 'Payment applied.'}
-    </p>
+    </output>
     <ul className="flex flex-col gap-1 list-none pl-0!">
       {result.allocations.map((line) => (
         <li key={line.invoiceId} className="text-body-4 text-text-secondary">
