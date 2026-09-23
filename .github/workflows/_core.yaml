@@ -96,6 +96,21 @@ jobs:
       - name: Test the CI and security scripts
         run: pnpm run test:scripts
 
+      # Playwright is given an explicit list of spec files in frontend-e2e.yml
+      # rather than being left to discover `testDir`, so adding a spec is a
+      # two-file change and forgetting the second file has no symptom: the suite
+      # passes, the aggregate goes green, and the spec has never run. That has
+      # happened twice (#3502, #3535). Here rather than in the frontend matrix
+      # leg for the same reason as the colour gate below - the matrix only runs
+      # for workspaces the diff touched, and the change that adds a spec without
+      # listing it may not look like a frontend change at all.
+      #
+      # The script annotates with ::error:: itself. Exit 2 means it could not
+      # run - an empty spec inventory, or workflows naming no spec at all - and
+      # fails the job for the same reason exit 1 does.
+      - name: Check every frontend e2e spec is named by a workflow
+        run: node scripts/ci/check-e2e-spec-coverage.mjs
+
       # react-native's renderer compares React.version against a literal baked
       # into its bundle and throws at startup when they differ, so a PATCH bump
       # of react terminates the release app before its first screen. Nothing
