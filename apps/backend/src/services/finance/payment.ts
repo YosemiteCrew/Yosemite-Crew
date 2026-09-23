@@ -1664,37 +1664,69 @@ export const FinancePaymentService = {
       );
     }
 
-    const refund = await prisma.refund.create({
-      data: {
-        paymentId: payment.id,
-        provider: payment.provider,
-        providerRefundId,
-        amount: amountRefunded,
-        currency: payment.currency,
-        status: mapRefundStatus(refundStatus),
-        reason: reason ?? undefined,
-        rawProviderPayload: {
-          source: "finance.refundInvoicePayment",
-          invoiceId,
-          paymentId: payment.id,
-          providerRefundId,
-          refundStatus,
-        },
-      },
-    });
+    const { refund, updatedPayment, updatedInvoice } =
+      await prisma.$transaction(async (tx) => {
+        const lockKey = `invoice-payment:${invoiceId}`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 
-    const updatedPayment = await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: "REFUNDED",
-        rawProviderPayload: {
-          source: "finance.refundInvoicePayment",
-          invoiceId,
-          refundId: refund.id,
-          providerRefundId,
-        },
-      },
-    });
+        const lockedInvoice = await tx.invoice.findUniqueOrThrow({
+          where: { id: invoiceId },
+        });
+
+        const createdRefund = await tx.refund.create({
+          data: {
+            paymentId: payment.id,
+            provider: payment.provider,
+            providerRefundId,
+            amount: amountRefunded,
+            currency: payment.currency,
+            status: mapRefundStatus(refundStatus),
+            reason: reason ?? undefined,
+            rawProviderPayload: {
+              source: "finance.refundInvoicePayment",
+              invoiceId,
+              paymentId: payment.id,
+              providerRefundId,
+              refundStatus,
+            },
+          },
+        });
+
+        const refundedPayment = await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: "REFUNDED",
+            rawProviderPayload: {
+              source: "finance.refundInvoicePayment",
+              invoiceId,
+              refundId: createdRefund.id,
+              providerRefundId,
+            },
+          },
+        });
+
+        const refundedInvoice = await tx.invoice.update({
+          where: { id: invoiceId },
+          data: {
+            status: "REFUNDED",
+            metadata: {
+              ...((lockedInvoice.metadata as Record<string, unknown> | null) ??
+                EMPTY_METADATA),
+              cancellationReason: reason ?? undefined,
+              refundId: providerRefundId ?? createdRefund.id,
+              amount: amountRefunded,
+              refundDate: new Date().toISOString(),
+            },
+          },
+          include: { payments: true },
+        });
+
+        return {
+          refund: createdRefund,
+          updatedPayment: refundedPayment,
+          updatedInvoice: refundedInvoice,
+        };
+      });
 
     await FinanceEventService.recordEvent({
       organisationId: invoice.organisationId ?? null,
@@ -1710,22 +1742,6 @@ export const FinancePaymentService = {
         reason: reason ?? null,
       },
       occurredAt: new Date(),
-    });
-
-    const updatedInvoice = await prisma.invoice.update({
-      where: { id: invoiceId },
-      data: {
-        status: "REFUNDED",
-        metadata: {
-          ...((invoice.metadata as Record<string, unknown> | null) ??
-            EMPTY_METADATA),
-          cancellationReason: reason ?? undefined,
-          refundId: providerRefundId ?? refund.id,
-          amount: amountRefunded,
-          refundDate: new Date().toISOString(),
-        },
-      },
-      include: { payments: true },
     });
 
     return {
@@ -2420,61 +2436,70 @@ export const FinancePaymentService = {
       return { action: "NO_INVOICE" as const };
     }
 
-    if (invoice.status === "REFUNDED") {
-      return { action: "ALREADY_REFUNDED" as const, invoice };
-    }
+    return prisma.$transaction(async (tx) => {
+      const lockKey = `invoice-payment:${invoice.id}`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 
-    const payment = await prisma.payment.findFirst({
-      where: {
-        invoiceId: invoice.id,
-        ...(input.paymentIntentId
-          ? { providerPaymentId: input.paymentIntentId }
-          : {}),
-      },
-      orderBy: { createdAt: "desc" },
-    });
+      const lockedInvoice = await tx.invoice.findUniqueOrThrow({
+        where: { id: invoice.id },
+      });
 
-    if (payment) {
-      await prisma.refund.create({
+      if (lockedInvoice.status === "REFUNDED") {
+        return { action: "ALREADY_REFUNDED" as const, invoice: lockedInvoice };
+      }
+
+      const payment = await tx.payment.findFirst({
+        where: {
+          invoiceId: lockedInvoice.id,
+          ...(input.paymentIntentId
+            ? { providerPaymentId: input.paymentIntentId }
+            : {}),
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (payment) {
+        await tx.refund.create({
+          data: {
+            paymentId: payment.id,
+            provider: payment.provider,
+            providerRefundId: input.chargeId ?? null,
+            amount: input.amount,
+            currency: input.currency,
+            status: "SUCCEEDED",
+            reason: input.reason ?? undefined,
+            rawProviderPayload: {
+              source: "finance.markInvoiceRefundedFromWebhook",
+              invoiceId: lockedInvoice.id,
+              paymentIntentId: input.paymentIntentId ?? null,
+              chargeId: input.chargeId ?? null,
+            },
+          },
+        });
+
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: { status: "REFUNDED" },
+        });
+      }
+
+      const updated = await tx.invoice.update({
+        where: { id: lockedInvoice.id },
         data: {
-          paymentId: payment.id,
-          provider: payment.provider,
-          providerRefundId: input.chargeId ?? null,
-          amount: input.amount,
-          currency: input.currency,
-          status: "SUCCEEDED",
-          reason: input.reason ?? undefined,
-          rawProviderPayload: {
-            source: "finance.markInvoiceRefundedFromWebhook",
-            invoiceId: invoice.id,
-            paymentIntentId: input.paymentIntentId ?? null,
-            chargeId: input.chargeId ?? null,
+          status: "REFUNDED",
+          metadata: {
+            ...((lockedInvoice.metadata as Record<string, unknown> | null) ??
+              EMPTY_METADATA),
+            refundId: input.chargeId ?? undefined,
+            amount: input.amount,
+            refundDate: new Date().toISOString(),
+            cancellationReason: input.reason ?? undefined,
           },
         },
       });
 
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: "REFUNDED" },
-      });
-    }
-
-    const updated = await prisma.invoice.update({
-      where: { id: invoice.id },
-      data: {
-        status: "REFUNDED",
-        metadata: {
-          ...((invoice.metadata as Record<string, unknown> | null) ??
-            EMPTY_METADATA),
-          refundId: input.chargeId ?? undefined,
-          amount: input.amount,
-          refundDate: new Date().toISOString(),
-          cancellationReason: input.reason ?? undefined,
-        },
-      },
+      return { action: "REFUNDED" as const, invoice: updated };
     });
-
-    return { action: "REFUNDED" as const, invoice: updated };
   },
 
   async handleInvoicePaymentFailed(input: {

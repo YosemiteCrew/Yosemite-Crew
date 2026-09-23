@@ -71,6 +71,11 @@ describe("FinancePaymentService", () => {
     (prisma.payment.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.creditNote.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.paymentAttempt.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.invoice.findUniqueOrThrow as jest.Mock).mockResolvedValue({
+      id: "inv_locked",
+      status: "PAID",
+      metadata: {},
+    });
     __setFinanceStripeClientForTests({
       checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
       paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
@@ -1738,6 +1743,11 @@ describe("FinancePaymentService", () => {
       metadata: {},
       payments: [],
     });
+    (prisma.invoice.findUniqueOrThrow as jest.Mock).mockResolvedValueOnce({
+      id: "inv_webhook_3",
+      status: "PAID",
+      metadata: { preservedAfterLookup: true },
+    });
     (prisma.payment.findFirst as jest.Mock).mockResolvedValueOnce({
       id: "pay_webhook_3",
       provider: "STRIPE",
@@ -1772,10 +1782,15 @@ describe("FinancePaymentService", () => {
       }),
     );
     expect(result.action).toBe("REFUNDED");
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+    expect((prisma.$executeRaw as jest.Mock).mock.calls[0][1]).toBe(
+      "invoice-payment:inv_webhook_3",
+    );
     expect(prisma.invoice.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           status: "REFUNDED",
+          metadata: expect.objectContaining({ preservedAfterLookup: true }),
         }),
       }),
     );
@@ -1834,6 +1849,11 @@ describe("FinancePaymentService", () => {
       currency: "usd",
       payments: [],
     });
+    (prisma.invoice.findUniqueOrThrow as jest.Mock).mockResolvedValueOnce({
+      id: "inv_9",
+      status: "PAID",
+      metadata: { preservedAfterStripe: true },
+    });
 
     const result = await FinancePaymentService.refundInvoicePayment(
       "inv_9",
@@ -1870,6 +1890,13 @@ describe("FinancePaymentService", () => {
     );
     expect(result.refund.refundId).toBe("re_9");
     expect(result.invoice.status).toBe("REFUNDED");
+    expect(prisma.invoice.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({ preservedAfterStripe: true }),
+        }),
+      }),
+    );
   });
 
   it("takes the invoice payment lock before reading or reconstructing a payment", async () => {
@@ -1928,13 +1955,16 @@ describe("FinancePaymentService", () => {
 
     await FinancePaymentService.refundInvoicePayment("inv_lock");
 
-    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(2);
     const [strings, lockKey] = (prisma.$executeRaw as jest.Mock).mock.calls[0];
     expect(strings.join("")).toContain("pg_advisory_xact_lock");
     // The same key recordInvoicePayment uses. A different one serializes
     // nothing, which is the whole point of taking a lock here.
     expect(lockKey).toBe("invoice-payment:inv_lock");
+    expect((prisma.$executeRaw as jest.Mock).mock.calls[1][1]).toBe(
+      "invoice-payment:inv_lock",
+    );
     expect(
       (prisma.$executeRaw as jest.Mock).mock.invocationCallOrder[0],
     ).toBeLessThan(
@@ -4807,8 +4837,13 @@ describe("FinancePaymentService", () => {
     expect(prisma.payment.update).not.toHaveBeenCalled();
   });
 
-  it("returns ALREADY_REFUNDED when the invoice is already refunded", async () => {
+  it("returns ALREADY_REFUNDED when another webhook refunds under the lock", async () => {
     (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_already_refunded",
+      status: "PAID",
+      metadata: {},
+    });
+    (prisma.invoice.findUniqueOrThrow as jest.Mock).mockResolvedValueOnce({
       id: "inv_already_refunded",
       status: "REFUNDED",
       metadata: {},
@@ -4822,6 +4857,7 @@ describe("FinancePaymentService", () => {
 
     expect(result.action).toBe("ALREADY_REFUNDED");
     expect(prisma.invoice.update).not.toHaveBeenCalled();
+    expect(prisma.refund.create).not.toHaveBeenCalled();
   });
 
   it("records the payment for an unbound intent when the booking flow allows it", async () => {
