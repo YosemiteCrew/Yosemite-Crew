@@ -372,7 +372,7 @@ export const Default: Story = {
     /* The public projection. All three of these are populated in the fixture
        and none of them belongs on a link anyone can open. */
     await expect(canvas.queryByText(/Bakker/)).not.toBeInTheDocument();
-    await expect(canvas.queryByText(/example\.com/)).not.toBeInTheDocument();
+    await expect(canvas.queryByText('example.com', { exact: false })).not.toBeInTheDocument();
     await expect(canvas.queryByText(/Milbemax/)).not.toBeInTheDocument();
     await expect(canvas.queryByText(/IU\/ml/)).not.toBeInTheDocument();
 
