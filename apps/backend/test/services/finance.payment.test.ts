@@ -1872,6 +1872,169 @@ describe("FinancePaymentService", () => {
     expect(result.invoice.status).toBe("REFUNDED");
   });
 
+  it("takes the invoice payment lock before reading or reconstructing a payment", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_lock",
+      totalAmount: 100,
+      currency: "usd",
+      status: "PAID",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce({
+        id: "pa_lock",
+        invoiceId: "inv_lock",
+        providerPaymentIntentId: "pi_lock",
+      })
+      .mockResolvedValueOnce({
+        invoiceId: "inv_lock",
+        rawProviderPayload: { connectedAccountId: "acct_lock" },
+      });
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
+      latest_charge: { id: "ch_lock" },
+    });
+    (stripeClient.refunds.create as jest.Mock).mockResolvedValueOnce({
+      id: "re_lock",
+      status: "succeeded",
+      amount: 10000,
+      currency: "usd",
+    });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_lock",
+      amount: 100,
+      currency: "usd",
+      provider: "STRIPE",
+    });
+    (prisma.refund.create as jest.Mock).mockResolvedValueOnce({
+      id: "refund_lock",
+    });
+    (prisma.payment.update as jest.Mock).mockResolvedValueOnce({
+      id: "pay_lock",
+      status: "REFUNDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_lock",
+      status: "REFUNDED",
+      currency: "usd",
+      payments: [],
+    });
+
+    await FinancePaymentService.refundInvoicePayment("inv_lock");
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+    const [strings, lockKey] = (prisma.$executeRaw as jest.Mock).mock.calls[0];
+    expect(strings.join("")).toContain("pg_advisory_xact_lock");
+    // The same key recordInvoicePayment uses. A different one serializes
+    // nothing, which is the whole point of taking a lock here.
+    expect(lockKey).toBe("invoice-payment:inv_lock");
+    expect(
+      (prisma.$executeRaw as jest.Mock).mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      (prisma.invoice.findUnique as jest.Mock).mock.invocationCallOrder[0],
+    );
+    expect(
+      (prisma.$executeRaw as jest.Mock).mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      (prisma.payment.create as jest.Mock).mock.invocationCallOrder[0],
+    );
+  });
+
+  it("reconstructs no payment when a capture lands while the refund waits for the lock", async () => {
+    // The visibility flip below models what the advisory lock buys from
+    // Postgres; it does not exercise Postgres. What it pins is that the
+    // payments read happens after the lock is taken, so a capture that commits
+    // while this refund waits is visible to it. With the read outside the lock
+    // the reconstruct branch fires on a stale empty list and writes a second
+    // SUCCEEDED payment for the invoice's full total, crediting one settlement
+    // twice.
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    let lockHeld = false;
+    (prisma.$executeRaw as jest.Mock).mockImplementation(async () => {
+      lockHeld = true;
+      return 1;
+    });
+    (prisma.invoice.findUnique as jest.Mock).mockImplementation(async () => ({
+      id: "inv_race",
+      totalAmount: 100,
+      currency: "usd",
+      status: "PAID",
+      metadata: {},
+      payments: lockHeld
+        ? [
+            {
+              id: "pay_captured",
+              amount: 100,
+              currency: "usd",
+              provider: "STRIPE",
+              providerPaymentId: "pi_captured",
+            },
+          ]
+        : [],
+    }));
+    (prisma.paymentAttempt.findFirst as jest.Mock)
+      .mockResolvedValueOnce({
+        id: "pa_race",
+        invoiceId: "inv_race",
+        providerPaymentIntentId: "pi_captured",
+      })
+      .mockResolvedValueOnce({
+        invoiceId: "inv_race",
+        rawProviderPayload: { connectedAccountId: "acct_race" },
+      });
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
+      latest_charge: { id: "ch_race" },
+    });
+    (stripeClient.refunds.create as jest.Mock).mockResolvedValueOnce({
+      id: "re_race",
+      status: "succeeded",
+      amount: 10000,
+      currency: "usd",
+    });
+    // Answered so the unlocked ordering runs to completion and fails on the
+    // assertion below rather than on an undefined payment row.
+    (prisma.payment.create as jest.Mock).mockResolvedValue({
+      id: "pay_reconstructed",
+      amount: 100,
+      currency: "usd",
+      provider: "STRIPE",
+    });
+    (prisma.refund.create as jest.Mock).mockResolvedValueOnce({
+      id: "refund_race",
+    });
+    (prisma.payment.update as jest.Mock).mockResolvedValueOnce({
+      id: "pay_captured",
+      status: "REFUNDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_race",
+      status: "REFUNDED",
+      currency: "usd",
+      payments: [],
+    });
+
+    const result = await FinancePaymentService.refundInvoicePayment("inv_race");
+
+    expect(prisma.payment.create).not.toHaveBeenCalled();
+    expect(prisma.refund.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ paymentId: "pay_captured" }),
+      }),
+    );
+    expect(result.refund.paymentId).toBe("pay_captured");
+  });
   it("keeps a zero-decimal Stripe invoice refund amount unscaled", async () => {
     const stripeClient = {
       checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
