@@ -415,11 +415,11 @@ export const CareReminderService = {
       ownerUserId,
       ownerEmail,
     );
-    const outcomes = [delivery.push, delivery.email];
+    const outcomes = new Set([delivery.push, delivery.email]);
     // Every channel that was tried failed. Marking it SENT would show the
     // clinic a reminder nobody received, and only a PENDING reminder can be
     // sent again, so it stays PENDING for a retry.
-    if (outcomes.includes("failed") && !outcomes.includes("delivered")) {
+    if (outcomes.has("failed") && !outcomes.has("delivered")) {
       throw new CareReminderError(
         "The reminder could not be delivered. It is still pending, so it can be sent again.",
         502,
