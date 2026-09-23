@@ -6,7 +6,7 @@ slug: /apps/backend/api/super-admin
 
 Internal operations surface for the Yosemite Crew team, not part of the public developer API. It lists and moderates registered businesses (organisations) and their membership, and resolves lab-result records that were quarantined because they could not be matched to a patient automatically. Every route requires a super-admin session role (`requireSuperAdmin`), not organisation membership or organisation RBAC.
 
-**Endpoints**
+## Endpoints
 
 ### GET /businesses
 

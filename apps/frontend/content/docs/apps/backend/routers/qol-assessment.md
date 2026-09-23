@@ -6,7 +6,7 @@ slug: /apps/backend/api/qol-assessment
 
 Records a patient's quality-of-life (QOL) assessment in the PIMS (Practice Information Management System, the clinic-facing web app) — a composite `hhhhhmmScore` (0-70) plus individual 1-10 sub-scores for pain, appetite, hygiene, happiness, and mobility, an overall 0-100 score, whether the assessment was owner- or clinician-completed, and whether euthanasia was discussed. A trend endpoint returns a patient's assessments over time for charting. All routes require organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/qol-assessments
 

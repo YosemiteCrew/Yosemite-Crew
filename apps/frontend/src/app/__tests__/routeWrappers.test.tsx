@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import GlobalError from '@/app/error';
 import AppLayout from '@/app/(routes)/(app)/layout';
 import PublicLayout from '@/app/(routes)/(public)/layout';
+import AppLoading from '@/app/(routes)/(app)/loading';
 import AppointmentsLoading from '@/app/(routes)/(app)/appointments/loading';
 import WorkspaceLoading from '@/app/(routes)/(app)/appointments/[appointmentId]/workspace/loading';
 import WorkspacePage from '@/app/(routes)/(app)/appointments/[appointmentId]/workspace/page';
@@ -113,6 +114,22 @@ describe('route wrappers', () => {
       'Loading appointments'
     );
     expect(screen.getByTestId('workspace-route-loader')).toHaveTextContent('Loading workspace');
+  });
+
+  /*
+   * This fallback is scoped to `(app)` on purpose and the scope is the fix for
+   * issue #3510: as `src/app/loading.tsx` it was a root Suspense boundary, so
+   * with scripting off every public page was served inside the trailing
+   * `<div hidden>` React parks a deferred boundary's content in, and the
+   * loader below was the whole of what a reader got. The e2e arm in
+   * `e2e/no-js.spec.ts` is what holds the public half; this case holds the
+   * other half - that moving it did not quietly delete it, so a
+   * `router.push()` inside the signed-in app still has something to show.
+   */
+  it('keeps the fullscreen route fallback for the signed-in app group', () => {
+    render(<AppLoading />);
+
+    expect(screen.getByTestId('app-route-loader')).toBeInTheDocument();
   });
 
   it('passes the appointment id route param into the workspace page', async () => {

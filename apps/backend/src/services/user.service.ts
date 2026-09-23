@@ -245,6 +245,7 @@ export const UserService = {
     if (!existing) {
       return false;
     }
+    const safeResolvedUserId = String(resolvedUserId);
 
     // Match BOTH the id that was supplied and the canonical one it resolved to.
     // A migrated account has two: the provider alias the client calls with, and
@@ -278,25 +279,30 @@ export const UserService = {
     // the user, not on an organisation, so removing organisation memberships
     // above leaves them behind. The subscription in particular keeps billing:
     // cancel it before the account stops existing.
-    await DeveloperBillingService.cancelForOwner(resolvedUserId);
+    await DeveloperBillingService.cancelForOwner(safeResolvedUserId);
     await prisma.developerApiKey.deleteMany({
-      where: { ownerUserId: resolvedUserId },
+      where: { ownerUserId: safeResolvedUserId },
+    });
+    await prisma.developerMeterEvent.deleteMany({
+      where: { ownerUserId: safeResolvedUserId },
     });
     await prisma.developerApiUsage.deleteMany({
-      where: { ownerUserId: resolvedUserId },
+      where: { ownerUserId: safeResolvedUserId },
     });
 
     await Promise.all([
-      prisma.userProfile.deleteMany({ where: { userId: resolvedUserId } }),
-      prisma.baseAvailability.deleteMany({ where: { userId: resolvedUserId } }),
-      prisma.weeklyAvailabilityOverride.deleteMany({
-        where: { userId: resolvedUserId },
+      prisma.userProfile.deleteMany({ where: { userId: safeResolvedUserId } }),
+      prisma.baseAvailability.deleteMany({
+        where: { userId: safeResolvedUserId },
       }),
-      prisma.occupancy.deleteMany({ where: { userId: resolvedUserId } }),
+      prisma.weeklyAvailabilityOverride.deleteMany({
+        where: { userId: safeResolvedUserId },
+      }),
+      prisma.occupancy.deleteMany({ where: { userId: safeResolvedUserId } }),
     ]);
 
     const updated = await prisma.user.updateMany({
-      where: { userId: resolvedUserId },
+      where: { userId: safeResolvedUserId },
       data: { isActive: false },
     });
 

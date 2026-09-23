@@ -1,4 +1,5 @@
 // src/services/stripe.service.ts
+import { randomUUID } from "node:crypto";
 import Stripe from "stripe";
 
 type WebhookSignature = string | string[] | undefined;
@@ -308,6 +309,11 @@ const mintBookingInvoice = async (params: {
         providerPaymentIntentId: pi.id,
         items: [
           {
+            // This writer builds its line inline rather than through
+            // InvoiceService, so it assigns the id itself. A booking invoice
+            // is a persisted line like any other and has to be addressable by
+            // the edit, settlement and credit paths.
+            id: randomUUID(),
             name: service.name,
             description: service.description ?? undefined,
             quantity: 1,

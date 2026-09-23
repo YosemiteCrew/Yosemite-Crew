@@ -1,3 +1,6 @@
+import type { Invoice } from '@yosemite-crew/types';
+import { getInvoiceOutstanding } from '@/app/lib/financeMetrics';
+import { getInvoiceNumberLabel } from '@/app/lib/invoice';
 import type { StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import {
   PROVIDER_RECEIPT_STATUSES,
@@ -141,3 +144,123 @@ export const truncateReference = (reference: string, keep = 12): string => {
   if (reference.length <= keep) return reference;
   return `${reference.slice(0, keep)}...`;
 };
+
+/*
+ * Money arithmetic, at the same scale the service uses.
+ *
+ * `roundMoney` in `src/services/finance/pricing.ts` is what produced every
+ * figure on the wire, so the screen's residual has to round the same way or a
+ * form pre-filled with the remainder is refused by the endpoint as a hundredth
+ * of a unit over. The epsilon is part of it: without it 0.1 + 0.2 rounds down.
+ */
+const MONEY_SCALE = 100;
+
+export const roundMoney = (value: number): number =>
+  Math.round((value + Number.EPSILON) * MONEY_SCALE) / MONEY_SCALE;
+
+/**
+ * What an operator may still apply from a capture.
+ *
+ * The same two subtractions as `allocatableResidual` on the service, for the
+ * same two reasons: money already applied must not be applied again, and money
+ * already given back was never available to apply at all. Mirrored rather than
+ * derived from the status, because a PARTIALLY_REFUNDED capture with an
+ * allocation against it has a residual the status alone cannot state.
+ */
+export const allocatableResidual = (receipt: ProviderReceipt): number =>
+  roundMoney(Math.max(0, receipt.amount - receipt.refundedAmount - receipt.allocatedAmount));
+
+/**
+ * Whether this capture can be applied at all, in the terms the route refuses
+ * in.
+ *
+ * Three of the route's refusals are knowable from the row in front of the
+ * operator, and an action offered where the answer is already "no" is the
+ * defect this issue is explicit about: a fully refunded capture
+ * (`FULLY_REFUNDED`), one nobody owns yet (`NOT_ATTRIBUTED`), and one with
+ * nothing left (`EXCEEDS_RESIDUAL` on any positive line).
+ *
+ * `ACCOUNT_MISMATCH` is deliberately NOT mirrored. Which merchant account
+ * holds the funds is not on the row and cannot be inferred from it, so the
+ * server stays the only thing that answers it - and it answers in a sentence
+ * the dialog shows.
+ */
+export const canAllocate = (receipt: ProviderReceipt): boolean =>
+  receipt.organisationId !== null &&
+  receipt.status !== 'REFUNDED' &&
+  allocatableResidual(receipt) > 0;
+
+/**
+ * Why the action is unavailable, for the operator rather than for the code.
+ *
+ * A disabled control with no reason beside it is the state people file support
+ * tickets about. Returns null exactly when `canAllocate` is true, so the two
+ * cannot disagree about whether there is anything to say.
+ */
+export const allocationBlockedReason = (receipt: ProviderReceipt): string | null => {
+  if (receipt.organisationId === null) {
+    return 'This capture has not been attributed to a practice yet, so it cannot be applied.';
+  }
+  if (receipt.status === 'REFUNDED') {
+    return 'This capture has been refunded in full; there is nothing to apply.';
+  }
+  if (allocatableResidual(receipt) <= 0) {
+    return 'Every part of this capture has already been applied.';
+  }
+  return null;
+};
+
+/**
+ * Invoice states that can never take money.
+ *
+ * Read from the invoice's own status and not from its balance, because they
+ * are different claims: a cancelled invoice can still show an outstanding
+ * total, and `getInvoiceOutstanding` will report it when the backend sent a
+ * settlement summary. Offering one would put money against a document nobody
+ * is going to collect - and the route refuses it as `INVOICE_CLOSED` anyway.
+ */
+const CLOSED_INVOICE_STATUSES: ReadonlySet<string> = new Set(['CANCELLED', 'REFUNDED']);
+
+export type AllocatableInvoice = {
+  id: string;
+  label: string;
+  currency: string;
+  /** What this invoice still owes. The most a single line against it may be. */
+  balance: number;
+  createdAt: string;
+};
+
+/**
+ * The invoices this capture may be applied to, in the route's own terms.
+ *
+ * Every condition here is one the allocate route checks, mirrored so the
+ * picker cannot offer a row the write will refuse: same currency as the
+ * capture, not a closed document, and something still owed. The organisation
+ * is not re-checked because it is not a filter that could pass - the store
+ * holds one organisation's invoices and an allocatable receipt is in that same
+ * organisation.
+ *
+ * The server stays authoritative. This narrows a list; it does not decide
+ * anything, and a balance that moved since the page loaded is refused there
+ * with a sentence this screen shows.
+ */
+export const allocatableInvoices = (
+  invoices: readonly Invoice[],
+  receipt: ProviderReceipt
+): AllocatableInvoice[] =>
+  invoices
+    .filter(
+      (invoice) =>
+        typeof invoice.id === 'string' &&
+        invoice.id !== '' &&
+        invoice.currency === receipt.currency &&
+        !CLOSED_INVOICE_STATUSES.has(invoice.status) &&
+        getInvoiceOutstanding(invoice) > 0
+    )
+    .map((invoice) => ({
+      id: invoice.id as string,
+      label: getInvoiceNumberLabel(invoice) || 'Invoice',
+      currency: invoice.currency,
+      balance: roundMoney(getInvoiceOutstanding(invoice)),
+      createdAt: new Date(invoice.createdAt).toISOString(),
+    }));

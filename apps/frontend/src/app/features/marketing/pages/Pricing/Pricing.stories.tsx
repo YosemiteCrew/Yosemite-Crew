@@ -72,10 +72,6 @@ const revealAll = async (elements: HTMLElement[]) => {
   }
 };
 
-/* The billing toggle carries no `aria-pressed`, no radiogroup and no `aria-current`:
-   the filled pill is the ONLY signal of which period is selected, for everyone. So
-   the pill background is the thing to assert - swap the two `billingBtnStyle(...)`
-   arguments and nothing else on the page changes shape. */
 const PILL_ON = 'rgb(29, 28, 27)';
 const PILL_OFF = 'rgba(0, 0, 0, 0)';
 
@@ -86,6 +82,8 @@ const expectSelected = async (canvasElement: HTMLElement, period: 'Monthly' | 'Y
   // Polled: `billingBtnStyle` transitions background over 200ms, so reading on the
   // same tick as the click returns the colour it is moving away from.
   await waitFor(() => {
+    expect(selected).toHaveAttribute('aria-pressed', 'true');
+    expect(other).toHaveAttribute('aria-pressed', 'false');
     expect(getComputedStyle(selected).backgroundColor).toBe(PILL_ON);
     expect(getComputedStyle(other).backgroundColor).toBe(PILL_OFF);
   });
@@ -113,11 +111,10 @@ const meta = {
           'viewport below the hero, so a play function that measures on mount is measuring a ' +
           'transparent box. Every story here walks each card into view and waits out its ' +
           'stagger before asserting anything about it.\n\n' +
-          'Second, **the toggle announces nothing.** The two period buttons are plain buttons ' +
-          'with no `aria-pressed`, no radiogroup and no `aria-current`; the filled `#1d1c1b` ' +
-          'pill is the entire indication of which period is live. The stories therefore assert ' +
-          'the pill colour on both buttons and the repriced copy, because there is no ' +
-          'accessibility state to assert instead.\n\n' +
+          'Second, **the toggle has both semantic and visual state.** Each period is a native ' +
+          'toggle button whose `aria-pressed` value identifies the live period, while the filled ' +
+          '`#1d1c1b` pill provides the matching visual indication. The stories assert both ' +
+          'signals and the repriced copy so neither can drift independently.\n\n' +
           'The phone story is the one that earns its keep for layout: the tier grid collapses ' +
           "through a `max-width: 960px` rule in the page's own inline `<style>`, while the FAQ " +
           'and the CTA row collapse through the `[data-grid-1-m]` and `[data-stack-m]` helper ' +

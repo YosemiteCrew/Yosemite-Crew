@@ -6,7 +6,7 @@ slug: /apps/backend/api/healthcare-service
 
 Exposes an organisation's product/service catalog (consultations, procedures, diagnostics, lab tests, packages, and so on) as the FHIR `HealthcareService` resource, backed by `CatalogController`/`CatalogService`. Routes with no `:organisationId` path segment resolve the organisation from the RBAC-authorized session context; `GET /`, `GET /:id`, and the two `$` operations additionally accept it via the FHIR `organization` or `provided-by` query parameter (mapped onto the RBAC check by an `attachOrganisationIdFromQuery` middleware before `withOrgPermissions` runs).
 
-**Endpoints**
+## Endpoints
 
 ### POST /
 

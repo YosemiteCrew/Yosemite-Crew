@@ -33,8 +33,14 @@ jest.mock('@/app/features/appointments/services/workspaceTemplateService', () =>
 }));
 
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
+  // Spread the real module so the shared artifact-version parser stays under test; only the
+  // network calls below are replaced.
+  ...jest.requireActual('@/app/features/appointments/services/workspaceClinicalService'),
   getRenderedDocument: jest.fn(),
-  saveDischargeSummaryArtifact: jest.fn().mockResolvedValue({ id: 'saved-summary' }),
+  saveDischargeSummaryArtifact: jest.fn().mockResolvedValue({
+    id: 'saved-summary',
+    meta: { versionId: '8' },
+  }),
 }));
 
 // Capability gating: grant document:view:any so document actions render.

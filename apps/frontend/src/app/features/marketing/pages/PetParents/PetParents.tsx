@@ -86,7 +86,7 @@ const APPOINTMENT_ICON_STYLE: CSSProperties = {
   height: 40,
   borderRadius: 14,
   background: 'var(--blue-soft)',
-  color: 'var(--blue)',
+  color: 'var(--blue-text)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -97,7 +97,7 @@ const HERO_FLOAT_AVATAR_BLUE_STYLE: CSSProperties = {
   height: 30,
   borderRadius: 9999,
   background: 'var(--blue-soft)',
-  color: 'var(--blue)',
+  color: 'var(--blue-text)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -159,7 +159,7 @@ const FEATURE_ICON_STYLE: CSSProperties = {
   height: 46,
   borderRadius: 14,
   background: 'var(--pill-raised)',
-  color: 'var(--blue)',
+  color: 'var(--blue-text)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -221,7 +221,7 @@ const COMPANIONS: readonly Companion[] = [
     name: 'Bella',
     border: '1.5px solid var(--blue)',
     avatarBg: 'var(--blue-soft)',
-    avatarColor: 'var(--blue)',
+    avatarColor: 'var(--blue-text)',
     nameWeight: 700,
     nameColor: 'var(--ink-body)',
   },
@@ -342,7 +342,7 @@ function HeroFloatCard({
       {avatar}
       <div>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>{title}</div>
-        <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>{subtitle}</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>{subtitle}</div>
       </div>
     </div>
   );
@@ -390,7 +390,7 @@ function HeroPhone() {
             style={{ padding: '14px 18px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}
           >
             <div>
-              <div style={{ fontSize: 13, color: 'var(--ink-faint)', letterSpacing: '-0.01em' }}>
+              <div style={{ fontSize: 13, color: 'var(--ink-muted)', letterSpacing: '-0.01em' }}>
                 Good morning, Lena
               </div>
               <div
@@ -440,7 +440,7 @@ function HeroPhone() {
                     fontSize: 12,
                     fontWeight: 700,
                     letterSpacing: '0.04em',
-                    color: 'var(--blue)',
+                    color: 'var(--blue-text)',
                     background: 'var(--blue-soft)',
                     borderRadius: 9999,
                     padding: '3px 9px',
@@ -457,7 +457,7 @@ function HeroPhone() {
                   <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-body)' }}>
                     Sat 5 July, 09:00
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>
                     Bella · Dr. Weber · Alpenblick
                   </div>
                 </div>
@@ -497,17 +497,17 @@ function HeroPhone() {
                 borderTop: '1px solid var(--inset)',
               }}
             >
-              <IoHome style={{ fontSize: 20, color: 'var(--blue)' }} aria-hidden="true" />
+              <IoHome style={{ fontSize: 20, color: 'var(--blue-text)' }} aria-hidden="true" />
               <IoCalendarOutline
-                style={{ fontSize: 20, color: 'var(--ink-faint2)' }}
+                style={{ fontSize: 20, color: 'var(--ink-muted)' }}
                 aria-hidden="true"
               />
               <IoChatbubbleOutline
-                style={{ fontSize: 20, color: 'var(--ink-faint2)' }}
+                style={{ fontSize: 20, color: 'var(--ink-muted)' }}
                 aria-hidden="true"
               />
               <IoPersonOutline
-                style={{ fontSize: 20, color: 'var(--ink-faint2)' }}
+                style={{ fontSize: 20, color: 'var(--ink-muted)' }}
                 aria-hidden="true"
               />
             </div>
@@ -728,7 +728,7 @@ function Story() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: 'var(--ink-faint)',
+              color: 'var(--spot-ink-faint)',
             }}
           >
             Whose history is it, anyway
@@ -887,7 +887,7 @@ function Features() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: 'var(--blue)',
+              color: 'var(--blue-text)',
             }}
           >
             What you can do

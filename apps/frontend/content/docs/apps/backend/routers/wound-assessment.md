@@ -6,7 +6,7 @@ slug: /apps/backend/api/wound-assessment
 
 Records and tracks wound assessments for a patient: location, measurements (length/width/depth), healing stage and status, exudate, wound bed/edges/periwound skin, and dressing, optionally linked to a surgical procedure or encounter. All routes are under the PIMS (Practice Information Management System, the clinic-facing web app) `/pms` namespace and require organisation RBAC (role-based access control) permissions on `appointments`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/wound-assessments
 

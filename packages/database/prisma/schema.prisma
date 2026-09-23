@@ -39,6 +39,18 @@ enum PrescriptionDispenseRequestStatus {
   DISPENSED
 }
 
+enum PrescriptionFillAuthorizationStatus {
+  ACTIVE
+  REVOKED
+  SUPERSEDED
+}
+
+enum PrescriptionFillReservationStatus {
+  RESERVED
+  COMPLETED
+  CANCELLED
+}
+
 enum PatientType {
   dog
   cat
@@ -1885,17 +1897,38 @@ enum DeveloperSubscriptionStatus {
 // Tracks per-org API call counts per billing period.
 // Free tier quota enforcement uses this; Pro tier batches here before reporting to Stripe meters.
 model DeveloperApiUsage {
-  id             String    @id @default(uuid())
-  ownerUserId    String
-  billingPeriod  String
-  callCount      Int       @default(0)
-  lastReportedAt DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id               String    @id @default(uuid())
+  ownerUserId      String
+  billingPeriod    String
+  callCount        Int       @default(0)
+  meteredCallCount Int       @default(0)
+  lastReportedAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@unique([ownerUserId, billingPeriod])
   @@index([billingPeriod])
   @@map("DeveloperApiUsage")
+}
+
+/// Durable Stripe meter delivery. The UUID is also the provider identifier, so
+/// retries after a timeout or process restart cannot count the call twice.
+model DeveloperMeterEvent {
+  id               String    @id @default(uuid())
+  ownerUserId      String
+  billingPeriod    String
+  callSequence     Int
+  stripeCustomerId String?
+  attempts         Int       @default(0)
+  nextAttemptAt    DateTime  @default(now())
+  lastAttemptAt    DateTime?
+  failureCode      String?
+  deliveredAt      DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@unique([ownerUserId, billingPeriod, callSequence])
+  @@index([deliveredAt, nextAttemptAt])
+  @@index([ownerUserId, billingPeriod])
 }
 
 enum DevicePlatform {
@@ -3044,6 +3077,7 @@ model SoapNote {
 model Prescription {
   id               String                        @id @default(uuid())
   artifactId       String                        @unique
+  supersedesId     String?                       @unique
   items            PrescriptionItem[]
   dispenseRequests PrescriptionDispenseRequest[]
   medications      Json?
@@ -3054,6 +3088,8 @@ model Prescription {
   updatedAt        DateTime                      @updatedAt
 
   artifact ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  supersedes   Prescription? @relation("PrescriptionSupersession", fields: [supersedesId], references: [id], onDelete: SetNull)
+  supersededBy Prescription? @relation("PrescriptionSupersession")
 
   @@index([artifactId])
 }
@@ -3082,7 +3118,8 @@ model PrescriptionItem {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  prescription       Prescription                    @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  fillAuthorizations PrescriptionFillAuthorization[]
 
   @@index([prescriptionId, sortOrder])
 }
@@ -3105,6 +3142,89 @@ model PrescriptionDispenseRequest {
 
   @@index([prescriptionId, status, requestedAt])
   @@index([organisationId, status])
+}
+
+/// Structured repeat eligibility for one prescription item (#3162).
+///
+/// `PrescriptionItem.refill` is free text. It stays displayed exactly as the
+/// clinician wrote it and carries no machine-authorised allowance: only a row
+/// here permits a repeat, and its absence is "Not authorised", never
+/// unlimited. An authority is immutable once issued - a correction is a new
+/// row pointing at the one it supersedes - so `version` only moves when a
+/// clinician issues a new authority for the item, which is what lets a stale
+/// `expectedVersion` be refused rather than silently applied.
+model PrescriptionFillAuthorization {
+  id                  String                              @id @default(uuid())
+  organisationId      String
+  patientId           String?
+  prescriptionId      String
+  itemId              String
+  version             Int                                 @default(1)
+  validUntil          DateTime
+  maxAdditionalFills  Int
+  perFillQuantity     Decimal
+  perFillQuantityUnit String
+  status              PrescriptionFillAuthorizationStatus @default(ACTIVE)
+  authorisedBy        String
+  authorisedAt        DateTime                            @default(now())
+  revokedBy           String?
+  revokedAt           DateTime?
+  revokedReason       String?
+  supersedesId        String?                             @unique
+  createdAt           DateTime                            @default(now())
+  updatedAt           DateTime                            @updatedAt
+
+  item         PrescriptionItem               @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  supersedes   PrescriptionFillAuthorization? @relation("PrescriptionFillAuthorizationSupersession", fields: [supersedesId], references: [id], onDelete: SetNull)
+  supersededBy PrescriptionFillAuthorization? @relation("PrescriptionFillAuthorizationSupersession")
+  reservations PrescriptionFillReservation[]
+
+  @@unique([itemId, version])
+  @@index([organisationId, itemId, status])
+  @@index([organisationId, prescriptionId, status])
+}
+
+/// One fill allocated against an authorisation (#3162).
+///
+/// `fillOrdinal` is an allocation sequence, not a repeat index: ordinal 0 is
+/// the initial fill and a cancelled ordinal is never reused, so the unique
+/// index below can be total. A partial unique index would model "1..N with
+/// reuse" exactly, but Postgres partial indexes are not expressible in this
+/// datamodel and `_migration.yaml`'s drift check emits a DROP for any index
+/// the datamodel does not declare. Remaining capacity is therefore counted
+/// from the non-cancelled rows under an advisory lock, and this index is what
+/// turns a lost lock into a constraint violation rather than an
+/// over-allocation.
+///
+/// `fulfilledQuantity` accumulates on the same ordinal so a partial dispense
+/// does not consume a second repeat; the row completes only when it reaches
+/// `quantity`.
+model PrescriptionFillReservation {
+  id                String                            @id @default(uuid())
+  organisationId    String
+  authorizationId   String
+  itemId            String
+  dispenseRequestId String?
+  fillOrdinal       Int
+  quantity          Decimal
+  fulfilledQuantity Decimal                           @default(0)
+  quantityUnit      String
+  status            PrescriptionFillReservationStatus @default(RESERVED)
+  idempotencyKey    String
+  reservedBy        String?
+  reservedAt        DateTime                          @default(now())
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+  cancelledReason   String?
+  createdAt         DateTime                          @default(now())
+  updatedAt         DateTime                          @updatedAt
+
+  authorization PrescriptionFillAuthorization @relation(fields: [authorizationId], references: [id], onDelete: Cascade)
+
+  @@unique([authorizationId, fillOrdinal])
+  @@unique([organisationId, idempotencyKey])
+  @@index([organisationId, status])
+  @@index([dispenseRequestId])
 }
 
 model DischargeSummary {

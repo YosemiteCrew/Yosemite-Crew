@@ -6,7 +6,7 @@ slug: /apps/backend/api/activitypub
 
 Implements ActivityPub (the federation protocol used by Mastodon and similar platforms) so organisations can follow one another, exchange clinical referrals, and broadcast emergency notices across instances. The `/organizations/:orgId/*` and `/shared-inbox` routes are the public protocol surface consumed by remote ActivityPub servers and carry no auth. The `/manage/*` routes are the organisation's own settings surface, reached from the web settings panel, and require RBAC (role-based access control) under the `integrations` permission pair. Every route in this router 404s with `{ error: "Federation is disabled on this instance" }` unless the `AP_ENABLED` environment variable is `"true"`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /organizations/:orgId
 

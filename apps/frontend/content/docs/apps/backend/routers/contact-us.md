@@ -6,7 +6,7 @@ slug: /apps/backend/api/contact-us
 
 Handles "contact us" support requests. The mobile app submits a request (`POST /contact`); staff using the PIMS (Practice Information Management System, the clinic-facing web app) list requests and update their status.
 
-**Endpoints**
+## Endpoints
 
 ### POST /contact
 

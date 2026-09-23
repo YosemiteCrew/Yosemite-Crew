@@ -6,7 +6,7 @@ slug: /apps/backend/api/room-unit-group
 
 Manages room unit groups — named groupings of individually trackable units (for example a bank of kennels or cages) within one of an organisation's rooms, with a size, unit count, species constraints, and capability tags. Records are represented over the API as the FHIR `Location` resource. Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### POST /
 

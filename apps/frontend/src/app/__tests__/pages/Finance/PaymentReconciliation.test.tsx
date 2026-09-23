@@ -41,8 +41,11 @@ jest.mock(
     )
 );
 
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Secondary: ({ href, text, ariaLabel, onClick, isDisabled }: any) =>
+// Both variants, defined inside the factory: a mock naming only `Secondary`
+// renders `Primary` as `undefined`, and React reports that as an invalid
+// element type from whichever component happened to use it.
+jest.mock('@/app/ui/primitives/Buttons', () => {
+  const Button = ({ href, text, ariaLabel, onClick, isDisabled }: any) =>
     href ? (
       <a href={href} aria-label={ariaLabel}>
         {text}
@@ -51,8 +54,10 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
       <button type="button" aria-label={ariaLabel} onClick={onClick} disabled={isDisabled}>
         {text}
       </button>
-    ),
-}));
+    );
+
+  return { Secondary: Button, Primary: Button };
+});
 
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -71,14 +76,50 @@ jest.mock('@/app/stores/orgStore', () => ({
 // The transport is mocked, not the hook: the page's real load, filter, paginate
 // and error paths run against it.
 const listProviderReceipts = jest.fn();
-jest.mock('@/app/features/finance/services/providerReceiptService', () => ({
-  listProviderReceipts: (...args: unknown[]) => listProviderReceipts(...args),
-  getProviderReceiptErrorMessage: (error: unknown, fallback: string) => {
-    const body = (error as { response?: { data?: { message?: string } } })?.response?.data;
-    if (body?.message) return body.message;
-    if (error instanceof Error) return error.message;
-    return fallback;
-  },
+const allocateProviderReceipt = jest.fn();
+jest.mock('@/app/features/finance/services/providerReceiptService', () => {
+  class ProviderReceiptAllocationError extends Error {
+    readonly failure: { code: string; message: string };
+
+    constructor(failure: { code: string; message: string }) {
+      super(failure.message);
+      this.failure = failure;
+    }
+  }
+
+  return {
+    listProviderReceipts: (...args: unknown[]) => listProviderReceipts(...args),
+    allocateProviderReceipt: (...args: unknown[]) => allocateProviderReceipt(...args),
+    ProviderReceiptAllocationError,
+    getProviderReceiptErrorMessage: (error: unknown, fallback: string) => {
+      const body = (error as { response?: { data?: { message?: string } } })?.response?.data;
+      if (body?.message) return body.message;
+      if (error instanceof Error) return error.message;
+      return fallback;
+    },
+  };
+});
+
+/*
+ * The action is gated on `billing:edit:any`, the permission the route it calls
+ * requires. The screen itself only needs `billing:view:any`, so the two are
+ * driven separately here rather than through one allow-everything stub.
+ */
+const permission = { allowed: false };
+jest.mock('@/app/hooks/usePermissions', () => ({
+  usePermissions: () => ({ can: () => permission.allowed, isLoading: false }),
+}));
+
+const loadInvoices = jest.fn();
+const orgInvoices: unknown[] = [];
+jest.mock('@/app/hooks/useInvoices', () => ({
+  useLoadInvoicesForPrimaryOrg: () => loadInvoices(),
+  useInvoicesForPrimaryOrg: () => orgInvoices,
+}));
+
+const invoiceStoreState = { status: 'loaded' as string };
+jest.mock('@/app/stores/invoiceStore', () => ({
+  useInvoiceStore: (selector: any) => selector(invoiceStoreState),
 }));
 
 import ProtectedPaymentReconciliation from '@/app/features/finance/pages/PaymentReconciliation';
@@ -98,6 +139,7 @@ const receipt = (over: Partial<ProviderReceipt> = {}): ProviderReceipt => ({
   status: 'UNALLOCATED',
   reason: 'No invoice found for this capture',
   refundedAmount: 0,
+  allocatedAmount: 0,
   version: 1,
   createdAt: '2026-09-12T14:03:05.000Z',
   ...over,
@@ -121,9 +163,30 @@ const lastCall = () => listProviderReceipts.mock.calls.at(-1);
  */
 const rows = async () => within(await screen.findByRole('table'));
 
+const invoice = (id: string, balance: number) =>
+  ({
+    id,
+    organisationId: 'org-1',
+    items: [],
+    subtotal: balance,
+    totalAmount: balance,
+    paymentCollectionMethod: 'PAYMENT_AT_CLINIC',
+    currency: 'GBP',
+    status: 'UNPAID',
+    createdAt: new Date('2026-09-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-09-01T00:00:00.000Z'),
+    settlementSummary: { balance },
+    metadata: { invoiceNumber: id },
+  }) as unknown;
+
 beforeEach(() => {
   listProviderReceipts.mockReset();
+  allocateProviderReceipt.mockReset();
+  loadInvoices.mockReset();
   orgStoreState.primaryOrgId = 'org-1';
+  permission.allowed = false;
+  invoiceStoreState.status = 'loaded';
+  orgInvoices.length = 0;
 });
 
 describe('Payment reconciliation screen', () => {
@@ -541,5 +604,105 @@ describe('Payment reconciliation screen', () => {
         expect(within(filters).getByRole('button', { name: label })).toBeInTheDocument();
       }
     );
+  });
+});
+
+describe('applying a captured payment from the queue', () => {
+  const openDialog = async () => {
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /^Apply the payment captured/ }));
+    return user;
+  };
+
+  it('offers no action, and fetches no invoices, for a reader who may only view', async () => {
+    listProviderReceipts.mockResolvedValue(page([receipt()]));
+
+    renderScreen();
+    await rows();
+
+    expect(screen.queryByRole('button', { name: /^Apply the payment captured/ })).toBeNull();
+    expect(loadInvoices).not.toHaveBeenCalled();
+  });
+
+  /*
+   * The fetch is mounted with the dialog rather than with the screen: pulling
+   * every invoice in the practice on first paint, for a queue most readers only
+   * look at, is a cost the action should charge to the action.
+   */
+  it('asks for the invoices only once a capture has been chosen', async () => {
+    permission.allowed = true;
+    listProviderReceipts.mockResolvedValue(page([receipt()]));
+
+    renderScreen();
+    await rows();
+    expect(loadInvoices).not.toHaveBeenCalled();
+
+    await openDialog();
+    expect(loadInvoices).toHaveBeenCalled();
+  });
+
+  it('applies the payment and puts the stored receipt back on the row', async () => {
+    permission.allowed = true;
+    orgInvoices.push(invoice('7701', 40));
+    listProviderReceipts.mockResolvedValue(page([receipt({ amount: 120 })]));
+    allocateProviderReceipt.mockResolvedValue({
+      receipt: receipt({ amount: 120, allocatedAmount: 40, status: 'PARTIALLY_REFUNDED' }),
+      remainingAmount: 80,
+      allocations: [{ invoiceId: '7701', amount: 40 }],
+      replayed: false,
+    });
+
+    renderScreen();
+    const user = await openDialog();
+
+    await user.click(await screen.findByRole('checkbox', { name: /#7701/ }));
+    await user.click(screen.getByRole('button', { name: /apply this captured payment/i }));
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Payment applied.'));
+    await user.click(screen.getByRole('button', { name: /close the applied payment summary/i }));
+
+    // The row carries the readback, and the queue was not refetched to get it.
+    expect((await rows()).getByText('£80.00 unapplied')).toBeInTheDocument();
+    expect(listProviderReceipts).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts the queue again when the row it read has moved underneath it', async () => {
+    permission.allowed = true;
+    orgInvoices.push(invoice('7701', 40));
+    listProviderReceipts.mockResolvedValue(page([receipt()]));
+    const { ProviderReceiptAllocationError } = jest.requireMock(
+      '@/app/features/finance/services/providerReceiptService'
+    );
+    allocateProviderReceipt.mockRejectedValue(
+      new ProviderReceiptAllocationError({
+        code: 'VERSION_CONFLICT',
+        message: 'The receipt changed since it was read.',
+      })
+    );
+
+    renderScreen();
+    const user = await openDialog();
+    await user.click(await screen.findByRole('checkbox', { name: /#7701/ }));
+    await user.click(screen.getByRole('button', { name: /apply this captured payment/i }));
+
+    await user.click(
+      await screen.findByRole('button', { name: /reload the reconciliation queue/i })
+    );
+
+    await waitFor(() => expect(listProviderReceipts).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('closes without applying anything', async () => {
+    permission.allowed = true;
+    orgInvoices.push(invoice('7701', 40));
+    listProviderReceipts.mockResolvedValue(page([receipt()]));
+
+    renderScreen();
+    const user = await openDialog();
+    await user.click(screen.getByRole('button', { name: /^Cancel$/ }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(allocateProviderReceipt).not.toHaveBeenCalled();
   });
 });

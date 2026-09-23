@@ -6,7 +6,7 @@ slug: /apps/backend/api/hospitalization-monitoring
 
 Records and lists periodic vital-sign and nursing observations (temperature, heart/respiratory rate, SpO2, blood pressure, pain score, intake/output, and similar) for a hospitalised patient. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/hospitalization-monitoring
 

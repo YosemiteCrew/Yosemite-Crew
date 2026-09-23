@@ -6,7 +6,7 @@ slug: /apps/backend/api/clinical-alert-log
 
 Logs clinical alerts triggered for a patient — drug interaction, critical lab value, overdue vaccination, allergy contraindication, dose check, abnormal vitals, specialist review due, weight threshold, or other — with a severity (info, warning, critical) and an acknowledge/dismiss workflow. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and are gated by organisation RBAC (role-based access control).
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/clinical-alerts
 

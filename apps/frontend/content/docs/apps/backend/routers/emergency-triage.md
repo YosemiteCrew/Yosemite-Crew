@@ -6,7 +6,7 @@ slug: /apps/backend/api/emergency-triage
 
 Records emergency triage assessments for a patient — presenting complaint, vitals, and priority — and lets a clinician escalate one to a higher priority. Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions. Validation and not-found errors from the service layer come back as `{ message }`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/emergency-triage
 

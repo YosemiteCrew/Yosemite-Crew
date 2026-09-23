@@ -6,12 +6,17 @@ source of truth for the schema (see
 
 ## Scripts
 
-| Script            | Purpose                                                       |
-| ----------------- | ------------------------------------------------------------- |
-| `prisma:generate` | Regenerate the Prisma client. Safe to run anytime.            |
-| `prisma:migrate`  | `migrate dev` - authoring migrations locally. Never in prod.  |
-| `prisma:deploy`   | `migrate deploy` - apply pending migrations. See below first. |
-| `prisma:studio`   | Browse the database.                                          |
+| Script            | Purpose                                                        |
+| ----------------- | -------------------------------------------------------------- |
+| `prisma:generate` | Regenerate the Prisma client. Safe to run anytime.             |
+| `prisma:migrate`  | `migrate dev` - authoring migrations locally. Never in prod.   |
+| `prisma:deploy`   | `migrate deploy` - apply pending migrations. See below first.  |
+| `schema:assert`   | Fail if the migrated database breaks a load-bearing invariant. |
+| `prisma:studio`   | Browse the database.                                           |
+
+`schema:assert` runs after every API deployment migration and in migration CI.
+Keep the assertions in `prisma/assert-schema-invariants.sql` so both paths ask
+the database the same questions.
 
 ## Baseline an existing database before the first `prisma:deploy`
 

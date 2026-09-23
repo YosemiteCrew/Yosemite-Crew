@@ -6,7 +6,7 @@ slug: /apps/backend/api/pet-passport
 
 Assembles and issues a pet's travel/medical passport for the PIMS (Practice Information Management System, the clinic-facing web app) and the pet-parent mobile app: recording the underlying clinical artifacts (immunizations, parasite treatments, rabies titrations, clinical exams), signing or revoking them, issuing the passport itself, generating Apple/Google Wallet passes, and managing cross-practice sharing consent. Staff `/pms` routes are organisation-RBAC-gated; pet-parent `/mobile` routes carry no organisation in the path and are instead gated by `requireCompanionPermission`, which checks the authenticated parent's own relationship to the companion. The consent endpoints are served by a separate `PassportConsentController`.
 
-**Endpoints**
+## Endpoints
 
 ### POST /pms/organisation/:organisationId/companion/:patientId/immunizations
 

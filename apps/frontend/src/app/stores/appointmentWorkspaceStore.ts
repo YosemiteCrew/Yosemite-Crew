@@ -208,13 +208,15 @@ type AppointmentWorkspaceState = {
     appointmentId: string,
     signedByName: string,
     offline: boolean,
-    persistedId?: string
+    persistedId?: string,
+    artifactVersion?: number
   ) => void;
 
   addVitals: (
     appointmentId: string,
     vitals: Omit<Vitals, 'id' | 'code'>,
-    persistedId?: string
+    persistedId?: string,
+    artifactVersion?: number
   ) => void;
   addObservation: (appointmentId: string, record: Omit<ObservationRecord, 'id' | 'code'>) => void;
   /** Add an already-formed observation record (e.g. a backend-scored submission). */
@@ -249,7 +251,12 @@ type AppointmentWorkspaceState = {
   setScheduleTaskStatus: (appointmentId: string, id: string, status: ScheduleTaskStatus) => void;
 
   setDischargeSummary: (appointmentId: string, html: string) => void;
-  saveDischargeSummary: (appointmentId: string, byName: string, persistedId?: string) => void;
+  saveDischargeSummary: (
+    appointmentId: string,
+    byName: string,
+    persistedId?: string,
+    artifactVersion?: number
+  ) => void;
   reopenDischargeSummary: (appointmentId: string) => void;
   markDischarged: (appointmentId: string, dischargedAt: string) => void;
   setFollowUp: (appointmentId: string, at: string | undefined) => void;
@@ -630,7 +637,7 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
       return { ...enc, soap: [created, ...enc.soap] };
     }),
 
-  signSoap: (appointmentId, signedByName, offline, persistedId) =>
+  signSoap: (appointmentId, signedByName, offline, persistedId, artifactVersion) =>
     patchEnc(set, appointmentId, (enc) => {
       // Sign the active draft and keep it in history; the next upsert starts a
       // fresh draft, so the SOAP form clears and is editable again.
@@ -640,6 +647,7 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
         ...enc.soap[draftIndex],
         // Stamp the backend-issued id so a later edit PATCHes instead of POSTing a duplicate.
         id: persistedId ?? enc.soap[draftIndex].id,
+        artifactVersion: artifactVersion ?? enc.soap[draftIndex].artifactVersion,
         signedByName,
         signedOffline: offline,
         signedAt: nowIso(),
@@ -654,13 +662,14 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
       };
     }),
 
-  addVitals: (appointmentId, vitals, persistedId) =>
+  addVitals: (appointmentId, vitals, persistedId, artifactVersion) =>
     patchEnc(set, appointmentId, (enc) => ({
       ...enc,
       vitals: [
         {
           ...vitals,
           id: persistedId ?? nextId('vt'),
+          artifactVersion,
           code: `VT-${String(enc.vitals.length + 1).padStart(3, '0')}`,
         },
         ...enc.vitals,
@@ -814,13 +823,14 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
   setDischargeSummary: (appointmentId, html) =>
     patchEnc(set, appointmentId, (enc) => ({ ...enc, dischargeSummary: html })),
 
-  saveDischargeSummary: (appointmentId, byName, persistedId) =>
+  saveDischargeSummary: (appointmentId, byName, persistedId, artifactVersion) =>
     patchEnc(set, appointmentId, (enc) => ({
       ...enc,
       dischargeSavedAt: new Date().toISOString(),
       dischargeSavedByName: byName,
       // Keep the backend id so re-saving the summary PATCHes instead of POSTing a duplicate.
       dischargeSummaryId: persistedId ?? enc.dischargeSummaryId,
+      dischargeSummaryVersion: artifactVersion ?? enc.dischargeSummaryVersion,
     })),
 
   reopenDischargeSummary: (appointmentId) =>
