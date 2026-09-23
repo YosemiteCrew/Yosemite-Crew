@@ -58,11 +58,11 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/adverse-event/':
+  '/v1/adverse-event':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/adverse-event/'
+      summary: 'POST /v1/adverse-event'
       operationId: post_v1_adverse_event
       security:
         - BearerAuth: []
@@ -267,11 +267,11 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/adverse-event/regulatory-authority/':
+  '/v1/adverse-event/regulatory-authority':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/adverse-event/regulatory-authority/'
+      summary: 'GET /v1/adverse-event/regulatory-authority'
       operationId: get_v1_adverse_event_regulatory_authority
       security:
         - BearerAuth: []
@@ -1047,16 +1047,16 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/appointment/mobile/companion/{companionId}':
+  '/fhir/v1/appointment/mobile/companion/{patientId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/appointment/mobile/companion/{companionId}'
+      summary: 'GET /fhir/v1/appointment/mobile/companion/{patientId}'
       operationId: get_fhir_v1_appointment_mobile_companion_companionId
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: patientId
           in: path
           required: true
           schema:
@@ -1229,11 +1229,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AppointmentListEnvelope'
-  '/fhir/v1/appointment/pms/organisation/{organisationId}/companion/{companionId}':
+  '/fhir/v1/appointment/pms/organisation/{organisationId}/companion/{patientId}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/appointment/pms/organisation/{organisationId}/companion/{companionId}'
+      summary: 'GET /fhir/v1/appointment/pms/organisation/{organisationId}/companion/{patientId}'
       operationId: get_fhir_v1_appointment_pms_organisation_organisationId_companion_companionId
       security:
         - BearerAuth: []
@@ -1243,9 +1243,15 @@ paths:
           required: true
           schema:
             type: string
-        - name: companionId
+        - name: patientId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -1471,18 +1477,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AppointmentEnvelope'
-  '/v1/audit-trail/companion/{companionId}':
+  '/v1/audit-trail/companion/{patientId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/audit-trail/companion/{companionId}'
+      summary: 'GET /v1/audit-trail/companion/{patientId}'
       operationId: get_v1_audit_trail_companion_companionId
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: patientId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -4135,16 +4147,16 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/companion-organisation/{companionId}':
+  '/v1/companion-organisation/{patientId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/companion-organisation/{companionId}'
+      summary: 'GET /v1/companion-organisation/{patientId}'
       operationId: get_v1_companion_organisation_companionId
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: patientId
           in: path
           required: true
           schema:
@@ -4268,11 +4280,11 @@ paths:
           description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
-  '/v1/companion-organisation/pms/{organisationId}/{companionId}/link':
+  '/v1/companion-organisation/pms/{organisationId}/{patientId}/link':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/companion-organisation/pms/{organisationId}/{companionId}/link'
+      summary: 'POST /v1/companion-organisation/pms/{organisationId}/{patientId}/link'
       operationId: post_v1_companion_organisation_pms_organisationId_companionId_link
       security:
         - BearerAuth: []
@@ -4282,9 +4294,15 @@ paths:
           required: true
           schema:
             type: string
-        - name: companionId
+        - name: patientId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
           schema:
             type: string
       responses:
@@ -4408,11 +4426,11 @@ paths:
                 properties:
                   message:
                     type: string
-  /fhir/v1/companion/:
+  '/fhir/v1/companion':
     post:
       tags:
         - FHIR
-      summary: POST /fhir/v1/companion/
+      summary: POST /fhir/v1/companion
       operationId: post_fhir_v1_companion
       security:
         - BearerAuth: []
@@ -6179,16 +6197,16 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/document/search/{companionId}':
+  '/v1/document/search/{patientId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/document/search/{companionId}'
+      summary: 'GET /v1/document/search/{patientId}'
       operationId: get_v1_document_search_companionId
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: patientId
           in: path
           required: true
           schema:
@@ -6289,18 +6307,24 @@ paths:
           description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
-  '/v1/document/pms/{companionId}':
+  '/v1/document/pms/{patientId}':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/document/pms/{companionId}'
+      summary: 'POST /v1/document/pms/{patientId}'
       operationId: post_v1_document_pms_companionId
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: patientId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       requestBody:
@@ -7064,11 +7088,11 @@ paths:
                 properties:
                   message:
                     type: string
-  /v1/expense/:
+  '/v1/expense':
     post:
       tags:
         - 'Non-FHIR'
-      summary: POST /v1/expense/
+      summary: POST /v1/expense
       operationId: post_v1_expense
       security:
         - BearerAuth: []
@@ -7156,16 +7180,16 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/expense/companion/{companionId}/list':
+  '/v1/expense/companion/{patientId}/list':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/expense/companion/{companionId}/list'
+      summary: 'GET /v1/expense/companion/{patientId}/list'
       operationId: get_v1_expense_companion_companionId_list
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: patientId
           in: path
           required: true
           schema:
@@ -7189,16 +7213,16 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/expense/companion/{companionId}/summary':
+  '/v1/expense/companion/{patientId}/summary':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/expense/companion/{companionId}/summary'
+      summary: 'GET /v1/expense/companion/{patientId}/summary'
       operationId: get_v1_expense_companion_companionId_summary
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: patientId
           in: path
           required: true
           schema:
@@ -18084,14 +18108,21 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/organisation-room/':
+  '/fhir/v1/organisation-room':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/organisation-room/'
+      summary: 'POST /fhir/v1/organisation-room'
       operationId: post_fhir_v1_organisation_room
       security:
         - BearerAuth: []
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         400:
           description: Response
@@ -18506,11 +18537,11 @@ paths:
                 properties:
                   message:
                     type: string
-  /fhir/v1/organization/:
+  '/fhir/v1/organization':
     post:
       tags:
         - FHIR
-      summary: POST /fhir/v1/organization/
+      summary: POST /fhir/v1/organization
       operationId: post_fhir_v1_organization
       security:
         - BearerAuth: []
@@ -19102,16 +19133,16 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/parent-companion/companion/{companionId}':
+  '/v1/parent-companion/companion/{patientId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/parent-companion/companion/{companionId}'
+      summary: 'GET /v1/parent-companion/companion/{patientId}'
       operationId: get_v1_parent_companion_companion_companionId
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: patientId
           in: path
           required: true
           schema:
@@ -19226,16 +19257,16 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/parent-companion/{companionId}/{targetParentId}/permissions':
+  '/v1/parent-companion/{patientId}/{targetParentId}/permissions':
     patch:
       tags:
         - 'Non-FHIR'
-      summary: 'PATCH /v1/parent-companion/{companionId}/{targetParentId}/permissions'
+      summary: 'PATCH /v1/parent-companion/{patientId}/{targetParentId}/permissions'
       operationId: patch_v1_parent_companion_companionId_targetParentId_permissions
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: patientId
           in: path
           required: true
           schema:
@@ -19282,16 +19313,16 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/parent-companion/{companionId}/{targetParentId}/promote':
+  '/v1/parent-companion/{patientId}/{targetParentId}/promote':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/parent-companion/{companionId}/{targetParentId}/promote'
+      summary: 'POST /v1/parent-companion/{patientId}/{targetParentId}/promote'
       operationId: post_v1_parent_companion_companionId_targetParentId_promote
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: patientId
           in: path
           required: true
           schema:
@@ -19338,16 +19369,16 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/parent-companion/{companionId}/{coParentId}':
+  '/v1/parent-companion/{patientId}/{coParentId}':
     delete:
       tags:
         - 'Non-FHIR'
-      summary: 'DELETE /v1/parent-companion/{companionId}/{coParentId}'
+      summary: 'DELETE /v1/parent-companion/{patientId}/{coParentId}'
       operationId: delete_v1_parent_companion_companionId_coParentId
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: patientId
           in: path
           required: true
           schema:
@@ -19394,11 +19425,11 @@ paths:
                 properties:
                   message:
                     type: string
-  /fhir/v1/parent/:
+  '/fhir/v1/parent':
     post:
       tags:
         - FHIR
-      summary: POST /fhir/v1/parent/
+      summary: POST /fhir/v1/parent
       operationId: post_fhir_v1_parent
       security:
         - BearerAuth: []
@@ -19750,11 +19781,11 @@ paths:
                 properties:
                   message:
                     type: string
-  /fhir/v1/service/:
+  '/fhir/v1/service':
     post:
       tags:
         - FHIR
-      summary: POST /fhir/v1/service/
+      summary: POST /fhir/v1/service
       operationId: post_fhir_v1_service
       parameters:
         - name: lat
@@ -19770,6 +19801,12 @@ paths:
         - name: serviceName
           in: query
           required: false
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -19894,14 +19931,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/HealthcareService'
                 description: ServiceController.updateService returns ServiceService.update's result, which is toServiceResponseDTO(service) - the same FHIR HealthcareService resource shape already documented as a component in this spec (see components.schemas.HealthcareService).
-  /fhir/v1/speciality/:
+  '/fhir/v1/speciality':
     post:
       tags:
         - FHIR
-      summary: POST /fhir/v1/speciality/
+      summary: POST /fhir/v1/speciality
       operationId: post_fhir_v1_speciality
       security:
         - BearerAuth: []
+      parameters:
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
+          schema:
+            type: string
       responses:
         400:
           description: Response
@@ -21021,11 +21065,11 @@ paths:
                     type: string
                   message:
                     type: string
-  /v1/task/mobile/:
+  '/v1/task/mobile':
     post:
       tags:
         - 'Non-FHIR'
-      summary: POST /v1/task/mobile/
+      summary: POST /v1/task/mobile
       operationId: post_v1_task_mobile
       security:
         - BearerAuth: []
@@ -21827,16 +21871,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ChangeStatusRequestBody'
-  '/v1/task/mobile/companion/{companionId}':
+  '/v1/task/mobile/companion/{patientId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/task/mobile/companion/{companionId}'
+      summary: 'GET /v1/task/mobile/companion/{patientId}'
       operationId: get_v1_task_mobile_companion_companionId
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: patientId
           in: path
           required: true
           schema:
@@ -23251,18 +23295,24 @@ paths:
                     updatedAt:
                       type: string
                       format: date-time
-  '/v1/task/pms/companion/{companionId}':
+  '/v1/task/pms/companion/{patientId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/task/pms/companion/{companionId}'
+      summary: 'GET /v1/task/pms/companion/{patientId}'
       operationId: get_v1_task_pms_companion_companionId
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: patientId
           in: path
           required: true
+          schema:
+            type: string
+        - name: x-org-id
+          in: header
+          required: true
+          description: 'Organisation the request acts on. Required: this route has no organisation in its path, and the request is rejected with 400 without it.'
           schema:
             type: string
       responses:
@@ -24445,11 +24495,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ChangeStatusRequestBody'
-  '/fhir/v1/user-organization/':
+  '/fhir/v1/user-organization':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/user-organization/'
+      summary: 'POST /fhir/v1/user-organization'
       operationId: post_fhir_v1_user_organization
       security:
         - BearerAuth: []
@@ -24856,11 +24906,11 @@ paths:
                 properties:
                   message:
                     type: string
-  /fhir/v1/user/:
+  '/fhir/v1/user':
     post:
       tags:
         - FHIR
-      summary: POST /fhir/v1/user/
+      summary: POST /fhir/v1/user
       operationId: post_fhir_v1_user
       security:
         - BearerAuth: []
