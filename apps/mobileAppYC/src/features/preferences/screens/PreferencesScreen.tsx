@@ -1,4 +1,4 @@
-import React, {useMemo, useRef} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {ScrollView, StyleSheet, Text, View} from 'react-native';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTranslation} from 'react-i18next';
@@ -8,6 +8,7 @@ import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {SegmentedControl} from '@/shared/components/common/SegmentedControl/SegmentedControl';
 import {TouchableInput} from '@/shared/components/common/TouchableInput/TouchableInput';
+import {Toggle} from '@/shared/components/common/Toggle/Toggle';
 import {
   CurrencyBottomSheet,
   type CurrencyBottomSheetRef,
@@ -23,6 +24,15 @@ import type {HomeStackParamList} from '@/navigation/types';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {getCurrencyRecord, type CurrencyCode} from '@/shared/utils/currency';
 import type {DistanceUnit, WeightUnit} from '@/shared/utils/measurementSystem';
+import {useAppDispatch, useAppSelector} from '@/app/hooks';
+import {
+  appLockDisabled,
+  appLockEnabled,
+  appLockTimeoutChanged,
+} from '@/features/appLock/appLockSlice';
+import {enable, disable} from '@/features/appLock/services/appLockKeychain';
+import {getAppLockAvailability} from '@/features/appLock/services/appLockAvailability';
+import {APP_LOCK_TIMEOUT_OPTIONS_MS} from '@/features/appLock/appLockLogic';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Preferences'>;
 
@@ -40,6 +50,11 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
   const {theme, themeMode, setTheme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const {t, i18n} = useTranslation();
+  const dispatch = useAppDispatch();
+  const {user} = useAppSelector(state => state.auth);
+  const appLock = useAppSelector(state => state.appLock);
+  const [appLockAvailable, setAppLockAvailable] = useState(false);
+  const [appLockReason, setAppLockReason] = useState<string | null>(null);
 
   const DISTANCE_OPTIONS = [
     {label: t('preferences.distance_km'), value: 'km'},
@@ -56,6 +71,13 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
     {label: t('preferences.appearance_light'), value: 'light'},
     {label: t('preferences.appearance_dark'), value: 'dark'},
   ];
+  const TIMEOUT_OPTIONS = APP_LOCK_TIMEOUT_OPTIONS_MS.map(value => ({
+    id: String(value),
+    label:
+      value === 0
+        ? t('preferences.app_lock_immediately')
+        : t('preferences.app_lock_minutes', {count: value / 60_000}),
+  }));
 
   const {
     weightUnit,
@@ -68,6 +90,25 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
 
   const currencySheetRef = useRef<CurrencyBottomSheetRef>(null);
   const languageSheetRef = useRef<GenericSelectBottomSheetRef>(null);
+  const appLockTimeoutSheetRef = useRef<GenericSelectBottomSheetRef>(null);
+
+  useEffect(() => {
+    getAppLockAvailability().then(({result}) => {
+      setAppLockAvailable(result.available);
+      setAppLockReason(result.available ? null : result.reason);
+    });
+  }, []);
+
+  const handleAppLockChange = async (enabled: boolean) => {
+    if (!user) return;
+    const result = enabled ? await enable() : await disable();
+    if (!result.ok) return;
+    if (enabled) {
+      dispatch(appLockEnabled({ownerId: user.parentId ?? user.id}));
+    } else {
+      dispatch(appLockDisabled());
+    }
+  };
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -168,6 +209,43 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
                   rightComponent={chevron}
                 />
               </View>
+
+              {/* Security */}
+              <View>
+                <View style={styles.securityRow}>
+                  <View style={styles.securityCopy}>
+                    <Text style={styles.label}>
+                      {t('preferences.app_lock')}
+                    </Text>
+                    <Text style={styles.caption}>
+                      {appLockAvailable
+                        ? t('preferences.app_lock_caption')
+                        : t(
+                            `preferences.app_lock_unavailable.${appLockReason ?? 'noPasscode'}`,
+                          )}
+                    </Text>
+                  </View>
+                  <Toggle
+                    testID="app-lock-toggle"
+                    value={appLock.enabled}
+                    disabled={!appLockAvailable}
+                    onValueChange={handleAppLockChange}
+                    accessibilityLabel={t('preferences.app_lock')}
+                  />
+                </View>
+                {appLock.enabled ? (
+                  <TouchableInput
+                    label={t('preferences.app_lock_timeout')}
+                    value={
+                      TIMEOUT_OPTIONS.find(
+                        option => Number(option.id) === appLock.timeoutMs,
+                      )?.label ?? TIMEOUT_OPTIONS[1].label
+                    }
+                    onPress={() => appLockTimeoutSheetRef.current?.open()}
+                    rightComponent={chevron}
+                  />
+                ) : null}
+              </View>
             </ScrollView>
 
             <Text style={styles.footnote}>{t('preferences.footnote')}</Text>
@@ -190,6 +268,23 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
           if (item) {
             i18n.changeLanguage(item.id);
           }
+        }}
+        mode="select"
+        hasSearch={false}
+        snapPoints={['40%', '45%']}
+        emptyMessage={t('preferences.no_languages_available')}
+      />
+      <GenericSelectBottomSheet
+        ref={appLockTimeoutSheetRef}
+        title={t('preferences.app_lock_timeout')}
+        items={TIMEOUT_OPTIONS}
+        selectedItem={
+          TIMEOUT_OPTIONS.find(
+            option => Number(option.id) === appLock.timeoutMs,
+          ) ?? TIMEOUT_OPTIONS[1]
+        }
+        onSave={item => {
+          if (item) dispatch(appLockTimeoutChanged(Number(item.id)));
         }}
         mode="select"
         hasSearch={false}
@@ -238,4 +333,10 @@ const createStyles = (theme: Theme) =>
       paddingTop: theme.spacing['4'],
       paddingBottom: theme.spacing['8'],
     },
+    securityRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    securityCopy: {flex: 1, paddingRight: theme.spacing['3']},
   });
