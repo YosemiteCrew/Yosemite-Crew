@@ -6,7 +6,7 @@ slug: /apps/backend/api/lab-order
 
 Manages external lab orders and in-house analyzer (IVLS) census for a given lab `:provider` (for example IDEXX) within an organisation: listing/searching orders, browsing the provider's test catalog, listing IVLS devices, managing the IVLS census of patients currently on an analyzer, and creating/reading/updating/cancelling orders. Shares its `/v1/labs` mount with the [Lab Result API](./lab-result.md), which owns the `/results` sub-paths; this router owns `/orders`, `/tests`, `/ivls`, and `/census`. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/:provider/orders
 

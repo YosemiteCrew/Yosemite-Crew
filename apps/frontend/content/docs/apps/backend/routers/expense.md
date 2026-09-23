@@ -6,7 +6,7 @@ slug: /apps/backend/api/expense
 
 Lets a pet parent track expenses recorded against a companion (pet), including per-companion listing and summaries. Called by the mobile app; all routes are guarded by the mobile auth middleware (`requireMobileAuth`).
 
-**Endpoints**
+## Endpoints
 
 ### POST /
 

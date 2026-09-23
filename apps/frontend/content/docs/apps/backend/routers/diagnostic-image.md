@@ -6,7 +6,7 @@ slug: /apps/backend/api/diagnostic-image
 
 Manages diagnostic imaging studies (radiographs, ultrasound, CT, MRI, and similar) recorded against a patient's clinical record. Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions. Validation and not-found/conflict errors from the service layer come back as `{ message }`; a route-parameter failure returns `400` with `{ message: "Invalid route parameters" }`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/diagnostic-images
 

@@ -6,7 +6,7 @@ slug: /apps/backend/api/template
 
 Plain JSON CRUD for templates — the reusable definitions behind form-style documents (SOAP notes, vital records, discharge summaries, prescriptions, consent, and so on) and task/workflow templates — plus creating and submitting instances of a template. This is the plain-JSON surface (`/v1/templates`) for these records; the [Template FHIR API](./template.fhir.md) exposes the same underlying templates and instances as FHIR `Questionnaire`/`PlanDefinition`/`QuestionnaireResponse` resources. Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/resolve
 

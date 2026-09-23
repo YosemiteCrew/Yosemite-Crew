@@ -6,7 +6,7 @@ slug: /apps/backend/api/encounter
 
 Manages the FHIR `Encounter` resource: a single visit or inpatient stay, including admission-unit assignment, starting/discharging, and the ready-for-discharge flag. Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions. Routes addressed by an encounter id use `withEncounterOrgPermissions()`, which derives the organisation from the encounter record itself rather than trusting a client-supplied one; a mismatched `organization` reference in the request body or query is rejected with `403`. Single-resource responses are the `Encounter` FHIR resource; list responses are a FHIR `Bundle` (`resourceType: "Bundle", type: "searchset", total, entry: [{ resource }]`). Errors come back as `{ message }`.
 
-**Endpoints**
+## Endpoints
 
 ### POST /
 

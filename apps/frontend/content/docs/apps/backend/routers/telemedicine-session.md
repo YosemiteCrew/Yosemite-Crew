@@ -6,7 +6,7 @@ slug: /apps/backend/api/telemedicine-session
 
 Manages telemedicine (remote consultation) sessions for a client and patient: scheduling a session, listing and retrieving them, and moving a session through its lifecycle (start, complete, cancel, mark no-show). Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/telemedicine
 

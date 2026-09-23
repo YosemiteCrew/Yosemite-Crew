@@ -6,7 +6,7 @@ slug: /apps/backend/api/oncology-assessment
 
 Manages oncology assessment records — tumour type, TNM staging (primary tumour/node/metastasis stage and overall stage), chemotherapy protocol/start date/cycle count, quality-of-life score, prognosis, and related diagnoses — for a patient. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and are scoped to an organisation.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/oncology-assessments
 

@@ -57,7 +57,7 @@ For Developers
 - Node.js
 - pnpm
 
-### Steps
+## Steps
 
 - Create a fork from Yosemite-Crew repository as it is described in GitHub docs. You can skip this step if you want to just run the project and not contribute.
 - Clone your forked repository to your local machine using `git clone`. Clone dev branch if want to use the bleeding edge version.

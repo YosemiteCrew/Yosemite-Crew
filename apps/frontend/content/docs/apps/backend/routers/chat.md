@@ -6,7 +6,7 @@ slug: /apps/backend/api/chat
 
 Provides messaging: chat tokens, appointment-linked sessions, and organisation direct/group chats. Routes under `/mobile` are called by the mobile app (pet parents); routes under `/pms` are called by the PIMS (Practice Information Management System, the clinic-facing web app) and additionally manage group membership.
 
-**Endpoints**
+## Endpoints
 
 ### POST /mobile/token
 

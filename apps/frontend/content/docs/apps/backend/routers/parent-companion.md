@@ -6,7 +6,7 @@ slug: /apps/backend/api/parent-companion
 
 Manages the links between parents (pet owners) and companions (the pets, also shown as animal, pet, or patient depending on the clinic's preference): listing links, updating a co-parent's permissions, promoting a co-parent to primary, and removing a co-parent. All routes are called by the mobile app and authenticated with the pet parent's SuperTokens session (`requireMobileAuth`). See the [Parent API](./parent.md) for parent records.
 
-**Endpoints**
+## Endpoints
 
 ### GET /parent/:parentId
 

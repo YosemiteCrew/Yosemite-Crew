@@ -6,7 +6,7 @@ slug: /apps/backend/api/account-withdrawal
 
 Handles account withdrawal (deletion) requests submitted by pet parents from the mobile app. The single endpoint records a signed withdrawal request; it is guarded by the mobile auth middleware (`requireMobileAuth`).
 
-**Endpoints**
+## Endpoints
 
 ### POST /withdraw
 

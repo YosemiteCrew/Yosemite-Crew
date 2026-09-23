@@ -6,7 +6,7 @@ slug: /apps/backend/api/discharge-instruction
 
 Manages take-home discharge instructions for a patient (medication schedule, dietary and activity notes, wound care, follow-up), including sending them to the client and recording acknowledgement. Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions. Validation and not-found errors from the service layer come back as `{ message }`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/discharge-instructions
 

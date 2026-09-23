@@ -6,7 +6,7 @@ slug: /apps/backend/api/cardiology-assessment
 
 Manages cardiology assessment records for a patient — heart rate/rhythm, murmur grade/location/character, pulse quality, jugular pulse, vertebral heart score (VHS), LA:Ao ratio, fractional shortening, ejection fraction, and ACVIM heart-failure class (the veterinary cardiology staging system, grades A through D). All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and are gated by organisation RBAC (role-based access control).
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/cardiology-assessments
 

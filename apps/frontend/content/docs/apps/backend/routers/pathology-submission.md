@@ -6,7 +6,7 @@ slug: /apps/backend/api/pathology-submission
 
 Manages pathology submissions sent to an external lab for a patient: the sample and clinical context at submission, the results and diagnosis once they come back, and a reviewing clinician's notes. All routes are under the PIMS (Practice Information Management System, the clinic-facing web app) `/pms` namespace and require organisation RBAC (role-based access control) permissions on `labs`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/pathology-submissions
 

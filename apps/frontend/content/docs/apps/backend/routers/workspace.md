@@ -6,7 +6,7 @@ slug: /apps/backend/api/workspace
 
 Aggregates the data the PIMS (Practice Information Management System, the clinic-facing web app) clinical workspace needs to render an appointment or encounter in one call: bootstrap data, linked documents, treatment items, and the merged document packet (rendered forms, prescriptions, and consents) served either as JSON or as a combined PDF. One route also serves the mobile app's read-only copy of an encounter's document packet PDF.
 
-**Endpoints**
+## Endpoints
 
 ### GET /mobile/encounters/:encounterId/document-packet/pdf
 

@@ -6,7 +6,7 @@ slug: /apps/backend/api/anaesthesia-record
 
 Manages anaesthesia records for a patient through their lifecycle: planning, starting, adding intra-operative notes, and completing or aborting the anaesthetic, recorded by the PIMS (Practice Information Management System, the clinic-facing web app). Gated by RBAC (role-based access control) under the `companions` permission pair. Every route validates its params/body/query with Zod and returns `400` with keys `error` (the Zod issue list) on failure; an unhandled service failure is not caught locally.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/anaesthesia
 
