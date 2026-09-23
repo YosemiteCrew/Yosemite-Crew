@@ -121,6 +121,100 @@ describe('DocsSearch', () => {
     await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
   });
 
+  it('keeps the keyboard selection on the same result when reranking reorders it', async () => {
+    const tokenDoc = {
+      title: 'API tokens',
+      href: '/docs/apps/backend/api/tokens',
+      section: 'Backend API',
+      text: 'User credential tokens',
+    };
+    let resolveRerank!: (value: { ok: true; json: () => Promise<{ order: string[] }> }) => void;
+    const rerankResponse = new Promise<{ ok: true; json: () => Promise<{ order: string[] }> }>(
+      (resolve) => {
+        resolveRerank = resolve;
+      }
+    );
+    global.fetch = jest
+      .fn()
+      .mockImplementation((input: RequestInfo | URL) =>
+        String(input) === '/api/docs/rerank'
+          ? rerankResponse
+          : Promise.resolve({ ok: true, json: async () => [INDEX[0], tokenDoc] })
+      ) as unknown as typeof fetch;
+
+    render(<DocsSearch />);
+    const input = screen.getByRole('combobox');
+    await act(async () => fireEvent.focus(input));
+    fireEvent.change(input, { target: { value: 'user' } });
+    const selected = await screen.findByRole('option', { name: /User API/ });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(selected).toHaveAttribute('aria-selected', 'true');
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/docs/rerank',
+        expect.objectContaining({ method: 'POST' })
+      )
+    );
+    await act(async () => {
+      resolveRerank({
+        ok: true,
+        json: async () => ({ order: [tokenDoc.href, INDEX[0].href] }),
+      });
+    });
+
+    await waitFor(() =>
+      expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+        'API tokensBackend API',
+        'User APIBackend API',
+      ])
+    );
+    const movedSelection = screen.getByRole('option', { name: /User API/ });
+    expect(movedSelection).toHaveAttribute('aria-selected', 'true');
+    expect(input).toHaveAttribute('aria-activedescendant', movedSelection.id);
+  });
+
+  it('clears the keyboard selection when reranking removes that result', async () => {
+    const tokenDoc = {
+      title: 'API tokens',
+      href: '/docs/apps/backend/api/tokens',
+      section: 'Backend API',
+      text: 'User credential tokens',
+    };
+    let resolveRerank!: (value: { ok: true; json: () => Promise<{ order: string[] }> }) => void;
+    const rerankResponse = new Promise<{ ok: true; json: () => Promise<{ order: string[] }> }>(
+      (resolve) => {
+        resolveRerank = resolve;
+      }
+    );
+    global.fetch = jest
+      .fn()
+      .mockImplementation((input: RequestInfo | URL) =>
+        String(input) === '/api/docs/rerank'
+          ? rerankResponse
+          : Promise.resolve({ ok: true, json: async () => [INDEX[0], tokenDoc] })
+      ) as unknown as typeof fetch;
+
+    render(<DocsSearch />);
+    const input = screen.getByRole('combobox');
+    await act(async () => fireEvent.focus(input));
+    fireEvent.change(input, { target: { value: 'user' } });
+    await screen.findByRole('option', { name: /User API/ });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      resolveRerank({ ok: true, json: async () => ({ order: [tokenDoc.href] }) });
+    });
+
+    await waitFor(() => expect(screen.queryByRole('option', { name: /User API/ })).toBeNull());
+    expect(input).not.toHaveAttribute('aria-activedescendant');
+    expect(screen.getByRole('option', { name: /API tokens/ })).toHaveAttribute(
+      'aria-selected',
+      'false'
+    );
+  });
+
   it.each([
     ['null result', null],
     ['HTTP failure', 'http-failure'],

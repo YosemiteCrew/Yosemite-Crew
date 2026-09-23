@@ -38,6 +38,9 @@ const rankedCandidates = (order: unknown[], docs: SearchDoc[], query: string): S
     .slice(0, MAX_RESULTS);
 };
 
+const indexOfHref = (results: SearchDoc[], href: string): number =>
+  results.findIndex((candidate) => candidate.href === href);
+
 export default function DocsSearch() {
   const [query, setQuery] = useState('');
   const [docs, setDocs] = useState<SearchDoc[] | null>(null);
@@ -47,6 +50,7 @@ export default function DocsSearch() {
   const containerRef = useRef<HTMLDivElement>(null);
   const loadPromiseRef = useRef<Promise<void> | null>(null);
   const resultRefs = useRef<Array<HTMLAnchorElement | null>>([]);
+  const activeHrefRef = useRef<string | null>(null);
   const listId = useId();
 
   const load = () => {
@@ -111,8 +115,12 @@ export default function DocsSearch() {
           // candidate was judged below the admission level - leaves the deterministic
           // list in place rather than blanking a match the reader can see.
           if (ranked.length === 0) return;
+          const nextActiveIndex = activeHrefRef.current
+            ? indexOfHref(ranked, activeHrefRef.current)
+            : -1;
           setJudgedResults(ranked);
-          setActiveIndex(-1);
+          setActiveIndex(nextActiveIndex);
+          if (nextActiveIndex < 0) activeHrefRef.current = null;
         })
         .catch(() => undefined);
     }, RERANK_DEBOUNCE_MS);
@@ -127,6 +135,7 @@ export default function DocsSearch() {
     if (event.key === 'Escape') {
       setOpen(false);
       setActiveIndex(-1);
+      activeHrefRef.current = null;
       return;
     }
     if (!showPanel || results.length === 0) return;
@@ -146,6 +155,7 @@ export default function DocsSearch() {
     if (nextIndex !== null) {
       event.preventDefault();
       setActiveIndex(nextIndex);
+      activeHrefRef.current = results[nextIndex]?.href ?? null;
     }
   };
 
@@ -169,6 +179,7 @@ export default function DocsSearch() {
           setQuery(event.target.value);
           setJudgedResults(null);
           setActiveIndex(-1);
+          activeHrefRef.current = null;
           setOpen(true);
         }}
         onKeyDown={handleKeyDown}
