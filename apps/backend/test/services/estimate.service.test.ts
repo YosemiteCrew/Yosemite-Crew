@@ -342,9 +342,12 @@ describe("EstimateService.convert", () => {
     expect(data.currency).toBe(approved.currency);
   });
 
-  it("does not copy the estimate item id onto the invoice line", async () => {
+  it("gives the invoice line a server id that is not the estimate item id", async () => {
     // An invoice line id is matched against WorkspaceTreatmentItem.invoiceRowId
     // when settling treatment items, so a copied id could settle an unrelated row.
+    // The line still needs an id of its own - without one a converted invoice has
+    // no way to name a row for an edit or a removal (#3154) - so the property
+    // under test is that it is a fresh id, not that there is no id.
     mockFindFirst.mockResolvedValue(approved);
     await EstimateService.convert("est-1", "org-1", "user-1");
 
@@ -352,8 +355,27 @@ describe("EstimateService.convert", () => {
       string,
       unknown
     >[];
-    expect(items[0]).not.toHaveProperty("id");
+    expect(typeof items[0].id).toBe("string");
+    expect(items[0].id).not.toBe(baseItem.id);
     expect(items[0].total).toBe(baseItem.lineTotal);
+  });
+
+  it("gives two identical estimate lines distinct invoice line ids", async () => {
+    // Two of the same item at the same price is an ordinary estimate. If both
+    // converted lines shared an id - or had none - the invoice could not tell
+    // them apart, and removing one would take the other with it.
+    mockFindFirst.mockResolvedValue({
+      ...approved,
+      items: [baseItem, { ...baseItem, id: "item-2" }],
+    });
+    await EstimateService.convert("est-1", "org-1", "user-1");
+
+    const items = mockInvoiceCreate.mock.calls[0][0].data.items as Record<
+      string,
+      unknown
+    >[];
+    expect(items).toHaveLength(2);
+    expect(items[0].id).not.toBe(items[1].id);
   });
 
   it("never sets appointmentId, which is unique and owned by the appointment", async () => {
