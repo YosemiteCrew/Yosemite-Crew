@@ -373,8 +373,12 @@ const withRenderedDocument = async <T extends Invoice>(
  * record's identity be mistaken for another's.
  */
 const assignInvoiceLineId = (existing?: string) => {
+  // `||` rather than `??`: a line whose id is whitespace, or the empty string,
+  // has no identity and needs one minted. `??` only answers for null and
+  // undefined, so it would preserve `""` as an id and every such line would
+  // then match every other such line.
   const trimmed = existing?.trim();
-  return trimmed ? trimmed : randomUUID();
+  return trimmed || randomUUID();
 };
 
 const buildInvoiceLineSnapshots = (items: DraftInvoiceItemInput[]) =>
