@@ -41,6 +41,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 
+/*
+ * Derived from this file's own location and never taken as an argument. An
+ * overridable root is a read sink fed by a parameter, which Aikido reports as
+ * a file-inclusion risk; the tests never needed one, since the pure functions
+ * below take YAML source and an already-walked inventory rather than a path.
+ */
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 /** Playwright's `testDir` for the frontend, relative to the repo root. */
@@ -52,8 +58,8 @@ export const WORKFLOW_DIR = '.github/workflows';
  * `e2e/smoke.spec.ts`. Recursive: `testDir` discovery does not stop at the top
  * level, and a spec parked in a subdirectory is exactly as invisible.
  */
-export const listSpecs = (root = REPO_ROOT) => {
-  const dir = path.join(root, SPEC_DIR);
+export const listSpecs = () => {
+  const dir = path.join(REPO_ROOT, SPEC_DIR);
   return readdirSync(dir, { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name.endsWith('.spec.ts'))
     .map((entry) => {
@@ -93,19 +99,20 @@ export const specsNamedInWorkflow = (source) => {
   return named;
 };
 
-export const specsNamedInWorkflows = (root = REPO_ROOT) => {
+export const specsNamedInWorkflows = () => {
   const named = new Set();
-  for (const entry of readdirSync(path.join(root, WORKFLOW_DIR))) {
+  const dir = path.join(REPO_ROOT, WORKFLOW_DIR);
+  for (const entry of readdirSync(dir)) {
     if (!/\.ya?ml$/.test(entry)) continue;
-    const source = readFileSync(path.join(root, WORKFLOW_DIR, entry), 'utf8');
+    const source = readFileSync(path.join(dir, entry), 'utf8');
     for (const spec of specsNamedInWorkflow(source)) named.add(spec);
   }
   return named;
 };
 
-export const findUnrunSpecs = (root = REPO_ROOT) => {
-  const specs = listSpecs(root);
-  const named = specsNamedInWorkflows(root);
+export const findUnrunSpecs = () => {
+  const specs = listSpecs();
+  const named = specsNamedInWorkflows();
   return { specs, named, unrun: specs.filter((spec) => !named.has(spec)) };
 };
 
