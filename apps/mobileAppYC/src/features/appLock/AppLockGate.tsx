@@ -32,6 +32,9 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
   const backgroundRef = useRef<{wall: number; mono: number | null} | null>(
     null,
   );
+  const activeRef = useRef(false);
+  const authenticatingRef = useRef(status.authenticating);
+  authenticatingRef.current = status.authenticating;
   const [failure, setFailure] = useState<string | null>(null);
 
   useEffect(() => {
@@ -40,16 +43,21 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
 
   useEffect(() => {
     if (!settings.enabled || !isLoggedIn) {
+      activeRef.current = false;
       dispatch(appUnlocked());
       return;
     }
-    dispatch(appLocked());
+    if (!activeRef.current) {
+      dispatch(appLocked());
+    }
+    activeRef.current = true;
     const onStateChange = async (next: AppStateStatus) => {
       if (next === 'background' || next === 'inactive') {
         backgroundRef.current = {wall: Date.now(), mono: await monotonicNow()};
         return;
       }
       if (next !== 'active') return;
+      if (authenticatingRef.current) return;
       const background = backgroundRef.current;
       backgroundRef.current = null;
       if (!background) {
@@ -96,7 +104,11 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
 
   return (
     <>
-      {children}
+      <View
+        importantForAccessibility="no-hide-descendants"
+        pointerEvents="none">
+        {children}
+      </View>
       <View style={[styles.root, {backgroundColor: theme.colors.screen}]}>
         <View
           accessible
