@@ -364,6 +364,123 @@ describe("FinancePaymentService", () => {
     );
   });
 
+  it("applies only the remaining balance when distinct captures overlap", async () => {
+    const invoice = {
+      id: "inv_overlap",
+      organisationId: "org_overlap",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      depositCollectedAmount: 0,
+    };
+    const recordedPayments: Array<{ id: string; amount: number }> = [];
+    let releaseInvoiceLock = () => undefined;
+    let lockTail = Promise.resolve();
+    let transactionNumber = 0;
+    let balanceReadNumber = 0;
+    let signalFirstBalanceRead = () => undefined;
+    let releaseFirstBalanceRead = () => undefined;
+    const firstBalanceReadStarted = new Promise<void>((resolve) => {
+      signalFirstBalanceRead = resolve;
+    });
+    const holdFirstBalanceRead = new Promise<void>((resolve) => {
+      releaseFirstBalanceRead = resolve;
+    });
+
+    (prisma.payment.findMany as jest.Mock).mockImplementation(async () =>
+      recordedPayments.map(({ amount }) => ({ amount })),
+    );
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      async (run: (tx: unknown) => Promise<unknown>) => {
+        transactionNumber += 1;
+        const thisTransaction = transactionNumber;
+        let releaseThisLock: (() => void) | undefined;
+        const tx = {
+          $executeRaw: jest.fn(async () => {
+            const previousLock = lockTail;
+            lockTail = new Promise<void>((resolve) => {
+              releaseInvoiceLock = resolve;
+            });
+            await previousLock;
+            releaseThisLock = releaseInvoiceLock;
+            return 1;
+          }),
+          invoice: {
+            findUnique: jest.fn().mockResolvedValue(invoice),
+            update: jest.fn().mockImplementation(async () => ({
+              ...invoice,
+              status: "PAID",
+            })),
+          },
+          payment: {
+            findMany: jest.fn(async () => {
+              balanceReadNumber += 1;
+              const snapshot = recordedPayments.map(({ amount }) => ({
+                amount,
+              }));
+              if (balanceReadNumber === 1) {
+                signalFirstBalanceRead();
+                await holdFirstBalanceRead;
+              }
+              return snapshot;
+            }),
+            create: jest.fn().mockImplementation(async ({ data }) => {
+              const payment = {
+                id: `pay_overlap_${thisTransaction}`,
+                amount: data.amount,
+              };
+              recordedPayments.push(payment);
+              return payment;
+            }),
+          },
+          paymentAttempt: {
+            create: jest.fn().mockResolvedValue({
+              id: `pa_overlap_${thisTransaction}`,
+            }),
+          },
+          creditNote: { findMany: jest.fn().mockResolvedValue([]) },
+        };
+
+        try {
+          return await run(tx);
+        } finally {
+          releaseThisLock?.();
+        }
+      },
+    );
+
+    const firstCapture = FinancePaymentService.recordInvoicePayment(
+      invoice.id,
+      {
+        provider: "STRIPE",
+        amount: 100,
+        currency: "usd",
+        providerPaymentId: "pi_overlap_a",
+      },
+    );
+    await firstBalanceReadStarted;
+
+    const secondCapture = FinancePaymentService.recordInvoicePayment(
+      invoice.id,
+      {
+        provider: "STRIPE",
+        amount: 100,
+        currency: "usd",
+        providerPaymentId: "pi_overlap_b",
+      },
+    );
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    releaseFirstBalanceRead();
+
+    const results = await Promise.all([firstCapture, secondCapture]);
+
+    expect(recordedPayments).toHaveLength(1);
+    expect(recordedPayments[0]?.amount).toBe(100);
+    expect(results.map(({ appliedAmount }) => appliedAmount).sort()).toEqual([
+      0, 100,
+    ]);
+  });
+
   it("rethrows a Payment insert failure that is not a unique violation", async () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_boom",
