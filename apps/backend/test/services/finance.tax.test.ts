@@ -395,6 +395,57 @@ describe("finance tax helpers", () => {
     );
   });
 
+  // Stripe Tax takes every line in Stripe's minor units, which a three-decimal
+  // amount cannot be converted to, so the rate-based snapshot prices it at the
+  // ledger's own precision even when a customer address is present.
+  it("prices a three-decimal currency with the rate-based snapshot, not Stripe Tax", async () => {
+    const createPreview = jest.fn();
+    __setFinanceTaxStripeClientForTests({
+      invoices: { createPreview } as any,
+    } as any);
+
+    const snapshot = await previewInvoiceTaxSnapshot(undefined, {
+      provider: DEFAULT_TAX_PROVIDER,
+      taxBehavior: "EXCLUSIVE",
+      taxRatePercent: 10,
+      currency: "kwd",
+      pricing: {
+        subtotal: 12.345,
+        lineDiscountTotal: 0,
+        taxableSubtotal: 12.345,
+        taxTotal: 1.235,
+        invoiceDiscountTotal: 0,
+        totalAmount: 13.58,
+        lines: [
+          {
+            grossAmount: 12.345,
+            lineDiscountAmount: 0,
+            netAmount: 12.345,
+            taxableAmount: 12.345,
+            taxAmount: 1.235,
+            totalAmount: 13.58,
+          },
+        ],
+      },
+      lineItems: [
+        { description: "Consultation", quantity: 1, unitPrice: 12.345 },
+      ],
+      customerAddress: {
+        line1: "1 Example Street",
+        city: "Example City",
+        postal_code: "00000",
+        country: "KW",
+      },
+    });
+
+    expect(createPreview).not.toHaveBeenCalled();
+    expect(snapshot.taxableSubtotal).toBe(12.345);
+    expect(snapshot.taxAmount).toBe(1.235);
+    expect(snapshot.rawProviderPayload).toEqual(
+      expect.objectContaining({ currency: "kwd", calculationMode: "fallback" }),
+    );
+  });
+
   it("throws when the Stripe secret key is missing for automatic tax previews", async () => {
     await expect(
       previewInvoiceTaxSnapshot(undefined, {

@@ -1,5 +1,7 @@
 import {
+  UnsupportedStripeCurrencyError,
   fromStripeMinorUnits,
+  isStripeChargeCurrencySupported,
   toStripeMinorUnits,
 } from "src/utils/stripe-minor-units";
 
@@ -67,5 +69,32 @@ describe("fromStripeMinorUnits", () => {
 
   it("keeps a zero-decimal Stripe amount unscaled", () => {
     expect(fromStripeMinorUnits(1000, " JPY ")).toBe(1000);
+  });
+});
+
+// A hundredth is not a three-decimal currency's minor unit, and scaling by a
+// hundred drops the third digit: 1.234 KWD would reach Stripe as 123. Refused
+// until a verified three-decimal conversion exists (#3153).
+describe("three-decimal currencies", () => {
+  it.each(["bhd", "jod", "kwd", "lyd", "omr", "tnd"])(
+    "refuses to convert %s",
+    (currency) => {
+      expect(() => toStripeMinorUnits(1.234, currency)).toThrow(
+        UnsupportedStripeCurrencyError,
+      );
+      expect(isStripeChargeCurrencySupported(currency)).toBe(false);
+    },
+  );
+
+  it("matches the refusal regardless of case or surrounding space", () => {
+    expect(() => toStripeMinorUnits(1.23, " KWD ")).toThrow(
+      "Stripe charges are not supported in KWD",
+    );
+    expect(isStripeChargeCurrencySupported(" KWD ")).toBe(false);
+  });
+
+  it("still supports the two- and zero-decimal currencies", () => {
+    expect(isStripeChargeCurrencySupported("usd")).toBe(true);
+    expect(isStripeChargeCurrencySupported("jpy")).toBe(true);
   });
 });
