@@ -237,12 +237,13 @@ describe("createApp", () => {
   });
 
   it("registers core middleware and emits security headers on health responses", async () => {
+    delete process.env.API_REVISION;
     const app = createApp();
 
     const response = await request(app, { path: "/health" });
     const body = JSON.parse(response.body) as { status: string };
 
-    expect(body).toEqual({ status: "ok" });
+    expect(body).toEqual({ status: "ok", revision: null });
     expect(response.statusCode).toBe(200);
     expect(response.getHeader("x-powered-by")).toBeUndefined();
     expect(response.getHeader("x-content-type-options")).toBe("nosniff");
@@ -257,6 +258,30 @@ describe("createApp", () => {
     expect(mockInitSuperTokens).not.toHaveBeenCalled();
     expect(mockRegisterSuperTokensBeforeRoutes).not.toHaveBeenCalled();
     expect(mockRegisterSuperTokensErrorHandler).not.toHaveBeenCalled();
+  });
+
+  // #2740: the only way to tell from outside which commit a 200 came from.
+  it("reports the served commit on /health", async () => {
+    const sha = "0123456789abcdef0123456789abcdef01234567";
+    process.env.API_REVISION = `  ${sha.toUpperCase()}\n`;
+
+    const response = await request(createApp(), { path: "/health" });
+
+    expect(JSON.parse(response.body)).toEqual({ status: "ok", revision: sha });
+  });
+
+  // The route is public, so a misconfigured variable must never be echoed.
+  it.each([
+    ["a path", "/home/deploy/app"],
+    ["a short sha", "0123456"],
+    ["a sha with a suffix", "0123456789abcdef0123456789abcdef01234567-dirty"],
+    ["an empty value", ""],
+  ])("reports a null revision for %s", async (_label, value) => {
+    process.env.API_REVISION = value;
+
+    const response = await request(createApp(), { path: "/health" });
+
+    expect(JSON.parse(response.body)).toEqual({ status: "ok", revision: null });
   });
 
   it("registers SuperTokens middleware only when all auth domains are configured", () => {
