@@ -4,6 +4,8 @@ import {
   allocatableResidual,
   CLOSED_INVOICE_STATUSES,
   PLATFORM_MERCHANT_ACCOUNT_REF,
+  ProviderReceiptService,
+  type AllocateResult,
 } from "src/services/finance/provider-receipt";
 import { getInvoiceFinancialSummaries } from "src/services/finance/payment";
 import { roundMoney } from "src/services/finance/pricing";
@@ -190,6 +192,49 @@ export type ClientAccountAllocationProposal = {
   /** The captures drawn on, at the versions this plan was taken from. */
   credits: ProposalCredit[];
 };
+
+/**
+ * One capture a confirming call would draw on, at the version its plan was
+ * read from.
+ *
+ * The same shape the proposal returns, because the confirming call is meant to
+ * be the proposal handed back. `expectedVersion` is per capture rather than per
+ * request: each one is its own compare-and-set, and a refund landing on one
+ * capture says nothing about the state of another.
+ */
+export type ClientAllocationCommand = {
+  receiptId: string;
+  expectedVersion: number;
+  allocations: readonly { invoiceId: string; amount: number }[];
+};
+
+/** What one capture in the plan did when it was applied. */
+export type ClientAllocationStep = {
+  receiptId: string;
+  result: AllocateResult;
+};
+
+/**
+ * What confirming a plan did.
+ *
+ * The two refusals above the fold are checked before anything is written, so
+ * they are the only outcomes that leave the money exactly where it was. Once
+ * the first capture has been applied, a later refusal cannot unwind it - the
+ * journal is append-only by design - so the result says how far it got rather
+ * than pretending the request did nothing.
+ */
+export type ClientAccountAllocationResult =
+  | { outcome: "RECEIPT_NOT_THIS_CLIENT"; receiptId: string }
+  | { outcome: "INVOICE_NOT_THIS_CLIENT"; invoiceId: string }
+  | {
+      outcome: "APPLIED" | "STOPPED";
+      /** What actually moved, summed from the applied lines and not the asked. */
+      appliedAmount: number;
+      /** Every capture attempted, in order, ending at the refusal if STOPPED. */
+      steps: ClientAllocationStep[];
+      /** The captures after the refusal, which were deliberately not tried. */
+      notAttempted: string[];
+    };
 
 /** The key of a capture-to-invoice pairing that has already been decided. */
 const allocationPairKey = (receiptId: string, invoiceId: string): string =>
@@ -483,5 +528,134 @@ export const ClientAccountService = {
         };
       })
       .sort((a, b) => a.currency.localeCompare(b.currency));
+  },
+  /**
+   * Apply a reviewed allocation plan across a client's captures (#3163).
+   *
+   * Each capture goes through `ProviderReceiptService.allocate`, which already
+   * owns the per-capture compare-and-set, the idempotent replay and the invoice
+   * eligibility rules. Nothing here re-implements any of that: this is the
+   * client-level frame around it, and the two things it adds are the two that
+   * a per-capture call cannot see.
+   *
+   * The first is whose money this is. `allocate` checks the organisation, and
+   * an organisation holds captures for every client it has invoiced - so
+   * without a check here, this route would take one client's credit and put it
+   * against another client's debt, inside the same tenant and with every
+   * per-capture guard satisfied. #3163 locks account identity to
+   * `(organisationId, parentId, currency)` for exactly that reason. Both the
+   * captures and the invoices named are required to be this client's, and both
+   * are checked before the first write.
+   *
+   * The second is order. Two captures paying one invoice is the normal output
+   * of the planner, and the second one's line was sized against the balance
+   * the first one has since reduced - so the captures are applied one at a
+   * time, in the order the plan gave them, never concurrently.
+   *
+   * One `idempotencyKey` covers the whole plan. The key is read per capture
+   * downstream, so replaying the plan replays each capture, and a batch that
+   * stopped half way finishes the rest when it is sent again.
+   */
+  async applyAllocation(input: {
+    organisationId: string;
+    parentId: string;
+    actorId: string;
+    idempotencyKey: string;
+    receipts: readonly ClientAllocationCommand[];
+  }): Promise<ClientAccountAllocationResult> {
+    const invoices = await prisma.invoice.findMany({
+      where: {
+        organisationId: input.organisationId,
+        parentId: input.parentId,
+      },
+      select: { id: true },
+    });
+    const clientInvoiceIds = new Set(invoices.map((invoice) => invoice.id));
+
+    for (const command of input.receipts) {
+      for (const line of command.allocations) {
+        if (!clientInvoiceIds.has(line.invoiceId)) {
+          return {
+            outcome: "INVOICE_NOT_THIS_CLIENT",
+            invoiceId: line.invoiceId,
+          };
+        }
+      }
+    }
+
+    /*
+     * A capture is this client's when it is attributed to one of their
+     * invoices, which is the same statement of ownership the proposal reads.
+     * Unattributed captures are excluded by that join rather than by a second
+     * rule: `invoiceId` is what carries the claim, so a capture nobody has
+     * placed yet is not this client's either.
+     */
+    const owned = await prisma.providerReceipt.findMany({
+      where: {
+        organisationId: input.organisationId,
+        invoiceId: { in: [...clientInvoiceIds] },
+        id: { in: input.receipts.map((command) => command.receiptId) },
+      },
+      select: { id: true },
+    });
+    const ownedIds = new Set(owned.map((receipt) => receipt.id));
+    for (const command of input.receipts) {
+      if (!ownedIds.has(command.receiptId)) {
+        return {
+          outcome: "RECEIPT_NOT_THIS_CLIENT",
+          receiptId: command.receiptId,
+        };
+      }
+    }
+
+    const steps: ClientAllocationStep[] = [];
+    let appliedAmount = 0;
+    for (const [index, command] of input.receipts.entries()) {
+      const result = await ProviderReceiptService.allocate({
+        organisationId: input.organisationId,
+        receiptId: command.receiptId,
+        expectedVersion: command.expectedVersion,
+        idempotencyKey: input.idempotencyKey,
+        actorId: input.actorId,
+        allocations: command.allocations,
+      });
+      steps.push({ receiptId: command.receiptId, result });
+
+      if (result.outcome !== "APPLIED" && result.outcome !== "REPLAYED") {
+        /*
+         * Stopped rather than skipped. The plan is one decision about one pool
+         * of money: if a capture in the middle of it has moved, the lines
+         * after it were sized against a total that no longer holds, and
+         * applying them anyway would put money where a preview the operator
+         * never saw would have put it.
+         */
+        return {
+          outcome: "STOPPED",
+          appliedAmount: roundMoney(appliedAmount),
+          steps,
+          notAttempted: input.receipts
+            .slice(index + 1)
+            .map((pending) => pending.receiptId),
+        };
+      }
+
+      /*
+       * Summed from what came back, not from what was sent. A capture can
+       * apply less than its line asked for - an invoice balance that shrank
+       * between the preview and the confirm takes what is left of it - and the
+       * figure an operator is shown has to be the money that moved.
+       */
+      appliedAmount = roundMoney(
+        appliedAmount +
+          result.allocations.reduce((sum, line) => sum + line.amount, 0),
+      );
+    }
+
+    return {
+      outcome: "APPLIED",
+      appliedAmount: roundMoney(appliedAmount),
+      steps,
+      notAttempted: [],
+    };
   },
 };

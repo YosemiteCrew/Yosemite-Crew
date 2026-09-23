@@ -19,7 +19,10 @@ import {
   type AllocateResult,
 } from "src/services/finance/provider-receipt";
 import { ProviderReceiptAuditService } from "src/services/finance/provider-receipt-audit";
-import { ClientAccountService } from "src/services/finance/client-account";
+import {
+  ClientAccountService,
+  type ClientAccountAllocationResult,
+} from "src/services/finance/client-account";
 import { parseKeysetCursor } from "src/services/shared/pagination";
 import { StripeController } from "src/controllers/web/stripe.controller";
 import { StripeService } from "src/services/stripe.service";
@@ -367,6 +370,62 @@ const PROVIDER_RECEIPT_ALLOCATION_FAILURES: Record<
     status: 409,
     message: "An invoice in this allocation cannot take this payment.",
   },
+};
+
+/**
+ * A reviewed plan handed back for confirmation (#3163).
+ *
+ * The body is the proposal's own shape rather than a flat list of lines,
+ * because each capture carries the version it was planned from and a flat list
+ * would have nowhere to put it.
+ *
+ * One `idempotencyKey` for the whole plan and not one per capture. It is one
+ * decision an operator took once, and a per-capture key would let a retry
+ * repeat half of it as a new decision.
+ *
+ * Bounded on both axes. Each capture is applied sequentially and each line
+ * within it posts sequentially, so an unbounded plan is an unbounded request.
+ */
+const ClientAccountAllocationBodySchema = z.object({
+  idempotencyKey: z.string().trim().min(1).max(200),
+  receipts: z
+    .array(
+      z.object({
+        receiptId: z.uuid(),
+        expectedVersion: z.number().int().min(0),
+        allocations: z
+          .array(
+            z.object({
+              invoiceId: z.uuid(),
+              // Strictly positive, as on the per-capture route: a zero or
+              // negative line is a different operation, not a smaller one.
+              amount: z.number().positive(),
+            }),
+          )
+          .min(1)
+          .max(20),
+      }),
+    )
+    .min(1)
+    .max(20),
+});
+
+/**
+ * How each zero-write refusal of a plan is answered.
+ *
+ * Both are 409 rather than 404. A 404 on the capture would confirm to anyone
+ * who can guess an id that it exists somewhere else in this organisation, and
+ * "this is not that client's" is a conflict between the request and the
+ * account it was sent to, not a missing object.
+ */
+const CLIENT_ACCOUNT_ALLOCATION_FAILURES: Record<
+  Exclude<ClientAccountAllocationResult["outcome"], "APPLIED" | "STOPPED">,
+  string
+> = {
+  RECEIPT_NOT_THIS_CLIENT:
+    "A capture in this plan does not belong to this client's account.",
+  INVOICE_NOT_THIS_CLIENT:
+    "An invoice in this plan does not belong to this client.",
 };
 
 const normalizeProvider = (value?: string) =>
@@ -2085,6 +2144,113 @@ export const FinanceController = {
       return res.status(200).json({ data: proposal, error: null });
     } catch (error) {
       logger.error("Error proposing client account allocation", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  /**
+   * Confirm a client account allocation plan (#3163).
+   *
+   * The organisation and the acting staff member come from the session, as on
+   * the per-capture route beside it: an allocation is an audited money
+   * movement and a request-supplied actor would put an unverified name on it.
+   *
+   * A plan that stopped part way is answered 200 and not 409. The request was
+   * performed, just not all of it, and a status code cannot say "two of five
+   * captures applied" - so the outcome is in the body where it can name which
+   * capture refused, what it refused with, and which captures were never
+   * tried. A 409 here would tell a client to retry a request that already
+   * moved money. The two refusals that write nothing at all are 409, because
+   * for those nothing was performed.
+   */
+  async applyClientAccountAllocation(this: void, req: Request, res: Response) {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
+      const actorId = resolveVerifiedUserId(req);
+      if (!actorId) {
+        return res.status(401).json({ message: "Unauthenticated" });
+      }
+
+      const parentId = z.uuid().safeParse(req.params.parentId);
+      if (!parentId.success) {
+        return res.status(400).json({ message: "Invalid client id." });
+      }
+
+      const body = ClientAccountAllocationBodySchema.safeParse(req.body);
+      if (!body.success) {
+        // The offending value is not echoed: it is caller-controlled and a raw
+        // CR/LF in it forges a second log line.
+        return res.status(400).json({
+          message:
+            "Invalid plan. Send idempotencyKey and one to twenty captures, each with expectedVersion and one to twenty positive allocations.",
+        });
+      }
+
+      /*
+       * A capture named twice is rejected rather than merged. The second entry
+       * would carry this plan's idempotency key into a capture the first has
+       * already decided, so it would come back REPLAYED with the FIRST entry's
+       * lines - reporting a success for lines that were never applied.
+       */
+      const receiptIds = body.data.receipts.map((entry) => entry.receiptId);
+      if (new Set(receiptIds).size !== receiptIds.length) {
+        return res.status(409).json({
+          message: "Each capture may appear at most once in a plan.",
+          error: { code: "DUPLICATE_RECEIPT" },
+        });
+      }
+
+      /*
+       * And an invoice named twice under one capture, for the reason the
+       * per-capture route gives: summing them answers a request the caller did
+       * not make, and the one-allocation-per-pair rule downstream would refuse
+       * the second line as a conflict, which reads as somebody else's write.
+       */
+      for (const entry of body.data.receipts) {
+        const invoiceIds = entry.allocations.map((line) => line.invoiceId);
+        if (new Set(invoiceIds).size !== invoiceIds.length) {
+          return res.status(400).json({
+            message: "Each invoice may appear at most once under one capture.",
+          });
+        }
+      }
+
+      const result = await ClientAccountService.applyAllocation({
+        organisationId,
+        parentId: parentId.data,
+        actorId,
+        idempotencyKey: body.data.idempotencyKey,
+        receipts: body.data.receipts,
+      });
+
+      if (result.outcome !== "APPLIED" && result.outcome !== "STOPPED") {
+        return res.status(409).json({
+          message: CLIENT_ACCOUNT_ALLOCATION_FAILURES[result.outcome],
+          error: {
+            code: result.outcome,
+            ...("receiptId" in result ? { receiptId: result.receiptId } : {}),
+            ...("invoiceId" in result ? { invoiceId: result.invoiceId } : {}),
+          },
+        });
+      }
+
+      return res.status(200).json({
+        data: {
+          outcome: result.outcome,
+          appliedAmount: result.appliedAmount,
+          steps: result.steps,
+          notAttempted: result.notAttempted,
+        },
+        error: null,
+      });
+    } catch (error) {
+      logger.error("Error applying client account allocation", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   },

@@ -4,6 +4,8 @@ import {
   summariseClientCredit,
 } from "../../src/services/finance/client-account";
 import { getInvoiceFinancialSummaries } from "src/services/finance/payment";
+import { ProviderReceiptService } from "src/services/finance/provider-receipt";
+import type { AllocateResult } from "src/services/finance/provider-receipt";
 import { prisma } from "src/config/prisma";
 
 jest.mock("src/config/prisma", () => ({
@@ -795,5 +797,214 @@ describe("ClientAccountService.proposeAllocation", () => {
     expect(
       mockedPrisma.providerReceiptAllocation.create,
     ).not.toHaveBeenCalled();
+  });
+});
+/*
+ * The real allocation call is spied on rather than the module mocked. The
+ * service under test also imports `allocatableResidual` and the closed-status
+ * set from it, and replacing the module would replace those too - the proposal
+ * suite above would then be testing the mock's arithmetic.
+ */
+const applied = (lines: { invoiceId: string; amount: number }[]) =>
+  ({
+    outcome: "APPLIED",
+    receipt: {},
+    remainingAmount: 0,
+    allocations: lines.map((line) => ({ ...line, paymentId: "pay-1" })),
+  }) as unknown as AllocateResult;
+
+const plan = (over: Partial<Record<string, unknown>> = {}) => ({
+  receiptId: "receipt-1",
+  expectedVersion: 3,
+  allocations: [{ invoiceId: "invoice-1", amount: 40 }],
+  ...over,
+});
+
+const applyPlan = (
+  receipts: ReturnType<typeof plan>[],
+  over: Partial<Record<string, unknown>> = {},
+) =>
+  ClientAccountService.applyAllocation({
+    organisationId: ORG,
+    parentId: PARENT,
+    actorId: "actor-1",
+    idempotencyKey: "key-1",
+    receipts,
+    ...over,
+  });
+
+describe("ClientAccountService.applyAllocation", () => {
+  let allocate: jest.SpyInstance;
+
+  beforeEach(() => {
+    allocate = jest
+      .spyOn(ProviderReceiptService, "allocate")
+      .mockResolvedValue(applied([{ invoiceId: "invoice-1", amount: 40 }]));
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      { id: "invoice-1" },
+      { id: "invoice-2" },
+    ]);
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      { id: "receipt-1" },
+      { id: "receipt-2" },
+    ]);
+  });
+
+  afterEach(() => {
+    allocate.mockRestore();
+  });
+
+  it("refuses an invoice that is not this client's and writes nothing", async () => {
+    const result = await applyPlan([
+      plan({ allocations: [{ invoiceId: "someone-else", amount: 40 }] }),
+    ]);
+
+    expect(result).toEqual({
+      outcome: "INVOICE_NOT_THIS_CLIENT",
+      invoiceId: "someone-else",
+    });
+    expect(allocate).not.toHaveBeenCalled();
+  });
+
+  it("refuses a capture that is not this client's and writes nothing", async () => {
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([]);
+
+    const result = await applyPlan([plan({ receiptId: "receipt-1" })]);
+
+    expect(result).toEqual({
+      outcome: "RECEIPT_NOT_THIS_CLIENT",
+      receiptId: "receipt-1",
+    });
+    expect(allocate).not.toHaveBeenCalled();
+  });
+
+  it("scopes the capture lookup to this client's own invoices", async () => {
+    await applyPlan([plan()]);
+
+    expect(mockedPrisma.providerReceipt.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organisationId: ORG,
+          invoiceId: { in: ["invoice-1", "invoice-2"] },
+        }),
+      }),
+    );
+  });
+
+  it("applies the captures in the order the plan gave them", async () => {
+    await applyPlan([
+      plan({ receiptId: "receipt-1" }),
+      plan({ receiptId: "receipt-2" }),
+    ]);
+
+    expect(allocate.mock.calls.map((call) => call[0].receiptId)).toEqual([
+      "receipt-1",
+      "receipt-2",
+    ]);
+  });
+
+  it("sends each capture its own expectedVersion", async () => {
+    await applyPlan([
+      plan({ receiptId: "receipt-1", expectedVersion: 3 }),
+      plan({ receiptId: "receipt-2", expectedVersion: 9 }),
+    ]);
+
+    expect(allocate.mock.calls.map((call) => call[0].expectedVersion)).toEqual([
+      3, 9,
+    ]);
+  });
+
+  it("carries one idempotency key across the whole plan", async () => {
+    await applyPlan(
+      [plan({ receiptId: "receipt-1" }), plan({ receiptId: "receipt-2" })],
+      { idempotencyKey: "one-decision" },
+    );
+
+    expect(allocate.mock.calls.map((call) => call[0].idempotencyKey)).toEqual([
+      "one-decision",
+      "one-decision",
+    ]);
+  });
+
+  it("takes the actor from the caller and never from the plan", async () => {
+    await applyPlan([plan()], { actorId: "nurse-7" });
+
+    expect(allocate).toHaveBeenCalledWith(
+      expect.objectContaining({ actorId: "nurse-7", organisationId: ORG }),
+    );
+  });
+
+  it("stops at the first refusal and names what it did not try", async () => {
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      { id: "receipt-1" },
+      { id: "receipt-2" },
+      { id: "receipt-3" },
+    ]);
+    allocate
+      .mockResolvedValueOnce(applied([{ invoiceId: "invoice-1", amount: 40 }]))
+      .mockResolvedValueOnce({
+        outcome: "VERSION_CONFLICT",
+        version: 7,
+      } as AllocateResult);
+
+    const result = await applyPlan([
+      plan({ receiptId: "receipt-1" }),
+      plan({ receiptId: "receipt-2" }),
+      plan({ receiptId: "receipt-3" }),
+    ]);
+
+    expect(allocate).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({
+      outcome: "STOPPED",
+      appliedAmount: 40,
+      steps: [
+        {
+          receiptId: "receipt-1",
+          result: expect.objectContaining({ outcome: "APPLIED" }),
+        },
+        {
+          receiptId: "receipt-2",
+          result: { outcome: "VERSION_CONFLICT", version: 7 },
+        },
+      ],
+      notAttempted: ["receipt-3"],
+    });
+  });
+
+  it("sums what was applied and not what was asked for", async () => {
+    allocate.mockResolvedValue(
+      applied([{ invoiceId: "invoice-1", amount: 10 }]),
+    );
+
+    const result = await applyPlan([
+      plan({ allocations: [{ invoiceId: "invoice-1", amount: 40 }] }),
+    ]);
+
+    expect(result).toEqual(
+      expect.objectContaining({ outcome: "APPLIED", appliedAmount: 10 }),
+    );
+  });
+
+  it("counts a replayed capture as applied and carries on", async () => {
+    allocate
+      .mockResolvedValueOnce({
+        outcome: "REPLAYED",
+        receipt: {},
+        remainingAmount: 0,
+        allocations: [
+          { invoiceId: "invoice-1", amount: 25, paymentId: "pay-0" },
+        ],
+      } as unknown as AllocateResult)
+      .mockResolvedValueOnce(applied([{ invoiceId: "invoice-2", amount: 15 }]));
+
+    const result = await applyPlan([
+      plan({ receiptId: "receipt-1" }),
+      plan({ receiptId: "receipt-2" }),
+    ]);
+
+    expect(allocate).toHaveBeenCalledTimes(2);
+    expect(result).toEqual(
+      expect.objectContaining({ outcome: "APPLIED", appliedAmount: 40 }),
+    );
   });
 });
