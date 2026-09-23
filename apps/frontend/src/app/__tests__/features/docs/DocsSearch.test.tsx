@@ -25,10 +25,12 @@ describe('DocsSearch', () => {
   });
 
   const mockIndex = () => {
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => INDEX,
-    }) as unknown as typeof fetch;
+    global.fetch = jest.fn().mockImplementation((input: RequestInfo | URL) =>
+      Promise.resolve({
+        ok: true,
+        json: async () => (String(input) === '/api/docs/rerank' ? { order: null } : INDEX),
+      })
+    ) as unknown as typeof fetch;
   };
 
   /* The index is 108 KB, so a reader who never searches must not pay for it. */
@@ -36,6 +38,7 @@ describe('DocsSearch', () => {
     mockIndex();
     render(<DocsSearch />);
     expect(global.fetch).not.toHaveBeenCalled();
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'ArrowDown' });
 
     // Focus starts an async load; flush it inside act so the state update that
     // resolves after this assertion does not warn.
@@ -70,6 +73,135 @@ describe('DocsSearch', () => {
     expect(await screen.findByText('User API')).toBeInTheDocument();
   });
 
+  it('applies a successful order only to retrieved candidates', async () => {
+    const tokenDoc = {
+      title: 'API tokens',
+      href: '/docs/apps/backend/api/tokens',
+      section: 'Backend API',
+      text: 'User credential tokens',
+    };
+    global.fetch = jest.fn().mockImplementation((input: RequestInfo | URL) =>
+      Promise.resolve({
+        ok: true,
+        json: async () => {
+          if (String(input) === '/docs/search-index.json') return [INDEX[0], tokenDoc];
+          return { order: [tokenDoc.href, INDEX[0].href, '/docs/outside-candidates'] };
+        },
+      })
+    ) as unknown as typeof fetch;
+
+    render(<DocsSearch />);
+    const input = screen.getByRole('combobox');
+    await act(async () => fireEvent.focus(input));
+    fireEvent.change(input, { target: { value: 'user key' } });
+
+    expect(await screen.findByRole('option', { name: /User API/ })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/docs/rerank',
+        expect.objectContaining({ method: 'POST', body: JSON.stringify({ query: 'user key' }) })
+      )
+    );
+    await waitFor(() =>
+      expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+        'API tokensBackend API',
+        'User APIBackend API',
+      ])
+    );
+    expect(screen.queryByText('outside-candidates')).not.toBeInTheDocument();
+
+    const firstResult = screen.getByRole('option', { name: /API tokens/ });
+    fireEvent.click(firstResult);
+    await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+    await act(async () => fireEvent.focus(input));
+    const reopenedResult = screen.getByRole('option', { name: /API tokens/ });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(reopenedResult).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+  });
+
+  it.each([
+    ['null result', null],
+    ['HTTP failure', 'http-failure'],
+    ['non-array order', { order: 'invalid' }],
+    ['non-string href', { order: [42] }],
+    ['outside candidate', { order: ['/docs/not-in-candidates'] }],
+    ['empty order', { order: [] }],
+  ])('ignores a %s from the reranker', async (_caseName, rerankResult) => {
+    global.fetch = jest.fn().mockImplementation((input: RequestInfo | URL) => {
+      if (String(input) === '/api/docs/rerank' && rerankResult === 'http-failure') {
+        return Promise.resolve({ ok: false, status: 503 });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => (String(input) === '/api/docs/rerank' ? rerankResult : INDEX),
+      });
+    }) as unknown as typeof fetch;
+
+    render(<DocsSearch />);
+    const input = screen.getByRole('combobox');
+    await act(async () => fireEvent.focus(input));
+    fireEvent.change(input, { target: { value: 'user' } });
+    expect(await screen.findByRole('option', { name: /User API/ })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/docs/rerank',
+        expect.objectContaining({ method: 'POST' })
+      )
+    );
+    await act(async () => new Promise((resolve) => globalThis.setTimeout(resolve, 150)));
+
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+    expect(screen.getByRole('option', { name: /User API/ })).toBeInTheDocument();
+  });
+
+  it('closes the results on Escape and outside press while keeping internal clicks open', async () => {
+    mockIndex();
+    render(<DocsSearch />);
+    const input = screen.getByRole('combobox');
+    await act(async () => fireEvent.focus(input));
+    fireEvent.change(input, { target: { value: 'user' } });
+    expect(await screen.findByRole('option', { name: /User API/ })).toBeInTheDocument();
+
+    fireEvent.mouseDown(input);
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    await act(async () => {
+      document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    });
+    await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+
+    fireEvent.focus(input);
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('keeps deterministic results when the rerank request rejects', async () => {
+    global.fetch = jest
+      .fn()
+      .mockImplementation((input: RequestInfo | URL) =>
+        String(input) === '/api/docs/rerank'
+          ? Promise.reject(new Error('offline'))
+          : Promise.resolve({ ok: true, json: async () => INDEX })
+      ) as unknown as typeof fetch;
+
+    render(<DocsSearch />);
+    const input = screen.getByRole('combobox');
+    await act(async () => fireEvent.focus(input));
+    fireEvent.change(input, { target: { value: 'user' } });
+    expect(await screen.findByRole('option', { name: /User API/ })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/docs/rerank',
+        expect.objectContaining({ method: 'POST' })
+      )
+    );
+    await act(async () => new Promise((resolve) => globalThis.setTimeout(resolve, 150)));
+
+    expect(screen.getByRole('option', { name: /User API/ })).toBeInTheDocument();
+  });
+
   it('says so when nothing matches', async () => {
     mockIndex();
     render(<DocsSearch />);
@@ -80,6 +212,7 @@ describe('DocsSearch', () => {
     fireEvent.change(input, { target: { value: 'zzzznothing' } });
 
     expect(await screen.findByText(/No matches/)).toBeInTheDocument();
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
   });
 
   /*
@@ -129,14 +262,13 @@ describe('DocsSearch', () => {
     fireEvent.change(input, { target: { value: 'api' } });
 
     const option = await screen.findByRole('option', { name: /User API/ });
-    const click = jest.spyOn(option, 'click').mockImplementation(() => undefined);
     fireEvent.keyDown(input, { key: 'ArrowDown' });
 
     expect(option).toHaveAttribute('aria-selected', 'true');
     expect(input).toHaveAttribute('aria-activedescendant', option.id);
 
     fireEvent.keyDown(input, { key: 'Enter' });
-    expect(click).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
   });
 
   it('clamps arrow navigation and resets selection when the query changes', async () => {
@@ -149,6 +281,8 @@ describe('DocsSearch', () => {
     fireEvent.change(input, { target: { value: 'i' } });
     const options = await screen.findAllByRole('option');
 
+    fireEvent.keyDown(input, { key: 'ArrowUp' });
+    expect(options[0]).toHaveAttribute('aria-selected', 'true');
     fireEvent.keyDown(input, { key: 'End' });
     expect(options.at(-1)).toHaveAttribute('aria-selected', 'true');
     fireEvent.keyDown(input, { key: 'ArrowDown' });
@@ -178,7 +312,9 @@ describe('DocsSearch', () => {
 
     expect(await screen.findByRole('option', { name: /User API/ })).toBeInTheDocument();
     expect(input).toHaveValue('user');
-    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(
+      (global.fetch as jest.Mock).mock.calls.filter(([url]) => url === '/docs/search-index.json')
+    ).toHaveLength(2);
   });
 
   it('deduplicates repeated load attempts while a request is pending', () => {
