@@ -1,6 +1,15 @@
 import React from 'react';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
+
+jest.mock('@/app/ui/primitives/Buttons', () => ({
+  Secondary: ({ text, ariaLabel, onClick }: any) => (
+    <button type="button" aria-label={ariaLabel} onClick={onClick}>
+      {text}
+    </button>
+  ),
+}));
 
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -28,6 +37,7 @@ const receipt = (over: Partial<ProviderReceipt> = {}): ProviderReceipt => ({
   status: 'UNALLOCATED',
   reason: 'No invoice found for this capture',
   refundedAmount: 0,
+  allocatedAmount: 0,
   version: 1,
   createdAt: '2026-09-12T14:03:05.000Z',
   ...over,
@@ -121,5 +131,36 @@ describe('PhoneReceiptList', () => {
     );
 
     expect(within(list()).getAllByRole('listitem')).toHaveLength(3);
+  });
+});
+
+describe('the allocate action on a card', () => {
+  it('offers it only where the route would accept the capture', async () => {
+    const onAllocate = jest.fn();
+    const row = receipt();
+    render(
+      <PhoneReceiptList
+        receipts={[row, receipt({ id: 'rec-2', status: 'REFUNDED', refundedAmount: 120 })]}
+        onAllocate={onAllocate}
+      />
+    );
+
+    const buttons = screen.getAllByRole('button', { name: /^Apply the payment captured/ });
+    expect(buttons).toHaveLength(1);
+
+    await userEvent.click(buttons[0]);
+    expect(onAllocate).toHaveBeenCalledWith(row);
+  });
+
+  it('renders no action at all without the permission to move money', () => {
+    render(<PhoneReceiptList receipts={[receipt()]} />);
+
+    expect(screen.queryByRole('button', { name: /^Apply the payment captured/ })).toBeNull();
+  });
+
+  it('states what is left of a part-applied capture', () => {
+    render(<PhoneReceiptList receipts={[receipt({ amount: 120, allocatedAmount: 45 })]} />);
+
+    expect(screen.getByText('£75.00 unapplied')).toBeInTheDocument();
   });
 });
