@@ -80,6 +80,26 @@ const restoreEnv = () => {
   }
 };
 
+// What SuperTokens really hands `override.apis`: a supertokens-js-override proxy
+// (getProxyObject) whose methods dispatch through `this._call`. A plain object of
+// jest.fn cannot see a method called without its receiver, which is how every
+// email/password route answered 500 on dev while this suite stayed green.
+const recipeProxy = <T extends Record<string, unknown>>(impl: T): T => {
+  const proxy: Record<string, unknown> = {
+    _call: (name: string, args: unknown[]) =>
+      (impl[name] as (...a: unknown[]) => unknown)(...args),
+  };
+  for (const name of Object.keys(impl)) {
+    proxy[name] = function (
+      this: { _call: (n: string, a: unknown[]) => unknown },
+      ...args: unknown[]
+    ) {
+      return this._call(name, args);
+    };
+  }
+  return proxy as T;
+};
+
 describe("@yosemite-crew/auth supertokens config", () => {
   beforeEach(() => {
     jest.resetModules();
@@ -170,9 +190,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
       successfulVerification();
       const config = configureProtectedSignup();
       const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
-      const signUpPOST = config.override.apis({
-        signUpPOST: originalSignUpPOST,
-      }).signUpPOST;
+      const signUpPOST = config.override.apis(
+        recipeProxy({
+          signUpPOST: originalSignUpPOST,
+        }),
+      ).signUpPOST;
 
       await expect(signUpPOST(signUpInput())).resolves.toEqual({
         status: "OK",
@@ -230,9 +252,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
       })) as unknown as typeof fetch;
       const config = configureProtectedSignup();
       const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
-      const signUpPOST = config.override.apis({
-        signUpPOST: originalSignUpPOST,
-      }).signUpPOST;
+      const signUpPOST = config.override.apis(
+        recipeProxy({
+          signUpPOST: originalSignUpPOST,
+        }),
+      ).signUpPOST;
 
       await expect(signUpPOST(signUpInput())).resolves.toEqual({
         status: "SIGN_UP_NOT_ALLOWED",
@@ -246,9 +270,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
       successfulVerification();
       const config = configureProtectedSignup();
       const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
-      const signUpPOST = config.override.apis({
-        signUpPOST: originalSignUpPOST,
-      }).signUpPOST;
+      const signUpPOST = config.override.apis(
+        recipeProxy({
+          signUpPOST: originalSignUpPOST,
+        }),
+      ).signUpPOST;
       const input = signUpInput();
       input.formFields = input.formFields.filter(
         (field) => field.id !== "turnstileToken",
@@ -265,9 +291,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
       successfulVerification();
       const config = configureProtectedSignup();
       const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
-      const signUpPOST = config.override.apis({
-        signUpPOST: originalSignUpPOST,
-      }).signUpPOST;
+      const signUpPOST = config.override.apis(
+        recipeProxy({
+          signUpPOST: originalSignUpPOST,
+        }),
+      ).signUpPOST;
       const input = signUpInput();
       input.formFields.find((field) => field.id === "turnstileToken")!.value =
         "x".repeat(2049);
@@ -288,9 +316,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
         .mockImplementation(() => {});
       const config = configureProtectedSignup();
       const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
-      const signUpPOST = config.override.apis({
-        signUpPOST: originalSignUpPOST,
-      }).signUpPOST;
+      const signUpPOST = config.override.apis(
+        recipeProxy({
+          signUpPOST: originalSignUpPOST,
+        }),
+      ).signUpPOST;
 
       await expect(signUpPOST(signUpInput())).resolves.toMatchObject({
         status: "SIGN_UP_NOT_ALLOWED",
@@ -314,9 +344,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
       })) as unknown as typeof fetch;
       const config = configureProtectedSignup();
       const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
-      const signUpPOST = config.override.apis({
-        signUpPOST: originalSignUpPOST,
-      }).signUpPOST;
+      const signUpPOST = config.override.apis(
+        recipeProxy({
+          signUpPOST: originalSignUpPOST,
+        }),
+      ).signUpPOST;
 
       await expect(signUpPOST(signUpInput())).resolves.toMatchObject({
         status: "SIGN_UP_NOT_ALLOWED",
@@ -328,9 +360,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
       successfulVerification();
       const config = configureProtectedSignup();
       const originalSignInPOST = jest.fn(async () => ({ status: "OK" }));
-      const signInPOST = config.override.apis({
-        signInPOST: originalSignInPOST,
-      }).signInPOST;
+      const signInPOST = config.override.apis(
+        recipeProxy({
+          signInPOST: originalSignInPOST,
+        }),
+      ).signInPOST;
       const aliasField = [
         { id: "email", value: "First.Last+wave@GoogleMail.com" },
       ];
@@ -354,10 +388,12 @@ describe("@yosemite-crew/auth supertokens config", () => {
         status: "OK",
         exists: false,
       }));
-      const signInPOST = config.override.apis({
-        signInPOST: originalSignInPOST,
-        emailExistsGET: originalEmailExistsGET,
-      }).signInPOST;
+      const signInPOST = config.override.apis(
+        recipeProxy({
+          signInPOST: originalSignInPOST,
+          emailExistsGET: originalEmailExistsGET,
+        }),
+      ).signInPOST;
 
       await expect(signInPOST(signUpInput())).resolves.toEqual({
         status: "OK",
@@ -383,10 +419,12 @@ describe("@yosemite-crew/auth supertokens config", () => {
         status: "OK",
         exists: true,
       }));
-      const signInPOST = config.override.apis({
-        signInPOST: originalSignInPOST,
-        emailExistsGET: originalEmailExistsGET,
-      }).signInPOST;
+      const signInPOST = config.override.apis(
+        recipeProxy({
+          signInPOST: originalSignInPOST,
+          emailExistsGET: originalEmailExistsGET,
+        }),
+      ).signInPOST;
 
       await expect(signInPOST(signUpInput())).resolves.toEqual({
         status: "WRONG_CREDENTIALS_ERROR",
@@ -408,10 +446,12 @@ describe("@yosemite-crew/auth supertokens config", () => {
         status: "OK",
         exists: false,
       }));
-      const resetPOST = config.override.apis({
-        generatePasswordResetTokenPOST: originalResetPOST,
-        emailExistsGET: originalEmailExistsGET,
-      }).generatePasswordResetTokenPOST;
+      const resetPOST = config.override.apis(
+        recipeProxy({
+          generatePasswordResetTokenPOST: originalResetPOST,
+          emailExistsGET: originalEmailExistsGET,
+        }),
+      ).generatePasswordResetTokenPOST;
 
       await resetPOST(signUpInput());
 
@@ -432,10 +472,12 @@ describe("@yosemite-crew/auth supertokens config", () => {
         status: "OK",
         exists: true,
       }));
-      const resetPOST = config.override.apis({
-        generatePasswordResetTokenPOST: originalResetPOST,
-        emailExistsGET: originalEmailExistsGET,
-      }).generatePasswordResetTokenPOST;
+      const resetPOST = config.override.apis(
+        recipeProxy({
+          generatePasswordResetTokenPOST: originalResetPOST,
+          emailExistsGET: originalEmailExistsGET,
+        }),
+      ).generatePasswordResetTokenPOST;
       const input = signUpInput();
 
       await resetPOST(input);
@@ -451,9 +493,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
         .fn()
         .mockResolvedValueOnce({ status: "OK", exists: false })
         .mockResolvedValueOnce({ status: "OK", exists: true });
-      const emailExistsGET = config.override.apis({
-        emailExistsGET: originalEmailExistsGET,
-      }).emailExistsGET;
+      const emailExistsGET = config.override.apis(
+        recipeProxy({
+          emailExistsGET: originalEmailExistsGET,
+        }),
+      ).emailExistsGET;
 
       await expect(
         emailExistsGET({ email: "First.Last+wave@GoogleMail.com" }),
@@ -476,9 +520,11 @@ describe("@yosemite-crew/auth supertokens config", () => {
       getSuperTokensConfig();
       const config = mockEmailPasswordInit.mock.calls[0]?.[0] as any;
       const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
-      const signUpPOST = config.override.apis({
-        signUpPOST: originalSignUpPOST,
-      }).signUpPOST;
+      const signUpPOST = config.override.apis(
+        recipeProxy({
+          signUpPOST: originalSignUpPOST,
+        }),
+      ).signUpPOST;
 
       await expect(signUpPOST(signUpInput())).resolves.toEqual({
         status: "OK",
@@ -519,10 +565,12 @@ describe("@yosemite-crew/auth supertokens config", () => {
         const config = mockEmailPasswordInit.mock.calls[0]?.[0] as any;
         const originalSignUpPOST = jest.fn(async () => ({ status: "OK" }));
         const originalSignInPOST = jest.fn(async () => ({ status: "OK" }));
-        const apis = config.override.apis({
-          signUpPOST: originalSignUpPOST,
-          signInPOST: originalSignInPOST,
-        });
+        const apis = config.override.apis(
+          recipeProxy({
+            signUpPOST: originalSignUpPOST,
+            signInPOST: originalSignInPOST,
+          }),
+        );
 
         // Allowed, and the original handler actually runs: an unconfigured
         // Turnstile must not stand between a customer and an account.
