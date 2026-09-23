@@ -257,6 +257,31 @@ jobs:
   assert.deepEqual([...preMergeSpecsInWorkflow(source)], []);
 });
 
+test('a needs cycle terminates and still reports the exclusion inside it', () => {
+  // Actions rejects a cycle, so this is about a malformed file not hanging the
+  // walk. Removing the `seen` guard makes this spin forever rather than fail, so
+  // what is pinned here is the answer: the guard that stops the revisit must not
+  // lose the exclusion the cycle contains. `blocked` is unreachable on a pull
+  // request and so is `spun`, which needs it, though each is reached from the other.
+  const cyclic = (condition) => `
+name: fixture
+on: { pull_request: {} }
+jobs:
+  spun:
+    needs: [blocked]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo spun
+  blocked:
+    needs: [spun]
+${condition === undefined ? '' : `    if: ${condition}\n`}    runs-on: ubuntu-latest
+    steps:
+      - run: echo blocked
+`;
+  assert.deepEqual([...pullRequestJobs(cyclic(undefined))].sort(), ['blocked', 'spun']);
+  assert.deepEqual([...pullRequestJobs(cyclic("github.event_name != 'pull_request'"))], []);
+});
+
 test('a workflow without the pull_request trigger contributes no pre-merge spec', () => {
   const source = gatedWorkflow({ trigger: '{ push: { branches: [dev] } }', condition: undefined });
   assert.deepEqual([...pullRequestJobs(source)], []);
