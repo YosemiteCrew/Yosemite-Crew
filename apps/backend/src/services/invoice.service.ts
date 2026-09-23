@@ -33,6 +33,7 @@ import {
 import { FinanceEventService } from "./finance/events";
 import { markInvoiceTreatmentItemsSettled } from "./finance/settlement";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
+import { randomUUID } from "node:crypto";
 import { prisma } from "src/config/prisma";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
@@ -352,6 +353,30 @@ const withRenderedDocument = async <T extends Invoice>(
     : invoice;
 };
 
+/**
+ * Every persisted invoice line carries an id.
+ *
+ * This is the choke point for the writers that reach Postgres through
+ * `normalizeCreateInput` and `addItemsToInvoice`: manual draft creation,
+ * appointment booking, catalog selection and treatment import. Previously a
+ * line only kept an id when its caller happened to supply one, so most
+ * persisted lines had no identity at all and `mergeInvoiceLineItems` had to
+ * fall back to matching them on their own content - which cannot tell two
+ * legitimately identical rows apart.
+ *
+ * An id already on the line is preserved, so a line keeps the identity it was
+ * first written with across every later edit. Only a line that has never been
+ * persisted receives one, and it is a fresh uuid rather than anything derived
+ * from the catalog entry, the estimate item or the treatment row that produced
+ * it - those id spaces are matched against invoice line ids elsewhere
+ * (`WorkspaceTreatmentItem.invoiceRowId`), so borrowing from them would let one
+ * record's identity be mistaken for another's.
+ */
+const assignInvoiceLineId = (existing?: string) => {
+  const trimmed = existing?.trim();
+  return trimmed ? trimmed : randomUUID();
+};
+
 const buildInvoiceLineSnapshots = (items: DraftInvoiceItemInput[]) =>
   items.map((item) => {
     const total =
@@ -362,7 +387,7 @@ const buildInvoiceLineSnapshots = (items: DraftInvoiceItemInput[]) =>
           : 0);
 
     return {
-      ...(item.id ? { id: item.id } : {}),
+      id: assignInvoiceLineId(item.id),
       name: item.name ?? item.description,
       description: item.description ?? item.name ?? undefined,
       quantity: item.quantity,
@@ -412,8 +437,14 @@ const mergeInvoiceLineItems = (
         (existing, position) =>
           !claimed.has(position) && existing.id?.trim() === lineId,
       );
-    }
-    if (index === -1) {
+      // An incoming line that names an id is identifying a specific line. If
+      // that line is not on this invoice the caller is adding something new,
+      // not editing - so it must NOT drop into the content-key fallback, where
+      // it would land on whichever unrelated line happens to read the same. A
+      // stale line id resubmitted after the row it named was removed used to
+      // overwrite a different row with identical description, quantity and
+      // price, which is the ordinary shape of a repeated consumable.
+    } else {
       const contentKey = invoiceLineContentKey(item);
       index = merged.findIndex(
         (existing, position) =>

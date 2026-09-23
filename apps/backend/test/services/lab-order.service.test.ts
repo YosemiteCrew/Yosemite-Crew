@@ -539,7 +539,7 @@ describe("LabOrderService", () => {
         "appt-1",
         [
           {
-            id: "laborder:test:T1",
+            id: "laborder:order-1:test:T1",
             name: "CBC",
             description: "IDEXX test T1",
             quantity: 1,
@@ -547,7 +547,7 @@ describe("LabOrderService", () => {
             total: 25,
           },
           {
-            id: "laborder:test:T2",
+            id: "laborder:order-1:test:T2",
             name: "IDEXX Test T2",
             description: "IDEXX test T2",
             quantity: 1,
@@ -854,7 +854,7 @@ describe("LabOrderService", () => {
         "appt-1",
         [
           {
-            id: "laborder:test:T1",
+            id: "laborder:order-1:test:T1",
             name: "CBC",
             description: "IDEXX test T1",
             quantity: 1,
@@ -871,6 +871,30 @@ describe("LabOrderService", () => {
           billingError: null,
         },
       });
+    });
+
+    // #3154 - the line id is a deterministic idempotency token, so re-billing
+    // the same order lands on the same line rather than charging twice. Keying
+    // it on the test code alone made two DIFFERENT orders for the same test on
+    // one appointment collide: the second order's line matched the first by id
+    // and replaced it, so the second test was run and never billed. Repeat
+    // tests within a visit are ordinary, so that is a silent under-charge.
+    it("gives two orders for the same test distinct invoice line ids", async () => {
+      prismaMock.codeEntry.findMany.mockResolvedValue([
+        { code: "T1", display: "CBC", meta: { listPrice: 40 } },
+      ]);
+      invoiceServiceMock.addChargesToAppointment.mockResolvedValue({
+        id: "invoice-3",
+      });
+
+      submitOrder({ id: "order-1" });
+      await LabOrderService.getOrder("IDEXX", "org-1", "ID-1");
+      submitOrder({ id: "order-2" });
+      await LabOrderService.getOrder("IDEXX", "org-1", "ID-1");
+
+      const [firstCall, secondCall] =
+        invoiceServiceMock.addChargesToAppointment.mock.calls;
+      expect(firstCall[1][0].id).not.toBe(secondCall[1][0].id);
     });
 
     it("stores a null invoice id when the invoice has none", async () => {
