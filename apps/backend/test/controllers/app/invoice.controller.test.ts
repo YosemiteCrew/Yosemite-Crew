@@ -478,6 +478,33 @@ describe("InvoiceController", () => {
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
+    // #3154 - the line id is the invoice's own identity for that row and is
+    // assigned server-side. A caller that could name it could point a new line
+    // at an id the settlement path matches against
+    // WorkspaceTreatmentItem.invoiceRowId, marking a treatment item on that
+    // appointment settled without it ever having been billed. This handler
+    // type-guarded req.body, and a type guard narrows without stripping.
+    it("drops a line id the caller sent", async () => {
+      req.params = { appointmentId: "apt1" };
+      req.body = {
+        items: [{ ...validItem, id: "treatment-row-the-caller-picked" }],
+      };
+      mockedInvoiceService.addChargesToAppointment.mockResolvedValue({
+        id: "inv3",
+      } as any);
+
+      await InvoiceController.addChargesToAppointment(
+        req as any,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(200);
+      const [, forwardedItems] =
+        mockedInvoiceService.addChargesToAppointment.mock.calls.at(-1)!;
+      expect(forwardedItems).toHaveLength(1);
+      expect(forwardedItems[0]).not.toHaveProperty("id");
+    });
+
     it("should 400 if item has invalid properties (branch coverage)", async () => {
       const base = { ...validItem };
 

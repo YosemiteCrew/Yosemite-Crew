@@ -106,7 +106,19 @@ const toNumber = (value: unknown) => {
   return null;
 };
 
+/**
+ * The invoice lines for one lab order's tests.
+ *
+ * The line id is scoped to the ORDER, not just the test code. It is a
+ * deterministic idempotency token - re-billing the same order must land on the
+ * same lines rather than charging twice - but keying it on the code alone made
+ * two different orders for the same test on one appointment collide: the
+ * second order's line matched the first by id and REPLACED it, so the second
+ * test was performed and never billed. Repeat tests within a visit are
+ * ordinary, so that is a silent under-charge rather than an edge case.
+ */
 const buildInvoiceItemsFromTests = async (
+  labOrderId: string,
   testCodes: string[],
 ): Promise<InvoiceItem[]> => {
   if (!testCodes.length) return [];
@@ -143,7 +155,7 @@ const buildInvoiceItemsFromTests = async (
     }
 
     return {
-      id: `laborder:test:${code}`,
+      id: `laborder:${labOrderId}:test:${code}`,
       name: display,
       description: `IDEXX test ${code}`,
       quantity: 1,
@@ -165,6 +177,7 @@ const maybeBillSubmittedOrder = async (order: LabOrder) => {
 
   try {
     const items = await buildInvoiceItemsFromTests(
+      order.id,
       (order.tests as string[]) ?? [],
     );
     if (!items.length) {
@@ -340,6 +353,7 @@ export const LabOrderService = {
       ) {
         try {
           const items = await buildInvoiceItemsFromTests(
+            updated.id,
             (updated.tests as string[]) ?? [],
           );
           const invoice = await InvoiceService.addChargesToAppointment(
