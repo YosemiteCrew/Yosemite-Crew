@@ -1738,6 +1738,13 @@ describe("FinancePaymentService", () => {
       metadata: {},
       payments: [],
     });
+    // Re-read under the lock: the status this method decides on is the one it
+    // writes, so the check and the write cannot straddle two deliveries.
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValue({
+      id: "inv_webhook_3",
+      status: "PAID",
+      metadata: {},
+    });
     (prisma.payment.findFirst as jest.Mock).mockResolvedValueOnce({
       id: "pay_webhook_3",
       provider: "STRIPE",
@@ -1788,7 +1795,7 @@ describe("FinancePaymentService", () => {
       refunds: { create: jest.fn() },
     };
     __setFinanceStripeClientForTests(stripeClient);
-    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValue({
       id: "inv_9",
       totalAmount: 90,
       currency: "usd",
@@ -1879,7 +1886,7 @@ describe("FinancePaymentService", () => {
       refunds: { create: jest.fn() },
     };
     __setFinanceStripeClientForTests(stripeClient);
-    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValue({
       id: "inv_lock",
       totalAmount: 100,
       currency: "usd",
@@ -1928,13 +1935,18 @@ describe("FinancePaymentService", () => {
 
     await FinancePaymentService.refundInvoicePayment("inv_lock");
 
-    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
-    const [strings, lockKey] = (prisma.$executeRaw as jest.Mock).mock.calls[0];
-    expect(strings.join("")).toContain("pg_advisory_xact_lock");
-    // The same key recordInvoicePayment uses. A different one serializes
-    // nothing, which is the whole point of taking a lock here.
-    expect(lockKey).toBe("invoice-payment:inv_lock");
+    // Two transactions: the read, then the writes. They cannot be one, because
+    // the Stripe round-trip between them would sit inside an interactive
+    // transaction holding a pool connection.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(2);
+    const lockCalls = (prisma.$executeRaw as jest.Mock).mock.calls;
+    for (const [strings, lockKey] of lockCalls) {
+      expect(strings.join("")).toContain("pg_advisory_xact_lock");
+      // The same key recordInvoicePayment uses. A different one serializes
+      // nothing, which is the whole point of taking a lock here.
+      expect(lockKey).toBe("invoice-payment:inv_lock");
+    }
     expect(
       (prisma.$executeRaw as jest.Mock).mock.invocationCallOrder[0],
     ).toBeLessThan(
@@ -1944,6 +1956,188 @@ describe("FinancePaymentService", () => {
       (prisma.$executeRaw as jest.Mock).mock.invocationCallOrder[0],
     ).toBeLessThan(
       (prisma.payment.create as jest.Mock).mock.invocationCallOrder[0],
+    );
+    // The second lock is taken before the Refund row, the Payment status and
+    // the invoice status are written, not after any of them.
+    const secondLock = (prisma.$executeRaw as jest.Mock).mock
+      .invocationCallOrder[1];
+    for (const writer of [
+      prisma.refund.create,
+      prisma.payment.update,
+      prisma.invoice.update,
+    ]) {
+      expect(secondLock).toBeLessThan(
+        (writer as jest.Mock).mock.invocationCallOrder[0],
+      );
+    }
+  });
+
+  it("writes the refund row, the payment status and the invoice status in one locked transaction", async () => {
+    // recordInvoicePayment refuses a capture whose invoice reads REFUNDED, and
+    // it reads that status under this same lock. So the refund row and the
+    // status write have to land in ONE locked transaction: with the status
+    // write left outside it, the gap between the Refund row (which drops the
+    // paid total, reopening the balance) and the status write is a window where
+    // a capture reads PAID, passes the guard and is applied to an invoice that
+    // is on its way to REFUNDED.
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+
+    // Which transaction each write ran in, or null for "outside every
+    // transaction". Nesting is not what is being measured - identity is.
+    let transactionSeq = 0;
+    let currentTransaction: number | null = null;
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      async (fn: (tx: unknown) => unknown) => {
+        transactionSeq += 1;
+        currentTransaction = transactionSeq;
+        try {
+          return await fn(prisma);
+        } finally {
+          currentTransaction = null;
+        }
+      },
+    );
+
+    const ranIn: Record<string, number | null> = {};
+    const lockTransactions: Array<number | null> = [];
+    (prisma.$executeRaw as jest.Mock).mockImplementation(async () => {
+      lockTransactions.push(currentTransaction);
+      return 1;
+    });
+    (prisma.invoice.findUnique as jest.Mock).mockImplementation(async () => ({
+      id: "inv_tx",
+      totalAmount: 100,
+      currency: "usd",
+      status: "PAID",
+      metadata: { existing: "value" },
+      payments: [
+        {
+          id: "pay_tx",
+          amount: 100,
+          currency: "usd",
+          provider: "STRIPE",
+          providerPaymentId: "pi_tx",
+        },
+      ],
+    }));
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValue({
+      invoiceId: "inv_tx",
+      providerPaymentIntentId: "pi_tx",
+      rawProviderPayload: { connectedAccountId: "acct_tx" },
+    });
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
+      latest_charge: { id: "ch_tx" },
+    });
+    (stripeClient.refunds.create as jest.Mock).mockResolvedValueOnce({
+      id: "re_tx",
+      status: "succeeded",
+      amount: 10000,
+      currency: "usd",
+    });
+    (prisma.refund.create as jest.Mock).mockImplementation(async () => {
+      ranIn.refund = currentTransaction;
+      return { id: "refund_tx", status: "SUCCEEDED" };
+    });
+    (prisma.payment.update as jest.Mock).mockImplementation(async () => {
+      ranIn.payment = currentTransaction;
+      return { id: "pay_tx", status: "REFUNDED" };
+    });
+    (prisma.invoice.update as jest.Mock).mockImplementation(async () => {
+      ranIn.invoice = currentTransaction;
+      return {
+        id: "inv_tx",
+        status: "REFUNDED",
+        currency: "usd",
+        payments: [],
+      };
+    });
+
+    await FinancePaymentService.refundInvoicePayment("inv_tx");
+
+    // The read transaction is 1, the write transaction is 2, and all three
+    // writes are in 2 - not in no transaction at all, and not split across the
+    // two.
+    expect(lockTransactions).toEqual([1, 2]);
+    expect(ranIn.refund).toBe(2);
+    expect(ranIn.payment).toBe(2);
+    expect(ranIn.invoice).toBe(2);
+  });
+
+  it("re-reads the invoice metadata inside the write transaction", async () => {
+    // The metadata write is a read-modify-write over a whole JSON column, and
+    // the snapshot from the read transaction is older than the Stripe
+    // round-trip. Spreading that snapshot discards anything written to
+    // `metadata` while Stripe was being called.
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+
+    let stripeCalled = false;
+    (prisma.invoice.findUnique as jest.Mock).mockImplementation(async () => ({
+      id: "inv_meta",
+      totalAmount: 100,
+      currency: "usd",
+      status: "PAID",
+      // What a concurrent writer added while Stripe was being called. The read
+      // transaction cannot have seen it.
+      metadata: stripeCalled ? { addedDuringRefund: "keep me" } : {},
+      payments: [
+        {
+          id: "pay_meta",
+          amount: 100,
+          currency: "usd",
+          provider: "STRIPE",
+          providerPaymentId: "pi_meta",
+        },
+      ],
+    }));
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValue({
+      invoiceId: "inv_meta",
+      providerPaymentIntentId: "pi_meta",
+      rawProviderPayload: { connectedAccountId: "acct_meta" },
+    });
+    (stripeClient.paymentIntents.retrieve as jest.Mock).mockResolvedValueOnce({
+      latest_charge: { id: "ch_meta" },
+    });
+    (stripeClient.refunds.create as jest.Mock).mockImplementation(async () => {
+      stripeCalled = true;
+      return {
+        id: "re_meta",
+        status: "succeeded",
+        amount: 10000,
+        currency: "usd",
+      };
+    });
+    (prisma.refund.create as jest.Mock).mockResolvedValueOnce({
+      id: "refund_meta",
+    });
+    (prisma.payment.update as jest.Mock).mockResolvedValueOnce({
+      id: "pay_meta",
+      status: "REFUNDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_meta",
+      status: "REFUNDED",
+      currency: "usd",
+      payments: [],
+    });
+
+    await FinancePaymentService.refundInvoicePayment("inv_meta");
+
+    expect(prisma.invoice.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({ addedDuringRefund: "keep me" }),
+        }),
+      }),
     );
   });
 
@@ -2042,7 +2236,7 @@ describe("FinancePaymentService", () => {
       refunds: { create: jest.fn() },
     };
     __setFinanceStripeClientForTests(stripeClient);
-    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValue({
       id: "inv_jpy",
       organisationId: "org_1",
       totalAmount: 1000,
@@ -3172,7 +3366,7 @@ describe("FinancePaymentService", () => {
   });
 
   it("refunds a manual invoice payment without calling Stripe", async () => {
-    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValue({
       id: "inv_manual_refund",
       totalAmount: 80,
       currency: "usd",
@@ -4380,7 +4574,7 @@ describe("FinancePaymentService", () => {
     (prisma.paymentAttempt.findFirst as jest.Mock)
       .mockResolvedValueOnce({ invoiceId: "inv_pi_refund" })
       .mockResolvedValueOnce(null);
-    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValue({
       id: "inv_pi_refund",
       totalAmount: 60,
       currency: "usd",
@@ -4789,6 +4983,11 @@ describe("FinancePaymentService", () => {
       metadata: { existing: "value" },
       payments: [],
     });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValue({
+      id: "inv_refund_no_payment",
+      status: "PAID",
+      metadata: { existing: "value" },
+    });
     (prisma.payment.findFirst as jest.Mock).mockResolvedValueOnce(null);
     (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
       id: "inv_refund_no_payment",
@@ -4809,6 +5008,11 @@ describe("FinancePaymentService", () => {
 
   it("returns ALREADY_REFUNDED when the invoice is already refunded", async () => {
     (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_already_refunded",
+      status: "REFUNDED",
+      metadata: {},
+    });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValue({
       id: "inv_already_refunded",
       status: "REFUNDED",
       metadata: {},
@@ -5547,7 +5751,7 @@ describe("FinancePaymentService", () => {
     (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
       invoiceId: "inv_p1",
     });
-    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValue({
       id: "inv_p1",
       status: "PAID",
       metadata: {},
@@ -5584,6 +5788,11 @@ describe("FinancePaymentService", () => {
       status: "PAID",
       metadata: null,
     });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValue({
+      id: "inv_p2",
+      status: "PAID",
+      metadata: null,
+    });
     (prisma.payment.findFirst as jest.Mock).mockResolvedValueOnce({
       id: "pay_p2",
       provider: "MANUAL",
@@ -5614,6 +5823,86 @@ describe("FinancePaymentService", () => {
         }),
       }),
     );
+  });
+
+  it("lets only one of two concurrent refund webhook deliveries write", async () => {
+    // Stripe redelivers on any non-2xx and nothing upstream deduplicates by
+    // event id, so two deliveries of one refund can be in here at the same
+    // time. Refund has no unique constraint on providerRefundId, so a second
+    // insert is accepted and getNetPaymentAmount subtracts the same money
+    // twice - the invoice then reads under-paid, and on a partial refund the
+    // client is billed the difference.
+    //
+    // The barrier and the serialised transactions below model what the advisory
+    // lock buys from Postgres; they do not exercise Postgres. The barrier holds
+    // both deliveries until each has done the unlocked lookup, which is the
+    // interleaving that used to let both through. What the test pins is that
+    // the REFUNDED check and the writes sit inside the serialised region, so
+    // the second delivery reads the first one's status.
+    let refunded = false;
+    let arrived = 0;
+    let releaseBoth: () => void = () => undefined;
+    const bothArrived = new Promise<void>((resolve) => {
+      releaseBoth = resolve;
+    });
+    const readInvoice = async () => {
+      return {
+        id: "inv_dup",
+        status: refunded ? "REFUNDED" : "PAID",
+        metadata: {},
+      };
+    };
+    (prisma.invoice.findFirst as jest.Mock).mockImplementation(async () => {
+      arrived += 1;
+      if (arrived === 2) {
+        releaseBoth();
+      }
+      await bothArrived;
+      return readInvoice();
+    });
+    (prisma.invoice.findUnique as jest.Mock).mockImplementation(readInvoice);
+
+    let chain: Promise<unknown> = Promise.resolve();
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      (fn: (tx: unknown) => unknown) => {
+        const run = chain.then(() => fn(prisma));
+        chain = run.then(
+          () => undefined,
+          () => undefined,
+        );
+        return run;
+      },
+    );
+
+    (prisma.payment.findFirst as jest.Mock).mockResolvedValue({
+      id: "pay_dup",
+      provider: "STRIPE",
+    });
+    (prisma.refund.create as jest.Mock).mockResolvedValue({ id: "refund_dup" });
+    (prisma.payment.update as jest.Mock).mockResolvedValue({ id: "pay_dup" });
+    (prisma.invoice.update as jest.Mock).mockImplementation(async () => {
+      refunded = true;
+      return { id: "inv_dup", status: "REFUNDED" };
+    });
+
+    const delivery = () =>
+      FinancePaymentService.markInvoiceRefundedFromWebhook({
+        invoiceId: "inv_dup",
+        chargeId: "ch_dup",
+        amount: 30,
+        currency: "usd",
+        reason: "duplicate delivery",
+      });
+
+    const results = await Promise.all([delivery(), delivery()]);
+
+    expect(prisma.refund.create).toHaveBeenCalledTimes(1);
+    expect(prisma.payment.update).toHaveBeenCalledTimes(1);
+    expect(prisma.invoice.update).toHaveBeenCalledTimes(1);
+    expect(results.map((result) => result.action).sort()).toEqual([
+      "ALREADY_REFUNDED",
+      "REFUNDED",
+    ]);
   });
 
   it("returns NO_INVOICE when a refund webhook has no identifiers", async () => {
@@ -5737,7 +6026,7 @@ describe("FinancePaymentService", () => {
       refunds: { create: jest.fn() },
     };
     __setFinanceStripeClientForTests(stripeClient);
-    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValue({
       id: "inv_t",
       totalAmount: 90,
       currency: "usd",
