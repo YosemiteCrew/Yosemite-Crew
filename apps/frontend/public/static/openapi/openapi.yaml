@@ -8363,6 +8363,212 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/finance/organisation/{organisationId}/clients/{parentId}/account-credit/allocations':
+    post:
+      tags:
+        - 'Non-FHIR'
+      summary: 'POST /v1/finance/organisation/{organisationId}/clients/{parentId}/account-credit/allocations'
+      operationId: post_v1_finance_organisation_organisationId_clients_parentId_account_credit_allocations
+      description: "Confirm a reviewed allocation plan for a client (#3163). The body is the allocation-proposal response handed back, optionally edited: each capture carries the version the plan was read at, and applying it is a compare-and-set per capture against that version. Captures are applied one at a time in the order given and never concurrently, because two captures paying one invoice is the normal output of the planner and the second one's line was sized against the balance the first has since reduced. Both the captures and the invoices named must belong to this client: an organisation holds captures for every client it has invoiced, so without that check this route would put one client's credit against another client's debt with every per-capture guard satisfied. One idempotencyKey covers the whole plan and is read per capture, so resending the plan replays each capture rather than deciding again, and a plan that stopped part way finishes the rest. The acting staff member comes from the session and any actorId in the body is ignored. billing:edit:any."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: parentId
+          in: path
+          required: true
+          description: The client whose credit is being spent. A value that is not a UUID is answered 400.
+          schema:
+            type: string
+            format: uuid
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - idempotencyKey
+                - receipts
+              properties:
+                idempotencyKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                  description: The caller's own key for this decision, covering the whole plan, so a retry after a timeout is recognised as the same decision rather than posting the money a second time.
+                receipts:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  description: "The captures to draw on, applied in this order. A capture named twice is refused 409: the second entry would carry this plan's key into a capture the first has already decided and come back as a replay of the first entry's lines."
+                  items:
+                    type: object
+                    required:
+                      - receiptId
+                      - expectedVersion
+                      - allocations
+                    properties:
+                      receiptId:
+                        type: string
+                        format: uuid
+                      expectedVersion:
+                        type: integer
+                        minimum: 0
+                        description: The version this capture was planned from. Per capture rather than per request, because a refund landing on one capture says nothing about the state of another.
+                      allocations:
+                        type: array
+                        minItems: 1
+                        maxItems: 20
+                        description: One invoice may appear at most once under one capture; a repeat is answered 400 rather than summed.
+                        items:
+                          type: object
+                          required:
+                            - invoiceId
+                            - amount
+                          properties:
+                            invoiceId:
+                              type: string
+                              format: uuid
+                            amount:
+                              type: number
+                              exclusiveMinimum: 0
+                              description: Major units, strictly positive. A zero or negative line is a different operation, not a smaller one.
+      responses:
+        200:
+          description: 'The plan ran, in full or as far as it got. A plan that stopped part way is 200 and not 409: money moved, and a 4xx would tell a client to retry a request that already applied a capture.'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - outcome
+                      - appliedAmount
+                      - steps
+                      - notAttempted
+                    properties:
+                      outcome:
+                        type: string
+                        enum:
+                          - APPLIED
+                          - STOPPED
+                        description: APPLIED when every capture in the plan was applied or replayed; STOPPED when one refused and the plan was abandoned at that point.
+                      appliedAmount:
+                        type: number
+                        description: What actually moved, summed from the lines that came back rather than the lines that were sent - a capture can apply less than asked when an invoice balance shrank between the preview and the confirm.
+                      steps:
+                        type: array
+                        description: Every capture attempted, in order, ending at the refusal when the outcome is STOPPED.
+                        items:
+                          type: object
+                          required:
+                            - receiptId
+                            - result
+                          properties:
+                            receiptId:
+                              type: string
+                            result:
+                              type: object
+                              description: The per-capture allocation result, the same shape the provider-receipts allocations route returns - APPLIED or REPLAYED with the receipt and its posted lines, or a refusal naming why.
+                              additionalProperties: true
+                              required:
+                                - outcome
+                              properties:
+                                outcome:
+                                  type: string
+                      notAttempted:
+                        type: array
+                        description: The captures after the refusal. They were deliberately not tried, because the lines after a capture that moved were sized against a total that no longer holds.
+                        items:
+                          type: string
+                  error:
+                    nullable: true
+        400:
+          description: A client id that is not a UUID, a malformed plan, or one capture naming the same invoice twice
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        401:
+          description: No staff session presented
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        403:
+          description: The caller has no active membership of this organisation, or holds no billing:edit:any permission in it
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        409:
+          description: "A refusal that wrote nothing: a capture named twice, a capture that is not this client's, or an invoice that is not this client's. Answered on the conflict rather than 404, because a 404 would confirm to anyone who can guess an id that the object exists elsewhere in this organisation."
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                  - error
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: object
+                    required:
+                      - code
+                    properties:
+                      code:
+                        type: string
+                        enum:
+                          - DUPLICATE_RECEIPT
+                          - RECEIPT_NOT_THIS_CLIENT
+                          - INVOICE_NOT_THIS_CLIENT
+                      receiptId:
+                        type: string
+                      invoiceId:
+                        type: string
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
   '/v1/finance/organisation/{organisationId}/provider-receipts':
     get:
       tags:

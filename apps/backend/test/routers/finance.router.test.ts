@@ -65,6 +65,7 @@ const FinanceController = {
   allocateProviderReceipt: jest.fn(),
   getClientAccountCredit: jest.fn(),
   getClientAccountAllocationProposal: jest.fn(),
+  applyClientAccountAllocation: jest.fn(),
   updateDiscountSettings: jest.fn(),
   listInvoices: jest.fn(),
   createInvoice: jest.fn(),
@@ -231,16 +232,51 @@ describe("finance.router", () => {
     expect(handlers).not.toContain(permissionGuard("billing:view:any"));
   });
 
-  it("mounts no write route on a client's account credit", () => {
-    const methods = (
+  it("confirms a plan behind the billing EDIT permission", () => {
+    const route = findRoute(
+      "/organisation/:organisationId/clients/:parentId/account-credit/allocations",
+      "post",
+    );
+    const handlers = route?.stack.map((layer) => layer.handle);
+
+    expect(handlers).toContain(FinanceController.applyClientAccountAllocation);
+    expect(handlers).toContain(requireWebAuth);
+    expect(handlers).toContain(withOrgPermissionsMiddleware);
+    expect(handlers).toContain(permissionGuard("billing:edit:any"));
+    expect(handlers).not.toContain(permissionGuard("billing:view:any"));
+  });
+
+  it("mounts exactly one write route on a client's account credit", () => {
+    /*
+     * This prefix was read-only until the confirming call landed, and the test
+     * that said so is now this one. The list is pinned rather than counted so
+     * that a second write appearing under the prefix is a failure here rather
+     * than a route nobody reviewed: applying a client's credit is the only
+     * thing this feature writes.
+     */
+    const routes = (
       (financeRouter as unknown as { stack: Layer[] }).stack ?? []
     )
       .filter((entry) => entry.route?.path?.includes("account-credit"))
-      .flatMap((entry) => Object.keys(entry.route?.methods ?? {}));
+      .map((entry) => ({
+        path: entry.route?.path,
+        methods: Object.keys(entry.route?.methods ?? {}),
+      }));
 
-    // Two routes under the prefix - the credit read and the allocation
-    // proposal - and neither of them writes.
-    expect(methods).toEqual(["get", "get"]);
+    expect(routes).toEqual([
+      {
+        path: "/organisation/:organisationId/clients/:parentId/account-credit",
+        methods: ["get"],
+      },
+      {
+        path: "/organisation/:organisationId/clients/:parentId/account-credit/allocation-proposal",
+        methods: ["get"],
+      },
+      {
+        path: "/organisation/:organisationId/clients/:parentId/account-credit/allocations",
+        methods: ["post"],
+      },
+    ]);
   });
 
   it("mounts no write route for historical audit findings", () => {
