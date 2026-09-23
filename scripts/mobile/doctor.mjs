@@ -432,18 +432,32 @@ const productionApiProblems = () => {
     return [`${rel} missing; the MOBILE_VARIABLES_LOCAL_TS secret did not restore`];
   }
 
-  const body = readFileSync(file, 'utf8');
+  // Block comments go first so that only line comments are left to exclude, and
+  // they are replaced rather than deleted so nothing joins across the gap. A
+  // `/*` inside a string would swallow the real declaration, which then reads as
+  // absent - a failure, not a pass, so the cheap strip errs in the safe
+  // direction.
+  const code = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, ' ');
   const problems = [];
 
   for (const [name, required, why] of RELEASE_FLAGS) {
-    // The declaration, not any later mention: `const NAME = value;`. An absent
-    // match is a problem rather than a pass, because "I could not find it" and
-    // "it is correct" must never read the same.
-    const match = new RegExp(`const\\s+${name}\\s*=\\s*(true|false)\\s*;`).exec(body);
-    if (!match) {
-      problems.push(`${name} not found in ${rel}; cannot prove ${why}`);
-    } else if (match[1] !== required) {
-      problems.push(`${name} is ${match[1]} in ${rel}, must be ${required}: ${why}`);
+    // The live declaration, not a mention of it. Anchored to the start of its
+    // own line with only whitespace and an optional `export` in front, so a
+    // commented-out `// const NAME = false;` cannot vouch for the declaration
+    // one line below it.
+    const declaration = new RegExp(
+      `^[ \\t]*(?:export[ \\t]+)?const[ \\t]+${name}[ \\t]*=[ \\t]*(true|false)[ \\t]*;`,
+      'gm'
+    );
+    const values = [...code.matchAll(declaration)].map((m) => m[1]);
+    // "I could not find it" and "I found two of them" must both read as
+    // problems; only "it is correct" may read as a pass.
+    if (values.length === 0) {
+      problems.push(`${name} not declared in ${rel}; cannot prove ${why}`);
+    } else if (values.length > 1) {
+      problems.push(`${name} declared ${values.length} times in ${rel}; cannot prove ${why}`);
+    } else if (values[0] !== required) {
+      problems.push(`${name} is ${values[0]} in ${rel}, must be ${required}: ${why}`);
     }
   }
   return problems;
