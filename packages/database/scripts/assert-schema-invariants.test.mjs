@@ -5,6 +5,20 @@ import test from 'node:test';
 
 const packageRoot = fileURLToPath(new URL('..', import.meta.url));
 
+const assertSafeMutationTarget = (
+  databaseUrl = process.env.DATABASE_URL,
+  allowRemote = process.env.ALLOW_DESTRUCTIVE_SCHEMA_INVARIANT_TESTS === '1'
+) => {
+  assert.ok(databaseUrl, 'DATABASE_URL is required for destructive schema invariant tests');
+  const { hostname } = new URL(databaseUrl);
+  assert.ok(
+    allowRemote || ['localhost', '127.0.0.1', '[::1]'].includes(hostname),
+    'destructive schema invariant tests require a local database; set ALLOW_DESTRUCTIVE_SCHEMA_INVARIANT_TESTS=1 to opt in'
+  );
+};
+
+assertSafeMutationTarget();
+
 const run = (command, args, options = {}) =>
   spawnSync(command, args, {
     cwd: packageRoot,
@@ -39,6 +53,16 @@ const restorePaymentIntentIndex = () => {
     'CREATE UNIQUE INDEX "Invoice_providerPaymentIntentId_key" ON "Invoice"("providerPaymentIntentId")'
   );
 };
+
+test('refuses a remote mutation target without explicit opt-in', () => {
+  assert.throws(
+    () => assertSafeMutationTarget('postgresql://db.example.test/yosemite'),
+    /require a local database/
+  );
+  assert.doesNotThrow(() =>
+    assertSafeMutationTarget('postgresql://db.example.test/yosemite', true)
+  );
+});
 
 test('accepts the migrated schema', () => {
   const result = assertInvariants();
