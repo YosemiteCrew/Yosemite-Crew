@@ -2,7 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { basename, dirname, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import {
   baseFromMergeCommit,
@@ -127,6 +137,40 @@ test('routes a changed test to the workspace that can run it', () => {
   // handed to jest.
   assert.equal(workspaceOf('packages/auth/src/auth-service.test.ts'), undefined);
   assert.equal(workspaceOf('packages/types/src/x.test.ts'), undefined);
+});
+
+// A value in these maps is a `pnpm --filter` argument, and `pnpm --filter`
+// exits 0 when it matches no project - so a name that has drifted from the real
+// manifest does not fail this gate, it silently stops running anything. #3508
+// renamed the mcp-server package and left the map on the old scope; every check
+// stayed green. Asserting a mapping against a literal cannot catch that,
+// because the one edit that breaks the mapping updates the literal too. The
+// only assertion that can is one that reads the manifests.
+test('every workspace this gate can name resolves to a real package', () => {
+  const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+  const reached = [];
+  for (const root of ['apps', 'packages']) {
+    for (const entry of readdirSync(resolve(repoRoot, root), { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const ws = workspaceOf(`${root}/${entry.name}/x.test.ts`);
+      if (ws === undefined) continue; // deliberately unmapped: auth, types, lib, fhir
+      const manifest = resolve(repoRoot, root, entry.name, 'package.json');
+      assert.ok(existsSync(manifest), `${root}/${entry.name} is mapped but has no package.json`);
+      assert.equal(
+        JSON.parse(readFileSync(manifest, 'utf8')).name,
+        ws,
+        `${root}/${entry.name} maps to "${ws}", which is not the name in its package.json - ` +
+          '`pnpm --filter` would match nothing and this gate would pass without running'
+      );
+      reached.push(ws);
+    }
+  }
+  // Without this the loop is vacuous when nothing maps, which is the failure it
+  // exists to catch: six workspaces are mapped and each must have been read.
+  assert.ok(
+    reached.length >= 6,
+    `expected to check at least 6 workspaces, checked ${reached.length}`
+  );
 });
 
 test('groups tests per workspace and drops what this gate cannot run', () => {
