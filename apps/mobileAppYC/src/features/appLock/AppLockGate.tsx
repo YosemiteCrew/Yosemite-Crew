@@ -34,6 +34,8 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
   );
   const activeRef = useRef(false);
   const authenticatingRef = useRef(status.authenticating);
+  const promptInactiveRef = useRef(false);
+  const skipNextActiveRef = useRef(false);
   if (status.authenticating) {
     authenticatingRef.current = true;
   }
@@ -61,7 +63,16 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
     }
     activeRef.current = true;
     const onStateChange = async (next: AppStateStatus) => {
-      if (authenticatingRef.current) return;
+      if (authenticatingRef.current) {
+        if (next === 'background' || next === 'inactive') {
+          promptInactiveRef.current = true;
+        }
+        return;
+      }
+      if (next === 'active' && skipNextActiveRef.current) {
+        skipNextActiveRef.current = false;
+        return;
+      }
       if (next === 'background' || next === 'inactive') {
         backgroundRef.current = {wall: Date.now(), mono: await monotonicNow()};
         return;
@@ -110,6 +121,10 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
     const result: AppLockResult = await unlock();
     dispatch(authenticatingChanged(false));
     authenticatingRef.current = false;
+    if (promptInactiveRef.current) {
+      skipNextActiveRef.current = true;
+      promptInactiveRef.current = false;
+    }
     if (result.ok) {
       dispatch(appUnlocked());
       await coverRendered();

@@ -201,6 +201,36 @@ describe('AppLockGate', () => {
     );
   });
 
+  it('ignores the active event emitted after the OS prompt resolves', async () => {
+    let resolveUnlock: ((result: {ok: boolean}) => void) | undefined;
+    (unlock as jest.Mock).mockReturnValue(
+      new Promise(resolve => {
+        resolveUnlock = resolve;
+      }),
+    );
+    const {getByRole} = render(
+      <AppLockGate>
+        <Text>content</Text>
+      </AppLockGate>,
+    );
+    const onChange = (AppState.addEventListener as jest.Mock).mock.calls[0][1];
+
+    await act(async () => {
+      fireEvent.press(getByRole('button', {name: 'appLock.unlock'}));
+      await onChange('inactive');
+    });
+    await act(async () => {
+      resolveUnlock?.({ok: true});
+      await Promise.resolve();
+    });
+    dispatch.mockClear();
+    await act(async () => onChange('active'));
+
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({type: 'appLockStatus/appLocked'}),
+    );
+  });
+
   it('locks again when the measured background interval expires', async () => {
     const {getByRole} = render(
       <AppLockGate>
