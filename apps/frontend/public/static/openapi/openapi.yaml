@@ -8072,6 +8072,138 @@ paths:
                 properties:
                   message:
                     type: string
+  '/v1/finance/organisation/{organisationId}/clients/{parentId}/account-credit':
+    get:
+      tags:
+        - 'Non-FHIR'
+      summary: 'GET /v1/finance/organisation/{organisationId}/clients/{parentId}/account-credit'
+      operationId: get_v1_finance_organisation_organisationId_clients_parentId_account_credit
+      description: "What a client has already paid this organisation that no invoice of theirs has claimed (#3163). Derived from the provider receipt journal (#3170) rather than stored beside it: ProviderReceipt.allocatedAmount is the total the allocation compare-and-set enforces, and a second accumulated total for the same money could drift from it. Read-only - spending the credit is the allocations route, which carries billing:edit:any rather than the billing:view:any this needs. The organisation is taken from the session's authorised organisation and applied to the invoice as well as the capture, because a Parent is global rather than owned by one practice, so a client id alone is not a tenancy boundary. A client this organisation has never invoiced and a client with nothing left over are the same empty answer, deliberately: separating them would turn this into a test for whether a client id exists somewhere in the estate."
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organisationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: parentId
+          in: path
+          required: true
+          description: The client. A value that is not a UUID is answered 400 rather than read as an empty result.
+          schema:
+            type: string
+            format: uuid
+        - name: x-org-id
+          in: header
+          required: false
+          description: Organisation the request acts on. Optional here because the path already carries it; sent otherwise it is ignored in favour of the path.
+          schema:
+            type: string
+      responses:
+        200:
+          description: The client's available credit, one entry per currency
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - error
+                properties:
+                  data:
+                    type: array
+                    description: 'One entry per currency that has credit left, ordered by currency code. Currencies are never netted against one another: adding two would need a rate this route does not have and must not invent. An empty array means no credit, and is not paged - a paged balance is not a balance.'
+                    items:
+                      type: object
+                      required:
+                        - currency
+                        - availableCredit
+                        - lines
+                      properties:
+                        currency:
+                          type: string
+                          description: ISO 4217 code, as recorded on the captures.
+                        availableCredit:
+                          type: number
+                          description: The sum of this currency's lines, rounded once at the end rather than per line.
+                        lines:
+                          type: array
+                          description: 'The captures the credit sits on, newest first with the receipt id breaking a tie so two captures recorded in the same instant do not swap places between reads. Named rather than summed away because applying credit is a per-capture action - the allocations route takes a receipt id, so a total with no lines would say credit exists without saying how to spend it.'
+                          items:
+                            type: object
+                            required:
+                              - receiptId
+                              - provider
+                              - paymentRef
+                              - invoiceId
+                              - capturedAt
+                              - availableCredit
+                            properties:
+                              receiptId:
+                                type: string
+                                description: The journal row, and the id the allocations route takes.
+                              provider:
+                                type: string
+                                description: The payment provider the capture came from.
+                              paymentRef:
+                                type: string
+                                description: The provider's own reference for the capture.
+                              invoiceId:
+                                type: string
+                                description: The client invoice this capture is attributed to. Every capture resolves one, so a receipt with none contributes nothing here.
+                              capturedAt:
+                                type: string
+                                format: date-time
+                              availableCredit:
+                                type: number
+                                description: 'amount - refundedAmount - allocatedAmount for this capture. Only captures with a positive residual appear.'
+                  error:
+                    nullable: true
+        400:
+          description: A client id that is not a UUID, or no organisation could be resolved for the caller
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        401:
+          description: No staff session presented
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        403:
+          description: The caller has no active membership of this organisation, or holds no billing:view:any permission in it
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
+        500:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                properties:
+                  message:
+                    type: string
   '/v1/finance/organisation/{organisationId}/provider-receipts':
     get:
       tags:
