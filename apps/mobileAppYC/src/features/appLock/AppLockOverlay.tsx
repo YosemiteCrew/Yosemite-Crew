@@ -24,7 +24,10 @@ export const AppLockOverlay: React.FC<AppLockOverlayProps> = ({
   const {t} = useTranslation();
   if (!locked) return null;
   return (
-    <View style={[styles.root, {backgroundColor: theme.colors.screen}]}>
+    <View
+      accessibilityViewIsModal
+      testID="app-lock-overlay"
+      style={[styles.root, {backgroundColor: theme.colors.screen}]}>
       <View
         accessible
         accessibilityLabel={t('appLock.lockedLabel')}
@@ -40,12 +43,16 @@ export const AppLockOverlay: React.FC<AppLockOverlayProps> = ({
           accessibilityLabel={t('appLock.unlock')}
           disabled={authenticating || !isOwner}
           onPress={onUnlock}
+          testID="app-lock-unlock"
           style={[styles.button, {backgroundColor: theme.colors.blue}]}>
           <Text style={[styles.buttonText, {color: theme.colors.white}]}>
             {authenticating ? t('appLock.waiting') : t('appLock.unlock')}
           </Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={onLogout}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onLogout}
+          testID="app-lock-sign-out">
           <Text style={[styles.signOut, {color: theme.colors.inkMuted}]}>
             {t('appLock.signOut')}
           </Text>

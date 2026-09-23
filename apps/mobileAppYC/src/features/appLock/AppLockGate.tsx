@@ -19,7 +19,7 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
   const status = useAppSelector(state => state.appLockStatus);
   const currentUserId = user?.parentId ?? user?.id ?? null;
   const isOwner = !settings.ownerId || settings.ownerId === currentUserId;
-  const {authenticatingRef, promptInactiveRef, skipNextActiveRef} =
+  const {isAppLockPromptActive, promptInactiveRef, skipNextActiveRef} =
     useAppLockLifecycle({
       currentUserId,
       dispatch,
@@ -29,7 +29,7 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
       timeoutMs: settings.timeoutMs,
     });
   if (status.authenticating) {
-    authenticatingRef.current = true;
+    isAppLockPromptActive.current = true;
   }
   const [failure, setFailure] = useState<string | null>(null);
 
@@ -40,11 +40,11 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
   const handleUnlock = useCallback(async () => {
     if (status.authenticating || !isOwner) return;
     setFailure(null);
-    authenticatingRef.current = true;
+    isAppLockPromptActive.current = true;
     dispatch(authenticatingChanged(true));
     const result: AppLockResult = await unlock();
     dispatch(authenticatingChanged(false));
-    authenticatingRef.current = false;
+    isAppLockPromptActive.current = false;
     if (promptInactiveRef.current) {
       skipNextActiveRef.current = true;
       promptInactiveRef.current = false;
@@ -56,9 +56,9 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
       setFailure(t(`appLock.failure.${result.reason}`));
     }
   }, [
-    authenticatingRef,
     dispatch,
     isOwner,
+    isAppLockPromptActive,
     promptInactiveRef,
     skipNextActiveRef,
     status.authenticating,
