@@ -5,6 +5,26 @@ import test from 'node:test';
 
 const packageRoot = fileURLToPath(new URL('..', import.meta.url));
 
+const assertSafeMutationTarget = (
+  databaseUrl = process.env.DATABASE_URL,
+  allowRemote = process.env.ALLOW_DESTRUCTIVE_SCHEMA_INVARIANT_TESTS === '1'
+) => {
+  assert.ok(databaseUrl, 'DATABASE_URL is required for destructive schema invariant tests');
+  const url = new URL(databaseUrl);
+  const target = url.searchParams.get('host') ?? url.hostname;
+  assert.ok(
+    allowRemote ||
+      target.startsWith('/') ||
+      ['', 'localhost', '127.0.0.1', '::1', '[::1]'].includes(target),
+    'destructive schema invariant tests require a local database; set ALLOW_DESTRUCTIVE_SCHEMA_INVARIANT_TESTS=1 to opt in'
+  );
+};
+
+assertSafeMutationTarget();
+if (process.env.SCHEMA_INVARIANT_IMPORT_PROBE === '1') {
+  process.exit(93);
+}
+
 const run = (command, args, options = {}) =>
   spawnSync(command, args, {
     cwd: packageRoot,
@@ -39,6 +59,35 @@ const restorePaymentIntentIndex = () => {
     'CREATE UNIQUE INDEX "Invoice_providerPaymentIntentId_key" ON "Invoice"("providerPaymentIntentId")'
   );
 };
+
+test('refuses a remote mutation target without explicit opt-in', () => {
+  assert.throws(
+    () => assertSafeMutationTarget('postgresql://db.example.test/yosemite', false),
+    /require a local database/
+  );
+  assert.doesNotThrow(() =>
+    assertSafeMutationTarget('postgresql://db.example.test/yosemite', true)
+  );
+  assert.doesNotThrow(() => assertSafeMutationTarget('postgresql:///yosemite', false));
+  assert.throws(
+    () =>
+      assertSafeMutationTarget('postgresql://localhost:5432/yosemite?host=db.example.test', false),
+    /require a local database/
+  );
+});
+
+test('refuses at import when DATABASE_URL is remote', () => {
+  const env = {
+    ...process.env,
+    DATABASE_URL: 'postgresql://db.prod.example.test/yosemite',
+    ALLOW_DESTRUCTIVE_SCHEMA_INVARIANT_TESTS: '',
+    SCHEMA_INVARIANT_IMPORT_PROBE: '1',
+  };
+  delete env.NODE_TEST_CONTEXT;
+  const result = run(process.execPath, ['scripts/assert-schema-invariants.test.mjs'], { env });
+  assert.notEqual(result.status, 0);
+  assert.match(`${result.stderr}\n${result.stdout}`, /require a local database/);
+});
 
 test('accepts the migrated schema', () => {
   const result = assertInvariants();
