@@ -9,11 +9,12 @@ import matter from 'gray-matter';
  * generated at request time - every page is prerendered - so this runs at build
  * time only.
  *
- * Deliberately uncounted: this said "the 52 markdown files" while the corpus
- * held 156, because a figure in a comment decays silently every time a page is
- * contributed. DocsSearch.tsx cites a count on purpose - there it is the
- * argument for scanning linearly instead of shipping a scoring library - but
- * here it carried no weight and was only ever a thing to get wrong.
+ * Deliberately uncounted: this said "the 52 markdown files" long after the
+ * corpus had tripled, because a figure in a comment decays silently every time
+ * a page is contributed and nothing reads it. A count earns its place here only
+ * where a test can contradict it - see searchIndex.test.ts, which pins both the
+ * index size budget and the claim that the router reference is the bulk of the
+ * corpus. This one carried no argument and was only ever a thing to get wrong.
  */
 
 export const DOCS_CONTENT_ROOT = path.join(process.cwd(), 'content', 'docs');
