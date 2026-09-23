@@ -444,6 +444,31 @@ const VitalRow = ({
   );
 };
 
+const VitalsHistory = ({
+  vitals,
+  resolveRecorderName,
+  onNew,
+}: {
+  vitals: Vitals[];
+  resolveRecorderName: (entry: Vitals) => string;
+  onNew: () => void;
+}) => (
+  <div className="flex flex-col gap-3">
+    {vitals.length === 0 ? (
+      <p className="py-6 text-center text-body-4 text-text-secondary">No vitals recorded yet.</p>
+    ) : (
+      <ul className="rounded-2xl border border-card-border px-4">
+        {vitals.map((entry) => (
+          <VitalRow key={entry.id} entry={entry} resolveRecorderName={resolveRecorderName} />
+        ))}
+      </ul>
+    )}
+    <div className="flex justify-center">
+      <Primary text="New Vital" icon={<span aria-hidden="true">+</span>} onClick={onNew} />
+    </div>
+  </div>
+);
+
 /** Vitals tab: a "New vitals" form plus the recorded-vitals list. */
 const VitalsForm = ({
   appointmentId,
@@ -595,26 +620,11 @@ const VitalsForm = ({
 
   if (!creating) {
     return (
-      <div className="flex flex-col gap-3">
-        {vitals.length === 0 ? (
-          <p className="py-6 text-center text-body-4 text-text-secondary">
-            No vitals recorded yet.
-          </p>
-        ) : (
-          <ul className="rounded-2xl border border-card-border px-4">
-            {vitals.map((entry) => (
-              <VitalRow key={entry.id} entry={entry} resolveRecorderName={resolveRecorderName} />
-            ))}
-          </ul>
-        )}
-        <div className="flex justify-center">
-          <Primary
-            text="New Vital"
-            icon={<span aria-hidden="true">+</span>}
-            onClick={() => dispatchFormState({ type: 'SET_CREATING', value: true })}
-          />
-        </div>
-      </div>
+      <VitalsHistory
+        vitals={vitals}
+        resolveRecorderName={resolveRecorderName}
+        onNew={() => dispatchFormState({ type: 'SET_CREATING', value: true })}
+      />
     );
   }
 

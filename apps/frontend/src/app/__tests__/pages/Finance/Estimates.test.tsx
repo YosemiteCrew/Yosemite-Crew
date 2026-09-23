@@ -709,6 +709,20 @@ describe('Finance > Estimates on a phone', () => {
     expect(screen.getByText('$110.00')).toBeInTheDocument();
   });
 
+  it('keeps card selection wired to the extracted results view', async () => {
+    mockEstimateService.listEstimates.mockResolvedValue([
+      buildEstimate({ id: 'e1', patientId: 'c1', total: 110 }),
+    ]);
+
+    render(<ProtectedEstimates />);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Open the estimate for Bruno' })
+    );
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Bruno' })).toBeInTheDocument();
+  });
+
   it('still renders the table when the viewport is not a phone', async () => {
     mockIsPhone = false;
     mockEstimateService.listEstimates.mockResolvedValue([
