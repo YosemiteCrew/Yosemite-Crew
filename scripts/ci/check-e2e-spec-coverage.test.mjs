@@ -11,13 +11,27 @@
 // those specs whether or not any step still runs them.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   evaluate,
   findUnrunSpecs,
   listSpecs,
+  SPEC_DIR,
   specsNamedInRun,
   specsNamedInWorkflow,
 } from './check-e2e-spec-coverage.mjs';
+
+/** The real `testDir`, derived the same way the script derives it. */
+const SPEC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..', SPEC_DIR);
+
+/**
+ * Where the recursion case plants its spec. Named so a copy left behind by a
+ * killed run is obviously not a real spec; the gate would report it as unrun,
+ * which is the safe direction.
+ */
+const PROBE_DIR = '__coverage-probe__';
 
 /** A one-job workflow whose single step carries `run`. */
 const workflow = (run) => `
@@ -42,13 +56,25 @@ test('the repo has specs and workflows that name them', () => {
   assert.ok(named.size >= 10, `expected workflows to name specs, got ${named.size}`);
 });
 
-test('listSpecs reaches a spec in a subdirectory', () => {
-  // `testDir` discovery is recursive, so a spec parked one level down is
-  // exactly as invisible to the workflow list as one at the top.
-  assert.ok(
-    listSpecs().every((spec) => spec.startsWith('e2e/')),
-    'spec paths are relative to apps/frontend'
-  );
+test('listSpecs reaches a spec parked in a subdirectory', () => {
+  // `testDir` discovery is recursive, so a spec one level down is exactly as
+  // invisible to the workflow list as one at the top - and a walk that stopped
+  // at the top level would still return paths under `e2e/`, so asserting the
+  // prefix proves nothing about the recursion. The spec has to be planted and
+  // then found, and removed again before any other case reads the inventory -
+  // an unlisted spec is exactly what the coverage cases are there to fail on.
+  const nested = path.join(SPEC_ROOT, PROBE_DIR);
+  mkdirSync(nested, { recursive: true });
+  try {
+    writeFileSync(path.join(nested, 'probe.spec.ts'), '');
+    const specs = listSpecs();
+    assert.ok(
+      specs.includes(`e2e/${PROBE_DIR}/probe.spec.ts`),
+      `the planted spec was not returned: ${specs.join(', ')}`
+    );
+  } finally {
+    rmSync(nested, { recursive: true, force: true });
+  }
 });
 
 test('a spec named in a command counts', () => {
