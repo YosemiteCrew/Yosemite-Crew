@@ -377,6 +377,32 @@
     "breedLoadFailed": "No se pudieron cargar las razas. Comprueba tu conexion e intentalo de nuevo.",
     "breedNoneAvailable": "No hay razas disponibles"
   },
+  "medicalRecords": {
+    "title": "Registros de salud",
+    "intro": "Alergias y problemas de salud actuales registrados por tus clínicas veterinarias.",
+    "allergies": "Alergias",
+    "problems": "Problemas de salud",
+    "noAllergies": "No hay alergias actuales registradas.",
+    "noProblems": "No hay problemas de salud actuales registrados.",
+    "suspected": "Sospechada",
+    "active": "Activa",
+    "dormant": "Inactiva",
+    "since": "Desde {{date}}",
+    "flagsNotice": "Las clínicas veterinarias gestionan por separado las alertas de manejo y seguridad.",
+    "signInAgain": "Vuelve a iniciar sesión para ver los registros de salud.",
+    "loadFailed": "No se pudieron cargar los registros de salud. Inténtalo de nuevo.",
+    "retry": "Intentar de nuevo",
+    "labels": {
+      "MILD": "Leve",
+      "MODERATE": "Moderada",
+      "SEVERE": "Grave",
+      "LIFE_THREATENING": "Potencialmente mortal",
+      "DRUG": "Medicamento",
+      "FOOD": "Alimento",
+      "ENVIRONMENTAL": "Ambiental",
+      "OTHER": "Otro"
+    }
+  },
   "appointments": {
     "chatLockedTitle": "El chat aun no esta abierto",
     "chatLockedBody": "El chat se abre un dia antes de tu cita.\n\nCita: {{appointmentTime}}\nSe abre en: {{hours}} h {{minutes}} min",

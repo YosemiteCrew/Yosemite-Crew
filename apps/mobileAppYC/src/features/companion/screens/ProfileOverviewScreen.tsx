@@ -77,6 +77,7 @@ type SectionVisual = {
 
 const SECTION_VISUALS: Record<string, SectionVisual> = {
   overview: {icon: 'reader-outline', bg: 'blueSoft', ink: 'blueText'},
+  medical_records: {icon: 'pulse-outline', bg: 'pinkGlow', ink: 'pink'},
   parent: {
     icon: 'person-outline',
     bg: 'avatarVioletBg',
@@ -122,6 +123,11 @@ const SECTION_VISUALS: Record<string, SectionVisual> = {
 
 const SECTION_TEMPLATES: ProfileSection[] = [
   {id: 'overview', title: 'Overview'},
+  {
+    id: 'medical_records',
+    title: 'Health records',
+    titleKey: 'medicalRecords.title',
+  },
   {id: 'parent', title: 'Parent'},
   {id: 'passport', title: 'Pet Passport', titleKey: 'passport.title'},
   {id: 'documents', title: 'Documents'},
@@ -347,9 +353,22 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         },
       } as any);
 
+    const navigateIfAllowed = (
+      feature: Parameters<typeof guardFeature>[0],
+      label: string,
+      action: () => void,
+    ) => {
+      if (guardFeature(feature, label)) action();
+    };
+
     switch (sectionId) {
       case 'overview':
         navigation.navigate('EditCompanionOverview', {companionId});
+        break;
+      case 'medical_records':
+        navigateIfAllowed('medicalRecords', 'health records', () =>
+          navigation.navigate('MedicalRecords', {companionId}),
+        );
         break;
       case 'parent':
         navigation.navigate('EditParentOverview', {companionId});
@@ -358,59 +377,44 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         navigation.navigate('Passport', {companionId});
         break;
       case 'documents': {
-        if (!guardFeature('documents', 'documents')) {
-          return;
-        }
-        dispatch(setSelectedCompanion(companionId));
-        navigation
-          .getParent()
-          ?.navigate('Documents', {screen: 'DocumentsMain'});
+        navigateIfAllowed('documents', 'documents', () => {
+          dispatch(setSelectedCompanion(companionId));
+          navigation
+            .getParent()
+            ?.navigate('Documents', {screen: 'DocumentsMain'});
+        });
         break;
       }
       case 'hospital':
       case 'boarder':
       case 'breeder':
       case 'groomer': {
-        if (!guardFeature('appointments', 'clinic access')) {
-          return;
-        }
-        navigateToLinkedBusiness(sectionId);
+        navigateIfAllowed('appointments', 'clinic access', () =>
+          navigateToLinkedBusiness(sectionId),
+        );
         break;
       }
       case 'expense': {
-        if (!guardFeature('expenses', 'expenses')) {
-          return;
-        }
-        dispatch(setSelectedCompanion(companionId));
-        navigation.navigate('ExpensesStack', {screen: 'ExpensesMain'});
+        navigateIfAllowed('expenses', 'expenses', () => {
+          dispatch(setSelectedCompanion(companionId));
+          navigation.navigate('ExpensesStack', {screen: 'ExpensesMain'});
+        });
         break;
       }
       case 'health_tasks': {
-        if (!guardFeature('tasks', 'tasks')) {
-          return;
-        }
-        navigateToTasks('health');
+        navigateIfAllowed('tasks', 'tasks', () => navigateToTasks('health'));
         break;
       }
       case 'hygiene_tasks': {
-        if (!guardFeature('tasks', 'tasks')) {
-          return;
-        }
-        navigateToTasks('hygiene');
+        navigateIfAllowed('tasks', 'tasks', () => navigateToTasks('hygiene'));
         break;
       }
       case 'dietary_plan': {
-        if (!guardFeature('tasks', 'tasks')) {
-          return;
-        }
-        navigateToTasks('dietary');
+        navigateIfAllowed('tasks', 'tasks', () => navigateToTasks('dietary'));
         break;
       }
       case 'custom_tasks': {
-        if (!guardFeature('tasks', 'tasks')) {
-          return;
-        }
-        navigateToTasks('custom');
+        navigateIfAllowed('tasks', 'tasks', () => navigateToTasks('custom'));
         break;
       }
       case 'co_parent':

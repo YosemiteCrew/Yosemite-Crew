@@ -377,6 +377,32 @@
     "breedLoadFailed": "Breeds could not be loaded. Check your connection and try again.",
     "breedNoneAvailable": "No breeds available"
   },
+  "medicalRecords": {
+    "title": "Health records",
+    "intro": "Current allergies and health problems recorded by your veterinary practices.",
+    "allergies": "Allergies",
+    "problems": "Health problems",
+    "noAllergies": "No current allergies recorded.",
+    "noProblems": "No current health problems recorded.",
+    "suspected": "Suspected",
+    "active": "Active",
+    "dormant": "Dormant",
+    "since": "Since {{date}}",
+    "flagsNotice": "Handling and safety flags are managed separately by your veterinary practice.",
+    "signInAgain": "Please sign in again to view health records.",
+    "loadFailed": "Health records could not be loaded. Please try again.",
+    "retry": "Try again",
+    "labels": {
+      "MILD": "Mild",
+      "MODERATE": "Moderate",
+      "SEVERE": "Severe",
+      "LIFE_THREATENING": "Life-threatening",
+      "DRUG": "Drug",
+      "FOOD": "Food",
+      "ENVIRONMENTAL": "Environmental",
+      "OTHER": "Other"
+    }
+  },
   "appointments": {
     "chatLockedTitle": "Chat not open yet",
     "chatLockedBody": "Chat opens a day before your appointment.\n\nAppointment: {{appointmentTime}}\nOpens in: {{hours}}h {{minutes}}m",
