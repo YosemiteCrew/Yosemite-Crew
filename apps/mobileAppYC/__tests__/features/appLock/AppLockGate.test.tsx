@@ -122,7 +122,7 @@ describe('AppLockGate', () => {
 
   it('keeps the lock visible after a failed check and allows sign out', async () => {
     (unlock as jest.Mock).mockResolvedValue({ok: false, reason: 'cancelled'});
-    const {getByRole, getByText} = render(
+    const {getByRole} = render(
       <AppLockGate>
         <></>
       </AppLockGate>,
@@ -133,6 +133,48 @@ describe('AppLockGate', () => {
     expect(getByText('appLock.failure.cancelled')).toBeTruthy();
     fireEvent.press(getByRole('button', {name: 'appLock.signOut'}));
     expect(logout).toHaveBeenCalled();
+  });
+
+  it('does not re-lock or remount content when only the timeout changes', () => {
+    state.appLockStatus.locked = false;
+    const {getByText, rerender} = render(
+      <AppLockGate>
+        <Text>content</Text>
+      </AppLockGate>,
+    );
+    const wrapper = getByText('content').parent;
+    const lockDispatches = dispatch.mock.calls.filter(
+      ([action]) => action?.type === 'appLockStatus/appLocked',
+    ).length;
+    state.appLock.timeoutMs = 300000;
+    rerender(
+      <AppLockGate>
+        <Text>content</Text>
+      </AppLockGate>,
+    );
+    expect(getByText('content').parent).toBe(wrapper);
+    expect(
+      dispatch.mock.calls.filter(
+        ([action]) => action?.type === 'appLockStatus/appLocked',
+      ),
+    ).toHaveLength(lockDispatches);
+  });
+
+  it('does not offer an unlock path to another signed-in account', () => {
+    (useAuth as jest.Mock).mockReturnValue({
+      isLoggedIn: true,
+      logout,
+      user: {id: 'different-account'},
+    });
+    const {getByRole} = render(
+      <AppLockGate>
+        <Text>content</Text>
+      </AppLockGate>,
+    );
+    expect(
+      getByRole('button', {name: 'appLock.unlock'}).props.accessibilityState
+        .disabled,
+    ).toBe(true);
   });
 
   it('locks again when the measured background interval expires', async () => {
