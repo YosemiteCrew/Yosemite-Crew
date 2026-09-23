@@ -1,24 +1,13 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {
-  AppState,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type AppStateStatus,
-} from 'react-native';
+import React, {useCallback, useEffect, useState} from 'react';
+import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {useTranslation} from 'react-i18next';
 import {useAppDispatch, useAppSelector} from '@/app/hooks';
 import {useTheme} from '@/hooks';
 import {useAuth} from '@/features/auth/context/AuthContext';
-import {appLocked, appUnlocked, authenticatingChanged} from './appLockSlice';
+import {appUnlocked, authenticatingChanged} from './appLockSlice';
 import {unlock, type AppLockResult} from './services/appLockKeychain';
-import {
-  coverRendered,
-  monotonicNow,
-  setPrivacy,
-} from './services/privacyScreen';
-import {shouldLockOnResume} from './appLockLogic';
+import {coverRendered, setPrivacy} from './services/privacyScreen';
+import {useAppLockLifecycle} from './useAppLockLifecycle';
 
 export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
   children,
@@ -29,86 +18,25 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
   const {isLoggedIn, logout, user} = useAuth();
   const settings = useAppSelector(state => state.appLock);
   const status = useAppSelector(state => state.appLockStatus);
-  const backgroundRef = useRef<{wall: number; mono: number | null} | null>(
-    null,
-  );
-  const activeRef = useRef(false);
-  const authenticatingRef = useRef(status.authenticating);
-  const promptInactiveRef = useRef(false);
-  const skipNextActiveRef = useRef(false);
+  const currentUserId = user?.parentId ?? user?.id ?? null;
+  const isOwner = !settings.ownerId || settings.ownerId === currentUserId;
+  const {authenticatingRef, promptInactiveRef, skipNextActiveRef} =
+    useAppLockLifecycle({
+      currentUserId,
+      dispatch,
+      enabled: settings.enabled,
+      isLoggedIn,
+      ownerId: settings.ownerId,
+      timeoutMs: settings.timeoutMs,
+    });
   if (status.authenticating) {
     authenticatingRef.current = true;
   }
   const [failure, setFailure] = useState<string | null>(null);
-  const currentUserId = user?.parentId ?? user?.id ?? null;
-  const isOwner = !settings.ownerId || settings.ownerId === currentUserId;
 
   useEffect(() => {
     setPrivacy(settings.enabled, settings.timeoutMs).catch(() => undefined);
   }, [settings.enabled, settings.timeoutMs]);
-
-  useEffect(() => {
-    if (!settings.enabled || !isLoggedIn) {
-      activeRef.current = false;
-      dispatch(appUnlocked());
-      return;
-    }
-    if (settings.ownerId && settings.ownerId !== currentUserId) {
-      activeRef.current = false;
-      dispatch(appUnlocked());
-      return;
-    }
-    if (!activeRef.current) {
-      dispatch(appLocked());
-    }
-    activeRef.current = true;
-    const handleResume = async () => {
-      if (authenticatingRef.current) return;
-      const background = backgroundRef.current;
-      backgroundRef.current = null;
-      if (!background) {
-        dispatch(appLocked());
-      } else {
-        const mono = await monotonicNow();
-        const shouldLock = shouldLockOnResume({
-          wallElapsed: Date.now() - background.wall,
-          monoElapsed:
-            mono === null || background.mono === null
-              ? null
-              : mono - background.mono,
-          timeoutMs: settings.timeoutMs,
-        });
-        dispatch(shouldLock ? appLocked() : appUnlocked());
-      }
-      await coverRendered();
-    };
-    const onStateChange = async (next: AppStateStatus) => {
-      if (authenticatingRef.current) {
-        promptInactiveRef.current =
-          next === 'background' || next === 'inactive';
-        return;
-      }
-      if (next === 'active' && skipNextActiveRef.current) {
-        skipNextActiveRef.current = false;
-        return;
-      }
-      if (next === 'background' || next === 'inactive') {
-        backgroundRef.current = {wall: Date.now(), mono: await monotonicNow()};
-        return;
-      }
-      if (next !== 'active') return;
-      await handleResume();
-    };
-    const subscription = AppState.addEventListener('change', onStateChange);
-    return () => subscription.remove();
-  }, [
-    currentUserId,
-    dispatch,
-    isLoggedIn,
-    settings.enabled,
-    settings.ownerId,
-    settings.timeoutMs,
-  ]);
 
   const handleUnlock = useCallback(async () => {
     if (status.authenticating || !isOwner) return;
@@ -128,7 +56,15 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
     } else {
       setFailure(t(`appLock.failure.${result.reason}`));
     }
-  }, [dispatch, isOwner, status.authenticating, t]);
+  }, [
+    authenticatingRef,
+    dispatch,
+    isOwner,
+    promptInactiveRef,
+    skipNextActiveRef,
+    status.authenticating,
+    t,
+  ]);
 
   const locked = settings.enabled && isLoggedIn && isOwner && status.locked;
 
