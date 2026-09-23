@@ -5894,4 +5894,236 @@ describe("InvoiceService", () => {
       );
     });
   });
+
+  // #3154 - every persisted invoice line carries a server-owned id.
+  //
+  // Before this, a line only kept an id when its caller happened to send one,
+  // so most persisted lines had no identity and the merge path had to match
+  // them on their own content - which cannot tell two legitimately identical
+  // rows apart.
+  describe("invoice line identity", () => {
+    const openInvoice = (
+      id: string,
+      items: Array<Record<string, unknown>>,
+      subtotal: number,
+    ) => {
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id,
+        appointmentId,
+        organisationId,
+        patientId,
+        parentId,
+        currency: "usd",
+        status: "AWAITING_PAYMENT",
+        paymentCollectionMethod: "PAYMENT_LINK",
+        items,
+        subtotal,
+        discountTotal: 0,
+        invoiceDiscountType: null,
+        invoiceDiscountValue: null,
+        invoiceDiscountTotal: 0,
+        taxTotal: 0,
+        taxPercent: 0,
+        totalAmount: subtotal,
+        taxSnapshot: { provider: "STRIPE", taxBehavior: "EXCLUSIVE" },
+        finalizedAt: null,
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+        id,
+        organisationId,
+        items: [],
+        totalAmount: subtotal,
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    };
+
+    const persistedItemsFromUpdate = () =>
+      ((prisma.invoice.update as jest.Mock).mock.calls.at(-1)![0].data
+        .items as Array<{ id?: unknown; name?: string }>) ?? [];
+
+    it("gives two identical lines on a new draft distinct ids", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        id: appointmentId,
+        organisationId,
+        patient: { id: patientId, parent: { id: parentId } },
+        companion: { id: patientId, parent: { id: parentId } },
+      });
+      (prisma.invoice.create as jest.Mock).mockResolvedValue({
+        id: "inv_identity",
+        appointmentId,
+        organisationId,
+        patientId,
+        parentId,
+        currency: "usd",
+        status: "AWAITING_PAYMENT",
+        paymentCollectionMethod: "PAYMENT_LINK",
+        items: [],
+        subtotal: 20,
+        discountTotal: 0,
+        invoiceDiscountTotal: 0,
+        taxTotal: 0,
+        taxPercent: 0,
+        totalAmount: 20,
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const line = { description: "Syringe", quantity: 1, unitPrice: 10 };
+      await InvoiceService.createDraftForAppointment({
+        appointmentId,
+        parentId,
+        organisationId,
+        patientId,
+        items: [{ ...line }, { ...line }],
+        paymentCollectionMethod: "PAYMENT_LINK",
+      });
+
+      const items = (prisma.invoice.create as jest.Mock).mock.calls.at(-1)![0]
+        .data.items as Array<{ id?: unknown }>;
+      expect(items).toHaveLength(2);
+      expect(typeof items[0].id).toBe("string");
+      expect(typeof items[1].id).toBe("string");
+      expect(items[0].id).not.toBe(items[1].id);
+    });
+
+    it("keeps a line's id when that line is edited", async () => {
+      openInvoice(
+        "inv_keep_id",
+        [
+          {
+            id: "line_keep",
+            name: "Consult",
+            description: "Consult",
+            quantity: 1,
+            unitPrice: 100,
+            total: 100,
+          },
+        ],
+        100,
+      );
+
+      await InvoiceService.addItemsToInvoice("inv_keep_id", [
+        {
+          id: "line_keep",
+          name: "Consult",
+          description: "Consult",
+          quantity: 2,
+          unitPrice: 100,
+          total: 200,
+        },
+      ]);
+
+      const items = persistedItemsFromUpdate();
+      expect(items).toHaveLength(1);
+      expect(items[0].id).toBe("line_keep");
+    });
+
+    // The sharp one. An incoming line that NAMES an id is identifying a
+    // specific row. If that row is not on the invoice the caller is adding
+    // something new - it must not fall through to the content-key fallback and
+    // land on whichever unrelated row happens to read the same, which is the
+    // ordinary shape of a repeated consumable.
+    it("adds a line whose id is unknown instead of overwriting an identical one", async () => {
+      openInvoice(
+        "inv_ghost_id",
+        [
+          {
+            id: "line_present",
+            name: "Syringe",
+            description: "Syringe",
+            quantity: 1,
+            unitPrice: 10,
+            total: 10,
+          },
+        ],
+        10,
+      );
+
+      await InvoiceService.addItemsToInvoice("inv_ghost_id", [
+        {
+          id: "line_removed_earlier",
+          name: "Syringe",
+          description: "Syringe",
+          quantity: 1,
+          unitPrice: 10,
+          total: 10,
+        },
+      ]);
+
+      const items = persistedItemsFromUpdate();
+      expect(items).toHaveLength(2);
+      expect(items.map((item) => item.id)).toContain("line_present");
+    });
+
+    // An id-less incoming line is a client that does not send line ids at all.
+    // That fallback stays, so a resend still updates rather than duplicating.
+    it("still content-matches an incoming line that names no id", async () => {
+      openInvoice(
+        "inv_no_id_sent",
+        [
+          {
+            id: "line_present",
+            name: "Syringe",
+            description: "Syringe",
+            quantity: 1,
+            unitPrice: 10,
+            total: 10,
+          },
+        ],
+        10,
+      );
+
+      await InvoiceService.addItemsToInvoice("inv_no_id_sent", [
+        {
+          name: "Syringe",
+          description: "Syringe",
+          quantity: 1,
+          unitPrice: 10,
+          total: 10,
+        },
+      ]);
+
+      const items = persistedItemsFromUpdate();
+      expect(items).toHaveLength(1);
+    });
+
+    it("assigns an id to a line that was persisted before ids existed", async () => {
+      openInvoice(
+        "inv_legacy",
+        [
+          {
+            name: "Consult",
+            description: "Consult",
+            quantity: 1,
+            unitPrice: 100,
+            total: 100,
+          },
+        ],
+        100,
+      );
+
+      await InvoiceService.addItemsToInvoice("inv_legacy", [
+        {
+          name: "Bandage",
+          description: "Bandage",
+          quantity: 1,
+          unitPrice: 5,
+          total: 5,
+        },
+      ]);
+
+      const items = persistedItemsFromUpdate();
+      expect(items).toHaveLength(2);
+      for (const item of items) {
+        expect(typeof item.id).toBe("string");
+        expect((item.id as string).length).toBeGreaterThan(0);
+      }
+    });
+  });
 });
