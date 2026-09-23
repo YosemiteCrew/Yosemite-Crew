@@ -2040,6 +2040,56 @@ export const FinanceController = {
   },
 
   /**
+   * What applying this client's credit to their outstanding invoices would do
+   * (#3163).
+   *
+   * `billing:edit:any`, not the view permission the credit route beside it
+   * carries. This writes nothing, but it is the preview of a decision only a
+   * staff member who may take that decision has any use for, and the tighter
+   * of the two permissions is the safe one to attach to a new route.
+   *
+   * The proposal is returned whole, including the version of every capture it
+   * was taken from, because confirming it is a compare-and-set against that
+   * state - the allocation route refuses a decision taken from state that has
+   * since moved.
+   */
+  async getClientAccountAllocationProposal(
+    this: void,
+    req: Request,
+    res: Response,
+  ) {
+    try {
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
+      const parentId = z.uuid().safeParse(req.params.parentId);
+      if (!parentId.success) {
+        return res.status(400).json({ message: "Invalid client id." });
+      }
+
+      const proposal = await ClientAccountService.proposeAllocation({
+        organisationId,
+        parentId: parentId.data,
+      });
+
+      /*
+       * An empty array where there is nothing to propose, for the same reason
+       * the credit route returns one: a client with no spendable credit and a
+       * client this organisation has never invoiced must not be told apart by
+       * anyone who can guess an id.
+       */
+      return res.status(200).json({ data: proposal, error: null });
+    } catch (error) {
+      logger.error("Error proposing client account allocation", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  /**
    * Apply a captured payment to invoices (#3170 delivery 2).
    *
    * The organisation and the acting staff member both come from the session.
