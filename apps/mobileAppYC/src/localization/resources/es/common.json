@@ -129,6 +129,16 @@
     "appearance_caption": "El modo oscuro usa el tema espresso cálido.",
     "language": "Idioma",
     "no_languages_available": "No hay idiomas disponibles",
+    "app_lock": "Bloqueo de la aplicación",
+    "app_lock_caption": "Requiere Face ID, Touch ID, huella o el bloqueo de pantalla.",
+    "app_lock_timeout": "Bloquear después de",
+    "app_lock_immediately": "Inmediatamente",
+    "app_lock_minutes": "{{count}} minuto(s)",
+    "app_lock_unavailable": {
+      "noPasscode": "Configura un código o una comprobación biométrica para usar el bloqueo.",
+      "androidVersion": "El bloqueo no está disponible en esta versión de Android.",
+      "noStrongBiometrics": "Registra una comprobación biométrica segura para usar el bloqueo."
+    },
     "footnote": "Los cambios se aplican de inmediato y se guardan en este dispositivo."
   },
   "common": {
@@ -852,6 +862,18 @@
     "prompt": {
       "title": "Desbloquear Yosemite Crew",
       "cancel": "Cancelar"
+    },
+    "lockedLabel": "Yosemite Crew está bloqueado",
+    "lockedTitle": "Desbloquear Yosemite Crew",
+    "lockedCaption": "Usa la comprobación de seguridad del dispositivo para continuar.",
+    "unlock": "Desbloquear",
+    "waiting": "Esperando…",
+    "signOut": "Cerrar sesión",
+    "failure": {
+      "cancelled": "Desbloqueo cancelado.",
+      "lockout": "Demasiados intentos. Inténtalo más tarde.",
+      "invalidated": "La seguridad del dispositivo cambió. Vuelve a iniciar sesión.",
+      "failed": "La comprobación no desbloqueó la aplicación."
     }
   }
 }
