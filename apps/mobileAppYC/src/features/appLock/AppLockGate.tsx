@@ -1,18 +1,17 @@
 import React, {useCallback, useEffect, useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 import {useTranslation} from 'react-i18next';
 import {useAppDispatch, useAppSelector} from '@/app/hooks';
-import {useTheme} from '@/hooks';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {appUnlocked, authenticatingChanged} from './appLockSlice';
 import {unlock, type AppLockResult} from './services/appLockKeychain';
 import {coverRendered, setPrivacy} from './services/privacyScreen';
 import {useAppLockLifecycle} from './useAppLockLifecycle';
+import {AppLockOverlay} from './AppLockOverlay';
 
 export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
   children,
 }) => {
-  const {theme} = useTheme();
   const {t} = useTranslation();
   const dispatch = useAppDispatch();
   const {isLoggedIn, logout, user} = useAuth();
@@ -77,64 +76,18 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
         pointerEvents={locked ? 'none' : 'auto'}>
         {children}
       </View>
-      {locked ? (
-        <View style={[styles.root, {backgroundColor: theme.colors.screen}]}>
-          <View
-            accessible
-            accessibilityLabel={t('appLock.lockedLabel')}
-            style={styles.card}>
-            <Text style={[styles.title, {color: theme.colors.ink}]}>
-              {t('appLock.lockedTitle')}
-            </Text>
-            <Text style={[styles.caption, {color: theme.colors.inkMuted}]}>
-              {failure ?? t('appLock.lockedCaption')}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('appLock.unlock')}
-              disabled={status.authenticating || !isOwner}
-              onPress={handleUnlock}
-              style={[styles.button, {backgroundColor: theme.colors.blue}]}>
-              <Text style={[styles.buttonText, {color: theme.colors.white}]}>
-                {status.authenticating
-                  ? t('appLock.waiting')
-                  : t('appLock.unlock')}
-              </Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={logout}>
-              <Text style={[styles.signOut, {color: theme.colors.inkMuted}]}>
-                {t('appLock.signOut')}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
+      <AppLockOverlay
+        failure={failure}
+        isOwner={isOwner}
+        locked={locked}
+        authenticating={status.authenticating}
+        onUnlock={handleUnlock}
+        onLogout={logout}
+      />
     </>
   );
 };
 
-const styles = StyleSheet.create({
-  content: {flex: 1},
-  root: {
-    position: 'absolute',
-    inset: 0,
-    zIndex: 1000,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  card: {alignItems: 'center', gap: 16},
-  title: {fontSize: 24, fontWeight: '700', textAlign: 'center'},
-  caption: {fontSize: 16, textAlign: 'center', maxWidth: 300},
-  button: {
-    minWidth: 180,
-    minHeight: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  buttonText: {fontSize: 16, fontWeight: '700'},
-  signOut: {fontSize: 14, padding: 12},
-});
-
 export default AppLockGate;
+
+const styles = StyleSheet.create({content: {flex: 1}});
