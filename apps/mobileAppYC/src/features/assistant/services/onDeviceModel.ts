@@ -240,11 +240,11 @@ const words = (text: string): string[] =>
 const claimWords = (text: string): string =>
   words(text)
     .filter(word => CLAIM_WORDS.has(word))
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
     .join(' ');
 
 const numbers = (text: string): string =>
-  (text.match(/\d+/g) ?? []).sort().join(' ');
+  (text.match(/\d+/g) ?? []).sort((a, b) => a.localeCompare(b)).join(' ');
 
 /** Whether `value` appears in `text` as a whole word or phrase, ignoring case. */
 const containsWhole = (text: string, value: string): boolean => {
