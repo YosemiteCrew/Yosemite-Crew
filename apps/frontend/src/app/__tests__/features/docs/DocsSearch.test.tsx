@@ -127,6 +127,7 @@ describe('DocsSearch', () => {
     ['non-array order', { order: 'invalid' }],
     ['non-string href', { order: [42] }],
     ['outside candidate', { order: ['/docs/not-in-candidates'] }],
+    ['empty order', { order: [] }],
   ])('ignores a %s from the reranker', async (_caseName, rerankResult) => {
     global.fetch = jest.fn().mockImplementation((input: RequestInfo | URL) => {
       if (String(input) === '/api/docs/rerank' && rerankResult === 'http-failure') {
