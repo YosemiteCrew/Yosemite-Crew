@@ -62,13 +62,30 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
       dispatch(appLocked());
     }
     activeRef.current = true;
+    const handleResume = async () => {
+      if (authenticatingRef.current) return;
+      const background = backgroundRef.current;
+      backgroundRef.current = null;
+      if (!background) {
+        dispatch(appLocked());
+      } else {
+        const mono = await monotonicNow();
+        const shouldLock = shouldLockOnResume({
+          wallElapsed: Date.now() - background.wall,
+          monoElapsed:
+            mono === null || background.mono === null
+              ? null
+              : mono - background.mono,
+          timeoutMs: settings.timeoutMs,
+        });
+        dispatch(shouldLock ? appLocked() : appUnlocked());
+      }
+      await coverRendered();
+    };
     const onStateChange = async (next: AppStateStatus) => {
       if (authenticatingRef.current) {
-        if (next === 'background' || next === 'inactive') {
-          promptInactiveRef.current = true;
-        } else if (next === 'active') {
-          promptInactiveRef.current = false;
-        }
+        promptInactiveRef.current =
+          next === 'background' || next === 'inactive';
         return;
       }
       if (next === 'active' && skipNextActiveRef.current) {
@@ -80,29 +97,7 @@ export const AppLockGate: React.FC<{children: React.ReactNode}> = ({
         return;
       }
       if (next !== 'active') return;
-      if (authenticatingRef.current) return;
-      const background = backgroundRef.current;
-      backgroundRef.current = null;
-      if (!background) {
-        dispatch(appLocked());
-      } else {
-        const mono = await monotonicNow();
-        if (
-          shouldLockOnResume({
-            wallElapsed: Date.now() - background.wall,
-            monoElapsed:
-              mono === null || background.mono === null
-                ? null
-                : mono - background.mono,
-            timeoutMs: settings.timeoutMs,
-          })
-        ) {
-          dispatch(appLocked());
-        } else {
-          dispatch(appUnlocked());
-        }
-      }
-      await coverRendered();
+      await handleResume();
     };
     const subscription = AppState.addEventListener('change', onStateChange);
     return () => subscription.remove();
