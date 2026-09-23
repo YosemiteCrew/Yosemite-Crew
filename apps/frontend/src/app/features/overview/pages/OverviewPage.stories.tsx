@@ -1,3 +1,4 @@
+import { PLATFORM_STATUS_API_URL } from '@/app/hooks/usePlatformStatus';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, waitFor, within } from 'storybook/test';
 
@@ -81,7 +82,6 @@ const SUMMARY_HOST = 'raw.githubusercontent.com';
 const REPO_HOST = 'api.github.com';
 const REPO_PATH = '/repos/YosemiteCrew/Yosemite-Crew';
 const CONTRIBUTORS_PATH = '/contributors';
-const STATUS_HOST = 'api.openstatus.dev';
 
 /*
  * Route the stub on the parsed host, never on a substring of the whole URL.
@@ -119,7 +119,7 @@ type StatsFixture = {
 /**
  * On mount the page fires three requests at GitHub (the stats branch's
  * `summary.json`, the repo, and the contributor list) and the footer fires a fourth
- * at openstatus. Left alone that makes every render here depend on GitHub being up
+ * at /api/platform-status. Left alone that makes every render here depend on GitHub being up
  * and on an unauthenticated rate limit that CI shares with every other job on the
  * runner - and a rejected request lands in the hook's `console.error`, which the
  * story verifier counts as a failure.
@@ -134,7 +134,7 @@ const withGithubStats = (fixture: StatsFixture | 'never-resolves') => () => {
     const url = String(input);
     const parsed = parseUrl(url);
 
-    if (parsed?.hostname === STATUS_HOST) {
+    if (parsed?.pathname === PLATFORM_STATUS_API_URL) {
       return Promise.resolve(jsonResponse({ status: 'operational' }));
     }
 
