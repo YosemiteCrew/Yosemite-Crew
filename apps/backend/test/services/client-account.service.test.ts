@@ -381,6 +381,28 @@ describe("planClientAllocation", () => {
     expect(lines.map((line) => line.receiptId)).toEqual(["older"]);
   });
 
+  it("breaks a same-instant capture tie on the id so the plan reproduces", () => {
+    const sameInstant = new Date("2026-09-01T10:00:00.000Z");
+    const lines = planClientAllocation({
+      credits: [
+        credit({
+          receiptId: "receipt-b",
+          availableCredit: 100,
+          capturedAt: sameInstant,
+        }),
+        credit({
+          receiptId: "receipt-a",
+          availableCredit: 100,
+          capturedAt: sameInstant,
+        }),
+      ],
+      debts: [debt({ balance: 100 })],
+      allocatedPairs: new Set<string>(),
+    });
+
+    expect(lines.map((line) => line.receiptId)).toEqual(["receipt-a"]);
+  });
+
   it("draws on a second capture when the first runs out", () => {
     const lines = planClientAllocation({
       credits: [
