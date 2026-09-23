@@ -845,13 +845,102 @@ describe("ClientAccountService.applyAllocation", () => {
       { id: "invoice-2" },
     ]);
     mockedPrisma.providerReceipt.findMany.mockResolvedValue([
-      { id: "receipt-1" },
-      { id: "receipt-2" },
+      { id: "receipt-1", invoiceId: "invoice-1" },
+      { id: "receipt-2", invoiceId: "invoice-2" },
     ]);
   });
 
   afterEach(() => {
     allocate.mockRestore();
+  });
+
+  it("refuses a capture named twice and writes nothing", async () => {
+    const result = await applyPlan([
+      plan({ receiptId: "receipt-1" }),
+      plan({ receiptId: "receipt-2" }),
+      plan({ receiptId: "receipt-1" }),
+    ]);
+
+    expect(result).toEqual({
+      outcome: "DUPLICATE_RECEIPT",
+      receiptId: "receipt-1",
+    });
+    expect(allocate).not.toHaveBeenCalled();
+    expect(mockedPrisma.providerReceipt.findMany).not.toHaveBeenCalled();
+  });
+
+  it("never reports a replayed duplicate as money that moved", async () => {
+    // Reviewer's arm: without the guard the second entry comes back REPLAYED
+    // with the first entry's 40 and the plan reports 80 moved.
+    allocate
+      .mockResolvedValueOnce(applied([{ invoiceId: "invoice-1", amount: 40 }]))
+      .mockResolvedValueOnce({
+        outcome: "REPLAYED",
+        receipt: {},
+        remainingAmount: 0,
+        allocations: [
+          { invoiceId: "invoice-1", amount: 40, paymentId: "pay-1" },
+        ],
+      } as unknown as AllocateResult);
+
+    const result = await applyPlan([
+      plan({ receiptId: "receipt-1" }),
+      plan({ receiptId: "receipt-1" }),
+    ]);
+
+    expect(result).not.toEqual(expect.objectContaining({ appliedAmount: 80 }));
+    expect(result).toEqual(
+      expect.objectContaining({ outcome: "DUPLICATE_RECEIPT" }),
+    );
+  });
+
+  it("bounds the invoice read to the invoices the plan touches", async () => {
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      { id: "receipt-1", invoiceId: "invoice-1" },
+    ]);
+
+    await applyPlan([
+      plan({
+        receiptId: "receipt-1",
+        allocations: [{ invoiceId: "invoice-3", amount: 40 }],
+      }),
+    ]);
+
+    const where = mockedPrisma.invoice.findMany.mock.calls[0][0].where;
+    expect(where).toEqual({
+      organisationId: ORG,
+      parentId: PARENT,
+      id: { in: expect.any(Array) },
+    });
+    expect([...where.id.in].sort()).toEqual(["invoice-1", "invoice-3"]);
+  });
+
+  it("refuses a capture attributed to another client's invoice", async () => {
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      { id: "receipt-1", invoiceId: "someone-elses-invoice" },
+    ]);
+
+    const result = await applyPlan([plan({ receiptId: "receipt-1" })]);
+
+    expect(result).toEqual({
+      outcome: "RECEIPT_NOT_THIS_CLIENT",
+      receiptId: "receipt-1",
+    });
+    expect(allocate).not.toHaveBeenCalled();
+  });
+
+  it("refuses a capture nobody has attributed yet", async () => {
+    mockedPrisma.providerReceipt.findMany.mockResolvedValue([
+      { id: "receipt-1", invoiceId: null },
+    ]);
+
+    const result = await applyPlan([plan({ receiptId: "receipt-1" })]);
+
+    expect(result).toEqual({
+      outcome: "RECEIPT_NOT_THIS_CLIENT",
+      receiptId: "receipt-1",
+    });
+    expect(allocate).not.toHaveBeenCalled();
   });
 
   it("refuses an invoice that is not this client's and writes nothing", async () => {
@@ -878,17 +967,13 @@ describe("ClientAccountService.applyAllocation", () => {
     expect(allocate).not.toHaveBeenCalled();
   });
 
-  it("scopes the capture lookup to this client's own invoices", async () => {
-    await applyPlan([plan()]);
+  it("bounds the capture read to the captures the plan names", async () => {
+    await applyPlan([plan({ receiptId: "receipt-2" })]);
 
-    expect(mockedPrisma.providerReceipt.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          organisationId: ORG,
-          invoiceId: { in: ["invoice-1", "invoice-2"] },
-        }),
-      }),
-    );
+    expect(mockedPrisma.providerReceipt.findMany).toHaveBeenCalledWith({
+      where: { organisationId: ORG, id: { in: ["receipt-2"] } },
+      select: { id: true, invoiceId: true },
+    });
   });
 
   it("applies the captures in the order the plan gave them", async () => {
@@ -936,9 +1021,9 @@ describe("ClientAccountService.applyAllocation", () => {
 
   it("stops at the first refusal and names what it did not try", async () => {
     mockedPrisma.providerReceipt.findMany.mockResolvedValue([
-      { id: "receipt-1" },
-      { id: "receipt-2" },
-      { id: "receipt-3" },
+      { id: "receipt-1", invoiceId: "invoice-1" },
+      { id: "receipt-2", invoiceId: "invoice-1" },
+      { id: "receipt-3", invoiceId: "invoice-2" },
     ]);
     allocate
       .mockResolvedValueOnce(applied([{ invoiceId: "invoice-1", amount: 40 }]))
