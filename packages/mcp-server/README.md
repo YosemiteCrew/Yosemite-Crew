@@ -51,6 +51,14 @@ YC_API_KEY=yc_test_… node packages/mcp-server/dist/index.js
 
 Without a build step, `pnpm --filter @yosemitecrew/mcp-server run dev`.
 
+## Publishing
+
+npm staged publishing requires the package to exist in the registry. A
+maintainer must bootstrap version 0.1.0 with an interactive, 2FA-protected
+publish. For later versions, create an `mcp-v<version>` tag only after its
+commit reaches `main`; the release workflow stages the package for a separate
+maintainer review and 2FA approval.
+
 ## Claude Desktop
 
 Add it to `claude_desktop_config.json` and restart:

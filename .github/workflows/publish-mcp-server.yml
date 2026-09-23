@@ -1,12 +1,17 @@
-# Publishes @yosemitecrew/mcp-server to npm on an `mcp-v*` tag.
+# Stages @yosemitecrew/mcp-server on npm on an `mcp-v*` tag.
 #
 # Trusted publishing (OIDC), not a token. npm mints a short-lived credential
 # from this workflow's identity, so there is no NPM_TOKEN to leak, rotate or
-# leave in a log, and the published package carries provenance linking it to
-# this repository and this run. The one-time setup is on npm's side: the
+# leave in a log, and the staged package carries provenance linking it to this
+# repository and this run. A maintainer then reviews and approves the staged
+# package with 2FA. The one-time setup is on npm's side: the
 # package's Settings > Trusted publisher must name this repository and this
-# workflow file. Until that is done the publish step fails closed rather than
-# falling back to anything weaker.
+# workflow file, with staged publishing allowed. Until that is done the stage
+# step fails closed rather than falling back to anything weaker.
+#
+# npm only supports staging an existing package. Bootstrap version 0.1.0 with
+# an interactive, 2FA-protected publish before creating the first release tag;
+# tagged releases after that point always use staged publishing.
 #
 # `id-token: write` is what lets npm verify that identity. `contents: read` is
 # everything else this needs.
@@ -22,7 +27,7 @@ permissions: {}
 
 jobs:
   publish:
-    name: Publish to npm
+    name: Stage on npm
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -70,7 +75,7 @@ jobs:
             echo "::error::tag mcp-v$TAG does not match package version $PKG"
             exit 1
           fi
-          echo "publishing $PKG"
+          echo "staging $PKG"
 
       - run: pnpm --filter @yosemitecrew/mcp-server run build
       - run: pnpm --filter @yosemitecrew/mcp-server run test
@@ -93,7 +98,7 @@ jobs:
           head -1 "$BIN" | grep -q '^#!' || { echo "::error::bin entrypoint has no shebang"; exit 1; }
           echo "tarball installs and carries a runnable entrypoint"
 
-      - name: Publish
+      - name: Stage for maintainer approval
         if: github.event_name == 'push'
         working-directory: packages/mcp-server
-        run: npm publish
+        run: npm stage publish

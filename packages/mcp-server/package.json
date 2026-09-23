@@ -2,7 +2,7 @@
   "name": "@yosemitecrew/mcp-server",
   "version": "0.1.0",
   "description": "MCP server exposing the Yosemite Crew developer data API to AI agents via a developer API key",
-  "license": "SEE LICENSE IN License.txt",
+  "license": "AGPL-3.0-only",
   "homepage": "https://github.com/YosemiteCrew/Yosemite-Crew/tree/main/packages/mcp-server#readme",
   "repository": {
     "type": "git",
