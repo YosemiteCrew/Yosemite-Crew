@@ -100,6 +100,16 @@ router.get(
   FinanceController.getClientAccountAllocationProposal,
 );
 
+// Confirming the plan above. Same permission, because the preview exists to be
+// confirmed and a reader who may see it is the reader who may act on it.
+router.post(
+  "/organisation/:organisationId/clients/:parentId/account-credit/allocations",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  FinanceController.applyClientAccountAllocation,
+);
+
 router.get(
   "/organisation/:organisationId/subscription/seat-sync-plan",
   requireWebAuth,
