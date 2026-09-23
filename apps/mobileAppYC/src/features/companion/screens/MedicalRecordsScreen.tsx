@@ -25,6 +25,8 @@ const humanize = (value: string): string =>
     .join(' ');
 
 const labelKey = (value: string): string => `medicalRecords.labels.${value}`;
+const problemLabelKey = (value: string): string =>
+  `medicalRecords.problemLabels.${value}`;
 
 const formatDate = (value: string | undefined): string | null => {
   if (!value) return null;
@@ -117,7 +119,7 @@ export const MedicalRecordsScreen: React.FC<Props> = ({navigation, route}) => {
           ? t('medicalRecords.dormant')
           : t('medicalRecords.active')}
         {problem.severity
-          ? ` · ${t(`medicalRecords.problemLabels.${problem.severity}`, {defaultValue: humanize(problem.severity)})}`
+          ? ` · ${t(problemLabelKey(problem.severity), {defaultValue: humanize(problem.severity)})}`
           : ''}
       </Text>
       {formatDate(problem.onsetDate) ? (
