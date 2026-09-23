@@ -33,6 +33,34 @@ const subscribeToConsent = (onChange: () => void): (() => void) => {
  */
 const CONSENT_INSET_PROPERTY = '--yc-consent-inset';
 
+/**
+ * The no-JavaScript floor for the consent card, served inside `<noscript>`.
+ *
+ * Consent here gates PostHog and nothing else, it is stored in localStorage,
+ * and `reportConsentDecision` relays the answer from the client. Every one of
+ * those needs scripting, so with scripting off nothing non-essential is
+ * written and there is no decision to collect - the only cookies in play are
+ * the httpOnly SuperTokens session ones, which are strictly necessary and
+ * outside consent. What the reader got instead was a card holding 252px of a
+ * 390px viewport, offering `Accept` and `Reject` buttons whose only behaviour
+ * is an `onClick`: a press is accepted, nothing is recorded, and the card
+ * never goes away. A consent control that visibly does not respond is worse
+ * than one that is not offered, because the reader cannot tell whether their
+ * choice was taken. See issue #3531.
+ *
+ * It has to be `<noscript>`, not a rule in a stylesheet, for the reason
+ * `DocsSidebar.tsx` gives: CSS cannot distinguish "scripting is off" from
+ * "React has not hydrated yet", so any other form would also hide the card
+ * from readers who do have scripting, for the width of hydration.
+ *
+ * Quote-free and `&<>`-free on purpose - this is the text content of a
+ * raw-text element, so an escaped `'` would ship as `&#x27;` and void the
+ * selector it sits in. That is also why the hook is a class rather than the
+ * `aria-label`: an attribute selector would need quotes around a value
+ * containing a space.
+ */
+export const COOKIE_CONSENT_NO_JS_CSS = '.CookieConsent{display:none}';
+
 const getConsentSnapshot = () => getStorageItem('local', COOKIE_CONSENT_KEY);
 const getServerConsentSnapshot = () => null;
 
@@ -97,8 +125,12 @@ const Cookies = () => {
     <aside
       ref={cardRef}
       aria-label="Cookie consent"
-      className="fixed inset-x-4 bottom-[calc(84px+env(safe-area-inset-bottom,0px))] z-9999 md:inset-x-auto md:left-20 md:bottom-32.5"
+      className="CookieConsent fixed inset-x-4 bottom-[calc(84px+env(safe-area-inset-bottom,0px))] z-9999 md:inset-x-auto md:left-20 md:bottom-32.5"
     >
+      <noscript>
+        <style>{COOKIE_CONSENT_NO_JS_CSS}</style>
+      </noscript>
+
       <div className="bg-neutral-0 rounded-2xl p-3 z-22 border border-card-border md:max-w-75">
         <div className="flex flex-col gap-2">
           <div className="text-body-4-emphasis text-text-primary">

@@ -1,7 +1,8 @@
 import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import Cookies from '@/app/ui/widgets/Cookies/Cookies';
+import Cookies, { COOKIE_CONSENT_NO_JS_CSS } from '@/app/ui/widgets/Cookies/Cookies';
 import { reportConsentDecision } from '@/app/lib/consentReporter';
 
 jest.mock('@/app/lib/consentReporter', () => ({
@@ -213,6 +214,37 @@ describe('Cookies Component', () => {
 
       expect(inset()).toBe('');
       rect.mockRestore();
+    });
+  });
+  /*
+   * The no-JavaScript floor. These assert the SERVER markup, because that is
+   * the only artefact a scripting-off browser ever gets - `render` above has
+   * already run the client, where the card is dismissible and none of this
+   * applies. See issue #3531.
+   */
+  describe('the no-JavaScript floor', () => {
+    const serverHtml = () => renderToStaticMarkup(<Cookies />);
+
+    it('ships the override inside noscript, the one element a running browser ignores', () => {
+      expect(serverHtml()).toContain(
+        `<noscript><style>${COOKIE_CONSENT_NO_JS_CSS}</style></noscript>`
+      );
+    });
+
+    it('withdraws the card whose controls cannot work, by the class it carries', () => {
+      expect(COOKIE_CONSENT_NO_JS_CSS).toBe('.CookieConsent{display:none}');
+      expect(serverHtml()).toContain('class="CookieConsent ');
+    });
+
+    /*
+     * The rule travels as the text content of a raw-text element, so React
+     * would escape a quote or an ampersand into an entity and void the
+     * selector without failing anything. Asserted on the served markup rather
+     * than on the constant: the escaping happens at render, not at authoring.
+     */
+    it('serves the rule unescaped', () => {
+      expect(serverHtml()).not.toContain('&#x27;');
+      expect(serverHtml()).toContain('<style>.CookieConsent{display:none}</style>');
     });
   });
 });
