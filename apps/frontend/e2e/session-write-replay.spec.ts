@@ -1,8 +1,29 @@
 import { expect, test } from '@playwright/test';
 
-const API_ORIGIN = 'http://127.0.0.1:3999';
+/*
+ * The API origin the app was BUILT with, not an arbitrary loopback port.
+ *
+ * Two things pin this, and only one of them is the route interception. The
+ * SuperTokens replay guard under test is installed for
+ * `resolveApiDomain(NEXT_PUBLIC_BASE_URL)` (`authClient.ts:123`) and ignores
+ * every other origin, so a request somewhere else is not the thing being
+ * measured. And `securityHeaders.ts:175` lists `connect-src` explicitly, with
+ * a blanket `http:` added only when `isDevelopment` - so a hardcoded
+ * `http://127.0.0.1:3999` is permitted under `next dev` and REFUSED BY CSP
+ * under `next start`, before any request leaves the page. That is why this
+ * spec passed where it was written and could never have passed in CI: the
+ * failure is a console CSP violation and a `TypeError: Failed to fetch`, with
+ * no network request for a route handler to see. See issue #3535.
+ *
+ * Nothing real is contacted: every call to this origin is fulfilled by
+ * `page.route` below.
+ */
+const API_ORIGIN = (
+  process.env.NEXT_PUBLIC_BASE_URL?.trim() || 'https://devapi.yosemitecrew.com'
+).replace(/\/$/, '');
 const APP_ORIGIN = (process.env.E2E_BASE_URL?.trim() || 'http://127.0.0.1:3001').replace(/\/$/, '');
 const APP_HOST = new URL(APP_ORIGIN).hostname;
+const APPOINTMENT_URL = `${API_ORIGIN}/v1/appointments/appointment-1`;
 
 const corsHeaders = {
   'access-control-allow-credentials': 'true',
@@ -39,6 +60,19 @@ test('refreshes safe reads but requires explicit resubmission for writes', async
       return;
     }
     if (request.method() === 'GET') {
+      /*
+       * Only the appointment read is counted and only it is refused once. The
+       * application issues its own reads against this origin while `/signin`
+       * loads, and counting those made the 401 land on a page-load request
+       * instead of on the read under test - `getAttempts` reached 8, and the
+       * one GET this test performs was never the first. The property being
+       * measured is that a SAFE read is retried after a refresh, so the
+       * request it is measured on has to be the test's own.
+       */
+      if (request.url() !== APPOINTMENT_URL) {
+        await route.fulfill({ status: 200, headers: corsHeaders });
+        return;
+      }
       getAttempts += 1;
       await route.fulfill({ status: getAttempts === 1 ? 401 : 200, headers: corsHeaders });
       return;
@@ -79,8 +113,8 @@ test('refreshes safe reads but requires explicit resubmission for writes', async
   expect(sdkState.interceptorInstalled).toBe(true);
   expect(sdkState.cookies).toContain('sFrontToken=');
 
-  const blockedWrite = await page.evaluate(async () => {
-    const response = await fetch('http://127.0.0.1:3999/v1/appointments/appointment-1', {
+  const blockedWrite = await page.evaluate(async (url) => {
+    const response = await fetch(url, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ expectedVersion: 7, status: 'complete' }),
@@ -89,22 +123,20 @@ test('refreshes safe reads but requires explicit resubmission for writes', async
       replayBlocked: response.headers.get('x-yc-session-write-replay-blocked'),
       status: response.status,
     };
-  });
+  }, APPOINTMENT_URL);
 
   expect(blockedWrite).toEqual({ replayBlocked: 'true', status: 401 });
   expect(writeBodies).toEqual([JSON.stringify({ expectedVersion: 7, status: 'complete' })]);
 
-  const explicitResubmissionStatus = await page.evaluate(async () => {
-    const response = await fetch('http://127.0.0.1:3999/v1/appointments/appointment-1', {
+  const explicitResubmissionStatus = await page.evaluate(async (url) => {
+    const response = await fetch(url, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ expectedVersion: 8, status: 'complete' }),
     });
     return response.status;
-  });
-  const readStatus = await page.evaluate(
-    async () => (await fetch('http://127.0.0.1:3999/v1/appointments/appointment-1')).status
-  );
+  }, APPOINTMENT_URL);
+  const readStatus = await page.evaluate(async (url) => (await fetch(url)).status, APPOINTMENT_URL);
 
   expect(explicitResubmissionStatus).toBe(200);
   expect(writeBodies).toEqual([
