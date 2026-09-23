@@ -6,7 +6,7 @@ slug: /apps/backend/api/rendered-document.fhir
 
 Serves a previously-persisted rendered document (for example a signed form, a prescription, or an invoice) — its FHIR read view, its PDF, a re-render of that PDF, and a signing action. RBAC is resolved from the rendered document's own stored `organisationId` (via `withRenderedDocumentOrgPermissions`) rather than a caller-supplied one. A rendered document of kind `INVOICE` additionally requires the `billing:view:any` permission, since invoices are financial rather than clinical data; any other holder of the view/edit permission below is otherwise permitted.
 
-**Endpoints**
+## Endpoints
 
 ### GET /organisation/:organisationId/:renderedDocumentId
 

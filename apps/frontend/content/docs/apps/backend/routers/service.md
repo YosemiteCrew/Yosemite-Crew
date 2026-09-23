@@ -6,7 +6,7 @@ slug: /apps/backend/api/service
 
 Lets clients discover the services organisations offer: search by service name and location, list an organisation's services, fetch a service's bookable slots, and remove a service.
 
-**Endpoints**
+## Endpoints
 
 ### POST /
 

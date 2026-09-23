@@ -6,7 +6,7 @@ slug: /apps/backend/api/body-condition
 
 Records and trends a patient's body condition score (on either the 5-point or 9-point BCS scale), weight, and body fat percentage, for the PIMS (Practice Information Management System, the clinic-facing web app). Gated by RBAC (role-based access control) under the `appointments` permission pair. Route params and payloads are validated with Zod; an invalid path parameter returns `400` with a `message`, and a domain-specific failure returns the matching status with a `message` from the service.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/body-condition
 

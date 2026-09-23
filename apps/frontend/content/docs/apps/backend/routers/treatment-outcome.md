@@ -6,7 +6,7 @@ slug: /apps/backend/api/treatment-outcome
 
 Records and tracks a patient's clinical treatment outcome (recovered, improved, stable, deteriorated, deceased, referred out, lost to follow-up, or ongoing), with an optional follow-up date and notes, and lets staff mark an outcome resolved. All routes are under the PIMS (Practice Information Management System, the clinic-facing web app) `/pms` namespace and require organisation RBAC (role-based access control) permissions on `companions`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/treatment-outcomes
 

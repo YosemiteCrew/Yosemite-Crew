@@ -6,7 +6,7 @@ slug: /apps/backend/api/isolation-protocol
 
 Manages infection-control isolation protocols for a hospitalised patient: starting one (reason, isolation level, unit, PPE required), listing/viewing them, updating the in-progress protocol, and ending it. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC permissions.
 
-**Endpoints**
+## Endpoints
 
 ### POST /pms/organisation/:organisationId/isolation-protocols
 

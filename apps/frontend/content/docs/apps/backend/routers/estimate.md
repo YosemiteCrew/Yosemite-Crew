@@ -6,7 +6,7 @@ slug: /apps/backend/api/estimate
 
 Manages cost estimates presented to a pet parent before treatment: line items, sending, client approval/decline, and converting an approved estimate into billing. Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions. Validation failures return `400` with `{ error }` (a flattened Zod error); service errors return `{ error: message }` at the service's own status code.
 
-**Endpoints**
+## Endpoints
 
 ### POST /pms/organisation/:organisationId/estimates
 

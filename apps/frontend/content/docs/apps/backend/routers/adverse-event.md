@@ -6,7 +6,7 @@ slug: /apps/backend/api/adverse-event
 
 Manages adverse event reports (for example, a suspected reaction to a medication). The mobile app submits reports and looks up regulatory-authority information, while the PIMS (Practice Information Management System, the clinic-facing web app) lists reports for an organisation and updates their status.
 
-**Endpoints**
+## Endpoints
 
 ### POST /
 

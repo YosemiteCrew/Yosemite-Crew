@@ -6,7 +6,7 @@ slug: /apps/backend/api/drug-formulary
 
 Manages an organisation's drug formulary: the catalog of drugs it prescribes from, each with one or more species-specific dosage entries. Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions. Validation failures return `400` with `{ error }` (a flattened Zod error); service errors return `{ error: message }` at the service's own status code.
 
-**Endpoints**
+## Endpoints
 
 ### POST /pms/organisation/:organisationId/drug-formulary
 
