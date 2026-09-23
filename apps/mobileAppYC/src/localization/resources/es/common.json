@@ -385,13 +385,18 @@
     "noAllergies": "No hay alergias actuales registradas.",
     "noProblems": "No hay problemas de salud actuales registrados.",
     "suspected": "Sospechada",
-    "active": "Activa",
-    "dormant": "Inactiva",
+    "active": "Activo",
+    "dormant": "Inactivo",
     "since": "Desde {{date}}",
     "flagsNotice": "Las clínicas veterinarias gestionan por separado las alertas de manejo y seguridad.",
     "signInAgain": "Vuelve a iniciar sesión para ver los registros de salud.",
     "loadFailed": "No se pudieron cargar los registros de salud. Inténtalo de nuevo.",
     "retry": "Intentar de nuevo",
+    "problemLabels": {
+      "MILD": "Leve",
+      "MODERATE": "Moderado",
+      "SEVERE": "Grave"
+    },
     "labels": {
       "MILD": "Leve",
       "MODERATE": "Moderada",

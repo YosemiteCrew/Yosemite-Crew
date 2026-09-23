@@ -37,11 +37,16 @@ export const MedicalRecordsScreen: React.FC<Props> = ({navigation, route}) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const {t} = useTranslation();
+  const {companionId} = route.params;
   const [allergies, setAllergies] = React.useState<MobileAllergy[]>([]);
   const [problems, setProblems] = React.useState<MobileProblem[]>([]);
-  const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [retryCount, setRetryCount] = React.useState(0);
+  // Loading is derived from which request the state belongs to, so a new
+  // companion (or a retry) never shows the previous result while it loads.
+  const requestKey = `${companionId}:${retryCount}`;
+  const [loadedKey, setLoadedKey] = React.useState<string | null>(null);
+  const loading = loadedKey !== requestKey;
 
   React.useEffect(() => {
     let active = true;
@@ -51,14 +56,8 @@ export const MedicalRecordsScreen: React.FC<Props> = ({navigation, route}) => {
         if (!tokens?.accessToken)
           throw new Error(t('medicalRecords.signInAgain'));
         const [nextAllergies, nextProblems] = await Promise.all([
-          medicalRecordApi.fetchAllergies(
-            route.params.companionId,
-            tokens.accessToken,
-          ),
-          medicalRecordApi.fetchProblems(
-            route.params.companionId,
-            tokens.accessToken,
-          ),
+          medicalRecordApi.fetchAllergies(companionId, tokens.accessToken),
+          medicalRecordApi.fetchProblems(companionId, tokens.accessToken),
         ]);
         if (active) {
           setAllergies(nextAllergies);
@@ -75,14 +74,14 @@ export const MedicalRecordsScreen: React.FC<Props> = ({navigation, route}) => {
           );
         }
       } finally {
-        if (active) setLoading(false);
+        if (active) setLoadedKey(requestKey);
       }
     };
     load();
     return () => {
       active = false;
     };
-  }, [route.params.companionId, retryCount, t]);
+  }, [companionId, requestKey, t]);
 
   const renderAllergy = (allergy: MobileAllergy) => (
     <View key={allergy.id} style={styles.card}>
@@ -118,7 +117,7 @@ export const MedicalRecordsScreen: React.FC<Props> = ({navigation, route}) => {
           ? t('medicalRecords.dormant')
           : t('medicalRecords.active')}
         {problem.severity
-          ? ` · ${t(labelKey(problem.severity), {defaultValue: humanize(problem.severity)})}`
+          ? ` · ${t(`medicalRecords.problemLabels.${problem.severity}`, {defaultValue: humanize(problem.severity)})}`
           : ''}
       </Text>
       {formatDate(problem.onsetDate) ? (
@@ -147,10 +146,7 @@ export const MedicalRecordsScreen: React.FC<Props> = ({navigation, route}) => {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('medicalRecords.retry')}
-              onPress={() => {
-                setLoading(true);
-                setRetryCount(value => value + 1);
-              }}
+              onPress={() => setRetryCount(value => value + 1)}
               style={styles.retryButton}>
               <Text style={styles.retryLabel}>{t('medicalRecords.retry')}</Text>
             </Pressable>

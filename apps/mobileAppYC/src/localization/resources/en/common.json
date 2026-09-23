@@ -392,6 +392,11 @@
     "signInAgain": "Please sign in again to view health records.",
     "loadFailed": "Health records could not be loaded. Please try again.",
     "retry": "Try again",
+    "problemLabels": {
+      "MILD": "Mild",
+      "MODERATE": "Moderate",
+      "SEVERE": "Severe"
+    },
     "labels": {
       "MILD": "Mild",
       "MODERATE": "Moderate",
