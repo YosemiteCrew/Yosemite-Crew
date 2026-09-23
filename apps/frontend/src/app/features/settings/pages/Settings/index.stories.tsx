@@ -300,8 +300,12 @@ export const Default: Story = {
     // The Profile card, resolved from the seeded auth/org/profile stores. Only
     // once it has loaded can this prove "Personal" is the band's heading alone:
     // the card used to reuse the word as its level-3 title, which the
-    // authenticated route sweep flags as a duplicate heading.
-    await expect(await canvas.findByRole('heading', { level: 3, name: 'Profile' })).toBeVisible();
+    // authenticated route sweep flags as a duplicate heading. The card is a
+    // dynamic import, so under a loaded test runner it can miss findBy's
+    // default one-second window.
+    await expect(
+      await canvas.findByRole('heading', { level: 3, name: 'Profile' }, { timeout: 5000 })
+    ).toBeVisible();
     await expect(canvas.getAllByRole('heading', { name: /^personal$/i })).toHaveLength(1);
     await expect(
       await canvas.findByText('amelia.weber@harbourside.vet · Owner · Internal medicine')

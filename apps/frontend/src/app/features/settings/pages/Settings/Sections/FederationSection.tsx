@@ -86,25 +86,59 @@ const StateBadge = ({ state }: { state: string }) => (
   />
 );
 
-const COPY_VALUE_BOX = 'flex-1 text-body-4 bg-card-hover px-3 py-1.5 rounded-lg';
+/*
+ * Actor URIs end in the organisation's database id - 24 hex characters for an
+ * older organisation, a UUID for a newer one. Printed whole, that is an opaque
+ * database id on a vet's screen, so on screen it is cut to its last six
+ * characters: the host stays readable and two clinics stay distinguishable.
+ * Wherever a full URI is needed it is taken from the data, never from the text.
+ */
+const DATABASE_ID =
+  /\b(?:[0-9a-f]{24}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/gi;
+const abbreviateIds = (uri: string): string => uri.replace(DATABASE_ID, (id) => `…${id.slice(-6)}`);
 
-/** `hint` replaces the printed value; Copy still copies `value`. */
-const CopyRow = ({ label, value, hint }: { label: string; value: string; hint?: string }) => {
+const COPY_VALUE_BOX =
+  'flex-1 text-body-4 text-text-primary bg-card-hover px-3 py-1.5 rounded-lg overflow-x-auto';
+
+/** `display` is what is printed (defaults to `value`); Copy always copies `value`. */
+const CopyRow = ({
+  label,
+  value,
+  display = value,
+}: {
+  label: string;
+  value: string;
+  display?: string;
+}) => {
   const { notify } = useNotify();
+  // Set when the clipboard refuses. `display` may be abbreviated, so this field
+  // is then the only way left to get the whole value.
+  const [copyFailed, setCopyFailed] = useState(false);
   const copy = () => {
-    navigator.clipboard.writeText(value).then(() => {
-      notify('success', { title: 'Copied', text: `${label} copied to clipboard.` });
-    });
+    // Inside the chain, so a missing clipboard (an insecure context such as a
+    // plain-http self-host, or an embed without clipboard-write) lands in the
+    // same failure branch as a refused write instead of throwing.
+    Promise.resolve()
+      .then(() => navigator.clipboard.writeText(value))
+      .then(
+        () => {
+          setCopyFailed(false);
+          notify('success', { title: 'Copied', text: `${label} copied to clipboard.` });
+        },
+        () => {
+          setCopyFailed(true);
+          notify('error', {
+            title: 'Copy failed',
+            text: `Could not copy the ${label}. Select it below and copy it by hand.`,
+          });
+        }
+      );
   };
   return (
     <div className="flex flex-col gap-1">
       <div className={TEXT_MUTED}>{label}</div>
       <div className="flex items-center gap-2">
-        {hint ? (
-          <span className={`${COPY_VALUE_BOX} text-text-secondary`}>{hint}</span>
-        ) : (
-          <code className={`${COPY_VALUE_BOX} text-text-primary overflow-x-auto`}>{value}</code>
-        )}
+        <code className={COPY_VALUE_BOX}>{display}</code>
         <button
           type="button"
           onClick={copy}
@@ -114,6 +148,16 @@ const CopyRow = ({ label, value, hint }: { label: string; value: string; hint?: 
           Copy
         </button>
       </div>
+      {copyFailed && (
+        <input
+          type="text"
+          readOnly
+          value={value}
+          aria-label={`${label}, to copy by hand`}
+          onFocus={(event) => event.currentTarget.select()}
+          className="text-body-4 border border-card-border rounded-lg px-3 py-1.5 bg-transparent text-text-primary focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+      )}
     </div>
   );
 };
@@ -124,11 +168,9 @@ const ActorInfoCard = ({ actor }: { actor: APActorSettings }) => (
       This instance&apos;s ActivityPub actor. Share your actor URI with other clinics to enable
       federation.
     </div>
-    {/* The actor and inbox URIs both end in the organisation's database id, which
-        must never be printed to a vet. The actor URI is still what another clinic
-        pastes under Following, so it stays one click away; the inbox had no human
-        use (remote servers read it from the actor document), so its row is gone. */}
-    <CopyRow label="Actor URI" value={actor.uri} hint="Copy it to share with another clinic." />
+    {/* No Inbox row: remote servers read the inbox from the actor document, so
+        it had no human use and only put a second database id on screen. */}
+    <CopyRow label="Actor URI" value={actor.uri} display={abbreviateIds(actor.uri)} />
     <CopyRow label="Handle" value={`@${actor.preferredUsername}`} />
   </SectionCard>
 );
@@ -315,7 +357,9 @@ const FollowersCard = () => {
           {followers.map((f) => (
             <div key={f.id} className={ROW_CLS}>
               <div className={ROW_META_CLS}>
-                <div className="text-body-4 text-text-primary truncate">{f.remoteActorUri}</div>
+                <div className="text-body-4 text-text-primary truncate">
+                  {abbreviateIds(f.remoteActorUri)}
+                </div>
                 <StateBadge state={f.state} />
               </div>
               {f.state === 'PENDING' && (
@@ -417,7 +461,9 @@ const FollowingCard = () => {
           {following.map((f) => (
             <div key={f.id} className={ROW_CLS}>
               <div className={ROW_META_CLS}>
-                <div className="text-body-4 text-text-primary truncate">{f.remoteActorUri}</div>
+                <div className="text-body-4 text-text-primary truncate">
+                  {abbreviateIds(f.remoteActorUri)}
+                </div>
                 <StateBadge state={f.state} />
               </div>
               <button
@@ -451,7 +497,9 @@ const ReferralRow = ({
         {URGENCY_LABELS[referral.urgency]}
       </span>
       <span className={TEXT_MUTED}>
-        {direction === 'in' ? `from ${referral.fromActorUri}` : `to ${referral.toActorUri}`}
+        {direction === 'in'
+          ? `from ${abbreviateIds(referral.fromActorUri)}`
+          : `to ${abbreviateIds(referral.toActorUri)}`}
       </span>
     </div>
     <div className="text-body-4 text-text-primary">

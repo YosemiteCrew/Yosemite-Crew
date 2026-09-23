@@ -15,8 +15,10 @@ export const DEVELOPER_LOGIN_PATH = '/developers/signin';
 /**
  * Routes the main app can legitimately land on after sign-in.
  *
- * Deliberately excludes `/developers/*`: the account behind YC_E2E_* is an
- * ordinary app account, and this pattern is part of how we know that.
+ * Excludes `/developers/*`. This does NOT prove the YC_E2E_* account is an
+ * ordinary app account: an account holding both a practice membership and the
+ * developer role also lands here when it signs in through the ordinary form.
+ * `signedInRoles` below is what checks that.
  */
 export const APP_ROUTE_PATTERN =
   /^\/(dashboard|appointments|organization|organizations|create-org|team-onboarding)(\/|$|\?)/;
@@ -132,6 +134,44 @@ export const submitSignIn = async (page: Page, email: string, password: string) 
 
   await page.getByRole('button', { name: /^sign in$/i }).click();
 };
+
+/**
+ * The roles `/v1/auth/me` reports for the next account to sign in on this page.
+ * Start it BEFORE submitting the form, then await it.
+ *
+ * Only `roles` is read. The same body carries the account's email, which is a
+ * secret here, so it is never returned, logged or put in an assertion message.
+ */
+export const signedInRoles = (page: Page): Promise<string[]> => {
+  const roles = page
+    .waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname.endsWith('/v1/auth/me') && response.status() === 200,
+      { timeout: 60_000 }
+    )
+    .then(async (response) => {
+      const { roles: held } = (await response.json()) as { roles?: unknown };
+      if (!Array.isArray(held)) throw new Error('/v1/auth/me answered without a roles list');
+      return held.map((role) => String(role).trim().toLowerCase());
+    });
+  // Awaited later. Without this, a test that fails before then (and closes the
+  // page) would also report the abandoned wait as an unhandled rejection.
+  roles.catch(() => {});
+  return roles;
+};
+
+/**
+ * Fails, with a message naming the cause, when the YC_E2E_* account holds the
+ * developer role. The developer-portal specs test how the portal treats an
+ * ordinary account; given a developer one they time out with no explanation.
+ */
+export const expectNotADeveloper = (roles: readonly string[]) =>
+  expect(
+    roles,
+    'Fixture drift: the YC_E2E_* account holds the developer role on this environment. ' +
+      'These specs need an ordinary app account; remove the role from the account ' +
+      'rather than changing the spec.'
+  ).not.toContain('developer');
 
 /** Waits until the router has moved off `fromPath`. */
 export const waitForRouteAwayFrom = async (page: Page, fromPath: string) => {

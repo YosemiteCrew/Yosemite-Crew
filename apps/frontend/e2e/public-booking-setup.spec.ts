@@ -45,6 +45,38 @@ const skipUnlessBookingApiDeployed = async () => {
   }
 };
 
+/*
+ * The booking window is the themed Dropdown, not a native <select>: a button
+ * whose accessible name carries the current choice ("Bookable window: Up to 4
+ * weeks ahead") and a listbox of options named by the same labels.
+ */
+const WINDOW_LABELS: Record<number, string> = {
+  14: 'Up to 2 weeks ahead',
+  28: 'Up to 4 weeks ahead',
+  56: 'Up to 8 weeks ahead',
+};
+const bookableWindow = (page: Page) => page.getByRole('button', { name: /^Bookable window/ });
+const showsWindow = (page: Page, days: number) =>
+  expect(bookableWindow(page)).toHaveAccessibleName(`Bookable window: ${WINDOW_LABELS[days]}`, {
+    timeout: 30_000,
+  });
+
+/** The booking window the API has stored, read from the page's own load of it. */
+const storedWindowDays = (page: Page) =>
+  page
+    .waitForResponse(
+      (response) =>
+        response.url().includes('/v1/booking-page/') &&
+        response.request().method() === 'GET' &&
+        response.status() === 200,
+      { timeout: 30_000 }
+    )
+    .then(async (response) => {
+      // Only this field is read; the envelope also holds the reply-to address.
+      const { data } = (await response.json()) as { data: { bookingWindowDays: number } };
+      return data.bookingWindowDays;
+    });
+
 const signIn = async (page: Page) => {
   const email = getRequiredEnv('YC_E2E_EMAIL');
   const password = getRequiredEnv('YC_E2E_PASSWORD');
@@ -64,14 +96,23 @@ test('booking setup persists across a reload and never shows a dead address', as
   if (!(await signIn(page))) return;
   await skipUnlessBookingApiDeployed();
 
+  const stored = storedWindowDays(page);
   await page.goto(SETUP_PATH, { waitUntil: 'domcontentloaded' });
   await expect(page.getByText('What can pet parents book?')).toBeVisible({ timeout: 30_000 });
 
-  // Step 1: pick a non-default booking window so the assertion after reload is
-  // about stored state rather than about the default happening to match.
-  const windowSelect = page.getByLabel('Bookable window');
-  await expect(windowSelect).toBeVisible();
-  await windowSelect.selectOption('56');
+  // The form opens on its defaults and is overwritten when the stored setup
+  // arrives, so a choice made before then would be silently replaced. Wait
+  // until it shows what the API holds.
+  const storedDays = await stored;
+  await showsWindow(page, storedDays);
+
+  // Step 1: pick a window that is NOT the stored one. A fixed choice proves
+  // nothing after the first run on a shared environment: it is already stored,
+  // so the reload would show it even if saving were broken.
+  const targetDays = storedDays === 56 ? 14 : 56;
+  await bookableWindow(page).click();
+  await page.getByRole('option', { name: WINDOW_LABELS[targetDays] }).click();
+  await showsWindow(page, targetDays);
 
   await page.getByRole('button', { name: /Continue/ }).click();
   await expect(page.getByText('Your booking page')).toBeVisible();
@@ -96,5 +137,5 @@ test('booking setup persists across a reload and never shows a dead address', as
   // Reload and confirm the choice came back from the server rather than from
   // component state. This is the assertion the Jest suite cannot make.
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByLabel('Bookable window')).toHaveValue('56', { timeout: 30_000 });
+  await showsWindow(page, targetDays);
 });

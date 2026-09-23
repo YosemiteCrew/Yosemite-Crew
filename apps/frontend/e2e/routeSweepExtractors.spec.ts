@@ -1,11 +1,11 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   contradictoryPanels,
   documentOverflows,
-  firstCompanionHistoryHref,
   forwardLookingRows,
   headingNames,
   inventoryCounts,
+  resolveCompanionOverview,
   visibleTexts,
 } from './route-sweep.spec';
 
@@ -48,7 +48,9 @@ test('finds the panel showing an error and an empty state at once', async ({ pag
 });
 
 test('does not flag a panel showing only an empty state', async ({ page }) => {
-  await page.setContent(`<section><h3>Patient flags</h3><p>No active flags for this patient.</p></section>`);
+  await page.setContent(
+    `<section><h3>Patient flags</h3><p>No active flags for this patient.</p></section>`
+  );
   expect(await contradictoryPanels(page)).toHaveLength(0);
 });
 
@@ -108,16 +110,65 @@ in 30 days</li></ul>
   expect(rows[0].section).toBe('Expiring soon');
 });
 
-test('finds a companion history link with an id, and ignores one without', async ({ page }) => {
-  await page.setContent(`
-    <a href="/companions/history">History (no id, renders a stub)</a>
-    <a href="/companions/history?companionId=abc123&source=companions">Max</a>
-  `);
-  expect(await firstCompanionHistoryHref(page)).toContain('companionId=abc123');
+/*
+ * The companions list reaches the overview through a row menu that calls
+ * router.push, so the fixture is served from a real origin: a pushState needs
+ * one, and setContent's about:blank has none.
+ */
+const COMPANIONS_URL = 'http://route-sweep.test/companions';
+const serveCompanions = async (page: Page, body: string) => {
+  await page.route(COMPANIONS_URL, (route) =>
+    route.fulfill({ contentType: 'text/html', body: `<!doctype html><body>${body}</body>` })
+  );
+  await page.goto(COMPANIONS_URL);
+};
+const ROW_MENU = (openOverview: string) => `
+  <p style="display:none">No patients yet</p>
+  <button aria-label="Patient row actions" onclick="document.getElementById('menu').hidden = false">
+    More
+  </button>
+  <div id="menu" role="menu" hidden>
+    <button role="menuitem">Add task</button>
+    <button role="menuitem" onclick="${openOverview}">Open overview</button>
+  </div>
+`;
+
+test('opens the first companion overview from its row menu and returns its address', async ({
+  page,
+}) => {
+  await serveCompanions(
+    page,
+    ROW_MENU(
+      "history.pushState({}, '', '/companions/history?companionId=abc123&amp;source=companions')"
+    )
+  );
+  expect(await resolveCompanionOverview(page, 2_000)).toEqual({
+    href: '/companions/history?companionId=abc123&source=companions',
+  });
 });
 
-test('returns null when the org has no companions', async ({ page }) => {
-  // Must be recorded as unswept rather than passing silently.
-  await page.setContent(`<p>No companions yet.</p>`);
-  expect(await firstCompanionHistoryHref(page)).toBeNull();
+test('reports an overview action that goes nowhere instead of sweeping /companions', async ({
+  page,
+}) => {
+  // Opening a history URL without an id renders a stub, so it must not count.
+  await serveCompanions(page, ROW_MENU("history.pushState({}, '', '/companions/history')"));
+  expect(await resolveCompanionOverview(page, 2_000)).toEqual({
+    unreachable: '"Open overview" on the first companion did not open the overview',
+  });
+});
+
+test('reports an org with no companions as unswept, not as a pass', async ({ page }) => {
+  // Each layout renders its own empty state; the hidden copies must not be
+  // what the lookup waits on.
+  await serveCompanions(page, `<p style="display:none">No patients yet</p><p>No patients yet</p>`);
+  expect(await resolveCompanionOverview(page, 2_000)).toEqual({
+    unreachable: 'no companion is listed on /companions, so there is no overview to open',
+  });
+});
+
+test('reports a companions page that never finished rendering', async ({ page }) => {
+  await serveCompanions(page, `<div class="animate-pulse">Loading</div>`);
+  expect(await resolveCompanionOverview(page, 1_000)).toEqual({
+    unreachable: '/companions rendered neither a companion nor its empty state',
+  });
 });

@@ -12,7 +12,9 @@ import api, { clearInFlightGetRequests } from '@/app/services/axios';
 import ToastProvider from '@/app/ui/layout/ToastProvider';
 import FederationSection from './FederationSection';
 
-const ACTOR_URI = 'https://sunrise.vet/ap/organizations/sunrise';
+// Real-shaped: every actor URI ends in the organisation's database id. A slug
+// here could never show whether the panel prints that id.
+const ACTOR_URI = 'https://sunrise.vet/ap/organizations/a1b2c3d4e5f6a7b8c9d0e1f2';
 
 const ACTOR: APActorSettings = {
   uri: ACTOR_URI,
@@ -244,10 +246,10 @@ const muteExpectedReadFailureLog = () => {
 const copied: string[] = [];
 
 /**
- * `CopyRow` calls `navigator.clipboard.writeText(...).then(...)` with no catch.
- * Headless Chromium refuses the write without the clipboard permission, which
- * would mean no toast and an unhandled rejection - so the stories install a
- * clipboard that resolves, and the copied text becomes assertable.
+ * Headless Chromium refuses a clipboard write without the clipboard permission,
+ * which `CopyRow` answers with its copy-by-hand fallback. The stories install a
+ * clipboard that resolves instead, so the success path runs and the copied text
+ * becomes assertable.
  */
 const withClipboard = () => {
   const own = Object.getOwnPropertyDescriptor(globalThis.navigator, 'clipboard');
@@ -442,9 +444,12 @@ export const Ready: Story = {
     await expect(canvas.queryByTitle('PENDING')).not.toBeInTheDocument();
 
     // The copy affordance is labelled per row, so two identical "Copy" buttons
-    // are still distinguishable. The actor URI itself is not printed (it ends in
-    // the organisation's database id), so copying is the only way to get it.
+    // are still distinguishable. The actor URI is printed with its database id
+    // cut to the last six characters; Copy still copies the whole URI.
     await expect(canvas.queryByText(ACTOR_URI)).not.toBeInTheDocument();
+    await expect(
+      canvas.getByText('https://sunrise.vet/ap/organizations/…d0e1f2')
+    ).toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: 'Copy Inbox' })).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole('button', { name: 'Copy Actor URI' }));
     await waitFor(() => expect(copied).toEqual([ACTOR_URI]));

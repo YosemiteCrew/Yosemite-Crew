@@ -86,15 +86,50 @@ const MAX_THROTTLE_WAIT_MS = 16 * 60 * 1000;
  * - a raw enum in the history list, a database id shown as "Patient ID", and an
  * error message stacked on an empty state - so it is worth resolving an id for
  * rather than dropping.
+ *
+ * Resolved the way a vet reaches it: the first row's "Open overview" action on
+ * /companions. That action navigates with router.push from a menu button, so the
+ * list holds no link to read the address from. The sweep used to look for one,
+ * which could never succeed, so the overview had never been swept.
  */
-export const firstCompanionHistoryHref = (page: Page) =>
-  page.evaluate(() => {
-    for (const a of document.querySelectorAll('a[href*="/companions/history"]')) {
-      const href = a.getAttribute('href') ?? '';
-      if (/companionId=/.test(href)) return href;
-    }
-    return null;
-  });
+export const resolveCompanionOverview = async (
+  page: Page,
+  timeout = 30_000
+): Promise<{ href: string } | { unreachable: string }> => {
+  const rowMenu = page.getByRole('button', { name: /row actions$/i }).first();
+  // Every layout (table, grid, phone) carries its own copy of the empty state;
+  // only the one on screen counts.
+  const emptyList = page.getByText(/^No \w+ yet\.?$/).filter({ visible: true });
+  const settled = await rowMenu
+    .or(emptyList)
+    .first()
+    .waitFor({ state: 'visible', timeout })
+    .then(() => true)
+    .catch(() => false);
+  if (!settled) {
+    return { unreachable: '/companions rendered neither a companion nor its empty state' };
+  }
+  if (!(await rowMenu.isVisible())) {
+    return {
+      unreachable: 'no companion is listed on /companions, so there is no overview to open',
+    };
+  }
+
+  await rowMenu.click();
+  await page.getByRole('menuitem', { name: 'Open overview' }).click();
+  const opened = await page
+    .waitForURL(
+      (url) => url.pathname === '/companions/history' && url.searchParams.has('companionId'),
+      { timeout }
+    )
+    .then(() => true)
+    .catch(() => false);
+  if (!opened) {
+    return { unreachable: '"Open overview" on the first companion did not open the overview' };
+  }
+  const { pathname, search } = new URL(page.url());
+  return { href: `${pathname}${search}` };
+};
 
 const readBaseline = (): Record<string, string[]> => {
   try {
@@ -120,8 +155,7 @@ export const visibleTexts = (page: Page) =>
         // does not inherit, so a `hidden xl:hidden` responsive branch reports as
         // visible and its contents fail the sweep at a viewport that never
         // renders them.
-        const rendered =
-          parent.offsetParent !== null || parent.getClientRects().length > 0;
+        const rendered = parent.offsetParent !== null || parent.getClientRects().length > 0;
         const style = globalThis.getComputedStyle(parent);
         if (rendered && style.visibility !== 'hidden') out.push(text);
       }
@@ -152,7 +186,10 @@ export const contradictoryPanels = (page: Page) =>
     const out: { name: string; hasError: boolean; hasEmptyState: boolean }[] = [];
     for (const section of document.querySelectorAll('section, [role="region"], article')) {
       const text = (section as HTMLElement).innerText ?? '';
-      const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+      const lines = text
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
       const hasError = lines.some((l) => ERROR.test(l));
       const hasEmptyState = lines.some((l) => EMPTY.test(l));
       if (hasError && hasEmptyState) {
@@ -219,7 +256,9 @@ export const forwardLookingRows = (page: Page) =>
   });
 
 export const documentOverflows = (page: Page) =>
-  page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+  page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
+  );
 
 test.describe.configure({ mode: 'serial' });
 
@@ -286,11 +325,11 @@ test('every operational route holds its page invariants', async ({ page }) => {
   let derived: string[] = [];
   await page.goto('/companions', { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-  const historyHref = await firstCompanionHistoryHref(page);
-  if (historyHref) derived = [historyHref];
+  const overview = await resolveCompanionOverview(page);
+  if ('href' in overview) derived = [overview.href];
   else {
     found['/companions/history'] = [
-      '/companions/history  [not-reachable]  no companion link found on /companions, so the patient overview was not swept',
+      `/companions/history  [not-reachable]  ${overview.unreachable}; the patient overview was not swept`,
     ];
   }
 
@@ -327,9 +366,7 @@ test('every operational route holds its page invariants', async ({ page }) => {
       .then(() => true)
       .catch(() => false);
     if (!settled) {
-      found[route] = [
-        `${route}  [never-settled]  still loading after 30s; the page was not swept`,
-      ];
+      found[route] = [`${route}  [never-settled]  still loading after 30s; the page was not swept`];
       stopWatching();
       continue;
     }
