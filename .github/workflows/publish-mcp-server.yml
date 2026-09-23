@@ -1,0 +1,104 @@
+# Stages @yosemitecrew/mcp-server on npm on an `mcp-v*` tag.
+#
+# Trusted publishing (OIDC), not a token. npm mints a short-lived credential
+# from this workflow's identity, so there is no NPM_TOKEN to leak, rotate or
+# leave in a log, and the staged package carries provenance linking it to this
+# repository and this run. A maintainer then reviews and approves the staged
+# package with 2FA. The one-time setup is on npm's side: the
+# package's Settings > Trusted publisher must name this repository and this
+# workflow file, with staged publishing allowed. Until that is done the stage
+# step fails closed rather than falling back to anything weaker.
+#
+# npm only supports staging an existing package. Bootstrap version 0.1.0 with
+# an interactive, 2FA-protected publish before creating the first release tag;
+# tagged releases after that point always use staged publishing.
+#
+# `id-token: write` is what lets npm verify that identity. `contents: read` is
+# everything else this needs.
+name: Publish MCP server
+
+on:
+  push:
+    tags:
+      - 'mcp-v*'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  publish:
+    name: Stage on npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The same rule the desktop and mobile releases enforce: a package is
+      # published from code that is already on main, never from a tag pointing
+      # at something that never landed.
+      - name: Refuse a tag that is not on main
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "::error::${GITHUB_SHA} is not reachable from main; promote it first."
+            exit 1
+          fi
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v4.2.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # Trusted publishing needs a recent npm; the one bundled with Node 22 is
+      # older than the release that added OIDC support.
+      - name: Use an npm that can do trusted publishing
+        run: npm install -g npm@latest
+
+      - run: pnpm install --frozen-lockfile
+
+      # The tag must name the version being published, so a mistyped tag cannot
+      # ship a different version than the one it claims.
+      - name: Check the tag matches the package version
+        run: |
+          set -euo pipefail
+          PKG=$(node -p "require('./packages/mcp-server/package.json').version")
+          TAG="${GITHUB_REF_NAME#mcp-v}"
+          if [ "$PKG" != "$TAG" ]; then
+            echo "::error::tag mcp-v$TAG does not match package version $PKG"
+            exit 1
+          fi
+          echo "staging $PKG"
+
+      - run: pnpm --filter @yosemitecrew/mcp-server run build
+      - run: pnpm --filter @yosemitecrew/mcp-server run test
+
+      # Proves the tarball's entrypoint exists before anything is published:
+      # `files` and `bin` can disagree with what the build actually emitted, and
+      # a missing entrypoint only shows up when someone installs it.
+      - name: Prove the tarball is installable
+        working-directory: packages/mcp-server
+        run: |
+          set -euo pipefail
+          npm pack
+          TARBALL=$(ls ./*.tgz)
+          WORK=$(mktemp -d)
+          cd "$WORK"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund "$OLDPWD/$TARBALL"
+          BIN=node_modules/@yosemitecrew/mcp-server/dist/index.js
+          test -f "$BIN" || { echo "::error::bin entrypoint missing from the tarball"; exit 1; }
+          head -1 "$BIN" | grep -q '^#!' || { echo "::error::bin entrypoint has no shebang"; exit 1; }
+          echo "tarball installs and carries a runnable entrypoint"
+
+      - name: Stage for maintainer approval
+        if: github.event_name == 'push'
+        working-directory: packages/mcp-server
+        run: npm stage publish

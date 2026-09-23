@@ -1,5 +1,6 @@
 {
   "name": "@yosemite-crew/fhir",
+  "private": true,
   "type": "module",
   "main": "./src/index.ts",
   "module": "./src/index.ts",
