@@ -132,6 +132,7 @@ const navMenu = (page: Page) => page.getByRole('button', { name: 'Documentation 
 const navTree = (page: Page) => page.locator('#docs-nav-tree');
 const docsTitleTop = (page: Page) =>
   page.locator('.DocsTitle').evaluate((el) => el.getBoundingClientRect().top);
+const collapsedSection = (page: Page) => page.locator('#docs-nav-tree [data-expanded="false"]');
 
 test.describe('collapsed docs navigation at a phone width', () => {
   test.use({ viewport: PHONE });
@@ -223,8 +224,8 @@ test.describe('docs navigation at a phone width with JavaScript disabled', () =>
      */
     await expect(tree).toHaveAttribute('data-open', 'false');
     /* `locator('a')` rather than a role query: a section declared `collapsed`
-       carries `hidden`, which takes its links out of the accessibility tree,
-       so a role query cannot count them. */
+       is closed with `display: none`, which takes its links out of the
+       accessibility tree, so a role query cannot count them. */
     expect(await tree.locator('a').count()).toBeGreaterThan(0);
 
     /* The media query hides this tree below 860px and `data-open` is still
@@ -240,6 +241,57 @@ test.describe('docs navigation at a phone width with JavaScript disabled', () =>
     const toggle = page.locator('.DocsNavToggle');
     await expect(toggle).toHaveCount(1);
     await expect(toggle).toBeHidden();
+  });
+
+  /*
+   * The collapsed section, which is the largest part of the tree and the one
+   * thing a scripting-off reader could never open. The override only reaches
+   * it because `docs.css` closes the body with an ordinary unlayered rule -
+   * so this is the assertion that fails if that rule is ever given `!important`
+   * or moved into a layer, and the one that fails if its selector stops
+   * matching the served DOM at all.
+   */
+  test('resolves a collapsed section open, links and all', async ({ page }) => {
+    await page.goto('/docs', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#docs-nav-tree')).toHaveCount(1);
+
+    /* Located by attribute rather than by id so this follows `docsNav.ts`
+       instead of pinning a label. */
+    const section = collapsedSection(page);
+
+    /*
+     * The premise, and it comes first for the same reason the toggle's count
+     * does above: `toBeVisible` is a claim about a section that is served
+     * closed and carries links, and a tree that had stopped declaring one
+     * collapsed would satisfy the assertion below by having nothing to resolve.
+     * `locator('a')` rather than a role query - `display: none` takes those
+     * links out of the accessibility tree, so a role query cannot count them.
+     */
+    await expect(section).toHaveCount(1);
+    expect(await section.locator('a').count()).toBeGreaterThan(0);
+
+    await expect(section).toBeVisible();
+  });
+});
+
+/*
+ * The other side of the same rule. With scripting on, that section must still
+ * be shut on arrival - the override lives in `<noscript>`, which a running
+ * browser ignores. Without this, a collapse rule whose selector had quietly
+ * stopped matching would read as a pass above and break nothing here.
+ */
+test.describe('docs navigation with JavaScript enabled', () => {
+  test.use({ viewport: DESKTOP });
+
+  test('keeps a section declared collapsed shut on arrival', async ({ page }) => {
+    await openDocs(page);
+
+    const section = collapsedSection(page);
+
+    await expect(section).toHaveCount(1);
+    expect(await section.locator('a').count()).toBeGreaterThan(0);
+
+    await expect(section).toBeHidden();
   });
 });
 
