@@ -208,6 +208,7 @@ if [ -n "$INCOMING_MIGRATIONS" ]; then
   MIGRATIONS_APPLIED=1
 fi
 pnpm --filter @yosemite-crew/database run prisma:deploy
+pnpm --filter @yosemite-crew/database run schema:assert
 
 say "smoke boot on :$SMOKE_PORT"
 cd apps/backend
