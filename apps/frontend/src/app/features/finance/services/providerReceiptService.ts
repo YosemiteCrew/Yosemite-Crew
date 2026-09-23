@@ -1,7 +1,11 @@
-import { getData } from '@/app/services/axios';
+import { getData, postData } from '@/app/services/axios';
 import {
   PROVIDER_RECEIPT_STATUSES,
+  type AllocateProviderReceiptInput,
   type ProviderReceipt,
+  type ProviderReceiptAllocationFailure,
+  type ProviderReceiptAllocationLine,
+  type ProviderReceiptAllocationResult,
   type ProviderReceiptFilters,
   type ProviderReceiptPage,
   type ProviderReceiptStatus,
@@ -75,6 +79,7 @@ const normalizeReceipt = (value: unknown): ProviderReceipt => {
     status: isProviderReceiptStatus(row.status) ? row.status : 'UNATTRIBUTED',
     reason: toNullableString(row.reason),
     refundedAmount: toFiniteNumber(row.refundedAmount),
+    allocatedAmount: toFiniteNumber(row.allocatedAmount),
     version: toFiniteNumber(row.version),
     createdAt: toIsoString(row.createdAt),
   };
@@ -125,5 +130,137 @@ export const listProviderReceipts = async (
     hasMore:
       typeof envelope.meta?.hasMore === 'boolean' ? envelope.meta.hasMore : nextCursor !== null,
     limit: toFiniteNumber(envelope.meta?.limit),
+  };
+};
+
+/**
+ * A refusal the allocate route answered with, as something the screen can act
+ * on rather than a sentence it can only print.
+ *
+ * The message stays on `message` so a caller that only renders text is
+ * unchanged; the code and figures ride alongside because the two useful
+ * reactions - reload after a stale read, correct one line - need them. A
+ * failure with no recognised body (a gateway error, a 403 from the permission
+ * middleware) arrives with an empty code, which every branch below treats as
+ * "not something this screen can fix".
+ */
+export class ProviderReceiptAllocationError extends Error {
+  readonly failure: ProviderReceiptAllocationFailure;
+
+  constructor(failure: ProviderReceiptAllocationFailure) {
+    super(failure.message);
+    this.name = 'ProviderReceiptAllocationError';
+    this.failure = failure;
+  }
+}
+
+const toOptionalNumber = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+
+const toOptionalString = (value: unknown): string | undefined =>
+  typeof value === 'string' && value ? value : undefined;
+
+/**
+ * The structured half of a refusal, defensively.
+ *
+ * Every field is optional in the reading even though the route always sends a
+ * code, because the same rejection path also carries answers this screen never
+ * asked for - a proxy's HTML error page, a 401 from the session middleware.
+ * Reading those as "no code" is what keeps a transport failure from being
+ * rendered as an allocation decision.
+ */
+const readAllocationFailure = (
+  error: unknown,
+  fallback: string
+): ProviderReceiptAllocationFailure => {
+  const message = getProviderReceiptErrorMessage(error, fallback);
+  const data = (error as { response?: { data?: unknown } } | null)?.response?.data;
+  const body = typeof data === 'object' && data !== null ? (data as { error?: unknown }) : {};
+  const detail =
+    typeof body.error === 'object' && body.error !== null
+      ? (body.error as Record<string, unknown>)
+      : {};
+
+  return {
+    code: toOptionalString(detail.code) ?? '',
+    message,
+    ...(toOptionalNumber(detail.version) === undefined
+      ? {}
+      : { version: detail.version as number }),
+    ...(toOptionalNumber(detail.residual) === undefined
+      ? {}
+      : { residual: detail.residual as number }),
+    ...(toOptionalNumber(detail.requested) === undefined
+      ? {}
+      : { requested: detail.requested as number }),
+    ...(toOptionalString(detail.invoiceId) === undefined
+      ? {}
+      : { invoiceId: detail.invoiceId as string }),
+  };
+};
+
+const normalizeAllocationLine = (value: unknown): ProviderReceiptAllocationLine => {
+  const row = (value ?? {}) as Record<string, unknown>;
+  return {
+    invoiceId: typeof row.invoiceId === 'string' ? row.invoiceId : '',
+    amount: toFiniteNumber(row.amount),
+  };
+};
+
+const ALLOCATE_FALLBACK = 'Unable to apply this captured payment.';
+
+/**
+ * Apply a captured payment to invoices (#3170 delivery 2, from the screen).
+ *
+ * The response is read back rather than assumed: the receipt returned here is
+ * the stored one, including the version the next decision has to be taken
+ * from, and `remainingAmount` is what the server computed rather than what the
+ * form subtracted. A screen that updated its row from the request would show
+ * an allocation that a concurrent refund had already reduced.
+ */
+export const allocateProviderReceipt = async (
+  organisationId: string,
+  receiptId: string,
+  input: AllocateProviderReceiptInput
+): Promise<ProviderReceiptAllocationResult> => {
+  if (!organisationId) throw new Error('Organisation ID missing');
+  if (!receiptId) throw new Error('Receipt ID missing');
+
+  let res;
+  try {
+    res = await postData<unknown>(
+      `${receiptsPath(organisationId)}/${encodeURIComponent(receiptId)}/allocations`,
+      input
+    );
+  } catch (error) {
+    throw new ProviderReceiptAllocationError(readAllocationFailure(error, ALLOCATE_FALLBACK));
+  }
+
+  const envelope = (res.data ?? {}) as {
+    data?: { receipt?: unknown; remainingAmount?: unknown; allocations?: unknown };
+    meta?: { replayed?: unknown } | null;
+    error?: { code?: string; message?: string } | null;
+  };
+
+  /*
+   * A 200 carrying an error envelope is still a refusal. The finance
+   * controllers answer failures with a status code, so this is belt and
+   * braces - but a success path that trusts the status alone would report a
+   * capture as applied on any response shaped like one.
+   */
+  if (envelope.error) {
+    throw new ProviderReceiptAllocationError({
+      code: envelope.error.code ?? '',
+      message: envelope.error.message ?? ALLOCATE_FALLBACK,
+    });
+  }
+
+  const rows = Array.isArray(envelope.data?.allocations) ? envelope.data.allocations : [];
+
+  return {
+    receipt: normalizeReceipt(envelope.data?.receipt),
+    remainingAmount: toFiniteNumber(envelope.data?.remainingAmount),
+    allocations: rows.map(normalizeAllocationLine),
+    replayed: envelope.meta?.replayed === true,
   };
 };

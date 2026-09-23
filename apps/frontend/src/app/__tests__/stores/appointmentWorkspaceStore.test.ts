@@ -139,10 +139,11 @@ describe('appointmentWorkspaceStore', () => {
     expect(enc?.soap[0].subjective).toBe('<p>hi</p>');
     expect(enc?.soap[0].plan).toBe('<p>plan</p>');
 
-    getStore().signSoap(APPT, 'Dr Tim', false);
+    getStore().signSoap(APPT, 'Dr Tim', false, 'soap-server-1', 6);
     enc = getStore().getEncounter(APPT);
     expect(enc?.soap[0].signedByName).toBe('Dr Tim');
     expect(enc?.soap[0].status).toBe('COMPLETED');
+    expect(enc?.soap[0]).toMatchObject({ id: 'soap-server-1', artifactVersion: 6 });
     expect(enc?.stepStatus.SOAP).toBe('COMPLETED');
   });
 
@@ -335,7 +336,12 @@ describe('appointmentWorkspaceStore', () => {
 
   it('adds vitals and observations with generated codes', () => {
     seed();
-    getStore().addVitals(APPT, { weightLbs: 55, recordedByName: 'Sarah', recordedAt: 'now' });
+    getStore().addVitals(
+      APPT,
+      { weightLbs: 55, recordedByName: 'Sarah', recordedAt: 'now' },
+      'vital-server-1',
+      7
+    );
     getStore().addObservation(APPT, {
       toolKey: 'FGS',
       toolName: 'Feline grimace scale',
@@ -345,6 +351,7 @@ describe('appointmentWorkspaceStore', () => {
     });
     const enc = getStore().getEncounter(APPT);
     expect(enc?.vitals[0].code).toBe('VT-001');
+    expect(enc?.vitals[0]).toMatchObject({ id: 'vital-server-1', artifactVersion: 7 });
     expect(enc?.observations[0].code).toBe('OT-001');
   });
 
@@ -1256,9 +1263,10 @@ describe('appointmentWorkspaceStore', () => {
     expect(enc.dischargeSavedByName).toBe('Dr Tim');
     expect(enc.dischargeSavedAt).toBeTruthy();
     // Re-saving with a backend id keeps it for future PATCHes.
-    getStore().saveDischargeSummary(APPT, 'Dr Tim', 'ds-server-1');
+    getStore().saveDischargeSummary(APPT, 'Dr Tim', 'ds-server-1', 8);
     enc = getStore().getEncounter(APPT)!;
     expect(enc.dischargeSummaryId).toBe('ds-server-1');
+    expect(enc.dischargeSummaryVersion).toBe(8);
 
     getStore().reopenDischargeSummary(APPT);
     enc = getStore().getEncounter(APPT)!;

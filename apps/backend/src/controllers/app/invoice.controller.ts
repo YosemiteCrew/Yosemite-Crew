@@ -1,4 +1,4 @@
-import { InvoiceItem } from "@yosemite-crew/types";
+import { z } from "zod";
 import { resolveVerifiedOrganisationId } from "src/utils/request";
 import { Request, Response } from "express";
 import {
@@ -28,31 +28,32 @@ type VoidCreditNoteBody = {
   reason?: unknown;
 };
 
-const isInvoiceItem = (item: unknown): item is InvoiceItem => {
-  if (!item || typeof item !== "object") return false;
-  const candidate = item as Partial<InvoiceItem>;
+/**
+ * Charge lines accepted from a caller.
+ *
+ * Deliberately declares no `id`, so Zod strips one the caller sent. The line id
+ * is the invoice's own identity for that row and is assigned server-side; a
+ * caller that could name it could point a new line at an id the settlement path
+ * matches against `WorkspaceTreatmentItem.invoiceRowId`, marking a treatment
+ * item on that appointment settled without it ever having been billed.
+ *
+ * This is the same schema the two sibling charge endpoints in
+ * `finance.controller.ts` already parse with. This handler was the one that
+ * type-guarded `req.body` instead, and a type guard narrows without stripping,
+ * so every extra key the caller sent - `id` included - reached the service.
+ */
+const AddChargesItemSchema = z.object({
+  name: z.string(),
+  quantity: z.number(),
+  unitPrice: z.number(),
+  total: z.number(),
+  description: z.string().nullish(),
+  discountPercent: z.number().optional(),
+});
 
-  const hasValidDescription =
-    candidate.description === undefined ||
-    candidate.description === null ||
-    typeof candidate.description === "string";
-
-  const hasValidDiscount =
-    candidate.discountPercent === undefined ||
-    typeof candidate.discountPercent === "number";
-
-  return (
-    typeof candidate.name === "string" &&
-    typeof candidate.quantity === "number" &&
-    typeof candidate.unitPrice === "number" &&
-    typeof candidate.total === "number" &&
-    hasValidDescription &&
-    hasValidDiscount
-  );
-};
-
-const isInvoiceItemArray = (items: unknown): items is InvoiceItem[] =>
-  Array.isArray(items) && items.every(isInvoiceItem);
+const AddChargesBodySchema = z.object({
+  items: z.array(AddChargesItemSchema).min(1),
+});
 
 const isCreditNoteMetadata = (
   metadata: unknown,
@@ -214,16 +215,16 @@ export const InvoiceController = {
   ) {
     try {
       const { appointmentId } = req.params;
-      const { items }: AddChargesBody = req.body;
       const organisationId = (req as OrgRequest).organisationId;
 
-      if (!isInvoiceItemArray(items) || items.length === 0) {
+      const body = AddChargesBodySchema.safeParse(req.body);
+      if (!body.success) {
         return res.status(400).json({ message: "Items are required" });
       }
 
       const invoice = await InvoiceService.addChargesToAppointment(
         appointmentId,
-        items,
+        body.data.items,
         organisationId,
       );
 

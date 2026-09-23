@@ -1,5 +1,6 @@
 {
   "name": "@yosemite-crew/fhirtypes",
+  "private": true,
   "types": "./dist/index.d.ts",
   "main": "./dist/index.d.ts",
   "scripts": {

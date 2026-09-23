@@ -6,7 +6,7 @@ slug: /apps/backend/api/patient-allergy
 
 Manages a patient's allergy records for the PIMS (Practice Information Management System, the clinic-facing web app): allergen, type, severity, and reaction, with a dedicated action to mark an allergy resolved. All routes require organisation RBAC (role-based access control) permissions on `appointments`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/patient-allergies
 

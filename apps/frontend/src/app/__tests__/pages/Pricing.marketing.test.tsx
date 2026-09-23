@@ -45,6 +45,9 @@ describe('Pricing (marketing)', () => {
     expect(screen.getByText('Free')).toBeInTheDocument();
     expect(screen.getByText('Business')).toBeInTheDocument();
     expect(screen.getByText('Enterprise')).toBeInTheDocument();
+    expect(screen.getByText('Free')).toHaveStyle({ color: 'var(--ink-muted)' });
+    expect(screen.getByText('Enterprise')).toHaveStyle({ color: 'var(--ink-muted)' });
+    expect(screen.getByText('COMING SOON')).toHaveStyle({ color: 'var(--ink-muted)' });
 
     // Real per-plan features from the prototype
     expect(screen.getByText('IDEXX + MSD Veterinary Manual')).toBeInTheDocument();

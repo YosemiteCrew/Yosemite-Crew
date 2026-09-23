@@ -6,7 +6,7 @@ slug: /apps/backend/api/organisation-room
 
 CRUD endpoints for an organisation's rooms (for example consultation or treatment rooms). Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### POST /
 

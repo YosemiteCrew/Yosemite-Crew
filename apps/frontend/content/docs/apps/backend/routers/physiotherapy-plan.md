@@ -6,7 +6,7 @@ slug: /apps/backend/api/physiotherapy-plan
 
 Manages a patient's physiotherapy plan in the PIMS (Practice Information Management System, the clinic-facing web app) — the prescribed modalities (hydrotherapy, laser therapy, therapeutic ultrasound, massage, acupuncture, tape application), session schedule, exercise prescription, and home-exercise instructions. A plan tracks status through `ACTIVE`, `ON_HOLD`, `COMPLETED`, or `DISCONTINUED`. All routes require organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/physiotherapy-plans
 

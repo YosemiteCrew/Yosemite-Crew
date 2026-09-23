@@ -6,7 +6,7 @@ slug: /apps/backend/api/catalog
 
 Organisation-scoped catalog of billable products: services (consultation, procedure, diagnostic, lab test), packages (bundles of services with their own pricing/discount policy), and the specialities they're grouped under. Covers CRUD for specialities, services and packages (including archive/restore soft-delete), catalog search, nearby-organisation lookup, bookable-slot and calendar-prefill helpers used by booking flows, and resolving a selected catalog item back to its billing details. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and are gated by organisation RBAC (role-based access control). The router comment notes these are compatibility-only JSON routes — new catalog clients should prefer `/fhir/v1/healthcare-service` and its FHIR custom operations.
 
-**Endpoints**
+## Endpoints
 
 ### POST /products
 

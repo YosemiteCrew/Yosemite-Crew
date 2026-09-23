@@ -6,7 +6,7 @@ slug: /apps/backend/api/booking-page
 
 Authenticated configuration surface the PIMS (Practice Information Management System, the clinic-facing web app) uses to set up a practice's public booking page and to triage the booking requests that arrive from it; the anonymous booking flow itself is the sibling `booking-page-public` router. Gated by RBAC (role-based access control): publishing or editing the page configuration needs the `teams` permission pair — the same one that gates the organisation's public profile — while listing and actioning booking requests needs the `appointments` pair, since triaging a request into the diary is clinical scheduling work rather than organisation administration. Every handler scopes to the organisation the caller's session was actually authorized for, never to the `:organisationId` route param directly.
 
-**Endpoints**
+## Endpoints
 
 ### GET /:organisationId
 

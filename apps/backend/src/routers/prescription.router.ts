@@ -3,6 +3,7 @@ import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 import type { Permission } from "src/models/role-permission";
 import { PrescriptionController } from "src/controllers/web/prescription.controller";
+import { PrescriptionFillAuthorisationController } from "src/controllers/web/prescription-fill-authorisation.controller";
 
 const router = Router();
 
@@ -102,6 +103,64 @@ router.post(
   withOrgPermissions(),
   ...requireAllPermissions(["prescription:edit:any", "inventory:edit:any"]),
   (req, res) => PrescriptionController.voidDispense(req, res),
+);
+
+/*
+ * Authorised repeats (#3162).
+ *
+ * Issuing and withdrawing an authority is a prescribing decision, so it needs
+ * only the prescription permissions. Allocating, fulfilling and releasing a
+ * fill move stock as well, so they take the all-of pair the dispense routes
+ * above already use. Reading eligibility is deliberately the looser of the
+ * two: the prescriber has to see remaining repeats while writing the
+ * prescription, and requiring inventory:view there would hide it from them.
+ */
+router.post(
+  "/organisations/:organisationId/items/:itemId/fill-authorisations",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission(["prescription:edit:any", "prescription:edit:own"]),
+  (req, res) => PrescriptionFillAuthorisationController.authorise(req, res),
+);
+
+router.post(
+  String.raw`/organisations/:organisationId/fill-authorisations/:authorizationId/\$revoke`,
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission(["prescription:edit:any", "prescription:edit:own"]),
+  (req, res) => PrescriptionFillAuthorisationController.revoke(req, res),
+);
+
+router.get(
+  "/organisations/:organisationId/items/:itemId/fill-eligibility",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission(["prescription:view:any"]),
+  (req, res) => PrescriptionFillAuthorisationController.eligibility(req, res),
+);
+
+router.post(
+  "/organisations/:organisationId/items/:itemId/fill-reservations",
+  requireWebAuth,
+  withOrgPermissions(),
+  ...requireAllPermissions(["prescription:edit:any", "inventory:edit:any"]),
+  (req, res) => PrescriptionFillAuthorisationController.reserve(req, res),
+);
+
+router.post(
+  String.raw`/organisations/:organisationId/fill-reservations/:reservationId/\$fulfil`,
+  requireWebAuth,
+  withOrgPermissions(),
+  ...requireAllPermissions(["prescription:edit:any", "inventory:edit:any"]),
+  (req, res) => PrescriptionFillAuthorisationController.fulfil(req, res),
+);
+
+router.post(
+  String.raw`/organisations/:organisationId/fill-reservations/:reservationId/\$cancel`,
+  requireWebAuth,
+  withOrgPermissions(),
+  ...requireAllPermissions(["prescription:edit:any", "inventory:edit:any"]),
+  (req, res) => PrescriptionFillAuthorisationController.cancel(req, res),
 );
 
 export default router;

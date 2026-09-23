@@ -6,7 +6,7 @@ slug: /apps/backend/api/nutrition-assessment
 
 Manages nutrition assessment records — appetite score, body and muscle condition scores, current/ideal weight, resting energy requirement, feeding route and plan, supplementation, hydration status, and related diagnoses — for a patient. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and are scoped to an organisation.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/nutrition-assessments
 

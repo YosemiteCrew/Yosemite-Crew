@@ -1,6 +1,17 @@
 import { toHtml } from 'hast-util-to-html';
+import { visit } from 'unist-util-visit';
+import type { Element } from 'hast';
 import { loadCorpus } from '@/app/features/docs/corpus';
 import { renderDoc } from '@/app/features/docs/render';
+
+/** Heading text, for naming the offending heading when an ordering check fails. */
+const textOf = (node: Element): string => {
+  let out = '';
+  visit(node, 'text', (child: { value: string }) => {
+    out += child.value;
+  });
+  return out.trim();
+};
 
 /*
  * renderDoc returns a sanitised HAST tree, not an HTML string - the page
@@ -100,6 +111,37 @@ describe('renderDoc sanitisation', () => {
 describe('renderDoc over the real corpus', () => {
   const corpus = loadCorpus();
 
+  /*
+   * Axe's `heading-order` rule reads the whole rendered page, and DocsShell
+   * prints `<h1 className="DocsTitle">{title}</h1>` above the body
+   * (DocsShell.tsx). So the outline every page starts from is h1, and the
+   * body's own headings continue it - which is why `previous` is seeded at 1
+   * rather than at the first heading found.
+   *
+   * This runs over the whole corpus, not just the page that was reported: the
+   * defect was a markdown-authoring shape, and a per-page assertion would let
+   * the next contributed document reintroduce it unnoticed.
+   */
+  it('never skips a heading level on any page', async () => {
+    const skips: string[] = [];
+
+    for (const entry of corpus) {
+      const { tree } = await renderDoc(entry, corpus);
+      let previous = 1;
+      visit(tree, 'element', (node: Element) => {
+        const match = /^h([1-6])$/.exec(node.tagName);
+        if (!match) return;
+        const level = Number(match[1]);
+        if (level > previous + 1) {
+          skips.push(`${entry.file}: h${previous} -> h${level} at "${textOf(node)}"`);
+        }
+        previous = level;
+      });
+    }
+
+    expect(skips).toEqual([]);
+  });
+
   it('labels the overview repository link as GitHub', async () => {
     const overview = corpus.find((entry) => entry.id === 'overview');
     expect(overview).toBeDefined();
@@ -109,6 +151,14 @@ describe('renderDoc over the real corpus', () => {
       '<a href="https://github.com/YosemiteCrew/Yosemite-Crew" target="_blank" rel="noopener noreferrer">GitHub</a>'
     );
     expect(html).not.toContain('>Twitter</a>');
+  });
+
+  it('keeps the overview prerequisites directly below the installation heading', async () => {
+    const overview = corpus.find((entry) => entry.id === 'overview');
+    expect(overview).toBeDefined();
+
+    const rendered = await renderDoc(overview!, corpus);
+    expect(rendered.toc).toContainEqual({ id: 'prerequisites', text: 'Prerequisites', depth: 2 });
   });
 
   it('renders every page without throwing', async () => {

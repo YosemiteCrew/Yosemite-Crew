@@ -6,7 +6,7 @@ slug: /apps/backend/api/audit-trail
 
 Read-only endpoints for retrieving the audit trail (the history of recorded actions) for a companion or an appointment. Called by the PIMS (Practice Information Management System, the clinic-facing web app); both routes require organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /companion/:companionId
 

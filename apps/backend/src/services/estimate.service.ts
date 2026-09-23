@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
@@ -142,9 +143,15 @@ const buildInvoiceFigures = (
   estimate: Awaited<ReturnType<typeof assertEstimate>>,
 ) => ({
   items: estimate.items.map((item) => ({
-    // Deliberately no `id`. Invoice line ids are matched against
-    // `WorkspaceTreatmentItem.invoiceRowId` when treatment items settle, so
-    // copying the EstimateItem id could mark an unrelated treatment row settled.
+    // A fresh server id, never the EstimateItem's own. Invoice line ids are
+    // matched against `WorkspaceTreatmentItem.invoiceRowId` when treatment
+    // items settle, so copying the EstimateItem id could mark an unrelated
+    // treatment row settled. This writer builds its lines inline rather than
+    // through InvoiceService, so it assigns them here; leaving them id-less
+    // (which is what this did before #3154) left a converted invoice with no
+    // line identity at all, so editing or removing one of two identical rows
+    // had nothing to target but the row's own content.
+    id: randomUUID(),
     name: item.description,
     description: item.description,
     quantity: item.quantity,

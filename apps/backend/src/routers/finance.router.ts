@@ -77,6 +77,18 @@ router.post(
   FinanceController.allocateProviderReceipt,
 );
 
+// Read-only, so `billing:view:any` rather than an edit permission, matching
+// the reconciliation queue above. This reports what a client has already paid
+// that no invoice of theirs claimed; spending it is the allocation route, and
+// that one carries `billing:edit:any`.
+router.get(
+  "/organisation/:organisationId/clients/:parentId/account-credit",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:view:any"),
+  FinanceController.getClientAccountCredit,
+);
+
 router.get(
   "/organisation/:organisationId/subscription/seat-sync-plan",
   requireWebAuth,

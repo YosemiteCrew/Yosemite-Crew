@@ -22,6 +22,30 @@ const openDocs = async (page: Page) => {
   await page.goto('/docs', { waitUntil: 'domcontentloaded' });
   await page.evaluate(() => document.fonts.ready);
   await expect(page.locator('.DocsTopBar')).toBeVisible();
+
+  /*
+   * Wait for React to adopt the toggle before any test presses it.
+   *
+   * This became necessary with #3510. While a root `loading.tsx` existed, the
+   * whole document was served inside a deferred Suspense boundary and only
+   * appeared when the inline `$RC(...)` swap ran, which is late enough that
+   * hydration had effectively always finished by the time anything here was
+   * visible - so `.DocsTopBar` being visible doubled as a hydration signal by
+   * accident. The public surface is now served as ordinary markup, so the
+   * control paints immediately and `toggle.focus()` + `Enter` can land before
+   * React has attached the handler: measured, the button carries no React keys
+   * at `domcontentloaded` and gains them about 40ms later. Without this the
+   * keyboard case failed on two of three parallel runs.
+   *
+   * `__reactProps$<id>` is a React internal, and it is used here deliberately:
+   * it is the precise fact being waited on - this element now has React's
+   * handler on it - and nothing else on the page reports that. A visible
+   * element cannot, which is exactly how the race got in.
+   */
+  await page.waitForFunction(() => {
+    const toggle = document.querySelector('.DocsNavToggle');
+    return toggle !== null && Object.keys(toggle).some((key) => key.startsWith('__reactProps$'));
+  });
 };
 
 test.describe('docs code samples at a phone width', () => {
@@ -108,6 +132,7 @@ const navMenu = (page: Page) => page.getByRole('button', { name: 'Documentation 
 const navTree = (page: Page) => page.locator('#docs-nav-tree');
 const docsTitleTop = (page: Page) =>
   page.locator('.DocsTitle').evaluate((el) => el.getBoundingClientRect().top);
+const collapsedSection = (page: Page) => page.locator('#docs-nav-tree [data-expanded="false"]');
 
 test.describe('collapsed docs navigation at a phone width', () => {
   test.use({ viewport: PHONE });
@@ -162,6 +187,111 @@ test.describe('collapsed docs navigation at a phone width', () => {
     await page.keyboard.press('Enter');
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await expect(navTree(page)).toBeHidden();
+  });
+});
+
+/*
+ * The no-JavaScript floor, and the arm that was missing when #3488 shipped.
+ *
+ * This measured COMPUTED STYLE rather than visibility until #3510 landed, and
+ * the reason is worth keeping: `src/app/loading.tsx` was a ROOT `loading.tsx`,
+ * so every route sat behind a Suspense boundary whose content React parks in a
+ * trailing `<div hidden id="S:0">` and swaps in with an inline script. With
+ * scripting off that script never ran, so `toBeVisible` answered "hidden" for
+ * `.DocsTopBar`, the article and the nav alike, on every page, fixed or not -
+ * it could see neither this defect nor its fix. #3510 moved that file into the
+ * `(app)` group, the public surface now serves a complete document, and these
+ * read visibility directly, which is the property a reader actually has.
+ *
+ * `e2e/no-js.spec.ts` holds the floor these depend on. If it goes red, expect
+ * this block to go red with it, and fix that one first.
+ */
+test.describe('docs navigation at a phone width with JavaScript disabled', () => {
+  test.use({ viewport: PHONE, javaScriptEnabled: false });
+
+  test('resolves the tree open and the dead disclosure away', async ({ page }) => {
+    await page.goto('/docs', { waitUntil: 'domcontentloaded' });
+
+    const tree = page.locator('#docs-nav-tree');
+    await expect(tree).toHaveCount(1);
+
+    /*
+     * The premise. The served state is still the collapsed one - the override
+     * is a stylesheet, not a different render, and that is the whole point:
+     * serving it open would flash the tree above the article on every phone
+     * load with JavaScript on. If this ever reads "true", the assertions below
+     * have stopped testing the case they were written for.
+     */
+    await expect(tree).toHaveAttribute('data-open', 'false');
+    /* `locator('a')` rather than a role query: a section declared `collapsed`
+       is closed with `display: none`, which takes its links out of the
+       accessibility tree, so a role query cannot count them. */
+    expect(await tree.locator('a').count()).toBeGreaterThan(0);
+
+    /* The media query hides this tree below 860px and `data-open` is still
+       `false` above, so the only thing putting it back is the `<noscript>`
+       override in DocsSidebar. Visible here therefore means the override
+       applied; remove it and this reads hidden, which is the defect. */
+    await expect(tree).toBeVisible();
+    /* A button whose only behaviour is an onClick handler must not be offered.
+       `toBeHidden` is also satisfied by an element that is not there at all,
+       so the count comes first: the fix withdraws this control from view, it
+       does not delete it, and a render that stopped emitting it would be a
+       different change needing a different assertion. */
+    const toggle = page.locator('.DocsNavToggle');
+    await expect(toggle).toHaveCount(1);
+    await expect(toggle).toBeHidden();
+  });
+
+  /*
+   * The collapsed section, which is the largest part of the tree and the one
+   * thing a scripting-off reader could never open. The override only reaches
+   * it because `docs.css` closes the body with an ordinary unlayered rule -
+   * so this is the assertion that fails if that rule is ever given `!important`
+   * or moved into a layer, and the one that fails if its selector stops
+   * matching the served DOM at all.
+   */
+  test('resolves a collapsed section open, links and all', async ({ page }) => {
+    await page.goto('/docs', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#docs-nav-tree')).toHaveCount(1);
+
+    /* Located by attribute rather than by id so this follows `docsNav.ts`
+       instead of pinning a label. */
+    const section = collapsedSection(page);
+
+    /*
+     * The premise, and it comes first for the same reason the toggle's count
+     * does above: `toBeVisible` is a claim about a section that is served
+     * closed and carries links, and a tree that had stopped declaring one
+     * collapsed would satisfy the assertion below by having nothing to resolve.
+     * `locator('a')` rather than a role query - `display: none` takes those
+     * links out of the accessibility tree, so a role query cannot count them.
+     */
+    await expect(section).toHaveCount(1);
+    expect(await section.locator('a').count()).toBeGreaterThan(0);
+
+    await expect(section).toBeVisible();
+  });
+});
+
+/*
+ * The other side of the same rule. With scripting on, that section must still
+ * be shut on arrival - the override lives in `<noscript>`, which a running
+ * browser ignores. Without this, a collapse rule whose selector had quietly
+ * stopped matching would read as a pass above and break nothing here.
+ */
+test.describe('docs navigation with JavaScript enabled', () => {
+  test.use({ viewport: DESKTOP });
+
+  test('keeps a section declared collapsed shut on arrival', async ({ page }) => {
+    await openDocs(page);
+
+    const section = collapsedSection(page);
+
+    await expect(section).toHaveCount(1);
+    expect(await section.locator('a').count()).toBeGreaterThan(0);
+
+    await expect(section).toBeHidden();
   });
 });
 

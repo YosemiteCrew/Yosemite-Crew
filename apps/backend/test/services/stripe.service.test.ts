@@ -1254,6 +1254,13 @@ describe("StripeService", () => {
       const createCall = (prisma.invoice.create as jest.Mock).mock.calls[0][0];
       expect(createCall.data.status).toBe("PAID");
       expect(createCall.data.paidAt).toBeInstanceOf(Date);
+      // #3154 - this writer builds its line inline rather than through
+      // InvoiceService, so it has to assign the id itself. A booking line is a
+      // persisted line like any other and the edit, settlement and credit paths
+      // all address a line by id.
+      const [bookingLine] = createCall.data.items as Array<{ id?: unknown }>;
+      expect(typeof bookingLine.id).toBe("string");
+      expect((bookingLine.id as string).length).toBeGreaterThan(0);
     });
 
     it("settles open invoice for appointment booking payment", async () => {

@@ -6,7 +6,7 @@ slug: /apps/backend/api/pain-assessment
 
 Records structured pain-assessment scores for a patient during a clinical encounter: the pain scale used, the numeric score, behavioural signs, and any pain-relief intervention given. All routes are under the PIMS (Practice Information Management System, the clinic-facing web app) `/pms` namespace and require organisation RBAC (role-based access control) permissions on `appointments`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/pain-assessments
 

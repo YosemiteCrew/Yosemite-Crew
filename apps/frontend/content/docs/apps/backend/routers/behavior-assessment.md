@@ -6,7 +6,7 @@ slug: /apps/backend/api/behavior-assessment
 
 Manages behavior assessments for a patient — Fear Anxiety Stress (FAS) score, handling tolerance, aggression triggers and aversion behaviors, training history, and Fear Free notes — recorded by the PIMS (Practice Information Management System, the clinic-facing web app). Gated by RBAC (role-based access control) under the `appointments` permission pair. Route params and payloads are validated with Zod; an invalid path parameter returns `400` with a `message`, and a domain-specific failure returns the matching status with a `message` from the service.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/behavior-assessments
 

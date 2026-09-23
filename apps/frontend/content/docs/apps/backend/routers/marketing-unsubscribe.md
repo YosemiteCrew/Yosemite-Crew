@@ -6,7 +6,7 @@ slug: /apps/backend/api/marketing-unsubscribe
 
 Implements the one-click unsubscribe flow for marketing emails, addressed by a signed token embedded in the email link rather than a session. GET only confirms the link and changes nothing; POST performs the unsubscribe. The split matters because mail providers and link scanners fetch every URL in a delivered message, so a mutating GET would let mere delivery unsubscribe the recipient.
 
-**Endpoints**
+## Endpoints
 
 ### GET /unsubscribe
 

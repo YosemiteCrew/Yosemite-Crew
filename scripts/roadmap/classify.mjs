@@ -68,6 +68,15 @@ export const affectedAreaOf = (body = '') => {
 const has = (labels, name) =>
   (labels || []).some((l) => String(l).toLowerCase() === name.toLowerCase());
 
+// A chore, ci, test, perf, build or refactor change scoped to the whole repo,
+// its dependencies or its tooling. Exported because judgment.mjs skips the
+// urgency judgment on exactly this set, and a second copy of the regex would
+// drift away from the ladder step it is named after.
+export const isRepoWideToolchain = (title = '') =>
+  /^(chore|ci|test|perf|build|refactor)\((repo|deps|deps-dev|ci|tooling)\)/i.test(
+    String(title).trim()
+  );
+
 // Count workspace path mentions in the body. An issue that names apps/frontend
 // four times and apps/backend twice is frontend work with a backend edge, not the
 // other way round, and the argmax says so without anyone having to label it.
@@ -142,10 +151,8 @@ export function classifyCategory({ title = '', body = '', labels = [] } = {}) {
   //    whole repo is infrastructure by definition, and its body is full of
   //    per-app examples that would otherwise capture it for whichever app got
   //    listed most. Decide it here, before any path evidence is consulted.
-  const repoWideToolchain =
-    /^(chore|ci|test|perf|build|refactor)\((repo|deps|deps-dev|ci|tooling)\)/i.test(title.trim());
   if (
-    repoWideToolchain ||
+    isRepoWideToolchain(title) ||
     has(labels, 'CI/CD') ||
     has(labels, 'Cloud') ||
     has(labels, 'security') ||

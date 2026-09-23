@@ -800,6 +800,8 @@ line_of_exact() { grep -n -m1 -x "$1" "$DEPLOY_SH" | cut -d: -f1 || true; }
 TRAP_LINE="$(line_of_exact 'deploy_arm_exit_traps')"
 FLAG_LINE="$(line_of 'MIGRATIONS_APPLIED=1')"
 DEPLOY_LINE="$(line_of 'run prisma:deploy')"
+ASSERT_LINE="$(line_of 'run schema:assert')"
+SMOKE_LINE="$(line_of 'say "smoke boot on')"
 
 if [ -n "$TRAP_LINE" ] && [ -n "$FLAG_LINE" ] && [ -n "$DEPLOY_LINE" ] \
    && [ "$TRAP_LINE" -lt "$FLAG_LINE" ] && [ "$FLAG_LINE" -lt "$DEPLOY_LINE" ]; then
@@ -807,6 +809,14 @@ if [ -n "$TRAP_LINE" ] && [ -n "$FLAG_LINE" ] && [ -n "$DEPLOY_LINE" ] \
 else
   no "api-deploy.sh arms the traps and raises the flag before applying migrations" \
      "trap=$TRAP_LINE flag=$FLAG_LINE deploy=$DEPLOY_LINE"
+fi
+
+if [ -n "$DEPLOY_LINE" ] && [ -n "$ASSERT_LINE" ] && [ -n "$SMOKE_LINE" ] \
+   && [ "$DEPLOY_LINE" -lt "$ASSERT_LINE" ] && [ "$ASSERT_LINE" -lt "$SMOKE_LINE" ]; then
+  ok "api-deploy.sh checks the deployed schema before smoke boot"
+else
+  no "api-deploy.sh checks the deployed schema before smoke boot" \
+     "deploy=$DEPLOY_LINE assert=$ASSERT_LINE smoke=$SMOKE_LINE"
 fi
 
 # The $STAMP keying, which only a string match can carry: the behavioural check

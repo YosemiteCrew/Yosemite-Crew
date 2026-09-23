@@ -414,8 +414,13 @@
   [data-hide-m] {
     display: none !important;
   }
+  /* minmax(0, 1fr) rather than a bare 1fr: a bare fr track keeps the implicit
+     `auto` minimum, so one wide item (the Insights live console) widens the
+     track past the container and every sibling stretches with it. Deliberately
+     not applied to [data-grid-2-m] - its narrower cells rely on that minimum to
+     hold the live stat counters, which overflow a hard-capped track. */
   [data-grid-1-m] {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: minmax(0, 1fr) !important;
   }
   [data-grid-2-m] {
     grid-template-columns: 1fr 1fr !important;

@@ -6,7 +6,7 @@ slug: /apps/backend/api/insurance-claim
 
 Manages pet-insurance claims raised against an invoice or encounter: creation, editing, submission to the insurer, status tracking, and cancellation. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/insurance-claims
 

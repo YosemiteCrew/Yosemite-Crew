@@ -1,5 +1,6 @@
 {
   "name": "@yosemite-crew/database",
+  "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -22,6 +23,8 @@
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema prisma/schema.prisma",
     "prisma:deploy": "prisma migrate deploy --schema prisma/schema.prisma",
+    "schema:assert": "prisma db execute --file prisma/assert-schema-invariants.sql --schema prisma/schema.prisma",
+    "test:schema-invariants": "node --test scripts/assert-schema-invariants.test.mjs",
     "prisma:studio": "prisma studio --schema prisma/schema.prisma"
   },
   "dependencies": {

@@ -6,7 +6,7 @@ slug: /apps/backend/api/treatment-protocol
 
 Manages treatment protocol templates for the PIMS (Practice Information Management System, the clinic-facing web app): reusable, species- and category-scoped playbooks made up of steps (tasks, medications, services, or notes) that a clinician can apply to a patient's encounter. All routes are under the `/pms` namespace and require organisation RBAC (role-based access control) permissions on `appointments`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/treatment-protocols
 
