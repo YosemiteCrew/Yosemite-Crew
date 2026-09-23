@@ -1,13 +1,17 @@
 import {
+  ProviderReceiptAllocationError,
+  allocateProviderReceipt,
   getProviderReceiptErrorMessage,
   listProviderReceipts,
 } from '@/app/features/finance/services/providerReceiptService';
 
 const getData = jest.fn();
+const postData = jest.fn();
 
 jest.mock('@/app/services/axios', () => ({
   __esModule: true,
   getData: (...a: unknown[]) => getData(...a),
+  postData: (...a: unknown[]) => postData(...a),
 }));
 
 const row = {
@@ -34,6 +38,7 @@ const envelope = (data: unknown, meta: unknown) => ({
 
 beforeEach(() => {
   getData.mockReset();
+  postData.mockReset();
 });
 
 describe('listProviderReceipts', () => {
@@ -207,5 +212,170 @@ describe('getProviderReceiptErrorMessage', () => {
       'fallback'
     );
     expect(getProviderReceiptErrorMessage(new Error('   '), 'fallback')).toBe('fallback');
+  });
+});
+
+/*
+ * The write half of the queue.
+ *
+ * Every assertion here is about what the screen is allowed to believe after a
+ * call: the receipt it renders is the stored one, a refusal arrives as
+ * something it can act on rather than only print, and a retry that found the
+ * decision already taken is a success.
+ */
+
+const axiosError = (status: number, data: unknown) => {
+  const error = new Error(`Request failed with status code ${status}`) as Error & {
+    response: { status: number; data: unknown };
+  };
+  error.response = { status, data };
+  return error;
+};
+
+describe('allocateProviderReceipt', () => {
+  const input = {
+    expectedVersion: 2,
+    idempotencyKey: 'key-1',
+    allocations: [{ invoiceId: 'inv-1', amount: 40 }],
+  };
+
+  it('posts to the receipt-scoped allocations path and reads the stored receipt back', async () => {
+    postData.mockResolvedValue({
+      data: {
+        data: {
+          receipt: { ...row, status: 'ALLOCATED', allocatedAmount: 40, version: 3 },
+          remainingAmount: 80.5,
+          allocations: [{ invoiceId: 'inv-1', amount: 40 }],
+        },
+        meta: { replayed: false },
+        error: null,
+      },
+    });
+
+    const result = await allocateProviderReceipt('org-1', 'rec-1', input);
+
+    expect(postData).toHaveBeenCalledWith(
+      '/v1/finance/organisation/org-1/provider-receipts/rec-1/allocations',
+      input
+    );
+    expect(result.receipt).toMatchObject({ status: 'ALLOCATED', allocatedAmount: 40, version: 3 });
+    expect(result.remainingAmount).toBe(80.5);
+    expect(result.allocations).toEqual([{ invoiceId: 'inv-1', amount: 40 }]);
+    expect(result.replayed).toBe(false);
+  });
+
+  it('encodes both ids as single path segments', async () => {
+    postData.mockResolvedValue({
+      data: {
+        data: { receipt: row, remainingAmount: 0, allocations: [] },
+        meta: null,
+        error: null,
+      },
+    });
+
+    await allocateProviderReceipt('org/../1', 'rec/../2', input);
+
+    expect(postData).toHaveBeenCalledWith(
+      '/v1/finance/organisation/org%2F..%2F1/provider-receipts/rec%2F..%2F2/allocations',
+      input
+    );
+  });
+
+  it('reports a replay as the success it is', async () => {
+    postData.mockResolvedValue({
+      data: {
+        data: {
+          receipt: row,
+          remainingAmount: 12,
+          allocations: [{ invoiceId: 'inv-1', amount: 40 }],
+        },
+        meta: { replayed: true },
+        error: null,
+      },
+    });
+
+    await expect(allocateProviderReceipt('org-1', 'rec-1', input)).resolves.toMatchObject({
+      replayed: true,
+    });
+  });
+
+  it('carries the stale version out of a conflict so the screen can act on it', async () => {
+    postData.mockRejectedValue(
+      axiosError(409, {
+        message: 'The receipt changed since it was read.',
+        error: { code: 'VERSION_CONFLICT', version: 7 },
+      })
+    );
+
+    await expect(allocateProviderReceipt('org-1', 'rec-1', input)).rejects.toThrow(
+      ProviderReceiptAllocationError
+    );
+
+    await allocateProviderReceipt('org-1', 'rec-1', input).catch((error: unknown) => {
+      expect(error).toBeInstanceOf(ProviderReceiptAllocationError);
+      expect((error as ProviderReceiptAllocationError).failure).toEqual({
+        code: 'VERSION_CONFLICT',
+        message: 'The receipt changed since it was read.',
+        version: 7,
+      });
+    });
+  });
+
+  it('carries the residual and the request out of an over-allocation', async () => {
+    postData.mockRejectedValue(
+      axiosError(409, {
+        message: 'The requested allocation is more than this capture has left to apply.',
+        error: { code: 'EXCEEDS_RESIDUAL', residual: 20, requested: 40 },
+      })
+    );
+
+    const failure = await allocateProviderReceipt('org-1', 'rec-1', input).catch(
+      (error: ProviderReceiptAllocationError) => error.failure
+    );
+
+    expect(failure).toMatchObject({ code: 'EXCEEDS_RESIDUAL', residual: 20, requested: 40 });
+  });
+
+  /*
+   * A rejection this screen never asked for - a 403 from the permission
+   * middleware, a proxy's error page - has no code, and every branch that
+   * reacts to one treats an empty code as "not something this screen can fix".
+   */
+  it('reads a refusal with no structured half as a message and nothing more', async () => {
+    postData.mockRejectedValue(axiosError(403, { message: 'Forbidden' }));
+
+    const failure = await allocateProviderReceipt('org-1', 'rec-1', input).catch(
+      (error: ProviderReceiptAllocationError) => error.failure
+    );
+
+    expect(failure).toEqual({ code: '', message: 'Forbidden' });
+  });
+
+  it('falls back to a sentence of its own when the failure carries none', async () => {
+    postData.mockRejectedValue({ response: { status: 502, data: '<html>bad gateway</html>' } });
+
+    const failure = await allocateProviderReceipt('org-1', 'rec-1', input).catch(
+      (error: ProviderReceiptAllocationError) => error.failure
+    );
+
+    expect(failure).toEqual({ code: '', message: 'Unable to apply this captured payment.' });
+  });
+
+  it('treats an error envelope on a 200 as the refusal it is', async () => {
+    postData.mockResolvedValue({
+      data: { data: null, meta: null, error: { code: 'NOT_FOUND', message: 'Receipt not found.' } },
+    });
+
+    await expect(allocateProviderReceipt('org-1', 'rec-1', input)).rejects.toThrow(
+      'Receipt not found.'
+    );
+  });
+
+  it('refuses to build a path from a missing id', async () => {
+    await expect(allocateProviderReceipt('', 'rec-1', input)).rejects.toThrow(
+      'Organisation ID missing'
+    );
+    await expect(allocateProviderReceipt('org-1', '', input)).rejects.toThrow('Receipt ID missing');
+    expect(postData).not.toHaveBeenCalled();
   });
 });
