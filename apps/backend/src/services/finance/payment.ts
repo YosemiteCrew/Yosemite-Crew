@@ -1664,38 +1664,95 @@ export const FinancePaymentService = {
       );
     }
 
-    const refund = await prisma.refund.create({
-      data: {
-        paymentId: payment.id,
-        provider: payment.provider,
-        providerRefundId,
-        amount: amountRefunded,
-        currency: payment.currency,
-        status: mapRefundStatus(refundStatus),
-        reason: reason ?? undefined,
-        rawProviderPayload: {
-          source: "finance.refundInvoicePayment",
-          invoiceId,
-          paymentId: payment.id,
-          providerRefundId,
-          refundStatus,
-        },
-      },
-    });
+    // The Refund row, the Payment status and the invoice status move together
+    // behind the same key the read above took, which is the key the capture
+    // path takes. recordInvoicePayment rejects a capture whose invoice reads
+    // REFUNDED, and it reads that status under the lock - so leaving the write
+    // of it out here gave that guard a window to read stale. Between
+    // `refund.create` landing and the status write, the invoice's paid total
+    // has already dropped but it still reads PAID, and a capture arriving in
+    // that gap is applied to an invoice this method is on its way to marking
+    // refunded.
+    //
+    // `invoice.metadata` is re-read in here too. The snapshot from the read
+    // transaction is older than the Stripe round-trip, and spreading it into a
+    // whole-column write discards anything written to `metadata` in between.
+    //
+    // The Stripe call stays outside, for the reason the read transaction gives:
+    // a network round-trip inside an interactive transaction spends Prisma's 5s
+    // budget while holding a pool connection. That is why this is a second
+    // transaction rather than an extension of the first.
+    const { refund, updatedPayment, updatedInvoice } =
+      await prisma.$transaction(async (tx) => {
+        const lockKey = `invoice-payment:${invoiceId}`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 
-    const updatedPayment = await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: "REFUNDED",
-        rawProviderPayload: {
-          source: "finance.refundInvoicePayment",
-          invoiceId,
-          refundId: refund.id,
-          providerRefundId,
-        },
-      },
-    });
+        const lockedInvoice = await tx.invoice.findUnique({
+          where: { id: invoiceId },
+        });
 
+        if (!lockedInvoice) {
+          throw new FinancePaymentError("Invoice not found", 404);
+        }
+
+        const createdRefund = await tx.refund.create({
+          data: {
+            paymentId: payment.id,
+            provider: payment.provider,
+            providerRefundId,
+            amount: amountRefunded,
+            currency: payment.currency,
+            status: mapRefundStatus(refundStatus),
+            reason: reason ?? undefined,
+            rawProviderPayload: {
+              source: "finance.refundInvoicePayment",
+              invoiceId,
+              paymentId: payment.id,
+              providerRefundId,
+              refundStatus,
+            },
+          },
+        });
+
+        const refundedPayment = await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: "REFUNDED",
+            rawProviderPayload: {
+              source: "finance.refundInvoicePayment",
+              invoiceId,
+              refundId: createdRefund.id,
+              providerRefundId,
+            },
+          },
+        });
+
+        const refundedInvoice = await tx.invoice.update({
+          where: { id: invoiceId },
+          data: {
+            status: "REFUNDED",
+            metadata: {
+              ...((lockedInvoice.metadata as Record<string, unknown> | null) ??
+                EMPTY_METADATA),
+              cancellationReason: reason ?? undefined,
+              refundId: providerRefundId ?? createdRefund.id,
+              amount: amountRefunded,
+              refundDate: new Date().toISOString(),
+            },
+          },
+          include: { payments: true },
+        });
+
+        return {
+          refund: createdRefund,
+          updatedPayment: refundedPayment,
+          updatedInvoice: refundedInvoice,
+        };
+      });
+
+    // Outside the transaction: recordEvent closes over the module-level client,
+    // so calling it in there would run on a second connection against rows the
+    // transaction still holds.
     await FinanceEventService.recordEvent({
       organisationId: invoice.organisationId ?? null,
       eventType: "INVOICE_REFUNDED",
@@ -1710,22 +1767,6 @@ export const FinancePaymentService = {
         reason: reason ?? null,
       },
       occurredAt: new Date(),
-    });
-
-    const updatedInvoice = await prisma.invoice.update({
-      where: { id: invoiceId },
-      data: {
-        status: "REFUNDED",
-        metadata: {
-          ...((invoice.metadata as Record<string, unknown> | null) ??
-            EMPTY_METADATA),
-          cancellationReason: reason ?? undefined,
-          refundId: providerRefundId ?? refund.id,
-          amount: amountRefunded,
-          refundDate: new Date().toISOString(),
-        },
-      },
-      include: { payments: true },
     });
 
     return {
@@ -2420,61 +2461,88 @@ export const FinancePaymentService = {
       return { action: "NO_INVOICE" as const };
     }
 
-    if (invoice.status === "REFUNDED") {
-      return { action: "ALREADY_REFUNDED" as const, invoice };
-    }
+    // Stripe redelivers on any non-2xx and nothing upstream deduplicates by
+    // event id, so two deliveries of one refund can be in here at the same
+    // time. The REFUNDED check was the only thing stopping them both writing,
+    // and it read outside any lock, before three unlocked writes. Both would
+    // pass it and both would insert a Refund - and Refund has no unique
+    // constraint on providerRefundId - so the same money is subtracted twice by
+    // getNetPaymentAmount and the invoice reads under-paid. A full refund hides
+    // that behind its max(0, ...) clamp; a partial one bills the client for the
+    // difference.
+    //
+    // So the check and the writes take the invoice-scoped key the capture path
+    // takes, and the status is re-read under it: a second delivery then reads
+    // REFUNDED and stops. The lookup above stays outside because it only
+    // resolves which invoice this is; nothing is decided on it.
+    return prisma.$transaction(async (tx) => {
+      const lockKey = `invoice-payment:${invoice.id}`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 
-    const payment = await prisma.payment.findFirst({
-      where: {
-        invoiceId: invoice.id,
-        ...(input.paymentIntentId
-          ? { providerPaymentId: input.paymentIntentId }
-          : {}),
-      },
-      orderBy: { createdAt: "desc" },
-    });
+      const lockedInvoice = await tx.invoice.findUnique({
+        where: { id: invoice.id },
+      });
 
-    if (payment) {
-      await prisma.refund.create({
+      if (!lockedInvoice) {
+        return { action: "NO_INVOICE" as const };
+      }
+
+      if (lockedInvoice.status === "REFUNDED") {
+        return { action: "ALREADY_REFUNDED" as const, invoice: lockedInvoice };
+      }
+
+      const payment = await tx.payment.findFirst({
+        where: {
+          invoiceId: lockedInvoice.id,
+          ...(input.paymentIntentId
+            ? { providerPaymentId: input.paymentIntentId }
+            : {}),
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (payment) {
+        await tx.refund.create({
+          data: {
+            paymentId: payment.id,
+            provider: payment.provider,
+            providerRefundId: input.chargeId ?? null,
+            amount: input.amount,
+            currency: input.currency,
+            status: "SUCCEEDED",
+            reason: input.reason ?? undefined,
+            rawProviderPayload: {
+              source: "finance.markInvoiceRefundedFromWebhook",
+              invoiceId: lockedInvoice.id,
+              paymentIntentId: input.paymentIntentId ?? null,
+              chargeId: input.chargeId ?? null,
+            },
+          },
+        });
+
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: { status: "REFUNDED" },
+        });
+      }
+
+      const updated = await tx.invoice.update({
+        where: { id: lockedInvoice.id },
         data: {
-          paymentId: payment.id,
-          provider: payment.provider,
-          providerRefundId: input.chargeId ?? null,
-          amount: input.amount,
-          currency: input.currency,
-          status: "SUCCEEDED",
-          reason: input.reason ?? undefined,
-          rawProviderPayload: {
-            source: "finance.markInvoiceRefundedFromWebhook",
-            invoiceId: invoice.id,
-            paymentIntentId: input.paymentIntentId ?? null,
-            chargeId: input.chargeId ?? null,
+          status: "REFUNDED",
+          metadata: {
+            ...((lockedInvoice.metadata as Record<string, unknown> | null) ??
+              EMPTY_METADATA),
+            refundId: input.chargeId ?? undefined,
+            amount: input.amount,
+            refundDate: new Date().toISOString(),
+            cancellationReason: input.reason ?? undefined,
           },
         },
       });
 
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: "REFUNDED" },
-      });
-    }
-
-    const updated = await prisma.invoice.update({
-      where: { id: invoice.id },
-      data: {
-        status: "REFUNDED",
-        metadata: {
-          ...((invoice.metadata as Record<string, unknown> | null) ??
-            EMPTY_METADATA),
-          refundId: input.chargeId ?? undefined,
-          amount: input.amount,
-          refundDate: new Date().toISOString(),
-          cancellationReason: input.reason ?? undefined,
-        },
-      },
+      return { action: "REFUNDED" as const, invoice: updated };
     });
-
-    return { action: "REFUNDED" as const, invoice: updated };
   },
 
   async handleInvoicePaymentFailed(input: {
