@@ -7,7 +7,9 @@ export const PLATFORM_STATUS_URL = 'https://yosemite-crew.openstatus.dev/';
    used to test `String(input).includes('openstatus.dev')`, which CodeQL flagged
    as an incomplete URL check - it also matches `openstatus.dev.example.com` -
    and which duplicated a host fragment this module owns. */
-export const PLATFORM_STATUS_API_URL = 'https://api.openstatus.dev/public/status/yosemite-crew';
+// Same-origin route, not the status provider directly: the route only reports
+// `operational` when the status page has something configured to measure (#2743).
+export const PLATFORM_STATUS_API_URL = '/api/platform-status';
 
 export type PlatformStatus =
   | 'operational'
