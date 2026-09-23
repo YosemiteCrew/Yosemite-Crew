@@ -506,6 +506,7 @@ describe('runTurn: rephrasing', () => {
     expect(rephraseMock).toHaveBeenCalledWith(
       'assistant.replies.expenseSummary.total|' +
         '{"total":40,"currency":"EUR","petName":"","count":1}',
+      [40, 'EUR', '', 1],
     );
     expect(turn.text).toBe(
       'warmer: assistant.replies.expenseSummary.total|' +
