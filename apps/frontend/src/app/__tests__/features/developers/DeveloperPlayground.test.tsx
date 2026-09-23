@@ -70,7 +70,9 @@ describe('DeveloperPlayground', () => {
       signal: expect.any(AbortSignal),
     });
     expect(screen.getByText('req-123')).toBeInTheDocument();
-    expect(screen.getByLabelText('Response body')).toHaveTextContent('"Synthetic Vets"');
+    const responseBody = screen.getByLabelText('Response body');
+    expect(responseBody).toHaveTextContent('"Synthetic Vets"');
+    expect(responseBody).not.toHaveAttribute('tabindex');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
     // The practices it returned are offered in the x-org-id field.

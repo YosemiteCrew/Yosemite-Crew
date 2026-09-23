@@ -680,7 +680,7 @@ const ResponseView = ({
         </p>
       ) : null}
       {body ? (
-        <pre className="PlaygroundPre" tabIndex={0} aria-label="Response body">
+        <pre className="PlaygroundPre" aria-label="Response body">
           {body.text}
         </pre>
       ) : null}
