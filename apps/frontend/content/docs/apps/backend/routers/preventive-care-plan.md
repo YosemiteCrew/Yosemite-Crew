@@ -6,7 +6,7 @@ slug: /apps/backend/api/preventive-care-plan
 
 Manages a patient's preventive-care plan in the PIMS (Practice Information Management System, the clinic-facing web app) — a named plan (for example "Annual Wellness") made up of recurring care items such as vaccinations or parasite prevention, each with its own frequency (`WEEKLY`, `MONTHLY`, `QUARTERLY`, `BIANNUAL`, `ANNUAL`, or `CUSTOM`) and next-due date. The plan itself tracks status through `ACTIVE`, `PAUSED`, `COMPLETED`, or `CANCELLED`, and individual items are marked done through a dedicated complete endpoint. All routes require organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/preventive-care-plans
 

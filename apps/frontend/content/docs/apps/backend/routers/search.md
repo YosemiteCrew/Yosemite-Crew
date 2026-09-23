@@ -6,7 +6,7 @@ slug: /apps/backend/api/search
 
 Cross-entity search endpoints scoped to an organisation: medications and general inventory items, the shared template library, tasks, documents, billable services, and service packages. Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /organisations/:organisationId/medications
 

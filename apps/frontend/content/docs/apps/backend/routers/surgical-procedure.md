@@ -6,7 +6,7 @@ slug: /apps/backend/api/surgical-procedure
 
 Records surgical procedures performed on a patient during an encounter: the surgeon and assistants, anaesthesia, timing, outcome, complications, instruments used, and specimens sent. Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/surgical-procedures
 

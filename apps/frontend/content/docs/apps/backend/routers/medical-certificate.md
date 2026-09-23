@@ -6,7 +6,7 @@ slug: /apps/backend/api/medical-certificate
 
 Manages medical certificates (health, vaccination, travel-fitness, export, boarding/breeding clearance, and other clinic-issued certificates) for a patient. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and are scoped to an organisation. A certificate moves through draft, issued, revoked, and expired states; issuing/revoking/expiring a certificate not in a valid starting state returns `409` with `{ message }`, and an unknown certificate returns `404` with `{ message }`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/medical-certificates
 

@@ -6,7 +6,7 @@ slug: /apps/backend/api/reproductive-record
 
 Tracks a patient's reproductive status and breeding history in the PIMS (Practice Information Management System, the clinic-facing web app) — spay/neuter status (`INTACT`, `SPAYED`, `NEUTERED`, `CASTRATED`, `UNKNOWN`), heat and mating dates, sire details, pregnancy status (`SUSPECTED`, `CONFIRMED`, `WHELPED`, `QUEENED`, `ABORTED`, `RESORBED`), expected/actual whelping (birth) dates, and litter sizes from ultrasound, X-ray, and at birth. All routes require organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/reproductive-records
 

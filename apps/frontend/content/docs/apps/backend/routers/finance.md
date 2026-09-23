@@ -6,7 +6,7 @@ slug: /apps/backend/api/finance
 
 Covers billing: discount policy, subscriptions and usage metering, invoices and their line items, payments, refunds, and the checkout-session relays used by both the PIMS (Practice Information Management System, the clinic-facing web app) and the mobile app. Routes under `/mobile` are called by the mobile app on behalf of a pet parent and use `requireMobileAuth` with no organisation RBAC (role-based access control) check; the remaining routes are called by the PIMS and require organisation RBAC, scoped through whichever resource the route is addressed by (`withOrgPermissions` for organisation-level routes, or a resource-derived variant — `withInvoiceOrgPermissions`, `withPaymentOrgPermissions`, `withPaymentIntentOrgPermissions`, `withAppointmentOrgPermissions` — for routes addressed by an invoice, payment, payment intent, or appointment id). Every success response uses the envelope `{ data, meta: null, error: null }`; errors return `{ message }` at the originating service's status code, or `500` with a generic message. Three appointment-scoped payment endpoints (`POST /invoices/:invoiceId/payments/sessions`, `GET /:invoiceId`, `POST /mobile/appointments/:appointmentId/invoices`) are additionally rate-limited to 120 requests per 15 minutes per appointment (`financeAppointmentLimiter`).
 
-**Endpoints**
+## Endpoints
 
 ### GET /organisation/:organisationId/discount-settings
 

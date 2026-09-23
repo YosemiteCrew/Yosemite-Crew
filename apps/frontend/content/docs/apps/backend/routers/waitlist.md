@@ -6,7 +6,7 @@ slug: /apps/backend/api/waitlist
 
 Manages an organisation's appointment waitlist: adding a patient, offering them an open slot, booking or cancelling their entry once an appointment exists for it, and expiring entries that have gone stale. All routes are under the PIMS (Practice Information Management System, the clinic-facing web app) `/pms` namespace and require organisation RBAC (role-based access control) permissions on `appointments`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/waitlist
 

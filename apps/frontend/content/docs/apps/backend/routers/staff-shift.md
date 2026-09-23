@@ -6,7 +6,7 @@ slug: /apps/backend/api/staff-shift
 
 Manages clinic staff shifts: scheduling a shift, listing and retrieving them, and moving a shift through its lifecycle (start, complete, cancel, mark no-show). Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/staff-shifts
 

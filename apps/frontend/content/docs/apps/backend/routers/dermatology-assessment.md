@@ -6,7 +6,7 @@ slug: /apps/backend/api/dermatology-assessment
 
 Records a patient's dermatology assessment in the PIMS (Practice Information Management System) — pruritus score, affected regions and lesion mapping, coat quality, environmental allergens and food-trial status, a CADESI-04 (Canine Atopic Dermatitis Extent and Severity Index) score, and differential diagnoses.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId/dermatology-assessments
 

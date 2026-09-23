@@ -6,7 +6,7 @@ slug: /apps/backend/api/integration
 
 Manages an organisation's third-party integration accounts (for example IDEXX or another lab/PMS provider): listing configured integrations, viewing one by provider, storing its credentials, enabling/disabling it, and validating the stored credentials. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC permissions.
 
-**Endpoints**
+## Endpoints
 
 ### GET /pms/organisation/:organisationId
 

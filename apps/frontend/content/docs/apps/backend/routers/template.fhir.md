@@ -6,7 +6,7 @@ slug: /apps/backend/api/template.fhir
 
 Exposes the same templates as the [Template API](./template.md) (`/v1/templates`) as FHIR resources instead of plain JSON: form-style templates as the `Questionnaire` resource, task/workflow templates as the `PlanDefinition` resource, and instances of either kind as `QuestionnaireResponse`. A route only acts on templates of its own family — a `PlanDefinition` route 400s a form-style template id, and vice versa. Mounted at `/fhir/v1/template`.
 
-**Endpoints**
+## Endpoints
 
 ### GET /questionnaire/library
 

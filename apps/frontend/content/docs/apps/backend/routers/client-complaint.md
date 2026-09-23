@@ -6,7 +6,7 @@ slug: /apps/backend/api/client-complaint
 
 Tracks client complaints against a practice — category (clinical care, communication, billing, wait times, facilities, staff conduct, outcome concern, other), status workflow (open, investigating, pending response, resolved, closed, escalated), assignment, resolution, and an internal/external note thread. All routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and are gated by organisation RBAC (role-based access control).
 
-**Endpoints**
+## Endpoints
 
 ### POST /pms/organisation/:organisationId/client-complaints
 

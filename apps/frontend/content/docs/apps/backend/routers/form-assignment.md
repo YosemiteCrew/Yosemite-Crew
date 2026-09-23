@@ -6,7 +6,7 @@ slug: /apps/backend/api/form-assignment
 
 Manages form assignments: sending a template-based form to a client for an appointment, listing assignments by appointment/companion/organisation, and resending or cancelling one. Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions. A body that fails Zod validation returns `400` with `{ message, issues: [{ path, message }] }`; a known service error returns `{ message }` at its own status code.
 
-**Endpoints**
+## Endpoints
 
 ### POST /organisations/:organisationId/appointments/:appointmentId/assignments
 

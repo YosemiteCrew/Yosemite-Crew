@@ -6,7 +6,7 @@ slug: /apps/backend/api/documenso
 
 Integrates with Documenso, an open-source document e-signature service. Called by the PIMS (Practice Information Management System, the clinic-facing web app) to obtain a signing redirect URL and to store an organisation's Documenso API key.
 
-**Endpoints**
+## Endpoints
 
 ### POST /pms/redirect/:orgId
 
